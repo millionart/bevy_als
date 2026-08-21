@@ -10,10 +10,10 @@
 
 1. 通读 `agents.md`（执行规则）与 `CHECKLIST.md`（基础事实与模块清单）。
 2. 从 `CHECKLIST.md` 第一个未勾选的清单项开始执行（首次为 M0.1）。
-3. 每完成一项：自测 → `git commit -m "M<编号>: <条目摘要>"` → 在 `CHECKLIST.md` 中勾选 `[x]`。
-4. 遇到 Gate 项：完整执行 Gate 验证并留证据（命令输出/截图路径）后才勾选；Gate 未过不得进入下一模块。
+3. 每完成一项：自测 → 在 `CHECKLIST.md` 中勾选 `[x]` → 连同勾选一次提交（`M<编号>: <条目摘要>`）。
+4. 遇到 Gate 项：完整执行 Gate 验证，证据（命令输出/截图路径）写入该次提交说明后方可勾选；Gate 未过不得进入下一模块。
 5. 需要本地路径/引擎/MCP 连接信息时查 `docs/env.md`（隐私文件，勿提交）。
-6. 需要动画/模型占位资产时，通过 Unreal MCP 从 ALS-Refactored 工程导出（步骤见 `docs/env.md`），登记到 `assets/docs/export-manifest.md`。
+6. 占位资产已在 M0.5 一次性批量导出；后续不得零散补导，确需补充先在 `CHECKLIST.md` 增补条目再执行（导出步骤见 `docs/env.md`）。
 7. 插件能力扩展统一在 `crates/als-ext` 经基座插件公开扩展点实现（curve、ControlRig 等价 IK 等），不改 fork；确需修改插件本体时才动 fork，且必须独立小步提交推送、可回馈上游。bevy_als 本体保持纯净的 ALS 系统，仅做编排与消费；扩展能力以 als-ext 模块边界隔离，未来可按需拆出独立仓库。
 
 ## 验收

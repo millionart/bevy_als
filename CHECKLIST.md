@@ -1,7 +1,7 @@
 # bevy_als — 执行清单（M0–M11）
 
 > 本文件是唯一权威执行清单；执行纪律见 `agents.md`（仅规则），启动方式见 `goal.md`。
-> 完成一项即勾选并提交：实现 → 自测 → `git commit -m "M<编号>: <条目摘要>"` → 勾选 `[x]`。
+> 完成一项即勾选并一次提交：实现 → 自测 → 勾选 `[x]` → `git commit -m "M<编号>: <条目摘要>"`（勾选与实现同一提交）。
 
 ## 背景与基础事实（已核实）
 
@@ -25,8 +25,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 - [ ] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`、`crates/als-ext`（基座插件扩展与 IK 后处理：curve、ControlRig 等价 IK 等）；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph(fork)、bevy-tnua(fork, avian3d)、bevy_enhanced_input。
 - [ ] M0.2 配置依赖指向本机 fork path：bevy_animation_graph、bevy-tnua，并在 README 记录 upstream 与 fork 地址。
-- [ ] M0.3 建立 `assets/` 目录约定：`models/`、`animations/`、`graphs/`、`curves/`、`docs/export-manifest.md`（记录每次从 UE 导出的资产清单与来源路径哈希）。
-- [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset）。
+- [ ] M0.3 建立 `assets/` 目录约定：`assets/models/`、`assets/animations/`、`assets/graphs/`、`assets/curves/`、`assets/docs/export-manifest.md`（记录导出资产清单与来源路径哈希）。
+- [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset；连接方式与验证命令见 `docs/env.md`）。
 - [ ] M0.5 用 MCP 从 ALS 工程一次性批量导出全部占位资产（不分批）：UE5 Manny 蒙皮网格与骨骼骨架（入库 `assets/models/`）+ 全部动画组 Grounded/Air/Actions/Transitions/TurnInPlace/RotateInPlace/Overlays/View/Base（glTF/JSON 中间格式，转换入库 `assets/animations/`）+ 关键曲线数值表（入库 `assets/curves/`），并写完整 export-manifest。
 - [ ] M0.6 编写资产导入小工具（`tools/import` 或 build 脚本）：UE 导出物 → bevy_asset 可加载格式（GLTF→GraphClip/场景）的一键流程。
 - [ ] M0.7 **Gate**：`cargo run --example skeleton_boot` 加载骨架+一条动画并在窗口中播放；export-manifest 存在且含来源记录。
@@ -35,7 +35,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 对标 ALS GameplayTags 体系，改为纯 ECS 组件。参考 ALS：ViewMode / LocomotionMode / RotationMode / Stance / Gait / OverlayState。
 
-- [ ] M1.1 `crates/als-core`：定义状态组件 `LocomotionState`（Grounded/Air/Ragdoll 等顶层 mode）、`RotationMode`(VelocityDirection/ControlDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…枚举起步)。
+- [ ] M1.1 `crates/als-core`：定义状态组件 `LocomotionState`（Grounded/Air/Ragdoll 等顶层 mode）、`RotationMode`(VelocityDirection/ControlDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…枚举起步)；全部枚举取值须对照 ALS 源码（AlsGameplayTags 等）核对后定稿，不得凭记忆杜撰。
 - [ ] M1.2 状态合法性约束系统：非法转移（如空中切蹲）由专门 system 拒绝/排队；提供 `StateTransitionEvent`。
 - [ ] M1.3 输入抽象层：bevy_enhanced_input 映射 Move/Look/Jump/Crouch/Sprint/Aim/Roll 等 action → `AlsInputCommand` 组件（与具体设备解耦）。
 - [ ] M1.4 角色实体组装 API：`AlsCharacterBundle`（Transform、物理体、tnua controller、状态组件、参数资源句柄）+ 生成示例角色的 example。
@@ -54,12 +54,12 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [ ] M2.5 将 ALS 关键曲线数值表导入为 RON 并加载验证；单元测试覆盖曲线端点/中点求值与节点类型检查。
 - [ ] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
 
-## M3 运动基座：tnua → ALS 参数映射（依赖：M1）
+## M3 运动基座：tnua → ALS 参数映射（依赖：M1, M2）
 
 用 bevy-tnua 替代 UE CharacterMovementComponent。目标：walk/run/sprint/crouch/jump 手感对齐 ALS 数值。
 
 - [ ] M3.1 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
-- [ ] M3.2 `TnuaMotionBasis` ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
+- [ ] M3.2 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
 - [ ] M3.3 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。
 - [ ] M3.4 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
 - [ ] M3.5 旋转模式系统：VelocityDirection（非瞄准）/ControlDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
@@ -85,7 +85,7 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [ ] M5.4 RotateInPlace（瞄准态原地转向）。
 - [ ] M5.5 Hard Stop/Gait 过渡细节：ALS Transition 组动画接入（stance/gait 间过渡）。
 - [ ] M5.6 状态→图路由器：集中 system 把 `LocomotionState` 组合翻译成图输入 pins（替代 AnimBP 的状态机图）。
-- [ ] M5.7 **Gate**：演示路径覆盖：静止→起跑→全速→急停→原地转身→蹲走→起立，全程无明显脚滑与跳变；录制视频/截图附 PR 描述。
+- [ ] M5.7 **Gate**：演示路径覆盖：静止→起跑→全速→急停→原地转身→蹲走→起立，全程无明显脚滑与跳变；录制视频/截图存入 `docs/` 并在提交说明中引用。
 
 ## M6 Overlay 与 Aim/View 系统（依赖：M5）
 
@@ -111,7 +111,7 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 
 - [ ] M8.1 Jump/Fall/Land 动画链：Air 组动画 + 落地选择（轻/重）+ Land recovery 混合。
 - [ ] M8.2 Roll（翻滚/闪避）：Rolling 状态、方向选择、root motion 等价位移方案（曲线驱动位移而非 root motion 骨骼）。
-- [ ] M8.3 Distance matching 基座（扩展 animation graph）：Stop 动画按剩余距离归一化播放（ALS Stop 动画观感核心）。
+- [ ] M8.3 Distance matching 基座（在 `crates/als-ext` 经动画图扩展点实现，公开 API 不足时按规则 4 处理）：Stop 动画按剩余距离归一化播放（ALS Stop 动画观感核心）。
 - [ ] M8.4 Mantling（攀爬）低配版：检测+曲线位移+上下两类，可选后置。
 - [ ] M8.5 **Gate**：奔跑中翻滚方向正确且位移与动画节奏一致；助跑跳停步动画脚步贴合预期落点。
 
