@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf",
+        animation_name: "A_Als_Crouch_Walk_Left_Backward_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

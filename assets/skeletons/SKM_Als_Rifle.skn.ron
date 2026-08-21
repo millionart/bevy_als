@@ -1,0 +1,3 @@
+(
+    source: Gltf(source: "models/SKM_Als_Rifle.gltf", label: "Scene0"),
+)

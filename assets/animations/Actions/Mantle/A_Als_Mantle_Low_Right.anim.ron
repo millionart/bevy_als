@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Actions/Mantle/A_Als_Mantle_Low_Right.gltf",
+        animation_name: "A_Als_Mantle_Low_Right_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Overlays/Other/A_Als_Feminine_Poses.gltf",
+        animation_name: "A_Als_Feminine_Poses_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

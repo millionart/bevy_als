@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.gltf",
+        animation_name: "A_Als_Rifle_Poses_NoCurves_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

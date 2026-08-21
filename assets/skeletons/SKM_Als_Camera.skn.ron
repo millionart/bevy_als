@@ -1,0 +1,3 @@
+(
+    source: Gltf(source: "models/ALSCamera/SKM_Als_Camera.gltf", label: "Scene0"),
+)

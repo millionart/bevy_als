@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Grounded/Lean/A_Als_Lean_Pose.gltf",
+        animation_name: "A_Als_Lean_Pose_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

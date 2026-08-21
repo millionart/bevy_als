@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Actions/Roll/A_Als_Roll.gltf",
+        animation_name: "A_Als_Roll_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

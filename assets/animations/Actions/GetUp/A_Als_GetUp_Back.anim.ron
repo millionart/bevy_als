@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Actions/GetUp/A_Als_GetUp_Back.gltf",
+        animation_name: "A_Als_GetUp_Back_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Air/Land/A_Als_Land_Light.gltf",
+        animation_name: "A_Als_Land_Light_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

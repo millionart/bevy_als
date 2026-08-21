@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.gltf",
+        animation_name: "A_Als_Binoculars_Aim_Crouch_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

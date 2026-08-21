@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/TurnInPlace/A_Als_Turn_180_Right.gltf",
+        animation_name: "A_Als_Turn_180_Right_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Overlays/Torch/A_Als_Torch_Aim.gltf",
+        animation_name: "A_Als_Torch_Aim_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

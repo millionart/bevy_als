@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf",
+        animation_name: "A_Als_Crouch_DynamicTransition_Left_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

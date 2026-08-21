@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
+        animation_name: "A_Als_Crouch_Turn_180_Left_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

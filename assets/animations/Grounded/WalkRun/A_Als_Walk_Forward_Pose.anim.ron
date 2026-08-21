@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf",
+        animation_name: "A_Als_Walk_Forward_Pose_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)

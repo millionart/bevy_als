@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "animations/Base/A_Als_Idle.gltf",
+        animation_name: "A_Als_Idle_0",
+    ),
+    skeleton: "skeletons/SKM_Als.skn.ron",
+)
