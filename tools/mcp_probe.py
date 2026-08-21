@@ -112,18 +112,27 @@ def main() -> None:
                         "params": {"name": "list_toolsets", "arguments": {}}}, sid)
         print(extract_text(body))
     elif args[0] == "call":
-        toolset = None if len(args) < 2 or args[1] == "-" else args[1]
-        tool = args[2] if len(args) > 2 else ""
-        arguments = json.loads(args[3]) if len(args) > 3 else {}
-        params = {"name": tool, "arguments": arguments}
-        if toolset:
-            params["toolset_name"] = toolset
-        body, _ = post({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
-                        "params": params}, sid)
+        # 服务器协议层 tools/call 只注册了 list_toolsets/describe_toolset/call_tool
+        # 三个元工具；toolset 工具必须经 call_tool 分发（toolset_name/tool_name 在 arguments 内）。
+        inner = {"tool_name": args[2] if len(args) > 2 else "",
+                 "arguments": json.loads(args[3]) if len(args) > 3 else {}}
+        if len(args) >= 2 and args[1] != "-":
+            inner["toolset_name"] = args[1]
+        body, err = post({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
+                          "params": {"name": "call_tool", "arguments": inner}}, sid)
+        if body is None:
+            print(f"request failed: {err}", file=sys.stderr)
+            sys.exit(3)
+        if "error" in body:
+            print(json.dumps(body["error"], indent=1), file=sys.stderr)
         print(extract_text(body))
     elif args[0] == "raw_tools_list":
         body, _ = post({"jsonrpc": "2.0", "id": 5, "method": "tools/list", "params": {}}, sid)
-        print(extract_text(body))
+        if body and "result" in body:
+            for t in body["result"].get("tools", []):
+                print(t["name"])
+        else:
+            print(json.dumps(body, indent=1)[:2000])
     else:
         print(f"unknown subcommand: {args[0]}", file=sys.stderr)
         sys.exit(1)

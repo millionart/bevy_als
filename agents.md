@@ -24,3 +24,8 @@
 5. **资产占位**：动画/模型/曲线资产通过 Unreal MCP 从 ALS-Refactored 工程导出（配置步骤见 `docs/env.md`），在 M0.5 一次性批量完成，此后不得零散补导——确需补充须先在 `CHECKLIST.md` 增补明确条目再执行。导出物放 `assets/` 并登记 `assets/docs/export-manifest.md`；禁止把 ALS 商店原始 uasset 提交进仓库。
 6. **并行开发（按需优先）**：同一模块内无数据依赖的清单项，优先拆分给多个 subagents 并行执行（如资产导出与代码实现、相互独立的系统/测试）；不同 subagent 不得修改同一文件，存在写入交集时退回串行。跨模块仍受规则 1 约束不得并行。每个 subagent 只负责单一明确产出，代码合并、提交、勾选与 Gate 验证由主代理统一串行收口。
 7. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
+
+## 工具调用教训（M0 实测，防再犯）
+
+1. **UE MCP：toolset 工具必须经 `call_tool` 元工具分发**。协议层 `tools/call` 只注册 `list_toolsets` / `describe_toolset` / `call_tool` 三个元工具；把 toolset 方法名直接当 `name` 调用必报 `Unknown tool`。正确姿势：`name="call_tool"`，并在其 `arguments` 内传 `toolset_name`、`tool_name`、`arguments`（依据引擎源码 `ModelContextProtocolServer.cpp` 的 FindTool 查找逻辑）。统一走仓库封装 `tools/mcp_probe.py`，不要绕过它手写 HTTP 请求。
+2. **shell 长命令可能间歇性整块丢参**（报 `command is required`，参数为空）。含大量引号/JSON 转义的长命令风险最高。对策：复杂逻辑先写入脚本文件（如 `tools/*.sh` 或 Python 脚本）再用短命令执行；同一失败调用不得原样反复重试——一次失败即改道脚本化。
