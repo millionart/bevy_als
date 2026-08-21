@@ -25,7 +25,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 - [x] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`、`crates/als-ext`（基座插件扩展与 IK 后处理：curve、ControlRig 等价 IK 等）；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph(fork)、bevy-tnua(fork, avian3d)、bevy_enhanced_input。
 - [x] M0.2 配置依赖指向本机 fork path：bevy_animation_graph、bevy-tnua，并在 README 记录 upstream 与 fork 地址。
-- [ ] M0.3 建立 `assets/` 目录约定：`assets/models/`、`assets/animations/`、`assets/graphs/`、`assets/curves/`、`assets/docs/export-manifest.md`（记录导出资产清单与来源路径哈希）。
+- [x] M0.3 建立 `assets/` 目录约定：`assets/models/`、`assets/animations/`、`assets/graphs/`、`assets/curves/`、`assets/docs/export-manifest.md`（记录导出资产清单与来源路径哈希）。
 - [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset；连接方式与验证命令见 `docs/env.md`）。
 - [ ] M0.5 用 MCP 从 ALS 工程一次性批量导出全部占位资产（不分批）：UE5 Manny 蒙皮网格与骨骼骨架（入库 `assets/models/`）+ 全部动画组 Grounded/Air/Actions/Transitions/TurnInPlace/RotateInPlace/Overlays/View/Base（glTF/JSON 中间格式，转换入库 `assets/animations/`）+ 关键曲线数值表（入库 `assets/curves/`），并写完整 export-manifest。
 - [ ] M0.6 编写资产导入小工具（`tools/import` 或 build 脚本）：UE 导出物 → bevy_asset 可加载格式（GLTF→GraphClip/场景）的一键流程。
