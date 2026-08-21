@@ -5,15 +5,15 @@ set -u
 cd "$(dirname "$0")/.."
 mkdir -p tmp/als_enum
 
-echo "-- folders(/Game recursive) --"
+echo "-- folders(/ALS recursive) --"
 python tools/mcp_probe.py call editor_toolset.toolsets.asset.AssetTools list_folders \
-  '{"root_path":"/Game","recursive":true}' > tmp/als_enum/folders.json 2>&1 || true
-head -c 1500 tmp/als_enum/folders.json; echo
+  '{"root_path":"/ALS","recursive":true}' > tmp/als_enum/folders.json 2>&1 || true
+head -c 2500 tmp/als_enum/folders.json; echo
 
 for cls in SkeletalMesh Skeleton AnimSequence AnimMontage BlendSpace BlendSpace1D BlendSpace2D CurveFloat CurveTable; do
   echo "-- $cls --"
   python tools/mcp_probe.py call editor_toolset.toolsets.asset.AssetTools find_assets \
-    "{\"folder_path\":\"/Game\",\"name\":\"\",\"recursive\":true,\"asset_type\":{\"refPath\":\"/Script/Engine.$cls\"}}" \
+    "{\"folder_path\":\"/ALS\",\"name\":\"\",\"recursive\":true,\"asset_type\":{\"refPath\":\"/Script/Engine.$cls\"}}" \
     > "tmp/als_enum/$cls.json" 2>&1 || true
   python - "$cls" <<'EOF'
 import json, sys
