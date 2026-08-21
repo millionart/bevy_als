@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+members = ["crates/als-core", "crates/als-ext"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# 基座：Bevy 0.19（本机源码 path 可选，见下方注释）
+bevy = "0.19"
+# 本地源码调试时取消注释（优先级高于 registry）：
+# [patch.crates-io]
+# bevy = { path = "<local-bevy>" }
+
+# 基座插件 fork（M0.2 配置，upstream 与 fork 地址见 README.md）
+bevy_animation_graph = { path = "<fork-bevy_animation_graph>/crates/bevy_animation_graph" }
+bevy-tnua = { path = "<fork-bevy-tnua>" }
+bevy-tnua-avian3d = { path = "<fork-bevy-tnua>/avian3d" }
+avian3d = { version = "0.7", default-features = false, features = [
+    "3d",
+    "debug-plugin",
+    "parallel",
+] }
+
+# 输入抽象（UE Enhanced Input 等价物）
+bevy_enhanced_input = "0.26"
+
+# 内部成员
+als-core = { path = "crates/als-core" }
+als-ext = { path = "crates/als-ext" }
+
+serde = { version = "1.0", features = ["derive"] }
+ron = "0.10"
+thiserror = "2"
+
+[package]
+name = "bevy_als"
+description = "ALS-Refactored style advanced locomotion system rebuilt with Bevy ECS"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+
+[dependencies]
+bevy = { workspace = true }
+als-core = { workspace = true }
+als-ext = { workspace = true }
+
+[[bin]]
+name = "bevy_als"
+path = "src/main.rs"

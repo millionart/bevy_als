@@ -1,0 +1,13 @@
+[package]
+name = "als-ext"
+description = "bevy_animation_graph / bevy-tnua 基座插件扩展层（curve 节点、分析式 IK 等）"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+serde = { workspace = true }
+
+# 基座插件（fork path 见根 Cargo.toml / README.md）
+bevy_animation_graph = { workspace = true }
