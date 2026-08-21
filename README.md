@@ -18,16 +18,16 @@ ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓�
 
 ### 依赖指向（M0.2）
 
-本仓库以 **path 依赖**指向本机 fork（路径配置在根 `Cargo.toml` 的 `[workspace.dependencies]`）：
+本仓库以 **git 依赖**指向公开 fork（配置在根 `Cargo.toml` 的 `[workspace.dependencies]`）：
 
-| crate（版本） | 本机 fork path |
+| crate（版本） | fork git 地址 |
 |---|---|
-| bevy_animation_graph 0.11.0 | `<fork-bevy_animation_graph>/crates/bevy_animation_graph` |
-| bevy-tnua 0.32.0 | `<fork-bevy-tnua>` |
-| bevy-tnua-avian3d 0.12.1 | `<fork-bevy-tnua>/avian3d` |
+| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（master） |
+| bevy-tnua 0.32.0 | `https://github.com/millionart/bevy-tnua`（main） |
+| bevy-tnua-avian3d 0.12.1 | `https://github.com/millionart/bevy-tnua`（main） |
 
 - fork 改动必须独立小步提交并可回馈 upstream（agents.md 规则 4）；任何时候禁止 vendor 拷贝插件源码。
-- 其他机器克隆本仓库时，需按相同结构放置 fork（或将 `[patch]`/path 换成 git 依赖）。
+- 本地源码调试时可用 `[patch.crates-io]`/path 覆盖，但路径只经 gitignored 本地配置或环境变量注入，禁止提交进仓库（agents.md 规则 7）。
 
 ## 状态
 

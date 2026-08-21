@@ -467,6 +467,7 @@ dependencies = [
 [[package]]
 name = "bevy-tnua"
 version = "0.32.0"
+source = "git+https://github.com/millionart/bevy-tnua?branch=main#61e5dbdcc6dfc963bea628efe9e7cf24507d8189"
 dependencies = [
  "bevy",
  "bevy-tnua-macros",
@@ -479,6 +480,7 @@ dependencies = [
 [[package]]
 name = "bevy-tnua-avian3d"
 version = "0.12.1"
+source = "git+https://github.com/millionart/bevy-tnua?branch=main#61e5dbdcc6dfc963bea628efe9e7cf24507d8189"
 dependencies = [
  "avian3d",
  "bevy",
@@ -489,6 +491,7 @@ dependencies = [
 [[package]]
 name = "bevy-tnua-macros"
 version = "0.3.0"
+source = "git+https://github.com/millionart/bevy-tnua?branch=main#61e5dbdcc6dfc963bea628efe9e7cf24507d8189"
 dependencies = [
  "atterate",
  "convert_case 0.11.0",
@@ -500,6 +503,7 @@ dependencies = [
 [[package]]
 name = "bevy-tnua-physics-integration-layer"
 version = "0.13.0"
+source = "git+https://github.com/millionart/bevy-tnua?branch=main#61e5dbdcc6dfc963bea628efe9e7cf24507d8189"
 dependencies = [
  "bevy",
 ]
@@ -571,6 +575,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph"
 version = "0.11.0"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_builtin_nodes",
@@ -588,6 +593,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_builtin_nodes"
 version = "0.11.0"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_core",
@@ -604,6 +610,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_core"
 version = "0.11.0"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_proc_macros",
@@ -619,6 +626,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_proc_macros"
 version = "0.11.0"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "quote",
  "syn 2.0.119",

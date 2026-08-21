@@ -1,10 +1,12 @@
+import os as _os
+ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
 # 探针4：挂载点确认 + 显式扫描 + 绕过注册表的直接加载
 import unreal
 
 ar = unreal.AssetRegistryHelpers.get_asset_registry()
 
 mp = unreal.Paths.get_mount_point_for_content_dir(
-    "<als-content>/")
+    os.path.join(ALS_ROOT, "Plugins", "ALS-Refactored", "Content", ""))
 unreal.log_warning("PYEXPORT4 mount=%s" % mp)
 
 unreal.log_warning("PYEXPORT4 scan_doc=%s" % ar.scan_paths_synchronous.__doc__)

@@ -1,3 +1,5 @@
+import os as _os
+ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
 # 探明 Interchange glTF 导出 API 面 + 单资产试导出（SKM_Als）
 import os
 import unreal
@@ -13,7 +15,7 @@ unreal.log_warning("PYEXPORT assettools=%s" % [m for m in dir(at) if "export" in
 mesh = unreal.EditorAssetLibrary.load_asset("/ALS/ALS/Character/SKM_Als")
 unreal.log_warning("PYEXPORT loaded=%s class=%s" % (mesh, type(mesh).__name__ if mesh else None))
 
-out_dir = "<repo-root>/tmp/export"
+out_dir = os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp", "export")
 os.makedirs(out_dir, exist_ok=True)
 
 for out in ["skm_als_test.gltf", "skm_als_test.glb"]:

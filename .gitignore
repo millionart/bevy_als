@@ -25,3 +25,6 @@ docs/env.md
 
 # MCP probe 会话缓存
 .mcp-session-id
+
+# 本地环境配置（真实路径，隐私），模板见 tools/env.example.json
+tools/env.local.json

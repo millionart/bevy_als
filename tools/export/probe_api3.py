@@ -28,7 +28,8 @@ if target:
 
 # 定位新生成的 gltf/glb（项目目录 + Saved，限深扫描）
 hits = []
-for root_dir in ["<als-project>", "<repo-root>/tmp"]:
+ALS_ROOT = os.environ.get("ALS_PROJECT_ROOT", "")
+for root_dir in [ALS_ROOT, os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp")]:
     for base, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in (
             ".git", "Binaries", "Intermediate", "DerivedDataCache",

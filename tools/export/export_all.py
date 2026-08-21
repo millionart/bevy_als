@@ -1,12 +1,14 @@
 # M0.5 一次性批量导出（headless commandlet，pythonscript）
-# 用法: bash tools/export/run_cmdlet.sh tools/export/export_all.py
+# 用法: powershell -File tools/export/run_cmdlet.ps1 tools/export/export_all.py
+# 仓库根经 BEVY_ALS_ROOT 环境变量或启动器工作目录注入，禁止硬编码本地路径
 import os
 import json
 
 import unreal
 
-OUT_ROOT = "<repo-root>/tmp/export/staging"
-LOG_PATH = "<repo-root>/tmp/export/export_log.json"
+_REPO = os.environ.get("BEVY_ALS_ROOT") or os.path.abspath(os.getcwd())
+OUT_ROOT = os.path.join(_REPO, "tmp", "export", "staging")
+LOG_PATH = os.path.join(_REPO, "tmp", "export", "export_log.json")
 
 
 def log(msg):

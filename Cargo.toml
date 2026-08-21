@@ -8,16 +8,13 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-# 基座：Bevy 0.19（本机源码 path 可选，见下方注释）
+# 基座：Bevy 0.19（本地源码调试时用 [patch.crates-io] 指向本机 clone，路径经 gitignored 本地配置管理，勿提交）
 bevy = "0.19"
-# 本地源码调试时取消注释（优先级高于 registry）：
-# [patch.crates-io]
-# bevy = { path = "<local-bevy>" }
 
-# 基座插件 fork（M0.2 配置，upstream 与 fork 地址见 README.md）
-bevy_animation_graph = { path = "<fork-bevy_animation_graph>/crates/bevy_animation_graph" }
-bevy-tnua = { path = "<fork-bevy-tnua>" }
-bevy-tnua-avian3d = { path = "<fork-bevy-tnua>/avian3d" }
+# 基座插件 fork（M0.2 配置；upstream 与 fork 地址见 README.md，均为公开 git 依赖）
+bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master" }
+bevy-tnua = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
+bevy-tnua-avian3d = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
 avian3d = { version = "0.7", default-features = false, features = [
     "3d",
     "debug-plugin",

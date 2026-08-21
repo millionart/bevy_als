@@ -1,3 +1,5 @@
+import os as _os
+ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
 # 探针5：单资产导出打通（AssetTools.export_assets 带路径通道优先）+ 骨骼/曲线内省
 import os
 import unreal
@@ -9,7 +11,7 @@ try:
 except Exception as e:
     unreal.log_warning("PYEXPORT5 scan exc=%s" % e)
 
-OUT = "<repo-root>/tmp/export/gltf_test"
+OUT = os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp", "export", "gltf_test")
 os.makedirs(OUT, exist_ok=True)
 
 mesh = unreal.load_object(None, "/ALS/ALS/Character/SKM_Als.SKM_Als")
@@ -41,7 +43,7 @@ if rolls:
 
 # 落点搜索
 hits = []
-for base_dir in ["<repo-root>/tmp", "<als-project>/Saved"]:
+for base_dir in [os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp"), os.path.join(ALS_ROOT, "Saved")]:
     for base, dirs, files in os.walk(base_dir):
         dirs[:] = [d for d in dirs if d not in (".git",)]
         for f in files:

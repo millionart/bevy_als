@@ -1,3 +1,5 @@
+import os as _os
+ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
 # 探针2：等待资产注册表 + 导出签名确认
 import unreal
 
@@ -12,7 +14,7 @@ mesh = unreal.EditorAssetLibrary.load_asset("/ALS/ALS/Character/SKM_Als")
 unreal.log_warning("PYEXPORT2 mesh=%s" % mesh)
 
 if mesh:
-    out = "<repo-root>/tmp/export/skm_als_test.gltf"
+    out = os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp", "export", "skm_als_test.gltf")
     # 签名含 is_automated，按 doc 提示尝试常见位置
     for args in [(True,), ()]:
         try:
