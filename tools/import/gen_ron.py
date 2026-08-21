@@ -28,6 +28,12 @@ SKELETON_MAP = {
 }  # 未命中前缀的动画一律用主骨架
 DEFAULT_SKELETON = "skeletons/SKM_Als.skn.ron"
 
+# Skeleton 描述的 glTF 源必须含 AnimationPlayer（插件 find_root 依赖），
+# 故引用代表性动画 glTF 而非纯模型；无动画对应物的网格不生成骨架描述。
+SKELETON_SOURCES = {
+    "SKM_Als": ("animations/Base/A_Als_Idle.gltf", "Scene0"),
+}
+
 
 def ron_str(s: str) -> str:
     return '"' + s + '"'
@@ -97,31 +103,21 @@ def main() -> int:
     n_skn = n_anim = 0
     SKELS.mkdir(parents=True, exist_ok=True)
 
-    # ---- 模型 -> .skn.ron ----
-    model_rels = sorted(
-        p.relative_to(ASSETS).as_posix().replace("\\", "/")
-        for p in MODELS.rglob("*.gltf")
-    )
-    skeleton_names: list[str] = []
-    for rel in model_rels:
-        g = load_gltf(ASSETS / rel)
-        errs = check_model(g, rel)
-        name = Path(rel).stem
+    # ---- 骨架 -> .skn.ron（源为含动画的 glTF）----
+    for name, (rel, label) in SKELETON_SOURCES.items():
         out = SKELS / f"{name}.skn.ron"
-        if errs:
-            failed = True
-            out.unlink(missing_ok=True)
-            print("\n".join(errs), file=sys.stderr)
-            continue
         out.write_text(
             "(\n"
-            f"    source: Gltf(source: {ron_str(rel)}, label: {ron_str('Scene0')}),\n"
+            f"    source: Gltf(source: {ron_str(rel)}, label: {ron_str(label)}),\n"
             ")\n",
             encoding="utf-8",
         )
-        skeleton_names.append(name)
         n_skn += 1
         print(f"[skn] {out.relative_to(REPO)} <- {rel}")
+    skipped = sorted(p.stem for p in MODELS.rglob("*.gltf")
+                     if p.stem not in SKELETON_SOURCES)
+    if skipped:
+        print(f"[skn] 跳过无动画对应物的网格骨架: {', '.join(skipped)}")
 
     # ---- 动画 -> .anim.ron ----
     anim_paths = sorted(p for p in ANIMS.rglob("*.gltf"))
@@ -152,14 +148,14 @@ def main() -> int:
     print(f"\n生成完成：{n_skn} 个 .skn.ron，{n_anim} 个 .anim.ron；"
           f"校验{'通过' if not failed else '存在失败'}")
 
-    # ---- 引用完整性抽查：每个骨架至少被一个动画引用 ----
+    # ---- 引用完整性抽查：骨架描述均被动画引用 ----
     referenced = {
         line.split("skeleton: ")[1].strip('",)')
         for p in ANIMS.rglob("*.anim.ron")
         for line in p.read_text(encoding="utf-8").splitlines()
         if "skeleton:" in line
     }
-    missing = [s for s in skeleton_names
+    missing = [s for s in SKELETON_SOURCES
                if f"skeletons/{s}.skn.ron" not in referenced]
     if missing:
         print(f"警告: 未被任何动画引用的骨架 {missing}", file=sys.stderr)

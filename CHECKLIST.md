@@ -28,8 +28,9 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] M0.3 建立 `assets/` 目录约定：`assets/models/`、`assets/animations/`、`assets/graphs/`、`assets/curves/`、`assets/docs/export-manifest.md`（记录导出资产清单与来源路径哈希）。
 - [x] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset；连接方式与验证命令见 `docs/env.md`）。
 - [x] M0.5 从 ALS 工程一次性批量导出全部占位资产（不分批）：UE5 Manny 系蒙皮网格与骨骼骨架（glTF 入库 `assets/models/`）+ 全部动画组 Grounded/Air/Actions/Transitions/TurnInPlace/RotateInPlace/Overlays/View/Base（glTF 入库 `assets/animations/`，BlendSpace 定义 JSON 同目录 `blendspaces/`）+ 关键曲线数值表（JSON 均匀采样入库 `assets/curves/`），完整 export-manifest 已登记。（通道定案：headless commandlet pythonscript——MCP toolset 无导出工具；引擎/工程路径经 gitignored `tools/env.local.json` 注入，见 agents.md 规则 7 与 export-manifest 说明）
-- [ ] M0.6 编写资产导入小工具（`tools/import` 或 build 脚本）：UE 导出物 → bevy_asset 可加载格式（GLTF→GraphClip/场景）的一键流程。
-- [ ] M0.7 **Gate**：`cargo run --example skeleton_boot` 加载骨架+一条动画并在窗口中播放；export-manifest 存在且含来源记录。
+- [x] M0.6 编写资产导入小工具（`tools/import` 或 build 脚本）：UE 导出物 → bevy_asset 可加载格式（GLTF→GraphClip/场景）的一键流程。
+- [x] M0.7 **Gate**：`cargo run --example skeleton_boot` 加载骨架+一条动画并在窗口中播放；export-manifest 存在且含来源记录。
+  - Gate 证据（2026-08-22）：`cargo run --example skeleton_boot`（ALS_BOOT_AUTO_QUIT_SECS=8）输出 `SKELETON_BOOT_OK step=1 … player_elapsed=0.031s` / `step=2 … player_elapsed=2.016s`——GraphClip/Skeleton/AnimationGraph 各 1 个全部加载成功、播放头持续推进、无 ERROR/panic、exit=0；骨架源为含 AnimationPlayer 的动画 glTF（插件 find_root 依赖，工具已内置该规则）；export-manifest.md 登记 158 条来源记录。
 
 ## M1 ECS 核心状态模型（依赖：M0）
 

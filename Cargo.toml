@@ -44,6 +44,7 @@ default = []
 
 [dependencies]
 bevy = { workspace = true }
+bevy_animation_graph = { workspace = true }
 als-core = { workspace = true }
 als-ext = { workspace = true }
 

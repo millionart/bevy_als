@@ -528,6 +528,7 @@ dependencies = [
  "als-core",
  "als-ext",
  "bevy",
+ "bevy_animation_graph",
 ]
 
 [[package]]
