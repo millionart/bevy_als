@@ -1,0 +1,52 @@
+{
+ "asset": "/ALS/ALS/Animations/View/BS_Als_Look",
+ "axes": [
+  {
+   "name": "Pitch Angle",
+   "min": -90.0,
+   "max": 90.0,
+   "grid_num": 4
+  },
+  {
+   "name": "None",
+   "min": 0.0,
+   "max": 100.0,
+   "grid_num": 4
+  },
+  {
+   "name": "None",
+   "min": 0.0,
+   "max": 100.0,
+   "grid_num": 4
+  }
+ ],
+ "samples": [
+  {
+   "animation": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
+   "value": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rate_scale": 1.0
+  },
+  {
+   "animation": "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
+   "value": [
+    -90.0,
+    0.0,
+    0.0
+   ],
+   "rate_scale": 1.0
+  },
+  {
+   "animation": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
+   "value": [
+    90.0,
+    0.0,
+    0.0
+   ],
+   "rate_scale": 1.0
+  }
+ ]
+}

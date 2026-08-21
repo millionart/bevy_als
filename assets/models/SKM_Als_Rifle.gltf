@@ -1,0 +1,276 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 9,
+			"type": "MAT4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 1,
+			"count": 20778,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 2,
+			"count": 11748,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				-0.0301331803,
+				-0.0998467803,
+				-0.278623581
+			],
+			"max": [
+				0.0288001001,
+				0.167164207,
+				0.619568706
+			]
+		},
+		{
+			"bufferView": 3,
+			"count": 11748,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 11748,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 11748,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 6,
+			"count": 11748,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 7,
+			"count": 11748,
+			"type": "VEC4",
+			"componentType": 5121
+		},
+		{
+			"bufferView": 8,
+			"count": 11748,
+			"type": "VEC4",
+			"componentType": 5121,
+			"normalized": true
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SKM_Als_Rifle.bin",
+			"byteLength": 794004
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 576
+		},
+		{
+			"buffer": 0,
+			"byteLength": 41556,
+			"byteOffset": 576,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 140976,
+			"byteOffset": 42132,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 140976,
+			"byteOffset": 183108,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 187968,
+			"byteOffset": 324084,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 93984,
+			"byteOffset": 512052,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 93984,
+			"byteOffset": 606036,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 46992,
+			"byteOffset": 700020,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 46992,
+			"byteOffset": 747012,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SKM_Als_Rifle",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 2,
+						"NORMAL": 3,
+						"TANGENT": 4,
+						"TEXCOORD_0": 5,
+						"TEXCOORD_1": 6,
+						"JOINTS_0": 7,
+						"WEIGHTS_0": 8
+					},
+					"indices": 1,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"skin": 0,
+			"mesh": 0,
+			"children": [
+				1
+			]
+		},
+		{
+			"name": "root",
+			"children": [
+				2,
+				3,
+				5,
+				6,
+				7,
+				8,
+				9
+			]
+		},
+		{
+			"name": "trigger",
+			"translation": [
+				0,
+				0.045804698,
+				0.0656847507
+			]
+		},
+		{
+			"name": "magazine",
+			"translation": [
+				0,
+				0.00601050584,
+				0.131930634
+			],
+			"children": [
+				4
+			]
+		},
+		{
+			"name": "bullets",
+			"translation": [
+				0,
+				0.057306055,
+				-3.5527136e-17
+			]
+		},
+		{
+			"name": "charging_handle",
+			"translation": [
+				0,
+				0.116950907,
+				-0.0127256876
+			]
+		},
+		{
+			"name": "muzzle",
+			"translation": [
+				0,
+				0.0950661227,
+				0.619568706
+			]
+		},
+		{
+			"name": "sights",
+			"translation": [
+				0,
+				0.119063318,
+				0.037895631
+			]
+		},
+		{
+			"name": "stock",
+			"translation": [
+				0,
+				0.0936723948,
+				-0.188480571
+			]
+		},
+		{
+			"name": "barrel",
+			"translation": [
+				0,
+				0.0950660557,
+				0.376185417
+			]
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	],
+	"skins": [
+		{
+			"name": "SKM_Als_Rifle",
+			"inverseBindMatrices": 0,
+			"skeleton": 0,
+			"joints": [
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9
+			]
+		}
+	]
+}

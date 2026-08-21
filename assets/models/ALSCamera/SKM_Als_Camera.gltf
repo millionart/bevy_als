@@ -1,0 +1,186 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 2,
+			"type": "MAT4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 1,
+			"count": 3792,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 2,
+			"count": 888,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				-0.5,
+				-0.149999991,
+				-0.174999997
+			],
+			"max": [
+				0.099999994,
+				0.149999991,
+				0.174999997
+			]
+		},
+		{
+			"bufferView": 3,
+			"count": 888,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 888,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 888,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 6,
+			"count": 888,
+			"type": "VEC4",
+			"componentType": 5121
+		},
+		{
+			"bufferView": 7,
+			"count": 888,
+			"type": "VEC4",
+			"componentType": 5121,
+			"normalized": true
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SKM_Als_Camera.bin",
+			"byteLength": 57440
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 128
+		},
+		{
+			"buffer": 0,
+			"byteLength": 7584,
+			"byteOffset": 128,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 10656,
+			"byteOffset": 7712,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 10656,
+			"byteOffset": 18368,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 14208,
+			"byteOffset": 29024,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 7104,
+			"byteOffset": 43232,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 3552,
+			"byteOffset": 50336,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 3552,
+			"byteOffset": 53888,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SKM_Als_Camera",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 2,
+						"NORMAL": 3,
+						"TANGENT": 4,
+						"TEXCOORD_0": 5,
+						"JOINTS_0": 6,
+						"WEIGHTS_0": 7
+					},
+					"indices": 1,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"skin": 0,
+			"mesh": 0,
+			"children": [
+				1
+			]
+		},
+		{
+			"name": "cameraboom_root",
+			"children": [
+				2
+			]
+		},
+		{
+			"name": "cameraboom_end"
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	],
+	"skins": [
+		{
+			"name": "SKM_Als_Camera",
+			"inverseBindMatrices": 0,
+			"skeleton": 0,
+			"joints": [
+				1,
+				2
+			]
+		}
+	]
+}

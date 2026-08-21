@@ -44,15 +44,17 @@ def main():
         except Exception as e:
             log("enum %s exc=%s" % (cls_name, e))
             return []
-        return sorted(str(a.package_name) for a in assets)
+        return sorted(str(a.package_name) for a in assets
+                      if str(a.package_name).startswith("/ALS/"))
 
     meshes = packages_by_class("SkeletalMesh")
-    skeletons = packages_by_class("Skeleton")
     anims = packages_by_class("AnimSequence")
-    blends = [p for p in packages_by_class("BlendSpace") + packages_by_class("BlendSpace1D")]
+    # BlendSpace1D 是 BlendSpace 的子类，并集去重
+    blends = sorted(set(packages_by_class("BlendSpace"))
+                    | set(packages_by_class("BlendSpace1D")))
     curves = packages_by_class("CurveFloat")
-    log("counts mesh=%d skel=%d anim=%d blend=%d curve=%d"
-        % (len(meshes), len(skeletons), len(anims), len(blends), len(curves)))
+    log("counts mesh=%d anim=%d blend=%d curve=%d"
+        % (len(meshes), len(anims), len(blends), len(curves)))
 
     # ---- 导出选项：占位数据优先，跳过材质烘焙纹理 ----
     opts_cls = resolve_type("glTFExportOptions")
@@ -85,7 +87,7 @@ def main():
         task.automated = True
         task.errors = []
         try:
-            unreal.ExporterLibrary.run_asset_export_task(task)
+            unreal.Exporter.run_asset_export_task(task)
         except Exception as e:
             results.append({"asset": str(obj.get_path_name()), "out": out_file,
                             "ok": False, "err": str(e)})
@@ -96,8 +98,7 @@ def main():
                         "size": os.path.getsize(out_file) if ok else 0})
 
     def load(pkg):
-        obj = unreal.load_object(None, pkg + "." + pkg.rsplit("/", 1)[-1])
-        return obj
+        return unreal.load_object(None, pkg + "." + pkg.rsplit("/", 1)[-1])
 
     # ---- 模型（含骨架蒙皮）----
     for pkg in meshes:
@@ -115,9 +116,12 @@ def main():
         if not obj:
             results.append({"asset": pkg, "ok": False, "err": "load fail"})
             continue
-        rel = pkg.split("/ALS/ALS/Animations/", 1)[-1]
-        out = "%s/animations/%s.gltf" % (OUT_ROOT, rel)
-        run_export(obj, out, anim_exp_cls)
+        marker = "/ALS/ALS/Animations/"
+        if marker in pkg:
+            rel = pkg.split(marker, 1)[-1]
+        else:
+            rel = pkg.replace("/ALS/", "").replace("/", "_")
+        run_export(obj, "%s/animations/%s.gltf" % (OUT_ROOT, rel), anim_exp_cls)
 
     # ---- BlendSpace 定义 JSON（glTF 无此概念）----
     for pkg in blends:
@@ -138,8 +142,8 @@ def main():
                     })
                 entry["axes"] = axes
                 break
-            except Exception:
-                continue
+            except Exception as e:
+                entry["axes_err"] = str(e)
         samples = []
         try:
             for s in obj.get_editor_property("sample_data"):
@@ -158,70 +162,37 @@ def main():
         ensure_dir(os.path.dirname(out))
         with open(out, "w", encoding="utf-8") as f:
             json.dump(entry, f, indent=1)
-        results.append({"asset": pkg, "out": out, "ok": True, "kind": "blendspace"})
+        results.append({"asset": pkg, "out": out, "ok": True, "kind": "blendspace",
+                        "n_samples": len(samples)})
 
     # ---- 曲线数值表 JSON ----
+    # FloatCurve 为裸 UPROPERTY()，Python 属性访问不可见；改用
+    # GetTimeRange()+GetFloatValue() 在值域上均匀采样（形状保真）。
     for pkg in curves:
         obj = load(pkg)
         if not obj:
             continue
         keys_out = []
-        err = None
-        for prop in ("editor_curve_data", "float_curve"):
-            try:
-                rc = obj.get_editor_property(prop)
-                for k in rc.keys:
-                    interp = k.interp_mode
-                    try:
-                        interp = int(interp)
-                    except Exception:
-                        interp = str(interp)
-                    keys_out.append({
-                        "t": float(k.input_value),
-                        "v": float(k.output_value),
-                        "interp": interp,
-                    })
-                break
-            except Exception as e:
-                err = str(e)
+        errs = []
+        try:
+            t_min, t_max = obj.get_time_range()
+            n = 128
+            for i in range(n + 1):
+                t = t_min + (t_max - t_min) * i / n
+                keys_out.append({"t": float(t), "v": float(obj.get_float_value(t))})
+        except Exception as e:
+            errs.append(str(e))
         rel = pkg.replace("/ALS/", "").replace(".", "_")
         out = "%s/curves/%s.json" % (OUT_ROOT, rel)
         ensure_dir(os.path.dirname(out))
         with open(out, "w", encoding="utf-8") as f:
-            json.dump({"asset": pkg, "keys": keys_out, "err": err}, f, indent=1)
-        results.append({"asset": pkg, "out": out, "ok": not err, "kind": "curve",
-                        "n_keys": len(keys_out)})
-
-    # ---- 骨架骨骼层级 JSON（供 M4.1 映射表用）----
-    for pkg in skeletons:
-        obj = load(pkg)
-        if not obj:
-            continue
-        bones = []
-        try:
-            tree = obj.get_editor_property("bone_tree")
-            for i, node in enumerate(tree):
-                pname = ""
-                pidx = int(node.get_editor_property("parent_index"))
-                if pidx >= 0:
-                    pname = str(tree[pidx].get_editor_property("name"))
-                bones.append({
-                    "index": i,
-                    "name": str(node.get_editor_property("name")),
-                    "parent_index": pidx,
-                    "parent": pname,
-                })
-        except Exception as e:
-            results.append({"asset": pkg, "ok": False, "err": "bones: %s" % e})
-            continue
-        rel = pkg.replace("/ALS/", "").replace(".", "_")
-        out = "%s/skeletons/%s_bones.json" % (OUT_ROOT, rel)
-        ensure_dir(os.path.dirname(out))
-        with open(out, "w", encoding="utf-8") as f:
-            json.dump({"asset": pkg, "bone_count": len(bones), "bones": bones},
-                      f, indent=1)
-        results.append({"asset": pkg, "out": out, "ok": True, "kind": "skeleton",
-                        "n_bones": len(bones)})
+            json.dump({"asset": pkg,
+                       "sampling": {"mode": "uniform", "n": len(keys_out),
+                                    "t_min": keys_out[0]["t"] if keys_out else None,
+                                    "t_max": keys_out[-1]["t"] if keys_out else None},
+                       "keys": keys_out, "errors": errs}, f, indent=1)
+        results.append({"asset": pkg, "out": out, "ok": not errs, "kind": "curve",
+                        "n_keys": len(keys_out), "err": "; ".join(errs)})
 
     # ---- 汇总 ----
     ok_n = sum(1 for r in results if r.get("ok"))
