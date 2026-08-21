@@ -14,7 +14,7 @@
 4. 遇到 Gate 项：完整执行 Gate 验证并留证据（命令输出/截图路径）后才勾选；Gate 未过不得进入下一模块。
 5. 需要本地路径/引擎/MCP 连接信息时查 `docs/env.md`（隐私文件，勿提交）。
 6. 需要动画/模型占位资产时，通过 Unreal MCP 从 ALS-Refactored 工程导出（步骤见 `docs/env.md`），登记到 `assets/docs/export-manifest.md`。
-7. 插件能力扩展优先在 `crates/als-ext` 经基座插件公开扩展点实现（如 curve），不改 fork；确需修改插件本体时才动 fork，且必须独立小步提交推送、可回馈上游。ControlRig 子集（two-bone/foot/pelvis/hand IK）在私有仓库 bevy_controlrig 实现并提交；bevy_als 本体保持纯净的 ALS 系统，仅做编排与消费。
+7. 插件能力扩展统一在 `crates/als-ext` 经基座插件公开扩展点实现（curve、ControlRig 等价 IK 等），不改 fork；确需修改插件本体时才动 fork，且必须独立小步提交推送、可回馈上游。bevy_als 本体保持纯净的 ALS 系统，仅做编排与消费；扩展能力以 als-ext 模块边界隔离，未来可按需拆出独立仓库。
 
 ## 验收
 

@@ -23,8 +23,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ## M0 环境与资产管线（依赖：无）
 
-- [ ] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`、`crates/als-ext`（基座插件扩展：curve 等）；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph(fork)、bevy-tnua(fork, avian3d)、bevy_controlrig(私有新仓)、bevy_enhanced_input。
-- [ ] M0.2 配置依赖指向本机 fork/新仓 path：bevy_animation_graph、bevy-tnua、bevy_controlrig（私有仓已创建并 clone，见 docs/env.md），并在 README 记录各仓库 upstream 与地址。
+- [ ] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`、`crates/als-ext`（基座插件扩展与 IK 后处理：curve、ControlRig 等价 IK 等）；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph(fork)、bevy-tnua(fork, avian3d)、bevy_enhanced_input。
+- [ ] M0.2 配置依赖指向本机 fork path：bevy_animation_graph、bevy-tnua，并在 README 记录 upstream 与 fork 地址。
 - [ ] M0.3 建立 `assets/` 目录约定：`models/`、`animations/`、`graphs/`、`curves/`、`docs/export-manifest.md`（记录每次从 UE 导出的资产清单与来源路径哈希）。
 - [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset）。
 - [ ] M0.5 用 MCP 从 ALS 工程一次性批量导出全部占位资产（不分批）：UE5 Manny 蒙皮网格与骨骼骨架（入库 `assets/models/`）+ 全部动画组 Grounded/Air/Actions/Transitions/TurnInPlace/RotateInPlace/Overlays/View/Base（glTF/JSON 中间格式，转换入库 `assets/animations/`）+ 关键曲线数值表（入库 `assets/curves/`），并写完整 export-manifest。
@@ -97,10 +97,10 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 ## M7 Foot IK 与 ControlRig 等价物（依赖：M6）
 
-ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力统一落在独立私有仓库 `bevy_controlrig`（规则 5），以分析式 IK systems 实现；bevy_als 提供状态、射线与曲线权重等输入并接线。
+ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力统一落在 `crates/als-ext` 的 ik 模块（规则 4），以分析式 IK systems 实现；bevy_als 提供状态、射线与曲线权重等输入并接线。
 
 - [ ] M7.1 地面探测：双脚 raycast（含斜面法线），输出 FootOffset 目标量。
-- [ ] M7.2 Two-bone IK 求解器在 `bevy_controlrig` 中实现并提交推送：解析法髋-膝-踝求解，作用于骨骼实体 Transform。
+- [ ] M7.2 Two-bone IK 求解器在 `crates/als-ext`（ik 模块）实现：解析法髋-膝-踝求解，作用于骨骼实体 Transform。
 - [ ] M7.3 Pelvis 垂直补偿与双脚插值锁定（消费 FootLeftLock/FootRightIk 曲线权重的等价输入）。
 - [ ] M7.4 Foot lock 与步点：TurnInPlace/Stop 状态下脚钉地，配合 M5 曲线锁相升级为真实 transform 锁定。
 - [ ] M7.5 Hand IK 占位：`ik_hand_gun` 虚拟骨等价的挂点 entity + 手部两骨 IK 到挂点（rifle overlay 用）。
