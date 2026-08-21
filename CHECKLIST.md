@@ -23,8 +23,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ## M0 环境与资产管线（依赖：无）
 
-- [ ] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`、`crates/als-ext`；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph、bevy-tnua(+avian3d)、bevy_enhanced_input。
-- [ ] M0.2 配置两个基座插件为本机 fork 的 path 依赖，并在 README 记录对应 upstream 与 fork 地址。
+- [ ] M0.1 初始化 Cargo workspace：根 crate `bevy_als`（bin 示例入口），成员 `crates/als-core`（ALS 本体库）；依赖 bevy 0.19（本地 path 可选）、bevy_animation_graph(fork)、bevy-tnua(fork, avian3d)、bevy_controlrig(私有新仓)、bevy_enhanced_input。
+- [ ] M0.2 配置依赖指向本机 fork/新仓 path：bevy_animation_graph、bevy-tnua、bevy_controlrig（私有仓已创建并 clone，见 docs/env.md），并在 README 记录各仓库 upstream 与地址。
 - [ ] M0.3 建立 `assets/` 目录约定：`models/`、`animations/`、`graphs/`、`curves/`、`docs/export-manifest.md`（记录每次从 UE 导出的资产清单与来源路径哈希）。
 - [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset）。
 - [ ] M0.5 用 MCP 从 ALS 工程导出第一批占位资产：UE5 Manny 蒙皮网格模型与骨骼骨架（入库 `assets/models/`）+ Idle/Walk/Run/Jump 各 1 条动画（glTF/JSON 中间格式，转换入库 `assets/animations/`），并写 export-manifest。
@@ -43,16 +43,15 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [ ] M1.6 调试 UI（简单 egui/bevy_text 打印当前状态组合即可）。
 - [ ] M1.7 **Gate**：example 中按键可在合法范围内切换 Stance/Gait/RotationMode，非法切换被拒绝并有日志；状态打印正确。
 
-## M2 曲线与数据驱动基础设施（依赖：M1）
+## M2 曲线能力：bevy_animation_graph fork 扩展（依赖：M1）
 
-ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜、stride blending 等）。为 animation graph 补齐 curve 能力。
+ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜、stride blending 等）。curve 属于动画图的通用能力，按规则 4 **在 bevy_animation_graph fork 内实现并提交推送**，bevy_als 只做消费方。
 
-- [ ] M2.1 在 `crates/als-ext` 实现 `CurveAsset`：一维 float 曲线资产（RON：线性/阶梯/平滑三种采样模式），注册进 bevy Assets。
-- [ ] M2.2 实现 animation graph 自定义节点 `CurveSampleNode`：输入 float（时间或任意参数）+ CurveAsset 句柄 → 输出 float pin。
-- [ ] M2.3 实现 `CurveDrivenValueNode`：把曲线输出映射到 Pose 之外的"元数据输出"（模拟 ALS 的 curve→anim 通知通道），供 IK/权重消费。
-- [ ] M2.4 为 ClipNode 补齐曲线采样：播放 clip 时同步输出其浮点曲线轨道值（对接 ALS 导出动画中的 FootSliding/LayerHand* 等曲线）。
-- [ ] M2.5 单元测试：曲线求值端点/中点、graph 节点输入输出类型检查。
-- [ ] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
+- [ ] M2.1 fork 内实现一维 float 曲线资产与采样器（RON 序列化：线性/阶梯/平滑三种模式），含端点/中点求值单元测试；独立提交推送到 `millionart/bevy_animation_graph`。
+- [ ] M2.2 fork 内实现自定义节点 `CurveSampleNode`（float 输入 + CurveAsset 句柄 → float pin）与 `CurveDrivenValueNode`（曲线值作为 Pose 之外的元数据输出，模拟 ALS curve→anim 通知通道，供 IK/权重消费），提交推送。
+- [ ] M2.3 fork 内为 ClipNode 补齐曲线轨道采样：播放 clip 时同步输出浮点曲线轨道值（对接 ALS 导出动画中的 FootSliding/LayerHand* 等曲线），提交推送。
+- [ ] M2.4 bevy_als 升级依赖锁定 fork 新提交；将 ALS 关键曲线数值表导入为 RON 并加载验证。
+- [ ] M2.5 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；fork 单元测试与 bevy_als 集成测试全绿。
 
 ## M3 运动基座：tnua → ALS 参数映射（依赖：M1）
 
@@ -97,10 +96,10 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 ## M7 Foot IK 与 ControlRig 等价物（依赖：M6）
 
-ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧以分析式 IK 系统 + 图节点实现。
+ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力统一落在独立私有仓库 `bevy_controlrig`（规则 5），以分析式 IK systems 实现；bevy_als 提供状态、射线与曲线权重等输入并接线。
 
 - [ ] M7.1 地面探测：双脚 raycast（含斜面法线），输出 FootOffset 目标量。
-- [ ] M7.2 Two-bone IK 求解器（`crates/als-ext`）：解析法髋-膝-踝求解，作用于骨骼实体 Transform。
+- [ ] M7.2 Two-bone IK 求解器在 `bevy_controlrig` 中实现并提交推送：解析法髋-膝-踝求解，作用于骨骼实体 Transform。
 - [ ] M7.3 Pelvis 垂直补偿与双脚插值锁定（消费 FootLeftLock/FootRightIk 曲线权重的等价输入）。
 - [ ] M7.4 Foot lock 与步点：TurnInPlace/Stop 状态下脚钉地，配合 M5 曲线锁相升级为真实 transform 锁定。
 - [ ] M7.5 Hand IK 占位：`ik_hand_gun` 虚拟骨等价的挂点 entity + 手部两骨 IK 到挂点（rifle overlay 用）。
@@ -145,13 +144,13 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧以分析�
 | GameplayTags | 普通 Rust 枚举组件 | 编译期检查 |
 | ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
 | Root Motion | 曲线驱动位移 | bevy_animation_graph 无 root motion 提取，避免侵入 |
-| Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
+| Curves（UBT 资产） | bevy_animation_graph fork：CurveAsset + 采样节点 | 见 M2 |
 
 ## 附录 B：风险与后置项
 
 - **资产格式决策（2026-08-21）**：Bevy 官方推荐 glTF；M0.5/M0.6 管线定为 UE → glTF（Interchange 导出）→ bevy_animation_graph 自带的 glTF 导入器（GraphClip/Skeleton）。**不引入 bevy_ufbx**：其 v0.19.0（bevy 0.19 兼容）虽支持蒙皮数据，但动画曲线未接入 Bevy 动画系统、无社区验证，且 FBX 中转对 ALS 曲线/虚骨/单位换算风险更大；仅当未来需要直接加载 FBX 时再评估。
 
-- bevy_animation_graph additive/mask 语义若与 ALS layering 不完全一致，在 M6 前验证并决定扩展方式。
+- bevy_animation_graph additive/mask 语义若与 ALS layering 不完全一致，在 M6 前验证并决定 fork 内扩展方式。
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。

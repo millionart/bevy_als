@@ -14,6 +14,8 @@
 | mbrea-c/bevy_animation_graph | [millionart/bevy_animation_graph](https://github.com/millionart/bevy_animation_graph) | 动画图（AnimBP 替代） |
 | idanarye/bevy-tnua | [millionart/bevy-tnua](https://github.com/millionart/bevy-tnua) | 浮动角色控制器（CharacterMovement 替代） |
 
+配套模块：[millionart/bevy_controlrig](https://github.com/millionart/bevy_controlrig)（私有）——ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK），独立仓库、经 crate API 依赖。
+
 ## 状态
 
 🚧 规划阶段：模块清单已定（M0–M11），尚未开始实现。

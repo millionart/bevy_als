@@ -14,7 +14,7 @@
 4. 遇到 Gate 项：完整执行 Gate 验证并留证据（命令输出/截图路径）后才勾选；Gate 未过不得进入下一模块。
 5. 需要本地路径/引擎/MCP 连接信息时查 `docs/env.md`（隐私文件，勿提交）。
 6. 需要动画/模型占位资产时，通过 Unreal MCP 从 ALS-Refactored 工程导出（步骤见 `docs/env.md`），登记到 `assets/docs/export-manifest.md`。
-7. 对两个基座插件的扩展改动放在本仓库 `crates/als-ext`（或独立扩展 crate），保持 fork 可 rebase。
+7. 插件能力扩展直接在对应 fork 仓库实现并提交推送（curve 等进 bevy_animation_graph fork）；ControlRig 子集（two-bone/foot/pelvis/hand IK）在私有仓库 bevy_controlrig 实现并提交；bevy_als 本体保持纯净的 ALS 系统，仅做编排与消费。
 
 ## 验收
 
