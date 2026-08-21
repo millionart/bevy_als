@@ -1,0 +1,24 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Bevy / assets 大文件白名单外的一律不放：占位资产只存 glTF 与 RON
+assets/**/*.fbx
+assets/**/*.uasset
+assets/**/*.umap
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志与临时
+*.log
+/tmp/
+
+# 隐私环境信息（本地路径、端口等）
+docs/env.md
