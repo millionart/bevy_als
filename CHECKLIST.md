@@ -27,7 +27,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [ ] M0.2 配置两个基座插件为本机 fork 的 path 依赖，并在 README 记录对应 upstream 与 fork 地址。
 - [ ] M0.3 建立 `assets/` 目录约定：`models/`、`animations/`、`graphs/`、`curves/`、`docs/export-manifest.md`（记录每次从 UE 导出的资产清单与来源路径哈希）。
 - [ ] M0.4 通过 Unreal MCP 连接 ALS-Refactored 编辑器工程，验证工具集可用（list_toolsets ≥ 1 个动画相关 toolset）。
-- [ ] M0.5 用 MCP 从 ALS 工程导出第一批占位资产：UE5 Manny 骨骼骨架 + Idle/Walk/Run/Jump 各 1 条动画（glTF/JSON 中间格式），转换入库到 `assets/animations/` 并写 export-manifest。
+- [ ] M0.5 用 MCP 从 ALS 工程导出第一批占位资产：UE5 Manny 蒙皮网格模型与骨骼骨架（入库 `assets/models/`）+ Idle/Walk/Run/Jump 各 1 条动画（glTF/JSON 中间格式，转换入库 `assets/animations/`），并写 export-manifest。
 - [ ] M0.6 编写资产导入小工具（`tools/import` 或 build 脚本）：UE 导出物 → bevy_asset 可加载格式（GLTF→GraphClip/场景）的一键流程。
 - [ ] M0.7 **Gate**：`cargo run --example skeleton_boot` 加载骨架+一条动画并在窗口中播放；export-manifest 存在且含来源记录。
 
