@@ -178,7 +178,7 @@
 | 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal.json` |
 | 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.json` |
 | 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish.json` |
-| 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw` | glTF | `assets/animations/ALS_OverlayObjects_Bow_A_Als_Bow_Draw.gltf` |
+| 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Draw.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow` | glTF | `assets/models/Character/SKM_Als_Bow.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol` | glTF | `assets/models/Character/SKM_Als_Pistol.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Rifle/SKM_Als_Rifle.SKM_Als_Rifle` | glTF | `assets/models/Character/SKM_Als_Rifle.gltf` |
