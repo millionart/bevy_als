@@ -1,0 +1,137 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 1950,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 1,
+			"count": 1946,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				-0.553944051,
+				-0.00578199979,
+				-0.55003202
+			],
+			"max": [
+				0.987481952,
+				0.976425052,
+				0.594386995
+			]
+		},
+		{
+			"bufferView": 2,
+			"count": 1946,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 3,
+			"count": 1946,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 1946,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 1946,
+			"type": "VEC2",
+			"componentType": 5126
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SM_Als_Crate_Broken.bin",
+			"byteLength": 112876
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 3900,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 23352,
+			"byteOffset": 3900,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 23352,
+			"byteOffset": 27252,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 31136,
+			"byteOffset": 50604,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 15568,
+			"byteOffset": 81740,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 15568,
+			"byteOffset": 97308,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SM_Als_Crate_Broken",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 1,
+						"NORMAL": 2,
+						"TANGENT": 3,
+						"TEXCOORD_0": 4,
+						"TEXCOORD_1": 5
+					},
+					"indices": 0,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	]
+}

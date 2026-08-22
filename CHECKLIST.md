@@ -67,7 +67,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 用 bevy-tnua 替代 UE CharacterMovementComponent。目标：walk/run/sprint/crouch/jump 手感对齐 ALS 数值。
 
-- [ ] M3.1 场景复刻：按 ALS 工程 `ALSExtras/Levels/L_Als_Playground.umap` 在本项目搭建等价测试场景——经 commandlet 枚举关卡内 actor（StaticMeshActor 等）并导出其 StaticMesh 为 glTF 入库 `assets/models/playground/`，同时生成场景描述 JSON（actor→mesh 映射 + world transform）；bevy 侧程序化重建静态碰撞体与视觉网格；**不含 Landscape**（bevy 侧无等价方案则跳过该部分并在 manifest 注明）。导出属 M0.5 一次性批量导出的增补，依据本条目执行。
+- [x] M3.1 场景复刻：按 ALS 工程 `ALSExtras/Levels/L_Als_Playground.umap` 在本项目搭建等价测试场景——经 commandlet 枚举关卡内 actor（StaticMeshActor 等）并导出其 StaticMesh 为 glTF 入库 `assets/models/playground/`，同时生成场景描述 JSON（actor→mesh 映射 + world transform）；bevy 侧程序化重建静态碰撞体与视觉网格；**不含 Landscape**（bevy 侧无等价方案则跳过该部分并在 manifest 注明）。导出属 M0.5 一次性批量导出的增补，依据本条目执行。
+  - 验收（2026-08-22）：219 actor 全量枚举（147 BP_SimpleObject 参数化方块+22 StaticMeshActor+Brush 等）；20 唯一 SM_Als_* mesh glTF 导出 20/20 成功入库；坐标换算实测修正为 (x,z,y)·0.01+四元数共轭映射（18 单测）；examples/playground 实测 171 静态体、角色落地 (-15,0.92,-15) 于 Floor 网格、loco=Grounded、无 panic。Landscape 按约定跳过并登记 manifest。
 - [ ] M3.2 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
 - [ ] M3.3 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
 - [ ] M3.4 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。

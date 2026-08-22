@@ -186,3 +186,14 @@
 | 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth` | JSON(均匀采样) | `assets/curves/ALSCamera/Data/CF_Als_CameraBlend_Smooth.json` |
 | 2026-08-22 | `/ALS/ALSCamera/SKM_Als_Camera.SKM_Als_Camera` | glTF | `assets/models/ALSCamera/SKM_Als_Camera.gltf` |
 | 2026-08-22 | `/ALS/ALSExtras/Environment/CF_Als_MovingObject` | JSON(均匀采样) | `assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json` |
+
+## M3.1 增补导出（2026-08-22）— Playground 场景
+
+- 依据：CHECKLIST M3.1（场景复刻增补条目，用户指示）；通道同上 commandlet。
+- 内容：ALSExtras/Levels/L_Als_Playground 内 20 个唯一 StaticMesh → ssets/models/playground/*.gltf+.bin
+  （SM_Als_Arch_01/02、Barrel(_Broken)、Bench、Block_2x2/3x3、Cart、Crate(_Broken)、
+  Floor_20x20、Fountain_01、Pillar、Rock、Stairs_01/02/03、TitleBoard、Wall_2x20/3x5）；
+  场景描述 	mp/export/playground/playground_actors.json（219 actor 全量 transform/bounds/mesh 映射，
+  运行时清单经 als-ext PlaygroundPlugin 以 RON 直读，JSON 原件为产物留档）。
+- 跳过：Landscape（bevy 无等价方案，按条目约定省略）、Sky 系、TextRender/AI/NavMesh 等
+  非碰撞装饰与系统 actor；Brush(BSP) 以 actor bounds 盒体近似。

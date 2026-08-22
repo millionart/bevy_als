@@ -1,0 +1,137 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 1512,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 1,
+			"count": 1012,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				0.00280958833,
+				-1.33514405e-07,
+				-0.225696713
+			],
+			"max": [
+				3.48215151,
+				1.73967087,
+				0.229187831
+			]
+		},
+		{
+			"bufferView": 2,
+			"count": 1012,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 3,
+			"count": 1012,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 1012,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 1012,
+			"type": "VEC2",
+			"componentType": 5126
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SM_Als_Arch_02.bin",
+			"byteLength": 59696
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 3024,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 12144,
+			"byteOffset": 3024,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 12144,
+			"byteOffset": 15168,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 16192,
+			"byteOffset": 27312,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8096,
+			"byteOffset": 43504,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8096,
+			"byteOffset": 51600,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SM_Als_Arch_02",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 1,
+						"NORMAL": 2,
+						"TANGENT": 3,
+						"TEXCOORD_0": 4,
+						"TEXCOORD_1": 5
+					},
+					"indices": 0,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	]
+}

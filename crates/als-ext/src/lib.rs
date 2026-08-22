@@ -1,10 +1,18 @@
 pub mod curve;
 pub mod loader;
 pub mod nodes;
+pub mod playground;
 
 pub use curve::{sample_curve, CurveAsset, CurveKey, CurveSampleMode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
+pub use playground::{
+    is_engine_basic, playground_setup_system, ue_extents_to_bevy, ue_point_to_bevy,
+    ue_quat_to_bevy, ue_rotator_to_bevy_quat, ue_yaw_to_bevy_quat, PlaygroundActor,
+    PlaygroundBoxCollider, PlaygroundComponent, PlaygroundManifest, PlaygroundManifestPath,
+    PlaygroundMovingObject, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
+    PlaygroundStatic,
+};
 
 use bevy::prelude::*;
 use bevy_animation_graph::builtin_nodes::global_input::GlobalInput;

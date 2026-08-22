@@ -1,4 +1,5 @@
 param(
+    [string]$Map,
     [Parameter(Mandatory = $true)][string]$Script,
     [Parameter(ValueFromRemainingArguments = $true)][string[]]$UeArgs
 )
@@ -19,7 +20,9 @@ New-Item -ItemType Directory -Force -Path 'tmp/export' | Out-Null
 $log  = Join-Path (Get-Location) ("tmp/export/cmdlet_{0}.log" -f (Get-Date -UFormat %s))
 $env:BEVY_ALS_ROOT = (Get-Location).Path
 
-$allArgs = @($PROJ, '-run=pythonscript', "-script=$full", '-stdout', '-ForceLogFlush', "-abslog=$log") + $UeArgs
+$allArgs = @($PROJ) + $(if ($Map) { , $Map } else { @() }) +
+    @('-run=pythonscript', "-script=$full", '-stdout', '-ForceLogFlush', "-abslog=$log") +
+    $UeArgs
 & $UE @allArgs
 $ec = $LASTEXITCODE
 

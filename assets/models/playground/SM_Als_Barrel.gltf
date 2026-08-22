@@ -1,0 +1,137 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 1932,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 1,
+			"count": 1890,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				-0.475553006,
+				4.92354543e-17,
+				-0.478768975
+			],
+			"max": [
+				0.479999989,
+				0.959999979,
+				0.464397013
+			]
+		},
+		{
+			"bufferView": 2,
+			"count": 1890,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 3,
+			"count": 1890,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 1890,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 1890,
+			"type": "VEC2",
+			"componentType": 5126
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SM_Als_Barrel.bin",
+			"byteLength": 109704
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 3864,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 22680,
+			"byteOffset": 3864,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 22680,
+			"byteOffset": 26544,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 30240,
+			"byteOffset": 49224,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 15120,
+			"byteOffset": 79464,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 15120,
+			"byteOffset": 94584,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SM_Als_Barrel",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 1,
+						"NORMAL": 2,
+						"TANGENT": 3,
+						"TEXCOORD_0": 4,
+						"TEXCOORD_1": 5
+					},
+					"indices": 0,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	]
+}
