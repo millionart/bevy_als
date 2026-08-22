@@ -1,4 +1,5 @@
 use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::debug_hud::AlsStateHudPlugin;
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
 use als_core::params::AlsMovementParams;
@@ -27,6 +28,7 @@ fn main() {
         AlsCharacterPlugin,
         AlsInputPlugin,
         AlsStateTransitionPlugin,
+        AlsStateHudPlugin,
     ))
     .add_systems(Startup, setup)
     .add_systems(Update, (keyboard_driver, transition_logger));

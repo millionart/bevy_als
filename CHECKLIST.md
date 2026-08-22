@@ -43,7 +43,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] M1.4 角色实体组装 API：`AlsCharacterBundle`（Transform、物理体、tnua controller、状态组件、参数资源句柄）+ 生成示例角色的 example。
 - [x] M1.5 参数资产：`AlsMovementParams`（各 gait 最大速度/加速度、旋转速率、蹲高、跳跃参数）RON 化，支持 per-character 覆盖。
   - 数值出处：walk/run/sprint 1.75/3.75/6.50 m/s（AlsMovementSettings.h:21/28/35）；加速20/减速15/摩擦4.0（AMC.cpp:139-141）；胶囊站半高0.90半径0.30（AlsCharacter.cpp:31）、蹲半高0.40（引擎默认，工程无覆写）；蹲速1.50 m/s（AlsCrouchingSettings.h:13）；跳跃Z 4.20 m/s+重力1.0（引擎默认）；旋转半衰期曲线取 M0.5 导出 JSON 实测值；yaw 转速 VD800/View500/Aiming1000 deg/s（AlsCharacter.cpp≈1574-1884）。推断项：coyote 0.10s/jump buffer 0.15s（ALS 无此机制，平台惯例）。
-- [ ] M1.6 调试 UI（简单 egui/bevy_text 打印当前状态组合即可）。
+- [x] M1.6 调试 UI（简单 egui/bevy_text 打印当前状态组合即可）。
 - [ ] M1.7 **Gate**：example 中按键可在合法范围内切换 Stance/Gait/RotationMode，非法切换被拒绝并有日志；状态打印正确。
 
 ## M2 曲线与数据驱动基础设施（依赖：M1）

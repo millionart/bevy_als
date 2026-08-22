@@ -1,5 +1,6 @@
 pub mod character;
 pub mod control_scheme;
+pub mod debug_hud;
 pub mod input;
 pub mod params;
 pub mod state;
