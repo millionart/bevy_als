@@ -36,7 +36,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 对标 ALS GameplayTags 体系，改为纯 ECS 组件。参考 ALS：ViewMode / LocomotionMode / RotationMode / Stance / Gait / OverlayState。
 
-- [ ] M1.1 `crates/als-core`：定义状态组件 `LocomotionState`（Grounded/Air/Ragdoll 等顶层 mode）、`RotationMode`(VelocityDirection/ControlDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…枚举起步)；全部枚举取值须对照 ALS 源码（AlsGameplayTags 等）核对后定稿，不得凭记忆杜撰。
+- [x] M1.1 `crates/als-core`：定义状态组件 `LocomotionState`（Grounded/Air/Ragdolling 等顶层 mode）、`RotationMode`(VelocityDirection/ViewDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…13 项枚举)；全部枚举取值已对照 ALS v4.18 AlsGameplayTags.h 核对定稿（RotationMode 用源码 ViewDirection，修正本清单旧称 ControlDirection；Ragdoll 并入顶层 LocomotionState）。
 - [x] M1.2 状态合法性约束系统：非法转移（如空中切蹲）由专门 system 拒绝/排队；提供 `StateTransitionEvent`。
   - 设计要点：逐维度 Verdict(Accept/Reject/Queue) 支持部分应用；默认策略 Queue 对应 ALS Desired 字段持久语义；Ragdolling→Air 无视策略直接拒绝；同值请求幂等不发事件。
 - [x] M1.3 输入抽象层：bevy_enhanced_input 映射 Move/Look/Jump/Crouch/Sprint/Aim/Roll 等 action → `AlsInputCommand` 组件（与具体设备解耦）。
