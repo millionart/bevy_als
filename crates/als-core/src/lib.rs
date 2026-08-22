@@ -1,3 +1,4 @@
+pub mod bones;
 pub mod character;
 pub mod control_scheme;
 pub mod debug_hud;
