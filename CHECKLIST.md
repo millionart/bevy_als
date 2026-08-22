@@ -85,7 +85,7 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M4.2 基础图库 `assets/graphs/`：Idle、Walk F/B/L/R、Run、Sprint、Crouch 系列 clip 图；BlendSpace1D 按速度混合行走组。
 - [x] M4.3 ChainNode 组装 Base locomotion 层 + 上层叠加接口（LayeredPose 输出 pin 约定）。
 - [x] M4.4 时间参数系统：Stride Blanking/步频同步——动画播放速率随实际水平速度缩放（ALS Start/Stop/移动匹配的简化版，完整 distance matching 后置到 M8）。
-- [ ] M4.5 动画图热重载验证：编辑 RON 无需重启即生效。
+- [x] M4.5 动画图热重载验证：编辑 RON 无需重启即生效。
 - [ ] M4.6 **Gate**：example 中角色随速度自动在 idle↔walk↔run↔sprint 平滑混合，蹲姿切换对应图分支；帧率无关（0.5x/2x timescale 测试）。
 
 ## M5 Locomotion 状态机动画（依赖：M4）
@@ -175,7 +175,6 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
     （本注记为修复 PS 管道编码损坏后由主代理重写——dd7bb69/c1f813c/c74d2ff 中 CHECKLIST
     中文曾双重编码损坏，本版本以 8631741 干净基底重建。）
   - M4.1-M4.4 补勾选（实现于 8483270 与 bb8bf2d，当时漏同步勾选）。
-  - M4.5/M4.6 进行中：file_watcher 已启用但运行中编辑 RON 未观测到 AssetEvent::Modified
-    （watcher 路径/配置待查）；ALS_TIMESCALE 基础设施已加(Time<Virtual>)但 0.5x/2x 比对测量
+  - M4.5/M4.6 进行中：file_watcher feature 启用后实测生效——运行中两次编辑 locomotion_speed.animgraph.ron 均触发 AssetEvent::Modified(日志 HOTRELOAD x2)；先前误判系编辑发生在 job 编译期(应用未启动)；ALS_TIMESCALE 基础设施已加(Time<Virtual>)但 0.5x/2x 比对测量
     方法有缺陷(报告列均为虚拟时间+SpeedNode elapsed 记账伪影)——两项完成后再勾选。
     M4.6 其余证据已具备：速度三角波自动混合+步频缩放实测、crouch_walk 分支图就绪。
