@@ -40,7 +40,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] M1.2 状态合法性约束系统：非法转移（如空中切蹲）由专门 system 拒绝/排队；提供 `StateTransitionEvent`。
   - 设计要点：逐维度 Verdict(Accept/Reject/Queue) 支持部分应用；默认策略 Queue 对应 ALS Desired 字段持久语义；Ragdolling→Air 无视策略直接拒绝；同值请求幂等不发事件。
 - [x] M1.3 输入抽象层：bevy_enhanced_input 映射 Move/Look/Jump/Crouch/Sprint/Aim/Roll 等 action → `AlsInputCommand` 组件（与具体设备解耦）。
-- [ ] M1.4 角色实体组装 API：`AlsCharacterBundle`（Transform、物理体、tnua controller、状态组件、参数资源句柄）+ 生成示例角色的 example。
+- [x] M1.4 角色实体组装 API：`AlsCharacterBundle`（Transform、物理体、tnua controller、状态组件、参数资源句柄）+ 生成示例角色的 example。
 - [x] M1.5 参数资产：`AlsMovementParams`（各 gait 最大速度/加速度、旋转速率、蹲高、跳跃参数）RON 化，支持 per-character 覆盖。
   - 数值出处：walk/run/sprint 1.75/3.75/6.50 m/s（AlsMovementSettings.h:21/28/35）；加速20/减速15/摩擦4.0（AMC.cpp:139-141）；胶囊站半高0.90半径0.30（AlsCharacter.cpp:31）、蹲半高0.40（引擎默认，工程无覆写）；蹲速1.50 m/s（AlsCrouchingSettings.h:13）；跳跃Z 4.20 m/s+重力1.0（引擎默认）；旋转半衰期曲线取 M0.5 导出 JSON 实测值；yaw 转速 VD800/View500/Aiming1000 deg/s（AlsCharacter.cpp≈1574-1884）。推断项：coyote 0.10s/jump buffer 0.15s（ALS 无此机制，平台惯例）。
 - [ ] M1.6 调试 UI（简单 egui/bevy_text 打印当前状态组合即可）。

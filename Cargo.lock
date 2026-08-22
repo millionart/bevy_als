@@ -527,8 +527,12 @@ version = "0.1.0"
 dependencies = [
  "als-core",
  "als-ext",
+ "avian3d",
  "bevy",
+ "bevy-tnua",
+ "bevy-tnua-avian3d",
  "bevy_animation_graph",
+ "bevy_enhanced_input",
 ]
 
 [[package]]
