@@ -58,7 +58,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
   - 在 CurveSampleNode 基础上增加 scale/bias 重映射（ALS 曲线常需量程变换）；输出经图级 `output_data` pin（DataSpec::F32，资产先例 blend_parameters.animgraph.ron）供外部系统经 `AnimationGraphPlayer::get_outputs()` 消费——即 ALS curve→参数通道的 ECS 等价物。
 - [x] M2.4 clip 曲线轨道采样：播放 clip 时同步输出其浮点曲线轨道值（对接 ALS 导出动画中的 FootSliding/LayerHand* 等）；优先基于公开数据结构在 als-ext 包装实现，若公开 API 不足再按规则 4 做可回馈上游的最小独立改动。
   - 事实核查（2026-08-22）：UE glTF 导出器不写 AnimSequence 自定义浮点曲线为 glTF 通道（实测导出文件仅 translation/rotation/scale 三类 target），且 bevy 0.19 glTF loader 仅读取该四类通道（含 morph）——浮点轨道在资产管线两端都不存在，ALS 的 FootSliding/LayerHand* 等曲线实际以独立 CurveFloat 资产存在（M0.5 已导出 16 张数值表）。等价实现：曲线经 M2.5 导入为 CurveAsset，播放时由图内共享时间源同时驱动 ClipNode 与 CurveDrivenValueNode 实现逐帧同步输出（Gate 示例演示）；若未来确需真内嵌轨道，须先增补导出条目或按规则 4 处理 bevy_gltf 上游。
-- [ ] M2.5 将 ALS 关键曲线数值表导入为 RON 并加载验证；单元测试覆盖曲线端点/中点求值与节点类型检查。
+- [x] M2.5 将 ALS 关键曲线数值表导入为 RON 并加载验证；单元测试覆盖曲线端点/中点求值与节点类型检查。
+  - tools/import/gen_curves.py 将 M0.5 导出的 16 张 JSON 数值表转 .curve.ron(Linear 模式逐键保真)；CurveAssetLoader(.curve.ron 扩展名)注册进 AlsExtPlugin；集成测试经 AssetPlugin+AssetServer 真实加载 CF_Als_StrideBlendAmount_Walk 并断言 129 键/域[0,150]/端点 0.2→1.0/均匀网格中点精确命中/相邻键半点线性插值；节点类型检查=注册契约单测(type_path 分发键+ReflectNodeLike)。
 - [ ] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
 
 ## M3 运动基座：tnua → ALS 参数映射（依赖：M1, M2）
