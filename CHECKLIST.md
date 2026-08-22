@@ -75,7 +75,7 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M3.5 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
 - [x] M3.6 旋转模式系统：VelocityDirection（非瞄准）/ViewDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
 - [x] M3.7 斜坡/台阶处理验证：slope 旋转、step height 参数调至 ALS 观感。
-- [ ] M3.8 **Gate** **Gate**：example 第三人称胶囊在测试关卡完成走跑冲/蹲/跳全流程，速度曲线数值与 ALS 参数表一致（打印比对），无抖墙/卡台阶回归。
+- [x] M3.8 **Gate** **Gate**：example 第三人称胶囊在测试关卡完成走跑冲/蹲/跳全流程，速度曲线数值与 ALS 参数表一致（打印比对），无抖墙/卡台阶回归。
 
 ## M4 动画图基座（依赖：M2, M3）
 
