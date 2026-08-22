@@ -81,10 +81,10 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 把导出资产接入 bevy_animation_graph，建立 ALS 对应的图骨架。
 
-- [ ] M4.1 骨骼映射：UE Manny 骨骼名 → bevy 实体层级 BoneId 映射表，含 virtual bone 占位策略（`VB foot_l` 等 ALS 虚骨先以 marker entity 表示）。
-- [ ] M4.2 基础图库 `assets/graphs/`：Idle、Walk F/B/L/R、Run、Sprint、Crouch 系列 clip 图；BlendSpace1D 按速度混合行走组。
-- [ ] M4.3 ChainNode 组装 Base locomotion 层 + 上层叠加接口（LayeredPose 输出 pin 约定）。
-- [ ] M4.4 时间参数系统：Stride Blanking/步频同步——动画播放速率随实际水平速度缩放（ALS Start/Stop/移动匹配的简化版，完整 distance matching 后置到 M8）。
+- [x] M4.1 骨骼映射：UE Manny 骨骼名 → bevy 实体层级 BoneId 映射表，含 virtual bone 占位策略（`VB foot_l` 等 ALS 虚骨先以 marker entity 表示）。
+- [x] M4.2 基础图库 `assets/graphs/`：Idle、Walk F/B/L/R、Run、Sprint、Crouch 系列 clip 图；BlendSpace1D 按速度混合行走组。
+- [x] M4.3 ChainNode 组装 Base locomotion 层 + 上层叠加接口（LayeredPose 输出 pin 约定）。
+- [x] M4.4 时间参数系统：Stride Blanking/步频同步——动画播放速率随实际水平速度缩放（ALS Start/Stop/移动匹配的简化版，完整 distance matching 后置到 M8）。
 - [ ] M4.5 动画图热重载验证：编辑 RON 无需重启即生效。
 - [ ] M4.6 **Gate**：example 中角色随速度自动在 idle↔walk↔run↔sprint 平滑混合，蹲姿切换对应图分支；帧率无关（0.5x/2x timescale 测试）。
 
@@ -166,10 +166,16 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
+
   - M3.2-M3.7 验证证据（2026-08-22，examples/motion_gate 19 阶段脚本化全流程，exit=0 无 panic）：
-    三档速度精确达标 walk/run/sprint = 1.75/3.75/6.50（target=actual）；jump Air↔Grounded
-    转移闭环日志确认；蹲走钳制 target=1.50 且隧道内 headroom 阻挡起立(ph16 设计预期)、
-    出隧道恢复站立行走(ph17)；原地旋转 ViewDirection/Aiming 双模式执行；坡道爬升与台阶冲刺
-    无抖墙无卡台阶。运动系统重构含：effective_gait 蹲姿钳制、统一动作喂入、step-up 台阶辅助、
-    capsule 换高延迟队列。
-  - M4.5/M4.6 进行中注记（2026-08-22）：file_watcher feature 已启用但运行中编辑 RON 未观测到 AssetEvent::Modified（watcher 路径/配置待查）；ALS_TIMESCALE 基础设施已加(Time<Virtual>)，但 0.5x/2x 比对测量方法有缺陷(报告列均为虚拟时间+SpeedNode elapsed 记账伪影)，帧率无关性未可靠证实——两项完成后再勾选。M4.6 其余证据已具备：速度三角波自动混合+步频缩放实测通过、crouch_walk 分支图就绪。
+    三档速度精确达标 walk/run/sprint = 1.75/3.75/6.50；jump Air↔Grounded 转移闭环；蹲走钳制
+    target=1.50 且隧道内 headroom 阻挡起立(ph16 设计预期)、出隧道恢复站立行走(ph17)；原地旋转
+    ViewDirection/Aiming 双模式执行；坡道爬升与台阶冲刺无抖墙无卡台阶。运动系统重构含
+    effective_gait 蹲姿钳制、统一动作喂入、step-up 台阶辅助、capsule 换高延迟队列。
+    （本注记为修复 PS 管道编码损坏后由主代理重写——dd7bb69/c1f813c/c74d2ff 中 CHECKLIST
+    中文曾双重编码损坏，本版本以 8631741 干净基底重建。）
+  - M4.1-M4.4 补勾选（实现于 8483270 与 bb8bf2d，当时漏同步勾选）。
+  - M4.5/M4.6 进行中：file_watcher 已启用但运行中编辑 RON 未观测到 AssetEvent::Modified
+    （watcher 路径/配置待查）；ALS_TIMESCALE 基础设施已加(Time<Virtual>)但 0.5x/2x 比对测量
+    方法有缺陷(报告列均为虚拟时间+SpeedNode elapsed 记账伪影)——两项完成后再勾选。
+    M4.6 其余证据已具备：速度三角波自动混合+步频缩放实测、crouch_walk 分支图就绪。
