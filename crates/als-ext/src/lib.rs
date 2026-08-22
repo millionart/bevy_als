@@ -1,6 +1,8 @@
 pub mod curve;
+pub mod nodes;
 
-pub use curve::{CurveAsset, CurveKey, CurveSampleMode};
+pub use curve::{sample_curve, CurveAsset, CurveKey, CurveSampleMode};
+pub use nodes::CurveSampleNode;
 
 use bevy::prelude::*;
 
@@ -8,6 +10,7 @@ pub struct AlsExtPlugin;
 
 impl Plugin for AlsExtPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<CurveAsset>();
+        app.init_asset::<CurveAsset>()
+            .register_type::<CurveSampleNode>();
     }
 }
