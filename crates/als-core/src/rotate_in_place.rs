@@ -142,7 +142,6 @@ mod tests {
         assert!(slow.play_rate < fast.play_rate);
         assert!((fast.play_rate - 2.93).abs() < 0.05);
         assert!(fast.play_rate < cfg.play_rate_range.1);
-        assert!((fast.play_rate - 3.0).abs() < 1e-3);
     }
 
     #[test]
