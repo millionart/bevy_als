@@ -8,6 +8,7 @@ pub mod params;
 pub mod pivot;
 pub mod start_stop;
 pub mod state;
+pub mod rotate_in_place;
 pub mod transition;
 pub mod turn_in_place;
 

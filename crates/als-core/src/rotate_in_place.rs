@@ -1,0 +1,160 @@
+use bevy::prelude::*;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RotateInPlaceConfig {
+    pub view_yaw_angle_threshold_degrees: f32,
+    pub play_rate_range: (f32, f32),
+    pub reference_yaw_speed_range: (f32, f32),
+}
+
+impl Default for RotateInPlaceConfig {
+    fn default() -> Self {
+        Self {
+            view_yaw_angle_threshold_degrees: 50.0,
+            play_rate_range: (1.15, 3.0),
+            reference_yaw_speed_range: (180.0, 460.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RotateSide {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RotateInPlaceState {
+    pub side: Option<RotateSide>,
+    pub play_rate: f32,
+}
+
+impl Default for RotateInPlaceState {
+    fn default() -> Self {
+        Self {
+            side: None,
+            play_rate: 0.0,
+        }
+    }
+}
+
+fn map_range(value: f32, in_range: (f32, f32), out_range: (f32, f32)) -> f32 {
+    let span = (in_range.1 - in_range.0).max(f32::EPSILON);
+    let t = ((value - in_range.0) / span).clamp(0.0, 1.0);
+    out_range.0 + (out_range.1 - out_range.0) * t
+}
+
+pub fn update_rotate_in_place(
+    state: &mut RotateInPlaceState,
+    moving: bool,
+    allowed: bool,
+    view_yaw_angle_degrees: f32,
+    view_yaw_speed_deg_per_s: f32,
+    config: &RotateInPlaceConfig,
+    dt: f32,
+) {
+    if moving || !allowed {
+        *state = RotateInPlaceState::default();
+        return;
+    }
+
+    let side = if view_yaw_angle_degrees < -config.view_yaw_angle_threshold_degrees {
+        Some(RotateSide::Left)
+    } else if view_yaw_angle_degrees > config.view_yaw_angle_threshold_degrees {
+        Some(RotateSide::Right)
+    } else {
+        None
+    };
+
+    match side {
+        Some(_) => {
+            let target =
+                map_range(view_yaw_speed_deg_per_s.abs(), config.reference_yaw_speed_range, config.play_rate_range);
+            state.side = side;
+            state.play_rate = damp_exact(state.play_rate, target, dt);
+        }
+        None => {
+            let target = config.play_rate_range.0;
+            state.side = None;
+            state.play_rate = damp_exact(state.play_rate, target, dt);
+        }
+    }
+}
+
+fn damp_exact(current: f32, target: f32, dt: f32) -> f32 {
+    current + (target - current) * (1.0 - (-2.0_f32.max(f32::EPSILON) * dt).exp())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn moving_clears_state() {
+        let mut s = RotateInPlaceState {
+            side: Some(RotateSide::Left),
+            play_rate: 2.0,
+        };
+        update_rotate_in_place(&mut s, true, true, -80.0, 300.0, &Default::default(), 0.05);
+        assert_eq!(s.side, None);
+    }
+
+    #[test]
+    fn not_allowed_clears_state() {
+        let mut s = RotateInPlaceState {
+            side: Some(RotateSide::Right),
+            play_rate: 2.0,
+        };
+        update_rotate_in_place(&mut s, false, false, 80.0, 300.0, &Default::default(), 0.05);
+        assert_eq!(s.side, None);
+    }
+
+    #[test]
+    fn left_threshold_selects_left() {
+        let mut s = RotateInPlaceState::default();
+        update_rotate_in_place(&mut s, false, true, -80.0, 300.0, &Default::default(), 0.05);
+        assert_eq!(s.side, Some(RotateSide::Left));
+    }
+
+    #[test]
+    fn right_threshold_selects_right() {
+        let mut s = RotateInPlaceState::default();
+        update_rotate_in_place(&mut s, false, true, 80.0, 300.0, &Default::default(), 0.05);
+        assert_eq!(s.side, Some(RotateSide::Right));
+    }
+
+    #[test]
+    fn within_threshold_is_idle() {
+        let mut s = RotateInPlaceState::default();
+        update_rotate_in_place(&mut s, false, true, 30.0, 300.0, &Default::default(), 0.05);
+        assert_eq!(s.side, None);
+    }
+
+    #[test]
+    fn play_rate_scales_with_view_speed() {
+        let cfg = RotateInPlaceConfig::default();
+        let mut slow = RotateInPlaceState::default();
+        let mut fast = RotateInPlaceState::default();
+        for _ in 0..40 {
+            update_rotate_in_place(&mut slow, false, true, -80.0, 190.0, &cfg, 0.1);
+            update_rotate_in_place(&mut fast, false, true, -80.0, 450.0, &cfg, 0.1);
+        }
+        assert!(slow.play_rate < fast.play_rate);
+        assert!((fast.play_rate - 2.93).abs() < 0.05);
+        assert!(fast.play_rate < cfg.play_rate_range.1);
+        assert!((fast.play_rate - 3.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn idle_damps_to_min_play_rate() {
+        let cfg = RotateInPlaceConfig::default();
+        let mut s = RotateInPlaceState {
+            side: None,
+            play_rate: 3.0,
+        };
+        for _ in 0..120 {
+            update_rotate_in_place(&mut s, false, true, 10.0, 0.0, &cfg, 0.1);
+        }
+        assert!((s.play_rate - 1.15).abs() < 1e-3);
+    }
+}
