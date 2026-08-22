@@ -9,5 +9,6 @@ pub mod pivot;
 pub mod start_stop;
 pub mod state;
 pub mod transition;
+pub mod turn_in_place;
 
 pub use state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
