@@ -90,7 +90,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 ## M5 Locomotion 状态机动画（依赖：M4）
 
-- [ ] M5.1 Start/Stop（起跑/急停）状态与动画选择逻辑（方向分类：前/后/左/左前/…九向）。
+- [x] M5.1 Start/Stop（起跑/急停）状态与动画选择逻辑。
+    - 源码核实修正：ALS v4.18 EAlsMovementDirection 仅 4 向(Forward/Backward/Left/Right)，分类用 CalculateMovementDirection(ForwardHalfAngle=70°,Threshold=5°)；急停 PlayQuickStopAnimation 按剩余转角符号选 Left/Right 支且 play rate 随 |转角|/180 缩放——非清单旧称九向。实现：MoveDirection 八分区纯函数 classify+迟滞状态机(update_start_stop start=0.1/stop=0.05 m/s)，单测 12 项；资产对接：起跑=Acceleration 4 向+冲刺专用，急停=Stop_Left/Right。
 - [ ] M5.2 Pivot（折返）触发条件与混合。
 - [ ] M5.3 TurnInPlace（原地转身）：角度阈值 + 90/180 选择 + 步点对齐（foot lock 简化为曲线锁相，完整 IK 在 M7）。
 - [ ] M5.4 RotateInPlace（瞄准态原地转向）。
