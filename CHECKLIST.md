@@ -51,7 +51,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜、stride blending 等）。通过 bevy_animation_graph 的自定义节点扩展点在 `crates/als-ext` 补齐 curve 能力（规则 4），不修改 fork。
 
-- [ ] M2.1 在 `crates/als-ext` 实现 `CurveAsset`：一维 float 曲线资产（RON：线性/阶梯/平滑三种采样模式），注册进 bevy Assets。
+- [x] M2.1 在 `crates/als-ext` 实现 `CurveAsset`：一维 float 曲线资产（RON：线性/阶梯/平滑三种采样模式），注册进 bevy Assets。
 - [ ] M2.2 经 bevy_animation_graph 自定义节点注册实现 `CurveSampleNode`：float 输入（时间或任意参数）+ CurveAsset 句柄 → float pin。
 - [ ] M2.3 实现 `CurveDrivenValueNode`：把曲线输出映射到 Pose 之外的"元数据输出"（模拟 ALS 的 curve→anim 通知通道），供 IK/权重消费。
 - [ ] M2.4 clip 曲线轨道采样：播放 clip 时同步输出其浮点曲线轨道值（对接 ALS 导出动画中的 FootSliding/LayerHand* 等）；优先基于公开数据结构在 als-ext 包装实现，若公开 API 不足再按规则 4 做可回馈上游的最小独立改动。

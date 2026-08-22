@@ -1,1 +1,13 @@
-pub const CRATE_ROLE: &str = "als-ext: plugin extensions & analytic IK";
+pub mod curve;
+
+pub use curve::{CurveAsset, CurveKey, CurveSampleMode};
+
+use bevy::prelude::*;
+
+pub struct AlsExtPlugin;
+
+impl Plugin for AlsExtPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_asset::<CurveAsset>();
+    }
+}
