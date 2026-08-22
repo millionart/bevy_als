@@ -172,3 +172,4 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
     出隧道恢复站立行走(ph17)；原地旋转 ViewDirection/Aiming 双模式执行；坡道爬升与台阶冲刺
     无抖墙无卡台阶。运动系统重构含：effective_gait 蹲姿钳制、统一动作喂入、step-up 台阶辅助、
     capsule 换高延迟队列。
+  - M4.5/M4.6 进行中注记（2026-08-22）：file_watcher feature 已启用但运行中编辑 RON 未观测到 AssetEvent::Modified（watcher 路径/配置待查）；ALS_TIMESCALE 基础设施已加(Time<Virtual>)，但 0.5x/2x 比对测量方法有缺陷(报告列均为虚拟时间+SpeedNode elapsed 记账伪影)，帧率无关性未可靠证实——两项完成后再勾选。M4.6 其余证据已具备：速度三角波自动混合+步频缩放实测通过、crouch_walk 分支图就绪。

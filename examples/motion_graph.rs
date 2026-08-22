@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use bevy::ecs::message::MessageWriter;
+use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph::AnimationGraph;
@@ -13,6 +14,7 @@ const TRIANGLE_PERIOD: f32 = 12.0;
 const LOG_INTERVAL: f32 = 1.0;
 
 fn main() {
+
     let mut app = App::new();
     app.add_plugins((
         DefaultPlugins.set(AssetPlugin {
@@ -23,7 +25,8 @@ fn main() {
         als_ext::AlsExtPlugin,
     ))
     .add_systems(Startup, setup)
-    .add_systems(Update, (drive_inputs, log_status, probe_wrapper_graph));
+    .add_systems(Update, (drive_inputs, log_status, probe_wrapper_graph, report_graph_events))
+    .add_systems(First, apply_timescale);
 
     if let Ok(secs) = std::env::var("ALS_BOOT_AUTO_QUIT_SECS") {
         let secs: f64 = secs.parse().unwrap_or(25.0);
@@ -41,6 +44,19 @@ fn triangle_wave(t: f32) -> f32 {
         u / half * SPEED_PEAK
     } else {
         (TRIANGLE_PERIOD - u) / half * SPEED_PEAK
+    }
+}
+
+fn apply_timescale(mut time: ResMut<Time<Virtual>>) {
+    let ts: f32 = std::env::var("ALS_TIMESCALE").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0);
+    time.set_relative_speed(ts);
+}
+
+fn report_graph_events(mut ev: MessageReader<bevy::asset::AssetEvent<bevy_animation_graph::core::animation_graph::AnimationGraph>>) {
+    for e in ev.read() {
+        if let bevy::asset::AssetEvent::Modified { id } = e {
+            info!("[M4GATE][HOTRELOAD] AnimationGraph modified id={id:?}");
+        }
     }
 }
 
