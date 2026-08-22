@@ -60,7 +60,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
   - 事实核查（2026-08-22）：UE glTF 导出器不写 AnimSequence 自定义浮点曲线为 glTF 通道（实测导出文件仅 translation/rotation/scale 三类 target），且 bevy 0.19 glTF loader 仅读取该四类通道（含 morph）——浮点轨道在资产管线两端都不存在，ALS 的 FootSliding/LayerHand* 等曲线实际以独立 CurveFloat 资产存在（M0.5 已导出 16 张数值表）。等价实现：曲线经 M2.5 导入为 CurveAsset，播放时由图内共享时间源同时驱动 ClipNode 与 CurveDrivenValueNode 实现逐帧同步输出（Gate 示例演示）；若未来确需真内嵌轨道，须先增补导出条目或按规则 4 处理 bevy_gltf 上游。
 - [x] M2.5 将 ALS 关键曲线数值表导入为 RON 并加载验证；单元测试覆盖曲线端点/中点求值与节点类型检查。
   - tools/import/gen_curves.py 将 M0.5 导出的 16 张 JSON 数值表转 .curve.ron(Linear 模式逐键保真)；CurveAssetLoader(.curve.ron 扩展名)注册进 AlsExtPlugin；集成测试经 AssetPlugin+AssetServer 真实加载 CF_Als_StrideBlendAmount_Walk 并断言 129 键/域[0,150]/端点 0.2→1.0/均匀网格中点精确命中/相邻键半点线性插值；节点类型检查=注册契约单测(type_path 分发键+ReflectNodeLike)。
-- [ ] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
+- [x] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
+  - Gate 证据（2026-08-22，`cargo run --example curve_gate`，ALS_BOOT_AUTO_QUIT_SECS=1）：Smooth 三键曲线(0/0.25@1s/1.0@2s)经 CurveDrivenValueNode→图 output_data "curve_value"→外部 get_outputs() 消费驱动立方体缩放+高度，实测序列 drive_time=0.51→curve_value=0.1243、1.01→0.2499、1.53→0.6406、≥2.03→1.0000(钳制)，与 Smooth 插值逐点吻合；exit=0 无 panic。`cargo test -p als-ext` 9 测试全绿（5 曲线数学+3 节点契约+1 AssetServer 集成），workspace 总计 35 全绿。
 
 ## M3 运动基座：tnua → ALS 参数映射（依赖：M1, M2）
 
