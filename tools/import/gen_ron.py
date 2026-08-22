@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""M0.6 资产导入小工具：UE 导出物(glTF) -> bevy_asset 可加载格式。
-
-一键流程（仓库根目录运行）：
-    python tools/import/gen_ron.py
-
-产出：
-1. assets/skeletons/<Name>.skn.ron      —— Skeleton 描述（引用 models/<Name>.gltf#Scene0）
-2. assets/animations/**/*.anim.ron      —— GraphClip 描述（引用动画 glTF + 骨架）
-
-对每个 glTF 做结构校验：单场景、蒙皮关节、动画命名(<资产名>_0)、通道/采样器一致性、
-通道目标节点存在性。任一失败即非零退出，不生成对应描述文件。
-"""
+"""M0.6 asset import tool: UE exports (glTF) -> bevy_asset loadable RON descriptors. Run from repo root: python tools/import/gen_ron.py"""
 from __future__ import annotations
 
 import json
@@ -25,11 +14,9 @@ SKELS = ASSETS / "skeletons"
 
 SKELETON_MAP = {
     "/ALSCamera": "skeletons/SKM_Als_Camera.skn.ron",
-}  # 未命中前缀的动画一律用主骨架
+}
 DEFAULT_SKELETON = "skeletons/SKM_Als.skn.ron"
 
-# Skeleton 描述的 glTF 源必须含 AnimationPlayer（插件 find_root 依赖），
-# 故引用代表性动画 glTF 而非纯模型；无动画对应物的网格不生成骨架描述。
 SKELETON_SOURCES = {
     "SKM_Als": ("animations/Base/A_Als_Idle.gltf", "Scene0"),
 }
@@ -44,19 +31,19 @@ def load_gltf(path: Path) -> dict:
         with path.open(encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError) as e:
-        raise ValueError(f"JSON 解析失败: {e}") from e
+        raise ValueError(f"failed to parse JSON: {e}") from e
 
 
 def common_checks(g: dict, rel: str) -> list[str]:
     errs = []
     if "scenes" not in g or len(g["scenes"]) != 1:
-        errs.append(f"{rel}: 期望恰好 1 个 scene，实际 {len(g.get('scenes', []))}")
+        errs.append(f"{rel}: expected exactly 1 scene, got {len(g.get('scenes', []))}")
     nodes = g.get("nodes", [])
     if not nodes:
-        errs.append(f"{rel}: 无节点")
+        errs.append(f"{rel}: no nodes")
     root_idx = g["scenes"][0]["nodes"][0]
     if root_idx >= len(nodes):
-        errs.append(f"{rel}: scene 根节点索引越界")
+        errs.append(f"{rel}: scene root node index out of range")
     return errs
 
 
@@ -64,12 +51,12 @@ def check_model(g: dict, rel: str) -> list[str]:
     errs = common_checks(g, rel)
     skins = g.get("skins", [])
     if not skins:
-        errs.append(f"{rel}: 模型缺少蒙皮(skin)")
+        errs.append(f"{rel}: model has no skin")
     for i, s in enumerate(skins):
         if not s.get("joints"):
-            errs.append(f"{rel}: skin[{i}] 无关节")
+            errs.append(f"{rel}: skin[{i}] no joints")
     if not g.get("meshes"):
-        errs.append(f"{rel}: 无网格数据")
+        errs.append(f"{rel}: no mesh data")
     return errs
 
 
@@ -77,24 +64,24 @@ def check_anim(g: dict, rel: str, stem: str) -> tuple[list[str], str]:
     errs = common_checks(g, rel)
     anims = g.get("animations", [])
     if len(anims) != 1:
-        errs.append(f"{rel}: 期望恰好 1 条动画，实际 {len(anims)}")
+        errs.append(f"{rel}: expected exactly 1 animation, got {len(anims)}")
         return errs, ""
     name = anims[0].get("name") or ""
     expected = f"{stem}_0"
     if name != expected:
-        errs.append(f"{rel}: 动画名 {name!r} != 预期 {expected!r}")
+        errs.append(f"{rel}: animation name {name!r} != expected {expected!r}")
     n_nodes = len(g.get("nodes", []))
     samplers = anims[0].get("samplers", [])
     for ci, ch in enumerate(anims[0].get("channels", [])):
         tgt = ch.get("target", {})
         ni = tgt.get("node")
         if ni is None or not 0 <= ni < n_nodes:
-            errs.append(f"{rel}: channel[{ci}] 目标节点越界({ni})")
+            errs.append(f"{rel}: channel[{ci}] target node out of range({ni})")
         si = ch.get("sampler")
         if si is None or not 0 <= si < len(samplers):
-            errs.append(f"{rel}: channel[{ci}] 采样器越界({si})")
+            errs.append(f"{rel}: channel[{ci}] sampler out of range({si})")
     if not anims[0].get("channels"):
-        errs.append(f"{rel}: 动画无通道")
+        errs.append(f"{rel}: animation has no channels")
     return errs, expected
 
 
@@ -103,7 +90,6 @@ def main() -> int:
     n_skn = n_anim = 0
     SKELS.mkdir(parents=True, exist_ok=True)
 
-    # ---- 骨架 -> .skn.ron（源为含动画的 glTF）----
     for name, (rel, label) in SKELETON_SOURCES.items():
         out = SKELS / f"{name}.skn.ron"
         out.write_text(
@@ -117,16 +103,14 @@ def main() -> int:
     skipped = sorted(p.stem for p in MODELS.rglob("*.gltf")
                      if p.stem not in SKELETON_SOURCES)
     if skipped:
-        print(f"[skn] 跳过无动画对应物的网格骨架: {', '.join(skipped)}")
+        print(f"[skn] skipped mesh skeletons without animated counterpart: {', '.join(skipped)}")
 
-    # ---- 动画 -> .anim.ron ----
     anim_paths = sorted(p for p in ANIMS.rglob("*.gltf"))
     for p in anim_paths:
         rel = p.relative_to(ASSETS).as_posix().replace("\\", "/")
         stem = p.stem
         g = load_gltf(p)
         errs, anim_name = check_anim(g, rel, stem)
-        # 骨架选择：按源目录前缀映射，默认主骨架
         skeleton = SKELETON_MAP["/ALSCamera"] if "ALSCamera" in rel else DEFAULT_SKELETON
         out = p.with_suffix(".anim.ron")
         if errs:
@@ -145,10 +129,9 @@ def main() -> int:
             encoding="utf-8",
         )
         n_anim += 1
-    print(f"\n生成完成：{n_skn} 个 .skn.ron，{n_anim} 个 .anim.ron；"
-          f"校验{'通过' if not failed else '存在失败'}")
+    print(f"\ndone: {n_skn} skn.ron, {n_anim} anim.ron; "
+          f"validation {'passed' if not failed else 'FAILED'}")
 
-    # ---- 引用完整性抽查：骨架描述均被动画引用 ----
     referenced = {
         line.split("skeleton: ")[1].strip('",)')
         for p in ANIMS.rglob("*.anim.ron")
@@ -158,7 +141,7 @@ def main() -> int:
     missing = [s for s in SKELETON_SOURCES
                if f"skeletons/{s}.skn.ron" not in referenced]
     if missing:
-        print(f"警告: 未被任何动画引用的骨架 {missing}", file=sys.stderr)
+        print(f"warning: skeletons referenced by no animation {missing}", file=sys.stderr)
     return 1 if failed else 0
 
 

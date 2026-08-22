@@ -1,6 +1,5 @@
 import os as _os
 ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
-# 探明 Interchange glTF 导出 API 面 + 单资产试导出（SKM_Als）
 import os
 import unreal
 
@@ -28,14 +27,12 @@ for out in ["skm_als_test.gltf", "skm_als_test.glb"]:
     except Exception as e:
         unreal.log_warning("PYEXPORT try %s EXC=%s" % (out, e))
 
-# 动画序列试导出
 anim = unreal.EditorAssetLibrary.load_asset(
     "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward")
 unreal.log_warning("PYEXPORT bs loaded=%s" % (anim is not None))
 anim2 = unreal.EditorAssetLibrary.load_asset(
     "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll_Fwd")
 if anim2 is None:
-    # 名字不确定，列出 Roll 目录
     assets = unreal.EditorAssetLibrary.list_assets("/ALS/ALS/Animations/Actions/Roll")
     unreal.log_warning("PYEXPORT roll dir=%s" % assets)
 else:

@@ -1,6 +1,3 @@
-# M0.5 一次性批量导出（headless commandlet，pythonscript）
-# 用法: powershell -File tools/export/run_cmdlet.ps1 tools/export/export_all.py
-# 仓库根经 BEVY_ALS_ROOT 环境变量或启动器工作目录注入，禁止硬编码本地路径
 import os
 import json
 
@@ -16,7 +13,6 @@ def log(msg):
 
 
 def resolve_type(suffix):
-    """按后缀在 unreal 模块里大小写不敏感地找类型，规避命名差异。"""
     target = suffix.lower()
     for n in dir(unreal):
         if n.lower().endswith(target):
@@ -49,14 +45,12 @@ def main():
 
     meshes = packages_by_class("SkeletalMesh")
     anims = packages_by_class("AnimSequence")
-    # BlendSpace1D 是 BlendSpace 的子类，并集去重
     blends = sorted(set(packages_by_class("BlendSpace"))
                     | set(packages_by_class("BlendSpace1D")))
     curves = packages_by_class("CurveFloat")
     log("counts mesh=%d anim=%d blend=%d curve=%d"
         % (len(meshes), len(anims), len(blends), len(curves)))
 
-    # ---- 导出选项：占位数据优先，跳过材质烘焙纹理 ----
     opts_cls = resolve_type("glTFExportOptions")
     opts = opts_cls()
     try:
@@ -100,7 +94,6 @@ def main():
     def load(pkg):
         return unreal.load_object(None, pkg + "." + pkg.rsplit("/", 1)[-1])
 
-    # ---- 模型（含骨架蒙皮）----
     for pkg in meshes:
         obj = load(pkg)
         if not obj:
@@ -110,7 +103,6 @@ def main():
         group = "ALSCamera" if "/ALSCamera/" in pkg else "Character"
         run_export(obj, "%s/models/%s/%s.gltf" % (OUT_ROOT, group, name), sm_exp_cls)
 
-    # ---- 动画序列（镜像 ALS 目录结构）----
     for pkg in anims:
         obj = load(pkg)
         if not obj:
@@ -123,7 +115,6 @@ def main():
             rel = pkg.replace("/ALS/", "").replace("/", "_")
         run_export(obj, "%s/animations/%s.gltf" % (OUT_ROOT, rel), anim_exp_cls)
 
-    # ---- BlendSpace 定义 JSON（glTF 无此概念）----
     for pkg in blends:
         obj = load(pkg)
         if not obj:
@@ -165,9 +156,6 @@ def main():
         results.append({"asset": pkg, "out": out, "ok": True, "kind": "blendspace",
                         "n_samples": len(samples)})
 
-    # ---- 曲线数值表 JSON ----
-    # FloatCurve 为裸 UPROPERTY()，Python 属性访问不可见；改用
-    # GetTimeRange()+GetFloatValue() 在值域上均匀采样（形状保真）。
     for pkg in curves:
         obj = load(pkg)
         if not obj:
@@ -194,7 +182,6 @@ def main():
         results.append({"asset": pkg, "out": out, "ok": not errs, "kind": "curve",
                         "n_keys": len(keys_out), "err": "; ".join(errs)})
 
-    # ---- 汇总 ----
     ok_n = sum(1 for r in results if r.get("ok"))
     with open(LOG_PATH, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=1)

@@ -1,6 +1,3 @@
-# M0.5 commandlet 启动器（PowerShell 版，规避 bash 间歇性丢参）
-# 用法: powershell -File tools/export/run_cmdlet.ps1 <script.py> [附加 UE 参数...]
-# 路径经 tools/env.local.json 注入，禁止硬编码
 param(
     [Parameter(Mandatory = $true)][string]$Script,
     [Parameter(ValueFromRemainingArguments = $true)][string[]]$UeArgs
@@ -10,7 +7,7 @@ Set-Location (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath '..')
 
 $envJson = 'tools/env.local.json'
 if (-not (Test-Path $envJson)) {
-    Write-Error "缺少 $envJson（复制 tools/env.example.json 并填入本机路径）"
+    Write-Error "missing $envJson (copy tools/env.example.json and fill in local paths)"
     exit 2
 }
 $cfg = Get-Content $envJson -Raw | ConvertFrom-Json

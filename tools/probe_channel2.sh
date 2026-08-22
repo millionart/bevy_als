@@ -1,5 +1,4 @@
 #!/bin/bash
-# 导出通道候选探测：ObjectTools / CurveTableTools / SequencerImportExportTools
 set -u
 cd "$(dirname "$0")/.."
 

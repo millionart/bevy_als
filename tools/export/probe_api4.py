@@ -1,6 +1,5 @@
 import os as _os
 ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
-# 探针4：挂载点确认 + 显式扫描 + 绕过注册表的直接加载
 import unreal
 
 ar = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -19,7 +18,6 @@ except Exception as e:
 unreal.log_warning("PYEXPORT4 list_char=%s" %
                    unreal.EditorAssetLibrary.list_assets("/ALS/ALS/Character")[:6])
 
-# 绕过注册表：完整对象路径直接从磁盘加载
 obj = unreal.load_object(None, "/ALS/ALS/Character/SKM_Als.SKM_Als")
 unreal.log_warning("PYEXPORT4 load_object=%s class=%s" %
                    (obj, type(obj).__name__ if obj else None))

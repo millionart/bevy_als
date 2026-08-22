@@ -1,6 +1,4 @@
 #!/bin/bash
-# M0.5 枚举：ALS 工程内待导出资产清单 + 导出能力探测
-# 用法：bash tools/probe_enum.sh （输出落 tmp/als_enum/，该目录已 gitignore）
 set -u
 cd "$(dirname "$0")/.."
 mkdir -p tmp/als_enum

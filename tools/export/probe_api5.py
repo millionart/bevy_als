@@ -1,6 +1,5 @@
 import os as _os
 ALS_ROOT = _os.environ.get("ALS_PROJECT_ROOT", "")
-# 探针5：单资产导出打通（AssetTools.export_assets 带路径通道优先）+ 骨骼/曲线内省
 import os
 import unreal
 
@@ -27,7 +26,6 @@ if mesh:
     except Exception as e:
         unreal.log_warning("PYEXPORT5 assettools_export EXC=%s" % e)
 
-# 动画：列 Roll 目录并试导一条
 rolls = unreal.EditorAssetLibrary.list_assets("/ALS/ALS/Animations/Actions/Roll")
 unreal.log_warning("PYEXPORT5 rolls=%s" % rolls[:8])
 if rolls:
@@ -41,7 +39,6 @@ if rolls:
         except Exception as e:
             unreal.log_warning("PYEXPORT5 anim_export EXC=%s" % e)
 
-# 落点搜索
 hits = []
 for base_dir in [os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp"), os.path.join(ALS_ROOT, "Saved")]:
     for base, dirs, files in os.walk(base_dir):
@@ -54,7 +51,6 @@ for h in hits[:10]:
     unreal.log_warning("PYEXPORT5 hit=%s size=%d" % h)
 unreal.log_warning("PYEXPORT5 total_hits=%d" % len(hits))
 
-# 内省：骨骼名与曲线键能否直接读
 skel = unreal.load_object(None, "/ALS/ALS/Character/SK_Als.SK_Als")
 if skel:
     props = [p for p in ("bone_tree", "native_parent_bone_index") if hasattr(skel, p)]

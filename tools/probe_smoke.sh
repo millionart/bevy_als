@@ -1,6 +1,4 @@
 #!/bin/bash
-# M0.5 冒烟验证：call_tool 元工具分发是否恢复（修复后的 probe）
-# 用法：bash tools/probe_smoke.sh
 set -u
 cd "$(dirname "$0")/.."
 

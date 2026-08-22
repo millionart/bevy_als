@@ -112,8 +112,6 @@ def main() -> None:
                         "params": {"name": "list_toolsets", "arguments": {}}}, sid)
         print(extract_text(body))
     elif args[0] == "call":
-        # 服务器协议层 tools/call 只注册了 list_toolsets/describe_toolset/call_tool
-        # 三个元工具；toolset 工具必须经 call_tool 分发（toolset_name/tool_name 在 arguments 内）。
         inner = {"tool_name": args[2] if len(args) > 2 else "",
                  "arguments": json.loads(args[3]) if len(args) > 3 else {}}
         if len(args) >= 2 and args[1] != "-":

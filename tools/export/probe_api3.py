@@ -1,4 +1,3 @@
-# 探针3：注册表直查资产 + 自动导出落点定位
 import os
 import unreal
 
@@ -26,7 +25,6 @@ if target:
     ok = im.export_asset(obj, True)
     unreal.log_warning("PYEXPORT3 export=%s" % ok)
 
-# 定位新生成的 gltf/glb（项目目录 + Saved，限深扫描）
 hits = []
 ALS_ROOT = os.environ.get("ALS_PROJECT_ROOT", "")
 for root_dir in [ALS_ROOT, os.path.join(os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp")]:

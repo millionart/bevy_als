@@ -1,5 +1,4 @@
 #!/bin/bash
-# 导出通道探测：1) execute_tool_script 环境说明 2) EditorAppToolset 工具清单
 set -u
 cd "$(dirname "$0")/.."
 
