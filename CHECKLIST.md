@@ -67,13 +67,14 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 用 bevy-tnua 替代 UE CharacterMovementComponent。目标：walk/run/sprint/crouch/jump 手感对齐 ALS 数值。
 
-- [ ] M3.1 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
-- [ ] M3.2 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
-- [ ] M3.3 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。
-- [ ] M3.4 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
-- [ ] M3.5 旋转模式系统：VelocityDirection（非瞄准）/ControlDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
-- [ ] M3.6 斜坡/台阶处理验证：slope 旋转、step height 参数调至 ALS 观感。
-- [ ] M3.7 **Gate**：example 第三人称胶囊在测试关卡完成走跑冲/蹲/跳全流程，速度曲线数值与 ALS 参数表一致（打印比对），无抖墙/卡台阶回归。
+- [ ] M3.1 场景复刻：按 ALS 工程 `ALSExtras/Levels/L_Als_Playground.umap` 在本项目搭建等价测试场景——经 commandlet 枚举关卡内 actor（StaticMeshActor 等）并导出其 StaticMesh 为 glTF 入库 `assets/models/playground/`，同时生成场景描述 JSON（actor→mesh 映射 + world transform）；bevy 侧程序化重建静态碰撞体与视觉网格；**不含 Landscape**（bevy 侧无等价方案则跳过该部分并在 manifest 注明）。导出属 M0.5 一次性批量导出的增补，依据本条目执行。
+- [ ] M3.2 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
+- [ ] M3.3 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
+- [ ] M3.4 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。
+- [ ] M3.5 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
+- [ ] M3.6 旋转模式系统：VelocityDirection（非瞄准）/ViewDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
+- [ ] M3.7 斜坡/台阶处理验证：slope 旋转、step height 参数调至 ALS 观感。
+- [ ] M3.8 **Gate** **Gate**：example 第三人称胶囊在测试关卡完成走跑冲/蹲/跳全流程，速度曲线数值与 ALS 参数表一致（打印比对），无抖墙/卡台阶回归。
 
 ## M4 动画图基座（依赖：M2, M3）
 
