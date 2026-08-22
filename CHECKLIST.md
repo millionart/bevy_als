@@ -54,7 +54,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M2.1 在 `crates/als-ext` 实现 `CurveAsset`：一维 float 曲线资产（RON：线性/阶梯/平滑三种采样模式），注册进 bevy Assets。
 - [x] M2.2 经 bevy_animation_graph 自定义节点注册实现 `CurveSampleNode`：float 输入（时间或任意参数）+ CurveAsset 句柄 → float pin。
   - 实现差异（公开扩展点边界核实）：节点内嵌曲线数据字段（mode+keys，随图 RON 序列化）而非资产句柄——`SystemResources` 为固定 SystemParam（仅 GraphClip/AnimationGraph/StateMachine/Skeleton 四类）且 `DataSpec` 封闭枚举，自定义资产句柄在 update 内无解析通道；句柄形态若未来必需再按规则 4 评估 fork 改动。分发键 `als_ext::CurveSampleNode`（#[type_path]），注册契约单测覆盖。
-- [ ] M2.3 实现 `CurveDrivenValueNode`：把曲线输出映射到 Pose 之外的"元数据输出"（模拟 ALS 的 curve→anim 通知通道），供 IK/权重消费。
+- [x] M2.3 实现 `CurveDrivenValueNode`：把曲线输出映射到 Pose 之外的"元数据输出"（模拟 ALS 的 curve→anim 通知通道），供 IK/权重消费。
+  - 在 CurveSampleNode 基础上增加 scale/bias 重映射（ALS 曲线常需量程变换）；输出经图级 `output_data` pin（DataSpec::F32，资产先例 blend_parameters.animgraph.ron）供外部系统经 `AnimationGraphPlayer::get_outputs()` 消费——即 ALS curve→参数通道的 ECS 等价物。
 - [ ] M2.4 clip 曲线轨道采样：播放 clip 时同步输出其浮点曲线轨道值（对接 ALS 导出动画中的 FootSliding/LayerHand* 等）；优先基于公开数据结构在 als-ext 包装实现，若公开 API 不足再按规则 4 做可回馈上游的最小独立改动。
 - [ ] M2.5 将 ALS 关键曲线数值表导入为 RON 并加载验证；单元测试覆盖曲线端点/中点求值与节点类型检查。
 - [ ] M2.6 **Gate**：example 用 CurveDrivenValue 驱动一个可见数值（on-screen 显示或物体缩放）随时间按曲线变化；`cargo test -p als-ext` 全绿。
