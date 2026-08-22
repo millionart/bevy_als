@@ -96,7 +96,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
     - 源码核实：ALS 无显式 Pivot 状态/动画——C++ 仅提供速度门槛(PivotActivationSpeedThreshold=200cm/s)与 bPivotActive 标志，反转检测在 AnimBP 图层；定位为折返检测器供图路由消费。实现：PivotDetector(reversal>100°+min_speed=2.0m/s 对齐 ALS 门槛+冷却 0.3s)+PivotSide 左右支；无 Pivot 类资产(工程亦无)，表现走图内 blend 路线复刻本意。单测 10 项(反转触发/渐转不触发/冷却/低速/边界值)。
 - [x] M5.3 TurnInPlace（原地转身）：角度阈值 + 90/180 选择 + 步点对齐（foot lock 简化为曲线锁相，完整 IK 在 M7）。
     - 对齐 AlsTurnInPlaceSettings：ViewYawAngleThreshold=45°、ViewYawSpeedThreshold=50°/s、Turn180AngleThreshold=130°、PlayRate=1.2；激活延迟按 |角|∈[45,180] 线性递减（近似 ALS 曲线映射）；符号选向同 RemapAngleForCounterClockwiseRotation(≤0→Left)。步点对齐按条目范围留 M7 曲线锁相。单测 6 项。
-- [ ] M5.4 RotateInPlace（瞄准态原地转向）。
+- [x] M5.4 RotateInPlace（瞄准态原地转向）。
+    - 对齐 AlsRotateInPlaceSettings：静止+Aiming 时 |视角偏差|>50° 选左/右旋转；play rate 由 ReferenceViewYawSpeed 180–460°/s 线性映射至 1.15–3.0 随视角转速缩放，停止时 DamperExact 回中 1.15。单测 7 项。
 - [ ] M5.5 Hard Stop/Gait 过渡细节：ALS Transition 组动画接入（stance/gait 间过渡）。
 - [ ] M5.6 状态→图路由器：集中 system 把 `LocomotionState` 组合翻译成图输入 pins（替代 AnimBP 的状态机图）。
 - [ ] M5.7 **Gate**：演示路径覆盖：静止→起跑→全速→急停→原地转身→蹲走→起立，全程无明显脚滑与跳变；录制视频/截图存入 `docs/` 并在提交说明中引用。
