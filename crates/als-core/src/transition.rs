@@ -243,6 +243,7 @@ pub struct StateTransitionRejectedEvent {
     pub reason: RejectReason,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_dimension<T: Copy + PartialEq>(
     entity: Entity,
     dimension: Dimension,

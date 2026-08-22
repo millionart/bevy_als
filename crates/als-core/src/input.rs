@@ -150,6 +150,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
     ));
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn als_input_bridge_system(
     mut receivers: Query<(&mut AlsInputCommand, &Actions<OnFoot>)>,
     moves: Query<&Action<MoveAction>>,

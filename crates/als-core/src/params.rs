@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub const UE_CM_TO_M: f32 = 0.01;
 
-#[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[reflect(Default)]
 pub struct AlsMovementParams {
     pub speeds: GaitSpeeds,
@@ -11,18 +11,6 @@ pub struct AlsMovementParams {
     pub rotation: RotationParams,
     pub crouch: CrouchParams,
     pub jump: JumpParams,
-}
-
-impl Default for AlsMovementParams {
-    fn default() -> Self {
-        Self {
-            speeds: GaitSpeeds::default(),
-            acceleration: AccelerationParams::default(),
-            rotation: RotationParams::default(),
-            crouch: CrouchParams::default(),
-            jump: JumpParams::default(),
-        }
-    }
 }
 
 impl AlsMovementParams {
@@ -52,20 +40,12 @@ impl AlsMovementParams {
     }
 }
 
-#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct GaitSpeeds {
     pub standing: StanceGaitSpeeds,
     pub crouching: StanceGaitSpeeds,
 }
 
-impl Default for GaitSpeeds {
-    fn default() -> Self {
-        Self {
-            standing: StanceGaitSpeeds::default(),
-            crouching: StanceGaitSpeeds::default(),
-        }
-    }
-}
 
 impl GaitSpeeds {
     pub fn apply_override(&mut self, ovr: &GaitSpeedsOverride) {
