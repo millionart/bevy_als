@@ -92,7 +92,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 - [x] M5.1 Start/Stop（起跑/急停）状态与动画选择逻辑。
     - 源码核实修正：ALS v4.18 EAlsMovementDirection 仅 4 向(Forward/Backward/Left/Right)，分类用 CalculateMovementDirection(ForwardHalfAngle=70°,Threshold=5°)；急停 PlayQuickStopAnimation 按剩余转角符号选 Left/Right 支且 play rate 随 |转角|/180 缩放——非清单旧称九向。实现：MoveDirection 八分区纯函数 classify+迟滞状态机(update_start_stop start=0.1/stop=0.05 m/s)，单测 12 项；资产对接：起跑=Acceleration 4 向+冲刺专用，急停=Stop_Left/Right。
-- [ ] M5.2 Pivot（折返）触发条件与混合。
+- [x] M5.2 Pivot（折返）触发条件与混合。
+    - 源码核实：ALS 无显式 Pivot 状态/动画——C++ 仅提供速度门槛(PivotActivationSpeedThreshold=200cm/s)与 bPivotActive 标志，反转检测在 AnimBP 图层；定位为折返检测器供图路由消费。实现：PivotDetector(reversal>100°+min_speed=2.0m/s 对齐 ALS 门槛+冷却 0.3s)+PivotSide 左右支；无 Pivot 类资产(工程亦无)，表现走图内 blend 路线复刻本意。单测 10 项(反转触发/渐转不触发/冷却/低速/边界值)。
 - [ ] M5.3 TurnInPlace（原地转身）：角度阈值 + 90/180 选择 + 步点对齐（foot lock 简化为曲线锁相，完整 IK 在 M7）。
 - [ ] M5.4 RotateInPlace（瞄准态原地转向）。
 - [ ] M5.5 Hard Stop/Gait 过渡细节：ALS Transition 组动画接入（stance/gait 间过渡）。

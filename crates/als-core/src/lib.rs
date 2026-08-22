@@ -5,6 +5,7 @@ pub mod debug_hud;
 pub mod input;
 pub mod motion;
 pub mod params;
+pub mod pivot;
 pub mod start_stop;
 pub mod state;
 pub mod transition;
