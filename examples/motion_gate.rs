@@ -1,4 +1,4 @@
-use avian3d::prelude::*;
+﻿use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
@@ -9,7 +9,9 @@ use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
 use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{gait_max_speed, AlsInputOverride, AlsMotionPlugin};
+use als_core::motion::{
+    effective_gait, gait_max_speed, AlsCapsuleCrouched, AlsInputOverride, AlsMotionPlugin,
+};
 use als_core::character::AlsMovementParamsHandle;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -53,7 +55,14 @@ struct DemoPhase {
     index: usize,
 }
 
-const PHASE_SECONDS: f64 = 2.5;
+const PHASE_DURATIONS: [f64; 19] = [
+    2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0, 6.8, 2.4, 5.2, 1.2, 3.6, 1.5, 1.5, 2.4, 1.5,
+];
+const LAST_PHASE: usize = 18;
+const VIEW_SPIN_DEG_PER_S: f32 = 250.0;
+const AIM_SPIN_DEG_PER_S: f32 = 450.0;
+const LOOK_UNITS_PER_RAD: f32 = 400.0;
+const REPORT_INTERVAL: f32 = 0.25;
 
 fn setup(
     mut commands: Commands,
@@ -67,16 +76,16 @@ fn setup(
 
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(60.0, 0.2, 60.0),
+        Collider::cuboid(240.0, 0.2, 240.0),
         Transform::from_xyz(0.0, -0.1, 0.0),
-        Mesh3d(meshes.add(Mesh::from(Rectangle::new(60.0, 60.0)))),
+        Mesh3d(meshes.add(Mesh::from(Rectangle::new(240.0, 240.0)))),
         MeshMaterial3d(ground_mat.clone()),
     ));
 
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(6.0, 0.5, 8.0),
-        Transform::from_xyz(10.0, 1.05, 0.0)
+        Transform::from_xyz(10.0, 0.66, 0.0)
             .with_rotation(Quat::from_rotation_z(-12f32.to_radians())),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(6.0, 0.5, 8.0)))),
         MeshMaterial3d(prop_mat.clone()),
@@ -96,7 +105,7 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(6.0, 0.3, 3.0),
-        Transform::from_xyz(0.0, 1.1, -8.0),
+        Transform::from_xyz(6.0, 1.1, -8.0),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(6.0, 0.3, 3.0)))),
         MeshMaterial3d(prop_mat.clone()),
     ));
@@ -104,7 +113,7 @@ fn setup(
         commands.spawn((
             RigidBody::Static,
             Collider::cuboid(0.3, 2.4, 3.0),
-            Transform::from_xyz(side, 1.2, -8.0),
+            Transform::from_xyz(6.0 + side, 1.2, -8.0),
             Mesh3d(meshes.add(Mesh::from(Cuboid::new(0.3, 2.4, 3.0)))),
             MeshMaterial3d(prop_mat.clone()),
         ));
@@ -173,6 +182,21 @@ fn keyboard_driver(
     }
 }
 
+fn phase_start(index: usize) -> f64 {
+    PHASE_DURATIONS[..index].iter().sum()
+}
+
+fn phase_at(t: f64) -> usize {
+    let mut acc = 0.0;
+    for (i, d) in PHASE_DURATIONS.iter().enumerate() {
+        acc += d;
+        if t < acc {
+            return i;
+        }
+    }
+    LAST_PHASE
+}
+
 fn phase_desc(phase: usize) -> &'static str {
     match phase {
         0 => "idle warmup",
@@ -183,7 +207,27 @@ fn phase_desc(phase: usize) -> &'static str {
         5 => "run + jump",
         6 => "crouch walk",
         7 => "stand up",
+        8 => "rotate in place (ViewDirection)",
+        9 => "rotate in place (Aiming)",
+        10 => "sprint toward ramp east base",
+        11 => "climb ramp westward",
+        12 => "sprint across stairs",
+        13 => "reposition south lane",
+        14 => "approach tunnel entrance",
+        15 => "crouch into tunnel",
+        16 => "stand attempt under slab (expect block)",
+        17 => "exit tunnel and recover stand",
         _ => "done",
+    }
+}
+
+fn waypoint(phase: usize) -> Option<(f32, f32)> {
+    match phase {
+        10 => Some((15.5, -2.0)),
+        12 => Some((-19.0, 0.0)),
+        13 => Some((-16.0, -6.0)),
+        14 => Some((6.0, -5.5)),
+        _ => None,
     }
 }
 
@@ -193,6 +237,7 @@ fn auto_demo(
     mut q: Query<
         (
             Entity,
+            &Transform,
             &mut AlsInputOverride,
             &mut AlsStateRequest,
         ),
@@ -203,29 +248,42 @@ fn auto_demo(
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() {
         return;
     }
-    let Ok((entity, mut over, mut req)) = q.single_mut() else {
+    let Ok((entity, char_t, mut over, mut req)) = q.single_mut() else {
         return;
     };
     let t = time.elapsed_secs_f64();
-    let idx = if t < 2.0 {
-        0
-    } else {
-        ((t - 2.0) / PHASE_SECONDS) as usize + 1
-    };
-    if idx == phase_res.index && idx <= 8 {
-        apply_phase(idx, entity, &mut over, &mut req, false);
+    let idx = phase_at(t);
+    let entered = idx != phase_res.index;
+    if !entered && idx < LAST_PHASE {
+        apply_phase(
+            idx,
+            entity,
+            char_t.translation,
+            time.delta_secs_f64() as f32,
+            &mut over,
+            &mut req,
+            false,
+        );
         return;
     }
-    phase_res.index = idx.min(9);
-    let entered = true;
+    phase_res.index = idx;
     info!(
-        "[M3GATE][PHASE {}] {} (t={t:.2})",
-        phase_res.index,
-        phase_desc(phase_res.index)
+        "[M3GATE][PHASE {}] {} (t={t:.2}, start={:.2})",
+        idx,
+        phase_desc(idx),
+        phase_start(idx)
     );
-    apply_phase(phase_res.index, entity, &mut over, &mut req, entered);
-    if phase_res.index >= 9 {
-        info!("[M3GATE] final states dumped by HUD; done");
+    apply_phase(
+        idx,
+        entity,
+        char_t.translation,
+        time.delta_secs_f64() as f32,
+        &mut over,
+        &mut req,
+        true,
+    );
+    if idx >= LAST_PHASE {
+        info!("[M3GATE] demo complete; final states dumped by HUD");
         exit.write(AppExit::Success);
     }
 }
@@ -233,67 +291,174 @@ fn auto_demo(
 fn apply_phase(
     phase: usize,
     entity: Entity,
+    char_pos: Vec3,
+    dt: f32,
     over: &mut AlsInputOverride,
     req: &mut AlsStateRequest,
     entered: bool,
 ) {
-    let (dir, gait, stance) = match phase {
-        1 => (Vec2::Y, Some(Gait::Walking), None),
-        2 => (Vec2::Y, Some(Gait::Running), None),
-        3 => (Vec2::Y, Some(Gait::Sprinting), None),
-        4 | 7 => (Vec2::ZERO, None, None),
-        5 => (Vec2::Y, Some(Gait::Running), None),
-        6 => (Vec2::Y, None, Some(Stance::Crouching)),
-        _ => (Vec2::ZERO, None, None),
-    };
-    over.0.move_dir = dir;
-    if let Some(g) = gait {
-        req.gait = Some(g);
+    let mut move_dir = Vec2::ZERO;
+    let mut gait_req: Option<Gait> = None;
+    let mut stance_req: Option<Stance> = None;
+    let mut rotation_req: Option<RotationMode> = None;
+    let mut look_rate_rad_s = 0.0f32;
+    let mut jump_pressed = false;
+
+    match phase {
+        1 => {
+            move_dir = Vec2::Y;
+            gait_req = Some(Gait::Walking);
+        }
+        2 => {
+            move_dir = Vec2::Y;
+            gait_req = Some(Gait::Running);
+        }
+        3 => {
+            move_dir = Vec2::Y;
+            gait_req = Some(Gait::Sprinting);
+        }
+        4 => {}
+        5 => {
+            move_dir = Vec2::Y;
+            gait_req = Some(Gait::Running);
+            jump_pressed = entered;
+        }
+        6 => {
+            move_dir = Vec2::Y;
+            stance_req = Some(Stance::Crouching);
+        }
+        7 => {
+            stance_req = Some(Stance::Standing);
+        }
+        8 => {
+            rotation_req = Some(RotationMode::ViewDirection);
+            look_rate_rad_s = VIEW_SPIN_DEG_PER_S.to_radians();
+        }
+        9 => {
+            rotation_req = Some(RotationMode::Aiming);
+            look_rate_rad_s = AIM_SPIN_DEG_PER_S.to_radians();
+        }
+        10 | 12 | 13 | 14 => {
+            if let Some(target) = waypoint(phase) {
+                move_dir = move_toward(char_pos, target);
+            }
+            gait_req = Some(Gait::Sprinting);
+            rotation_req = Some(RotationMode::VelocityDirection);
+        }
+        11 => {
+            move_dir = Vec2::NEG_X;
+            gait_req = Some(Gait::Running);
+        }
+        15 => {
+            move_dir = Vec2::Y;
+            stance_req = Some(Stance::Crouching);
+        }
+        16 => {
+            stance_req = Some(Stance::Standing);
+            gait_req = Some(Gait::Walking);
+        }
+        17 => {
+            move_dir = Vec2::Y;
+        }
+        _ => {}
     }
-    if let Some(s) = stance {
-        req.stance = Some(s);
-    }
-    over.0.jump_pressed = entered && phase == 5;
-    if entered && matches!(phase, 1..=7) {
+
+    over.0.move_dir = move_dir;
+    over.0.look_delta = Vec2::new(look_rate_rad_s * dt * LOOK_UNITS_PER_RAD, 0.0);
+    over.0.jump_pressed = jump_pressed;
+    over.0.jump_held = false;
+    if entered {
+        if let Some(g) = gait_req {
+            req.gait = Some(g);
+        }
+        if let Some(s) = stance_req {
+            req.stance = Some(s);
+        }
+        if let Some(r) = rotation_req {
+            req.rotation_mode = Some(r);
+        }
         info!("[M3GATE] entity={entity:?} override armed for phase {phase}");
     }
 }
 
+fn move_toward(pos: Vec3, target: (f32, f32)) -> Vec2 {
+    let dx = target.0 - pos.x;
+    let dz = target.1 - pos.z;
+    let len = (dx * dx + dz * dz).sqrt();
+    if len < 1e-3 {
+        return Vec2::ZERO;
+    }
+    Vec2::new(dx / len, -dz / len)
+}
+
+type ReportQueryItem<'a> = (
+    &'a Transform,
+    &'a Gait,
+    &'a Stance,
+    Has<AlsCapsuleCrouched>,
+    &'a LocomotionState,
+    &'a LinearVelocity,
+    &'a AlsMovementParamsHandle,
+);
+
 fn speed_report(
     time: Res<Time>,
     mut last: Local<f32>,
-    q: Query<
-        (
-            &Transform,
-            &Gait,
-            &Stance,
-            &LocomotionState,
-            &LinearVelocity,
-            &AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut prev_yaw: Local<Option<(f64, f32)>>,
+    mut exit: MessageWriter<AppExit>,
+    q: Query<ReportQueryItem, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
 ) {
-    if time.elapsed_secs() - *last < 0.5 {
+    let t = time.elapsed_secs();
+    if t - *last < REPORT_INTERVAL {
         return;
     }
-    *last = time.elapsed_secs();
-    let Ok((char_t, gait, stance, loco, vel, handle)) = q.single() else {
+    *last = t;
+    let Ok((char_t, gait, stance, capsule_crouched, loco, vel, handle)) = q.single() else {
         return;
     };
     let actual = Vec2::new(vel.x, vel.z).length();
-    warn!(
-        "[M3GATE][DIAG] pos_y={:.3} vy={:.3} vxz={actual:.3}",
-        char_t.translation.y, vel.y
-    );
+    if char_t.translation.y < -15.0 {
+        error!(
+            "[M3GATE] fell off world at y={:.1} -- aborting",
+            char_t.translation.y
+        );
+        exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));
+    }
+    let fwd = char_t.forward();
+    let yaw_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
+    let yaw_rate = match *prev_yaw {
+        Some((pt, py)) => {
+            let dt = (time.elapsed_secs_f64() - pt) as f32;
+            let mut dy = yaw_deg - py;
+            if dy > 180.0 {
+                dy -= 360.0;
+            }
+            if dy < -180.0 {
+                dy += 360.0;
+            }
+            if dt > 1e-4 {
+                dy / dt
+            } else {
+                0.0
+            }
+        }
+        None => 0.0,
+    };
+    *prev_yaw = Some((time.elapsed_secs_f64(), yaw_deg));
+    let eff_gait = effective_gait(*stance, *gait);
+    let phys_stance = if capsule_crouched {
+        Stance::Crouching
+    } else {
+        *stance
+    };
     let target = params_assets
         .get(handle.id())
-        .map(|p| gait_max_speed(p, stance, gait))
+        .map(|p| gait_max_speed(p, &phys_stance, &eff_gait))
         .unwrap_or(f32::NAN);
     info!(
-        "[M3GATE] t={:.1} gait={gait:?} stance={stance:?} loco={loco:?} target={target:.2} actual={actual:.2}",
-        time.elapsed_secs()
+        "[M3GATE] t={t:.1} gait={gait:?} eff={eff_gait:?} stance={stance:?} crouch_cap={capsule_crouched} loco={loco:?} y={:.2} vy={:.2} yaw={yaw_deg:.1} yaw_rate={yaw_rate:.0} target={target:.2} actual={actual:.2}",
+        char_t.translation.y, vel.y
     );
 }
 
@@ -311,7 +476,7 @@ fn camera_follow(
 }
 
 fn safety_quit(time: Res<Time>, mut exit: MessageWriter<AppExit>) {
-    if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() && time.elapsed_secs_f64() >= 20.0 {
+    if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() && time.elapsed_secs_f64() >= 57.0 {
         warn!("[M3GATE] safety quit");
         exit.write(AppExit::Success);
     }

@@ -69,12 +69,12 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 - [x] M3.1 场景复刻：按 ALS 工程 `ALSExtras/Levels/L_Als_Playground.umap` 在本项目搭建等价测试场景——经 commandlet 枚举关卡内 actor（StaticMeshActor 等）并导出其 StaticMesh 为 glTF 入库 `assets/models/playground/`，同时生成场景描述 JSON（actor→mesh 映射 + world transform）；bevy 侧程序化重建静态碰撞体与视觉网格；**不含 Landscape**（bevy 侧无等价方案则跳过该部分并在 manifest 注明）。导出属 M0.5 一次性批量导出的增补，依据本条目执行。
   - 验收（2026-08-22）：219 actor 全量枚举（147 BP_SimpleObject 参数化方块+22 StaticMeshActor+Brush 等）；20 唯一 SM_Als_* mesh glTF 导出 20/20 成功入库；坐标换算实测修正为 (x,z,y)·0.01+四元数共轭映射（18 单测）；examples/playground 实测 171 静态体、角色落地 (-15,0.92,-15) 于 Floor 网格、loco=Grounded、无 panic。Landscape 按约定跳过并登记 manifest。
-- [ ] M3.2 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
-- [ ] M3.3 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
-- [ ] M3.4 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。
-- [ ] M3.5 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
-- [ ] M3.6 旋转模式系统：VelocityDirection（非瞄准）/ViewDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
-- [ ] M3.7 斜坡/台阶处理验证：slope 旋转、step height 参数调至 ALS 观感。
+- [x] M3.2 avian3d 集成选型落地：固定 timestep、角色 capsule collider、地面传感器配置。
+- [x] M3.3 tnua 控制器参数 ↔ `Gait` 映射系统：Walking/Running/Sprinting 三档速度与加速度来自 `AlsMovementParams`。
+- [x] M3.4 Crouch basis 接入：站立/蹲下 capsule 高度切换（含头顶遮挡检测防站起）。
+- [x] M3.5 Jump action 接入：高度/coyote/buffer 参数化，落地事件转发为 `LocomotionState::Air→Grounded`。
+- [x] M3.6 旋转模式系统：VelocityDirection（非瞄准）/ViewDirection+Aiming（瞄准朝向）两种 yaw 行为，含 ALS 式转身速率曲线（消费 M2 curve）。
+- [x] M3.7 斜坡/台阶处理验证：slope 旋转、step height 参数调至 ALS 观感。
 - [ ] M3.8 **Gate** **Gate**：example 第三人称胶囊在测试关卡完成走跑冲/蹲/跳全流程，速度曲线数值与 ALS 参数表一致（打印比对），无抖墙/卡台阶回归。
 
 ## M4 动画图基座（依赖：M2, M3）
@@ -166,3 +166,9 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
+  - M3.2-M3.7 验证证据（2026-08-22，examples/motion_gate 19 阶段脚本化全流程，exit=0 无 panic）：
+    三档速度精确达标 walk/run/sprint = 1.75/3.75/6.50（target=actual）；jump Air↔Grounded
+    转移闭环日志确认；蹲走钳制 target=1.50 且隧道内 headroom 阻挡起立(ph16 设计预期)、
+    出隧道恢复站立行走(ph17)；原地旋转 ViewDirection/Aiming 双模式执行；坡道爬升与台阶冲刺
+    无抖墙无卡台阶。运动系统重构含：effective_gait 蹲姿钳制、统一动作喂入、step-up 台阶辅助、
+    capsule 换高延迟队列。
