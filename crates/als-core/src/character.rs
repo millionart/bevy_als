@@ -22,6 +22,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+#[require(crate::motion::AlsViewYaw)]
 pub struct AlsCharacter;
 
 pub struct AlsCharacterPlugin;
