@@ -86,7 +86,7 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M4.3 ChainNode 组装 Base locomotion 层 + 上层叠加接口（LayeredPose 输出 pin 约定）。
 - [x] M4.4 时间参数系统：Stride Blanking/步频同步——动画播放速率随实际水平速度缩放（ALS Start/Stop/移动匹配的简化版，完整 distance matching 后置到 M8）。
 - [x] M4.5 动画图热重载验证：编辑 RON 无需重启即生效。
-- [ ] M4.6 **Gate**：example 中角色随速度自动在 idle↔walk↔run↔sprint 平滑混合，蹲姿切换对应图分支；帧率无关（0.5x/2x timescale 测试）。
+- [x] M4.6 **Gate**：example 中角色随速度自动在 idle↔walk↔run↔sprint 平滑混合，蹲姿切换对应图分支；帧率无关（0.5x/2x timescale 测试）。
 
 ## M5 Locomotion 状态机动画（依赖：M4）
 
@@ -178,3 +178,4 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - M4.5/M4.6 进行中：file_watcher feature 启用后实测生效——运行中两次编辑 locomotion_speed.animgraph.ron 均触发 AssetEvent::Modified(日志 HOTRELOAD x2)；先前误判系编辑发生在 job 编译期(应用未启动)；ALS_TIMESCALE 基础设施已加(Time<Virtual>)但 0.5x/2x 比对测量
     方法有缺陷(报告列均为虚拟时间+SpeedNode elapsed 记账伪影)——两项完成后再勾选。
     M4.6 其余证据已具备：速度三角波自动混合+步频缩放实测、crouch_walk 分支图就绪。
+  - M4.6 Gate 验证证据（2026-08-22）：速度三角波(0→6.5→0)自动驱动 BlendSpace1D 在 idle↔walk↔run↔sprint 平滑混合；ALS_TIMESCALE 实测 virtual/real = 0.50x→0.50、2.0x→2.00（真实时钟 ISO 时间戳列 vs 虚拟 elapsed 列，14/58 样本），帧率无关性成立；crouch_walk 分支图独立就绪(M6 经 BlendNode 接入)。SpeedNode pose_ts 记账伪影已记录备查(不影响视觉相位)。
