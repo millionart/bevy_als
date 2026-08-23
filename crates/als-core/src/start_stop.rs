@@ -1,4 +1,9 @@
 use bevy::prelude::*;
+use avian3d::prelude::LinearVelocity;
+
+use crate::character::AlsCharacter;
+use crate::input::AlsInputCommand;
+use crate::motion::{AlsInputOverride, AlsViewYaw};
 
 #[derive(
     Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
@@ -127,6 +132,8 @@ pub fn update_start_stop(
                 && let Some(dir) = tracked
             {
                 state.phase = StartStopPhase::Started(dir);
+            } else if horizontal_speed <= config.stop_speed_threshold {
+                state.phase = StartStopPhase::Idle;
             }
         }
     }
@@ -136,6 +143,45 @@ pub fn update_start_stop(
     } else {
         Some(state.phase)
     }
+}
+
+pub fn start_stop_detector_system(
+    time: Res<Time>,
+    mut q: Query<
+        (
+            &LinearVelocity,
+            &AlsInputCommand,
+            Option<&AlsInputOverride>,
+            &AlsViewYaw,
+            &mut StartStopState,
+        ),
+        With<crate::character::AlsCharacter>,
+    >,
+) {
+    let Ok((vel, cmd, ovr, view, mut ss)) = q.single_mut() else {
+        return;
+    };
+    let _ = time;
+    let input = ovr.map(|o| &o.0).unwrap_or(cmd);
+    let hspeed = Vec2::new(vel.x, vel.z).length();
+    let dir = classify(input.move_dir, view.0);
+    update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir);
+}
+pub fn predict_stop_distance(speed: f32, braking_deceleration: f32) -> f32 {
+    if braking_deceleration <= 1e-4 {
+        return 0.0;
+    }
+    speed * speed / (2.0 * braking_deceleration)
+}
+
+pub fn stop_direction_is_left(dir: MoveDirection) -> bool {
+    matches!(
+        dir,
+        MoveDirection::Left
+            | MoveDirection::ForwardLeft
+            | MoveDirection::BackwardLeft
+            | MoveDirection::Backward
+    )
 }
 
 #[cfg(test)]
@@ -317,10 +363,16 @@ mod tests {
 
         assert_eq!(
             update_start_stop(&mut state, &config, 0.02, MoveDirection::Backward),
-            None,
-            "stopping phase must ignore direction changes below the stop threshold"
+            Some(StartStopPhase::Idle),
+            "below stop threshold the stop resolves to idle"
         );
-        assert_eq!(state.phase, StartStopPhase::Stopping(MoveDirection::Left));
+        assert_eq!(state.phase, StartStopPhase::Idle);
+
+        assert_eq!(
+            update_start_stop(&mut state, &config, 2.0, MoveDirection::Backward),
+            Some(StartStopPhase::Started(MoveDirection::Backward)),
+            "resuming above the start threshold restarts from idle"
+        );
     }
 
     #[test]

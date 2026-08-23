@@ -419,6 +419,90 @@
             },
             should_debug: false,
         ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000001",
+            name: "stop left clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Transitions/A_Als_Stop_Left.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000002",
+            name: "stop right clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Transitions/A_Als_Stop_Right.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000003",
+            name: "stop left distance match",
+            inner: {
+                "als_ext::DistanceMatchNode": (
+                    keys: [
+                        (t: 0.0, v: 0.0),
+                        (t: 0.30, v: 0.50),
+                        (t: 0.60, v: 0.85),
+                        (t: 0.85, v: 1.00),
+                        (t: 1.00, v: 1.00),
+                    ],
+                    duration_fallback: 1.333,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000004",
+            name: "stop right distance match",
+            inner: {
+                "als_ext::DistanceMatchNode": (
+                    keys: [
+                        (t: 0.0, v: 0.0),
+                        (t: 0.30, v: 0.50),
+                        (t: 0.60, v: 0.85),
+                        (t: 0.85, v: 1.00),
+                        (t: 1.00, v: 1.00),
+                    ],
+                    duration_fallback: 1.333,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000005",
+            name: "stop variant blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "f2f2f2f2-a7a7-6b8b-acac-000000000006",
+            name: "stop override blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
         NodeData("55555555-5555-4555-8555-555555555505", "parameter"): InputData(Passthrough("speed")),
@@ -469,8 +553,26 @@
         NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a", "pose"),
         NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a"),
         NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "factor"): InputData(Passthrough("roll_weight")),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "pose"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000001", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000003", "time"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000001"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "remaining"): InputData(Passthrough("stop_remaining")),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "total"): InputData(Passthrough("stop_total")),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "pose"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000002", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000004", "time"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000002"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "remaining"): InputData(Passthrough("stop_remaining")),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "total"): InputData(Passthrough("stop_total")),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000003"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose_b"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005", "time_b"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000004"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "factor"): InputData(Passthrough("stop_right_weight")),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose_b"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose"),
+        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006", "time_b"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005"),
+        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "factor"): InputData(Passthrough("stop_weight")),
+        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose"),
+        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose"),
         NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_b"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "factor"): InputData(Passthrough("overlay_weight")),
@@ -517,6 +619,10 @@
             Passthrough("land_weight"): F32,
             Passthrough("land_heavy_weight"): F32,
             Passthrough("roll_weight"): F32,
+            Passthrough("stop_weight"): F32,
+            Passthrough("stop_right_weight"): F32,
+            Passthrough("stop_remaining"): F32,
+            Passthrough("stop_total"): F32,
         },
         output_time: true,
         output_data: {
@@ -537,6 +643,10 @@
             Data(Passthrough("land_weight")): 11,
             Data(Passthrough("land_heavy_weight")): 12,
             Data(Passthrough("roll_weight")): 13,
+            Data(Passthrough("stop_weight")): 14,
+            Data(Passthrough("stop_right_weight")): 15,
+            Data(Passthrough("stop_remaining")): 16,
+            Data(Passthrough("stop_total")): 17,
         },
         output_order: {
             Data("pose"): 0,
@@ -556,6 +666,10 @@
         Passthrough("land_weight"): F32(0.0),
         Passthrough("land_heavy_weight"): F32(0.0),
         Passthrough("roll_weight"): F32(0.0),
+        Passthrough("stop_weight"): F32(0.0),
+        Passthrough("stop_right_weight"): F32(0.0),
+        Passthrough("stop_remaining"): F32(1.0),
+        Passthrough("stop_total"): F32(1.0),
     },
     editor_metadata: (
         node_positions: {

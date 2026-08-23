@@ -1,5 +1,6 @@
 pub mod als_curves;
 pub mod curve;
+pub mod distance_match;
 pub mod ik;
 pub mod loader;
 pub mod nodes;
@@ -11,6 +12,10 @@ pub use als_curves::{
     AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, ALS_CURVES_EXTENSION, ALS_CURVES_LABEL,
 };
 pub use curve::{sample_curve, CurveAsset, CurveKey, CurveSampleMode};
+pub use distance_match::{
+    default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
+    DistanceMatchNode,
+};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
 pub use overlay::{
@@ -38,6 +43,7 @@ impl Plugin for AlsExtPlugin {
             .init_asset::<als_curves::AlsAnimCurves>()
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
+            .register_type::<DistanceMatchNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()
