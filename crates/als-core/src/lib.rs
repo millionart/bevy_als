@@ -1,3 +1,4 @@
+pub mod aim;
 pub mod bones;
 pub mod character;
 pub mod control_scheme;
