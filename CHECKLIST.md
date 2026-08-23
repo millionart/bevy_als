@@ -160,6 +160,10 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 - [x] M8.5 **Gate**：奔跑中翻滚方向正确且位移与动画节奏一致；助跑跳停步动画脚步贴合预期落点。
   - Gate 证据（2026-08-23，`examples/actions_gate` 七阶段综合脚本：sprint 起步→冲刺前滚→恢复→助跑跳→落地保持→释放输入停步匹配，ALS_BOOT_AUTO_QUIT_SECS=30，exit=0 无 ERROR/panic）：`[ROLL done] dist=3.53 align=+1.000`（方向满值对齐、位移含 sprint 动量在 [2.7,4.0] 带内、峰值节奏由 1.5s 钟形曲线驱动）；`[JUMP] airborne` → `[LAND] light=true`（M8.1 链路）；`[STOP] matched total=1.408`（sprint 6.5 m/s 输入释放沿触发）→ 滑移 0.65m、peak_w=1.00、remaining_end=0（M8.3 闭环 plant 对齐）；`[VERDICT] roll=true jump_light=true stop=true -> PASS`。快照 `docs/m8-actions-gate-run.log`。workspace 测试 176 全绿。
   - 排障注记：初版 watcher 全静默系 actions_gate 漏注册 `AlsAirPlugin`/`AlsRollDrivePlugin`（AlsAirState/AlsRollState 组件缺失致查询空转）——编排层插件清单需与所用组件模块一一对应。
+- [ ] M8.6（增补，2026-08-24 用户指示）动作资产 root motion 数据回填：fork bevy_animation_graph 已实现 ClipNode `RootMotionMode::{Full,GroundPlane}` 提取与 `RootMotionOutput` 输出（附录 A"无提取"记录过时），但 M0.5 的 UE glTF 导出器把全部动画 root 节点 translation 轨道写为恒零，无可提数据。新增离线工具 `tools/uasset_root_export/`（复用 uasset_curve_export 包解析器）：直读编辑器 .uasset 内 `UAnimDataModel.BoneAnimationTracks[].InternalTrackData{PosKeys/RotKeys}`（BulkSerialize 原生 FVector3f/FQuat4f 数组），把 root 骨骼原始轨道按 FrameRate 均匀网格回写对应 `assets/animations/**.gltf` 动画的 root 节点 translation/rotation sampler（替换恒零数据）；范围=Mantle High/Low_Left/Low_Right + Roll 四资产；数值验证：roll 根轨迹积分≈3m 前向量级、mantle 高位净升与台高带一致、时长与现 clip 一致；export-manifest 增补登记。
+- [ ] M8.7（增补，同上）als-ext 时间定位节点：经 NodeLike 公开扩展点实现 `TimePositionNode`——F32 输入 pin 给出绝对片内时间，向下游 ClipNode 发 `TimeUpdate::Absolute` 定位并透传 pose（重戳 timestamp），等价 ALS `Montage_SetPosition` 外部同步语义（DistanceMatchNode 同型先例）；不改 fork。为 M8.4 按高度起播偏移与 M8.2 时间线接管提供图内基座；单测覆盖定位转发/pose 透传/越界 clamp 契约。
+- [ ] M8.8（增补，同上）M8.2/M8.4 位移驱动替换为图内 root motion：mantle×3 ClipNode 开 `RootMotionMode::Full`、roll ClipNode 开 `GroundPlane`；mantle_drive/roll_drive 改消费 `RootMotionOutput`（实体局部→世界 delta/dt 写 LinearVelocity 交物理碰撞），移除 mantle_motion_at 三段曲线与 roll 钟形解析等价物；mantle 叠加 ALS 式 warp 校正（位置 lerp 至台面落点 + yaw slerp 对齐墙面法线，MotionWarpingTimeRange 等价窗 [0,0.3]s）与按高度 TimePositionNode 起播偏移（StartTimeReferenceHeight{0.5,1.0}→StartTime{0.5,0}s 映射）；roll_gate/mantle_gate/actions_gate 复跑 PASS 后勾选。
+- [ ] M8.9（增补，同上）Mantle 检测对齐 ALS StartMantling：保留多高度前向探测，增加①顶面 walkable 斜角拒绝（SlopeAngleThreshold=35° 等价 cos 检查）②目标点胶囊净空 cast_shape 检查③起点天花板遮挡检查④动态目标速度阈值（TargetPrimitiveSpeedThreshold=0.1m/s）；分类线对齐 MantlingHighHeightThreshold=1.25m（High≥1.25 / Low 0.45–1.25，InAir mantling 仍后置）；单测更新+mantle_gate 复跑 PASS。
 
 ## M9 Ragdoll（依赖：M8）
 
@@ -190,7 +194,7 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 | AnimBP 状态机 | 显式 system 路由 + animation graph RON | ECS 数据流，无隐藏图执行 |
 | GameplayTags | 普通 Rust 枚举组件 | 编译期检查 |
 | ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
-| Root Motion | 曲线驱动位移 | bevy_animation_graph 无 root motion 提取，避免侵入 |
+| Root Motion | 图内 `RootMotionMode` 提取 + `RootMotionOutput` 驱动位移（M8.8；数据经 M8.6 回填） | fork 已支持提取，M0.5 导出缺根轨道由 M8.6 离线回填，不再用曲线等价物 |
 | Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
 
 ## 附录 B：风险与后置项
