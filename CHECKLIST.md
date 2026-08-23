@@ -122,7 +122,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力统一落在 `crates/als-ext` 的 ik 模块（规则 4），以分析式 IK systems 实现；bevy_als 提供状态、射线与曲线权重等输入并接线。
 
-- [ ] M7.1 地面探测：双脚 raycast（含斜面法线），输出 FootOffset 目标量。
+- [x] M7.1 地面探测：双脚 raycast（含斜面法线），输出 FootOffset 目标量。
+  - 事实核查：fork builtin_nodes 已有图级 TwoBoneIKNode（CHECKLIST 背景事实"缺 two-bone IK"已过时）；M7 按条目要求走 ECS 路线——求解器落 als-ext::ik、作用于骨骼实体 Transform（PostUpdate 在 apply_animation_to_targets 之后），目标量来自同帧探测避免一帧滞后。实现：als-core::foot_ik——AlsGroundHit/AlsFootProbe(双脚命中点+斜面法线)、foot_target_offset(hit.y+ANKLE_TO_SOLE-ankle.y 钳制 ±0.45)、foot_ik_target(命中点抬 sole 高)、slope_is_walkable(对齐 ALS max_slope 50°)、AlsFootBones 按 foot_l/foot_r 名称子树映射+PostUpdate 探测系统链(bone_map→probe)。单测 6 项全绿。
 - [ ] M7.2 Two-bone IK 求解器在 `crates/als-ext`（ik 模块）实现：解析法髋-膝-踝求解，作用于骨骼实体 Transform。
 - [ ] M7.3 Pelvis 垂直补偿与双脚插值锁定（消费 FootLeftLock/FootRightIk 曲线权重的等价输入）。
 - [ ] M7.4 Foot lock 与步点：TurnInPlace/Stop 状态下脚钉地，配合 M5 曲线锁相升级为真实 transform 锁定。
