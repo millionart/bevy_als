@@ -100,7 +100,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
     - 对齐 AlsRotateInPlaceSettings：静止+Aiming 时 |视角偏差|>50° 选左/右旋转；play rate 由 ReferenceViewYawSpeed 180–460°/s 线性映射至 1.15–3.0 随视角转速缩放，停止时 DamperExact 回中 1.15。单测 7 项。
 - [x] M5.5 Hard Stop/Gait 过渡细节：ALS Transition 组动画接入（stance/gait 间过渡）。
     - 对齐 AlsAnimationInstance：stance 切换过渡(CrouchToStand/StandToCrouch)带 idle-only 条件(moving 时由 Dynamic 分支处理)；Dynamic Transitions 按 foot-lock 距离平方比较选对侧支+2 帧防抖(TransitionCooldown)；资产映射 A_Als_Stand/Crouch_DynamicTransition_Left/Right 与 CrouchToStand/StandToCrouch。单测 7 项(选支/idle 拦截/默认左/强制侧/冷却)。
-- [ ] M5.6 状态→图路由器：集中 system 把 `LocomotionState` 组合翻译成图输入 pins（替代 AnimBP 的状态机图）。
+- [x] M5.6 状态→图路由器：集中 system 把 `LocomotionState` 组合翻译成图输入 pins（替代 AnimBP 的状态机图）。
+    - compute_graph_inputs 纯函数：effective_gait 钳制(蹲→Walk)+按 gait_max_speed 钳制(蹲姿走= crouch.max_walk_speed_crouched 1.5)+actual_speed 直通；graph_input_router_system 把 speed/actual_speed 写入 AnimationGraphPlayer 输入 pins(连接 M3 状态与 M4 图)。单测 4 项。
 - [ ] M5.7 **Gate**：演示路径覆盖：静止→起跑→全速→急停→原地转身→蹲走→起立，全程无明显脚滑与跳变；录制视频/截图存入 `docs/` 并在提交说明中引用。
 
 ## M6 Overlay 与 Aim/View 系统（依赖：M5）
