@@ -1,6 +1,9 @@
-use bevy_animation_graph::core::edge_data::bone_mask::{BoneMask, BoneMaskType};
+use bevy_animation_graph::core::edge_data::bone_mask::BoneMask;
 use bevy_animation_graph::core::id::BoneId;
 use bevy_animation_graph::core::skeleton::Skeleton;
+
+#[cfg(test)]
+use bevy_animation_graph::core::edge_data::bone_mask::BoneMaskType;
 
 pub const TORCH_RIGHT_HAND_BONES: &[&str] = &[
     "spine_02",

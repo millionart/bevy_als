@@ -6,7 +6,6 @@ use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
@@ -14,7 +13,6 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::graph_router::compute_graph_inputs;
 use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
 use als_core::motion::{
     effective_gait, gait_max_speed, AlsInputOverride, AlsMotionPlugin, AlsViewYaw,
@@ -28,6 +26,8 @@ use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+
+use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 
 #[derive(Component, Default)]
 struct TurnInPlaceComp(TurnInPlaceDetector);
@@ -45,17 +45,6 @@ const STAND_RECENTER_SECS: f64 = 2.0;
 const PHASE_DURATIONS: [f64; 7] = [2.0, 4.0, 3.0, 3.0, 3.5, 3.5, 3.0];
 const LAST_PHASE: usize = 6;
 const TOTAL_SECS: f64 = 22.0;
-
-const STRIDE_RATE_MIN: f32 = 0.6;
-const STRIDE_RATE_MAX: f32 = 1.6;
-const STRIDE_IDLE_SPEED: f32 = 0.1;
-
-fn stride_play_rate(speed_pin: f32, actual_speed: f32) -> f32 {
-    if actual_speed < STRIDE_IDLE_SPEED || speed_pin < 1e-3 {
-        return 1.0;
-    }
-    (actual_speed / speed_pin).clamp(STRIDE_RATE_MIN, STRIDE_RATE_MAX)
-}
 
 fn main() {
     let mut app = App::new();
@@ -428,13 +417,10 @@ fn graph_input_router_system(
         return;
     };
     let hspeed = Vec2::new(vel.x, vel.z).length();
-    let gi = compute_graph_inputs(p, *stance, *gait, hspeed);
-    let rate = stride_play_rate(gi.speed, gi.actual_speed);
+    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            player.set_input_data("speed", DataValue::from(gi.speed));
-            player.set_input_data("actual_speed", DataValue::from(gi.actual_speed));
-            player.set_input_data("play_rate", DataValue::from(rate));
+            write_motion_graph_pins(&mut player, &mgi);
         }
     }
 }
@@ -476,8 +462,7 @@ fn snapshot_logger(
     let hspeed = Vec2::new(vel.x, vel.z).length();
     let eff = effective_gait(*stance, *gait);
     let target = gait_max_speed(p, stance, &eff);
-    let gi = compute_graph_inputs(p, *stance, *gait, hspeed);
-    let rate = stride_play_rate(gi.speed, gi.actual_speed);
+    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
     let fwd = tf.forward();
     let body_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
     let view_deg = view.0.to_degrees();
@@ -497,10 +482,11 @@ fn snapshot_logger(
     }
 
     info!(
-        "[M5GATE] t={t:.2} phase={} loco={loco:?} stance={stance:?} gait={gait:?} eff={eff:?} rot={rot:?} speed_pin={:.2} actual={:.2} target={target:.2} rate={rate:.2} pos=({:.2},{:.2},{:.2}) body={body_deg:.0} view={view_deg:.0} rel={rel:.0} ss={ss:?} player_elapsed={player_elapsed}",
+        "[M5GATE] t={t:.2} phase={} loco={loco:?} stance={stance:?} gait={gait:?} eff={eff:?} rot={rot:?} speed_pin={:.2} actual={:.2} target={target:.2} rate={:.2} pos=({:.2},{:.2},{:.2}) body={body_deg:.0} view={view_deg:.0} rel={rel:.0} ss={ss:?} player_elapsed={player_elapsed}",
         phase_desc(phase_at(t)),
-        gi.speed,
-        gi.actual_speed,
+        mgi.speed,
+        mgi.actual_speed,
+        mgi.play_rate,
         tf.translation.x,
         tf.translation.y,
         tf.translation.z,

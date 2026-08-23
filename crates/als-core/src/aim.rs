@@ -20,6 +20,7 @@ pub fn aim_rotation_mode_system(
         (
             Entity,
             &AlsInputCommand,
+            Option<&crate::motion::AlsInputOverride>,
             &RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
             &mut AlsStateRequest,
@@ -28,9 +29,16 @@ pub fn aim_rotation_mode_system(
     >,
     mut commands: Commands,
 ) {
-    for (entity, cmd, current, last_free, mut request) in &mut q {
+    for (entity, cmd, ovr, current, last_free, mut request) in &mut q {
+        let base = if ovr.map(|o| o.0.aim_held).unwrap_or(false) {
+            let mut c = *cmd;
+            c.aim_held = true;
+            c
+        } else {
+            *cmd
+        };
         let aiming_now = *current == RotationMode::Aiming;
-        let want_aim = cmd.aim_held;
+        let want_aim = base.aim_held;
 
         if want_aim && !aiming_now {
             let stored = last_free
@@ -87,9 +95,11 @@ impl Plugin for AlsAimPlugin {
     }
 }
 
+#[cfg(test)]
 #[derive(Resource, Default)]
 struct EventLog(Vec<AimStateChanged>);
 
+#[cfg(test)]
 fn collect_events(mut reader: MessageReader<AimStateChanged>, mut log: ResMut<EventLog>) {
     for ev in reader.read() {
         log.0.push(*ev);
@@ -102,7 +112,6 @@ mod tests {
     use crate::character::AlsCharacter;
     use crate::state::{Gait, LocomotionState, OverlayState, Stance};
     use crate::transition::AlsStateTransitionPlugin;
-    use bevy::ecs::system::RunSystemOnce;
     use bevy::MinimalPlugins;
 
     fn spawn_character(app: &mut App, aim_held: bool, initial: RotationMode) -> Entity {
