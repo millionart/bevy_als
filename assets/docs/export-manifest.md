@@ -190,10 +190,60 @@
 ## M3.1 增补导出（2026-08-22）— Playground 场景
 
 - 依据：CHECKLIST M3.1（场景复刻增补条目，用户指示）；通道同上 commandlet。
-- 内容：ALSExtras/Levels/L_Als_Playground 内 20 个唯一 StaticMesh → ssets/models/playground/*.gltf+.bin
+- 内容：ALSExtras/Levels/L_Als_Playground 内 20 个唯一 StaticMesh → assets/models/playground/*.gltf+.bin
   （SM_Als_Arch_01/02、Barrel(_Broken)、Bench、Block_2x2/3x3、Cart、Crate(_Broken)、
   Floor_20x20、Fountain_01、Pillar、Rock、Stairs_01/02/03、TitleBoard、Wall_2x20/3x5）；
-  场景描述 	mp/export/playground/playground_actors.json（219 actor 全量 transform/bounds/mesh 映射，
+  场景描述 tmp/export/playground/playground_actors.json（219 actor 全量 transform/bounds/mesh 映射，
   运行时清单经 als-ext PlaygroundPlugin 以 RON 直读，JSON 原件为产物留档）。
 - 跳过：Landscape（bevy 无等价方案，按条目约定省略）、Sky 系、TextRender/AI/NavMesh 等
   非碰撞装饰与系统 actor；Brush(BSP) 以 actor bounds 盒体近似。
+
+## M0.5b 增补提取（2026-08-23）— 动画内嵌浮点曲线 → glTF `ALS_float_curves` 扩展
+
+- 依据：CHECKLIST M0.5b（用户指示增补）。引擎 glTF 导出器不写 AnimSequence 内嵌浮点曲线
+  （M2.4 已核实），本条目以独立工具从源 .uasset 直接提取并回写进既有动画 glTF。
+- 工具：`tools/uasset_curve_export/`（Python stdlib，无引擎依赖）
+  - `uasset.py` — UE5.8 包格式解析：FPackageFileSummary（legacy -9 / UE4 522 / UE5 1018，
+    SavedHash+FIoHash、CustomVersions Optimized 格式）、名字表（FString+双 u16 hash）、
+    Import/Export 表（含 SCRIPT_SERIALIZATION_OFFSET 尾部字段）、版本化标签属性
+    （PROPERTY_TAG_COMPLETE_TYPE_NAME：Name FName + TypeName 节点链{Name FName,InnerCount i32} +
+    Size **i32** + Flags u8 + 可选 ArrayIndex/Guid/Extensions；BoolProperty 值在 tag flag 0x10）。
+  - `extract_curves.py` — 定向走 `UAnimSequenceBase.RawCurveData(FRawCurveTracks).FloatCurves`
+    →`FFloatCurve{CurveName,CurveTypeFlags,FloatCurve(FRichCurve)}`；FRichCurveKey 为原生序列化
+    （WithSerializer）：u8×3(Interp/Tangent/WeightMode)+f32×6(Time,Value,Arrive,ArriveW,Leave,LeaveW)=27B；
+    枚举属性（EnumProperty 及带枚举参数的 ByteProperty）payload 为 **FName**（8B）非 u8。
+  - `export_curve_gltf.py` — CLI：扫描工程 Content 根全部 uasset→按对象名 stem 匹配
+    `assets/animations/**.gltf`（与 M0.5 文件一一对应）→写回。
+  - `validate_gltf.py` — 回读校验：JSON 合法性、单一 animation、times/values/interps 等长且时间单调。
+- 提取范围与结果（2026-08-23 实测）：扫描 828 个 uasset，识别 127 个 AnimSequence 并全部匹配到
+  既有 glTF；**82 个资产含曲线，共 367 条**。曲线族：
+  LayerArmLeft/Right(+Additive/LocalSpace)、LayerHandLeft/Right、LayerHead(+Additive)、LayerLegs、
+  LayerPelvis、LayerSpine(+Additive)、HandLeftIk/HandRightIk、HipsDirectionLock、PoseAiming、
+  PoseGait、PoseCrouching/PoseStanding、FootPlanted、FootLeftLock/FootRightLock、FeetCrossing、
+  RotationYawSpeed、AllowTransitions、FootstepSoundBlock。抽查数值符合 ALS 语义
+  （Rotate_90_Left.RotationYawSpeed 31 键积分≈-90°/s·s；Walk_Forward.FootPlanted ∈[-0.25,1] 相位；
+  Rifle_Poses.LayerHandRight 恒 1）。
+- glTF 扩展 schema（写入 animation 对象，root `extensionsUsed` 追加 `"ALS_float_curves"`，
+  不加入 extensionsRequired；bevy_gltf/gltf-json 对未知扩展静默忽略，不影响现有加载）：
+
+```json
+"extensions": { "ALS_float_curves": { "curves": [ {
+  "name": "RotationYawSpeed",
+  "flags": 4,
+  "default": null,
+  "pre_infinity": "RCCE_Constant",
+  "post_infinity": "RCCE_Constant",
+  "interps": ["LINEAR", "..."],
+  "times":  [/* f32 秒，域=clip 时间 */],
+  "values": [/* f32 */]
+} ] } }
+```
+
+  字段语义：`flags`=EAnimAssetCurveFlags 位掩码；`default=null` 表示 UE 的 FLT_MAX「未设置」，
+  消费端按 0 处理；`pre_infinity/post_infinity`=ERichCurveExtrapolation 名
+  （RCCE_Cycle/CycleWithOffset/Oscillate/Linear/Constant/None）；`interps[i]`∈
+  LINEAR/CONSTANT/CUBIC/NONE 对应 FRichCurveKey.InterpMode 0..3；当任一键为 CUBIC 或带权重时
+  额外输出 `tangent_modes/weight_modes/arrive_tangents/leave_tangents/arrive_weights/leave_weights`。
+- 后续摄取路径（不改 fork）：bevy_gltf 0.19 `GltfExtensionHandler::on_animation` +
+  `gltf::Animation::extensions()` 在 als-ext 注册 handler 即可把曲线注入运行时通道，
+  替代 M6.2/M6.3 的 CF_Als_Aim_In/Out 与静态骨骼 mask 替代方案（迁移条目归入相应模块）。

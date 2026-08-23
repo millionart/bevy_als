@@ -1,6 +1,5 @@
 {
-	"asset":
-	{
+	"asset": {
 		"version": "2.0",
 		"generator": "Unreal Engine 5.8.1"
 	},
@@ -2248,1896 +2247,1659 @@
 			"channels": [
 				{
 					"sampler": 0,
-					"target":
-					{
+					"target": {
 						"node": 1,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 1,
-					"target":
-					{
+					"target": {
 						"node": 1,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 2,
-					"target":
-					{
+					"target": {
 						"node": 1,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 3,
-					"target":
-					{
+					"target": {
 						"node": 2,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 4,
-					"target":
-					{
+					"target": {
 						"node": 2,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 5,
-					"target":
-					{
+					"target": {
 						"node": 2,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 6,
-					"target":
-					{
+					"target": {
 						"node": 3,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 7,
-					"target":
-					{
+					"target": {
 						"node": 3,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 8,
-					"target":
-					{
+					"target": {
 						"node": 3,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 9,
-					"target":
-					{
+					"target": {
 						"node": 4,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 10,
-					"target":
-					{
+					"target": {
 						"node": 4,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 11,
-					"target":
-					{
+					"target": {
 						"node": 4,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 12,
-					"target":
-					{
+					"target": {
 						"node": 5,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 13,
-					"target":
-					{
+					"target": {
 						"node": 5,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 14,
-					"target":
-					{
+					"target": {
 						"node": 5,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 15,
-					"target":
-					{
+					"target": {
 						"node": 6,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 16,
-					"target":
-					{
+					"target": {
 						"node": 6,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 17,
-					"target":
-					{
+					"target": {
 						"node": 6,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 18,
-					"target":
-					{
+					"target": {
 						"node": 7,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 19,
-					"target":
-					{
+					"target": {
 						"node": 7,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 20,
-					"target":
-					{
+					"target": {
 						"node": 7,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 21,
-					"target":
-					{
+					"target": {
 						"node": 8,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 22,
-					"target":
-					{
+					"target": {
 						"node": 8,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 23,
-					"target":
-					{
+					"target": {
 						"node": 8,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 24,
-					"target":
-					{
+					"target": {
 						"node": 9,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 25,
-					"target":
-					{
+					"target": {
 						"node": 9,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 26,
-					"target":
-					{
+					"target": {
 						"node": 9,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 27,
-					"target":
-					{
+					"target": {
 						"node": 10,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 28,
-					"target":
-					{
+					"target": {
 						"node": 10,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 29,
-					"target":
-					{
+					"target": {
 						"node": 10,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 30,
-					"target":
-					{
+					"target": {
 						"node": 11,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 31,
-					"target":
-					{
+					"target": {
 						"node": 11,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 32,
-					"target":
-					{
+					"target": {
 						"node": 11,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 33,
-					"target":
-					{
+					"target": {
 						"node": 12,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 34,
-					"target":
-					{
+					"target": {
 						"node": 12,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 35,
-					"target":
-					{
+					"target": {
 						"node": 12,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 36,
-					"target":
-					{
+					"target": {
 						"node": 13,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 37,
-					"target":
-					{
+					"target": {
 						"node": 13,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 38,
-					"target":
-					{
+					"target": {
 						"node": 13,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 39,
-					"target":
-					{
+					"target": {
 						"node": 14,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 40,
-					"target":
-					{
+					"target": {
 						"node": 14,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 41,
-					"target":
-					{
+					"target": {
 						"node": 14,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 42,
-					"target":
-					{
+					"target": {
 						"node": 15,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 43,
-					"target":
-					{
+					"target": {
 						"node": 15,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 44,
-					"target":
-					{
+					"target": {
 						"node": 15,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 45,
-					"target":
-					{
+					"target": {
 						"node": 16,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 46,
-					"target":
-					{
+					"target": {
 						"node": 16,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 47,
-					"target":
-					{
+					"target": {
 						"node": 16,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 48,
-					"target":
-					{
+					"target": {
 						"node": 17,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 49,
-					"target":
-					{
+					"target": {
 						"node": 17,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 50,
-					"target":
-					{
+					"target": {
 						"node": 17,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 51,
-					"target":
-					{
+					"target": {
 						"node": 18,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 52,
-					"target":
-					{
+					"target": {
 						"node": 18,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 53,
-					"target":
-					{
+					"target": {
 						"node": 18,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 54,
-					"target":
-					{
+					"target": {
 						"node": 19,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 55,
-					"target":
-					{
+					"target": {
 						"node": 19,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 56,
-					"target":
-					{
+					"target": {
 						"node": 19,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 57,
-					"target":
-					{
+					"target": {
 						"node": 20,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 58,
-					"target":
-					{
+					"target": {
 						"node": 20,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 59,
-					"target":
-					{
+					"target": {
 						"node": 20,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 60,
-					"target":
-					{
+					"target": {
 						"node": 21,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 61,
-					"target":
-					{
+					"target": {
 						"node": 21,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 62,
-					"target":
-					{
+					"target": {
 						"node": 21,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 63,
-					"target":
-					{
+					"target": {
 						"node": 22,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 64,
-					"target":
-					{
+					"target": {
 						"node": 22,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 65,
-					"target":
-					{
+					"target": {
 						"node": 22,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 66,
-					"target":
-					{
+					"target": {
 						"node": 23,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 67,
-					"target":
-					{
+					"target": {
 						"node": 23,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 68,
-					"target":
-					{
+					"target": {
 						"node": 23,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 69,
-					"target":
-					{
+					"target": {
 						"node": 24,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 70,
-					"target":
-					{
+					"target": {
 						"node": 24,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 71,
-					"target":
-					{
+					"target": {
 						"node": 24,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 72,
-					"target":
-					{
+					"target": {
 						"node": 25,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 73,
-					"target":
-					{
+					"target": {
 						"node": 25,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 74,
-					"target":
-					{
+					"target": {
 						"node": 25,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 75,
-					"target":
-					{
+					"target": {
 						"node": 26,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 76,
-					"target":
-					{
+					"target": {
 						"node": 26,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 77,
-					"target":
-					{
+					"target": {
 						"node": 26,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 78,
-					"target":
-					{
+					"target": {
 						"node": 27,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 79,
-					"target":
-					{
+					"target": {
 						"node": 27,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 80,
-					"target":
-					{
+					"target": {
 						"node": 27,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 81,
-					"target":
-					{
+					"target": {
 						"node": 28,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 82,
-					"target":
-					{
+					"target": {
 						"node": 28,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 83,
-					"target":
-					{
+					"target": {
 						"node": 28,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 84,
-					"target":
-					{
+					"target": {
 						"node": 29,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 85,
-					"target":
-					{
+					"target": {
 						"node": 29,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 86,
-					"target":
-					{
+					"target": {
 						"node": 29,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 87,
-					"target":
-					{
+					"target": {
 						"node": 30,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 88,
-					"target":
-					{
+					"target": {
 						"node": 30,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 89,
-					"target":
-					{
+					"target": {
 						"node": 30,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 90,
-					"target":
-					{
+					"target": {
 						"node": 31,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 91,
-					"target":
-					{
+					"target": {
 						"node": 31,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 92,
-					"target":
-					{
+					"target": {
 						"node": 31,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 93,
-					"target":
-					{
+					"target": {
 						"node": 32,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 94,
-					"target":
-					{
+					"target": {
 						"node": 32,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 95,
-					"target":
-					{
+					"target": {
 						"node": 32,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 96,
-					"target":
-					{
+					"target": {
 						"node": 33,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 97,
-					"target":
-					{
+					"target": {
 						"node": 33,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 98,
-					"target":
-					{
+					"target": {
 						"node": 33,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 99,
-					"target":
-					{
+					"target": {
 						"node": 34,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 100,
-					"target":
-					{
+					"target": {
 						"node": 34,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 101,
-					"target":
-					{
+					"target": {
 						"node": 34,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 102,
-					"target":
-					{
+					"target": {
 						"node": 35,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 103,
-					"target":
-					{
+					"target": {
 						"node": 35,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 104,
-					"target":
-					{
+					"target": {
 						"node": 35,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 105,
-					"target":
-					{
+					"target": {
 						"node": 36,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 106,
-					"target":
-					{
+					"target": {
 						"node": 36,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 107,
-					"target":
-					{
+					"target": {
 						"node": 36,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 108,
-					"target":
-					{
+					"target": {
 						"node": 37,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 109,
-					"target":
-					{
+					"target": {
 						"node": 37,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 110,
-					"target":
-					{
+					"target": {
 						"node": 37,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 111,
-					"target":
-					{
+					"target": {
 						"node": 38,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 112,
-					"target":
-					{
+					"target": {
 						"node": 38,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 113,
-					"target":
-					{
+					"target": {
 						"node": 38,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 114,
-					"target":
-					{
+					"target": {
 						"node": 39,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 115,
-					"target":
-					{
+					"target": {
 						"node": 39,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 116,
-					"target":
-					{
+					"target": {
 						"node": 39,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 117,
-					"target":
-					{
+					"target": {
 						"node": 40,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 118,
-					"target":
-					{
+					"target": {
 						"node": 40,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 119,
-					"target":
-					{
+					"target": {
 						"node": 40,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 120,
-					"target":
-					{
+					"target": {
 						"node": 41,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 121,
-					"target":
-					{
+					"target": {
 						"node": 41,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 122,
-					"target":
-					{
+					"target": {
 						"node": 41,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 123,
-					"target":
-					{
+					"target": {
 						"node": 42,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 124,
-					"target":
-					{
+					"target": {
 						"node": 42,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 125,
-					"target":
-					{
+					"target": {
 						"node": 42,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 126,
-					"target":
-					{
+					"target": {
 						"node": 43,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 127,
-					"target":
-					{
+					"target": {
 						"node": 43,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 128,
-					"target":
-					{
+					"target": {
 						"node": 43,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 129,
-					"target":
-					{
+					"target": {
 						"node": 44,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 130,
-					"target":
-					{
+					"target": {
 						"node": 44,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 131,
-					"target":
-					{
+					"target": {
 						"node": 44,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 132,
-					"target":
-					{
+					"target": {
 						"node": 45,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 133,
-					"target":
-					{
+					"target": {
 						"node": 45,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 134,
-					"target":
-					{
+					"target": {
 						"node": 45,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 135,
-					"target":
-					{
+					"target": {
 						"node": 46,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 136,
-					"target":
-					{
+					"target": {
 						"node": 46,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 137,
-					"target":
-					{
+					"target": {
 						"node": 46,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 138,
-					"target":
-					{
+					"target": {
 						"node": 47,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 139,
-					"target":
-					{
+					"target": {
 						"node": 47,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 140,
-					"target":
-					{
+					"target": {
 						"node": 47,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 141,
-					"target":
-					{
+					"target": {
 						"node": 48,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 142,
-					"target":
-					{
+					"target": {
 						"node": 48,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 143,
-					"target":
-					{
+					"target": {
 						"node": 48,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 144,
-					"target":
-					{
+					"target": {
 						"node": 49,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 145,
-					"target":
-					{
+					"target": {
 						"node": 49,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 146,
-					"target":
-					{
+					"target": {
 						"node": 49,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 147,
-					"target":
-					{
+					"target": {
 						"node": 50,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 148,
-					"target":
-					{
+					"target": {
 						"node": 50,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 149,
-					"target":
-					{
+					"target": {
 						"node": 50,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 150,
-					"target":
-					{
+					"target": {
 						"node": 51,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 151,
-					"target":
-					{
+					"target": {
 						"node": 51,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 152,
-					"target":
-					{
+					"target": {
 						"node": 51,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 153,
-					"target":
-					{
+					"target": {
 						"node": 52,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 154,
-					"target":
-					{
+					"target": {
 						"node": 52,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 155,
-					"target":
-					{
+					"target": {
 						"node": 52,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 156,
-					"target":
-					{
+					"target": {
 						"node": 53,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 157,
-					"target":
-					{
+					"target": {
 						"node": 53,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 158,
-					"target":
-					{
+					"target": {
 						"node": 53,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 159,
-					"target":
-					{
+					"target": {
 						"node": 54,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 160,
-					"target":
-					{
+					"target": {
 						"node": 54,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 161,
-					"target":
-					{
+					"target": {
 						"node": 54,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 162,
-					"target":
-					{
+					"target": {
 						"node": 55,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 163,
-					"target":
-					{
+					"target": {
 						"node": 55,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 164,
-					"target":
-					{
+					"target": {
 						"node": 55,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 165,
-					"target":
-					{
+					"target": {
 						"node": 56,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 166,
-					"target":
-					{
+					"target": {
 						"node": 56,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 167,
-					"target":
-					{
+					"target": {
 						"node": 56,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 168,
-					"target":
-					{
+					"target": {
 						"node": 57,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 169,
-					"target":
-					{
+					"target": {
 						"node": 57,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 170,
-					"target":
-					{
+					"target": {
 						"node": 57,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 171,
-					"target":
-					{
+					"target": {
 						"node": 58,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 172,
-					"target":
-					{
+					"target": {
 						"node": 58,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 173,
-					"target":
-					{
+					"target": {
 						"node": 58,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 174,
-					"target":
-					{
+					"target": {
 						"node": 59,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 175,
-					"target":
-					{
+					"target": {
 						"node": 59,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 176,
-					"target":
-					{
+					"target": {
 						"node": 59,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 177,
-					"target":
-					{
+					"target": {
 						"node": 60,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 178,
-					"target":
-					{
+					"target": {
 						"node": 60,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 179,
-					"target":
-					{
+					"target": {
 						"node": 60,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 180,
-					"target":
-					{
+					"target": {
 						"node": 61,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 181,
-					"target":
-					{
+					"target": {
 						"node": 61,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 182,
-					"target":
-					{
+					"target": {
 						"node": 61,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 183,
-					"target":
-					{
+					"target": {
 						"node": 62,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 184,
-					"target":
-					{
+					"target": {
 						"node": 62,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 185,
-					"target":
-					{
+					"target": {
 						"node": 62,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 186,
-					"target":
-					{
+					"target": {
 						"node": 63,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 187,
-					"target":
-					{
+					"target": {
 						"node": 63,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 188,
-					"target":
-					{
+					"target": {
 						"node": 63,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 189,
-					"target":
-					{
+					"target": {
 						"node": 64,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 190,
-					"target":
-					{
+					"target": {
 						"node": 64,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 191,
-					"target":
-					{
+					"target": {
 						"node": 64,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 192,
-					"target":
-					{
+					"target": {
 						"node": 65,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 193,
-					"target":
-					{
+					"target": {
 						"node": 65,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 194,
-					"target":
-					{
+					"target": {
 						"node": 65,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 195,
-					"target":
-					{
+					"target": {
 						"node": 66,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 196,
-					"target":
-					{
+					"target": {
 						"node": 66,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 197,
-					"target":
-					{
+					"target": {
 						"node": 66,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 198,
-					"target":
-					{
+					"target": {
 						"node": 67,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 199,
-					"target":
-					{
+					"target": {
 						"node": 67,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 200,
-					"target":
-					{
+					"target": {
 						"node": 67,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 201,
-					"target":
-					{
+					"target": {
 						"node": 68,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 202,
-					"target":
-					{
+					"target": {
 						"node": 68,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 203,
-					"target":
-					{
+					"target": {
 						"node": 68,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 204,
-					"target":
-					{
+					"target": {
 						"node": 69,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 205,
-					"target":
-					{
+					"target": {
 						"node": 69,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 206,
-					"target":
-					{
+					"target": {
 						"node": 69,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 207,
-					"target":
-					{
+					"target": {
 						"node": 70,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 208,
-					"target":
-					{
+					"target": {
 						"node": 70,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 209,
-					"target":
-					{
+					"target": {
 						"node": 70,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 210,
-					"target":
-					{
+					"target": {
 						"node": 71,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 211,
-					"target":
-					{
+					"target": {
 						"node": 71,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 212,
-					"target":
-					{
+					"target": {
 						"node": 71,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 213,
-					"target":
-					{
+					"target": {
 						"node": 72,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 214,
-					"target":
-					{
+					"target": {
 						"node": 72,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 215,
-					"target":
-					{
+					"target": {
 						"node": 72,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 216,
-					"target":
-					{
+					"target": {
 						"node": 73,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 217,
-					"target":
-					{
+					"target": {
 						"node": 73,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 218,
-					"target":
-					{
+					"target": {
 						"node": 73,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 219,
-					"target":
-					{
+					"target": {
 						"node": 74,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 220,
-					"target":
-					{
+					"target": {
 						"node": 74,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 221,
-					"target":
-					{
+					"target": {
 						"node": 74,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 222,
-					"target":
-					{
+					"target": {
 						"node": 75,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 223,
-					"target":
-					{
+					"target": {
 						"node": 75,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 224,
-					"target":
-					{
+					"target": {
 						"node": 75,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 225,
-					"target":
-					{
+					"target": {
 						"node": 76,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 226,
-					"target":
-					{
+					"target": {
 						"node": 76,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 227,
-					"target":
-					{
+					"target": {
 						"node": 76,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 228,
-					"target":
-					{
+					"target": {
 						"node": 77,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 229,
-					"target":
-					{
+					"target": {
 						"node": 77,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 230,
-					"target":
-					{
+					"target": {
 						"node": 77,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 231,
-					"target":
-					{
+					"target": {
 						"node": 78,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 232,
-					"target":
-					{
+					"target": {
 						"node": 78,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 233,
-					"target":
-					{
+					"target": {
 						"node": 78,
 						"path": "scale"
 					}
 				},
 				{
 					"sampler": 234,
-					"target":
-					{
+					"target": {
 						"node": 79,
 						"path": "translation"
 					}
 				},
 				{
 					"sampler": 235,
-					"target":
-					{
+					"target": {
 						"node": 79,
 						"path": "rotation"
 					}
 				},
 				{
 					"sampler": 236,
-					"target":
-					{
+					"target": {
 						"node": 79,
 						"path": "scale"
 					}
@@ -5092,7 +4854,241 @@
 					"input": 1,
 					"output": 238
 				}
-			]
+			],
+			"extensions": {
+				"ALS_float_curves": {
+					"curves": [
+						{
+							"name": "FootLeftLock",
+							"flags": 4,
+							"default": null,
+							"pre_infinity": "RCCE_Constant",
+							"post_infinity": "RCCE_Constant",
+							"interps": [
+								"CUBIC",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR"
+							],
+							"times": [
+								0.5,
+								0.8999999761581421,
+								0.9333333373069763,
+								0.9666666388511658
+							],
+							"values": [
+								1.0000001192092896,
+								0.0,
+								2.4526912056899164e-08,
+								1.0000001192092896
+							],
+							"tangent_modes": [
+								0,
+								0,
+								0,
+								0
+							],
+							"weight_modes": [
+								0,
+								0,
+								0,
+								0
+							],
+							"arrive_tangents": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"leave_tangents": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"arrive_weights": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"leave_weights": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							]
+						},
+						{
+							"name": "FootRightLock",
+							"flags": 4,
+							"default": null,
+							"pre_infinity": "RCCE_Constant",
+							"post_infinity": "RCCE_Constant",
+							"interps": [
+								"CUBIC",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR"
+							],
+							"times": [
+								0.03333333507180214,
+								0.4000000059604645,
+								0.46666666865348816,
+								0.5
+							],
+							"values": [
+								1.0000001192092896,
+								0.0,
+								1.6263671520633238e-09,
+								1.0000001192092896
+							],
+							"tangent_modes": [
+								0,
+								0,
+								0,
+								0
+							],
+							"weight_modes": [
+								0,
+								0,
+								0,
+								0
+							],
+							"arrive_tangents": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"leave_tangents": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"arrive_weights": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							],
+							"leave_weights": [
+								0.0,
+								0.0,
+								0.0,
+								0.0
+							]
+						},
+						{
+							"name": "RotationYawSpeed",
+							"flags": 4,
+							"default": null,
+							"pre_infinity": "RCCE_Constant",
+							"post_infinity": "RCCE_Constant",
+							"interps": [
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR",
+								"LINEAR"
+							],
+							"times": [
+								0.0,
+								0.03333333507180214,
+								0.06666667014360428,
+								0.10000000149011612,
+								0.13333334028720856,
+								0.1666666716337204,
+								0.20000000298023224,
+								0.23333333432674408,
+								0.2666666805744171,
+								0.30000001192092896,
+								0.3333333432674408,
+								0.36666667461395264,
+								0.4000000059604645,
+								0.4333333373069763,
+								0.46666666865348816,
+								0.5,
+								0.5333333611488342,
+								0.5666666626930237,
+								0.6000000238418579,
+								0.6333333253860474,
+								0.6666666865348816,
+								0.699999988079071,
+								0.7333333492279053,
+								0.7666666507720947,
+								0.800000011920929,
+								0.8333333134651184,
+								0.8666666746139526,
+								0.8999999761581421,
+								0.9333333373069763,
+								0.9666666388511658,
+								1.0
+							],
+							"values": [
+								0.0,
+								19.037460327148438,
+								54.33977127075195,
+								85.48318481445312,
+								112.46761322021484,
+								135.2932586669922,
+								153.9600067138672,
+								168.46788024902344,
+								178.81631469726562,
+								185.00677490234375,
+								187.03713989257812,
+								184.9094696044922,
+								178.62278747558594,
+								168.17726135253906,
+								153.5722198486328,
+								134.80917358398438,
+								115.69733428955078,
+								99.79483032226562,
+								85.06591796875,
+								71.51151275634766,
+								59.13236618041992,
+								47.925716400146484,
+								37.895591735839844,
+								29.03883171081543,
+								21.356399536132812,
+								14.848763465881348,
+								9.515897750854492,
+								5.356082439422607,
+								2.3721461296081543,
+								0.5621400475502014,
+								-0.07389479875564575
+							]
+						}
+					]
+				}
+			}
 		}
 	],
 	"buffers": [
@@ -6929,14 +6925,10 @@
 	],
 	"materials": [
 		{
-			"pbrMetallicRoughness":
-			{
-			}
+			"pbrMetallicRoughness": {}
 		},
 		{
-			"pbrMetallicRoughness":
-			{
-			}
+			"pbrMetallicRoughness": {}
 		}
 	],
 	"meshes": [
@@ -6944,8 +6936,7 @@
 			"name": "SKM_Als",
 			"primitives": [
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 240,
 						"NORMAL": 241,
 						"TANGENT": 242,
@@ -6957,8 +6948,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 247,
 						"NORMAL": 248,
 						"TANGENT": 249,
@@ -6970,8 +6960,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 254,
 						"NORMAL": 255,
 						"TANGENT": 256,
@@ -6983,8 +6972,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 261,
 						"NORMAL": 262,
 						"TANGENT": 263,
@@ -6996,8 +6984,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 268,
 						"NORMAL": 269,
 						"TANGENT": 270,
@@ -7009,8 +6996,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 275,
 						"NORMAL": 276,
 						"TANGENT": 277,
@@ -7022,8 +7008,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 282,
 						"NORMAL": 283,
 						"TANGENT": 284,
@@ -7035,8 +7020,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 289,
 						"NORMAL": 290,
 						"TANGENT": 291,
@@ -7048,8 +7032,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 296,
 						"NORMAL": 297,
 						"TANGENT": 298,
@@ -7061,8 +7044,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 303,
 						"NORMAL": 304,
 						"TANGENT": 305,
@@ -7074,8 +7056,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 310,
 						"NORMAL": 311,
 						"TANGENT": 312,
@@ -7087,8 +7068,7 @@
 					"material": 1
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 317,
 						"NORMAL": 318,
 						"TANGENT": 319,
@@ -7100,8 +7080,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 324,
 						"NORMAL": 325,
 						"TANGENT": 326,
@@ -7113,8 +7092,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 331,
 						"NORMAL": 332,
 						"TANGENT": 333,
@@ -7126,8 +7104,7 @@
 					"material": 0
 				},
 				{
-					"attributes":
-					{
+					"attributes": {
 						"POSITION": 338,
 						"NORMAL": 339,
 						"TANGENT": 340,
@@ -7559,7 +7536,7 @@
 			"translation": [
 				0.00499999989,
 				1.42108544e-16,
-				-0
+				0
 			]
 		},
 		{
@@ -8413,5 +8390,8 @@
 				79
 			]
 		}
+	],
+	"extensionsUsed": [
+		"ALS_float_curves"
 	]
 }
