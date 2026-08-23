@@ -1,4 +1,5 @@
 pub mod curve;
+pub mod ik;
 pub mod loader;
 pub mod nodes;
 pub mod overlay;
