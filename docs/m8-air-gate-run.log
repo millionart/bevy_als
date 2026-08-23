@@ -1,0 +1,123 @@
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\graph_router.rs:1:5
+  |
+1 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\rotate_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\turn_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: `als-core` (lib) generated 3 warnings (run `cargo fix --lib -p als-core` to apply 3 suggestions)
+warning: variable does not need to be mutable
+   --> examples\air_gate.rs:335:5
+    |
+335 |     mut exit: MessageWriter<AppExit>,
+    |     ----^^^^
+    |     |
+    |     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `exit`
+   --> examples\air_gate.rs:335:5
+    |
+335 |     mut exit: MessageWriter<AppExit>,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exit`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> examples\air_gate.rs:378:14
+    |
+378 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    |              ----^^^^
+    |              |
+    |              help: remove this `mut`
+
+warning: `bevy_als` (example "air_gate") generated 3 warnings (run `cargo fix --example "air_gate" -p bevy_als` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.47s
+     Running `target\debug\examples\air_gate.exe`
+2026-08-23T20:08:39.120579Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-23T20:08:39.890870Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-23T20:08:41.150371Z  INFO air_gate: [M8GATE] auto quit armed in 25.0s
+2026-08-23T20:08:41.252941Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-23T20:08:41.253121Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-23T20:08:41.264133Z  INFO bevy_winit::system: Creating new window air_gate (65v0)
+2026-08-23T20:08:41.421124Z  INFO air_gate: [M8GATE] scripted demo armed
+2026-08-23T20:08:42.473924Z  INFO air_gate: [M8GATE] t=0.50 phase=idle loco=Grounded gait=Walking vy=+0.41 peak_dn=0.00 pos=(-0.00,0.82,-0.00) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:43.721989Z  INFO air_gate: [M8GATE] t=0.75 phase=idle loco=Grounded gait=Walking vy=+0.22 peak_dn=0.00 pos=(-0.00,0.86,-0.00) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:44.157155Z  INFO air_gate: [M8GATE][PHASE 1] run forward (t=1.07, start=1.00)
+2026-08-23T20:08:44.157231Z  INFO air_gate: [M8GATE] t=1.07 phase=run forward loco=Grounded gait=Walking vy=+0.09 peak_dn=0.00 pos=(-0.00,0.88,-0.00) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:44.293000Z  INFO air_gate: [M8GATE] t=1.32 phase=run forward loco=Grounded gait=Walking vy=+0.05 peak_dn=0.00 pos=(-0.00,0.89,-0.00) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:44.458844Z  INFO air_gate: [M8GATE] t=1.60 phase=run forward loco=Grounded gait=Walking vy=+0.02 peak_dn=0.00 pos=(-0.00,0.90,0.43) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:44.639048Z  INFO air_gate: [M8GATE] t=1.86 phase=run forward loco=Grounded gait=Walking vy=+0.01 peak_dn=0.00 pos=(-0.00,0.90,0.89) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:44.853121Z  INFO air_gate: [M8GATE] t=2.11 phase=run forward loco=Grounded gait=Walking vy=+0.01 peak_dn=0.00 pos=(-0.00,0.90,1.33) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:45.103092Z  INFO air_gate: [M8GATE] t=2.37 phase=run forward loco=Grounded gait=Walking vy=+0.00 peak_dn=0.00 pos=(-0.00,0.90,1.77) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:45.368436Z  INFO air_gate: [M8GATE] t=2.64 phase=run forward loco=Grounded gait=Walking vy=+0.00 peak_dn=0.00 pos=(-0.00,0.90,2.23) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:45.620025Z  INFO air_gate: [M8GATE] t=2.89 phase=run forward loco=Grounded gait=Walking vy=+0.00 peak_dn=0.00 pos=(-0.00,0.90,2.67) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:45.739409Z  INFO air_gate: [M8GATE][PHASE 2] jump (expect light land) (t=3.00, start=3.00)
+2026-08-23T20:08:45.866016Z  INFO als_core::motion: [MOTION] entity=575v0 locomotion sync Grounded -> Air
+2026-08-23T20:08:45.882737Z  INFO air_gate: [M8GATE] t=3.15 phase=jump (expect light land) loco=Air gait=Walking vy=+3.84 peak_dn=0.00 pos=(-0.00,1.67,3.14) air_w=0.18 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:46.147006Z  INFO air_gate: [M8GATE] t=3.41 phase=jump (expect light land) loco=Air gait=Walking vy=-2.05 peak_dn=0.50 pos=(-0.00,1.90,3.60) air_w=1.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:46.368882Z  INFO als_core::motion: [MOTION] entity=575v0 locomotion sync Air -> Grounded
+2026-08-23T20:08:46.412999Z  INFO air_gate: [M8GATE][LAND] light variant active w=0.60
+2026-08-23T20:08:46.413036Z  INFO air_gate: [M8GATE] t=3.67 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.06 peak_dn=6.75 pos=(-0.00,0.89,4.07) air_w=0.57 ff_w=0.00 land_w=0.60 heavy_w=0.00
+2026-08-23T20:08:46.666855Z  INFO air_gate: [M8GATE][LAND] light variant active w=1.00
+2026-08-23T20:08:46.666897Z  INFO air_gate: [M8GATE] t=3.94 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.04 peak_dn=6.75 pos=(-0.00,0.89,4.50) air_w=0.00 ff_w=0.00 land_w=1.00 heavy_w=0.00
+2026-08-23T20:08:46.916393Z  INFO air_gate: [M8GATE][LAND] light variant active w=1.00
+2026-08-23T20:08:46.916446Z  INFO air_gate: [M8GATE] t=4.19 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.02 peak_dn=6.75 pos=(-0.00,0.90,4.94) air_w=0.00 ff_w=0.00 land_w=1.00 heavy_w=0.00
+2026-08-23T20:08:47.182331Z  INFO air_gate: [M8GATE] t=4.45 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.01 peak_dn=6.75 pos=(-0.00,0.90,5.41) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:47.446821Z  INFO air_gate: [M8GATE] t=4.72 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.01 peak_dn=6.75 pos=(-0.00,0.90,5.87) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:47.699008Z  INFO air_gate: [M8GATE] t=4.97 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,6.31) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:47.962902Z  INFO air_gate: [M8GATE] t=5.23 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,6.77) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:48.212889Z  INFO air_gate: [M8GATE] t=5.48 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,7.21) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:48.473970Z  INFO air_gate: [M8GATE] t=5.74 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,7.68) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:48.726017Z  INFO air_gate: [M8GATE] t=5.99 phase=jump (expect light land) loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,8.11) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:48.742865Z  INFO air_gate: [M8GATE][PHASE 3] recover + run (t=6.01, start=6.00)
+2026-08-23T20:08:48.991147Z  INFO air_gate: [M8GATE] t=6.25 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,8.58) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:49.241525Z  INFO air_gate: [M8GATE] t=6.50 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,9.02) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:49.496403Z  INFO air_gate: [M8GATE] t=6.77 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,9.45) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:49.757876Z  INFO air_gate: [M8GATE] t=7.03 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,9.92) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:50.011610Z  INFO air_gate: [M8GATE] t=7.28 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,10.36) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:50.286622Z  INFO air_gate: [M8GATE] t=7.55 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,10.85) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:50.541912Z  INFO air_gate: [M8GATE] t=7.81 phase=recover + run loco=Grounded gait=Walking vy=+0.00 peak_dn=6.75 pos=(-0.00,0.90,11.28) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:50.745358Z  INFO air_gate: [M8GATE][PHASE 4] teleport high fall (expect heavy) (t=8.01, start=8.00)
+2026-08-23T20:08:50.770557Z  INFO air_gate: [M8GATE] teleported to y=7.90, expected impact ~11.7 m/s (threshold 8)
+2026-08-23T20:08:50.803432Z  INFO air_gate: [M8GATE] t=8.07 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=-1.09 peak_dn=6.75 pos=(-0.00,7.89,11.74) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:50.912516Z  INFO als_core::motion: [MOTION] entity=575v0 locomotion sync Grounded -> Air
+2026-08-23T20:08:51.057084Z  INFO air_gate: [M8GATE] t=8.33 phase=teleport high fall (expect heavy) loco=Air gait=Walking vy=-18.54 peak_dn=14.74 pos=(-0.00,5.41,11.84) air_w=1.00 ff_w=1.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:51.272418Z  INFO als_core::motion: [MOTION] entity=575v0 locomotion sync Air -> Grounded
+2026-08-23T20:08:51.322650Z  INFO air_gate: [M8GATE][LAND] heavy variant active w=0.86/0.86
+2026-08-23T20:08:51.322690Z  INFO air_gate: [M8GATE] t=8.59 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.65 peak_dn=19.44 pos=(-0.00,0.78,12.03) air_w=0.38 ff_w=0.22 land_w=0.86 heavy_w=0.86
+2026-08-23T20:08:51.585440Z  INFO air_gate: [M8GATE][LAND] heavy variant active w=1.00/1.00
+2026-08-23T20:08:51.585472Z  INFO air_gate: [M8GATE] t=8.84 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.32 peak_dn=19.44 pos=(-0.00,0.84,12.35) air_w=0.00 ff_w=0.00 land_w=1.00 heavy_w=1.00
+2026-08-23T20:08:51.835285Z  INFO air_gate: [M8GATE][LAND] heavy variant active w=1.00/1.00
+2026-08-23T20:08:51.835317Z  INFO air_gate: [M8GATE] t=9.11 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.17 peak_dn=19.44 pos=(-0.00,0.87,12.76) air_w=0.00 ff_w=0.00 land_w=1.00 heavy_w=1.00
+2026-08-23T20:08:52.105960Z  INFO air_gate: [M8GATE][LAND] heavy variant active w=1.00/1.00
+2026-08-23T20:08:52.105990Z  INFO air_gate: [M8GATE] t=9.37 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.08 peak_dn=19.44 pos=(-0.00,0.88,13.22) air_w=0.00 ff_w=0.00 land_w=1.00 heavy_w=1.00
+2026-08-23T20:08:52.367569Z  INFO air_gate: [M8GATE] t=9.63 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.04 peak_dn=19.44 pos=(-0.00,0.89,13.69) air_w=0.00 ff_w=0.00 land_w=0.35 heavy_w=1.00
+2026-08-23T20:08:52.631617Z  INFO air_gate: [M8GATE] t=9.89 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.02 peak_dn=19.44 pos=(-0.00,0.90,14.15) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.37
+2026-08-23T20:08:52.898810Z  INFO air_gate: [M8GATE] t=10.16 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.01 peak_dn=19.44 pos=(-0.00,0.90,14.62) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:53.176394Z  INFO air_gate: [M8GATE] t=10.43 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.01 peak_dn=19.44 pos=(-0.00,0.90,15.08) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:53.447248Z  INFO air_gate: [M8GATE] t=10.71 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,15.57) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:53.715397Z  INFO air_gate: [M8GATE] t=10.98 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,16.04) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:53.979553Z  INFO air_gate: [M8GATE] t=11.24 phase=teleport high fall (expect heavy) loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,16.50) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:54.244576Z  INFO air_gate: [M8GATE] t=11.51 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,16.97) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:54.244646Z  INFO air_gate: [M8GATE][PHASE 5] settle idle (t=11.51, start=11.50)
+2026-08-23T20:08:54.494328Z  INFO air_gate: [M8GATE] t=11.76 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,17.03) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:54.754797Z  INFO air_gate: [M8GATE] t=12.02 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,17.03) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:55.008035Z  INFO air_gate: [M8GATE] t=12.28 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,17.03) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:55.271061Z  INFO air_gate: [M8GATE] t=12.54 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,17.03) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:55.525726Z  INFO air_gate: [M8GATE] t=12.80 phase=settle idle loco=Grounded gait=Walking vy=+0.00 peak_dn=19.44 pos=(-0.00,0.90,17.03) air_w=0.00 ff_w=0.00 land_w=0.00 heavy_w=0.00
+2026-08-23T20:08:55.745591Z  INFO air_gate: [M8GATE][VERDICT] overall PASS

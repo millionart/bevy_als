@@ -1,3 +1,4 @@
+use als_core::air::AlsAirState;
 use als_core::graph_router::compute_graph_inputs;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
@@ -43,6 +44,13 @@ pub fn write_motion_graph_pins(
     player.set_input_data("speed", DataValue::from(inputs.speed));
     player.set_input_data("actual_speed", DataValue::from(inputs.actual_speed));
     player.set_input_data("play_rate", DataValue::from(inputs.play_rate));
+}
+
+pub fn write_air_pins(player: &mut AnimationGraphPlayer, air: &AlsAirState) {
+    player.set_input_data("air_weight", DataValue::from(air.air_weight));
+    player.set_input_data("fall_fast_weight", DataValue::from(air.fall_fast_weight));
+    player.set_input_data("land_weight", DataValue::from(air.land_weight));
+    player.set_input_data("land_heavy_weight", DataValue::from(air.land_heavy_weight));
 }
 
 #[cfg(test)]

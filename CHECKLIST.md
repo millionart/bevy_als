@@ -144,7 +144,9 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 
 ## M8 特殊动作（依赖：M7）
 
-- [ ] M8.1 Jump/Fall/Land 动画链：Air 组动画 + 落地选择（轻/重）+ Land recovery 混合。
+- [x] M8.1 Jump/Fall/Land 动画链：Air 组动画 + 落地选择（轻/重）+ Land recovery 混合。
+  - 实现（2026-08-23）：①`als-core::air` AlsAirState 三相状态机 Idle/Airborne/Landing——滞空 air_weight 渐入(10/s)、fall_fast_weight 按 |vy|∈[8,14] 线性映射；落地以平滑撞击速度判轻重（EMA α=0.3 免疫接触帧求解器速度尖峰，实测尖峰 −8.1 vs 真实撞击 ~5），阈值 LAND_HEAVY_IMPACT_VY=8 m/s（点按短跳实测撞击 ~6.5 归轻、7m 高坠 ~11.7 归重，对齐 ALS 大落差才重落的语义）；Landing 按 variant 持续 Light 0.9s / Heavy 1.3s 后尾段 0.25s 淡出回 locomotion，滞空中再跳直接回 Airborne。②图侧 locomotion_overlay 新增 air 链：Jump_Loop/Fall/Fall_Fast 两级 blend + Land_Light/Heavy 变体 blend + land 总 blend，插在 locomotion 输出与 overlay 链之间；新输入 pins air_weight/fall_fast_weight/land_weight/land_heavy_weight（默认 0 向后兼容旧示例）。③bevy_als motion_graph_link 增 write_air_pins。④examples/air_gate 六阶段脚本化：跑动起跳→Air(vy +4.2→−6.5)→Light 着陆 recovery→再跑→teleport 7.9m 高坠(ff_w=1.00)→Heavy 着陆(w=1.00/1.00)→settle。
+  - Gate 自测证据（docs/m8-air-gate-run.log）：`[LAND] light variant active w=1.00` ×3 与 `[LAND] heavy variant active w=1.00/1.00` ×4 分段出现，`VERDICT overall PASS`，exit=0 无 ERROR/panic；workspace 测试 161 全绿（als-core 116 含 6 项 air 单测：阈值边界/EMA 尖峰滤波/Landing 超时回 Idle/滞空重跳）。
 - [ ] M8.2 Roll（翻滚/闪避）：Rolling 状态、方向选择、root motion 等价位移方案（曲线驱动位移而非 root motion 骨骼）。
 - [ ] M8.3 Distance matching 基座（在 `crates/als-ext` 经动画图扩展点实现，公开 API 不足时按规则 4 处理）：Stop 动画按剩余距离归一化播放（ALS Stop 动画观感核心）。
 - [ ] M8.4 Mantling（攀爬）低配版：检测+曲线位移+上下两类，可选后置。
