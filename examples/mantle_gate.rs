@@ -1,0 +1,374 @@
+use std::time::{Duration, Instant};
+
+use avian3d::prelude::*;
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy_animation_graph::AnimationGraphPlugin;
+use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use bevy_enhanced_input::prelude::EnhancedInputPlugin;
+use bevy_tnua::TnuaControllerPlugin;
+use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::mantle::{AlsMantleState, MantleKind};
+use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::params::AlsMovementParams;
+use als_core::state::{Gait, LocomotionState, Stance};
+use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use als_ext::AlsExtPlugin;
+
+use bevy_als::mantle_drive::AlsMantleDrivePlugin;
+use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+
+fn main() {
+    let mut app = App::new();
+    app.add_plugins((
+        DefaultPlugins.set(AssetPlugin {
+            file_path: "assets".into(),
+            ..default()
+        }),
+        PhysicsPlugins::new(FixedPostUpdate),
+        TnuaAvian3dPlugin::new(FixedUpdate),
+        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+        EnhancedInputPlugin,
+        AlsInputPlugin,
+        AlsStateTransitionPlugin,
+        AlsCharacterPlugin,
+        AlsMotionPlugin,
+        AlsMantleDrivePlugin,
+        AnimationGraphPlugin::default(),
+        AlsExtPlugin,
+    ))
+    .init_resource::<SpawnOnce>()
+    .init_resource::<DemoDriver>()
+    .init_resource::<MantleWatch>()
+    .insert_resource(GlobalAmbientLight {
+        brightness: 400.0,
+        ..default()
+    })
+    .add_systems(
+        Update,
+        (
+            spawn_character_once,
+            auto_demo,
+            mantle_watcher,
+            graph_router,
+            camera_follow,
+            fall_guard,
+            snapshot_logger,
+            auto_quit,
+        ),
+    );
+
+    let secs: f64 = std::env::var("ALS_BOOT_AUTO_QUIT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20.0);
+    info!("[MGATE] auto quit armed in {secs:.1}s");
+    app.insert_resource(AutoQuit(Instant::now() + Duration::from_secs_f64(secs)));
+    app.run();
+}
+
+#[derive(Resource, Default)]
+struct SpawnOnce(bool);
+
+#[derive(Resource, Default)]
+struct DemoDriver {
+    step: usize,
+    done: bool,
+}
+
+#[derive(Resource, Default)]
+struct MantleWatch {
+    prev_active: bool,
+    count: u32,
+    kinds: [Option<MantleKind>; 2],
+    landings: [Option<f32>; 2],
+    failed: bool,
+}
+
+struct Step {
+    t0: f64,
+    dur: f64,
+    label: &'static str,
+    gait: Option<Gait>,
+}
+
+fn steps() -> [Step; 5] {
+    [
+        Step { t0: 0.5, dur: 1.0, label: "idle", gait: None },
+        Step { t0: 1.5, dur: 2.2, label: "run to low ledge", gait: Some(Gait::Running) },
+        Step { t0: 3.7, dur: 1.8, label: "cross low ledge top", gait: Some(Gait::Running) },
+        Step { t0: 5.5, dur: 2.4, label: "run to high ledge", gait: Some(Gait::Running) },
+        Step { t0: 7.9, dur: 3.8, label: "cross high ledge top", gait: Some(Gait::Running) },
+    ]
+}
+
+#[derive(Resource)]
+struct AutoQuit(Instant);
+
+fn spawn_character_once(
+    mut commands: Commands,
+    mut once: ResMut<SpawnOnce>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut params_assets: ResMut<Assets<AlsMovementParams>>,
+    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+    assets: Res<AssetServer>,
+) {
+    if once.0 {
+        return;
+    }
+    once.0 = true;
+    let ground_mat = materials.add(Color::srgb(0.24, 0.27, 0.24));
+    let box_mat = materials.add(Color::srgb(0.45, 0.38, 0.30));
+    commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(60.0, 0.3, 80.0),
+        Transform::from_xyz(0.0, -0.15, 10.0),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(60.0, 0.3, 80.0)))),
+        MeshMaterial3d(ground_mat),
+    ));
+    let low_top = 0.8f32;
+    commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(2.4, low_top, 1.2),
+        Transform::from_xyz(0.0, low_top / 2.0, -4.5),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(2.4, low_top, 1.2)))),
+        MeshMaterial3d(box_mat.clone()),
+    ));
+    let high_top = 1.25f32;
+    commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(2.4, high_top, 1.2),
+        Transform::from_xyz(0.0, high_top / 2.0, 2.5),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(2.4, high_top, 1.2)))),
+        MeshMaterial3d(box_mat),
+    ));
+
+    let params = params_assets.add(AlsMovementParams::default());
+    let config = config_assets.add(AlsControlSchemeConfig::default());
+    let mut bundle = AlsCharacterBundle::new(params, config);
+    bundle.transform =
+        Transform::from_xyz(0.0, 0.95, -12.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    let character = commands.spawn(bundle).id();
+    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+
+    let avatar = commands
+        .spawn((
+            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
+            Transform::from_xyz(0.0, -0.90, 0.0),
+        ))
+        .id();
+    commands.entity(character).add_child(avatar);
+
+    if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
+        commands
+            .entity(character)
+            .insert((AlsInputOverride::default(), AlsViewYaw(std::f32::consts::PI)));
+        info!("[MGATE] scripted demo armed");
+    }
+
+    commands.spawn((Camera3d::default(), Transform::from_xyz(4.0, 3.0, -14.0)));
+    commands.spawn((
+        DirectionalLight::default(),
+        Transform::from_xyz(20.0, 40.0, -15.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+}
+
+fn auto_demo(
+    time: Res<Time>,
+    mut driver: ResMut<DemoDriver>,
+    mut q: Query<&mut AlsInputOverride, With<AlsCharacter>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
+        return;
+    }
+    let Ok(mut over) = q.single_mut() else {
+        return;
+    };
+    let t = time.elapsed_secs_f64();
+    let all = steps();
+    if t >= all[all.len() - 1].t0 + all[all.len() - 1].dur + 1.4 {
+        driver.done = true;
+        exit.write(AppExit::Success);
+        return;
+    }
+    let Some(idx) = (0..all.len()).rev().find(|i| t >= all[*i].t0) else {
+        return;
+    };
+    if idx != driver.step {
+        driver.step = idx;
+        info!("[MGATE][STEP {}] {}", idx, all[idx].label);
+        if let Some(g) = all[idx].gait {
+            info!("[MGATE] gait request {g:?} handled by transition system via step config");
+        }
+    }
+    over.0.move_dir = Vec2::NEG_Y;
+    over.0.jump_pressed = false;
+    over.0.jump_held = false;
+    over.0.roll_pressed = false;
+    over.0.crouch_pressed = false;
+    over.0.sprint_held = false;
+    over.0.aim_held = false;
+    over.0.look_delta = Vec2::ZERO;
+}
+
+fn mantle_watcher(
+    time: Res<Time>,
+    mut watch: ResMut<MantleWatch>,
+    q: Query<
+        (
+            &Transform,
+            &LinearVelocity,
+            &LocomotionState,
+            &AlsMantleState,
+        ),
+        With<AlsCharacter>,
+    >,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let _ = time;
+    let Ok((tf, vel, loco, m)) = q.single() else {
+        return;
+    };
+    let slot_now = watch.count.clamp(0, 1) as usize;
+    watch.kinds[slot_now] = Some(m.kind);
+
+    if !watch.prev_active && m.active && watch.count < 2 {
+        info!(
+            "[MGATE][BEGIN {}] kind={:?} target_y={:.2}",
+            watch.count + 1,
+            m.kind,
+            m.target.y
+        );
+    }
+    if watch.prev_active && !m.active && watch.count < 2 {
+        let landed_y = tf.translation.y - 0.90 + 0.90;
+        let slot = watch.count.min(1) as usize;
+        watch.landings[slot] = Some(tf.translation.y);
+        info!(
+            "[MGATE][DONE {}] y_after={:.2} loco={loco:?} v={:.2}",
+            watch.count + 1,
+            tf.translation.y,
+            Vec2::new(vel.x, vel.z).length()
+        );
+        watch.count += 1;
+        let _ = landed_y;
+    }
+    watch.prev_active = m.active;
+
+    if watch.count == 2 && !watch.failed {
+        watch.failed = false;
+        for i in 0..2usize {
+            if watch.landings[i].is_none() {
+                error!("[MGATE][VERDICT] mantle {i} never completed");
+                watch.failed = true;
+            }
+        }
+        if !watch.failed {
+            info!(
+                "[MGATE][VERDICT] both mantles completed y={:.2}/{:.2} -> PASS",
+                watch.landings[0].unwrap_or(f32::NAN),
+                watch.landings[1].unwrap_or(f32::NAN)
+            );
+        } else {
+            exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
+        }
+        watch.count += 10;
+    }
+}
+
+fn graph_router(
+    q: Query<
+        (
+            &Stance,
+            &Gait,
+            &LinearVelocity,
+            &als_core::character::AlsMovementParamsHandle,
+        ),
+        With<AlsCharacter>,
+    >,
+    instances: Query<&AnimatedSceneInstance>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+    params: Res<Assets<AlsMovementParams>>,
+) {
+    let Ok((stance, gait, vel, handle)) = q.single() else {
+        return;
+    };
+    let Some(p) = params.get(handle.id()) else {
+        return;
+    };
+    let hspeed = Vec2::new(vel.x, vel.z).length();
+    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
+    for instance in instances.iter() {
+        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
+            write_motion_graph_pins(&mut player, &mgi);
+        }
+    }
+}
+
+fn camera_follow(
+    mut cameras: Query<&mut Transform, (With<Camera3d>, Without<AlsCharacter>)>,
+    characters: Query<&Transform, (With<AlsCharacter>, Without<Camera3d>)>,
+) {
+    let Ok(char_t) = characters.single() else {
+        return;
+    };
+    for mut cam in cameras.iter_mut() {
+        cam.translation = char_t.translation + Vec3::new(3.5, 2.8, -4.0);
+        cam.look_at(char_t.translation + Vec3::Y * 0.9, Vec3::Y);
+    }
+}
+
+fn fall_guard(q: Query<&Transform, With<AlsCharacter>>, mut exit: MessageWriter<AppExit>) {
+    let Ok(char_t) = q.single() else {
+        return;
+    };
+    if char_t.translation.y < -20.0 {
+        error!("[MGATE] fell below floor -- aborting");
+        exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));
+    }
+}
+
+fn snapshot_logger(
+    time: Res<Time>,
+    mut last: Local<f32>,
+    q: Query<
+        (
+            &Transform,
+            &LinearVelocity,
+            &LocomotionState,
+            &AlsMantleState,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    let t = time.elapsed_secs_f64();
+    if (t as f32) - *last < 0.15 {
+        return;
+    }
+    *last = t as f32;
+    let Ok((tf, vel, loco, m)) = q.single() else {
+        return;
+    };
+    info!(
+        "[MGATE] t={t:.2} loco={loco:?} v={:.2} y={:.2} z={:.2} mantling={} mt={:.2}",
+        Vec2::new(vel.x, vel.z).length(),
+        tf.translation.y,
+        tf.translation.z,
+        m.active,
+        m.time,
+    );
+}
+
+fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    if Instant::now() >= quit.0 {
+        warn!("[MGATE] wall-clock safety quit");
+        exit.write(AppExit::Success);
+    }
+}

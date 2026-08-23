@@ -503,6 +503,81 @@
             },
             should_debug: false,
         ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000001",
+            name: "mantle high clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Actions/Mantle/A_Als_Mantle_High.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000002",
+            name: "mantle low left clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Actions/Mantle/A_Als_Mantle_Low_Left.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000003",
+            name: "mantle low right clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000004",
+            name: "mantle low variant blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000005",
+            name: "mantle high vs low blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
+            name: "mantle override blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
         NodeData("55555555-5555-4555-8555-555555555505", "parameter"): InputData(Passthrough("speed")),
@@ -571,8 +646,23 @@
         NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose_b"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose"),
         NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006", "time_b"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005"),
         NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "factor"): InputData(Passthrough("stop_weight")),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000002", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000002"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000003", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000003"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "factor"): InputData(Passthrough("mantle_lr")),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000001", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000001"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "factor"): InputData(Passthrough("mantle_high_w")),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose"),
+        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005"),
+        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "factor"): InputData(Passthrough("mantle_weight")),
+        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose"),
+        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose"),
         NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_b"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "factor"): InputData(Passthrough("overlay_weight")),
@@ -623,6 +713,9 @@
             Passthrough("stop_right_weight"): F32,
             Passthrough("stop_remaining"): F32,
             Passthrough("stop_total"): F32,
+            Passthrough("mantle_weight"): F32,
+            Passthrough("mantle_high_w"): F32,
+            Passthrough("mantle_lr"): F32,
         },
         output_time: true,
         output_data: {
@@ -647,6 +740,9 @@
             Data(Passthrough("stop_right_weight")): 15,
             Data(Passthrough("stop_remaining")): 16,
             Data(Passthrough("stop_total")): 17,
+            Data(Passthrough("mantle_weight")): 18,
+            Data(Passthrough("mantle_high_w")): 19,
+            Data(Passthrough("mantle_lr")): 20,
         },
         output_order: {
             Data("pose"): 0,
@@ -670,6 +766,9 @@
         Passthrough("stop_right_weight"): F32(0.0),
         Passthrough("stop_remaining"): F32(1.0),
         Passthrough("stop_total"): F32(1.0),
+        Passthrough("mantle_weight"): F32(0.0),
+        Passthrough("mantle_high_w"): F32(0.0),
+        Passthrough("mantle_lr"): F32(0.0),
     },
     editor_metadata: (
         node_positions: {
