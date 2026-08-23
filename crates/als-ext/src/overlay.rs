@@ -14,6 +14,10 @@ pub const TORCH_RIGHT_HAND_BONES: &[&str] = &[
     "hand_r",
 ];
 
+pub const TORCH_ARM_RIGHT_BONES: &[&str] = &["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"];
+pub const TORCH_SPINE_UPPER_BONES: &[&str] = &["spine_02", "spine_03"];
+pub const HEAD_LAYER_BONES: &[&str] = &["neck_01", "head"];
+
 pub const LOOK_SPINE_BONES: &[&str] = &["spine_01", "spine_02", "spine_03", "neck_01"];
 
 pub fn build_bone_mask(skeleton: &Skeleton, bone_names: &[&str], weight: f32) -> BoneMask {
@@ -27,6 +31,30 @@ pub fn build_bone_mask(skeleton: &Skeleton, bone_names: &[&str], weight: f32) ->
         }
         let id: BoneId = path.id();
         mask.add_bone_weight(id, path.clone(), weight);
+    }
+    mask
+}
+
+pub fn build_grouped_bone_mask(
+    skeleton: &Skeleton,
+    groups: &[(&[&str], f32)],
+) -> BoneMask {
+    let mut mask = BoneMask::none();
+    for (bone_names, weight) in groups {
+        if *weight <= 0.0 {
+            continue;
+        }
+        let w = (*weight).min(1.0);
+        for path in skeleton.iter_paths() {
+            let Some(last) = path.parts.last() else {
+                continue;
+            };
+            if !bone_names.contains(&last.as_str()) {
+                continue;
+            }
+            let id: BoneId = path.id();
+            mask.add_bone_weight(id, path.clone(), w);
+        }
     }
     mask
 }

@@ -29,8 +29,11 @@ als-core = { path = "crates/als-core" }
 als-ext = { path = "crates/als-ext" }
 
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
 ron = "0.10"
 thiserror = "2"
+
+bevy_gltf = "0.19"
 
 [package]
 name = "bevy_als"

@@ -141,8 +141,10 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_animation_graph",
+ "bevy_gltf",
  "ron 0.10.1",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

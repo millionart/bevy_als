@@ -22,10 +22,7 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::view::{AlsViewPitch, AlsViewSmoothed};
-use als_ext::{
-    build_bone_mask, AlsExtPlugin, LOOK_SPINE_BONES, PlaygroundBoxCollider, PlaygroundPlugin,
-    PlaygroundSpawnPoint, TORCH_RIGHT_HAND_BONES,
-};
+use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 use bevy_als::overlay_layer::OverlayLayerPlugin;
@@ -389,23 +386,11 @@ fn track_skeleton(
 }
 
 fn mask_pin_writer(
-    skeletons: Res<Assets<Skeleton>>,
-    mut ready: ResMut<SkeletonReady>,
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let Some(handle) = ready.handle.clone() else {
-        return;
-    };
-    let Some(sk) = skeletons.get(&handle) else {
-        return;
-    };
-    let upper = build_bone_mask(sk, TORCH_RIGHT_HAND_BONES, 1.0);
-    let look = build_bone_mask(sk, LOOK_SPINE_BONES, 1.0);
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            player.set_input_data("upper_body_mask", DataValue::BoneMask(upper.clone()));
-            player.set_input_data("look_mask", DataValue::BoneMask(look.clone()));
             player.set_input_data("diff_factor", DataValue::from(1.0_f32));
         }
     }

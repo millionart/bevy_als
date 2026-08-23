@@ -8,7 +8,9 @@ license.workspace = true
 [dependencies]
 bevy = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 ron = { workspace = true }
 
 # 基座插件（fork path 见根 Cargo.toml / README.md）
 bevy_animation_graph = { workspace = true }
+bevy_gltf = { workspace = true }
