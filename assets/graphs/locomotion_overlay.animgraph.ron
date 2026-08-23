@@ -400,7 +400,7 @@
             inner: {
                 "bevy_animation_graph::builtin_nodes::ClipNode": (
                     clip: "animations/Actions/Roll/A_Als_Roll.anim.ron",
-                    override_duration: Some(0.8),
+                    override_duration: None,
                     override_interpolation: None,
                 ),
             },

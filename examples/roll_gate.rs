@@ -277,7 +277,7 @@ fn roll_watcher(
 }
 
 fn estimate_peak_from_dist(dist: f32) -> f32 {
-    dist / (0.8 * 0.5)
+    dist / (1.5 * 0.5)
 }
 
 fn graph_router(

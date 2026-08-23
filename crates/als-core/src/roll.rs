@@ -5,7 +5,7 @@ use crate::motion::AlsViewYaw;
 use crate::start_stop::{classify, MoveDirection};
 use crate::state::{LocomotionState, Stance};
 
-pub const ROLL_DURATION_SECS: f32 = 0.8;
+pub const ROLL_DURATION_SECS: f32 = 1.5;
 pub const ROLL_DISTANCE_METERS: f32 = 3.0;
 pub const ROLL_WEIGHT_IN_SECS: f32 = 0.12;
 pub const ROLL_WEIGHT_OUT_SECS: f32 = 0.18;
@@ -152,7 +152,7 @@ mod tests {
             assert!(iters < 200, "roll never ended");
         }
         assert!(
-            (45..=50).contains(&iters),
+            (85..=95).contains(&iters),
             "roll ends near duration, iters={iters}"
         );
         s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
