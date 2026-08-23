@@ -11,9 +11,11 @@ use bevy_animation_graph::core::skeleton::Skeleton;
 
 use als_core::overlay_blend::OverlayBlendState;
 use als_core::state::OverlayState;
-use als_ext::{build_bone_mask, TORCH_RIGHT_HAND_BONES};
+use als_core::view::{AlsViewPitch, PITCH_LIMIT_DEGREES};
+use als_ext::{build_bone_mask, LOOK_SPINE_BONES, TORCH_RIGHT_HAND_BONES};
 
 use bevy_als::overlay_layer::OverlayLayerPlugin;
+use bevy_als::view_layer::ViewLayerPlugin;
 
 fn main() {
     let mut app = App::new();
@@ -25,13 +27,20 @@ fn main() {
         AnimationGraphPlugin::default(),
         als_ext::AlsExtPlugin,
         OverlayLayerPlugin,
+        ViewLayerPlugin,
     ))
     .init_resource::<SkeletonReady>()
     .init_resource::<OverlayToggle>()
     .add_systems(Startup, setup)
     .add_systems(
         Update,
-        (track_skeleton, apply_mask_pin, overlay_toggle, log_status),
+        (
+            track_skeleton,
+            apply_mask_pin,
+            overlay_toggle,
+            view_pitch_oscillator,
+            log_status,
+        ),
     );
 
     if let Ok(secs) = std::env::var("ALS_BOOT_AUTO_QUIT_SECS") {
@@ -58,6 +67,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
             assets.load("animated_scenes/motion_overlay.animscn.ron"),
         ))
         .insert(OverlayState::Default)
+        .insert(AlsViewPitch(0.0))
         .id();
     info!("[M6SMOKE] avatar={avatar:?}");
 
@@ -117,7 +127,23 @@ fn apply_mask_pin(
             player.set_input_data("play_rate", DataValue::from(1.0_f32));
             player.set_input_data("diff_factor", DataValue::from(1.0_f32));
             player.set_input_data("upper_body_mask", DataValue::BoneMask(mask.clone()));
+            player.set_input_data(
+                "look_mask",
+                DataValue::BoneMask(build_bone_mask(sk, LOOK_SPINE_BONES, 1.0)),
+            );
         }
+    }
+}
+
+fn view_pitch_oscillator(time: Res<Time>, mut q: Query<&mut AlsViewPitch>) {
+    let t = time.elapsed_secs_f64() as f32;
+    let deg = if t < 1.0 {
+        0.0
+    } else {
+        (t - 1.0).sin() * PITCH_LIMIT_DEGREES * 0.8
+    };
+    for mut pitch in &mut q {
+        pitch.0 = deg.to_radians();
     }
 }
 
@@ -160,7 +186,12 @@ struct LogState {
 
 fn log_status(
     time: Res<Time>,
-    mut q: Query<(&OverlayState, Option<&OverlayBlendState>)>,
+    mut q: Query<(
+        &OverlayState,
+        Option<&OverlayBlendState>,
+        &AlsViewPitch,
+        Option<&als_core::view::AlsViewSmoothed>,
+    )>,
     instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
     mut state: Local<LogState>,
@@ -171,12 +202,13 @@ fn log_status(
         return;
     }
     state.last = now;
-    let Ok((overlay, blend)) = q.single_mut() else {
+    let Ok((overlay, blend, pitch, smoothed)) = q.single_mut() else {
         return;
     };
     let blend_info = blend
-        .map(|b| format!("{:?}@{:.2}", b.phase, b.phase_time))
+        .map(|b| format!("{:?}@{:.2} w={:.3}", b.phase, b.phase_time, b.last_weight))
         .unwrap_or("inserting".to_string());
+    let smooth_deg = smoothed.map(|s| s.0.to_degrees()).unwrap_or(f32::NAN);
     for instance in instances.iter() {
         let Ok(player) = players.get(instance.player_entity()) else {
             continue;
@@ -187,7 +219,8 @@ fn log_status(
                 exit.write(AppExit::Error(std::num::NonZeroU8::new(2).unwrap()));
             }
             None => info!(
-                "[M6SMOKE] t={now:.2} overlay={overlay:?} blend={blend_info}",
+                "[M6SMOKE] t={now:.2} overlay={overlay:?} blend={blend_info} pitch_target={:.0}deg pitch_smooth={smooth_deg:.1}deg",
+                pitch.0.to_degrees(),
             ),
         }
     }

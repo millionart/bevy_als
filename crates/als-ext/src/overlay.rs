@@ -11,6 +11,8 @@ pub const TORCH_RIGHT_HAND_BONES: &[&str] = &[
     "hand_r",
 ];
 
+pub const LOOK_SPINE_BONES: &[&str] = &["spine_01", "spine_02", "spine_03", "neck_01"];
+
 pub fn build_bone_mask(skeleton: &Skeleton, bone_names: &[&str], weight: f32) -> BoneMask {
     let mut mask = BoneMask::none();
     for path in skeleton.iter_paths() {
