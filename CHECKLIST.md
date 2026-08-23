@@ -132,7 +132,8 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现：foot_pin_request_system——StartStopState=Stopping(急停)或 AlsFootPinHold 时间窗(TurnInPlace 检测器触发时由消费方经 extend_foot_pin_hold 延长 TURN_PIN_HOLD_SECS=1.2s，M5.3 事件为纯函数返回值非 Message 故走组件窗)→写 AlsFootPinRequest 双脚，非 grounded 由 foot_ik_state_system 门控丢弃；AlsFootIkRuntime pin 冻结(M7.3)即真实 transform 锁定基础。单测 3 项(stopping 双脚钉/idle 不钉/hold 窗内钉+过期清除)全绿(al-core 109)。
 - [x] M7.5 Hand IK 占位：`ik_hand_gun` 虚拟骨等价的挂点 entity + 手部两骨 IK 到挂点（rifle overlay 用）。
   - 实现：als-ext::ik——IkHandTarget 标记组件+spawn_ik_hand_gun(以 ChildOf 挂到手骨、命名 ik_hand_gun、持枪偏移占位 (0.10,0.02,0.25))；手部两骨求解复用 M7.2 solve_two_bone_ik(upperarm/lowerarm 链，target=挂点 world 位置)，实际应用系统随 Rifle overlay(M8+)接线。单测 1 项(父子关系/命名/偏移)全绿(als-ext 10 ik 测试)。
-- [ ] M7.6 IK 系统调度顺序固定：pose apply → ground probe → IK solve → 渲染，写入文档。
+- [x] M7.6 IK 系统调度顺序固定：pose apply → ground probe → IK solve → 渲染，写入文档。
+  - 实现：bevy_als::foot_ik_apply::FootIkApplyPlugin——foot_ik_apply_system 显式 after(apply_animation_to_targets/probe/pin_request/state)， AlsFootIkRuntime 插值→solve_two_bone_ik→骨骼实体局部旋转(parent_world⁻¹·world)+pelvis 骨局部 Y 补偿；AlsFootBones 扩展为 thigh/calf/foot 全链。调度文档 docs/ik-scheduling.md（含一帧滞后与 pelvis 等价折衷说明）。
 - [ ] M7.7 **Gate**：斜坡站立双脚贴地、pelvis 高度正确；行走上下坡脚不穿地；原地转身脚钉地无滑动。
 
 ## M8 特殊动作（依赖：M7）

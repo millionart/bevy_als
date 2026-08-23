@@ -4,7 +4,9 @@ use bevy::prelude::*;
 use crate::character::AlsCharacter;
 use crate::state::LocomotionState;
 
-pub const FOOT_BONE_NAMES: [&str; 2] = ["foot_l", "foot_r"];
+pub const FOOT_BONE_NAMES: [&str; 6] = [
+    "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r",
+];
 pub const PROBE_UP_OFFSET: f32 = 0.15;
 pub const PROBE_DEPTH: f32 = 0.85;
 pub const ANKLE_TO_SOLE: f32 = 0.09;
@@ -29,8 +31,36 @@ pub struct AlsFootProbe {
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsFootBones {
+    pub left_thigh: Entity,
+    pub left_calf: Entity,
     pub left: Entity,
+    pub right_thigh: Entity,
+    pub right_calf: Entity,
     pub right: Entity,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FootChain {
+    pub thigh: Entity,
+    pub calf: Entity,
+    pub foot: Entity,
+}
+
+impl AlsFootBones {
+    pub fn chain(&self, side: usize) -> FootChain {
+        match side {
+            0 => FootChain {
+                thigh: self.left_thigh,
+                calf: self.left_calf,
+                foot: self.left,
+            },
+            _ => FootChain {
+                thigh: self.right_thigh,
+                calf: self.right_calf,
+                foot: self.right,
+            },
+        }
+    }
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -270,11 +300,14 @@ pub fn build_foot_bone_map(
 ) -> Option<AlsFootBones> {
     let mut found = Vec::new();
     collect_named_descendants(root, children_q, name_q, &FOOT_BONE_NAMES, &mut found);
-    let left = found.iter().find(|(n, _)| n == "foot_l").map(|(_, e)| *e);
-    let right = found.iter().find(|(n, _)| n == "foot_r").map(|(_, e)| *e);
+    let find = |name: &str| found.iter().find(|(n, _)| n == name).map(|(_, e)| *e);
     Some(AlsFootBones {
-        left: left?,
-        right: right?,
+        left_thigh: find("thigh_l")?,
+        left_calf: find("calf_l")?,
+        left: find("foot_l")?,
+        right_thigh: find("thigh_r")?,
+        right_calf: find("calf_r")?,
+        right: find("foot_r")?,
     })
 }
 
@@ -300,8 +333,9 @@ pub fn foot_ground_probe_system(
     for (entity, char_tf, feet) in &characters {
         let origin_base = char_tf.translation();
         let mut probe = AlsFootProbe::default();
-        for (bone, slot) in [(feet.left, 0usize), (feet.right, 1usize)] {
-            let Ok(bone_tf) = bones_tf.get(bone) else {
+        for side in 0..2usize {
+            let chain = feet.chain(side);
+            let Ok(bone_tf) = bones_tf.get(chain.foot) else {
                 continue;
             };
             let ankle = bone_tf.translation();
@@ -309,13 +343,13 @@ pub fn foot_ground_probe_system(
                 continue;
             }
             let origin = ankle + Vec3::Y * PROBE_UP_OFFSET;
-            let filter = SpatialQueryFilter::from_excluded_entities([entity, bone]);
+            let filter = SpatialQueryFilter::from_excluded_entities([entity, chain.foot]);
             if let Some(hit) = spatial.cast_ray(origin, Dir3::NEG_Y, PROBE_DEPTH, true, &filter) {
                 let value = AlsGroundHit {
                     point: origin - Vec3::Y * hit.distance,
                     normal: hit.normal,
                 };
-                if slot == 0 {
+                if side == 0 {
                     probe.left = Some(value);
                 } else {
                     probe.right = Some(value);
