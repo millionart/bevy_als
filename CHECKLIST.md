@@ -109,7 +109,8 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 
 - [x] M6.1 Overlay 分层架构：Base 图之上叠加 Overlay 图（rifle/pistol/… 起步仅 Default + Torch 类单手），骨骼 mask 用 BlendNode mask 能力。
   - 语义核实（附录 B 前置验证）：fork BlendNode 原生支持 Difference（A⊖B 生成动态加法增量，BonePose::difference_mut=other∘self⁻¹）与 Additive（additive_blend 按 alpha*mask 权重合成）+ use_bone_mask 输入 pin（DataSpec::BoneMask），无需改 fork。实现：assets/graphs/locomotion_overlay.animgraph.ron——Base locomotion(BlendSpace+play_rate SpeedNode+Loop) 与 Torch_Poses、Default_Poses(reference, override_duration 2s) 经 Difference→Additive 两级 BlendNode 链复刻 ALS MakeDynamicAdditive；overlay_weight/diff_factor/upper_body_mask 为图输入 pins；als-ext::overlay 提供 build_bone_mask/mask_coverage(TORCH_RIGHT_HAND_BONES 六骨预设 spine_02..hand_r, Skeleton.iter_paths 按末段名精确匹配)。自测：als-ext 5 项新单测(mask 权重/Positive 基底/末段匹配/空安全/路径覆盖)全绿 23；examples/overlay_smoke 实测图求值无 error、pose 持续输出、weight 0→1 渐变、mask bones=6，exit=0。
-- [ ] M6.2 Layer 权重曲线接入：LayerHandLeft/Right 等曲线经 M2 管线驱动叠加强度。
+- [x] M6.2 Layer 权重曲线接入：LayerHandLeft/Right 等曲线经 M2 管线驱动叠加强度。
+  - 资产事实：ALS 的 LayerHandLeft/Right 是动画内嵌曲线轨道（M2.4 已核实 UE glTF 导出器不写出该类轨道），导出资产中不存在同名 CurveFloat；等价采用 Blending 组 `CF_Als_Aim_In`/`CF_Als_Aim_Out`（实测 0→1 平滑表，域 [0,1]s）经 M2 CurveAsset 管线驱动叠加权重。实现：als-core::overlay_blend 纯状态机（Idle/BlendingIn/Held/BlendingOut，中断续接 live weight、ε 容差相位完成、负 dt 安全）；bevy_als::overlay_layer::OverlayLayerPlugin（编排层首次落地根 crate lib）加载双曲线、按 OverlayState!=Default 目标驱动并写 overlay_weight pin。单测 7 项全绿（als-core 89）；overlay_smoke 实测 Torch 切换 BlendingIn@曲线→Held→BlendingOut→Idle 与中途重触发闭环，无 graph error，exit=0。左右手分工权重待 Rifle 双手 overlay 时后置。
 - [ ] M6.3 AimOffset 等价物：2D BlendSpace(yaw,pitch) + View 组件（视角偏航俯仰分离，视线跟随插值）。
 - [ ] M6.4 Aiming 模式联动：Aim 输入 → RotationMode::Aiming + camera 相关状态广播（相机本体在 M10）。
 - [ ] M6.5 **Gate**：切换 Overlay 时上半身换装动画正确叠加且不影响腿部移动混合；鼠标控制 aim offset 四象限平滑。

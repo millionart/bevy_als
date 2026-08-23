@@ -5,6 +5,7 @@ pub mod debug_hud;
 pub mod graph_router;
 pub mod input;
 pub mod motion;
+pub mod overlay_blend;
 pub mod params;
 pub mod pivot;
 pub mod start_stop;

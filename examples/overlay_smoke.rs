@@ -9,7 +9,11 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
+use als_core::overlay_blend::OverlayBlendState;
+use als_core::state::OverlayState;
 use als_ext::{build_bone_mask, TORCH_RIGHT_HAND_BONES};
+
+use bevy_als::overlay_layer::OverlayLayerPlugin;
 
 fn main() {
     let mut app = App::new();
@@ -20,10 +24,15 @@ fn main() {
         }),
         AnimationGraphPlugin::default(),
         als_ext::AlsExtPlugin,
+        OverlayLayerPlugin,
     ))
     .init_resource::<SkeletonReady>()
+    .init_resource::<OverlayToggle>()
     .add_systems(Startup, setup)
-    .add_systems(Update, (track_skeleton, drive_overlay, log_status));
+    .add_systems(
+        Update,
+        (track_skeleton, apply_mask_pin, overlay_toggle, log_status),
+    );
 
     if let Ok(secs) = std::env::var("ALS_BOOT_AUTO_QUIT_SECS") {
         let secs: f64 = secs.parse().unwrap_or(6.0);
@@ -44,9 +53,13 @@ struct SkeletonReady {
 struct AutoQuit(Instant);
 
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.spawn(AnimatedSceneHandle::new(
-        assets.load("animated_scenes/motion_overlay.animscn.ron"),
-    ));
+    let avatar = commands
+        .spawn(AnimatedSceneHandle::new(
+            assets.load("animated_scenes/motion_overlay.animscn.ron"),
+        ))
+        .insert(OverlayState::Default)
+        .id();
+    info!("[M6SMOKE] avatar={avatar:?}");
 
     commands.spawn((
         Camera3d::default(),
@@ -80,16 +93,7 @@ fn track_skeleton(
     }
 }
 
-fn overlay_weight(t: f64) -> f32 {
-    match t {
-        x if x < 2.0 => 0.0,
-        x if x < 3.5 => ((x - 2.0) / 1.5) as f32,
-        _ => 1.0,
-    }
-}
-
-fn drive_overlay(
-    time: Res<Time>,
+fn apply_mask_pin(
     skeletons: Res<Assets<Skeleton>>,
     mut ready: ResMut<SkeletonReady>,
     instances: Query<&AnimatedSceneInstance>,
@@ -98,26 +102,53 @@ fn drive_overlay(
     let Some(handle) = ready.handle.clone() else {
         return;
     };
-    if !ready.mask_sent && !skeletons.contains(&handle) {
+    let Some(sk) = skeletons.get(&handle) else {
         return;
+    };
+    let mask = build_bone_mask(sk, TORCH_RIGHT_HAND_BONES, 1.0);
+    if !ready.mask_sent {
+        info!("[M6SMOKE] mask bones={}", mask.get_weights().len());
+        ready.mask_sent = true;
     }
-    let t = time.elapsed_secs_f64();
-    let weight = overlay_weight(t);
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("speed", DataValue::from(0.0_f32));
             player.set_input_data("actual_speed", DataValue::from(0.0_f32));
             player.set_input_data("play_rate", DataValue::from(1.0_f32));
             player.set_input_data("diff_factor", DataValue::from(1.0_f32));
-            player.set_input_data("overlay_weight", DataValue::from(weight));
-            if let Some(sk) = skeletons.get(&handle) {
-                let mask = build_bone_mask(sk, TORCH_RIGHT_HAND_BONES, 1.0);
-                if !ready.mask_sent {
-                    info!("[M6SMOKE] mask bones={}", mask.get_weights().len());
-                    ready.mask_sent = true;
-                }
-                player.set_input_data("upper_body_mask", DataValue::BoneMask(mask));
-            }
+            player.set_input_data("upper_body_mask", DataValue::BoneMask(mask.clone()));
+        }
+    }
+}
+
+#[derive(Resource)]
+struct OverlayToggle {
+    next_switch: f64,
+    on: bool,
+}
+
+impl Default for OverlayToggle {
+    fn default() -> Self {
+        Self {
+            next_switch: 2.0,
+            on: false,
+        }
+    }
+}
+
+fn overlay_toggle(time: Res<Time>, mut q: Query<&mut OverlayState>, mut toggle: ResMut<OverlayToggle>) {
+    let t = time.elapsed_secs_f64();
+    if t >= toggle.next_switch && t < 9.5 {
+        toggle.on = !toggle.on;
+        toggle.next_switch = if toggle.on { t + 3.5 } else { t + 2.5 };
+        let target = if toggle.on {
+            OverlayState::Torch
+        } else {
+            OverlayState::Default
+        };
+        info!("[M6SMOKE][TOGGLE] overlay -> {target:?} at t={t:.2}");
+        for mut overlay in &mut q {
+            *overlay = target;
         }
     }
 }
@@ -129,36 +160,34 @@ struct LogState {
 
 fn log_status(
     time: Res<Time>,
+    mut q: Query<(&OverlayState, Option<&OverlayBlendState>)>,
     instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
     mut state: Local<LogState>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let now = time.elapsed_secs_f64() as f32;
-    if now - state.last < 0.5 {
+    if now - state.last < 0.25 {
         return;
     }
     state.last = now;
+    let Ok((overlay, blend)) = q.single_mut() else {
+        return;
+    };
+    let blend_info = blend
+        .map(|b| format!("{:?}@{:.2}", b.phase, b.phase_time))
+        .unwrap_or("inserting".to_string());
     for instance in instances.iter() {
         let Ok(player) = players.get(instance.player_entity()) else {
             continue;
         };
-        let has_pose = matches!(
-            player.get_outputs().get("pose"),
-            Some(DataValue::Pose(_))
-        );
-        let spec_ok = true;
-        let _ = (has_pose, spec_ok);
         match player.get_error() {
             Some(err) => {
                 error!("[M6SMOKE] t={now:.2} graph_error={err:?}");
                 exit.write(AppExit::Error(std::num::NonZeroU8::new(2).unwrap()));
             }
             None => info!(
-                "[M6SMOKE] t={now:.2} weight={:.3} pose={} elapsed={:.3}",
-                overlay_weight(time.elapsed_secs_f64()),
-                has_pose,
-                player.elapsed(),
+                "[M6SMOKE] t={now:.2} overlay={overlay:?} blend={blend_info}",
             ),
         }
     }
