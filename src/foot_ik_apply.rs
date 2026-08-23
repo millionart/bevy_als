@@ -4,23 +4,38 @@ use als_core::foot_ik::{
 };
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
+use bevy::transform::{systems as transform_systems, TransformSystems};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::systems::apply_animation_to_targets;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 
 pub struct FootIkApplyPlugin;
 
 impl Plugin for FootIkApplyPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(
+            PostUpdate,
+            AnimationGraphSet::Final.before(TransformSystems::Propagate),
+        );
         app.add_systems(
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
+                    .after(TransformSystems::Propagate)
                     .after(als_core::foot_ik::foot_ground_probe_system)
                     .after(als_core::foot_ik::foot_pin_request_system)
                     .after(als_core::foot_ik::foot_ik_state_system),
+                (
+                    transform_systems::mark_dirty_trees,
+                    transform_systems::propagate_parent_transforms,
+                    transform_systems::sync_simple_transforms,
+                )
+                    .chain()
+                    .after(foot_ik_apply_system)
+                    .after(TransformSystems::Propagate),
             ),
         );
     }
@@ -144,23 +159,22 @@ fn apply_chain_offset(
         return;
     };
 
+    let thigh_world_new = solve.hip_rotation_world * thigh_g.rotation();
+    let calf_world_new = solve.knee_rotation_world * calf_g.rotation();
+
     let Ok((mut thigh_local, _, thigh_child)) = bone_locals.get_mut(chain.thigh) else {
         return;
     };
-    let parent_rot = bone_globals
+    let pelvis_rot = bone_globals
         .get(thigh_child.0)
         .map(|p| p.rotation())
         .unwrap_or(Quat::IDENTITY);
-    thigh_local.rotation = world_rotation_to_local(parent_rot, solve.hip_rotation_world);
+    thigh_local.rotation = world_rotation_to_local(pelvis_rot, thigh_world_new);
 
-    let Ok((mut calf_local, _, calf_child)) = bone_locals.get_mut(chain.calf) else {
+    let Ok((mut calf_local, _, _)) = bone_locals.get_mut(chain.calf) else {
         return;
     };
-    let calf_parent_rot = bone_globals
-        .get(calf_child.0)
-        .map(|p| p.rotation())
-        .unwrap_or(Quat::IDENTITY);
-    calf_local.rotation = world_rotation_to_local(calf_parent_rot, solve.knee_rotation_world);
+    calf_local.rotation = world_rotation_to_local(thigh_world_new, calf_world_new);
 }
 
 fn apply_pelvis_drop(

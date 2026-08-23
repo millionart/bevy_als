@@ -134,7 +134,9 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现：als-ext::ik——IkHandTarget 标记组件+spawn_ik_hand_gun(以 ChildOf 挂到手骨、命名 ik_hand_gun、持枪偏移占位 (0.10,0.02,0.25))；手部两骨求解复用 M7.2 solve_two_bone_ik(upperarm/lowerarm 链，target=挂点 world 位置)，实际应用系统随 Rifle overlay(M8+)接线。单测 1 项(父子关系/命名/偏移)全绿(als-ext 10 ik 测试)。
 - [x] M7.6 IK 系统调度顺序固定：pose apply → ground probe → IK solve → 渲染，写入文档。
   - 实现：bevy_als::foot_ik_apply::FootIkApplyPlugin——foot_ik_apply_system 显式 after(apply_animation_to_targets/probe/pin_request/state)， AlsFootIkRuntime 插值→solve_two_bone_ik→骨骼实体局部旋转(parent_world⁻¹·world)+pelvis 骨局部 Y 补偿；AlsFootBones 扩展为 thigh/calf/foot 全链。调度文档 docs/ik-scheduling.md（含一帧滞后与 pelvis 等价折衷说明）。
-- [ ] M7.7 **Gate**：斜坡站立双脚贴地、pelvis 高度正确；行走上下坡脚不穿地；原地转身脚钉地无滑动。
+- [x] M7.7 **Gate**：斜坡站立双脚贴地、pelvis 高度正确；行走上下坡脚不穿地；原地转身脚钉地无滑动。
+  - Gate 证据（2026-08-23，`examples/foot_ik_gate`，ALS_BOOT_AUTO_QUIT_SECS=25 脚本化 6 阶段 idle→12°坡上行→坡面急停站立→退行下坡→停+180°原地转身(Right180 play_rate=1.2 触发)→settle，exit=0 无 ERROR/panic）：三 VERDICT 全 PASS——min_penetration=+0.000(tol −0.060)；slope_stand 静止帧双脚命中且 pen∈[−0.06,+0.12]、pelvis_drop −0.039∈[−0.30,0]；turn_pins engaged=true root_drift=0.000/0.05、lock_shift=0.000/0.03（stop_pins_seen=false 仅采样粒度所致，Stopping 钉地路径有单测覆盖）。快照 `docs/m7-gate-run.log`。workspace 146 测试全绿。
+  - 实现修复注记（本条目过程中确诊三缺陷）：①PostUpdate 管线钉死——fork 的 `AnimationGraphSet::Final.before(TransformSystems::Propagate)` 只配置在 FixedPostUpdate，PostUpdate 内动画写入与变换传播顺序悬空致 probe/IK 读过期全局变换；现经 configure_sets 补约束+probe 链 after Propagate+`bevy::transform::systems` 公开系统第二实例（mark_dirty→propagate→sync，after IK）完成二次传播（docs/ik-scheduling.md 已修订）。②`als-ext::ik::solve_two_bone_ik` 返回**增量旋转**（from_rotation_arc），apply 原按绝对旋转写入致骨骼瞬移回绑定姿态（脚悬空 ~0.5m）——修正为先乘当前世界旋转、小腿用新髋世界旋转作父系换算（src/foot_ik_apply.rs）。③AlsFootIkRuntime pin 锁存语义精炼：上升沿锁 `raw_offset×ik_weight`（触地帧收敛目标）而非插值中间值，消除急停锁定残留 8–10cm 悬空；单测改写 pin_locks_plant_frame_target_and_releases。另 foot_bone_map 收紧为仅匹配 AnimationTargetId 关节实体。
 
 ## M8 特殊动作（依赖：M7）
 

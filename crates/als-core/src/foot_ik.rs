@@ -1,6 +1,8 @@
 use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 
+use bevy::animation::AnimationTargetId;
+
 use crate::character::AlsCharacter;
 use crate::state::LocomotionState;
 
@@ -137,7 +139,7 @@ fn step_side(rt: &mut SideRuntime, input: &FootSideInput, ik_target: f32, dt: f3
     rt.ik_weight = move_toward_cap(rt.ik_weight, ik_target, WEIGHT_BLEND_SPEED * dt);
 
     if input.pin_request && rt.locked_offset.is_none() {
-        rt.locked_offset = Some(rt.offset);
+        rt.locked_offset = Some(input.raw_offset * rt.ik_weight);
     } else if !input.pin_request && rt.pin_weight < 1e-3 {
         rt.locked_offset = None;
     }
@@ -273,6 +275,7 @@ fn collect_named_descendants(
     root: Entity,
     children_q: &Query<&Children>,
     name_q: &Query<&Name>,
+    joint_q: &Query<&AnimationTargetId>,
     wanted: &[&str],
     out: &mut Vec<(String, Entity)>,
 ) {
@@ -282,7 +285,9 @@ fn collect_named_descendants(
             continue;
         };
         for child in children.iter() {
-            if let Ok(name) = name_q.get(child) {
+            if joint_q.get(child).is_ok()
+                && let Ok(name) = name_q.get(child)
+            {
                 let n = name.as_str();
                 if wanted.contains(&n) && !out.iter().any(|(s, _)| s == n) {
                     out.push((n.to_string(), child));
@@ -297,9 +302,10 @@ pub fn build_foot_bone_map(
     root: Entity,
     children_q: &Query<&Children>,
     name_q: &Query<&Name>,
+    joint_q: &Query<&AnimationTargetId>,
 ) -> Option<AlsFootBones> {
     let mut found = Vec::new();
-    collect_named_descendants(root, children_q, name_q, &FOOT_BONE_NAMES, &mut found);
+    collect_named_descendants(root, children_q, name_q, joint_q, &FOOT_BONE_NAMES, &mut found);
     let find = |name: &str| found.iter().find(|(n, _)| n == name).map(|(_, e)| *e);
     Some(AlsFootBones {
         left_thigh: find("thigh_l")?,
@@ -316,9 +322,10 @@ pub fn foot_bone_map_system(
     characters: Query<Entity, (With<AlsCharacter>, Without<AlsFootBones>)>,
     children_q: Query<&Children>,
     name_q: Query<&Name>,
+    joint_q: Query<&AnimationTargetId>,
 ) {
     for entity in &characters {
-        if let Some(map) = build_foot_bone_map(entity, &children_q, &name_q) {
+        if let Some(map) = build_foot_bone_map(entity, &children_q, &name_q, &joint_q) {
             commands.entity(entity).insert(map);
         }
     }
@@ -372,7 +379,8 @@ impl Plugin for AlsFootProbePlugin {
                 foot_pin_request_system,
                 foot_ik_state_system,
             )
-                .chain(),
+                .chain()
+                .after(bevy::transform::TransformSystems::Propagate),
         );
     }
 }
@@ -522,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_freezes_offset_at_lock_value_and_releases() {
+    fn pin_locks_plant_frame_target_and_releases() {
         let mut rt = AlsFootIkRuntime::default();
         let raised = FootSideInput {
             raw_offset: 0.25,
@@ -532,23 +540,38 @@ mod tests {
             rt.update(&raised, &raised, 1.0, DT);
         }
         let (settled, _) = rt.side(0);
+        assert!((settled - 0.25).abs() < 1e-2);
 
-        let pinned = FootSideInput {
-            raw_offset: -0.30,
+        let planted = FootSideInput {
+            raw_offset: -0.10,
             pin_request: true,
         };
         for _ in 0..60 {
-            rt.update(&pinned, &pinned, 1.0, DT);
+            rt.update(&planted, &planted, 1.0, DT);
         }
         let (held, pw) = rt.side(0);
         assert!(pw > 0.99);
         assert!(
-            (held - settled).abs() < 1e-2,
-            "pinned foot keeps its lock height, held={held} settled={settled}"
+            (held - (-0.10)).abs() < 1e-2,
+            "pin converges to plant-frame raw target, held={held}"
+        );
+
+        let swinging = FootSideInput {
+            raw_offset: 0.40,
+            pin_request: true,
+        };
+        for _ in 0..60 {
+            rt.update(&swinging, &swinging, 1.0, DT);
+        }
+        let (frozen, pw_frozen) = rt.side(0);
+        assert!(pw_frozen > 0.99);
+        assert!(
+            (frozen - (-0.10)).abs() < 1e-2,
+            "pinned offset ignores later raw swing, frozen={frozen}"
         );
 
         let released = FootSideInput {
-            raw_offset: -0.30,
+            raw_offset: -0.10,
             pin_request: false,
         };
         for _ in 0..120 {
@@ -556,7 +579,7 @@ mod tests {
         }
         let (after, pw_after) = rt.side(0);
         assert!(pw_after < 1e-3);
-        assert!((after - (-0.30)).abs() < 1e-3, "returns to raw after release");
+        assert!((after - (-0.10)).abs() < 1e-3, "returns to raw after release");
     }
 
     #[test]
