@@ -103,6 +103,7 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M5.6 状态→图路由器：集中 system 把 `LocomotionState` 组合翻译成图输入 pins（替代 AnimBP 的状态机图）。
     - compute_graph_inputs 纯函数：effective_gait 钳制(蹲→Walk)+按 gait_max_speed 钳制(蹲姿走= crouch.max_walk_speed_crouched 1.5)+actual_speed 直通；graph_input_router_system 把 speed/actual_speed 写入 AnimationGraphPlayer 输入 pins(连接 M3 状态与 M4 图)。单测 4 项。
 - [ ] M5.7 **Gate**：演示路径覆盖：静止→起跑→全速→急停→原地转身→蹲走→起立，全程无明显脚滑与跳变；录制视频/截图存入 `docs/` 并在提交说明中引用。
+    - 执行计划(跨会话交接)：新建 examples/locomotion_gate.rs——Playground 场景(assets/models/playground/playground.ron 经 als-ext PlaygroundPlugin)+AnimatedSceneHandle(motion_graph.animscn.ron)+AlsCharacterBundle+AlsMotionPlugin+graph_input_router+三检测器(StartStop/Pivot/TurnInPlace)；7 阶段演示序列：静止→起跑→全速→急停→原地转身(view yaw 旋至 120°)→蹲走→起立；证据：0.5s 状态快照日志存 docs/m5-gate-run.log 提交引用。
 
 ## M6 Overlay 与 Aim/View 系统（依赖：M5）
 
