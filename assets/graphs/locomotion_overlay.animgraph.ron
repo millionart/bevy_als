@@ -394,6 +394,31 @@
             },
             should_debug: false,
         ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-00000000000a",
+            name: "roll clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Actions/Roll/A_Als_Roll.anim.ron",
+                    override_duration: Some(0.8),
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-00000000000b",
+            name: "roll override blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
         NodeData("55555555-5555-4555-8555-555555555505", "parameter"): InputData(Passthrough("speed")),
@@ -439,8 +464,13 @@
         NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose"),
         NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008"),
         NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "factor"): InputData(Passthrough("land_weight")),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "factor"): InputData(Passthrough("roll_weight")),
+        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose"),
+        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose"),
         NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_b"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "factor"): InputData(Passthrough("overlay_weight")),
@@ -486,6 +516,7 @@
             Passthrough("fall_fast_weight"): F32,
             Passthrough("land_weight"): F32,
             Passthrough("land_heavy_weight"): F32,
+            Passthrough("roll_weight"): F32,
         },
         output_time: true,
         output_data: {
@@ -505,6 +536,7 @@
             Data(Passthrough("fall_fast_weight")): 10,
             Data(Passthrough("land_weight")): 11,
             Data(Passthrough("land_heavy_weight")): 12,
+            Data(Passthrough("roll_weight")): 13,
         },
         output_order: {
             Data("pose"): 0,
@@ -523,6 +555,7 @@
         Passthrough("fall_fast_weight"): F32(0.0),
         Passthrough("land_weight"): F32(0.0),
         Passthrough("land_heavy_weight"): F32(0.0),
+        Passthrough("roll_weight"): F32(0.0),
     },
     editor_metadata: (
         node_positions: {
