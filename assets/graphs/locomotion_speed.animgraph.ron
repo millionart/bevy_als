@@ -107,7 +107,7 @@
         NodeTime("55555555-5555-4555-8555-555555555505", "time_sprint"): NodeTime("44444444-4444-4444-8444-444444444404"),
         NodeData("66666666-6666-4666-8666-666666666606", "pose"): NodeData("55555555-5555-4555-8555-555555555505", "pose"),
         NodeTime("66666666-6666-4666-8666-666666666606", "time"): NodeTime("55555555-5555-4555-8555-555555555505"),
-        NodeData("66666666-6666-4666-8666-666666666606", "speed"): InputData(Passthrough("actual_speed")),
+        NodeData("66666666-6666-4666-8666-666666666606", "speed"): InputData(Passthrough("play_rate")),
         NodeData("77777777-7777-4777-8777-777777777707", "pose"): NodeData("66666666-6666-4666-8666-666666666606", "pose"),
         NodeTime("77777777-7777-4777-8777-777777777707", "time"): NodeTime("66666666-6666-4666-8666-666666666606"),
         OutputData("pose"): NodeData("77777777-7777-4777-8777-777777777707", "pose"),
@@ -118,6 +118,7 @@
         input_data: {
             Passthrough("speed"): F32,
             Passthrough("actual_speed"): F32,
+            Passthrough("play_rate"): F32,
         },
         output_time: true,
         output_data: {
@@ -126,6 +127,7 @@
         input_order: {
             Data(Passthrough("speed")): 0,
             Data(Passthrough("actual_speed")): 1,
+            Data(Passthrough("play_rate")): 2,
         },
         output_order: {
             Data("pose"): 0,
@@ -135,6 +137,7 @@
     default_data: {
         Passthrough("speed"): F32(0.0),
         Passthrough("actual_speed"): F32(0.0),
+        Passthrough("play_rate"): F32(1.0),
     },
     editor_metadata: (
         node_positions: {
