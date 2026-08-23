@@ -163,7 +163,8 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 
 ## M9 Ragdoll（依赖：M8）
 
-- [ ] M9.1 骨骼→刚体映射生成器（capsule 链）与关节约束配置。
+- [x] M9.1 骨骼→刚体映射生成器（capsule 链）与关节约束配置。
+  - 实现（2026-08-23）：`tools/import/gen_ragdoll.py` 解析 `A_Als_Idle.gltf` 的 `skins[0].inverseBindMatrices`（rigid 逆）得 20 根关键骨绑定姿态世界矩阵，程序化生成——`assets/ragdolls/als_manny.rag.ron`：16 刚体（head/chest/stomach/pelvis+双臂×3+双腿×3）各挂 Y 轴 Capsule（ByVolume 分摊 total_mass=75）、15 SphericalJoint（position=解剖锚骨世界坐标，零 compliance，Dynamic）；`assets/ragdoll_bone_maps/als_manny.bm.ron`：22 骨→body 映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry），skeleton 指 SKM_Als.skn.ron。校验 `tests/ragdoll_assets.rs`：serde 直读两资产断言拓扑（16/16/15、全 Dynamic、mass=75）与 bm 覆盖数/路径引用。已知偏离记录于 export-manifest M9.1 章节（capsule 未沿骨轴旋转、未列骨不参与 readback）。fork 的 ragdoll spawn/read-back 系统经 animscn `ragdoll:`/`ragdoll_bone_map:` 字段自动接线，M9.2 使用。
 - [ ] M9.2 进入/退出 ragdoll：blend-in（当前 pose→物理）、恢复起身（blend-out 回 Grounded）。
 - [ ] M9.3 **Gate**：运动中触发 ragdoll 物理自然倒地，恢复后回到 idle 无爆骨骼。
 

@@ -247,3 +247,9 @@
 - 后续摄取路径（不改 fork）：bevy_gltf 0.19 `GltfExtensionHandler::on_animation` +
   `gltf::Animation::extensions()` 在 als-ext 注册 handler 即可把曲线注入运行时通道，
   替代 M6.2/M6.3 的 CF_Als_Aim_In/Out 与静态骨骼 mask 替代方案（迁移条目归入相应模块）。
+## M9.1 Ragdoll 资产生成（2026-08-23）
+
+- 工具：`tools/import/gen_ragdoll.py`（python stdlib）——解析 `animations/Base/A_Als_Idle.gltf` 的 `skins[0].inverseBindMatrices`（float4x4 列主序，rigid 逆）得骨骼绑定姿态世界矩阵；按 16-body 配置表生成两份资产：
+- `assets/ragdolls/als_manny.rag.ron`：16 刚体（head/chest/stomach/pelvis/双臂×3/双腿×3）各挂一个 Y 轴 Capsule collider（ByVolume 分配 total_mass=75）、15 个 SphericalJoint（position=解剖锚骨世界坐标，零 compliance）；全部 default_mode=Dynamic。
+- `assets/ragdoll_bone_maps/als_manny.bm.ron`：22 根骨骼→body 权重映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry，override_offset=false），skeleton 指向 `skeletons/SKM_Als.skn.ron`。
+- 已知偏离：capsule 未沿骨骼长轴旋转（Y 轴对齐世界），四肢斜段覆盖以半径补偿；未列骨骼（手指等）不参与 readback。

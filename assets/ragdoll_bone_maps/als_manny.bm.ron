@@ -1,0 +1,478 @@
+(
+    bones_from_bodies: {
+        [
+            "ball_l",
+        ]: (
+            bone_id: [
+                "ball_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.695389, 0.000080, -0.718634, -0.000030),
+                        translation: (-0.1045, 0.0008016, 0.1658),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "ball_r",
+        ]: (
+            bone_id: [
+                "ball_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.695389, 0.000080, -0.718634, -0.000030),
+                        translation: (0.1045, -0.0008016, -0.1658),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "calf_l",
+        ]: (
+            bone_id: [
+                "calf_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "921b76d3-4d4f-472a-bdd6-37bf50aa0a1a",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-4.944e-17, 4.77e-18, -3.469e-18),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "calf_r",
+        ]: (
+            bone_id: [
+                "calf_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "10235ac1-ab0b-497a-8df3-d0d2b27d8b30",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-1.865e-17, -1.323e-17, 0.0),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "clavicle_l",
+        ]: (
+            bone_id: [
+                "clavicle_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.639660, 0.208917, 0.123044, -0.729416),
+                        translation: (0.1188, -0.03782, 0.02732),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "clavicle_r",
+        ]: (
+            bone_id: [
+                "clavicle_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.123044, 0.729417, -0.639660, 0.208918),
+                        translation: (0.1188, 0.03782, 0.02732),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "foot_l",
+        ]: (
+            bone_id: [
+                "foot_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (3.686e-18, -1.691e-17, -6.288e-18),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "foot_r",
+        ]: (
+            bone_id: [
+                "foot_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (2.602e-18, 4.77e-18, -1.301e-18),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "hand_l",
+        ]: (
+            bone_id: [
+                "hand_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "f83b7f81-bfa2-48f0-b680-16e5fbe8ba0a",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-6.072e-18, 1.301e-18, 1.064e-16),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "hand_r",
+        ]: (
+            bone_id: [
+                "hand_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "0f622314-ed7b-48df-a3a9-8feb594d37d6",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (3.036e-18, -1.301e-18, 1.516e-16),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "head",
+        ]: (
+            bone_id: [
+                "head",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-3.94e-17, 0.0, 0.0),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "lowerarm_l",
+        ]: (
+            bone_id: [
+                "lowerarm_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "0b37ee7c-0135-456e-adf7-074bf9bb7fc7",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (0.0, 6.939e-18, 2.776e-17),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "lowerarm_r",
+        ]: (
+            bone_id: [
+                "lowerarm_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "aeebe729-5020-46ee-9181-9801351a9598",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (0.0, 1.284e-16, -1.388e-17),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "neck_01",
+        ]: (
+            bone_id: [
+                "neck_01",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.991043, 0.000000, -0.133542, 0.000000),
+                        translation: (-0.09049, 1.61e-07, -0.02106),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "pelvis",
+        ]: (
+            bone_id: [
+                "pelvis",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "bffeec10-9ae0-4466-961a-4a66b31fbae8",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (5.056e-17, 3.309e-24, -4.337e-19),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "spine_01",
+        ]: (
+            bone_id: [
+                "spine_01",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "8bc2b745-cacb-4e97-8b09-8a8253a36cf3",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (1.965e-16, 0.0, -1.149e-17),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "spine_02",
+        ]: (
+            bone_id: [
+                "spine_02",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0.999706, -0.000000, -0.024253, 0.000000),
+                        translation: (-0.1341, 4.524e-08, -0.002302),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "spine_03",
+        ]: (
+            bone_id: [
+                "spine_03",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (1.174e-16, 0.0, -6.939e-18),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "thigh_l",
+        ]: (
+            bone_id: [
+                "thigh_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "8e596cd1-17a4-497a-9804-6c09f160bf5d",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-4.274e-17, -1.453e-17, 0.0),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "thigh_r",
+        ]: (
+            bone_id: [
+                "thigh_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "c01e72a9-0495-4ef4-bfc9-b31a4558d233",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-3.188e-17, 1.29e-17, 0.0),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "upperarm_l",
+        ]: (
+            bone_id: [
+                "upperarm_l",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "b3be27f6-f4ed-4522-940f-5bdf74694917",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (7.893e-17, -9.541e-18, -1.214e-17),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "upperarm_r",
+        ]: (
+            bone_id: [
+                "upperarm_r",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "0ce0cf1f-fc73-4e2b-8a9d-409490c00960",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
+                        translation: (-6.939e-18, 6.809e-17, -1.041e-17),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+    },
+    bodies_from_bones: {},
+    skeleton: "skeletons/SKM_Als.skn.ron",
+    ragdoll: "ragdolls/als_manny.rag.ron",
+    skeleton_symmetry: (
+        name_mapper: Pattern((
+            key_1: "_l",
+            key_2: "_r",
+            pattern_before: "^.*",
+            pattern_after: "$",
+        )),
+        mode: MirrorX,
+    ),
+)
