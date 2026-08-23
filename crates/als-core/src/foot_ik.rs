@@ -184,6 +184,61 @@ pub fn foot_ik_state_system(
     }
 }
 
+pub const TURN_PIN_HOLD_SECS: f64 = 1.2;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsFootPinHold {
+    pub until_secs: f64,
+}
+
+pub fn extend_foot_pin_hold(hold: &mut AlsFootPinHold, now_secs: f64) {
+    hold.until_secs = hold.until_secs.max(now_secs + TURN_PIN_HOLD_SECS);
+}
+
+pub fn foot_pin_request_system(
+    time: Res<Time>,
+    mut q: Query<
+        (
+            Entity,
+            &crate::start_stop::StartStopState,
+            Option<&mut AlsFootPinHold>,
+            Option<&mut AlsFootPinRequest>,
+        ),
+        With<AlsCharacter>,
+    >,
+    mut commands: Commands,
+) {
+    let now = time.elapsed_secs_f64();
+    for (entity, start_stop, hold, pins) in &mut q {
+        let stopping = matches!(
+            start_stop.phase,
+            crate::start_stop::StartStopPhase::Stopping(_)
+        );
+        let turning = hold.map(|h| now < h.until_secs).unwrap_or(false);
+        let want = stopping || turning;
+        let desired = AlsFootPinRequest {
+            left: want,
+            right: want,
+        };
+        match pins {
+            Some(mut current) => {
+                if *current != desired {
+                    if want {
+                        *current = desired;
+                    } else {
+                        commands.entity(entity).remove::<AlsFootPinRequest>();
+                    }
+                }
+            }
+            None => {
+                if want {
+                    commands.entity(entity).insert(desired);
+                }
+            }
+        }
+    }
+}
+
 fn collect_named_descendants(
     root: Entity,
     children_q: &Query<&Children>,
@@ -280,9 +335,76 @@ impl Plugin for AlsFootProbePlugin {
             (
                 foot_bone_map_system,
                 foot_ground_probe_system,
+                foot_pin_request_system,
                 foot_ik_state_system,
             )
                 .chain(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod pin_request_tests {
+    use super::*;
+    use crate::start_stop::{StartStopPhase, StartStopState};
+    use bevy::MinimalPlugins;
+
+    fn app_with_character(phase: StartStopPhase) -> (App, Entity) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, foot_pin_request_system);
+        let e = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                StartStopState {
+                    phase,
+                    last_direction: None,
+                },
+            ))
+            .id();
+        (app, e)
+    }
+
+    #[test]
+    fn stopping_phase_pins_both_feet() {
+        let (mut app, e) = app_with_character(StartStopPhase::Stopping(
+            crate::start_stop::MoveDirection::Forward,
+        ));
+        app.update();
+        let pins = *app.world().get::<AlsFootPinRequest>(e).unwrap();
+        assert!(pins.left && pins.right);
+    }
+
+    #[test]
+    fn idle_phase_never_pins() {
+        let (mut app, e) = app_with_character(StartStopPhase::Idle);
+        app.update();
+        assert!(app.world().get::<AlsFootPinRequest>(e).is_none());
+    }
+
+    #[test]
+    fn hold_component_pins_until_expiry() {
+        let (mut app, e) = app_with_character(StartStopPhase::Idle);
+        let now = app.world().resource::<Time>().elapsed_secs_f64();
+        app.world_mut().entity_mut(e).insert(AlsFootPinHold {
+            until_secs: now + TURN_PIN_HOLD_SECS,
+        });
+        app.update();
+        let pins = *app.world().get::<AlsFootPinRequest>(e).unwrap();
+        assert!(pins.left && pins.right, "hold window pins feet");
+
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f64(TURN_PIN_HOLD_SECS * 2.0));
+        app.world_mut()
+            .get_mut::<AlsFootPinHold>(e)
+            .unwrap()
+            .until_secs = 0.0;
+        app.update();
+        assert!(
+            app.world().get::<AlsFootPinRequest>(e).is_none(),
+            "expired hold without stop phase clears pins"
         );
     }
 }

@@ -128,7 +128,8 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现：als-ext::ik::solve_two_bone_ik——余弦定理解析法(hip 角 α=acos((d²+u²−l²)/2du))，bend 平面由 target 轴+pole 侧向构成(pole 平行轴时正交回退)，输出 world 系 hip/knee 四元数+knee 位置；距离钳制 [max(|u−l|,ε), u+l−ε] 内/外可达均稳定；world_rotation_to_local 供调用方转骨骼实体局部旋转(parent_world⁻¹·world)。单测 9 项：精确命中/极侧弯曲/旋转向量一致性/超远伸直/超近内限/已满足姿态恒等/pole 退化/退化输入 None/world→local 往返，全绿。
 - [x] M7.3 Pelvis 垂直补偿与双脚插值锁定（消费 FootLeftLock/FootRightIk 曲线权重的等价输入）。
   - 曲线权重等价输入定案：ALS 的 FootLeftLock/FootRightIk 为动画内嵌轨道(M2.4 已核实不随 glTF 导出)，等价输入改为 ECS 组件槽——AlsFootIkTargets(grounded 门控 ik 权重目标+pin 左右请求, 由 foot_ik_state_system 从 LocomotionState/AlsFootPinRequest 派生)与 AlsFootPinRequest(TurnInPlace/Stop 检测器写入, M7.4 接线)。实现：AlsFootIkRuntime 双侧运行时——offset 以速度上限插值向 raw*ik_weight(空中权重→0 收回)，pin 上升沿冻结 locked_offset 并按 pin_weight 混合、释放后回落 raw，pelvis_drop=min(L*w,R*w).min(0) 只降不升再经速度上限插值。单测 9 项全绿(al-core 106)。
-- [ ] M7.4 Foot lock 与步点：TurnInPlace/Stop 状态下脚钉地，配合 M5 曲线锁相升级为真实 transform 锁定。
+- [x] M7.4 Foot lock 与步点：TurnInPlace/Stop 状态下脚钉地，配合 M5 曲线锁相升级为真实 transform 锁定。
+  - 实现：foot_pin_request_system——StartStopState=Stopping(急停)或 AlsFootPinHold 时间窗(TurnInPlace 检测器触发时由消费方经 extend_foot_pin_hold 延长 TURN_PIN_HOLD_SECS=1.2s，M5.3 事件为纯函数返回值非 Message 故走组件窗)→写 AlsFootPinRequest 双脚，非 grounded 由 foot_ik_state_system 门控丢弃；AlsFootIkRuntime pin 冻结(M7.3)即真实 transform 锁定基础。单测 3 项(stopping 双脚钉/idle 不钉/hold 窗内钉+过期清除)全绿(al-core 109)。
 - [ ] M7.5 Hand IK 占位：`ik_hand_gun` 虚拟骨等价的挂点 entity + 手部两骨 IK 到挂点（rifle overlay 用）。
 - [ ] M7.6 IK 系统调度顺序固定：pose apply → ground probe → IK solve → 渲染，写入文档。
 - [ ] M7.7 **Gate**：斜坡站立双脚贴地、pelvis 高度正确；行走上下坡脚不穿地；原地转身脚钉地无滑动。
