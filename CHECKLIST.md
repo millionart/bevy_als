@@ -157,7 +157,9 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现（2026-08-23）：①`als-core::mantle`——LedgeProbe 分类纯函数（台高 [0.45,1.6] 且探测距离 ≤0.7；≥1.0→High，<1.0 按 lateral 符号选 LowLeft/Right）+ AlsMantleState 三段位移曲线 mantle_motion_at：0~0.5 垂直 smoothstep 上升、0.35~0.85 水平前移、末段 up 回落 0.75（登上台沿），权重包络 0.15s 入/0.25s 出；单测 4 项（高度带/先升后移包络/权重淡出/超时冷却）。②`bevy_als::mantle_drive`——三高度扫描线（脚底 +0.35/0.65/0.95 水平 cast + 顶面下探 1.2m）自动触发（前向输入+Grounded，低配免按键为记录在案的偏离），Mantling 期间直接定位 Transform 至 start↔target 参数化曲线点并清零 LinearVelocity 抵消重力，结束恢复物理。③图侧 mantle 链：High/Low_L/Low_R 三 clip + 变体(lr)/高低(high_w)/覆盖(weight) 三级 blend，新 pins mantle_weight/mantle_high_w/mantle_lr 默认 0。
   - Gate 自测证据（docs/m8-mantle-gate-run.log）：0.80m 低台 `[begin kind=LowLeft top_h=0.80]`→`[DONE 1] y_after=1.55 loco=Grounded`；1.25m 高台 `[begin kind=High top_h=1.25]`→`[DONE 2] y_after=1.96`；`[VERDICT] both mantles completed -> PASS`，exit=0 无 ERROR/panic；workspace 测试 176 全绿。
   - 附带修正（c96c4f7）：ROLL_DURATION 0.8s→1.5s 对齐实际 clip 时长（glTF sampler max 扫描确认），roll_gate 复跑 PASS。
-- [ ] M8.5 **Gate**：奔跑中翻滚方向正确且位移与动画节奏一致；助跑跳停步动画脚步贴合预期落点。
+- [x] M8.5 **Gate**：奔跑中翻滚方向正确且位移与动画节奏一致；助跑跳停步动画脚步贴合预期落点。
+  - Gate 证据（2026-08-23，`examples/actions_gate` 七阶段综合脚本：sprint 起步→冲刺前滚→恢复→助跑跳→落地保持→释放输入停步匹配，ALS_BOOT_AUTO_QUIT_SECS=30，exit=0 无 ERROR/panic）：`[ROLL done] dist=3.53 align=+1.000`（方向满值对齐、位移含 sprint 动量在 [2.7,4.0] 带内、峰值节奏由 1.5s 钟形曲线驱动）；`[JUMP] airborne` → `[LAND] light=true`（M8.1 链路）；`[STOP] matched total=1.408`（sprint 6.5 m/s 输入释放沿触发）→ 滑移 0.65m、peak_w=1.00、remaining_end=0（M8.3 闭环 plant 对齐）；`[VERDICT] roll=true jump_light=true stop=true -> PASS`。快照 `docs/m8-actions-gate-run.log`。workspace 测试 176 全绿。
+  - 排障注记：初版 watcher 全静默系 actions_gate 漏注册 `AlsAirPlugin`/`AlsRollDrivePlugin`（AlsAirState/AlsRollState 组件缺失致查询空转）——编排层插件清单需与所用组件模块一一对应。
 
 ## M9 Ragdoll（依赖：M8）
 
