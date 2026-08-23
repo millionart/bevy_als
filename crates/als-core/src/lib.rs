@@ -3,6 +3,7 @@ pub mod bones;
 pub mod character;
 pub mod control_scheme;
 pub mod debug_hud;
+pub mod foot_ik;
 pub mod graph_router;
 pub mod input;
 pub mod motion;
