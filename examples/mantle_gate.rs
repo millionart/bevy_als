@@ -87,6 +87,9 @@ struct MantleWatch {
     count: u32,
     kinds: [Option<MantleKind>; 2],
     landings: [Option<f32>; 2],
+    peak_y: [f32; 2],
+    settle_timer: f32,
+    pending_slot: Option<usize>,
     failed: bool,
 }
 
@@ -247,32 +250,62 @@ fn mantle_watcher(
             m.target.y
         );
     }
+    if m.active && watch.count < 2 {
+        let s = watch.count.min(1) as usize;
+        watch.peak_y[s] = watch.peak_y[s].max(tf.translation.y);
+    }
+    if let Some(slot) = watch.pending_slot {
+        watch.settle_timer -= time.delta_secs();
+        if watch.settle_timer <= 0.0 {
+            watch.landings[slot] = Some(tf.translation.y);
+            info!(
+                "[MGATE][SETTLE {}] y={:.2} loco={loco:?} v={:.2}",
+                slot + 1,
+                tf.translation.y,
+                Vec2::new(vel.x, vel.z).length()
+            );
+            watch.pending_slot = None;
+            watch.count += 1;
+        }
+        watch.prev_active = m.active;
+        return;
+    }
     if watch.prev_active && !m.active && watch.count < 2 {
-        let landed_y = tf.translation.y - 0.90 + 0.90;
         let slot = watch.count.min(1) as usize;
-        watch.landings[slot] = Some(tf.translation.y);
         info!(
-            "[MGATE][DONE {}] y_after={:.2} loco={loco:?} v={:.2}",
+            "[MGATE][DONE {}] raw_y={:.2} peak_y={:.2} target_reached={}",
             watch.count + 1,
             tf.translation.y,
-            Vec2::new(vel.x, vel.z).length()
+            watch.peak_y[slot],
+            watch.peak_y[slot] >= m.target.y - 0.30
         );
-        watch.count += 1;
-        let _ = landed_y;
+        watch.pending_slot = Some(slot);
+        watch.settle_timer = 0.6;
     }
     watch.prev_active = m.active;
 
     if watch.count == 2 && !watch.failed {
         watch.failed = false;
         for i in 0..2usize {
-            if watch.landings[i].is_none() {
-                error!("[MGATE][VERDICT] mantle {i} never completed");
-                watch.failed = true;
+            match watch.landings[i] {
+                None => {
+                    error!("[MGATE][VERDICT] mantle {i} never completed");
+                    watch.failed = true;
+                }
+                Some(y) => {
+                    if !(watch.peak_y[i] >= 1.55 && y >= 1.45) {
+                        error!(
+                            "[MGATE][VERDICT] mantle {i} climb/landing insufficient peak={:.2} settle={:.2}",
+                            watch.peak_y[i], y
+                        );
+                        watch.failed = true;
+                    }
+                }
             }
         }
         if !watch.failed {
             info!(
-                "[MGATE][VERDICT] both mantles completed y={:.2}/{:.2} -> PASS",
+                "[MGATE][VERDICT] both mantles landed on ledge top y={:.2}/{:.2} -> PASS",
                 watch.landings[0].unwrap_or(f32::NAN),
                 watch.landings[1].unwrap_or(f32::NAN)
             );

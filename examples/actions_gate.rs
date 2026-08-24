@@ -16,7 +16,9 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{roll_displacement_dir, AlsRollState, ROLL_DISTANCE_METERS};
+use als_core::roll::{roll_displacement_dir, AlsRollState};
+
+const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
@@ -319,7 +321,7 @@ fn actions_watcher(
             0.0
         };
         info!(
-            "[AGATE][ROLL done] dist={:.2} (target {ROLL_DISTANCE_METERS}) align={:+.3}",
+            "[AGATE][ROLL done] dist={:.2} (clip root {ROLL_CLIP_DISTANCE}) align={:+.3}",
             v.roll_dist, v.roll_align
         );
     }
@@ -363,7 +365,7 @@ fn actions_watcher(
             v.stop_slide = xz.distance(v.stop_start_xz);
             v.stop_remaining_end = stop.remaining;
             let ok_roll =
-                v.roll_dist >= 2.7 && v.roll_dist <= 4.0 && v.roll_align >= 0.95;
+                v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
             let ok_land = v.saw_air && v.landed_light;
             let ok_stop = v.stop_slide <= 1.5
                 && v.stop_peak_weight >= 0.95

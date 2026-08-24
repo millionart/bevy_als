@@ -1,20 +1,30 @@
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
-use als_core::roll::{roll_displacement_dir, roll_speed_at, roll_weight_at, AlsRollState};
+use als_core::roll::{roll_displacement_dir, roll_weight_at, AlsRollState};
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
+use bevy_animation_graph::core::systems::RootMotionOutput;
+
+use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
 
 pub struct AlsRollDrivePlugin;
 
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
-            (ensure_roll_state, roll_drive_system.after(ensure_roll_state)),
+            FixedPostUpdate,
+            (
+                ensure_root_motion_output,
+                ensure_roll_state,
+                roll_drive_system
+                    .after(ensure_roll_state)
+                    .after(AnimationGraphSet::PrePhysics),
+            ),
         );
     }
 }
@@ -43,6 +53,7 @@ fn roll_drive_system(
         ),
         With<als_core::character::AlsCharacter>,
     >,
+    rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -54,18 +65,21 @@ fn roll_drive_system(
 
     roll.update(effective, view, loco, stance, dt);
 
-    if !roll.active {
+    if !roll.active || dt <= 1e-5 {
         return;
     }
 
     let weight = roll_weight_at(roll.time);
-    let speed = roll_speed_at(roll.time / als_core::roll::ROLL_DURATION_SECS);
+    let local = read_local_delta(rm_q.iter().next());
+    let forward_speed = -local.z / dt;
     let dir = roll_displacement_dir(roll.direction_yaw);
-    vel.x = dir.x * speed;
-    vel.z = dir.z * speed;
+    let drive = clamp_drive_speed(dir * forward_speed, 14.0);
+    vel.x = drive.x;
+    vel.z = drive.z;
 
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
+            player.set_input_data("roll_clip_time", DataValue::from(roll.time));
             player.set_input_data("roll_weight", DataValue::from(weight));
         }
     }

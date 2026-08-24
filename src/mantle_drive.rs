@@ -1,15 +1,24 @@
 use als_core::input::AlsInputCommand;
-use als_core::motion::AlsInputOverride;
 use als_core::mantle::{
-    classify_mantle, mantle_motion_at, mantle_weight_at, AlsMantleState, LedgeProbe,
-    MantleKind, MANTLE_PROBE_REACH,
+    classify_mantle, mantle_weight_at, warp_envelope, AlsMantleState, LedgeProbe, MantleKind,
+    MANTLE_PROBE_REACH,
 };
+use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, Stance};
-use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{CollisionLayers, LinearVelocity, SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
+use bevy_animation_graph::core::systems::RootMotionOutput;
+
+use crate::root_motion_link::{
+    clamp_drive_speed, ensure_root_motion_output, read_local_delta, yaw_from_direction,
+};
+
+const MANTLE_PROBE_SHIFT: f32 = 0.45;
+const MANTLE_TARGET_INSET: f32 = 0.45;
 
 pub struct AlsMantleDrivePlugin;
 
@@ -18,9 +27,15 @@ impl Plugin for AlsMantleDrivePlugin {
         app.add_systems(
             Update,
             (
+                ensure_root_motion_output,
                 ensure_mantle_state,
-                mantle_drive_system.after(ensure_mantle_state),
+                mantle_pose_system.after(ensure_mantle_state),
             ),
+        );
+        app.add_systems(
+            FixedPostUpdate,
+            mantle_drive_system
+                .after(AnimationGraphSet::PrePhysics),
         );
     }
 }
@@ -34,15 +49,47 @@ fn ensure_mantle_state(
     }
 }
 
+fn mantle_pose_system(
+    time: Res<Time>,
+    mut q: Query<
+        (
+            &mut AlsMantleState,
+            &mut Transform,
+            &mut LinearVelocity,
+        ),
+        With<als_core::character::AlsCharacter>,
+    >,
+) {
+    let dt = time.delta_secs();
+    let Ok((mut m, mut tf, mut vel)) = q.single_mut() else {
+        return;
+    };
+    let yaw_now = lerp_angle(
+        m.yaw_start,
+        m.yaw_target,
+        warp_envelope(m.clip_time()),
+    );
+    if m.active {
+        tf.rotation = Quat::from_rotation_y(yaw_now);
+        return;
+    }
+    if m.settle > 0.0 {
+        m.settle -= dt;
+        tf.translation = m.target;
+        tf.rotation = Quat::from_rotation_y(yaw_now);
+        *vel = LinearVelocity(Vec3::ZERO);
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn mantle_drive_system(
     time: Res<Time>,
     spatial: SpatialQuery,
+    mut commands: Commands,
     mut q: Query<
         (
             Entity,
             &mut AlsMantleState,
-            &mut Transform,
             &mut LinearVelocity,
             &GlobalTransform,
             &LocomotionState,
@@ -52,11 +99,13 @@ fn mantle_drive_system(
         ),
         With<als_core::character::AlsCharacter>,
     >,
+    layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
+    rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((entity, mut m, mut tf, mut vel, gtf, loco, stance, cmd, ovr)) = q.single_mut() else {
+    let Ok((entity, mut m, mut vel, gtf, loco, stance, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
@@ -68,19 +117,30 @@ fn mantle_drive_system(
 
     m.tick(effective, loco, stance, dt);
 
+    let layers_none = layers_q
+        .get(entity)
+        .ok()
+        .flatten()
+        .map(|l| *l == CollisionLayers::NONE)
+        .unwrap_or(false);
+    if m.active && !layers_none {
+        commands.entity(entity).insert(CollisionLayers::NONE);
+    } else if !m.active && layers_none {
+        commands.entity(entity).remove::<CollisionLayers>();
+    }
+
     if !m.active {
-        if effective.move_dir.length() < 0.30 || *loco != LocomotionState::Grounded || m.cooldown > 0.0 {
+        if effective.move_dir.length() < 0.30 || *loco != LocomotionState::Grounded || m.cooldown > 0.0
+        {
             return;
         }
-        let probe_origin_base = origin + Vec3::Y * 0.1;
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
         let Ok(dir) = Dir3::new(fwd) else {
             return;
         };
         let mut face: Option<(f32, Vec3, f32)> = None;
         for h in [0.35f32, 0.65, 0.95] {
-            let o = origin + fwd * 0.45 + Vec3::Y * (h - (origin.y - foot_y));
-            let _ = probe_origin_base;
+            let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
             if let Some(hit) = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter) {
                 let best = face.map(|(d, _, _)| d).unwrap_or(f32::INFINITY);
                 if hit.distance < best {
@@ -105,30 +165,47 @@ fn mantle_drive_system(
         let Some(kind) = classify_mantle(&ledge) else {
             return;
         };
+        let face_plane_dist = MANTLE_PROBE_SHIFT + face_distance;
         let target = Vec3::new(
-            origin.x + fwd.x * (face_distance + 0.45),
+            origin.x + fwd.x * (face_plane_dist + MANTLE_TARGET_INSET),
             top_y + 0.92,
-            origin.z + fwd.z * (face_distance + 0.45),
+            origin.z + fwd.z * (face_plane_dist + MANTLE_TARGET_INSET),
         );
-        m.begin(kind, origin, target);
+        let wall_dir = Vec3::new(-normal.x, 0.0, -normal.z).normalize_or_zero();
+        let yaw_target = yaw_from_direction(if wall_dir.length_squared() > 1e-4 {
+            wall_dir
+        } else {
+            fwd
+        });
+        let yaw_start = m_direction_yaw(gtf);
+        m.begin(kind, origin, target, ledge.top_height, yaw_start, yaw_target);
         info!(
-            "[MANTLE] begin kind={kind:?} top_h={:.2} dist={:.2}",
-            ledge.top_height, ledge.face_distance
+            "[MANTLE] begin kind={kind:?} top_h={:.2} dist={:.2} offset={:.3} scale={:.3}",
+            ledge.top_height, face_distance, m.start_offset, m.scale
         );
     }
 
-    let t_norm = (m.time / m.duration).clamp(0.0, 1.0);
-    let motion = mantle_motion_at(t_norm);
-    let delta = m.target - m.start;
-    let desired = Vec3::new(
-        m.start.x + delta.x * motion.forward_frac,
-        m.start.y + delta.y * motion.up_frac,
-        m.start.z + delta.z * motion.forward_frac,
-    );
-    tf.translation = desired;
-    *vel = LinearVelocity(Vec3::ZERO);
+    if dt <= 1e-5 {
+        return;
+    }
 
-    let weight = mantle_weight_at(m.time, m.duration);
+    let local_delta = read_local_delta(rm_q.iter().next());
+    let clip_t = m.clip_time();
+    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(clip_t));
+    let finishing = m.time + dt >= m.action_end();
+
+    let dir = Vec3::new(yaw_now.sin(), 0.0, -yaw_now.cos());
+    let forward_speed = -local_delta.z / dt;
+    let climb_speed = local_delta.y / dt;
+    if finishing {
+        *vel = LinearVelocity(Vec3::ZERO);
+        m.settle = als_core::mantle::MANTLE_SETTLE_SECS;
+    } else {
+        let drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);
+        *vel = LinearVelocity(clamp_drive_speed(drive, 14.0));
+    }
+
+    let weight = mantle_weight_at(m.time, m.action_end());
     let (high_w, lr) = match m.kind {
         MantleKind::High => (1.0, 0.0),
         MantleKind::LowLeft => (0.0, 0.0),
@@ -136,10 +213,26 @@ fn mantle_drive_system(
     };
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
+            player.set_input_data("mantle_clip_time", DataValue::from(clip_t));
             player.set_input_data("mantle_weight", DataValue::from(weight));
             player.set_input_data("mantle_high_w", DataValue::from(high_w));
             player.set_input_data("mantle_lr", DataValue::from(lr));
         }
+    }
+}
+
+fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
+    let delta = shortest_angle(b - a);
+    a + delta * t
+}
+
+fn shortest_angle(angle: f32) -> f32 {
+    let two_pi = std::f32::consts::TAU;
+    let wrapped = angle.rem_euclid(two_pi);
+    if wrapped > std::f32::consts::PI {
+        wrapped - two_pi
+    } else {
+        wrapped
     }
 }
 
@@ -151,4 +244,3 @@ fn m_direction_yaw(gtf: &GlobalTransform) -> f32 {
 fn right_of(fwd: Vec3) -> Vec3 {
     Vec3::Y.cross(fwd).normalize_or_zero()
 }
-
