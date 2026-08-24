@@ -1,11 +1,8 @@
 use als_core::input::AlsInputCommand;
-use als_core::mantle::{
-    classify_mantle, mantle_weight_at, warp_envelope, AlsMantleState, LedgeProbe, MantleKind,
-    MANTLE_PROBE_REACH,
-};
+use als_core::mantle::{mantle_weight_at, warp_envelope, AlsMantleState, MantleKind};
 use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, Stance};
-use avian3d::prelude::{CollisionLayers, LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{CollisionLayers, LinearVelocity};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -13,12 +10,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
-use crate::root_motion_link::{
-    clamp_drive_speed, ensure_root_motion_output, read_local_delta, yaw_from_direction,
-};
-
-const MANTLE_PROBE_SHIFT: f32 = 0.45;
-const MANTLE_TARGET_INSET: f32 = 0.45;
+use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
 
 pub struct AlsMantleDrivePlugin;
 
@@ -84,14 +76,12 @@ fn mantle_pose_system(
 #[allow(clippy::type_complexity)]
 fn mantle_drive_system(
     time: Res<Time>,
-    spatial: SpatialQuery,
     mut commands: Commands,
     mut q: Query<
         (
             Entity,
             &mut AlsMantleState,
             &mut LinearVelocity,
-            &GlobalTransform,
             &LocomotionState,
             &Stance,
             &AlsInputCommand,
@@ -101,20 +91,14 @@ fn mantle_drive_system(
     >,
     layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
     rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
-    velocities: Query<&LinearVelocity, Without<als_core::character::AlsCharacter>>,
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((entity, mut m, mut vel, gtf, loco, stance, cmd, ovr)) = q.single_mut() else {
+    let Ok((entity, mut m, mut vel, loco, stance, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let origin = gtf.translation();
-    let foot_y = origin.y - 0.90;
-    let fwd = Quat::from_rotation_y(m_direction_yaw(gtf))
-        .mul_vec3(Vec3::NEG_Z)
-        .normalize_or_zero();
 
     m.tick(effective, loco, stance, dt);
 
@@ -131,102 +115,7 @@ fn mantle_drive_system(
     }
 
     if !m.active {
-        if effective.move_dir.length() < 0.30 || *loco != LocomotionState::Grounded || m.cooldown > 0.0
-        {
-            return;
-        }
-        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let Ok(dir) = Dir3::new(fwd) else {
-            return;
-        };
-        let mut face: Option<(f32, Vec3, f32, Entity)> = None;
-        for h in [0.35f32, 0.65, 0.95] {
-            let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
-            if let Some(hit) = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter) {
-                let best = face.map(|(d, _, _, _)| d).unwrap_or(f32::INFINITY);
-                if hit.distance < best {
-                    let top_o = o + fwd * hit.distance + Vec3::Y * 1.2;
-                    let top_hit = spatial.cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter);
-                    let (top_y, top_normal_y) = top_hit
-                        .map(|t| (top_o.y - t.distance, t.normal.y))
-                        .unwrap_or((f32::NEG_INFINITY, 0.0));
-                    face = Some((hit.distance, hit.normal, top_y, top_hit.map(|t| t.entity).expect("top hit")));
-                    let _ = top_normal_y;
-                }
-            }
-        }
-        let Some((face_distance, normal, top_y, ledge_entity)) = face else {
-            return;
-        };
-
-        let top_normal = spatial
-            .cast_ray(
-                origin + fwd * (MANTLE_PROBE_SHIFT + face_distance) + Vec3::Y * 1.4,
-                Dir3::NEG_Y,
-                2.0,
-                true,
-                &filter,
-            )
-            .map(|t| t.normal.y)
-            .unwrap_or(0.0);
-        if top_normal < als_core::mantle::MANTLE_SLOPE_ANGLE_COS {
-            return;
-        }
-
-        if let Ok(target_vel) = velocities.get(ledge_entity) {
-            if target_vel.0.length() > als_core::mantle::MANTLE_TARGET_SPEED_THRESHOLD {
-                return;
-            }
-        }
-
-        let ledge = LedgeProbe {
-            face_distance,
-            top_height: top_y - foot_y,
-            lateral_sign: normal.dot(right_of(fwd)),
-        };
-        let Some(kind) = classify_mantle(&ledge) else {
-            return;
-        };
-        let face_plane_dist = MANTLE_PROBE_SHIFT + face_distance;
-        let target = Vec3::new(
-            origin.x + fwd.x * (face_plane_dist + MANTLE_TARGET_INSET),
-            top_y + 0.92,
-            origin.z + fwd.z * (face_plane_dist + MANTLE_TARGET_INSET),
-        );
-        let wall_dir = Vec3::new(-normal.x, 0.0, -normal.z).normalize_or_zero();
-        let yaw_target = yaw_from_direction(if wall_dir.length_squared() > 1e-4 {
-            wall_dir
-        } else {
-            fwd
-        });
-        let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
-        let ceiling = spatial
-            .cast_ray(
-                headroom_o,
-                Dir3::Y,
-                als_core::mantle::MANTLE_HEADROOM_CLEARANCE,
-                true,
-                &filter,
-            );
-        if ceiling.is_some() {
-            return;
-        }
-        let start_clearance = spatial.cast_ray(
-            origin + Vec3::Y * 1.2,
-            Dir3::Y,
-            0.9,
-            true,
-            &filter,
-        );
-        if start_clearance.is_some() {
-            return;
-        }
-        let yaw_start = m_direction_yaw(gtf);
-        m.begin(kind, origin, target, ledge.top_height, yaw_start, yaw_target);
-        info!(
-            "[MANTLE] begin kind={kind:?} top_h={:.2} dist={:.2} offset={:.3} scale={:.3}",
-            ledge.top_height, face_distance, m.start_offset, m.scale
-        );
+        return;
     }
 
     if dt <= 1e-5 {
@@ -280,11 +169,3 @@ fn shortest_angle(angle: f32) -> f32 {
     }
 }
 
-fn m_direction_yaw(gtf: &GlobalTransform) -> f32 {
-    let f = gtf.forward();
-    f32::atan2(f.x, -f.z)
-}
-
-fn right_of(fwd: Vec3) -> Vec3 {
-    Vec3::Y.cross(fwd).normalize_or_zero()
-}

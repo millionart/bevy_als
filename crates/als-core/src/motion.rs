@@ -10,6 +10,7 @@ use bevy_tnua::TnuaController;
 use crate::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
+use crate::mantle::{detect_mantle, yaw_from_direction, MantleIntent};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
@@ -100,6 +101,29 @@ fn effective_input<'a>(
     ovr.map(|o| &o.0).unwrap_or(cmd)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpChain {
+    ExitRagdoll,
+    Mantle,
+    StandUp,
+    Jump,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsJumpPrev(pub bool);
+
+pub fn jump_chain(loco: LocomotionState, stance: Stance, mantle_available: bool) -> JumpChain {
+    if loco == LocomotionState::Ragdolling {
+        JumpChain::ExitRagdoll
+    } else if mantle_available {
+        JumpChain::Mantle
+    } else if stance == Stance::Crouching {
+        JumpChain::StandUp
+    } else {
+        JumpChain::Jump
+    }
+}
+
 pub struct AlsMotionPlugin;
 
 impl Plugin for AlsMotionPlugin {
@@ -108,7 +132,7 @@ impl Plugin for AlsMotionPlugin {
             Update,
             (
                 tnua_config_sync_system,
-                locomotion_drive_system,
+                locomotion_drive_system.before(crate::transition::state_transition_system),
                 step_up_assist_system,
                 capsule_reshape_system,
                 locomotion_state_sync_system,
@@ -161,16 +185,42 @@ fn tnua_config_sync_system(
 }
 
 type DriveQueryItem<'a> = (
+    Entity,
     &'a mut TnuaController<AlsControlScheme>,
     &'a mut AlsViewYaw,
+    &'a GlobalTransform,
+    &'a LocomotionState,
+    Option<&'a mut crate::mantle::AlsMantleState>,
     Option<&'a AlsInputOverride>,
     &'a AlsInputCommand,
     &'a Stance,
     &'a RotationMode,
+    &'a mut AlsStateRequest,
+    Option<&'a mut AlsJumpPrev>,
 );
 
-fn locomotion_drive_system(mut q: Query<DriveQueryItem, With<AlsCharacter>>) {
-    for (mut controller, mut view_yaw, override_cmd, cmd, stance, rotation_mode) in &mut q {
+#[allow(clippy::type_complexity)]
+fn locomotion_drive_system(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    mut q: Query<DriveQueryItem, With<AlsCharacter>>,
+) {
+    for (
+        entity,
+        mut controller,
+        mut view_yaw,
+        gtf,
+        loco,
+        mut mantle,
+        override_cmd,
+        cmd,
+        stance,
+        rotation_mode,
+        mut request,
+        jump_prev,
+    ) in &mut q
+    {
         controller.initiate_action_feeding();
         let effective = effective_input(cmd, override_cmd);
 
@@ -205,8 +255,59 @@ fn locomotion_drive_system(mut q: Query<DriveQueryItem, With<AlsCharacter>>) {
             controller.action(AlsControlScheme::Crouch(TnuaBuiltinCrouch));
         }
 
-        if effective.jump_pressed {
-            controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
+        let jump_now = effective.jump_pressed;
+        let jump_was = jump_prev.as_deref().map(|j| j.0).unwrap_or(false);
+        let jump_edge = jump_now && !jump_was;
+        match jump_prev {
+            Some(mut jp) => jp.0 = jump_now,
+            None => {
+                commands.entity(entity).insert(AlsJumpPrev(jump_now));
+            }
+        }
+
+        if jump_edge {
+            let mantle_ready = mantle.as_deref().is_some_and(|m| {
+                !m.active
+                    && m.cooldown <= 0.0
+                    && *loco == LocomotionState::Grounded
+                    && *stance == Stance::Standing
+            });
+            let mut intent: Option<MantleIntent> = None;
+            if mantle_ready {
+                let origin = gtf.translation();
+                let f = gtf.forward();
+                let fwd = Quat::from_rotation_y(f32::atan2(f.x, -f.z))
+                    .mul_vec3(Vec3::NEG_Z)
+                    .normalize_or_zero();
+                let foot_y = origin.y - 0.90;
+                intent = detect_mantle(&spatial, entity, origin, foot_y, fwd, &velocities);
+            }
+            match jump_chain(*loco, *stance, intent.is_some()) {
+                JumpChain::ExitRagdoll => {
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                }
+                JumpChain::Mantle => {
+                    if let (Some(m), Some(i)) = (mantle.as_deref_mut(), intent) {
+                        let origin = gtf.translation();
+                        let f = gtf.forward();
+                        let fwd = Quat::from_rotation_y(f32::atan2(f.x, -f.z))
+                            .mul_vec3(Vec3::NEG_Z)
+                            .normalize_or_zero();
+                        let yaw_start = yaw_from_direction(fwd);
+                        m.begin(i.kind, origin, i.target, i.top_height, yaw_start, i.yaw_target);
+                        info!(
+                            "[MOTION] entity={entity:?} mantle begin kind={:?} top_h={:.2}",
+                            i.kind, i.top_height
+                        );
+                    }
+                }
+                JumpChain::StandUp => {
+                    request.stance = Some(Stance::Standing);
+                }
+                JumpChain::Jump => {
+                    controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
+                }
+            }
         } else if effective.jump_held && controller.action_flow_status().ongoing().is_some() {
             controller.prolong_action();
         }

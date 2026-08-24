@@ -246,13 +246,7 @@ fn spawn_character_once(
         .id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
-            Transform::from_xyz(0.0, -0.90, 0.0),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
+    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
 
     if scripted {
         commands.entity(character).insert(AlsInputOverride::default());

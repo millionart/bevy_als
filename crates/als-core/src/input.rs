@@ -2,6 +2,9 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
 
+pub const SPRINT_HOLD_SECS: f32 = 1.0;
+pub const ROLL_TAP_SECS: f32 = 0.2;
+
 #[derive(InputAction)]
 #[action_output(Vec2)]
 pub struct MoveAction;
@@ -30,6 +33,26 @@ pub struct AimAction;
 #[action_output(bool)]
 pub struct RollAction;
 
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct WalkAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct RagdollAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct RotationModeAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct ViewModeAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct SwitchShoulderAction;
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
@@ -46,6 +69,11 @@ pub struct AlsInputCommand {
     pub roll_pressed: bool,
     pub sprint_held: bool,
     pub aim_held: bool,
+    pub walk_pressed: bool,
+    pub ragdoll_pressed: bool,
+    pub rotation_mode_pressed: bool,
+    pub view_mode_pressed: bool,
+    pub switch_shoulder_pressed: bool,
 }
 
 impl AlsInputCommand {
@@ -63,11 +91,20 @@ pub struct AlsInputMap {
     pub move_stick: [Binding; 2],
     pub look_mouse: Binding,
     pub look_stick: [Binding; 2],
+    pub look_left: Binding,
+    pub look_right: Binding,
+    pub look_up: Binding,
+    pub look_down: Binding,
     pub jump: Vec<Binding>,
     pub crouch: Vec<Binding>,
     pub sprint: Vec<Binding>,
     pub aim: Vec<Binding>,
     pub roll: Vec<Binding>,
+    pub walk: Vec<Binding>,
+    pub ragdoll: Vec<Binding>,
+    pub rotation_mode: Vec<Binding>,
+    pub view_mode: Vec<Binding>,
+    pub switch_shoulder: Vec<Binding>,
 }
 
 impl Default for AlsInputMap {
@@ -86,17 +123,32 @@ impl Default for AlsInputMap {
                 GamepadAxis::RightStickX.into(),
                 GamepadAxis::RightStickY.into(),
             ],
+            look_left: KeyCode::ArrowLeft.into(),
+            look_right: KeyCode::ArrowRight.into(),
+            look_up: KeyCode::ArrowUp.into(),
+            look_down: KeyCode::ArrowDown.into(),
             jump: vec![KeyCode::Space.into(), GamepadButton::South.into()],
             crouch: vec![
                 KeyCode::ControlLeft.into(),
-                GamepadButton::RightTrigger.into(),
+                GamepadButton::LeftThumb.into(),
             ],
-            sprint: vec![KeyCode::ShiftLeft.into(), GamepadButton::LeftThumb.into()],
+            sprint: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
             aim: vec![
                 MouseButton::Right.into(),
-                GamepadButton::LeftTrigger2.into(),
+                GamepadButton::RightTrigger.into(),
             ],
-            roll: vec![KeyCode::AltLeft.into(), GamepadButton::East.into()],
+            roll: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
+            walk: vec![KeyCode::AltLeft.into(), GamepadButton::LeftTrigger.into()],
+            ragdoll: vec![KeyCode::KeyX.into(), GamepadButton::West.into()],
+            rotation_mode: vec![
+                KeyCode::Digit1.into(),
+                GamepadButton::DPadLeft.into(),
+            ],
+            view_mode: vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()],
+            switch_shoulder: vec![
+                KeyCode::KeyC.into(),
+                GamepadButton::RightThumb.into(),
+            ],
         }
     }
 }
@@ -120,6 +172,8 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
                 Action::<LookAction>::new(),
                 Bindings::spawn((
                     vec![map.look_mouse],
+                    Bidirectional::new(map.look_right, map.look_left),
+                    Bidirectional::new(map.look_down, map.look_up).with(SwizzleAxis::YXZ),
                     Axial::new(map.look_stick[0], map.look_stick[1])
                         .with(DeadZone::default()),
                 )),
@@ -135,6 +189,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<SprintAction>::new(),
+                Hold::new(SPRINT_HOLD_SECS),
                 Bindings::spawn(map.sprint.clone()),
             ),
             (
@@ -143,8 +198,33 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<RollAction>::new(),
-                EIPress::default(),
+                Tap::new(ROLL_TAP_SECS),
                 Bindings::spawn(map.roll.clone()),
+            ),
+            (
+                Action::<WalkAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.walk.clone()),
+            ),
+            (
+                Action::<RagdollAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.ragdoll.clone()),
+            ),
+            (
+                Action::<RotationModeAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.rotation_mode.clone()),
+            ),
+            (
+                Action::<ViewModeAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.view_mode.clone()),
+            ),
+            (
+                Action::<SwitchShoulderAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.switch_shoulder.clone()),
             ),
         ]),
     ));
@@ -160,6 +240,11 @@ pub fn als_input_bridge_system(
     aims: Query<&TriggerState, With<Action<AimAction>>>,
     crouches: Query<&ActionEvents, With<Action<CrouchAction>>>,
     rolls: Query<&ActionEvents, With<Action<RollAction>>>,
+    walks: Query<&ActionEvents, With<Action<WalkAction>>>,
+    ragdolls: Query<&ActionEvents, With<Action<RagdollAction>>>,
+    rotation_modes: Query<&ActionEvents, With<Action<RotationModeAction>>>,
+    view_modes: Query<&ActionEvents, With<Action<ViewModeAction>>>,
+    switch_shoulders: Query<&ActionEvents, With<Action<SwitchShoulderAction>>>,
 ) {
     for (mut cmd, actions) in &mut receivers {
         cmd.reset();
@@ -192,6 +277,26 @@ pub fn als_input_bridge_system(
         if let Some(events) = rolls.iter_many(actions).next() {
             cmd.roll_pressed = events.contains(ActionEvents::START);
         }
+
+        if let Some(events) = walks.iter_many(actions).next() {
+            cmd.walk_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = ragdolls.iter_many(actions).next() {
+            cmd.ragdoll_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = rotation_modes.iter_many(actions).next() {
+            cmd.rotation_mode_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = view_modes.iter_many(actions).next() {
+            cmd.view_mode_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = switch_shoulders.iter_many(actions).next() {
+            cmd.switch_shoulder_pressed = events.contains(ActionEvents::START);
+        }
     }
 }
 
@@ -222,6 +327,11 @@ mod tests {
         assert!(!cmd.roll_pressed);
         assert!(!cmd.sprint_held);
         assert!(!cmd.aim_held);
+        assert!(!cmd.walk_pressed);
+        assert!(!cmd.ragdoll_pressed);
+        assert!(!cmd.rotation_mode_pressed);
+        assert!(!cmd.view_mode_pressed);
+        assert!(!cmd.switch_shoulder_pressed);
     }
 
     #[test]
@@ -235,6 +345,11 @@ mod tests {
             roll_pressed: true,
             sprint_held: true,
             aim_held: true,
+            walk_pressed: true,
+            ragdoll_pressed: true,
+            rotation_mode_pressed: true,
+            view_mode_pressed: true,
+            switch_shoulder_pressed: true,
         };
         cmd.reset();
         assert_eq!(
@@ -268,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn spawn_creates_seven_actions_with_bindings() {
+    fn spawn_creates_twelve_actions_with_bindings() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
@@ -281,7 +396,7 @@ mod tests {
         app.update();
 
         let world = app.world_mut();
-        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 7);
+        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 12);
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();

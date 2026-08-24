@@ -148,13 +148,7 @@ fn spawn_character_once(
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
-            Transform::from_xyz(0.0, -0.90, 0.0),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
+    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands.entity(character).insert((

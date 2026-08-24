@@ -170,6 +170,8 @@ fn camera_rig_system(
             &RotationMode,
             &AlsViewYaw,
             Option<&AlsViewSmoothed>,
+            Has<als_core::input_request::AlsFirstPersonView>,
+            Has<als_core::input_request::AlsCameraLeftShoulder>,
         ),
         With<AlsCameraTarget>,
     >,
@@ -181,8 +183,15 @@ fn camera_rig_system(
     let Some((_, p)) = params.iter().next() else {
         return;
     };
-    let Ok((char_entity, char_gtf, rotation_mode, view_yaw, view_smoothed)) =
-        q_target.single_mut()
+    let Ok((
+        char_entity,
+        char_gtf,
+        rotation_mode,
+        view_yaw,
+        view_smoothed,
+        first_person,
+        left_shoulder,
+    )) = q_target.single_mut()
     else {
         return;
     };
@@ -191,7 +200,10 @@ fn camera_rig_system(
     };
 
     let dt = time.delta_secs();
-    let new_mode = mode_for_rotation(*rotation_mode);
+    let mut new_mode = mode_for_rotation(*rotation_mode);
+    if first_person {
+        new_mode = AlsCameraMode::FirstPersonPlaceholder;
+    }
     let target_blend = match new_mode {
         AlsCameraMode::AimingShoulder => 1.0,
         _ => 0.0,
@@ -210,7 +222,10 @@ fn camera_rig_system(
             (eye, rot * Vec3::Z, 0.05)
         }
         _ => {
-            let shoulder = blended_shoulder(rig.aim_blend, p);
+            let mut shoulder = blended_shoulder(rig.aim_blend, p);
+            if left_shoulder {
+                shoulder.x = -shoulder.x;
+            }
             let pivot = char_pos + Vec3::Y * p.pivot_height + rot * shoulder;
             (pivot, rot * Vec3::Z, blended_arm_length(rig.aim_blend, p))
         }

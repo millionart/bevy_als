@@ -5,21 +5,21 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_camera::{AlsCameraPlugin, AlsCameraRig, AlsCameraTarget};
+use als_camera::AlsCameraPlugin;
 use als_core::air::AlsAirState;
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::character::{AlsCharacter, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputPlugin};
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::aim::AlsAimPlugin;
-use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
+use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
@@ -250,35 +250,18 @@ fn spawn_character_once(
         point.position.x, point.position.y, point.position.z
     );
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_translation(point.position).with_rotation(point.rotation);
-    let spawn_fwd = bundle.transform.forward();
-    let character = commands
-        .spawn(bundle)
-        .insert((AlsViewYaw(f32::atan2(spawn_fwd.x, -spawn_fwd.z)), AlsViewPitch(0.0), AlsCameraTarget))
-        .id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(
-                assets.load("animated_scenes/als_ragdoll.animscn.ron"),
-            ),
-            Transform::from_xyz(0.0, -0.92, 0.0)
-                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
-
-    let cam_pos = point.position + Vec3::new(0.0, 1.8, 5.0);
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_translation(cam_pos).looking_at(point.position + Vec3::Y, Vec3::Y),
-        AlsCameraRig::default(),
-    ));
+    let mut blueprint = bevy_als::character_assembly::AlsCharacterBlueprint::new(
+        Transform::from_translation(point.position).with_rotation(point.rotation),
+        "animated_scenes/als_ragdoll.animscn.ron",
+    );
+    blueprint.spawn_camera = true;
+    let character = bevy_als::character_assembly::spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        blueprint,
+    );
 }
 
 fn playground_physics_bridge(

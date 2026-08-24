@@ -4,24 +4,34 @@ use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::character::{AlsCharacter, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::AlsInputPlugin;
 use als_core::mantle::{AlsMantleState, MantleKind};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
+
+use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+
+#[derive(Resource, Default)]
+struct MantleShot {
+    path: Option<String>,
+    edge_at: Option<Instant>,
+    taken: bool,
+    prev_active: bool,
+}
 
 fn main() {
     let mut app = App::new();
@@ -45,6 +55,7 @@ fn main() {
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
     .init_resource::<MantleWatch>()
+    .init_resource::<MantleShot>()
     .insert_resource(GlobalAmbientLight {
         brightness: 400.0,
         ..default()
@@ -59,6 +70,7 @@ fn main() {
             camera_follow,
             fall_guard,
             snapshot_logger,
+            mantle_shot_system,
             auto_quit,
         ),
     );
@@ -153,26 +165,22 @@ fn spawn_character_once(
         MeshMaterial3d(box_mat),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, -12.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
-            Transform::from_xyz(0.0, -0.90, 0.0),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
+    let character = bevy_als::character_assembly::spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        bevy_als::character_assembly::AlsCharacterBlueprint::new(
+            Transform::from_xyz(0.0, 0.95, -12.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+            "animated_scenes/motion_overlay.animscn.ron",
+        ),
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands
             .entity(character)
-            .insert((AlsInputOverride::default(), AlsViewYaw(std::f32::consts::PI)));
+            .insert(AlsInputOverride::default());
         info!("[MGATE] scripted demo armed");
     }
 
@@ -187,6 +195,7 @@ fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
     mut q: Query<&mut AlsInputOverride, With<AlsCharacter>>,
+    chars: Query<(&Transform, &AlsMantleState), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -212,14 +221,58 @@ fn auto_demo(
             info!("[MGATE] gait request {g:?} handled by transition system via step config");
         }
     }
+    let (pulse_zone, mantle_free) = chars
+        .single()
+        .map(|(tf, m)| {
+            let z = tf.translation.z;
+            let zone = (z > -6.15 && z < -4.9) || (z > 0.85 && z < 2.1);
+            (zone, !m.active && m.cooldown <= 0.0)
+        })
+        .unwrap_or((false, false));
     over.0.move_dir = Vec2::NEG_Y;
-    over.0.jump_pressed = false;
+    over.0.jump_pressed = pulse_zone && mantle_free;
     over.0.jump_held = false;
     over.0.roll_pressed = false;
     over.0.crouch_pressed = false;
     over.0.sprint_held = false;
     over.0.aim_held = false;
     over.0.look_delta = Vec2::ZERO;
+}
+
+fn mantle_shot_system(
+    mut shot: ResMut<MantleShot>,
+    m: Query<&AlsMantleState, With<AlsCharacter>>,
+    cams: Query<Entity, With<Camera3d>>,
+    mut commands: Commands,
+) {
+    if shot.path.is_none() {
+        shot.path = std::env::var("ALS_SHOT_PATH").ok();
+        if shot.path.is_some() {
+            info!("[MGATE][SHOT] instrumentation armed");
+        }
+    }
+    let Some(path) = shot.path.clone() else {
+        return;
+    };
+    let Ok(m) = m.single() else {
+        return;
+    };
+    if !shot.prev_active && m.active {
+        shot.edge_at = Some(Instant::now());
+        info!("[MGATE][SHOT] mantle begin detected, capture scheduled +0.45s");
+    }
+    shot.prev_active = m.active;
+
+    if !shot.taken
+        && let Some(edge) = shot.edge_at
+        && Instant::now() >= edge + Duration::from_millis(450)
+        && let Ok(cam) = cams.single()
+    {
+        commands.entity(cam).insert(Screenshot::primary_window());
+        commands.entity(cam).observe(save_to_disk(path.clone()));
+        info!("[MGATE][SHOT] captured mid-mantle -> {path}");
+        shot.taken = true;
+    }
 }
 
 fn mantle_watcher(

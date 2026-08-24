@@ -142,12 +142,6 @@ fn spawn_character(
     bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0);
     let character = commands.spawn(bundle).id();
     let _ = character;
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
-            Transform::from_xyz(0.0, -0.90, 0.0),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
+    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
     info!("[PERF] character spawned");
 }

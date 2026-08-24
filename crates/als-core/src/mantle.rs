@@ -1,12 +1,16 @@
 use bevy::prelude::*;
 
+use crate::character::AlsCharacter;
 use crate::input::AlsInputCommand;
 use crate::state::{LocomotionState, Stance};
+use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
 
 pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.25;
 pub const MANTLE_MAX_LEDGE_HEIGHT: f32 = 1.6;
 pub const MANTLE_MIN_LEDGE_HEIGHT: f32 = 0.45;
 pub const MANTLE_PROBE_REACH: f32 = 0.7;
+pub const MANTLE_PROBE_SHIFT: f32 = 0.45;
+pub const MANTLE_TARGET_INSET: f32 = 0.45;
 pub const MANTLE_HIGH_DURATION: f32 = 2.667;
 pub const MANTLE_LOW_DURATION: f32 = 1.5;
 pub const MANTLE_SLOPE_ANGLE_COS: f32 = 0.819;
@@ -53,6 +57,117 @@ pub struct LedgeProbe {
     pub face_distance: f32,
     pub top_height: f32,
     pub lateral_sign: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleIntent {
+    pub kind: MantleKind,
+    pub target: Vec3,
+    pub top_height: f32,
+    pub yaw_target: f32,
+}
+
+pub fn yaw_from_direction(dir: Vec3) -> f32 {
+    f32::atan2(dir.x, -dir.z)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn detect_mantle(
+    spatial: &SpatialQuery,
+    excluded: Entity,
+    origin: Vec3,
+    foot_y: f32,
+    fwd: Vec3,
+    velocities: &Query<&LinearVelocity, Without<AlsCharacter>>,
+) -> Option<MantleIntent> {
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let Ok(dir) = Dir3::new(fwd) else {
+        return None;
+    };
+    let mut face: Option<(f32, Vec3, f32, Entity)> = None;
+    for h in [0.35f32, 0.65, 0.95] {
+        let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
+        if let Some(hit) = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter) {
+            let best = face.map(|(d, _, _, _)| d).unwrap_or(f32::INFINITY);
+            if hit.distance < best {
+                let top_o = o + fwd * hit.distance + Vec3::Y * 1.2;
+                let top_hit = spatial.cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter);
+                let (top_y, _top_normal_y) = top_hit
+                    .map(|t| (top_o.y - t.distance, t.normal.y))
+                    .unwrap_or((f32::NEG_INFINITY, 0.0));
+                face = Some((
+                    hit.distance,
+                    hit.normal,
+                    top_y,
+                    top_hit.map(|t| t.entity).expect("top hit"),
+                ));
+            }
+        }
+    }
+    let (face_distance, normal, top_y, ledge_entity) = face?;
+
+    let top_normal = spatial
+        .cast_ray(
+            origin + fwd * (MANTLE_PROBE_SHIFT + face_distance) + Vec3::Y * 1.4,
+            Dir3::NEG_Y,
+            2.0,
+            true,
+            &filter,
+        )
+        .map(|t| t.normal.y)
+        .unwrap_or(0.0);
+    if top_normal < MANTLE_SLOPE_ANGLE_COS {
+        return None;
+    }
+
+    let target_speed = velocities.get(ledge_entity).ok().map(|v| v.0.length());
+    if target_speed.is_some_and(|s| s > MANTLE_TARGET_SPEED_THRESHOLD) {
+        return None;
+    }    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
+    let ledge = LedgeProbe {
+        face_distance,
+        top_height: top_y - foot_y,
+        lateral_sign: normal.dot(right_of),
+    };
+    let kind = classify_mantle(&ledge)?;
+
+    let face_plane_dist = MANTLE_PROBE_SHIFT + face_distance;
+    let target = Vec3::new(
+        origin.x + fwd.x * (face_plane_dist + MANTLE_TARGET_INSET),
+        top_y + 0.92,
+        origin.z + fwd.z * (face_plane_dist + MANTLE_TARGET_INSET),
+    );
+    let wall_dir = Vec3::new(-normal.x, 0.0, -normal.z).normalize_or_zero();
+    let yaw_target = yaw_from_direction(if wall_dir.length_squared() > 1e-4 {
+        wall_dir
+    } else {
+        fwd
+    });
+
+    let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
+    if spatial
+        .cast_ray(headroom_o, Dir3::Y, MANTLE_HEADROOM_CLEARANCE, true, &filter)
+        .is_some()
+    {
+        return None;
+    }
+    let start_clearance = spatial.cast_ray(
+        origin + Vec3::Y * 1.2,
+        Dir3::Y,
+        0.9,
+        true,
+        &filter,
+    );
+    if start_clearance.is_some() {
+        return None;
+    }
+
+    Some(MantleIntent {
+        kind,
+        target,
+        top_height: ledge.top_height,
+        yaw_target,
+    })
 }
 
 pub fn classify_mantle(probe: &LedgeProbe) -> Option<MantleKind> {
