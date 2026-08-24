@@ -1,3 +1,5 @@
+//! ALS-Refactored equivalent ECS core: state model, motion mapping, curve infra, foot IK probes.
+
 pub mod aim;
 pub mod air;
 pub mod bones;

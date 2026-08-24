@@ -1,3 +1,5 @@
+//! Extension layer over bevy_animation_graph / bevy-tnua: curve assets and nodes, analytic IK, ragdoll config node, ALS float-curve import.
+
 pub mod als_curves;
 pub mod curve;
 pub mod distance_match;

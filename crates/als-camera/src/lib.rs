@@ -1,3 +1,5 @@
+//! ALSCamera equivalent: spring arm with collision shrink, shoulder offsets, tri-mode camera driven by view yaw/pitch.
+
 use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::prelude::*;
