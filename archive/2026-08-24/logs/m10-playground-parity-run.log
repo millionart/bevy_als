@@ -1,0 +1,84 @@
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\graph_router.rs:1:5
+  |
+1 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\start_stop.rs:4:5
+  |
+4 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\rotate_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\turn_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused variable: `color_arr`
+   --> crates\als-ext\src\playground.rs:577:9
+    |
+577 |     let color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_color_arr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `als-core` (lib) generated 4 warnings (run `cargo fix --lib -p als-core` to apply 4 suggestions)
+warning: `als-ext` (lib) generated 1 warning (run `cargo fix --lib -p als-ext` to apply 1 suggestion)
+warning: unused import: `std::collections::HashSet`
+ --> examples\playground_parity_gate.rs:1:5
+  |
+1 | use std::collections::HashSet;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `AnimatedSceneInstance`
+ --> examples\playground_parity_gate.rs:7:71
+  |
+7 | use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+  |                                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer`
+ --> examples\playground_parity_gate.rs:8:5
+  |
+8 | use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AlsViewYaw`
+  --> examples\playground_parity_gate.rs:16:41
+   |
+16 | use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
+   |                                         ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> examples\playground_parity_gate.rs:212:14
+    |
+212 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    |              ----^^^^
+    |              |
+    |              help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `bevy_als` (example "playground_parity_gate") generated 5 warnings (run `cargo fix --example "playground_parity_gate" -p bevy_als` to apply 5 suggestions)
+     Running `target\debug\examples\playground_parity_gate.exe`
+2026-08-24T12:35:11.832615Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T12:35:17.835462Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T12:35:19.606093Z  INFO playground_parity_gate: [PGPARITY] auto quit armed in 20.0s
+2026-08-24T12:35:19.732071Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T12:35:19.732327Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T12:35:19.745669Z  INFO bevy_winit::system: Creating new window playground_parity_gate (65v0)
+2026-08-24T12:35:20.113305Z  INFO als_ext::playground: PLAYGROUND setup done actors=219 static_bodies=194 moving_hooks=2 skipped=22 spawn_point=true landscape=1 text=22
+2026-08-24T12:35:20.189984Z  INFO playground_parity_gate: [PGPARITY] character at Vec3(-15.0, 0.91999996, -15.0)
+2026-08-24T12:35:20.626200Z  INFO als_core::motion: [MOTION] entity=929v0 locomotion sync Grounded -> Air
+2026-08-24T12:35:28.181189Z  INFO playground_parity_gate: [PGPARITY][VERDICT] landscape=true text=0(>=22) static=196(>=140) moving_count=62(>=2) moving_moved=true -> PASS
