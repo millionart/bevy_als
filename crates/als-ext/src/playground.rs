@@ -532,13 +532,76 @@ pub fn spawn_landscape(
         perceptual_roughness: 0.95,
         ..default()
     });
+
+    let size = 120.0_f32;
+    let segs = 64_u32;
+    let step = size / segs as f32;
+    let half = size * 0.5;
+
+    let mut positions = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
+    let mut uvs = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
+    for zi in 0..=segs {
+        for xi in 0..=segs {
+            let lx = xi as f32 * step - half;
+            let lz = zi as f32 * step - half;
+            let h = terrain_height(lx, lz);
+            positions.push([lx, h, lz]);
+            uvs.push([xi as f32 / segs as f32, zi as f32 / segs as f32]);
+        }
+    }
+    let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
+    let w = segs + 1;
+    for zi in 0..segs {
+        for xi in 0..segs {
+            let a = zi * w + xi;
+            let b = a + 1;
+            let c = (zi + 1) * w + xi;
+            let d = c + 1;
+            indices.extend_from_slice(&[a, c, b, b, c, d]);
+        }
+    }
+    let mut mesh = Mesh::new(
+        bevy::render::mesh::PrimitiveTopology::TriangleList,
+        bevy::asset::RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    let per_tri = 3usize;
+    let tri_count = indices.len() / 3;
+    let mut normals = Vec::with_capacity(positions.len());
+    for _ in 0..positions.len() {
+        normals.push([0.0, 1.0, 0.0]);
+    }
+    for ti in 0..tri_count {
+        let ia = indices[ti * per_tri] as usize;
+        let ib = indices[ti * per_tri + 1] as usize;
+        let ic = indices[ti * per_tri + 2] as usize;
+        let pa = Vec3::from_array(positions[ia]);
+        let pb = Vec3::from_array(positions[ib]);
+        let pc = Vec3::from_array(positions[ic]);
+        let n = (pb - pa).cross(pc - pa).normalize_or_zero();
+        for idx in [ia, ib, ic] {
+            let existing = Vec3::from_array(normals[idx]);
+            normals[idx] = (existing + n).normalize_or_zero().to_array();
+        }
+    }
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
+
     commands.spawn((
         Name::new("Landscape1"),
         Transform::from_translation(pos),
-        Mesh3d(meshes.add(Mesh::from(Cuboid::new(100.0, 0.2, 100.0)))),
+        Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(mat),
         PlaygroundLandscape,
     ));
+}
+
+pub fn terrain_height(x: f32, z: f32) -> f32 {
+    let h = 0.35 * ((x * 0.06).sin() * (z * 0.05).cos())
+        + 0.20 * ((x * 0.12 + z * 0.09).sin() + (z * 0.15).sin())
+        + 0.08 * ((x * 0.3).sin() * (z * 0.25).cos());
+    h.max(-0.5)
 }
 
 fn spawn_text_label(
