@@ -1,5 +1,6 @@
 #![enable(implicit_some)]
-(actors: [(class: "WorldSettings", name: "WorldSettings", location: (0.0, 0.0, 0.0), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (0.0, 0.0, 0.0), bounds_extent: (0.0, 0.0, 0.0)),
+(lighting: Some((sun_direction: Some((-0.5, -0.7071, 0.5)), sun_intensity: Some(30000.0), ambient_brightness: Some(400.0))),
+    actors: [(class: "WorldSettings", name: "WorldSettings", location: (0.0, 0.0, 0.0), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (0.0, 0.0, 0.0), bounds_extent: (0.0, 0.0, 0.0)),
     (class: "Brush", name: "Brush_0", location: (-2270.0, -1800.0, 20.0), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (-2120.0, -1700.0, 100.0), bounds_extent: (150.0, 100.0, 100.0)),
     (class: "RecastNavMesh", name: "RecastNavMesh-Default", location: (0.0, 0.0, 0.0), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (-1976.0, 1976.0, 10.0), bounds_extent: (988.0, 988.0, 0.0)),
     (class: "LandscapeGizmoActiveActor", name: "LandscapeGizmoActiveActor_1", location: (8.0, 2008.0, -80.88), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (8.0, 2008.0, -80.88), bounds_extent: (0.0, 0.0, 0.0)),

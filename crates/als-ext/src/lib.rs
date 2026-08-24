@@ -27,11 +27,12 @@ pub use overlay::{
     TORCH_ARM_RIGHT_BONES, TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES,
 };
 pub use playground::{
-    is_engine_basic, playground_setup_system, ue_extents_to_bevy, ue_point_to_bevy,
-    ue_quat_to_bevy, ue_rotator_to_bevy_quat, ue_yaw_to_bevy_quat, PlaygroundActor,
-    PlaygroundBoxCollider, PlaygroundComponent, PlaygroundManifest, PlaygroundManifestPath,
-    PlaygroundMovingObject, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
-    PlaygroundStatic,
+    is_engine_basic, playground_moving_object_system, playground_setup_system,
+    ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy, ue_rotator_to_bevy_quat,
+    ue_yaw_to_bevy_quat, PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent,
+    PlaygroundLandscape, PlaygroundManifest, PlaygroundManifestPath, PlaygroundMovingObject,
+    PlaygroundMovingOffset, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
+    PlaygroundStatic, PlaygroundTextLabel,
 };
 
 use bevy::prelude::*;

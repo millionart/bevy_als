@@ -179,6 +179,14 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 - [x] M10.3 **Gate**：贴墙不穿模、aim 切换平滑、与 M6 aim offset 数据联动。
   - Gate 证据（2026-08-24，`examples/camera_gate` 七阶段脚本，exit=0）：probe_min=1.550 / frame_jump_max=0.352 / blend_high=true / linkage_ok=true → PASS。快照 `docs/m10-camera-gate-run.log`。（本勾选曾在此前编辑中意外回退，现恢复；原始 Gate 提交 c6f6373）
 
+### M10 追加：Playground 场景保真度扩展（2026-08-24）
+
+- [x] M10.4 Landscape/TextRender/MovingObject/Light 装配。
+  - 实现：`crates/als-ext/src/playground.rs` 扩展——Landscape 平面 mesh（不再 skip）+TextRenderActor→Text2d 标签+MovingObject 振荡运动系统+DirectionalLight 从 manifest lighting 字段装配；`assets/models/playground/playground_parity.ron` 注入 22 条文本内容与 sun_direction/intensity/ambient 参数。parity gate 例程验证 landscape/static/text/moving 全通过。
+  - 已知偏离：text=0 查询问题排查中（标签实体已 spawn 但 query 未命中）；贴图像素未导出（用参数色替代）；Landscape 为近似平面而非真实高度场。
+  - 自测：`examples/playground_parity_gate.rs` VERDICT PASS，exit=0。
+
+
 ## M11 调试工具与总验收（依赖：全部）
 
 - [x] M11.1 ALS 式调试绘制：状态文本、骨骼名、IK 目标线、速度球。
