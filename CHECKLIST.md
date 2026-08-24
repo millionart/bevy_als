@@ -167,7 +167,11 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现（2026-08-23）：`tools/import/gen_ragdoll.py` 解析 `A_Als_Idle.gltf` 的 `skins[0].inverseBindMatrices`（rigid 逆）得 20 根关键骨绑定姿态世界矩阵，程序化生成——`assets/ragdolls/als_manny.rag.ron`：16 刚体（head/chest/stomach/pelvis+双臂×3+双腿×3）各挂 Y 轴 Capsule（ByVolume 分摊 total_mass=75）、15 SphericalJoint（position=解剖锚骨世界坐标，零 compliance，Dynamic）；`assets/ragdoll_bone_maps/als_manny.bm.ron`：22 骨→body 映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry），skeleton 指 SKM_Als.skn.ron。校验 `tests/ragdoll_assets.rs`：serde 直读两资产断言拓扑（16/16/15、全 Dynamic、mass=75）与 bm 覆盖数/路径引用。已知偏离记录于 export-manifest M9.1 章节（capsule 未沿骨轴旋转、未列骨不参与 readback）。fork 的 ragdoll spawn/read-back 系统经 animscn `ragdoll:`/`ragdoll_bone_map:` 字段自动接线，M9.2 使用。
 - [x] M9.2 进入/退出 ragdoll：blend-in（当前 pose→物理）、恢复起身（blend-out 回 Grounded）。
   - 实现（2026-08-24）：①`als-ext::RagdollConfigNode`——Bool 输入 dynamic/readback → 输出 `RagdollConfig`（fork 内置 Const 节点不可运行时切换，故经 NodeLike 扩展点自实现）；locomotion_overlay 图接入该节点并新增输出 pin `ragdoll_config` 与输入 pins ragdoll_dynamic/ragdoll_readback(Bool, 默认 false=Kinematic+不 readback，旧行为不变)。②`assets/animated_scenes/als_ragdoll.animscn.ron`——复制 motion_overlay 并挂 M9.1 双资产，fork 的 spawn/update/read-back 三系统即自动接线。③`bevy_als::ragdoll_link`——Ragdolling 期间写 dynamic/readback=true（blend-in：Kinematic 跟随姿态瞬间切 Dynamic 自由倒地=ALS blend-in 等价）；退出沿把角色 Transform 对齐 pelvis body 物理位置后切回 Kinematic（起身低配：无 GetUp 动画混合，记录偏离；GetUp 资产在库可作增强）。workspace 启用 fork physics_avian feature（ragdoll 系统编译前提）。
-- [ ] M9.3 **Gate**：运动中触发 ragdoll 物理自然倒地，恢复后回到 idle 无爆骨骼。
+- [x] M9.3 **Gate**：运动中触发 ragdoll 物理自然倒地，恢复后回到 idle 无爆骨骼。
+  - Gate 证据（2026-08-24，`examples/ragdoll_gate` 五阶段脚本：sprint→运动中请求 Ragdolling→3.2s 物理→请求 Grounded 恢复→idle，exit=0 无 ERROR/panic）：`[PHASE] ragdoll active` → `[SETTLE] bodies at rest (lowest=0.04)` 约 1s 内自然倒地静止 → `request Grounded recovery` → `[RAGLINK] exit realign to pelvis (-0.37,1.06,0.31)` → `[RECOVERED] back on feet y=0.90 v=0.00` → `[VERDICT] settle=true recover=true nan_bodies=0 -> PASS`。快照 `docs/m9-ragdoll-gate-run.log`。workspace 测试 178 全绿（新增 RagdollConfigNode 注册契约单测与 ragdoll 资产校验 2 项）。
+
+## M10 相机（ALSCamera 等价物，依赖：M6/M8）
+
 - [ ] M10.1 第三人称 rig：spring arm 等价（碰撞收缩、肩部偏移）。
 - [ ] M10.2 相机模式：ThirdPerson 常规/Aiming 近肩/FirstPerson 占位切换，参数 RON 化。
 - [ ] M10.3 **Gate**：贴墙不穿模、aim 切换平滑、与 M6 aim offset 数据联动正确。

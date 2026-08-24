@@ -1,0 +1,81 @@
+   Compiling avian3d v0.7.0
+   Compiling bevy_animation_graph_core v0.11.0 (https://github.com/millionart/bevy_animation_graph?branch=master#6d56b590)
+   Compiling bevy-tnua-avian3d v0.12.1 (https://github.com/millionart/bevy-tnua?branch=main#61e5dbdc)
+   Compiling als-core v0.1.0 (D:\Users\milli\Git\bevy_als\crates\als-core)
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\graph_router.rs:1:5
+  |
+1 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\start_stop.rs:4:5
+  |
+4 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\rotate_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\turn_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+   Compiling bevy_animation_graph_builtin_nodes v0.11.0 (https://github.com/millionart/bevy_animation_graph?branch=master#6d56b590)
+   Compiling bevy_animation_graph v0.11.0 (https://github.com/millionart/bevy_animation_graph?branch=master#6d56b590)
+   Compiling als-ext v0.1.0 (D:\Users\milli\Git\bevy_als\crates\als-ext)
+   Compiling bevy_als v0.1.0 (D:\Users\milli\Git\bevy_als)
+warning: `als-core` (lib) generated 4 warnings (run `cargo fix --lib -p als-core` to apply 4 suggestions)
+warning: unused variable: `labels`
+   --> examples\ragdoll_gate.rs:248:5
+    |
+248 |     labels: Query<&BodyLabel>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_labels`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> examples\ragdoll_gate.rs:385:14
+    |
+385 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    |              ----^^^^
+    |              |
+    |              help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `bevy_als` (example "ragdoll_gate") generated 2 warnings (run `cargo fix --example "ragdoll_gate" -p bevy_als` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 08s
+     Running `target\debug\examples\ragdoll_gate.exe`
+2026-08-24T00:19:25.133266Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T00:19:25.680024Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T00:19:26.487403Z  INFO ragdoll_gate: [RGATE] auto quit armed in 25.0s
+2026-08-24T00:19:26.585847Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T00:19:26.586036Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T00:19:26.591849Z  INFO bevy_winit::system: Creating new window ragdoll_gate (65v0)
+2026-08-24T00:19:26.699482Z  INFO ragdoll_gate: [RGATE] scripted demo armed
+2026-08-24T00:19:28.284195Z  INFO als_core::motion: [MOTION] entity=575v0 stand-up deferred: headroom blocked (ceiling at 0.00, need 0.90)
+2026-08-24T00:19:29.311056Z  INFO als_core::motion: [MOTION] entity=575v0 clearance regained: standing capsule restored
+2026-08-24T00:19:30.324539Z  INFO ragdoll_gate: [RGATE][STEP 1] sprint
+2026-08-24T00:19:31.955940Z  INFO ragdoll_gate: [RGATE][STEP 2] ragdoll (mid-run)
+2026-08-24T00:19:31.955977Z  INFO ragdoll_gate: [RGATE] request Ragdolling mid-run
+2026-08-24T00:19:31.956060Z  INFO ragdoll_gate: [RGATE][PHASE] ragdoll active -- physics takes over
+2026-08-24T00:19:31.956109Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.05 max_bvel=1.08
+2026-08-24T00:19:32.165975Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.05 max_bvel=1.02
+2026-08-24T00:19:32.390169Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.05 max_bvel=1.92
+2026-08-24T00:19:32.585517Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.04 max_bvel=0.99
+2026-08-24T00:19:32.807665Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.04 max_bvel=1.26
+2026-08-24T00:19:32.992156Z  WARN ragdoll_gate: [RGATE][PROBE] char_y=0.90 lowest=0.04 max_bvel=0.32
+2026-08-24T00:19:32.992209Z  INFO ragdoll_gate: [RGATE][SETTLE] bodies at rest (lowest=0.04) after falling from peak pelvis 0.00
+2026-08-24T00:19:34.917578Z  INFO ragdoll_gate: [RGATE][STEP 3] recover to grounded idle
+2026-08-24T00:19:34.917615Z  INFO ragdoll_gate: [RGATE] request Grounded recovery
+2026-08-24T00:19:34.917712Z  INFO ragdoll_gate: [RGATE][RECOVERED] back on feet y=0.90 v=0.00
+2026-08-24T00:19:34.917750Z  INFO ragdoll_gate: [RGATE][VERDICT] settle=true recover=true nan_bodies=0 -> PASS
+2026-08-24T00:19:34.918609Z  INFO bevy_als::ragdoll_link: [RAGLINK] exit realign to pelvis (-0.37,1.06,0.31)
