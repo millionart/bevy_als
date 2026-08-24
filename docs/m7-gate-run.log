@@ -1,26 +1,3 @@
-warning: unused import: `crate::character::AlsCharacter`
- --> crates\als-core\src\graph_router.rs:1:5
-  |
-1 | use crate::character::AlsCharacter;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `bevy::prelude::*`
- --> crates\als-core\src\rotate_in_place.rs:1:5
-  |
-1 | use bevy::prelude::*;
-  |     ^^^^^^^^^^^^^^^^
-
-warning: unused import: `bevy::prelude::*`
- --> crates\als-core\src\turn_in_place.rs:1:5
-  |
-1 | use bevy::prelude::*;
-  |     ^^^^^^^^^^^^^^^^
-
-warning: `als-core` (lib) generated 3 warnings (run `cargo fix --lib -p als-core` to apply 3 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.81s
-     Running `target\debug\examples\foot_ik_gate.exe`
 2026-08-23T18:11:16.736906Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
 2026-08-23T18:11:17.488322Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
 2026-08-23T18:11:18.605254Z  INFO foot_ik_gate: [M7GATE] auto quit armed in 25.0s

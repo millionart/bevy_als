@@ -1,9 +1,3 @@
-M6.5 Gate evidence -- examples/overlay_gate
-command : ALS_BOOT_AUTO_QUIT_SECS=40 cargo run --example overlay_gate
-date    : 2026-08-23
-exit    : 0 (demo complete at t=18.01, no ERROR/panic)
-phases  : idle->walk baseline->torch blend-in while running(w 0->1)->aim quadrants sweep(NE/SE/SW/NW, pitch -58..+64deg, rot=Aiming body tracks view)->aim release(torch held)->overlay blend-out idle(w 1->0)
----
 2026-08-23T12:01:46.267207Z [INFO] overlay_gate: [M6GATE] auto quit armed in 40.0s
 2026-08-23T12:01:52.273292Z [INFO] als_ext::playground: PLAYGROUND setup done actors=219 static_bodies=171 moving_hooks=2 skipped=45 spawn_point=true
 2026-08-23T12:01:52.323228Z [INFO] overlay_gate: [M6GATE] spawning character at (-15.00,0.92,-15.00)
