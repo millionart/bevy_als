@@ -31,7 +31,18 @@ ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓�
 
 ## 状态
 
-🚧 执行中：按 [CHECKLIST.md](CHECKLIST.md) 自 M0 起推进（当前进度见清单勾选）。
+**M0–M11 全部完成**（2026-08-24）：详见 [CHECKLIST.md](CHECKLIST.md)（逐项 Gate 证据）与 [docs/parity-report.md](docs/parity-report.md)（与 ALS-Refactored 差异对照）。
+
+## 快速上手
+
+```bash
+cargo run --example locomotion_gate   # M5 全流程：起跑/急停/原地转身/蹲起（ALS 数值）
+cargo run --example actions_gate      # M8 综合动作：冲刺前滚/助跑跳/停步距离匹配
+cargo run --example camera_gate       # M10 相机：贴墙收缩/aim 肩位切换/pitch 联动
+```
+
+- gate 例程读取 `ALS_BOOT_AUTO_QUIT_SECS=<秒>` 做脚本化自动退出；不带则手动交互。
+- 测试：`cargo test --workspace`。
 
 ## 许可
 

@@ -176,7 +176,8 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 实现（2026-08-24）：独立 `crates/als-camera`（对齐 ALSCamera 模块边界）——pivot=角色+pivot_height+旋转后肩偏移；沿 -Z 射线探测（排除角色与相机实体）按 hit 距离- skin 收缩臂长（spring_arm_length 纯函数）；朝向由 AlsViewYaw/AlsViewSmoothed 驱动（YXZ Euler），与 M6 look 链同源。
 - [x] M10.2 相机模式：ThirdPerson 常规/Aiming 近肩/FirstPerson 占位切换，参数 RON 化。
   - 实现（2026-08-24）：AlsCameraMode 三态由 RotationMode 自动映射（Aiming↔AimingShoulder）；aim_blend 以 aim_blend_speed 平滑插值肩偏移与臂长（blended_shoulder/blended_arm_length），FirstPerson 为占位（eye 高度、臂长 0.05、无 readback 切换）；参数资产 `assets/params/als_camera.camera.ron` 经 als-camera 自带 Ron loader（扩展名 .camera.ron 防与其它 ron 冲突）加载，Update 轮询 Loaded/Failed 并日志。workspace 新成员 crates/als-camera；根/各 crate description 依规则 8 补英文化。
-- [ ] M10.3 **Gate**：贴墙不穿模、aim 切换平滑、与 M6 aim offset 数据联动正确。
+- [x] M10.3 **Gate**：贴墙不穿模、aim 切换平滑、与 M6 aim offset 数据联动。
+  - Gate 证据（2026-08-24，`examples/camera_gate` 七阶段脚本，exit=0）：probe_min=1.550 / frame_jump_max=0.352 / blend_high=true / linkage_ok=true → PASS。快照 `docs/m10-camera-gate-run.log`。（本勾选曾在此前编辑中意外回退，现恢复；原始 Gate 提交 c6f6373）
 
 ## M11 调试工具与总验收（依赖：全部）
 
@@ -188,7 +189,8 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
   - 完成（2026-08-24）：`docs/parity-report.md`——架构级刻意差异 7 项（枚举组件/显式路由+图/分析 IK/曲线位移/ALS_float_curves 自研通道/CurveAsset/独立 camera crate）；行为级差异 10 项（TurnInPlace 图链未接、水平 foot lock 未做、Ragdoll 无 GetUp 混合、Mantle 免按键、FirstPerson 占位等，均注明等价方式与增强路径）；性能对照（release avg 1.286ms 达放宽线、原生 0.5ms 为优化项）；数值保真抽样表 10 行全部对齐。
 - [x] M11.4 清理：移除临时 example、统一命名、补齐 crate 文档注释。
   - 完成（2026-08-24）：删除被 gate 例程取代的 overlay_smoke.rs 与早期 motion_graph.rs（其余 *_gate/smoke 为证据复现件保留）；四个 crate lib.rs 补英文 //! 模块文档；命名沿用 `<模块>_gate.rs` 约定无冲突。
-- [ ] M11.5 **最终 Gate**：`cargo test --workspace` 全绿 + 全部模块 Gate 勾选 + parity-report 完成 + README 快速上手可复现。
+- [x] M11.5 **最终 Gate**：`cargo test --workspace` 全绿 + 全部模块 Gate 勾选 + parity-report 完成 + README 快速上手可复现。
+  - 验收记录（2026-08-24）：workspace 测试全绿（als-core 126 / als-ext 44+3+1+2 / bevy_als 3 等）；M0–M10 清单项与 Gate 全勾选；docs/parity-report.md 落地；README 补快速上手与完成态。隐私终检 git grep 规则模式无命中（规则文本自引用除外）。
 
 ---
 
