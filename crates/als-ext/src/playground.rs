@@ -12,7 +12,8 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PlaygroundManifestPath(self.manifest.clone()))
-            .add_systems(Startup, playground_setup_system);
+            .add_systems(Startup, playground_setup_system)
+            .add_systems(Update, playground_moving_object_system);
     }
 }
 
@@ -23,6 +24,16 @@ pub struct PlaygroundManifestPath(pub PathBuf);
 pub struct PlaygroundManifest {
     #[serde(default)]
     pub actors: Vec<PlaygroundActor>,
+    #[serde(default)]
+    pub lighting: Option<SceneLighting>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SceneLighting {
+    pub sun_direction: Option<[f32; 3]>,
+    pub sun_intensity: Option<f32>,
+    pub sun_color: Option<[f32; 4]>,
+    pub ambient_brightness: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +58,12 @@ pub struct PlaygroundActor {
     pub mesh_path: Option<String>,
     #[serde(default)]
     pub components: Vec<PlaygroundComponent>,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub text_color: Option<[f32; 4]>,
+    #[serde(default)]
+    pub text_world_size: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,8 +137,6 @@ const SKIP_CLASSES: &[&str] = &[
 
 fn is_skipped(class: &str) -> bool {
     SKIP_CLASSES.contains(&class)
-        || class.starts_with("TextRender")
-        || class.starts_with("Landscape")
 }
 
 pub fn ue_point_to_bevy(p_cm: Vec3) -> Vec3 {
@@ -305,6 +320,8 @@ pub fn playground_setup_system(
     let mut spawned_moving = 0usize;
     let mut skipped = 0usize;
     let mut spawn_point_found = false;
+    let mut spawned_landscape = 0usize;
+    let mut spawned_text = 0usize;
 
     for actor in &manifest.actors {
         if is_skipped(&actor.class) {
@@ -453,11 +470,127 @@ pub fn playground_setup_system(
         }
     }
 
+    if let Some(lighting) = &manifest.lighting {
+        spawn_sun_light(&mut commands, lighting);
+    }
+
+    for actor in &manifest.actors {
+        if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
+            spawn_landscape(&mut commands, &mut meshes, &mut materials, actor.location);
+            spawned_landscape += 1;
+            continue;
+        }
+        if actor.class.starts_with("TextRenderActor") || actor.class == "TextRenderActor" {
+            spawn_text_label(&mut commands, actor);
+            spawned_text += 1;
+            continue;
+        }
+    }
+
     info!(
-        "PLAYGROUND setup done actors={} static_bodies={spawned_static} moving_hooks={spawned_moving} skipped={skipped} spawn_point={spawn_point_found}",
+        "PLAYGROUND setup done actors={} static_bodies={spawned_static} moving_hooks={spawned_moving} skipped={skipped} spawn_point={spawn_point_found} landscape={spawned_landscape} text={spawned_text}",
         manifest.actors.len()
     );
 }
+
+#[derive(Component)]
+pub struct PlaygroundTextLabel;
+
+#[derive(Component)]
+pub struct PlaygroundLandscape;
+
+/// Oscillates a moving object between its spawn point and a target offset.
+pub fn playground_moving_object_system(
+    time: Res<Time>,
+    mut q: Query<(&mut Transform, &PlaygroundMovingOffset), With<PlaygroundMovingObject>>,
+) {
+    let t = time.elapsed_secs_f64() as f32;
+    for (mut tf, offset) in q.iter_mut() {
+        let phase = (t / offset.period_secs * std::f32::consts::PI).sin();
+        let disp = offset.axis * offset.distance_m * phase;
+        tf.translation = offset.base + disp;
+    }
+}
+
+#[derive(Component)]
+pub struct PlaygroundMovingOffset {
+    pub axis: Vec3,
+    pub distance_m: f32,
+    pub period_secs: f32,
+    pub base: Vec3,
+}
+
+pub fn spawn_landscape(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    location_ue: [f32; 3],
+) {
+    let pos = ue_point_to_bevy(Vec3::from(location_ue));
+    let mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.35, 0.45, 0.28),
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    commands.spawn((
+        Name::new("Landscape1"),
+        Transform::from_translation(pos),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(100.0, 0.2, 100.0)))),
+        MeshMaterial3d(mat),
+        PlaygroundLandscape,
+    ));
+}
+
+fn spawn_text_label(
+    commands: &mut Commands,
+    actor: &PlaygroundActor,
+) {
+    let text_str = actor.text.clone().unwrap_or_default();
+    if text_str.is_empty() {
+        return;
+    }
+    let pos = ue_point_to_bevy(Vec3::from(actor.location));
+    let color_arr = actor.text_color.unwrap_or([1.0, 1.0, 1.0, 1.0]);
+    let size = actor.text_world_size.unwrap_or(30.0) * CM_TO_M * 8.0;
+    commands.spawn((
+        Name::new(format!("Text:{}", actor.name)),
+        Text2d::new(text_str),
+        Transform::from_translation(pos).with_rotation(
+            ue_rotator_to_bevy_quat(
+                actor.rotation.as_ref().map(|r| r.pitch).unwrap_or(0.0),
+                actor.rotation_yaw,
+                actor.rotation.as_ref().map(|r| r.roll).unwrap_or(0.0),
+            ),
+        ),
+        TextFont { font_size: bevy::text::FontSize::Px(size.max(12.0)), ..default() },
+        TextColor(Color::srgba(color_arr[0], color_arr[1], color_arr[2], color_arr[3])),
+        PlaygroundTextLabel,
+    ));
+}
+
+fn spawn_sun_light(commands: &mut Commands, lighting: &SceneLighting) {
+    let dir = lighting
+        .sun_direction
+        .map(|v| Vec3::from(v).normalize_or_zero())
+        .unwrap_or(Vec3::new(-0.4, -0.8, 0.3).normalize_or_zero());
+    let intensity = lighting.sun_intensity.unwrap_or(80_000.0);
+    let color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
+    let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, dir);
+    commands.spawn((
+        Name::new("SunLight"),
+        DirectionalLight {
+            illuminance: intensity,
+            ..default()
+        },
+        Transform::default().with_rotation(rotation),
+    ));
+    let ambient = lighting.ambient_brightness.unwrap_or(400.0);
+    commands.insert_resource(GlobalAmbientLight {
+        brightness: ambient,
+        ..default()
+    });
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -568,8 +701,8 @@ mod tests {
 
     #[test]
     fn skip_classification() {
-        assert!(is_skipped("TextRenderActor"));
-        assert!(is_skipped("Landscape"));
+        assert!(!is_skipped("TextRenderActor"));
+        assert!(!is_skipped("Landscape"));
         assert!(is_skipped("LandscapeGizmoActiveActor"));
         assert!(!is_skipped("B_Als_StaticObject_C"));
         assert!(!is_skipped("StaticMeshActor"));
