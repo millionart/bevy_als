@@ -1,0 +1,61 @@
+== M8.10 root motion 重构链路验收  ==
+
+[1] validate_root_tracks.py
+  A_Als_Mantle_Low_* vertical rise in [0.3, 1.1] m
+  durations unchanged: 2.667 s / 1.5 s
+
+SUMMARY
+  A_Als_Mantle_High        duration=2.6667 horiz=0.6500 vert=2.0000
+  A_Als_Mantle_Low_Left    duration=1.5000 horiz=0.6500 vert=1.0000
+  A_Als_Mantle_Low_Right   duration=1.5000 horiz=0.6500 vert=1.0000
+  A_Als_Roll               duration=1.5000 horiz=2.7500 vert=0.0000
+
+VERDICT: PASS (all clips within stated bands)
+validator exit=0
+
+[2] cargo test --workspace
+
+test result: ok. 129 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+[3] roll_gate
+
+2026-08-24T04:02:44.010129Z  INFO roll_gate: [ROLLGATE][RESULT 1] dist=2.71 (clip root 2.75) align=+1.000 peak_v=3.29
+2026-08-24T04:02:46.806660Z  INFO roll_gate: [ROLLGATE][RESULT 2] dist=2.72 (clip root 2.75) align=+1.000 peak_v=3.29
+
+roll exit=0
+
+[4] mantle_gate
+
+2026-08-24T04:03:10.844798Z  INFO bevy_als::mantle_drive: [MANTLE] begin kind=LowLeft top_h=0.80 dist=0.66 offset=0.300 scale=1.600
+2026-08-24T04:03:10.860327Z  INFO mantle_gate: [MGATE][BEGIN 1] kind=LowLeft target_y=1.72
+2026-08-24T04:03:12.136690Z  INFO mantle_gate: [MGATE][SETTLE 1] y=1.72 loco=Grounded grounded_ok=true
+2026-08-24T04:03:15.601100Z  INFO bevy_als::mantle_drive: [MANTLE] begin kind=LowLeft top_h=1.25 dist=0.52 offset=0.000 scale=1.598
+2026-08-24T04:03:15.615428Z  INFO mantle_gate: [MGATE][BEGIN 2] kind=LowLeft target_y=2.17
+2026-08-24T04:03:17.215943Z  INFO mantle_gate: [MGATE][SETTLE 2] y=2.17 loco=Grounded grounded_ok=true
+2026-08-24T04:03:17.257626Z  INFO mantle_gate: [MGATE][VERDICT] both mantles landed on ledge top y=1.72/2.17 -> PASS
+
+mantle exit=0
+
+[5] actions_gate
+
+2026-08-24T04:03:28.322857Z  INFO actions_gate: [AGATE][STEP 1] sprint up (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T04:03:30.057777Z  INFO actions_gate: [AGATE][STEP 2] sprint roll (forward) (gait=Some(Sprinting) roll=true jump=false release=false)
+2026-08-24T04:03:31.596043Z  INFO actions_gate: [AGATE][ROLL done] dist=3.01 (clip root 2.75) align=+1.000
+2026-08-24T04:03:32.062756Z  INFO actions_gate: [AGATE][STEP 3] resume sprint (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T04:03:33.856715Z  INFO actions_gate: [AGATE][STEP 4] jump while sprinting (gait=Some(Sprinting) roll=false jump=true release=false)
+2026-08-24T04:03:33.985175Z  INFO actions_gate: [AGATE][JUMP] airborne at t=7.45
+2026-08-24T04:03:34.485193Z  INFO actions_gate: [AGATE][LAND] z=31.55 light=true ff=0.02
+2026-08-24T04:03:34.750186Z  INFO actions_gate: [AGATE][STEP 5] land + keep moving (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T04:03:35.106868Z  INFO actions_gate: [AGATE][STEP 6] release -> stop distance match (gait=None roll=false jump=false release=true)
+2026-08-24T04:03:35.389703Z  INFO actions_gate: [AGATE][VERDICT] roll(dist=3.01,align=+1.000)=true jump_light=true stop(slide=0.65,peak_w=1.00,rem_end=0.000)=true -> PASS
+
+actions exit=0

@@ -15,7 +15,9 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{roll_displacement_dir, AlsRollState, ROLL_DISTANCE_METERS};
+use als_core::roll::{roll_displacement_dir, AlsRollState};
+
+const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
@@ -108,6 +110,7 @@ struct RollWatch {
     start_xz: Option<Vec2>,
     expect_dir_yaw: f32,
     roll_index: usize,
+    peak_v: f32,
     results: [Option<(f32, f32, f32)>; 2],
     failed: bool,
 }
@@ -199,7 +202,7 @@ fn auto_demo(
     let s = &all[idx];
     let local = (t - s.t0) as f32;
     over.0.move_dir = s.move_dir;
-    over.0.roll_pressed = s.roll_pulse && local < 0.05;
+    over.0.roll_pressed = s.roll_pulse && local < 0.20;
     over.0.jump_pressed = false;
     over.0.jump_held = false;
     over.0.crouch_pressed = false;
@@ -214,6 +217,7 @@ fn roll_watcher(
     q: Query<
         (
             &Transform,
+            &LinearVelocity,
             &Stance,
             &LocomotionState,
             &AlsRollState,
@@ -222,7 +226,7 @@ fn roll_watcher(
     >,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((tf, _stance, _loco, roll)) = q.single() else {
+    let Ok((tf, vel, _stance, _loco, roll)) = q.single() else {
         return;
     };
     let xz = Vec2::new(tf.translation.x, tf.translation.z);
@@ -230,12 +234,16 @@ fn roll_watcher(
     if !watch.active_prev && roll.active {
         watch.start_xz = Some(xz);
         watch.expect_dir_yaw = roll.direction_yaw;
+        watch.peak_v = 0.0;
         info!(
             "[ROLLGATE][ROLL {}] started dir_yaw={:.2} expected_vec={:?}",
             watch.roll_index + 1,
             roll.direction_yaw,
             roll_displacement_dir(roll.direction_yaw)
         );
+    }
+    if roll.active {
+        watch.peak_v = watch.peak_v.max(Vec2::new(vel.x, vel.z).length());
     }
     if watch.active_prev && !roll.active {
         let Some(start) = watch.start_xz.take() else {
@@ -251,12 +259,12 @@ fn roll_watcher(
         } else {
             0.0
         };
-        let peak_v = estimate_peak_from_dist(dist);
+        let peak_v = watch.peak_v;
         info!(
-            "[ROLLGATE][RESULT {}] dist={dist:.2} (target {ROLL_DISTANCE_METERS}) align={align:+.3} est_peak={peak_v:.2}",
+            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2}",
             watch.roll_index + 1
         );
-        let ok_dist = (dist - ROLL_DISTANCE_METERS).abs() <= 0.45;
+        let ok_dist = (dist - ROLL_CLIP_DISTANCE).abs() <= 0.6;
         let ok_align = align >= 0.95;
         if !(ok_dist && ok_align) {
             watch.failed = true;
@@ -274,10 +282,6 @@ fn roll_watcher(
     if watch.failed {
         exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
     }
-}
-
-fn estimate_peak_from_dist(dist: f32) -> f32 {
-    dist / (1.5 * 0.5)
 }
 
 fn graph_router(

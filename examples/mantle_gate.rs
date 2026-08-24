@@ -86,7 +86,11 @@ struct MantleWatch {
     prev_active: bool,
     count: u32,
     kinds: [Option<MantleKind>; 2],
+    targets: [f32; 2],
     landings: [Option<f32>; 2],
+    grounded_seen: [bool; 2],
+    settle_timer: f32,
+    pending_slot: Option<usize>,
     failed: bool,
 }
 
@@ -240,39 +244,73 @@ fn mantle_watcher(
     watch.kinds[slot_now] = Some(m.kind);
 
     if !watch.prev_active && m.active && watch.count < 2 {
+        let slot = watch.count.min(1) as usize;
+        watch.targets[slot] = m.target.y;
         info!(
             "[MGATE][BEGIN {}] kind={:?} target_y={:.2}",
-            watch.count + 1,
+            slot + 1,
             m.kind,
             m.target.y
         );
     }
+    if let Some(slot) = watch.pending_slot {
+        watch.settle_timer -= time.delta_secs();
+        if loco == &LocomotionState::Grounded
+            && (tf.translation.y - watch.targets[slot]).abs() <= 0.30
+        {
+            watch.grounded_seen[slot] = true;
+        }
+        if watch.settle_timer <= 0.0 || watch.grounded_seen[slot] {
+            watch.landings[slot] = Some(tf.translation.y);
+            info!(
+                "[MGATE][SETTLE {}] y={:.2} loco={loco:?} grounded_ok={}",
+                slot + 1,
+                tf.translation.y,
+                watch.grounded_seen[slot]
+            );
+            watch.pending_slot = None;
+            watch.count += 1;
+        }
+        watch.prev_active = m.active;
+        return;
+    }
     if watch.prev_active && !m.active && watch.count < 2 {
-        let landed_y = tf.translation.y - 0.90 + 0.90;
         let slot = watch.count.min(1) as usize;
-        watch.landings[slot] = Some(tf.translation.y);
         info!(
-            "[MGATE][DONE {}] y_after={:.2} loco={loco:?} v={:.2}",
-            watch.count + 1,
-            tf.translation.y,
-            Vec2::new(vel.x, vel.z).length()
+            "[MGATE][DONE {}] raw_y={:.2}",
+            slot + 1,
+            tf.translation.y
         );
-        watch.count += 1;
-        let _ = landed_y;
+        watch.pending_slot = Some(slot);
+        watch.settle_timer = 1.0;
     }
     watch.prev_active = m.active;
 
     if watch.count == 2 && !watch.failed {
         watch.failed = false;
         for i in 0..2usize {
-            if watch.landings[i].is_none() {
-                error!("[MGATE][VERDICT] mantle {i} never completed");
-                watch.failed = true;
+            match watch.landings[i] {
+                None => {
+                    error!("[MGATE][VERDICT] mantle {i} never completed");
+                    watch.failed = true;
+                }
+                Some(y) => {
+                    let on_top = y >= watch.targets[i] - 0.30;
+                    if !(on_top && watch.grounded_seen[i]) {
+                        error!(
+                            "[MGATE][VERDICT] mantle {i} landing insufficient settle={:.2} target={:.2} grounded={}",
+                            y,
+                            watch.targets[i],
+                            watch.grounded_seen[i]
+                        );
+                        watch.failed = true;
+                    }
+                }
             }
         }
         if !watch.failed {
             info!(
-                "[MGATE][VERDICT] both mantles completed y={:.2}/{:.2} -> PASS",
+                "[MGATE][VERDICT] both mantles landed on ledge top y={:.2}/{:.2} -> PASS",
                 watch.landings[0].unwrap_or(f32::NAN),
                 watch.landings[1].unwrap_or(f32::NAN)
             );

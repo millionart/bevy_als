@@ -16,7 +16,9 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{roll_displacement_dir, AlsRollState, ROLL_DISTANCE_METERS};
+use als_core::roll::{roll_displacement_dir, AlsRollState};
+
+const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
@@ -220,9 +222,9 @@ fn auto_demo(
     let Some(idx) = (0..all.len()).rev().find(|i| t >= all[*i].t0) else {
         return;
     };
+    let s = &all[idx];
     if idx != driver.step {
         driver.step = idx;
-        let s = &all[idx];
         info!(
             "[AGATE][STEP {}] {} (gait={:?} roll={} jump={} release={})",
             idx, s.label, s.gait, s.pulse_roll, s.pulse_jump, s.release_input
@@ -230,18 +232,11 @@ fn auto_demo(
         if let Some(g) = s.gait {
             req.gait = Some(g);
         }
-        over.0.roll_pressed = s.pulse_roll && (t - s.t0) < 0.06;
-        over.0.jump_pressed = s.pulse_jump && (t - s.t0) < 0.06;
-        if s.pulse_jump {
-            over.0.jump_held = true;
-        }
-    } else {
-        let s = &all[idx];
-        over.0.roll_pressed = false;
-        over.0.jump_pressed = false;
-        over.0.jump_held = s.pulse_jump && (t - s.t0) < 0.35;
     }
-    let s = &all[idx];
+    let local = t - s.t0;
+    over.0.roll_pressed = s.pulse_roll && local < 0.25;
+    over.0.jump_pressed = s.pulse_jump && local < 0.25;
+    over.0.jump_held = s.pulse_jump && local < 0.45;
     let releasing = s.release_input;
     if !releasing {
         over.0.move_dir = s.move_dir;
@@ -319,7 +314,7 @@ fn actions_watcher(
             0.0
         };
         info!(
-            "[AGATE][ROLL done] dist={:.2} (target {ROLL_DISTANCE_METERS}) align={:+.3}",
+            "[AGATE][ROLL done] dist={:.2} (clip root {ROLL_CLIP_DISTANCE}) align={:+.3}",
             v.roll_dist, v.roll_align
         );
     }
@@ -363,7 +358,7 @@ fn actions_watcher(
             v.stop_slide = xz.distance(v.stop_start_xz);
             v.stop_remaining_end = stop.remaining;
             let ok_roll =
-                v.roll_dist >= 2.7 && v.roll_dist <= 4.0 && v.roll_align >= 0.95;
+                v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
             let ok_land = v.saw_air && v.landed_light;
             let ok_stop = v.stop_slide <= 1.5
                 && v.stop_peak_weight >= 0.95

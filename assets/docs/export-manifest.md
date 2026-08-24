@@ -253,3 +253,62 @@
 - `assets/ragdolls/als_manny.rag.ron`：16 刚体（head/chest/stomach/pelvis/双臂×3/双腿×3）各挂一个 Y 轴 Capsule collider（ByVolume 分配 total_mass=75）、15 个 SphericalJoint（position=解剖锚骨世界坐标，零 compliance）；全部 default_mode=Dynamic。
 - `assets/ragdoll_bone_maps/als_manny.bm.ron`：22 根骨骼→body 权重映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry，override_offset=false），skeleton 指向 `skeletons/SKM_Als.skn.ron`。
 - 已知偏离：capsule 未沿骨骼长轴旋转（Y 轴对齐世界），四肢斜段覆盖以半径补偿；未列骨骼（手指等）不参与 readback。
+
+## M8.6 Root Motion 回填（2026-08-24）— 编辑器 uasset 根骨骼原始轨道 → glTF root 通道
+
+- 依据：CHECKLIST M8.6（root motion 数据回填）。引擎 glTF 导出器把 root 节点平移轨道写零，
+  本条目从源编辑器 .uasset（非 Cooked，`<als-content>` 下 Plugins Content）直接解码根骨骼
+  RawTrack 并回写 4 个 clip 的 glTF/bin，使 mantle/roll 的位移驱动来自真实数据。
+- 工具：`tools/uasset_root_export/`（Python stdlib；复用 `tools/uasset_curve_export/uasset.py`
+  的包格式解析，未复制）
+  - `probe_animdatamodel.py` — AnimDataModel 导出枚举、标签属性布局打印、payload 十六进制转储、
+    序列化布局判定（保留的诊断工件，可独立运行）。
+  - `extract_root_track.py` — 库+CLI：定位 AnimDataModel 导出→解码 BoneAnimationTracks→
+    取 `Name=="root"` 轨道→按 FrameRate 构建均匀时间栅格→坐标变换→追加 bufferView/accessor
+    并重指 root 平移/旋转 sampler。
+  - `validate_root_tracks.py` — 仅读回写后 glTF：积分 root 平移得净位移/水平幅值/垂直增量/
+    单调性注记，对照 PASS 判据输出逐项结论与总判定（exit code 非 0 表示有越界项）。
+- 源对象路径与序列化事实（实测）：`UAnimDataModel.BoneAnimationTracks[root].InternalTrackData`
+  （导出类经 Import 解析：class_name=`Class`、object_name=`AnimDataModel`）。本引擎构建的
+  FPropertyTag 为 Name FName + TypeName 节点链{Name FName,InnerCount i32}（结构名节点以包名叶收尾，
+  如 `.RawAnimSequenceTrack./Script/Engine`）+ Size i32 + Flags u8。`InternalTrackData` tag
+  Flags=0x08（HasBinaryOrNativeSerialize），其 payload 为 FRawAnimSequenceTrack 原生序列化：
+  **BulkSerialize 布局** `[i12 ElementSize][i32 ArrayNum][ArrayNum*ElementSize 原始小端浮点]`×3
+  （PosKeys 12B、RotKeys 16B xyzw、ScaleKeys 12B）；证据偏移 A_Als_Mantle_High.uasset 0x33D9：
+  `0C 00 00 00 | 51 00 00 00 | <81*3f…>`。元素内其余字段（BoneTreeIndex IntProperty、
+  Name NameProperty）仍为标签属性；数组 payload 首端为 i32 轨道数（68），逐元素流以 None 收尾，
+  精确耗尽属性区间。元数据实测：FrameRate.Numerator=30（Denominator=1 因等于默认被省略）、
+  NumberOfFrames=80/45、NumberOfKeys=81/46，全部轨道键数一致。
+- 坐标/单位变换（经验拟合，非理论假定）：以 pelvis 轨道 UE 键值 vs 既有 glTF pelvis 通道数值
+  全量比对，在 48 个带符号轴置换中唯一胜出：**gltf = (ue.x, ue.z, ue.y) × 0.01**
+  （Y/Z 轴交换 + cm→m，无符号翻转），位置最大误差 7.6e-08 m；旋转经 R_g = M·R_ue·Mᵀ
+  共轭后再转四元数，误差 1.8e-07（pelvis rot[0] 逐分量吻合）。朝向核验：rest pose 下
+  foot_l→ball_l（跟→趾）Δ=(+0.008,-0.107,+0.164)，角色面向 glTF **+Z**；Roll 净位移恰为
+  glTF +Z 方向 2.75 m，即相对自身朝向向前滚动，符号正确。
+- 写入 schema：向既有 .bin 追加两段（4 字节对齐）：root translation VEC3×N f32 与
+  rotation VEC4×N f32；glTF 追加 2 个 bufferView + 2 个 accessor（含 min/max），并把
+  animation[0] 中 target=node(root) 的 translation/rotation 两通道 sampler.output 重指到新
+  accessor（共享 input 时间栅格不变，t_i=i/fps，与原 times 逐点一致 ≤1e-4 s）；其余内容
+  （节点/蒙皮/mesh/材质/ALS_float_curves 扩展）保持不变，JSON 以原有制表符缩进+CRLF 重排
+  （空跑下与原文件字节级 round-trip 一致）。root RotKeys 全为单位四元数（各 clip 同），照常写入。
+- 回填范围与实测统计（validate_root_tracks 输出，2026-08-24）：
+
+| clip | keys | 时长(s) | 净位移 glTF(x,y,z) m | 水平(m) | 垂直(m) |
+|---|---|---|---|---|---|
+| A_Als_Mantle_High | 81 | 2.6667 | (+0.0000, +2.0000, +0.6500) | 0.6500 | 2.0000 |
+| A_Als_Mantle_Low_Left | 46 | 1.5000 | (+0.0000, +1.0000, +0.6500) | 0.6500 | 1.0000 |
+| A_Als_Mantle_Low_Right | 46 | 1.5000 | (+0.0000, +1.0000, +0.6500) | 0.6500 | 1.0000 |
+| A_Als_Roll | 46 | 1.5000 | (+0.0000, +0.0000, +2.7500) | 2.7500 | 0.0000 |
+
+  判据核对：Roll 水平 ∈[2.0,4.0] PASS；Low 两支垂直 ∈[0.3,1.1] PASS；时长 2.667/1.5 不变 PASS；
+  Mantle High 垂直实测 **2.0000 m**——源轨道终点恰为 UE Z=+200 cm（作者设定的 2 m 台面高度，
+  Low 支同理精确 +100 cm），超出任务书暂定带宽 [1.0,1.8]，属判据标定偏差而非提取误差；
+  建议后续将 High 带修订为 [1.8,2.2]。垂直全程单调无回落（y_descents=0），时间栅格严格均匀
+  （dt=1/30 s）。
+- CLI 用法（路径一律参数注入，禁入仓库）：
+
+```
+python tools/uasset_root_export/probe_animdatamodel.py --uasset <als-content>/ALS/Animations/<...>.uasset
+python tools/uasset_root_export/extract_root_track.py --als-content <als-content> --repo-root <repo-root> [--apply]
+python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
+```

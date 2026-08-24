@@ -3,14 +3,26 @@ use bevy::prelude::*;
 use crate::input::AlsInputCommand;
 use crate::state::{LocomotionState, Stance};
 
-pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.0;
+pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.25;
 pub const MANTLE_MAX_LEDGE_HEIGHT: f32 = 1.6;
 pub const MANTLE_MIN_LEDGE_HEIGHT: f32 = 0.45;
 pub const MANTLE_PROBE_REACH: f32 = 0.7;
 pub const MANTLE_HIGH_DURATION: f32 = 2.667;
 pub const MANTLE_LOW_DURATION: f32 = 1.5;
+pub const MANTLE_SLOPE_ANGLE_COS: f32 = 0.819;
+pub const MANTLE_TARGET_SPEED_THRESHOLD: f32 = 0.1;
+pub const MANTLE_HEADROOM_CLEARANCE: f32 = 1.85;
 const WEIGHT_IN_SECS: f32 = 0.15;
 const WEIGHT_OUT_SECS: f32 = 0.25;
+
+pub const MANTLE_WARP_SECS: f32 = 0.3;
+pub const MANTLE_SETTLE_SECS: f32 = 0.35;
+pub const MANTLE_SCALE_MIN: f32 = 0.35;
+pub const MANTLE_SCALE_MAX: f32 = 1.6;
+pub const MANTLE_START_OFFSET_REF_HEIGHT: f32 = 0.5;
+pub const MANTLE_START_OFFSET_MAX_SECS: f32 = 0.5;
+pub const HIGH_CLIP_TRAVEL: Vec3 = Vec3::new(0.0, 2.0, -0.65);
+pub const LOW_CLIP_TRAVEL: Vec3 = Vec3::new(0.0, 1.0, -0.65);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MantleKind {
@@ -25,6 +37,13 @@ impl MantleKind {
         match self {
             MantleKind::High => MANTLE_HIGH_DURATION,
             MantleKind::LowLeft | MantleKind::LowRight => MANTLE_LOW_DURATION,
+        }
+    }
+
+    pub fn clip_travel(self) -> Vec3 {
+        match self {
+            MantleKind::High => HIGH_CLIP_TRAVEL,
+            MantleKind::LowLeft | MantleKind::LowRight => LOW_CLIP_TRAVEL,
         }
     }
 }
@@ -52,27 +71,22 @@ pub fn classify_mantle(probe: &LedgeProbe) -> Option<MantleKind> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MantleMotion {
-    pub forward_frac: f32,
-    pub up_frac: f32,
+pub fn start_offset_for_height(top_height: f32) -> f32 {
+    let norm = ((top_height - MANTLE_START_OFFSET_REF_HEIGHT)
+        / (MANTLE_HIGH_MIN_HEIGHT - MANTLE_START_OFFSET_REF_HEIGHT))
+        .clamp(0.0, 1.0);
+    MANTLE_START_OFFSET_MAX_SECS * (1.0 - norm)
 }
 
-pub fn mantle_motion_at(time_norm: f32) -> MantleMotion {
-    let t = time_norm.clamp(0.0, 1.0);
-    let up = match t {
-        x if x < 0.5 => smoothstep(x / 0.5),
-        _ => 1.0 - 0.25 * smoothstep((t - 0.5) / 0.5),
-    };
-    let fwd = match t {
-        x if x < 0.35 => 0.0,
-        x if x < 0.85 => smoothstep((x - 0.35) / 0.5),
-        _ => 1.0,
-    };
-    MantleMotion {
-        forward_frac: fwd,
-        up_frac: up.clamp(0.0, 1.0),
+pub fn warp_envelope(clip_time: f32) -> f32 {
+    smoothstep((clip_time / MANTLE_WARP_SECS).clamp(0.0, 1.0))
+}
+
+pub fn fit_translation_scale(required_length: f32, travel_length: f32) -> f32 {
+    if travel_length < 1e-4 {
+        return 1.0;
     }
+    (required_length / travel_length).clamp(MANTLE_SCALE_MIN, MANTLE_SCALE_MAX)
 }
 
 fn smoothstep(x: f32) -> f32 {
@@ -104,6 +118,14 @@ pub struct AlsMantleState {
     pub start: Vec3,
     pub target: Vec3,
     pub cooldown: f32,
+    pub start_offset: f32,
+    pub yaw_start: f32,
+    pub yaw_target: f32,
+    pub scale: f32,
+    pub q_total: Vec3,
+    pub root_travel: Vec3,
+    pub prev_pos: Vec3,
+    pub settle: f32,
 }
 
 impl Default for AlsMantleState {
@@ -116,18 +138,59 @@ impl Default for AlsMantleState {
             start: Vec3::ZERO,
             target: Vec3::ZERO,
             cooldown: 0.0,
+            start_offset: 0.0,
+            yaw_start: 0.0,
+            yaw_target: 0.0,
+            scale: 1.0,
+            q_total: Vec3::ZERO,
+            root_travel: Vec3::ZERO,
+            prev_pos: Vec3::ZERO,
+            settle: 0.0,
         }
     }
 }
 
 impl AlsMantleState {
-    pub fn begin(&mut self, kind: MantleKind, start: Vec3, target: Vec3) {
+    pub fn begin(
+        &mut self,
+        kind: MantleKind,
+        start: Vec3,
+        target: Vec3,
+        top_height: f32,
+        yaw_start: f32,
+        yaw_target: f32,
+    ) {
+        let duration = kind.duration();
+        let start_offset = start_offset_for_height(top_height);
+        let remaining_frac = ((duration - start_offset) / duration).max(1e-3);
+        let q_total = kind.clip_travel() * remaining_frac;
+        let scale = fit_translation_scale((target - start).length(), q_total.length());
         self.active = true;
         self.kind = kind;
-        self.duration = kind.duration();
+        self.duration = duration;
         self.time = 0.0;
         self.start = start;
         self.target = target;
+        self.start_offset = start_offset;
+        self.yaw_start = yaw_start;
+        self.yaw_target = yaw_target;
+        self.scale = scale;
+        self.q_total = q_total;
+        self.root_travel = Vec3::ZERO;
+        self.prev_pos = start;
+    }
+
+    pub fn clip_time(&self) -> f32 {
+        (self.time + self.start_offset).min(self.duration)
+    }
+
+    pub fn action_end(&self) -> f32 {
+        self.duration - self.start_offset
+    }
+
+    fn reset_motion(&mut self) {
+        self.root_travel = Vec3::ZERO;
+        self.prev_pos = Vec3::ZERO;
     }
 
     pub fn tick(&mut self, cmd: &AlsInputCommand, loco: &LocomotionState, stance: &Stance, dt: f32) {
@@ -142,13 +205,16 @@ impl AlsMantleState {
             self.active = false;
             self.time = 0.0;
             self.cooldown = 0.4;
+            self.reset_motion();
             return;
         }
         self.time += dt;
-        if self.time >= self.duration {
+        if self.time >= self.action_end() {
             self.active = false;
             self.time = 0.0;
             self.cooldown = 0.3;
+            self.settle = MANTLE_SETTLE_SECS;
+            self.reset_motion();
         }
     }
 }
@@ -169,6 +235,16 @@ mod tests {
     fn height_bands_select_high_low_or_reject() {
         assert_eq!(classify_mantle(&probe(1.3, 0.5, 1.0)), Some(MantleKind::High));
         assert_eq!(
+            classify_mantle(&probe(1.25, 0.5, 1.0)),
+            Some(MantleKind::High),
+            "high threshold inclusive at 125cm"
+        );
+        assert_eq!(
+            classify_mantle(&probe(1.24, 0.5, 0.4)),
+            Some(MantleKind::LowRight),
+            "below threshold falls to low band"
+        );
+        assert_eq!(
             classify_mantle(&probe(0.8, 0.5, 0.4)),
             Some(MantleKind::LowRight)
         );
@@ -182,14 +258,37 @@ mod tests {
     }
 
     #[test]
-    fn motion_profile_rises_first_then_moves_forward() {
-        let early = mantle_motion_at(0.25);
-        assert!(early.up_frac > 0.4 && early.forward_frac < 0.05);
-        let mid = mantle_motion_at(0.6);
-        assert!(mid.up_frac > 0.85 && mid.forward_frac > 0.3);
-        let end = mantle_motion_at(1.0);
-        assert!((end.up_frac - 0.75).abs() < 1e-3);
-        assert!((end.forward_frac - 1.0).abs() < 1e-3);
+    fn slope_cos_threshold_matches_35_deg() {
+        let cos35 = (35.0f32.to_radians()).cos();
+        assert!((MANTLE_SLOPE_ANGLE_COS - cos35).abs() < 1e-3);
+        assert!(MANTLE_TARGET_SPEED_THRESHOLD > 0.0);
+        assert!(MANTLE_HEADROOM_CLEARANCE > 1.7);
+    }
+
+    #[test]
+    fn start_offset_skips_deeper_for_lower_ledges() {
+        assert!((start_offset_for_height(0.45) - 0.5).abs() < 1e-5);
+        assert!(start_offset_for_height(MANTLE_HIGH_MIN_HEIGHT).abs() < 1e-5);
+        assert!(start_offset_for_height(MANTLE_MAX_LEDGE_HEIGHT).abs() < 1e-5);
+        let mid = start_offset_for_height(0.85);
+        assert!(mid > 0.2 && mid < 0.3, "mid ledge offset {mid}");
+    }
+
+    #[test]
+    fn warp_envelope_saturates_within_window() {
+        assert!(warp_envelope(0.0) <= 1e-5);
+        assert!(warp_envelope(0.15) > 0.4 && warp_envelope(0.15) < 0.7);
+        assert!((warp_envelope(0.3) - 1.0).abs() < 1e-5);
+        assert!((warp_envelope(2.0) - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn translation_scale_fits_and_clamps() {
+        let s = fit_translation_scale(1.25, 2.2);
+        assert!((s - 1.25 / 2.2).abs() < 1e-5);
+        assert!((fit_translation_scale(9.0, 1.0) - MANTLE_SCALE_MAX).abs() < 1e-5);
+        assert!((fit_translation_scale(0.05, 1.0) - MANTLE_SCALE_MIN).abs() < 1e-5);
+        assert!((fit_translation_scale(1.0, 0.0) - 1.0).abs() < 1e-5);
     }
 
     #[test]
@@ -202,10 +301,11 @@ mod tests {
     #[test]
     fn state_times_out_and_sets_cooldown() {
         let mut s = AlsMantleState::default();
-        s.begin(MantleKind::LowLeft, Vec3::ZERO, Vec3::ONE);
+        s.begin(MantleKind::LowLeft, Vec3::ZERO, Vec3::ONE, 0.8, 0.0, 0.0);
         assert!(s.active);
         let cmd = AlsInputCommand::default();
-        let iters = (MANTLE_LOW_DURATION / (1.0 / 60.0)) as usize + 2;
+        let end = s.action_end();
+        let iters = (end / (1.0 / 60.0)) as usize + 2;
         for _ in 0..iters {
             s.tick(
                 &cmd,
@@ -216,5 +316,6 @@ mod tests {
         }
         assert!(!s.active);
         assert!(s.cooldown > 0.0);
+        assert!(s.clip_time() <= MANTLE_LOW_DURATION);
     }
 }

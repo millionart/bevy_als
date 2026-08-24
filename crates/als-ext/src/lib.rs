@@ -9,6 +9,8 @@ pub mod nodes;
 pub mod overlay;
 pub mod ragdoll_config_node;
 pub mod playground;
+pub mod root_motion_defaults;
+pub mod time_position;
 
 pub use als_curves::{
     parse_curves, AlsAnimCurves, AlsCurvesHandler, AlsCurvesParseError, AlsExtrapolation,
@@ -34,6 +36,8 @@ pub use playground::{
     PlaygroundMovingOffset, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
     PlaygroundStatic, PlaygroundTextLabel,
 };
+pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
+pub use time_position::{resolve_position, TimePositionNode};
 
 use bevy::prelude::*;
 use bevy_animation_graph::builtin_nodes::global_input::GlobalInput;
@@ -49,11 +53,14 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
             .register_type::<DistanceMatchNode>()
+            .register_type::<DistanceMatchNode>()
             .register_type::<RagdollConfigNode>()
+            .register_type::<TimePositionNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()
             .register_type::<DataValue>();
         AlsCurvesHandler::register(app);
+        app.add_plugins(root_motion_defaults::RootMotionDefaultsPlugin);
     }
 }

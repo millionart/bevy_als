@@ -2239,6 +2239,40 @@
 			"type": "VEC4",
 			"componentType": 5121,
 			"normalized": true
+		},
+		{
+			"bufferView": 344,
+			"componentType": 5126,
+			"count": 81,
+			"type": "VEC3",
+			"min": [
+				0.0,
+				0.0,
+				0.0
+			],
+			"max": [
+				0.0,
+				2.0,
+				0.65
+			]
+		},
+		{
+			"bufferView": 345,
+			"componentType": 5126,
+			"count": 81,
+			"type": "VEC4",
+			"min": [
+				0.0,
+				0.0,
+				0.0,
+				1.0
+			],
+			"max": [
+				0.0,
+				0.0,
+				0.0,
+				1.0
+			]
 		}
 	],
 	"animations": [
@@ -3908,11 +3942,11 @@
 			"samplers": [
 				{
 					"input": 1,
-					"output": 2
+					"output": 344
 				},
 				{
 					"input": 1,
-					"output": 3
+					"output": 345
 				},
 				{
 					"input": 1,
@@ -4925,7 +4959,7 @@
 	"buffers": [
 		{
 			"uri": "A_Als_Mantle_High.bin",
-			"byteLength": 935668
+			"byteLength": 937936
 		}
 	],
 	"bufferViews": [
@@ -6752,6 +6786,16 @@
 			"byteLength": 7352,
 			"byteOffset": 928316,
 			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteOffset": 935668,
+			"byteLength": 972
+		},
+		{
+			"buffer": 0,
+			"byteOffset": 936640,
+			"byteLength": 1296
 		}
 	],
 	"materials": [

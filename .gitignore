@@ -19,7 +19,6 @@ Thumbs.db
 # 日志与临时
 *.log
 !docs/m*-gate-run.log
-!docs/m11-perf-run.log
 /tmp/
 
 # 隐私环境信息（本地路径、端口等）
@@ -30,6 +29,4 @@ docs/env.md
 
 # 本地环境配置（真实路径，隐私），模板见 tools/env.example.json
 tools/env.local.json
-
-# Python
-__pycache__/
+!docs/m8-root-motion-acceptance-run.log
