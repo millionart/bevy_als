@@ -99,11 +99,11 @@ struct Step {
 fn steps() -> [Step; 7] {
     [
         Step { t0: 0.5, dur: 1.2, label: "idle", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
-        Step { t0: 1.7, dur: 2.6, label: "run toward wall (probe shrink)", move_dir: Vec2::NEG_Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
+        Step { t0: 1.7, dur: 2.6, label: "run toward wall (probe shrink)", move_dir: Vec2::Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
         Step { t0: 4.3, dur: 1.8, label: "aim on (blend to shoulder)", move_dir: Vec2::ZERO, gait: None, aiming: true, sweep_pitch: false },
         Step { t0: 6.1, dur: 1.6, label: "pitch sweep while aiming", move_dir: Vec2::ZERO, gait: None, aiming: true, sweep_pitch: true },
         Step { t0: 7.7, dur: 1.8, label: "aim off (blend back)", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
-        Step { t0: 9.5, dur: 1.5, label: "run again", move_dir: Vec2::NEG_Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
+        Step { t0: 9.5, dur: 1.5, label: "run again", move_dir: Vec2::Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
         Step { t0: 11.0, dur: 1.2, label: "settle", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
     ]
 }
@@ -148,7 +148,7 @@ fn spawn_character_once(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(8.0, 4.0, 0.4),
-        Transform::from_xyz(0.0, 1.85, 9.0),
+        Transform::from_xyz(0.0, 1.85, -9.0),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(8.0, 4.0, 0.4)))),
         MeshMaterial3d(wall_mat),
     ));
@@ -371,7 +371,7 @@ fn cam_watcher(
 
     let pivot_y = char_tf.translation.y + 0.65;
     let clearance = (cam_tf.translation.z - (-8.8f32)).abs().min(cam_tf.translation.y);
-    let facing_wall = char_tf.translation.z > 7.0;
+    let facing_wall = char_tf.translation.z < -7.0;
     if facing_wall {
         let cand = clearance.max(0.0);
         watch.min_clearance = Some(watch.min_clearance.map_or(cand, |m| m.min(cand)));

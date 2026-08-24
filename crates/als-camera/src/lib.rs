@@ -207,12 +207,12 @@ fn camera_rig_system(
     let (pivot, back_dir, max_len) = match rig.mode {
         AlsCameraMode::FirstPersonPlaceholder => {
             let eye = char_pos + Vec3::Y * p.first_person_eye_height;
-            (eye, rot * Vec3::NEG_Z, 0.05)
+            (eye, rot * Vec3::Z, 0.05)
         }
         _ => {
             let shoulder = blended_shoulder(rig.aim_blend, p);
             let pivot = char_pos + Vec3::Y * p.pivot_height + rot * shoulder;
-            (pivot, rot * Vec3::NEG_Z, blended_arm_length(rig.aim_blend, p))
+            (pivot, rot * Vec3::Z, blended_arm_length(rig.aim_blend, p))
         }
     };
 

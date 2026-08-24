@@ -1,7 +1,9 @@
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -22,6 +24,7 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{clamp_pitch, AlsViewPitch};
+use als_ext::playground::{terrain_height, PlaygroundLandscape};
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
@@ -86,9 +89,11 @@ fn main() {
         (
             spawn_character_once,
             playground_physics_bridge,
+            landscape_collider_bridge,
             graph_router,
             look_pitch_integrator,
             auto_quit,
+            screenshot_runner,
         ),
     );
 
@@ -101,6 +106,14 @@ struct SpawnOnce(bool);
 #[derive(Resource)]
 struct AutoQuit(Instant);
 
+#[derive(Resource)]
+struct ShotPlan {
+    at: Instant,
+    path: PathBuf,
+    taken: bool,
+    done_at: Option<Instant>,
+}
+
 fn arm_auto_quit(mut commands: Commands) {
     let Ok(secs) = std::env::var("ALS_BOOT_AUTO_QUIT_SECS") else {
         return;
@@ -110,6 +123,20 @@ fn arm_auto_quit(mut commands: Commands) {
     };
     commands.insert_resource(AutoQuit(Instant::now() + Duration::from_secs_f64(secs)));
     info!("[MANUAL] auto quit in {secs}s");
+
+    if let Ok(path) = std::env::var("ALS_SHOT_PATH") {
+        let after = std::env::var("ALS_SHOT_AFTER_SECS")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(4.0);
+        commands.insert_resource(ShotPlan {
+            at: Instant::now() + Duration::from_secs_f64(after),
+            path: PathBuf::from(&path),
+            taken: false,
+            done_at: None,
+        });
+        info!("[MANUAL] screenshot scheduled +{after}s -> {path}");
+    }
 }
 
 fn auto_quit(timer: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
@@ -119,6 +146,79 @@ fn auto_quit(timer: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
     if Instant::now() >= t.0 {
         info!("[MANUAL] auto quit reached");
         exit.write(AppExit::Success);
+    }
+}
+
+fn screenshot_runner(
+    mut plan: Option<ResMut<ShotPlan>>,
+    mut commands: Commands,
+    cameras: Query<Entity, With<Camera3d>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let Some(mut plan) = plan else {
+        return;
+    };
+    if !plan.taken && Instant::now() >= plan.at {
+        let Ok(cam) = cameras.single() else {
+            return;
+        };
+        let path = plan.path.clone();
+        commands.entity(cam).insert(Screenshot::primary_window());
+        commands
+            .entity(cam)
+            .observe(save_to_disk(path.clone()));
+        info!("[MANUAL] screenshot requested -> {}", path.display());
+        plan.taken = true;
+        plan.done_at = Some(Instant::now() + Duration::from_millis(1500));
+    }
+    if let Some(done) = plan.done_at
+        && Instant::now() >= done
+    {
+        info!("[MANUAL] screenshot flow done, exiting");
+        exit.write(AppExit::Success);
+    }
+}
+
+#[derive(Component)]
+struct LandscapeColliderBuilt;
+
+fn landscape_collider_bridge(
+    mut commands: Commands,
+    landscapes: Query<
+        Entity,
+        (
+            Added<PlaygroundLandscape>,
+            Without<LandscapeColliderBuilt>,
+        ),
+    >,
+) {
+    for entity in &landscapes {
+        let size = 120.0_f32;
+        let segs = 64_u32;
+        let step = size / segs as f32;
+        let half = size * 0.5;
+        let mut verts = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
+        for zi in 0..=segs {
+            for xi in 0..=segs {
+                let lx = xi as f32 * step - half;
+                let lz = zi as f32 * step - half;
+                verts.push(Vec3::new(lx, terrain_height(lx, lz), lz));
+            }
+        }
+        let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
+        let w = segs + 1;
+        for zi in 0..segs {
+            for xi in 0..segs {
+                let a = zi * w + xi;
+                indices.push([a, a + w, a + 1]);
+        indices.push([a + 1, a + w, a + w + 1]);
+            }
+        }
+        commands.entity(entity).insert((
+            Collider::trimesh(verts, indices),
+            LandscapeColliderBuilt,
+        ));
+        info!("[MANUAL] landscape trimesh collider built");
     }
 }
 
@@ -136,8 +236,6 @@ fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
     spawn_point: Option<Res<PlaygroundSpawnPoint>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
@@ -151,15 +249,6 @@ fn spawn_character_once(
         "[MANUAL] character at ({:.2},{:.2},{:.2})",
         point.position.x, point.position.y, point.position.z
     );
-
-    let ground_mat = materials.add(Color::srgb(0.35, 0.45, 0.28));
-    commands.spawn((
-        RigidBody::Static,
-        Collider::cuboid(120.0, 40.0, 120.0),
-        Transform::from_xyz(0.0, -20.1, 0.0),
-        Mesh3d(meshes.add(Mesh::from(Cuboid::new(120.0, 40.0, 120.0)))),
-        MeshMaterial3d(ground_mat),
-    ));
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
@@ -178,7 +267,8 @@ fn spawn_character_once(
             AnimatedSceneHandle::new(
                 assets.load("animated_scenes/als_ragdoll.animscn.ron"),
             ),
-            Transform::from_xyz(0.0, -0.90, 0.0),
+            Transform::from_xyz(0.0, -0.92, 0.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
         ))
         .id();
     commands.entity(character).add_child(avatar);

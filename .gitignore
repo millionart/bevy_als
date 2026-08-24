@@ -30,3 +30,4 @@ docs/env.md
 
 # 本地环境配置（真实路径，隐私），模板见 tools/env.example.json
 tools/env.local.json
+docs/*.png
