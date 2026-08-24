@@ -19,6 +19,7 @@ Thumbs.db
 # 日志与临时
 *.log
 !docs/m*-gate-run.log
+!docs/m11-perf-run.log
 /tmp/
 
 # 隐私环境信息（本地路径、端口等）
