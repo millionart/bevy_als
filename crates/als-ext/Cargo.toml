@@ -1,6 +1,6 @@
 [package]
 name = "als-ext"
-description = "bevy_animation_graph / bevy-tnua 基座插件扩展层（curve 节点、分析式 IK 等）"
+description = "Extension layer over bevy_animation_graph / bevy-tnua (curve nodes, analytic IK, ragdoll config)"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

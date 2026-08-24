@@ -1,6 +1,6 @@
 [package]
 name = "als-core"
-description = "ALS-Refactored 等价的 ECS 核心状态模型（M1+）"
+description = "ALS-Refactored equivalent ECS core state model (M1+)"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
