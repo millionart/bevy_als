@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
@@ -16,8 +18,8 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::{
-    AlsExtPlugin, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint,
-    PlaygroundTextLabel,
+    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundMovingObject, PlaygroundPlugin,
+    PlaygroundSpawnPoint, PlaygroundTextLabel,
 };
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
 
@@ -49,14 +51,14 @@ fn main() {
         brightness: 400.0,
         ..default()
     })
-    .add_systems(Startup, spawn_sun)
+    .add_systems(Startup, spawn_sun_and_camera)
     .add_systems(
         Update,
         (
             spawn_character_once,
+            playground_physics_bridge,
             camera_follow,
             graph_router,
-            report_moving,
         ),
     );
 
@@ -66,7 +68,7 @@ fn main() {
 #[derive(Resource, Default)]
 struct SpawnOnce(bool);
 
-fn spawn_sun(mut commands: Commands) {
+fn spawn_sun_and_camera(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 30_000.0,
@@ -80,6 +82,8 @@ fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
     spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
@@ -91,17 +95,31 @@ fn spawn_character_once(
     let point = *spawn_point.unwrap();
     info!(
         "[MANUAL] character at ({:.2},{:.2},{:.2})",
-        point.position.x,
-        point.position.y,
-        point.position.z
+        point.position.x, point.position.y, point.position.z
     );
+
+    // Landscape collider
+    let ground_mat = materials.add(Color::srgb(0.35, 0.45, 0.28));
+    commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(120.0, 40.0, 120.0),
+        Transform::from_xyz(0.0, -20.1, 0.0),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(120.0, 40.0, 120.0)))),
+        MeshMaterial3d(ground_mat),
+    ));
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
     bundle.transform =
         Transform::from_translation(point.position).with_rotation(point.rotation);
-    let character = commands.spawn(bundle).id();
+    let spawn_fwd = bundle.transform.forward();
+    let character = commands
+        .spawn(bundle)
+        .insert((
+            AlsViewYaw(f32::atan2(spawn_fwd.x, -spawn_fwd.z)),
+        ))
+        .id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
     let avatar = commands
@@ -114,10 +132,34 @@ fn spawn_character_once(
         .id();
     commands.entity(character).add_child(avatar);
 
-    commands.spawn((Camera3d::default(), Transform::from_xyz(4.0, 3.0, -6.0)));
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(
+            point.position.x + 4.0,
+            point.position.y + 3.0,
+            point.position.z - 6.0,
+        ),
+    ));
+}
+
+fn playground_physics_bridge(
+    mut commands: Commands,
+    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
+) {
+    for (entity, collider) in &bodies {
+        commands.entity(entity).insert((
+            RigidBody::Static,
+            Collider::cuboid(
+                collider.half_extents.x * 2.0,
+                collider.half_extents.y * 2.0,
+                collider.half_extents.z * 2.0,
+            ),
+        ));
+    }
 }
 
 fn camera_follow(
+    time: Res<Time>,
     mut cameras: Query<&mut Transform, (With<Camera>, Without<AlsCharacter>)>,
     characters: Query<&GlobalTransform, With<AlsCharacter>>,
 ) {
@@ -126,8 +168,9 @@ fn camera_follow(
     };
     let char_pos = char_gtf.translation();
     let target = char_pos + Vec3::new(0.0, 2.2, 4.5);
+    let dt = time.delta_secs();
     for mut cam in cameras.iter_mut() {
-        cam.translation = cam.translation.lerp(target, 0.1);
+        cam.translation = cam.translation.lerp(target, (dt * 8.0).min(1.0));
         cam.look_at(char_pos + Vec3::Y * 0.9, Vec3::Y);
     }
 }
@@ -161,23 +204,5 @@ fn graph_router(
             player.set_input_data("actual_speed", bevy_animation_graph::core::edge_data::DataValue::from(mgi.actual_speed));
             player.set_input_data("play_rate", bevy_animation_graph::core::edge_data::DataValue::from(mgi.play_rate));
         }
-    }
-}
-
-fn report_moving(
-    time: Res<Time>,
-    mut last: Local<f32>,
-    q: Query<&Transform, With<PlaygroundMovingObject>>,
-) {
-    let t = time.elapsed_secs_f64() as f32;
-    if t - *last < 3.0 {
-        return;
-    }
-    *last = t;
-    for tf in q.iter() {
-        info!(
-            "[MOVING] pos=({:.2},{:.2},{:.2})",
-            tf.translation.x, tf.translation.y, tf.translation.z
-        );
     }
 }
