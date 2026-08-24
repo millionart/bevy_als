@@ -9,6 +9,7 @@ pub mod debug_hud;
 pub mod foot_ik;
 pub mod graph_router;
 pub mod input;
+pub mod input_request;
 pub mod mantle;
 pub mod motion;
 pub mod overlay_blend;

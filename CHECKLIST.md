@@ -53,7 +53,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 > ⑤ 没有对标 ALS-Refactored 的按键，无法攀爬无法 ragdoll；⑥ 缺少 ALS 运行时 HUD 界面 1:1 复刻。
 > 对标基准：ALS-Refactored 工程（路径见 gitignored `docs/env.md`）。表现类缺陷（BF3/BF4/BF6）验收须留截图证据存 `docs/`。
 
-- [ ] BF1 输入消费补全：`crouch_pressed`/`sprint_held` 目前在全仓库无生产消费者系统（仅 gate 示例脚本消费）——在 als-core 新增输入→状态请求系统：Ctrl 边沿切换 Stance、Shift 按住驱动 Gait 冲刺请求（ALS 语义：冲刺松开回落 Running）。验收：单测覆盖边沿/保持语义；manual 实机 Ctrl/Shift 生效。
+- [x] BF1 输入消费补全：`crouch_pressed`/`sprint_held` 目前在全仓库无生产消费者系统（仅 gate 示例脚本消费）——在 als-core 新增输入→状态请求系统：Ctrl 边沿切换 Stance、Shift 按住驱动 Gait 冲刺请求（ALS 语义：冲刺松开回落 Running）。验收：单测覆盖边沿/保持语义；manual 实机 Ctrl/Shift 生效。
+    - 实现/自测证据（2026-08-24）：`als_core::input_request::AlsInputRequestPlugin`——input_state_request_system（Update，显式 before(state_transition_system) 同 aim 先例）：crouch_pressed 上升沿按当前 Stance 翻转写 request.stance；sprint_held 电平映射 Sprinting/Running 写 request.gait（空中沿用 Queue 语义，释放即以 Running 覆盖排队项）；AlsInputOverride 优先。单测 6 项（边沿单次翻转/二次按压回站/保持幂等零重复事件/override 优先/空中排队与释放清槽）全绿，als-core 135 全绿。语义注记：同值请求经 transition 层幂等 Accept 清槽（M1.2 记录行为）。实机键位验证随 BF2 全栈编排 gate 一并覆盖（插件挂接属 BF2 范围）。
 - [ ] BF2 manual_playground 全栈编排：现缺 air/roll/ragdoll/view/overlay/stop/mantle-drive/foot-ik/camera 插件且 graph_router 只写 speed 三 pins——挂齐插件族、graph_router 补写 air/land/roll/mantle/stop pins、ragdoll 时切换 `als_ragdoll.animscn.ron`、固定跟随相机换 AlsCameraPlugin。验收：跳跃出现 Air/Land 动画、Alt 翻滚整周滚动、鼠标控制视角相机、急停有停步动画。
 - [ ] BF3 WASD 移动方向与面朝相反：确诊三者之一——网格面朝轴 vs tnua `desired_forward` 约定 vs 输入映射符号（M8.6 记录「角色面朝 glTF +Z」而 bevy/tnua forward 为 -Z 为首要嫌疑）。验收：按 W 角色面朝移动方向前进，四向均正确。
 - [ ] BF4 双腿插入地下：Playground Landscape 高度场 mesh 无对应碰撞体（manual 场景只搭了 y=-0.1 顶面的隐形 cuboid，出生点取自地形采样高度≈0.92 → 角色沉入地形内）；同时 avatar 子实体偏移 (0,-0.90,0) 与模型根/胶囊对齐关系需对照 ALS 验证（截图比对 UE 内 SK_Manny 相对胶囊位置）。验收：脚底贴地形表面无穿模；截图对比存档。
