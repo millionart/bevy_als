@@ -566,6 +566,13 @@
             should_debug: false,
         ),
         (
+            id: "c3c3c3c3-d4d4-4e5e-8f6f-000000000001",
+            name: "ragdoll config",
+            inner: {
+                "als_ext::RagdollConfigNode": (),
+            },
+            should_debug: false,
+        ),        (
             id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
             name: "mantle override blend",
             inner: {
@@ -661,6 +668,9 @@
         NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose"),
         NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005"),
         NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "factor"): InputData(Passthrough("mantle_weight")),
+        NodeData("c3c3c3c3-d4d4-4e5e-8f6f-000000000001", "dynamic"): InputData(Passthrough("ragdoll_dynamic")),
+        NodeData("c3c3c3c3-d4d4-4e5e-8f6f-000000000001", "readback"): InputData(Passthrough("ragdoll_readback")),
+        OutputData("ragdoll_config"): NodeData("c3c3c3c3-d4d4-4e5e-8f6f-000000000001", "out"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose"),
         NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006"),
         NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose"),
@@ -716,10 +726,13 @@
             Passthrough("mantle_weight"): F32,
             Passthrough("mantle_high_w"): F32,
             Passthrough("mantle_lr"): F32,
+            Passthrough("ragdoll_dynamic"): Bool,
+            Passthrough("ragdoll_readback"): Bool,
         },
         output_time: true,
         output_data: {
             "pose": Pose,
+            "ragdoll_config": RagdollConfig,
         },
         input_order: {
             Data(Passthrough("speed")): 0,
@@ -743,10 +756,13 @@
             Data(Passthrough("mantle_weight")): 18,
             Data(Passthrough("mantle_high_w")): 19,
             Data(Passthrough("mantle_lr")): 20,
+            Data(Passthrough("ragdoll_dynamic")): 21,
+            Data(Passthrough("ragdoll_readback")): 22,
         },
         output_order: {
             Data("pose"): 0,
-            Time: 1,
+            Data("ragdoll_config"): 1,
+            Time: 2,
         },
     ),
     default_data: {
@@ -769,6 +785,8 @@
         Passthrough("mantle_weight"): F32(0.0),
         Passthrough("mantle_high_w"): F32(0.0),
         Passthrough("mantle_lr"): F32(0.0),
+        Passthrough("ragdoll_dynamic"): Bool(false),
+        Passthrough("ragdoll_readback"): Bool(false),
     },
     editor_metadata: (
         node_positions: {

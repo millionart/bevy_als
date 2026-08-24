@@ -5,6 +5,7 @@ pub mod ik;
 pub mod loader;
 pub mod nodes;
 pub mod overlay;
+pub mod ragdoll_config_node;
 pub mod playground;
 
 pub use als_curves::{
@@ -18,6 +19,7 @@ pub use distance_match::{
 };
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
+pub use ragdoll_config_node::RagdollConfigNode;
 pub use overlay::{
     build_bone_mask, build_grouped_bone_mask, mask_coverage, HEAD_LAYER_BONES, LOOK_SPINE_BONES,
     TORCH_ARM_RIGHT_BONES, TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES,
@@ -44,6 +46,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
             .register_type::<DistanceMatchNode>()
+            .register_type::<RagdollConfigNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()

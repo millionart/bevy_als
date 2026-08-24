@@ -12,7 +12,9 @@ license = "MIT OR Apache-2.0"
 bevy = { version = "0.19", features = ["file_watcher"] }
 
 # 基座插件 fork（M0.2 配置；upstream 与 fork 地址见 README.md，均为公开 git 依赖）
-bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master" }
+bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master", features = [
+    "physics_avian",
+] }
 bevy-tnua = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
 bevy-tnua-avian3d = { git = "https://github.com/millionart/bevy-tnua", branch = "main" }
 avian3d = { version = "0.7", default-features = false, features = [
