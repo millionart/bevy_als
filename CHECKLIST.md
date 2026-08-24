@@ -79,6 +79,18 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ---
 
+## REFACTOR-2026-08-25（动画图模块化：单一大图 → AB_Als 式分层子图组合）
+
+> 背景：`assets/graphs/locomotion_overlay.animgraph.ron` 经 M2–M9 逐模块追加已生长为 867 行单一枢纽，review/并行编辑困难，且失去与上游 AB_Als Linked Anim Layers 的结构对应。用户决策（2026-08-25）：按 AB_Als 模块化思路重构；定序在 BF7 之前执行——终评对象须为最终结构，避免终评后结构变更使对标失效。
+> 技术可行性已核实（fork `bevy_animation_graph_builtin_nodes/src/graph_node.rs`）：GraphNode 以 `Handle<AnimationGraph>` 嵌套子图，`spec()` 将子图 `io_spec` 的输入/输出 pin 逐一转发为本节点 pin（sorted_inputs / iter_output_data），子图经 `create_child_context` 独立求值——分层组合无需修改 fork，符合 agents.md 规则 4 扩展边界。
+
+- [ ] RG1 子图边界划分与 pin 合同冻结：盘点根图全部节点与 pin 归属，按 ALS 层边界拆四个子图资产——`graphs/base_locomotion.animgraph.ron`（Grounded 核心：idle/walk/run/sprint 混合、stance/crouch、start/stop/pivot、turn-in-place/rotate-in-place）、`graphs/air.animgraph.ron`（jump/fall/land）、`graphs/actions.animgraph.ron`（roll/mantle）、`graphs/overlay_view.animgraph.ron`（overlay 上半身 mask、view lean）；ragdoll 配置链留根图作胶水。硬约束：根图对外 pin 名与类型逐一不变（graph_router/roll_drive/mantle_drive/stop_link/overlay_layer/view_layer/ragdoll_link 七驱动插件零改动）；`locomotion_overlay.animgraph.ron` 文件名保留为组合根（animscn 与 examples 引用不变）。产出：本条目下补记节点归属表与根图 pin 合同清单。验收：合同清单覆盖根图现有全部对外 pin 无遗漏。
+- [ ] RG2 组合根落地与回归验收（本节 Gate）：四个子图 RON 落盘 + 根图改为 GraphNode 组合与 pin 转发接线；重点核对嵌套后时间更新传播与 BlendSpace Absolute 同步不因跨图产生相位漂移（对照重构前 gate 输出基线）。Gate 证据：examples 全部既有 gate 重跑 PASS（motion/air/actions/roll/mantle/stop/overlay/foot_ik/camera/ragdoll/playground_parity/perf）、workspace 测试全绿、manual 冒烟（ALS_BOOT_AUTO_QUIT_SECS）exit=0 零 runtime WARN；证据摘要写入该次提交说明。
+
+依赖关系：RG1 → RG2；RG2 通过后才允许启动 BF7。
+
+---
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
