@@ -101,6 +101,7 @@ fn mantle_drive_system(
     >,
     layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
     rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
+    velocities: Query<&LinearVelocity, Without<als_core::character::AlsCharacter>>,
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -138,24 +139,45 @@ fn mantle_drive_system(
         let Ok(dir) = Dir3::new(fwd) else {
             return;
         };
-        let mut face: Option<(f32, Vec3, f32)> = None;
+        let mut face: Option<(f32, Vec3, f32, Entity)> = None;
         for h in [0.35f32, 0.65, 0.95] {
             let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
             if let Some(hit) = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter) {
-                let best = face.map(|(d, _, _)| d).unwrap_or(f32::INFINITY);
+                let best = face.map(|(d, _, _, _)| d).unwrap_or(f32::INFINITY);
                 if hit.distance < best {
                     let top_o = o + fwd * hit.distance + Vec3::Y * 1.2;
                     let top_hit = spatial.cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter);
-                    let top_y = top_hit
-                        .map(|t| top_o.y - t.distance)
-                        .unwrap_or(f32::NEG_INFINITY);
-                    face = Some((hit.distance, hit.normal, top_y));
+                    let (top_y, top_normal_y) = top_hit
+                        .map(|t| (top_o.y - t.distance, t.normal.y))
+                        .unwrap_or((f32::NEG_INFINITY, 0.0));
+                    face = Some((hit.distance, hit.normal, top_y, top_hit.map(|t| t.entity).expect("top hit")));
+                    let _ = top_normal_y;
                 }
             }
         }
-        let Some((face_distance, normal, top_y)) = face else {
+        let Some((face_distance, normal, top_y, ledge_entity)) = face else {
             return;
         };
+
+        let top_normal = spatial
+            .cast_ray(
+                origin + fwd * (MANTLE_PROBE_SHIFT + face_distance) + Vec3::Y * 1.4,
+                Dir3::NEG_Y,
+                2.0,
+                true,
+                &filter,
+            )
+            .map(|t| t.normal.y)
+            .unwrap_or(0.0);
+        if top_normal < als_core::mantle::MANTLE_SLOPE_ANGLE_COS {
+            return;
+        }
+
+        if let Ok(target_vel) = velocities.get(ledge_entity) {
+            if target_vel.0.length() > als_core::mantle::MANTLE_TARGET_SPEED_THRESHOLD {
+                return;
+            }
+        }
 
         let ledge = LedgeProbe {
             face_distance,
@@ -177,6 +199,28 @@ fn mantle_drive_system(
         } else {
             fwd
         });
+        let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
+        let ceiling = spatial
+            .cast_ray(
+                headroom_o,
+                Dir3::Y,
+                als_core::mantle::MANTLE_HEADROOM_CLEARANCE,
+                true,
+                &filter,
+            );
+        if ceiling.is_some() {
+            return;
+        }
+        let start_clearance = spatial.cast_ray(
+            origin + Vec3::Y * 1.2,
+            Dir3::Y,
+            0.9,
+            true,
+            &filter,
+        );
+        if start_clearance.is_some() {
+            return;
+        }
         let yaw_start = m_direction_yaw(gtf);
         m.begin(kind, origin, target, ledge.top_height, yaw_start, yaw_target);
         info!(

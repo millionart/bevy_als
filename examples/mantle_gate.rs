@@ -86,8 +86,9 @@ struct MantleWatch {
     prev_active: bool,
     count: u32,
     kinds: [Option<MantleKind>; 2],
+    targets: [f32; 2],
     landings: [Option<f32>; 2],
-    peak_y: [f32; 2],
+    grounded_seen: [bool; 2],
     settle_timer: f32,
     pending_slot: Option<usize>,
     failed: bool,
@@ -243,26 +244,29 @@ fn mantle_watcher(
     watch.kinds[slot_now] = Some(m.kind);
 
     if !watch.prev_active && m.active && watch.count < 2 {
+        let slot = watch.count.min(1) as usize;
+        watch.targets[slot] = m.target.y;
         info!(
             "[MGATE][BEGIN {}] kind={:?} target_y={:.2}",
-            watch.count + 1,
+            slot + 1,
             m.kind,
             m.target.y
         );
     }
-    if m.active && watch.count < 2 {
-        let s = watch.count.min(1) as usize;
-        watch.peak_y[s] = watch.peak_y[s].max(tf.translation.y);
-    }
     if let Some(slot) = watch.pending_slot {
         watch.settle_timer -= time.delta_secs();
-        if watch.settle_timer <= 0.0 {
+        if loco == &LocomotionState::Grounded
+            && (tf.translation.y - watch.targets[slot]).abs() <= 0.30
+        {
+            watch.grounded_seen[slot] = true;
+        }
+        if watch.settle_timer <= 0.0 || watch.grounded_seen[slot] {
             watch.landings[slot] = Some(tf.translation.y);
             info!(
-                "[MGATE][SETTLE {}] y={:.2} loco={loco:?} v={:.2}",
+                "[MGATE][SETTLE {}] y={:.2} loco={loco:?} grounded_ok={}",
                 slot + 1,
                 tf.translation.y,
-                Vec2::new(vel.x, vel.z).length()
+                watch.grounded_seen[slot]
             );
             watch.pending_slot = None;
             watch.count += 1;
@@ -273,14 +277,12 @@ fn mantle_watcher(
     if watch.prev_active && !m.active && watch.count < 2 {
         let slot = watch.count.min(1) as usize;
         info!(
-            "[MGATE][DONE {}] raw_y={:.2} peak_y={:.2} target_reached={}",
-            watch.count + 1,
-            tf.translation.y,
-            watch.peak_y[slot],
-            watch.peak_y[slot] >= m.target.y - 0.30
+            "[MGATE][DONE {}] raw_y={:.2}",
+            slot + 1,
+            tf.translation.y
         );
         watch.pending_slot = Some(slot);
-        watch.settle_timer = 0.6;
+        watch.settle_timer = 1.0;
     }
     watch.prev_active = m.active;
 
@@ -293,10 +295,13 @@ fn mantle_watcher(
                     watch.failed = true;
                 }
                 Some(y) => {
-                    if !(watch.peak_y[i] >= 1.55 && y >= 1.45) {
+                    let on_top = y >= watch.targets[i] - 0.30;
+                    if !(on_top && watch.grounded_seen[i]) {
                         error!(
-                            "[MGATE][VERDICT] mantle {i} climb/landing insufficient peak={:.2} settle={:.2}",
-                            watch.peak_y[i], y
+                            "[MGATE][VERDICT] mantle {i} landing insufficient settle={:.2} target={:.2} grounded={}",
+                            y,
+                            watch.targets[i],
+                            watch.grounded_seen[i]
                         );
                         watch.failed = true;
                     }

@@ -3,12 +3,15 @@ use bevy::prelude::*;
 use crate::input::AlsInputCommand;
 use crate::state::{LocomotionState, Stance};
 
-pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.0;
+pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.25;
 pub const MANTLE_MAX_LEDGE_HEIGHT: f32 = 1.6;
 pub const MANTLE_MIN_LEDGE_HEIGHT: f32 = 0.45;
 pub const MANTLE_PROBE_REACH: f32 = 0.7;
 pub const MANTLE_HIGH_DURATION: f32 = 2.667;
 pub const MANTLE_LOW_DURATION: f32 = 1.5;
+pub const MANTLE_SLOPE_ANGLE_COS: f32 = 0.819;
+pub const MANTLE_TARGET_SPEED_THRESHOLD: f32 = 0.1;
+pub const MANTLE_HEADROOM_CLEARANCE: f32 = 1.85;
 const WEIGHT_IN_SECS: f32 = 0.15;
 const WEIGHT_OUT_SECS: f32 = 0.25;
 
@@ -232,6 +235,16 @@ mod tests {
     fn height_bands_select_high_low_or_reject() {
         assert_eq!(classify_mantle(&probe(1.3, 0.5, 1.0)), Some(MantleKind::High));
         assert_eq!(
+            classify_mantle(&probe(1.25, 0.5, 1.0)),
+            Some(MantleKind::High),
+            "high threshold inclusive at 125cm"
+        );
+        assert_eq!(
+            classify_mantle(&probe(1.24, 0.5, 0.4)),
+            Some(MantleKind::LowRight),
+            "below threshold falls to low band"
+        );
+        assert_eq!(
             classify_mantle(&probe(0.8, 0.5, 0.4)),
             Some(MantleKind::LowRight)
         );
@@ -245,11 +258,19 @@ mod tests {
     }
 
     #[test]
+    fn slope_cos_threshold_matches_35_deg() {
+        let cos35 = (35.0f32.to_radians()).cos();
+        assert!((MANTLE_SLOPE_ANGLE_COS - cos35).abs() < 1e-3);
+        assert!(MANTLE_TARGET_SPEED_THRESHOLD > 0.0);
+        assert!(MANTLE_HEADROOM_CLEARANCE > 1.7);
+    }
+
+    #[test]
     fn start_offset_skips_deeper_for_lower_ledges() {
         assert!((start_offset_for_height(0.45) - 0.5).abs() < 1e-5);
-        assert!((start_offset_for_height(1.0) ).abs() < 1e-5);
-        assert!((start_offset_for_height(1.6) ).abs() < 1e-5);
-        let mid = start_offset_for_height(0.75);
+        assert!(start_offset_for_height(MANTLE_HIGH_MIN_HEIGHT).abs() < 1e-5);
+        assert!(start_offset_for_height(MANTLE_MAX_LEDGE_HEIGHT).abs() < 1e-5);
+        let mid = start_offset_for_height(0.85);
         assert!(mid > 0.2 && mid < 0.3, "mid ledge offset {mid}");
     }
 
