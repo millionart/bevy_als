@@ -1,0 +1,106 @@
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\graph_router.rs:1:5
+  |
+1 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\start_stop.rs:4:5
+  |
+4 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\rotate_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\turn_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: `als-core` (lib) generated 4 warnings (run `cargo fix --lib -p als-core` to apply 4 suggestions)
+   Compiling bevy_als v0.1.0 (D:\Users\milli\Git\bevy_als)
+warning: unused import: `bevy_als::view_layer::ViewLayerPlugin`
+  --> examples\camera_gate.rs:26:5
+   |
+26 | use bevy_als::view_layer::ViewLayerPlugin;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> examples\camera_gate.rs:319:5
+    |
+319 |     mut q: Query<
+    |     ----^
+    |     |
+    |     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `rot`
+   --> examples\camera_gate.rs:342:40
+    |
+342 |     let Ok((char_tf, _gtf, _vel, loco, rot, pitch, smoothed)) = q.single() else {
+    |                                        ^^^ help: if this is intentional, prefix it with an underscore: `_rot`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> examples\camera_gate.rs:416:14
+    |
+416 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    |              ----^^^^
+    |              |
+    |              help: remove this `mut`
+
+warning: constant `SNAPSHOT_INTERVAL` is never used
+  --> examples\camera_gate.rs:28:7
+   |
+28 | const SNAPSHOT_INTERVAL: f32 = 0.2;
+   |       ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `sweep_pitch` is never read
+  --> examples\camera_gate.rs:96:5
+   |
+89 | struct Step {
+   |        ---- field in this struct
+...
+96 |     sweep_pitch: bool,
+   |     ^^^^^^^^^^^
+
+warning: function `camera_follow` is never used
+   --> examples\camera_gate.rs:299:4
+    |
+299 | fn camera_follow(
+    |    ^^^^^^^^^^^^^
+
+warning: `bevy_als` (example "camera_gate") generated 7 warnings (run `cargo fix --example "camera_gate" -p bevy_als` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.32s
+     Running `target\debug\examples\camera_gate.exe`
+2026-08-24T01:30:30.775574Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T01:30:31.275471Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T01:30:32.061814Z  INFO camera_gate: [CGATE] auto quit armed in 25.0s
+2026-08-24T01:30:32.159652Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T01:30:32.159827Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T01:30:32.165485Z  INFO bevy_winit::system: Creating new window camera_gate (65v0)
+2026-08-24T01:30:32.243718Z  WARN camera_gate: [CGATE][MISS] n=0 target=0 rot=0 yaw=0 gt=0 lv=0
+2026-08-24T01:30:32.244206Z  INFO camera_gate: [CGATE] scripted demo armed
+2026-08-24T01:30:32.244237Z  INFO camera_gate: [CGATE][DBG] inserted marker type=als_camera::AlsCameraTarget
+2026-08-24T01:30:32.244257Z  INFO camera_gate: [CGATE] camera spawned with rig
+2026-08-24T01:30:32.510910Z  INFO als_camera: [CAM] params loaded
+2026-08-24T01:30:35.648260Z  INFO camera_gate: [CGATE][STEP 1] run toward wall (probe shrink) (aiming=false)
+2026-08-24T01:30:38.034789Z  INFO camera_gate: [CGATE][STEP 2] aim on (blend to shoulder) (aiming=true)
+2026-08-24T01:30:39.820860Z  INFO camera_gate: [CGATE][STEP 3] pitch sweep while aiming (aiming=true)
+2026-08-24T01:30:41.398114Z  INFO camera_gate: [CGATE][STEP 4] aim off (blend back) (aiming=false)
+2026-08-24T01:30:43.208927Z  INFO camera_gate: [CGATE][STEP 5] run again (aiming=false)
+2026-08-24T01:30:44.709180Z  INFO camera_gate: [CGATE][STEP 6] settle (aiming=false)
+2026-08-24T01:30:46.310096Z  INFO camera_gate: [CGATE][VERDICT] probe_min=1.550 frame_jump_max=0.352 blend_high=true linkage_ok=true -> PASS
