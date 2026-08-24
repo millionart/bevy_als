@@ -1,3 +1,4 @@
+pub mod debug_draw;
 pub mod foot_ik_apply;
 pub mod motion_graph_link;
 pub mod mantle_drive;
