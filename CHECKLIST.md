@@ -58,10 +58,18 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [ ] BF3 WASD 移动方向与面朝相反：确诊三者之一——网格面朝轴 vs tnua `desired_forward` 约定 vs 输入映射符号（M8.6 记录「角色面朝 glTF +Z」而 bevy/tnua forward 为 -Z 为首要嫌疑）。验收：按 W 角色面朝移动方向前进，四向均正确。
 - [ ] BF4 双腿插入地下：Playground Landscape 高度场 mesh 无对应碰撞体（manual 场景只搭了 y=-0.1 顶面的隐形 cuboid，出生点取自地形采样高度≈0.92 → 角色沉入地形内）；同时 avatar 子实体偏移 (0,-0.90,0) 与模型根/胶囊对齐关系需对照 ALS 验证（截图比对 UE 内 SK_Manny 相对胶囊位置）。验收：脚底贴地形表面无穿模；截图对比存档。
 - [ ] BF5 ALS 对标按键补齐：从 ALS 工程增强输入 IMC 资产提取默认键位表并登记 CHECKLIST；mantle 由现行免按键自动触发改为 ALS 键位触发（保留检测器）、ragdoll 绑键进出（ragdoll_link 已具备能力）。验收：按键触发攀爬/倒地/起身恢复。
+    - 键位事实（2026-08-24 自 IMC_Als_Default / IA_Als_* uasset 二进制解析并与 C++ 核对；行号=Source/ALSExtras/Private/AlsCharacterExample.cpp）：Move=WASD/左摇杆(DeadZone)；LookMouse=Mouse2D；Sprint=LShift|FaceButton_Right **Hold(1.0s)+Released**（Input_OnSprint:127）；**Walk=LAlt|RightShoulder Pressed toggle Walk↔Running**（:132，本项目缺失的 action）；Crouch=LCtrl|左摇杆按 Pressed toggle（:144）；**Jump=Space|FaceButton_Bottom Pressed+Released，按下沿优先级链 起身→StartMantling→蹲→站起→Jump**（:156-182——Mantle 非独立键；另 InAir 时 Tick 内 AutoStartMantling 仅 bAutoStartMantlingInAir）；Aim=RMB|LB hold（:184）；**Ragdoll=X|FaceButton_Left Pressed toggle**（:189）；**Roll=LShift 与 Sprint 共键靠 Tap(0.2s)/Hold 区分**，PlayRate=1.3 仅地面（:197）；RotationMode=One|DPadLeft toggle Velocity↔View（:204）；ViewMode=Two|DPadRight 三人称↔第一人称（:211）；SwitchShoulder=C|R3 相机换肩（:217）；UI 层 IMC_Als_UI：Q 换 Overlay 菜单/滚轮切 Overlay/Tab 开关 UI/Z Slomo。
 - [x] BF6 HUD 1:1 复刻 ALS ShowDebug 运行时界面：面板分类与开关键位对齐工程 `DefaultInput.ini` DebugExecBindings（Shift+0 主开关，Shift+1..8 = Curves/State/Shapes/Traces/Mantling/CameraCurves/CameraShapes/CameraTraces），面板版式与条目对照 UE 截图复刻（现有 AlsStateHudPlugin 仅五行文本打印）。验收：逐分类截图对照存档。
     - 实现/自测证据（2026-08-24）：`bevy_als::show_debug_hud::AlsShowDebugHudPlugin`——九分类面板逐行映射 AlsCharacter_Debug.cpp/AlsCameraComponent_Debug.cpp（State 分类 11 行全部接真实 ECS 数据源；Curves/CameraCurves 经 AlsShowDebugCurveSources 注入 AlsAnimCurves 句柄按 player elapsed 采样；Shapes 的 InputYawAngle 橙/Speed 紫等配色常量与 C++ 文件行号一一对应；默认开启后无分类=UE AHUD::ShowDebug(NAME_None) 引擎语义，分类头暗绿 (0,0.333333,0)）；切换语义照 HUD.cpp:377-393（可见且已含→移除）；键位 Shift+0..8 独立于 enhanced_input。单测 12 绿；`examples/show_debug_hud_gate` VERDICT panel/header/state_rows/stance_flip/shapes_rows/retoggle_off 全 ok → PASS，exit=0 无 panic。N/A 行（SmoothTargetYawAngle、PivotLagLocation、CameraFieldOfView、bRightShoulder）为仓库尚未实现的对应存储，标签保留待后续条目补齐。
 
-依赖关系：BF1 →（BF2、BF5）；BF2 →（BF3、BF4 的实机验收）；BF3/BF4/BF6 相互独立，可与主线并行派发 subagent（互不修改同一文件时）。
+- [ ] BF7 日志级行为对标（BF1–BF6 的行为级总验收门）：双侧同脚本插桩 → 同操作流程运行 → 逐帧指标对比 → 差异回修闭环，保证用户可见可操作行为与 ALS-Refactored 一致。
+    - ①ALS 侧插桩：修改本地 ALS-Refactored 插件源码（改动落在其自身 git 仓库独立小步提交；CVar 门控默认关闭零侵入）：trace recorder 每 tick 写 CSV——t/frame、actor pos(cm)/vel(cm/s)、facing yaw/pitch、controller view yaw、五状态 tags+LocomotionAction、动作态（mantle/roll/air active）、双脚踝+pelvis 世界位置（IK 后）、capsule 半高/半径、相机 pos/yaw/pitch；script driver 按共享时间线文件程序化调用 Input_On* 处理函数（与人工操作同一入口，含 Hold/Tap 语义）。
+    - ②bevy 侧等价 recorder：`examples/trace_parity.rs` + `bevy_als::trace_recorder`——列名/单位规范一致（坐标按既有映射 gltf=(ue.x,ue.z,ue.y)·0.01 反算为 UE cm 帧；yaw 统一定义为水平面朝向量相对 UE +X 的带符号角），消费同一时间线驱动 AlsInputOverride。
+    - ③对比工具 `tools/compare_trace.py`：时间轴重采样对齐 → 逐指标 max/rms 偏差表 + 状态转移时间线 diff → 阈值 PASS/FAIL → 报告入 docs/bf7-compare-report.md。
+    - 共享时间线 v1（tools/parity/timeline.csv，两侧唯一事实源）：静止→W 走→停→冲刺跑→急停→跳→落地→蹲走→起立→Shift 轻点翻滚→X 倒地→settle→X 起身→视角右扫 90°→A/D 横移弧线→结束。
+    - 验收：全指标落阈值带内或差异均有解释性归档（物理引擎确定性差异单列不判 FAIL）；执行中发现的缺陷回登 BUGFIX 条目修复后复跑。
+
+依赖关系：BF1 →（BF2、BF5）；BF2 →（BF3、BF4 的实机验收）；BF7 依赖 BF1/BF2/BF5 全部落地后执行终评；BF3/BF4/BF6 相互独立，可与主线并行派发 subagent（互不修改同一文件时）。
 
 ---
 
