@@ -1,0 +1,165 @@
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\graph_router.rs:1:5
+  |
+1 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::character::AlsCharacter`
+ --> crates\als-core\src\start_stop.rs:4:5
+  |
+4 | use crate::character::AlsCharacter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\rotate_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bevy::prelude::*`
+ --> crates\als-core\src\turn_in_place.rs:1:5
+  |
+1 | use bevy::prelude::*;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: `als-core` (lib) generated 4 warnings (run `cargo fix --lib -p als-core` to apply 4 suggestions)
+   Compiling bevy_als v0.1.0 (<repo>)
+warning: unused import: `AlsStateRequest`
+  --> examples\mantle_gate.rs:20:28
+   |
+20 | use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+   |                            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `vel`
+   --> examples\mantle_gate.rs:240:17
+    |
+240 |     let Ok((tf, vel, loco, m)) = q.single() else {
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_vel`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> examples\mantle_gate.rs:407:14
+    |
+407 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    |              ----^^^^
+    |              |
+    |              help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `bevy_als` (example "mantle_gate") generated 3 warnings (run `cargo fix --example "mantle_gate" -p bevy_als` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.83s
+     Running `target\debug\examples\mantle_gate.exe`
+2026-08-24T03:58:15.319927Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T03:58:15.804306Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T03:58:16.585754Z  INFO mantle_gate: [MGATE] auto quit armed in 26.0s
+2026-08-24T03:58:16.683523Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T03:58:16.683704Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T03:58:16.689424Z  INFO bevy_winit::system: Creating new window mantle_gate (65v0)
+2026-08-24T03:58:16.764858Z  INFO mantle_gate: [MGATE] scripted demo armed
+2026-08-24T03:58:18.473346Z  INFO mantle_gate: [MGATE] t=0.45 loco=Grounded v=0.00 y=0.82 z=-12.00 mantling=false mt=0.00
+2026-08-24T03:58:18.805518Z  INFO mantle_gate: [MGATE] t=0.70 loco=Grounded v=0.00 y=0.86 z=-12.00 mantling=false mt=0.00
+2026-08-24T03:58:19.250221Z  INFO mantle_gate: [MGATE] t=0.95 loco=Grounded v=0.00 y=0.88 z=-12.00 mantling=false mt=0.00
+2026-08-24T03:58:19.421269Z  INFO mantle_gate: [MGATE] t=1.19 loco=Grounded v=1.75 y=0.89 z=-11.63 mantling=false mt=0.00
+2026-08-24T03:58:19.589534Z  INFO mantle_gate: [MGATE] t=1.44 loco=Grounded v=1.75 y=0.89 z=-11.19 mantling=false mt=0.00
+2026-08-24T03:58:19.710353Z  INFO mantle_gate: [MGATE] t=1.62 loco=Grounded v=1.75 y=0.90 z=-10.89 mantling=false mt=0.00
+2026-08-24T03:58:19.710424Z  INFO mantle_gate: [MGATE][STEP 1] run to low ledge
+2026-08-24T03:58:19.710455Z  INFO mantle_gate: [MGATE] gait request Running handled by transition system via step config
+2026-08-24T03:58:19.826445Z  INFO mantle_gate: [MGATE] t=1.78 loco=Grounded v=1.75 y=0.90 z=-10.59 mantling=false mt=0.00
+2026-08-24T03:58:19.992283Z  INFO mantle_gate: [MGATE] t=2.02 loco=Grounded v=1.75 y=0.90 z=-10.18 mantling=false mt=0.00
+2026-08-24T03:58:20.108350Z  INFO mantle_gate: [MGATE] t=2.19 loco=Grounded v=1.75 y=0.90 z=-9.90 mantling=false mt=0.00
+2026-08-24T03:58:20.242246Z  INFO mantle_gate: [MGATE] t=2.35 loco=Grounded v=1.75 y=0.90 z=-9.60 mantling=false mt=0.00
+2026-08-24T03:58:20.376567Z  INFO mantle_gate: [MGATE] t=2.50 loco=Grounded v=1.75 y=0.90 z=-9.33 mantling=false mt=0.00
+2026-08-24T03:58:20.508947Z  INFO mantle_gate: [MGATE] t=2.66 loco=Grounded v=1.75 y=0.90 z=-9.08 mantling=false mt=0.00
+2026-08-24T03:58:20.661454Z  INFO mantle_gate: [MGATE] t=2.81 loco=Grounded v=1.75 y=0.90 z=-8.81 mantling=false mt=0.00
+2026-08-24T03:58:20.835137Z  INFO mantle_gate: [MGATE] t=2.97 loco=Grounded v=1.75 y=0.90 z=-8.51 mantling=false mt=0.00
+2026-08-24T03:58:20.975108Z  INFO mantle_gate: [MGATE] t=3.12 loco=Grounded v=1.75 y=0.90 z=-8.26 mantling=false mt=0.00
+2026-08-24T03:58:21.144800Z  INFO mantle_gate: [MGATE] t=3.29 loco=Grounded v=1.75 y=0.90 z=-7.96 mantling=false mt=0.00
+2026-08-24T03:58:21.320884Z  INFO mantle_gate: [MGATE] t=3.45 loco=Grounded v=1.75 y=0.90 z=-7.66 mantling=false mt=0.00
+2026-08-24T03:58:21.474962Z  INFO mantle_gate: [MGATE] t=3.62 loco=Grounded v=1.75 y=0.90 z=-7.39 mantling=false mt=0.00
+2026-08-24T03:58:21.569066Z  INFO mantle_gate: [MGATE][STEP 2] cross low ledge top
+2026-08-24T03:58:21.569096Z  INFO mantle_gate: [MGATE] gait request Running handled by transition system via step config
+2026-08-24T03:58:21.634625Z  INFO mantle_gate: [MGATE] t=3.78 loco=Grounded v=1.75 y=0.90 z=-7.11 mantling=false mt=0.00
+2026-08-24T03:58:21.805374Z  INFO mantle_gate: [MGATE] t=3.95 loco=Grounded v=1.75 y=0.90 z=-6.81 mantling=false mt=0.00
+2026-08-24T03:58:21.977728Z  INFO mantle_gate: [MGATE] t=4.12 loco=Grounded v=1.75 y=0.90 z=-6.51 mantling=false mt=0.00
+2026-08-24T03:58:22.147544Z  INFO mantle_gate: [MGATE] t=4.29 loco=Grounded v=1.75 y=0.90 z=-6.21 mantling=false mt=0.00
+2026-08-24T03:58:22.163388Z  INFO bevy_als::mantle_drive: [MANTLE] begin kind=LowLeft top_h=0.80 dist=0.66 offset=0.300 scale=1.600
+2026-08-24T03:58:22.176842Z  INFO mantle_gate: [MGATE][BEGIN 1] kind=LowLeft target_y=1.72
+2026-08-24T03:58:22.319358Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Grounded -> Air
+2026-08-24T03:58:22.319376Z  INFO mantle_gate: [MGATE] t=4.47 loco=Grounded v=1.00 y=0.91 z=-6.15 mantling=true mt=0.16
+2026-08-24T03:58:22.492629Z  INFO mantle_gate: [MGATE] t=4.64 loco=Air v=1.72 y=1.29 z=-5.92 mantling=true mt=0.33
+2026-08-24T03:58:22.663021Z  INFO mantle_gate: [MGATE] t=4.81 loco=Air v=1.36 y=1.46 z=-5.66 mantling=true mt=0.50
+2026-08-24T03:58:22.835810Z  INFO mantle_gate: [MGATE] t=4.97 loco=Air v=0.72 y=1.36 z=-5.48 mantling=true mt=0.67
+2026-08-24T03:58:22.978570Z  INFO mantle_gate: [MGATE] t=5.12 loco=Air v=0.31 y=1.27 z=-5.45 mantling=true mt=0.81
+2026-08-24T03:58:23.131163Z  INFO mantle_gate: [MGATE] t=5.28 loco=Air v=0.31 y=1.43 z=-5.42 mantling=true mt=0.97
+2026-08-24T03:58:23.302451Z  INFO mantle_gate: [MGATE] t=5.44 loco=Air v=0.31 y=1.72 z=-5.39 mantling=true mt=1.14
+2026-08-24T03:58:23.369413Z  INFO mantle_gate: [MGATE][DONE 1] raw_y=1.68
+2026-08-24T03:58:23.369480Z  INFO mantle_gate: [MGATE][STEP 3] run to high ledge
+2026-08-24T03:58:23.369493Z  INFO mantle_gate: [MGATE] gait request Running handled by transition system via step config
+2026-08-24T03:58:23.428168Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Air -> Grounded
+2026-08-24T03:58:23.446448Z  INFO mantle_gate: [MGATE][SETTLE 1] y=1.72 loco=Grounded grounded_ok=true
+2026-08-24T03:58:23.446448Z  INFO mantle_gate: [MGATE] t=5.59 loco=Grounded v=0.47 y=1.72 z=-4.65 mantling=false mt=0.00
+2026-08-24T03:58:23.618359Z  INFO mantle_gate: [MGATE] t=5.76 loco=Grounded v=0.78 y=1.72 z=-4.64 mantling=false mt=0.00
+2026-08-24T03:58:23.788707Z  INFO mantle_gate: [MGATE] t=5.93 loco=Grounded v=1.72 y=1.72 z=-4.58 mantling=false mt=0.00
+2026-08-24T03:58:23.961101Z  INFO mantle_gate: [MGATE] t=6.11 loco=Grounded v=1.75 y=1.71 z=-4.28 mantling=false mt=0.00
+2026-08-24T03:58:24.131738Z  INFO mantle_gate: [MGATE] t=6.28 loco=Grounded v=1.75 y=1.71 z=-3.97 mantling=false mt=0.00
+2026-08-24T03:58:24.306803Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Grounded -> Air
+2026-08-24T03:58:24.306815Z  INFO mantle_gate: [MGATE] t=6.44 loco=Grounded v=1.61 y=1.51 z=-3.68 mantling=false mt=0.00
+2026-08-24T03:58:24.464228Z  INFO mantle_gate: [MGATE] t=6.61 loco=Air v=2.06 y=1.28 z=-3.40 mantling=false mt=0.00
+2026-08-24T03:58:24.571761Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Air -> Grounded
+2026-08-24T03:58:24.620081Z  INFO mantle_gate: [MGATE] t=6.77 loco=Grounded v=1.75 y=0.91 z=-3.12 mantling=false mt=0.00
+2026-08-24T03:58:24.776591Z  INFO mantle_gate: [MGATE] t=6.92 loco=Grounded v=1.75 y=0.91 z=-2.84 mantling=false mt=0.00
+2026-08-24T03:58:24.946287Z  INFO mantle_gate: [MGATE] t=7.08 loco=Grounded v=1.75 y=0.90 z=-2.54 mantling=false mt=0.00
+2026-08-24T03:58:25.102537Z  INFO mantle_gate: [MGATE] t=7.25 loco=Grounded v=1.75 y=0.90 z=-2.27 mantling=false mt=0.00
+2026-08-24T03:58:25.273075Z  INFO mantle_gate: [MGATE] t=7.41 loco=Grounded v=1.75 y=0.90 z=-1.97 mantling=false mt=0.00
+2026-08-24T03:58:25.432250Z  INFO mantle_gate: [MGATE] t=7.58 loco=Grounded v=1.75 y=0.90 z=-1.70 mantling=false mt=0.00
+2026-08-24T03:58:25.588413Z  INFO mantle_gate: [MGATE] t=7.73 loco=Grounded v=1.75 y=0.90 z=-1.42 mantling=false mt=0.00
+2026-08-24T03:58:25.744582Z  INFO mantle_gate: [MGATE] t=7.89 loco=Grounded v=1.75 y=0.90 z=-1.15 mantling=false mt=0.00
+2026-08-24T03:58:25.774127Z  INFO mantle_gate: [MGATE][STEP 4] cross high ledge top
+2026-08-24T03:58:25.774156Z  INFO mantle_gate: [MGATE] gait request Running handled by transition system via step config
+2026-08-24T03:58:25.900906Z  INFO mantle_gate: [MGATE] t=8.05 loco=Grounded v=1.75 y=0.90 z=-0.88 mantling=false mt=0.00
+2026-08-24T03:58:26.070209Z  INFO mantle_gate: [MGATE] t=8.20 loco=Grounded v=1.75 y=0.90 z=-0.57 mantling=false mt=0.00
+2026-08-24T03:58:26.227811Z  INFO mantle_gate: [MGATE] t=8.36 loco=Grounded v=1.75 y=0.90 z=-0.30 mantling=false mt=0.00
+2026-08-24T03:58:26.384175Z  INFO mantle_gate: [MGATE] t=8.53 loco=Grounded v=1.75 y=0.90 z=-0.03 mantling=false mt=0.00
+2026-08-24T03:58:26.540826Z  INFO mantle_gate: [MGATE] t=8.69 loco=Grounded v=1.75 y=0.90 z=0.25 mantling=false mt=0.00
+2026-08-24T03:58:26.696887Z  INFO mantle_gate: [MGATE] t=8.84 loco=Grounded v=1.75 y=0.90 z=0.52 mantling=false mt=0.00
+2026-08-24T03:58:26.852471Z  INFO mantle_gate: [MGATE] t=9.00 loco=Grounded v=1.75 y=0.90 z=0.79 mantling=false mt=0.00
+2026-08-24T03:58:26.949108Z  INFO bevy_als::mantle_drive: [MANTLE] begin kind=LowLeft top_h=1.25 dist=0.52 offset=0.000 scale=1.598
+2026-08-24T03:58:26.962967Z  INFO mantle_gate: [MGATE][BEGIN 2] kind=LowLeft target_y=2.17
+2026-08-24T03:58:27.022472Z  INFO mantle_gate: [MGATE] t=9.16 loco=Grounded v=0.31 y=0.86 z=0.95 mantling=true mt=0.08
+2026-08-24T03:58:27.087931Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Grounded -> Air
+2026-08-24T03:58:27.163293Z  INFO mantle_gate: [MGATE] t=9.31 loco=Air v=0.31 y=0.77 z=0.97 mantling=true mt=0.22
+2026-08-24T03:58:27.322406Z  INFO mantle_gate: [MGATE] t=9.47 loco=Air v=0.45 y=0.67 z=1.00 mantling=true mt=0.38
+2026-08-24T03:58:27.474004Z  INFO mantle_gate: [MGATE] t=9.62 loco=Air v=1.48 y=0.91 z=1.15 mantling=true mt=0.53
+2026-08-24T03:58:27.646589Z  INFO mantle_gate: [MGATE] t=9.78 loco=Air v=1.52 y=1.23 z=1.40 mantling=true mt=0.70
+2026-08-24T03:58:27.790629Z  INFO mantle_gate: [MGATE] t=9.94 loco=Air v=1.48 y=1.27 z=1.61 mantling=true mt=0.84
+2026-08-24T03:58:27.961045Z  INFO mantle_gate: [MGATE] t=10.09 loco=Air v=0.45 y=1.16 z=1.75 mantling=true mt=1.02
+2026-08-24T03:58:28.131775Z  INFO mantle_gate: [MGATE] t=10.27 loco=Air v=0.31 y=1.11 z=1.78 mantling=true mt=1.19
+2026-08-24T03:58:28.276653Z  INFO mantle_gate: [MGATE] t=10.42 loco=Air v=0.31 y=1.40 z=1.80 mantling=true mt=1.33
+2026-08-24T03:58:28.432645Z  INFO mantle_gate: [MGATE] t=10.58 loco=Air v=0.31 y=1.54 z=1.83 mantling=true mt=1.48
+2026-08-24T03:58:28.461196Z  INFO mantle_gate: [MGATE][DONE 2] raw_y=1.47
+2026-08-24T03:58:28.509648Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Air -> Grounded
+2026-08-24T03:58:28.538188Z  INFO mantle_gate: [MGATE][SETTLE 2] y=2.17 loco=Grounded grounded_ok=true
+2026-08-24T03:58:28.558010Z  INFO mantle_gate: [MGATE][VERDICT] both mantles landed on ledge top y=1.72/2.17 -> PASS
+2026-08-24T03:58:28.586571Z  INFO mantle_gate: [MGATE] t=10.73 loco=Grounded v=0.78 y=2.17 z=2.36 mantling=false mt=0.00
+2026-08-24T03:58:28.758955Z  INFO mantle_gate: [MGATE] t=10.90 loco=Grounded v=0.78 y=2.17 z=2.36 mantling=false mt=0.00
+2026-08-24T03:58:28.947001Z  INFO mantle_gate: [MGATE] t=11.08 loco=Grounded v=1.75 y=2.16 z=2.53 mantling=false mt=0.00
+2026-08-24T03:58:29.103891Z  INFO mantle_gate: [MGATE] t=11.25 loco=Grounded v=1.75 y=2.16 z=2.81 mantling=false mt=0.00
+2026-08-24T03:58:29.260327Z  INFO mantle_gate: [MGATE] t=11.41 loco=Grounded v=1.75 y=2.16 z=3.08 mantling=false mt=0.00
+2026-08-24T03:58:29.397669Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Grounded -> Air
+2026-08-24T03:58:29.416838Z  INFO mantle_gate: [MGATE] t=11.56 loco=Air v=1.66 y=1.95 z=3.35 mantling=false mt=0.00
+2026-08-24T03:58:29.585312Z  INFO mantle_gate: [MGATE] t=11.72 loco=Air v=1.77 y=1.62 z=3.66 mantling=false mt=0.00
+2026-08-24T03:58:29.711718Z  INFO als_core::motion: [MOTION] entity=576v0 locomotion sync Air -> Grounded
+2026-08-24T03:58:29.740856Z  INFO mantle_gate: [MGATE] t=11.88 loco=Grounded v=1.75 y=0.77 z=3.93 mantling=false mt=0.00
+2026-08-24T03:58:29.882649Z  INFO mantle_gate: [MGATE] t=12.03 loco=Grounded v=1.75 y=0.81 z=4.18 mantling=false mt=0.00
+2026-08-24T03:58:30.052615Z  INFO mantle_gate: [MGATE] t=12.20 loco=Grounded v=1.75 y=0.84 z=4.48 mantling=false mt=0.00
+2026-08-24T03:58:30.213275Z  INFO mantle_gate: [MGATE] t=12.36 loco=Grounded v=1.75 y=0.86 z=4.75 mantling=false mt=0.00
+2026-08-24T03:58:30.367155Z  INFO mantle_gate: [MGATE] t=12.51 loco=Grounded v=1.75 y=0.87 z=5.03 mantling=false mt=0.00
+2026-08-24T03:58:30.524576Z  INFO mantle_gate: [MGATE] t=12.67 loco=Grounded v=1.75 y=0.88 z=5.30 mantling=false mt=0.00
+2026-08-24T03:58:30.680248Z  INFO mantle_gate: [MGATE] t=12.83 loco=Grounded v=1.75 y=0.89 z=5.57 mantling=false mt=0.00
+2026-08-24T03:58:30.836795Z  INFO mantle_gate: [MGATE] t=12.98 loco=Grounded v=1.75 y=0.89 z=5.85 mantling=false mt=0.00
