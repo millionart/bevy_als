@@ -222,9 +222,9 @@ fn auto_demo(
     let Some(idx) = (0..all.len()).rev().find(|i| t >= all[*i].t0) else {
         return;
     };
+    let s = &all[idx];
     if idx != driver.step {
         driver.step = idx;
-        let s = &all[idx];
         info!(
             "[AGATE][STEP {}] {} (gait={:?} roll={} jump={} release={})",
             idx, s.label, s.gait, s.pulse_roll, s.pulse_jump, s.release_input
@@ -232,18 +232,11 @@ fn auto_demo(
         if let Some(g) = s.gait {
             req.gait = Some(g);
         }
-        over.0.roll_pressed = s.pulse_roll && (t - s.t0) < 0.06;
-        over.0.jump_pressed = s.pulse_jump && (t - s.t0) < 0.06;
-        if s.pulse_jump {
-            over.0.jump_held = true;
-        }
-    } else {
-        let s = &all[idx];
-        over.0.roll_pressed = false;
-        over.0.jump_pressed = false;
-        over.0.jump_held = s.pulse_jump && (t - s.t0) < 0.35;
     }
-    let s = &all[idx];
+    let local = t - s.t0;
+    over.0.roll_pressed = s.pulse_roll && local < 0.25;
+    over.0.jump_pressed = s.pulse_jump && local < 0.25;
+    over.0.jump_held = s.pulse_jump && local < 0.45;
     let releasing = s.release_input;
     if !releasing {
         over.0.move_dir = s.move_dir;

@@ -202,7 +202,7 @@ fn auto_demo(
     let s = &all[idx];
     let local = (t - s.t0) as f32;
     over.0.move_dir = s.move_dir;
-    over.0.roll_pressed = s.roll_pulse && local < 0.05;
+    over.0.roll_pressed = s.roll_pulse && local < 0.20;
     over.0.jump_pressed = false;
     over.0.jump_held = false;
     over.0.crouch_pressed = false;

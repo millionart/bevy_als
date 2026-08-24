@@ -1,122 +1,60 @@
-warning: unused import: `crate::character::AlsCharacter`
- --> crates\als-core\src\graph_router.rs:1:5
-  |
-1 | use crate::character::AlsCharacter;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused import: `crate::character::AlsCharacter`
- --> crates\als-core\src\start_stop.rs:4:5
-  |
-4 | use crate::character::AlsCharacter;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-warning: unused import: `bevy::prelude::*`
- --> crates\als-core\src\rotate_in_place.rs:1:5
-  |
-1 | use bevy::prelude::*;
-  |     ^^^^^^^^^^^^^^^^
 
-warning: unused import: `bevy::prelude::*`
- --> crates\als-core\src\turn_in_place.rs:1:5
-  |
-1 | use bevy::prelude::*;
-  |     ^^^^^^^^^^^^^^^^
 
-warning: `als-core` (lib) generated 4 warnings (run `cargo fix --lib -p als-core` to apply 4 suggestions)
-warning: unused import: `StartStopPhase`
-  --> examples\actions_gate.rs:22:28
-   |
-22 | use als_core::start_stop::{StartStopPhase, StartStopState};
-   |                            ^^^^^^^^^^^^^^
-   |
-   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused variable: `stance`
-   --> examples\actions_gate.rs:301:22
-    |
-301 |     let Ok((tf, vel, stance, loco, gait, roll, air, stop)) = q.single_mut() else {
-    |                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_stance`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused variable: `gait`
-   --> examples\actions_gate.rs:301:36
-    |
-301 |     let Ok((tf, vel, stance, loco, gait, roll, air, stop)) = q.single_mut() else {
-    |                                    ^^^^ help: if this is intentional, prefix it with an underscore: `_gait`
 
-warning: variable does not need to be mutable
-   --> examples\actions_gate.rs:494:14
-    |
-494 | fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
-    |              ----^^^^
-    |              |
-    |              help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
-warning: `bevy_als` (example "actions_gate") generated 4 warnings (run `cargo fix --example "actions_gate" -p bevy_als` to apply 4 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.73s
-     Running `target\debug\examples\actions_gate.exe`
-2026-08-24T03:44:42.417563Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
-2026-08-24T03:44:43.264608Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
-2026-08-24T03:44:44.299347Z  INFO actions_gate: [AGATE] auto quit armed in 26.0s
-2026-08-24T03:44:44.397211Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
-2026-08-24T03:44:44.397391Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
-2026-08-24T03:44:44.403115Z  INFO bevy_winit::system: Creating new window actions_gate (65v0)
-2026-08-24T03:44:44.511971Z  INFO actions_gate: [AGATE] scripted demo armed
-2026-08-24T03:44:45.300717Z  INFO actions_gate: [AGATE] t=0.45 loco=Grounded gait=Walking v=0.00 pos=(0.00,0.82,0.00) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:47.193052Z  INFO actions_gate: [AGATE] t=0.80 loco=Grounded gait=Walking v=0.00 pos=(0.00,0.87,0.00) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:47.354409Z  INFO actions_gate: [AGATE] t=1.05 loco=Grounded gait=Walking v=0.00 pos=(0.00,0.88,0.00) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:47.566581Z  INFO actions_gate: [AGATE] t=1.37 loco=Grounded gait=Walking v=0.00 pos=(0.00,0.89,0.00) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:47.716511Z  INFO actions_gate: [AGATE] t=1.58 loco=Grounded gait=Walking v=0.00 pos=(0.00,0.90,0.00) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:47.716571Z  INFO actions_gate: [AGATE][STEP 1] sprint up (gait=Some(Sprinting) roll=false jump=false release=false)
-2026-08-24T03:44:47.871617Z  INFO actions_gate: [AGATE] t=1.79 loco=Grounded gait=Sprinting v=2.66 pos=(0.00,0.90,0.18) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:48.060734Z  INFO actions_gate: [AGATE] t=2.01 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,1.24) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:48.267651Z  INFO actions_gate: [AGATE] t=2.22 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,2.66) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:48.495301Z  INFO actions_gate: [AGATE] t=2.45 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,4.18) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:48.702391Z  INFO actions_gate: [AGATE] t=2.67 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,5.50) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:48.918512Z  INFO actions_gate: [AGATE] t=2.88 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,6.92) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:49.122703Z  INFO actions_gate: [AGATE] t=3.08 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,8.24) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:49.328385Z  INFO actions_gate: [AGATE] t=3.29 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,9.56) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:49.531749Z  INFO actions_gate: [AGATE] t=3.50 loco=Grounded gait=Sprinting v=6.50 pos=(0.00,0.90,10.88) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:49.561557Z  INFO actions_gate: [AGATE][STEP 2] sprint roll (forward) (gait=Some(Sprinting) roll=true jump=false release=false)
-2026-08-24T03:44:49.591382Z  INFO actions_gate: [AGATE][ROLL begin] yaw=3.14 vec=Vec3(-8.742278e-8, 0.0, 1.0)
-2026-08-24T03:44:49.764293Z  INFO actions_gate: [AGATE] t=3.72 loco=Grounded gait=Sprinting v=2.37 pos=(0.00,0.90,11.29) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:49.953972Z  INFO actions_gate: [AGATE] t=3.92 loco=Grounded gait=Sprinting v=3.70 pos=(-0.00,0.90,11.87) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:50.181362Z  INFO actions_gate: [AGATE] t=4.13 loco=Grounded gait=Sprinting v=3.72 pos=(-0.00,0.90,12.68) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:50.393899Z  INFO actions_gate: [AGATE] t=4.35 loco=Grounded gait=Sprinting v=2.70 pos=(-0.00,0.90,13.35) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:50.592819Z  INFO actions_gate: [AGATE] t=4.56 loco=Grounded gait=Sprinting v=1.79 pos=(-0.00,0.90,13.76) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:50.798328Z  INFO actions_gate: [AGATE] t=4.77 loco=Grounded gait=Sprinting v=0.90 pos=(-0.00,0.90,13.99) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:51.035493Z  INFO actions_gate: [AGATE] t=4.99 loco=Grounded gait=Sprinting v=0.31 pos=(-0.00,0.90,14.07) rolling=true sw=0.00 rem=0.000
-2026-08-24T03:44:51.095157Z  INFO actions_gate: [AGATE][ROLL done] dist=3.01 (clip root 2.75) align=+1.000
-2026-08-24T03:44:51.233268Z  INFO actions_gate: [AGATE] t=5.20 loco=Grounded gait=Sprinting v=3.75 pos=(-0.00,0.90,14.43) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:51.435825Z  INFO actions_gate: [AGATE] t=5.41 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,15.57) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:51.557826Z  INFO actions_gate: [AGATE][STEP 3] resume sprint (gait=Some(Sprinting) roll=false jump=false release=false)
-2026-08-24T03:44:51.651940Z  INFO actions_gate: [AGATE] t=5.62 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,16.99) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:51.857780Z  INFO actions_gate: [AGATE] t=5.83 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,18.31) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:52.074861Z  INFO actions_gate: [AGATE] t=6.04 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,19.73) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:52.289904Z  INFO actions_gate: [AGATE] t=6.26 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,21.15) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:52.495126Z  INFO actions_gate: [AGATE] t=6.46 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,22.47) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:52.711575Z  INFO actions_gate: [AGATE] t=6.68 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,23.89) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:52.917316Z  INFO actions_gate: [AGATE] t=6.89 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,25.21) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.135012Z  INFO actions_gate: [AGATE] t=7.10 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,26.64) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.341356Z  INFO actions_gate: [AGATE] t=7.31 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,27.96) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.341393Z  INFO actions_gate: [AGATE][STEP 4] jump while sprinting (gait=Some(Sprinting) roll=false jump=true release=false)
-2026-08-24T03:44:53.481739Z  INFO als_core::motion: [MOTION] entity=574v0 locomotion sync Grounded -> Air
-2026-08-24T03:44:53.510246Z  INFO actions_gate: [AGATE][JUMP] airborne at t=7.48
-2026-08-24T03:44:53.557836Z  INFO actions_gate: [AGATE] t=7.53 loco=Air gait=Sprinting v=6.50 pos=(-0.00,1.83,29.38) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.763643Z  INFO actions_gate: [AGATE] t=7.73 loco=Air gait=Sprinting v=6.50 pos=(-0.00,1.90,30.70) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.979042Z  INFO als_core::motion: [MOTION] entity=574v0 locomotion sync Air -> Grounded
-2026-08-24T03:44:53.979103Z  INFO actions_gate: [AGATE] t=7.95 loco=Air gait=Sprinting v=6.50 pos=(-0.00,0.89,32.12) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:53.997440Z  INFO actions_gate: [AGATE][LAND] z=32.22 light=true ff=0.00
-2026-08-24T03:44:54.187554Z  INFO actions_gate: [AGATE] t=8.15 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.89,33.44) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:54.244050Z  INFO actions_gate: [AGATE][STEP 5] land + keep moving (gait=Some(Sprinting) roll=false jump=false release=false)
-2026-08-24T03:44:54.402035Z  INFO actions_gate: [AGATE] t=8.37 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.89,34.86) rolling=false sw=0.00 rem=0.000
-2026-08-24T03:44:54.589872Z  INFO actions_gate: [AGATE][STEP 6] release -> stop distance match (gait=None roll=false jump=false release=true)
-2026-08-24T03:44:54.617975Z  INFO actions_gate: [AGATE] t=8.59 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,36.28) rolling=false sw=0.15 rem=1.408
-2026-08-24T03:44:54.618030Z  INFO actions_gate: [AGATE][STOP] matched start total=1.408
-2026-08-24T03:44:54.840711Z  INFO actions_gate: [AGATE] t=8.81 loco=Grounded gait=Sprinting v=0.00 pos=(-0.00,0.90,36.94) rolling=false sw=1.00 rem=0.587
-2026-08-24T03:44:54.858987Z  INFO actions_gate: [AGATE][VERDICT] roll(dist=3.01,align=+1.000)=true jump_light=true stop(slide=0.65,peak_w=1.00,rem_end=0.000)=true -> PASS
+2026-08-24T11:45:00.109939Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T11:45:00.666892Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T11:45:01.447409Z  INFO actions_gate: [AGATE] auto quit armed in 30.0s
+2026-08-24T11:45:01.551865Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T11:45:01.552044Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T11:45:01.558210Z  INFO bevy_winit::system: Creating new window actions_gate (65v0)
+2026-08-24T11:45:01.691947Z  INFO actions_gate: [AGATE] scripted demo armed
+2026-08-24T11:45:02.531718Z  INFO actions_gate: [AGATE] t=0.46 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.82,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:04.351552Z  INFO actions_gate: [AGATE] t=0.67 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.86,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:04.591742Z  INFO actions_gate: [AGATE] t=0.92 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.88,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:04.831704Z  INFO actions_gate: [AGATE] t=1.17 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.89,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:05.052272Z  INFO actions_gate: [AGATE] t=1.42 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.89,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:05.270938Z  INFO actions_gate: [AGATE] t=1.65 loco=Grounded gait=Walking v=0.00 pos=(-0.00,0.90,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:05.271017Z  INFO actions_gate: [AGATE][STEP 1] sprint up (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T11:45:05.472885Z  INFO actions_gate: [AGATE] t=1.87 loco=Grounded gait=Sprinting v=0.00 pos=(-0.00,0.90,0.00) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:05.682530Z  INFO actions_gate: [AGATE] t=2.09 loco=Grounded gait=Sprinting v=4.53 pos=(-0.00,0.90,0.52) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:05.882505Z  INFO actions_gate: [AGATE] t=2.29 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,1.74) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:06.099508Z  INFO actions_gate: [AGATE] t=2.50 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,3.16) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:06.500717Z  INFO actions_gate: [AGATE] t=2.92 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,5.81) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:06.701877Z  INFO actions_gate: [AGATE] t=3.12 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,7.13) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:06.900252Z  INFO actions_gate: [AGATE] t=3.32 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,8.45) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:07.096840Z  INFO actions_gate: [AGATE] t=3.52 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,9.77) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:07.096920Z  INFO actions_gate: [AGATE][STEP 2] sprint roll (forward) (gait=Some(Sprinting) roll=true jump=false release=false)
+2026-08-24T11:45:07.293050Z  INFO actions_gate: [AGATE][ROLL begin] yaw=3.14 vec=Vec3(-8.742278e-8, 0.0, 1.0)
+2026-08-24T11:45:07.478412Z  INFO actions_gate: [AGATE] t=3.92 loco=Grounded gait=Sprinting v=3.70 pos=(-0.00,0.90,10.55) rolling=true sw=0.00 rem=0.000
+2026-08-24T11:45:07.880144Z  INFO actions_gate: [AGATE] t=4.30 loco=Grounded gait=Sprinting v=2.85 pos=(-0.00,0.90,11.90) rolling=true sw=0.00 rem=0.000
+2026-08-24T11:45:08.084239Z  INFO actions_gate: [AGATE] t=4.51 loco=Grounded gait=Sprinting v=1.93 pos=(-0.00,0.90,12.36) rolling=true sw=0.00 rem=0.000
+2026-08-24T11:45:08.461319Z  INFO actions_gate: [AGATE] t=4.90 loco=Grounded gait=Sprinting v=0.33 pos=(-0.00,0.90,12.73) rolling=true sw=0.00 rem=0.000
+2026-08-24T11:45:08.643273Z  INFO actions_gate: [AGATE][ROLL done] dist=2.84 (clip root 2.75) align=+1.000
+2026-08-24T11:45:08.843158Z  INFO actions_gate: [AGATE] t=5.28 loco=Grounded gait=Sprinting v=5.63 pos=(-0.00,0.90,13.55) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:09.210790Z  INFO actions_gate: [AGATE] t=5.67 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,15.97) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:09.210884Z  INFO actions_gate: [AGATE][STEP 3] resume sprint (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T11:45:09.564384Z  INFO actions_gate: [AGATE] t=6.03 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,18.41) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:09.895122Z  INFO actions_gate: [AGATE] t=6.38 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,20.64) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:10.211720Z  INFO actions_gate: [AGATE] t=6.72 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,22.78) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:10.534614Z  INFO actions_gate: [AGATE] t=7.03 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,24.91) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:10.859025Z  INFO actions_gate: [AGATE] t=7.36 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,26.94) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:10.859103Z  INFO actions_gate: [AGATE][STEP 4] jump while sprinting (gait=Some(Sprinting) roll=false jump=true release=false)
+2026-08-24T11:45:11.188075Z  INFO als_core::motion: [MOTION] entity=574v0 locomotion sync Grounded -> Air
+2026-08-24T11:45:11.188112Z  INFO actions_gate: [AGATE] t=7.68 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,1.80,29.07) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:11.188468Z  INFO actions_gate: [AGATE][JUMP] airborne at t=7.68
+2026-08-24T11:45:11.519401Z  INFO actions_gate: [AGATE] t=8.01 loco=Air gait=Sprinting v=6.50 pos=(-0.00,1.49,31.21) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:11.691670Z  INFO als_core::motion: [MOTION] entity=574v0 locomotion sync Air -> Grounded
+2026-08-24T11:45:11.691939Z  INFO actions_gate: [AGATE][LAND] z=32.32 light=true ff=0.00
+2026-08-24T11:45:11.854917Z  INFO actions_gate: [AGATE] t=8.34 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.89,33.34) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:11.855052Z  INFO actions_gate: [AGATE][STEP 5] land + keep moving (gait=Some(Sprinting) roll=false jump=false release=false)
+2026-08-24T11:45:12.198659Z  INFO actions_gate: [AGATE] t=8.68 loco=Grounded gait=Sprinting v=6.50 pos=(-0.00,0.90,35.57) rolling=false sw=0.00 rem=0.000
+2026-08-24T11:45:12.198738Z  INFO actions_gate: [AGATE][STEP 6] release -> stop distance match (gait=None roll=false jump=false release=true)
+2026-08-24T11:45:12.391774Z  INFO actions_gate: [AGATE][STOP] matched start total=1.408
+2026-08-24T11:45:12.545451Z  INFO actions_gate: [AGATE] t=9.02 loco=Grounded gait=Sprinting v=1.81 pos=(-0.00,0.90,37.40) rolling=false sw=1.00 rem=0.171
+2026-08-24T11:45:12.759447Z  INFO actions_gate: [AGATE] t=9.22 loco=Grounded gait=Sprinting v=0.00 pos=(-0.00,0.90,37.45) rolling=false sw=0.24 rem=0.000
+2026-08-24T11:45:12.759784Z  INFO actions_gate: [AGATE][VERDICT] roll(dist=2.84,align=+1.000)=true jump_light=true stop(slide=0.65,peak_w=1.00,rem_end=0.000)=true -> PASS
