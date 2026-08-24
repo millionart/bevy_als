@@ -6,6 +6,7 @@ pub mod loader;
 pub mod nodes;
 pub mod overlay;
 pub mod playground;
+pub mod time_position;
 
 pub use als_curves::{
     parse_curves, AlsAnimCurves, AlsCurvesHandler, AlsCurvesParseError, AlsExtrapolation,
@@ -29,6 +30,7 @@ pub use playground::{
     PlaygroundMovingObject, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
     PlaygroundStatic,
 };
+pub use time_position::{resolve_position, TimePositionNode};
 
 use bevy::prelude::*;
 use bevy_animation_graph::builtin_nodes::global_input::GlobalInput;
@@ -44,6 +46,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
             .register_type::<DistanceMatchNode>()
+            .register_type::<TimePositionNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()
