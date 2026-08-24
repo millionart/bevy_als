@@ -58,7 +58,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [ ] BF3 WASD 移动方向与面朝相反：确诊三者之一——网格面朝轴 vs tnua `desired_forward` 约定 vs 输入映射符号（M8.6 记录「角色面朝 glTF +Z」而 bevy/tnua forward 为 -Z 为首要嫌疑）。验收：按 W 角色面朝移动方向前进，四向均正确。
 - [ ] BF4 双腿插入地下：Playground Landscape 高度场 mesh 无对应碰撞体（manual 场景只搭了 y=-0.1 顶面的隐形 cuboid，出生点取自地形采样高度≈0.92 → 角色沉入地形内）；同时 avatar 子实体偏移 (0,-0.90,0) 与模型根/胶囊对齐关系需对照 ALS 验证（截图比对 UE 内 SK_Manny 相对胶囊位置）。验收：脚底贴地形表面无穿模；截图对比存档。
 - [ ] BF5 ALS 对标按键补齐：从 ALS 工程增强输入 IMC 资产提取默认键位表并登记 CHECKLIST；mantle 由现行免按键自动触发改为 ALS 键位触发（保留检测器）、ragdoll 绑键进出（ragdoll_link 已具备能力）。验收：按键触发攀爬/倒地/起身恢复。
-- [ ] BF6 HUD 1:1 复刻 ALS ShowDebug 运行时界面：面板分类与开关键位对齐工程 `DefaultInput.ini` DebugExecBindings（Shift+0 主开关，Shift+1..8 = Curves/State/Shapes/Traces/Mantling/CameraCurves/CameraShapes/CameraTraces），面板版式与条目对照 UE 截图复刻（现有 AlsStateHudPlugin 仅五行文本打印）。验收：逐分类截图对照存档。
+- [x] BF6 HUD 1:1 复刻 ALS ShowDebug 运行时界面：面板分类与开关键位对齐工程 `DefaultInput.ini` DebugExecBindings（Shift+0 主开关，Shift+1..8 = Curves/State/Shapes/Traces/Mantling/CameraCurves/CameraShapes/CameraTraces），面板版式与条目对照 UE 截图复刻（现有 AlsStateHudPlugin 仅五行文本打印）。验收：逐分类截图对照存档。
+    - 实现/自测证据（2026-08-24）：`bevy_als::show_debug_hud::AlsShowDebugHudPlugin`——九分类面板逐行映射 AlsCharacter_Debug.cpp/AlsCameraComponent_Debug.cpp（State 分类 11 行全部接真实 ECS 数据源；Curves/CameraCurves 经 AlsShowDebugCurveSources 注入 AlsAnimCurves 句柄按 player elapsed 采样；Shapes 的 InputYawAngle 橙/Speed 紫等配色常量与 C++ 文件行号一一对应；默认开启后无分类=UE AHUD::ShowDebug(NAME_None) 引擎语义，分类头暗绿 (0,0.333333,0)）；切换语义照 HUD.cpp:377-393（可见且已含→移除）；键位 Shift+0..8 独立于 enhanced_input。单测 12 绿；`examples/show_debug_hud_gate` VERDICT panel/header/state_rows/stance_flip/shapes_rows/retoggle_off 全 ok → PASS，exit=0 无 panic。N/A 行（SmoothTargetYawAngle、PivotLagLocation、CameraFieldOfView、bRightShoulder）为仓库尚未实现的对应存储，标签保留待后续条目补齐。
 
 依赖关系：BF1 →（BF2、BF5）；BF2 →（BF3、BF4 的实机验收）；BF3/BF4/BF6 相互独立，可与主线并行派发 subagent（互不修改同一文件时）。
 

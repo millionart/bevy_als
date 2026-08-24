@@ -8,5 +8,6 @@ pub mod overlay_layer;
 pub mod ragdoll_link;
 pub mod roll_drive;
 pub mod root_motion_link;
+pub mod show_debug_hud;
 pub mod stop_link;
 pub mod view_layer;
