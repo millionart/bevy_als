@@ -8,70 +8,88 @@
 
 
 
-2026-08-24T11:46:04.839606Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
-2026-08-24T11:46:05.399452Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
-2026-08-24T11:46:06.181585Z  INFO roll_gate: [ROLLGATE] auto quit armed in 20.0s
-2026-08-24T11:46:06.281214Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
-2026-08-24T11:46:06.281480Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
-2026-08-24T11:46:06.287404Z  INFO bevy_winit::system: Creating new window roll_gate (65v0)
-2026-08-24T11:46:06.416982Z  INFO roll_gate: [ROLLGATE] scripted demo armed
-2026-08-24T11:46:06.700577Z  INFO roll_gate: [ROLLGATE] t=0.23 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.75,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:07.241583Z  INFO roll_gate: [ROLLGATE] t=0.48 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.82,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:08.809861Z  INFO roll_gate: [ROLLGATE] t=0.61 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.85,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:09.036163Z  INFO roll_gate: [ROLLGATE] t=0.86 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.87,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:09.261118Z  INFO roll_gate: [ROLLGATE] t=1.11 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.89,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:09.460720Z  INFO roll_gate: [ROLLGATE] t=1.34 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.89,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:09.667841Z  INFO roll_gate: [ROLLGATE] t=1.56 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.90,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:09.667940Z  INFO roll_gate: [ROLLGATE][STEP 1] run up
-2026-08-24T11:46:09.835967Z  INFO roll_gate: [ROLLGATE] t=1.76 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.90,0.00) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.030036Z  INFO roll_gate: [ROLLGATE] t=1.97 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.32) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.176104Z  INFO roll_gate: [ROLLGATE] t=2.14 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.59) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.368011Z  INFO roll_gate: [ROLLGATE] t=2.33 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.95) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.503811Z  INFO roll_gate: [ROLLGATE] t=2.48 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.20) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.680672Z  INFO roll_gate: [ROLLGATE] t=2.67 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.52) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.816930Z  INFO roll_gate: [ROLLGATE] t=2.81 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.77) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:10.816999Z  INFO roll_gate: [ROLLGATE][STEP 2] forward roll
-2026-08-24T11:46:10.981361Z  INFO roll_gate: [ROLLGATE] t=2.98 loco=Grounded stance=Standing v=1.78 pos=(-0.00,0.90,1.90) rolling=true rt=0.16 cd=0.00
-2026-08-24T11:46:10.981520Z  INFO roll_gate: [ROLLGATE][ROLL 1] started dir_yaw=3.14 expected_vec=Vec3(-8.742278e-8, 0.0, 1.0)
-2026-08-24T11:46:11.120471Z  INFO roll_gate: [ROLLGATE] t=3.12 loco=Grounded stance=Standing v=2.73 pos=(-0.00,0.90,2.23) rolling=true rt=0.30 cd=0.00
-2026-08-24T11:46:11.296441Z  INFO roll_gate: [ROLLGATE] t=3.28 loco=Grounded stance=Standing v=3.29 pos=(-0.00,0.90,2.79) rolling=true rt=0.47 cd=0.00
-2026-08-24T11:46:11.419725Z  INFO roll_gate: [ROLLGATE] t=3.42 loco=Grounded stance=Standing v=3.10 pos=(-0.00,0.90,3.21) rolling=true rt=0.59 cd=0.00
-2026-08-24T11:46:11.607671Z  INFO roll_gate: [ROLLGATE] t=3.60 loco=Grounded stance=Standing v=2.23 pos=(-0.00,0.90,3.72) rolling=true rt=0.78 cd=0.00
-2026-08-24T11:46:11.727541Z  INFO roll_gate: [ROLLGATE] t=3.72 loco=Grounded stance=Standing v=1.91 pos=(-0.00,0.90,3.98) rolling=true rt=0.91 cd=0.00
-2026-08-24T11:46:11.904436Z  INFO roll_gate: [ROLLGATE] t=3.91 loco=Grounded stance=Standing v=1.33 pos=(-0.00,0.90,4.27) rolling=true rt=1.09 cd=0.00
-2026-08-24T11:46:12.011167Z  INFO roll_gate: [ROLLGATE] t=4.03 loco=Grounded stance=Standing v=0.93 pos=(-0.00,0.90,4.38) rolling=true rt=1.20 cd=0.00
-2026-08-24T11:46:12.187375Z  INFO roll_gate: [ROLLGATE] t=4.21 loco=Grounded stance=Standing v=0.31 pos=(-0.00,0.90,4.46) rolling=true rt=1.39 cd=0.00
-2026-08-24T11:46:12.295998Z  INFO roll_gate: [ROLLGATE] t=4.31 loco=Grounded stance=Standing v=0.62 pos=(-0.00,0.90,4.48) rolling=false rt=0.00 cd=0.35
-2026-08-24T11:46:12.296109Z  INFO roll_gate: [ROLLGATE][STEP 3] settle
-2026-08-24T11:46:12.296225Z  INFO roll_gate: [ROLLGATE][RESULT 1] dist=2.58 (clip root 2.75) align=+1.000 peak_v=3.29
-2026-08-24T11:46:12.459991Z  INFO roll_gate: [ROLLGATE] t=4.49 loco=Grounded stance=Standing v=1.75 pos=(-0.00,0.90,4.75) rolling=false rt=0.00 cd=0.18
-2026-08-24T11:46:12.570917Z  INFO roll_gate: [ROLLGATE] t=4.60 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.07
-2026-08-24T11:46:12.712886Z  INFO roll_gate: [ROLLGATE] t=4.76 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:12.814456Z  INFO roll_gate: [ROLLGATE] t=4.87 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:12.940132Z  INFO roll_gate: [ROLLGATE] t=5.02 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:13.040128Z  INFO roll_gate: [ROLLGATE] t=5.12 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:13.151995Z  INFO roll_gate: [ROLLGATE] t=5.24 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:13.349475Z  INFO roll_gate: [ROLLGATE] t=5.45 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:13.422899Z  INFO roll_gate: [ROLLGATE][STEP 4] right roll
-2026-08-24T11:46:13.524688Z  INFO roll_gate: [ROLLGATE] t=5.65 loco=Grounded stance=Standing v=0.69 pos=(0.02,0.90,4.79) rolling=true rt=0.09 cd=0.00
-2026-08-24T11:46:13.524870Z  INFO roll_gate: [ROLLGATE][ROLL 2] started dir_yaw=1.57 expected_vec=Vec3(1.0, 0.0, 4.371139e-8)
-2026-08-24T11:46:13.699995Z  INFO roll_gate: [ROLLGATE] t=5.83 loco=Grounded stance=Standing v=2.52 pos=(0.36,0.90,4.79) rolling=true rt=0.27 cd=0.00
-2026-08-24T11:46:13.894634Z  INFO roll_gate: [ROLLGATE] t=6.00 loco=Grounded stance=Standing v=3.27 pos=(0.95,0.90,4.79) rolling=true rt=0.45 cd=0.00
-2026-08-24T11:46:14.090560Z  INFO roll_gate: [ROLLGATE] t=6.20 loco=Grounded stance=Standing v=2.92 pos=(1.57,0.90,4.79) rolling=true rt=0.64 cd=0.00
-2026-08-24T11:46:14.294813Z  INFO roll_gate: [ROLLGATE] t=6.39 loco=Grounded stance=Standing v=2.03 pos=(2.07,0.90,4.79) rolling=true rt=0.84 cd=0.00
-2026-08-24T11:46:14.501939Z  INFO roll_gate: [ROLLGATE] t=6.60 loco=Grounded stance=Standing v=1.64 pos=(2.42,0.90,4.79) rolling=true rt=1.05 cd=0.00
-2026-08-24T11:46:14.708356Z  INFO roll_gate: [ROLLGATE] t=6.80 loco=Grounded stance=Standing v=0.78 pos=(2.62,0.90,4.79) rolling=true rt=1.25 cd=0.00
-2026-08-24T11:46:14.917706Z  INFO roll_gate: [ROLLGATE] t=7.01 loco=Grounded stance=Standing v=0.31 pos=(2.68,0.90,4.79) rolling=true rt=1.45 cd=0.00
-2026-08-24T11:46:15.013343Z  INFO roll_gate: [ROLLGATE][RESULT 2] dist=2.72 (clip root 2.75) align=+1.000 peak_v=3.27
-2026-08-24T11:46:15.013412Z  INFO roll_gate: [ROLLGATE][STEP 5] final settle
-2026-08-24T11:46:15.137515Z  INFO roll_gate: [ROLLGATE] t=7.22 loco=Grounded stance=Standing v=1.75 pos=(2.96,0.90,4.79) rolling=false rt=0.00 cd=0.18
-2026-08-24T11:46:15.346807Z  INFO roll_gate: [ROLLGATE] t=7.44 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:15.539126Z  INFO roll_gate: [ROLLGATE] t=7.65 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:15.726895Z  INFO roll_gate: [ROLLGATE] t=7.84 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:15.910105Z  INFO roll_gate: [ROLLGATE] t=8.03 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.012135Z  INFO roll_gate: [ROLLGATE] t=8.14 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.189103Z  INFO roll_gate: [ROLLGATE] t=8.31 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.349905Z  INFO roll_gate: [ROLLGATE] t=8.49 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.504941Z  INFO roll_gate: [ROLLGATE] t=8.65 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.667146Z  INFO roll_gate: [ROLLGATE] t=8.81 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
-2026-08-24T11:46:16.842467Z  INFO roll_gate: [ROLLGATE] t=8.97 loco=Grounded stance=Standing v=0.00 pos=(3.00,0.90,4.79) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:45.458922Z  INFO bevy_diagnostic::system_information_diagnostics_plugin::internal: SystemInfo { os: "Windows 10 Pro", kernel: "19045", cpu: "AMD Ryzen 9 5900X 12-Core Processor", core_count: "12", memory: "31.9 GiB" }
+2026-08-24T12:42:46.278805Z  INFO bevy_render::renderer: AdapterInfo { name: "NVIDIA GeForce RTX 4090", vendor: 4318, device: 9860, device_type: DiscreteGpu, device_pci_bus_id: "0000:2d:00.0", driver: "NVIDIA", driver_info: "610.74", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: false }
+2026-08-24T12:42:47.516151Z  INFO roll_gate: [ROLLGATE] auto quit armed in 20.0s
+2026-08-24T12:42:47.622488Z  INFO bevy_pbr::cluster: GPU clustering is supported on this device.
+2026-08-24T12:42:47.622668Z  INFO bevy_render::batching::gpu_preprocessing: GPU preprocessing is fully supported on this device.
+2026-08-24T12:42:47.630134Z  INFO bevy_winit::system: Creating new window roll_gate (65v0)
+2026-08-24T12:42:47.780056Z  INFO roll_gate: [ROLLGATE] scripted demo armed
+2026-08-24T12:42:48.110812Z  INFO roll_gate: [ROLLGATE] t=0.25 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.75,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:48.112183Z  INFO als_ext::root_motion_defaults: root motion defaults: injected derived root bone for clip Some(animations/Actions/Mantle/A_Als_Mantle_High.anim.ron)
+2026-08-24T12:42:49.104969Z  INFO roll_gate: [ROLLGATE] t=0.50 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.82,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:49.106026Z  INFO als_ext::root_motion_defaults: root motion defaults: injected derived root bone for clip Some(animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron)
+2026-08-24T12:42:49.107116Z  INFO als_ext::root_motion_defaults: root motion defaults: injected derived root bone for clip Some(animations/Actions/Mantle/A_Als_Mantle_Low_Left.anim.ron)
+2026-08-24T12:42:49.108136Z  INFO als_ext::root_motion_defaults: root motion defaults: injected derived root bone for clip Some(animations/Actions/Roll/A_Als_Roll.anim.ron)
+2026-08-24T12:42:50.116804Z  INFO roll_gate: [ROLLGATE] t=0.75 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.86,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:50.961933Z  INFO roll_gate: [ROLLGATE] t=1.09 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.88,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.162714Z  INFO roll_gate: [ROLLGATE] t=1.34 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.89,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.335003Z  INFO roll_gate: [ROLLGATE][STEP 1] run up
+2026-08-24T12:42:51.335092Z  INFO roll_gate: [ROLLGATE] t=1.55 loco=Grounded stance=Standing v=0.00 pos=(0.00,0.89,0.00) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.503581Z  INFO roll_gate: [ROLLGATE] t=1.75 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.29) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.649659Z  INFO roll_gate: [ROLLGATE] t=1.92 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.59) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.802849Z  INFO roll_gate: [ROLLGATE] t=2.09 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,0.89) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:51.925671Z  INFO roll_gate: [ROLLGATE] t=2.23 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.14) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:52.054064Z  INFO roll_gate: [ROLLGATE] t=2.39 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.41) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:52.159439Z  INFO roll_gate: [ROLLGATE] t=2.51 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.63) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:52.267628Z  INFO roll_gate: [ROLLGATE] t=2.64 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,1.85) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:52.361741Z  INFO roll_gate: [ROLLGATE][STEP 2] forward roll
+2026-08-24T12:42:52.361801Z  INFO roll_gate: [ROLLGATE] t=2.74 loco=Grounded stance=Standing v=1.75 pos=(0.00,0.90,2.04) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:52.461101Z  INFO roll_gate: [ROLLGATE] t=2.85 loco=Grounded stance=Standing v=1.00 pos=(-0.00,0.90,2.08) rolling=true rt=0.09 cd=0.00
+2026-08-24T12:42:52.461173Z  INFO roll_gate: [ROLLGATE][ROLL 1] started dir_yaw=3.14 expected_vec=Vec3(-8.742278e-8, 0.0, 1.0)
+2026-08-24T12:42:52.627629Z  INFO roll_gate: [ROLLGATE] t=3.04 loco=Grounded stance=Standing v=2.52 pos=(-0.00,0.90,2.46) rolling=true rt=0.28 cd=0.00
+2026-08-24T12:42:52.789961Z  INFO roll_gate: [ROLLGATE] t=3.21 loco=Grounded stance=Standing v=3.27 pos=(-0.00,0.90,3.01) rolling=true rt=0.45 cd=0.00
+2026-08-24T12:42:52.927051Z  INFO roll_gate: [ROLLGATE] t=3.37 loco=Grounded stance=Standing v=3.07 pos=(-0.00,0.90,3.53) rolling=true rt=0.61 cd=0.00
+2026-08-24T12:42:53.047809Z  INFO roll_gate: [ROLLGATE] t=3.51 loco=Grounded stance=Standing v=2.37 pos=(-0.00,0.90,3.92) rolling=true rt=0.75 cd=0.00
+2026-08-24T12:42:53.159366Z  INFO roll_gate: [ROLLGATE] t=3.63 loco=Grounded stance=Standing v=1.98 pos=(-0.00,0.90,4.19) rolling=true rt=0.88 cd=0.00
+2026-08-24T12:42:53.259583Z  INFO roll_gate: [ROLLGATE] t=3.74 loco=Grounded stance=Standing v=1.64 pos=(-0.00,0.90,4.39) rolling=true rt=0.98 cd=0.00
+2026-08-24T12:42:53.347149Z  INFO roll_gate: [ROLLGATE] t=3.84 loco=Grounded stance=Standing v=1.49 pos=(-0.00,0.90,4.52) rolling=true rt=1.08 cd=0.00
+2026-08-24T12:42:53.476332Z  INFO roll_gate: [ROLLGATE] t=3.97 loco=Grounded stance=Standing v=0.90 pos=(-0.00,0.90,4.66) rolling=true rt=1.22 cd=0.00
+2026-08-24T12:42:53.585837Z  INFO roll_gate: [ROLLGATE] t=4.09 loco=Grounded stance=Standing v=0.41 pos=(-0.00,0.90,4.72) rolling=true rt=1.33 cd=0.00
+2026-08-24T12:42:53.703551Z  INFO roll_gate: [ROLLGATE] t=4.21 loco=Grounded stance=Standing v=0.31 pos=(-0.00,0.90,4.74) rolling=true rt=1.45 cd=0.00
+2026-08-24T12:42:53.783020Z  INFO roll_gate: [ROLLGATE][RESULT 1] dist=2.70 (clip root 2.75) align=+1.000 peak_v=3.27
+2026-08-24T12:42:53.814216Z  INFO roll_gate: [ROLLGATE][STEP 3] settle
+2026-08-24T12:42:53.814278Z  INFO roll_gate: [ROLLGATE] t=4.32 loco=Grounded stance=Standing v=1.75 pos=(-0.00,0.90,4.83) rolling=false rt=0.00 cd=0.29
+2026-08-24T12:42:53.930940Z  INFO roll_gate: [ROLLGATE] t=4.44 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.16
+2026-08-24T12:42:54.023549Z  INFO roll_gate: [ROLLGATE] t=4.54 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.07
+2026-08-24T12:42:54.146801Z  INFO roll_gate: [ROLLGATE] t=4.66 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.270830Z  INFO roll_gate: [ROLLGATE] t=4.79 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.394438Z  INFO roll_gate: [ROLLGATE] t=4.91 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.515727Z  INFO roll_gate: [ROLLGATE] t=5.03 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.637706Z  INFO roll_gate: [ROLLGATE] t=5.16 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.749861Z  INFO roll_gate: [ROLLGATE] t=5.27 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.873493Z  INFO roll_gate: [ROLLGATE] t=5.39 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:54.985449Z  INFO roll_gate: [ROLLGATE][STEP 4] right roll
+2026-08-24T12:42:54.985509Z  INFO roll_gate: [ROLLGATE] t=5.52 loco=Grounded stance=Standing v=0.00 pos=(-0.00,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:55.016427Z  INFO roll_gate: [ROLLGATE][ROLL 2] started dir_yaw=1.57 expected_vec=Vec3(1.0, 0.0, 4.371139e-8)
+2026-08-24T12:42:55.118981Z  INFO roll_gate: [ROLLGATE] t=5.63 loco=Grounded stance=Standing v=1.23 pos=(0.06,0.90,4.87) rolling=true rt=0.11 cd=0.00
+2026-08-24T12:42:55.249569Z  INFO roll_gate: [ROLLGATE] t=5.76 loco=Grounded stance=Standing v=2.30 pos=(0.30,0.90,4.87) rolling=true rt=0.23 cd=0.00
+2026-08-24T12:42:55.373772Z  INFO roll_gate: [ROLLGATE] t=5.88 loco=Grounded stance=Standing v=3.02 pos=(0.66,0.90,4.87) rolling=true rt=0.36 cd=0.00
+2026-08-24T12:42:55.485549Z  INFO roll_gate: [ROLLGATE] t=5.99 loco=Grounded stance=Standing v=3.29 pos=(1.02,0.90,4.87) rolling=true rt=0.47 cd=0.00
+2026-08-24T12:42:55.607998Z  INFO roll_gate: [ROLLGATE] t=6.11 loco=Grounded stance=Standing v=3.10 pos=(1.44,0.90,4.87) rolling=true rt=0.59 cd=0.00
+2026-08-24T12:42:55.717899Z  INFO roll_gate: [ROLLGATE] t=6.22 loco=Grounded stance=Standing v=2.54 pos=(1.77,0.90,4.87) rolling=true rt=0.70 cd=0.00
+2026-08-24T12:42:55.844483Z  INFO roll_gate: [ROLLGATE] t=6.35 loco=Grounded stance=Standing v=1.95 pos=(2.06,0.90,4.87) rolling=true rt=0.83 cd=0.00
+2026-08-24T12:42:55.954448Z  INFO roll_gate: [ROLLGATE] t=6.46 loco=Grounded stance=Standing v=1.82 pos=(2.27,0.90,4.87) rolling=true rt=0.94 cd=0.00
+2026-08-24T12:42:56.074636Z  INFO roll_gate: [ROLLGATE] t=6.58 loco=Grounded stance=Standing v=1.31 pos=(2.46,0.90,4.87) rolling=true rt=1.06 cd=0.00
+2026-08-24T12:42:56.186179Z  INFO roll_gate: [ROLLGATE] t=6.69 loco=Grounded stance=Standing v=1.07 pos=(2.59,0.90,4.87) rolling=true rt=1.17 cd=0.00
+2026-08-24T12:42:56.300283Z  INFO roll_gate: [ROLLGATE] t=6.80 loco=Grounded stance=Standing v=0.65 pos=(2.66,0.90,4.87) rolling=true rt=1.28 cd=0.00
+2026-08-24T12:42:56.425197Z  INFO roll_gate: [ROLLGATE] t=6.93 loco=Grounded stance=Standing v=0.31 pos=(2.69,0.90,4.87) rolling=true rt=1.41 cd=0.00
+2026-08-24T12:42:56.537866Z  INFO roll_gate: [ROLLGATE] t=7.04 loco=Grounded stance=Standing v=0.94 pos=(2.73,0.90,4.87) rolling=false rt=0.00 cd=0.33
+2026-08-24T12:42:56.537966Z  INFO roll_gate: [ROLLGATE][RESULT 2] dist=2.72 (clip root 2.75) align=+1.000 peak_v=3.29
+2026-08-24T12:42:56.618611Z  INFO roll_gate: [ROLLGATE][STEP 5] final settle
+2026-08-24T12:42:56.664226Z  INFO roll_gate: [ROLLGATE] t=7.17 loco=Grounded stance=Standing v=0.34 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.21
+2026-08-24T12:42:56.797364Z  INFO roll_gate: [ROLLGATE] t=7.28 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.10
+2026-08-24T12:42:56.900049Z  INFO roll_gate: [ROLLGATE] t=7.38 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:56.983799Z  INFO roll_gate: [ROLLGATE] t=7.48 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.109676Z  INFO roll_gate: [ROLLGATE] t=7.62 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.214398Z  INFO roll_gate: [ROLLGATE] t=7.72 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.310258Z  INFO roll_gate: [ROLLGATE] t=7.83 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.448042Z  INFO roll_gate: [ROLLGATE] t=7.97 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.573734Z  INFO roll_gate: [ROLLGATE] t=8.09 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.712214Z  INFO roll_gate: [ROLLGATE] t=8.23 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.854224Z  INFO roll_gate: [ROLLGATE] t=8.36 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:57.949803Z  INFO roll_gate: [ROLLGATE] t=8.47 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:58.072777Z  INFO roll_gate: [ROLLGATE] t=8.59 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:58.177307Z  INFO roll_gate: [ROLLGATE] t=8.70 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:58.301896Z  INFO roll_gate: [ROLLGATE] t=8.82 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00
+2026-08-24T12:42:58.430910Z  INFO roll_gate: [ROLLGATE] t=8.95 loco=Grounded stance=Standing v=0.00 pos=(2.89,0.90,4.87) rolling=false rt=0.00 cd=0.00

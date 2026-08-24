@@ -6,6 +6,7 @@ pub mod loader;
 pub mod nodes;
 pub mod overlay;
 pub mod playground;
+pub mod root_motion_defaults;
 pub mod time_position;
 
 pub use als_curves::{
@@ -30,6 +31,7 @@ pub use playground::{
     PlaygroundMovingObject, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
     PlaygroundStatic,
 };
+pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use time_position::{resolve_position, TimePositionNode};
 
 use bevy::prelude::*;
@@ -52,5 +54,6 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DataSpec>()
             .register_type::<DataValue>();
         AlsCurvesHandler::register(app);
+        app.add_plugins(root_motion_defaults::RootMotionDefaultsPlugin);
     }
 }

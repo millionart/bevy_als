@@ -583,7 +583,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#8a737f8c646216c3c73ef17232ad727465641543"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_builtin_nodes",
@@ -601,7 +601,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_builtin_nodes"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#8a737f8c646216c3c73ef17232ad727465641543"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_core",
@@ -618,7 +618,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_core"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#8a737f8c646216c3c73ef17232ad727465641543"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "bevy",
  "bevy_animation_graph_proc_macros",
@@ -634,7 +634,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_proc_macros"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#8a737f8c646216c3c73ef17232ad727465641543"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#6d56b5905e28469f50a7254f0842c247998b9285"
 dependencies = [
  "quote",
  "syn 2.0.119",
