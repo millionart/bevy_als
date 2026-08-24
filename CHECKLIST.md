@@ -172,8 +172,10 @@ ALS 用 ControlRig 做 Foot IK + Pelvis 位移 + 手部 IK。Bevy 侧 IK 能力�
 
 ## M10 相机（ALSCamera 等价物，依赖：M6/M8）
 
-- [ ] M10.1 第三人称 rig：spring arm 等价（碰撞收缩、肩部偏移）。
-- [ ] M10.2 相机模式：ThirdPerson 常规/Aiming 近肩/FirstPerson 占位切换，参数 RON 化。
+- [x] M10.1 第三人称 rig：spring arm 等价（碰撞收缩、肩部偏移）。
+  - 实现（2026-08-24）：独立 `crates/als-camera`（对齐 ALSCamera 模块边界）——pivot=角色+pivot_height+旋转后肩偏移；沿 -Z 射线探测（排除角色与相机实体）按 hit 距离- skin 收缩臂长（spring_arm_length 纯函数）；朝向由 AlsViewYaw/AlsViewSmoothed 驱动（YXZ Euler），与 M6 look 链同源。
+- [x] M10.2 相机模式：ThirdPerson 常规/Aiming 近肩/FirstPerson 占位切换，参数 RON 化。
+  - 实现（2026-08-24）：AlsCameraMode 三态由 RotationMode 自动映射（Aiming↔AimingShoulder）；aim_blend 以 aim_blend_speed 平滑插值肩偏移与臂长（blended_shoulder/blended_arm_length），FirstPerson 为占位（eye 高度、臂长 0.05、无 readback 切换）；参数资产 `assets/params/als_camera.camera.ron` 经 als-camera 自带 Ron loader（扩展名 .camera.ron 防与其它 ron 冲突）加载，Update 轮询 Loaded/Failed 并日志。workspace 新成员 crates/als-camera；根/各 crate description 依规则 8 补英文化。
 - [ ] M10.3 **Gate**：贴墙不穿模、aim 切换平滑、与 M6 aim offset 数据联动正确。
 
 ## M11 调试工具与总验收（依赖：全部）
