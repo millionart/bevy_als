@@ -18,7 +18,27 @@ from uasset_base import UAsset  # noqa: E402
 import uasset_reader as UR  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(_HERE, "..", ".."))
-ALS_CONTENT = "D:/Users/milli/Git/ALS-Refactored/Plugins/ALS-Refactored/Content/ALS/ALSExtras"
+
+
+def _load_local_env():
+    cfg_path = os.path.join(REPO, "tools", "env.local.json")
+    if os.path.exists(cfg_path):
+        with open(cfg_path, encoding="utf-8") as fh:
+            return json.load(fh)
+    return {}
+
+
+_LOCAL_ENV = _load_local_env()
+_PROJECT_ROOT = os.path.dirname(
+    os.environ.get("ALS_UE_PROJECT") or _LOCAL_ENV.get("ue_project") or ""
+)
+if not _PROJECT_ROOT:
+    raise SystemExit(
+        "ALS project path missing: set ALS_UE_PROJECT env var or tools/env.local.json ue_project"
+    )
+ALS_CONTENT = os.path.join(
+    _PROJECT_ROOT, "Plugins", "ALS-Refactored", "Content", "ALS", "ALSExtras"
+)
 OUT_DIR = os.path.join(REPO, "tmp", "export", "als_extract")
 
 UMAP = os.path.join(
