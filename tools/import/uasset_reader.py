@@ -65,13 +65,19 @@ class PropReader:
         exp = self.a.exports[index]
         start = exp.serial_offset
         end = start + exp.serial_size
-        r = _R(self.a, start, end)
-        props, ok, err = {}, True, None
-        try:
-            props = self._props(r, end, want, 0, top=True)
-        except (Skip, ParseError, IndexError, struct.error) as exc:
-            ok, err = False, "%s: %s" % (type(exc).__name__, exc)
-        return props, ok, err
+        best = None
+        for shift in (0, 1, 2, 3):
+            r = _R(self.a, start + shift, end)
+            props, ok, err = {}, True, None
+            try:
+                props = self._props(r, end, want, 0, top=True)
+            except (Skip, ParseError, IndexError, struct.error) as exc:
+                ok, err = False, "%s: %s" % (type(exc).__name__, exc)
+            if ok:
+                return props, True, None
+            if best is None:
+                best = (props, ok, err)
+        return best
 
     def _skip_extra(self, r, flags):
         if flags & TAG_FLAG_HAS_ARRAY_INDEX:
@@ -90,23 +96,69 @@ class PropReader:
         if depth > 24:
             raise Skip("depth")
         props = {}
+        old_tag = self.a.summary.get("ue5", 1012) < 1012
         while True:
             name = r.fname()
             if name == "None":
                 return props
             if r.pos > end:
                 raise Skip("overrun at header")
-            nodes = read_type_nodes(r)
-            size = r.i64() if False else r.i32()
-            flags = r.u8()
-            self._skip_extra(r, flags)
 
-            tname = nodes[0][0]
+            if old_tag:
+                base_tname = r.fname()
+                size = r.i32()
+                r.i32()
+                sname = None
+                bool_value = False
+                if base_tname == "StructProperty":
+                    sname = r.fname()
+                    r.read(16)
+                    if sname == "None":
+                        nodes = [("StructProperty", 0)]
+                    else:
+                        nodes = [("StructProperty", 1), (sname, 0)]
+                elif base_tname == "BoolProperty":
+                    bool_value = r.u32() != 0
+                    nodes = [("BoolProperty", 0)]
+                elif base_tname == "ByteProperty":
+                    ename = r.fname()
+                    nodes = [("ByteProperty", 1), (ename, 0)] if ename != "None" else [("ByteProperty", 0)]
+                elif base_tname == "EnumProperty":
+                    ename = r.fname()
+                    nodes = [("EnumProperty", 1), (ename, 0)]
+                elif base_tname == "ArrayProperty":
+                    inner = r.fname()
+                    nodes = [("ArrayProperty", 1), (inner, 0)]
+                elif base_tname == "SetProperty":
+                    inner = r.fname()
+                    nodes = [("SetProperty", 1), (inner, 0)]
+                elif base_tname == "MapProperty":
+                    k = r.fname()
+                    v = r.fname()
+                    nodes = [("MapProperty", 3), (k, 1), (k, 0), (v, 0)]
+                else:
+                    nodes = [(base_tname, 0)]
+                has_guid = r.u32() != 0
+                if has_guid:
+                    r.read(16)
+                flags = 0x00
 
-            if tname == "BoolProperty":
-                value = bool(flags & TAG_FLAG_BOOL_TRUE)
-                props[name] = value
-                continue
+                tname = nodes[0][0]
+                if tname == "BoolProperty":
+                    props[name] = bool_value
+                    continue
+            else:
+                nodes = read_type_nodes(r)
+                size = r.i32()
+                flags = r.u8()
+                self._skip_extra(r, flags)
+
+                tname = nodes[0][0]
+
+                if tname == "BoolProperty":
+                    value = bool(flags & TAG_FLAG_BOOL_TRUE)
+                    props[name] = value
+                    continue
 
             payload_start = r.pos
             payload_end = payload_start + size
@@ -224,7 +276,18 @@ class PropReader:
 
         if tname == "StructProperty":
             sname = nodes[1][0] if len(nodes) > 1 else "?"
-            return self._native_checked(r, sname, end, depth)
+            try:
+                return self._native(r, sname, end)
+            except Skip:
+                r.pos = start
+                try:
+                    inner = self._props(r, end, None, depth + 1)
+                    if r.pos != end:
+                        raise Skip("struct residue %d" % (end - r.pos))
+                    return {"__tagged__": inner}
+                except (Skip, ParseError, IndexError, struct.error):
+                    r.pos = end
+                    return {"__struct__": sname}
 
         if tname == "ArrayProperty":
             inner = nodes[1][0]
@@ -251,14 +314,16 @@ class PropReader:
                 return out
             if inner == "StructProperty" and elem_struct:
                 out = []
-                for i in range(count):
-                    body_start = r.pos
-                    body = self._props(
-                        r, min(end, 1 << 30), None, depth + 1
-                    )
-                    if r.pos > end:
-                        raise Skip("struct array overrun")
-                    out.append(body)
+                try:
+                    for i in range(count):
+                        body = self._props(
+                            r, min(end, 1 << 30), None, depth + 1
+                        )
+                        if r.pos > end:
+                            raise Skip("struct array overrun")
+                        out.append(body)
+                except (Skip, ParseError, IndexError, struct.error):
+                    raise Skip("element parse failed")
                 return out
             raise Skip("array of %s" % inner)
 

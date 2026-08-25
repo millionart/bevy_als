@@ -145,16 +145,20 @@ class UAsset:
         self.summary["ue4"] = ue4
         self.summary["ue5"] = ue5
         self.summary["licensee"] = licensee
-        if ue5 >= 1016:
+        saved_hash_layout = ue5 >= 1016
+        if saved_hash_layout:
             r.read(20)
-        total_header_size = r.i32()
-        self.summary["total_header_size"] = total_header_size
+            total_header_size = r.i32()
+            self.summary["total_header_size"] = total_header_size
         custom_count = r.i32()
         if custom_count < 0 or custom_count > 4096:
             raise ParseError("%s: implausible custom version count %d" % (self.path, custom_count))
         for _ in range(custom_count):
             r.read(16)
             r.i32()
+        if not saved_hash_layout:
+            total_header_size = r.i32()
+            self.summary["total_header_size"] = total_header_size
         r.string()
         pkg_flags = r.u32()
         self.summary["flags"] = pkg_flags
