@@ -4,10 +4,12 @@ pub mod als_curves;
 pub mod curve;
 pub mod distance_match;
 pub mod ik;
+pub mod layered_graph;
 pub mod loader;
 pub mod nodes;
 pub mod overlay;
 pub mod ragdoll_config_node;
+pub mod root_motion_clip;
 pub mod playground;
 pub mod root_motion_defaults;
 pub mod time_position;
@@ -21,6 +23,8 @@ pub use distance_match::{
     default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
     DistanceMatchNode,
 };
+pub use layered_graph::LayeredGraphNode;
+pub use root_motion_clip::RootMotionClipNode;
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
 pub use ragdoll_config_node::RagdollConfigNode;
@@ -53,9 +57,11 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
             .register_type::<DistanceMatchNode>()
-            .register_type::<DistanceMatchNode>()
-            .register_type::<RagdollConfigNode>()
-            .register_type::<TimePositionNode>()
+        .register_type::<DistanceMatchNode>()
+        .register_type::<RagdollConfigNode>()
+        .register_type::<TimePositionNode>()
+        .register_type::<LayeredGraphNode>()
+        .register_type::<RootMotionClipNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()
