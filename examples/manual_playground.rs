@@ -71,6 +71,10 @@ fn main() {
         AlsRagdollLinkPlugin,
         AlsDebugDrawPlugin,
         AlsShowDebugHudPlugin,
+    ));
+    app.add_plugins((
+        bevy_als::als_hud::AlsHudPlugin,
+        bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground.ron".into(),
         },

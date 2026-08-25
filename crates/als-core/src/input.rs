@@ -53,6 +53,26 @@ pub struct ViewModeAction;
 #[action_output(bool)]
 pub struct SwitchShoulderAction;
 
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct OverlayMenuAction;
+
+#[derive(InputAction)]
+#[action_output(f32)]
+pub struct NextOverlayModeAction;
+
+#[derive(InputAction)]
+#[action_output(f32)]
+pub struct PreviousOverlayModeAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct SlomoAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct ToggleUiAction;
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
@@ -74,6 +94,11 @@ pub struct AlsInputCommand {
     pub rotation_mode_pressed: bool,
     pub view_mode_pressed: bool,
     pub switch_shoulder_pressed: bool,
+    pub overlay_menu_held: bool,
+    pub next_overlay_mode_pressed: bool,
+    pub previous_overlay_mode_pressed: bool,
+    pub slomo_pressed: bool,
+    pub toggle_ui_pressed: bool,
 }
 
 impl AlsInputCommand {
@@ -105,6 +130,9 @@ pub struct AlsInputMap {
     pub rotation_mode: Vec<Binding>,
     pub view_mode: Vec<Binding>,
     pub switch_shoulder: Vec<Binding>,
+    pub overlay_menu: Vec<Binding>,
+    pub slomo: Vec<Binding>,
+    pub toggle_ui: Vec<Binding>,
 }
 
 impl Default for AlsInputMap {
@@ -149,6 +177,9 @@ impl Default for AlsInputMap {
                 KeyCode::KeyC.into(),
                 GamepadButton::RightThumb.into(),
             ],
+            overlay_menu: vec![KeyCode::KeyQ.into(), GamepadButton::North.into()],
+            slomo: vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()],
+            toggle_ui: vec![KeyCode::Tab.into(), GamepadButton::Start.into()],
         }
     }
 }
@@ -226,6 +257,39 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
                 EIPress::default(),
                 Bindings::spawn(map.switch_shoulder.clone()),
             ),
+            (
+                Action::<OverlayMenuAction>::new(),
+                Down::default(),
+                Bindings::spawn(map.overlay_menu.clone()),
+            ),
+            (
+                Action::<NextOverlayModeAction>::new(),
+                EIPress::default(),
+                Clamp::pos(),
+                bindings![
+                    GamepadButton::DPadUp,
+                    (Binding::mouse_wheel(), SwizzleAxis::YXZ),
+                ],
+            ),
+            (
+                Action::<PreviousOverlayModeAction>::new(),
+                EIPress::default(),
+                Clamp::pos(),
+                bindings![
+                    GamepadButton::DPadDown,
+                    (Binding::mouse_wheel(), SwizzleAxis::YXZ, Negate::x()),
+                ],
+            ),
+            (
+                Action::<SlomoAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.slomo.clone()),
+            ),
+            (
+                Action::<ToggleUiAction>::new(),
+                EIPress::default(),
+                Bindings::spawn(map.toggle_ui.clone()),
+            ),
         ]),
     ));
 }
@@ -245,6 +309,13 @@ pub fn als_input_bridge_system(
     rotation_modes: Query<&ActionEvents, With<Action<RotationModeAction>>>,
     view_modes: Query<&ActionEvents, With<Action<ViewModeAction>>>,
     switch_shoulders: Query<&ActionEvents, With<Action<SwitchShoulderAction>>>,
+    mut ui_actions: (
+        Query<(&TriggerState, &Action<OverlayMenuAction>)>,
+        Query<&ActionEvents, With<Action<NextOverlayModeAction>>>,
+        Query<&ActionEvents, With<Action<PreviousOverlayModeAction>>>,
+        Query<&ActionEvents, With<Action<SlomoAction>>>,
+        Query<&ActionEvents, With<Action<ToggleUiAction>>>,
+    ),
 ) {
     for (mut cmd, actions) in &mut receivers {
         cmd.reset();
@@ -297,6 +368,28 @@ pub fn als_input_bridge_system(
         if let Some(events) = switch_shoulders.iter_many(actions).next() {
             cmd.switch_shoulder_pressed = events.contains(ActionEvents::START);
         }
+
+        let (overlay_menus, next_overlays, previous_overlays, slomos, toggle_uis) = &mut ui_actions;
+
+        if let Some((state, _)) = overlay_menus.iter_many(actions).next() {
+            cmd.overlay_menu_held = *state == TriggerState::Fired;
+        }
+
+        if let Some(events) = next_overlays.iter_many(actions).next() {
+            cmd.next_overlay_mode_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = previous_overlays.iter_many(actions).next() {
+            cmd.previous_overlay_mode_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = slomos.iter_many(actions).next() {
+            cmd.slomo_pressed = events.contains(ActionEvents::START);
+        }
+
+        if let Some(events) = toggle_uis.iter_many(actions).next() {
+            cmd.toggle_ui_pressed = events.contains(ActionEvents::START);
+        }
     }
 }
 
@@ -332,6 +425,11 @@ mod tests {
         assert!(!cmd.rotation_mode_pressed);
         assert!(!cmd.view_mode_pressed);
         assert!(!cmd.switch_shoulder_pressed);
+        assert!(!cmd.overlay_menu_held);
+        assert!(!cmd.next_overlay_mode_pressed);
+        assert!(!cmd.previous_overlay_mode_pressed);
+        assert!(!cmd.slomo_pressed);
+        assert!(!cmd.toggle_ui_pressed);
     }
 
     #[test]
@@ -350,6 +448,11 @@ mod tests {
             rotation_mode_pressed: true,
             view_mode_pressed: true,
             switch_shoulder_pressed: true,
+            overlay_menu_held: true,
+            next_overlay_mode_pressed: true,
+            previous_overlay_mode_pressed: true,
+            slomo_pressed: true,
+            toggle_ui_pressed: true,
         };
         cmd.reset();
         assert_eq!(
@@ -383,7 +486,7 @@ mod tests {
     }
 
     #[test]
-    fn spawn_creates_twelve_actions_with_bindings() {
+    fn spawn_creates_seventeen_actions_with_bindings() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
@@ -396,7 +499,7 @@ mod tests {
         app.update();
 
         let world = app.world_mut();
-        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 12);
+        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 17);
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();
@@ -441,7 +544,16 @@ mod tests {
                 TriggerState::Fired,
                 Vec2::new(1.0, 0.5),
                 MockSpan::Updates(50),
-            );
+            )
+            .mock::<OnFoot, OverlayMenuAction>(
+                TriggerState::Fired,
+                true,
+                MockSpan::Updates(50),
+            )
+            .mock_once::<OnFoot, NextOverlayModeAction>(TriggerState::Fired, 1.0)
+            .mock_once::<OnFoot, PreviousOverlayModeAction>(TriggerState::Fired, 1.0)
+            .mock_once::<OnFoot, SlomoAction>(TriggerState::Fired, true)
+            .mock_once::<OnFoot, ToggleUiAction>(TriggerState::Fired, true);
 
         app.update();
         let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
@@ -450,6 +562,11 @@ mod tests {
         assert!(cmd.roll_pressed, "roll pressed");
         assert!(cmd.sprint_held, "sprint held");
         assert!(cmd.aim_held, "aim held");
+        assert!(cmd.overlay_menu_held, "overlay menu held");
+        assert!(cmd.next_overlay_mode_pressed, "next overlay pressed");
+        assert!(cmd.previous_overlay_mode_pressed, "previous overlay pressed");
+        assert!(cmd.slomo_pressed, "slomo pressed");
+        assert!(cmd.toggle_ui_pressed, "toggle ui pressed");
         assert!(
             (cmd.move_dir - Vec2::new(1.0, 0.5)).length() < 1e-5,
             "move_dir should equal mocked value, got {:?}",
@@ -464,6 +581,11 @@ mod tests {
         assert!(!cmd.roll_pressed);
         assert!(cmd.sprint_held);
         assert!(cmd.aim_held);
+        assert!(cmd.overlay_menu_held, "overlay menu still held in span");
+        assert!(!cmd.next_overlay_mode_pressed);
+        assert!(!cmd.previous_overlay_mode_pressed);
+        assert!(!cmd.slomo_pressed);
+        assert!(!cmd.toggle_ui_pressed);
         assert!(
             (cmd.move_dir - Vec2::new(1.0, 0.5)).length() < 1e-5,
             "move_dir should persist within hold span"

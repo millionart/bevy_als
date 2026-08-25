@@ -173,7 +173,7 @@ impl NodeLike for RootMotionClipNode {
                         .clone()
                         .or_else(|| derive_default_root_bone(clip, skeleton));
                     if let Some(p) = derived.clone()
-                        && let Ok(mut prev) = ctx.state_mut::<RmPrevState>()
+                        && let Ok(prev) = ctx.state_mut::<RmPrevState>()
                     {
                         prev.cached_root = Some(p.clone());
                     }
