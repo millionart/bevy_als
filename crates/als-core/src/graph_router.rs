@@ -1,4 +1,3 @@
-use crate::character::AlsCharacter;
 use crate::motion::effective_gait;
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, Stance};

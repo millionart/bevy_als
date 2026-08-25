@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use avian3d::prelude::LinearVelocity;
 
-use crate::character::AlsCharacter;
 use crate::input::AlsInputCommand;
 use crate::motion::{AlsInputOverride, AlsViewYaw};
 

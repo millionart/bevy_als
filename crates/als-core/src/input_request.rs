@@ -45,7 +45,7 @@ pub fn input_state_request_system(
         mut last_free,
         first_person,
         left_shoulder,
-        mut sprint_prev,
+        sprint_prev,
         cmd,
         ovr,
         mut request,

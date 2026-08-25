@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TurnInPlaceConfig {

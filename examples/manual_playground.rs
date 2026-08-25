@@ -150,7 +150,7 @@ fn auto_quit(timer: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
 }
 
 fn screenshot_runner(
-    mut plan: Option<ResMut<ShotPlan>>,
+    plan: Option<ResMut<ShotPlan>>,
     mut commands: Commands,
     cameras: Query<Entity, With<Camera3d>>,
     mut exit: MessageWriter<AppExit>,
@@ -255,7 +255,7 @@ fn spawn_character_once(
         "animated_scenes/als_ragdoll.animscn.ron",
     );
     blueprint.spawn_camera = true;
-    let character = bevy_als::character_assembly::spawn_als_character(
+    let _character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
         &mut params_assets,

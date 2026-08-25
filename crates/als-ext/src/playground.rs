@@ -637,7 +637,7 @@ fn spawn_sun_light(commands: &mut Commands, lighting: &SceneLighting) {
         .map(|v| Vec3::from(v).normalize_or_zero())
         .unwrap_or(Vec3::new(-0.4, -0.8, 0.3).normalize_or_zero());
     let intensity = lighting.sun_intensity.unwrap_or(80_000.0);
-    let color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
+    let _color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
     let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, dir);
     commands.spawn((
         Name::new("SunLight"),
