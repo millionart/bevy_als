@@ -28,6 +28,7 @@
 9. **资源限流（严格执行）**：运行 `cargo build/test/check/clippy` 等重编译任务前，必须确认编译并行度已按当前机器规格限制——依据逻辑核数与可用内存选取 jobs ≈ min(逻辑核数/4, 可用内存GB/3)，钳制到 [2,8]，写入用户级 Cargo 配置（`~/.cargo/config.toml` 的 `[build] jobs`，机器本地、不入仓库）或以 `--jobs N` / 环境变量注入；禁止在未限流的机器上依赖 cargo 默认全核并行跑大型 workspace（多进程 rustc/link 同时满载会耗尽内存导致系统卡死）。长测试运行期间留意系统响应；因未限流造成系统假死视同执行事故，须先修复限流再继续。
 10. **多 worktree 构建隔离（严格执行）**：每个 worktree 一律使用自身 `target/`，禁止以 `CARGO_TARGET_DIR` 指向其他 checkout 的 target 目录（跨树共享缓存 = 共享目录锁：cargo 对 target 整目录独占加锁，任一侧构建期间另一侧所有 cargo 命令排队数分钟，`--examples` 级全量构建可达十几分钟）。**创建 worktree 必须用 `pwsh tools\new-worktree.ps1 -Name <名> [-Branch <分支>]`**——脚本自动完成 worktree add + 追踪文件 mtime 同步 + 构建缓存拷贝（新 worktree 首建 16 分钟→实测 7.8 秒）；禁止裸 `git worktree add`（新树无 target，裸建要么 16 分钟全量重编、要么诱发跨树共享指入）。调试/试玩/门禁一律在自身 worktree 的 target 内进行；根仓库 `run_manual.bat` 已固定隔离目录 `target_game` 即为此设计，勿改回共享。遇到 "Blocking waiting for file lock on artifact directory" 先排查跨 worktree 指入与残留构建进程，勿盲目等待。
 11. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
+12. **实时对标与实证验收（严格执行，2026-08-25 用户指令）**：任何对标 ALS-Refactored 的行为实现/修改，动手前必须从 ALS-Refactored 工程实时提取当次相关的事实（uasset 二进制解析 / Unreal MCP / 插件 C++ 源码，路径见 gitignored `docs/env.md`），禁止凭记忆、印象或"经典 ALS 印象"推断行为；提取到的事实（状态机结构/转换条件/参数数值/函数语义）登记进 CHECKLIST 条目或提交说明后方可编码。验收一律以**真实运行日志结论**为标准：gate 断言必须落在探针/pin/数值等可复查证据上，禁止以截图目测、"应当正确"的推断或单帧姿态猜测代替；证据不足时补插桩取证，不得宣布通过。
 
 ## 工具调用教训（实测，防再犯）
 
