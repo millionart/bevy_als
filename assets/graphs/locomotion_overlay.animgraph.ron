@@ -1,752 +1,77 @@
 (
     nodes: [
         (
-            id: "11111111-1111-4111-8111-111111111101",
-            name: "idle clip",
+            id: "aaaaaaa1-0000-4000-8000-000000000001",
+            name: "base locomotion layer",
             inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Base/A_Als_Idle.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
+                "als_ext::LayeredGraphNode": (
+                    graph: "graphs/base_locomotion.animgraph.ron",
                 ),
             },
             should_debug: false,
         ),
         (
-            id: "22222222-2222-4222-8222-222222222202",
-            name: "walk clip",
+            id: "aaaaaaa2-0000-4000-8000-000000000002",
+            name: "air layer",
             inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
+                "als_ext::LayeredGraphNode": (
+                    graph: "graphs/air.animgraph.ron",
                 ),
             },
             should_debug: false,
         ),
         (
-            id: "33333333-3333-4333-8333-333333333303",
-            name: "run clip",
+            id: "aaaaaaa3-0000-4000-8000-000000000003",
+            name: "actions layer",
             inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Grounded/WalkRun/A_Als_Run_Forward.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
+                "als_ext::LayeredGraphNode": (
+                    graph: "graphs/actions.animgraph.ron",
                 ),
             },
             should_debug: false,
         ),
         (
-            id: "44444444-4444-4444-8444-444444444404",
-            name: "sprint clip",
+            id: "aaaaaaa4-0000-4000-8000-000000000004",
+            name: "overlay view layer",
             inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Grounded/Sprint/A_Als_Sprint.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "55555555-5555-4555-8555-555555555505",
-            name: "speed blend space",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
-                    sync_mode: Absolute,
-                    points: [
-                        (
-                            id: "idle",
-                            value: 0.0,
-                        ),
-                        (
-                            id: "walk",
-                            value: 1.75,
-                        ),
-                        (
-                            id: "run",
-                            value: 3.75,
-                        ),
-                        (
-                            id: "sprint",
-                            value: 6.5,
-                        ),
-                    ],
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "66666666-6666-4666-8666-666666666606",
-            name: "stride scaling",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::SpeedNode": (),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "77777777-7777-4777-8777-777777777707",
-            name: "base loop",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::LoopNode": (
-                    interpolation_period: 0.0,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000001",
-            name: "torch poses clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Overlays/Torch/A_Als_Torch_Poses.anim.ron",
-                    override_duration: Some(2.0),
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000002",
-            name: "torch poses loop",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::LoopNode": (
-                    interpolation_period: 0.0,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000003",
-            name: "reference poses clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
-                    override_duration: Some(2.0),
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000004",
-            name: "reference poses loop",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::LoopNode": (
-                    interpolation_period: 0.0,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000005",
-            name: "overlay difference",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: Difference,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a1a1a1a1-b2b2-4c3c-8d4d-000000000006",
-            name: "masked overlay blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: Additive,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: true,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000001",
-            name: "look down clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/View/A_Als_Look_Down.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000002",
-            name: "look forward clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/View/A_Als_Look_Forward.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000003",
-            name: "look up clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/View/A_Als_Look_Up.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000004",
-            name: "look pitch blend space",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
-                    sync_mode: Absolute,
-                    points: [
-                        (
-                            id: "down",
-                            value: -1.0,
-                        ),
-                        (
-                            id: "forward",
-                            value: 0.0,
-                        ),
-                        (
-                            id: "up",
-                            value: 1.0,
-                        ),
-                    ],
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000005",
-            name: "look loop",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::LoopNode": (
-                    interpolation_period: 0.0,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000006",
-            name: "look difference",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: Difference,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "c2c2c2c2-d4d4-4e5e-8f6f-000000000001",
-            name: "reference poses clip 2",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
-                    override_duration: Some(2.0),
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "c2c2c2c2-d4d4-4e5e-8f6f-000000000002",
-            name: "reference poses loop 2",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::LoopNode": (
-                    interpolation_period: 0.0,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "b1b1b1b1-c3c3-4d4d-8e5e-000000000007",
-            name: "masked look blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: Additive,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: true,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000001",
-            name: "jump loop clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Air/Jump/A_Als_Jump_Loop.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000002",
-            name: "fall clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Air/Fall/A_Als_Fall.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000003",
-            name: "fall fast clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Air/Fall/A_Als_Fall_Fast.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000004",
-            name: "land light clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Air/Land/A_Als_Land_Light.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000005",
-            name: "land heavy clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Air/Land/A_Als_Land_Heavy.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000006",
-            name: "fall fast blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000007",
-            name: "air blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000008",
-            name: "land variant blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000009",
-            name: "land blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-00000000000a",
-            name: "roll clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Actions/Roll/A_Als_Roll.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                    root_motion_mode: GroundPlane,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "e1e1e1e1-f6f6-5a7a-9b9b-00000000000b",
-            name: "roll override blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000001",
-            name: "stop left clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Transitions/A_Als_Stop_Left.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000002",
-            name: "stop right clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Transitions/A_Als_Stop_Right.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000003",
-            name: "stop left distance match",
-            inner: {
-                "als_ext::DistanceMatchNode": (
-                    keys: [
-                        (t: 0.0, v: 0.0),
-                        (t: 0.30, v: 0.50),
-                        (t: 0.60, v: 0.85),
-                        (t: 0.85, v: 1.00),
-                        (t: 1.00, v: 1.00),
-                    ],
-                    duration_fallback: 1.333,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000004",
-            name: "stop right distance match",
-            inner: {
-                "als_ext::DistanceMatchNode": (
-                    keys: [
-                        (t: 0.0, v: 0.0),
-                        (t: 0.30, v: 0.50),
-                        (t: 0.60, v: 0.85),
-                        (t: 0.85, v: 1.00),
-                        (t: 1.00, v: 1.00),
-                    ],
-                    duration_fallback: 1.333,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000005",
-            name: "stop variant blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "f2f2f2f2-a7a7-6b8b-acac-000000000006",
-            name: "stop override blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000001",
-            name: "mantle high clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Actions/Mantle/A_Als_Mantle_High.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                    root_motion_mode: Full,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000002",
-            name: "mantle low left clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Actions/Mantle/A_Als_Mantle_Low_Left.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                    root_motion_mode: Full,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000003",
-            name: "mantle low right clip",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron",
-                    override_duration: None,
-                    override_interpolation: None,
-                    root_motion_mode: Full,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000004",
-            name: "mantle low variant blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000005",
-            name: "mantle high vs low blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
-            name: "mantle override blend",
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "d6d6d6d6-e7e7-4f8f-9a9a-000000000001",
-            name: "roll time position",
-            inner: {
-                "als_ext::TimePositionNode": (
-                    duration_fallback: 1.5,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "d6d6d6d6-e7e7-4f8f-9a9a-000000000002",
-            name: "mantle high time position",
-            inner: {
-                "als_ext::TimePositionNode": (
-                    duration_fallback: 2.667,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "d6d6d6d6-e7e7-4f8f-9a9a-000000000003",
-            name: "mantle low left time position",
-            inner: {
-                "als_ext::TimePositionNode": (
-                    duration_fallback: 1.5,
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "d6d6d6d6-e7e7-4f8f-9a9a-000000000004",
-            name: "mantle low right time position",
-            inner: {
-                "als_ext::TimePositionNode": (
-                    duration_fallback: 1.5,
+                "als_ext::LayeredGraphNode": (
+                    graph: "graphs/overlay_view.animgraph.ron",
                 ),
             },
             should_debug: false,
         ),
     ],
     edges_inverted: {
-        NodeData("55555555-5555-4555-8555-555555555505", "parameter"): InputData(Passthrough("speed")),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_idle"): NodeData("11111111-1111-4111-8111-111111111101", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_idle"): NodeTime("11111111-1111-4111-8111-111111111101"),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_walk"): NodeData("22222222-2222-4222-8222-222222222202", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_walk"): NodeTime("22222222-2222-4222-8222-222222222202"),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_run"): NodeData("33333333-3333-4333-8333-333333333303", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_run"): NodeTime("33333333-3333-4333-8333-333333333303"),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_sprint"): NodeData("44444444-4444-4444-8444-444444444404", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_sprint"): NodeTime("44444444-4444-4444-8444-444444444404"),
-        NodeData("66666666-6666-4666-8666-666666666606", "pose"): NodeData("55555555-5555-4555-8555-555555555505", "pose"),
-        NodeTime("66666666-6666-4666-8666-666666666606", "time"): NodeTime("55555555-5555-4555-8555-555555555505"),
-        NodeData("66666666-6666-4666-8666-666666666606", "speed"): InputData(Passthrough("play_rate")),
-        NodeData("77777777-7777-4777-8777-777777777707", "pose"): NodeData("66666666-6666-4666-8666-666666666606", "pose"),
-        NodeTime("77777777-7777-4777-8777-777777777707", "time"): NodeTime("66666666-6666-4666-8666-666666666606"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000002", "pose"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000001", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000002", "time"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000001"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000004", "pose"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000003", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000004", "time"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000003"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose_a"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000002", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "time_a"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000002"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000004", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "time_b"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000004"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "factor"): InputData(Passthrough("diff_factor")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000001", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000001"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000002", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000002"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "factor"): InputData(Passthrough("fall_fast_weight")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose_a"): NodeData("77777777-7777-4777-8777-777777777707", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "time_a"): NodeTime("77777777-7777-4777-8777-777777777707"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "factor"): InputData(Passthrough("air_weight")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000004", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000004"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000005", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000005"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "factor"): InputData(Passthrough("land_heavy_weight")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "factor"): InputData(Passthrough("land_weight")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009"),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000001", "pose"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a", "pose"),
-        NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000001", "time"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000a"),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000001", "position"): InputData(Passthrough("roll_clip_time")),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_b"): NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000001", "pose"),
-        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_b"): NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000001"),
-        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "factor"): InputData(Passthrough("roll_weight")),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000002", "pose"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000001", "pose"),
-        NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000002", "time"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000001"),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000002", "position"): InputData(Passthrough("mantle_clip_time")),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000003", "pose"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000002", "pose"),
-        NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000003", "time"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000002"),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000003", "position"): InputData(Passthrough("mantle_clip_time")),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000004", "pose"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000003", "pose"),
-        NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000004", "time"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000003"),
-        NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000004", "position"): InputData(Passthrough("mantle_clip_time")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "pose"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000001", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000003", "time"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000001"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "remaining"): InputData(Passthrough("stop_remaining")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "total"): InputData(Passthrough("stop_total")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "pose"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000002", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000004", "time"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000002"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "remaining"): InputData(Passthrough("stop_remaining")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "total"): InputData(Passthrough("stop_total")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000003", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000003"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose_b"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000004", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005", "time_b"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000004"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "factor"): InputData(Passthrough("stop_right_weight")),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose_b"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000005", "pose"),
-        NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006", "time_b"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000005"),
-        NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "factor"): InputData(Passthrough("stop_weight")),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose_a"): NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000003", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "time_a"): NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000003"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose_b"): NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000004", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "time_b"): NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000004"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "factor"): InputData(Passthrough("mantle_lr")),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000004", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000004"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose_b"): NodeData("d6d6d6d6-e7e7-4f8f-9a9a-000000000002", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "time_b"): NodeTime("d6d6d6d6-e7e7-4f8f-9a9a-000000000002"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "factor"): InputData(Passthrough("mantle_high_w")),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_a"): NodeData("f2f2f2f2-a7a7-6b8b-acac-000000000006", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_a"): NodeTime("f2f2f2f2-a7a7-6b8b-acac-000000000006"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose"),
-        NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005"),
-        NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "factor"): InputData(Passthrough("mantle_weight")),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_a"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_a"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose_b"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000005", "pose"),
-        NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "time_b"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000005"),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "factor"): InputData(Passthrough("overlay_weight")),
-        NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "bone_mask"): InputData(Passthrough("upper_body_mask")),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "parameter"): InputData(Passthrough("view_pitch_norm")),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "pose_down"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000001", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "time_down"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000001"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "pose_forward"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000002", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "time_forward"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000002"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "pose_up"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000003", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "time_up"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000003"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000005", "pose"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000004", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000005", "time"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000004"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "pose_a"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000005", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "time_a"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000005"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "pose_b"): NodeData("c2c2c2c2-d4d4-4e5e-8f6f-000000000002", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "time_b"): NodeTime("c2c2c2c2-d4d4-4e5e-8f6f-000000000002"),
-        NodeData("c2c2c2c2-d4d4-4e5e-8f6f-000000000002", "pose"): NodeData("c2c2c2c2-d4d4-4e5e-8f6f-000000000001", "pose"),
-        NodeTime("c2c2c2c2-d4d4-4e5e-8f6f-000000000002", "time"): NodeTime("c2c2c2c2-d4d4-4e5e-8f6f-000000000001"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "factor"): InputData(Passthrough("diff_factor")),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "pose_a"): NodeData("a1a1a1a1-b2b2-4c3c-8d4d-000000000006", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "time_a"): NodeTime("a1a1a1a1-b2b2-4c3c-8d4d-000000000006"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "pose_b"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000006", "pose"),
-        NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "time_b"): NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000006"),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "factor"): InputData(Passthrough("look_weight")),
-        NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "bone_mask"): InputData(Passthrough("look_mask")),
-        OutputData("pose"): NodeData("b1b1b1b1-c3c3-4d4d-8e5e-000000000007", "pose"),
-        OutputTime: NodeTime("b1b1b1b1-c3c3-4d4d-8e5e-000000000007"),
+        NodeData("aaaaaaa1-0000-4000-8000-000000000001", "speed"): InputData(Passthrough("speed")),
+        NodeData("aaaaaaa1-0000-4000-8000-000000000001", "play_rate"): InputData(Passthrough("play_rate")),
+        NodeData("aaaaaaa2-0000-4000-8000-000000000002", "air_weight"): InputData(Passthrough("air_weight")),
+        NodeData("aaaaaaa2-0000-4000-8000-000000000002", "fall_fast_weight"): InputData(Passthrough("fall_fast_weight")),
+        NodeData("aaaaaaa2-0000-4000-8000-000000000002", "land_weight"): InputData(Passthrough("land_weight")),
+        NodeData("aaaaaaa2-0000-4000-8000-000000000002", "land_heavy_weight"): InputData(Passthrough("land_heavy_weight")),
+        NodeData("aaaaaaa2-0000-4000-8000-000000000002", "base_pose"): NodeData("aaaaaaa1-0000-4000-8000-000000000001", "pose"),
+        NodeTime("aaaaaaa2-0000-4000-8000-000000000002", "base_time"): NodeTime("aaaaaaa1-0000-4000-8000-000000000001"),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "roll_weight"): InputData(Passthrough("roll_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "roll_clip_time"): InputData(Passthrough("roll_clip_time")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "stop_weight"): InputData(Passthrough("stop_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "stop_right_weight"): InputData(Passthrough("stop_right_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "stop_remaining"): InputData(Passthrough("stop_remaining")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "stop_total"): InputData(Passthrough("stop_total")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_weight"): InputData(Passthrough("mantle_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_high_w"): InputData(Passthrough("mantle_high_w")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_lr"): InputData(Passthrough("mantle_lr")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_clip_time"): InputData(Passthrough("mantle_clip_time")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "prev_pose"): NodeData("aaaaaaa2-0000-4000-8000-000000000002", "pose"),
+        NodeTime("aaaaaaa3-0000-4000-8000-000000000003", "prev_time"): NodeTime("aaaaaaa2-0000-4000-8000-000000000002"),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "diff_factor"): InputData(Passthrough("diff_factor")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "overlay_weight"): InputData(Passthrough("overlay_weight")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "upper_body_mask"): InputData(Passthrough("upper_body_mask")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "view_pitch_norm"): InputData(Passthrough("view_pitch_norm")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "look_weight"): InputData(Passthrough("look_weight")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "look_mask"): InputData(Passthrough("look_mask")),
+        NodeData("aaaaaaa4-0000-4000-8000-000000000004", "prev_pose"): NodeData("aaaaaaa3-0000-4000-8000-000000000003", "pose"),
+        NodeTime("aaaaaaa4-0000-4000-8000-000000000004", "prev_time"): NodeTime("aaaaaaa3-0000-4000-8000-000000000003"),
+        OutputData("pose"): NodeData("aaaaaaa4-0000-4000-8000-000000000004", "pose"),
+        OutputTime: NodeTime("aaaaaaa4-0000-4000-8000-000000000004"),
     },
     io_spec: (
         input_times: [],
@@ -834,31 +159,13 @@
     },
     editor_metadata: (
         node_positions: {
-            "11111111-1111-4111-8111-111111111101": (60.0, 80.0),
-            "22222222-2222-4222-8222-222222222202": (60.0, 220.0),
-            "33333333-3333-4333-8333-333333333303": (60.0, 360.0),
-            "44444444-4444-4444-8444-444444444404": (60.0, 500.0),
-            "55555555-5555-4555-8555-555555555505": (340.0, 290.0),
-            "66666666-6666-4666-8666-666666666606": (600.0, 290.0),
-            "77777777-7777-4777-8777-777777777707": (820.0, 290.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000001": (60.0, 700.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000002": (300.0, 700.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000003": (60.0, 900.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000004": (300.0, 900.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000005": (520.0, 800.0),
-            "a1a1a1a1-b2b2-4c3c-8d4d-000000000006": (1040.0, 500.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000001": (60.0, 1150.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000002": (60.0, 1300.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000003": (60.0, 1450.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000004": (340.0, 1300.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000005": (580.0, 1300.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000006": (800.0, 1100.0),
-            "b1b1b1b1-c3c3-4d4d-8e5e-000000000007": (1260.0, 700.0),
-            "c2c2c2c2-d4d4-4e5e-8f6f-000000000001": (60.0, 1650.0),
-            "c2c2c2c2-d4d4-4e5e-8f6f-000000000002": (300.0, 1650.0),
+            "aaaaaaa1-0000-4000-8000-000000000001": (200.0, 100.0),
+            "aaaaaaa2-0000-4000-8000-000000000002": (480.0, 100.0),
+            "aaaaaaa3-0000-4000-8000-000000000003": (760.0, 100.0),
+            "aaaaaaa4-0000-4000-8000-000000000004": (1040.0, 100.0),
         },
-        input_position: (10.0, 1800.0),
-        output_position: (1520.0, 700.0),
+        input_position: (10.0, 300.0),
+        output_position: (1300.0, 100.0),
         input_param_order: {},
         input_time_order: {},
         output_data_order: {},

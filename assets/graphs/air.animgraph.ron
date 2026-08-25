@@ -1,0 +1,190 @@
+(
+    nodes: [
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000001",
+            name: "jump loop clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Air/Jump/A_Als_Jump_Loop.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000002",
+            name: "fall clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Air/Fall/A_Als_Fall.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000003",
+            name: "fall fast clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Air/Fall/A_Als_Fall_Fast.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000004",
+            name: "land light clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Air/Land/A_Als_Land_Light.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000005",
+            name: "land heavy clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Air/Land/A_Als_Land_Heavy.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000006",
+            name: "fall fast blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000007",
+            name: "air blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000008",
+            name: "land variant blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000009",
+            name: "land blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+    ],
+    edges_inverted: {
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000001", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000001"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000002", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000002"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "factor"): InputData(Passthrough("fall_fast_weight")),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose_a"): InputData(Passthrough("base_pose")),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "time_a"): InputTime(Passthrough("base_time")),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000006", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000006"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "factor"): InputData(Passthrough("air_weight")),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000004", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000004"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000005", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000005"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "factor"): InputData(Passthrough("land_heavy_weight")),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose_a"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000007", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "time_a"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000007"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose_b"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000008", "pose"),
+        NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "time_b"): NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000008"),
+        NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "factor"): InputData(Passthrough("land_weight")),
+        OutputData("pose"): NodeData("e1e1e1e1-f6f6-5a7a-9b9b-000000000009", "pose"),
+        OutputTime: NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-000000000009"),
+    },
+    io_spec: (
+        input_times: [Passthrough("base_time")],
+        input_data: {
+            Passthrough("base_pose"): Pose,
+            Passthrough("air_weight"): F32,
+            Passthrough("fall_fast_weight"): F32,
+            Passthrough("land_weight"): F32,
+            Passthrough("land_heavy_weight"): F32,
+        },
+        output_time: true,
+        output_data: {
+            "pose": Pose,
+        },
+        input_order: {
+            Data(Passthrough("base_pose")): 0,
+            Data(Passthrough("air_weight")): 1,
+            Data(Passthrough("fall_fast_weight")): 2,
+            Data(Passthrough("land_weight")): 3,
+            Data(Passthrough("land_heavy_weight")): 4,
+        },
+        output_order: {
+            Data("pose"): 0,
+            Time: 1,
+        },
+    ),
+    default_data: {
+        Passthrough("air_weight"): F32(0.0),
+        Passthrough("fall_fast_weight"): F32(0.0),
+        Passthrough("land_weight"): F32(0.0),
+        Passthrough("land_heavy_weight"): F32(0.0),
+    },
+    editor_metadata: (
+        node_positions: {
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000001": (60.0, 80.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000002": (60.0, 220.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000003": (60.0, 360.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000004": (60.0, 500.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000005": (60.0, 640.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000006": (340.0, 150.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000007": (600.0, 220.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000008": (340.0, 570.0),
+            "e1e1e1e1-f6f6-5a7a-9b9b-000000000009": (820.0, 400.0),
+        },
+        input_position: (10.0, 800.0),
+        output_position: (1040.0, 400.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)
