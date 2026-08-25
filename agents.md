@@ -26,9 +26,11 @@
 7. **隐私红线（严格执行）**：仓库内任何被提交的文件（脚本、配置、文档）一律禁止硬编码本地绝对路径、引擎安装位置、本机工程位置、账号等隐私内容。此类值只能通过以下途径注入：gitignored 本地配置（如 `tools/env.local.json`，模板见 `tools/env.example.json`）、环境变量、命令行参数；依赖仓库用公开 git 地址而非 path 依赖。提交前必须自检：`git grep -n -E "D:[/\\\\]|C:[/\\\\]Program Files|Users/"` 无命中（注释性占位符 `<...>` 除外）。违反时立即回退修补。
 8. **代码语言纪律（严格执行）**：一切可执行内容（Rust/Python/Shell/PowerShell 源码及其中字符串字面量、日志与断言消息、RON/JSON 资产中的语义字段）只允许英文；同时禁止写注释（含 Rust doc comment 与各语言 # / // 注释；shebang 与格式声明除外）。ALS 对照依据、来源标注等原本要写进注释的信息，一律移入提交说明或 CHECKLIST/Gate 记录。文档类 Markdown（本文件、CHECKLIST.md 等）不受此限。
 9. **资源限流（严格执行）**：运行 `cargo build/test/check/clippy` 等重编译任务前，必须确认编译并行度已按当前机器规格限制——依据逻辑核数与可用内存选取 jobs ≈ min(逻辑核数/4, 可用内存GB/3)，钳制到 [2,8]，写入用户级 Cargo 配置（`~/.cargo/config.toml` 的 `[build] jobs`，机器本地、不入仓库）或以 `--jobs N` / 环境变量注入；禁止在未限流的机器上依赖 cargo 默认全核并行跑大型 workspace（多进程 rustc/link 同时满载会耗尽内存导致系统卡死）。长测试运行期间留意系统响应；因未限流造成系统假死视同执行事故，须先修复限流再继续。
-10. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
+10. **多 worktree 构建隔离（严格执行）**：每个 worktree 一律使用自身 `target/`，禁止以 `CARGO_TARGET_DIR` 指向其他 checkout 的 target 目录（跨树共享缓存 = 共享目录锁：cargo 对 target 整目录独占加锁，任一侧构建期间另一侧所有 cargo 命令排队数分钟，`--examples` 级全量构建可达十几分钟）。调试/试玩/门禁一律在自身 worktree 的 target 内进行；根仓库 `run_manual.bat` 已固定隔离目录 `target_game` 即为此设计，勿改回共享。遇到 "Blocking waiting for file lock on artifact directory" 先排查跨 worktree 指入与残留构建进程，勿盲目等待。
+11. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
 
-## 工具调用教训（M0 实测，防再犯）
+## 工具调用教训（实测，防再犯）
 
 1. **UE MCP：toolset 工具必须经 `call_tool` 元工具分发**。协议层 `tools/call` 只注册 `list_toolsets` / `describe_toolset` / `call_tool` 三个元工具；把 toolset 方法名直接当 `name` 调用必报 `Unknown tool`。正确姿势：`name="call_tool"`，并在其 `arguments` 内传 `toolset_name`、`tool_name`、`arguments`（依据引擎源码 `ModelContextProtocolServer.cpp` 的 FindTool 查找逻辑）。统一走仓库封装 `tools/mcp_probe.py`，不要绕过它手写 HTTP 请求。
 2. **shell 长命令可能间歇性整块丢参**（报 `command is required`，参数为空）。含大量引号/JSON 转义的长命令风险最高。对策：复杂逻辑先写入脚本文件（如 `tools/*.sh` 或 Python 脚本）再用短命令执行；同一失败调用不得原样反复重试——一次失败即改道脚本化。
+3. **清构建残留进程前先验归属**。超时/中断的 cargo 会留下孤儿 rustc/link 持锁；但其他 worktree 可能以 `CARGO_TARGET_DIR` 指入本仓库 target（见规则 10）。杀 `cargo/rustc/link.exe` 前必须经 `Win32_Process` 核对该进程命令行与 CWD 归属——2026-08-25 曾误杀用户另一 worktree 的合法构建。另：VS Code 的 rust-analyzer 后台 check 也会长时间持锁，属正常现象，用 `rust-analyzer.cargo.targetDir: true`（.vscode/settings.json 已配）隔离而非杀进程。
