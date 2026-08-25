@@ -26,6 +26,7 @@ use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{clamp_pitch, AlsViewPitch};
 use als_ext::playground::{terrain_height, PlaygroundLandscape};
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use bevy_als::character_assembly::AvatarGroundCompensationPlugin;
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
@@ -36,6 +37,7 @@ use bevy_als::overlay_layer::OverlayLayerPlugin;
 use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
 use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
+use bevy_als::stance_layer::StanceLayerPlugin;
 use bevy_als::stop_link::AlsStopLinkPlugin;
 use bevy_als::view_layer::ViewLayerPlugin;
 
@@ -51,6 +53,7 @@ fn main() {
         PhysicsPlugins::new(FixedPostUpdate),
         TnuaAvian3dPlugin::new(FixedUpdate),
         TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+        AvatarGroundCompensationPlugin,
         EnhancedInputPlugin,
         AlsInputPlugin,
         AlsInputRequestPlugin,
@@ -63,6 +66,7 @@ fn main() {
     app.add_plugins((
         AlsFootProbePlugin,
         FootIkApplyPlugin,
+        StanceLayerPlugin,
         OverlayLayerPlugin,
         ViewLayerPlugin,
         AlsRollDrivePlugin,

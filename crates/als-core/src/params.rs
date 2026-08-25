@@ -304,7 +304,7 @@ impl Default for CrouchParams {
         Self {
             standing_capsule_half_height: 90.0 * UE_CM_TO_M,
             standing_capsule_radius: 30.0 * UE_CM_TO_M,
-            crouched_capsule_half_height: 40.0 * UE_CM_TO_M,
+            crouched_capsule_half_height: 56.0 * UE_CM_TO_M,
             animated_crouch_speed: 150.0 * UE_CM_TO_M,
             max_walk_speed_crouched: 150.0 * UE_CM_TO_M,
         }
@@ -483,7 +483,7 @@ mod tests {
 
         assert!((p.crouch.standing_capsule_half_height - 0.90).abs() < 1e-6);
         assert!((p.crouch.standing_capsule_radius - 0.30).abs() < 1e-6);
-        assert!((p.crouch.crouched_capsule_half_height - 0.40).abs() < 1e-6);
+        assert!((p.crouch.crouched_capsule_half_height - 0.56).abs() < 1e-6);
 
         assert!((p.jump.jump_z_velocity - 4.20).abs() < 1e-6);
         assert!((p.jump.gravity_scale - 1.0).abs() < 1e-6);

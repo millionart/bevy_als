@@ -11,6 +11,7 @@ pub mod graph_router;
 pub mod input;
 pub mod input_request;
 pub mod mantle;
+pub mod movement_direction;
 pub mod motion;
 pub mod overlay_blend;
 pub mod params;

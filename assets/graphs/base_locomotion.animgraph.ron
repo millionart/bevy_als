@@ -13,8 +13,20 @@
             should_debug: false,
         ),
         (
-            id: "22222222-2222-4222-8222-222222222202",
-            name: "walk clip",
+            id: "44444444-4444-4444-8444-444444444404",
+            name: "sprint clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Sprint/A_Als_Sprint.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000001",
+            name: "walk fwd clip",
             inner: {
                 "bevy_animation_graph::builtin_nodes::ClipNode": (
                     clip: "animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron",
@@ -25,8 +37,80 @@
             should_debug: false,
         ),
         (
-            id: "33333333-3333-4333-8333-333333333303",
-            name: "run clip",
+            id: "d2d2d2d2-0000-4000-8000-000000000002",
+            name: "walk rf clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000003",
+            name: "walk rb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000004",
+            name: "walk bwd clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000007",
+            name: "walk bwd pos clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000005",
+            name: "walk lb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d2d2d2d2-0000-4000-8000-000000000006",
+            name: "walk lf clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000001",
+            name: "run fwd clip",
             inner: {
                 "bevy_animation_graph::builtin_nodes::ClipNode": (
                     clip: "animations/Grounded/WalkRun/A_Als_Run_Forward.anim.ron",
@@ -37,13 +121,277 @@
             should_debug: false,
         ),
         (
-            id: "44444444-4444-4444-8444-444444444404",
-            name: "sprint clip",
+            id: "d3d3d3d3-0000-4000-8000-000000000002",
+            name: "run rf clip",
             inner: {
                 "bevy_animation_graph::builtin_nodes::ClipNode": (
-                    clip: "animations/Grounded/Sprint/A_Als_Sprint.anim.ron",
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Right_Forward.anim.ron",
                     override_duration: None,
                     override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000003",
+            name: "run rb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Right_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000004",
+            name: "run bwd clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000007",
+            name: "run bwd pos clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000005",
+            name: "run lb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Left_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d3d3d3d3-0000-4000-8000-000000000006",
+            name: "run lf clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/WalkRun/A_Als_Run_Left_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000001",
+            name: "crouch fwd clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000002",
+            name: "crouch rf clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000003",
+            name: "crouch rb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000004",
+            name: "crouch bwd clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000007",
+            name: "crouch bwd pos clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000005",
+            name: "crouch lb clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d4d4d4d4-0000-4000-8000-000000000006",
+            name: "crouch lf clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d1d1d1d1-0000-4000-8000-000000000001",
+            name: "walk direction blend space",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
+                    sync_mode: Absolute,
+                    points: [
+                        (
+                            id: "bwd",
+                            value: -180.0,
+                        ),
+                        (
+                            id: "lb",
+                            value: -120.0,
+                        ),
+                        (
+                            id: "lf",
+                            value: -60.0,
+                        ),
+                        (
+                            id: "fwd",
+                            value: 0.0,
+                        ),
+                        (
+                            id: "rf",
+                            value: 60.0,
+                        ),
+                        (
+                            id: "rb",
+                            value: 120.0,
+                        ),
+                        (
+                            id: "bwd_pos",
+                            value: 180.0,
+                        ),
+                    ],
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d1d1d1d1-0000-4000-8000-000000000002",
+            name: "run direction blend space",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
+                    sync_mode: Absolute,
+                    points: [
+                        (
+                            id: "bwd",
+                            value: -180.0,
+                        ),
+                        (
+                            id: "lb",
+                            value: -120.0,
+                        ),
+                        (
+                            id: "lf",
+                            value: -60.0,
+                        ),
+                        (
+                            id: "fwd",
+                            value: 0.0,
+                        ),
+                        (
+                            id: "rf",
+                            value: 60.0,
+                        ),
+                        (
+                            id: "rb",
+                            value: 120.0,
+                        ),
+                        (
+                            id: "bwd_pos",
+                            value: 180.0,
+                        ),
+                    ],
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "d1d1d1d1-0000-4000-8000-000000000003",
+            name: "crouch direction blend space",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
+                    sync_mode: Absolute,
+                    points: [
+                        (
+                            id: "bwd",
+                            value: -180.0,
+                        ),
+                        (
+                            id: "lb",
+                            value: -120.0,
+                        ),
+                        (
+                            id: "lf",
+                            value: -60.0,
+                        ),
+                        (
+                            id: "fwd",
+                            value: 0.0,
+                        ),
+                        (
+                            id: "rf",
+                            value: 60.0,
+                        ),
+                        (
+                            id: "rb",
+                            value: 120.0,
+                        ),
+                        (
+                            id: "bwd_pos",
+                            value: 180.0,
+                        ),
+                    ],
                 ),
             },
             should_debug: false,
@@ -77,6 +425,38 @@
             should_debug: false,
         ),
         (
+            id: "c0c0c0c0-0000-4000-8000-000000000001",
+            name: "crouch idle clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Base/A_Als_Crouch_Pose.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c0c0c0c0-0000-4000-8000-000000000003",
+            name: "crouch speed blend space",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendSpace1DNode": (
+                    sync_mode: Absolute,
+                    points: [
+                        (
+                            id: "idle",
+                            value: 0.0,
+                        ),
+                        (
+                            id: "walk",
+                            value: 1.5,
+                        ),
+                    ],
+                ),
+            },
+            should_debug: false,
+        ),
+        (
             id: "66666666-6666-4666-8666-666666666606",
             name: "stride scaling",
             inner: {
@@ -94,30 +474,123 @@
             },
             should_debug: false,
         ),
+        (
+            id: "c0c0c0c0-0000-4000-8000-000000000004",
+            name: "crouch stride scaling",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::SpeedNode": (),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c0c0c0c0-0000-4000-8000-000000000005",
+            name: "crouch loop",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::LoopNode": (
+                    interpolation_period: 0.0,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c0c0c0c0-0000-4000-8000-000000000006",
+            name: "stance blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "parameter"): InputData(Passthrough("direction_angle")),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_bwd"): NodeData("d2d2d2d2-0000-4000-8000-000000000004", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_bwd"): NodeTime("d2d2d2d2-0000-4000-8000-000000000004"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_bwd_pos"): NodeData("d2d2d2d2-0000-4000-8000-000000000007", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_bwd_pos"): NodeTime("d2d2d2d2-0000-4000-8000-000000000007"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_lb"): NodeData("d2d2d2d2-0000-4000-8000-000000000005", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_lb"): NodeTime("d2d2d2d2-0000-4000-8000-000000000005"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_lf"): NodeData("d2d2d2d2-0000-4000-8000-000000000006", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_lf"): NodeTime("d2d2d2d2-0000-4000-8000-000000000006"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_fwd"): NodeData("d2d2d2d2-0000-4000-8000-000000000001", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_fwd"): NodeTime("d2d2d2d2-0000-4000-8000-000000000001"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_rf"): NodeData("d2d2d2d2-0000-4000-8000-000000000002", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_rf"): NodeTime("d2d2d2d2-0000-4000-8000-000000000002"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose_rb"): NodeData("d2d2d2d2-0000-4000-8000-000000000003", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000001", "time_rb"): NodeTime("d2d2d2d2-0000-4000-8000-000000000003"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "parameter"): InputData(Passthrough("direction_angle")),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_bwd"): NodeData("d3d3d3d3-0000-4000-8000-000000000004", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_bwd"): NodeTime("d3d3d3d3-0000-4000-8000-000000000004"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_bwd_pos"): NodeData("d3d3d3d3-0000-4000-8000-000000000007", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_bwd_pos"): NodeTime("d3d3d3d3-0000-4000-8000-000000000007"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_lb"): NodeData("d3d3d3d3-0000-4000-8000-000000000005", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_lb"): NodeTime("d3d3d3d3-0000-4000-8000-000000000005"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_lf"): NodeData("d3d3d3d3-0000-4000-8000-000000000006", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_lf"): NodeTime("d3d3d3d3-0000-4000-8000-000000000006"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_fwd"): NodeData("d3d3d3d3-0000-4000-8000-000000000001", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_fwd"): NodeTime("d3d3d3d3-0000-4000-8000-000000000001"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_rf"): NodeData("d3d3d3d3-0000-4000-8000-000000000002", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_rf"): NodeTime("d3d3d3d3-0000-4000-8000-000000000002"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose_rb"): NodeData("d3d3d3d3-0000-4000-8000-000000000003", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000002", "time_rb"): NodeTime("d3d3d3d3-0000-4000-8000-000000000003"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "parameter"): InputData(Passthrough("direction_angle")),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_bwd"): NodeData("d4d4d4d4-0000-4000-8000-000000000004", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_bwd"): NodeTime("d4d4d4d4-0000-4000-8000-000000000004"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_bwd_pos"): NodeData("d4d4d4d4-0000-4000-8000-000000000007", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_bwd_pos"): NodeTime("d4d4d4d4-0000-4000-8000-000000000007"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_lb"): NodeData("d4d4d4d4-0000-4000-8000-000000000005", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_lb"): NodeTime("d4d4d4d4-0000-4000-8000-000000000005"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_lf"): NodeData("d4d4d4d4-0000-4000-8000-000000000006", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_lf"): NodeTime("d4d4d4d4-0000-4000-8000-000000000006"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_fwd"): NodeData("d4d4d4d4-0000-4000-8000-000000000001", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_fwd"): NodeTime("d4d4d4d4-0000-4000-8000-000000000001"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_rf"): NodeData("d4d4d4d4-0000-4000-8000-000000000002", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_rf"): NodeTime("d4d4d4d4-0000-4000-8000-000000000002"),
+        NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose_rb"): NodeData("d4d4d4d4-0000-4000-8000-000000000003", "pose"),
+        NodeTime("d1d1d1d1-0000-4000-8000-000000000003", "time_rb"): NodeTime("d4d4d4d4-0000-4000-8000-000000000003"),
         NodeData("55555555-5555-4555-8555-555555555505", "parameter"): InputData(Passthrough("speed")),
         NodeData("55555555-5555-4555-8555-555555555505", "pose_idle"): NodeData("11111111-1111-4111-8111-111111111101", "pose"),
         NodeTime("55555555-5555-4555-8555-555555555505", "time_idle"): NodeTime("11111111-1111-4111-8111-111111111101"),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_walk"): NodeData("22222222-2222-4222-8222-222222222202", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_walk"): NodeTime("22222222-2222-4222-8222-222222222202"),
-        NodeData("55555555-5555-4555-8555-555555555505", "pose_run"): NodeData("33333333-3333-4333-8333-333333333303", "pose"),
-        NodeTime("55555555-5555-4555-8555-555555555505", "time_run"): NodeTime("33333333-3333-4333-8333-333333333303"),
+        NodeData("55555555-5555-4555-8555-555555555505", "pose_walk"): NodeData("d1d1d1d1-0000-4000-8000-000000000001", "pose"),
+        NodeTime("55555555-5555-4555-8555-555555555505", "time_walk"): NodeTime("d1d1d1d1-0000-4000-8000-000000000001"),
+        NodeData("55555555-5555-4555-8555-555555555505", "pose_run"): NodeData("d1d1d1d1-0000-4000-8000-000000000002", "pose"),
+        NodeTime("55555555-5555-4555-8555-555555555505", "time_run"): NodeTime("d1d1d1d1-0000-4000-8000-000000000002"),
         NodeData("55555555-5555-4555-8555-555555555505", "pose_sprint"): NodeData("44444444-4444-4444-8444-444444444404", "pose"),
         NodeTime("55555555-5555-4555-8555-555555555505", "time_sprint"): NodeTime("44444444-4444-4444-8444-444444444404"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000003", "parameter"): InputData(Passthrough("speed")),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000003", "pose_idle"): NodeData("c0c0c0c0-0000-4000-8000-000000000001", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000003", "time_idle"): NodeTime("c0c0c0c0-0000-4000-8000-000000000001"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000003", "pose_walk"): NodeData("d1d1d1d1-0000-4000-8000-000000000003", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000003", "time_walk"): NodeTime("d1d1d1d1-0000-4000-8000-000000000003"),
         NodeData("66666666-6666-4666-8666-666666666606", "pose"): NodeData("55555555-5555-4555-8555-555555555505", "pose"),
         NodeTime("66666666-6666-4666-8666-666666666606", "time"): NodeTime("55555555-5555-4555-8555-555555555505"),
         NodeData("66666666-6666-4666-8666-666666666606", "speed"): InputData(Passthrough("play_rate")),
         NodeData("77777777-7777-4777-8777-777777777707", "pose"): NodeData("66666666-6666-4666-8666-666666666606", "pose"),
         NodeTime("77777777-7777-4777-8777-777777777707", "time"): NodeTime("66666666-6666-4666-8666-666666666606"),
-        OutputData("pose"): NodeData("77777777-7777-4777-8777-777777777707", "pose"),
-        OutputTime: NodeTime("77777777-7777-4777-8777-777777777707"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000004", "pose"): NodeData("c0c0c0c0-0000-4000-8000-000000000003", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000004", "time"): NodeTime("c0c0c0c0-0000-4000-8000-000000000003"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000004", "speed"): InputData(Passthrough("play_rate")),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000005", "pose"): NodeData("c0c0c0c0-0000-4000-8000-000000000004", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000005", "time"): NodeTime("c0c0c0c0-0000-4000-8000-000000000004"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose_a"): NodeData("77777777-7777-4777-8777-777777777707", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000006", "time_a"): NodeTime("77777777-7777-4777-8777-777777777707"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose_b"): NodeData("c0c0c0c0-0000-4000-8000-000000000005", "pose"),
+        NodeTime("c0c0c0c0-0000-4000-8000-000000000006", "time_b"): NodeTime("c0c0c0c0-0000-4000-8000-000000000005"),
+        NodeData("c0c0c0c0-0000-4000-8000-000000000006", "factor"): InputData(Passthrough("stance_weight")),
+        OutputData("pose"): NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose"),
+        OutputTime: NodeTime("c0c0c0c0-0000-4000-8000-000000000006"),
     },
     io_spec: (
         input_times: [],
         input_data: {
             Passthrough("speed"): F32,
             Passthrough("play_rate"): F32,
+            Passthrough("direction_angle"): F32,
+            Passthrough("stance_weight"): F32,
         },
         output_time: true,
         output_data: {
@@ -126,6 +599,8 @@
         input_order: {
             Data(Passthrough("speed")): 0,
             Data(Passthrough("play_rate")): 1,
+            Data(Passthrough("direction_angle")): 2,
+            Data(Passthrough("stance_weight")): 3,
         },
         output_order: {
             Data("pose"): 0,
@@ -135,19 +610,45 @@
     default_data: {
         Passthrough("speed"): F32(0.0),
         Passthrough("play_rate"): F32(1.0),
+        Passthrough("direction_angle"): F32(0.0),
+        Passthrough("stance_weight"): F32(0.0),
     },
     editor_metadata: (
         node_positions: {
             "11111111-1111-4111-8111-111111111101": (60.0, 80.0),
-            "22222222-2222-4222-8222-222222222202": (60.0, 220.0),
-            "33333333-3333-4333-8333-333333333303": (60.0, 360.0),
-            "44444444-4444-4444-8444-444444444404": (60.0, 500.0),
-            "55555555-5555-4555-8555-555555555505": (340.0, 290.0),
-            "66666666-6666-4666-8666-666666666606": (600.0, 290.0),
-            "77777777-7777-4777-8777-777777777707": (820.0, 290.0),
+            "44444444-4444-4444-8444-444444444404": (60.0, 220.0),
+            "d2d2d2d2-0000-4000-8000-000000000001": (60.0, 360.0),
+            "d2d2d2d2-0000-4000-8000-000000000002": (60.0, 500.0),
+            "d2d2d2d2-0000-4000-8000-000000000003": (60.0, 640.0),
+            "d2d2d2d2-0000-4000-8000-000000000004": (60.0, 780.0),
+            "d2d2d2d2-0000-4000-8000-000000000005": (60.0, 920.0),
+            "d2d2d2d2-0000-4000-8000-000000000006": (60.0, 1060.0),
+            "d3d3d3d3-0000-4000-8000-000000000001": (300.0, 80.0),
+            "d3d3d3d3-0000-4000-8000-000000000002": (300.0, 220.0),
+            "d3d3d3d3-0000-4000-8000-000000000003": (300.0, 360.0),
+            "d3d3d3d3-0000-4000-8000-000000000004": (300.0, 500.0),
+            "d3d3d3d3-0000-4000-8000-000000000005": (300.0, 640.0),
+            "d3d3d3d3-0000-4000-8000-000000000006": (300.0, 780.0),
+            "d4d4d4d4-0000-4000-8000-000000000001": (540.0, 80.0),
+            "d4d4d4d4-0000-4000-8000-000000000002": (540.0, 220.0),
+            "d4d4d4d4-0000-4000-8000-000000000003": (540.0, 360.0),
+            "d4d4d4d4-0000-4000-8000-000000000004": (540.0, 500.0),
+            "d4d4d4d4-0000-4000-8000-000000000005": (540.0, 640.0),
+            "d4d4d4d4-0000-4000-8000-000000000006": (540.0, 780.0),
+            "d1d1d1d1-0000-4000-8000-000000000001": (800.0, 300.0),
+            "d1d1d1d1-0000-4000-8000-000000000002": (800.0, 500.0),
+            "d1d1d1d1-0000-4000-8000-000000000003": (800.0, 700.0),
+            "55555555-5555-4555-8555-555555555505": (1040.0, 400.0),
+            "c0c0c0c0-0000-4000-8000-000000000001": (540.0, 920.0),
+            "c0c0c0c0-0000-4000-8000-000000000003": (1040.0, 700.0),
+            "66666666-6666-4666-8666-666666666606": (1240.0, 400.0),
+            "77777777-7777-4777-8777-777777777707": (1400.0, 400.0),
+            "c0c0c0c0-0000-4000-8000-000000000004": (1240.0, 700.0),
+            "c0c0c0c0-0000-4000-8000-000000000005": (1400.0, 700.0),
+            "c0c0c0c0-0000-4000-8000-000000000006": (1560.0, 550.0),
         },
-        input_position: (10.0, 290.0),
-        output_position: (1040.0, 290.0),
+        input_position: (10.0, 550.0),
+        output_position: (1720.0, 550.0),
         input_param_order: {},
         input_time_order: {},
         output_data_order: {},

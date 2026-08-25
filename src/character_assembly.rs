@@ -2,19 +2,47 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{AlsCameraRig, AlsCameraTarget};
-use als_core::character::AlsCharacterBundle;
+use als_core::character::{AlsCharacter, AlsCharacterBundle};
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{spawn_als_actions, AlsInputMap};
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
+use als_core::state::LocomotionState;
 use als_core::view::AlsViewPitch;
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
+pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
 
 pub fn avatar_transform() -> Transform {
     Transform::from_xyz(0.0, AVATAR_CAPSULE_BOTTOM_OFFSET, 0.0)
         .with_rotation(Quat::from_rotation_y(AVATAR_FORWARD_YAW))
+}
+
+pub struct AvatarGroundCompensationPlugin;
+
+impl Plugin for AvatarGroundCompensationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(PostUpdate, avatar_ground_compensation_system);
+    }
+}
+
+type CompensatedAvatar = (Entity, &'static ChildOf, &'static mut Transform);
+
+fn avatar_ground_compensation_system(
+    mut avatars: Query<CompensatedAvatar, (With<AnimatedSceneHandle>, Without<AlsCharacter>)>,
+    characters: Query<(&Transform, &LocomotionState), With<AlsCharacter>>,
+) {
+    for (_entity, child_of, mut transform) in avatars.iter_mut() {
+        let Ok((body, loco)) = characters.get(child_of.parent()) else {
+            continue;
+        };
+        if matches!(loco, LocomotionState::Ragdolling) {
+            continue;
+        }
+        let glued_offset = AVATAR_MESH_ROOT_WORLD_Y - body.translation.y;
+        transform.translation.y = glued_offset.max(AVATAR_CAPSULE_BOTTOM_OFFSET);
+    }
 }
 
 pub fn attach_avatar(
