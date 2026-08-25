@@ -1,5 +1,6 @@
 # Rust
 /target
+/target_game
 **/*.rs.bk
 __pycache__/
 
