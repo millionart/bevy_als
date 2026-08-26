@@ -19,6 +19,9 @@ use crate::playground_materials::{
 };
 use crate::{CurveAsset, CurveKey, CurveSampleMode};
 
+pub const PLAYGROUND_SHADOW_DEPTH_BIAS: f32 = DirectionalLight::DEFAULT_SHADOW_DEPTH_BIAS;
+pub const PLAYGROUND_SHADOW_NORMAL_BIAS: f32 = DirectionalLight::DEFAULT_SHADOW_NORMAL_BIAS;
+
 pub struct PlaygroundPlugin {
     pub manifest: PathBuf,
 }
@@ -1761,8 +1764,9 @@ fn spawn_sun_light(
             color: Color::srgba(color_arr[0], color_arr[1], color_arr[2], color_arr[3]),
             illuminance: intensity,
             shadow_maps_enabled: true,
-            shadow_depth_bias: 0.5,
-            shadow_normal_bias: 0.0,
+            contact_shadows_enabled: false,
+            shadow_depth_bias: PLAYGROUND_SHADOW_DEPTH_BIAS,
+            shadow_normal_bias: PLAYGROUND_SHADOW_NORMAL_BIAS,
             ..default()
         },
         CascadeShadowConfigBuilder {
@@ -1909,6 +1913,18 @@ mod tests {
             ue_directional_light_ray_to_bevy(-45.0, 45.0),
             Vec3::new(0.5, -0.70710677, 0.5),
             1e-5,
+        );
+    }
+
+    #[test]
+    fn directional_light_shadow_bias_uses_bevy_calibration() {
+        assert_eq!(
+            PLAYGROUND_SHADOW_DEPTH_BIAS,
+            DirectionalLight::DEFAULT_SHADOW_DEPTH_BIAS
+        );
+        assert_eq!(
+            PLAYGROUND_SHADOW_NORMAL_BIAS,
+            DirectionalLight::DEFAULT_SHADOW_NORMAL_BIAS
         );
     }
 

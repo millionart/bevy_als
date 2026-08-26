@@ -19,11 +19,13 @@ use als_ext::{
     PlaygroundMovingCurve, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing,
     PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment,
     PlaygroundTextLabel, PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment,
-    PlaygroundWorldTextMesh, moving_object_position,
+    PlaygroundWorldTextMesh, PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS,
+    moving_object_position,
 };
 
 const PLAYGROUND_CAMERA_EV100: f32 = 2.0;
 const PLAYGROUND_CAMERA_CONTRAST: f32 = 1.05;
+const PLAYGROUND_CONTACT_DEPTH_BIAS_MAX: f32 = PLAYGROUND_SHADOW_DEPTH_BIAS + 1e-6;
 const LANDSCAPE_TILES_TILING: f32 = 0.08;
 const LANDSCAPE_TILES_COLOR: Vec4 = Vec4::new(0.25, 0.5, 0.125, 1.0);
 
@@ -94,6 +96,10 @@ struct SceneStats {
     sun_shadowed: bool,
     sun_ray_error: f32,
     sun_illuminance_error: f32,
+    sun_contact_depth_bias: f32,
+    sun_shadow_depth_bias_error: f32,
+    sun_shadow_normal_bias_error: f32,
+    sun_contact_shadows_enabled: bool,
     camera_exposure_count: u32,
     camera_exposure_error: f32,
     camera_contrast_error: f32,
@@ -333,6 +339,23 @@ fn stats_collector(
         .iter()
         .map(|(light, _, _)| (light.illuminance - 10.0).abs())
         .fold(f32::INFINITY, f32::min);
+    stats.sun_contact_depth_bias = sun_lights
+        .iter()
+        .map(|(light, _, _)| light.shadow_depth_bias)
+        .fold(f32::INFINITY, f32::min);
+    stats.sun_shadow_depth_bias_error = sun_lights
+        .iter()
+        .map(|(light, _, _)| (light.shadow_depth_bias - PLAYGROUND_SHADOW_DEPTH_BIAS).abs())
+        .fold(f32::INFINITY, f32::min);
+    stats.sun_shadow_normal_bias_error = sun_lights
+        .iter()
+        .map(|(light, _, _)| {
+            (light.shadow_normal_bias - PLAYGROUND_SHADOW_NORMAL_BIAS).abs()
+        })
+        .fold(f32::INFINITY, f32::min);
+    stats.sun_contact_shadows_enabled = sun_lights
+        .iter()
+        .any(|(light, _, _)| light.contact_shadows_enabled);
     stats.camera_exposure_count = cameras.iter().count() as u32;
     stats.camera_exposure_error = cameras
         .iter()
@@ -712,7 +735,11 @@ fn verdict_system(
     let ok_sun = stats.sun_count == 1
         && stats.sun_shadowed
         && stats.sun_ray_error < 1e-4
-        && stats.sun_illuminance_error < 1e-4;
+        && stats.sun_illuminance_error < 1e-4
+        && stats.sun_contact_depth_bias <= PLAYGROUND_CONTACT_DEPTH_BIAS_MAX
+        && stats.sun_shadow_depth_bias_error < 1e-6
+        && stats.sun_shadow_normal_bias_error < 1e-6
+        && !stats.sun_contact_shadows_enabled;
     let ok_camera_exposure = stats.camera_exposure_count == 1
         && stats.camera_exposure_error < 1e-4
         && stats.camera_contrast_error < 1e-4
@@ -745,7 +772,7 @@ fn verdict_system(
     let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_scale={}/{} scale_error={:.6} aspect_error={:.6} origin_error={:.6} per_project={}/1 per_project_aspect_error={:.6} glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_scale={}/{} scale_error={:.6} aspect_error={:.6} origin_error={:.6} per_project={}/1 per_project_aspect_error={:.6} glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -779,6 +806,11 @@ fn verdict_system(
         stats.sun_shadowed,
         stats.sun_illuminance_error,
         stats.sun_ray_error,
+        stats.sun_contact_depth_bias,
+        PLAYGROUND_CONTACT_DEPTH_BIAS_MAX,
+        stats.sun_shadow_depth_bias_error,
+        stats.sun_shadow_normal_bias_error,
+        stats.sun_contact_shadows_enabled,
         stats.camera_exposure_count,
         stats.camera_exposure_error,
         stats.camera_contrast_error,

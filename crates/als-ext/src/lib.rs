@@ -47,6 +47,7 @@ pub use playground::{
     PlaygroundRotator, PlaygroundSky, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextFacing,
     PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
     PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
+    PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS,
 };
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use time_position::{resolve_position, TimePositionNode};
