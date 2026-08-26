@@ -71,6 +71,10 @@
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_high_w"): InputData(Passthrough("mantle_high_w")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_lr"): InputData(Passthrough("mantle_lr")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "mantle_clip_time"): InputData(Passthrough("mantle_clip_time")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_weight"): InputData(Passthrough("turn_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_lr"): InputData(Passthrough("turn_lr")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_180"): InputData(Passthrough("turn_180")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_clip_time"): InputData(Passthrough("turn_clip_time")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "prev_pose"): NodeData("aaaaaaa2-0000-4000-8000-000000000002", "pose"),
         NodeTime("aaaaaaa3-0000-4000-8000-000000000003", "prev_time"): NodeTime("aaaaaaa2-0000-4000-8000-000000000002"),
         NodeData("aaaaaaa4-0000-4000-8000-000000000004", "diff_factor"): InputData(Passthrough("diff_factor")),
@@ -119,6 +123,10 @@
             Passthrough("mantle_lr"): F32,
             Passthrough("roll_clip_time"): F32,
             Passthrough("mantle_clip_time"): F32,
+            Passthrough("turn_weight"): F32,
+            Passthrough("turn_lr"): F32,
+            Passthrough("turn_180"): F32,
+            Passthrough("turn_clip_time"): F32,
         },
         output_time: true,
         output_data: {
@@ -157,6 +165,10 @@
             Data(Passthrough("mantle_lr")): 20,
             Data(Passthrough("roll_clip_time")): 21,
             Data(Passthrough("mantle_clip_time")): 22,
+            Data(Passthrough("turn_weight")): 32,
+            Data(Passthrough("turn_lr")): 33,
+            Data(Passthrough("turn_180")): 34,
+            Data(Passthrough("turn_clip_time")): 35,
         },
         output_order: {
             Data("pose"): 0,
@@ -194,6 +206,10 @@
         Passthrough("mantle_lr"): F32(0.0),
         Passthrough("roll_clip_time"): F32(0.0),
         Passthrough("mantle_clip_time"): F32(0.0),
+        Passthrough("turn_weight"): F32(0.0),
+        Passthrough("turn_lr"): F32(0.0),
+        Passthrough("turn_180"): F32(0.0),
+        Passthrough("turn_clip_time"): F32(0.0),
     },
     editor_metadata: (
         node_positions: {

@@ -16,4 +16,5 @@ pub mod root_motion_link;
 pub mod show_debug_hud;
 pub mod stance_layer;
 pub mod stop_link;
+pub mod turn_layer;
 pub mod view_layer;
