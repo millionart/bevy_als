@@ -3,10 +3,13 @@
 pub mod als_curves;
 pub mod curve;
 pub mod distance_match;
+pub mod f_interp;
+pub mod global_f32_input;
 pub mod ik;
 pub mod linked_anim_layer;
 pub mod layered_graph;
 pub mod loader;
+pub mod multi_way_blend;
 pub mod nodes;
 pub mod overlay;
 pub mod ragdoll_config_node;
@@ -24,11 +27,14 @@ pub use distance_match::{
     default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
     DistanceMatchNode,
 };
+pub use f_interp::{f_interp_to, FInterpNode};
+pub use global_f32_input::GlobalF32InputNode;
 pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
 pub use loader::{CurveAssetLoader, CurveLoadError};
-pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
+pub use multi_way_blend::MultiWayBlendNode;
+pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use overlay::{
     build_bone_mask, build_grouped_bone_mask, mask_coverage, HEAD_LAYER_BONES, LOOK_SPINE_BONES,
@@ -58,13 +64,16 @@ impl Plugin for AlsExtPlugin {
             .init_asset::<als_curves::AlsAnimCurves>()
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
+            .register_type::<ConstantF32Node>()
             .register_type::<DistanceMatchNode>()
-        .register_type::<DistanceMatchNode>()
-        .register_type::<RagdollConfigNode>()
-        .register_type::<TimePositionNode>()
-        .register_type::<LinkedAnimLayerNode>()
-        .register_type::<LayeredGraphNode>()
-        .register_type::<RootMotionClipNode>()
+            .register_type::<FInterpNode>()
+            .register_type::<GlobalF32InputNode>()
+            .register_type::<MultiWayBlendNode>()
+            .register_type::<RagdollConfigNode>()
+            .register_type::<TimePositionNode>()
+            .register_type::<LinkedAnimLayerNode>()
+            .register_type::<LayeredGraphNode>()
+            .register_type::<RootMotionClipNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()

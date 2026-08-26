@@ -11,6 +11,29 @@ use crate::curve::{sample_curve, CurveKey, CurveSampleMode};
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
+pub struct ConstantF32Node {
+    pub value: f32,
+}
+
+impl NodeLike for ConstantF32Node {
+    fn display_name(&self) -> String {
+        "ALS Constant F32".into()
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        ctx.set_data_fwd("value", self.value);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_output_data("value", DataSpec::F32);
+        Ok(())
+    }
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
 pub struct CurveSampleNode {
     pub mode: CurveSampleMode,
     pub keys: Vec<CurveKey>,
@@ -86,6 +109,14 @@ mod tests {
         let reg = registry.get(std::any::TypeId::of::<CurveSampleNode>()).unwrap();
         assert!(reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>().is_some());
         assert_eq!(<CurveSampleNode as bevy::reflect::TypePath>::type_path(), "als_ext::CurveSampleNode");
+    }
+
+    #[test]
+    fn constant_f32_node_registers_node_like_dispatch_key() {
+        let registry = registry_with::<ConstantF32Node>();
+        let reg = registry.get(std::any::TypeId::of::<ConstantF32Node>()).unwrap();
+        assert!(reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>().is_some());
+        assert_eq!(<ConstantF32Node as bevy::reflect::TypePath>::type_path(), "als_ext::ConstantF32Node");
     }
 
     #[test]
