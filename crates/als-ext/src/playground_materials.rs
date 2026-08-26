@@ -1,8 +1,10 @@
 use bevy::asset::AssetServer;
 use bevy::asset::RenderAssetUsages;
-use bevy::image::{CompressedImageFormats, Image, ImageSampler, ImageType};
+use bevy::image::{
+        CompressedImageFormats, Image, ImageSampler, ImageSamplerDescriptor, ImageType,
+    };
 use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::render::render_resource::TextureFormat;
 
 pub struct PlaygroundMaterialsPlugin;
 
@@ -19,20 +21,27 @@ pub struct PlaygroundMaterialLibrary {
     pub tiles_normal: Option<Handle<Image>>,
 }
 
+fn repeating_sampler_descriptor() -> ImageSamplerDescriptor {
+    ImageSamplerDescriptor {
+        address_mode_u: bevy::image::ImageAddressMode::Repeat,
+        address_mode_v: bevy::image::ImageAddressMode::Repeat,
+        ..Default::default()
+    }
+}
+
 fn decode_png(server: &AssetServer, bytes: &[u8], is_normal: bool) -> Option<Handle<Image>> {
     let mut img = Image::from_buffer(
         bytes,
         ImageType::Extension("png".into()),
         CompressedImageFormats::NONE,
         !is_normal,
-        ImageSampler::default(),
+        ImageSampler::Descriptor(repeating_sampler_descriptor()),
         RenderAssetUsages::default(),
     )
     .ok()?;
     if is_normal && img.texture_descriptor.format == TextureFormat::Rgba8UnormSrgb {
         img.texture_descriptor.format = TextureFormat::Rgba8Unorm;
     }
-    let _ = (Extent3d::default(), TextureDimension::D2);
     Some(server.add(img))
 }
 

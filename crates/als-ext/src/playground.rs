@@ -295,6 +295,16 @@ fn body_plan_from_actor_bounds(actor: &PlaygroundActor) -> Option<BodyPlan> {
     })
 }
 
+fn infer_block_mesh(actor: &PlaygroundActor) -> Option<String> {
+    let ext = actor.bounds_extent?;
+    let max_cm = ext[0].max(ext[1]).max(ext[2]);
+    if max_cm <= 125.0 {
+        Some("SM_Als_Block_2x2".to_string())
+    } else {
+        Some("SM_Als_Block_3x3".to_string())
+    }
+}
+
 fn spawn_box_visual(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -345,11 +355,6 @@ pub fn playground_setup_system(
         }
     };
 
-    let placeholder_mat = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.55, 0.55, 0.6, 0.45),
-        alpha_mode: AlphaMode::Blend,
-        ..default()
-    });
 
     let tiles_lookup = material_library.clone();
 
@@ -397,9 +402,14 @@ pub fn playground_setup_system(
                     } else {
                         Transform::from_translation(plan.center_world)
                     };
-                    let mesh_scene = plan.mesh_base.as_deref().map(|base| {
-                        assets.load(format!("models/playground/{base}.gltf#Scene0"))
-                    });
+                    let mesh_base = plan
+                        .mesh_base
+                        .clone()
+                        .or_else(|| infer_block_mesh(actor));
+                    let mesh_scene =
+                        mesh_base
+                            .as_deref()
+                            .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
                     let duration = actor.move_duration.unwrap_or(2.0);
                     let entity = commands
                         .spawn((
@@ -424,7 +434,7 @@ pub fn playground_setup_system(
                                     plan.half_extents_model.y * 2.0,
                                     plan.half_extents_model.z * 2.0,
                                 )))),
-                                MeshMaterial3d(placeholder_mat.clone()),
+                                MeshMaterial3d(default_solid_mat.clone()),
                             ));
                         }
                     }
@@ -446,9 +456,14 @@ pub fn playground_setup_system(
                 if let Some(plan) = plan {
                     let center = plan.center_world + plan.quat * plan.center_offset_model;
                     let speed_deg = actor.rotate_speed_deg.unwrap_or(100.0);
-                    let mesh_scene = plan.mesh_base.as_deref().map(|base| {
-                        assets.load(format!("models/playground/{base}.gltf#Scene0"))
-                    });
+                    let mesh_base = plan
+                        .mesh_base
+                        .clone()
+                        .or_else(|| infer_block_mesh(actor));
+                    let mesh_scene =
+                        mesh_base
+                            .as_deref()
+                            .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
                     let entity = commands
                         .spawn((
                             Name::new(format!("Rotating:{}", actor.name)),
@@ -473,7 +488,7 @@ pub fn playground_setup_system(
                                     plan.half_extents_model.y * 2.0,
                                     plan.half_extents_model.z * 2.0,
                                 )))),
-                                MeshMaterial3d(placeholder_mat.clone()),
+                                MeshMaterial3d(default_solid_mat.clone()),
                             ));
                         }
                     }
@@ -574,7 +589,7 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        placeholder_mat.clone(),
+                        default_solid_mat.clone(),
                         Transform::from_translation(center).with_rotation(plan.quat),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
@@ -585,7 +600,7 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        placeholder_mat.clone(),
+                        default_solid_mat.clone(),
                         Transform::from_translation(plan.center_world),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),

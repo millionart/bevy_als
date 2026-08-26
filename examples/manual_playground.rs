@@ -24,7 +24,8 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{clamp_pitch, AlsViewPitch};
-use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint, PlaygroundTintApplied};
+use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint};
+use als_ext::overlay_materials::OverlayMaterialsPlugin;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{
     AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint,
@@ -83,6 +84,7 @@ fn main() {
         },
         AnimationGraphPlugin::default(),
         PlaygroundMaterialsPlugin,
+        OverlayMaterialsPlugin,
         AlsExtPlugin,
         AlsCameraPlugin,
     ))
@@ -225,7 +227,6 @@ fn landscape_collider_bridge(
                 .chunks_exact(3)
                 .map(|c| [c[0] as u32, c[1] as u32, c[2] as u32])
                 .collect(),
-            _ => vec![],
         };
         commands.entity(entity).insert((
             Collider::trimesh(verts, tris),
@@ -305,18 +306,20 @@ fn spawn_character_once(
         point.position.x, point.position.y, point.position.z
     );
 
-    let mut blueprint = bevy_als::character_assembly::AlsCharacterBlueprint::new(
-        Transform::from_translation(point.position).with_rotation(point.rotation),
-        "animated_scenes/als_ragdoll.animscn.ron",
-    );
-    blueprint.spawn_camera = true;
     let _character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
         &mut params_assets,
         &mut config_assets,
-        blueprint,
+        bevy_als::character_assembly::AlsCharacterBlueprint {
+            spawn_camera: true,
+            ..bevy_als::character_assembly::AlsCharacterBlueprint::new(
+                Transform::from_translation(point.position).with_rotation(point.rotation),
+                "animated_scenes/als_ragdoll.animscn.ron",
+            )
+        },
     );
+    
 }
 
 fn playground_physics_bridge(

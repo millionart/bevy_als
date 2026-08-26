@@ -12,6 +12,7 @@ pub mod ragdoll_config_node;
 pub mod root_motion_clip;
 pub mod playground;
 pub mod playground_materials;
+pub mod overlay_materials;
 pub mod root_motion_defaults;
 pub mod time_position;
 

@@ -1,0 +1,137 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 5208,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 1,
+			"count": 3465,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				-0.120532975,
+				-0.0509314127,
+				-0.117218025
+			],
+			"max": [
+				0.120532975,
+				0.0509314127,
+				0.117218025
+			]
+		},
+		{
+			"bufferView": 2,
+			"count": 3465,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 3,
+			"count": 3465,
+			"type": "VEC4",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 4,
+			"count": 3465,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 5,
+			"count": 3465,
+			"type": "VEC2",
+			"componentType": 5126
+		}
+	],
+	"buffers": [
+		{
+			"uri": "SM_Als_Binoculars.bin",
+			"byteLength": 204456
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 10416,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 41580,
+			"byteOffset": 10416,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 41580,
+			"byteOffset": 51996,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 55440,
+			"byteOffset": 93576,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 27720,
+			"byteOffset": 149016,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 27720,
+			"byteOffset": 176736,
+			"target": 34962
+		}
+	],
+	"materials": [
+		{
+			"pbrMetallicRoughness":
+			{
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "SM_Als_Binoculars",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 1,
+						"NORMAL": 2,
+						"TANGENT": 3,
+						"TEXCOORD_0": 4,
+						"TEXCOORD_1": 5
+					},
+					"indices": 0,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0
+		}
+	],
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	]
+}
