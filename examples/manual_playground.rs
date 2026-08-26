@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -12,24 +12,22 @@ use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_camera::AlsCameraPlugin;
+use als_core::aim::AlsAimPlugin;
 use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
 use als_core::input::{AlsInputCommand, AlsInputPlugin};
 use als_core::input_request::AlsInputRequestPlugin;
-use als_core::aim::AlsAimPlugin;
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
-use als_core::view::{clamp_pitch, AlsViewPitch};
-use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint};
+use als_core::view::{AlsViewPitch, clamp_pitch};
 use als_ext::overlay_materials::OverlayMaterialsPlugin;
+use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint};
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
-use als_ext::{
-    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint,
-};
+use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
@@ -93,7 +91,7 @@ fn main() {
         brightness: 400.0,
         ..default()
     })
-    .add_systems(Startup, (spawn_sun, arm_auto_quit))
+    .add_systems(Startup, arm_auto_quit)
     .add_systems(
         Update,
         (
@@ -175,9 +173,7 @@ fn screenshot_runner(
         };
         let path = plan.path.clone();
         commands.entity(cam).insert(Screenshot::primary_window());
-        commands
-            .entity(cam)
-            .observe(save_to_disk(path.clone()));
+        commands.entity(cam).observe(save_to_disk(path.clone()));
         info!("[MANUAL] screenshot requested -> {}", path.display());
         plan.taken = true;
         plan.done_at = Some(Instant::now() + Duration::from_millis(1500));
@@ -195,44 +191,93 @@ struct LandscapeColliderBuilt;
 
 fn landscape_collider_bridge(
     mut commands: Commands,
-    landscapes: Query<(Entity, &Mesh3d), (Added<PlaygroundLandscape>, Without<LandscapeColliderBuilt>)>,
+    landscapes: Query<
+        (Entity, &GlobalTransform),
+        (With<PlaygroundLandscape>, Without<LandscapeColliderBuilt>),
+    >,
+    scene_children: Query<&Children>,
+    mesh_parts: Query<(&Mesh3d, &GlobalTransform)>,
     meshes: Res<Assets<Mesh>>,
 ) {
-    for (entity, mesh_handle) in &landscapes {
-        let Some(mesh) = meshes.get(&mesh_handle.0) else {
-            continue;
-        };
-        let Some(positions) = mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
-            continue;
-        };
-        let verts: Vec<Vec3> = positions
-            .as_float3()
-            .map(|vals| vals.iter().map(|v| Vec3::from(*v)).collect())
-            .unwrap_or_default();
-        if verts.is_empty() {
+    fn append_meshes(
+        entity: Entity,
+        root_inverse: Mat4,
+        scene_children: &Query<&Children>,
+        mesh_parts: &Query<(&Mesh3d, &GlobalTransform)>,
+        meshes: &Assets<Mesh>,
+        vertices: &mut Vec<Vec3>,
+        triangles: &mut Vec<[u32; 3]>,
+    ) {
+        if let Ok((mesh_handle, transform)) = mesh_parts.get(entity)
+            && let Some(mesh) = meshes.get(&mesh_handle.0)
+            && let Some(positions) = mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+            && let Some(values) = positions.as_float3()
+            && let Some(indices) = mesh.indices()
+        {
+            let base = vertices.len() as u32;
+            let relative = root_inverse * transform.to_matrix();
+            vertices.extend(
+                values
+                    .iter()
+                    .map(|position| relative.transform_point3(Vec3::from(*position))),
+            );
+            match indices {
+                bevy::render::mesh::Indices::U32(list) => {
+                    triangles.extend(list.chunks_exact(3).map(|triangle| {
+                        [base + triangle[0], base + triangle[1], base + triangle[2]]
+                    }))
+                }
+                bevy::render::mesh::Indices::U16(list) => {
+                    triangles.extend(list.chunks_exact(3).map(|triangle| {
+                        [
+                            base + triangle[0] as u32,
+                            base + triangle[1] as u32,
+                            base + triangle[2] as u32,
+                        ]
+                    }))
+                }
+            }
+        }
+        if let Ok(children) = scene_children.get(entity) {
+            for child in children.iter() {
+                append_meshes(
+                    child,
+                    root_inverse,
+                    scene_children,
+                    mesh_parts,
+                    meshes,
+                    vertices,
+                    triangles,
+                );
+            }
+        }
+    }
+
+    for (root, root_transform) in &landscapes {
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        append_meshes(
+            root,
+            root_transform.to_matrix().inverse(),
+            &scene_children,
+            &mesh_parts,
+            &meshes,
+            &mut vertices,
+            &mut triangles,
+        );
+        if vertices.is_empty() || triangles.is_empty() {
             continue;
         }
-        let rows = verts.iter().map(|v| v.z).collect::<Vec<_>>();
-        let cols = verts.iter().map(|v| v.x).collect::<Vec<_>>();
-        let _ = (rows, cols);
-        let Some(indices) = mesh.indices() else {
-            continue;
-        };
-        let tris: Vec<[u32; 3]> = match indices {
-            bevy::render::mesh::Indices::U32(list) => list
-                .chunks_exact(3)
-                .map(|c| [c[0], c[1], c[2]])
-                .collect(),
-            bevy::render::mesh::Indices::U16(list) => list
-                .chunks_exact(3)
-                .map(|c| [c[0] as u32, c[1] as u32, c[2] as u32])
-                .collect(),
-        };
-        commands.entity(entity).insert((
-            Collider::trimesh(verts, tris),
+        info!(
+            "[MANUAL] landscape collider built verts={} triangles={}",
+            vertices.len(),
+            triangles.len()
+        );
+        commands.entity(root).insert((
+            RigidBody::Static,
+            Collider::trimesh(vertices, triangles),
             LandscapeColliderBuilt,
         ));
-        info!("[MANUAL] landscape trimesh collider built from render mesh");
     }
 }
 
@@ -272,20 +317,10 @@ fn playground_tint_bridge(
             &mut found,
         );
         if found > 0 {
-            info!("[TINT] root={:?} tinted={} meshes", root, found);
+            debug!("[TINT] root={:?} tinted={} meshes", root, found);
             commands.entity(root).remove::<PlaygroundMaterialTint>();
         }
     }
-}
-
-fn spawn_sun(mut commands: Commands) {
-    commands.spawn((
-        DirectionalLight {
-            illuminance: 30_000.0,
-            ..default()
-        },
-        Transform::from_xyz(5.0, 20.0, -3.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
 }
 
 fn spawn_character_once(
@@ -319,7 +354,6 @@ fn spawn_character_once(
             )
         },
     );
-    
 }
 
 fn playground_physics_bridge(
@@ -371,9 +405,7 @@ fn graph_router(
     }
 }
 
-fn look_pitch_integrator(
-    mut q: Query<(&AlsInputCommand, &mut AlsViewPitch), With<AlsCharacter>>,
-) {
+fn look_pitch_integrator(mut q: Query<(&AlsInputCommand, &mut AlsViewPitch), With<AlsCharacter>>) {
     for (cmd, mut pitch) in &mut q {
         pitch.0 = clamp_pitch(pitch.0 - cmd.look_delta.y * LOOK_RADIANS_PER_COUNT);
     }

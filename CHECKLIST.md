@@ -76,6 +76,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 - [x] BF8 根运动在 TP/距离匹配强制采样下恒零：roll/actions/mantle 三门禁位移崩塌（dist 0.28 vs clip 2.75）。根因链（2026-08-25 实证）：①fork ClipNode 的 rm delta 依赖 `ctx.prev_time()`（无 key 的全局 last-time 读）与 `set_time`（带 StateKey 写）不对称，经 TimePositionNode/DistanceMatchNode 以 `TimeUpdate::Absolute` 回传强制采样时 prev 簿记失效 → 恒发 Some(0)（Delta 自然流正常，探针 D 变体对照实证）；②`derive_default_root_bone` 兜底每帧全骨架路径遍历+字符串比较重解析根骨，嵌套组合后帧成本放大引发固定步长饥饿、时序敏感门禁（air 重着陆）连锁失真。修复：`als_ext::RootMotionClipNode`——自维护 `RmPrevState{time,cached_root}` 节点状态（GraphStateType 扩展点，零 fork 改动），Absolute/Delta 双流正确产 delta，根骨解析一次缓存；actions 图 roll/mantle×3 四 clip 换用。验收：air_gate heavy ff_w=1.00 PASS、roll_gate dist=2.70/2.71 align=1.000 PASS、actions/mantle VERDICT PASS；perf 相对基线持平（本分支 7.35ms vs 纯 main 同机同法 7.25ms，均超预算属并行会话负载环境性，非本改动回归）。方法论教训登记：直跑 exe 时 bevy 相对资产路径解析至 exe 目录（无 CARGO_MANIFEST_DIR 回退）→ 门禁必须经 `cargo run` 取证，直跑结论（含本轮一度误判 main 存在同缺陷）一律无效。
 
+- [x] BF-Scene 勘误：L_Als_Playground 可视场景返修——真实 `Landscape1.gltf` 根变换只应用一次并由同一渲染网格生成碰撞；TextRenderActor 使用 Bevy 默认字体的布局/atlas 生成 `Mesh3d` 世界字形四边形，由 `Camera3d` 以深度测试的 Masked PBR 材质绘制，而非屏幕投影、billboard 或单色占位面片；按 UE 主光、天空和材质事实启用 PBR、动态阴影和可见天空。依据规则 12：2026-08-26 编辑器 MCP 实测 `Landscape_1` root=(-1000,1000,50)cm/scale=(16,16,16)，用户导出的 glTF 根已等值编码；`DirectionalLight_1`=(pitch -45,yaw 45)、Movable、intensity=3、动态阴影/4 cascades/40000cm 距离开启；SkySphere 自动随该光更新，zenith=(0.034046,0.109247,0.295)、horizon=(1.979559,2.586644,3)、sun brightness=75；TextRender 使用 `/Engine/EngineFonts/RobotoDistanceField`、`M_Als_OutlinedText`、居中/底部对齐，且典型 worldSize=50cm；该材质当前为 Surface、Masked、Default Lit、深度测试开启、双面且不投射 masked dynamic shadow。用户明确决定：不带入或提交字体资产，文字使用 Bevy 默认字体，此项差异登记附录 A。资产增补（本条批准）：仅用户导出的 Landscape1 glTF+PBR 三贴图，均登记 export manifest；禁止提交 uasset。验收：scene_gate 运行时断言 Bevy 默认字体生成的 `Mesh3d` 世界文字、单次 Landscape 根变换、主光阴影/PBR/天空探针与动态体统计均 PASS；manual 真实运行日志无 ERROR/WARN、地形碰撞和截图复核。
+  - Gate 记录（2026-08-26）：`cargo run --jobs 5 --example scene_gate` 实际日志为 `static=174 text=22 native_text=22/22 glyph_text=22/22 world_mesh_text=22 masked_world_mesh_text=22 landscape=true identity=true sun=1/shadow=true sky=2 pbr=174 movers=3 movers_active=3 spin_yaw_abs=999.8deg -> PASS`；`docs/bfscene-shots/scene-repair-text.png` 实拍可读 `~25 degrees`，验证世界锚点文字不是屏幕叠字。
+  - 冒烟记录（2026-08-26）：`cargo run --jobs 5 --example manual_playground` 实际日志 `landscape collider built verts=16384 triangles=31752`，截图写入 `docs/bfscene-shots/manual-scene-repair.png`，无 ERROR/WARN；`cargo test --workspace --jobs 5` 通过（als-core 140、als-ext 52、bevy_als 21）。
+
 - [ ] BF99 日志级行为对标（原 BF7，2026-08-25 用户指令改名并移序至 BF8 之后；BF1–BF8 与 BF6b 的行为级总验收门）：双侧同脚本插桩 → 同操作流程运行 → 逐帧指标对比 → 差异回修闭环，保证用户可见可操作行为与 ALS-Refactored 一致。
     - ①ALS 侧插桩：修改本地 ALS-Refactored 插件源码（改动落在其自身 git 仓库独立小步提交；CVar 门控默认关闭零侵入）：trace recorder 每 tick 写 CSV——t/frame、actor pos(cm)/vel(cm/s)、facing yaw/pitch、controller view yaw、五状态 tags+LocomotionAction、动作态（mantle/roll/air active）、双脚踝+pelvis 世界位置（IK 后）、capsule 半高/半径、相机 pos/yaw/pitch；script driver 按共享时间线文件程序化调用 Input_On* 处理函数（与人工操作同一入口，含 Hold/Tap 语义）。
     - ②bevy 侧等价 recorder：`examples/trace_parity.rs` + `bevy_als::trace_recorder`——列名/单位规范一致（坐标按既有映射 gltf=(ue.x,ue.z,ue.y)·0.01 反算为 UE cm 帧；yaw 统一定义为水平面朝向量相对 UE +X 的带符号角），消费同一时间线驱动 AlsInputOverride。
@@ -112,6 +116,7 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 | Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
 | w_als_hud Overlay 菜单世界锚定头顶骨骼 | 菜单停靠 HUD 面板左侧（BF6b 用户决策 2026-08-25） | 解除 UI 对骨骼/相机投影的耦合 |
 | W_Als_Hud 使用 Roboto 字体 | Bevy 默认字体（BF6b 用户决策 2026-08-25） | 字体非功能项，不移植 |
+| L_Als_Playground TextRender 使用 RobotoDistanceField 与描边材质 | Bevy 默认字体布局/atlas 生成的 `Mesh3d` 世界字形四边形（BF-Scene 用户决策 2026-08-26） | 不带入字体资产；保留文字内容、颜色、世界锚点与固定朝向，不做相机 billboard |
 | S_Als_UI_Click 菜单点击音 | 不复刻（BF6b 用户决策 2026-08-25） | WAV 解码需 bevy `wav` feature（hound 依赖），用户否决新增依赖 |
 
 ## 附录 B：风险与后置项

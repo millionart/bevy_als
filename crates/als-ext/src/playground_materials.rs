@@ -1,8 +1,9 @@
 use bevy::asset::AssetServer;
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{
-        CompressedImageFormats, Image, ImageSampler, ImageSamplerDescriptor, ImageType,
-    };
+    CompressedImageFormats, Image, ImageSampler, ImageSamplerDescriptor, ImageType,
+    TextureFormatPixelInfo,
+};
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 
@@ -29,6 +30,57 @@ fn repeating_sampler_descriptor() -> ImageSamplerDescriptor {
     }
 }
 
+fn generate_mip_chain(img: &mut Image) {
+    let width = img.width();
+    let height = img.height();
+    if width == 1 || height == 1 {
+        return;
+    }
+    let format_size = img.texture_descriptor.format.pixel_size().unwrap_or(4);
+    let mut levels: Vec<Vec<u8>> = Vec::new();
+    let mut cur = img.data.clone().expect("image data");
+    let (mut w, mut h) = (width as usize, height as usize);
+    loop {
+        let (nw, nh) = ((w / 2).max(1), (h / 2).max(1));
+        let mut next = vec![0u8; nw * nh * format_size];
+        for y in 0..nh {
+            for x in 0..nw {
+                for c in 0..format_size {
+                    let mut sum = 0u32;
+                    for dy in 0..2 {
+                        for dx in 0..2 {
+                            let sx = (x * 2 + dx).min(w - 1);
+                            let sy = (y * 2 + dy).min(h - 1);
+                            let idx = (sy * w + sx) * format_size + c;
+                            sum += cur[idx] as u32;
+                        }
+                    }
+                    next[(y * nw + x) * format_size + c] = (sum / 4) as u8;
+                }
+            }
+        }
+        cur = next.clone();
+        levels.push(next);
+        w = nw;
+        h = nh;
+        if w == 1 && h == 1 {
+            break;
+        }
+    }
+
+    let mut total = img.data.as_ref().map(|d| d.len()).unwrap_or(0);
+    for l in &levels {
+        total += l.len();
+    }
+    let mut all = Vec::with_capacity(total);
+    all.extend_from_slice(img.data.as_deref().unwrap_or(&[]));
+    for l in &levels {
+        all.extend_from_slice(l);
+    }
+    img.data = Some(all);
+    img.texture_descriptor.mip_level_count = levels.len() as u32 + 1;
+}
+
 fn decode_png(server: &AssetServer, bytes: &[u8], is_normal: bool) -> Option<Handle<Image>> {
     let mut img = Image::from_buffer(
         bytes,
@@ -42,6 +94,7 @@ fn decode_png(server: &AssetServer, bytes: &[u8], is_normal: bool) -> Option<Han
     if is_normal && img.texture_descriptor.format == TextureFormat::Rgba8UnormSrgb {
         img.texture_descriptor.format = TextureFormat::Rgba8Unorm;
     }
+    generate_mip_chain(&mut img);
     Some(server.add(img))
 }
 

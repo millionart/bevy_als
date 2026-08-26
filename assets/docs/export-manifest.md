@@ -337,3 +337,16 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
   Rotating=每 Tick RelativeRotation=RotationSpeed×世界时间。
 - 偏差登记：样条路径点不可反射读取（spline_curves 受保护），移动幅度以 2m 竖直往替代
   （原样条为局部短距往返）；贴图仅 _M/_N 两张（引擎无 ORM 合并图，roughness 用常量近似）。
+
+## BF-Scene 勘误增补（2026-08-26）— Landscape glTF
+
+- 依据：BF-Scene 清单条目批准，用户从 `L_Als_Playground` 的 `Landscape_1` 导出。
+- 内容：
+  - `assets/models/playground/Landscape1.gltf`
+  - `assets/models/playground/Landscape1.bin`
+  - `assets/models/playground/MI_Als_Landscape_BaseColor.png`
+  - `assets/models/playground/MI_Als_Landscape_Normal.png`
+  - `assets/models/playground/MI_Als_Landscape_Occlusion.png`
+- 变换事实：glTF 根节点已编码 Bevy 坐标下的 translation=(-10,0.5,10)、scale=(16,16,16)，
+  对应 UE actor location=(-1000,1000,50)cm、scale=(16,16,16)；运行时 wrapper 保持 identity，禁止重复应用 actor 变换。
+- 边界：未导入或提交 `.uasset`，未导入字体资产。

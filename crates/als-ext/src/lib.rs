@@ -40,7 +40,8 @@ pub use playground::{
     ue_yaw_to_bevy_quat, PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent,
     PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundManifest,
     PlaygroundManifestPath, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,
-    PlaygroundRotator, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextLabel,
+    PlaygroundRotator, PlaygroundSky, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextLabel,
+    PlaygroundWorldTextMesh,
 };
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use time_position::{resolve_position, TimePositionNode};
