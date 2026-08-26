@@ -24,8 +24,11 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{clamp_pitch, AlsViewPitch};
-use als_ext::playground::{terrain_height, PlaygroundLandscape};
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint, PlaygroundTintApplied};
+use als_ext::playground_materials::PlaygroundMaterialsPlugin;
+use als_ext::{
+    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint,
+};
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
@@ -76,9 +79,10 @@ fn main() {
         bevy_als::als_hud::AlsHudPlugin,
         bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
         PlaygroundPlugin {
-            manifest: "assets/models/playground/playground.ron".into(),
+            manifest: "assets/models/playground/playground_scene.ron".into(),
         },
         AnimationGraphPlugin::default(),
+        PlaygroundMaterialsPlugin,
         AlsExtPlugin,
         AlsCameraPlugin,
     ))
@@ -94,6 +98,7 @@ fn main() {
             spawn_character_once,
             playground_physics_bridge,
             landscape_collider_bridge,
+            playground_tint_bridge,
             graph_router,
             look_pitch_integrator,
             auto_quit,
@@ -188,41 +193,87 @@ struct LandscapeColliderBuilt;
 
 fn landscape_collider_bridge(
     mut commands: Commands,
-    landscapes: Query<
-        Entity,
-        (
-            Added<PlaygroundLandscape>,
-            Without<LandscapeColliderBuilt>,
-        ),
-    >,
+    landscapes: Query<(Entity, &Mesh3d), (Added<PlaygroundLandscape>, Without<LandscapeColliderBuilt>)>,
+    meshes: Res<Assets<Mesh>>,
 ) {
-    for entity in &landscapes {
-        let size = 120.0_f32;
-        let segs = 64_u32;
-        let step = size / segs as f32;
-        let half = size * 0.5;
-        let mut verts = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-        for zi in 0..=segs {
-            for xi in 0..=segs {
-                let lx = xi as f32 * step - half;
-                let lz = zi as f32 * step - half;
-                verts.push(Vec3::new(lx, terrain_height(lx, lz), lz));
-            }
+    for (entity, mesh_handle) in &landscapes {
+        let Some(mesh) = meshes.get(&mesh_handle.0) else {
+            continue;
+        };
+        let Some(positions) = mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
+            continue;
+        };
+        let verts: Vec<Vec3> = positions
+            .as_float3()
+            .map(|vals| vals.iter().map(|v| Vec3::from(*v)).collect())
+            .unwrap_or_default();
+        if verts.is_empty() {
+            continue;
         }
-        let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
-        let w = segs + 1;
-        for zi in 0..segs {
-            for xi in 0..segs {
-                let a = zi * w + xi;
-                indices.push([a, a + w, a + 1]);
-        indices.push([a + 1, a + w, a + w + 1]);
-            }
-        }
+        let rows = verts.iter().map(|v| v.z).collect::<Vec<_>>();
+        let cols = verts.iter().map(|v| v.x).collect::<Vec<_>>();
+        let _ = (rows, cols);
+        let Some(indices) = mesh.indices() else {
+            continue;
+        };
+        let tris: Vec<[u32; 3]> = match indices {
+            bevy::render::mesh::Indices::U32(list) => list
+                .chunks_exact(3)
+                .map(|c| [c[0], c[1], c[2]])
+                .collect(),
+            bevy::render::mesh::Indices::U16(list) => list
+                .chunks_exact(3)
+                .map(|c| [c[0] as u32, c[1] as u32, c[2] as u32])
+                .collect(),
+            _ => vec![],
+        };
         commands.entity(entity).insert((
-            Collider::trimesh(verts, indices),
+            Collider::trimesh(verts, tris),
             LandscapeColliderBuilt,
         ));
-        info!("[MANUAL] landscape trimesh collider built");
+        info!("[MANUAL] landscape trimesh collider built from render mesh");
+    }
+}
+
+fn playground_tint_bridge(
+    mut commands: Commands,
+    roots: Query<(Entity, &PlaygroundMaterialTint)>,
+    children_query: Query<&Children>,
+    mesh_material: Query<&MeshMaterial3d<StandardMaterial>>,
+) {
+    fn walk_and_tint(
+        entity: Entity,
+        tint: &Handle<StandardMaterial>,
+        commands: &mut Commands,
+        children_query: &Query<&Children>,
+        mesh_material: &Query<&MeshMaterial3d<StandardMaterial>>,
+        found: &mut u32,
+    ) {
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                if mesh_material.contains(child) {
+                    commands.entity(child).insert(MeshMaterial3d(tint.clone()));
+                    *found += 1;
+                }
+                walk_and_tint(child, tint, commands, children_query, mesh_material, found);
+            }
+        }
+    }
+
+    for (root, tint_handle) in &roots {
+        let mut found = 0u32;
+        walk_and_tint(
+            root,
+            &tint_handle.0,
+            &mut commands,
+            &children_query,
+            &mesh_material,
+            &mut found,
+        );
+        if found > 0 {
+            info!("[TINT] root={:?} tinted={} meshes", root, found);
+            commands.entity(root).remove::<PlaygroundMaterialTint>();
+        }
     }
 }
 

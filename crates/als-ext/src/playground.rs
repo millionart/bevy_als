@@ -5,6 +5,8 @@ use bevy::world_serialization::WorldAssetRoot;
 use ron::de::from_str;
 use serde::Deserialize;
 
+use crate::playground_materials::PlaygroundMaterialLibrary;
+
 pub struct PlaygroundPlugin {
     pub manifest: PathBuf,
 }
@@ -26,6 +28,18 @@ pub struct PlaygroundManifest {
     pub actors: Vec<PlaygroundActor>,
     #[serde(default)]
     pub lighting: Option<SceneLighting>,
+    #[serde(default)]
+    pub sun_rotator: Option<PlaygroundRotator>,
+    #[serde(default)]
+    pub terrain: Option<SceneTerrain>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SceneTerrain {
+    pub origin_ue_x_cm: f32,
+    pub origin_ue_y_cm: f32,
+    pub step_cm: f32,
+    pub heights_cm: Vec<Vec<f32>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -64,6 +78,14 @@ pub struct PlaygroundActor {
     pub text_color: Option<[f32; 4]>,
     #[serde(default)]
     pub text_world_size: Option<f32>,
+    #[serde(default)]
+    pub top_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub side_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub move_duration: Option<f32>,
+    #[serde(default)]
+    pub rotate_speed_deg: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -107,6 +129,18 @@ pub struct PlaygroundBoxCollider {
 
 #[derive(Component, Debug)]
 pub struct PlaygroundMovingObject;
+
+#[derive(Debug, Clone, Copy)]
+pub enum PlaygroundKinematicKind {
+    MovePingPong { duration: f32 },
+    SpinYawDegPerSec { speed_deg: f32 },
+}
+
+#[derive(Component, Debug)]
+pub struct PlaygroundKinematic {
+    pub base_transform: Transform,
+    pub kind: PlaygroundKinematicKind,
+}
 
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct PlaygroundSpawnPoint {
@@ -291,6 +325,7 @@ pub fn playground_setup_system(
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    material_library: Res<PlaygroundMaterialLibrary>,
 ) {
     let text = match std::fs::read_to_string(&manifest_path.0) {
         Ok(t) => t,
@@ -313,6 +348,16 @@ pub fn playground_setup_system(
     let placeholder_mat = materials.add(StandardMaterial {
         base_color: Color::srgba(0.55, 0.55, 0.6, 0.45),
         alpha_mode: AlphaMode::Blend,
+        ..default()
+    });
+
+    let tiles_lookup = material_library.clone();
+
+    let default_solid_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.92, 0.92, 0.94),
+        base_color_texture: tiles_lookup.tiles_base_color.clone(),
+        normal_map_texture: tiles_lookup.tiles_normal.clone(),
+        perceptual_roughness: 0.85,
         ..default()
     });
 
@@ -341,14 +386,7 @@ pub fn playground_setup_system(
                 let plan = actor
                     .components
                     .first()
-                    .and_then(|c| {
-                        body_plan_from_comp(
-                            c,
-                            actor.location,
-                            actor.scale,
-                            actor_rotator(actor),
-                        )
-                    })
+                    .and_then(|c| body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor)))
                     .or_else(|| body_plan_from_actor_bounds(actor));
                 if let Some(plan) = plan {
                     let transform = if plan.obb {
@@ -359,15 +397,91 @@ pub fn playground_setup_system(
                     } else {
                         Transform::from_translation(plan.center_world)
                     };
-                    let entity = spawn_box_visual(
-                        &mut commands,
-                        &mut meshes,
-                        placeholder_mat.clone(),
-                        transform,
-                        plan.half_extents_model,
-                        format!("MovingHook:{}", actor.name),
-                    );
-                    commands.entity(entity).insert(PlaygroundMovingObject);
+                    let mesh_scene = plan.mesh_base.as_deref().map(|base| {
+                        assets.load(format!("models/playground/{base}.gltf#Scene0"))
+                    });
+                    let duration = actor.move_duration.unwrap_or(2.0);
+                    let entity = commands
+                        .spawn((
+                            Name::new(format!("Moving:{}", actor.name)),
+                            transform,
+                            PlaygroundStatic,
+                            PlaygroundMovingObject,
+                            PlaygroundKinematic {
+                                base_transform: transform,
+                                kind: PlaygroundKinematicKind::MovePingPong { duration },
+                            },
+                        ))
+                        .id();
+                    match mesh_scene {
+                        Some(scene) => {
+                            commands.entity(entity).insert(WorldAssetRoot(scene));
+                        }
+                        None => {
+                            commands.entity(entity).insert((
+                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
+                                    plan.half_extents_model.x * 2.0,
+                                    plan.half_extents_model.y * 2.0,
+                                    plan.half_extents_model.z * 2.0,
+                                )))),
+                                MeshMaterial3d(placeholder_mat.clone()),
+                            ));
+                        }
+                    }
+                    commands.entity(entity).with_children(|p| {
+                        p.spawn((Name::new("Moving:collider"), Transform::IDENTITY, PlaygroundBoxCollider {
+                            half_extents: plan.half_extents_model,
+                        }));
+                    });
+                    spawned_moving += 1;
+                }
+                continue;
+            }
+            "B_Als_RotatingObject_C" => {
+                let plan = actor
+                    .components
+                    .first()
+                    .and_then(|c| body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor)))
+                    .or_else(|| body_plan_from_actor_bounds(actor));
+                if let Some(plan) = plan {
+                    let center = plan.center_world + plan.quat * plan.center_offset_model;
+                    let speed_deg = actor.rotate_speed_deg.unwrap_or(100.0);
+                    let mesh_scene = plan.mesh_base.as_deref().map(|base| {
+                        assets.load(format!("models/playground/{base}.gltf#Scene0"))
+                    });
+                    let entity = commands
+                        .spawn((
+                            Name::new(format!("Rotating:{}", actor.name)),
+                            Transform::from_translation(center).with_rotation(plan.quat),
+                            PlaygroundStatic,
+                            PlaygroundMovingObject,
+                            PlaygroundKinematic {
+                                base_transform: Transform::from_translation(center)
+                                    .with_rotation(plan.quat),
+                                kind: PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg },
+                            },
+                        ))
+                        .id();
+                    match mesh_scene {
+                        Some(scene) => {
+                            commands.entity(entity).insert(WorldAssetRoot(scene));
+                        }
+                        None => {
+                            commands.entity(entity).insert((
+                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
+                                    plan.half_extents_model.x * 2.0,
+                                    plan.half_extents_model.y * 2.0,
+                                    plan.half_extents_model.z * 2.0,
+                                )))),
+                                MeshMaterial3d(placeholder_mat.clone()),
+                            ));
+                        }
+                    }
+                    commands.entity(entity).with_children(|p| {
+                        p.spawn((Name::new("Rotating:collider"), Transform::IDENTITY, PlaygroundBoxCollider {
+                            half_extents: plan.half_extents_model,
+                        }));
+                    });
                     spawned_moving += 1;
                 }
                 continue;
@@ -393,6 +507,16 @@ pub fn playground_setup_system(
         }
 
         for plan in &plans {
+            let instance_mat = actor.top_color.map(|tc| {
+                materials.add(StandardMaterial {
+                    base_color: Color::srgb(tc[0], tc[1], tc[2]),
+                    base_color_texture: tiles_lookup.tiles_base_color.clone(),
+                    normal_map_texture: tiles_lookup.tiles_normal.clone(),
+                    perceptual_roughness: 0.85,
+                    ..default()
+                })
+            });
+            let visual_mat = instance_mat.unwrap_or_else(|| default_solid_mat.clone());
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
@@ -406,6 +530,7 @@ pub fn playground_setup_system(
                             root_tf,
                             WorldAssetRoot(scene),
                             PlaygroundStatic,
+                            PlaygroundMaterialTint(visual_mat),
                         ))
                         .with_children(|p| {
                             p.spawn((
@@ -429,6 +554,7 @@ pub fn playground_setup_system(
                             root_tf,
                             WorldAssetRoot(scene),
                             PlaygroundStatic,
+                            PlaygroundMaterialTint(visual_mat),
                         ))
                         .with_children(|p| {
                             p.spawn((
@@ -472,11 +598,39 @@ pub fn playground_setup_system(
 
     if let Some(lighting) = &manifest.lighting {
         spawn_sun_light(&mut commands, lighting);
+    } else if let Some(rot) = &manifest.sun_rotator {
+        commands.spawn((
+            Name::new("SunLight"),
+            DirectionalLight {
+                illuminance: 30_000.0,
+                ..default()
+            },
+            Transform::from_rotation(ue_rotator_to_bevy_quat(rot.pitch, rot.yaw, rot.roll)),
+        ));
     }
 
     for actor in &manifest.actors {
         if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
-            spawn_landscape(&mut commands, &mut meshes, &mut materials, actor.location);
+            let terrain = manifest.terrain.as_ref().map(|t| PlaygroundTerrainData {
+                origin_ue: [t.origin_ue_x_cm, t.origin_ue_y_cm],
+                step_cm: t.step_cm,
+                rows_ue_y: t.heights_cm.len(),
+                cols_ue_x: t.heights_cm.first().map(|r| r.len()).unwrap_or(0),
+                heights_cm: t.heights_cm.clone(),
+            });
+            let pos = ue_point_to_bevy(Vec3::from(actor.location));
+            let mat = materials.add(StandardMaterial {
+                base_color: Color::srgb(0.25, 0.5, 0.125),
+                base_color_texture: material_library.tiles_base_color.clone(),
+                normal_map_texture: material_library.tiles_normal.clone(),
+                perceptual_roughness: 0.95,
+                ..default()
+            });
+            let entity = commands
+                .spawn((Name::new(format!("Landscape:{}", actor.name)),))
+                .id();
+            let grid = terrain.as_ref();
+            spawn_landscape_grid(&mut commands, &mut meshes, &mut materials, mat, entity, grid, pos);
             spawned_landscape += 1;
             continue;
         }
@@ -499,25 +653,51 @@ pub struct PlaygroundTextLabel;
 #[derive(Component)]
 pub struct PlaygroundLandscape;
 
-/// Oscillates a moving object between its spawn point and a target offset.
+/// Ping-pong spline-like motion and constant spin, per B_Als_MovingObject /
+/// B_Als_RotatingObject event graphs (ServerWorldTime-driven, modulo ping-pong).
 pub fn playground_moving_object_system(
     time: Res<Time>,
-    mut q: Query<(&mut Transform, &PlaygroundMovingOffset), With<PlaygroundMovingObject>>,
+    mut q: Query<(&mut Transform, &PlaygroundKinematic), With<PlaygroundMovingObject>>,
 ) {
     let t = time.elapsed_secs_f64() as f32;
-    for (mut tf, offset) in q.iter_mut() {
-        let phase = (t / offset.period_secs * std::f32::consts::PI).sin();
-        let disp = offset.axis * offset.distance_m * phase;
-        tf.translation = offset.base + disp;
+    for (mut tf, kin) in q.iter_mut() {
+        match kin.kind {
+            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+                let yaw = speed_deg * t;
+                tf.rotation = kin.base_transform.rotation
+                    * Quat::from_rotation_y(yaw.to_radians());
+            }
+            PlaygroundKinematicKind::MovePingPong { duration } => {
+                if duration <= 0.0 {
+                    continue;
+                }
+                let total = t / duration;
+                let frac = total % 2.0;
+                let s = if frac > 1.0 { 2.0 - frac } else { frac };
+                let eased = s * s * (3.0 - 2.0 * s);
+                let base = kin.base_transform.translation;
+                let axis = Vec3::Z;
+                let span_m = 4.0;
+                tf.translation =
+                    base + axis * (eased * span_m * 0.5);
+            }
+        }
     }
 }
 
-#[derive(Component)]
-pub struct PlaygroundMovingOffset {
-    pub axis: Vec3,
-    pub distance_m: f32,
-    pub period_secs: f32,
-    pub base: Vec3,
+#[derive(Component, Debug)]
+pub struct PlaygroundMaterialTint(pub Handle<StandardMaterial>);
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundTintApplied;
+
+#[derive(Resource, Debug, Clone)]
+pub struct PlaygroundTerrainData {
+    pub origin_ue: [f32; 2],
+    pub step_cm: f32,
+    pub rows_ue_y: usize,
+    pub cols_ue_x: usize,
+    pub heights_cm: Vec<Vec<f32>>,
 }
 
 pub fn spawn_landscape(
@@ -528,34 +708,62 @@ pub fn spawn_landscape(
 ) {
     let pos = ue_point_to_bevy(Vec3::from(location_ue));
     let mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.35, 0.45, 0.28),
+        base_color: Color::srgb(0.25, 0.5, 0.125),
         perceptual_roughness: 0.95,
         ..default()
     });
+    let data = commands
+        .spawn((Name::new("Landscape1"), Transform::from_translation(pos)))
+        .id();
+    spawn_landscape_grid(commands, meshes, materials, mat, data, None, pos);
+}
 
-    let size = 120.0_f32;
-    let segs = 64_u32;
-    let step = size / segs as f32;
-    let half = size * 0.5;
-
-    let mut positions = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-    let mut uvs = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-    for zi in 0..=segs {
-        for xi in 0..=segs {
-            let lx = xi as f32 * step - half;
-            let lz = zi as f32 * step - half;
-            let h = terrain_height(lx, lz);
+#[allow(clippy::too_many_arguments)]
+fn spawn_landscape_grid(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
+    mat: Handle<StandardMaterial>,
+    entity: Entity,
+    terrain: Option<&PlaygroundTerrainData>,
+    pos: Vec3,
+) {
+    let rows = terrain.map(|t| t.rows_ue_y).unwrap_or(64);
+    let cols = terrain.map(|t| t.cols_ue_x).unwrap_or(64);
+    let step_m = terrain
+        .map(|t| (t.step_cm * CM_TO_M) as f32)
+        .unwrap_or(120.0 / 64.0);
+    let height_at = |ri: usize, ci: usize| -> f32 {
+        match terrain {
+            Some(t) => {
+                let r = ri.min(t.heights_cm.len() - 1);
+                let row = &t.heights_cm[r];
+                let c = ci.min(row.len() - 1);
+                row[c] * CM_TO_M
+            }
+            None => terrain_height(
+                -60.0 + ci as f32 * 120.0 / 64.0,
+                -60.0 + ri as f32 * 120.0 / 64.0,
+            ),
+        }
+    };
+    let mut positions = Vec::with_capacity(rows * cols);
+    let mut uvs = Vec::with_capacity(rows * cols);
+    for ri in 0..rows {
+        for ci in 0..cols {
+            let lx = ci as f32 * step_m;
+            let lz = ri as f32 * step_m;
+            let h = height_at(ri, ci);
             positions.push([lx, h, lz]);
-            uvs.push([xi as f32 / segs as f32, zi as f32 / segs as f32]);
+            uvs.push([ci as f32 / (cols - 1).max(1) as f32, ri as f32 / (rows - 1).max(1) as f32]);
         }
     }
-    let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
-    let w = segs + 1;
-    for zi in 0..segs {
-        for xi in 0..segs {
-            let a = zi * w + xi;
+    let mut indices: Vec<u32> = Vec::with_capacity((rows - 1) * (cols - 1) * 6);
+    for ri in 0..rows - 1 {
+        for ci in 0..cols - 1 {
+            let a = (ri * cols + ci) as u32;
             let b = a + 1;
-            let c = (zi + 1) * w + xi;
+            let c = ((ri + 1) * cols + ci) as u32;
             let d = c + 1;
             indices.extend_from_slice(&[a, c, b, b, c, d]);
         }
@@ -568,10 +776,7 @@ pub fn spawn_landscape(
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     let per_tri = 3usize;
     let tri_count = indices.len() / 3;
-    let mut normals = Vec::with_capacity(positions.len());
-    for _ in 0..positions.len() {
-        normals.push([0.0, 1.0, 0.0]);
-    }
+    let mut normals = vec![[0.0f32, 1.0, 0.0]; positions.len()];
     for ti in 0..tri_count {
         let ia = indices[ti * per_tri] as usize;
         let ib = indices[ti * per_tri + 1] as usize;
@@ -588,12 +793,11 @@ pub fn spawn_landscape(
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
 
-    commands.spawn((
-        Name::new("Landscape1"),
-        Transform::from_translation(pos),
+    commands.entity(entity).insert((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(mat),
         PlaygroundLandscape,
+        Transform::from_translation(pos),
     ));
 }
 

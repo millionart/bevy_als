@@ -11,6 +11,7 @@ pub mod overlay;
 pub mod ragdoll_config_node;
 pub mod root_motion_clip;
 pub mod playground;
+pub mod playground_materials;
 pub mod root_motion_defaults;
 pub mod time_position;
 
@@ -36,9 +37,9 @@ pub use playground::{
     is_engine_basic, playground_moving_object_system, playground_setup_system,
     ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy, ue_rotator_to_bevy_quat,
     ue_yaw_to_bevy_quat, PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent,
-    PlaygroundLandscape, PlaygroundManifest, PlaygroundManifestPath, PlaygroundMovingObject,
-    PlaygroundMovingOffset, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
-    PlaygroundStatic, PlaygroundTextLabel,
+    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundManifest,
+    PlaygroundManifestPath, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,
+    PlaygroundRotator, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextLabel,
 };
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use time_position::{resolve_position, TimePositionNode};

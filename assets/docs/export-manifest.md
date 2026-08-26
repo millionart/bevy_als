@@ -312,3 +312,28 @@ python tools/uasset_root_export/probe_animdatamodel.py --uasset <als-content>/AL
 python tools/uasset_root_export/extract_root_track.py --als-content <als-content> --repo-root <repo-root> [--apply]
 python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 ```
+
+## BF-Scene 增补导出（2026-08-26）— Playground 材质与地形
+
+- 依据：用户指令（L_Als_Playground 精准复刻：材质贴图/法线 PBR、动态体行为、TextRender、光照、
+  Landscape 高度场；agents.md 规则 12 实时提取）。编辑器 MCP + commandlet 双通道。
+- 工具：`tools/export/export_materials_textures.py`（commandlet，MaterialEditingLibrary
+  get_material_expressions 节点图遍历 + AssetExportTask 贴图 PNG 导出）；
+  场景行为事实经在线 MCP `read_graph_dsl` 反汇编 B_Als_MovingObject/B_Als_RotatingObject 事件图。
+- 内容：
+  - `assets/textures/playground/T_Als_Tiles_M.png` ← `/ALS/ALSExtras/Environment/Materials/T_Als_Tiles_M`
+    （2048² RGBA base color：4×4 瓷砖网格+灰缝+噪点，可被 tint 乘色）
+  - `assets/textures/playground/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 法线贴图）
+  - `tmp/export/playground/materials/materials.json` — M_Als_Tiles/M_Als_Main 全节点图
+    （M_Als_Tiles: Tiling 标量、SideColorA/B+TopColorA/B 向量参数、T_Als_Tiles_M/N 采样、
+    PixelNormalWS·ComponentMask·Abs 世界法线混合顶/侧面选色链；M_Als_Main: 单 Color 参数）
+  - `assets/models/playground/playground_scene.ron` — 场景清单 v2：219 actor + 22 TextRender
+    (text/color/world_size 实值) + 150 StaticObject 实例配色（TopColorA 实测：蓝126/绿16/橙4/
+    红2/蓝紫2，Side 恒白）+ Moving(1.25s/1.75s ping-pong)/Rotating(yaw=100°/s) 参数 +
+    sun rotator(pitch=-45,yaw=45) + Landscape 高度场（64×14 网格 trace_world 实采，
+    足迹 x∈[-1000,1016]cm y∈[1000,3016]cm 步距 187.5cm，高度 0~250cm）
+- 行为事实（蓝图反汇编）：Moving=InterpToMovement 沿样条 SetDuration(MovementDuration)，
+  Tick 按 ServerWorldTime/spline.duration 取模 ping-pong，缓动 CF_Als_MovingObject 曲线；
+  Rotating=每 Tick RelativeRotation=RotationSpeed×世界时间。
+- 偏差登记：样条路径点不可反射读取（spline_curves 受保护），移动幅度以 2m 竖直往替代
+  （原样条为局部短距往返）；贴图仅 _M/_N 两张（引擎无 ORM 合并图，roughness 用常量近似）。
