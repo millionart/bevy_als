@@ -36,7 +36,9 @@ pub use distance_match::{
 };
 pub use f_interp::{f_interp_to, FInterpNode};
 pub use global_f32_input::GlobalF32InputNode;
-pub use gameplay_tag_blend::{weight_output as gameplay_tag_weight_output, GameplayTagBlendNode};
+pub use gameplay_tag_blend::{
+    weight_output as gameplay_tag_weight_output, GameplayTagBlendMode, GameplayTagBlendNode,
+};
 pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
@@ -79,6 +81,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DistanceMatchNode>()
             .register_type::<FInterpNode>()
             .register_type::<GlobalF32InputNode>()
+            .register_type::<GameplayTagBlendMode>()
             .register_type::<GameplayTagBlendNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()

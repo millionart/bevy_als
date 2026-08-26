@@ -6,6 +6,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
 };
+use serde::{Deserialize, Serialize};
 
 const WEIGHT_THRESHOLD: f32 = 1e-6;
 
@@ -14,6 +15,24 @@ pub const UPSTREAM_TIME: &str = "upstream_time";
 
 pub fn weight_output(index: usize) -> String {
     format!("weight_{index}")
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[reflect(Default, Serialize)]
+pub enum GameplayTagBlendMode {
+    #[default]
+    Linear,
+    HermiteCubic,
+}
+
+impl GameplayTagBlendMode {
+    fn apply(self, alpha: f32) -> f32 {
+        let alpha = alpha.clamp(0.0, 1.0);
+        match self {
+            Self::Linear => alpha,
+            Self::HermiteCubic => alpha * alpha * (3.0 - 2.0 * alpha),
+        }
+    }
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -32,6 +51,7 @@ struct GameplayTagBlendState {
 pub struct GameplayTagBlendNode {
     pub tags: Vec<String>,
     pub blend_times: Vec<f32>,
+    pub blend_mode: GameplayTagBlendMode,
 }
 
 impl Default for GameplayTagBlendNode {
@@ -39,6 +59,7 @@ impl Default for GameplayTagBlendNode {
         Self {
             tags: default(),
             blend_times: vec![0.0],
+            blend_mode: default(),
         }
     }
 }
@@ -69,6 +90,7 @@ impl GameplayTagBlendNode {
         child_count: usize,
         active_index: usize,
         blend_time: f32,
+        blend_mode: GameplayTagBlendMode,
         delta_seconds: f32,
     ) -> Vec<f32> {
         if !state.initialized || state.weights.len() != child_count {
@@ -99,7 +121,7 @@ impl GameplayTagBlendNode {
             state.weights[active_index] = 1.0;
         } else {
             state.elapsed = (state.elapsed + delta_seconds.max(0.0)).min(state.duration);
-            let alpha = (state.elapsed / state.duration).clamp(0.0, 1.0);
+            let alpha = blend_mode.apply(state.elapsed / state.duration);
             for (index, weight) in state.weights.iter_mut().enumerate() {
                 let target = if index == active_index { 1.0 } else { 0.0 };
                 *weight =
@@ -138,6 +160,7 @@ impl NodeLike for GameplayTagBlendNode {
                 child_count,
                 active_index,
                 self.blend_time(active_index),
+                self.blend_mode,
                 delta_seconds,
             )
         };
@@ -168,6 +191,7 @@ mod tests {
         let node = GameplayTagBlendNode {
             tags: vec!["A".to_owned(), "B".to_owned(), "C".to_owned()],
             blend_times: vec![0.3, 0.1, 0.0, 0.1],
+            blend_mode: GameplayTagBlendMode::Linear,
         };
         assert_eq!(node.select_child_index(-1.0), 0);
         assert_eq!(node.select_child_index(2.0), 2);
@@ -179,14 +203,35 @@ mod tests {
     fn weights_follow_target_child_blend_time() {
         let mut state = GameplayTagBlendState::default();
         assert_eq!(
-            GameplayTagBlendNode::advance_weights(&mut state, 4, 0, 0.3, 0.0),
+            GameplayTagBlendNode::advance_weights(
+                &mut state,
+                4,
+                0,
+                0.3,
+                GameplayTagBlendMode::Linear,
+                0.0,
+            ),
             vec![1.0, 0.0, 0.0, 0.0]
         );
-        let middle = GameplayTagBlendNode::advance_weights(&mut state, 4, 3, 0.1, 0.05);
+        let middle = GameplayTagBlendNode::advance_weights(
+            &mut state,
+            4,
+            3,
+            0.1,
+            GameplayTagBlendMode::Linear,
+            0.05,
+        );
         assert!((middle[0] - 0.5).abs() < 1e-6);
         assert!((middle[3] - 0.5).abs() < 1e-6);
         assert_eq!(
-            GameplayTagBlendNode::advance_weights(&mut state, 4, 3, 0.1, 0.05),
+            GameplayTagBlendNode::advance_weights(
+                &mut state,
+                4,
+                3,
+                0.1,
+                GameplayTagBlendMode::Linear,
+                0.05,
+            ),
             vec![0.0, 0.0, 0.0, 1.0]
         );
     }
@@ -194,9 +239,23 @@ mod tests {
     #[test]
     fn zero_blend_time_switches_immediately() {
         let mut state = GameplayTagBlendState::default();
-        GameplayTagBlendNode::advance_weights(&mut state, 4, 0, 0.3, 0.0);
+        GameplayTagBlendNode::advance_weights(
+            &mut state,
+            4,
+            0,
+            0.3,
+            GameplayTagBlendMode::Linear,
+            0.0,
+        );
         assert_eq!(
-            GameplayTagBlendNode::advance_weights(&mut state, 4, 2, 0.0, 0.01),
+            GameplayTagBlendNode::advance_weights(
+                &mut state,
+                4,
+                2,
+                0.0,
+                GameplayTagBlendMode::Linear,
+                0.01,
+            ),
             vec![0.0, 0.0, 1.0, 0.0]
         );
     }
@@ -204,13 +263,57 @@ mod tests {
     #[test]
     fn interrupted_blend_scales_the_new_target_duration() {
         let mut state = GameplayTagBlendState::default();
-        GameplayTagBlendNode::advance_weights(&mut state, 2, 0, 0.3, 0.0);
-        let halfway = GameplayTagBlendNode::advance_weights(&mut state, 2, 1, 0.2, 0.1);
+        GameplayTagBlendNode::advance_weights(
+            &mut state,
+            2,
+            0,
+            0.3,
+            GameplayTagBlendMode::Linear,
+            0.0,
+        );
+        let halfway = GameplayTagBlendNode::advance_weights(
+            &mut state,
+            2,
+            1,
+            0.2,
+            GameplayTagBlendMode::Linear,
+            0.1,
+        );
         assert!((halfway[0] - 0.5).abs() < 1e-6);
         assert!((halfway[1] - 0.5).abs() < 1e-6);
-        let retargeted = GameplayTagBlendNode::advance_weights(&mut state, 2, 0, 0.3, 0.075);
+        let retargeted = GameplayTagBlendNode::advance_weights(
+            &mut state,
+            2,
+            0,
+            0.3,
+            GameplayTagBlendMode::Linear,
+            0.075,
+        );
         assert!((retargeted[0] - 0.75).abs() < 1e-6);
         assert!((retargeted[1] - 0.25).abs() < 1e-6);
+    }
+
+    #[test]
+    fn hermite_cubic_uses_smooth_step_weight_curve() {
+        let mut state = GameplayTagBlendState::default();
+        GameplayTagBlendNode::advance_weights(
+            &mut state,
+            2,
+            0,
+            0.0,
+            GameplayTagBlendMode::HermiteCubic,
+            0.0,
+        );
+        let weights = GameplayTagBlendNode::advance_weights(
+            &mut state,
+            2,
+            1,
+            1.0,
+            GameplayTagBlendMode::HermiteCubic,
+            0.25,
+        );
+        assert!((weights[0] - 0.84375).abs() < 1e-6);
+        assert!((weights[1] - 0.15625).abs() < 1e-6);
     }
 
     #[test]

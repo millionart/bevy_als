@@ -197,6 +197,7 @@
                         "Als.LocomotionAction.Rolling",
                     ],
                     blend_times: [0.3, 0.1, 0.0, 0.1],
+                    blend_mode: Linear,
                 ),
             },
             should_debug: false,

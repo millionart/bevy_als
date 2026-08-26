@@ -5,7 +5,8 @@ use std::{
 
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, AlsExtPlugin, ConstantF32Node, CurveBlendNode, CurveModifyNode,
-    CurveSampleSetNode, GameplayTagBlendNode, LinkedAnimLayerNode, MultiWayBlendNode,
+    CurveSampleSetNode, GameplayTagBlendMode, GameplayTagBlendNode, LinkedAnimLayerNode,
+    MultiWayBlendNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -337,6 +338,7 @@ fn verify_static_contract(
                 && close(node.blend_times[1], 0.1)
                 && close(node.blend_times[2], 0.0)
                 && close(node.blend_times[3], 0.1)
+                && node.blend_mode == GameplayTagBlendMode::Linear
         });
     let source = std::fs::read_to_string(Path::new("assets").join(GRAPH_PATH)).unwrap_or_default();
     let asset_paths = source.matches("A_Als_Barrel_Poses.anim.ron").count() == 3
