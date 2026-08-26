@@ -1,4 +1,4 @@
-use avian3d::prelude::LinearVelocity;
+use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 
 use crate::character::AlsCharacter;
@@ -13,6 +13,12 @@ pub const LAND_RECOVERY_LIGHT_SECS: f32 = 0.9;
 pub const LAND_RECOVERY_HEAVY_SECS: f32 = 1.3;
 pub const IMPACT_VY_SMOOTH_ALPHA: f32 = 0.3;
 const LAND_TAIL_SECS: f32 = 0.25;
+
+pub const GROUND_PREDICTION_VERTICAL_VY_THRESHOLD: f32 = 2.0;
+pub const GROUND_PREDICTION_MIN_VY: f32 = 40.0;
+pub const GROUND_PREDICTION_MAX_VY: f32 = 2.0;
+pub const GROUND_PREDICTION_MIN_SWEEP_M: f32 = 1.5;
+pub const GROUND_PREDICTION_MAX_SWEEP_M: f32 = 20.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AirPhase {
@@ -38,6 +44,7 @@ fn clamp01(v: f32) -> f32 {
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsAirState {
     pub phase: AirPhase,
+    pub ground_prediction: Option<GroundPrediction>,
     pub landing_heavy: bool,
     pub landing_time: f32,
     pub air_weight: f32,
@@ -52,6 +59,7 @@ impl Default for AlsAirState {
     fn default() -> Self {
         Self {
             phase: AirPhase::Idle,
+            ground_prediction: None,
             landing_heavy: false,
             landing_time: 0.0,
             air_weight: 0.0,
@@ -146,17 +154,115 @@ pub fn land_recovery_secs(heavy: bool) -> f32 {
 }
 
 type AirQueryItem<'w, 's> = (
+    Entity,
     &'w LocomotionState,
     &'w LinearVelocity,
+    &'w GlobalTransform,
     Option<&'s mut AlsAirState>,
+    Option<&'w crate::character::AlsMovementParamsHandle>,
 );
-fn air_state_system(time: Res<Time>, mut q: Query<AirQueryItem, With<AlsCharacter>>) {
+#[allow(clippy::type_complexity)]
+fn air_state_system(
+    time: Res<Time>,
+    spatial: SpatialQuery,
+    mut q: Query<AirQueryItem, With<AlsCharacter>>,
+    params_assets: Res<Assets<crate::params::AlsMovementParams>>,
+    handles: Query<&crate::character::AlsMovementParamsHandle>,
+    crouched: Query<Has<crate::motion::AlsCapsuleCrouched>>,
+) {
     let dt = time.delta_secs();
-    for (loco, vel, state) in &mut q {
+    for (entity, loco, vel, transform, state, handle) in &mut q {
         if let Some(mut s) = state {
             s.update(loco, vel.y, dt);
+            let half_height = handle
+                .and_then(|h| params_assets.get(h.id()))
+                .map(|p| {
+                    let standing = p.crouch.standing_capsule_half_height;
+                    let crouched_h = p.crouch.crouched_capsule_half_height;
+                    crouched
+                        .get(entity)
+                        .unwrap_or(false)
+                        .then_some(crouched_h)
+                        .unwrap_or(standing)
+                })
+                .unwrap_or(0.9);
+            s.ground_prediction = Some(ground_prediction_sweep(
+                &spatial,
+                entity,
+                transform.translation(),
+                **vel,
+                half_height,
+                0.3,
+            ));
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GroundPrediction {
+    pub amount: f32,
+    pub sweep_start: Option<Vec3>,
+    pub sweep_end: Option<Vec3>,
+    pub capsule_half_height: f32,
+    pub capsule_radius: f32,
+    pub ground_valid: bool,
+}
+
+pub const WALKABLE_FLOOR_COS: f32 = 0.819;
+
+pub fn ground_prediction_sweep(
+    spatial: &SpatialQuery,
+    excluded: Entity,
+    origin: Vec3,
+    velocity: Vec3,
+    capsule_half_height: f32,
+    capsule_radius: f32,
+) -> GroundPrediction {
+    let mut result = GroundPrediction {
+        amount: 0.0,
+        sweep_start: None,
+        sweep_end: None,
+        capsule_half_height,
+        capsule_radius,
+        ground_valid: false,
+    };
+    if -velocity.y <= GROUND_PREDICTION_VERTICAL_VY_THRESHOLD {
+        return result;
+    }
+    let Ok(dir) = Dir3::new(Vec3::new(
+        velocity.x,
+        velocity.y.clamp(-GROUND_PREDICTION_MIN_VY, -GROUND_PREDICTION_MAX_VY),
+        velocity.z,
+    )
+    .normalize_or_zero()) else {
+        return result;
+    };
+    let fall_speed = (-velocity.y).clamp(
+        GROUND_PREDICTION_MAX_VY,
+        GROUND_PREDICTION_MIN_VY,
+    );
+    let distance = GROUND_PREDICTION_MIN_SWEEP_M
+        + (fall_speed - GROUND_PREDICTION_MAX_VY)
+            / (GROUND_PREDICTION_MIN_VY - GROUND_PREDICTION_MAX_VY)
+            * (GROUND_PREDICTION_MAX_SWEEP_M - GROUND_PREDICTION_MIN_SWEEP_M);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let hit = spatial.cast_ray(origin, dir, distance, false, &filter);
+    result.sweep_start = Some(origin);
+    match hit {
+        Some(h) => {
+            result.sweep_end = Some(origin + dir * h.distance);
+            result.ground_valid = h.normal.y >= WALKABLE_FLOOR_COS;
+            if result.ground_valid {
+                let time_frac = (h.distance / distance).clamp(0.0, 1.0);
+                // UE CF_Als_GroundPredictionAmount: t=0 -> 1.0, t=1 -> 0.0 (linear-ish falloff).
+                result.amount = (1.0 - time_frac).clamp(0.0, 1.0);
+            }
+        }
+        None => {
+            result.sweep_end = Some(origin + dir * distance);
+        }
+    }
+    result
 }
 
 pub struct AlsAirPlugin;

@@ -360,6 +360,7 @@ pub struct CameraSnapshot {
     pub view_rotation_deg: Option<(f32, f32, f32)>,
     pub rig_mode: Option<AlsCameraMode>,
     pub pivot_target_location: Option<Vec3>,
+    pub camera_curves: Vec<(String, f32)>,
 }
 
 fn normalize_degrees(degrees: f32) -> f32 {
@@ -848,6 +849,7 @@ fn build_camera_snapshot<'w, 's>(
     character_item: &CharacterQueryItem<'w, 's>,
     rig: Option<(&GlobalTransform, Option<&AlsCameraRig>)>,
     params: Option<&AlsCameraParams>,
+    debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
     let (_, _, _, _, _, _, _, _, _, _, _, view_yaw, view_smoothed, char_transform) = character_item;
 
@@ -871,10 +873,19 @@ fn build_camera_snapshot<'w, 's>(
         }
         _ => None,
     };
+    let camera_curves = debug_info
+        .map(|info| {
+            als_camera::CAMERA_CURVE_NAMES
+                .iter()
+                .map(|name| ((*name).to_string(), info.curve_value(name)))
+                .collect()
+        })
+        .unwrap_or_default();
     CameraSnapshot {
         view_rotation_deg,
         rig_mode: rig.and_then(|(_, rig)| rig).map(|rig| rig.mode),
         pivot_target_location,
+        camera_curves,
     }
 }
 
@@ -904,7 +915,11 @@ fn hud_sync_system(
         With<AlsCharacter>,
     >,
     q_camera: Query<
-        (&GlobalTransform, Option<&AlsCameraRig>),
+        (
+            &GlobalTransform,
+            Option<&AlsCameraRig>,
+            Option<&als_camera::AlsCameraDebugInfo>,
+        ),
         (With<Camera>, Without<AlsCharacter>),
     >,
     q_instances: Query<&AnimatedSceneInstance>,
@@ -953,12 +968,16 @@ fn hud_sync_system(
             roll.is_some_and(|r| r.active),
         );
 
-        let rig = q_camera.iter().next();
+        let (rig, cam_debug) = q_camera
+            .iter()
+            .next()
+            .map(|(transform, rig, info)| (Some((transform, rig)), info))
+            .unwrap_or((None, None));
         let params = camera_params
             .as_ref()
             .and_then(|assets| assets.iter().next())
             .map(|(_, params)| params);
-        let camera_snapshot = build_camera_snapshot(&item, rig, params);
+        let camera_snapshot = build_camera_snapshot(&item, rig, params, cam_debug);
 
         let elapsed = q_instances
             .iter()
@@ -972,12 +991,18 @@ fn hud_sync_system(
             elapsed,
             false,
         );
-        let camera_curve_rows = sampled_curve_rows(
-            curve_assets.as_ref(),
-            sources.camera.as_ref(),
-            elapsed,
-            true,
-        );
+        let camera_curve_rows: Vec<DebugRow> = camera_snapshot
+            .camera_curves
+            .iter()
+            .map(|(name, value)| {
+                DebugRow::pair(
+                    name_to_display_string(name, false),
+                    format!("{value:.2}"),
+                    curve_color(*value, true),
+                    LABEL_WIDTH_CURVES_PX,
+                )
+            })
+            .collect();
 
         HudCache::Shown(vec![
             layout_character_block(&state, &snapshot, &camera_snapshot, &character_curve_rows),

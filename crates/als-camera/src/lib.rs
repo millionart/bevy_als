@@ -125,6 +125,19 @@ impl Default for AlsCameraRig {
 #[derive(Component)]
 pub struct AlsCameraTarget;
 
+pub const CAMERA_CURVE_NAMES: [&str; 10] = [
+    "CameraOffsetX",
+    "CameraOffsetY",
+    "CameraOffsetZ",
+    "FirstPersonOverride",
+    "LocationLagX",
+    "LocationLagY",
+    "LocationLagZ",
+    "PivotOffsetZ",
+    "RotationLag",
+    "TraceOverride",
+];
+
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct AlsCameraDebugInfo {
     pub pivot_target: Vec3,
@@ -137,6 +150,17 @@ pub struct AlsCameraDebugInfo {
     pub trace_radius: f32,
     pub trace_blocking_hit: bool,
     pub valid: bool,
+    pub curve_values: [f32; CAMERA_CURVE_NAMES.len()],
+}
+
+impl AlsCameraDebugInfo {
+    pub fn curve_value(&self, name: &str) -> f32 {
+        CAMERA_CURVE_NAMES
+            .iter()
+            .position(|candidate| candidate == &name)
+            .map(|index| self.curve_values[index])
+            .unwrap_or(0.0)
+    }
 }
 
 pub struct AlsCameraPlugin;

@@ -1,6 +1,7 @@
 use als_camera::AlsCameraDebugInfo;
 use als_core::character::AlsCharacter;
 use als_core::input::AlsInputCommand;
+use als_core::air::AlsAirState;
 use als_core::mantle::AlsMantleState;
 use als_core::motion::{AlsCharacterDebug, AlsInputOverride};
 use avian3d::prelude::{ColliderAabb, LinearVelocity};
@@ -87,12 +88,14 @@ pub fn mantle_downward_color() -> Color {
 #[derive(Resource, Debug, Default, Clone)]
 pub struct AlsDebugDisplayStats {
     pub cumulative_camera_valid: u64,
+    pub cumulative_ground_prediction_sweeps: u64,
     pub cumulative_pivot_spheres: u64,
     pub cumulative_trace_lines: u64,
     pub shapes_active: bool,
     pub mantling_active: bool,
     pub camera_shapes_active: bool,
     pub camera_traces_active: bool,
+    pub traces_active: bool,
     pub cone_segments_drawn: u32,
     pub arrows_drawn: u32,
     pub capsule_wireframes_drawn: u32,
@@ -130,6 +133,7 @@ impl Plugin for AlsDebugDisplayPlugin {
                     reset_stats_system,
                     (draw_character_shapes_system, draw_bounds_box_system).chain(),
                     draw_mantle_probes_system,
+                    draw_ground_prediction_system,
                     (draw_camera_debug_system, draw_camera_trace_system).chain(),
                 )
                     .chain(),
@@ -148,6 +152,7 @@ fn reset_stats_system(
             state.is_active(crate::show_debug_hud::DebugCategory::CameraShapes);
         stats.camera_traces_active =
             state.is_active(crate::show_debug_hud::DebugCategory::CameraTraces);
+        stats.traces_active = state.is_active(crate::show_debug_hud::DebugCategory::Traces);
     }
     stats.cone_segments_drawn = 0;
     stats.arrows_drawn = 0;
@@ -388,6 +393,39 @@ fn draw_mantle_probes_system(
             gizmos.line(origin, hit, mantle_downward_color());
             stats.mantle_probe_lines_drawn += 1;
         }
+    }
+}
+
+fn draw_ground_prediction_system(
+    mut stats: ResMut<AlsDebugDisplayStats>,
+    mut gizmos: Gizmos,
+    q_character: Query<(&GlobalTransform, &AlsAirState), With<AlsCharacter>>,
+) {
+    if !stats.traces_active {
+        return;
+    }
+    for (_transform, air) in q_character.iter() {
+        let Some(prediction) = air.ground_prediction else {
+            continue;
+        };
+        let (Some(start), Some(end)) = (prediction.sweep_start, prediction.sweep_end) else {
+            continue;
+        };
+        let sweep_color = if prediction.ground_valid {
+            linear(0.75, 0.0, 1.0)
+        } else {
+            linear(0.25, 0.0, 1.0)
+        };
+        circle_xz(&mut gizmos, start, prediction.capsule_radius, sweep_color, CIRCLE_SIDES);
+        circle_xz(
+            &mut gizmos,
+            end,
+            prediction.capsule_radius,
+            sweep_color,
+            CIRCLE_SIDES,
+        );
+        gizmos.line(start, end, sweep_color);
+        stats.cumulative_ground_prediction_sweeps += 1;
     }
 }
 
