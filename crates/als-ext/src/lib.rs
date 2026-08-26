@@ -4,6 +4,7 @@ pub mod als_curves;
 pub mod curve;
 pub mod distance_match;
 pub mod ik;
+pub mod linked_anim_layer;
 pub mod layered_graph;
 pub mod loader;
 pub mod nodes;
@@ -24,6 +25,7 @@ pub use distance_match::{
     DistanceMatchNode,
 };
 pub use layered_graph::LayeredGraphNode;
+pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use nodes::{CurveDrivenValueNode, CurveSampleNode};
@@ -60,6 +62,7 @@ impl Plugin for AlsExtPlugin {
         .register_type::<DistanceMatchNode>()
         .register_type::<RagdollConfigNode>()
         .register_type::<TimePositionNode>()
+        .register_type::<LinkedAnimLayerNode>()
         .register_type::<LayeredGraphNode>()
         .register_type::<RootMotionClipNode>()
             .register_type::<GlobalInput>()
