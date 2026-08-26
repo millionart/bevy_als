@@ -1,5 +1,8 @@
 use als_core::motion::AlsViewYaw;
-use als_core::state::LocomotionState;
+use als_core::rotate_in_place::{
+    update_rotate_in_place, RotateInPlaceConfig, RotateInPlaceState,
+};
+use als_core::state::{LocomotionState, Stance};
 use als_core::turn_in_place::{
     wrap_angle_degrees, TurnInPlaceConfig, TurnInPlaceDetector, TurnVariant,
 };
@@ -27,6 +30,9 @@ pub struct AlsTurnDrive {
     pub lr: f32,
     pub is_180: bool,
     pub weight: f32,
+    pub rotate_active: bool,
+    pub rotate_lr: f32,
+    pub rotate_rate: f32,
 }
 
 impl Default for AlsTurnDrive {
@@ -40,6 +46,9 @@ impl Default for AlsTurnDrive {
             lr: 0.0,
             is_180: false,
             weight: 0.0,
+            rotate_active: false,
+            rotate_lr: 0.0,
+            rotate_rate: 0.0,
         }
     }
 }
@@ -91,6 +100,10 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive) {
         DataValue::from(if drive.is_180 { 1.0f32 } else { 0.0f32 }),
     );
     player.set_input_data("turn_clip_time", DataValue::from(drive.clip_time));
+    let rotate_w = if drive.rotate_active { 1.0f32 } else { 0.0f32 };
+    player.set_input_data("rotate_weight", DataValue::from(rotate_w * drive.weight));
+    player.set_input_data("rotate_lr", DataValue::from(drive.rotate_lr));
+    player.set_input_data("rotate_play_rate", DataValue::from(drive.rotate_rate));
 }
 
 #[allow(clippy::type_complexity)]
@@ -105,6 +118,7 @@ fn turn_pin_driver(
             &AlsViewYaw,
             &LinearVelocity,
             &LocomotionState,
+            &Stance,
             Option<&mut TurnDetectorComp>,
         ),
         With<als_core::character::AlsCharacter>,
@@ -113,7 +127,9 @@ fn turn_pin_driver(
     instances: Query<&'static AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let Ok((char_entity, _child_of, body_tf, view, vel, loco, mut detector)) = q.single_mut() else {
+    let Ok((char_entity, _child_of, body_tf, view, vel, loco, stance, mut detector)) =
+        q.single_mut()
+    else {
         return;
     };
     let now = time.elapsed_secs_f64();
@@ -137,7 +153,47 @@ fn turn_pin_driver(
     let yaw_env = sample.update(view_deg, now, dt);
     let _ = yaw_env;
 
-    if let Some(ev) = detector.update(
+    let crouching = *stance == Stance::Crouching;
+    if crouching {
+        // ALS: crouched turns use RotateInPlace - continuous clip driven by
+        // yaw speed mapped to play rate, no discrete variant selection.
+        *detector = TurnInPlaceDetector::default();
+        for (_e, parent, mut d) in drives.iter_mut() {
+            if parent.parent() != char_entity {
+                continue;
+            }
+            if let Some(ref mut drive) = d {
+                drive.playing = false;
+                let mut rs = RotateInPlaceState::default();
+                update_rotate_in_place(
+                    &mut rs,
+                    hspeed >= TURN_GROUND_SPEED_EPS,
+                    allowed,
+                    rel,
+                    sample.yaw_env,
+                    &RotateInPlaceConfig::default(),
+                    dt,
+                );
+                match rs.side {
+                    Some(side) => {
+                        drive.rotate_active = true;
+                        drive.rotate_lr = if side == als_core::rotate_in_place::RotateSide::Left {
+                            0.0
+                        } else {
+                            1.0
+                        };
+                        drive.rotate_rate = rs.play_rate;
+                        drive.weight = (drive.weight + TURN_WEIGHT_IN * dt).min(1.0);
+                    }
+                    None => {
+                        drive.rotate_active = false;
+                        drive.rotate_rate = 0.0;
+                        drive.weight = (drive.weight - TURN_WEIGHT_OUT * dt).max(0.0);
+                    }
+                }
+            }
+        }
+    } else if let Some(ev) = detector.update(
         rel,
         sample.yaw_env,
         dt,
@@ -151,6 +207,7 @@ fn turn_pin_driver(
                 continue;
             }
             if let Some(ref mut drive) = d {
+                drive.rotate_active = false;
                 drive.playing = true;
                 drive.elapsed = 0.0;
                 drive.clip_time = 0.0;

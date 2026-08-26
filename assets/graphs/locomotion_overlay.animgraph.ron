@@ -75,6 +75,9 @@
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_lr"): InputData(Passthrough("turn_lr")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_180"): InputData(Passthrough("turn_180")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "turn_clip_time"): InputData(Passthrough("turn_clip_time")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "rotate_weight"): InputData(Passthrough("rotate_weight")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "rotate_lr"): InputData(Passthrough("rotate_lr")),
+        NodeData("aaaaaaa3-0000-4000-8000-000000000003", "rotate_play_rate"): InputData(Passthrough("rotate_play_rate")),
         NodeData("aaaaaaa3-0000-4000-8000-000000000003", "prev_pose"): NodeData("aaaaaaa2-0000-4000-8000-000000000002", "pose"),
         NodeTime("aaaaaaa3-0000-4000-8000-000000000003", "prev_time"): NodeTime("aaaaaaa2-0000-4000-8000-000000000002"),
         NodeData("aaaaaaa4-0000-4000-8000-000000000004", "diff_factor"): InputData(Passthrough("diff_factor")),
@@ -127,6 +130,9 @@
             Passthrough("turn_lr"): F32,
             Passthrough("turn_180"): F32,
             Passthrough("turn_clip_time"): F32,
+            Passthrough("rotate_weight"): F32,
+            Passthrough("rotate_lr"): F32,
+            Passthrough("rotate_play_rate"): F32,
         },
         output_time: true,
         output_data: {
@@ -169,6 +175,9 @@
             Data(Passthrough("turn_lr")): 33,
             Data(Passthrough("turn_180")): 34,
             Data(Passthrough("turn_clip_time")): 35,
+            Data(Passthrough("rotate_weight")): 36,
+            Data(Passthrough("rotate_lr")): 37,
+            Data(Passthrough("rotate_play_rate")): 38,
         },
         output_order: {
             Data("pose"): 0,
@@ -210,6 +219,9 @@
         Passthrough("turn_lr"): F32(0.0),
         Passthrough("turn_180"): F32(0.0),
         Passthrough("turn_clip_time"): F32(0.0),
+        Passthrough("rotate_weight"): F32(0.0),
+        Passthrough("rotate_lr"): F32(0.0),
+        Passthrough("rotate_play_rate"): F32(1.15),
     },
     editor_metadata: (
         node_positions: {

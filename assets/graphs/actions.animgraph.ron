@@ -329,6 +329,54 @@
             should_debug: false,
         ),
         (
+            id: "c8c8c8c8-0e0e-4f4f-c0c0-000000000001",
+            name: "crouch rotate left clip",
+            inner: {
+                "als_ext::RootMotionClipNode": (
+                    clip: "animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.anim.ron",
+                    root_motion_mode: Full,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c8c8c8c8-0e0e-4f4f-c0c0-000000000002",
+            name: "crouch rotate right clip",
+            inner: {
+                "als_ext::RootMotionClipNode": (
+                    clip: "animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.anim.ron",
+                    root_motion_mode: Full,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c8c8c8c8-0e0e-4f4f-c0c0-000000000003",
+            name: "crouch rotate lr blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "c8c8c8c8-0e0e-4f4f-c0c0-000000000004",
+            name: "rotate override blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
             id: "c7c7c7c7-0d0d-4e4e-bfbf-000000000008",
             name: "turn override blend",
             inner: {
@@ -450,8 +498,18 @@
         NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000008", "pose_b"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000007", "pose"),
         NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000008", "time_b"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000007"),
         NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000008", "factor"): InputData(Passthrough("turn_weight")),
-        OutputData("pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000008", "pose"),
-        OutputTime: NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000008"),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "pose_a"): NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000001", "pose"),
+        NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "time_a"): NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000001"),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "pose_b"): NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000002", "pose"),
+        NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "time_b"): NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000002"),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "factor"): InputData(Passthrough("rotate_lr")),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000008", "pose"),
+        NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000008"),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "pose_b"): NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000003", "pose"),
+        NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "time_b"): NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000003"),
+        NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "factor"): InputData(Passthrough("rotate_weight")),
+        OutputData("pose"): NodeData("c8c8c8c8-0e0e-4f4f-c0c0-000000000004", "pose"),
+        OutputTime: NodeTime("c8c8c8c8-0e0e-4f4f-c0c0-000000000004"),
     },
     io_spec: (
         input_times: [Passthrough("prev_time")],
@@ -471,6 +529,9 @@
             Passthrough("turn_lr"): F32,
             Passthrough("turn_180"): F32,
             Passthrough("turn_clip_time"): F32,
+            Passthrough("rotate_weight"): F32,
+            Passthrough("rotate_lr"): F32,
+            Passthrough("rotate_play_rate"): F32,
         },
         output_time: true,
         output_data: {
@@ -492,6 +553,9 @@
             Data(Passthrough("turn_lr")): 25,
             Data(Passthrough("turn_180")): 26,
             Data(Passthrough("turn_clip_time")): 27,
+            Data(Passthrough("rotate_weight")): 28,
+            Data(Passthrough("rotate_lr")): 29,
+            Data(Passthrough("rotate_play_rate")): 30,
         },
         output_order: {
             Data("pose"): 0,
