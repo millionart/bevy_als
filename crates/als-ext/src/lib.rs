@@ -2,9 +2,11 @@
 
 pub mod als_curves;
 pub mod curve;
+pub mod curve_bundle;
 pub mod distance_match;
 pub mod f_interp;
 pub mod global_f32_input;
+pub mod gameplay_tag_blend;
 pub mod ik;
 pub mod linked_anim_layer;
 pub mod layered_graph;
@@ -23,12 +25,18 @@ pub use als_curves::{
     AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, ALS_CURVES_EXTENSION, ALS_CURVES_LABEL,
 };
 pub use curve::{sample_curve, CurveAsset, CurveKey, CurveSampleMode};
+pub use curve_bundle::{
+    active_curve_weights, blend_curve_value, curve_modify_input, curve_sample_output,
+    curve_value_input, curve_weight_input, CurveBlendNode, CurveModifyNode, CurveSampleSetNode,
+    NamedCurve,
+};
 pub use distance_match::{
     default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
     DistanceMatchNode,
 };
 pub use f_interp::{f_interp_to, FInterpNode};
 pub use global_f32_input::GlobalF32InputNode;
+pub use gameplay_tag_blend::{weight_output as gameplay_tag_weight_output, GameplayTagBlendNode};
 pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
@@ -65,9 +73,13 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveSampleNode>()
             .register_type::<CurveDrivenValueNode>()
             .register_type::<ConstantF32Node>()
+            .register_type::<CurveSampleSetNode>()
+            .register_type::<CurveBlendNode>()
+            .register_type::<CurveModifyNode>()
             .register_type::<DistanceMatchNode>()
             .register_type::<FInterpNode>()
             .register_type::<GlobalF32InputNode>()
+            .register_type::<GameplayTagBlendNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()
             .register_type::<TimePositionNode>()
