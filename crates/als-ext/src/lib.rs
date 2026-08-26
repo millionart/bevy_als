@@ -41,8 +41,8 @@ pub use gameplay_tag_blend::{
     weight_output as gameplay_tag_weight_output, GameplayTagBlendMode, GameplayTagBlendNode,
 };
 pub use layered_graph::LayeredGraphNode;
-pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
+pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use mesh_space_additive::{apply_mesh_space_additive, MeshSpaceAdditiveNode};
 pub use multi_way_blend::MultiWayBlendNode;

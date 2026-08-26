@@ -33,6 +33,8 @@ pub const ALS_LAYER_CURVE_NAMES: [&str; 18] = [
     "PoseAiming",
 ];
 
+pub const ALS_LAYER_SIGNAL_NAMES: [&str; 1] = ["transition_left_request"];
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]

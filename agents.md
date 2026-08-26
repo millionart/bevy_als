@@ -29,6 +29,8 @@
 10. **多 worktree 构建隔离（严格执行）**：每个 worktree 一律使用自身 `target/`，禁止以 `CARGO_TARGET_DIR` 指向其他 checkout 的 target 目录（跨树共享缓存 = 共享目录锁：cargo 对 target 整目录独占加锁，任一侧构建期间另一侧所有 cargo 命令排队数分钟，`--examples` 级全量构建可达十几分钟）。**创建 worktree 必须用 `pwsh tools\new-worktree.ps1 -Name <名> [-Branch <分支>]`**——脚本自动完成 worktree add + 追踪文件 mtime 同步 + 构建缓存拷贝（新 worktree 首建 16 分钟→实测 7.8 秒）；禁止裸 `git worktree add`（新树无 target，裸建要么 16 分钟全量重编、要么诱发跨树共享指入）。调试/试玩/门禁一律在自身 worktree 的 target 内进行；根仓库 `run_manual.bat` 已固定隔离目录 `target_game` 即为此设计，勿改回共享。遇到 "Blocking waiting for file lock on artifact directory" 先排查跨 worktree 指入与残留构建进程，勿盲目等待。
 11. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
 12. **实时对标与实证验收（严格执行，2026-08-25 用户指令）**：任何对标 ALS-Refactored 的行为实现/修改，动手前必须从 ALS-Refactored 工程实时提取当次相关的事实（uasset 二进制解析 / Unreal MCP / 插件 C++ 源码，路径见 gitignored `docs/env.md`），禁止凭记忆、印象或"经典 ALS 印象"推断行为；提取到的事实（状态机结构/转换条件/参数数值/函数语义）登记进 CHECKLIST 条目或提交说明后方可编码。验收一律以**真实运行日志结论**为标准：gate 断言必须落在探针/pin/数值等可复查证据上，禁止以截图目测、"应当正确"的推断或单帧姿态猜测代替；证据不足时补插桩取证，不得宣布通过。
+13. **格式化范围（严格执行）**：未经用户明确授权，禁止执行全工作区格式化，包括 `cargo fmt --all`、针对仓库根目录的 `rustfmt`，以及任何会改写未明确列出文件的格式化命令。仅可对本次任务已修改的明确文件执行格式化；执行前须列出目标文件，执行后须确认没有产生无关改动。
+14. **动画图基座最小化（严格执行）**：`bevy_animation_graph` 是外部基座，默认只消费其公开接口；功能应优先在本仓库 `crates/als-ext`、图资产或调用侧实现。除非已实证公开接口与 `als-ext` 均无法实现，禁止修改或创建依赖 `bevy_animation_graph` 的自定义分支；确属必要时，须先在 CHECKLIST 条目或提交说明中记录不可替代性证据、最小改动范围与上游回馈方案。
 
 ## 工具调用教训（实测，防再犯）
 

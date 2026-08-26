@@ -30,6 +30,7 @@
             "LayerHandLeft": F32,
             "LayerHandRight": F32,
             "PoseAiming": F32,
+            "transition_left_request": F32,
         },
         input_order: {
             Time(Passthrough("base_time")): 0,
@@ -56,6 +57,7 @@
             Data("LayerHandLeft"): 17,
             Data("LayerHandRight"): 18,
             Data("PoseAiming"): 19,
+            Data("transition_left_request"): 20,
         },
     ),
     default_data: {},

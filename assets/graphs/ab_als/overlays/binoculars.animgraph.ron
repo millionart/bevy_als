@@ -765,6 +765,14 @@
                 ),
             },
             should_debug: false,
+        ),
+        (
+            id: "04040404-0000-4000-8000-000000000520",
+            name: "no transition left request",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
         )
     ],
     edges_inverted: {
@@ -1202,6 +1210,7 @@
         OutputData("LayerHandLeft"): NodeData("04040404-0000-4000-8000-000000000519", "LayerHandLeft"),
         OutputData("LayerHandRight"): NodeData("04040404-0000-4000-8000-000000000519", "LayerHandRight"),
         OutputData("PoseAiming"): NodeData("04040404-0000-4000-8000-000000000519", "PoseAiming"),
+        OutputData("transition_left_request"): NodeData("04040404-0000-4000-8000-000000000520", "value"),
     },
     io_spec: (
         input_times: [Passthrough("base_time")],
@@ -1229,6 +1238,7 @@
             "LayerHandLeft": F32,
             "LayerHandRight": F32,
             "PoseAiming": F32,
+            "transition_left_request": F32,
         },
         input_order: {
             Time(Passthrough("base_time")): 0,
@@ -1255,6 +1265,7 @@
             Data("LayerHandLeft"): 17,
             Data("LayerHandRight"): 18,
             Data("PoseAiming"): 19,
+            Data("transition_left_request"): 20,
         },
     ),
     default_data: {},

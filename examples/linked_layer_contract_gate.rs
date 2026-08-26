@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{ALS_LAYER_CURVE_NAMES, AlsExtPlugin, LinkedAnimLayerNode};
+use als_ext::{
+    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, LinkedAnimLayerNode,
+};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
@@ -85,6 +87,9 @@ impl NodeLike for LayerProbeNode {
         for curve in ALS_LAYER_CURVE_NAMES {
             ctx.set_data_fwd(curve, self.marker);
         }
+        for signal in ALS_LAYER_SIGNAL_NAMES {
+            ctx.set_data_fwd(signal, self.marker);
+        }
         Ok(())
     }
 
@@ -94,6 +99,9 @@ impl NodeLike for LayerProbeNode {
         ctx.add_output_data("pose".to_owned(), DataSpec::Pose);
         for curve in ALS_LAYER_CURVE_NAMES {
             ctx.add_output_data(curve.to_owned(), DataSpec::F32);
+        }
+        for signal in ALS_LAYER_SIGNAL_NAMES {
+            ctx.add_output_data(signal.to_owned(), DataSpec::F32);
         }
         ctx.add_output_time();
         Ok(())
@@ -135,6 +143,9 @@ fn verify_contract(
     let curve_outputs = ALS_LAYER_CURVE_NAMES
         .iter()
         .all(|curve| graph.io_spec.get_output_data(&curve.to_string()) == Some(DataSpec::F32));
+    let signal_outputs = ALS_LAYER_SIGNAL_NAMES
+        .iter()
+        .all(|signal| graph.io_spec.get_output_data(&signal.to_string()) == Some(DataSpec::F32));
     let no_defaults = graph.default_data.is_empty();
     let direct_pose = graph.edges_inverted.contains_key(
         &bevy_animation_graph::core::animation_graph::TargetPin::OutputData("pose".to_owned()),
@@ -147,12 +158,13 @@ fn verify_contract(
         && pose
         && time
         && curve_outputs
+        && signal_outputs
         && no_defaults
         && direct_pose
         && direct_time;
     info!(
-        "[LINKED-LAYER-CONTRACT] interface=ALI_Overlay base_pose={} base_time={} pose={} time={} curve_outputs={} no_defaults={} direct_pose={} direct_time={}",
-        base_pose, base_time, pose, time, curve_outputs, no_defaults, direct_pose, direct_time,
+        "[LINKED-LAYER-CONTRACT] interface=ALI_Overlay base_pose={} base_time={} pose={} time={} curve_outputs={} signal_outputs={} no_defaults={} direct_pose={} direct_time={}",
+        base_pose, base_time, pose, time, curve_outputs, signal_outputs, no_defaults, direct_pose, direct_time,
     );
     if !pass {
         info!("[LINKED-LAYER-CONTRACT][VERDICT] interface=ALI_Overlay -> FAIL");
@@ -192,12 +204,18 @@ fn build_probe_implementation(marker: f32) -> AnimationGraph {
     for curve in ALS_LAYER_CURVE_NAMES {
         graph.add_output_data(curve.to_owned(), DataSpec::F32);
     }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data(signal.to_owned(), DataSpec::F32);
+    }
     graph.add_output_time();
     graph.add_input_data_edge(GraphInputPin::passthrough("base_pose"), id, "base_pose");
     graph.add_input_time_edge(GraphInputPin::passthrough("base_time"), id, "base_time");
     graph.add_output_data_edge(id, "pose", "pose");
     for curve in ALS_LAYER_CURVE_NAMES {
         graph.add_output_data_edge(id, curve, curve);
+    }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data_edge(id, signal, signal);
     }
     graph.add_output_pose_edge(id);
     graph
@@ -226,6 +244,9 @@ fn build_probe_root(
     for curve in ALS_LAYER_CURVE_NAMES {
         graph.add_output_data(curve.to_owned(), DataSpec::F32);
     }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data(signal.to_owned(), DataSpec::F32);
+    }
     graph.add_output_time();
     graph.add_input_data_edge(GraphInputPin::passthrough("base_pose"), id, "base_pose");
     graph.add_input_time_edge(GraphInputPin::passthrough("base_time"), id, "base_time");
@@ -233,6 +254,9 @@ fn build_probe_root(
     graph.add_output_data_edge(id, "pose", "pose");
     for curve in ALS_LAYER_CURVE_NAMES {
         graph.add_output_data_edge(id, curve, curve);
+    }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data_edge(id, signal, signal);
     }
     graph.add_output_pose_edge(id);
     graph
@@ -266,17 +290,26 @@ fn observe_runtime_probe(
             matches!(player.get_outputs().get(*curve), Some(DataValue::F32(value)) if (*value - expected).abs() < 0.001)
         })
     };
+    let signals_match = |expected: f32| {
+        ALS_LAYER_SIGNAL_NAMES.iter().all(|signal| {
+            matches!(player.get_outputs().get(*signal), Some(DataValue::F32(value)) if (*value - expected).abs() < 0.001)
+        })
+    };
     match probe.phase {
-        ProbePhase::First if (marker - 1.0).abs() < 0.001 && curves_match(1.0) => {
+        ProbePhase::First
+            if (marker - 1.0).abs() < 0.001 && curves_match(1.0) && signals_match(1.0) =>
+        {
             info!(
-                "[LINKED-LAYER-CONTRACT] runtime selector index=0 pose_marker={marker:.1} all_curve_markers=1.0"
+                "[LINKED-LAYER-CONTRACT] runtime selector index=0 pose_marker={marker:.1} all_curve_markers=1.0 all_signal_markers=1.0"
             );
             player.set_input_data("layer_index", DataValue::F32(1.0));
             probe.phase = ProbePhase::Second;
         }
-        ProbePhase::Second if (marker - 2.0).abs() < 0.001 && curves_match(2.0) => {
+        ProbePhase::Second
+            if (marker - 2.0).abs() < 0.001 && curves_match(2.0) && signals_match(2.0) =>
+        {
             info!(
-                "[LINKED-LAYER-CONTRACT] runtime selector index=1 pose_marker={marker:.1} all_curve_markers=2.0"
+                "[LINKED-LAYER-CONTRACT] runtime selector index=1 pose_marker={marker:.1} all_curve_markers=2.0 all_signal_markers=2.0"
             );
             info!(
                 "[LINKED-LAYER-CONTRACT][VERDICT] interface=ALI_Overlay replacement=true -> PASS"
