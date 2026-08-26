@@ -10,6 +10,11 @@ TEX_DIR = os.path.join(OUT_DIR, "textures")
 TARGETS = {
     "M_Als_Tiles": "/ALS/ALSExtras/Environment/Materials/M_Als_Tiles.M_Als_Tiles",
     "M_Als_Main": "/ALS/ALS/MaterialLibrary/M_Als_Main.M_Als_Main",
+    "M_Als_Transluent": "/ALS/ALSExtras/Environment/Materials/M_Als_Transluent.M_Als_Transluent",
+}
+
+ENGINE_TEXTURE_EXPORTS = {
+    "/Engine/EngineMaterials/T_Default_Material_Grid_M.T_Default_Material_Grid_M",
 }
 
 
@@ -150,7 +155,7 @@ def main():
             if "texture" not in node:
                 continue
             tex_path = node["texture"]
-            if tex_path.startswith("/Engine/"):
+            if tex_path.startswith("/Engine/") and tex_path not in ENGINE_TEXTURE_EXPORTS:
                 continue
             key = tex_path.rsplit("/", 1)[-1].split(".")[0]
             if key in textures:
@@ -172,7 +177,7 @@ def main():
                 obj, unreal.MaterialProperty.MP_NORMAL)
         except Exception:
             lay = None
-        graph = result["materials"].get(short) if "materials" in result else None
+        graph = result.get(short)
         nodes = graph["nodes"] if graph else []
         for node in nodes:
             p = node.get("parameter")

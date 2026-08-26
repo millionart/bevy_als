@@ -10,7 +10,10 @@ use bevy::world_serialization::WorldAssetRoot;
 use ron::de::from_str;
 use serde::Deserialize;
 
-use crate::playground_materials::PlaygroundMaterialLibrary;
+use crate::playground_materials::{
+    PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
+    PlaygroundTilesSettings,
+};
 
 pub struct PlaygroundPlugin {
     pub manifest: PathBuf,
@@ -22,7 +25,11 @@ impl Plugin for PlaygroundPlugin {
             .add_systems(Startup, playground_setup_system)
             .add_systems(
                 Update,
-                (playground_moving_object_system, world_text_mesh_system),
+                (
+                    playground_moving_object_system,
+                    world_text_mesh_system,
+                    playground_material_tint_system,
+                ),
             );
     }
 }
@@ -161,6 +168,7 @@ pub struct PlaygroundSpawnPoint {
 }
 
 const CM_TO_M: f32 = 0.01;
+const CUBE_8_ACTOR: &str = "StaticMeshActor_UAID_54BF6414A059D82202_1613061415";
 
 const SKIP_CLASSES: &[&str] = &[
     "WorldSettings",
@@ -209,6 +217,12 @@ pub fn ue_rotator_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Q
 
 pub fn ue_yaw_to_bevy_quat(yaw_deg: f32) -> Quat {
     ue_rotator_to_bevy_quat(0.0, yaw_deg, 0.0)
+}
+
+pub fn ue_directional_light_ray_to_bevy(pitch_deg: f32, yaw_deg: f32) -> Vec3 {
+    let (sin_pitch, cos_pitch) = pitch_deg.to_radians().sin_cos();
+    let (sin_yaw, cos_yaw) = yaw_deg.to_radians().sin_cos();
+    Vec3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize()
 }
 
 fn gltf_asset_base(mesh_path: &str) -> Option<String> {
@@ -339,12 +353,13 @@ fn infer_block_mesh(actor: &PlaygroundActor) -> Option<String> {
 fn spawn_box_visual(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    placeholder: Handle<StandardMaterial>,
+    material: PlaygroundMaterialTint,
     transform: Transform,
     half_extents: Vec3,
     name: String,
 ) -> Entity {
-    commands
+    let role = material.role();
+    let entity = commands
         .spawn((
             Name::new(name),
             transform,
@@ -353,11 +368,76 @@ fn spawn_box_visual(
                 half_extents.y * 2.0,
                 half_extents.z * 2.0,
             )))),
-            MeshMaterial3d(placeholder),
             PlaygroundStatic,
             PlaygroundBoxCollider { half_extents },
+            PlaygroundMaterialApplied(role),
         ))
-        .id()
+        .id();
+    match material {
+        PlaygroundMaterialTint::Main(handle) => {
+            commands.entity(entity).insert(MeshMaterial3d(handle));
+        }
+        PlaygroundMaterialTint::Tiles(handle) | PlaygroundMaterialTint::Translucent(handle) => {
+            commands.entity(entity).insert(MeshMaterial3d(handle));
+        }
+    }
+    entity
+}
+
+fn color_parameter(value: [f32; 3]) -> Vec4 {
+    Vec4::new(value[0], value[1], value[2], 1.0)
+}
+
+fn make_tiles_material(
+    library: &PlaygroundMaterialLibrary,
+    side_color: [f32; 3],
+    top_color: [f32; 3],
+) -> Option<PlaygroundTilesMaterial> {
+    Some(PlaygroundTilesMaterial {
+        base: StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+            normal_map_texture: library.tiles_normal.clone(),
+            occlusion_texture: library.tiles_occlusion.clone(),
+            flip_normal_map_y: true,
+            perceptual_roughness: 0.5,
+            ..default()
+        },
+        extension: PlaygroundTilesExtension {
+            settings: PlaygroundTilesSettings {
+                side_color_a: color_parameter(side_color),
+                top_color_a: color_parameter(top_color),
+                side_color_b: color_parameter(side_color),
+                top_color_b: color_parameter(top_color),
+                tiling_and_mode: Vec4::new(1.0, 0.0, 0.0, 0.0),
+            },
+            grid_texture: library.tiles_grid.clone()?,
+        },
+    })
+}
+
+fn make_translucent_material(
+    library: &PlaygroundMaterialLibrary,
+) -> Option<PlaygroundTilesMaterial> {
+    Some(PlaygroundTilesMaterial {
+        base: StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+            perceptual_roughness: 0.5,
+            alpha_mode: AlphaMode::Blend,
+            double_sided: true,
+            cull_mode: None,
+            ..default()
+        },
+        extension: PlaygroundTilesExtension {
+            settings: PlaygroundTilesSettings {
+                side_color_a: Vec4::ONE,
+                top_color_a: Vec4::ONE,
+                side_color_b: Vec4::ONE,
+                top_color_b: Vec4::ONE,
+                tiling_and_mode: Vec4::new(1.0, 1.0, 0.0, 0.0),
+            },
+            grid_texture: library.tiles_grid.clone()?,
+        },
+    })
 }
 
 pub fn playground_setup_system(
@@ -366,6 +446,7 @@ pub fn playground_setup_system(
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut tiles_materials: ResMut<Assets<PlaygroundTilesMaterial>>,
     material_library: Res<PlaygroundMaterialLibrary>,
 ) {
     let text = match std::fs::read_to_string(&manifest_path.0) {
@@ -386,15 +467,13 @@ pub fn playground_setup_system(
         }
     };
 
-    let tiles_lookup = material_library.clone();
-
-    let default_solid_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.92, 0.92, 0.94),
-        base_color_texture: tiles_lookup.tiles_base_color.clone(),
-        normal_map_texture: tiles_lookup.tiles_normal.clone(),
-        perceptual_roughness: 0.85,
+    let main_material = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+        perceptual_roughness: 0.5,
         ..default()
     });
+    let translucent_material =
+        make_translucent_material(&material_library).map(|material| tiles_materials.add(material));
 
     let mut spawned_static = 0usize;
     let mut spawned_moving = 0usize;
@@ -470,7 +549,10 @@ pub fn playground_setup_system(
                         .id();
                     match mesh_scene {
                         Some(scene) => {
-                            commands.entity(entity).insert(WorldAssetRoot(scene));
+                            commands.entity(entity).insert((
+                                WorldAssetRoot(scene),
+                                PlaygroundMaterialTint::Main(main_material.clone()),
+                            ));
                         }
                         None => {
                             commands.entity(entity).insert((
@@ -479,7 +561,8 @@ pub fn playground_setup_system(
                                     plan.half_extents_model.y * 2.0,
                                     plan.half_extents_model.z * 2.0,
                                 )))),
-                                MeshMaterial3d(default_solid_mat.clone()),
+                                MeshMaterial3d(main_material.clone()),
+                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
                             ));
                         }
                     }
@@ -526,7 +609,10 @@ pub fn playground_setup_system(
                         .id();
                     match mesh_scene {
                         Some(scene) => {
-                            commands.entity(entity).insert(WorldAssetRoot(scene));
+                            commands.entity(entity).insert((
+                                WorldAssetRoot(scene),
+                                PlaygroundMaterialTint::Main(main_material.clone()),
+                            ));
                         }
                         None => {
                             commands.entity(entity).insert((
@@ -535,7 +621,8 @@ pub fn playground_setup_system(
                                     plan.half_extents_model.y * 2.0,
                                     plan.half_extents_model.z * 2.0,
                                 )))),
-                                MeshMaterial3d(default_solid_mat.clone()),
+                                MeshMaterial3d(main_material.clone()),
+                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
                             ));
                         }
                     }
@@ -573,16 +660,30 @@ pub fn playground_setup_system(
         }
 
         for plan in &plans {
-            let instance_mat = actor.top_color.map(|tc| {
-                materials.add(StandardMaterial {
-                    base_color: Color::srgb(tc[0], tc[1], tc[2]),
-                    base_color_texture: tiles_lookup.tiles_base_color.clone(),
-                    normal_map_texture: tiles_lookup.tiles_normal.clone(),
-                    perceptual_roughness: 0.85,
-                    ..default()
-                })
-            });
-            let visual_mat = instance_mat.unwrap_or_else(|| default_solid_mat.clone());
+            let visual_mat = if actor.name == CUBE_8_ACTOR {
+                translucent_material
+                    .clone()
+                    .map(PlaygroundMaterialTint::Translucent)
+                    .unwrap_or_else(|| {
+                        warn!(
+                            "PLAYGROUND translucent material unavailable for {}",
+                            actor.name
+                        );
+                        PlaygroundMaterialTint::Main(main_material.clone())
+                    })
+            } else if actor.top_color.is_some() || actor.side_color.is_some() {
+                let side_color = actor.side_color.unwrap_or([1.0, 1.0, 1.0]);
+                let top_color = actor.top_color.unwrap_or([1.0, 1.0, 1.0]);
+                make_tiles_material(&material_library, side_color, top_color)
+                    .map(|material| tiles_materials.add(material))
+                    .map(PlaygroundMaterialTint::Tiles)
+                    .unwrap_or_else(|| {
+                        warn!("PLAYGROUND tiles material unavailable for {}", actor.name);
+                        PlaygroundMaterialTint::Main(main_material.clone())
+                    })
+            } else {
+                PlaygroundMaterialTint::Main(main_material.clone())
+            };
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
@@ -595,7 +696,7 @@ pub fn playground_setup_system(
                             root_tf,
                             WorldAssetRoot(scene),
                             PlaygroundStatic,
-                            PlaygroundMaterialTint(visual_mat),
+                            visual_mat.clone(),
                         ))
                         .with_children(|p| {
                             p.spawn((
@@ -618,7 +719,7 @@ pub fn playground_setup_system(
                             root_tf,
                             WorldAssetRoot(scene),
                             PlaygroundStatic,
-                            PlaygroundMaterialTint(visual_mat),
+                            visual_mat.clone(),
                         ))
                         .with_children(|p| {
                             p.spawn((
@@ -638,7 +739,7 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        default_solid_mat.clone(),
+                        visual_mat.clone(),
                         Transform::from_translation(center).with_rotation(plan.quat),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
@@ -649,7 +750,7 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        default_solid_mat.clone(),
+                        visual_mat.clone(),
                         Transform::from_translation(plan.center_world),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
@@ -670,6 +771,7 @@ pub fn playground_setup_system(
             manifest.sun_rotator.as_ref(),
         );
     } else if let Some(rot) = &manifest.sun_rotator {
+        let ray = ue_directional_light_ray_to_bevy(rot.pitch, rot.yaw);
         commands.spawn((
             Name::new("SunLight"),
             DirectionalLight {
@@ -677,7 +779,7 @@ pub fn playground_setup_system(
                 shadow_maps_enabled: true,
                 ..default()
             },
-            Transform::from_rotation(ue_rotator_to_bevy_quat(rot.pitch, rot.yaw, rot.roll)),
+            Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, ray)),
         ));
     }
 
@@ -732,11 +834,96 @@ pub fn playground_moving_object_system(
     }
 }
 
-#[derive(Component, Debug)]
-pub struct PlaygroundMaterialTint(pub Handle<StandardMaterial>);
+#[derive(Component, Debug, Clone)]
+pub enum PlaygroundMaterialTint {
+    Main(Handle<StandardMaterial>),
+    Tiles(Handle<PlaygroundTilesMaterial>),
+    Translucent(Handle<PlaygroundTilesMaterial>),
+}
+
+impl PlaygroundMaterialTint {
+    fn role(&self) -> PlaygroundMaterialRole {
+        match self {
+            Self::Main(_) => PlaygroundMaterialRole::Main,
+            Self::Tiles(_) => PlaygroundMaterialRole::Tiles,
+            Self::Translucent(_) => PlaygroundMaterialRole::Translucent,
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaygroundMaterialRole {
+    Main,
+    Tiles,
+    Translucent,
+}
 
 #[derive(Component, Debug, Clone, Copy)]
-pub struct PlaygroundTintApplied;
+pub struct PlaygroundMaterialApplied(pub PlaygroundMaterialRole);
+
+fn playground_material_tint_system(
+    mut commands: Commands,
+    roots: Query<(Entity, &PlaygroundMaterialTint)>,
+    children_query: Query<&Children>,
+    standard_materials: Query<(), With<MeshMaterial3d<StandardMaterial>>>,
+) {
+    fn walk_and_apply(
+        entity: Entity,
+        tint: &PlaygroundMaterialTint,
+        commands: &mut Commands,
+        children_query: &Query<&Children>,
+        standard_materials: &Query<(), With<MeshMaterial3d<StandardMaterial>>>,
+        found: &mut u32,
+    ) {
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                if standard_materials.contains(child) {
+                    let applied = PlaygroundMaterialApplied(tint.role());
+                    match tint {
+                        PlaygroundMaterialTint::Main(handle) => {
+                            commands
+                                .entity(child)
+                                .insert((MeshMaterial3d(handle.clone()), applied));
+                        }
+                        PlaygroundMaterialTint::Tiles(handle)
+                        | PlaygroundMaterialTint::Translucent(handle) => {
+                            commands
+                                .entity(child)
+                                .remove::<MeshMaterial3d<StandardMaterial>>();
+                            commands
+                                .entity(child)
+                                .insert((MeshMaterial3d(handle.clone()), applied));
+                        }
+                    }
+                    *found += 1;
+                }
+                walk_and_apply(
+                    child,
+                    tint,
+                    commands,
+                    children_query,
+                    standard_materials,
+                    found,
+                );
+            }
+        }
+    }
+
+    for (root, tint) in &roots {
+        let mut found = 0u32;
+        walk_and_apply(
+            root,
+            tint,
+            &mut commands,
+            &children_query,
+            &standard_materials,
+            &mut found,
+        );
+        if found > 0 {
+            commands.entity(root).remove::<PlaygroundMaterialTint>();
+        }
+    }
+}
 
 #[derive(Resource, Debug, Clone)]
 pub struct PlaygroundTerrainData {
@@ -1002,20 +1189,25 @@ fn world_text_mesh_system(
     }
 }
 
+fn resolved_sun_ray(lighting: &SceneLighting, sun_rotator: Option<&PlaygroundRotator>) -> Vec3 {
+    sun_rotator
+        .map(|rot| ue_directional_light_ray_to_bevy(rot.pitch, rot.yaw))
+        .or_else(|| {
+            lighting
+                .sun_direction
+                .map(Vec3::from)
+                .map(Vec3::normalize_or_zero)
+        })
+        .unwrap_or_else(|| Vec3::new(-0.4, -0.8, 0.3).normalize())
+}
+
 fn spawn_sun_light(
     commands: &mut Commands,
     lighting: &SceneLighting,
     sun_rotator: Option<&PlaygroundRotator>,
 ) {
-    let rotation = sun_rotator
-        .map(|rot| ue_rotator_to_bevy_quat(rot.pitch, rot.yaw, rot.roll))
-        .unwrap_or_else(|| {
-            let dir = lighting
-                .sun_direction
-                .map(|v| Vec3::from(v).normalize_or_zero())
-                .unwrap_or(Vec3::new(-0.4, -0.8, 0.3).normalize_or_zero());
-            Quat::from_rotation_arc(Vec3::NEG_Z, dir)
-        });
+    let ray = resolved_sun_ray(lighting, sun_rotator);
+    let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, ray);
     let intensity = lighting.sun_intensity.unwrap_or(80_000.0);
     let color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
     commands.spawn((
@@ -1092,9 +1284,7 @@ fn spawn_sky(
         NotShadowCaster,
         PlaygroundSky,
     ));
-    let sun_rotation = sun_rotator
-        .map(|rot| ue_rotator_to_bevy_quat(rot.pitch, rot.yaw, rot.roll))
-        .unwrap_or_else(|| Quat::from_rotation_arc(Vec3::NEG_Z, Vec3::new(-0.4, -0.8, 0.3)));
+    let sun_ray = resolved_sun_ray(lighting, sun_rotator);
     let sun_brightness = lighting.sky_sun_brightness.unwrap_or(75.0);
     let sun_material = materials.add(StandardMaterial {
         base_color: Color::srgb(1.0, 0.85, 0.45),
@@ -1109,7 +1299,7 @@ fn spawn_sky(
         Name::new("SunDisc"),
         Mesh3d(meshes.add(Sphere::new(5.0).mesh().uv(24, 12))),
         MeshMaterial3d(sun_material),
-        Transform::from_translation(sun_rotation * Vec3::Z * 450.0),
+        Transform::from_translation(-sun_ray * 450.0),
         NotShadowCaster,
         PlaygroundSky,
     ));
@@ -1165,6 +1355,15 @@ mod tests {
             ue_extents_to_bevy(Vec3::new(25.0, 1000.0, 100.0)),
             ue_point_to_bevy(Vec3::new(25.0, 1000.0, 100.0)),
             1e-6,
+        );
+    }
+
+    #[test]
+    fn directional_light_ray_matches_ue_forward() {
+        assert_vec3_eq(
+            ue_directional_light_ray_to_bevy(-45.0, 45.0),
+            Vec3::new(0.5, -0.70710677, 0.5),
+            1e-5,
         );
     }
 

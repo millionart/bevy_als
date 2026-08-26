@@ -1,25 +1,55 @@
-use bevy::asset::AssetServer;
-use bevy::asset::RenderAssetUsages;
+use bevy::asset::{AssetServer, RenderAssetUsages};
 use bevy::image::{
     CompressedImageFormats, Image, ImageSampler, ImageSamplerDescriptor, ImageType,
     TextureFormatPixelInfo,
 };
+use bevy::pbr::{ExtendedMaterial, MaterialExtension, MaterialPlugin};
 use bevy::prelude::*;
-use bevy::render::render_resource::TextureFormat;
+use bevy::reflect::TypePath;
+use bevy::render::render_resource::{AsBindGroup, ShaderType, TextureFormat};
+use bevy::shader::ShaderRef;
+
+pub type PlaygroundTilesMaterial = ExtendedMaterial<StandardMaterial, PlaygroundTilesExtension>;
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct PlaygroundTilesExtension {
+    #[uniform(100)]
+    pub settings: PlaygroundTilesSettings,
+    #[texture(101)]
+    #[sampler(102)]
+    pub grid_texture: Handle<Image>,
+}
+
+#[derive(Clone, Debug, ShaderType)]
+pub struct PlaygroundTilesSettings {
+    pub side_color_a: Vec4,
+    pub top_color_a: Vec4,
+    pub side_color_b: Vec4,
+    pub top_color_b: Vec4,
+    pub tiling_and_mode: Vec4,
+}
+
+impl MaterialExtension for PlaygroundTilesExtension {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/playground_tiles.wgsl".into()
+    }
+}
 
 pub struct PlaygroundMaterialsPlugin;
 
 impl Plugin for PlaygroundMaterialsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlaygroundMaterialLibrary>()
+        app.add_plugins(MaterialPlugin::<PlaygroundTilesMaterial>::default())
+            .init_resource::<PlaygroundMaterialLibrary>()
             .add_systems(PreStartup, load_playground_textures);
     }
 }
 
 #[derive(Resource, Default, Clone)]
 pub struct PlaygroundMaterialLibrary {
-    pub tiles_base_color: Option<Handle<Image>>,
+    pub tiles_grid: Option<Handle<Image>>,
     pub tiles_normal: Option<Handle<Image>>,
+    pub tiles_occlusion: Option<Handle<Image>>,
 }
 
 fn repeating_sampler_descriptor() -> ImageSamplerDescriptor {
@@ -69,47 +99,78 @@ fn generate_mip_chain(img: &mut Image) {
     }
 
     let mut total = img.data.as_ref().map(|d| d.len()).unwrap_or(0);
-    for l in &levels {
-        total += l.len();
+    for level in &levels {
+        total += level.len();
     }
     let mut all = Vec::with_capacity(total);
     all.extend_from_slice(img.data.as_deref().unwrap_or(&[]));
-    for l in &levels {
-        all.extend_from_slice(l);
+    for level in &levels {
+        all.extend_from_slice(level);
     }
     img.data = Some(all);
     img.texture_descriptor.mip_level_count = levels.len() as u32 + 1;
 }
 
-fn decode_png(server: &AssetServer, bytes: &[u8], is_normal: bool) -> Option<Handle<Image>> {
-    let mut img = Image::from_buffer(
+fn copy_green_to_red(data: &mut [u8]) {
+    for pixel in data.chunks_exact_mut(4) {
+        pixel[0] = pixel[1];
+    }
+}
+
+fn decode_png(bytes: &[u8], green_to_red: bool) -> Option<Image> {
+    let mut image = Image::from_buffer(
         bytes,
         ImageType::Extension("png".into()),
         CompressedImageFormats::NONE,
-        !is_normal,
+        false,
         ImageSampler::Descriptor(repeating_sampler_descriptor()),
         RenderAssetUsages::default(),
     )
     .ok()?;
-    if is_normal && img.texture_descriptor.format == TextureFormat::Rgba8UnormSrgb {
-        img.texture_descriptor.format = TextureFormat::Rgba8Unorm;
+    if image.texture_descriptor.format == TextureFormat::Rgba8UnormSrgb {
+        image.texture_descriptor.format = TextureFormat::Rgba8Unorm;
     }
-    generate_mip_chain(&mut img);
-    Some(server.add(img))
+    if green_to_red {
+        let data = image.data.as_mut()?;
+        copy_green_to_red(data);
+    }
+    generate_mip_chain(&mut image);
+    Some(image)
+}
+
+fn add_png(server: &AssetServer, bytes: &[u8], green_to_red: bool) -> Option<Handle<Image>> {
+    decode_png(bytes, green_to_red).map(|image| server.add(image))
 }
 
 fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>) {
-    let base = std::fs::read("assets/textures/playground/T_Als_Tiles_M.png");
+    let grid = std::fs::read("assets/textures/playground/T_Default_Material_Grid_M.png");
     let normal = std::fs::read("assets/textures/playground/T_Als_Tiles_N.png");
+    let masks = std::fs::read("assets/textures/playground/T_Als_Tiles_M.png");
 
     let library = PlaygroundMaterialLibrary {
-        tiles_base_color: base.ok().and_then(|b| decode_png(&server, &b, false)),
-        tiles_normal: normal.ok().and_then(|b| decode_png(&server, &b, true)),
+        tiles_grid: grid.ok().and_then(|bytes| add_png(&server, &bytes, false)),
+        tiles_normal: normal
+            .ok()
+            .and_then(|bytes| add_png(&server, &bytes, false)),
+        tiles_occlusion: masks.ok().and_then(|bytes| add_png(&server, &bytes, true)),
     };
     info!(
-        "[PGMAT] textures loaded base={} normal={}",
-        library.tiles_base_color.is_some(),
-        library.tiles_normal.is_some()
+        "[PGMAT] textures loaded grid={} normal={} occlusion={}",
+        library.tiles_grid.is_some(),
+        library.tiles_normal.is_some(),
+        library.tiles_occlusion.is_some()
     );
     commands.insert_resource(library);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn green_mask_becomes_occlusion_red_channel() {
+        let mut pixels = vec![3, 17, 29, 255, 41, 53, 67, 255];
+        copy_green_to_red(&mut pixels);
+        assert_eq!(pixels, vec![17, 17, 29, 255, 53, 53, 67, 255]);
+    }
 }

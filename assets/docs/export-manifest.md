@@ -322,11 +322,13 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
   场景行为事实经在线 MCP `read_graph_dsl` 反汇编 B_Als_MovingObject/B_Als_RotatingObject 事件图。
 - 内容：
   - `assets/textures/playground/T_Als_Tiles_M.png` ← `/ALS/ALSExtras/Environment/Materials/T_Als_Tiles_M`
-    （2048² RGBA base color：4×4 瓷砖网格+灰缝+噪点，可被 tint 乘色）
-  - `assets/textures/playground/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 法线贴图）
-  - `tmp/export/playground/materials/materials.json` — M_Als_Tiles/M_Als_Main 全节点图
-    （M_Als_Tiles: Tiling 标量、SideColorA/B+TopColorA/B 向量参数、T_Als_Tiles_M/N 采样、
-    PixelNormalWS·ComponentMask·Abs 世界法线混合顶/侧面选色链；M_Als_Main: 单 Color 参数）
+    （2048² 线性 Mask；G 通道为 M_Als_Tiles Ambient Occlusion，运行时映射到 Bevy occlusion R）
+  - `assets/textures/playground/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 线性 DirectX 法线贴图，运行时启用 Y 翻转）
+  - `assets/textures/playground/T_Default_Material_Grid_M.png` ← `/Engine/EngineMaterials/T_Default_Material_Grid_M`
+    （512² 线性网格；M_Als_Tiles 以 UV×Tiling×2 采样其 G 作为两组颜色插值、A 乘到底色）
+  - `tmp/export/playground/materials/materials.json` — M_Als_Tiles/M_Als_Main/M_Als_Transluent 全节点图
+    （M_Als_Tiles: Tiling 标量、SideColorA/B+TopColorA/B、Grid G/A、T_Als_Tiles_N、T_Als_Tiles_M.G；
+    M_Als_Main: 单 Color 参数；M_Als_Transluent: VertexNormalWS.B×0.5 opacity）
   - `assets/models/playground/playground_scene.ron` — 场景清单 v2：219 actor + 22 TextRender
     (text/color/world_size 实值) + 150 StaticObject 实例配色（TopColorA 实测：蓝126/绿16/橙4/
     红2/蓝紫2，Side 恒白）+ Moving(1.25s/1.75s ping-pong)/Rotating(yaw=100°/s) 参数 +

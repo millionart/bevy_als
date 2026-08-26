@@ -25,7 +25,7 @@ use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{AlsViewPitch, clamp_pitch};
 use als_ext::overlay_materials::OverlayMaterialsPlugin;
-use als_ext::playground::{PlaygroundLandscape, PlaygroundMaterialTint};
+use als_ext::playground::PlaygroundLandscape;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
@@ -98,7 +98,6 @@ fn main() {
             spawn_character_once,
             playground_physics_bridge,
             landscape_collider_bridge,
-            playground_tint_bridge,
             graph_router,
             look_pitch_integrator,
             auto_quit,
@@ -278,48 +277,6 @@ fn landscape_collider_bridge(
             Collider::trimesh(vertices, triangles),
             LandscapeColliderBuilt,
         ));
-    }
-}
-
-fn playground_tint_bridge(
-    mut commands: Commands,
-    roots: Query<(Entity, &PlaygroundMaterialTint)>,
-    children_query: Query<&Children>,
-    mesh_material: Query<&MeshMaterial3d<StandardMaterial>>,
-) {
-    fn walk_and_tint(
-        entity: Entity,
-        tint: &Handle<StandardMaterial>,
-        commands: &mut Commands,
-        children_query: &Query<&Children>,
-        mesh_material: &Query<&MeshMaterial3d<StandardMaterial>>,
-        found: &mut u32,
-    ) {
-        if let Ok(children) = children_query.get(entity) {
-            for child in children.iter() {
-                if mesh_material.contains(child) {
-                    commands.entity(child).insert(MeshMaterial3d(tint.clone()));
-                    *found += 1;
-                }
-                walk_and_tint(child, tint, commands, children_query, mesh_material, found);
-            }
-        }
-    }
-
-    for (root, tint_handle) in &roots {
-        let mut found = 0u32;
-        walk_and_tint(
-            root,
-            &tint_handle.0,
-            &mut commands,
-            &children_query,
-            &mesh_material,
-            &mut found,
-        );
-        if found > 0 {
-            debug!("[TINT] root={:?} tinted={} meshes", root, found);
-            commands.entity(root).remove::<PlaygroundMaterialTint>();
-        }
     }
 }
 

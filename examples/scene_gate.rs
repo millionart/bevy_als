@@ -8,10 +8,10 @@ use bevy::text::TextLayoutInfo;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 
-use als_ext::playground_materials::PlaygroundMaterialsPlugin;
+use als_ext::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMaterial};
 use als_ext::{
-    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundMaterialTint,
-    PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextLabel,
+    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundMaterialApplied,
+    PlaygroundMaterialRole, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextLabel,
     PlaygroundWorldTextMesh,
 };
 
@@ -62,8 +62,14 @@ struct SceneStats {
     landscape_identity: bool,
     sun_count: u32,
     sun_shadowed: bool,
+    sun_ray_error: f32,
     sky_count: u32,
-    pbr_material_count: u32,
+    main_material_count: u32,
+    tiles_material_count: u32,
+    translucent_material_count: u32,
+    extended_material_bound_count: u32,
+    tiles_pbr_material_count: u32,
+    translucent_pbr_material_count: u32,
     movers_total: u32,
     movers_moving: u32,
     spin_yaw_abs_deg: f32,
@@ -147,11 +153,13 @@ fn stats_collector(
     text_layouts: Query<&TextLayoutInfo, (With<PlaygroundTextLabel>, With<Text2d>)>,
     world_text_meshes: Query<&MeshMaterial3d<StandardMaterial>, With<PlaygroundWorldTextMesh>>,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
-    sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig)>,
+    sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig, &Transform)>,
     skies: Query<(), With<PlaygroundSky>>,
-    mesh_materials: Query<&MeshMaterial3d<StandardMaterial>>,
+    material_roles: Query<&PlaygroundMaterialApplied>,
+    extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
     cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
     materials: Res<Assets<StandardMaterial>>,
+    tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
 ) {
     stats.static_count = statics.iter().count() as u32;
     stats.text_count = texts.iter().count() as u32;
@@ -178,7 +186,7 @@ fn stats_collector(
             && transform.scale.distance_squared(Vec3::ONE) < 1e-6;
     }
     stats.sun_count = sun_lights.iter().count() as u32;
-    stats.sun_shadowed = sun_lights.iter().any(|(light, cascades)| {
+    stats.sun_shadowed = sun_lights.iter().any(|(light, cascades, _)| {
         light.shadow_maps_enabled
             && cascades.bounds.len() == 4
             && cascades
@@ -186,13 +194,46 @@ fn stats_collector(
                 .last()
                 .is_some_and(|distance| (*distance - 400.0).abs() < 0.01)
     });
-    stats.sky_count = skies.iter().count() as u32;
-    stats.pbr_material_count = mesh_materials
+    let expected_sun_ray = Vec3::new(0.5, -0.70710677, 0.5);
+    stats.sun_ray_error = sun_lights
         .iter()
-        .filter(|handle| {
-            materials.get(&handle.0).is_some_and(|material| {
-                material.base_color_texture.is_some() && material.normal_map_texture.is_some()
-            })
+        .map(|(_, _, transform)| {
+            transform
+                .rotation
+                .mul_vec3(Vec3::NEG_Z)
+                .distance(expected_sun_ray)
+        })
+        .fold(f32::INFINITY, f32::min);
+    stats.sky_count = skies.iter().count() as u32;
+    stats.main_material_count = material_roles
+        .iter()
+        .filter(|applied| applied.0 == PlaygroundMaterialRole::Main)
+        .count() as u32;
+    stats.tiles_material_count = material_roles
+        .iter()
+        .filter(|applied| applied.0 == PlaygroundMaterialRole::Tiles)
+        .count() as u32;
+    stats.translucent_material_count = material_roles
+        .iter()
+        .filter(|applied| applied.0 == PlaygroundMaterialRole::Translucent)
+        .count() as u32;
+    stats.extended_material_bound_count = extended_materials.iter().count() as u32;
+    stats.tiles_pbr_material_count = tiles_materials
+        .iter()
+        .filter(|(_, material)| {
+            material.extension.settings.tiling_and_mode.y < 0.5
+                && material.base.normal_map_texture.is_some()
+                && material.base.occlusion_texture.is_some()
+                && material.base.flip_normal_map_y
+        })
+        .count() as u32;
+    stats.translucent_pbr_material_count = tiles_materials
+        .iter()
+        .filter(|(_, material)| {
+            material.extension.settings.tiling_and_mode.y >= 0.5
+                && matches!(material.base.alpha_mode, AlphaMode::Blend)
+                && material.base.double_sided
+                && material.base.cull_mode.is_none()
         })
         .count() as u32;
     stats.cube_orientation_total = 0;
@@ -246,48 +287,7 @@ fn kinematic_probe(
     }
 }
 
-fn screenshot_runner(
-    mut commands: Commands,
-    mut schedule: ResMut<Schedule>,
-    roots: Query<(Entity, &PlaygroundMaterialTint)>,
-    children_query: Query<&Children>,
-    mesh_material: Query<&MeshMaterial3d<StandardMaterial>>,
-) {
-    fn walk_and_tint(
-        entity: Entity,
-        tint: &Handle<StandardMaterial>,
-        commands: &mut Commands,
-        children_query: &Query<&Children>,
-        mesh_material: &Query<&MeshMaterial3d<StandardMaterial>>,
-        found: &mut u32,
-    ) {
-        if let Ok(children) = children_query.get(entity) {
-            for child in children.iter() {
-                if mesh_material.contains(child) {
-                    commands.entity(child).insert(MeshMaterial3d(tint.clone()));
-                    *found += 1;
-                }
-                walk_and_tint(child, tint, commands, children_query, mesh_material, found);
-            }
-        }
-    }
-
-    for (root, tint_handle) in &roots {
-        let mut found = 0u32;
-        walk_and_tint(
-            root,
-            &tint_handle.0,
-            &mut commands,
-            &children_query,
-            &mesh_material,
-            &mut found,
-        );
-        if found > 0 {
-            debug!("[TINT] root={:?} tinted={} meshes", root, found);
-            commands.entity(root).remove::<PlaygroundMaterialTint>();
-        }
-    }
-
+fn screenshot_runner(mut commands: Commands, mut schedule: ResMut<Schedule>) {
     if !schedule.shot_done && Instant::now() >= schedule.shot_at {
         let path = schedule.shot_path.clone();
         commands
@@ -323,9 +323,14 @@ fn verdict_system(
     let ok_world_text = stats.world_text_mesh_count >= stats.text_count
         && stats.world_text_masked_count == stats.world_text_mesh_count;
     let ok_landscape = stats.landscape_seen && stats.landscape_identity;
-    let ok_sun = stats.sun_count == 1 && stats.sun_shadowed;
+    let ok_sun = stats.sun_count == 1 && stats.sun_shadowed && stats.sun_ray_error < 1e-4;
     let ok_sky = stats.sky_count >= 2;
-    let ok_pbr = stats.pbr_material_count >= 1;
+    let ok_materials = stats.main_material_count >= 10
+        && stats.tiles_material_count >= 100
+        && stats.translucent_material_count == 1
+        && stats.extended_material_bound_count >= 100
+        && stats.tiles_pbr_material_count >= 1
+        && stats.translucent_pbr_material_count >= 1;
     let ok_moving = stats.movers_total >= 3 && stats.movers_moving >= 2;
     let ok_spin = stats.spin_yaw_abs_deg > 30.0;
     let ok_cube_orientation = stats.cube_orientation_total == 5
@@ -333,7 +338,7 @@ fn verdict_system(
         && stats.cube_orientation_max_error < 1e-4;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={}/{} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} landscape={} identity={} sun={}/shadow={} sky={} pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={}/{} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} landscape={} identity={} sun={}/shadow={} ray_error={:.6} sky={} materials=main={} tiles={} translucent={} extended={} tile_pbr={} translucent_pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -346,8 +351,14 @@ fn verdict_system(
         stats.landscape_identity,
         stats.sun_count,
         stats.sun_shadowed,
+        stats.sun_ray_error,
         stats.sky_count,
-        stats.pbr_material_count,
+        stats.main_material_count,
+        stats.tiles_material_count,
+        stats.translucent_material_count,
+        stats.extended_material_bound_count,
+        stats.tiles_pbr_material_count,
+        stats.translucent_pbr_material_count,
         stats.movers_total,
         stats.movers_moving,
         stats.spin_yaw_abs_deg,
@@ -362,7 +373,7 @@ fn verdict_system(
             && ok_landscape
             && ok_sun
             && ok_sky
-            && ok_pbr
+            && ok_materials
             && ok_moving
             && ok_spin
             && ok_cube_orientation
@@ -380,7 +391,7 @@ fn verdict_system(
         && ok_landscape
         && ok_sun
         && ok_sky
-        && ok_pbr
+        && ok_materials
         && ok_moving
         && ok_spin
         && ok_cube_orientation)
