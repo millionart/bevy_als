@@ -35,11 +35,12 @@ pub use overlay::{
     TORCH_ARM_RIGHT_BONES, TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES,
 };
 pub use playground::{
-    is_engine_basic, moving_object_curve_input, moving_object_position,
+    is_engine_basic, moving_object_curve_input, moving_object_position, moving_object_velocity,
     playground_moving_object_system, playground_setup_system,
     ue_directional_light_ray_to_bevy, ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy,
     ue_rotator_to_bevy_quat, ue_scale_to_bevy, ue_yaw_to_bevy_quat, PlaygroundActor,
     PlaygroundBoxCollider, PlaygroundComponent, PlaygroundKinematic, PlaygroundKinematicKind,
+    PlaygroundKinematicVelocity,
     PlaygroundLandscape, PlaygroundLandscapeTilesMaterial, PlaygroundManifest,
     PlaygroundManifestPath, PlaygroundMaterialApplied, PlaygroundMovingCurve,
     PlaygroundMaterialRole, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,

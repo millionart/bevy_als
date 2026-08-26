@@ -29,7 +29,10 @@ use als_ext::overlay_materials::{
 };
 use als_ext::playground::PlaygroundLandscape;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_ext::{
+    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundKinematicVelocity, PlaygroundMovingObject,
+    PlaygroundPlugin, PlaygroundSpawnPoint, playground_moving_object_system,
+};
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
@@ -90,6 +93,7 @@ fn main() {
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<CharacterMaterialProbe>()
+    .init_resource::<PlatformPhysicsProbe>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -101,6 +105,8 @@ fn main() {
             spawn_character_once,
             character_material_probe,
             playground_physics_bridge,
+            playground_kinematic_velocity_bridge.after(playground_moving_object_system),
+            platform_physics_probe.after(playground_kinematic_velocity_bridge),
             landscape_collider_bridge,
             graph_router,
             look_pitch_integrator,
@@ -117,6 +123,9 @@ struct SpawnOnce(bool);
 
 #[derive(Resource, Default)]
 struct CharacterMaterialProbe(bool);
+
+#[derive(Resource, Default)]
+struct PlatformPhysicsProbe(bool);
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
@@ -368,18 +377,74 @@ fn character_material_probe(
 
 fn playground_physics_bridge(
     mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
+    bodies: Query<(Entity, &PlaygroundBoxCollider, Option<&ChildOf>), Added<PlaygroundBoxCollider>>,
+    moving_roots: Query<(), With<PlaygroundMovingObject>>,
 ) {
-    for (entity, collider) in &bodies {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            Collider::cuboid(
-                collider.half_extents.x * 2.0,
-                collider.half_extents.y * 2.0,
-                collider.half_extents.z * 2.0,
-            ),
-        ));
+    for (entity, collider, parent) in &bodies {
+        let shape = Collider::cuboid(
+            collider.half_extents.x * 2.0,
+            collider.half_extents.y * 2.0,
+            collider.half_extents.z * 2.0,
+        );
+        if let Some(&ChildOf(root)) = parent
+            && moving_roots.contains(root)
+        {
+            commands.entity(entity).insert(shape);
+            commands.entity(root).insert(RigidBody::Kinematic);
+        } else {
+            commands.entity(entity).insert((RigidBody::Static, shape));
+        }
     }
+}
+
+fn playground_kinematic_velocity_bridge(
+    mut platforms: Query<
+        (
+            &PlaygroundKinematicVelocity,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+        ),
+        With<PlaygroundMovingObject>,
+    >,
+) {
+    for (source, mut linear, mut angular) in &mut platforms {
+        linear.0 = source.linear;
+        angular.0 = source.angular;
+    }
+}
+
+fn platform_physics_probe(
+    mut probe: ResMut<PlatformPhysicsProbe>,
+    platforms: Query<(&RigidBody, &LinearVelocity, &AngularVelocity), With<PlaygroundMovingObject>>,
+) {
+    if probe.0 || platforms.iter().count() != 3 {
+        return;
+    }
+    let kinematic = platforms
+        .iter()
+        .filter(|(body, _, _)| **body == RigidBody::Kinematic)
+        .count();
+    let moving = platforms
+        .iter()
+        .filter(|(_, linear, _)| linear.0.length_squared() > 1e-6)
+        .count();
+    let rotating = platforms
+        .iter()
+        .filter(|(_, _, angular)| angular.0.length_squared() > 1e-6)
+        .count();
+    let finite = platforms
+        .iter()
+        .all(|(_, linear, angular)| linear.0.is_finite() && angular.0.is_finite());
+    if kinematic == 3 && moving == 2 && rotating == 1 && finite {
+        info!(
+            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 finite={finite} -> PASS"
+        );
+    } else {
+        error!(
+            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 finite={finite} -> FAIL"
+        );
+    }
+    probe.0 = true;
 }
 
 #[allow(clippy::type_complexity)]

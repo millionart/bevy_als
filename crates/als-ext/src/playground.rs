@@ -175,6 +175,12 @@ pub struct PlaygroundBoxCollider {
 #[derive(Component, Debug)]
 pub struct PlaygroundMovingObject;
 
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct PlaygroundKinematicVelocity {
+    pub linear: Vec3,
+    pub angular: Vec3,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum PlaygroundKinematicKind {
     MoveSpline {
@@ -232,6 +238,27 @@ impl PlaygroundMovingCurve {
     pub fn key_count(&self) -> usize {
         self.curve.keys.len()
     }
+
+    pub fn slope(&self, time_normalized: f32) -> f32 {
+        let keys = &self.curve.keys;
+        if keys.len() < 2 {
+            return 0.0;
+        }
+        let upper = if time_normalized <= keys[0].t {
+            1
+        } else if time_normalized >= keys[keys.len() - 1].t {
+            keys.len() - 1
+        } else {
+            keys.partition_point(|key| key.t < time_normalized)
+        };
+        let lower = upper - 1;
+        let dt = keys[upper].t - keys[lower].t;
+        if dt.abs() <= f32::EPSILON {
+            0.0
+        } else {
+            (keys[upper].v - keys[lower].v) / dt
+        }
+    }
 }
 
 fn load_moving_object_curve() -> Result<PlaygroundMovingCurve, String> {
@@ -271,6 +298,26 @@ pub fn moving_object_position(
 ) -> Vec3 {
     let curve_time = moving_object_curve_input(elapsed_seconds, duration_seconds);
     start.lerp(end, curve.sample(curve_time))
+}
+
+pub fn moving_object_velocity(
+    curve: &PlaygroundMovingCurve,
+    start: Vec3,
+    end: Vec3,
+    elapsed_seconds: f32,
+    duration_seconds: f32,
+) -> Vec3 {
+    if duration_seconds <= 0.0 {
+        return Vec3::ZERO;
+    }
+    let ratio = (elapsed_seconds / duration_seconds).max(0.0);
+    let direction = if (ratio.floor() as i64).rem_euclid(2) == 0 {
+        1.0
+    } else {
+        -1.0
+    };
+    let curve_time = moving_object_curve_input(elapsed_seconds, duration_seconds);
+    (end - start) * (curve.slope(curve_time) * direction / duration_seconds)
 }
 
 #[derive(Resource, Debug, Clone, Copy)]
@@ -792,6 +839,7 @@ pub fn playground_setup_system(
                             transform,
                             PlaygroundStatic,
                             PlaygroundMovingObject,
+                            PlaygroundKinematicVelocity::default(),
                             PlaygroundKinematic {
                                 base_transform: transform,
                                 kind: PlaygroundKinematicKind::MoveSpline {
@@ -871,6 +919,7 @@ pub fn playground_setup_system(
                             transform,
                             PlaygroundStatic,
                             PlaygroundMovingObject,
+                            PlaygroundKinematicVelocity::default(),
                             PlaygroundKinematic {
                                 base_transform: transform,
                                 kind: PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg },
@@ -1153,14 +1202,23 @@ fn playground_camera_exposure_system(
 pub fn playground_moving_object_system(
     time: Res<Time>,
     moving_curve: Res<PlaygroundMovingCurve>,
-    mut q: Query<(&mut Transform, &PlaygroundKinematic), With<PlaygroundMovingObject>>,
+    mut q: Query<
+        (
+            &mut Transform,
+            &mut PlaygroundKinematicVelocity,
+            &PlaygroundKinematic,
+        ),
+        With<PlaygroundMovingObject>,
+    >,
 ) {
     let t = time.elapsed_secs_f64() as f32;
-    for (mut tf, kin) in q.iter_mut() {
+    for (mut tf, mut velocity, kin) in q.iter_mut() {
         match kin.kind {
             PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
                 let yaw = speed_deg * t;
                 tf.rotation = kin.base_transform.rotation * Quat::from_rotation_y(yaw.to_radians());
+                velocity.linear = Vec3::ZERO;
+                velocity.angular = Vec3::Y * speed_deg.to_radians();
             }
             PlaygroundKinematicKind::MoveSpline {
                 duration,
@@ -1168,6 +1226,8 @@ pub fn playground_moving_object_system(
                 end,
             } => {
                 tf.translation = moving_object_position(&moving_curve, start, end, t, duration);
+                velocity.linear = moving_object_velocity(&moving_curve, start, end, t, duration);
+                velocity.angular = Vec3::ZERO;
             }
         }
     }
@@ -1953,6 +2013,19 @@ mod tests {
         assert!((moving_object_curve_input(1.25, 1.25) - 1.0).abs() < 1e-6);
         assert!((moving_object_curve_input(1.5625, 1.25) - 0.75).abs() < 1e-6);
         assert!((moving_object_curve_input(2.5, 1.25) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn moving_curve_velocity_reverses_with_the_source_ping_pong_rule() {
+        let curve = load_moving_object_curve().unwrap();
+        let start = Vec3::new(0.0, 0.0, 0.0);
+        let end = Vec3::new(0.0, 2.75, 0.0);
+        let forward = moving_object_velocity(&curve, start, end, 0.5, 1.25);
+        let backward = moving_object_velocity(&curve, start, end, 1.75, 1.25);
+        assert!(forward.y > 0.0);
+        assert!(backward.y < 0.0);
+        assert!(forward.is_finite());
+        assert!(backward.is_finite());
     }
 
     #[test]
