@@ -1145,20 +1145,23 @@ pub enum PlaygroundTextVerticalAlignment {
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PlaygroundTextLayoutTarget {
-    pub center: Vec3,
-    pub width: f32,
-    pub height: f32,
+    pub origin: Vec3,
+    pub scale: Vec2,
+    pub color_linear: [f32; 4],
     pub horizontal: PlaygroundTextHorizontalAlignment,
     pub vertical: PlaygroundTextVerticalAlignment,
-    pub depth_scale: f32,
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PlaygroundTextFit {
-    pub width_error: f32,
-    pub height_error: f32,
-    pub center_error: f32,
+    pub horizontal_scale_error: f32,
+    pub vertical_scale_error: f32,
+    pub aspect_ratio_error: f32,
+    pub origin_error: f32,
 }
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundTextGlyphColor(pub [f32; 4]);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PlaygroundTextFacing {
@@ -1464,6 +1467,7 @@ pub fn terrain_height(x: f32, z: f32) -> f32 {
 }
 
 const TEXT_LAYOUT_FONT_SIZE: f32 = 100.0;
+const UE_ROBOTO_DISTANCE_FIELD_MAX_CHAR_HEIGHT: f32 = 26.0;
 
 fn text_horizontal_alignment(value: Option<&str>) -> PlaygroundTextHorizontalAlignment {
     match value {
@@ -1524,21 +1528,12 @@ fn text_justify(alignment: PlaygroundTextHorizontalAlignment) -> Justify {
     }
 }
 
-fn text_target_bounds(actor: &PlaygroundActor, rotation: Quat) -> (Vec3, Vec2) {
-    let fallback_center = ue_point_to_bevy(Vec3::from(actor.location));
-    let fallback_size = actor.text_world_size.unwrap_or(30.0) * CM_TO_M;
-    let Some(extent_cm) = actor.bounds_extent else {
-        return (fallback_center, Vec2::splat(fallback_size));
-    };
-    let center = actor
-        .bounds_origin
-        .map(Vec3::from)
-        .map(ue_point_to_bevy)
-        .unwrap_or(fallback_center);
-    let extents = ue_extents_to_bevy(Vec3::from(extent_cm));
-    let width = 2.0 * extents.dot((rotation * Vec3::X).abs());
-    let height = 2.0 * extents.dot((rotation * Vec3::Y).abs());
-    (center, Vec2::new(width.max(0.001), height.max(0.001)))
+fn text_color_linear(color: [f32; 4]) -> Color {
+    Color::linear_rgba(color[0], color[1], color[2], color[3])
+}
+
+fn ue_text_spacing_to_layout_pixels(adjust: f32) -> f32 {
+    adjust * TEXT_LAYOUT_FONT_SIZE / UE_ROBOTO_DISTANCE_FIELD_MAX_CHAR_HEIGHT
 }
 
 fn ue_text_mesh_rotation_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
@@ -1562,13 +1557,15 @@ fn spawn_text_label(commands: &mut Commands, actor: &PlaygroundActor) {
     let horizontal = text_horizontal_alignment(actor.text_horizontal_alignment.as_deref());
     let vertical = text_vertical_alignment(actor.text_vertical_alignment.as_deref());
     let anchor = text_anchor(horizontal, vertical);
-    let (center, size) = text_target_bounds(actor, rotation);
+    let origin = ue_point_to_bevy(Vec3::from(actor.location));
+    let scale = Vec2::new(
+        world_size_m * x_scale / TEXT_LAYOUT_FONT_SIZE,
+        world_size_m * y_scale / TEXT_LAYOUT_FONT_SIZE,
+    );
     let horizontal_spacing =
-        actor.text_horizontal_spacing_adjust.unwrap_or(0.0) * x_scale * TEXT_LAYOUT_FONT_SIZE
-            / world_size_cm;
+        ue_text_spacing_to_layout_pixels(actor.text_horizontal_spacing_adjust.unwrap_or(0.0));
     let line_height = TEXT_LAYOUT_FONT_SIZE
-        + actor.text_vertical_spacing_adjust.unwrap_or(0.0) * y_scale * TEXT_LAYOUT_FONT_SIZE
-            / world_size_cm;
+        + ue_text_spacing_to_layout_pixels(actor.text_vertical_spacing_adjust.unwrap_or(0.0));
     commands.spawn((
         Name::new(format!("Text:{}", actor.name)),
         Text2d::new(text_str),
@@ -1577,17 +1574,12 @@ fn spawn_text_label(commands: &mut Commands, actor: &PlaygroundActor) {
         TextFont::from_font_size(TEXT_LAYOUT_FONT_SIZE),
         LetterSpacing::Px(horizontal_spacing),
         LineHeight::Px(line_height),
-        TextColor(Color::srgba(
-            color_arr[0],
-            color_arr[1],
-            color_arr[2],
-            color_arr[3],
-        )),
-        Transform::from_translation(center)
+        TextColor(text_color_linear(color_arr)),
+        Transform::from_translation(origin)
             .with_rotation(rotation)
             .with_scale(Vec3::new(
-                world_size_m * x_scale / TEXT_LAYOUT_FONT_SIZE,
-                world_size_m * y_scale / TEXT_LAYOUT_FONT_SIZE,
+                scale.x,
+                scale.y,
                 world_size_m / TEXT_LAYOUT_FONT_SIZE,
             )),
         PlaygroundTextLabel,
@@ -1595,12 +1587,11 @@ fn spawn_text_label(commands: &mut Commands, actor: &PlaygroundActor) {
             expected_front: source_rotation.mul_vec3(Vec3::X),
         },
         PlaygroundTextLayoutTarget {
-            center,
-            width: size.x,
-            height: size.y,
+            origin,
+            scale,
+            color_linear: color_arr,
             horizontal,
             vertical,
-            depth_scale: world_size_m / TEXT_LAYOUT_FONT_SIZE,
         },
     ));
 }
@@ -1624,7 +1615,7 @@ fn world_text_mesh_system(
             &TextColor,
             &Anchor,
             &PlaygroundTextLayoutTarget,
-            &mut Transform,
+            &Transform,
         ),
         (With<PlaygroundTextLabel>, Without<WorldTextMeshBuilt>),
     >,
@@ -1632,7 +1623,7 @@ fn world_text_mesh_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, layout, text_color, anchor, target, mut transform) in &mut sources {
+    for (entity, layout, text_color, anchor, target, transform) in &mut sources {
         if layout.glyphs.is_empty() || layout.scale_factor <= 0.0 {
             continue;
         }
@@ -1696,24 +1687,6 @@ fn world_text_mesh_system(
             continue;
         }
 
-        let scale = Vec3::new(
-            target.width / geometry_size.x,
-            target.height / geometry_size.y,
-            target.depth_scale,
-        );
-        let local_center = Vec3::new(
-            (geometry_min.x + geometry_max.x) * 0.5,
-            (geometry_min.y + geometry_max.y) * 0.5,
-            1.0,
-        );
-        transform.scale = scale;
-        transform.translation =
-            target.center - transform.rotation.mul_vec3(local_center * transform.scale);
-        let fitted_center =
-            transform.translation + transform.rotation.mul_vec3(local_center * transform.scale);
-        let fitted_width = geometry_size.x * transform.scale.x;
-        let fitted_height = geometry_size.y * transform.scale.y;
-
         commands.entity(entity).with_children(|parent| {
             for (texture, batch) in batches {
                 let Some(texture_handle) = images.get_strong_handle(texture) else {
@@ -1742,15 +1715,19 @@ fn world_text_mesh_system(
                     NotShadowCaster,
                     Transform::IDENTITY,
                     PlaygroundWorldTextMesh,
+                    PlaygroundTextGlyphColor(target.color_linear),
                 ));
             }
         });
+        let expected_aspect_ratio = target.scale.x / target.scale.y;
+        let actual_aspect_ratio = transform.scale.x / transform.scale.y;
         commands.entity(entity).insert((
             WorldTextMeshBuilt,
             PlaygroundTextFit {
-                width_error: (fitted_width - target.width).abs(),
-                height_error: (fitted_height - target.height).abs(),
-                center_error: fitted_center.distance(target.center),
+                horizontal_scale_error: (transform.scale.x - target.scale.x).abs(),
+                vertical_scale_error: (transform.scale.y - target.scale.y).abs(),
+                aspect_ratio_error: (actual_aspect_ratio - expected_aspect_ratio).abs(),
+                origin_error: transform.translation.distance(target.origin),
             },
         ));
         commands.entity(entity).remove::<Text2d>();
@@ -2098,6 +2075,20 @@ mod tests {
             ),
             Anchor::TOP_LEFT
         );
+    }
+
+    #[test]
+    fn text_render_color_preserves_the_source_linear_channels() {
+        let color = text_color_linear([0.46274513, 0.8, 0.9568628, 1.0]).to_linear();
+        assert!((color.red - 0.46274513).abs() < 1e-6);
+        assert!((color.green - 0.8).abs() < 1e-6);
+        assert!((color.blue - 0.9568628).abs() < 1e-6);
+        assert!((color.alpha - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn text_spacing_uses_the_source_font_max_character_height() {
+        assert!((ue_text_spacing_to_layout_pixels(6.5) - 25.0).abs() < 1e-6);
     }
 
     #[test]

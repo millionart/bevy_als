@@ -17,9 +17,9 @@ use als_ext::{
     PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape,
     PlaygroundLandscapeTilesMaterial, PlaygroundMaterialApplied, PlaygroundMaterialRole,
     PlaygroundMovingCurve, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing,
-    PlaygroundTextFit, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
-    PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
-    moving_object_position,
+    PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment,
+    PlaygroundTextLabel, PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment,
+    PlaygroundWorldTextMesh, moving_object_position,
 };
 
 const PLAYGROUND_CAMERA_EV100: f32 = 2.0;
@@ -72,8 +72,14 @@ struct SceneStats {
     glyph_text_count: u32,
     world_text_mesh_count: u32,
     world_text_masked_count: u32,
-    text_fitted_count: u32,
-    text_fit_max_error: f32,
+    text_scale_matching_count: u32,
+    text_scale_max_error: f32,
+    text_aspect_max_error: f32,
+    text_origin_max_error: f32,
+    per_project_count: u32,
+    per_project_aspect_error: f32,
+    text_color_mesh_count: u32,
+    text_color_max_error: f32,
     text_center_aligned_count: u32,
     text_left_top_aligned_count: u32,
     text_front_matching_count: u32,
@@ -160,11 +166,13 @@ fn map_ue_direction(v: Vec3) -> Vec3 {
 }
 
 fn spawn_camera(mut commands: Commands) {
-    let text_camera = std::env::var("ALS_SCENE_CAMERA").ok().as_deref() == Some("text");
-    let transform = if text_camera {
-        Transform::from_xyz(3.33, 8.78, -42.0).looking_at(Vec3::new(3.33, 8.78, -46.24), Vec3::Y)
-    } else {
-        Transform::from_xyz(-35.0, 45.0, -60.0).looking_at(Vec3::new(-10.0, 0.0, -20.0), Vec3::Y)
+    let transform = match std::env::var("ALS_SCENE_CAMERA").ok().as_deref() {
+        Some("text") => Transform::from_xyz(3.33, 8.78, -42.0)
+            .looking_at(Vec3::new(3.33, 8.78, -46.24), Vec3::Y),
+        Some("per_project") => Transform::from_xyz(-18.0, 2.1, 0.0)
+            .looking_at(Vec3::new(-29.37, 1.85, 0.0), Vec3::Y),
+        _ => Transform::from_xyz(-35.0, 45.0, -60.0)
+            .looking_at(Vec3::new(-10.0, 0.0, -20.0), Vec3::Y),
     };
     commands.spawn((Camera3d::default(), transform));
 }
@@ -200,10 +208,14 @@ fn stats_collector(
             &PlaygroundTextLayoutTarget,
             &Transform,
             &PlaygroundTextFacing,
+            &Name,
         ),
         With<PlaygroundTextLabel>,
     >,
-    world_text_meshes: Query<&MeshMaterial3d<StandardMaterial>, With<PlaygroundWorldTextMesh>>,
+    world_text_meshes: Query<
+        (&MeshMaterial3d<StandardMaterial>, &PlaygroundTextGlyphColor),
+        With<PlaygroundWorldTextMesh>,
+    >,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
     sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig, &Transform)>,
     cameras: Query<(&Exposure, &ColorGrading, &Tonemapping), With<Camera3d>>,
@@ -224,7 +236,7 @@ fn stats_collector(
     stats.world_text_mesh_count = world_text_meshes.iter().count() as u32;
     stats.world_text_masked_count = world_text_meshes
         .iter()
-        .filter(|handle| {
+        .filter(|(handle, _)| {
             materials.get(&handle.0).is_some_and(|material| {
                 material.base_color_texture.is_some()
                     && matches!(material.alpha_mode, AlphaMode::Mask(_))
@@ -232,17 +244,31 @@ fn stats_collector(
             })
         })
         .count() as u32;
-    stats.text_fitted_count = 0;
-    stats.text_fit_max_error = 0.0;
+    stats.text_scale_matching_count = 0;
+    stats.text_scale_max_error = 0.0;
+    stats.text_aspect_max_error = 0.0;
+    stats.text_origin_max_error = 0.0;
+    stats.per_project_count = 0;
+    stats.per_project_aspect_error = 0.0;
     stats.text_center_aligned_count = 0;
     stats.text_left_top_aligned_count = 0;
     stats.text_front_matching_count = 0;
     stats.text_front_max_error = 0.0;
-    for (fit, target, transform, facing) in &text_fits {
-        let error = fit.width_error.max(fit.height_error).max(fit.center_error);
-        stats.text_fit_max_error = stats.text_fit_max_error.max(error);
-        if error < 1e-4 {
-            stats.text_fitted_count += 1;
+    for (fit, target, transform, facing, name) in &text_fits {
+        let scale_error = fit
+            .horizontal_scale_error
+            .max(fit.vertical_scale_error)
+            .max(fit.origin_error);
+        stats.text_scale_max_error = stats.text_scale_max_error.max(scale_error);
+        stats.text_aspect_max_error = stats.text_aspect_max_error.max(fit.aspect_ratio_error);
+        stats.text_origin_max_error = stats.text_origin_max_error.max(fit.origin_error);
+        if scale_error < 1e-6 && fit.aspect_ratio_error < 1e-6 {
+            stats.text_scale_matching_count += 1;
+        }
+        if name.as_str().contains("TextRenderActor3_1") {
+            stats.per_project_count += 1;
+            stats.per_project_aspect_error =
+                stats.per_project_aspect_error.max(fit.aspect_ratio_error);
         }
         if target.horizontal == PlaygroundTextHorizontalAlignment::Center {
             stats.text_center_aligned_count += 1;
@@ -259,6 +285,23 @@ fn stats_collector(
         stats.text_front_max_error = stats.text_front_max_error.max(error);
         if error < 1e-4 {
             stats.text_front_matching_count += 1;
+        }
+    }
+    stats.text_color_mesh_count = 0;
+    stats.text_color_max_error = 0.0;
+    for (handle, expected) in &world_text_meshes {
+        let Some(material) = materials.get(&handle.0) else {
+            continue;
+        };
+        let color = material.base_color.to_linear();
+        let color_error = (color.red - expected.0[0])
+            .abs()
+            .max((color.green - expected.0[1]).abs())
+            .max((color.blue - expected.0[2]).abs())
+            .max((color.alpha - expected.0[3]).abs());
+        stats.text_color_max_error = stats.text_color_max_error.max(color_error);
+        if color_error < 1e-6 {
+            stats.text_color_mesh_count += 1;
         }
     }
     if let Ok(transform) = landscapes.single() {
@@ -649,10 +692,15 @@ fn verdict_system(
     let ok_glyph_text = stats.glyph_text_count == stats.text_count;
     let ok_world_text = stats.world_text_mesh_count >= stats.text_count
         && stats.world_text_masked_count == stats.world_text_mesh_count;
-    let ok_text_fit = stats.text_fitted_count == stats.text_count
-        && stats.text_fit_max_error < 1e-4
+    let ok_text_fit = stats.text_scale_matching_count == stats.text_count
+        && stats.text_scale_max_error < 1e-6
+        && stats.text_aspect_max_error < 1e-6
+        && stats.text_origin_max_error < 1e-6
         && stats.text_center_aligned_count == 17
         && stats.text_left_top_aligned_count == 5;
+    let ok_per_project = stats.per_project_count == 1 && stats.per_project_aspect_error < 1e-6;
+    let ok_text_color = stats.text_color_mesh_count == stats.world_text_mesh_count
+        && stats.text_color_max_error < 1e-6;
     let ok_text_front =
         stats.text_front_matching_count == stats.text_count && stats.text_front_max_error < 1e-4;
     let ok_landscape = stats.landscape_seen
@@ -697,7 +745,7 @@ fn verdict_system(
     let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_fit={}/{} fit_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_scale={}/{} scale_error={:.6} aspect_error={:.6} origin_error={:.6} per_project={}/1 per_project_aspect_error={:.6} glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -705,9 +753,16 @@ fn verdict_system(
         stats.text_count,
         stats.world_text_mesh_count,
         stats.world_text_masked_count,
-        stats.text_fitted_count,
+        stats.text_scale_matching_count,
         stats.text_count,
-        stats.text_fit_max_error,
+        stats.text_scale_max_error,
+        stats.text_aspect_max_error,
+        stats.text_origin_max_error,
+        stats.per_project_count,
+        stats.per_project_aspect_error,
+        stats.text_color_mesh_count,
+        stats.world_text_mesh_count,
+        stats.text_color_max_error,
         stats.text_center_aligned_count,
         stats.text_left_top_aligned_count,
         stats.text_front_matching_count,
@@ -762,6 +817,8 @@ fn verdict_system(
             && ok_glyph_text
             && ok_world_text
             && ok_text_fit
+            && ok_per_project
+            && ok_text_color
             && ok_text_front
             && ok_landscape
             && ok_sun
@@ -787,6 +844,8 @@ fn verdict_system(
         && ok_glyph_text
         && ok_world_text
         && ok_text_fit
+        && ok_per_project
+        && ok_text_color
         && ok_text_front
         && ok_landscape
         && ok_sun

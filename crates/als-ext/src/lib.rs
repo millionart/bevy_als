@@ -45,7 +45,7 @@ pub use playground::{
     PlaygroundManifestPath, PlaygroundMaterialApplied, PlaygroundMovingCurve,
     PlaygroundMaterialRole, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,
     PlaygroundRotator, PlaygroundSky, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextFacing,
-    PlaygroundTextFit, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
+    PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
     PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
 };
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
