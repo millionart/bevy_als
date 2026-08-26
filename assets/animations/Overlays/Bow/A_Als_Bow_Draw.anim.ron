@@ -3,5 +3,5 @@
         path: "animations/Overlays/Bow/A_Als_Bow_Draw.gltf",
         animation_name: "A_Als_Bow_Draw_0",
     ),
-    skeleton: "skeletons/SKM_Als.skn.ron",
+    skeleton: "skeletons/SKM_Als_Bow.skn.ron",
 )

@@ -62,6 +62,10 @@ class PropReader:
     # --------------------------------------------------------------- reading
 
     def read_export(self, index, want=None):
+        props, _offset, ok, error = self.read_export_with_offset(index, want)
+        return props, ok, error
+
+    def read_export_with_offset(self, index, want=None):
         exp = self.a.exports[index]
         start = exp.serial_offset
         end = start + exp.serial_size
@@ -74,9 +78,9 @@ class PropReader:
             except (Skip, ParseError, IndexError, struct.error) as exc:
                 ok, err = False, "%s: %s" % (type(exc).__name__, exc)
             if ok:
-                return props, True, None
+                return props, r.pos, True, None
             if best is None:
-                best = (props, ok, err)
+                best = (props, r.pos, ok, err)
         return best
 
     def _skip_extra(self, r, flags):
@@ -215,6 +219,7 @@ class PropReader:
             "Vector": lambda: {k: d3() for k in ("x", "y", "z")},
             "Vector3f": lambda: {k: f3() for k in ("x", "y", "z")},
             "Vector2D": lambda: {"x": f3(), "y": f3()},
+            "Guid": lambda: "%08X-%08X-%08X-%08X" % (r.u32(), r.u32(), r.u32(), r.u32()),
             "Quat": lambda: {k: d3() for k in ("x", "y", "z", "w")},
             "Rotator": lambda: {
                 "pitch": d3(),

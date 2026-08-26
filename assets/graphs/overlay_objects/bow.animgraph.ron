@@ -1,0 +1,41 @@
+(
+    nodes: [
+        (
+            id: "b00a0000-0000-4000-8000-000000000001",
+            name: "bow draw evaluator",
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 1.0) },
+            should_debug: false,
+        ),
+        (
+            id: "b00a0000-0000-4000-8000-000000000002",
+            name: "bow draw clip",
+            inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Overlays/Bow/A_Als_Bow_Draw.anim.ron", override_duration: None, override_interpolation: None) },
+            should_debug: false,
+        ),
+    ],
+    edges_inverted: {
+        NodeData("b00a0000-0000-4000-8000-000000000001", "position"): InputData(Passthrough("pose_aiming")),
+        NodeData("b00a0000-0000-4000-8000-000000000001", "pose"): NodeData("b00a0000-0000-4000-8000-000000000002", "pose"),
+        NodeTime("b00a0000-0000-4000-8000-000000000001", "time"): NodeTime("b00a0000-0000-4000-8000-000000000002"),
+        OutputData("pose"): NodeData("b00a0000-0000-4000-8000-000000000001", "pose"),
+        OutputTime: NodeTime("b00a0000-0000-4000-8000-000000000001"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: { Passthrough("pose_aiming"): F32 },
+        output_time: true,
+        output_data: { "pose": Pose },
+        input_order: { Data(Passthrough("pose_aiming")): 0 },
+        output_order: { Data("pose"): 0, Time: 1 },
+    ),
+    default_data: { Passthrough("pose_aiming"): F32(0.0) },
+    editor_metadata: (
+        node_positions: {},
+        input_position: (0.0, 0.0),
+        output_position: (320.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

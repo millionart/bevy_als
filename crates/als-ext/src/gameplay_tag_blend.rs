@@ -8,7 +8,7 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
-const WEIGHT_THRESHOLD: f32 = 1e-6;
+pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
 
 pub const ACTIVE_INDEX: &str = "active_index";
 pub const UPSTREAM_TIME: &str = "upstream_time";
@@ -36,13 +36,77 @@ impl GameplayTagBlendMode {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct GameplayTagBlendState {
+pub(crate) struct GameplayTagBlendState {
     initialized: bool,
     last_active_index: i32,
     start_weights: Vec<f32>,
     weights: Vec<f32>,
     elapsed: f32,
     duration: f32,
+}
+
+pub(crate) fn select_gameplay_tag_child_index(tags: &[String], value: f32) -> usize {
+    if !value.is_finite() || value < 0.0 {
+        return 0;
+    }
+    let index = value.round() as usize;
+    if index <= tags.len() { index } else { 0 }
+}
+
+pub(crate) fn gameplay_tag_blend_time(blend_times: &[f32], index: usize) -> f32 {
+    blend_times.get(index).copied().unwrap_or_default().max(0.0)
+}
+
+pub(crate) fn advance_gameplay_tag_weights(
+    state: &mut GameplayTagBlendState,
+    child_count: usize,
+    active_index: usize,
+    blend_time: f32,
+    blend_mode: GameplayTagBlendMode,
+    delta_seconds: f32,
+) -> Vec<f32> {
+    if !state.initialized || state.weights.len() != child_count {
+        state.initialized = true;
+        state.last_active_index = -1;
+        state.start_weights = vec![0.0; child_count];
+        state.weights = vec![0.0; child_count];
+        state.weights[0] = 1.0;
+        state.start_weights.clone_from(&state.weights);
+        state.elapsed = 0.0;
+        state.duration = 0.0;
+    }
+
+    if state.last_active_index != active_index as i32 {
+        let current_weight = state.weights[active_index];
+        state.start_weights.clone_from(&state.weights);
+        state.elapsed = 0.0;
+        state.duration = if state.last_active_index < 0 {
+            0.0
+        } else {
+            blend_time * (1.0 - current_weight).abs().clamp(0.0, 1.0)
+        };
+        state.last_active_index = active_index as i32;
+    }
+
+    if state.duration <= WEIGHT_THRESHOLD {
+        state.weights.fill(0.0);
+        state.weights[active_index] = 1.0;
+    } else {
+        state.elapsed = (state.elapsed + delta_seconds.max(0.0)).min(state.duration);
+        let alpha = blend_mode.apply(state.elapsed / state.duration);
+        for (index, weight) in state.weights.iter_mut().enumerate() {
+            let target = if index == active_index { 1.0 } else { 0.0 };
+            *weight = state.start_weights[index] + (target - state.start_weights[index]) * alpha;
+        }
+        let sum = state.weights.iter().sum::<f32>();
+        if sum > WEIGHT_THRESHOLD && (sum - 1.0).abs() > WEIGHT_THRESHOLD {
+            for weight in &mut state.weights {
+                *weight /= sum;
+            }
+        }
+    }
+
+    state.weights.clone()
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -72,19 +136,11 @@ impl GameplayTagBlendNode {
     }
 
     fn select_child_index(&self, value: f32) -> usize {
-        if !value.is_finite() || value < 0.0 {
-            return 0;
-        }
-        let index = value.round() as usize;
-        if index < self.child_count() { index } else { 0 }
+        select_gameplay_tag_child_index(&self.tags, value)
     }
 
     fn blend_time(&self, index: usize) -> f32 {
-        self.blend_times
-            .get(index)
-            .copied()
-            .unwrap_or_default()
-            .max(0.0)
+        gameplay_tag_blend_time(&self.blend_times, index)
     }
 
     fn advance_weights(
@@ -95,49 +151,14 @@ impl GameplayTagBlendNode {
         blend_mode: GameplayTagBlendMode,
         delta_seconds: f32,
     ) -> Vec<f32> {
-        if !state.initialized || state.weights.len() != child_count {
-            state.initialized = true;
-            state.last_active_index = -1;
-            state.start_weights = vec![0.0; child_count];
-            state.weights = vec![0.0; child_count];
-            state.weights[0] = 1.0;
-            state.start_weights.clone_from(&state.weights);
-            state.elapsed = 0.0;
-            state.duration = 0.0;
-        }
-
-        if state.last_active_index != active_index as i32 {
-            let current_weight = state.weights[active_index];
-            state.start_weights.clone_from(&state.weights);
-            state.elapsed = 0.0;
-            state.duration = if state.last_active_index < 0 {
-                0.0
-            } else {
-                blend_time * (1.0 - current_weight).abs().clamp(0.0, 1.0)
-            };
-            state.last_active_index = active_index as i32;
-        }
-
-        if state.duration <= WEIGHT_THRESHOLD {
-            state.weights.fill(0.0);
-            state.weights[active_index] = 1.0;
-        } else {
-            state.elapsed = (state.elapsed + delta_seconds.max(0.0)).min(state.duration);
-            let alpha = blend_mode.apply(state.elapsed / state.duration);
-            for (index, weight) in state.weights.iter_mut().enumerate() {
-                let target = if index == active_index { 1.0 } else { 0.0 };
-                *weight =
-                    state.start_weights[index] + (target - state.start_weights[index]) * alpha;
-            }
-            let sum = state.weights.iter().sum::<f32>();
-            if sum > WEIGHT_THRESHOLD && (sum - 1.0).abs() > WEIGHT_THRESHOLD {
-                for weight in &mut state.weights {
-                    *weight /= sum;
-                }
-            }
-        }
-
-        state.weights.clone()
+        advance_gameplay_tag_weights(
+            state,
+            child_count,
+            active_index,
+            blend_time,
+            blend_mode,
+            delta_seconds,
+        )
     }
 }
 
@@ -175,7 +196,6 @@ impl NodeLike for GameplayTagBlendNode {
                 delta_seconds,
             )
         };
-
         if self.forward_time {
             ctx.set_time_update_back(UPSTREAM_TIME, time_update.clone());
         }
