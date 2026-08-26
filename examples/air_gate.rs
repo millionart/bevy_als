@@ -48,6 +48,7 @@ fn main() {
         AnimationGraphPlugin::default(),
         AlsExtPlugin,
     ))
+    .add_plugins(bevy_als::air_jump_layer::AirJumpLayerPlugin)
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
     .init_resource::<GateVerdict>()
@@ -94,6 +95,8 @@ struct GateVerdict {
     heavy_seen: bool,
     peak_fall_fast: f32,
     airborne_seen: bool,
+    jump_variant_pins_seen: bool,
+    jump_run_selected_at_speed: bool,
     failed: bool,
 }
 
@@ -193,14 +196,25 @@ fn auto_demo(
     let t = time.elapsed_secs_f64();
     if t >= TOTAL_SECS {
         driver.done = true;
-        if verdict.failed || !verdict.light_seen || !verdict.heavy_seen {
+        if verdict.failed
+            || !verdict.light_seen
+            || !verdict.heavy_seen
+            || !verdict.jump_variant_pins_seen
+            || !verdict.jump_run_selected_at_speed
+        {
             error!(
-                "[M8GATE][VERDICT] overall FAIL light={} heavy={} peak_ff={:.2}",
-                verdict.light_seen, verdict.heavy_seen, verdict.peak_fall_fast
+                "[M8GATE][VERDICT] overall FAIL light={} heavy={} peak_ff={:.2} var_pins={} run_sel={}",
+                verdict.light_seen,
+                verdict.heavy_seen,
+                verdict.peak_fall_fast,
+                verdict.jump_variant_pins_seen,
+                verdict.jump_run_selected_at_speed
             );
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         } else {
-            info!("[M8GATE][VERDICT] overall PASS");
+            info!(
+                "[M8GATE][VERDICT] overall PASS light=true heavy=true var_pins=true run_sel=true"
+            );
             exit.write(AppExit::Success);
         }
         return;
@@ -318,6 +332,7 @@ fn metrics_logger(
     mut verdict: ResMut<GateVerdict>,
     mut q: Query<
         (
+            Entity,
             &Transform,
             &LinearVelocity,
             &LocomotionState,
@@ -326,6 +341,8 @@ fn metrics_logger(
         ),
         With<AlsCharacter>,
     >,
+    avatars: Query<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>,
+    players: Query<&AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let t = time.elapsed_secs_f64();
@@ -334,9 +351,12 @@ fn metrics_logger(
     }
     *last = t as f32;
 
-    let Ok((tf, vel, loco, gait, air)) = q.single_mut() else {
+    let Ok((_char_entity, tf, vel, loco, gait, air)) = q.single_mut() else {
         return;
     };
+    let instance = avatars
+        .iter()
+        .find(|i| i.player_entity() != Entity::PLACEHOLDER && players.contains(i.player_entity()));
 
     if matches!(air.phase, AirPhase::Airborne) {
         verdict.airborne_seen = true;
@@ -352,6 +372,30 @@ fn metrics_logger(
             "[M8GATE][LAND] heavy variant active w={:.2}/{:.2}",
             air.land_weight, air.land_heavy_weight
         );
+    }
+    let pin_check = instance.and_then(|i| players.get(i.player_entity()).ok());
+    if let Some(player) = pin_check {
+        let run_w = match player.get_input_data("jump_run_weight".into()) {
+            Some(bevy_animation_graph::core::edge_data::DataValue::F32(v)) => v,
+            _ => f32::NAN,
+        };
+        let left_w = match player.get_input_data("jump_left_weight".into()) {
+            Some(bevy_animation_graph::core::edge_data::DataValue::F32(v)) => v,
+            _ => f32::NAN,
+        };
+        if !run_w.is_nan() && !left_w.is_nan() && matches!(air.phase, AirPhase::Airborne) {
+            verdict.jump_variant_pins_seen = true;
+            let hspeed = Vec2::new(vel.x, vel.z).length();
+            if hspeed > als_core::air_jump::JUMP_WALK_RUN_SPEED_SPLIT && run_w > 0.5 {
+                verdict.jump_run_selected_at_speed = true;
+                info!(
+                    "[M8GATE][JUMP] run start selected at hspd={hspeed:.2} run_w={run_w:.1} left_w={left_w:.1}"
+                );
+            } else if hspeed <= als_core::air_jump::JUMP_WALK_RUN_SPEED_SPLIT {
+                verdict.jump_run_selected_at_speed =
+                    verdict.jump_run_selected_at_speed || (run_w < 0.5);
+            }
+        }
     }
 
     info!(

@@ -2,6 +2,7 @@
 
 pub mod aim;
 pub mod air;
+pub mod air_jump;
 pub mod bones;
 pub mod character;
 pub mod control_scheme;
