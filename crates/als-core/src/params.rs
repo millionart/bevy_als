@@ -63,6 +63,9 @@ pub struct StanceGaitSpeeds {
     pub max_walk_speed: f32,
     pub max_run_speed: f32,
     pub max_sprint_speed: f32,
+    pub animated_walk_speed: f32,
+    pub animated_run_speed: f32,
+    pub animated_sprint_speed: f32,
 }
 
 impl Default for StanceGaitSpeeds {
@@ -71,6 +74,9 @@ impl Default for StanceGaitSpeeds {
             max_walk_speed: 175.0 * UE_CM_TO_M,
             max_run_speed: 375.0 * UE_CM_TO_M,
             max_sprint_speed: 650.0 * UE_CM_TO_M,
+            animated_walk_speed: 150.0 * UE_CM_TO_M,
+            animated_run_speed: 350.0 * UE_CM_TO_M,
+            animated_sprint_speed: 600.0 * UE_CM_TO_M,
         }
     }
 }
@@ -85,6 +91,15 @@ impl StanceGaitSpeeds {
         }
         if let Some(v) = ovr.max_sprint_speed {
             self.max_sprint_speed = v;
+        }
+        if let Some(v) = ovr.animated_walk_speed {
+            self.animated_walk_speed = v;
+        }
+        if let Some(v) = ovr.animated_run_speed {
+            self.animated_run_speed = v;
+        }
+        if let Some(v) = ovr.animated_sprint_speed {
+            self.animated_sprint_speed = v;
         }
     }
 }
@@ -390,6 +405,9 @@ pub struct StanceGaitSpeedsOverride {
     pub max_walk_speed: Option<f32>,
     pub max_run_speed: Option<f32>,
     pub max_sprint_speed: Option<f32>,
+    pub animated_walk_speed: Option<f32>,
+    pub animated_run_speed: Option<f32>,
+    pub animated_sprint_speed: Option<f32>,
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]

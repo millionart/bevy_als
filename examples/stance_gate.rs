@@ -61,6 +61,7 @@ fn main() {
         AnimProbePlugin,
         AvatarGroundCompensationPlugin,
     ))
+    .add_plugins(bevy_als::gait_layer::GaitLayerPlugin)
     .init_resource::<SpawnOnce>()
     .init_resource::<GateVerdict>()
     .init_resource::<ShotPlan>()
@@ -209,6 +210,9 @@ fn direction_probe_driver(
         player.set_input_data("play_rate", DataValue::from(1.0f32));
         player.set_input_data("stance_weight", DataValue::from(0.0f32));
         player.set_input_data("direction_angle", DataValue::from(dir));
+        player.set_input_data("gait_move_weight", DataValue::from(1.0f32));
+        player.set_input_data("gait_run_weight", DataValue::from(0.0f32));
+        player.set_input_data("gait_sprint_weight", DataValue::from(0.0f32));
         let _ = entity;
     }
 }

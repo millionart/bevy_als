@@ -54,6 +54,7 @@ fn main() {
         TnuaAvian3dPlugin::new(FixedUpdate),
         TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
         AvatarGroundCompensationPlugin,
+        bevy_als::gait_layer::GaitLayerPlugin,
         EnhancedInputPlugin,
         AlsInputPlugin,
         AlsInputRequestPlugin,
@@ -297,6 +298,7 @@ fn graph_router(
         With<AlsCharacter>,
     >,
     instances: Query<&AnimatedSceneInstance>,
+    blends: Query<&bevy_als::gait_layer::AlsGaitBlend>,
     mut players: Query<&mut AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
@@ -307,10 +309,20 @@ fn graph_router(
         return;
     };
     let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
     let air_state = air.copied().unwrap_or(AlsAirState::default());
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
+            let mgi = match blends.get(instance.player_entity()) {
+                Ok(b) => bevy_als::motion_graph_link::compute_motion_graph_inputs_blended(
+                    p,
+                    *stance,
+                    *gait,
+                    hspeed,
+                    b.speed_ema,
+                    b.weights,
+                ),
+                Err(_) => compute_motion_graph_inputs(p, *stance, *gait, hspeed),
+            };
             write_motion_graph_pins(&mut player, &mgi);
             write_air_pins(&mut player, &air_state);
         }
