@@ -19,6 +19,7 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
+use als_ext::overlay_materials::OverlayMaterialsPlugin;
 
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
@@ -51,6 +52,7 @@ fn main() {
         AlsMantleDrivePlugin,
         AnimationGraphPlugin::default(),
         AlsExtPlugin,
+        OverlayMaterialsPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -193,6 +195,7 @@ fn spawn_character_once(
     let character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
+        &mut materials,
         &mut params_assets,
         &mut config_assets,
         bevy_als::character_assembly::AlsCharacterBlueprint::new(

@@ -104,6 +104,25 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
     - Gate 记录（2026-08-27）：`cargo test -p als-ext --lib --jobs 3` 为 59/59 passed；`RUST_LOG=info cargo run --jobs 3 --example scene_gate` 实际日志为 `landscape=true identity=true tiles=4/4 tile_tiling_error=0.000000 tile_color_error=0.000000 tile_mips=12/12 ... sun=1/shadow=true lux_error=0.000000 ... translucent=1 translucent_no_shadow=1 ... rock_scale=1/1 ... brush=0 -> PASS`。临时截图 `bevy-scene-landscape-tiles.png` 仅作人工复核，不作为 Gate 结论。
     - 冒烟记录（2026-08-27）：`ALS_BOOT_AUTO_QUIT_SECS=8 RUST_LOG=info cargo run --jobs 3 --example manual_playground` 实际加载 `grid=true normal=true occlusion=true`、地形碰撞 `verts=16384 triangles=31752` 后正常退出，无 ERROR/WARN。
 
+## BF-Scene-2026-08-27（动态底座、角色材质、文字与投影返修）
+
+> 依据：用户 2026-08-27 实机报告。按依赖顺序执行，所有表现/行为修改均先取 ALS-Refactored 同次事实；每项完成后自测、勾选并单独提交。
+>
+> 本次实时事实（2026-08-27，UE 5.8.1 编辑器 MCP + 蓝图 DSL + ALS 插件源码）：`MI_Als_Character` 的 parent 是 `M_Als_Main`，其唯一覆盖参数 `Color=(0.2,0.2,1,1)`（linear）；`SKM_Als` 的 15 个实际材质槽均使用此实例。`BP_SimpleMovingObject` 的 `MovementSpline` 为 `(0,0,0)→(0,0,275)` cm，`MovementDuration=1.25`；`BP_SimpleMovingObject2` 为 `(0,0,0)→(-650,0,0)` cm，`MovementDuration=1.75`。蓝图每 Tick 以 `(ServerWorldTime+FirstPlayerPing)/SplineDuration` 取模、按奇偶反向、经过 `CF_Als_MovingObject` 再 `GetLocationAtTime`，并以 Sweep=true 调用 `SetWorldLocation`。两个实例均为 `M_Als_Tiles`、TopColorA/B=(0.18,0.6,0.9,1)、SideColorA/B=(1,1,1,1)、Tiling=1；`BP_SimpleRotatingObject_2` 为 `RotationSpeed=(0,100,0)`、TopColorA/B=(0.25,0.25,1,1)、SideColorA/B 白、Tiling=1，每 Tick `SetRelativeRotation(RotationSpeed*(ServerWorldTime+Ping))`。`M_Als_Tiles` 使用 `UV0*Tiling*2`。ALS `AlsCharacterMovementComponent` 将站立物作为 movement base；`AlsCharacter.cpp` 与 `AlsAnimationInstance.cpp` 分别保存 relative location 和 relative rotation，且角色设置默认不继承底座旋转。现有 `CF_Als_MovingObject.json` 是 129 点真实曲线数据。
+
+- [x] BF-Scene-P1 迁移 `MI_Als_Character` 并赋予角色：以可复用 Bevy 材质等价物复刻 linear 蓝色 `Color` 参数，并保证 `spawn_als_character` 装配的 15 个 SKM_Als 槽均使用它。验收：运行时探针断言角色网格 15/15 槽已换为该材质、线性色误差为零；manual 冒烟无材质加载/渲染警告。
+  - 实现与自测证据（2026-08-27）：`character_assembly::make_als_character_material` 使用线性 `(0.2,0.2,1,1)` 与默认粗糙度 0.5；`spawn_als_character` 统一经 `attach_als_character_avatar` 给全部 15 个槽传同一实例。`AvatarMaterialOverride` 改为等候异步场景网格可用后再绑定并记录 `AvatarMaterialApplied`，不再因加载时序漏绑。`cargo test --lib --jobs 2` 22/22 passed（含线性色与槽数单测）；`ALS_BOOT_AUTO_QUIT_SECS=8 RUST_LOG=info cargo run --jobs 2 --example manual_playground` 实际日志为 `[CHARMAT][VERDICT] slots=15/15 color_error=0.000000 -> PASS`，自动退出且无材质加载/渲染警告。
+
+- [ ] BF-Scene-P2 精确移植三个动态物体的路径、曲线、材质和 Tiles tiling：场景清单保留每个样条端点、Duration、旋转速度、Top/Side 色与 Tiling；移动体 1 只沿 UE Z 上下移动，移动体 2 只沿 UE X 往返，旋转体按 UE yaw 旋转；所有源为 `M_Als_Tiles` 的实例按自身 Tiling 绑定，不得统一硬编码。验收：无渲染依赖的数学/运行时探针逐值比较端点、时刻采样、色值和 tiling；scene_gate 验证三者实际 Tiles 绑定。
+
+- [ ] BF-Scene-P3 动态底座物理与角色跟随：移动体采用能与 avian 角色正确交互的运动碰撞体，角色在其上时保持相对位置；在旋转体上保持相对平台的位置但保持世界朝向；移动体 2 与墙挤压时禁止把角色推出世界或掉入虚空，并按 UE Sweep 的碰撞结果保留可复查的安全状态。验收：新增确定性平台 gate，日志断言平移/旋转相对误差、世界朝向误差、挤压安全边界和无 NaN/越界；manual 冒烟无物理警告。
+
+- [ ] BF-Scene-P4 世界文字的比例与颜色对标：从每个 UE `TextRenderComponent` 实时复核色值、WorldSize、字体间距与材质颜色空间，修复 `PER PROJECT` 的纵向拉伸，并让全部 22 个场景文字使用准确颜色。验收：文字网格纵横比例/每字色值探针逐项 PASS，`PER PROJECT` 单独检测无 Y 轴拉伸；人工截图仅作复核，不替代日志 Gate。
+
+- [ ] BF-Scene-P5 阴影接触修复：从 UE `DirectionalLight`、材质 shadow/cull 设置和 Bevy 运行阴影参数提取实际偏差来源，修正造成悬浮错觉的 shadow bias/投影配置，同时保持既有主光方向、动态投影与 Cube8 不投影约束。验收：运行时接触阴影探针记录接触偏移在阈值内，scene_gate 保留光线方向/投影状态断言，manual 冒烟无渲染警告。
+
+- [ ] BF-Scene-P6 本节 Gate：P1–P5 完成后重跑新增平台 gate、scene_gate、相关单元测试及 manual 冒烟；将实际命令与 `VERDICT PASS` 摘要写入本项和提交说明。Gate 未通过不得宣称本节完成。
+
 - [ ] BF99 日志级行为对标（原 BF7，2026-08-25 用户指令改名并移序至 BF8 之后；BF1–BF8 与 BF6b 的行为级总验收门）：双侧同脚本插桩 → 同操作流程运行 → 逐帧指标对比 → 差异回修闭环，保证用户可见可操作行为与 ALS-Refactored 一致。
     - ①ALS 侧插桩：修改本地 ALS-Refactored 插件源码（改动落在其自身 git 仓库独立小步提交；CVar 门控默认关闭零侵入）：trace recorder 每 tick 写 CSV——t/frame、actor pos(cm)/vel(cm/s)、facing yaw/pitch、controller view yaw、五状态 tags+LocomotionAction、动作态（mantle/roll/air active）、双脚踝+pelvis 世界位置（IK 后）、capsule 半高/半径、相机 pos/yaw/pitch；script driver 按共享时间线文件程序化调用 Input_On* 处理函数（与人工操作同一入口，含 Hold/Tap 语义）。
     - ②bevy 侧等价 recorder：`examples/trace_parity.rs` + `bevy_als::trace_recorder`——列名/单位规范一致（坐标按既有映射 gltf=(ue.x,ue.z,ue.y)·0.01 反算为 UE cm 帧；yaw 统一定义为水平面朝向量相对 UE +X 的带符号角），消费同一时间线驱动 AlsInputOverride。

@@ -24,7 +24,9 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{AlsViewPitch, clamp_pitch};
-use als_ext::overlay_materials::OverlayMaterialsPlugin;
+use als_ext::overlay_materials::{
+    AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
+};
 use als_ext::playground::PlaygroundLandscape;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
@@ -87,6 +89,7 @@ fn main() {
         AlsCameraPlugin,
     ))
     .init_resource::<SpawnOnce>()
+    .init_resource::<CharacterMaterialProbe>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -96,6 +99,7 @@ fn main() {
         Update,
         (
             spawn_character_once,
+            character_material_probe,
             playground_physics_bridge,
             landscape_collider_bridge,
             graph_router,
@@ -110,6 +114,9 @@ fn main() {
 
 #[derive(Resource, Default)]
 struct SpawnOnce(bool);
+
+#[derive(Resource, Default)]
+struct CharacterMaterialProbe(bool);
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
@@ -284,6 +291,7 @@ fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
     spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
@@ -301,6 +309,7 @@ fn spawn_character_once(
     let _character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
+        &mut materials,
         &mut params_assets,
         &mut config_assets,
         bevy_als::character_assembly::AlsCharacterBlueprint {
@@ -311,6 +320,50 @@ fn spawn_character_once(
             )
         },
     );
+}
+
+fn character_material_probe(
+    mut probe: ResMut<CharacterMaterialProbe>,
+    avatars: Query<(&AvatarMaterialOverride, &AvatarMaterialApplied)>,
+    materials: Res<Assets<StandardMaterial>>,
+) {
+    if probe.0 {
+        return;
+    }
+    let Ok((override_comp, applied)) = avatars.single() else {
+        return;
+    };
+    let Some(handle) = override_comp.0.first() else {
+        error!("[CHARMAT][VERDICT] missing material handles -> FAIL");
+        probe.0 = true;
+        return;
+    };
+    let Some(material) = materials.get(handle) else {
+        return;
+    };
+    let color = material.base_color.to_linear();
+    let expected = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_LINEAR_RGB;
+    let color_error = (color.red - expected[0])
+        .abs()
+        .max((color.green - expected[1]).abs())
+        .max((color.blue - expected[2]).abs())
+        .max((color.alpha - 1.0).abs());
+    let expected_slots = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_SLOT_COUNT;
+    let passed = applied.slots as usize == expected_slots
+        && override_comp.0.len() == expected_slots
+        && color_error < 1e-6;
+    if passed {
+        info!(
+            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} -> PASS",
+            applied.slots, expected_slots
+        );
+    } else {
+        error!(
+            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} -> FAIL",
+            applied.slots, expected_slots
+        );
+    }
+    probe.0 = true;
 }
 
 fn playground_physics_bridge(

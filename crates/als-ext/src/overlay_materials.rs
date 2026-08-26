@@ -62,13 +62,25 @@ fn load_overlay_materials(mut commands: Commands, mut materials: ResMut<Assets<S
 #[derive(Component)]
 pub struct AvatarMaterialOverride(pub Vec<Handle<StandardMaterial>>);
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct AvatarMaterialApplied {
+    pub slots: u32,
+}
+
 fn avatar_material_bridge(
     mut commands: Commands,
-    avatars: Query<(Entity, &AvatarMaterialOverride), Added<AvatarMaterialOverride>>,
+    avatars: Query<(
+        Entity,
+        &AvatarMaterialOverride,
+        Option<&AvatarMaterialApplied>,
+    )>,
     children: Query<&Children>,
     mesh_materials: Query<(), With<Mesh3d>>,
 ) {
-    for (root, override_comp) in &avatars {
+    for (root, override_comp, applied) in &avatars {
+        if applied.is_some() {
+            continue;
+        }
         let mut stack = vec![root];
         let mut replaced = 0u32;
         let mut slot = 0usize;
@@ -89,6 +101,9 @@ fn avatar_material_bridge(
             }
         }
         if replaced > 0 {
+            commands
+                .entity(root)
+                .insert(AvatarMaterialApplied { slots: replaced });
             info!("[OVMAT] avatar root={:?} replaced={} slots", root, replaced);
         }
     }
@@ -102,10 +117,7 @@ pub struct OverlayPropMaterials(pub Vec<Handle<StandardMaterial>>);
 
 fn overlay_prop_material_bridge(
     mut commands: Commands,
-    props: Query<
-        (Entity, &OverlayPropMaterials, &Children),
-        Added<OverlayPropMaterials>,
-    >,
+    props: Query<(Entity, &OverlayPropMaterials, &Children), Added<OverlayPropMaterials>>,
     mesh_entities: Query<Entity, With<Mesh3d>>,
 ) {
     for (root, mats, children) in &props {
