@@ -65,11 +65,12 @@ sd = [
     round(math.sin(pr), 4),
     round(math.cos(yr) * math.cos(pr), 4),
 ]
-intensity = round(light_data.get("intensity", 3.0) * 10000.0, 1)
+intensity = round(float(light_data.get("intensity", 10.0)), 1)
 
 lighting_line = (
     "lighting: Some((sun_direction: Some([%s, %s, %s]), "
-    "sun_intensity: Some(%s), ambient_brightness: Some(400.0))),"
+    "sun_intensity: Some(%s), ambient_brightness: Some(2.0), "
+    "camera_exposure_ev100: Some(2.0), camera_contrast: Some(1.05))),"
     % (sd[0], sd[1], sd[2], intensity)
 )
 

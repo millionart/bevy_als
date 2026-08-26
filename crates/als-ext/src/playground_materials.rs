@@ -56,6 +56,9 @@ fn repeating_sampler_descriptor() -> ImageSamplerDescriptor {
     ImageSamplerDescriptor {
         address_mode_u: bevy::image::ImageAddressMode::Repeat,
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
+        mag_filter: bevy::image::ImageFilterMode::Linear,
+        min_filter: bevy::image::ImageFilterMode::Linear,
+        mipmap_filter: bevy::image::ImageFilterMode::Linear,
         ..Default::default()
     }
 }
@@ -172,5 +175,13 @@ mod tests {
         let mut pixels = vec![3, 17, 29, 255, 41, 53, 67, 255];
         copy_green_to_red(&mut pixels);
         assert_eq!(pixels, vec![17, 17, 29, 255, 53, 53, 67, 255]);
+    }
+
+    #[test]
+    fn repeating_sampler_is_trilinear() {
+        let sampler = repeating_sampler_descriptor();
+        assert_eq!(sampler.mag_filter, bevy::image::ImageFilterMode::Linear);
+        assert_eq!(sampler.min_filter, bevy::image::ImageFilterMode::Linear);
+        assert_eq!(sampler.mipmap_filter, bevy::image::ImageFilterMode::Linear);
     }
 }

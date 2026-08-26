@@ -88,7 +88,7 @@ fn main() {
     ))
     .init_resource::<SpawnOnce>()
     .insert_resource(GlobalAmbientLight {
-        brightness: 400.0,
+        brightness: 2.0,
         ..default()
     })
     .add_systems(Startup, arm_auto_quit)

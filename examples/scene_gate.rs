@@ -1,8 +1,12 @@
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
-use bevy::light::CascadeShadowConfig;
+use bevy::camera::Exposure;
+use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::image::Image;
+use bevy::light::{CascadeShadowConfig, NotShadowCaster};
 use bevy::prelude::*;
+use bevy::render::view::ColorGrading;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::text::TextLayoutInfo;
 use bevy_animation_graph::AnimationGraphPlugin;
@@ -10,10 +14,17 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 
 use als_ext::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMaterial};
 use als_ext::{
-    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundMaterialApplied,
-    PlaygroundMaterialRole, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextLabel,
-    PlaygroundWorldTextMesh,
+    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape,
+    PlaygroundLandscapeTilesMaterial, PlaygroundMaterialApplied, PlaygroundMaterialRole,
+    PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing, PlaygroundTextFit,
+    PlaygroundTextHorizontalAlignment, PlaygroundTextLabel, PlaygroundTextLayoutTarget,
+    PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
 };
+
+const PLAYGROUND_CAMERA_EV100: f32 = 2.0;
+const PLAYGROUND_CAMERA_CONTRAST: f32 = 1.05;
+const LANDSCAPE_TILES_TILING: f32 = 0.08;
+const LANDSCAPE_TILES_COLOR: Vec4 = Vec4::new(0.25, 0.5, 0.125, 1.0);
 
 fn main() {
     let mut app = App::new();
@@ -32,7 +43,7 @@ fn main() {
     ))
     .init_resource::<SceneStats>()
     .insert_resource(GlobalAmbientLight {
-        brightness: 400.0,
+        brightness: 2.0,
         ..default()
     })
     .add_systems(Startup, (spawn_camera, arm_schedule))
@@ -40,11 +51,13 @@ fn main() {
         Update,
         (
             stats_collector,
+            landscape_material_stats_collector,
             kinematic_probe,
             verdict_system,
             screenshot_runner,
             auto_quit,
-        ),
+        )
+            .chain(),
     );
 
     app.run();
@@ -58,15 +71,31 @@ struct SceneStats {
     glyph_text_count: u32,
     world_text_mesh_count: u32,
     world_text_masked_count: u32,
+    text_fitted_count: u32,
+    text_fit_max_error: f32,
+    text_center_aligned_count: u32,
+    text_left_top_aligned_count: u32,
+    text_front_matching_count: u32,
+    text_front_max_error: f32,
     landscape_seen: bool,
     landscape_identity: bool,
+    landscape_tiles_material_count: u32,
+    landscape_tiles_tiling_error: f32,
+    landscape_tiles_color_error: f32,
+    landscape_tiles_mip_count: u32,
     sun_count: u32,
     sun_shadowed: bool,
     sun_ray_error: f32,
+    sun_illuminance_error: f32,
+    camera_exposure_count: u32,
+    camera_exposure_error: f32,
+    camera_contrast_error: f32,
+    camera_aces_count: u32,
     sky_count: u32,
     main_material_count: u32,
     tiles_material_count: u32,
     translucent_material_count: u32,
+    translucent_no_shadow_count: u32,
     extended_material_bound_count: u32,
     tiles_pbr_material_count: u32,
     translucent_pbr_material_count: u32,
@@ -76,6 +105,9 @@ struct SceneStats {
     cube_orientation_total: u32,
     cube_orientation_matching: u32,
     cube_orientation_max_error: f32,
+    rock_scale_count: u32,
+    rock_scale_error: f32,
+    brush_count: u32,
     mover_prev: Vec<Vec3>,
     verdict_done: bool,
 }
@@ -118,8 +150,7 @@ fn map_ue_direction(v: Vec3) -> Vec3 {
 fn spawn_camera(mut commands: Commands) {
     let text_camera = std::env::var("ALS_SCENE_CAMERA").ok().as_deref() == Some("text");
     let transform = if text_camera {
-        Transform::from_xyz(3.33, 8.78, -42.0)
-            .looking_at(Vec3::new(3.33, 8.78, -46.24), Vec3::NEG_Y)
+        Transform::from_xyz(3.33, 8.78, -42.0).looking_at(Vec3::new(3.33, 8.78, -46.24), Vec3::Y)
     } else {
         Transform::from_xyz(-35.0, 45.0, -60.0).looking_at(Vec3::new(-10.0, 0.0, -20.0), Vec3::Y)
     };
@@ -150,12 +181,22 @@ fn stats_collector(
     statics: Query<(), With<PlaygroundStatic>>,
     texts: Query<(), With<PlaygroundTextLabel>>,
     native_texts: Query<(), (With<PlaygroundTextLabel>, With<Text2d>, With<Transform>)>,
-    text_layouts: Query<&TextLayoutInfo, (With<PlaygroundTextLabel>, With<Text2d>)>,
+    text_layouts: Query<&TextLayoutInfo, With<PlaygroundTextLabel>>,
+    text_fits: Query<
+        (
+            &PlaygroundTextFit,
+            &PlaygroundTextLayoutTarget,
+            &Transform,
+            &PlaygroundTextFacing,
+        ),
+        With<PlaygroundTextLabel>,
+    >,
     world_text_meshes: Query<&MeshMaterial3d<StandardMaterial>, With<PlaygroundWorldTextMesh>>,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
     sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig, &Transform)>,
+    cameras: Query<(&Exposure, &ColorGrading, &Tonemapping), With<Camera3d>>,
     skies: Query<(), With<PlaygroundSky>>,
-    material_roles: Query<&PlaygroundMaterialApplied>,
+    material_roles: Query<(&PlaygroundMaterialApplied, Has<NotShadowCaster>), With<Mesh3d>>,
     extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
     cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
     materials: Res<Assets<StandardMaterial>>,
@@ -179,6 +220,35 @@ fn stats_collector(
             })
         })
         .count() as u32;
+    stats.text_fitted_count = 0;
+    stats.text_fit_max_error = 0.0;
+    stats.text_center_aligned_count = 0;
+    stats.text_left_top_aligned_count = 0;
+    stats.text_front_matching_count = 0;
+    stats.text_front_max_error = 0.0;
+    for (fit, target, transform, facing) in &text_fits {
+        let error = fit.width_error.max(fit.height_error).max(fit.center_error);
+        stats.text_fit_max_error = stats.text_fit_max_error.max(error);
+        if error < 1e-4 {
+            stats.text_fitted_count += 1;
+        }
+        if target.horizontal == PlaygroundTextHorizontalAlignment::Center {
+            stats.text_center_aligned_count += 1;
+        }
+        if target.horizontal == PlaygroundTextHorizontalAlignment::Left
+            && target.vertical == PlaygroundTextVerticalAlignment::Top
+        {
+            stats.text_left_top_aligned_count += 1;
+        }
+        let error = transform
+            .rotation
+            .mul_vec3(Vec3::Z)
+            .distance(facing.expected_front);
+        stats.text_front_max_error = stats.text_front_max_error.max(error);
+        if error < 1e-4 {
+            stats.text_front_matching_count += 1;
+        }
+    }
     if let Ok(transform) = landscapes.single() {
         stats.landscape_seen = true;
         stats.landscape_identity = transform.translation.length_squared() < 1e-6
@@ -204,18 +274,46 @@ fn stats_collector(
                 .distance(expected_sun_ray)
         })
         .fold(f32::INFINITY, f32::min);
+    stats.sun_illuminance_error = sun_lights
+        .iter()
+        .map(|(light, _, _)| (light.illuminance - 10.0).abs())
+        .fold(f32::INFINITY, f32::min);
+    stats.camera_exposure_count = cameras.iter().count() as u32;
+    stats.camera_exposure_error = cameras
+        .iter()
+        .map(|(exposure, _, _)| (exposure.ev100 - PLAYGROUND_CAMERA_EV100).abs())
+        .fold(f32::INFINITY, f32::min);
+    stats.camera_contrast_error = cameras
+        .iter()
+        .map(|(_, grading, _)| {
+            grading
+                .all_sections()
+                .map(|section| (section.contrast - PLAYGROUND_CAMERA_CONTRAST).abs())
+                .fold(0.0, f32::max)
+        })
+        .fold(f32::INFINITY, f32::min);
+    stats.camera_aces_count = cameras
+        .iter()
+        .filter(|(_, _, tonemapping)| matches!(**tonemapping, Tonemapping::AcesFitted))
+        .count() as u32;
     stats.sky_count = skies.iter().count() as u32;
     stats.main_material_count = material_roles
         .iter()
-        .filter(|applied| applied.0 == PlaygroundMaterialRole::Main)
+        .filter(|(applied, _)| applied.0 == PlaygroundMaterialRole::Main)
         .count() as u32;
     stats.tiles_material_count = material_roles
         .iter()
-        .filter(|applied| applied.0 == PlaygroundMaterialRole::Tiles)
+        .filter(|(applied, _)| applied.0 == PlaygroundMaterialRole::Tiles)
         .count() as u32;
     stats.translucent_material_count = material_roles
         .iter()
-        .filter(|applied| applied.0 == PlaygroundMaterialRole::Translucent)
+        .filter(|(applied, _)| applied.0 == PlaygroundMaterialRole::Translucent)
+        .count() as u32;
+    stats.translucent_no_shadow_count = material_roles
+        .iter()
+        .filter(|(applied, no_shadow_caster)| {
+            applied.0 == PlaygroundMaterialRole::Translucent && *no_shadow_caster
+        })
         .count() as u32;
     stats.extended_material_bound_count = extended_materials.iter().count() as u32;
     stats.tiles_pbr_material_count = tiles_materials
@@ -239,6 +337,9 @@ fn stats_collector(
     stats.cube_orientation_total = 0;
     stats.cube_orientation_matching = 0;
     stats.cube_orientation_max_error = 0.0;
+    stats.rock_scale_count = 0;
+    stats.rock_scale_error = 0.0;
+    stats.brush_count = 0;
     for (name, transform) in &cube_visuals {
         if let Some((pitch, yaw, roll)) = expected_cube_rotator(name.as_str()) {
             let source_rotation = ue_source_rotator_quat(pitch, yaw, roll);
@@ -249,6 +350,64 @@ fn stats_collector(
             stats.cube_orientation_max_error = stats.cube_orientation_max_error.max(error);
             if error < 1e-4 {
                 stats.cube_orientation_matching += 1;
+            }
+        }
+        if name.as_str() == "SM_Als_Rock:S_Rock2" {
+            stats.rock_scale_count += 1;
+            stats.rock_scale_error = stats
+                .rock_scale_error
+                .max(transform.scale.distance(Vec3::new(1.5, 1.75, 1.5)));
+        }
+        if name.as_str().contains("Brush_0") {
+            stats.brush_count += 1;
+        }
+    }
+}
+
+fn landscape_material_stats_collector(
+    mut stats: ResMut<SceneStats>,
+    landscape_materials: Query<
+        &MeshMaterial3d<PlaygroundTilesMaterial>,
+        With<PlaygroundLandscapeTilesMaterial>,
+    >,
+    tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
+    images: Res<Assets<Image>>,
+) {
+    stats.landscape_tiles_material_count = 0;
+    stats.landscape_tiles_tiling_error = 0.0;
+    stats.landscape_tiles_color_error = 0.0;
+    stats.landscape_tiles_mip_count = 0;
+    for handle in &landscape_materials {
+        let Some(material) = tiles_materials.get(&handle.0) else {
+            continue;
+        };
+        let settings = &material.extension.settings;
+        stats.landscape_tiles_material_count += 1;
+        stats.landscape_tiles_tiling_error = stats
+            .landscape_tiles_tiling_error
+            .max((settings.tiling_and_mode.x - LANDSCAPE_TILES_TILING).abs());
+        let color_error = [
+            settings.side_color_a.distance(LANDSCAPE_TILES_COLOR),
+            settings.top_color_a.distance(LANDSCAPE_TILES_COLOR),
+            settings.side_color_b.distance(LANDSCAPE_TILES_COLOR),
+            settings.top_color_b.distance(LANDSCAPE_TILES_COLOR),
+        ]
+        .into_iter()
+        .fold(0.0, f32::max);
+        stats.landscape_tiles_color_error = stats.landscape_tiles_color_error.max(color_error);
+        for image_handle in [
+            Some(&material.extension.grid_texture),
+            material.base.normal_map_texture.as_ref(),
+            material.base.occlusion_texture.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if images
+                .get(image_handle)
+                .is_some_and(|image| image.texture_descriptor.mip_level_count > 1)
+            {
+                stats.landscape_tiles_mip_count += 1;
             }
         }
     }
@@ -318,16 +477,35 @@ fn verdict_system(
 
     let ok_static = stats.static_count >= 140;
     let ok_text = stats.text_count >= 22;
-    let ok_native_text = stats.native_text_count == stats.text_count;
+    let ok_native_text = stats.native_text_count == 0;
     let ok_glyph_text = stats.glyph_text_count == stats.text_count;
     let ok_world_text = stats.world_text_mesh_count >= stats.text_count
         && stats.world_text_masked_count == stats.world_text_mesh_count;
-    let ok_landscape = stats.landscape_seen && stats.landscape_identity;
-    let ok_sun = stats.sun_count == 1 && stats.sun_shadowed && stats.sun_ray_error < 1e-4;
+    let ok_text_fit = stats.text_fitted_count == stats.text_count
+        && stats.text_fit_max_error < 1e-4
+        && stats.text_center_aligned_count == 17
+        && stats.text_left_top_aligned_count == 5;
+    let ok_text_front =
+        stats.text_front_matching_count == stats.text_count && stats.text_front_max_error < 1e-4;
+    let ok_landscape = stats.landscape_seen
+        && stats.landscape_identity
+        && stats.landscape_tiles_material_count >= 4
+        && stats.landscape_tiles_tiling_error < 1e-4
+        && stats.landscape_tiles_color_error < 1e-4
+        && stats.landscape_tiles_mip_count == stats.landscape_tiles_material_count * 3;
+    let ok_sun = stats.sun_count == 1
+        && stats.sun_shadowed
+        && stats.sun_ray_error < 1e-4
+        && stats.sun_illuminance_error < 1e-4;
+    let ok_camera_exposure = stats.camera_exposure_count == 1
+        && stats.camera_exposure_error < 1e-4
+        && stats.camera_contrast_error < 1e-4
+        && stats.camera_aces_count == 1;
     let ok_sky = stats.sky_count >= 2;
     let ok_materials = stats.main_material_count >= 10
         && stats.tiles_material_count >= 100
         && stats.translucent_material_count == 1
+        && stats.translucent_no_shadow_count == stats.translucent_material_count
         && stats.extended_material_bound_count >= 100
         && stats.tiles_pbr_material_count >= 1
         && stats.translucent_pbr_material_count >= 1;
@@ -336,26 +514,46 @@ fn verdict_system(
     let ok_cube_orientation = stats.cube_orientation_total == 5
         && stats.cube_orientation_matching == stats.cube_orientation_total
         && stats.cube_orientation_max_error < 1e-4;
+    let ok_rock_scale = stats.rock_scale_count == 1 && stats.rock_scale_error < 1e-4;
+    let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={}/{} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} landscape={} identity={} sun={}/shadow={} ray_error={:.6} sky={} materials=main={} tiles={} translucent={} extended={} tile_pbr={} translucent_pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_fit={}/{} fit_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
-        stats.text_count,
         stats.glyph_text_count,
         stats.text_count,
         stats.world_text_mesh_count,
         stats.world_text_masked_count,
+        stats.text_fitted_count,
+        stats.text_count,
+        stats.text_fit_max_error,
+        stats.text_center_aligned_count,
+        stats.text_left_top_aligned_count,
+        stats.text_front_matching_count,
+        stats.text_count,
+        stats.text_front_max_error,
         stats.landscape_seen,
         stats.landscape_identity,
+        stats.landscape_tiles_material_count,
+        stats.landscape_tiles_tiling_error,
+        stats.landscape_tiles_color_error,
+        stats.landscape_tiles_mip_count,
+        stats.landscape_tiles_material_count * 3,
         stats.sun_count,
         stats.sun_shadowed,
+        stats.sun_illuminance_error,
         stats.sun_ray_error,
+        stats.camera_exposure_count,
+        stats.camera_exposure_error,
+        stats.camera_contrast_error,
+        stats.camera_aces_count,
         stats.sky_count,
         stats.main_material_count,
         stats.tiles_material_count,
         stats.translucent_material_count,
+        stats.translucent_no_shadow_count,
         stats.extended_material_bound_count,
         stats.tiles_pbr_material_count,
         stats.translucent_pbr_material_count,
@@ -365,18 +563,26 @@ fn verdict_system(
         stats.cube_orientation_matching,
         stats.cube_orientation_total,
         stats.cube_orientation_max_error,
+        stats.rock_scale_count,
+        stats.rock_scale_error,
+        stats.brush_count,
         if ok_static
             && ok_text
             && ok_native_text
             && ok_glyph_text
             && ok_world_text
+            && ok_text_fit
+            && ok_text_front
             && ok_landscape
             && ok_sun
+            && ok_camera_exposure
             && ok_sky
             && ok_materials
             && ok_moving
             && ok_spin
             && ok_cube_orientation
+            && ok_rock_scale
+            && ok_brush
         {
             "PASS"
         } else {
@@ -388,13 +594,18 @@ fn verdict_system(
         && ok_native_text
         && ok_glyph_text
         && ok_world_text
+        && ok_text_fit
+        && ok_text_front
         && ok_landscape
         && ok_sun
+        && ok_camera_exposure
         && ok_sky
         && ok_materials
         && ok_moving
         && ok_spin
-        && ok_cube_orientation)
+        && ok_cube_orientation
+        && ok_rock_scale
+        && ok_brush)
     {
         exit.write(AppExit::Error(std::num::NonZeroU8::new(7).unwrap()));
     } else {
