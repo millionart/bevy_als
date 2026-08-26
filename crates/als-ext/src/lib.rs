@@ -11,6 +11,7 @@ pub mod ik;
 pub mod linked_anim_layer;
 pub mod layered_graph;
 pub mod loader;
+pub mod mesh_space_additive;
 pub mod multi_way_blend;
 pub mod nodes;
 pub mod overlay;
@@ -43,6 +44,7 @@ pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, LinkedAnimLayerNode};
 pub use root_motion_clip::RootMotionClipNode;
 pub use loader::{CurveAssetLoader, CurveLoadError};
+pub use mesh_space_additive::{apply_mesh_space_additive, MeshSpaceAdditiveNode};
 pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use ragdoll_config_node::RagdollConfigNode;
@@ -83,6 +85,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<GlobalF32InputNode>()
             .register_type::<GameplayTagBlendMode>()
             .register_type::<GameplayTagBlendNode>()
+            .register_type::<MeshSpaceAdditiveNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()
             .register_type::<TimePositionNode>()

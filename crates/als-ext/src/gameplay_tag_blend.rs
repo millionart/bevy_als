@@ -52,6 +52,7 @@ pub struct GameplayTagBlendNode {
     pub tags: Vec<String>,
     pub blend_times: Vec<f32>,
     pub blend_mode: GameplayTagBlendMode,
+    pub forward_time: bool,
 }
 
 impl Default for GameplayTagBlendNode {
@@ -60,6 +61,7 @@ impl Default for GameplayTagBlendNode {
             tags: default(),
             blend_times: vec![0.0],
             blend_mode: default(),
+            forward_time: true,
         }
     }
 }
@@ -144,6 +146,15 @@ impl NodeLike for GameplayTagBlendNode {
         "ALS Gameplay Tag Blend".into()
     }
 
+    fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        if self.forward_time {
+            ctx.set_duration_fwd(ctx.duration_back(UPSTREAM_TIME)?);
+        } else {
+            ctx.set_duration_fwd(None);
+        }
+        Ok(())
+    }
+
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let active_value = ctx.data_back(ACTIVE_INDEX)?.as_f32()?;
         let time_update = ctx.time_update_fwd()?;
@@ -165,7 +176,13 @@ impl NodeLike for GameplayTagBlendNode {
             )
         };
 
-        ctx.set_time_update_back(UPSTREAM_TIME, time_update);
+        if self.forward_time {
+            ctx.set_time_update_back(UPSTREAM_TIME, time_update.clone());
+        }
+        let time = time_update
+            .partial_update_basic(ctx.prev_time())
+            .unwrap_or_else(|| ctx.time());
+        ctx.set_time(time);
         for (index, weight) in weights.iter().copied().enumerate() {
             ctx.set_data_fwd(weight_output(index), weight);
         }
@@ -174,7 +191,8 @@ impl NodeLike for GameplayTagBlendNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data(ACTIVE_INDEX, DataSpec::F32)
-            .add_input_time(UPSTREAM_TIME);
+            .add_input_time(UPSTREAM_TIME)
+            .add_output_time();
         for index in 0..self.child_count() {
             ctx.add_output_data(weight_output(index), DataSpec::F32);
         }
@@ -192,11 +210,17 @@ mod tests {
             tags: vec!["A".to_owned(), "B".to_owned(), "C".to_owned()],
             blend_times: vec![0.3, 0.1, 0.0, 0.1],
             blend_mode: GameplayTagBlendMode::Linear,
+            forward_time: true,
         };
         assert_eq!(node.select_child_index(-1.0), 0);
         assert_eq!(node.select_child_index(2.0), 2);
         assert_eq!(node.select_child_index(4.0), 0);
         assert_eq!(node.select_child_index(f32::NAN), 0);
+    }
+
+    #[test]
+    fn default_forwards_upstream_time() {
+        assert!(GameplayTagBlendNode::default().forward_time);
     }
 
     #[test]
