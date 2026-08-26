@@ -17,6 +17,7 @@ use crate::playground_materials::{
     PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
     PlaygroundTilesSettings,
 };
+use crate::{CurveAsset, CurveKey, CurveSampleMode};
 
 pub struct PlaygroundPlugin {
     pub manifest: PathBuf,
@@ -25,6 +26,7 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PlaygroundManifestPath(self.manifest.clone()))
+            .init_resource::<PlaygroundMovingCurve>()
             .add_systems(Startup, playground_setup_system)
             .add_systems(
                 Update,
@@ -75,7 +77,7 @@ pub struct SceneLighting {
     pub camera_contrast: Option<f32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct PlaygroundActor {
     #[serde(default)]
     pub class: String,
@@ -119,6 +121,12 @@ pub struct PlaygroundActor {
     pub top_color: Option<[f32; 3]>,
     #[serde(default)]
     pub side_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub tiling: Option<f32>,
+    #[serde(default)]
+    pub movement_spline_start: Option<[f32; 3]>,
+    #[serde(default)]
+    pub movement_spline_end: Option<[f32; 3]>,
     #[serde(default)]
     pub move_duration: Option<f32>,
     #[serde(default)]
@@ -169,14 +177,100 @@ pub struct PlaygroundMovingObject;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PlaygroundKinematicKind {
-    MovePingPong { duration: f32 },
-    SpinYawDegPerSec { speed_deg: f32 },
+    MoveSpline {
+        duration: f32,
+        start: Vec3,
+        end: Vec3,
+    },
+    SpinYawDegPerSec {
+        speed_deg: f32,
+    },
 }
 
 #[derive(Component, Debug)]
 pub struct PlaygroundKinematic {
     pub base_transform: Transform,
     pub kind: PlaygroundKinematicKind,
+}
+
+const MOVING_OBJECT_CURVE_PATH: &str =
+    "assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json";
+const MOVING_OBJECT_CURVE_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json"
+));
+
+#[derive(Debug, Deserialize)]
+struct PlaygroundMovingCurveDocument {
+    keys: Vec<CurveKey>,
+}
+
+#[derive(Resource, Clone)]
+pub struct PlaygroundMovingCurve {
+    curve: CurveAsset,
+    source_loaded: bool,
+}
+
+impl Default for PlaygroundMovingCurve {
+    fn default() -> Self {
+        Self {
+            curve: CurveAsset::default(),
+            source_loaded: false,
+        }
+    }
+}
+
+impl PlaygroundMovingCurve {
+    pub fn sample(&self, time_normalized: f32) -> f32 {
+        self.curve.sample(time_normalized)
+    }
+
+    pub fn is_source_loaded(&self) -> bool {
+        self.source_loaded
+    }
+
+    pub fn key_count(&self) -> usize {
+        self.curve.keys.len()
+    }
+}
+
+fn load_moving_object_curve() -> Result<PlaygroundMovingCurve, String> {
+    let source: PlaygroundMovingCurveDocument = serde_json::from_str(MOVING_OBJECT_CURVE_JSON)
+        .map_err(|error| format!("parse {MOVING_OBJECT_CURVE_PATH}: {error}"))?;
+    if source.keys.len() < 2 {
+        return Err(format!(
+            "curve {MOVING_OBJECT_CURVE_PATH} has fewer than two keys"
+        ));
+    }
+    Ok(PlaygroundMovingCurve {
+        curve: CurveAsset::new(CurveSampleMode::Linear, source.keys),
+        source_loaded: true,
+    })
+}
+
+pub fn moving_object_curve_input(elapsed_seconds: f32, duration_seconds: f32) -> f32 {
+    if duration_seconds <= 0.0 {
+        return 0.0;
+    }
+    let ratio = (elapsed_seconds / duration_seconds).max(0.0);
+    let whole = ratio.floor() as i64;
+    let fraction = ratio.fract();
+    if whole.rem_euclid(2) == 0 {
+        fraction
+    } else {
+        1.0 - fraction
+    }
+}
+
+pub fn moving_object_position(
+    curve: &PlaygroundMovingCurve,
+    start: Vec3,
+    end: Vec3,
+    elapsed_seconds: f32,
+    duration_seconds: f32,
+) -> Vec3 {
+    let curve_time = moving_object_curve_input(elapsed_seconds, duration_seconds);
+    start.lerp(end, curve.sample(curve_time))
 }
 
 #[derive(Resource, Debug, Clone, Copy)]
@@ -437,14 +531,47 @@ fn spawn_box_visual(
     entity
 }
 
+fn insert_fallback_box_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    entity: Entity,
+    half_extents: Vec3,
+    material: PlaygroundMaterialTint,
+) {
+    let mesh = Mesh3d(meshes.add(Mesh::from(Cuboid::new(
+        half_extents.x * 2.0,
+        half_extents.y * 2.0,
+        half_extents.z * 2.0,
+    ))));
+    let role = material.role();
+    match material {
+        PlaygroundMaterialTint::Main(handle) => {
+            commands.entity(entity).insert((
+                mesh,
+                MeshMaterial3d(handle),
+                PlaygroundMaterialApplied(role),
+            ));
+        }
+        PlaygroundMaterialTint::Tiles(handle) | PlaygroundMaterialTint::Translucent(handle) => {
+            commands.entity(entity).insert((
+                mesh,
+                MeshMaterial3d(handle),
+                PlaygroundMaterialApplied(role),
+            ));
+        }
+    }
+}
+
 fn color_parameter(value: [f32; 3]) -> Vec4 {
     Vec4::new(value[0], value[1], value[2], 1.0)
 }
 
 fn make_tiles_material(
     library: &PlaygroundMaterialLibrary,
-    side_color: [f32; 3],
-    top_color: [f32; 3],
+    side_color_a: [f32; 3],
+    top_color_a: [f32; 3],
+    side_color_b: [f32; 3],
+    top_color_b: [f32; 3],
     tiling: f32,
 ) -> Option<PlaygroundTilesMaterial> {
     Some(PlaygroundTilesMaterial {
@@ -458,14 +585,33 @@ fn make_tiles_material(
         },
         extension: PlaygroundTilesExtension {
             settings: PlaygroundTilesSettings {
-                side_color_a: color_parameter(side_color),
-                top_color_a: color_parameter(top_color),
-                side_color_b: color_parameter(side_color),
-                top_color_b: color_parameter(top_color),
+                side_color_a: color_parameter(side_color_a),
+                top_color_a: color_parameter(top_color_a),
+                side_color_b: color_parameter(side_color_b),
+                top_color_b: color_parameter(top_color_b),
                 tiling_and_mode: Vec4::new(tiling, 0.0, 0.0, 0.0),
             },
             grid_texture: library.tiles_grid.clone()?,
         },
+    })
+}
+
+fn tiles_material_for_actor(
+    actor: &PlaygroundActor,
+    library: &PlaygroundMaterialLibrary,
+    tiles_materials: &mut Assets<PlaygroundTilesMaterial>,
+    main_material: &Handle<StandardMaterial>,
+) -> PlaygroundMaterialTint {
+    let side_color = actor.side_color.unwrap_or([1.0, 1.0, 1.0]);
+    let top_color = actor.top_color.unwrap_or([1.0, 1.0, 1.0]);
+    let tiling = actor.tiling.unwrap_or(1.0);
+    make_tiles_material(
+        library, side_color, top_color, side_color, top_color, tiling,
+    )
+    .map(|material| PlaygroundMaterialTint::Tiles(tiles_materials.add(material)))
+    .unwrap_or_else(|| {
+        warn!("PLAYGROUND tiles material unavailable for {}", actor.name);
+        PlaygroundMaterialTint::Main(main_material.clone())
     })
 }
 
@@ -532,6 +678,8 @@ pub fn playground_setup_system(
         &material_library,
         LANDSCAPE_TILES_COLOR,
         LANDSCAPE_TILES_COLOR,
+        LANDSCAPE_TILES_COLOR,
+        LANDSCAPE_TILES_COLOR,
         LANDSCAPE_TILES_TILING,
     )
     .map(|material| tiles_materials.add(material));
@@ -542,6 +690,17 @@ pub fn playground_setup_system(
     let mut spawn_point_found = false;
     let mut spawned_landscape = 0usize;
     let mut spawned_text = 0usize;
+
+    match load_moving_object_curve() {
+        Ok(curve) => {
+            info!(
+                "[PGKIN] moving curve loaded keys={} path={MOVING_OBJECT_CURVE_PATH}",
+                curve.key_count()
+            );
+            commands.insert_resource(curve);
+        }
+        Err(error) => error!("[PGKIN] moving curve unavailable err={error}"),
+    }
 
     for actor in &manifest.actors {
         if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
@@ -601,7 +760,7 @@ pub fn playground_setup_system(
                         .as_deref()
                         .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
                     let has_mesh_scene = mesh_scene.is_some();
-                    let transform = base_transform.with_scale(if has_mesh_scene {
+                    let mut transform = base_transform.with_scale(if has_mesh_scene {
                         plan.visual_scale
                     } else {
                         Vec3::ONE
@@ -612,6 +771,21 @@ pub fn playground_setup_system(
                         Vec3::ONE
                     };
                     let duration = actor.move_duration.unwrap_or(2.0);
+                    let actor_origin = ue_point_to_bevy(Vec3::from(actor.location));
+                    let transform_offset = transform.translation - actor_origin;
+                    let spline_start = Vec3::from(actor.movement_spline_start.unwrap_or([0.0; 3]));
+                    let spline_end = Vec3::from(actor.movement_spline_end.unwrap_or([0.0; 3]));
+                    let start = ue_point_to_bevy(Vec3::from(actor.location) + spline_start)
+                        + transform_offset;
+                    let end = ue_point_to_bevy(Vec3::from(actor.location) + spline_end)
+                        + transform_offset;
+                    transform.translation = start;
+                    let visual_material = tiles_material_for_actor(
+                        actor,
+                        &material_library,
+                        &mut tiles_materials,
+                        &main_material,
+                    );
                     let entity = commands
                         .spawn((
                             Name::new(format!("Moving:{}", actor.name)),
@@ -620,27 +794,28 @@ pub fn playground_setup_system(
                             PlaygroundMovingObject,
                             PlaygroundKinematic {
                                 base_transform: transform,
-                                kind: PlaygroundKinematicKind::MovePingPong { duration },
+                                kind: PlaygroundKinematicKind::MoveSpline {
+                                    duration,
+                                    start,
+                                    end,
+                                },
                             },
                         ))
                         .id();
                     match mesh_scene {
                         Some(scene) => {
-                            commands.entity(entity).insert((
-                                WorldAssetRoot(scene),
-                                PlaygroundMaterialTint::Main(main_material.clone()),
-                            ));
+                            commands
+                                .entity(entity)
+                                .insert((WorldAssetRoot(scene), visual_material));
                         }
                         None => {
-                            commands.entity(entity).insert((
-                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
-                                    plan.half_extents_model.x * 2.0,
-                                    plan.half_extents_model.y * 2.0,
-                                    plan.half_extents_model.z * 2.0,
-                                )))),
-                                MeshMaterial3d(main_material.clone()),
-                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
-                            ));
+                            insert_fallback_box_visual(
+                                &mut commands,
+                                &mut meshes,
+                                entity,
+                                plan.half_extents_model,
+                                visual_material,
+                            );
                         }
                     }
                     commands.entity(entity).with_children(|p| {
@@ -684,6 +859,12 @@ pub fn playground_setup_system(
                     } else {
                         Vec3::ONE
                     };
+                    let visual_material = tiles_material_for_actor(
+                        actor,
+                        &material_library,
+                        &mut tiles_materials,
+                        &main_material,
+                    );
                     let entity = commands
                         .spawn((
                             Name::new(format!("Rotating:{}", actor.name)),
@@ -698,21 +879,18 @@ pub fn playground_setup_system(
                         .id();
                     match mesh_scene {
                         Some(scene) => {
-                            commands.entity(entity).insert((
-                                WorldAssetRoot(scene),
-                                PlaygroundMaterialTint::Main(main_material.clone()),
-                            ));
+                            commands
+                                .entity(entity)
+                                .insert((WorldAssetRoot(scene), visual_material));
                         }
                         None => {
-                            commands.entity(entity).insert((
-                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
-                                    plan.half_extents_model.x * 2.0,
-                                    plan.half_extents_model.y * 2.0,
-                                    plan.half_extents_model.z * 2.0,
-                                )))),
-                                MeshMaterial3d(main_material.clone()),
-                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
-                            ));
+                            insert_fallback_box_visual(
+                                &mut commands,
+                                &mut meshes,
+                                entity,
+                                plan.half_extents_model,
+                                visual_material,
+                            );
                         }
                     }
                     commands.entity(entity).with_children(|p| {
@@ -762,15 +940,12 @@ pub fn playground_setup_system(
                         PlaygroundMaterialTint::Main(main_material.clone())
                     })
             } else if actor.top_color.is_some() || actor.side_color.is_some() {
-                let side_color = actor.side_color.unwrap_or([1.0, 1.0, 1.0]);
-                let top_color = actor.top_color.unwrap_or([1.0, 1.0, 1.0]);
-                make_tiles_material(&material_library, side_color, top_color, 1.0)
-                    .map(|material| tiles_materials.add(material))
-                    .map(PlaygroundMaterialTint::Tiles)
-                    .unwrap_or_else(|| {
-                        warn!("PLAYGROUND tiles material unavailable for {}", actor.name);
-                        PlaygroundMaterialTint::Main(main_material.clone())
-                    })
+                tiles_material_for_actor(
+                    actor,
+                    &material_library,
+                    &mut tiles_materials,
+                    &main_material,
+                )
             } else {
                 PlaygroundMaterialTint::Main(main_material.clone())
             };
@@ -977,6 +1152,7 @@ fn playground_camera_exposure_system(
 /// B_Als_RotatingObject event graphs (ServerWorldTime-driven, modulo ping-pong).
 pub fn playground_moving_object_system(
     time: Res<Time>,
+    moving_curve: Res<PlaygroundMovingCurve>,
     mut q: Query<(&mut Transform, &PlaygroundKinematic), With<PlaygroundMovingObject>>,
 ) {
     let t = time.elapsed_secs_f64() as f32;
@@ -986,18 +1162,12 @@ pub fn playground_moving_object_system(
                 let yaw = speed_deg * t;
                 tf.rotation = kin.base_transform.rotation * Quat::from_rotation_y(yaw.to_radians());
             }
-            PlaygroundKinematicKind::MovePingPong { duration } => {
-                if duration <= 0.0 {
-                    continue;
-                }
-                let total = t / duration;
-                let frac = total % 2.0;
-                let s = if frac > 1.0 { 2.0 - frac } else { frac };
-                let eased = s * s * (3.0 - 2.0 * s);
-                let base = kin.base_transform.translation;
-                let axis = Vec3::Z;
-                let span_m = 4.0;
-                tf.translation = base + axis * (eased * span_m * 0.5);
+            PlaygroundKinematicKind::MoveSpline {
+                duration,
+                start,
+                end,
+            } => {
+                tf.translation = moving_object_position(&moving_curve, start, end, t, duration);
             }
         }
     }
@@ -1764,6 +1934,48 @@ mod tests {
         let offset = ue_point_to_bevy(Vec3::new(0.0, 0.0, 100.0));
         let center_y = offset.y;
         assert!((center_y - half.y).abs() < 1e-5);
+    }
+
+    #[test]
+    fn moving_curve_uses_the_exported_source_samples() {
+        let curve = load_moving_object_curve().expect("load moving curve");
+        assert!(curve.is_source_loaded());
+        assert_eq!(curve.key_count(), 129);
+        assert!((curve.sample(0.25) - 0.07438337).abs() < 1e-6);
+        assert!((curve.sample(0.5) - 0.49921942).abs() < 1e-6);
+        assert!((curve.sample(0.75) - 0.92700464).abs() < 1e-6);
+    }
+
+    #[test]
+    fn moving_curve_ping_pongs_with_the_source_time_rule() {
+        assert!((moving_object_curve_input(0.0, 1.25) - 0.0).abs() < 1e-6);
+        assert!((moving_object_curve_input(0.625, 1.25) - 0.5).abs() < 1e-6);
+        assert!((moving_object_curve_input(1.25, 1.25) - 1.0).abs() < 1e-6);
+        assert!((moving_object_curve_input(1.5625, 1.25) - 0.75).abs() < 1e-6);
+        assert!((moving_object_curve_input(2.5, 1.25) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn moving_spline_endpoints_preserve_ue_axes() {
+        let curve = load_moving_object_curve().expect("load moving curve");
+        let vertical_start = ue_point_to_bevy(Vec3::new(2275.0, -2875.0, 0.0));
+        let vertical_end = ue_point_to_bevy(Vec3::new(2275.0, -2875.0, 275.0));
+        let horizontal_start = ue_point_to_bevy(Vec3::new(1900.0, -2875.0, 0.0));
+        let horizontal_end = ue_point_to_bevy(Vec3::new(1250.0, -2875.0, 0.0));
+        assert_vec3_eq(
+            moving_object_position(&curve, vertical_start, vertical_end, 1.25, 1.25),
+            vertical_end,
+            1e-5,
+        );
+        assert_vec3_eq(
+            moving_object_position(&curve, horizontal_start, horizontal_end, 1.75, 1.75),
+            horizontal_end,
+            1e-5,
+        );
+        assert!((vertical_end.x - vertical_start.x).abs() < 1e-6);
+        assert!((vertical_end.z - vertical_start.z).abs() < 1e-6);
+        assert!((horizontal_end.y - horizontal_start.y).abs() < 1e-6);
+        assert!((horizontal_end.z - horizontal_start.z).abs() < 1e-6);
     }
 
     #[test]

@@ -16,9 +16,10 @@ use als_ext::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMa
 use als_ext::{
     PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape,
     PlaygroundLandscapeTilesMaterial, PlaygroundMaterialApplied, PlaygroundMaterialRole,
-    PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing, PlaygroundTextFit,
-    PlaygroundTextHorizontalAlignment, PlaygroundTextLabel, PlaygroundTextLayoutTarget,
-    PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
+    PlaygroundMovingCurve, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing,
+    PlaygroundTextFit, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
+    PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
+    moving_object_position,
 };
 
 const PLAYGROUND_CAMERA_EV100: f32 = 2.0;
@@ -99,9 +100,20 @@ struct SceneStats {
     extended_material_bound_count: u32,
     tiles_pbr_material_count: u32,
     translucent_pbr_material_count: u32,
+    tiles_unit_tiling_count: u32,
+    tiles_half_tiling_count: u32,
+    tiles_other_tiling_count: u32,
     movers_total: u32,
     movers_moving: u32,
     spin_yaw_abs_deg: f32,
+    moving_curve_loaded: bool,
+    moving_curve_key_count: u32,
+    mover_profile_total: u32,
+    mover_profile_matching: u32,
+    mover_kinematic_error: f32,
+    mover_tiles_bound: u32,
+    mover_tiles_tiling_error: f32,
+    mover_tiles_color_error: f32,
     cube_orientation_total: u32,
     cube_orientation_matching: u32,
     cube_orientation_max_error: f32,
@@ -334,6 +346,23 @@ fn stats_collector(
                 && material.base.cull_mode.is_none()
         })
         .count() as u32;
+    stats.tiles_unit_tiling_count = 0;
+    stats.tiles_half_tiling_count = 0;
+    stats.tiles_other_tiling_count = 0;
+    for (_, material) in tiles_materials.iter() {
+        let settings = &material.extension.settings;
+        if settings.tiling_and_mode.y >= 0.5 {
+            continue;
+        }
+        let tiling = settings.tiling_and_mode.x;
+        if (tiling - 1.0).abs() < 1e-4 {
+            stats.tiles_unit_tiling_count += 1;
+        } else if (tiling - 0.5).abs() < 1e-4 {
+            stats.tiles_half_tiling_count += 1;
+        } else {
+            stats.tiles_other_tiling_count += 1;
+        }
+    }
     stats.cube_orientation_total = 0;
     stats.cube_orientation_matching = 0;
     stats.cube_orientation_max_error = 0.0;
@@ -413,20 +442,82 @@ fn landscape_material_stats_collector(
     }
 }
 
+fn expected_moving_spline(name: &str) -> Option<(f32, Vec3, Vec3)> {
+    match name {
+        "Moving:BP_SimpleMovingObject" => Some((
+            1.25,
+            Vec3::new(22.75, 0.0, -28.75),
+            Vec3::new(22.75, 2.75, -28.75),
+        )),
+        "Moving:BP_SimpleMovingObject2" => Some((
+            1.75,
+            Vec3::new(19.0, 0.0, -28.75),
+            Vec3::new(12.5, 0.0, -28.75),
+        )),
+        _ => None,
+    }
+}
+
+fn expected_mover_tiles(name: &str) -> Option<(Vec4, Vec4, f32)> {
+    match name {
+        "Moving:BP_SimpleMovingObject" | "Moving:BP_SimpleMovingObject2" => {
+            Some((Vec4::new(0.18, 0.6, 0.9, 1.0), Vec4::ONE, 1.0))
+        }
+        "Rotating:BP_SimpleRotatingObject_2" => {
+            Some((Vec4::new(0.25, 0.25, 1.0, 1.0), Vec4::ONE, 1.0))
+        }
+        _ => None,
+    }
+}
+
+fn mover_tiles_material(
+    root: Entity,
+    children: &Query<&Children>,
+    tile_bindings: &Query<&MeshMaterial3d<PlaygroundTilesMaterial>>,
+) -> Option<Handle<PlaygroundTilesMaterial>> {
+    let mut stack = vec![root];
+    while let Some(entity) = stack.pop() {
+        if let Ok(binding) = tile_bindings.get(entity) {
+            return Some(binding.0.clone());
+        }
+        if let Ok(kids) = children.get(entity) {
+            for child in kids.iter() {
+                stack.push(child);
+            }
+        }
+    }
+    None
+}
+
 fn kinematic_probe(
     time: Res<Time>,
+    moving_curve: Res<PlaygroundMovingCurve>,
     mut stats: ResMut<SceneStats>,
-    movings: Query<(&Transform, &PlaygroundKinematic)>,
+    movings: Query<(Entity, &Name, &Transform, &PlaygroundKinematic)>,
+    children: Query<&Children>,
+    tile_bindings: Query<&MeshMaterial3d<PlaygroundTilesMaterial>>,
+    tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
 ) {
     if stats.mover_prev.len() != movings.iter().count() {
-        stats.mover_prev = movings.iter().map(|(tf, _)| tf.translation).collect();
+        stats.mover_prev = movings
+            .iter()
+            .map(|(_, _, transform, _)| transform.translation)
+            .collect();
         return;
     }
+    stats.moving_curve_loaded = moving_curve.is_source_loaded();
+    stats.moving_curve_key_count = moving_curve.key_count() as u32;
+    stats.mover_profile_total = 0;
+    stats.mover_profile_matching = 0;
+    stats.mover_kinematic_error = 0.0;
+    stats.mover_tiles_bound = 0;
+    stats.mover_tiles_tiling_error = 0.0;
+    stats.mover_tiles_color_error = 0.0;
     let mut moving = 0u32;
-    for (i, (tf, kin)) in movings.iter().enumerate() {
-        match kin.kind {
-            PlaygroundKinematicKind::MovePingPong { .. } => {
-                if stats.mover_prev[i].distance(tf.translation) > 0.005 {
+    for (index, (entity, name, transform, kinematic)) in movings.iter().enumerate() {
+        match kinematic.kind {
+            PlaygroundKinematicKind::MoveSpline { .. } => {
+                if stats.mover_prev[index].distance(transform.translation) > 0.005 {
                     moving += 1;
                 }
             }
@@ -438,11 +529,88 @@ fn kinematic_probe(
                 }
             }
         }
+
+        let mut profile_error = None;
+        if let Some((expected_duration, expected_start, expected_end)) =
+            expected_moving_spline(name.as_str())
+        {
+            stats.mover_profile_total += 1;
+            let error = match kinematic.kind {
+                PlaygroundKinematicKind::MoveSpline {
+                    duration,
+                    start,
+                    end,
+                } => {
+                    let expected_position = moving_object_position(
+                        &moving_curve,
+                        expected_start,
+                        expected_end,
+                        time.elapsed_secs(),
+                        expected_duration,
+                    );
+                    (duration - expected_duration)
+                        .abs()
+                        .max(start.distance(expected_start))
+                        .max(end.distance(expected_end))
+                        .max(transform.translation.distance(expected_position))
+                }
+                PlaygroundKinematicKind::SpinYawDegPerSec { .. } => f32::INFINITY,
+            };
+            profile_error = Some(error);
+        } else if name.as_str() == "Rotating:BP_SimpleRotatingObject_2" {
+            stats.mover_profile_total += 1;
+            let error = match kinematic.kind {
+                PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+                    let expected_rotation = kinematic.base_transform.rotation
+                        * Quat::from_rotation_y((100.0 * time.elapsed_secs()).to_radians());
+                    (speed_deg - 100.0)
+                        .abs()
+                        .max(1.0 - transform.rotation.dot(expected_rotation).abs())
+                }
+                PlaygroundKinematicKind::MoveSpline { .. } => f32::INFINITY,
+            };
+            profile_error = Some(error);
+        }
+        if let Some(error) = profile_error {
+            stats.mover_kinematic_error = stats.mover_kinematic_error.max(error);
+            if error < 1e-4 {
+                stats.mover_profile_matching += 1;
+            }
+        }
+
+        if let Some((expected_top, expected_side, expected_tiling)) =
+            expected_mover_tiles(name.as_str())
+        {
+            let Some(handle) = mover_tiles_material(entity, &children, &tile_bindings) else {
+                stats.mover_tiles_tiling_error = f32::INFINITY;
+                stats.mover_tiles_color_error = f32::INFINITY;
+                continue;
+            };
+            let Some(material) = tiles_materials.get(&handle) else {
+                stats.mover_tiles_tiling_error = f32::INFINITY;
+                stats.mover_tiles_color_error = f32::INFINITY;
+                continue;
+            };
+            let settings = &material.extension.settings;
+            stats.mover_tiles_bound += 1;
+            stats.mover_tiles_tiling_error = stats
+                .mover_tiles_tiling_error
+                .max((settings.tiling_and_mode.x - expected_tiling).abs());
+            let color_error = [
+                settings.top_color_a.distance(expected_top),
+                settings.top_color_b.distance(expected_top),
+                settings.side_color_a.distance(expected_side),
+                settings.side_color_b.distance(expected_side),
+            ]
+            .into_iter()
+            .fold(0.0, f32::max);
+            stats.mover_tiles_color_error = stats.mover_tiles_color_error.max(color_error);
+        }
     }
     stats.movers_moving = moving.max(stats.movers_moving);
     stats.movers_total = movings.iter().count() as u32;
-    for (i, (tf, _)) in movings.iter().enumerate() {
-        stats.mover_prev[i] = tf.translation;
+    for (index, (_, _, transform, _)) in movings.iter().enumerate() {
+        stats.mover_prev[index] = transform.translation;
     }
 }
 
@@ -509,8 +677,19 @@ fn verdict_system(
         && stats.extended_material_bound_count >= 100
         && stats.tiles_pbr_material_count >= 1
         && stats.translucent_pbr_material_count >= 1;
+    let ok_tiles_tiling = stats.tiles_unit_tiling_count == 142
+        && stats.tiles_half_tiling_count == 8
+        && stats.tiles_other_tiling_count == 1;
     let ok_moving = stats.movers_total >= 3 && stats.movers_moving >= 2;
     let ok_spin = stats.spin_yaw_abs_deg > 30.0;
+    let ok_dynamic_source = stats.moving_curve_loaded
+        && stats.moving_curve_key_count == 129
+        && stats.mover_profile_total == 3
+        && stats.mover_profile_matching == stats.mover_profile_total
+        && stats.mover_kinematic_error < 1e-4
+        && stats.mover_tiles_bound == 3
+        && stats.mover_tiles_tiling_error < 1e-4
+        && stats.mover_tiles_color_error < 1e-4;
     let ok_cube_orientation = stats.cube_orientation_total == 5
         && stats.cube_orientation_matching == stats.cube_orientation_total
         && stats.cube_orientation_max_error < 1e-4;
@@ -518,7 +697,7 @@ fn verdict_system(
     let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_fit={}/{} fit_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_fit={}/{} fit_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -557,9 +736,20 @@ fn verdict_system(
         stats.extended_material_bound_count,
         stats.tiles_pbr_material_count,
         stats.translucent_pbr_material_count,
+        stats.tiles_unit_tiling_count,
+        stats.tiles_half_tiling_count,
+        stats.tiles_other_tiling_count,
         stats.movers_total,
         stats.movers_moving,
         stats.spin_yaw_abs_deg,
+        stats.moving_curve_loaded,
+        stats.moving_curve_key_count,
+        stats.mover_profile_matching,
+        stats.mover_profile_total,
+        stats.mover_kinematic_error,
+        stats.mover_tiles_bound,
+        stats.mover_tiles_tiling_error,
+        stats.mover_tiles_color_error,
         stats.cube_orientation_matching,
         stats.cube_orientation_total,
         stats.cube_orientation_max_error,
@@ -578,8 +768,10 @@ fn verdict_system(
             && ok_camera_exposure
             && ok_sky
             && ok_materials
+            && ok_tiles_tiling
             && ok_moving
             && ok_spin
+            && ok_dynamic_source
             && ok_cube_orientation
             && ok_rock_scale
             && ok_brush
@@ -601,8 +793,10 @@ fn verdict_system(
         && ok_camera_exposure
         && ok_sky
         && ok_materials
+        && ok_tiles_tiling
         && ok_moving
         && ok_spin
+        && ok_dynamic_source
         && ok_cube_orientation
         && ok_rock_scale
         && ok_brush)
