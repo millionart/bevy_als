@@ -10,7 +10,36 @@ pub const STANCE_BLEND_SPEED: f32 = 2.5;
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsStanceBlend {
     pub weight: f32,
+    pub trans_weight: f32,
+    pub trans_up: bool,
 }
+
+impl Default for AlsStanceBlend {
+    fn default() -> Self {
+        Self { weight: 0.0, trans_weight: 0.0, trans_up: false }
+    }
+}
+
+impl AlsStanceBlend {
+    pub fn with_weight(weight: f32) -> Self {
+        Self { weight, ..Self::default() }
+    }
+
+    fn advance_transition(&mut self, crouching_changed: bool, up: bool, dt: f32) {
+        if crouching_changed && self.trans_weight <= 0.0 {
+            self.trans_weight = 0.001;
+            self.trans_up = up;
+        }
+        if self.trans_weight > 0.0 {
+            self.trans_weight += dt / TRANS_CLIP_SECS;
+            if self.trans_weight >= 1.0 {
+                self.trans_weight = 0.0;
+            }
+        }
+    }
+}
+
+const TRANS_CLIP_SECS: f32 = 0.8;
 
 pub fn advance_stance_weight(current: f32, crouching: bool, dt: f32) -> f32 {
     let target = if crouching { 1.0 } else { 0.0 };
@@ -57,14 +86,25 @@ fn stance_blend_driver(
         let crouching = matches!(stance, Stance::Crouching);
         match blend {
             Some(mut state) => {
+                let changed = (state.weight > 0.5) != crouching;
+                let up = !crouching;
+                state.advance_transition(changed, up, dt);
                 state.weight = advance_stance_weight(state.weight, crouching, dt);
                 if let Ok(mut player) = players.get_mut(instance.player_entity()) {
                     player.set_input_data("stance_weight", DataValue::from(state.weight));
+                    player.set_input_data(
+                        "stance_trans_weight",
+                        DataValue::from(state.trans_weight),
+                    );
+                    player.set_input_data(
+                        "stance_trans_up",
+                        DataValue::from(if state.trans_up { 1.0f32 } else { 0.0f32 }),
+                    );
                 }
             }
             None => {
                 let weight = if crouching { 1.0 } else { 0.0 };
-                commands.entity(entity).insert(AlsStanceBlend { weight });
+                commands.entity(entity).insert(AlsStanceBlend::with_weight(weight));
                 if let Ok(mut player) = players.get_mut(instance.player_entity()) {
                     player.set_input_data("stance_weight", DataValue::from(weight));
                 }

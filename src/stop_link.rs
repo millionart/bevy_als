@@ -17,6 +17,7 @@ pub struct AlsStopMatch {
     pub left_weight: f32,
     pub right_weight: f32,
     pub weight: f32,
+    pub hold_weight: bool,
     pub last_input_move: f32,
 }
 
@@ -29,6 +30,7 @@ impl Default for AlsStopMatch {
             left_weight: 0.0,
             right_weight: 0.0,
             weight: 0.0,
+            hold_weight: false,
             last_input_move: 0.0,
         }
     }
@@ -36,7 +38,7 @@ impl Default for AlsStopMatch {
 
 pub const STOP_TRIGGER_MIN_SPEED: f32 = 1.0;
 pub const STOP_RELEASE_INPUT_EPSILON: f32 = 0.05;
-const WEIGHT_IN_SPEED: f32 = 8.0;
+const WEIGHT_IN_SPEED: f32 = 6.0;
 const WEIGHT_OUT_SPEED: f32 = 5.0;
 
 fn move_toward(current: f32, target: f32, max_delta: f32) -> f32 {
@@ -106,8 +108,10 @@ pub fn stop_link_system(
             if stopped {
                 m.remaining = 0.0;
             }
+            m.hold_weight = true;
             m.active = false;
         }
+        m.weight = move_toward(m.weight, 1.0, WEIGHT_IN_SPEED * dt);
     } else {
         let released_while_fast = m.last_input_move > 0.30
             && input_move <= STOP_RELEASE_INPUT_EPSILON
@@ -121,12 +125,16 @@ pub fn stop_link_system(
             m.left_weight = 1.0;
             m.right_weight = 0.0;
         }
+        if m.hold_weight && m.weight < 1.0 {
+            m.weight = move_toward(m.weight, 1.0, WEIGHT_IN_SPEED * dt);
+        } else {
+            if m.weight >= 1.0 {
+                m.hold_weight = false;
+            }
+            m.weight = move_toward(m.weight, 0.0, WEIGHT_OUT_SPEED * dt);
+        }
     }
     m.last_input_move = input_move;
-
-    let weight_target = if m.active { 1.0 } else { 0.0 };
-    let w_speed = if m.active { WEIGHT_IN_SPEED } else { WEIGHT_OUT_SPEED };
-    m.weight = move_toward(m.weight, weight_target, w_speed * dt);
 
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {

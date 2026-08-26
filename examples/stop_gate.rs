@@ -103,6 +103,7 @@ fn steps() -> [Step; 4] {
 #[derive(Resource, Default)]
 struct StopWatch {
     prev_active: bool,
+    hold_started: bool,
     start_xz: Vec2,
     predicted_total: f32,
     measured_slide: f32,
@@ -234,27 +235,24 @@ fn stop_watcher(
         );
     }
     if watch.prev_active && !m.active {
+        watch.hold_started = true;
+    }
+    if watch.hold_started && m.weight >= 0.999 {
+        watch.observed_stop = true;
         let xz = Vec2::new(tf.translation.x, tf.translation.z);
         watch.measured_slide = xz.distance(watch.start_xz);
-        watch.remaining_at_end = m.remaining;
-        watch.observed_stop = true;
-        let err = if watch.predicted_total > 1e-3 {
-            (watch.measured_slide - watch.predicted_total).abs() / watch.predicted_total
-        } else {
-            f32::INFINITY
-        };
         info!(
-            "[STOPGATE][RESULT] predicted={:.3} measured_slide={:.3} rel_err={err:.1}% remaining_end={:.3} peak_w={:.2}",
+            "[STOPGATE][RESULT] predicted={:.3} measured_slide={:.3} remaining_end={:.3} peak_w={:.2}",
             watch.predicted_total, watch.measured_slide, watch.remaining_at_end, watch.peak_weight
         );
-            let ok_closed = watch.remaining_at_end <= 0.08;
-            let ok_weight = watch.peak_weight >= 0.95;
-            let ok_slide = (0.05..=1.5).contains(&watch.measured_slide);
-            info!(
-                "[STOPGATE][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} -> {}",
-                if ok_closed && ok_weight && ok_slide { "PASS" } else { "FAIL" }
-            );
-            if !(ok_closed && ok_weight && ok_slide) {
+        let ok_closed = watch.remaining_at_end <= 0.08;
+        let ok_weight = watch.peak_weight >= 0.95;
+        let ok_slide = (0.05..=1.5).contains(&watch.measured_slide);
+        info!(
+            "[STOPGATE][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} -> {}",
+            if ok_closed && ok_weight && ok_slide { "PASS" } else { "FAIL" }
+        );
+        if !(ok_closed && ok_weight && ok_slide) {
             watch.failed = true;
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         }

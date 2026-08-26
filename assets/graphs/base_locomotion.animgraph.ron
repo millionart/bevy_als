@@ -497,6 +497,56 @@
             should_debug: false,
         ),
         (
+            id: "e5e5e5e5-0000-4000-8000-00000000e501",
+            name: "stand to crouch clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Transitions/A_Als_StandToCrouch.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e5e5e5e5-0000-4000-8000-00000000e502",
+            name: "crouch to stand clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Transitions/A_Als_CrouchToStand.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e5e5e5e5-0000-4000-8000-00000000e503",
+            name: "stance trans direction blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "e5e5e5e5-0000-4000-8000-00000000e504",
+            name: "stance trans blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
             id: "c0c0c0c0-0000-4000-8000-000000000006",
             name: "stance blend",
             inner: {
@@ -591,8 +641,18 @@
         NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose_b"): NodeData("c0c0c0c0-0000-4000-8000-000000000005", "pose"),
         NodeTime("c0c0c0c0-0000-4000-8000-000000000006", "time_b"): NodeTime("c0c0c0c0-0000-4000-8000-000000000005"),
         NodeData("c0c0c0c0-0000-4000-8000-000000000006", "factor"): InputData(Passthrough("stance_weight")),
-        OutputData("pose"): NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose"),
-        OutputTime: NodeTime("c0c0c0c0-0000-4000-8000-000000000006"),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e503", "pose_a"): NodeData("e5e5e5e5-0000-4000-8000-00000000e501", "pose"),
+        NodeTime("e5e5e5e5-0000-4000-8000-00000000e503", "time_a"): NodeTime("e5e5e5e5-0000-4000-8000-00000000e501"),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e503", "pose_b"): NodeData("e5e5e5e5-0000-4000-8000-00000000e502", "pose"),
+        NodeTime("e5e5e5e5-0000-4000-8000-00000000e503", "time_b"): NodeTime("e5e5e5e5-0000-4000-8000-00000000e502"),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e503", "factor"): InputData(Passthrough("stance_trans_up")),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e504", "pose_a"): NodeData("c0c0c0c0-0000-4000-8000-000000000006", "pose"),
+        NodeTime("e5e5e5e5-0000-4000-8000-00000000e504", "time_a"): NodeTime("c0c0c0c0-0000-4000-8000-000000000006"),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e504", "pose_b"): NodeData("e5e5e5e5-0000-4000-8000-00000000e503", "pose"),
+        NodeTime("e5e5e5e5-0000-4000-8000-00000000e504", "time_b"): NodeTime("e5e5e5e5-0000-4000-8000-00000000e503"),
+        NodeData("e5e5e5e5-0000-4000-8000-00000000e504", "factor"): InputData(Passthrough("stance_trans_weight")),
+        OutputData("pose"): NodeData("e5e5e5e5-0000-4000-8000-00000000e504", "pose"),
+        OutputTime: NodeTime("e5e5e5e5-0000-4000-8000-00000000e504"),
     },
     io_spec: (
         input_times: [],
@@ -603,6 +663,8 @@
             Passthrough("gait_move_weight"): F32,
             Passthrough("gait_run_weight"): F32,
             Passthrough("gait_sprint_weight"): F32,
+            Passthrough("stance_trans_weight"): F32,
+            Passthrough("stance_trans_up"): F32,
             Passthrough("stance_weight"): F32,
         },
         output_time: true,
@@ -616,6 +678,8 @@
             Data(Passthrough("gait_move_weight")): 25,
             Data(Passthrough("gait_run_weight")): 26,
             Data(Passthrough("gait_sprint_weight")): 27,
+            Data(Passthrough("stance_trans_weight")): 28,
+            Data(Passthrough("stance_trans_up")): 29,
             Data(Passthrough("stance_weight")): 3,
         },
         output_order: {
@@ -630,6 +694,8 @@
         Passthrough("gait_move_weight"): F32(0.0),
         Passthrough("gait_run_weight"): F32(0.0),
         Passthrough("gait_sprint_weight"): F32(0.0),
+        Passthrough("stance_trans_weight"): F32(0.0),
+        Passthrough("stance_trans_up"): F32(0.0),
         Passthrough("stance_weight"): F32(0.0),
     },
     editor_metadata: (
