@@ -1,5 +1,5 @@
 use als_core::air::AlsAirState;
-use als_core::gait::{als_play_rate, stride_blend_amount, GaitWeights};
+use als_core::gait::{als_play_rate, stride_blend_amount_for_speed, GaitWeights};
 use als_core::graph_router::compute_graph_inputs;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
@@ -30,7 +30,7 @@ pub fn compute_motion_graph_inputs(
             Gait::Running | Gait::Sprinting => 1.0,
         },
     };
-    let stride = stride_blend_amount(running_amount);
+    let stride = stride_blend_amount_for_speed(running_amount, horizontal_speed.max(gi.speed));
     let pr = als_play_rate(params, stance, gait, horizontal_speed.max(gi.speed), stride);
     let effective = match stance {
         Stance::Standing => gait,
@@ -60,7 +60,7 @@ pub fn compute_motion_graph_inputs_blended(
     weights: GaitWeights,
 ) -> MotionGraphInputs {
     let gi = compute_graph_inputs(params, stance, gait, horizontal_speed);
-    let stride = stride_blend_amount(weights.running_amount());
+    let stride = stride_blend_amount_for_speed(weights.running_amount(), speed_ema);
     let pr = als_play_rate(params, stance, gait, speed_ema, stride);
     MotionGraphInputs {
         speed: gi.speed,
@@ -115,7 +115,10 @@ mod tests {
     fn walking_uses_als_walk_play_rate() {
         let p = AlsMovementParams::default();
         let m = compute_motion_graph_inputs(&p, Stance::Standing, Gait::Walking, 1.5);
-        assert!((m.play_rate - 1.5 / 1.5 / 1.35).abs() < 1e-4);
+        // walk at full animated speed 1.5m/s => walk curve saturates at 1.0
+        let stride = stride_blend_amount_for_speed(0.0, 1.5);
+        assert!((stride - 1.0).abs() < 1e-3);
+        assert!((m.play_rate - 1.5 / 1.5 / stride).abs() < 1e-4);
         assert!((m.gait_move_weight - 1.0).abs() < 1e-6);
         assert!((m.gait_run_weight - 0.0).abs() < 1e-6);
     }
@@ -125,7 +128,8 @@ mod tests {
         let p = AlsMovementParams::default();
         let m = compute_motion_graph_inputs(&p, Stance::Crouching, Gait::Sprinting, 1.5);
         assert!((m.speed - 1.5).abs() < 1e-5);
-        assert!((m.play_rate - 1.5 / 1.5 / 1.35).abs() < 1e-4);
+        let stride = stride_blend_amount_for_speed(0.0, 1.5);
+        assert!((m.play_rate - 1.5 / 1.5 / stride).abs() < 1e-4);
         assert!((m.gait_move_weight - 1.0).abs() < 1e-6);
         assert!((m.gait_run_weight - 0.0).abs() < 1e-6);
         assert!((m.gait_sprint_weight - 0.0).abs() < 1e-6);
@@ -142,16 +146,14 @@ mod tests {
     #[test]
     fn blended_inputs_use_ema_and_weights() {
         let p = AlsMovementParams::default();
-        let w = GaitWeights { move_w: 1.0, run_w: 0.5, sprint_w: 0.0 };
-        let m = compute_motion_graph_inputs_blended(
-            &p,
-            Stance::Standing,
-            Gait::Running,
-            3.75,
-            2.0,
-            w,
-        );
-        let expected_stride = 1.35 * 0.5 + 1.2 * 0.5;
+        let w = GaitWeights {
+            move_w: 1.0,
+            run_w: 0.5,
+            sprint_w: 0.0,
+        };
+        let m = compute_motion_graph_inputs_blended(&p, Stance::Standing, Gait::Running, 3.75, 2.0, w);
+        // stride curve: walk(200cm/s) and run(200cm/s) lerp at running=0.5
+        let expected_stride = stride_blend_amount_for_speed(0.5, 2.0);
         assert!((m.play_rate - 2.0 / 3.5 / expected_stride).abs() < 1e-4);
         assert!((m.gait_move_weight - 1.0).abs() < 1e-6);
         assert!((m.gait_run_weight - 0.5).abs() < 1e-6);

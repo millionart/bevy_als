@@ -20,6 +20,7 @@ pub mod params;
 pub mod pivot;
 pub mod start_stop;
 pub mod state;
+pub mod stride_curves;
 pub mod roll;
 pub mod rotate_in_place;
 pub mod transition;

@@ -1,8 +1,8 @@
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, Stance};
+use crate::stride_curves::{stride_curve_run, stride_curve_walk};
 
-pub const STRIDE_BLEND_WALK: f32 = 1.35;
-pub const STRIDE_BLEND_RUN: f32 = 1.2;
+pub const STRIDE_BLEND_RANGE_MAX: f32 = 1.0;
 pub const PLAY_RATE_MAX: f32 = 3.0;
 pub const CROUCH_PLAY_RATE_MAX: f32 = 2.0;
 pub const GAIT_CROSSFADE_SECS: f32 = 0.25;
@@ -15,8 +15,18 @@ pub struct AlsPlayRate {
 }
 
 pub fn stride_blend_amount(running_amount: f32) -> f32 {
-    let r = running_amount.clamp(0.0, 1.0);
-    STRIDE_BLEND_WALK * (1.0 - r) + STRIDE_BLEND_RUN * r
+    stride_blend_amount_for_speed(running_amount, 0.0)
+}
+
+pub fn stride_blend_amount_for_speed(running_amount: f32, speed_ms: f32) -> f32 {
+    // ALS: StrideBlendAmount = Curve(Speed) lerped by RunningAmount, with
+    // Speed in cm/s (walk curve tmax=150, run curve tmax=350). This crate
+    // uses m/s throughout, so convert before sampling.
+    let speed_cm = speed_ms * 100.0;
+    let w = stride_curve_walk(speed_cm);
+    let r = stride_curve_run(speed_cm);
+    let blend = running_amount.clamp(0.0, 1.0);
+    w * (1.0 - blend) + r * blend
 }
 
 #[allow(dead_code)]
@@ -132,32 +142,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn walk_play_rate_matches_als_defaults() {
+    fn walk_play_rate_matches_als_curve() {
         let p = AlsMovementParams::default();
-        let stride = stride_blend_amount(0.0);
+        // walk at its full animated speed: walk curve saturates at 1.0
+        let stride = stride_blend_amount_for_speed(0.0, 1.5);
+        assert!((stride - 1.0).abs() < 1e-3);
         let pr = als_play_rate(&p, Stance::Standing, Gait::Walking, 1.5, stride);
-        let expected = 1.5 / 1.5 / STRIDE_BLEND_WALK;
-        assert!((pr.play_rate - expected).abs() < 1e-4);
-        assert!((pr.stride_blend - STRIDE_BLEND_WALK).abs() < 1e-6);
+        assert!((pr.play_rate - 1.5 / 1.5 / stride).abs() < 1e-4);
+        assert!((pr.stride_blend - stride).abs() < 1e-6);
+    }
+
+    #[test]
+    fn stride_curves_start_at_als_minimum() {
+        // ALS curves start at 0.2 at zero speed (both Walk and Run)
+        let s0 = stride_blend_amount(0.0);
+        assert!((s0 - 0.2).abs() < 1e-4);
+        let s1 = stride_blend_amount(1.0);
+        assert!((s1 - 0.2).abs() < 1e-4);
+    }
+
+    #[test]
+    fn stride_curve_mid_speed_between_bounds() {
+        // mid-band sample must sit strictly between the 0.2 floor and 1.0 cap
+        let s = stride_blend_amount_for_speed(0.5, 0.75);
+        assert!(s > 0.2 && s < 1.0);
     }
 
     #[test]
     fn run_play_rate_uses_run_stride_and_animated_speed() {
         let p = AlsMovementParams::default();
-        let stride = stride_blend_amount(1.0);
+        // run at half animated speed: run curve at 175/350 = mid table
+        let stride = stride_blend_amount_for_speed(1.0, 3.5);
         let pr = als_play_rate(&p, Stance::Standing, Gait::Running, 3.5, stride);
-        assert!((pr.play_rate - 3.5 / 3.5 / STRIDE_BLEND_RUN).abs() < 1e-4);
-        assert!((pr.stride_blend - STRIDE_BLEND_RUN).abs() < 1e-6);
+        assert!((pr.play_rate - 3.5 / 3.5 / stride).abs() < 1e-4);
+        assert!((pr.stride_blend - stride).abs() < 1e-6);
         let pr_sprint = als_play_rate(&p, Stance::Standing, Gait::Sprinting, 6.0, stride);
-        assert!((pr_sprint.play_rate - 6.0 / 6.0 / STRIDE_BLEND_RUN).abs() < 1e-4);
+        assert!((pr_sprint.play_rate - 6.0 / 6.0 / stride).abs() < 1e-4);
     }
 
     #[test]
     fn sprint_play_rate_clamps_at_three() {
         let p = AlsMovementParams::default();
-        let stride = stride_blend_amount(1.0);
+        let stride = stride_blend_amount_for_speed(1.0, 6.0);
         let pr = als_play_rate(&p, Stance::Standing, Gait::Sprinting, 6.5, stride);
-        assert!((pr.play_rate - 6.5 / 6.0 / STRIDE_BLEND_RUN).abs() < 1e-4);
+        assert!((pr.play_rate - 6.5 / 6.0 / stride).abs() < 1e-4);
         let pr_extreme = als_play_rate(&p, Stance::Standing, Gait::Sprinting, 60.0, stride);
         assert!((pr_extreme.play_rate - PLAY_RATE_MAX).abs() < 1e-5);
     }
@@ -165,9 +193,9 @@ mod tests {
     #[test]
     fn crouch_play_rate_clamps_at_two() {
         let p = AlsMovementParams::default();
-        let stride = stride_blend_amount(0.0);
+        let stride = stride_blend_amount_for_speed(0.0, 1.5);
         let pr = als_play_rate(&p, Stance::Crouching, Gait::Walking, 1.5, stride);
-        let expected = 1.5 / 1.5 / STRIDE_BLEND_WALK;
+        let expected = 1.5 / 1.5 / stride;
         assert!((pr.play_rate - expected).abs() < 1e-4);
         let pr_over = als_play_rate(&p, Stance::Crouching, Gait::Sprinting, 90.0, stride);
         assert!((pr_over.play_rate - CROUCH_PLAY_RATE_MAX).abs() < 1e-5);
@@ -176,7 +204,7 @@ mod tests {
     #[test]
     fn near_idle_speed_gives_near_zero_rate() {
         let p = AlsMovementParams::default();
-        let pr = als_play_rate(&p, Stance::Standing, Gait::Running, 0.05, STRIDE_BLEND_RUN);
+        let pr = als_play_rate(&p, Stance::Standing, Gait::Running, 0.05, stride_blend_amount(1.0));
         assert!(pr.play_rate < 0.2);
     }
 
