@@ -13,21 +13,24 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::air::{AirPhase, AlsAirPlugin, AlsAirState, LAND_HEAVY_IMPACT_VY};
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::flail::AlsFlailState;
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
 
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins};
+use bevy_als::motion_graph_link::{
+    compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
+};
 
 const PHASE_DURATIONS: [f64; 6] = [1.0, 2.0, 3.0, 2.0, 3.5, 1.5];
 const LAST_PHASE: usize = 5;
 const TOTAL_SECS: f64 = 13.0;
 const SNAPSHOT_INTERVAL: f32 = 0.25;
 
-const TELEPORT_HEIGHT: f32 = 7.0;
+const TELEPORT_HEIGHT: f32 = 20.0;
 
 fn main() {
     let mut app = App::new();
@@ -97,6 +100,9 @@ struct GateVerdict {
     airborne_seen: bool,
     jump_variant_pins_seen: bool,
     jump_run_selected_at_speed: bool,
+    flail_seen: bool,
+    flail_pin_seen: bool,
+    peak_flail: f32,
     failed: bool,
 }
 
@@ -157,18 +163,24 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
 
-    let character = commands
-        .spawn(bundle)
-        .id();
+    let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M8GATE] scripted demo armed");
     }
 
@@ -201,19 +213,24 @@ fn auto_demo(
             || !verdict.heavy_seen
             || !verdict.jump_variant_pins_seen
             || !verdict.jump_run_selected_at_speed
+            || !verdict.flail_seen
+            || !verdict.flail_pin_seen
         {
             error!(
-                "[M8GATE][VERDICT] overall FAIL light={} heavy={} peak_ff={:.2} var_pins={} run_sel={}",
+                "[M8GATE][VERDICT] overall FAIL light={} heavy={} peak_ff={:.2} peak_flail={:.2} var_pins={} run_sel={} flail={} flail_pin={}",
                 verdict.light_seen,
                 verdict.heavy_seen,
                 verdict.peak_fall_fast,
+                verdict.peak_flail,
                 verdict.jump_variant_pins_seen,
-                verdict.jump_run_selected_at_speed
+                verdict.jump_run_selected_at_speed,
+                verdict.flail_seen,
+                verdict.flail_pin_seen,
             );
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         } else {
             info!(
-                "[M8GATE][VERDICT] overall PASS light=true heavy=true var_pins=true run_sel=true"
+                "[M8GATE][VERDICT] overall PASS light=true heavy=true var_pins=true run_sel=true flail=true flail_pin=true"
             );
             exit.write(AppExit::Success);
         }
@@ -235,7 +252,7 @@ fn auto_demo(
     }
     let local = t - phase_start(idx);
     let jump_hold = idx == 2 && entered;
-    let jump_keep = idx == 2 && local < 0.35;
+    let jump_keep = idx == 2 && local < 0.08;
     if jump_hold {
         over.0.jump_pressed = true;
     } else {
@@ -279,6 +296,7 @@ fn air_pin_router(
             &LinearVelocity,
             &als_core::character::AlsMovementParamsHandle,
             &AlsAirState,
+            &AlsFlailState,
         ),
         With<AlsCharacter>,
     >,
@@ -286,7 +304,7 @@ fn air_pin_router(
     mut players: Query<&mut AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
-    let Ok((stance, gait, vel, handle, air)) = q.single() else {
+    let Ok((stance, gait, vel, handle, air, flail)) = q.single() else {
         return;
     };
     let Some(p) = params.get(handle.id()) else {
@@ -297,7 +315,7 @@ fn air_pin_router(
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             write_motion_graph_pins(&mut player, &mgi);
-            write_air_pins(&mut player, air);
+            write_air_pins(&mut player, air, flail);
         }
     }
 }
@@ -338,6 +356,7 @@ fn metrics_logger(
             &LocomotionState,
             &Gait,
             &AlsAirState,
+            &AlsFlailState,
         ),
         With<AlsCharacter>,
     >,
@@ -351,7 +370,7 @@ fn metrics_logger(
     }
     *last = t as f32;
 
-    let Ok((_char_entity, tf, vel, loco, gait, air)) = q.single_mut() else {
+    let Ok((_char_entity, tf, vel, loco, gait, air, flail)) = q.single_mut() else {
         return;
     };
     let instance = avatars
@@ -362,9 +381,16 @@ fn metrics_logger(
         verdict.airborne_seen = true;
     }
     verdict.peak_fall_fast = verdict.peak_fall_fast.max(air.fall_fast_weight);
+    verdict.peak_flail = verdict.peak_flail.max(flail.weight);
+    if flail.weight > 0.5 {
+        verdict.flail_seen = true;
+    }
     if matches!(air.phase, AirPhase::Landing) && !air.landing_heavy && air.land_weight > 0.5 {
         verdict.light_seen = true;
-        info!("[M8GATE][LAND] light variant active w={:.2}", air.land_weight);
+        info!(
+            "[M8GATE][LAND] light variant active w={:.2}",
+            air.land_weight
+        );
     }
     if matches!(air.phase, AirPhase::Landing) && air.landing_heavy && air.land_weight > 0.5 {
         verdict.heavy_seen = true;
@@ -383,6 +409,17 @@ fn metrics_logger(
             Some(bevy_animation_graph::core::edge_data::DataValue::F32(v)) => v,
             _ => f32::NAN,
         };
+        let flail_w = match player.get_input_data("flail_weight".into()) {
+            Some(bevy_animation_graph::core::edge_data::DataValue::F32(v)) => v,
+            _ => f32::NAN,
+        };
+        if flail.weight > 0.5 && (flail_w - flail.weight).abs() < 1e-3 {
+            verdict.flail_pin_seen = true;
+            info!(
+                "[M8GATE][FLAIL] active state_w={:.2} pin_w={flail_w:.2}",
+                flail.weight
+            );
+        }
         if !run_w.is_nan() && !left_w.is_nan() && matches!(air.phase, AirPhase::Airborne) {
             verdict.jump_variant_pins_seen = true;
             let hspeed = Vec2::new(vel.x, vel.z).length();
@@ -399,7 +436,7 @@ fn metrics_logger(
     }
 
     info!(
-        "[M8GATE] t={t:.2} phase={} loco={loco:?} gait={gait:?} vy={:+.2} peak_dn={:.2} pos=({:.2},{:.2},{:.2}) air_w={:.2} ff_w={:.2} land_w={:.2} heavy_w={:.2} impact={:.2} airphase={:?} heavy={}",
+        "[M8GATE] t={t:.2} phase={} loco={loco:?} gait={gait:?} vy={:+.2} peak_dn={:.2} pos=({:.2},{:.2},{:.2}) air_w={:.2} ff_w={:.2} flail_w={:.2} land_w={:.2} heavy_w={:.2} impact={:.2} airphase={:?} heavy={}",
         phase_desc(phase_at(t)),
         vel.y,
         air.down_vy_smooth,
@@ -408,6 +445,7 @@ fn metrics_logger(
         tf.translation.z,
         air.air_weight,
         air.fall_fast_weight,
+        flail.weight,
         air.land_weight,
         air.land_heavy_weight,
         air.last_impact_vy,

@@ -13,10 +13,10 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{roll_displacement_dir, AlsRollState};
+use als_core::roll::{AlsRollState, roll_displacement_dir};
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::start_stop::{StartStopPhase, StartStopState};
@@ -105,13 +105,76 @@ struct Step {
 
 fn steps() -> [Step; 7] {
     [
-        Step { t0: 0.5, dur: 1.0, label: "idle", move_dir: Vec2::ZERO, gait: None, pulse_roll: false, pulse_jump: false, release_input: false },
-        Step { t0: 1.5, dur: 2.0, label: "sprint up", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), pulse_roll: false, pulse_jump: false, release_input: false },
-        Step { t0: 3.5, dur: 2.0, label: "sprint roll (forward)", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), pulse_roll: true, pulse_jump: false, release_input: false },
-        Step { t0: 5.5, dur: 1.8, label: "resume sprint", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), pulse_roll: false, pulse_jump: false, release_input: false },
-        Step { t0: 7.3, dur: 0.9, label: "jump while sprinting", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), pulse_roll: false, pulse_jump: true, release_input: false },
-        Step { t0: 8.2, dur: 0.35, label: "land + keep moving", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), pulse_roll: false, pulse_jump: false, release_input: false },
-        Step { t0: 8.55, dur: 2.6, label: "release -> stop distance match", move_dir: Vec2::ZERO, gait: None, pulse_roll: false, pulse_jump: false, release_input: true },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            label: "idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            pulse_roll: false,
+            pulse_jump: false,
+            release_input: false,
+        },
+        Step {
+            t0: 1.5,
+            dur: 2.0,
+            label: "sprint up",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            pulse_roll: false,
+            pulse_jump: false,
+            release_input: false,
+        },
+        Step {
+            t0: 3.5,
+            dur: 2.0,
+            label: "sprint roll (forward)",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            pulse_roll: true,
+            pulse_jump: false,
+            release_input: false,
+        },
+        Step {
+            t0: 5.5,
+            dur: 1.8,
+            label: "resume sprint",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            pulse_roll: false,
+            pulse_jump: false,
+            release_input: false,
+        },
+        Step {
+            t0: 7.3,
+            dur: 0.9,
+            label: "jump while sprinting",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            pulse_roll: false,
+            pulse_jump: true,
+            release_input: false,
+        },
+        Step {
+            t0: 8.2,
+            dur: 0.35,
+            label: "land + keep moving",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            pulse_roll: false,
+            pulse_jump: false,
+            release_input: false,
+        },
+        Step {
+            t0: 8.55,
+            dur: 2.6,
+            label: "release -> stop distance match",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            pulse_roll: false,
+            pulse_jump: false,
+            release_input: true,
+        },
     ]
 }
 
@@ -166,17 +229,23 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
-        commands
-            .entity(character)
-            .insert((AlsInputOverride::default(), AlsViewYaw(std::f32::consts::PI)));
+        commands.entity(character).insert((
+            AlsInputOverride::default(),
+            AlsViewYaw(std::f32::consts::PI),
+        ));
         info!("[AGATE] scripted demo armed");
     }
 
@@ -190,13 +259,7 @@ fn spawn_character_once(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -329,9 +392,7 @@ fn actions_watcher(
         }
         info!(
             "[AGATE][LAND] z={:.2} light={} ff={:.2}",
-            v.land_pos_z,
-            v.landed_light,
-            air.fall_fast_weight
+            v.land_pos_z, v.landed_light, air.fall_fast_weight
         );
     }
 
@@ -351,8 +412,7 @@ fn actions_watcher(
         if !stop.active && v.verdict_done == false {
             v.stop_slide = xz.distance(v.stop_start_xz);
             v.stop_remaining_end = stop.remaining;
-            let ok_roll =
-                v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
+            let ok_roll = v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
             let ok_land = v.saw_air && v.landed_light;
             let ok_stop = v.stop_slide <= 1.5
                 && v.stop_peak_weight >= 0.95
@@ -364,7 +424,11 @@ fn actions_watcher(
                 v.stop_slide,
                 v.stop_peak_weight,
                 v.stop_remaining_end,
-                if ok_roll && ok_land && ok_stop { "PASS" } else { "FAIL" }
+                if ok_roll && ok_land && ok_stop {
+                    "PASS"
+                } else {
+                    "FAIL"
+                }
             );
             v.verdict_done = true;
             if !(ok_roll && ok_land && ok_stop) {
@@ -414,7 +478,11 @@ fn graph_router(
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             write_motion_graph_pins(&mut player, &mgi);
-            write_air_pins(&mut player, &als_core::air::AlsAirState::default());
+            write_air_pins(
+                &mut player,
+                &als_core::air::AlsAirState::default(),
+                &als_core::flail::AlsFlailState::default(),
+            );
         }
     }
 }

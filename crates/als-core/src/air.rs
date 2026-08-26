@@ -133,7 +133,8 @@ impl AlsAirState {
                 self.fall_fast_weight =
                     move_toward(self.fall_fast_weight, 0.0, AIR_BLEND_SPEED * dt);
                 let land_target = if remaining > LAND_TAIL_SECS { 1.0 } else { 0.0 };
-                self.land_weight = move_toward(self.land_weight, land_target, LAND_BLEND_SPEED * dt);
+                self.land_weight =
+                    move_toward(self.land_weight, land_target, LAND_BLEND_SPEED * dt);
                 let heavy_target = if self.landing_heavy { 1.0 } else { 0.0 };
                 self.land_heavy_weight =
                     move_toward(self.land_heavy_weight, heavy_target, LAND_BLEND_SPEED * dt);
@@ -157,11 +158,17 @@ type AirQueryItem<'w, 's> = (
     &'w LocomotionState,
     &'w LinearVelocity,
     Option<&'s mut AlsAirState>,
-);fn air_state_system(time: Res<Time>, mut q: Query<AirQueryItem, With<AlsCharacter>>) {
+    Option<&'s mut crate::flail::AlsFlailState>,
+);
+
+fn air_state_system(time: Res<Time>, mut q: Query<AirQueryItem, With<AlsCharacter>>) {
     let dt = time.delta_secs();
-    for (loco, vel, state) in &mut q {
+    for (loco, vel, state, flail) in &mut q {
         if let Some(mut s) = state {
             s.update(loco, vel.y, dt);
+        }
+        if let Some(mut f) = flail {
+            f.update(loco, vel.y, dt);
         }
     }
 }
@@ -174,9 +181,21 @@ impl Plugin for AlsAirPlugin {
             Update,
             (
                 ensure_air_state,
-                air_state_system.after(ensure_air_state),
+                ensure_flail_state.after(ensure_air_state),
+                air_state_system.after(ensure_flail_state),
             ),
         );
+    }
+}
+
+fn ensure_flail_state(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsCharacter>, Without<crate::flail::AlsFlailState>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(crate::flail::AlsFlailState::default());
     }
 }
 

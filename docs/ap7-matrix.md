@@ -11,8 +11,8 @@
 | Slot(Transition) | actions 层 roll/stop/mantle/turn override 链 | 已对齐 | RG2+AP6 |
 | Locomotion LG SM 六向{Fwd/Bwd/RFw/RBk/LFw/LBk} | BlendSpace1D×3(walk/run/crouch) 挂 direction_angle，扇区 60/120/150+hysteresis 5° | 已对齐 | AP3 |
 | Movement Details SM{Walk/Run/Sprint} | gait 离散三链 move/run/sprint weight 包络 0.25s | 已对齐 | AP2 |
-| Jump SM{LeftFoot/RightFoot/Loop} | 四变体 Jump_Walk|Run_L/R + Jump_Loop | 已对齐 | AP4 |
-| Fall/Fall_Fast blend | fall_fast_weight 语义保留 | 已对齐 | M8 |
+| Jump SM{LeftFoot/RightFoot/Loop/Flail} | 四变体 Jump_Walk|Run_L/R + Jump_Loop；Fall 图接入 A_Als_Flail | 已对齐 | AP4/M0.5 |
+| Fall/Fall_Fast/Flail blend | fall_fast_weight 语义保留；Flail 按下落速度 5–30 m/s 映射并以 5/s 插值 | 已对齐 | M8/M0.5 |
 | Land Movement/Land 二分 | land_light/heavy blend + land_weight | 已对齐 | M8 |
 | Stop States SM{Plant L/R Foot} | A_Als_Stop_L/R DistanceMatch+hold-weight 补完到 1.0 | 已对齐 | AP5 |
 | TurnInPlace/RotateInPlace clips | turn override 链(Turn_90/180_L/R)+检测器驱动 | 已对齐 | AP6 |
@@ -30,7 +30,7 @@
 | WalkRunBlendAmount 离散 0/1 | GaitWeights 三态离散 | 已对齐 |
 | PlayRate=(Speed/AnimatedSpeed)/StrideBlend 钳[0,3]，蹲≤2 | als_play_rate 同公式同钳位 | 已对齐 |
 | AnimatedWalk/Run/Sprint/Crouch=150/350/600/150 | params 默认值一致(单测断言) | 已对齐 |
-| StrideBlend 曲线按 Speed 采样 lerp | 常量近似 walk1.35/run1.2(M0.5 待导真曲线) | 待办(M0.5 增补) |
+| StrideBlend 曲线按 Speed 采样 lerp | CF_Als_StrideBlendAmount_Walk/Run 导入后按 Speed 采样 lerp | 已对齐 |
 | JumpPlayRate=lerp(1.2,1.5,speed/600) | air_jump::jump_play_rate | 已对齐 |
 | PivotActivationSpeedThreshold=200 | pivot.rs 配置 | 已对齐 |
 
@@ -42,7 +42,8 @@
 | ②跑步高度一跳一跳 | 连续 speed BS 半程混合 walk↔run 异相 loop | AP2 废弃连续 BS 改离散 gait 链+ALS 步频 | locomotion_gate PASS |
 | ③跳跃动画错误 | 无变体选择恒 Loop | AP4 四变体起跳+JumpPlayRate | air_gate PASS |
 
-## 待办(不阻塞 AP7 Gate)
-1. CF_Als_StrideBlendAmount_* 真曲线导出(M0.5 增补条目)
-2. RotateInPlace(Crouch_Rotate_90_L/R)挂接——检测器已有，图侧留 AP7 后增补
-3. Flail 长坠落 clip 接入(air 图已留 fall_fast 权重通道)
+## M0.5 增补收口
+
+1. [x] CF_Als_StrideBlendAmount_* 真曲线导入与采样接入。
+2. [x] RotateInPlace(Crouch_Rotate_90_L/R)图侧挂接。
+3. [x] Flail 接入：ALS Fall 图 `TwoWayBlend_2` 将 `VerticalVelocityWorldSpace` 的 `[-500,-3000] cm/s` 映射给 `A_Als_Flail`，并以 5/s 插值；Bevy 对应下落速度 5–30 m/s。

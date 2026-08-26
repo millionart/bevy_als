@@ -1,5 +1,5 @@
 use als_core::air::AlsAirState;
-use als_core::gait::{als_play_rate, stride_blend_amount_for_speed, GaitWeights};
+use als_core::gait::{GaitWeights, als_play_rate, stride_blend_amount_for_speed};
 use als_core::graph_router::compute_graph_inputs;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
@@ -72,10 +72,7 @@ pub fn compute_motion_graph_inputs_blended(
     }
 }
 
-pub fn write_motion_graph_pins(
-    player: &mut AnimationGraphPlayer,
-    inputs: &MotionGraphInputs,
-) {
+pub fn write_motion_graph_pins(player: &mut AnimationGraphPlayer, inputs: &MotionGraphInputs) {
     player.set_input_data("speed", DataValue::from(inputs.speed));
     player.set_input_data("actual_speed", DataValue::from(inputs.actual_speed));
     player.set_input_data("play_rate", DataValue::from(inputs.play_rate));
@@ -87,14 +84,16 @@ pub fn write_motion_graph_pins(
     );
 }
 
-pub fn write_air_pins(player: &mut AnimationGraphPlayer, air: &AlsAirState) {
+pub fn write_air_pins(
+    player: &mut AnimationGraphPlayer,
+    air: &AlsAirState,
+    flail: &als_core::flail::AlsFlailState,
+) {
     player.set_input_data("air_weight", DataValue::from(air.air_weight));
     player.set_input_data("fall_fast_weight", DataValue::from(air.fall_fast_weight));
     player.set_input_data("land_weight", DataValue::from(air.land_weight));
-    player.set_input_data(
-        "land_heavy_weight",
-        DataValue::from(air.land_heavy_weight),
-    );
+    player.set_input_data("land_heavy_weight", DataValue::from(air.land_heavy_weight));
+    player.set_input_data("flail_weight", DataValue::from(flail.weight));
 }
 
 #[cfg(test)]
@@ -151,7 +150,8 @@ mod tests {
             run_w: 0.5,
             sprint_w: 0.0,
         };
-        let m = compute_motion_graph_inputs_blended(&p, Stance::Standing, Gait::Running, 3.75, 2.0, w);
+        let m =
+            compute_motion_graph_inputs_blended(&p, Stance::Standing, Gait::Running, 3.75, 2.0, w);
         // stride curve: walk(200cm/s) and run(200cm/s) lerp at running=0.5
         let expected_stride = stride_blend_amount_for_speed(0.5, 2.0);
         assert!((m.play_rate - 2.0 / 3.5 / expected_stride).abs() < 1e-4);
