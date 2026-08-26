@@ -45,6 +45,46 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ---
 
+## BF100-2026-08-27（AB_Als Linked Anim Graph 全量清扫；当前执行批次）
+
+> 用户指令：停止此前按症状修补的测试方向，逐一对标 `AB_Als` 与 `Character/AnimationInstances` 子树，严格采用 `AB_Als` 的 Linked Anim Graph / Linked Anim Layer 架构；禁止采用、引用、回退到或以任何兼容层伪装 `AB_Als_Monolithic` 单文件模式。
+>
+> 实时资产盘点（2026-08-27）：`AnimationInstances` 子树实际含 21 个 `AB_Als_*` AnimBP；加上根 `AB_Als` 为 22 个。第 23 个必需的 linked-layer 合同是根目录 `ALI_Overlay`，其 `Overlay` 层由 13 个 Overlay AnimBP 实现。源树另有 `AB_Als_Monolithic`，但它不在本批 23 个合同中，且按用户指令明确排除。每个 BF100-01 至 BF100-23 必须落地为下列一对一的 Bevy 图/层文件；不得把多个原版合同折叠回单个图文件。
+>
+> 共通执行与验收规则：每项编码前都必须从当次对应 uasset 实时提取结构、状态/转换、参数、曲线、动画资产、`bLoop`、播放速率和 blend 数据，并在该项提交说明或本清单的证据段登记事实；相关 C++ 语义也必须实时核对。每项必须将该合同的全部参数、曲线、动画及逻辑迁移到 `bevy_animation_graph` 图和 ECS 驱动；基座缺少节点时优先在 `crates/als-ext` 经公开扩展点补齐。每项 Gate 必须以真实运行的 pin/状态/曲线/动画探针日志为证据，不能以截图或推断代替。所有场景只允许通过完整的标准角色入口和根图运行，禁止为 manual playground 或任一 Gate 写特例角色链路。
+>
+> 本节按实际数据流依赖排序，是当前最先执行的未完成批次；此前 RG2、BF99 与 ANIM-PARITY 的未完成状态保留为历史证据，但其涉及的 ABP 工作均由本批逐项重新验收，不能据此声明通过。每项完成后使用 `BF100-<编号>: <摘要>` 单独提交，并在同一提交勾选该项。
+
+- [ ] BF100-01 `ALI_Overlay` linked-layer 合同 → `assets/graphs/ab_als/ali_overlay.animgraph.ron`：实时提取 `ALI_Overlay.uasset` 的 `Overlay` 图函数和根 `AB_Als` 的接口调用；建立具有明确 pose、时间、曲线及 layer 输入/输出合同的图层接口，供所有 overlay 实现与根图连接。Gate：静态合同扫描和运行时接口 probe 均证明接口可由实现替换且无隐式默认 pose。
+- [ ] BF100-02 `AB_Als_Default` → `assets/graphs/ab_als/overlays/default.animgraph.ron`：在 BF100-01 接口上逐图迁移 Default overlay 的 pose 选择、additive、曲线、动画与混合逻辑。Gate：真实输入序列的状态/clip/curve probe 与原版提取事实逐项对应。
+- [ ] BF100-03 `AB_Als_Barrel` → `assets/graphs/ab_als/overlays/barrel.animgraph.ron`：完整迁移 Barrel 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 证明该层不改动接口合同、实际输出切至 Barrel 资产。
+- [ ] BF100-04 `AB_Als_Binoculars` → `assets/graphs/ab_als/overlays/binoculars.animgraph.ron`：完整迁移 Binoculars 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-05 `AB_Als_Bow` → `assets/graphs/ab_als/overlays/bow.animgraph.ron`：完整迁移 Bow 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-06 `AB_Als_Box` → `assets/graphs/ab_als/overlays/box.animgraph.ron`：完整迁移 Box 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-07 `AB_Als_Feminine` → `assets/graphs/ab_als/overlays/feminine.animgraph.ron`：完整迁移 Feminine 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-08 `AB_Als_HandsTied` → `assets/graphs/ab_als/overlays/hands_tied.animgraph.ron`：完整迁移 HandsTied 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-09 `AB_Als_Injured` → `assets/graphs/ab_als/overlays/injured.animgraph.ron`：完整迁移 Injured 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-10 `AB_Als_Masculine` → `assets/graphs/ab_als/overlays/masculine.animgraph.ron`：完整迁移 Masculine 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-11 `AB_Als_PistolOneHanded` → `assets/graphs/ab_als/overlays/pistol_one_handed.animgraph.ron`：完整迁移 PistolOneHanded 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-12 `AB_Als_PistolTwoHanded` → `assets/graphs/ab_als/overlays/pistol_two_handed.animgraph.ron`：完整迁移 PistolTwoHanded 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-13 `AB_Als_Rifle` → `assets/graphs/ab_als/overlays/rifle.animgraph.ron`：完整迁移 Rifle 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-14 `AB_Als_Torch` → `assets/graphs/ab_als/overlays/torch.animgraph.ron`：完整迁移 Torch 的 `Overlay` layer 实现及全部资产播放语义。Gate：接口替换 probe 与原版事实一致。
+- [ ] BF100-15 `AB_Als_Standing` → `assets/graphs/ab_als/stances/standing.animgraph.ron`：迁移 Standing 状态机、Movement Details、Stop/Foot Lock、Turn/Rotate/Pivot、全部参数/曲线/动画和转换规则。Gate：用实时输入轨迹记录每个状态、clip、loop、play-rate 与转换 blend 的运行值。
+- [ ] BF100-16 `AB_Als_Crouching` → `assets/graphs/ab_als/stances/crouching.animgraph.ron`：迁移 Crouching 的 Idle/Move/Stop/Rotate、六向移动、Foot Lock、曲线及全部转换规则。Gate：站蹲切换与六向 crouch 轨迹的状态/clip/curve probe 对应原版事实，且胶囊与足部数据均取标准角色入口。
+- [ ] BF100-17 `AB_Als_Grounded` → `assets/graphs/ab_als/grounded.animgraph.ron`：以 BF100-15/16 的两个输入 pose 为层边界，迁移 Grounded States、站蹲转换、Roll、缓存 pose、ModifyCurve 与 Inertialization 语义。Gate：Grounded 真实运行日志证明两个 stance 输入、状态转换和曲线清零/写入均完整生效。
+- [ ] BF100-18 `AB_Als_Locomotion` → `assets/graphs/ab_als/locomotion.animgraph.ron`：以 Grounded 输入 pose 为层边界，迁移 Grounded/Jump/Fall/Land/LandMovement、左右脚 jump 分支、Inertialization、所有曲线和转换逻辑。Gate：连续走跑跳落轨迹记录全部状态、动画、loop、play-rate、curve 和 transition blend 值。
+- [ ] BF100-19 `AB_Als_Layering` → `assets/graphs/ab_als/layering.animgraph.ron`：以 Locomotion 与 Overlay 两个输入 pose 为层边界，迁移 stand/crouch pose、mask/additive、Layer*Slot 曲线、slots 与全部混合逻辑。Gate：切换 BF100-02 至 BF100-14 实现时，日志证明 output 仅由 layer 合同换入且 locomotion 输入连续。
+- [ ] BF100-20 `AB_Als_View` → `assets/graphs/ab_als/view.animgraph.ron`：迁移 View 的全部 view/aim 参数、曲线、动画及 blend 逻辑。Gate：俯仰与 yaw 输入扫描的实际输出曲线、clip、权重和 blend 值与实时提取事实相符。
+- [ ] BF100-21 `AB_Als_Head` → `assets/graphs/ab_als/head.animgraph.ron`：以 View 输入 pose 为层边界，迁移 Head 的 head/aim 处理、曲线、动画及混合逻辑。Gate：Head 接收 BF100-20 输出的运行时 probe 与原版层输入合同逐项一致。
+- [ ] BF100-22 `AB_Als_Ragdolling` → `assets/graphs/ab_als/ragdolling.animgraph.ron`：以 Ragdolling 输入 pose 为层边界迁移独立 ragdoll 图的全部参数、曲线与逻辑。Gate：进入、稳定、恢复三个真实运行阶段均记录层激活、pose 输入/输出及相关状态值。
+- [ ] BF100-23 根 `AB_Als` → `assets/graphs/ab_als/ab_als.animgraph.ron`：按原版装配 BF100-01 至 BF100-22，保留 Linked Anim Graph / Linked Anim Layer 边界、Transition/PostLocomotion slots、ControlRig 等价物与 Inertialization；标准角色入口和每个场景只能引用该完整根图，不能引用拆片图或 `AB_Als_Monolithic`。Gate：根图装配 probe 覆盖 Grounded、Locomotion、Layering、View、Ragdolling、Standing、Crouching 与 Overlay 标签，且场景引用静态扫描零旁路。
+- [ ] BF100-24 全动画资源、loop 与 blend 审计：以 BF100-01 至 BF100-23 已建立的一对一映射为范围，逐一核对原版 AnimBP 中每个动画资源及 `bLoop`、Sequence Player/Evaluator 选项、播放速率、起始位置、SyncGroup、BlendSpace 轴、状态转换时长/曲线；输出可复查的完整审计表并修正 Bevy 中任何缺失或错误值。Gate：审计工具从原版资产和 Bevy 图读取的数据均为零未解释差异，动态 probe 覆盖每种 non-loop 和 loop 语义。
+- [ ] BF100-25 整体静态验收：对 23 个目标文件、图间 pin/pose/time/curve 合同、根图可达性、标准角色入口和所有场景引用做静态扫描；验证没有 Monolithic 名称、路径、兼容分支或单文件装配残留，并验证所有原版参数/曲线/动画/逻辑映射均有证据。Gate：可复跑静态验收命令输出 PASS，23 个文件恰好齐全且每项映射、来源事实和先前 Gate 证据可追溯。
+
+依赖关系：BF100-01 → BF100-02 → BF100-03…BF100-14 →（BF100-15、BF100-16）→ BF100-17 → BF100-18 → BF100-19；BF100-20 → BF100-21；BF100-22 与前述链独立；（BF100-19、BF100-21、BF100-22）→ BF100-23 → BF100-24 → BF100-25。
+
+---
+
 ## BUGFIX-2026-08-24（用户实测报告缺陷，按依赖序修复；部分须经 ALS-Refactored 截图对比验证）
 
 > 缺陷来源：run_manual.bat（examples/manual_playground.rs）实机试玩反馈，原文照录：
