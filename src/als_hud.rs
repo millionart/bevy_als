@@ -1,9 +1,9 @@
+use crate::show_debug_hud::{AlsShowDebugHudState, DebugCategory};
+use als_core::input::SlomoAction;
+use als_core::input::ToggleUiAction;
 use bevy::prelude::*;
 use bevy::ui::Display;
 use bevy_enhanced_input::prelude::*;
-use als_core::input::SlomoAction;
-use als_core::input::ToggleUiAction;
-use crate::show_debug_hud::{AlsShowDebugHudState, DebugCategory};
 
 pub const PANEL_WIDTH_PX: f32 = 340.0;
 pub const PANEL_RIGHT_MARGIN_PX: f32 = 25.0;
@@ -84,13 +84,17 @@ pub const INPUT_ROWS: [(&str, &str, &str); 14] = [
     ("Cycle Overlay", "Mouse Wheel", "D-pad U / D"),
 ];
 
-pub const DEBUG_ROWS: [( &str, &str, Option<DebugCategory>); 10] = [
+pub const DEBUG_ROWS: [(&str, &str, Option<DebugCategory>); 10] = [
     ("Toggle Slomo", "Z", None),
     ("Toggle Curves", "Shift + 1", Some(DebugCategory::Curves)),
     ("Toggle State", "Shift + 2", Some(DebugCategory::State)),
     ("Toggle Shapes", "Shift + 3", Some(DebugCategory::Shapes)),
     ("Toggle Traces", "Shift + 4", Some(DebugCategory::Traces)),
-    ("Toggle Mantling", "Shift + 5", Some(DebugCategory::Mantling)),
+    (
+        "Toggle Mantling",
+        "Shift + 5",
+        Some(DebugCategory::Mantling),
+    ),
     (
         "Toggle Camera Curves",
         "Shift + 6",
@@ -110,11 +114,7 @@ pub const DEBUG_ROWS: [( &str, &str, Option<DebugCategory>); 10] = [
 ];
 
 pub fn slomo_time_scale(slomo_active: bool) -> f32 {
-    if slomo_active {
-        SLMO_TIME_SCALE
-    } else {
-        1.0
-    }
+    if slomo_active { SLMO_TIME_SCALE } else { 1.0 }
 }
 
 pub struct AlsHudPlugin;
@@ -250,27 +250,36 @@ fn spawn_header_section(commands: &mut Commands, root: Entity) {
             ..default()
         })
         .with_children(|row| {
-            row.spawn((cell_node(LABEL_GROW, false), BackgroundColor(COLOR_BORDER_STRONG)));
-            row.spawn((cell_node(KEY_CELL_GROW, true), BackgroundColor(COLOR_BORDER_STRONG)))
-                .with_children(|cell| {
-                    cell.spawn(text_node(
-                        "PC",
-                        FONT_SIZE_DEFAULT_PX,
-                        true,
-                        false,
-                        COLOR_TEXT,
-                    ));
-                });
-            row.spawn((cell_node(KEY_CELL_GROW, true), BackgroundColor(COLOR_BORDER_STRONG)))
-                .with_children(|cell| {
-                    cell.spawn(text_node(
-                        "Xbox",
-                        FONT_SIZE_DEFAULT_PX,
-                        true,
-                        false,
-                        COLOR_TEXT,
-                    ));
-                });
+            row.spawn((
+                cell_node(LABEL_GROW, false),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ));
+            row.spawn((
+                cell_node(KEY_CELL_GROW, true),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ))
+            .with_children(|cell| {
+                cell.spawn(text_node(
+                    "PC",
+                    FONT_SIZE_DEFAULT_PX,
+                    true,
+                    false,
+                    COLOR_TEXT,
+                ));
+            });
+            row.spawn((
+                cell_node(KEY_CELL_GROW, true),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ))
+            .with_children(|cell| {
+                cell.spawn(text_node(
+                    "Xbox",
+                    FONT_SIZE_DEFAULT_PX,
+                    true,
+                    false,
+                    COLOR_TEXT,
+                ));
+            });
         })
         .id();
 
@@ -281,30 +290,39 @@ fn spawn_header_section(commands: &mut Commands, root: Entity) {
             ..default()
         })
         .with_children(|row| {
-            row.spawn((cell_node(LABEL_GROW, false), BackgroundColor(COLOR_BORDER_STRONG)))
-                .with_children(|cell| {
-                    cell.spawn(text_node(
-                        "Toggle UI",
-                        FONT_SIZE_DEFAULT_PX,
-                        false,
-                        false,
-                        COLOR_TEXT,
-                    ));
-                });
-            row.spawn((cell_node(KEY_CELL_GROW, true), BackgroundColor(COLOR_BORDER_STRONG)))
-                .with_children(|cell| {
-                    cell.spawn((
-                        text_node("Tab", FONT_SIZE_DEFAULT_PX, true, false, COLOR_ENABLED),
-                        AlsHudColorTarget::UiToggle,
-                    ));
-                });
-            row.spawn((cell_node(KEY_CELL_GROW, true), BackgroundColor(COLOR_BORDER_STRONG)))
-                .with_children(|cell| {
-                    cell.spawn((
-                        text_node("View", FONT_SIZE_DEFAULT_PX, false, false, COLOR_ENABLED),
-                        AlsHudColorTarget::UiToggle,
-                    ));
-                });
+            row.spawn((
+                cell_node(LABEL_GROW, false),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ))
+            .with_children(|cell| {
+                cell.spawn(text_node(
+                    "Toggle UI",
+                    FONT_SIZE_DEFAULT_PX,
+                    false,
+                    false,
+                    COLOR_TEXT,
+                ));
+            });
+            row.spawn((
+                cell_node(KEY_CELL_GROW, true),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ))
+            .with_children(|cell| {
+                cell.spawn((
+                    text_node("Tab", FONT_SIZE_DEFAULT_PX, true, false, COLOR_ENABLED),
+                    AlsHudColorTarget::UiToggle,
+                ));
+            });
+            row.spawn((
+                cell_node(KEY_CELL_GROW, true),
+                BackgroundColor(COLOR_BORDER_STRONG),
+            ))
+            .with_children(|cell| {
+                cell.spawn((
+                    text_node("View", FONT_SIZE_DEFAULT_PX, false, false, COLOR_ENABLED),
+                    AlsHudColorTarget::UiToggle,
+                ));
+            });
         })
         .id();
 
@@ -336,7 +354,13 @@ fn spawn_debug_section(commands: &mut Commands, root: Entity) {
             BackgroundColor(COLOR_BORDER_STRONG),
         ))
         .with_children(|parent| {
-            parent.spawn(text_node("Debug", FONT_SIZE_DEFAULT_PX, false, false, COLOR_TEXT));
+            parent.spawn(text_node(
+                "Debug",
+                FONT_SIZE_DEFAULT_PX,
+                false,
+                false,
+                COLOR_TEXT,
+            ));
         })
         .id();
     commands.entity(section).add_child(header);
@@ -349,76 +373,62 @@ fn spawn_debug_section(commands: &mut Commands, root: Entity) {
                 ..default()
             })
             .id();
-        commands
-            .entity(row)
-            .with_children(|row_parent| {
+        commands.entity(row).with_children(|row_parent| {
+            row_parent
+                .spawn((
+                    cell_node(LABEL_GROW, false),
+                    BackgroundColor(COLOR_BORDER_STRONG),
+                ))
+                .with_children(|cell| {
+                    cell.spawn(text_node(
+                        label,
+                        FONT_SIZE_DEFAULT_PX,
+                        false,
+                        false,
+                        COLOR_TEXT,
+                    ));
+                });
+            if label == "Toggle Slomo" {
                 row_parent
                     .spawn((
-                        cell_node(LABEL_GROW, false),
+                        cell_node(KEY_CELL_GROW, true),
                         BackgroundColor(COLOR_BORDER_STRONG),
                     ))
                     .with_children(|cell| {
-                        cell.spawn(text_node(
-                            label,
-                            FONT_SIZE_DEFAULT_PX,
-                            false,
-                            false,
-                            COLOR_TEXT,
+                        cell.spawn((
+                            text_node(key, FONT_SIZE_DEFAULT_PX, true, false, COLOR_DISABLED),
+                            AlsHudColorTarget::Slomo,
                         ));
                     });
-                if label == "Toggle Slomo" {
-                    row_parent
-                        .spawn((
-                            cell_node(KEY_CELL_GROW, true),
-                            BackgroundColor(COLOR_BORDER_STRONG),
-                        ))
-                        .with_children(|cell| {
-                            cell.spawn((
-                                text_node(
-                                    key,
-                                    FONT_SIZE_DEFAULT_PX,
-                                    true,
-                                    false,
-                                    COLOR_DISABLED,
-                                ),
-                                AlsHudColorTarget::Slomo,
-                            ));
-                        });
-                    row_parent
-                        .spawn((
-                            cell_node(KEY_CELL_GROW, true),
-                            BackgroundColor(COLOR_BORDER_STRONG),
-                        ))
-                        .with_children(|cell| {
-                            cell.spawn((
-                                text_node(
-                                    "Menu",
-                                    FONT_SIZE_DEFAULT_PX,
-                                    false,
-                                    false,
-                                    COLOR_DISABLED,
-                                ),
-                                AlsHudColorTarget::Slomo,
-                            ));
-                        });
-                } else {
-                    let target = match category {
-                        Some(category) => AlsHudColorTarget::Category(category),
-                        None => AlsHudColorTarget::DebugMaster,
-                    };
-                    row_parent
-                        .spawn((
-                            cell_node(DEBUG_KEY_CELL_GROW, true),
-                            BackgroundColor(COLOR_BORDER_STRONG),
-                        ))
-                        .with_children(|cell| {
-                            cell.spawn((
-                                text_node(key, FONT_SIZE_DEFAULT_PX, true, false, COLOR_DISABLED),
-                                target,
-                            ));
-                        });
-                }
-            });
+                row_parent
+                    .spawn((
+                        cell_node(KEY_CELL_GROW, true),
+                        BackgroundColor(COLOR_BORDER_STRONG),
+                    ))
+                    .with_children(|cell| {
+                        cell.spawn((
+                            text_node("Menu", FONT_SIZE_DEFAULT_PX, false, false, COLOR_DISABLED),
+                            AlsHudColorTarget::Slomo,
+                        ));
+                    });
+            } else {
+                let target = match category {
+                    Some(category) => AlsHudColorTarget::Category(category),
+                    None => AlsHudColorTarget::DebugMaster,
+                };
+                row_parent
+                    .spawn((
+                        cell_node(DEBUG_KEY_CELL_GROW, true),
+                        BackgroundColor(COLOR_BORDER_STRONG),
+                    ))
+                    .with_children(|cell| {
+                        cell.spawn((
+                            text_node(key, FONT_SIZE_DEFAULT_PX, true, false, COLOR_DISABLED),
+                            target,
+                        ));
+                    });
+            }
+        });
         commands.entity(section).add_child(row);
     }
 
@@ -445,7 +455,13 @@ fn spawn_input_section(commands: &mut Commands, root: Entity) {
             BackgroundColor(COLOR_BORDER_STRONG),
         ))
         .with_children(|parent| {
-            parent.spawn(text_node("Input", FONT_SIZE_DEFAULT_PX, false, false, COLOR_TEXT));
+            parent.spawn(text_node(
+                "Input",
+                FONT_SIZE_DEFAULT_PX,
+                false,
+                false,
+                COLOR_TEXT,
+            ));
         })
         .id();
     commands.entity(section).add_child(header);
@@ -478,13 +494,7 @@ fn spawn_input_section(commands: &mut Commands, root: Entity) {
                         BackgroundColor(COLOR_BORDER_STRONG),
                     ))
                     .with_children(|cell| {
-                        cell.spawn(text_node(
-                            pc,
-                            FONT_SIZE_VALUE_PX,
-                            false,
-                            false,
-                            COLOR_TEXT,
-                        ));
+                        cell.spawn(text_node(pc, FONT_SIZE_VALUE_PX, false, false, COLOR_TEXT));
                     });
                 row_parent
                     .spawn((
@@ -514,7 +524,9 @@ fn toggle_ui_system(
     mut debug_sections: Query<&mut Node, (With<AlsHudDebugSection>, Without<AlsHudInputSection>)>,
     mut input_sections: Query<&mut Node, With<AlsHudInputSection>>,
 ) {
-    let pressed = events.iter().any(|events| events.contains(ActionEvents::START));
+    let pressed = events
+        .iter()
+        .any(|events| events.contains(ActionEvents::START));
     if !pressed {
         return;
     }
@@ -537,7 +549,9 @@ fn slomo_system(
     mut state: ResMut<AlsHudState>,
     mut time: ResMut<Time<Virtual>>,
 ) {
-    let pressed = events.iter().any(|events| events.contains(ActionEvents::START));
+    let pressed = events
+        .iter()
+        .any(|events| events.contains(ActionEvents::START));
     if !pressed {
         return;
     }
@@ -558,9 +572,10 @@ fn refresh_colors_system(
                 .as_ref()
                 .map(|debug| debug.is_active(category))
                 .unwrap_or(false),
-            AlsHudColorTarget::DebugMaster => {
-                show_debug.as_ref().map(|debug| debug.visible).unwrap_or(false)
-            }
+            AlsHudColorTarget::DebugMaster => show_debug
+                .as_ref()
+                .map(|debug| debug.visible)
+                .unwrap_or(false),
         };
         color.0 = AlsHudState::toggle_color(active);
     }
@@ -606,6 +621,9 @@ mod tests {
     fn input_rows_match_ue_panel() {
         assert_eq!(INPUT_ROWS.len(), 14);
         assert_eq!(INPUT_ROWS[0], ("Movement", "WASD", "Left Stick"));
-        assert_eq!(INPUT_ROWS[13], ("Cycle Overlay", "Mouse Wheel", "D-pad U / D"));
+        assert_eq!(
+            INPUT_ROWS[13],
+            ("Cycle Overlay", "Mouse Wheel", "D-pad U / D")
+        );
     }
 }

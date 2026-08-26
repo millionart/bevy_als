@@ -14,13 +14,13 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::{
-    extend_foot_pin_hold, AlsFootBones, AlsFootIkRuntime, AlsFootPinHold, AlsFootPinRequest,
-    AlsFootProbe, ANKLE_TO_SOLE,
+    ANKLE_TO_SOLE, AlsFootBones, AlsFootIkRuntime, AlsFootPinHold, AlsFootPinRequest, AlsFootProbe,
+    extend_foot_pin_hold,
 };
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::start_stop::{classify, update_start_stop, StartStopConfig, StartStopState};
+use als_core::start_stop::{StartStopConfig, StartStopState, classify, update_start_stop};
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
@@ -246,10 +246,17 @@ fn spawn_character_once(
         .id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M7GATE] scripted demo armed");
     }
 
@@ -567,9 +574,9 @@ fn metrics_logger(
 
     if phase == 2 && hspeed < MOVE_EPSILON {
         let both = probe.left.is_some() && probe.right.is_some();
-        let pens_ok = pens.iter().all(|p| {
-            !p.is_finite() || (*p >= -PENETRATION_TOL && *p <= STAND_FLOAT_TOL)
-        });
+        let pens_ok = pens
+            .iter()
+            .all(|p| !p.is_finite() || (*p >= -PENETRATION_TOL && *p <= STAND_FLOAT_TOL));
         let drop_ok = runtime.pelvis_drop <= 0.001 && runtime.pelvis_drop >= PELVIS_DROP_MIN;
         if !(both && pens_ok && drop_ok) {
             watch.stand_bad = true;

@@ -61,7 +61,13 @@ impl Plugin for AlsStopLinkPlugin {
 
 fn ensure_stop_match(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsStopMatch>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsStopMatch>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsStopMatch::default());
@@ -114,8 +120,7 @@ pub fn stop_link_system(
             && *loco == LocomotionState::Grounded
             && hspeed >= STOP_TRIGGER_MIN_SPEED;
         if released_while_fast {
-            m.total =
-                predict_stop_distance(hspeed, p.acceleration.braking_deceleration).max(0.3);
+            m.total = predict_stop_distance(hspeed, p.acceleration.braking_deceleration).max(0.3);
             m.remaining = m.total;
             m.active = true;
             m.left_weight = 1.0;
@@ -125,7 +130,11 @@ pub fn stop_link_system(
     m.last_input_move = input_move;
 
     let weight_target = if m.active { 1.0 } else { 0.0 };
-    let w_speed = if m.active { WEIGHT_IN_SPEED } else { WEIGHT_OUT_SPEED };
+    let w_speed = if m.active {
+        WEIGHT_IN_SPEED
+    } else {
+        WEIGHT_OUT_SPEED
+    };
     m.weight = move_toward(m.weight, weight_target, w_speed * dt);
 
     for instance in instances.iter() {

@@ -1,7 +1,16 @@
 use bevy::prelude::*;
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -13,7 +22,16 @@ pub enum LocomotionState {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -25,7 +43,16 @@ pub enum RotationMode {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -36,7 +63,16 @@ pub enum Stance {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -48,7 +84,16 @@ pub enum Gait {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -90,7 +135,11 @@ mod tests {
             T: PartialEq + std::fmt::Debug + serde::Serialize + DeserializeOwned,
         {
             let ser = ron::to_string(&value).unwrap();
-            assert_eq!(ser.trim(), text, "{value:?} should serialize to its ALS tag name");
+            assert_eq!(
+                ser.trim(),
+                text,
+                "{value:?} should serialize to its ALS tag name"
+            );
             let de: T = ron::from_str(&ser).unwrap();
             assert_eq!(de, value);
         }

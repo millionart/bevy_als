@@ -46,7 +46,6 @@ pub struct GaitSpeeds {
     pub crouching: StanceGaitSpeeds,
 }
 
-
 impl GaitSpeeds {
     pub fn apply_override(&mut self, ovr: &GaitSpeedsOverride) {
         if let Some(v) = &ovr.standing {
@@ -180,7 +179,8 @@ impl RotationParams {
             self.grounded_moving_aiming.apply_override(v);
         }
         if let Some(v) = &ovr.grounded_stationary_velocity_direction {
-            self.grounded_stationary_velocity_direction.apply_override(v);
+            self.grounded_stationary_velocity_direction
+                .apply_override(v);
         }
         if let Some(v) = &ovr.grounded_stationary_view_direction {
             self.grounded_stationary_view_direction.apply_override(v);
@@ -474,9 +474,28 @@ mod tests {
         assert!((p.acceleration.braking_deceleration - 15.0).abs() < 1e-6);
         assert!((p.acceleration.ground_friction - 4.0).abs() < 1e-6);
 
-        assert_eq!(p.rotation.grounded_moving_velocity_direction.interpolation_half_lives, GaitHalfLives::normal());
-        assert!((p.rotation.grounded_moving_velocity_direction.target_yaw_angle_speed - 800.0).abs() < 1e-6);
-        assert!((p.rotation.grounded_moving_view_direction.target_yaw_angle_speed - 500.0).abs() < 1e-6);
+        assert_eq!(
+            p.rotation
+                .grounded_moving_velocity_direction
+                .interpolation_half_lives,
+            GaitHalfLives::normal()
+        );
+        assert!(
+            (p.rotation
+                .grounded_moving_velocity_direction
+                .target_yaw_angle_speed
+                - 800.0)
+                .abs()
+                < 1e-6
+        );
+        assert!(
+            (p.rotation
+                .grounded_moving_view_direction
+                .target_yaw_angle_speed
+                - 500.0)
+                .abs()
+                < 1e-6
+        );
         assert!((p.rotation.grounded_moving_aiming.interpolation_half_life - 0.1).abs() < 1e-6);
         assert!((p.rotation.in_air_half_life - 0.2).abs() < 1e-6);
         assert!((p.rotation.min_interpolation_half_life_multiplier - 1.0 / 3.0).abs() < 1e-6);
@@ -500,7 +519,8 @@ mod tests {
     #[test]
     fn ron_partial_override_deserializes_with_none_for_missing_fields() {
         let ovr: AlsMovementParamsOverride =
-            ron::from_str("(speeds: Some((standing: Some((max_sprint_speed: Some(7.0))))))").unwrap();
+            ron::from_str("(speeds: Some((standing: Some((max_sprint_speed: Some(7.0))))))")
+                .unwrap();
         assert!(ovr.jump.is_none());
         assert!(ovr.rotation.is_none());
         let speeds = ovr.speeds.as_ref().unwrap();
@@ -531,8 +551,14 @@ mod tests {
         assert!((p.jump.jump_z_velocity - 4.5).abs() < 1e-6);
 
         assert_eq!(p.speeds.standing, before.speeds.standing);
-        assert_eq!(p.speeds.crouching.max_run_speed, before.speeds.crouching.max_run_speed);
-        assert_eq!(p.speeds.crouching.max_sprint_speed, before.speeds.crouching.max_sprint_speed);
+        assert_eq!(
+            p.speeds.crouching.max_run_speed,
+            before.speeds.crouching.max_run_speed
+        );
+        assert_eq!(
+            p.speeds.crouching.max_sprint_speed,
+            before.speeds.crouching.max_sprint_speed
+        );
         assert_eq!(p.acceleration, before.acceleration);
         assert_eq!(p.crouch, before.crouch);
         assert_eq!(p.jump.gravity_scale, before.jump.gravity_scale);
@@ -541,7 +567,10 @@ mod tests {
             p.rotation.grounded_moving_velocity_direction,
             before.rotation.grounded_moving_velocity_direction
         );
-        assert_eq!(p.rotation.in_air_half_life, before.rotation.in_air_half_life);
+        assert_eq!(
+            p.rotation.in_air_half_life,
+            before.rotation.in_air_half_life
+        );
     }
 
     #[test]
@@ -590,7 +619,13 @@ mod tests {
     #[test]
     fn stance_speed_lookup_matches_state_enum() {
         let p = AlsMovementParams::default();
-        assert!(std::ptr::eq(p.stance_speeds(Stance::Standing), &p.speeds.standing));
-        assert!(std::ptr::eq(p.stance_speeds(Stance::Crouching), &p.speeds.crouching));
+        assert!(std::ptr::eq(
+            p.stance_speeds(Stance::Standing),
+            &p.speeds.standing
+        ));
+        assert!(std::ptr::eq(
+            p.stance_speeds(Stance::Crouching),
+            &p.speeds.crouching
+        ));
     }
 }

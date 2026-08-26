@@ -6,9 +6,8 @@ use bevy::animation::AnimationTargetId;
 use crate::character::AlsCharacter;
 use crate::state::LocomotionState;
 
-pub const FOOT_BONE_NAMES: [&str; 6] = [
-    "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r",
-];
+pub const FOOT_BONE_NAMES: [&str; 6] =
+    ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"];
 pub const PROBE_UP_OFFSET: f32 = 0.15;
 pub const PROBE_DEPTH: f32 = 0.85;
 pub const ANKLE_TO_SOLE: f32 = 0.09;
@@ -172,7 +171,12 @@ impl AlsFootIkRuntime {
         let off_right = step_side(&mut self.right, right, ik_target, dt);
         self.pelvis_drop = move_toward_cap(
             self.pelvis_drop,
-            pelvis_drop(off_left, off_right, self.left.ik_weight, self.right.ik_weight),
+            pelvis_drop(
+                off_left,
+                off_right,
+                self.left.ik_weight,
+                self.right.ik_weight,
+            ),
             PELVIS_INTERP_SPEED * dt,
         );
         (off_left, off_right, self.pelvis_drop)
@@ -305,7 +309,14 @@ pub fn build_foot_bone_map(
     joint_q: &Query<&AnimationTargetId>,
 ) -> Option<AlsFootBones> {
     let mut found = Vec::new();
-    collect_named_descendants(root, children_q, name_q, joint_q, &FOOT_BONE_NAMES, &mut found);
+    collect_named_descendants(
+        root,
+        children_q,
+        name_q,
+        joint_q,
+        &FOOT_BONE_NAMES,
+        &mut found,
+    );
     let find = |name: &str| found.iter().find(|(n, _)| n == name).map(|(_, e)| *e);
     Some(AlsFootBones {
         left_thigh: find("thigh_l")?,
@@ -579,7 +590,10 @@ mod tests {
         }
         let (after, pw_after) = rt.side(0);
         assert!(pw_after < 1e-3);
-        assert!((after - (-0.10)).abs() < 1e-3, "returns to raw after release");
+        assert!(
+            (after - (-0.10)).abs() < 1e-3,
+            "returns to raw after release"
+        );
     }
 
     #[test]
@@ -596,7 +610,10 @@ mod tests {
             rt.update(&raised, &raised, 0.0, DT);
         }
         let (off_l, _) = rt.side(0);
-        assert!(off_l.abs() < 1e-2, "ik weight 0 pulls offset to rest, got {off_l}");
+        assert!(
+            off_l.abs() < 1e-2,
+            "ik weight 0 pulls offset to rest, got {off_l}"
+        );
     }
 
     #[test]
@@ -614,6 +631,9 @@ mod tests {
             prev = drop;
         }
         let (_, _, drop) = rt.update(&low, &flat, 1.0, DT);
-        assert!((drop + 0.20).abs() < 1e-2, "settles at min side, got {drop}");
+        assert!(
+            (drop + 0.20).abs() < 1e-2,
+            "settles at min side, got {drop}"
+        );
     }
 }

@@ -20,7 +20,7 @@ use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
 
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
@@ -115,11 +115,36 @@ struct Step {
 
 fn steps() -> [Step; 5] {
     [
-        Step { t0: 0.5, dur: 1.0, label: "idle", gait: None },
-        Step { t0: 1.5, dur: 2.2, label: "run to low ledge", gait: Some(Gait::Running) },
-        Step { t0: 3.7, dur: 1.8, label: "cross low ledge top", gait: Some(Gait::Running) },
-        Step { t0: 5.5, dur: 2.4, label: "run to high ledge", gait: Some(Gait::Running) },
-        Step { t0: 7.9, dur: 3.8, label: "cross high ledge top", gait: Some(Gait::Running) },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            label: "idle",
+            gait: None,
+        },
+        Step {
+            t0: 1.5,
+            dur: 2.2,
+            label: "run to low ledge",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 3.7,
+            dur: 1.8,
+            label: "cross low ledge top",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 5.5,
+            dur: 2.4,
+            label: "run to high ledge",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 7.9,
+            dur: 3.8,
+            label: "cross high ledge top",
+            gait: Some(Gait::Running),
+        },
     ]
 }
 
@@ -329,11 +354,7 @@ fn mantle_watcher(
     }
     if watch.prev_active && !m.active && watch.count < 2 {
         let slot = watch.count.min(1) as usize;
-        info!(
-            "[MGATE][DONE {}] raw_y={:.2}",
-            slot + 1,
-            tf.translation.y
-        );
+        info!("[MGATE][DONE {}] raw_y={:.2}", slot + 1, tf.translation.y);
         watch.pending_slot = Some(slot);
         watch.settle_timer = 1.0;
     }
@@ -352,9 +373,7 @@ fn mantle_watcher(
                     if !(on_top && watch.grounded_seen[i]) {
                         error!(
                             "[MGATE][VERDICT] mantle {i} landing insufficient settle={:.2} target={:.2} grounded={}",
-                            y,
-                            watch.targets[i],
-                            watch.grounded_seen[i]
+                            y, watch.targets[i], watch.grounded_seen[i]
                         );
                         watch.failed = true;
                     }

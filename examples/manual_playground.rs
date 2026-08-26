@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -12,21 +12,21 @@ use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_camera::AlsCameraPlugin;
+use als_core::aim::AlsAimPlugin;
 use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
 use als_core::input::{AlsInputCommand, AlsInputPlugin};
 use als_core::input_request::AlsInputRequestPlugin;
-use als_core::aim::AlsAimPlugin;
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
-use als_core::view::{clamp_pitch, AlsViewPitch};
-use als_ext::playground::{terrain_height, PlaygroundLandscape};
+use als_core::view::{AlsViewPitch, clamp_pitch};
+use als_ext::playground::{PlaygroundLandscape, terrain_height};
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
-use bevy_als::debug_draw::AlsDebugDrawPlugin;
+use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
 use bevy_als::motion_graph_link::{
@@ -69,7 +69,7 @@ fn main() {
         AlsStopLinkPlugin,
         AlsMantleDrivePlugin,
         AlsRagdollLinkPlugin,
-        AlsDebugDrawPlugin,
+        AlsDebugDisplayPlugin,
         AlsShowDebugHudPlugin,
     ));
     app.add_plugins((
@@ -168,9 +168,7 @@ fn screenshot_runner(
         };
         let path = plan.path.clone();
         commands.entity(cam).insert(Screenshot::primary_window());
-        commands
-            .entity(cam)
-            .observe(save_to_disk(path.clone()));
+        commands.entity(cam).observe(save_to_disk(path.clone()));
         info!("[MANUAL] screenshot requested -> {}", path.display());
         plan.taken = true;
         plan.done_at = Some(Instant::now() + Duration::from_millis(1500));
@@ -188,13 +186,7 @@ struct LandscapeColliderBuilt;
 
 fn landscape_collider_bridge(
     mut commands: Commands,
-    landscapes: Query<
-        Entity,
-        (
-            Added<PlaygroundLandscape>,
-            Without<LandscapeColliderBuilt>,
-        ),
-    >,
+    landscapes: Query<Entity, (Added<PlaygroundLandscape>, Without<LandscapeColliderBuilt>)>,
 ) {
     for entity in &landscapes {
         let size = 120.0_f32;
@@ -215,13 +207,12 @@ fn landscape_collider_bridge(
             for xi in 0..segs {
                 let a = zi * w + xi;
                 indices.push([a, a + w, a + 1]);
-        indices.push([a + 1, a + w, a + w + 1]);
+                indices.push([a + 1, a + w, a + w + 1]);
             }
         }
-        commands.entity(entity).insert((
-            Collider::trimesh(verts, indices),
-            LandscapeColliderBuilt,
-        ));
+        commands
+            .entity(entity)
+            .insert((Collider::trimesh(verts, indices), LandscapeColliderBuilt));
         info!("[MANUAL] landscape trimesh collider built");
     }
 }
@@ -317,9 +308,7 @@ fn graph_router(
     }
 }
 
-fn look_pitch_integrator(
-    mut q: Query<(&AlsInputCommand, &mut AlsViewPitch), With<AlsCharacter>>,
-) {
+fn look_pitch_integrator(mut q: Query<(&AlsInputCommand, &mut AlsViewPitch), With<AlsCharacter>>) {
     for (cmd, mut pitch) in &mut q {
         pitch.0 = clamp_pitch(pitch.0 - cmd.look_delta.y * LOOK_RADIANS_PER_COUNT);
     }

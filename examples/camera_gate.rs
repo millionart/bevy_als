@@ -13,7 +13,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_camera::{AlsCameraPlugin, AlsCameraRig, AlsCameraTarget};
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -21,8 +21,8 @@ use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::view::{AlsViewPitch, AlsViewSmoothed};
 use als_ext::AlsExtPlugin;
 
-use bevy_als::stop_link::AlsStopLinkPlugin;
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+use bevy_als::stop_link::AlsStopLinkPlugin;
 use bevy_als::view_layer::ViewLayerPlugin;
 
 const SNAPSHOT_INTERVAL: f32 = 0.2;
@@ -98,13 +98,69 @@ struct Step {
 
 fn steps() -> [Step; 7] {
     [
-        Step { t0: 0.5, dur: 1.2, label: "idle", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
-        Step { t0: 1.7, dur: 2.6, label: "run toward wall (probe shrink)", move_dir: Vec2::Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
-        Step { t0: 4.3, dur: 1.8, label: "aim on (blend to shoulder)", move_dir: Vec2::ZERO, gait: None, aiming: true, sweep_pitch: false },
-        Step { t0: 6.1, dur: 1.6, label: "pitch sweep while aiming", move_dir: Vec2::ZERO, gait: None, aiming: true, sweep_pitch: true },
-        Step { t0: 7.7, dur: 1.8, label: "aim off (blend back)", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
-        Step { t0: 9.5, dur: 1.5, label: "run again", move_dir: Vec2::Y, gait: Some(Gait::Running), aiming: false, sweep_pitch: false },
-        Step { t0: 11.0, dur: 1.2, label: "settle", move_dir: Vec2::ZERO, gait: None, aiming: false, sweep_pitch: false },
+        Step {
+            t0: 0.5,
+            dur: 1.2,
+            label: "idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            aiming: false,
+            sweep_pitch: false,
+        },
+        Step {
+            t0: 1.7,
+            dur: 2.6,
+            label: "run toward wall (probe shrink)",
+            move_dir: Vec2::Y,
+            gait: Some(Gait::Running),
+            aiming: false,
+            sweep_pitch: false,
+        },
+        Step {
+            t0: 4.3,
+            dur: 1.8,
+            label: "aim on (blend to shoulder)",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            aiming: true,
+            sweep_pitch: false,
+        },
+        Step {
+            t0: 6.1,
+            dur: 1.6,
+            label: "pitch sweep while aiming",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            aiming: true,
+            sweep_pitch: true,
+        },
+        Step {
+            t0: 7.7,
+            dur: 1.8,
+            label: "aim off (blend back)",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            aiming: false,
+            sweep_pitch: false,
+        },
+        Step {
+            t0: 9.5,
+            dur: 1.5,
+            label: "run again",
+            move_dir: Vec2::Y,
+            gait: Some(Gait::Running),
+            aiming: false,
+            sweep_pitch: false,
+        },
+        Step {
+            t0: 11.0,
+            dur: 1.2,
+            label: "settle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            aiming: false,
+            sweep_pitch: false,
+        },
     ]
 }
 
@@ -156,17 +212,20 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
-        commands
-            .entity(character)
-            .insert((
+        commands.entity(character).insert((
             AlsInputOverride::default(),
             AlsViewYaw(std::f32::consts::PI),
             AlsCameraTarget,
@@ -192,14 +251,7 @@ fn spawn_character_once(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-            &AlsViewYaw,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest, &AlsViewYaw), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -222,10 +274,7 @@ fn auto_demo(
     if idx != driver.step {
         driver.step = idx;
         let s = &all[idx];
-        info!(
-            "[CGATE][STEP {}] {} (aiming={})",
-            idx, s.label, s.aiming
-        );
+        info!("[CGATE][STEP {}] {} (aiming={})", idx, s.label, s.aiming);
         if let Some(g) = s.gait {
             req.gait = Some(g);
         }
@@ -290,9 +339,7 @@ fn graph_router(
     let _ = (LOOK_UNITS_PER_RAD, Stance::Standing);
 }
 
-fn camera_follow(
-    mut cameras: Query<&mut Camera, Without<AlsCharacter>>,
-) {
+fn camera_follow(mut cameras: Query<&mut Camera, Without<AlsCharacter>>) {
     for mut _cam in cameras.iter_mut() {}
 }
 
@@ -322,10 +369,7 @@ fn cam_watcher(
         ),
         (Without<AlsCameraRig>, With<AlsCharacter>),
     >,
-    mut cams: Query<
-        (&Transform, &AlsCameraRig),
-        (With<Camera>, Without<AlsCharacter>),
-    >,
+    mut cams: Query<(&Transform, &AlsCameraRig), (With<Camera>, Without<AlsCharacter>)>,
     mut exit: MessageWriter<AppExit>,
     q_target_probe: Query<Entity, With<AlsCameraTarget>>,
     q_rot: Query<&RotationMode, With<AlsCharacter>>,
@@ -364,7 +408,9 @@ fn cam_watcher(
     watch.prev_cam_pos = Some(cam_tf.translation);
 
     let pivot_y = char_tf.translation.y + 0.65;
-    let clearance = (cam_tf.translation.z - (-8.8f32)).abs().min(cam_tf.translation.y);
+    let clearance = (cam_tf.translation.z - (-8.8f32))
+        .abs()
+        .min(cam_tf.translation.y);
     let facing_wall = char_tf.translation.z < -7.0;
     if facing_wall {
         let cand = clearance.max(0.0);
@@ -395,7 +441,11 @@ fn cam_watcher(
             watch.min_clearance.unwrap_or(f32::INFINITY),
             watch.max_frame_jump,
             watch.blend_seen_high,
-            if ok_probe && ok_smooth && ok_linkage { "PASS" } else { "FAIL" }
+            if ok_probe && ok_smooth && ok_linkage {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
         if !(ok_probe && ok_smooth && ok_linkage) {
             watch.failed = true;

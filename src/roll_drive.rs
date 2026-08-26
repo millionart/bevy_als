@@ -1,6 +1,6 @@
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
-use als_core::roll::{roll_displacement_dir, roll_weight_at, AlsRollState};
+use als_core::roll::{AlsRollState, roll_displacement_dir, roll_weight_at};
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
@@ -31,7 +31,13 @@ impl Plugin for AlsRollDrivePlugin {
 
 fn ensure_roll_state(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsRollState>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsRollState>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsRollState::default());

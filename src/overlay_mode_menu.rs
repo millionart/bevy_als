@@ -1,9 +1,9 @@
-use bevy::prelude::*;
-use bevy_enhanced_input::prelude::*;
 use als_core::character::AlsCharacter;
 use als_core::input::OverlayMenuAction;
 use als_core::state::OverlayState;
 use als_core::transition::AlsStateRequest;
+use bevy::prelude::*;
+use bevy_enhanced_input::prelude::*;
 
 use crate::als_hud::AlsHudState;
 use crate::als_hud::COLOR_TEXT;
@@ -56,11 +56,7 @@ pub fn next_index(current: usize, len: usize) -> usize {
 
 pub fn previous_index(current: usize, len: usize) -> usize {
     assert!(len > 0);
-    if current >= len - 1 {
-        0
-    } else {
-        current + 1
-    }
+    if current >= len - 1 { 0 } else { current + 1 }
 }
 
 pub fn option_label(state: OverlayState) -> String {
@@ -73,10 +69,7 @@ impl Plugin for OverlayModeMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsHudState>()
             .init_resource::<OverlayMenuState>()
-            .add_systems(
-                Update,
-                (menu_control_system, menu_highlight_system).chain(),
-            );
+            .add_systems(Update, (menu_control_system, menu_highlight_system).chain());
     }
 }
 
@@ -158,9 +151,11 @@ fn spawn_menu(commands: &mut Commands, selected_index: usize) -> Entity {
     let root = commands
         .spawn(Node {
             position_type: PositionType::Absolute,
-            right: Val::Px(crate::als_hud::PANEL_RIGHT_MARGIN_PX
-                + crate::als_hud::PANEL_WIDTH_PX
-                + crate::als_hud::SECTION_GAP_PX),
+            right: Val::Px(
+                crate::als_hud::PANEL_RIGHT_MARGIN_PX
+                    + crate::als_hud::PANEL_WIDTH_PX
+                    + crate::als_hud::SECTION_GAP_PX,
+            ),
             top: Val::Px(crate::als_hud::PANEL_TOP_MARGIN_PX),
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(OPTION_GAP_PX),
@@ -246,7 +241,10 @@ mod tests {
         ];
         assert_eq!(MENU_ORDER.len(), all.len());
         for state in all {
-            let count = MENU_ORDER.iter().filter(|candidate| **candidate == state).count();
+            let count = MENU_ORDER
+                .iter()
+                .filter(|candidate| **candidate == state)
+                .count();
             assert_eq!(count, 1, "{state:?} appears {count} times");
         }
     }
@@ -263,15 +261,25 @@ mod tests {
         let len = MENU_ORDER.len();
         assert_eq!(next_index(0, len), len - 1, "next from first wraps to last");
         assert_eq!(next_index(8, len), 7);
-        assert_eq!(previous_index(len - 1, len), 0, "previous from last wraps to first");
+        assert_eq!(
+            previous_index(len - 1, len),
+            0,
+            "previous from last wraps to first"
+        );
         assert_eq!(previous_index(8, len), 9);
     }
 
     #[test]
     fn option_labels_match_ue_name_display() {
         assert_eq!(option_label(OverlayState::Default), "Default");
-        assert_eq!(option_label(OverlayState::PistolOneHanded), "Pistol One Handed");
-        assert_eq!(option_label(OverlayState::PistolTwoHanded), "Pistol Two Handed");
+        assert_eq!(
+            option_label(OverlayState::PistolOneHanded),
+            "Pistol One Handed"
+        );
+        assert_eq!(
+            option_label(OverlayState::PistolTwoHanded),
+            "Pistol Two Handed"
+        );
         assert_eq!(option_label(OverlayState::HandsTied), "Hands Tied");
     }
 }

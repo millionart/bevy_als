@@ -13,15 +13,13 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{
-    effective_gait, gait_max_speed, AlsInputOverride, AlsMotionPlugin, AlsViewYaw,
+    AlsInputOverride, AlsMotionPlugin, AlsViewYaw, effective_gait, gait_max_speed,
 };
 use als_core::params::AlsMovementParams;
 use als_core::pivot::{PivotConfig, PivotDetector};
-use als_core::start_stop::{
-    StartStopConfig, StartStopState, classify, update_start_stop,
-};
+use als_core::start_stop::{StartStopConfig, StartStopState, classify, update_start_stop};
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
@@ -166,7 +164,9 @@ fn spawn_character_once(
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M5GATE] scripted demo armed");
     }
 
@@ -250,7 +250,14 @@ fn auto_demo(
             phase_start(idx)
         );
     }
-    apply_phase(idx, t, time.delta_secs_f64() as f32, &mut over, &mut req, entered);
+    apply_phase(
+        idx,
+        t,
+        time.delta_secs_f64() as f32,
+        &mut over,
+        &mut req,
+        entered,
+    );
     let _ = entity;
     let _ = char_t;
 }
@@ -311,10 +318,7 @@ fn apply_phase(
     }
 
     over.0.move_dir = move_dir;
-    over.0.look_delta = Vec2::new(
-        look_rate_deg_s.to_radians() * dt * LOOK_UNITS_PER_RAD,
-        0.0,
-    );
+    over.0.look_delta = Vec2::new(look_rate_deg_s.to_radians() * dt * LOOK_UNITS_PER_RAD, 0.0);
     over.0.jump_pressed = false;
     over.0.jump_held = false;
 }
@@ -369,9 +373,7 @@ fn als_detectors_system(
         None => 0.0,
     };
     let inst_yaw_speed = match *prev_view {
-        Some((_, pv)) if sample_dt > 1e-4 => {
-            wrap_angle_degrees(view_deg - pv) / sample_dt
-        }
+        Some((_, pv)) if sample_dt > 1e-4 => wrap_angle_degrees(view_deg - pv) / sample_dt,
         _ => 0.0,
     };
     *yaw_env = (*yaw_env - YAW_SPEED_ENVELOPE_DECAY * sample_dt)
@@ -519,10 +521,7 @@ fn fall_guard(q: Query<&Transform, With<AlsCharacter>>, mut exit: MessageWriter<
     }
 }
 
-fn safety_quit(
-    quit: Option<Res<AutoQuit>>,
-    mut exit: MessageWriter<AppExit>,
-) {
+fn safety_quit(quit: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
     let Some(aq) = quit else {
         return;
     };

@@ -13,7 +13,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
@@ -107,11 +107,51 @@ struct Step {
 
 fn steps() -> [Step; 5] {
     [
-        Step { t0: 0.5, dur: 1.0, label: "idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: false },
-        Step { t0: 1.5, dur: 1.6, label: "sprint", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), trigger_ragdoll: false, trigger_recover: false },
-        Step { t0: 3.1, dur: 3.2, label: "ragdoll (mid-run)", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: true, trigger_recover: false },
-        Step { t0: 6.3, dur: 2.4, label: "recover to grounded idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: true },
-        Step { t0: 8.7, dur: 1.3, label: "post-recovery idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: false },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            label: "idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 1.5,
+            dur: 1.6,
+            label: "sprint",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 3.1,
+            dur: 3.2,
+            label: "ragdoll (mid-run)",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: true,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 6.3,
+            dur: 2.4,
+            label: "recover to grounded idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: true,
+        },
+        Step {
+            t0: 8.7,
+            dur: 1.3,
+            label: "post-recovery idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
     ]
 }
 
@@ -143,17 +183,23 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/als_ragdoll.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/als_ragdoll.animscn.ron",
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
-        commands
-            .entity(character)
-            .insert((AlsInputOverride::default(), AlsViewYaw(std::f32::consts::PI)));
+        commands.entity(character).insert((
+            AlsInputOverride::default(),
+            AlsViewYaw(std::f32::consts::PI),
+        ));
         info!("[RGATE] scripted demo armed");
     }
 
@@ -167,13 +213,7 @@ fn spawn_character_once(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -273,9 +313,7 @@ fn ragdoll_watcher(
                 }
                 warn!(
                     "[RGATE][PROBE] char_y={:.2} lowest={:.2} max_bvel={:.2}",
-                    tf.translation.y,
-                    lowest,
-                    peak
+                    tf.translation.y, lowest, peak
                 );
                 if lowest < 0.55 && peak < 0.35 {
                     watch.settle_seen = true;
@@ -312,7 +350,11 @@ fn ragdoll_watcher(
         info!(
             "[RGATE][VERDICT] settle={ok_settle} recover={ok_recover} nan_bodies={} -> {}",
             watch.nan_bodies,
-            if ok_settle && ok_recover && ok_no_nan { "PASS" } else { "FAIL" }
+            if ok_settle && ok_recover && ok_no_nan {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
         watch.verdict_done = true;
         if !(ok_settle && ok_recover && ok_no_nan) {

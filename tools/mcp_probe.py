@@ -25,7 +25,7 @@ def post(payload: dict, session_id: str | None) -> tuple[dict | None, str | None
         URL, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=600) as resp:
             sid = resp.headers.get("Mcp-Session-Id")
             body = resp.read().decode("utf-8", errors="replace")
             return (json.loads(body) if body.strip() else {}), sid

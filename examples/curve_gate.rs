@@ -1,10 +1,10 @@
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::AnimationGraphPlugin;
 
 fn main() {
     let mut app = App::new();
@@ -73,7 +73,10 @@ fn drive_curve(
     let Ok(mut player) = players.get_mut(instance.player_entity()) else {
         return;
     };
-    player.set_input_data("drive_time", DataValue::from(time.elapsed_secs_f64().min(10.0) as f32));
+    player.set_input_data(
+        "drive_time",
+        DataValue::from(time.elapsed_secs_f64().min(10.0) as f32),
+    );
 }
 
 fn apply_curve_to_cube(

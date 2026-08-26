@@ -2,12 +2,12 @@ use std::time::{Duration, Instant};
 
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::animation_graph::AnimationGraph;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::skeleton::Skeleton;
-use bevy_animation_graph::AnimationGraphPlugin;
 
 fn main() {
     let mut app = App::new();

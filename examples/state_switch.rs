@@ -1,7 +1,7 @@
 use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::debug_hud::AlsStateHudPlugin;
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::debug_hud::AlsStateHudPlugin;
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{
@@ -117,9 +117,7 @@ fn auto_demo(
                 request.stance = Some(Stance::Crouching);
             }
             6 => {
-                info!(
-                    "[DEMO] step 6: request Grounded (expect accept + queued crouch applies)"
-                );
+                info!("[DEMO] step 6: request Grounded (expect accept + queued crouch applies)");
                 request.locomotion_state = Some(LocomotionState::Grounded);
             }
             7 => {
@@ -131,9 +129,7 @@ fn auto_demo(
                 request.locomotion_state = Some(LocomotionState::Ragdolling);
             }
             9 => {
-                info!(
-                    "[DEMO] step 9: request Air WHILE RAGDOLLED (never legal -> expect reject)"
-                );
+                info!("[DEMO] step 9: request Air WHILE RAGDOLLED (never legal -> expect reject)");
                 request.locomotion_state = Some(LocomotionState::Air);
             }
             10 => {
@@ -148,10 +144,7 @@ fn auto_demo(
     }
 }
 
-fn keyboard_driver(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut q_request: Query<&mut AlsStateRequest>,
-) {
+fn keyboard_driver(keys: Res<ButtonInput<KeyCode>>, mut q_request: Query<&mut AlsStateRequest>) {
     let Ok(mut request) = q_request.single_mut() else {
         return;
     };

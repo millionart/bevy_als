@@ -1,17 +1,16 @@
-use als_core::overlay_blend::{OverlayBlendState, BLEND_IN_DURATION, BLEND_OUT_DURATION};
+use als_core::overlay_blend::{BLEND_IN_DURATION, BLEND_OUT_DURATION, OverlayBlendState};
 use als_core::state::OverlayState;
+use als_ext::{
+    AlsAnimCurves, AlsPoseCurves, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
+    TORCH_SPINE_UPPER_BONES, build_bone_mask, build_grouped_bone_mask,
+};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::skeleton::Skeleton;
-use als_ext::{
-    build_grouped_bone_mask, build_bone_mask, AlsAnimCurves, AlsPoseCurves, HEAD_LAYER_BONES,
-    LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES, TORCH_SPINE_UPPER_BONES,
-};
 
-pub const OVERLAY_CURVES_ASSET: &str =
-    "animations/Overlays/Torch/A_Als_Torch_Poses.gltf#AlsCurves";
+pub const OVERLAY_CURVES_ASSET: &str = "animations/Overlays/Torch/A_Als_Torch_Poses.gltf#AlsCurves";
 pub const SKELETON_ASSET: &str = "skeletons/SKM_Als.skn.ron";
 
 pub struct OverlayLayerPlugin;
@@ -51,7 +50,11 @@ fn ramp(t: f32, duration: f32) -> f32 {
     }
 }
 
-fn dynamic_upper_mask(curves: &AlsPoseCurves, skeleton: &Skeleton, elapsed: f32) -> bevy_animation_graph::core::edge_data::bone_mask::BoneMask {
+fn dynamic_upper_mask(
+    curves: &AlsPoseCurves,
+    skeleton: &Skeleton,
+    elapsed: f32,
+) -> bevy_animation_graph::core::edge_data::bone_mask::BoneMask {
     let spine_w = curves.sample("LayerSpineAdditive", elapsed).unwrap_or(1.0);
     let arm_w = curves.sample("LayerArmRight", elapsed).unwrap_or(1.0);
     let head_w = curves.sample("LayerHeadAdditive", elapsed).unwrap_or(0.0);
@@ -115,7 +118,12 @@ fn overlay_layer_driver(
         let weight = match blend {
             Some(mut state) => {
                 let t = state.phase_time;
-                state.update(target_on, dt, ramp(t, BLEND_IN_DURATION), ramp(t, BLEND_OUT_DURATION))
+                state.update(
+                    target_on,
+                    dt,
+                    ramp(t, BLEND_IN_DURATION),
+                    ramp(t, BLEND_OUT_DURATION),
+                )
             }
             None => {
                 commands.entity(entity).insert(OverlayBlendState::default());

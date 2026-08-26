@@ -1,13 +1,16 @@
+use als_core::input::{
+    AlsInputMap, NextOverlayModeAction, OnFoot, PreviousOverlayModeAction, spawn_als_actions,
+};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
-use als_core::input::{spawn_als_actions, AlsInputMap, NextOverlayModeAction, OnFoot, PreviousOverlayModeAction};
 
 #[test]
 fn prev_action_mock_fires_events() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
         .add_plugins(EnhancedInputPlugin)
-        .add_plugins(als_core::input::AlsInputPlugin);
+        .add_plugins(als_core::input::AlsInputPlugin)
+        .insert_resource(ButtonInput::<KeyCode>::default());
     app.finish();
 
     let player = app.world_mut().spawn_empty().id();

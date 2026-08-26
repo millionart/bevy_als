@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RotateInPlaceConfig {
     pub view_yaw_angle_threshold_degrees: f32,
@@ -67,8 +66,11 @@ pub fn update_rotate_in_place(
 
     match side {
         Some(_) => {
-            let target =
-                map_range(view_yaw_speed_deg_per_s.abs(), config.reference_yaw_speed_range, config.play_rate_range);
+            let target = map_range(
+                view_yaw_speed_deg_per_s.abs(),
+                config.reference_yaw_speed_range,
+                config.play_rate_range,
+            );
             state.side = side;
             state.play_rate = damp_exact(state.play_rate, target, dt);
         }

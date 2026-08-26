@@ -125,6 +125,20 @@ impl Default for AlsCameraRig {
 #[derive(Component)]
 pub struct AlsCameraTarget;
 
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct AlsCameraDebugInfo {
+    pub pivot_target: Vec3,
+    pub pivot_lag: Option<Vec3>,
+    pub pivot: Option<Vec3>,
+    pub field_of_view_deg: f32,
+    pub right_shoulder: bool,
+    pub trace_start: Vec3,
+    pub trace_end: Vec3,
+    pub trace_radius: f32,
+    pub trace_blocking_hit: bool,
+    pub valid: bool,
+}
+
 pub struct AlsCameraPlugin;
 
 impl Plugin for AlsCameraPlugin {
@@ -175,7 +189,7 @@ fn camera_rig_system(
         ),
         With<AlsCameraTarget>,
     >,
-    mut q_cam: Query<(Entity, &mut Transform, &mut AlsCameraRig), Without<AlsCameraTarget>>,
+    mut q_cam: Query<(Entity, &mut Transform, &mut AlsCameraRig, Option<&mut AlsCameraDebugInfo>), Without<AlsCameraTarget>>,
     spatial: SpatialQuery,
     params: Res<Assets<AlsCameraParams>>,
     time: Res<Time>,
@@ -195,7 +209,7 @@ fn camera_rig_system(
     else {
         return;
     };
-    let Ok((cam_entity, mut cam_tf, mut rig)) = q_cam.single_mut() else {
+    let Ok((cam_entity, mut cam_tf, mut rig, mut debug_info)) = q_cam.single_mut() else {
         return;
     };
 
@@ -232,6 +246,9 @@ fn camera_rig_system(
     };
 
     let filter = SpatialQueryFilter::from_excluded_entities([char_entity, cam_entity]);
+    let mut trace_start = pivot;
+    let mut trace_end = pivot + back_dir * max_len;
+    let mut trace_blocking_hit = false;
     let len = if rig.mode == AlsCameraMode::FirstPersonPlaceholder {
         max_len
     } else if let Ok(dir) = Dir3::new(back_dir) {
@@ -242,11 +259,41 @@ fn camera_rig_system(
             true,
             &filter,
         );
-        spring_arm_length(max_len, hit.map(|h| h.distance), p.probe_skin)
+        match hit {
+            Some(h) => {
+                trace_blocking_hit = true;
+                trace_start = pivot;
+                trace_end = pivot + dir * h.distance;
+                spring_arm_length(max_len, Some(h.distance), p.probe_skin)
+            }
+            None => {
+                trace_start = pivot;
+                trace_end = pivot + dir * max_len;
+                spring_arm_length(max_len, None, p.probe_skin)
+            }
+        }
     } else {
         max_len
     };
 
     cam_tf.translation = pivot + back_dir * len;
     cam_tf.look_at(pivot, Vec3::Y);
+
+    if let Some(debug) = debug_info.as_mut() {
+        let was_valid = debug.valid;
+        debug.pivot_target =
+            char_pos + Vec3::Y * p.pivot_height + rot * blended_shoulder(rig.aim_blend, p);
+        debug.pivot_lag = None;
+        debug.pivot = Some(pivot);
+        debug.field_of_view_deg = 90.0;
+        debug.right_shoulder = !left_shoulder;
+        debug.trace_start = trace_start;
+        debug.trace_end = trace_end;
+        debug.trace_radius = 0.0;
+        debug.trace_blocking_hit = trace_blocking_hit;
+        debug.valid = true;
+        if !was_valid {
+            info!("[CAM] debug info valid");
+        }
+    }
 }

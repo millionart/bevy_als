@@ -1,8 +1,8 @@
 use avian3d::prelude::{Collider, RigidBody};
 use bevy::asset::Handle;
 use bevy::prelude::*;
-use bevy_tnua::controller::TnuaConfig;
 use bevy_tnua::TnuaController;
+use bevy_tnua::controller::TnuaConfig;
 
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;

@@ -12,9 +12,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{
-    spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin,
-};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::start_stop::{StartStopPhase, StartStopState};
@@ -93,10 +91,34 @@ struct Step {
 
 fn steps() -> [Step; 4] {
     [
-        Step { t0: 0.5, dur: 1.0, move_dir: Vec2::ZERO, gait: None, label: "idle" },
-        Step { t0: 1.5, dur: 1.6, move_dir: Vec2::NEG_Y, gait: Some(Gait::Running), label: "sprint up" },
-        Step { t0: 3.1, dur: 2.5, move_dir: Vec2::ZERO, gait: None, label: "hard stop" },
-        Step { t0: 5.6, dur: 1.4, move_dir: Vec2::ZERO, gait: None, label: "settle" },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            move_dir: Vec2::ZERO,
+            gait: None,
+            label: "idle",
+        },
+        Step {
+            t0: 1.5,
+            dur: 1.6,
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Running),
+            label: "sprint up",
+        },
+        Step {
+            t0: 3.1,
+            dur: 2.5,
+            move_dir: Vec2::ZERO,
+            gait: None,
+            label: "hard stop",
+        },
+        Step {
+            t0: 5.6,
+            dur: 1.4,
+            move_dir: Vec2::ZERO,
+            gait: None,
+            label: "settle",
+        },
     ]
 }
 
@@ -140,12 +162,17 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands.entity(character).insert((
@@ -166,13 +193,7 @@ fn spawn_character_once(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -210,14 +231,7 @@ fn auto_demo(
 
 fn stop_watcher(
     mut watch: ResMut<StopWatch>,
-    q: Query<
-        (
-            &Transform,
-            &LinearVelocity,
-                        &AlsStopMatch,
-        ),
-        With<AlsCharacter>,
-    >,
+    q: Query<(&Transform, &LinearVelocity, &AlsStopMatch), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Ok((tf, _vel, m)) = q.single() else {
@@ -247,14 +261,18 @@ fn stop_watcher(
             "[STOPGATE][RESULT] predicted={:.3} measured_slide={:.3} rel_err={err:.1}% remaining_end={:.3} peak_w={:.2}",
             watch.predicted_total, watch.measured_slide, watch.remaining_at_end, watch.peak_weight
         );
-            let ok_closed = watch.remaining_at_end <= 0.08;
-            let ok_weight = watch.peak_weight >= 0.95;
-            let ok_slide = (0.05..=1.5).contains(&watch.measured_slide);
-            info!(
-                "[STOPGATE][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} -> {}",
-                if ok_closed && ok_weight && ok_slide { "PASS" } else { "FAIL" }
-            );
-            if !(ok_closed && ok_weight && ok_slide) {
+        let ok_closed = watch.remaining_at_end <= 0.08;
+        let ok_weight = watch.peak_weight >= 0.95;
+        let ok_slide = (0.05..=1.5).contains(&watch.measured_slide);
+        info!(
+            "[STOPGATE][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} -> {}",
+            if ok_closed && ok_weight && ok_slide {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        );
+        if !(ok_closed && ok_weight && ok_slide) {
             watch.failed = true;
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         }

@@ -1,8 +1,8 @@
+use bevy_tnua::TnuaScheme;
 use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinCrouchConfig, TnuaBuiltinJump, TnuaBuiltinJumpConfig,
     TnuaBuiltinWalk, TnuaBuiltinWalkConfig,
 };
-use bevy_tnua::TnuaScheme;
 
 #[derive(TnuaScheme)]
 #[scheme(basis = TnuaBuiltinWalk)]

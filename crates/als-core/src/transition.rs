@@ -374,8 +374,8 @@ impl Plugin for AlsStateTransitionPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
     use bevy::MinimalPlugins;
+    use bevy::ecs::system::RunSystemOnce;
 
     fn cur(loco: LocomotionState) -> AlsCurrentStates {
         AlsCurrentStates {
@@ -412,8 +412,7 @@ mod tests {
 
     #[test]
     fn locomotion_transitions_match_als_matrix() {
-        let v =
-            |from, to| validate_one(to, &cur(from), InvalidRequestPolicy::Queue);
+        let v = |from, to| validate_one(to, &cur(from), InvalidRequestPolicy::Queue);
         assert_eq!(
             v(LocomotionState::Grounded, LocomotionState::Air),
             Verdict::Accept
@@ -444,9 +443,7 @@ mod tests {
 
     #[test]
     fn gair_requests_queue_while_crouched_gait_passes_through() {
-        let v = |loco, gait: Gait| {
-            validate_one(gait, &cur(loco), InvalidRequestPolicy::Queue)
-        };
+        let v = |loco, gait: Gait| validate_one(gait, &cur(loco), InvalidRequestPolicy::Queue);
         assert_eq!(
             v(LocomotionState::Air, Gait::Running),
             Verdict::Queue,
@@ -540,9 +537,9 @@ mod tests {
 
         let events = app
             .world_mut()
-            .run_system_once(
-                |mut reader: MessageReader<StateTransitionEvent>| reader.read().copied().collect::<Vec<_>>(),
-            )
+            .run_system_once(|mut reader: MessageReader<StateTransitionEvent>| {
+                reader.read().copied().collect::<Vec<_>>()
+            })
             .unwrap();
         assert_eq!(
             events,
@@ -602,11 +599,12 @@ mod tests {
 
         let transitions = app
             .world_mut()
-            .run_system_once(|mut r: MessageReader<StateTransitionEvent>| {
-                r.read().copied().count()
-            })
+            .run_system_once(|mut r: MessageReader<StateTransitionEvent>| r.read().copied().count())
             .unwrap();
-        assert_eq!(transitions, 0, "rejected requests must not emit transition events");
+        assert_eq!(
+            transitions, 0,
+            "rejected requests must not emit transition events"
+        );
     }
 
     #[test]
@@ -634,7 +632,10 @@ mod tests {
             "ragdolling to air must be rejected"
         );
         assert_eq!(
-            app.world().get::<AlsStateRequest>(e).unwrap().locomotion_state,
+            app.world()
+                .get::<AlsStateRequest>(e)
+                .unwrap()
+                .locomotion_state,
             None,
             "non-queuable illegal request cleared instead of queued"
         );
@@ -678,7 +679,10 @@ mod tests {
             .id();
 
         app.update();
-        assert_eq!(*app.world().get::<LocomotionState>(e).unwrap(), LocomotionState::Air);
+        assert_eq!(
+            *app.world().get::<LocomotionState>(e).unwrap(),
+            LocomotionState::Air
+        );
 
         let events = app
             .world_mut()

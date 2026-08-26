@@ -1,18 +1,18 @@
-﻿use avian3d::prelude::*;
+use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
+use als_core::character::AlsMovementParamsHandle;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{
-    effective_gait, gait_max_speed, AlsCapsuleCrouched, AlsInputOverride, AlsMotionPlugin,
+    AlsCapsuleCrouched, AlsInputOverride, AlsMotionPlugin, effective_gait, gait_max_speed,
 };
-use als_core::character::AlsMovementParamsHandle;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
@@ -127,7 +127,9 @@ fn setup(
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M3GATE] scripted demo armed");
     }
 
@@ -437,11 +439,7 @@ fn speed_report(
             if dy < -180.0 {
                 dy += 360.0;
             }
-            if dt > 1e-4 {
-                dy / dt
-            } else {
-                0.0
-            }
+            if dt > 1e-4 { dy / dt } else { 0.0 }
         }
         None => 0.0,
     };

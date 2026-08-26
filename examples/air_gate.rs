@@ -13,14 +13,16 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::air::{AirPhase, AlsAirPlugin, AlsAirState, LAND_HEAVY_IMPACT_VY};
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::AlsExtPlugin;
 
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins};
+use bevy_als::motion_graph_link::{
+    compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
+};
 
 const PHASE_DURATIONS: [f64; 6] = [1.0, 2.0, 3.0, 2.0, 3.5, 1.5];
 const LAST_PHASE: usize = 5;
@@ -154,18 +156,24 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
 
-    let character = commands
-        .spawn(bundle)
-        .id();
+    let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M8GATE] scripted demo armed");
     }
 
@@ -344,7 +352,10 @@ fn metrics_logger(
     verdict.peak_fall_fast = verdict.peak_fall_fast.max(air.fall_fast_weight);
     if matches!(air.phase, AirPhase::Landing) && !air.landing_heavy && air.land_weight > 0.5 {
         verdict.light_seen = true;
-        info!("[M8GATE][LAND] light variant active w={:.2}", air.land_weight);
+        info!(
+            "[M8GATE][LAND] light variant active w={:.2}",
+            air.land_weight
+        );
     }
     if matches!(air.phase, AirPhase::Landing) && air.landing_heavy && air.land_weight > 0.5 {
         verdict.heavy_seen = true;

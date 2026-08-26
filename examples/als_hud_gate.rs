@@ -1,27 +1,27 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
-use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
-use bevy::ui::Display;
-use bevy::window::WindowResolution;
-use bevy_enhanced_input::prelude::*;
 use als_core::character::AlsCharacter;
 use als_core::input::{
-    spawn_als_actions, AlsInputCommand, AlsInputMap, NextOverlayModeAction, OnFoot,
-    OverlayMenuAction, PreviousOverlayModeAction, SlomoAction, ToggleUiAction,
+    AlsInputCommand, AlsInputMap, NextOverlayModeAction, OnFoot, OverlayMenuAction,
+    PreviousOverlayModeAction, SlomoAction, ToggleUiAction, spawn_als_actions,
 };
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
-use bevy_als::show_debug_hud::{apply_show_debug_key, AlsShowDebugHudState};
+use bevy::prelude::*;
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
+use bevy::ui::Display;
+use bevy::window::WindowResolution;
 use bevy_als::als_hud::{
     AlsHudColorTarget, AlsHudDebugSection, AlsHudInputSection, AlsHudPlugin, COLOR_DISABLED,
     COLOR_ENABLED,
 };
 use bevy_als::overlay_mode_menu::{
-    option_label, OverlayMenuOption, OverlayMenuState, OverlayModeMenuPlugin, MENU_DILATION,
-    MENU_ORDER,
+    MENU_DILATION, MENU_ORDER, OverlayMenuOption, OverlayMenuState, OverlayModeMenuPlugin,
+    option_label,
 };
+use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
+use bevy_enhanced_input::prelude::*;
 
 #[derive(Resource, Default)]
 struct GateFlags {
@@ -214,7 +214,14 @@ fn capture(world: &mut World, suffix: &str) {
 
 fn script_driver(world: &mut World) {
     let delta = world.resource::<Time>().delta_secs();
-    let (elapsed, mut step, mut menu_mock_entity, mut shot_menu_done, mut shot_hud_done, mut pass_at) = {
+    let (
+        elapsed,
+        mut step,
+        mut menu_mock_entity,
+        mut shot_menu_done,
+        mut shot_hud_done,
+        mut pass_at,
+    ) = {
         let driver = world.resource::<GateDriver>();
         (
             driver.elapsed + delta,
@@ -272,7 +279,13 @@ fn script_driver(world: &mut World) {
                 && has("D-pad U / D")
                 && has("Shift + 8")
                 && has("Overlay Menu");
-            GateFlags::check(&mut flags.hud_rows, "hud_rows", ok, format!("{texts:?}"), &mut failed);
+            GateFlags::check(
+                &mut flags.hud_rows,
+                "hud_rows",
+                ok,
+                format!("{texts:?}"),
+                &mut failed,
+            );
             if ok {
                 step = 1;
             }
@@ -442,11 +455,7 @@ fn script_driver(world: &mut World) {
             world
                 .commands()
                 .entity(player)
-                .mock::<OnFoot, OverlayMenuAction>(
-                    TriggerState::Fired,
-                    true,
-                    MockSpan::Manual,
-                );
+                .mock::<OnFoot, OverlayMenuAction>(TriggerState::Fired, true, MockSpan::Manual);
             menu_mock_entity = find_menu_action(world, player);
             true
         }) {}
@@ -479,8 +488,10 @@ fn script_driver(world: &mut World) {
                 })
                 .collect();
             labels.sort_by_key(|(index, _)| *index);
-            let expected: Vec<String> =
-                MENU_ORDER.iter().map(|state| option_label(*state)).collect();
+            let expected: Vec<String> = MENU_ORDER
+                .iter()
+                .map(|state| option_label(*state))
+                .collect();
             let actual: Vec<String> = labels.into_iter().map(|(_, text)| text).collect();
             GateFlags::check(
                 &mut flags.menu_order,
@@ -664,11 +675,7 @@ fn script_driver(world: &mut World) {
             world
                 .commands()
                 .entity(player)
-                .mock::<OnFoot, OverlayMenuAction>(
-                    TriggerState::Fired,
-                    true,
-                    MockSpan::Manual,
-                );
+                .mock::<OnFoot, OverlayMenuAction>(TriggerState::Fired, true, MockSpan::Manual);
             true
         }) {}
 

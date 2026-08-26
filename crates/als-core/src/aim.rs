@@ -41,10 +41,7 @@ pub fn aim_rotation_mode_system(
         let want_aim = base.aim_held;
 
         if want_aim && !aiming_now {
-            let stored = last_free
-                .as_deref()
-                .map(|lf| lf.0)
-                .unwrap_or(*current);
+            let stored = last_free.as_deref().map(|lf| lf.0).unwrap_or(*current);
             let free = if stored == RotationMode::Aiming {
                 default_free_mode()
             } else {
@@ -53,7 +50,9 @@ pub fn aim_rotation_mode_system(
             match last_free {
                 Some(mut lf) => lf.0 = free,
                 None => {
-                    commands.entity(entity).insert(AlsLastFreeRotationMode(free));
+                    commands
+                        .entity(entity)
+                        .insert(AlsLastFreeRotationMode(free));
                 }
             }
             request.rotation_mode = Some(RotationMode::Aiming);
@@ -163,8 +162,7 @@ mod tests {
 
     #[test]
     fn release_restores_last_free_mode() {
-        let (mut app, e) =
-            app_with_character(true, RotationMode::ViewDirection);
+        let (mut app, e) = app_with_character(true, RotationMode::ViewDirection);
         assert_eq!(
             *app.world().get::<RotationMode>(e).unwrap(),
             RotationMode::Aiming

@@ -31,7 +31,13 @@ impl Plugin for AlsRagdollLinkPlugin {
 
 fn ensure_ragdoll_link(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsRagdollLink>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsRagdollLink>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsRagdollLink::default());
@@ -56,11 +62,7 @@ fn find_body_by_label(
 #[allow(clippy::type_complexity)]
 fn ragdoll_link_system(
     mut q: Query<
-        (
-            &mut Transform,
-            &LocomotionState,
-            &mut AlsRagdollLink,
-        ),
+        (&mut Transform, &LocomotionState, &mut AlsRagdollLink),
         With<als_core::character::AlsCharacter>,
     >,
     instances: Query<&AnimatedSceneInstance>,

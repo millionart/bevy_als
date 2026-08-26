@@ -4,7 +4,7 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use als_camera::{AlsCameraRig, AlsCameraTarget};
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::input::{spawn_als_actions, AlsInputMap};
+use als_core::input::{AlsInputMap, spawn_als_actions};
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;

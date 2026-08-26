@@ -100,7 +100,8 @@ pub fn select_dynamic_transition(
     stance: Stance,
     config: &TransitionConfig,
 ) -> Option<TransitionSelection> {
-    let sequence = if !left_allowed || (right_allowed && foot_lock_left_distance_squared < foot_lock_right_distance_squared)
+    let sequence = if !left_allowed
+        || (right_allowed && foot_lock_left_distance_squared < foot_lock_right_distance_squared)
     {
         match stance {
             Stance::Crouching => TransitionSequence::CrouchingRight,
@@ -145,25 +146,30 @@ mod tests {
     #[test]
     fn foot_lock_distance_picks_opposite_side() {
         let cfg = TransitionConfig::default();
-        let left_locked = select_dynamic_transition(1.0, 100.0, true, true, Stance::Standing, &cfg).unwrap();
+        let left_locked =
+            select_dynamic_transition(1.0, 100.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(left_locked.sequence, TransitionSequence::StandingRight);
-        let right_locked = select_dynamic_transition(100.0, 1.0, true, true, Stance::Standing, &cfg).unwrap();
+        let right_locked =
+            select_dynamic_transition(100.0, 1.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(right_locked.sequence, TransitionSequence::StandingLeft);
     }
 
     #[test]
     fn equal_foot_lock_defaults_left() {
         let cfg = TransitionConfig::default();
-        let sel = select_dynamic_transition(50.0, 50.0, true, true, Stance::Standing, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(50.0, 50.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::StandingLeft);
     }
 
     #[test]
     fn disallowed_side_forces_other() {
         let cfg = TransitionConfig::default();
-        let sel = select_dynamic_transition(1.0, 100.0, false, true, Stance::Crouching, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(1.0, 100.0, false, true, Stance::Crouching, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::CrouchingRight);
-        let sel = select_dynamic_transition(100.0, 1.0, true, false, Stance::Crouching, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(100.0, 1.0, true, false, Stance::Crouching, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::CrouchingLeft);
     }
 

@@ -123,7 +123,8 @@ pub fn detect_mantle(
     let target_speed = velocities.get(ledge_entity).ok().map(|v| v.0.length());
     if target_speed.is_some_and(|s| s > MANTLE_TARGET_SPEED_THRESHOLD) {
         return None;
-    }    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
+    }
+    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
     let ledge = LedgeProbe {
         face_distance,
         top_height: top_y - foot_y,
@@ -146,18 +147,18 @@ pub fn detect_mantle(
 
     let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
     if spatial
-        .cast_ray(headroom_o, Dir3::Y, MANTLE_HEADROOM_CLEARANCE, true, &filter)
+        .cast_ray(
+            headroom_o,
+            Dir3::Y,
+            MANTLE_HEADROOM_CLEARANCE,
+            true,
+            &filter,
+        )
         .is_some()
     {
         return None;
     }
-    let start_clearance = spatial.cast_ray(
-        origin + Vec3::Y * 1.2,
-        Dir3::Y,
-        0.9,
-        true,
-        &filter,
-    );
+    let start_clearance = spatial.cast_ray(origin + Vec3::Y * 1.2, Dir3::Y, 0.9, true, &filter);
     if start_clearance.is_some() {
         return None;
     }
@@ -167,6 +168,59 @@ pub fn detect_mantle(
         target,
         top_height: ledge.top_height,
         yaw_target,
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleProbeTrace {
+    pub forward_starts: [Vec3; 3],
+    pub forward_ends: [Option<Vec3>; 3],
+    pub downward_origin: Option<Vec3>,
+    pub downward_hit: Option<Vec3>,
+}
+
+const PROBE_ROW_HEIGHTS: [f32; 3] = [0.35, 0.65, 0.95];
+
+pub fn trace_mantle_probes(
+    spatial: &SpatialQuery,
+    excluded: Entity,
+    origin: Vec3,
+    foot_y: f32,
+    fwd: Vec3,
+) -> Option<MantleProbeTrace> {
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let Ok(dir) = Dir3::new(fwd) else {
+        return None;
+    };
+    let mut forward_starts = [Vec3::ZERO; 3];
+    let mut forward_ends = [None; 3];
+    let mut best: Option<(usize, f32)> = None;
+    for (i, h) in PROBE_ROW_HEIGHTS.into_iter().enumerate() {
+        let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
+        forward_starts[i] = o;
+        let hit = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter);
+        forward_ends[i] = hit.map(|t| o + fwd * t.distance);
+        if let Some(t) = hit {
+            let better = best.is_none_or(|(_, d)| t.distance < d);
+            if better {
+                best = Some((i, t.distance));
+            }
+        }
+    }
+    let (downward_origin, downward_hit) = best
+        .map(|(i, distance)| {
+            let top_o = forward_starts[i] + fwd * distance + Vec3::Y * 1.2;
+            let down = spatial
+                .cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter)
+                .map(|t| top_o - Vec3::Y * t.distance);
+            (Some(top_o), down)
+        })
+        .unwrap_or((None, None));
+    Some(MantleProbeTrace {
+        forward_starts,
+        forward_ends,
+        downward_origin,
+        downward_hit,
     })
 }
 
@@ -308,7 +362,13 @@ impl AlsMantleState {
         self.prev_pos = Vec3::ZERO;
     }
 
-    pub fn tick(&mut self, cmd: &AlsInputCommand, loco: &LocomotionState, stance: &Stance, dt: f32) {
+    pub fn tick(
+        &mut self,
+        cmd: &AlsInputCommand,
+        loco: &LocomotionState,
+        stance: &Stance,
+        dt: f32,
+    ) {
         self.cooldown = (self.cooldown - dt).max(0.0);
         if !self.active {
             return;
@@ -348,7 +408,10 @@ mod tests {
 
     #[test]
     fn height_bands_select_high_low_or_reject() {
-        assert_eq!(classify_mantle(&probe(1.3, 0.5, 1.0)), Some(MantleKind::High));
+        assert_eq!(
+            classify_mantle(&probe(1.3, 0.5, 1.0)),
+            Some(MantleKind::High)
+        );
         assert_eq!(
             classify_mantle(&probe(1.25, 0.5, 1.0)),
             Some(MantleKind::High),

@@ -34,8 +34,14 @@ mod tests {
 
     #[test]
     fn pitch_clamps_to_limit() {
-        assert_eq!(clamp_pitch(200.0_f32.to_radians()), PITCH_LIMIT_DEGREES.to_radians());
-        assert_eq!(clamp_pitch(-200.0_f32.to_radians()), -PITCH_LIMIT_DEGREES.to_radians());
+        assert_eq!(
+            clamp_pitch(200.0_f32.to_radians()),
+            PITCH_LIMIT_DEGREES.to_radians()
+        );
+        assert_eq!(
+            clamp_pitch(-200.0_f32.to_radians()),
+            -PITCH_LIMIT_DEGREES.to_radians()
+        );
         assert!((clamp_pitch(0.5) - 0.5).abs() < 1e-6);
     }
 

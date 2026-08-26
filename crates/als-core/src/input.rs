@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_enhanced_input::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
+use bevy_enhanced_input::prelude::*;
 
 pub const SPRINT_HOLD_SECS: f32 = 1.0;
 pub const ROLL_TAP_SECS: f32 = 0.2;
@@ -76,9 +76,7 @@ pub struct ToggleUiAction;
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
-#[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Reflect,
-)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Reflect)]
 #[reflect(Default)]
 pub struct AlsInputCommand {
     pub move_dir: Vec2,
@@ -156,10 +154,7 @@ impl Default for AlsInputMap {
             look_up: KeyCode::ArrowUp.into(),
             look_down: KeyCode::ArrowDown.into(),
             jump: vec![KeyCode::Space.into(), GamepadButton::South.into()],
-            crouch: vec![
-                KeyCode::ControlLeft.into(),
-                GamepadButton::LeftThumb.into(),
-            ],
+            crouch: vec![KeyCode::ControlLeft.into(), GamepadButton::LeftThumb.into()],
             sprint: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
             aim: vec![
                 MouseButton::Right.into(),
@@ -168,15 +163,9 @@ impl Default for AlsInputMap {
             roll: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
             walk: vec![KeyCode::AltLeft.into(), GamepadButton::LeftTrigger.into()],
             ragdoll: vec![KeyCode::KeyX.into(), GamepadButton::West.into()],
-            rotation_mode: vec![
-                KeyCode::Digit1.into(),
-                GamepadButton::DPadLeft.into(),
-            ],
+            rotation_mode: vec![KeyCode::Digit1.into(), GamepadButton::DPadLeft.into()],
             view_mode: vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()],
-            switch_shoulder: vec![
-                KeyCode::KeyC.into(),
-                GamepadButton::RightThumb.into(),
-            ],
+            switch_shoulder: vec![KeyCode::KeyC.into(), GamepadButton::RightThumb.into()],
             overlay_menu: vec![KeyCode::KeyQ.into(), GamepadButton::North.into()],
             slomo: vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()],
             toggle_ui: vec![KeyCode::Tab.into(), GamepadButton::Start.into()],
@@ -297,6 +286,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
 #[allow(clippy::too_many_arguments)]
 pub fn als_input_bridge_system(
     mut receivers: Query<(&mut AlsInputCommand, &Actions<OnFoot>)>,
+    keys: Res<ButtonInput<KeyCode>>,
     moves: Query<&Action<MoveAction>>,
     looks: Query<&Action<LookAction>>,
     jumps: Query<(&TriggerState, &ActionEvents), With<Action<JumpAction>>>,
@@ -390,6 +380,12 @@ pub fn als_input_bridge_system(
         if let Some(events) = toggle_uis.iter_many(actions).next() {
             cmd.toggle_ui_pressed = events.contains(ActionEvents::START);
         }
+
+        let shift_held = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+        if shift_held {
+            cmd.rotation_mode_pressed = false;
+            cmd.view_mode_pressed = false;
+        }
     }
 }
 
@@ -407,7 +403,7 @@ impl Plugin for AlsInputPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::{ecs::system::RunSystemOnce, MinimalPlugins};
+    use bevy::{MinimalPlugins, ecs::system::RunSystemOnce};
 
     #[test]
     fn default_command_is_zeroed() {
@@ -465,6 +461,7 @@ mod tests {
     #[test]
     fn bridge_tolerates_missing_actions_and_entities() {
         let mut world = World::new();
+        world.insert_resource(ButtonInput::<KeyCode>::default());
 
         world.run_system_once(als_input_bridge_system).unwrap();
 
@@ -490,7 +487,8 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
-            .add_plugins(AlsInputPlugin);
+            .add_plugins(AlsInputPlugin)
+            .insert_resource(ButtonInput::<KeyCode>::default());
         app.finish();
 
         let player = app.world_mut().spawn_empty().id();
@@ -503,7 +501,10 @@ mod tests {
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();
-            assert!(!bindings.is_empty(), "action {action:?} should have bindings");
+            assert!(
+                !bindings.is_empty(),
+                "action {action:?} should have bindings"
+            );
         }
 
         let mut cmds = app.world_mut().commands();
@@ -512,11 +513,53 @@ mod tests {
     }
 
     #[test]
+    fn shift_suppresses_digit_key_actions() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_plugins(EnhancedInputPlugin)
+            .add_plugins(AlsInputPlugin)
+            .insert_resource(ButtonInput::<KeyCode>::default());
+        app.finish();
+
+        let player = app.world_mut().spawn_empty().id();
+        let mut cmds = app.world_mut().commands();
+        spawn_als_actions(&mut cmds, player, &AlsInputMap::default());
+        app.update();
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ShiftLeft);
+        app.world_mut()
+            .commands()
+            .entity(player)
+            .mock_once::<OnFoot, RotationModeAction>(TriggerState::Fired, true);
+        app.update();
+        let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
+        assert!(
+            !cmd.rotation_mode_pressed,
+            "shift must suppress digit-key gameplay actions"
+        );
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::ShiftLeft);
+        app.update();
+        app.world_mut()
+            .commands()
+            .entity(player)
+            .mock_once::<OnFoot, RotationModeAction>(TriggerState::Fired, true);
+        app.update();
+        let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
+        assert!(cmd.rotation_mode_pressed, "bare digit key must actuate");
+    }
+
+    #[test]
     fn full_chain_from_action_mock_to_command() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
-            .add_plugins(AlsInputPlugin);
+            .add_plugins(AlsInputPlugin)
+            .insert_resource(ButtonInput::<KeyCode>::default());
         app.finish();
 
         let player = app.world_mut().spawn_empty().id();
@@ -530,26 +573,14 @@ mod tests {
             .mock_once::<OnFoot, JumpAction>(TriggerState::Fired, true)
             .mock_once::<OnFoot, CrouchAction>(TriggerState::Fired, true)
             .mock_once::<OnFoot, RollAction>(TriggerState::Fired, true)
-            .mock::<OnFoot, SprintAction>(
-                TriggerState::Fired,
-                true,
-                MockSpan::Updates(50),
-            )
-            .mock::<OnFoot, AimAction>(
-                TriggerState::Fired,
-                true,
-                MockSpan::Updates(50),
-            )
+            .mock::<OnFoot, SprintAction>(TriggerState::Fired, true, MockSpan::Updates(50))
+            .mock::<OnFoot, AimAction>(TriggerState::Fired, true, MockSpan::Updates(50))
             .mock::<OnFoot, MoveAction>(
                 TriggerState::Fired,
                 Vec2::new(1.0, 0.5),
                 MockSpan::Updates(50),
             )
-            .mock::<OnFoot, OverlayMenuAction>(
-                TriggerState::Fired,
-                true,
-                MockSpan::Updates(50),
-            )
+            .mock::<OnFoot, OverlayMenuAction>(TriggerState::Fired, true, MockSpan::Updates(50))
             .mock_once::<OnFoot, NextOverlayModeAction>(TriggerState::Fired, 1.0)
             .mock_once::<OnFoot, PreviousOverlayModeAction>(TriggerState::Fired, 1.0)
             .mock_once::<OnFoot, SlomoAction>(TriggerState::Fired, true)
@@ -564,7 +595,10 @@ mod tests {
         assert!(cmd.aim_held, "aim held");
         assert!(cmd.overlay_menu_held, "overlay menu held");
         assert!(cmd.next_overlay_mode_pressed, "next overlay pressed");
-        assert!(cmd.previous_overlay_mode_pressed, "previous overlay pressed");
+        assert!(
+            cmd.previous_overlay_mode_pressed,
+            "previous overlay pressed"
+        );
         assert!(cmd.slomo_pressed, "slomo pressed");
         assert!(cmd.toggle_ui_pressed, "toggle ui pressed");
         assert!(

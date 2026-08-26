@@ -1,16 +1,16 @@
-﻿use avian3d::prelude::{Collider, LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, LinearVelocity, SpatialQuery, SpatialQueryFilter};
 use bevy::asset::{AssetId, Assets};
 use bevy::prelude::*;
+use bevy_tnua::TnuaController;
 use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinJump, TnuaBuiltinWalk, TnuaBuiltinWalkHeadroom,
 };
 use bevy_tnua::controller::TnuaConfig;
-use bevy_tnua::TnuaController;
 
 use crate::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
-use crate::mantle::{detect_mantle, yaw_from_direction, MantleIntent};
+use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
@@ -75,7 +75,9 @@ mod rotation_cap_tests {
         assert!((turn_angvel(RotationMode::ViewDirection) - 500f32.to_radians()).abs() < 1e-4);
         assert!((turn_angvel(RotationMode::Aiming) - 1000f32.to_radians()).abs() < 1e-4);
         assert!(turn_angvel(RotationMode::Aiming) > turn_angvel(RotationMode::VelocityDirection));
-        assert!(turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection));
+        assert!(
+            turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection)
+        );
     }
 }
 
@@ -87,6 +89,24 @@ pub struct AlsInputOverride(pub AlsInputCommand);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCapsuleCrouched;
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CharacterDebugFrame {
+    pub actor_yaw_deg: f32,
+    pub capsule_half_height: f32,
+    pub capsule_radius: f32,
+    pub max_speed: f32,
+    pub smooth_target_yaw_deg: Option<f32>,
+}
+
+#[derive(Component, Debug, Default, Clone)]
+pub struct AlsCharacterDebug(pub CharacterDebugFrameInner);
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CharacterDebugFrameInner {
+    pub frame: CharacterDebugFrame,
+    pub mantle_probe: Option<crate::mantle::MantleProbeTrace>,
+}
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct CapsuleReshapeDeferred;
@@ -176,8 +196,8 @@ fn tnua_config_sync_system(
         cfg.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
         cfg.basis.cling_distance = WALK_CLING_DISTANCE;
         let gravity_scale = params.jump.gravity_scale.max(1e-3);
-        cfg.jump.height =
-            params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
+        cfg.jump.height = params.jump.jump_z_velocity * params.jump.jump_z_velocity
+            / (2.0 * 9.81 * gravity_scale);
         cfg.jump.shorten_extra_gravity = 0.0;
         cfg.crouch.float_offset = -(params.crouch.standing_capsule_half_height
             - params.crouch.crouched_capsule_half_height);
@@ -197,6 +217,7 @@ type DriveQueryItem<'a> = (
     &'a RotationMode,
     &'a mut AlsStateRequest,
     Option<&'a mut AlsJumpPrev>,
+    Option<&'a mut AlsCharacterDebug>,
 );
 
 #[allow(clippy::type_complexity)]
@@ -219,6 +240,7 @@ fn locomotion_drive_system(
         rotation_mode,
         mut request,
         jump_prev,
+        character_debug,
     ) in &mut q
     {
         controller.initiate_action_feeding();
@@ -273,6 +295,7 @@ fn locomotion_drive_system(
                     && *stance == Stance::Standing
             });
             let mut intent: Option<MantleIntent> = None;
+            let mut probe_trace = None;
             if mantle_ready {
                 let origin = gtf.translation();
                 let f = gtf.forward();
@@ -281,6 +304,10 @@ fn locomotion_drive_system(
                     .normalize_or_zero();
                 let foot_y = origin.y - 0.90;
                 intent = detect_mantle(&spatial, entity, origin, foot_y, fwd, &velocities);
+                probe_trace = trace_mantle_probes(&spatial, entity, origin, foot_y, fwd);
+            }
+            if let (Some(trace), Some(mut debug)) = (probe_trace, character_debug) {
+                debug.0.mantle_probe = Some(trace);
             }
             match jump_chain(*loco, *stance, intent.is_some()) {
                 JumpChain::ExitRagdoll => {
@@ -294,7 +321,14 @@ fn locomotion_drive_system(
                             .mul_vec3(Vec3::NEG_Z)
                             .normalize_or_zero();
                         let yaw_start = yaw_from_direction(fwd);
-                        m.begin(i.kind, origin, i.target, i.top_height, yaw_start, i.yaw_target);
+                        m.begin(
+                            i.kind,
+                            origin,
+                            i.target,
+                            i.top_height,
+                            yaw_start,
+                            i.yaw_target,
+                        );
                         info!(
                             "[MOTION] entity={entity:?} mantle begin kind={:?} top_h={:.2}",
                             i.kind, i.top_height
@@ -439,17 +473,8 @@ fn step_up_assist_system(
     >,
 ) {
     let dt = time.delta_secs();
-    for (
-        entity,
-        mut transform,
-        vel,
-        loco,
-        cooldown,
-        handle,
-        capsule_crouched,
-        override_cmd,
-        cmd,
-    ) in &mut q
+    for (entity, mut transform, vel, loco, cooldown, handle, capsule_crouched, override_cmd, cmd) in
+        &mut q
     {
         if cooldown.is_none() {
             commands.entity(entity).insert(StepAssistCooldown(0.0));
@@ -561,11 +586,26 @@ mod tests {
 
     #[test]
     fn crouching_stance_forces_effective_walking_gait() {
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Walking), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Running), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Sprinting), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Standing, Gait::Running), Gait::Running);
-        assert_eq!(effective_gait(Stance::Standing, Gait::Sprinting), Gait::Sprinting);
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Walking),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Running),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Sprinting),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Standing, Gait::Running),
+            Gait::Running
+        );
+        assert_eq!(
+            effective_gait(Stance::Standing, Gait::Sprinting),
+            Gait::Sprinting
+        );
     }
 
     #[test]

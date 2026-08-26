@@ -16,7 +16,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
@@ -177,9 +177,7 @@ fn spawn_character_once(
 
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(
-                assets.load("animated_scenes/motion_overlay.animscn.ron"),
-            ),
+            AnimatedSceneHandle::new(assets.load("animated_scenes/motion_overlay.animscn.ron")),
             OverlayState::Default,
             AlsViewPitch(0.0),
         ))
@@ -187,7 +185,9 @@ fn spawn_character_once(
     commands.entity(character).add_child(avatar);
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M6GATE] scripted demo armed");
     }
 
@@ -220,14 +220,7 @@ fn playground_physics_bridge(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &Transform,
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&Transform, &mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -355,10 +348,7 @@ fn pitch_integrator(
     };
     for child in children.iter() {
         if let Ok(mut pitch) = avatar_pitch.get_mut(child) {
-            pitch.0 = (pitch.0 + dy).clamp(
-                -85.0f32.to_radians(),
-                85.0f32.to_radians(),
-            );
+            pitch.0 = (pitch.0 + dy).clamp(-85.0f32.to_radians(), 85.0f32.to_radians());
         }
     }
 }
@@ -452,11 +442,14 @@ fn snapshot_logger(
         ),
         With<AlsCharacter>,
     >,
-    q_avatar: Query<(
-        &OverlayState,
-        &AlsViewSmoothed,
-        Option<&als_core::overlay_blend::OverlayBlendState>,
-    ), Without<AlsCharacter>>,
+    q_avatar: Query<
+        (
+            &OverlayState,
+            &AlsViewSmoothed,
+            Option<&als_core::overlay_blend::OverlayBlendState>,
+        ),
+        Without<AlsCharacter>,
+    >,
     instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,

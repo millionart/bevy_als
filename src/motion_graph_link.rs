@@ -37,10 +37,7 @@ pub fn stride_play_rate(speed_pin: f32, actual_speed: f32) -> f32 {
     (actual_speed / speed_pin).clamp(STRIDE_RATE_MIN, STRIDE_RATE_MAX)
 }
 
-pub fn write_motion_graph_pins(
-    player: &mut AnimationGraphPlayer,
-    inputs: &MotionGraphInputs,
-) {
+pub fn write_motion_graph_pins(player: &mut AnimationGraphPlayer, inputs: &MotionGraphInputs) {
     player.set_input_data("speed", DataValue::from(inputs.speed));
     player.set_input_data("actual_speed", DataValue::from(inputs.actual_speed));
     player.set_input_data("play_rate", DataValue::from(inputs.play_rate));

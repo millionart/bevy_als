@@ -10,7 +10,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -43,7 +43,13 @@ fn main() {
     .add_systems(Update, (playground_physics_bridge, spawn_character_once))
     .add_systems(
         Update,
-        (keyboard_driver, position_report, camera_follow, fall_guard, auto_quit_system),
+        (
+            keyboard_driver,
+            position_report,
+            camera_follow,
+            fall_guard,
+            auto_quit_system,
+        ),
     );
 
     app.insert_resource(GlobalAmbientLight {
@@ -54,7 +60,9 @@ fn main() {
     if let Ok(secs) = std::env::var("ALS_BOOT_AUTO_QUIT_SECS") {
         let secs: f64 = secs.parse().unwrap_or(8.0);
         info!("[PG] auto quit armed in {secs:.1}s");
-        app.insert_resource(AutoQuit(Some(Instant::now() + Duration::from_secs_f64(secs))));
+        app.insert_resource(AutoQuit(Some(
+            Instant::now() + Duration::from_secs_f64(secs),
+        )));
     }
 
     app.run();
@@ -86,8 +94,7 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position)
-        .with_rotation(point.rotation);
+    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
@@ -194,10 +201,7 @@ fn camera_follow(
     }
 }
 
-fn fall_guard(
-    q: Query<&Transform, With<AlsCharacter>>,
-    mut exit: MessageWriter<AppExit>,
-) {
+fn fall_guard(q: Query<&Transform, With<AlsCharacter>>, mut exit: MessageWriter<AppExit>) {
     let Ok(char_t) = q.single() else {
         return;
     };
@@ -210,10 +214,7 @@ fn fall_guard(
     }
 }
 
-fn auto_quit_system(
-    mut quit: Option<ResMut<AutoQuit>>,
-    mut exit: MessageWriter<AppExit>,
-) {
+fn auto_quit_system(mut quit: Option<ResMut<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
     let Some(aq) = quit.as_deref_mut() else {
         return;
     };

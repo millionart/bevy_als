@@ -1,5 +1,5 @@
 use als_core::input::AlsInputCommand;
-use als_core::mantle::{mantle_weight_at, warp_envelope, AlsMantleState, MantleKind};
+use als_core::mantle::{AlsMantleState, MantleKind, mantle_weight_at, warp_envelope};
 use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{CollisionLayers, LinearVelocity};
@@ -26,15 +26,20 @@ impl Plugin for AlsMantleDrivePlugin {
         );
         app.add_systems(
             FixedPostUpdate,
-            mantle_drive_system
-                .after(AnimationGraphSet::PrePhysics),
+            mantle_drive_system.after(AnimationGraphSet::PrePhysics),
         );
     }
 }
 
 fn ensure_mantle_state(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsMantleState>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsMantleState>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsMantleState::default());
@@ -44,11 +49,7 @@ fn ensure_mantle_state(
 fn mantle_pose_system(
     time: Res<Time>,
     mut q: Query<
-        (
-            &mut AlsMantleState,
-            &mut Transform,
-            &mut LinearVelocity,
-        ),
+        (&mut AlsMantleState, &mut Transform, &mut LinearVelocity),
         With<als_core::character::AlsCharacter>,
     >,
 ) {
@@ -56,11 +57,7 @@ fn mantle_pose_system(
     let Ok((mut m, mut tf, mut vel)) = q.single_mut() else {
         return;
     };
-    let yaw_now = lerp_angle(
-        m.yaw_start,
-        m.yaw_target,
-        warp_envelope(m.clip_time()),
-    );
+    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(m.clip_time()));
     if m.active {
         tf.rotation = Quat::from_rotation_y(yaw_now);
         return;
@@ -168,4 +165,3 @@ fn shortest_angle(angle: f32) -> f32 {
         wrapped
     }
 }
-

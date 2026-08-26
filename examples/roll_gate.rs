@@ -12,10 +12,10 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{roll_displacement_dir, AlsRollState};
+use als_core::roll::{AlsRollState, roll_displacement_dir};
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::state::{Gait, LocomotionState, Stance};
@@ -95,12 +95,48 @@ struct Step {
 
 fn steps() -> [Step; 6] {
     [
-        Step { t0: 0.5, dur: 1.0, move_dir: Vec2::ZERO, roll_pulse: false, label: "idle" },
-        Step { t0: 1.5, dur: 1.2, move_dir: Vec2::NEG_Y, roll_pulse: false, label: "run up" },
-        Step { t0: 2.7, dur: 1.6, move_dir: Vec2::NEG_Y, roll_pulse: true, label: "forward roll" },
-        Step { t0: 4.3, dur: 1.2, move_dir: Vec2::ZERO, roll_pulse: false, label: "settle" },
-        Step { t0: 5.5, dur: 1.6, move_dir: Vec2::X, roll_pulse: true, label: "right roll" },
-        Step { t0: 7.1, dur: 1.4, move_dir: Vec2::ZERO, roll_pulse: false, label: "final settle" },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            move_dir: Vec2::ZERO,
+            roll_pulse: false,
+            label: "idle",
+        },
+        Step {
+            t0: 1.5,
+            dur: 1.2,
+            move_dir: Vec2::NEG_Y,
+            roll_pulse: false,
+            label: "run up",
+        },
+        Step {
+            t0: 2.7,
+            dur: 1.6,
+            move_dir: Vec2::NEG_Y,
+            roll_pulse: true,
+            label: "forward roll",
+        },
+        Step {
+            t0: 4.3,
+            dur: 1.2,
+            move_dir: Vec2::ZERO,
+            roll_pulse: false,
+            label: "settle",
+        },
+        Step {
+            t0: 5.5,
+            dur: 1.6,
+            move_dir: Vec2::X,
+            roll_pulse: true,
+            label: "right roll",
+        },
+        Step {
+            t0: 7.1,
+            dur: 1.4,
+            move_dir: Vec2::ZERO,
+            roll_pulse: false,
+            label: "final settle",
+        },
     ]
 }
 
@@ -143,12 +179,17 @@ fn spawn_character_once(
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
+        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands.entity(character).insert((

@@ -9,7 +9,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
 use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::params::AlsMovementParams;
 use als_ext::AlsExtPlugin;
 
@@ -31,18 +31,20 @@ fn main() {
         file_path: "assets".into(),
         ..default()
     }))
-        .add_plugins(PhysicsPlugins::new(FixedPostUpdate))
-        .add_plugins(AnimationGraphPlugin::default())
-        .add_plugins(AlsCharacterPlugin)
-        .add_plugins(AlsExtPlugin);
+    .add_plugins(PhysicsPlugins::new(FixedPostUpdate))
+    .add_plugins(AnimationGraphPlugin::default())
+    .add_plugins(AlsCharacterPlugin)
+    .add_plugins(AlsExtPlugin);
 
     app.init_resource::<EvalTimer>()
         .insert_resource(Deadline(Instant::now() + Duration::from_secs(90)))
         .add_systems(
             FixedPostUpdate,
             (
-                mark_start.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
-                collect_end.after(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
+                mark_start
+                    .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
+                collect_end
+                    .after(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
             ),
         )
         .add_systems(Startup, spawn_character)
@@ -142,6 +144,11 @@ fn spawn_character(
     bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0);
     let character = commands.spawn(bundle).id();
     let _ = character;
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let avatar = bevy_als::character_assembly::attach_avatar(
+        &mut commands,
+        &assets,
+        character,
+        "animated_scenes/motion_overlay.animscn.ron",
+    );
     info!("[PERF] character spawned");
 }

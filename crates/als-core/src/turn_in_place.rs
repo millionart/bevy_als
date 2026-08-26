@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct TurnInPlaceConfig {
     pub view_yaw_angle_threshold_degrees: f32,
@@ -50,11 +49,7 @@ pub fn wrap_angle_degrees(angle: f32) -> f32 {
     a
 }
 
-fn mapped_activation_delay(
-    angle_abs: f32,
-    threshold: f32,
-    max_delay: f32,
-) -> f32 {
+fn mapped_activation_delay(angle_abs: f32, threshold: f32, max_delay: f32) -> f32 {
     let span = 180.0 - threshold;
     let t = ((angle_abs - threshold) / span.max(f32::EPSILON)).clamp(0.0, 1.0);
     max_delay * (1.0 - t)

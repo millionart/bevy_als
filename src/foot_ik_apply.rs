@@ -1,14 +1,14 @@
 use als_core::foot_ik::{
-    foot_target_offset, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe,
-    FootSideInput,
+    AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe, FootSideInput,
+    foot_target_offset,
 };
+use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
-use bevy::transform::{systems as transform_systems, TransformSystems};
+use bevy::transform::{TransformSystems, systems as transform_systems};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::systems::apply_animation_to_targets;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
-use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
+use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
 pub struct FootIkApplyPlugin;
 
@@ -84,9 +84,7 @@ fn foot_ik_apply_system(
             if let Ok((_, foot_g, _)) = bone_locals.get(chain.foot) {
                 let ankle_y = foot_g.translation().y;
                 inputs[side] = FootSideInput {
-                    raw_offset: hit
-                        .map(|h| foot_target_offset(ankle_y, &h))
-                        .unwrap_or(0.0),
+                    raw_offset: hit.map(|h| foot_target_offset(ankle_y, &h)).unwrap_or(0.0),
                     pin_request: match side {
                         0 => targets.pin_left,
                         _ => targets.pin_right,
@@ -116,11 +114,7 @@ fn foot_ik_apply_system(
 }
 
 fn grounded_target(targets: &AlsFootIkTargets) -> f32 {
-    if targets.grounded {
-        1.0
-    } else {
-        0.0
-    }
+    if targets.grounded { 1.0 } else { 0.0 }
 }
 
 fn apply_chain_offset(

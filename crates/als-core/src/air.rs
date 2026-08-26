@@ -124,7 +124,8 @@ impl AlsAirState {
                 self.fall_fast_weight =
                     move_toward(self.fall_fast_weight, 0.0, AIR_BLEND_SPEED * dt);
                 let land_target = if remaining > LAND_TAIL_SECS { 1.0 } else { 0.0 };
-                self.land_weight = move_toward(self.land_weight, land_target, LAND_BLEND_SPEED * dt);
+                self.land_weight =
+                    move_toward(self.land_weight, land_target, LAND_BLEND_SPEED * dt);
                 let heavy_target = if self.landing_heavy { 1.0 } else { 0.0 };
                 self.land_heavy_weight =
                     move_toward(self.land_heavy_weight, heavy_target, LAND_BLEND_SPEED * dt);
@@ -148,7 +149,8 @@ type AirQueryItem<'w, 's> = (
     &'w LocomotionState,
     &'w LinearVelocity,
     Option<&'s mut AlsAirState>,
-);fn air_state_system(time: Res<Time>, mut q: Query<AirQueryItem, With<AlsCharacter>>) {
+);
+fn air_state_system(time: Res<Time>, mut q: Query<AirQueryItem, With<AlsCharacter>>) {
     let dt = time.delta_secs();
     for (loco, vel, state) in &mut q {
         if let Some(mut s) = state {
@@ -163,10 +165,7 @@ impl Plugin for AlsAirPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                ensure_air_state,
-                air_state_system.after(ensure_air_state),
-            ),
+            (ensure_air_state, air_state_system.after(ensure_air_state)),
         );
     }
 }
