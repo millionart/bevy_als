@@ -67,6 +67,9 @@ struct SceneStats {
     movers_total: u32,
     movers_moving: u32,
     spin_yaw_abs_deg: f32,
+    cube_orientation_total: u32,
+    cube_orientation_matching: u32,
+    cube_orientation_max_error: f32,
     mover_prev: Vec<Vec3>,
     verdict_done: bool,
 }
@@ -77,6 +80,36 @@ struct Schedule {
     shot_done: bool,
     quit_at: Instant,
     shot_path: String,
+}
+
+fn ue_source_rotator_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
+    let (sp, cp) = (pitch_deg.to_radians() * 0.5).sin_cos();
+    let (sy, cy) = (yaw_deg.to_radians() * 0.5).sin_cos();
+    let (sr, cr) = (roll_deg.to_radians() * 0.5).sin_cos();
+    Quat::from_xyzw(
+        cr * sp * sy - sr * cp * cy,
+        -cr * sp * cy - sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    )
+}
+
+fn expected_cube_rotator(name: &str) -> Option<(f32, f32, f32)> {
+    match name {
+        "StaticMeshActor_UAID_94B86D58D760231001_1996299222:box"
+        | "StaticMeshActor_UAID_94B86D58D760241001_1128730399:box" => Some((0.0, 0.0, 25.95)),
+        "StaticMeshActor_UAID_94B86D58D760231001_1287870219:box"
+        | "StaticMeshActor_UAID_94B86D58D760231001_1754144221:box" => Some((0.0, 0.0, 35.1)),
+        "StaticMeshActor_UAID_94B86D58D760221001_1788787042:box"
+        | "StaticMeshActor_UAID_94B86D58D760231001_1363458220:box" => Some((0.0, 0.0, 44.25)),
+        "StaticMeshActor_UAID_54BF6414A059D82202_1613061415:box"
+        | "StaticMeshActor_UAID_54BF6414A0599C2202_1768185868:box" => Some((0.0, 90.0, -15.0)),
+        _ => None,
+    }
+}
+
+fn map_ue_direction(v: Vec3) -> Vec3 {
+    Vec3::new(v.x, v.z, v.y)
 }
 
 fn spawn_camera(mut commands: Commands) {
@@ -120,6 +153,7 @@ fn stats_collector(
     sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig)>,
     skies: Query<(), With<PlaygroundSky>>,
     mesh_materials: Query<&MeshMaterial3d<StandardMaterial>>,
+    cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
     materials: Res<Assets<StandardMaterial>>,
 ) {
     stats.static_count = statics.iter().count() as u32;
@@ -164,6 +198,22 @@ fn stats_collector(
             })
         })
         .count() as u32;
+    stats.cube_orientation_total = 0;
+    stats.cube_orientation_matching = 0;
+    stats.cube_orientation_max_error = 0.0;
+    for (name, transform) in &cube_visuals {
+        if let Some((pitch, yaw, roll)) = expected_cube_rotator(name.as_str()) {
+            let source_rotation = ue_source_rotator_quat(pitch, yaw, roll);
+            let expected = map_ue_direction(source_rotation.mul_vec3(Vec3::Y));
+            let actual = transform.rotation.mul_vec3(Vec3::Z);
+            let error = actual.distance(expected);
+            stats.cube_orientation_total += 1;
+            stats.cube_orientation_max_error = stats.cube_orientation_max_error.max(error);
+            if error < 1e-4 {
+                stats.cube_orientation_matching += 1;
+            }
+        }
+    }
 }
 
 fn kinematic_probe(
@@ -281,9 +331,12 @@ fn verdict_system(
     let ok_pbr = stats.pbr_material_count >= 1;
     let ok_moving = stats.movers_total >= 3 && stats.movers_moving >= 2;
     let ok_spin = stats.spin_yaw_abs_deg > 30.0;
+    let ok_cube_orientation = stats.cube_orientation_total == 8
+        && stats.cube_orientation_matching == stats.cube_orientation_total
+        && stats.cube_orientation_max_error < 1e-4;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={}/{} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} landscape={} identity={} sun={}/shadow={} sky={} pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={}/{} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} landscape={} identity={} sun={}/shadow={} sky={} pbr={} movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg cube_orientation={}/{} cube_axis_error={:.6} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -301,6 +354,9 @@ fn verdict_system(
         stats.movers_total,
         stats.movers_moving,
         stats.spin_yaw_abs_deg,
+        stats.cube_orientation_matching,
+        stats.cube_orientation_total,
+        stats.cube_orientation_max_error,
         if ok_static
             && ok_text
             && ok_native_text
@@ -312,6 +368,7 @@ fn verdict_system(
             && ok_pbr
             && ok_moving
             && ok_spin
+            && ok_cube_orientation
         {
             "PASS"
         } else {
@@ -328,7 +385,8 @@ fn verdict_system(
         && ok_sky
         && ok_pbr
         && ok_moving
-        && ok_spin)
+        && ok_spin
+        && ok_cube_orientation)
     {
         exit.write(AppExit::Error(std::num::NonZeroU8::new(7).unwrap()));
     } else {

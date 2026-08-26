@@ -201,7 +201,7 @@ pub fn ue_rotator_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Q
     let pitch = pitch_deg.to_radians();
     let yaw = yaw_deg.to_radians();
     let roll = roll_deg.to_radians();
-    let qx = Quat::from_rotation_x(roll);
+    let qx = Quat::from_rotation_x(-roll);
     let qy = Quat::from_rotation_y(-pitch);
     let qz = Quat::from_rotation_z(yaw);
     ue_quat_to_bevy(qz * qy * qx)
@@ -1138,6 +1138,18 @@ mod tests {
         );
     }
 
+    fn ue_source_rotator_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
+        let (sp, cp) = (pitch_deg.to_radians() * 0.5).sin_cos();
+        let (sy, cy) = (yaw_deg.to_radians() * 0.5).sin_cos();
+        let (sr, cr) = (roll_deg.to_radians() * 0.5).sin_cos();
+        Quat::from_xyzw(
+            cr * sp * sy - sr * cp * cy,
+            -cr * sp * cy - sr * cp * sy,
+            cr * cp * sy - sr * sp * cy,
+            cr * cp * cy + sr * sp * sy,
+        )
+    }
+
     #[test]
     fn point_mapping_swaps_yz_and_scales() {
         assert_vec3_eq(
@@ -1166,9 +1178,7 @@ mod tests {
             (0.0, 0.0, 25.95),
         ];
         for (pitch, yaw, roll) in samples {
-            let q_ue = Quat::from_rotation_z(yaw.to_radians())
-                * Quat::from_rotation_y(-pitch.to_radians())
-                * Quat::from_rotation_x(roll.to_radians());
+            let q_ue = ue_source_rotator_quat(pitch, yaw, roll);
             let q_bevy = ue_quat_to_bevy(q_ue);
             for v in [
                 Vec3::X,
@@ -1185,11 +1195,23 @@ mod tests {
     }
 
     #[test]
-    fn rotator_conversion_agrees_with_quat_rule() {
-        for yaw in [-180.0_f32, -90.0, -45.0, 0.0, 30.0, 90.0, 179.5] {
-            let expected = ue_quat_to_bevy(Quat::from_axis_angle(Vec3::Z, yaw.to_radians()));
-            assert_quat_eq(ue_yaw_to_bevy_quat(yaw), expected, 1e-5);
-            assert_quat_eq(ue_rotator_to_bevy_quat(0.0, yaw, 0.0), expected, 1e-5);
+    fn rotator_conversion_matches_ue_quaternion_formula() {
+        let samples = [
+            (0.0_f32, 0.0, 25.95),
+            (0.0, 0.0, 35.1),
+            (0.0, 0.0, 44.25),
+            (0.0, 90.0, -15.0),
+            (90.0, 90.0, 0.0),
+            (30.0, 45.0, 20.0),
+        ];
+        for (pitch, yaw, roll) in samples {
+            let q_ue = ue_source_rotator_quat(pitch, yaw, roll);
+            let expected = ue_quat_to_bevy(q_ue);
+            let actual = ue_rotator_to_bevy_quat(pitch, yaw, roll);
+            assert_quat_eq(actual, expected, 1e-5);
+            for v in [Vec3::X, Vec3::Y, Vec3::Z] {
+                assert_vec3_eq(actual.mul_vec3(map_dir(v)), map_dir(q_ue.mul_vec3(v)), 1e-4);
+            }
         }
     }
 
