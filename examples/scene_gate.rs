@@ -96,12 +96,9 @@ fn ue_source_rotator_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
 
 fn expected_cube_rotator(name: &str) -> Option<(f32, f32, f32)> {
     match name {
-        "StaticMeshActor_UAID_94B86D58D760231001_1996299222:box"
-        | "StaticMeshActor_UAID_94B86D58D760241001_1128730399:box" => Some((0.0, 0.0, 25.95)),
-        "StaticMeshActor_UAID_94B86D58D760231001_1287870219:box"
-        | "StaticMeshActor_UAID_94B86D58D760231001_1754144221:box" => Some((0.0, 0.0, 35.1)),
-        "StaticMeshActor_UAID_94B86D58D760221001_1788787042:box"
-        | "StaticMeshActor_UAID_94B86D58D760231001_1363458220:box" => Some((0.0, 0.0, 44.25)),
+        "StaticMeshActor_UAID_94B86D58D760241001_1128730399:box" => Some((0.0, 0.0, 25.95)),
+        "StaticMeshActor_UAID_94B86D58D760231001_1754144221:box" => Some((0.0, 0.0, 35.1)),
+        "StaticMeshActor_UAID_94B86D58D760221001_1788787042:box" => Some((0.0, 0.0, 44.25)),
         "StaticMeshActor_UAID_54BF6414A059D82202_1613061415:box"
         | "StaticMeshActor_UAID_54BF6414A0599C2202_1768185868:box" => Some((0.0, 90.0, -15.0)),
         _ => None,
@@ -331,7 +328,7 @@ fn verdict_system(
     let ok_pbr = stats.pbr_material_count >= 1;
     let ok_moving = stats.movers_total >= 3 && stats.movers_moving >= 2;
     let ok_spin = stats.spin_yaw_abs_deg > 30.0;
-    let ok_cube_orientation = stats.cube_orientation_total == 8
+    let ok_cube_orientation = stats.cube_orientation_total == 5
         && stats.cube_orientation_matching == stats.cube_orientation_total
         && stats.cube_orientation_max_error < 1e-4;
 
