@@ -12,7 +12,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-pub const ALS_LAYER_CURVE_NAMES: [&str; 12] = [
+pub const ALS_LAYER_CURVE_NAMES: [&str; 18] = [
     "LayerArmLeft",
     "LayerArmLeftAdditive",
     "LayerArmLeftLocalSpace",
@@ -25,6 +25,12 @@ pub const ALS_LAYER_CURVE_NAMES: [&str; 12] = [
     "LayerPelvis",
     "LayerSpine",
     "LayerSpineAdditive",
+    "HandLeftIk",
+    "HandRightIk",
+    "HipsDirectionLock",
+    "LayerHandLeft",
+    "LayerHandRight",
+    "PoseAiming",
 ];
 
 #[derive(Reflect, Clone, Debug)]

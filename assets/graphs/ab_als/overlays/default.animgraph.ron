@@ -400,6 +400,54 @@
             },
             should_debug: false,
         ),
+        (
+            id: "02020202-0000-4000-8000-00000000040d",
+            name: "HandLeftIk curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040e",
+            name: "HandRightIk curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040f",
+            name: "HipsDirectionLock curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000410",
+            name: "LayerHandLeft curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000411",
+            name: "LayerHandRight curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000412",
+            name: "PoseAiming curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
         NodeData("02020202-0000-4000-8000-000000000111", "pose"): NodeData("02020202-0000-4000-8000-000000000101", "pose"),
@@ -461,6 +509,12 @@
         OutputData("LayerPelvis"): NodeData("02020202-0000-4000-8000-00000000040a", "value"),
         OutputData("LayerSpine"): NodeData("02020202-0000-4000-8000-00000000040b", "value"),
         OutputData("LayerSpineAdditive"): NodeData("02020202-0000-4000-8000-00000000040c", "value"),
+        OutputData("HandLeftIk"): NodeData("02020202-0000-4000-8000-00000000040d", "value"),
+        OutputData("HandRightIk"): NodeData("02020202-0000-4000-8000-00000000040e", "value"),
+        OutputData("HipsDirectionLock"): NodeData("02020202-0000-4000-8000-00000000040f", "value"),
+        OutputData("LayerHandLeft"): NodeData("02020202-0000-4000-8000-000000000410", "value"),
+        OutputData("LayerHandRight"): NodeData("02020202-0000-4000-8000-000000000411", "value"),
+        OutputData("PoseAiming"): NodeData("02020202-0000-4000-8000-000000000412", "value"),
     },
     io_spec: (
         input_times: [Passthrough("base_time")],
@@ -482,6 +536,12 @@
             "LayerPelvis": F32,
             "LayerSpine": F32,
             "LayerSpineAdditive": F32,
+            "HandLeftIk": F32,
+            "HandRightIk": F32,
+            "HipsDirectionLock": F32,
+            "LayerHandLeft": F32,
+            "LayerHandRight": F32,
+            "PoseAiming": F32,
         },
         input_order: {
             Time(Passthrough("base_time")): 0,
@@ -502,6 +562,12 @@
             Data("LayerPelvis"): 11,
             Data("LayerSpine"): 12,
             Data("LayerSpineAdditive"): 13,
+            Data("HandLeftIk"): 14,
+            Data("HandRightIk"): 15,
+            Data("HipsDirectionLock"): 16,
+            Data("LayerHandLeft"): 17,
+            Data("LayerHandRight"): 18,
+            Data("PoseAiming"): 19,
         },
     ),
     default_data: {},

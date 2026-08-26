@@ -261,30 +261,22 @@ fn observe_runtime_probe(
     let Some(marker) = marker else {
         return;
     };
-    let curve_marker = player
-        .get_outputs()
-        .get(ALS_LAYER_CURVE_NAMES[0])
-        .and_then(|value| match value {
-            DataValue::F32(value) => Some(*value),
-            _ => None,
-        });
+    let curves_match = |expected: f32| {
+        ALS_LAYER_CURVE_NAMES.iter().all(|curve| {
+            matches!(player.get_outputs().get(*curve), Some(DataValue::F32(value)) if (*value - expected).abs() < 0.001)
+        })
+    };
     match probe.phase {
-        ProbePhase::First
-            if (marker - 1.0).abs() < 0.001
-                && curve_marker.is_some_and(|value| (value - 1.0).abs() < 0.001) =>
-        {
+        ProbePhase::First if (marker - 1.0).abs() < 0.001 && curves_match(1.0) => {
             info!(
-                "[LINKED-LAYER-CONTRACT] runtime selector index=0 pose_marker={marker:.1} curve_marker=1.0"
+                "[LINKED-LAYER-CONTRACT] runtime selector index=0 pose_marker={marker:.1} all_curve_markers=1.0"
             );
             player.set_input_data("layer_index", DataValue::F32(1.0));
             probe.phase = ProbePhase::Second;
         }
-        ProbePhase::Second
-            if (marker - 2.0).abs() < 0.001
-                && curve_marker.is_some_and(|value| (value - 2.0).abs() < 0.001) =>
-        {
+        ProbePhase::Second if (marker - 2.0).abs() < 0.001 && curves_match(2.0) => {
             info!(
-                "[LINKED-LAYER-CONTRACT] runtime selector index=1 pose_marker={marker:.1} curve_marker=2.0"
+                "[LINKED-LAYER-CONTRACT] runtime selector index=1 pose_marker={marker:.1} all_curve_markers=2.0"
             );
             info!(
                 "[LINKED-LAYER-CONTRACT][VERDICT] interface=ALI_Overlay replacement=true -> PASS"

@@ -130,9 +130,17 @@ fn set_overlay_inputs(
     player.set_global_input_data(ANIMATION_DELTA_SECONDS, delta_seconds);
 }
 
-fn all_layer_curves_are_one(player: &AnimationGraphPlayer) -> bool {
+fn expected_default_curve(name: &str) -> f32 {
+    match name {
+        "HandLeftIk" | "HandRightIk" | "HipsDirectionLock" | "LayerHandLeft" | "LayerHandRight"
+        | "PoseAiming" => 0.0,
+        _ => 1.0,
+    }
+}
+
+fn all_layer_curves_match_default(player: &AnimationGraphPlayer) -> bool {
     ALS_LAYER_CURVE_NAMES.iter().all(|name| {
-        matches!(player.get_outputs().get(*name), Some(DataValue::F32(value)) if (*value - 1.0).abs() < 1e-6)
+        matches!(player.get_outputs().get(*name), Some(DataValue::F32(value)) if (*value - expected_default_curve(name)).abs() < 1e-6)
     })
 }
 
@@ -239,7 +247,7 @@ fn verify_static_contract(
             .values()
             .find(|node| node.name == format!("{curve} curve"))
             .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
-            .is_some_and(|node| (node.value - 1.0).abs() < 1e-6)
+            .is_some_and(|node| (node.value - expected_default_curve(curve)).abs() < 1e-6)
     });
     let asset_paths = source.matches("A_Als_Default_Poses.anim.ron").count() == 5
         && source.contains("animations/Base/A_Als_Idle.anim.ron");
@@ -356,15 +364,17 @@ fn observe_overlay(
     let Some(pose) = player.get_default_output_pose().cloned() else {
         return;
     };
-    if !all_layer_curves_are_one(&player) {
-        warn!("[DEFAULT-OVERLAY-CONTRACT][VERDICT] layer curves are not all 1.0 -> FAIL");
+    if !all_layer_curves_match_default(&player) {
+        warn!(
+            "[DEFAULT-OVERLAY-CONTRACT][VERDICT] layer curves do not match source presence -> FAIL"
+        );
         exit.write(AppExit::Error(std::num::NonZeroU8::new(5).unwrap()));
         return;
     }
     match probe.overlay_phase {
         OverlayPhase::GroundedIdle => {
             info!(
-                "[DEFAULT-OVERLAY-CONTRACT] runtime state=grounded_idle bones={} curves=1.0",
+                "[DEFAULT-OVERLAY-CONTRACT] runtime state=grounded_idle bones={} standard_curves=1.0 absent_curves=0.0",
                 pose.bones.len()
             );
             probe.grounded_idle = Some(pose);
@@ -385,7 +395,7 @@ fn observe_overlay(
                 return;
             }
             info!(
-                "[DEFAULT-OVERLAY-CONTRACT] runtime state=grounded_walk pose_changed=true curves=1.0"
+                "[DEFAULT-OVERLAY-CONTRACT] runtime state=grounded_walk pose_changed=true standard_curves=1.0 absent_curves=0.0"
             );
             probe.grounded_walk = Some(pose);
             set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0);
@@ -403,7 +413,7 @@ fn observe_overlay(
                 return;
             }
             info!(
-                "[DEFAULT-OVERLAY-CONTRACT] runtime state=crouching pose_changed=true curves=1.0"
+                "[DEFAULT-OVERLAY-CONTRACT] runtime state=crouching pose_changed=true standard_curves=1.0 absent_curves=0.0"
             );
             probe.crouching = Some(pose);
             set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0);
@@ -421,7 +431,7 @@ fn observe_overlay(
                 return;
             }
             info!(
-                "[DEFAULT-OVERLAY-CONTRACT] runtime state=air_start pose_changed=true curves=1.0"
+                "[DEFAULT-OVERLAY-CONTRACT] runtime state=air_start pose_changed=true standard_curves=1.0 absent_curves=0.0"
             );
             probe.air_start = Some(pose);
             set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 1.0, 1.0, 0.01);
@@ -441,7 +451,7 @@ fn observe_overlay(
                 return;
             }
             info!(
-                "[DEFAULT-OVERLAY-CONTRACT] runtime state=air_prediction pose_changed=true curves=1.0"
+                "[DEFAULT-OVERLAY-CONTRACT] runtime state=air_prediction pose_changed=true standard_curves=1.0 absent_curves=0.0"
             );
             probe.overlay_done = true;
             probe.overlay_phase = OverlayPhase::Pending;
