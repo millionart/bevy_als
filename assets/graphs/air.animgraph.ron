@@ -186,7 +186,8 @@
             },
             should_debug: false,
         ),
-
+        (
+            id: "e1e1e1e1-f6f6-5a7a-9b9b-000000000009",
             name: "land blend",
             inner: {
                 "bevy_animation_graph::builtin_nodes::BlendNode": (

@@ -399,7 +399,7 @@ fn metrics_logger(
     }
 
     info!(
-        "[M8GATE] t={t:.2} phase={} loco={loco:?} gait={gait:?} vy={:+.2} peak_dn={:.2} pos=({:.2},{:.2},{:.2}) air_w={:.2} ff_w={:.2} land_w={:.2} heavy_w={:.2}",
+        "[M8GATE] t={t:.2} phase={} loco={loco:?} gait={gait:?} vy={:+.2} peak_dn={:.2} pos=({:.2},{:.2},{:.2}) air_w={:.2} ff_w={:.2} land_w={:.2} heavy_w={:.2} impact={:.2} airphase={:?} heavy={}",
         phase_desc(phase_at(t)),
         vel.y,
         air.down_vy_smooth,
@@ -410,6 +410,9 @@ fn metrics_logger(
         air.fall_fast_weight,
         air.land_weight,
         air.land_heavy_weight,
+        air.last_impact_vy,
+        air.phase,
+        air.landing_heavy,
     );
 }
 

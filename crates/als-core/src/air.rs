@@ -45,6 +45,7 @@ pub struct AlsAirState {
     pub land_weight: f32,
     pub land_heavy_weight: f32,
     pub down_vy_smooth: f32,
+    pub down_vy_peak: f32,
     pub last_impact_vy: f32,
 }
 
@@ -59,6 +60,7 @@ impl Default for AlsAirState {
             land_weight: 0.0,
             land_heavy_weight: 0.0,
             down_vy_smooth: 0.0,
+            down_vy_peak: 0.0,
             last_impact_vy: 0.0,
         }
     }
@@ -72,17 +74,24 @@ impl AlsAirState {
                 if *loco == LocomotionState::Air {
                     self.phase = AirPhase::Airborne;
                     self.down_vy_smooth = (-vy).max(0.0);
+                    self.down_vy_peak = self.down_vy_smooth;
                 }
             }
             AirPhase::Airborne => {
                 if *loco == LocomotionState::Grounded {
-                    self.last_impact_vy = self.down_vy_smooth;
+                    self.last_impact_vy = self.down_vy_peak.max(self.down_vy_smooth);
                     self.landing_heavy = self.last_impact_vy >= LAND_HEAVY_IMPACT_VY;
                     self.landing_time = 0.0;
                     self.phase = AirPhase::Landing;
                 } else {
                     let target = (-vy).max(0.0);
                     self.down_vy_smooth += (target - self.down_vy_smooth) * IMPACT_VY_SMOOTH_ALPHA;
+                    if target > self.down_vy_peak {
+                        self.down_vy_peak = target;
+                    } else {
+                        self.down_vy_peak +=
+                            (self.down_vy_smooth - self.down_vy_peak) * IMPACT_VY_SMOOTH_ALPHA;
+                    }
                 }
             }
             AirPhase::Landing => {
@@ -270,11 +279,17 @@ mod tests {
             "ema converges toward sustained fall speed"
         );
         s.update(&LocomotionState::Air, -8.1, DT);
-        let pre_edge = s.down_vy_smooth;
+        assert!(
+            !s.landing_heavy,
+            "single-frame spike must not classify as heavy while airborne"
+        );
+        for _ in 0..20 {
+            s.update(&LocomotionState::Air, -5.0, DT);
+        }
         s.update(&LocomotionState::Grounded, 0.06, DT);
         assert!(
-            !s.landing_heavy && (pre_edge - s.last_impact_vy).abs() < 1e-4,
-            "single-frame spike must not classify as heavy"
+            !s.landing_heavy && (s.down_vy_smooth - s.last_impact_vy).abs() < 1.0,
+            "decayed peak after sustained slow fall must land light"
         );
     }
 

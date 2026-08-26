@@ -197,7 +197,7 @@
             should_debug: false,
         ),
         (
-            id: "c7c7c7c7-0d0d-4e4e-bfbf-0000000110",
+            id: "c7c7c7c7-0d0d-4e4e-bfbf-000000001100",
             name: "turn clip 1 time position",
             inner: {
                 "als_ext::TimePositionNode": (duration_fallback: 2.0),
@@ -217,7 +217,7 @@
             should_debug: false,
         ),
         (
-            id: "c7c7c7c7-0d0d-4e4e-bfbf-0000000120",
+            id: "c7c7c7c7-0d0d-4e4e-bfbf-000000001200",
             name: "turn clip 2 time position",
             inner: {
                 "als_ext::TimePositionNode": (duration_fallback: 2.0),
@@ -237,7 +237,7 @@
             should_debug: false,
         ),
         (
-            id: "c7c7c7c7-0d0d-4e4e-bfbf-0000000130",
+            id: "c7c7c7c7-0d0d-4e4e-bfbf-000000001300",
             name: "turn clip 3 time position",
             inner: {
                 "als_ext::TimePositionNode": (duration_fallback: 2.0),
@@ -257,7 +257,7 @@
             should_debug: false,
         ),
         (
-            id: "c7c7c7c7-0d0d-4e4e-bfbf-0000000140",
+            id: "c7c7c7c7-0d0d-4e4e-bfbf-000000001400",
             name: "turn clip 4 time position",
             inner: {
                 "als_ext::TimePositionNode": (duration_fallback: 2.0),
@@ -316,6 +316,19 @@
             should_debug: false,
         ),
         (
+            id: "a9a9a9a9-b8b8-7c9c-bdbd-000000000006",
+            name: "mantle override blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
             id: "c7c7c7c7-0d0d-4e4e-bfbf-000000000008",
             name: "turn override blend",
             inner: {
@@ -328,18 +341,9 @@
             },
             should_debug: false,
         ),
-
-            inner: {
-                "bevy_animation_graph::builtin_nodes::BlendNode": (
-                    mode: LinearInterpolate,
-                    sync_mode: Absolute,
-                    blend_primary: First,
-                    use_bone_mask: false,
-                ),
-            },
-            should_debug: false,
-        ),
-
+        (
+            id: "d6d6d6d6-e7e7-4f8f-9a9a-000000000002",
+            name: "mantle high time position",
             inner: {
                 "als_ext::TimePositionNode": (duration_fallback: 2.667),
             },
@@ -363,18 +367,18 @@
         ),
     ],
     edges_inverted: {
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000110", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000001", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000110", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000001"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000110", "position"): InputData(Passthrough("turn_clip_time")),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000120", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000002", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000120", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000002"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000120", "position"): InputData(Passthrough("turn_clip_time")),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000130", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000003", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000130", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000003"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000130", "position"): InputData(Passthrough("turn_clip_time")),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000140", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000004", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000140", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000004"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000140", "position"): InputData(Passthrough("turn_clip_time")),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001100", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000001", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001100", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000001"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001100", "position"): InputData(Passthrough("turn_clip_time")),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001200", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000002", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001200", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000002"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001200", "position"): InputData(Passthrough("turn_clip_time")),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001300", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000003", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001300", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000003"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001300", "position"): InputData(Passthrough("turn_clip_time")),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001400", "pose"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000004", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001400", "time"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000004"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001400", "position"): InputData(Passthrough("turn_clip_time")),
 
         NodeData("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "pose_a"): InputData(Passthrough("prev_pose")),
         NodeTime("e1e1e1e1-f6f6-5a7a-9b9b-00000000000b", "time_a"): InputTime(Passthrough("prev_time")),
@@ -426,15 +430,15 @@
         NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "pose_b"): NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000005", "pose"),
         NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "time_b"): NodeTime("a9a9a9a9-b8b8-7c9c-bdbd-000000000005"),
         NodeData("a9a9a9a9-b8b8-7c9c-bdbd-000000000006", "factor"): InputData(Passthrough("mantle_weight")),
-                NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000110", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000110"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "pose_b"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000120", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "time_b"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000120"),
+                NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001100", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001100"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "pose_b"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001200", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "time_b"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001200"),
         NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "factor"): InputData(Passthrough("turn_lr")),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000130", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000130"),
-        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "pose_b"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-0000000140", "pose"),
-        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "time_b"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-0000000140"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001300", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001300"),
+        NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "pose_b"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000001400", "pose"),
+        NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "time_b"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000001400"),
         NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000006", "factor"): InputData(Passthrough("turn_lr")),
         NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000007", "pose_a"): NodeData("c7c7c7c7-0d0d-4e4e-bfbf-000000000005", "pose"),
         NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000007", "time_a"): NodeTime("c7c7c7c7-0d0d-4e4e-bfbf-000000000005"),
