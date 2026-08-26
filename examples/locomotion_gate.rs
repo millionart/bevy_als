@@ -71,6 +71,7 @@ fn main() {
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
     .add_systems(Update, (camera_follow, fall_guard, safety_quit))
+    .add_plugins(bevy_als::anim_probe::AnimProbePlugin)
     .add_systems(
         Update,
         (
