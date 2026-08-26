@@ -24,7 +24,9 @@ use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_core::view::{AlsViewPitch, clamp_pitch};
-use als_ext::playground::{PlaygroundLandscape, terrain_height};
+use als_ext::overlay_materials::OverlayMaterialsPlugin;
+use als_ext::playground::PlaygroundLandscape;
+use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
@@ -76,18 +78,20 @@ fn main() {
         bevy_als::als_hud::AlsHudPlugin,
         bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
         PlaygroundPlugin {
-            manifest: "assets/models/playground/playground.ron".into(),
+            manifest: "assets/models/playground/playground_scene.ron".into(),
         },
         AnimationGraphPlugin::default(),
+        PlaygroundMaterialsPlugin,
+        OverlayMaterialsPlugin,
         AlsExtPlugin,
         AlsCameraPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .insert_resource(GlobalAmbientLight {
-        brightness: 400.0,
+        brightness: 2.0,
         ..default()
     })
-    .add_systems(Startup, (spawn_sun, arm_auto_quit))
+    .add_systems(Startup, arm_auto_quit)
     .add_systems(
         Update,
         (
@@ -186,45 +190,94 @@ struct LandscapeColliderBuilt;
 
 fn landscape_collider_bridge(
     mut commands: Commands,
-    landscapes: Query<Entity, (Added<PlaygroundLandscape>, Without<LandscapeColliderBuilt>)>,
+    landscapes: Query<
+        (Entity, &GlobalTransform),
+        (With<PlaygroundLandscape>, Without<LandscapeColliderBuilt>),
+    >,
+    scene_children: Query<&Children>,
+    mesh_parts: Query<(&Mesh3d, &GlobalTransform)>,
+    meshes: Res<Assets<Mesh>>,
 ) {
-    for entity in &landscapes {
-        let size = 120.0_f32;
-        let segs = 64_u32;
-        let step = size / segs as f32;
-        let half = size * 0.5;
-        let mut verts = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-        for zi in 0..=segs {
-            for xi in 0..=segs {
-                let lx = xi as f32 * step - half;
-                let lz = zi as f32 * step - half;
-                verts.push(Vec3::new(lx, terrain_height(lx, lz), lz));
+    fn append_meshes(
+        entity: Entity,
+        root_inverse: Mat4,
+        scene_children: &Query<&Children>,
+        mesh_parts: &Query<(&Mesh3d, &GlobalTransform)>,
+        meshes: &Assets<Mesh>,
+        vertices: &mut Vec<Vec3>,
+        triangles: &mut Vec<[u32; 3]>,
+    ) {
+        if let Ok((mesh_handle, transform)) = mesh_parts.get(entity)
+            && let Some(mesh) = meshes.get(&mesh_handle.0)
+            && let Some(positions) = mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+            && let Some(values) = positions.as_float3()
+            && let Some(indices) = mesh.indices()
+        {
+            let base = vertices.len() as u32;
+            let relative = root_inverse * transform.to_matrix();
+            vertices.extend(
+                values
+                    .iter()
+                    .map(|position| relative.transform_point3(Vec3::from(*position))),
+            );
+            match indices {
+                bevy::render::mesh::Indices::U32(list) => {
+                    triangles.extend(list.chunks_exact(3).map(|triangle| {
+                        [base + triangle[0], base + triangle[1], base + triangle[2]]
+                    }))
+                }
+                bevy::render::mesh::Indices::U16(list) => {
+                    triangles.extend(list.chunks_exact(3).map(|triangle| {
+                        [
+                            base + triangle[0] as u32,
+                            base + triangle[1] as u32,
+                            base + triangle[2] as u32,
+                        ]
+                    }))
+                }
             }
         }
-        let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
-        let w = segs + 1;
-        for zi in 0..segs {
-            for xi in 0..segs {
-                let a = zi * w + xi;
-                indices.push([a, a + w, a + 1]);
-                indices.push([a + 1, a + w, a + w + 1]);
+        if let Ok(children) = scene_children.get(entity) {
+            for child in children.iter() {
+                append_meshes(
+                    child,
+                    root_inverse,
+                    scene_children,
+                    mesh_parts,
+                    meshes,
+                    vertices,
+                    triangles,
+                );
             }
         }
-        commands
-            .entity(entity)
-            .insert((Collider::trimesh(verts, indices), LandscapeColliderBuilt));
-        info!("[MANUAL] landscape trimesh collider built");
     }
-}
 
-fn spawn_sun(mut commands: Commands) {
-    commands.spawn((
-        DirectionalLight {
-            illuminance: 30_000.0,
-            ..default()
-        },
-        Transform::from_xyz(5.0, 20.0, -3.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
+    for (root, root_transform) in &landscapes {
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        append_meshes(
+            root,
+            root_transform.to_matrix().inverse(),
+            &scene_children,
+            &mesh_parts,
+            &meshes,
+            &mut vertices,
+            &mut triangles,
+        );
+        if vertices.is_empty() || triangles.is_empty() {
+            continue;
+        }
+        info!(
+            "[MANUAL] landscape collider built verts={} triangles={}",
+            vertices.len(),
+            triangles.len()
+        );
+        commands.entity(root).insert((
+            RigidBody::Static,
+            Collider::trimesh(vertices, triangles),
+            LandscapeColliderBuilt,
+        ));
+    }
 }
 
 fn spawn_character_once(
@@ -245,17 +298,18 @@ fn spawn_character_once(
         point.position.x, point.position.y, point.position.z
     );
 
-    let mut blueprint = bevy_als::character_assembly::AlsCharacterBlueprint::new(
-        Transform::from_translation(point.position).with_rotation(point.rotation),
-        "animated_scenes/als_ragdoll.animscn.ron",
-    );
-    blueprint.spawn_camera = true;
     let _character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
         &mut params_assets,
         &mut config_assets,
-        blueprint,
+        bevy_als::character_assembly::AlsCharacterBlueprint {
+            spawn_camera: true,
+            ..bevy_als::character_assembly::AlsCharacterBlueprint::new(
+                Transform::from_translation(point.position).with_rotation(point.rotation),
+                "animated_scenes/als_ragdoll.animscn.ron",
+            )
+        },
     );
 }
 

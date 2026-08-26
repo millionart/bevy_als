@@ -11,6 +11,8 @@ pub mod overlay;
 pub mod ragdoll_config_node;
 pub mod root_motion_clip;
 pub mod playground;
+pub mod playground_materials;
+pub mod overlay_materials;
 pub mod root_motion_defaults;
 pub mod time_position;
 
@@ -34,11 +36,15 @@ pub use overlay::{
 };
 pub use playground::{
     is_engine_basic, playground_moving_object_system, playground_setup_system,
-    ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy, ue_rotator_to_bevy_quat,
-    ue_yaw_to_bevy_quat, PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent,
-    PlaygroundLandscape, PlaygroundManifest, PlaygroundManifestPath, PlaygroundMovingObject,
-    PlaygroundMovingOffset, PlaygroundPlugin, PlaygroundRotator, PlaygroundSpawnPoint,
-    PlaygroundStatic, PlaygroundTextLabel,
+    ue_directional_light_ray_to_bevy, ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy,
+    ue_rotator_to_bevy_quat, ue_scale_to_bevy, ue_yaw_to_bevy_quat, PlaygroundActor,
+    PlaygroundBoxCollider, PlaygroundComponent, PlaygroundKinematic, PlaygroundKinematicKind,
+    PlaygroundLandscape, PlaygroundLandscapeTilesMaterial, PlaygroundManifest,
+    PlaygroundManifestPath, PlaygroundMaterialApplied,
+    PlaygroundMaterialRole, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,
+    PlaygroundRotator, PlaygroundSky, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextFacing,
+    PlaygroundTextFit, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
+    PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
 };
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use time_position::{resolve_position, TimePositionNode};

@@ -8,6 +8,7 @@ use als_core::input::{AlsInputMap, spawn_als_actions};
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
+use als_ext::overlay_materials::AvatarMaterialOverride;
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
@@ -26,6 +27,35 @@ pub fn attach_avatar(
     let avatar = commands
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            avatar_transform(),
+        ))
+        .id();
+    commands.entity(character).add_child(avatar);
+    avatar
+}
+
+pub fn attach_avatar_with_material(
+    commands: &mut Commands,
+    assets: &AssetServer,
+    materials: &mut Assets<StandardMaterial>,
+    character: Entity,
+    scene: &str,
+    slot_colors: &[Color],
+) -> Entity {
+    let handles: Vec<Handle<StandardMaterial>> = slot_colors
+        .iter()
+        .map(|c| {
+            materials.add(StandardMaterial {
+                base_color: *c,
+                perceptual_roughness: 0.7,
+                ..default()
+            })
+        })
+        .collect();
+    let avatar = commands
+        .spawn((
+            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AvatarMaterialOverride(handles),
             avatar_transform(),
         ))
         .id();

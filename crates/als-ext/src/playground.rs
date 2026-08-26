@@ -1,9 +1,22 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
+use bevy::asset::AssetId;
+use bevy::camera::Exposure;
+use bevy::color::LinearRgba;
+use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::light::{CascadeShadowConfigBuilder, NotShadowCaster};
 use bevy::prelude::*;
+use bevy::render::view::{ColorGrading, ColorGradingSection};
+use bevy::sprite::Anchor;
+use bevy::text::{LetterSpacing, LineHeight, TextLayoutInfo};
 use bevy::world_serialization::WorldAssetRoot;
 use ron::de::from_str;
 use serde::Deserialize;
+
+use crate::playground_materials::{
+    PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
+    PlaygroundTilesSettings,
+};
 
 pub struct PlaygroundPlugin {
     pub manifest: PathBuf,
@@ -13,7 +26,15 @@ impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PlaygroundManifestPath(self.manifest.clone()))
             .add_systems(Startup, playground_setup_system)
-            .add_systems(Update, playground_moving_object_system);
+            .add_systems(
+                Update,
+                (
+                    playground_moving_object_system,
+                    world_text_mesh_system,
+                    playground_material_tint_system,
+                    playground_camera_exposure_system,
+                ),
+            );
     }
 }
 
@@ -26,6 +47,18 @@ pub struct PlaygroundManifest {
     pub actors: Vec<PlaygroundActor>,
     #[serde(default)]
     pub lighting: Option<SceneLighting>,
+    #[serde(default)]
+    pub sun_rotator: Option<PlaygroundRotator>,
+    #[serde(default)]
+    pub terrain: Option<SceneTerrain>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SceneTerrain {
+    pub origin_ue_x_cm: f32,
+    pub origin_ue_y_cm: f32,
+    pub step_cm: f32,
+    pub heights_cm: Vec<Vec<f32>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -34,6 +67,12 @@ pub struct SceneLighting {
     pub sun_intensity: Option<f32>,
     pub sun_color: Option<[f32; 4]>,
     pub ambient_brightness: Option<f32>,
+    pub sky_zenith: Option<[f32; 4]>,
+    pub sky_horizon: Option<[f32; 4]>,
+    pub sky_sun_brightness: Option<f32>,
+    pub sky_horizon_falloff: Option<f32>,
+    pub camera_exposure_ev100: Option<f32>,
+    pub camera_contrast: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,6 +103,26 @@ pub struct PlaygroundActor {
     pub text_color: Option<[f32; 4]>,
     #[serde(default)]
     pub text_world_size: Option<f32>,
+    #[serde(default)]
+    pub text_horizontal_alignment: Option<String>,
+    #[serde(default)]
+    pub text_vertical_alignment: Option<String>,
+    #[serde(default)]
+    pub text_x_scale: Option<f32>,
+    #[serde(default)]
+    pub text_y_scale: Option<f32>,
+    #[serde(default)]
+    pub text_horizontal_spacing_adjust: Option<f32>,
+    #[serde(default)]
+    pub text_vertical_spacing_adjust: Option<f32>,
+    #[serde(default)]
+    pub top_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub side_color: Option<[f32; 3]>,
+    #[serde(default)]
+    pub move_duration: Option<f32>,
+    #[serde(default)]
+    pub rotate_speed_deg: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -108,15 +167,46 @@ pub struct PlaygroundBoxCollider {
 #[derive(Component, Debug)]
 pub struct PlaygroundMovingObject;
 
+#[derive(Debug, Clone, Copy)]
+pub enum PlaygroundKinematicKind {
+    MovePingPong { duration: f32 },
+    SpinYawDegPerSec { speed_deg: f32 },
+}
+
+#[derive(Component, Debug)]
+pub struct PlaygroundKinematic {
+    pub base_transform: Transform,
+    pub kind: PlaygroundKinematicKind,
+}
+
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct PlaygroundSpawnPoint {
     pub position: Vec3,
     pub rotation: Quat,
 }
 
+#[derive(Resource, Debug, Clone, Copy)]
+struct PlaygroundCameraExposure {
+    ev100: f32,
+    contrast: f32,
+}
+
+#[derive(Component, Debug)]
+pub struct PlaygroundSceneExposure;
+
 const CM_TO_M: f32 = 0.01;
+const CUBE_8_ACTOR: &str = "StaticMeshActor_UAID_54BF6414A059D82202_1613061415";
+const LANDSCAPE_TILES_COLOR: [f32; 3] = [0.25, 0.5, 0.125];
+const LANDSCAPE_TILES_TILING: f32 = 0.08;
+
+#[derive(Component, Debug)]
+pub struct PlaygroundLandscapeTilesMaterial;
+
+#[derive(Component, Debug)]
+struct PlaygroundNoShadowCaster;
 
 const SKIP_CLASSES: &[&str] = &[
+    "Brush",
     "WorldSettings",
     "RecastNavMesh",
     "NavMeshBoundsVolume",
@@ -147,6 +237,10 @@ pub fn ue_extents_to_bevy(e_cm: Vec3) -> Vec3 {
     Vec3::new(e_cm.x * CM_TO_M, e_cm.z * CM_TO_M, e_cm.y * CM_TO_M)
 }
 
+pub fn ue_scale_to_bevy(scale: Vec3) -> Vec3 {
+    Vec3::new(scale.x, scale.z, scale.y)
+}
+
 pub fn ue_quat_to_bevy(q: Quat) -> Quat {
     Quat::from_xyzw(-q.x, -q.z, -q.y, q.w)
 }
@@ -155,7 +249,7 @@ pub fn ue_rotator_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Q
     let pitch = pitch_deg.to_radians();
     let yaw = yaw_deg.to_radians();
     let roll = roll_deg.to_radians();
-    let qx = Quat::from_rotation_x(roll);
+    let qx = Quat::from_rotation_x(-roll);
     let qy = Quat::from_rotation_y(-pitch);
     let qz = Quat::from_rotation_z(yaw);
     ue_quat_to_bevy(qz * qy * qx)
@@ -163,6 +257,12 @@ pub fn ue_rotator_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Q
 
 pub fn ue_yaw_to_bevy_quat(yaw_deg: f32) -> Quat {
     ue_rotator_to_bevy_quat(0.0, yaw_deg, 0.0)
+}
+
+pub fn ue_directional_light_ray_to_bevy(pitch_deg: f32, yaw_deg: f32) -> Vec3 {
+    let (sin_pitch, cos_pitch) = pitch_deg.to_radians().sin_cos();
+    let (sin_yaw, cos_yaw) = yaw_deg.to_radians().sin_cos();
+    Vec3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize()
 }
 
 fn gltf_asset_base(mesh_path: &str) -> Option<String> {
@@ -181,6 +281,7 @@ pub fn is_engine_basic(mesh_path: &str) -> bool {
 struct BodyPlan {
     loc_cm: Vec3,
     quat: Quat,
+    visual_scale: Vec3,
     half_extents_model: Vec3,
     center_offset_model: Vec3,
     center_world: Vec3,
@@ -217,10 +318,12 @@ fn body_plan_from_comp(
     let mesh_base = comp.mesh_path.as_deref().and_then(gltf_asset_base);
 
     if let (Some(org), Some(ext)) = (comp.local_box_origin, comp.local_box_extent) {
+        let scaled_ext = Vec3::from(ext) * scale;
         return Some(BodyPlan {
             loc_cm,
             quat,
-            half_extents_model: ue_extents_to_bevy(Vec3::from(ext) * scale),
+            visual_scale: ue_scale_to_bevy(scale),
+            half_extents_model: ue_extents_to_bevy(scaled_ext),
             center_offset_model: ue_point_to_bevy(Vec3::from(org) * scale),
             center_world: ue_point_to_bevy(loc_cm),
             obb: true,
@@ -232,6 +335,7 @@ fn body_plan_from_comp(
         return Some(BodyPlan {
             loc_cm,
             quat,
+            visual_scale: ue_scale_to_bevy(scale),
             half_extents_model: comp
                 .world_aabb_extent
                 .map(|e| ue_extents_to_bevy(Vec3::from(e)))
@@ -250,9 +354,29 @@ fn body_plan_from_actor_bounds(actor: &PlaygroundActor) -> Option<BodyPlan> {
     let org = actor.bounds_origin?;
     let ext = actor.bounds_extent?;
     let rotator = actor_rotator(actor);
+    let quat = ue_rotator_to_bevy_quat(rotator.0, rotator.1, rotator.2);
+    let scale = Vec3::from(actor.scale);
+    if actor
+        .components
+        .iter()
+        .any(|c| c.mesh_path.as_deref() == Some("/Engine/BasicShapes/Cube.Cube"))
+    {
+        let base = ue_extents_to_bevy(Vec3::from(ext));
+        return Some(BodyPlan {
+            loc_cm: Vec3::from(org),
+            quat,
+            visual_scale: ue_scale_to_bevy(scale),
+            half_extents_model: (base / scale).max(Vec3::splat(0.01)),
+            center_offset_model: Vec3::ZERO,
+            center_world: ue_point_to_bevy(Vec3::from(org)),
+            obb: true,
+            mesh_base: None,
+        });
+    }
     Some(BodyPlan {
         loc_cm: Vec3::from(org),
-        quat: ue_rotator_to_bevy_quat(rotator.0, rotator.1, rotator.2),
+        quat,
+        visual_scale: ue_scale_to_bevy(scale),
         half_extents_model: ue_extents_to_bevy(Vec3::from(ext)),
         center_offset_model: Vec3::ZERO,
         center_world: ue_point_to_bevy(Vec3::from(org)),
@@ -261,15 +385,31 @@ fn body_plan_from_actor_bounds(actor: &PlaygroundActor) -> Option<BodyPlan> {
     })
 }
 
+fn inverse_scale(scale: Vec3) -> Vec3 {
+    Vec3::new(scale.x.recip(), scale.y.recip(), scale.z.recip())
+}
+
+fn infer_block_mesh(actor: &PlaygroundActor) -> Option<String> {
+    let ext = actor.bounds_extent?;
+    let max_cm = ext[0].max(ext[1]).max(ext[2]);
+    if max_cm <= 125.0 {
+        Some("SM_Als_Block_2x2".to_string())
+    } else {
+        Some("SM_Als_Block_3x3".to_string())
+    }
+}
+
 fn spawn_box_visual(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    placeholder: Handle<StandardMaterial>,
+    material: PlaygroundMaterialTint,
     transform: Transform,
     half_extents: Vec3,
     name: String,
+    no_shadow_caster: bool,
 ) -> Entity {
-    commands
+    let role = material.role();
+    let entity = commands
         .spawn((
             Name::new(name),
             transform,
@@ -278,11 +418,80 @@ fn spawn_box_visual(
                 half_extents.y * 2.0,
                 half_extents.z * 2.0,
             )))),
-            MeshMaterial3d(placeholder),
             PlaygroundStatic,
             PlaygroundBoxCollider { half_extents },
+            PlaygroundMaterialApplied(role),
         ))
-        .id()
+        .id();
+    if no_shadow_caster {
+        commands.entity(entity).insert(NotShadowCaster);
+    }
+    match material {
+        PlaygroundMaterialTint::Main(handle) => {
+            commands.entity(entity).insert(MeshMaterial3d(handle));
+        }
+        PlaygroundMaterialTint::Tiles(handle) | PlaygroundMaterialTint::Translucent(handle) => {
+            commands.entity(entity).insert(MeshMaterial3d(handle));
+        }
+    }
+    entity
+}
+
+fn color_parameter(value: [f32; 3]) -> Vec4 {
+    Vec4::new(value[0], value[1], value[2], 1.0)
+}
+
+fn make_tiles_material(
+    library: &PlaygroundMaterialLibrary,
+    side_color: [f32; 3],
+    top_color: [f32; 3],
+    tiling: f32,
+) -> Option<PlaygroundTilesMaterial> {
+    Some(PlaygroundTilesMaterial {
+        base: StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+            normal_map_texture: library.tiles_normal.clone(),
+            occlusion_texture: library.tiles_occlusion.clone(),
+            flip_normal_map_y: true,
+            perceptual_roughness: 0.5,
+            ..default()
+        },
+        extension: PlaygroundTilesExtension {
+            settings: PlaygroundTilesSettings {
+                side_color_a: color_parameter(side_color),
+                top_color_a: color_parameter(top_color),
+                side_color_b: color_parameter(side_color),
+                top_color_b: color_parameter(top_color),
+                tiling_and_mode: Vec4::new(tiling, 0.0, 0.0, 0.0),
+            },
+            grid_texture: library.tiles_grid.clone()?,
+        },
+    })
+}
+
+fn make_translucent_material(
+    library: &PlaygroundMaterialLibrary,
+) -> Option<PlaygroundTilesMaterial> {
+    Some(PlaygroundTilesMaterial {
+        base: StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+            perceptual_roughness: 0.5,
+            alpha_mode: AlphaMode::Blend,
+            double_sided: true,
+            cull_mode: None,
+            ..default()
+        },
+        extension: PlaygroundTilesExtension {
+            settings: PlaygroundTilesSettings {
+                side_color_a: Vec4::ONE,
+                top_color_a: Vec4::ONE,
+                side_color_b: Vec4::ONE,
+                top_color_b: Vec4::ONE,
+                tiling_and_mode: Vec4::new(1.0, 1.0, 0.0, 0.0),
+            },
+            grid_texture: library.tiles_grid.clone()?,
+        },
+    })
 }
 
 pub fn playground_setup_system(
@@ -291,6 +500,8 @@ pub fn playground_setup_system(
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut tiles_materials: ResMut<Assets<PlaygroundTilesMaterial>>,
+    material_library: Res<PlaygroundMaterialLibrary>,
 ) {
     let text = match std::fs::read_to_string(&manifest_path.0) {
         Ok(t) => t,
@@ -310,11 +521,20 @@ pub fn playground_setup_system(
         }
     };
 
-    let placeholder_mat = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.55, 0.55, 0.6, 0.45),
-        alpha_mode: AlphaMode::Blend,
+    let main_material = materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(1.0, 1.0, 1.0),
+        perceptual_roughness: 0.5,
         ..default()
     });
+    let translucent_material =
+        make_translucent_material(&material_library).map(|material| tiles_materials.add(material));
+    let landscape_material = make_tiles_material(
+        &material_library,
+        LANDSCAPE_TILES_COLOR,
+        LANDSCAPE_TILES_COLOR,
+        LANDSCAPE_TILES_TILING,
+    )
+    .map(|material| tiles_materials.add(material));
 
     let mut spawned_static = 0usize;
     let mut spawned_moving = 0usize;
@@ -324,6 +544,28 @@ pub fn playground_setup_system(
     let mut spawned_text = 0usize;
 
     for actor in &manifest.actors {
+        if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
+            let scene = assets.load("models/playground/Landscape1.gltf#Scene0");
+            let mut landscape = commands.spawn((
+                Name::new(format!("Landscape:{}", actor.name)),
+                Transform::IDENTITY,
+                WorldAssetRoot(scene),
+                PlaygroundStatic,
+                PlaygroundLandscape,
+            ));
+            if let Some(material) = &landscape_material {
+                landscape.insert(PlaygroundMaterialTint::Tiles(material.clone()));
+            } else {
+                warn!("PLAYGROUND landscape tiles material unavailable");
+            }
+            spawned_landscape += 1;
+            continue;
+        }
+        if actor.class.starts_with("TextRenderActor") || actor.class == "TextRenderActor" {
+            spawn_text_label(&mut commands, actor);
+            spawned_text += 1;
+            continue;
+        }
         if is_skipped(&actor.class) {
             skipped += 1;
             continue;
@@ -342,16 +584,11 @@ pub fn playground_setup_system(
                     .components
                     .first()
                     .and_then(|c| {
-                        body_plan_from_comp(
-                            c,
-                            actor.location,
-                            actor.scale,
-                            actor_rotator(actor),
-                        )
+                        body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor))
                     })
                     .or_else(|| body_plan_from_actor_bounds(actor));
                 if let Some(plan) = plan {
-                    let transform = if plan.obb {
+                    let base_transform = if plan.obb {
                         Transform::from_translation(
                             ue_point_to_bevy(plan.loc_cm) + plan.quat * plan.center_offset_model,
                         )
@@ -359,15 +596,134 @@ pub fn playground_setup_system(
                     } else {
                         Transform::from_translation(plan.center_world)
                     };
-                    let entity = spawn_box_visual(
-                        &mut commands,
-                        &mut meshes,
-                        placeholder_mat.clone(),
-                        transform,
-                        plan.half_extents_model,
-                        format!("MovingHook:{}", actor.name),
-                    );
-                    commands.entity(entity).insert(PlaygroundMovingObject);
+                    let mesh_base = plan.mesh_base.clone().or_else(|| infer_block_mesh(actor));
+                    let mesh_scene = mesh_base
+                        .as_deref()
+                        .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
+                    let has_mesh_scene = mesh_scene.is_some();
+                    let transform = base_transform.with_scale(if has_mesh_scene {
+                        plan.visual_scale
+                    } else {
+                        Vec3::ONE
+                    });
+                    let collider_scale = if has_mesh_scene {
+                        inverse_scale(plan.visual_scale)
+                    } else {
+                        Vec3::ONE
+                    };
+                    let duration = actor.move_duration.unwrap_or(2.0);
+                    let entity = commands
+                        .spawn((
+                            Name::new(format!("Moving:{}", actor.name)),
+                            transform,
+                            PlaygroundStatic,
+                            PlaygroundMovingObject,
+                            PlaygroundKinematic {
+                                base_transform: transform,
+                                kind: PlaygroundKinematicKind::MovePingPong { duration },
+                            },
+                        ))
+                        .id();
+                    match mesh_scene {
+                        Some(scene) => {
+                            commands.entity(entity).insert((
+                                WorldAssetRoot(scene),
+                                PlaygroundMaterialTint::Main(main_material.clone()),
+                            ));
+                        }
+                        None => {
+                            commands.entity(entity).insert((
+                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
+                                    plan.half_extents_model.x * 2.0,
+                                    plan.half_extents_model.y * 2.0,
+                                    plan.half_extents_model.z * 2.0,
+                                )))),
+                                MeshMaterial3d(main_material.clone()),
+                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
+                            ));
+                        }
+                    }
+                    commands.entity(entity).with_children(|p| {
+                        p.spawn((
+                            Name::new("Moving:collider"),
+                            Transform::from_scale(collider_scale),
+                            PlaygroundBoxCollider {
+                                half_extents: plan.half_extents_model,
+                            },
+                        ));
+                    });
+                    spawned_moving += 1;
+                }
+                continue;
+            }
+            "B_Als_RotatingObject_C" => {
+                let plan = actor
+                    .components
+                    .first()
+                    .and_then(|c| {
+                        body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor))
+                    })
+                    .or_else(|| body_plan_from_actor_bounds(actor));
+                if let Some(plan) = plan {
+                    let center = plan.center_world + plan.quat * plan.center_offset_model;
+                    let speed_deg = actor.rotate_speed_deg.unwrap_or(100.0);
+                    let mesh_base = plan.mesh_base.clone().or_else(|| infer_block_mesh(actor));
+                    let mesh_scene = mesh_base
+                        .as_deref()
+                        .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
+                    let has_mesh_scene = mesh_scene.is_some();
+                    let transform = Transform::from_translation(center)
+                        .with_rotation(plan.quat)
+                        .with_scale(if has_mesh_scene {
+                            plan.visual_scale
+                        } else {
+                            Vec3::ONE
+                        });
+                    let collider_scale = if has_mesh_scene {
+                        inverse_scale(plan.visual_scale)
+                    } else {
+                        Vec3::ONE
+                    };
+                    let entity = commands
+                        .spawn((
+                            Name::new(format!("Rotating:{}", actor.name)),
+                            transform,
+                            PlaygroundStatic,
+                            PlaygroundMovingObject,
+                            PlaygroundKinematic {
+                                base_transform: transform,
+                                kind: PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg },
+                            },
+                        ))
+                        .id();
+                    match mesh_scene {
+                        Some(scene) => {
+                            commands.entity(entity).insert((
+                                WorldAssetRoot(scene),
+                                PlaygroundMaterialTint::Main(main_material.clone()),
+                            ));
+                        }
+                        None => {
+                            commands.entity(entity).insert((
+                                Mesh3d(meshes.add(Mesh::from(Cuboid::new(
+                                    plan.half_extents_model.x * 2.0,
+                                    plan.half_extents_model.y * 2.0,
+                                    plan.half_extents_model.z * 2.0,
+                                )))),
+                                MeshMaterial3d(main_material.clone()),
+                                PlaygroundMaterialApplied(PlaygroundMaterialRole::Main),
+                            ));
+                        }
+                    }
+                    commands.entity(entity).with_children(|p| {
+                        p.spawn((
+                            Name::new("Rotating:collider"),
+                            Transform::from_scale(collider_scale),
+                            PlaygroundBoxCollider {
+                                half_extents: plan.half_extents_model,
+                            },
+                        ));
+                    });
                     spawned_moving += 1;
                 }
                 continue;
@@ -393,54 +749,88 @@ pub fn playground_setup_system(
         }
 
         for plan in &plans {
+            let no_shadow_caster = actor.name == CUBE_8_ACTOR;
+            let visual_mat = if no_shadow_caster {
+                translucent_material
+                    .clone()
+                    .map(PlaygroundMaterialTint::Translucent)
+                    .unwrap_or_else(|| {
+                        warn!(
+                            "PLAYGROUND translucent material unavailable for {}",
+                            actor.name
+                        );
+                        PlaygroundMaterialTint::Main(main_material.clone())
+                    })
+            } else if actor.top_color.is_some() || actor.side_color.is_some() {
+                let side_color = actor.side_color.unwrap_or([1.0, 1.0, 1.0]);
+                let top_color = actor.top_color.unwrap_or([1.0, 1.0, 1.0]);
+                make_tiles_material(&material_library, side_color, top_color, 1.0)
+                    .map(|material| tiles_materials.add(material))
+                    .map(PlaygroundMaterialTint::Tiles)
+                    .unwrap_or_else(|| {
+                        warn!("PLAYGROUND tiles material unavailable for {}", actor.name);
+                        PlaygroundMaterialTint::Main(main_material.clone())
+                    })
+            } else {
+                PlaygroundMaterialTint::Main(main_material.clone())
+            };
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
-                    let root_tf =
-                        Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
-                            .with_rotation(plan.quat);
-                    let offset = plan.center_offset_model;
-                    commands
-                        .spawn((
-                            Name::new(format!("{base}:{}", actor.name)),
-                            root_tf,
-                            WorldAssetRoot(scene),
-                            PlaygroundStatic,
-                        ))
-                        .with_children(|p| {
-                            p.spawn((
-                                Name::new(format!("{base}:collider")),
-                                Transform::from_translation(offset),
-                                PlaygroundBoxCollider {
-                                    half_extents: plan.half_extents_model,
-                                },
-                            ));
-                        });
+                    let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
+                        .with_rotation(plan.quat)
+                        .with_scale(plan.visual_scale);
+                    let offset = plan.center_offset_model / plan.visual_scale;
+                    let mut visual = commands.spawn((
+                        Name::new(format!("{base}:{}", actor.name)),
+                        root_tf,
+                        WorldAssetRoot(scene),
+                        PlaygroundStatic,
+                        visual_mat.clone(),
+                    ));
+                    if no_shadow_caster {
+                        visual.insert(PlaygroundNoShadowCaster);
+                    }
+                    visual.with_children(|p| {
+                        p.spawn((
+                            Name::new(format!("{base}:collider")),
+                            Transform::from_translation(offset)
+                                .with_scale(inverse_scale(plan.visual_scale)),
+                            PlaygroundBoxCollider {
+                                half_extents: plan.half_extents_model,
+                            },
+                        ));
+                    });
                     spawned_static += 1;
                 }
                 (Some(base), false) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
-                    let root_tf =
-                        Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
-                            .with_rotation(plan.quat);
-                    commands
-                        .spawn((
-                            Name::new(format!("{base}:{}", actor.name)),
-                            root_tf,
-                            WorldAssetRoot(scene),
-                            PlaygroundStatic,
-                        ))
-                        .with_children(|p| {
-                            p.spawn((
-                                Name::new(format!("{}:aabb", actor.name)),
-                                Transform::from_translation(
-                                    plan.center_world - ue_point_to_bevy(plan.loc_cm),
-                                ),
-                                PlaygroundBoxCollider {
-                                    half_extents: plan.half_extents_model,
-                                },
-                            ));
-                        });
+                    let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
+                        .with_rotation(plan.quat)
+                        .with_scale(plan.visual_scale);
+                    let mut visual = commands.spawn((
+                        Name::new(format!("{base}:{}", actor.name)),
+                        root_tf,
+                        WorldAssetRoot(scene),
+                        PlaygroundStatic,
+                        visual_mat.clone(),
+                    ));
+                    if no_shadow_caster {
+                        visual.insert(PlaygroundNoShadowCaster);
+                    }
+                    visual.with_children(|p| {
+                        p.spawn((
+                            Name::new(format!("{}:aabb", actor.name)),
+                            Transform::from_translation(
+                                (plan.center_world - ue_point_to_bevy(plan.loc_cm))
+                                    / plan.visual_scale,
+                            )
+                            .with_scale(inverse_scale(plan.visual_scale)),
+                            PlaygroundBoxCollider {
+                                half_extents: plan.half_extents_model,
+                            },
+                        ));
+                    });
                     spawned_static += 1;
                 }
                 (None, true) => {
@@ -448,10 +838,11 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        placeholder_mat.clone(),
+                        visual_mat.clone(),
                         Transform::from_translation(center).with_rotation(plan.quat),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
+                        no_shadow_caster,
                     );
                     spawned_static += 1;
                 }
@@ -459,10 +850,11 @@ pub fn playground_setup_system(
                     spawn_box_visual(
                         &mut commands,
                         &mut meshes,
-                        placeholder_mat.clone(),
+                        visual_mat.clone(),
                         Transform::from_translation(plan.center_world),
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
+                        no_shadow_caster,
                     );
                     spawned_static += 1;
                 }
@@ -471,20 +863,31 @@ pub fn playground_setup_system(
     }
 
     if let Some(lighting) = &manifest.lighting {
-        spawn_sun_light(&mut commands, lighting);
-    }
-
-    for actor in &manifest.actors {
-        if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
-            spawn_landscape(&mut commands, &mut meshes, &mut materials, actor.location);
-            spawned_landscape += 1;
-            continue;
+        if let Some(ev100) = lighting.camera_exposure_ev100 {
+            commands.insert_resource(PlaygroundCameraExposure {
+                ev100,
+                contrast: lighting.camera_contrast.unwrap_or(1.0),
+            });
         }
-        if actor.class.starts_with("TextRenderActor") || actor.class == "TextRenderActor" {
-            spawn_text_label(&mut commands, actor);
-            spawned_text += 1;
-            continue;
-        }
+        spawn_sun_light(&mut commands, lighting, manifest.sun_rotator.as_ref());
+        spawn_sky(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            lighting,
+            manifest.sun_rotator.as_ref(),
+        );
+    } else if let Some(rot) = &manifest.sun_rotator {
+        let ray = ue_directional_light_ray_to_bevy(rot.pitch, rot.yaw);
+        commands.spawn((
+            Name::new("SunLight"),
+            DirectionalLight {
+                illuminance: 10.0,
+                shadow_maps_enabled: true,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_rotation_arc(Vec3::NEG_Z, ray)),
+        ));
     }
 
     info!(
@@ -493,31 +896,230 @@ pub fn playground_setup_system(
     );
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct PlaygroundTextLabel;
+
+#[derive(Component, Debug)]
+pub struct PlaygroundWorldTextMesh;
+
+#[derive(Component)]
+struct WorldTextMeshBuilt;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaygroundTextHorizontalAlignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaygroundTextVerticalAlignment {
+    Top,
+    Center,
+    Bottom,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundTextLayoutTarget {
+    pub center: Vec3,
+    pub width: f32,
+    pub height: f32,
+    pub horizontal: PlaygroundTextHorizontalAlignment,
+    pub vertical: PlaygroundTextVerticalAlignment,
+    pub depth_scale: f32,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundTextFit {
+    pub width_error: f32,
+    pub height_error: f32,
+    pub center_error: f32,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundTextFacing {
+    pub expected_front: Vec3,
+}
 
 #[derive(Component)]
 pub struct PlaygroundLandscape;
 
-/// Oscillates a moving object between its spawn point and a target offset.
-pub fn playground_moving_object_system(
-    time: Res<Time>,
-    mut q: Query<(&mut Transform, &PlaygroundMovingOffset), With<PlaygroundMovingObject>>,
+#[derive(Component)]
+pub struct PlaygroundSky;
+
+fn playground_camera_exposure_system(
+    mut commands: Commands,
+    exposure: Option<Res<PlaygroundCameraExposure>>,
+    cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
-    let t = time.elapsed_secs_f64() as f32;
-    for (mut tf, offset) in q.iter_mut() {
-        let phase = (t / offset.period_secs * std::f32::consts::PI).sin();
-        let disp = offset.axis * offset.distance_m * phase;
-        tf.translation = offset.base + disp;
+    let Some(exposure) = exposure else {
+        return;
+    };
+    for entity in &cameras {
+        commands.entity(entity).insert((
+            Exposure {
+                ev100: exposure.ev100,
+            },
+            ColorGrading::with_identical_sections(
+                default(),
+                ColorGradingSection {
+                    contrast: exposure.contrast,
+                    ..default()
+                },
+            ),
+            Tonemapping::AcesFitted,
+            PlaygroundSceneExposure,
+        ));
     }
 }
 
-#[derive(Component)]
-pub struct PlaygroundMovingOffset {
-    pub axis: Vec3,
-    pub distance_m: f32,
-    pub period_secs: f32,
-    pub base: Vec3,
+/// Ping-pong spline-like motion and constant spin, per B_Als_MovingObject /
+/// B_Als_RotatingObject event graphs (ServerWorldTime-driven, modulo ping-pong).
+pub fn playground_moving_object_system(
+    time: Res<Time>,
+    mut q: Query<(&mut Transform, &PlaygroundKinematic), With<PlaygroundMovingObject>>,
+) {
+    let t = time.elapsed_secs_f64() as f32;
+    for (mut tf, kin) in q.iter_mut() {
+        match kin.kind {
+            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+                let yaw = speed_deg * t;
+                tf.rotation = kin.base_transform.rotation * Quat::from_rotation_y(yaw.to_radians());
+            }
+            PlaygroundKinematicKind::MovePingPong { duration } => {
+                if duration <= 0.0 {
+                    continue;
+                }
+                let total = t / duration;
+                let frac = total % 2.0;
+                let s = if frac > 1.0 { 2.0 - frac } else { frac };
+                let eased = s * s * (3.0 - 2.0 * s);
+                let base = kin.base_transform.translation;
+                let axis = Vec3::Z;
+                let span_m = 4.0;
+                tf.translation = base + axis * (eased * span_m * 0.5);
+            }
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub enum PlaygroundMaterialTint {
+    Main(Handle<StandardMaterial>),
+    Tiles(Handle<PlaygroundTilesMaterial>),
+    Translucent(Handle<PlaygroundTilesMaterial>),
+}
+
+impl PlaygroundMaterialTint {
+    fn role(&self) -> PlaygroundMaterialRole {
+        match self {
+            Self::Main(_) => PlaygroundMaterialRole::Main,
+            Self::Tiles(_) => PlaygroundMaterialRole::Tiles,
+            Self::Translucent(_) => PlaygroundMaterialRole::Translucent,
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaygroundMaterialRole {
+    Main,
+    Tiles,
+    Translucent,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PlaygroundMaterialApplied(pub PlaygroundMaterialRole);
+
+fn playground_material_tint_system(
+    mut commands: Commands,
+    roots: Query<(
+        Entity,
+        &PlaygroundMaterialTint,
+        Has<PlaygroundLandscape>,
+        Has<PlaygroundNoShadowCaster>,
+    )>,
+    children_query: Query<&Children>,
+    standard_materials: Query<(), With<MeshMaterial3d<StandardMaterial>>>,
+) {
+    fn walk_and_apply(
+        entity: Entity,
+        tint: &PlaygroundMaterialTint,
+        commands: &mut Commands,
+        children_query: &Query<&Children>,
+        standard_materials: &Query<(), With<MeshMaterial3d<StandardMaterial>>>,
+        landscape: bool,
+        no_shadow_caster: bool,
+        found: &mut u32,
+    ) {
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                if standard_materials.contains(child) {
+                    let applied = PlaygroundMaterialApplied(tint.role());
+                    match tint {
+                        PlaygroundMaterialTint::Main(handle) => {
+                            commands
+                                .entity(child)
+                                .insert((MeshMaterial3d(handle.clone()), applied));
+                        }
+                        PlaygroundMaterialTint::Tiles(handle)
+                        | PlaygroundMaterialTint::Translucent(handle) => {
+                            commands
+                                .entity(child)
+                                .remove::<MeshMaterial3d<StandardMaterial>>();
+                            commands
+                                .entity(child)
+                                .insert((MeshMaterial3d(handle.clone()), applied));
+                        }
+                    }
+                    if landscape {
+                        commands
+                            .entity(child)
+                            .insert(PlaygroundLandscapeTilesMaterial);
+                    }
+                    if no_shadow_caster {
+                        commands.entity(child).insert(NotShadowCaster);
+                    }
+                    *found += 1;
+                }
+                walk_and_apply(
+                    child,
+                    tint,
+                    commands,
+                    children_query,
+                    standard_materials,
+                    landscape,
+                    no_shadow_caster,
+                    found,
+                );
+            }
+        }
+    }
+
+    for (root, tint, landscape, no_shadow_caster) in &roots {
+        let mut found = 0u32;
+        walk_and_apply(
+            root,
+            tint,
+            &mut commands,
+            &children_query,
+            &standard_materials,
+            landscape,
+            no_shadow_caster,
+            &mut found,
+        );
+        if found > 0 {
+            commands.entity(root).remove::<PlaygroundMaterialTint>();
+        }
+    }
+}
+
+#[derive(Resource, Debug, Clone)]
+pub struct PlaygroundTerrainData {
+    pub origin_ue: [f32; 2],
+    pub step_cm: f32,
+    pub rows_ue_y: usize,
+    pub cols_ue_x: usize,
+    pub heights_cm: Vec<Vec<f32>>,
 }
 
 pub fn spawn_landscape(
@@ -528,34 +1130,65 @@ pub fn spawn_landscape(
 ) {
     let pos = ue_point_to_bevy(Vec3::from(location_ue));
     let mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.35, 0.45, 0.28),
+        base_color: Color::srgb(0.25, 0.5, 0.125),
         perceptual_roughness: 0.95,
         ..default()
     });
+    let data = commands
+        .spawn((Name::new("Landscape1"), Transform::from_translation(pos)))
+        .id();
+    spawn_landscape_grid(commands, meshes, materials, mat, data, None, pos);
+}
 
-    let size = 120.0_f32;
-    let segs = 64_u32;
-    let step = size / segs as f32;
-    let half = size * 0.5;
-
-    let mut positions = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-    let mut uvs = Vec::with_capacity(((segs + 1) * (segs + 1)) as usize);
-    for zi in 0..=segs {
-        for xi in 0..=segs {
-            let lx = xi as f32 * step - half;
-            let lz = zi as f32 * step - half;
-            let h = terrain_height(lx, lz);
+#[allow(clippy::too_many_arguments)]
+fn spawn_landscape_grid(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
+    mat: Handle<StandardMaterial>,
+    entity: Entity,
+    terrain: Option<&PlaygroundTerrainData>,
+    pos: Vec3,
+) {
+    let rows = terrain.map(|t| t.rows_ue_y).unwrap_or(64);
+    let cols = terrain.map(|t| t.cols_ue_x).unwrap_or(64);
+    let step_m = terrain
+        .map(|t| (t.step_cm * CM_TO_M) as f32)
+        .unwrap_or(120.0 / 64.0);
+    let height_at = |ri: usize, ci: usize| -> f32 {
+        match terrain {
+            Some(t) => {
+                let r = ri.min(t.heights_cm.len() - 1);
+                let row = &t.heights_cm[r];
+                let c = ci.min(row.len() - 1);
+                row[c] * CM_TO_M
+            }
+            None => terrain_height(
+                -60.0 + ci as f32 * 120.0 / 64.0,
+                -60.0 + ri as f32 * 120.0 / 64.0,
+            ),
+        }
+    };
+    let mut positions = Vec::with_capacity(rows * cols);
+    let mut uvs = Vec::with_capacity(rows * cols);
+    for ri in 0..rows {
+        for ci in 0..cols {
+            let lx = ci as f32 * step_m;
+            let lz = ri as f32 * step_m;
+            let h = height_at(ri, ci);
             positions.push([lx, h, lz]);
-            uvs.push([xi as f32 / segs as f32, zi as f32 / segs as f32]);
+            uvs.push([
+                ci as f32 / (cols - 1).max(1) as f32,
+                ri as f32 / (rows - 1).max(1) as f32,
+            ]);
         }
     }
-    let mut indices = Vec::with_capacity((segs * segs * 6) as usize);
-    let w = segs + 1;
-    for zi in 0..segs {
-        for xi in 0..segs {
-            let a = zi * w + xi;
+    let mut indices: Vec<u32> = Vec::with_capacity((rows - 1) * (cols - 1) * 6);
+    for ri in 0..rows - 1 {
+        for ci in 0..cols - 1 {
+            let a = (ri * cols + ci) as u32;
             let b = a + 1;
-            let c = (zi + 1) * w + xi;
+            let c = ((ri + 1) * cols + ci) as u32;
             let d = c + 1;
             indices.extend_from_slice(&[a, c, b, b, c, d]);
         }
@@ -568,10 +1201,7 @@ pub fn spawn_landscape(
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     let per_tri = 3usize;
     let tri_count = indices.len() / 3;
-    let mut normals = Vec::with_capacity(positions.len());
-    for _ in 0..positions.len() {
-        normals.push([0.0, 1.0, 0.0]);
-    }
+    let mut normals = vec![[0.0f32, 1.0, 0.0]; positions.len()];
     for ti in 0..tri_count {
         let ia = indices[ti * per_tri] as usize;
         let ib = indices[ti * per_tri + 1] as usize;
@@ -588,12 +1218,11 @@ pub fn spawn_landscape(
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
 
-    commands.spawn((
-        Name::new("Landscape1"),
-        Transform::from_translation(pos),
+    commands.entity(entity).insert((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(mat),
         PlaygroundLandscape,
+        Transform::from_translation(pos),
     ));
 }
 
@@ -604,56 +1233,418 @@ pub fn terrain_height(x: f32, z: f32) -> f32 {
     h.max(-0.5)
 }
 
-fn spawn_text_label(
-    commands: &mut Commands,
-    actor: &PlaygroundActor,
-) {
+const TEXT_LAYOUT_FONT_SIZE: f32 = 100.0;
+
+fn text_horizontal_alignment(value: Option<&str>) -> PlaygroundTextHorizontalAlignment {
+    match value {
+        Some("EHTA_Left") => PlaygroundTextHorizontalAlignment::Left,
+        Some("EHTA_Right") => PlaygroundTextHorizontalAlignment::Right,
+        _ => PlaygroundTextHorizontalAlignment::Center,
+    }
+}
+
+fn text_vertical_alignment(value: Option<&str>) -> PlaygroundTextVerticalAlignment {
+    match value {
+        Some("EVRTA_TextTop") => PlaygroundTextVerticalAlignment::Top,
+        Some("EVRTA_TextCenter") => PlaygroundTextVerticalAlignment::Center,
+        _ => PlaygroundTextVerticalAlignment::Bottom,
+    }
+}
+
+fn text_anchor(
+    horizontal: PlaygroundTextHorizontalAlignment,
+    vertical: PlaygroundTextVerticalAlignment,
+) -> Anchor {
+    match (horizontal, vertical) {
+        (PlaygroundTextHorizontalAlignment::Left, PlaygroundTextVerticalAlignment::Top) => {
+            Anchor::TOP_LEFT
+        }
+        (PlaygroundTextHorizontalAlignment::Left, PlaygroundTextVerticalAlignment::Center) => {
+            Anchor::CENTER_LEFT
+        }
+        (PlaygroundTextHorizontalAlignment::Left, PlaygroundTextVerticalAlignment::Bottom) => {
+            Anchor::BOTTOM_LEFT
+        }
+        (PlaygroundTextHorizontalAlignment::Center, PlaygroundTextVerticalAlignment::Top) => {
+            Anchor::TOP_CENTER
+        }
+        (PlaygroundTextHorizontalAlignment::Center, PlaygroundTextVerticalAlignment::Center) => {
+            Anchor::CENTER
+        }
+        (PlaygroundTextHorizontalAlignment::Center, PlaygroundTextVerticalAlignment::Bottom) => {
+            Anchor::BOTTOM_CENTER
+        }
+        (PlaygroundTextHorizontalAlignment::Right, PlaygroundTextVerticalAlignment::Top) => {
+            Anchor::TOP_RIGHT
+        }
+        (PlaygroundTextHorizontalAlignment::Right, PlaygroundTextVerticalAlignment::Center) => {
+            Anchor::CENTER_RIGHT
+        }
+        (PlaygroundTextHorizontalAlignment::Right, PlaygroundTextVerticalAlignment::Bottom) => {
+            Anchor::BOTTOM_RIGHT
+        }
+    }
+}
+
+fn text_justify(alignment: PlaygroundTextHorizontalAlignment) -> Justify {
+    match alignment {
+        PlaygroundTextHorizontalAlignment::Left => Justify::Left,
+        PlaygroundTextHorizontalAlignment::Center => Justify::Center,
+        PlaygroundTextHorizontalAlignment::Right => Justify::Right,
+    }
+}
+
+fn text_target_bounds(actor: &PlaygroundActor, rotation: Quat) -> (Vec3, Vec2) {
+    let fallback_center = ue_point_to_bevy(Vec3::from(actor.location));
+    let fallback_size = actor.text_world_size.unwrap_or(30.0) * CM_TO_M;
+    let Some(extent_cm) = actor.bounds_extent else {
+        return (fallback_center, Vec2::splat(fallback_size));
+    };
+    let center = actor
+        .bounds_origin
+        .map(Vec3::from)
+        .map(ue_point_to_bevy)
+        .unwrap_or(fallback_center);
+    let extents = ue_extents_to_bevy(Vec3::from(extent_cm));
+    let width = 2.0 * extents.dot((rotation * Vec3::X).abs());
+    let height = 2.0 * extents.dot((rotation * Vec3::Y).abs());
+    (center, Vec2::new(width.max(0.001), height.max(0.001)))
+}
+
+fn ue_text_mesh_rotation_to_bevy_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
+    ue_rotator_to_bevy_quat(pitch_deg, yaw_deg, roll_deg)
+        * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)
+}
+
+fn spawn_text_label(commands: &mut Commands, actor: &PlaygroundActor) {
     let text_str = actor.text.clone().unwrap_or_default();
     if text_str.is_empty() {
         return;
     }
-    let pos = ue_point_to_bevy(Vec3::from(actor.location));
     let color_arr = actor.text_color.unwrap_or([1.0, 1.0, 1.0, 1.0]);
-    let size = actor.text_world_size.unwrap_or(30.0) * CM_TO_M * 8.0;
+    let rotator = actor_rotator(actor);
+    let source_rotation = ue_rotator_to_bevy_quat(rotator.0, rotator.1, rotator.2);
+    let rotation = ue_text_mesh_rotation_to_bevy_quat(rotator.0, rotator.1, rotator.2);
+    let world_size_cm = actor.text_world_size.unwrap_or(30.0).max(0.001);
+    let world_size_m = world_size_cm * CM_TO_M;
+    let x_scale = actor.text_x_scale.unwrap_or(1.0);
+    let y_scale = actor.text_y_scale.unwrap_or(1.0);
+    let horizontal = text_horizontal_alignment(actor.text_horizontal_alignment.as_deref());
+    let vertical = text_vertical_alignment(actor.text_vertical_alignment.as_deref());
+    let anchor = text_anchor(horizontal, vertical);
+    let (center, size) = text_target_bounds(actor, rotation);
+    let horizontal_spacing =
+        actor.text_horizontal_spacing_adjust.unwrap_or(0.0) * x_scale * TEXT_LAYOUT_FONT_SIZE
+            / world_size_cm;
+    let line_height = TEXT_LAYOUT_FONT_SIZE
+        + actor.text_vertical_spacing_adjust.unwrap_or(0.0) * y_scale * TEXT_LAYOUT_FONT_SIZE
+            / world_size_cm;
     commands.spawn((
         Name::new(format!("Text:{}", actor.name)),
         Text2d::new(text_str),
-        Transform::from_translation(pos).with_rotation(
-            ue_rotator_to_bevy_quat(
-                actor.rotation.as_ref().map(|r| r.pitch).unwrap_or(0.0),
-                actor.rotation_yaw,
-                actor.rotation.as_ref().map(|r| r.roll).unwrap_or(0.0),
-            ),
-        ),
-        TextFont { font_size: bevy::text::FontSize::Px(size.max(12.0)), ..default() },
-        TextColor(Color::srgba(color_arr[0], color_arr[1], color_arr[2], color_arr[3])),
+        TextLayout::justify(text_justify(horizontal)),
+        anchor,
+        TextFont::from_font_size(TEXT_LAYOUT_FONT_SIZE),
+        LetterSpacing::Px(horizontal_spacing),
+        LineHeight::Px(line_height),
+        TextColor(Color::srgba(
+            color_arr[0],
+            color_arr[1],
+            color_arr[2],
+            color_arr[3],
+        )),
+        Transform::from_translation(center)
+            .with_rotation(rotation)
+            .with_scale(Vec3::new(
+                world_size_m * x_scale / TEXT_LAYOUT_FONT_SIZE,
+                world_size_m * y_scale / TEXT_LAYOUT_FONT_SIZE,
+                world_size_m / TEXT_LAYOUT_FONT_SIZE,
+            )),
         PlaygroundTextLabel,
+        PlaygroundTextFacing {
+            expected_front: source_rotation.mul_vec3(Vec3::X),
+        },
+        PlaygroundTextLayoutTarget {
+            center,
+            width: size.x,
+            height: size.y,
+            horizontal,
+            vertical,
+            depth_scale: world_size_m / TEXT_LAYOUT_FONT_SIZE,
+        },
     ));
 }
 
-fn spawn_sun_light(commands: &mut Commands, lighting: &SceneLighting) {
-    let dir = lighting
-        .sun_direction
-        .map(|v| Vec3::from(v).normalize_or_zero())
-        .unwrap_or(Vec3::new(-0.4, -0.8, 0.3).normalize_or_zero());
-    let intensity = lighting.sun_intensity.unwrap_or(80_000.0);
-    let _color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
-    let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, dir);
+#[derive(Default)]
+struct WorldTextMeshBatch {
+    positions: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    uvs: Vec<[f32; 2]>,
+    indices: Vec<u32>,
+}
+
+const WORLD_TEXT_QUAD_INDICES: [u32; 6] = [0, 2, 1, 0, 3, 2];
+
+fn world_text_mesh_system(
+    mut commands: Commands,
+    mut sources: Query<
+        (
+            Entity,
+            &TextLayoutInfo,
+            &TextColor,
+            &Anchor,
+            &PlaygroundTextLayoutTarget,
+            &mut Transform,
+        ),
+        (With<PlaygroundTextLabel>, Without<WorldTextMeshBuilt>),
+    >,
+    mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, layout, text_color, anchor, target, mut transform) in &mut sources {
+        if layout.glyphs.is_empty() || layout.scale_factor <= 0.0 {
+            continue;
+        }
+
+        let inverse_scale_factor = layout.scale_factor.recip();
+        let top_left = (Anchor::TOP_LEFT.0 - anchor.as_vec()) * layout.size;
+        let mut batches: HashMap<AssetId<Image>, WorldTextMeshBatch> = HashMap::new();
+        let mut geometry_min = Vec2::splat(f32::INFINITY);
+        let mut geometry_max = Vec2::splat(f32::NEG_INFINITY);
+
+        for glyph in &layout.glyphs {
+            let Some(image) = images.get(glyph.atlas_info.texture) else {
+                continue;
+            };
+            let image_size = Vec2::new(
+                image.texture_descriptor.size.width as f32,
+                image.texture_descriptor.size.height as f32,
+            );
+            if image_size.x <= 0.0 || image_size.y <= 0.0 {
+                continue;
+            }
+
+            let glyph_size = glyph.atlas_info.rect.size();
+            let glyph_min = glyph.position - glyph_size * 0.5;
+            let glyph_max = glyph.position + glyph_size * 0.5;
+            let left = top_left.x + glyph_min.x * inverse_scale_factor;
+            let right = top_left.x + glyph_max.x * inverse_scale_factor;
+            let top = top_left.y - glyph_min.y * inverse_scale_factor;
+            let bottom = top_left.y - glyph_max.y * inverse_scale_factor;
+            let uv_min = glyph.atlas_info.rect.min / image_size;
+            let uv_max = glyph.atlas_info.rect.max / image_size;
+            let batch = batches.entry(glyph.atlas_info.texture).or_default();
+            let base = batch.positions.len() as u32;
+
+            batch.positions.extend_from_slice(&[
+                [left, top, 1.0],
+                [right, top, 1.0],
+                [right, bottom, 1.0],
+                [left, bottom, 1.0],
+            ]);
+            batch.normals.extend_from_slice(&[
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 1.0],
+            ]);
+            batch.uvs.extend_from_slice(&[
+                uv_min.to_array(),
+                [uv_max.x, uv_min.y],
+                uv_max.to_array(),
+                [uv_min.x, uv_max.y],
+            ]);
+            let indices = WORLD_TEXT_QUAD_INDICES.map(|index| base + index);
+            batch.indices.extend_from_slice(&indices);
+            geometry_min = geometry_min.min(Vec2::new(left.min(right), bottom.min(top)));
+            geometry_max = geometry_max.max(Vec2::new(left.max(right), bottom.max(top)));
+        }
+
+        let geometry_size = geometry_max - geometry_min;
+        if batches.is_empty() || geometry_size.x <= 0.0 || geometry_size.y <= 0.0 {
+            continue;
+        }
+
+        let scale = Vec3::new(
+            target.width / geometry_size.x,
+            target.height / geometry_size.y,
+            target.depth_scale,
+        );
+        let local_center = Vec3::new(
+            (geometry_min.x + geometry_max.x) * 0.5,
+            (geometry_min.y + geometry_max.y) * 0.5,
+            1.0,
+        );
+        transform.scale = scale;
+        transform.translation =
+            target.center - transform.rotation.mul_vec3(local_center * transform.scale);
+        let fitted_center =
+            transform.translation + transform.rotation.mul_vec3(local_center * transform.scale);
+        let fitted_width = geometry_size.x * transform.scale.x;
+        let fitted_height = geometry_size.y * transform.scale.y;
+
+        commands.entity(entity).with_children(|parent| {
+            for (texture, batch) in batches {
+                let Some(texture_handle) = images.get_strong_handle(texture) else {
+                    continue;
+                };
+                let mut mesh = Mesh::new(
+                    bevy::render::mesh::PrimitiveTopology::TriangleList,
+                    bevy::asset::RenderAssetUsages::default(),
+                );
+                mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, batch.positions);
+                mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, batch.normals);
+                mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, batch.uvs);
+                mesh.insert_indices(bevy::render::mesh::Indices::U32(batch.indices));
+                let material = materials.add(StandardMaterial {
+                    base_color: text_color.0,
+                    base_color_texture: Some(texture_handle),
+                    alpha_mode: AlphaMode::Mask(0.1),
+                    cull_mode: None,
+                    perceptual_roughness: 1.0,
+                    ..default()
+                });
+                parent.spawn((
+                    Name::new("WorldTextGlyphMesh"),
+                    Mesh3d(meshes.add(mesh)),
+                    MeshMaterial3d(material),
+                    NotShadowCaster,
+                    Transform::IDENTITY,
+                    PlaygroundWorldTextMesh,
+                ));
+            }
+        });
+        commands.entity(entity).insert((
+            WorldTextMeshBuilt,
+            PlaygroundTextFit {
+                width_error: (fitted_width - target.width).abs(),
+                height_error: (fitted_height - target.height).abs(),
+                center_error: fitted_center.distance(target.center),
+            },
+        ));
+        commands.entity(entity).remove::<Text2d>();
+    }
+}
+
+fn resolved_sun_ray(lighting: &SceneLighting, sun_rotator: Option<&PlaygroundRotator>) -> Vec3 {
+    sun_rotator
+        .map(|rot| ue_directional_light_ray_to_bevy(rot.pitch, rot.yaw))
+        .or_else(|| {
+            lighting
+                .sun_direction
+                .map(Vec3::from)
+                .map(Vec3::normalize_or_zero)
+        })
+        .unwrap_or_else(|| Vec3::new(-0.4, -0.8, 0.3).normalize())
+}
+
+fn spawn_sun_light(
+    commands: &mut Commands,
+    lighting: &SceneLighting,
+    sun_rotator: Option<&PlaygroundRotator>,
+) {
+    let ray = resolved_sun_ray(lighting, sun_rotator);
+    let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, ray);
+    let intensity = lighting.sun_intensity.unwrap_or(10.0);
+    let color_arr = lighting.sun_color.unwrap_or([1.0, 0.96, 0.9, 1.0]);
     commands.spawn((
         Name::new("SunLight"),
         DirectionalLight {
+            color: Color::srgba(color_arr[0], color_arr[1], color_arr[2], color_arr[3]),
             illuminance: intensity,
+            shadow_maps_enabled: true,
+            shadow_depth_bias: 0.5,
+            shadow_normal_bias: 0.0,
             ..default()
         },
+        CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            maximum_distance: 400.0,
+            ..default()
+        }
+        .build(),
         Transform::default().with_rotation(rotation),
     ));
-    let ambient = lighting.ambient_brightness.unwrap_or(400.0);
+    let ambient = lighting.ambient_brightness.unwrap_or(2.0);
     commands.insert_resource(GlobalAmbientLight {
         brightness: ambient,
         ..default()
     });
 }
 
+fn spawn_sky(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    lighting: &SceneLighting,
+    sun_rotator: Option<&PlaygroundRotator>,
+) {
+    let zenith = lighting
+        .sky_zenith
+        .unwrap_or([0.034046, 0.109247, 0.295, 1.0]);
+    let horizon = lighting
+        .sky_horizon
+        .unwrap_or([1.979559, 2.586644, 3.0, 1.0]);
+    let falloff = lighting.sky_horizon_falloff.unwrap_or(3.0).max(0.1);
+    let mut sky_mesh = Sphere::new(500.0).mesh().uv(64, 32);
+    let colors = sky_mesh
+        .attribute(Mesh::ATTRIBUTE_POSITION)
+        .and_then(|attribute| attribute.as_float3())
+        .map(|positions| {
+            positions
+                .iter()
+                .map(|position| {
+                    let vertical = (position[1] / 500.0).clamp(-1.0, 1.0);
+                    let blend = ((vertical + 1.0) * 0.5).powf(falloff.recip());
+                    [
+                        horizon[0] + (zenith[0] - horizon[0]) * blend,
+                        horizon[1] + (zenith[1] - horizon[1]) * blend,
+                        horizon[2] + (zenith[2] - horizon[2]) * blend,
+                        1.0,
+                    ]
+                })
+                .collect::<Vec<[f32; 4]>>()
+        })
+        .unwrap_or_default();
+    sky_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    let sky_material = materials.add(StandardMaterial {
+        base_color: Color::WHITE,
+        unlit: true,
+        cull_mode: None,
+        fog_enabled: false,
+        ..default()
+    });
+    commands.spawn((
+        Name::new("SkySphere"),
+        Mesh3d(meshes.add(sky_mesh)),
+        MeshMaterial3d(sky_material),
+        NotShadowCaster,
+        PlaygroundSky,
+    ));
+    let sun_ray = resolved_sun_ray(lighting, sun_rotator);
+    let sun_brightness = lighting.sky_sun_brightness.unwrap_or(75.0);
+    let sun_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 0.85, 0.45),
+        emissive: LinearRgba::rgb(sun_brightness, sun_brightness * 0.78, sun_brightness * 0.3),
+        emissive_exposure_weight: 0.0,
+        unlit: true,
+        cull_mode: None,
+        fog_enabled: false,
+        ..default()
+    });
+    commands.spawn((
+        Name::new("SunDisc"),
+        Mesh3d(meshes.add(Sphere::new(5.0).mesh().uv(24, 12))),
+        MeshMaterial3d(sun_material),
+        Transform::from_translation(-sun_ray * 450.0),
+        NotShadowCaster,
+        PlaygroundSky,
+    ));
+    commands.insert_resource(ClearColor(Color::linear_rgba(
+        horizon[0], horizon[1], horizon[2], horizon[3],
+    )));
+}
 
 #[cfg(test)]
 mod tests {
@@ -675,6 +1666,18 @@ mod tests {
         );
     }
 
+    fn ue_source_rotator_quat(pitch_deg: f32, yaw_deg: f32, roll_deg: f32) -> Quat {
+        let (sp, cp) = (pitch_deg.to_radians() * 0.5).sin_cos();
+        let (sy, cy) = (yaw_deg.to_radians() * 0.5).sin_cos();
+        let (sr, cr) = (roll_deg.to_radians() * 0.5).sin_cos();
+        Quat::from_xyzw(
+            cr * sp * sy - sr * cp * cy,
+            -cr * sp * cy - sr * cp * sy,
+            cr * cp * sy - sr * sp * cy,
+            cr * cp * cy + sr * sp * sy,
+        )
+    }
+
     #[test]
     fn point_mapping_swaps_yz_and_scales() {
         assert_vec3_eq(
@@ -694,6 +1697,15 @@ mod tests {
     }
 
     #[test]
+    fn directional_light_ray_matches_ue_forward() {
+        assert_vec3_eq(
+            ue_directional_light_ray_to_bevy(-45.0, 45.0),
+            Vec3::new(0.5, -0.70710677, 0.5),
+            1e-5,
+        );
+    }
+
+    #[test]
     fn quat_conjugation_preserves_mapped_rotations() {
         let samples: [(f32, f32, f32); 5] = [
             (10.0, 30.0, 0.0),
@@ -703,9 +1715,7 @@ mod tests {
             (0.0, 0.0, 25.95),
         ];
         for (pitch, yaw, roll) in samples {
-            let q_ue = Quat::from_rotation_z(yaw.to_radians())
-                * Quat::from_rotation_y(-pitch.to_radians())
-                * Quat::from_rotation_x(roll.to_radians());
+            let q_ue = ue_source_rotator_quat(pitch, yaw, roll);
             let q_bevy = ue_quat_to_bevy(q_ue);
             for v in [
                 Vec3::X,
@@ -722,11 +1732,23 @@ mod tests {
     }
 
     #[test]
-    fn rotator_conversion_agrees_with_quat_rule() {
-        for yaw in [-180.0_f32, -90.0, -45.0, 0.0, 30.0, 90.0, 179.5] {
-            let expected = ue_quat_to_bevy(Quat::from_axis_angle(Vec3::Z, yaw.to_radians()));
-            assert_quat_eq(ue_yaw_to_bevy_quat(yaw), expected, 1e-5);
-            assert_quat_eq(ue_rotator_to_bevy_quat(0.0, yaw, 0.0), expected, 1e-5);
+    fn rotator_conversion_matches_ue_quaternion_formula() {
+        let samples = [
+            (0.0_f32, 0.0, 25.95),
+            (0.0, 0.0, 35.1),
+            (0.0, 0.0, 44.25),
+            (0.0, 90.0, -15.0),
+            (90.0, 90.0, 0.0),
+            (30.0, 45.0, 20.0),
+        ];
+        for (pitch, yaw, roll) in samples {
+            let q_ue = ue_source_rotator_quat(pitch, yaw, roll);
+            let expected = ue_quat_to_bevy(q_ue);
+            let actual = ue_rotator_to_bevy_quat(pitch, yaw, roll);
+            assert_quat_eq(actual, expected, 1e-5);
+            for v in [Vec3::X, Vec3::Y, Vec3::Z] {
+                assert_vec3_eq(actual.mul_vec3(map_dir(v)), map_dir(q_ue.mul_vec3(v)), 1e-4);
+            }
         }
     }
 
@@ -747,8 +1769,7 @@ mod tests {
     #[test]
     fn gltf_base_extraction() {
         assert_eq!(
-            gltf_asset_base("/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock.SM_Als_Rock")
-                .as_deref(),
+            gltf_asset_base("/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock.SM_Als_Rock").as_deref(),
             Some("SM_Als_Rock")
         );
         assert!(gltf_asset_base("/Engine/BasicShapes/Cube.Cube").is_none());
@@ -763,13 +1784,72 @@ mod tests {
     }
 
     #[test]
+    fn ue_visual_scale_maps_axes() {
+        assert_vec3_eq(
+            ue_scale_to_bevy(Vec3::new(1.5, 1.5, 1.75)),
+            Vec3::new(1.5, 1.75, 1.5),
+            1e-6,
+        );
+    }
+
+    #[test]
+    fn text_alignment_maps_source_enums() {
+        assert_eq!(
+            text_horizontal_alignment(Some("EHTA_Left")),
+            PlaygroundTextHorizontalAlignment::Left
+        );
+        assert_eq!(
+            text_horizontal_alignment(Some("EHTA_Center")),
+            PlaygroundTextHorizontalAlignment::Center
+        );
+        assert_eq!(
+            text_vertical_alignment(Some("EVRTA_TextTop")),
+            PlaygroundTextVerticalAlignment::Top
+        );
+        assert_eq!(
+            text_anchor(
+                PlaygroundTextHorizontalAlignment::Left,
+                PlaygroundTextVerticalAlignment::Top,
+            ),
+            Anchor::TOP_LEFT
+        );
+    }
+
+    #[test]
+    fn text_mesh_front_matches_ue_text_render_axes() {
+        let source_rotation = ue_rotator_to_bevy_quat(0.0, 0.0, 0.0);
+        let mesh_rotation = ue_text_mesh_rotation_to_bevy_quat(0.0, 0.0, 0.0);
+        assert_vec3_eq(
+            mesh_rotation.mul_vec3(Vec3::Z),
+            source_rotation.mul_vec3(Vec3::X),
+            1e-6,
+        );
+        assert_vec3_eq(mesh_rotation.mul_vec3(Vec3::X), Vec3::NEG_Z, 1e-6);
+        assert_vec3_eq(mesh_rotation.mul_vec3(Vec3::Y), Vec3::Y, 1e-6);
+    }
+
+    #[test]
+    fn world_text_quad_winding_faces_positive_z() {
+        let positions = [
+            Vec3::new(-1.0, 1.0, 1.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            Vec3::new(1.0, -1.0, 1.0),
+            Vec3::new(-1.0, -1.0, 1.0),
+        ];
+        let first = positions[WORLD_TEXT_QUAD_INDICES[0] as usize];
+        let second = positions[WORLD_TEXT_QUAD_INDICES[1] as usize];
+        let third = positions[WORLD_TEXT_QUAD_INDICES[2] as usize];
+        assert!((second - first).cross(third - first).z > 0.0);
+    }
+
+    #[test]
     fn skip_classification() {
         assert!(!is_skipped("TextRenderActor"));
         assert!(!is_skipped("Landscape"));
         assert!(is_skipped("LandscapeGizmoActiveActor"));
         assert!(!is_skipped("B_Als_StaticObject_C"));
         assert!(!is_skipped("StaticMeshActor"));
-        assert!(!is_skipped("Brush"));
+        assert!(is_skipped("Brush"));
     }
 
     #[test]

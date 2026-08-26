@@ -1,0 +1,482 @@
+{
+	"asset":
+	{
+		"version": "2.0",
+		"generator": "Unreal Engine 5.8.1"
+	},
+	"scene": 0,
+	"accessors": [
+		{
+			"bufferView": 0,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				0,
+				-0.0346093737,
+				0
+			],
+			"max": [
+				0.629999995,
+				0.0403906256,
+				0.629999995
+			]
+		},
+		{
+			"bufferView": 1,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 2,
+			"count": 4096,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 3,
+			"count": 23814,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 4,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				0,
+				-0.0548437499,
+				0
+			],
+			"max": [
+				0.629999995,
+				0.0248437487,
+				0.629999995
+			]
+		},
+		{
+			"bufferView": 5,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 6,
+			"count": 4096,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 7,
+			"count": 23814,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 8,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				0,
+				-0.0282031242,
+				0
+			],
+			"max": [
+				0.629999995,
+				0.0361718759,
+				0.629999995
+			]
+		},
+		{
+			"bufferView": 9,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 10,
+			"count": 4096,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 11,
+			"count": 23814,
+			"type": "SCALAR",
+			"componentType": 5123
+		},
+		{
+			"bufferView": 12,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126,
+			"min": [
+				0,
+				-0.0553906225,
+				0
+			],
+			"max": [
+				0.629999995,
+				0.0674999952,
+				0.629999995
+			]
+		},
+		{
+			"bufferView": 13,
+			"count": 4096,
+			"type": "VEC3",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 14,
+			"count": 4096,
+			"type": "VEC2",
+			"componentType": 5126
+		},
+		{
+			"bufferView": 15,
+			"count": 23814,
+			"type": "SCALAR",
+			"componentType": 5123
+		}
+	],
+	"buffers": [
+		{
+			"uri": "Landscape1.bin",
+			"byteLength": 714800
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 49152,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 32768,
+			"byteOffset": 98304,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 47628,
+			"byteOffset": 131072,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 178700,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 227852,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 32768,
+			"byteOffset": 277004,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 47628,
+			"byteOffset": 309772,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 357400,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 406552,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 32768,
+			"byteOffset": 455704,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 47628,
+			"byteOffset": 488472,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 536100,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 49152,
+			"byteOffset": 585252,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 32768,
+			"byteOffset": 634404,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 47628,
+			"byteOffset": 667172,
+			"target": 34963
+		}
+	],
+	"images": [
+		{
+			"uri": "MI_Als_Landscape_BaseColor.png"
+		},
+		{
+			"uri": "MI_Als_Landscape_Normal.png"
+		},
+		{
+			"uri": "MI_Als_Landscape_Occlusion.png"
+		}
+	],
+	"materials": [
+		{
+			"name": "MI_Als_Landscape",
+			"pbrMetallicRoughness":
+			{
+				"baseColorTexture":
+				{
+					"index": 0
+				},
+				"metallicFactor": 0,
+				"roughnessFactor": 0.5
+			},
+			"normalTexture":
+			{
+				"index": 1
+			},
+			"occlusionTexture":
+			{
+				"index": 2
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "LandscapeComponent_0",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 0,
+						"NORMAL": 1,
+						"TEXCOORD_0": 2
+					},
+					"indices": 3,
+					"material": 0
+				}
+			]
+		},
+		{
+			"name": "LandscapeComponent_1",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 4,
+						"NORMAL": 5,
+						"TEXCOORD_0": 6
+					},
+					"indices": 7,
+					"material": 0
+				}
+			]
+		},
+		{
+			"name": "LandscapeComponent_2",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 8,
+						"NORMAL": 9,
+						"TEXCOORD_0": 10
+					},
+					"indices": 11,
+					"material": 0
+				}
+			]
+		},
+		{
+			"name": "LandscapeComponent_3",
+			"primitives": [
+				{
+					"attributes":
+					{
+						"POSITION": 12,
+						"NORMAL": 13,
+						"TEXCOORD_0": 14
+					},
+					"indices": 15,
+					"material": 0
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"name": "Landscape1",
+			"translation": [
+				-10,
+				0.5,
+				10
+			],
+			"scale": [
+				16,
+				16,
+				16
+			],
+			"children": [
+				1,
+				3,
+				5,
+				7,
+				9,
+				10,
+				11,
+				12
+			]
+		},
+		{
+			"name": "LandscapeComponent_0",
+			"children": [
+				2
+			]
+		},
+		{
+			"name": "LandscapeComponent_0",
+			"mesh": 0
+		},
+		{
+			"name": "LandscapeComponent_1",
+			"translation": [
+				0.629999995,
+				0,
+				0
+			],
+			"children": [
+				4
+			]
+		},
+		{
+			"name": "LandscapeComponent_1",
+			"mesh": 1
+		},
+		{
+			"name": "LandscapeComponent_2",
+			"translation": [
+				0,
+				0,
+				0.629999995
+			],
+			"children": [
+				6
+			]
+		},
+		{
+			"name": "LandscapeComponent_2",
+			"mesh": 2
+		},
+		{
+			"name": "LandscapeComponent_3",
+			"translation": [
+				0.629999995,
+				0,
+				0.629999995
+			],
+			"children": [
+				8
+			]
+		},
+		{
+			"name": "LandscapeComponent_3",
+			"mesh": 3
+		},
+		{
+			"name": "LandscapeHeightfieldCollisionComponent_0"
+		},
+		{
+			"name": "LandscapeHeightfieldCollisionComponent_1",
+			"translation": [
+				0.629999995,
+				0,
+				0
+			]
+		},
+		{
+			"name": "LandscapeHeightfieldCollisionComponent_2",
+			"translation": [
+				0,
+				0,
+				0.629999995
+			]
+		},
+		{
+			"name": "LandscapeHeightfieldCollisionComponent_3",
+			"translation": [
+				0.629999995,
+				0,
+				0.629999995
+			]
+		}
+	],
+	"samplers": [
+		{
+			"minFilter": 9987,
+			"magFilter": 9729
+		}
+	],
+	"scenes": [
+		{
+			"name": "L_Als_Playground",
+			"nodes": [
+				0
+			]
+		}
+	],
+	"textures": [
+		{
+			"name": "MI_Als_Landscape_BaseColor",
+			"sampler": 0,
+			"source": 0
+		},
+		{
+			"name": "MI_Als_Landscape_Normal",
+			"sampler": 0,
+			"source": 1
+		},
+		{
+			"name": "MI_Als_Landscape_Occlusion",
+			"sampler": 0,
+			"source": 2
+		}
+	]
+}
