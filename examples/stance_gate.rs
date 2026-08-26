@@ -32,12 +32,13 @@ use als_core::motion::AlsViewYaw;
 use als_core::movement_direction::{AlsMovementDirectionState, AlsMovementDirection};
 
 const CROUCH_AT_SECS: f64 = 1.5;
+const STRAFE_AT_SECS: f64 = 9.6;
 const WALK_AT_SECS: f64 = 3.0;
 const STOP_WALK_AT_SECS: f64 = 5.0;
 const STAND_AT_SECS: f64 = 6.5;
 const BACKWARD_AT_SECS: f64 = 7.5;
 const STOP_BACKWARD_AT_SECS: f64 = 9.0;
-const TOTAL_SECS: f64 = 10.5;
+const TOTAL_SECS: f64 = 11.5;
 
 fn main() {
     let mut app = App::new();
@@ -113,6 +114,7 @@ struct GateVerdict {
     feet_grounded_crouch: bool,
     backward_direction_seen: bool,
     backward_facing_matches_view: bool,
+    strafe_left_seen: bool,
     failed: bool,
 }
 
@@ -283,7 +285,7 @@ fn direction_probe_comparator(
 
 fn scripted_driver(
     time: Res<Time>,
-    mut latches: Local<(bool, bool, bool, bool)>,
+    mut latches: Local<(bool, bool, bool, bool, bool)>,
     mut q: Query<
         (
             &mut AlsStateRequest,
@@ -317,12 +319,20 @@ fn scripted_driver(
         latches.3 = true;
         info!("[AP1GATE] restore velocity-direction mode");
     }
+    if !latches.4 && t >= STRAFE_AT_SECS {
+        request.rotation_mode = Some(RotationMode::ViewDirection);
+        latches.4 = true;
+        info!("[AP1GATE] request view-direction mode for strafe phase");
+    }
     let walking = t >= WALK_AT_SECS && t < STOP_WALK_AT_SECS;
     let backward = t >= BACKWARD_AT_SECS && t < STOP_BACKWARD_AT_SECS;
+    let strafe = t >= STRAFE_AT_SECS;
     ovr.0.move_dir = if walking {
         Vec2::new(0.0, 1.0)
     } else if backward {
         Vec2::new(0.0, -1.0)
+    } else if strafe {
+        Vec2::new(-1.0, 0.0)
     } else {
         Vec2::ZERO
     };
@@ -438,6 +448,13 @@ fn metrics_logger(
             verdict.backward_facing_matches_view = true;
         }
     }
+    if t > STRAFE_AT_SECS + 0.4 && hspeed > 0.8 {
+        let err = (dir_angle - (-90.0)).abs();
+        let err = err.min(360.0 - err);
+        if err < 30.0 {
+            verdict.strafe_left_seen = true;
+        }
+    }
 }
 
 #[derive(Component)]
@@ -498,9 +515,10 @@ fn auto_quit(timer: Res<AutoQuit>, verdict: Res<GateVerdict>, mut exit: MessageW
         && verdict.backward_facing_matches_view
         && verdict.direction_pin_responsive
         && verdict.feet_grounded_crouch
+        && verdict.strafe_left_seen
         && !verdict.failed;
     info!(
-        "[AP1GATE] VERDICT {} crouch_w={} stand_back={} flip_down={} flip_up={} crouch_walk={} bwd_dir={} bwd_face_ok={} pin_resp={} feet_gnd={}",
+        "[AP1GATE] VERDICT {} crouch_w={} stand_back={} flip_down={} flip_up={} crouch_walk={} bwd_dir={} bwd_face_ok={} pin_resp={} feet_gnd={} strafe_l={}",
         if pass { "PASS" } else { "FAIL" },
         verdict.crouch_weight_seen,
         verdict.stand_weight_returned,
@@ -511,6 +529,7 @@ fn auto_quit(timer: Res<AutoQuit>, verdict: Res<GateVerdict>, mut exit: MessageW
         verdict.backward_facing_matches_view,
         verdict.direction_pin_responsive,
         verdict.feet_grounded_crouch,
+        verdict.strafe_left_seen,
     );
     if pass {
         exit.write(AppExit::Success);
