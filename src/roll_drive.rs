@@ -1,6 +1,6 @@
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
-use als_core::roll::{roll_displacement_dir, roll_weight_at, AlsRollState};
+use als_core::roll::{AlsRollState, roll_displacement_dir, roll_weight_at};
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
@@ -10,6 +10,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
+use crate::character_assembly::AlsCharacterAvatar;
 use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
 
 pub struct AlsRollDrivePlugin;
@@ -31,7 +32,13 @@ impl Plugin for AlsRollDrivePlugin {
 
 fn ensure_roll_state(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsRollState>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsRollState>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsRollState::default());
@@ -43,6 +50,7 @@ fn roll_drive_system(
     time: Res<Time>,
     mut q: Query<
         (
+            Entity,
             &mut AlsRollState,
             &LocomotionState,
             &Stance,
@@ -53,12 +61,12 @@ fn roll_drive_system(
         ),
         With<als_core::character::AlsCharacter>,
     >,
-    rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
-    instances: Query<&AnimatedSceneInstance>,
+    rm_q: Query<(&ChildOf, &RootMotionOutput), With<AlsCharacterAvatar>>,
+    instances: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((mut roll, loco, stance, view, mut vel, cmd, ovr)) = q.single_mut() else {
+    let Ok((entity, mut roll, loco, stance, view, mut vel, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
@@ -70,14 +78,21 @@ fn roll_drive_system(
     }
 
     let weight = roll_weight_at(roll.time);
-    let local = read_local_delta(rm_q.iter().next());
+    let local = read_local_delta(
+        rm_q.iter()
+            .find(|(child_of, _)| child_of.parent() == entity)
+            .map(|(_, output)| output),
+    );
     let forward_speed = -local.z / dt;
     let dir = roll_displacement_dir(roll.direction_yaw);
     let drive = clamp_drive_speed(dir * forward_speed, 14.0);
     vel.x = drive.x;
     vel.z = drive.z;
 
-    for instance in instances.iter() {
+    for (child_of, instance) in instances.iter() {
+        if child_of.parent() != entity {
+            continue;
+        }
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("roll_clip_time", DataValue::from(roll.time));
             player.set_input_data("roll_weight", DataValue::from(weight));

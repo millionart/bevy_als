@@ -3,15 +3,15 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::{message::MessageWriter, schedule::IntoScheduleConfigs};
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
-use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::params::AlsMovementParams;
-use als_ext::AlsExtPlugin;
+
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 const BUDGET_MS_DEBUG: f64 = 1.5;
 const SAMPLE_FRAMES: usize = 600;
@@ -31,18 +31,17 @@ fn main() {
         file_path: "assets".into(),
         ..default()
     }))
-        .add_plugins(PhysicsPlugins::new(FixedPostUpdate))
-        .add_plugins(AnimationGraphPlugin::default())
-        .add_plugins(AlsCharacterPlugin)
-        .add_plugins(AlsExtPlugin);
+    .add_plugins(AlsPlayableCharacterPlugin);
 
     app.init_resource::<EvalTimer>()
         .insert_resource(Deadline(Instant::now() + Duration::from_secs(90)))
         .add_systems(
             FixedPostUpdate,
             (
-                mark_start.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
-                collect_end.after(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
+                mark_start
+                    .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
+                collect_end
+                    .after(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics),
             ),
         )
         .add_systems(Startup, spawn_character)
@@ -136,12 +135,12 @@ fn spawn_character(
         MeshMaterial3d(materials.add(Color::srgb(0.24, 0.27, 0.24))),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0);
-    let character = commands.spawn(bundle).id();
-    let _ = character;
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let _character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 0.95, 0.0)),
+    );
     info!("[PERF] character spawned");
 }

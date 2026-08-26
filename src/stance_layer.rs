@@ -1,9 +1,11 @@
-use bevy::prelude::ChildOf;
 use als_core::state::Stance;
+use bevy::prelude::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+
+use crate::character_assembly::AlsCharacterAvatar;
 
 pub const STANCE_BLEND_SPEED: f32 = 2.5;
 
@@ -16,13 +18,20 @@ pub struct AlsStanceBlend {
 
 impl Default for AlsStanceBlend {
     fn default() -> Self {
-        Self { weight: 0.0, trans_weight: 0.0, trans_up: false }
+        Self {
+            weight: 0.0,
+            trans_weight: 0.0,
+            trans_up: false,
+        }
     }
 }
 
 impl AlsStanceBlend {
     pub fn with_weight(weight: f32) -> Self {
-        Self { weight, ..Self::default() }
+        Self {
+            weight,
+            ..Self::default()
+        }
     }
 
     fn advance_transition(&mut self, crouching_changed: bool, up: bool, dt: f32) {
@@ -74,7 +83,7 @@ type StanceDriverQuery = (
 fn stance_blend_driver(
     time: Res<Time>,
     mut commands: Commands,
-    mut q: Query<StanceDriverQuery>,
+    mut q: Query<StanceDriverQuery, With<AlsCharacterAvatar>>,
     stances: Query<&Stance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -92,10 +101,8 @@ fn stance_blend_driver(
                 state.weight = advance_stance_weight(state.weight, crouching, dt);
                 if let Ok(mut player) = players.get_mut(instance.player_entity()) {
                     player.set_input_data("stance_weight", DataValue::from(state.weight));
-                    player.set_input_data(
-                        "stance_trans_weight",
-                        DataValue::from(state.trans_weight),
-                    );
+                    player
+                        .set_input_data("stance_trans_weight", DataValue::from(state.trans_weight));
                     player.set_input_data(
                         "stance_trans_up",
                         DataValue::from(if state.trans_up { 1.0f32 } else { 0.0f32 }),
@@ -104,7 +111,9 @@ fn stance_blend_driver(
             }
             None => {
                 let weight = if crouching { 1.0 } else { 0.0 };
-                commands.entity(entity).insert(AlsStanceBlend::with_weight(weight));
+                commands
+                    .entity(entity)
+                    .insert(AlsStanceBlend::with_weight(weight));
                 if let Ok(mut player) = players.get_mut(instance.player_entity()) {
                     player.set_input_data("stance_weight", DataValue::from(weight));
                 }

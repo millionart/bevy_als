@@ -2,21 +2,14 @@ use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::params::AlsMovementParams;
-use als_core::transition::AlsStateTransitionPlugin;
-use als_ext::AlsExtPlugin;
 
 use bevy_als::debug_draw::AlsDebugDrawPlugin;
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 fn main() {
     let mut app = App::new();
@@ -25,17 +18,8 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
+        AlsPlayableCharacterPlugin,
         AlsDebugDrawPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .add_systems(Startup, spawn_ground)
@@ -78,13 +62,13 @@ fn spawn_character_once(
         return;
     }
     once.0 = true;
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let bundle = AlsCharacterBundle::new(params, config);
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let _character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 0.95, 0.0)),
+    );
 }
 
 fn auto_quit(deadline: Res<Deadline>, time: Res<Time>, mut exit: MessageWriter<AppExit>) {

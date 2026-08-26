@@ -3,26 +3,20 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::AlsExtPlugin;
+use als_core::state::{Gait, LocomotionState};
+use als_core::transition::AlsStateRequest;
 
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
-use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
-use bevy_als::stop_link::AlsStopLinkPlugin;
+use bevy_als::playable_character::{
+    AlsCharacterAvatar, AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 fn main() {
     let mut app = App::new();
@@ -31,18 +25,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AlsStopLinkPlugin,
-        AlsRagdollLinkPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
+        AlsPlayableCharacterPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -57,7 +40,6 @@ fn main() {
             spawn_character_once,
             auto_demo,
             ragdoll_watcher,
-            graph_router,
             camera_follow,
             fall_guard,
             auto_quit,
@@ -107,11 +89,51 @@ struct Step {
 
 fn steps() -> [Step; 5] {
     [
-        Step { t0: 0.5, dur: 1.0, label: "idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: false },
-        Step { t0: 1.5, dur: 1.6, label: "sprint", move_dir: Vec2::NEG_Y, gait: Some(Gait::Sprinting), trigger_ragdoll: false, trigger_recover: false },
-        Step { t0: 3.1, dur: 3.2, label: "ragdoll (mid-run)", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: true, trigger_recover: false },
-        Step { t0: 6.3, dur: 2.4, label: "recover to grounded idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: true },
-        Step { t0: 8.7, dur: 1.3, label: "post-recovery idle", move_dir: Vec2::ZERO, gait: None, trigger_ragdoll: false, trigger_recover: false },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            label: "idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 1.5,
+            dur: 1.6,
+            label: "sprint",
+            move_dir: Vec2::NEG_Y,
+            gait: Some(Gait::Sprinting),
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 3.1,
+            dur: 3.2,
+            label: "ragdoll (mid-run)",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: true,
+            trigger_recover: false,
+        },
+        Step {
+            t0: 6.3,
+            dur: 2.4,
+            label: "recover to grounded idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: true,
+        },
+        Step {
+            t0: 8.7,
+            dur: 1.3,
+            label: "post-recovery idle",
+            move_dir: Vec2::ZERO,
+            gait: None,
+            trigger_ragdoll: false,
+            trigger_recover: false,
+        },
     ]
 }
 
@@ -140,20 +162,21 @@ fn spawn_character_once(
         MeshMaterial3d(ground_mat),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/als_ragdoll.animscn.ron");
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_xyz(0.0, 0.95, 0.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ),
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands
             .entity(character)
-            .insert((AlsInputOverride::default(), AlsViewYaw(std::f32::consts::PI)));
+            .insert(AlsInputOverride::default());
         info!("[RGATE] scripted demo armed");
     }
 
@@ -167,13 +190,7 @@ fn spawn_character_once(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -237,7 +254,7 @@ fn ragdoll_watcher(
         ),
         With<AlsCharacter>,
     >,
-    instances: Query<&AnimatedSceneInstance>,
+    instances: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
     positions: Query<(&Position, &LinearVelocity)>,
@@ -273,9 +290,7 @@ fn ragdoll_watcher(
                 }
                 warn!(
                     "[RGATE][PROBE] char_y={:.2} lowest={:.2} max_bvel={:.2}",
-                    tf.translation.y,
-                    lowest,
-                    peak
+                    tf.translation.y, lowest, peak
                 );
                 if lowest < 0.55 && peak < 0.35 {
                     watch.settle_seen = true;
@@ -312,7 +327,11 @@ fn ragdoll_watcher(
         info!(
             "[RGATE][VERDICT] settle={ok_settle} recover={ok_recover} nan_bodies={} -> {}",
             watch.nan_bodies,
-            if ok_settle && ok_recover && ok_no_nan { "PASS" } else { "FAIL" }
+            if ok_settle && ok_recover && ok_no_nan {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
         watch.verdict_done = true;
         if !(ok_settle && ok_recover && ok_no_nan) {
@@ -320,35 +339,6 @@ fn ragdoll_watcher(
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         } else {
             exit.write(AppExit::Success);
-        }
-    }
-}
-
-fn graph_router(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
         }
     }
 }

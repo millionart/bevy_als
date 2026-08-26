@@ -3,31 +3,26 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{
-    effective_gait, gait_max_speed, AlsInputOverride, AlsMotionPlugin, AlsViewYaw,
-};
+use als_core::input::AlsInputCommand;
+use als_core::motion::{AlsInputOverride, AlsViewYaw, effective_gait, gait_max_speed};
 use als_core::params::AlsMovementParams;
 use als_core::pivot::{PivotConfig, PivotDetector};
-use als_core::start_stop::{
-    StartStopConfig, StartStopState, classify, update_start_stop,
-};
+use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use als_core::transition::AlsStateRequest;
 use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_ext::{PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+use bevy_als::motion_graph_link::compute_motion_graph_inputs;
+use bevy_als::playable_character::{
+    AlsCharacterAvatar, AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 #[derive(Component, Default)]
 struct TurnInPlaceComp(TurnInPlaceDetector);
@@ -53,17 +48,8 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
+        AlsPlayableCharacterPlugin,
         AlsStateHudPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground.ron".into(),
         },
@@ -80,7 +66,6 @@ fn main() {
             playground_physics_bridge,
             auto_demo,
             als_detectors_system,
-            graph_input_router_system,
             snapshot_logger,
         ),
     );
@@ -150,34 +135,26 @@ fn spawn_character_once(
         point.position.x, point.position.y, point.position.z
     );
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
-    let spawn_fwd = bundle.transform.forward();
+    let transform = Transform::from_translation(point.position).with_rotation(point.rotation);
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
-    let character = commands
-        .spawn(bundle)
-        .insert((
-            AlsViewYaw(f32::atan2(spawn_fwd.x, -spawn_fwd.z)),
-            StartStopState::default(),
-            PivotDetector::new(PivotConfig::default()),
-            TurnInPlaceComp::default(),
-        ))
-        .id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(transform),
+    );
+    commands.entity(character).insert((
+        PivotDetector::new(PivotConfig::default()),
+        TurnInPlaceComp::default(),
+    ));
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M5GATE] scripted demo armed");
     }
-
-    let avatar = commands
-        .spawn(AnimatedSceneHandle::new(
-            assets.load("animated_scenes/motion_graph.animscn.ron"),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
 
     commands.spawn((
         Camera3d::default(),
@@ -252,7 +229,14 @@ fn auto_demo(
             phase_start(idx)
         );
     }
-    apply_phase(idx, t, time.delta_secs_f64() as f32, &mut over, &mut req, entered);
+    apply_phase(
+        idx,
+        t,
+        time.delta_secs_f64() as f32,
+        &mut over,
+        &mut req,
+        entered,
+    );
     let _ = entity;
     let _ = char_t;
 }
@@ -313,10 +297,7 @@ fn apply_phase(
     }
 
     over.0.move_dir = move_dir;
-    over.0.look_delta = Vec2::new(
-        look_rate_deg_s.to_radians() * dt * LOOK_UNITS_PER_RAD,
-        0.0,
-    );
+    over.0.look_delta = Vec2::new(look_rate_deg_s.to_radians() * dt * LOOK_UNITS_PER_RAD, 0.0);
     over.0.jump_pressed = false;
     over.0.jump_held = false;
 }
@@ -324,6 +305,7 @@ fn apply_phase(
 #[allow(clippy::type_complexity)]
 fn als_detectors_system(
     time: Res<Time>,
+    mut previous_phase: Local<Option<StartStopPhase>>,
     mut prev_view: Local<Option<(f64, f32)>>,
     mut yaw_env: Local<f32>,
     mut q: Query<
@@ -334,23 +316,23 @@ fn als_detectors_system(
             &AlsViewYaw,
             &Transform,
             &LocomotionState,
-            &mut StartStopState,
+            &StartStopState,
             &mut PivotDetector,
             &mut TurnInPlaceComp,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    let Ok((vel, cmd, ovr, view, tf, loco, mut ss, mut pivot, mut turn)) = q.single_mut() else {
+    let Ok((vel, cmd, ovr, view, tf, loco, ss, mut pivot, mut turn)) = q.single_mut() else {
         return;
     };
     let dt = time.delta_secs();
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
 
-    let dir = classify(input.move_dir, view.0);
-    if let Some(phase) = update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir) {
-        info!("[M5GATE][STARTSTOP] phase -> {:?}", phase);
+    if *previous_phase != Some(ss.phase) {
+        *previous_phase = Some(ss.phase);
+        info!("[M5GATE][STARTSTOP] phase -> {:?}", ss.phase);
     }
 
     let vel_plane = Vec2::new(vel.x, -vel.z);
@@ -371,9 +353,7 @@ fn als_detectors_system(
         None => 0.0,
     };
     let inst_yaw_speed = match *prev_view {
-        Some((_, pv)) if sample_dt > 1e-4 => {
-            wrap_angle_degrees(view_deg - pv) / sample_dt
-        }
+        Some((_, pv)) if sample_dt > 1e-4 => wrap_angle_degrees(view_deg - pv) / sample_dt,
         _ => 0.0,
     };
     *yaw_env = (*yaw_env - YAW_SPEED_ENVELOPE_DECAY * sample_dt)
@@ -398,35 +378,6 @@ fn als_detectors_system(
     }
 }
 
-fn graph_input_router_system(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn snapshot_logger(
     time: Res<Time>,
@@ -445,7 +396,7 @@ fn snapshot_logger(
         ),
         With<AlsCharacter>,
     >,
-    instances: Query<&AnimatedSceneInstance>,
+    instances: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
     mut exit: MessageWriter<AppExit>,
@@ -521,10 +472,7 @@ fn fall_guard(q: Query<&Transform, With<AlsCharacter>>, mut exit: MessageWriter<
     }
 }
 
-fn safety_quit(
-    quit: Option<Res<AutoQuit>>,
-    mut exit: MessageWriter<AppExit>,
-) {
+fn safety_quit(quit: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
     let Some(aq) = quit else {
         return;
     };

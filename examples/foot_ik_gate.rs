@@ -4,48 +4,39 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::foot_ik::{
-    extend_foot_pin_hold, AlsFootBones, AlsFootIkRuntime, AlsFootPinHold, AlsFootPinRequest,
-    AlsFootProbe, ANKLE_TO_SOLE,
+    ANKLE_TO_SOLE, AlsFootBones, AlsFootIkRuntime, AlsFootPinRequest, AlsFootProbe,
 };
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::motion::{AlsCapsuleCrouched, AlsInputOverride};
 use als_core::params::AlsMovementParams;
-use als_core::start_stop::{classify, update_start_stop, StartStopConfig, StartStopState};
-use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::AlsStateTransitionPlugin;
-use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
-use als_ext::AlsExtPlugin;
+use als_core::state::{LocomotionState, Stance};
+use als_core::transition::AlsStateRequest;
 
-use bevy_als::foot_ik_apply::FootIkApplyPlugin;
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+use bevy_als::playable_character::{
+    AVATAR_MESH_ROOT_WORLD_Y, AlsCharacterAvatar, AlsCharacterBlueprint,
+    AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 const SNAPSHOT_INTERVAL: f32 = 0.25;
 const LOOK_UNITS_PER_RAD: f32 = 400.0;
 const TURN_RATE_DEG_PER_S: f32 = 100.0;
 const SPIN_WINDOW_SECS: f64 = 1.8;
 const SPIN_DELAY_SECS: f64 = 0.8;
-const YAW_SPEED_ENVELOPE_DECAY: f32 = 250.0;
-
 const RAMP_ANGLE_DEG: f32 = 12.0;
 const RAMP_LENGTH: f32 = 8.0;
 const RAMP_THICKNESS: f32 = 0.35;
 const RAMP_WIDTH: f32 = 4.0;
 const RAMP_START_Z: f32 = 2.0;
 
-const PHASE_DURATIONS: [f64; 6] = [1.5, 3.5, 1.5, 3.5, 4.5, 1.5];
-const LAST_PHASE: usize = 5;
-const TOTAL_SECS: f64 = 16.0;
-const VERDICT_AT_SECS: f64 = 15.2;
+const PHASE_DURATIONS: [f64; 7] = [1.5, 3.5, 1.5, 3.0, 2.0, 4.5, 1.5];
+const LAST_PHASE: usize = 6;
+const TOTAL_SECS: f64 = 17.5;
+const VERDICT_AT_SECS: f64 = 16.7;
 
 const MOVE_EPSILON: f32 = 0.15;
 const PENETRATION_TOL: f32 = 0.06;
@@ -53,6 +44,8 @@ const STAND_FLOAT_TOL: f32 = 0.12;
 const ROOT_DRIFT_TOL: f32 = 0.05;
 const LOCK_SHIFT_TOL: f32 = 0.03;
 const PELVIS_DROP_MIN: f32 = -0.30;
+const CROUCH_SUPPORT_TOL: f32 = 0.06;
+const MESH_ROOT_Y_TOL: f32 = 0.05;
 
 fn main() {
     let mut app = App::new();
@@ -61,19 +54,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        als_core::aim::AlsAimPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
-        als_core::foot_ik::AlsFootProbePlugin,
-        FootIkApplyPlugin,
+        AlsPlayableCharacterPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -87,8 +68,6 @@ fn main() {
         (
             spawn_character_once,
             auto_demo,
-            als_detectors_system,
-            graph_input_router_system,
             camera_follow,
             fall_guard,
             metrics_logger,
@@ -122,9 +101,6 @@ struct GateVerdict {
 #[derive(Resource)]
 struct AutoQuit(Instant);
 
-#[derive(Component, Default)]
-struct TurnDetector(TurnInPlaceDetector);
-
 #[derive(Default)]
 struct PinWatch {
     ready_logged: bool,
@@ -136,6 +112,15 @@ struct PinWatch {
     max_root_drift: f32,
     lock_offsets: [Option<f32>; 2],
     max_lock_shift: f32,
+    standing_support_y: Option<f32>,
+    crouch_seen: bool,
+    crouch_capsule_seen: bool,
+    crouch_support_ok: bool,
+    crouch_support_bad: bool,
+    max_crouch_support_drift: f32,
+    crouch_mesh_root_ok: bool,
+    crouch_feet_ok: bool,
+    crouch_pelvis_ok: bool,
     verdict_done: bool,
 }
 
@@ -160,7 +145,8 @@ fn phase_desc(phase: usize) -> &'static str {
         1 => "run up ramp",
         2 => "stand on slope",
         3 => "walk down ramp",
-        4 => "stop + spin + pins",
+        4 => "crouch walk flat",
+        5 => "stop + spin + pins",
         _ => "settle idle",
     }
 }
@@ -229,27 +215,21 @@ fn spawn_character_once(
     once.0 = true;
     setup_scene(commands.reborrow(), meshes, materials);
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(PI));
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
-
-    let character = commands
-        .spawn(bundle)
-        .insert((
-            AlsViewYaw(PI),
-            StartStopState::default(),
-            TurnDetector::default(),
-            AlsFootPinHold::default(),
-        ))
-        .id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_xyz(0.0, 0.95, 0.0).with_rotation(Quat::from_rotation_y(PI)),
+        ),
+    );
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M7GATE] scripted demo armed");
     }
 
@@ -264,13 +244,13 @@ fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
     verdict: Res<GateVerdict>,
-    mut q: Query<&mut AlsInputOverride, With<AlsCharacter>>,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
         return;
     }
-    let Ok(mut over) = q.single_mut() else {
+    let Ok((mut over, mut request)) = q.single_mut() else {
         return;
     };
     let t = time.elapsed_secs_f64();
@@ -294,6 +274,11 @@ fn auto_demo(
             phase_desc(idx),
             phase_start(idx)
         );
+        match idx {
+            4 => request.stance = Some(Stance::Crouching),
+            5 => request.stance = Some(Stance::Standing),
+            _ => {}
+        }
     }
     apply_phase_motion(idx, t, time.delta_secs_f64() as f32, &mut over);
 }
@@ -306,7 +291,8 @@ fn apply_phase_motion(phase: usize, t: f64, dt: f32, over: &mut AlsInputOverride
     match phase {
         1 => move_dir = Vec2::NEG_Y,
         3 => move_dir = Vec2::Y,
-        4 => {
+        4 => move_dir = Vec2::Y,
+        5 => {
             if local >= SPIN_DELAY_SECS && local < SPIN_DELAY_SECS + SPIN_WINDOW_SECS {
                 look.x = -(TURN_RATE_DEG_PER_S.to_radians() * dt * LOOK_UNITS_PER_RAD);
             }
@@ -319,108 +305,6 @@ fn apply_phase_motion(phase: usize, t: f64, dt: f32, over: &mut AlsInputOverride
     over.0.aim_held = false;
     over.0.jump_pressed = false;
     over.0.jump_held = false;
-}
-
-#[allow(clippy::type_complexity)]
-fn als_detectors_system(
-    time: Res<Time>,
-    mut prev_view: Local<Option<(f64, f32)>>,
-    mut yaw_env: Local<f32>,
-    mut q: Query<
-        (
-            &LinearVelocity,
-            &Transform,
-            &AlsInputCommand,
-            Option<&AlsInputOverride>,
-            &AlsViewYaw,
-            &LocomotionState,
-            &mut StartStopState,
-            Option<&mut AlsFootPinHold>,
-            &mut TurnDetector,
-        ),
-        With<AlsCharacter>,
-    >,
-    mut exit: MessageWriter<AppExit>,
-) {
-    let Ok((vel, tf, cmd, ovr, view, loco, mut ss, hold, mut turn)) = q.single_mut() else {
-        return;
-    };
-    let dt = time.delta_secs();
-    let input = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-
-    let dir = classify(input.move_dir, view.0);
-    if let Some(phase) = update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir) {
-        info!("[M7GATE][STARTSTOP] phase -> {phase:?}");
-    }
-
-    let view_deg = view.0.to_degrees();
-    let fwd = tf.forward();
-    let body_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
-    let sample_dt = match *prev_view {
-        Some((pt, _)) => (time.elapsed_secs_f64() - pt) as f32,
-        None => 0.0,
-    };
-    let inst_yaw_speed = match *prev_view {
-        Some((_, pv)) if sample_dt > 1e-4 => wrap_angle_degrees(view_deg - pv) / sample_dt,
-        _ => 0.0,
-    };
-    *yaw_env = (*yaw_env - YAW_SPEED_ENVELOPE_DECAY * sample_dt)
-        .max(0.0)
-        .max(inst_yaw_speed.abs());
-    *prev_view = Some((time.elapsed_secs_f64(), view_deg));
-
-    let rel = wrap_angle_degrees(view_deg - body_deg);
-    let allowed = *loco == LocomotionState::Grounded && hspeed < MOVE_EPSILON;
-    if let Some(ev) = turn.0.update(
-        rel,
-        *yaw_env,
-        dt,
-        allowed,
-        false,
-        &TurnInPlaceConfig::default(),
-    ) {
-        info!(
-            "[M7GATE][TURN] variant={:?} rel={rel:.1}deg play_rate={:.2} -> extending foot pin hold",
-            ev.variant, ev.play_rate
-        );
-        match hold {
-            Some(mut h) => extend_foot_pin_hold(&mut h, time.elapsed_secs_f64()),
-            None => {
-                error!("[M7GATE] AlsFootPinHold missing on character");
-                exit.write(AppExit::Error(std::num::NonZeroU8::new(5).unwrap()));
-            }
-        }
-    }
-}
-
-fn graph_input_router_system(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-        }
-    }
 }
 
 fn camera_follow(
@@ -454,11 +338,15 @@ fn metrics_logger(
     time: Res<Time>,
     mut last: Local<f32>,
     mut watch: Local<PinWatch>,
-    mut q: Query<
+    q: Query<
         (
+            Entity,
             &Transform,
             &LinearVelocity,
             &LocomotionState,
+            &Stance,
+            &als_core::character::AlsMovementParamsHandle,
+            Has<AlsCapsuleCrouched>,
             &AlsFootBones,
             &AlsFootProbe,
             &AlsFootIkRuntime,
@@ -467,8 +355,10 @@ fn metrics_logger(
         With<AlsCharacter>,
     >,
     bone_globals: Query<&GlobalTransform, Without<AlsCharacter>>,
-    instances: Query<&AnimatedSceneInstance>,
+    avatars: Query<(&ChildOf, &GlobalTransform), With<AlsCharacterAvatar>>,
+    instances: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
+    params_assets: Res<Assets<AlsMovementParams>>,
     mut verdict: ResMut<GateVerdict>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -490,7 +380,23 @@ fn metrics_logger(
     }
     *last = t as f32;
 
-    let Ok((char_tf, vel, loco, bones, probe, runtime, pins)) = q.single_mut() else {
+    let Ok((
+        character,
+        char_tf,
+        vel,
+        loco,
+        stance,
+        params_handle,
+        capsule_crouched,
+        bones,
+        probe,
+        runtime,
+        pins,
+    )) = q.single()
+    else {
+        return;
+    };
+    let Some(params) = params_assets.get(params_handle.id()) else {
         return;
     };
     if !watch.ready_logged {
@@ -500,9 +406,20 @@ fn metrics_logger(
 
     let phase = phase_at(t);
     let hspeed = Vec2::new(vel.x, vel.z).length();
+    let capsule_half_height = match stance {
+        Stance::Standing => params.crouch.standing_capsule_half_height,
+        Stance::Crouching => params.crouch.crouched_capsule_half_height,
+    };
+    let support_y = char_tf.translation.y - capsule_half_height;
+    let avatar_y = avatars
+        .iter()
+        .find(|(child_of, _)| child_of.parent() == character)
+        .map(|(_, transform)| transform.translation().y)
+        .unwrap_or(f32::NAN);
     let mut line = format!(
-        "[M7GATE] t={t:.2} phase={} loco={loco:?} v={hspeed:.2} pelvis_drop={:+.3}",
+        "[M7GATE] t={t:.2} phase={} loco={loco:?} stance={stance:?} cap_h={capsule_half_height:.3} cap_crouched={capsule_crouched} body_y={:.3} support_y={support_y:.3} avatar_y={avatar_y:.3} v={hspeed:.2} pelvis_drop={:+.3}",
         phase_desc(phase),
+        char_tf.translation.y,
         runtime.pelvis_drop,
     );
 
@@ -531,7 +448,7 @@ fn metrics_logger(
             .map(|p| if side == 0 { p.left } else { p.right })
             .unwrap_or(false);
 
-        if phase == 4 && pinned_now && pin_w > 0.5 {
+        if phase == 5 && pinned_now && pin_w > 0.5 {
             if hspeed >= MOVE_EPSILON {
                 watch.stop_pins_seen = true;
             } else {
@@ -567,16 +484,46 @@ fn metrics_logger(
 
     if phase == 2 && hspeed < MOVE_EPSILON {
         let both = probe.left.is_some() && probe.right.is_some();
-        let pens_ok = pens.iter().all(|p| {
-            !p.is_finite() || (*p >= -PENETRATION_TOL && *p <= STAND_FLOAT_TOL)
-        });
+        let pens_ok = pens
+            .iter()
+            .all(|p| !p.is_finite() || (*p >= -PENETRATION_TOL && *p <= STAND_FLOAT_TOL));
         let drop_ok = runtime.pelvis_drop <= 0.001 && runtime.pelvis_drop >= PELVIS_DROP_MIN;
         if !(both && pens_ok && drop_ok) {
             watch.stand_bad = true;
         }
     }
 
-    info!("{line}");
+    if phase == 0 && hspeed < MOVE_EPSILON {
+        watch.standing_support_y = Some(support_y);
+    }
+
+    if phase == 4 && *stance == Stance::Crouching {
+        watch.crouch_seen = true;
+        watch.crouch_capsule_seen = capsule_crouched;
+        if let Some(standing_support_y) = watch.standing_support_y {
+            let drift = (support_y - standing_support_y).abs();
+            watch.max_crouch_support_drift = watch.max_crouch_support_drift.max(drift);
+            watch.crouch_support_ok = true;
+            if drift > CROUCH_SUPPORT_TOL {
+                watch.crouch_support_bad = true;
+            }
+        }
+        if (avatar_y - AVATAR_MESH_ROOT_WORLD_Y).abs() <= MESH_ROOT_Y_TOL {
+            watch.crouch_mesh_root_ok = true;
+        }
+        let both = probe.left.is_some() && probe.right.is_some();
+        let feet_ok = pens
+            .iter()
+            .all(|pen| !pen.is_finite() || (*pen >= -PENETRATION_TOL && *pen <= STAND_FLOAT_TOL));
+        if both && feet_ok {
+            watch.crouch_feet_ok = true;
+        }
+        if runtime.pelvis_drop <= 0.001 && runtime.pelvis_drop >= PELVIS_DROP_MIN {
+            watch.crouch_pelvis_ok = true;
+        }
+    }
+
+    debug!("{line}");
 
     if t >= VERDICT_AT_SECS && !watch.verdict_done {
         watch.verdict_done = true;
@@ -585,6 +532,13 @@ fn metrics_logger(
         let turn_ok = watch.turn_engaged
             && watch.max_root_drift <= ROOT_DRIFT_TOL
             && watch.max_lock_shift <= LOCK_SHIFT_TOL;
+        let crouch_ok = watch.crouch_seen
+            && watch.crouch_capsule_seen
+            && watch.crouch_support_ok
+            && !watch.crouch_support_bad
+            && watch.crouch_mesh_root_ok
+            && watch.crouch_feet_ok
+            && watch.crouch_pelvis_ok;
         info!(
             "[M7GATE][VERDICT] min_penetration={:+.3} (tol {:-.3}) -> {}",
             watch.pen_worst,
@@ -605,7 +559,19 @@ fn metrics_logger(
             watch.stop_pins_seen,
             if turn_ok { "PASS" } else { "FAIL" }
         );
-        if !(pen_ok && stand_ok && turn_ok) {
+        info!(
+            "[M7GATE][VERDICT] crouch seen={} capsule={} support={} support_drift={:.3}/{:.3} avatar_root={} feet={} pelvis={} -> {}",
+            watch.crouch_seen,
+            watch.crouch_capsule_seen,
+            watch.crouch_support_ok && !watch.crouch_support_bad,
+            watch.max_crouch_support_drift,
+            CROUCH_SUPPORT_TOL,
+            watch.crouch_mesh_root_ok,
+            watch.crouch_feet_ok,
+            watch.crouch_pelvis_ok,
+            if crouch_ok { "PASS" } else { "FAIL" }
+        );
+        if !(pen_ok && stand_ok && turn_ok && crouch_ok) {
             verdict.failed = true;
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         }

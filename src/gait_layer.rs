@@ -1,9 +1,12 @@
 use als_core::character::AlsCharacter;
-use als_core::gait::{ema_toward, GaitWeights, SPEED_EMA_HALF_LIFE_SECS};
+use als_core::gait::{GaitWeights, SPEED_EMA_HALF_LIFE_SECS, ema_toward};
 use als_core::params::AlsMovementParams;
 use als_core::state::Stance;
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
+
+use crate::character_assembly::AlsCharacterAvatar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct AlsGaitBlend {
@@ -18,7 +21,12 @@ pub fn advance_gait_blend(
     target_speed: f32,
     dt: f32,
 ) {
-    current.speed_ema = ema_toward(current.speed_ema, target_speed, dt, SPEED_EMA_HALF_LIFE_SECS);
+    current.speed_ema = ema_toward(
+        current.speed_ema,
+        target_speed,
+        dt,
+        SPEED_EMA_HALF_LIFE_SECS,
+    );
     current.weights = current.weights.advance(gait, moving, dt);
 }
 
@@ -33,22 +41,22 @@ fn gait_blend_target_speed(params: &AlsMovementParams, gait: als_core::state::Ga
 
 pub struct GaitLayerPlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsGaitLayerSet;
+
 impl Plugin for GaitLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, gait_blend_driver);
+        app.configure_sets(PostUpdate, AlsGaitLayerSet.before(AnimationGraphSet::Final))
+            .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
     }
 }
 
-type GaitDriverQuery = (
-    Entity,
-    &'static ChildOf,
-    Option<&'static mut AlsGaitBlend>,
-);
+type GaitDriverQuery = (Entity, &'static ChildOf, Option<&'static mut AlsGaitBlend>);
 
 fn gait_blend_driver(
     time: Res<Time>,
     mut commands: Commands,
-    mut avatars: Query<GaitDriverQuery>,
+    mut avatars: Query<GaitDriverQuery, With<AlsCharacterAvatar>>,
     characters: Query<
         (
             &als_core::state::Gait,
@@ -69,7 +77,11 @@ fn gait_blend_driver(
             continue;
         };
         let moving = hspeed > 0.05;
-        let target_speed = if moving { hspeed } else { gait_blend_target_speed(p, *gait) };
+        let target_speed = if moving {
+            hspeed
+        } else {
+            gait_blend_target_speed(p, *gait)
+        };
         match blend {
             Some(mut state) => {
                 advance_gait_blend(&mut state, *gait, moving, target_speed, dt);

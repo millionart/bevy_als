@@ -2,13 +2,22 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
+use crate::character_assembly::AlsCharacterAvatar;
+
 pub fn mesh_to_entity_yaw() -> Quat {
     Quat::from_rotation_y(std::f32::consts::PI)
 }
 
 pub fn ensure_root_motion_output(
     mut commands: Commands,
-    q: Query<Entity, (With<AnimatedSceneInstance>, Without<RootMotionOutput>)>,
+    q: Query<
+        Entity,
+        (
+            With<AlsCharacterAvatar>,
+            With<AnimatedSceneInstance>,
+            Without<RootMotionOutput>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(RootMotionOutput::default());

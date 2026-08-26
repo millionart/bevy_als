@@ -3,31 +3,24 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
-use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_core::air::AlsAirState;
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::input::AlsInputCommand;
+use als_core::motion::{AlsInputOverride, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::roll::{AlsRollState, roll_displacement_dir};
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
-use als_core::start_stop::{StartStopPhase, StartStopState};
+use als_core::start_stop::StartStopState;
 use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::AlsExtPlugin;
+use als_core::transition::AlsStateRequest;
 
-use bevy_als::motion_graph_link::{
-    compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
 };
-use bevy_als::stop_link::{AlsStopLinkPlugin, AlsStopMatch};
+use bevy_als::stop_link::AlsStopMatch;
 
 const SNAPSHOT_INTERVAL: f32 = 0.2;
 
@@ -38,19 +31,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        als_core::air::AlsAirPlugin,
-        AlsStopLinkPlugin,
-        bevy_als::roll_drive::AlsRollDrivePlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
+        AlsPlayableCharacterPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -66,7 +47,6 @@ fn main() {
             auto_demo,
             start_stop_detector,
             actions_watcher,
-            graph_router,
             camera_follow,
             fall_guard,
             snapshot_logger,
@@ -226,19 +206,15 @@ fn spawn_character_once(
         MeshMaterial3d(ground_mat),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
-        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(
+    let character = spawn_als_character(
         &mut commands,
         &assets,
-        character,
-        "animated_scenes/motion_overlay.animscn.ron",
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_xyz(0.0, 0.95, 0.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ),
     );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
@@ -344,8 +320,6 @@ fn actions_watcher(
         ),
         With<AlsCharacter>,
     >,
-    instances: Query<&AnimatedSceneInstance>,
-    players: Query<&AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Ok((tf, vel, stance, loco, gait, roll, air, stop)) = q.single_mut() else {
@@ -441,50 +415,11 @@ fn actions_watcher(
     }
     v.prev_stop_active = stop.active;
 
-    for instance in instances.iter() {
-        if let Ok(player) = players.get(instance.player_entity()) {
-            let _ = player;
-        }
-    }
     let _ = vel;
 }
 
 fn air_side_weights(_air: &AlsAirState) -> (f32, f32) {
     (1.0, 0.0)
-}
-
-fn graph_router(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-            write_air_pins(
-                &mut player,
-                &als_core::air::AlsAirState::default(),
-                &als_core::flail::AlsFlailState::default(),
-            );
-        }
-    }
 }
 
 fn camera_follow(

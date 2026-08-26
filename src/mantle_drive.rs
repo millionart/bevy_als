@@ -1,5 +1,5 @@
 use als_core::input::AlsInputCommand;
-use als_core::mantle::{mantle_weight_at, warp_envelope, AlsMantleState, MantleKind};
+use als_core::mantle::{AlsMantleState, MantleKind, mantle_weight_at, warp_envelope};
 use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{CollisionLayers, LinearVelocity};
@@ -10,6 +10,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
+use crate::character_assembly::AlsCharacterAvatar;
 use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
 
 pub struct AlsMantleDrivePlugin;
@@ -26,15 +27,20 @@ impl Plugin for AlsMantleDrivePlugin {
         );
         app.add_systems(
             FixedPostUpdate,
-            mantle_drive_system
-                .after(AnimationGraphSet::PrePhysics),
+            mantle_drive_system.after(AnimationGraphSet::PrePhysics),
         );
     }
 }
 
 fn ensure_mantle_state(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsMantleState>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsMantleState>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsMantleState::default());
@@ -44,11 +50,7 @@ fn ensure_mantle_state(
 fn mantle_pose_system(
     time: Res<Time>,
     mut q: Query<
-        (
-            &mut AlsMantleState,
-            &mut Transform,
-            &mut LinearVelocity,
-        ),
+        (&mut AlsMantleState, &mut Transform, &mut LinearVelocity),
         With<als_core::character::AlsCharacter>,
     >,
 ) {
@@ -56,11 +58,7 @@ fn mantle_pose_system(
     let Ok((mut m, mut tf, mut vel)) = q.single_mut() else {
         return;
     };
-    let yaw_now = lerp_angle(
-        m.yaw_start,
-        m.yaw_target,
-        warp_envelope(m.clip_time()),
-    );
+    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(m.clip_time()));
     if m.active {
         tf.rotation = Quat::from_rotation_y(yaw_now);
         return;
@@ -90,8 +88,8 @@ fn mantle_drive_system(
         With<als_core::character::AlsCharacter>,
     >,
     layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
-    rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
-    instances: Query<&AnimatedSceneInstance>,
+    rm_q: Query<(&ChildOf, &RootMotionOutput), With<AlsCharacterAvatar>>,
+    instances: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
@@ -122,7 +120,11 @@ fn mantle_drive_system(
         return;
     }
 
-    let local_delta = read_local_delta(rm_q.iter().next());
+    let local_delta = read_local_delta(
+        rm_q.iter()
+            .find(|(child_of, _)| child_of.parent() == entity)
+            .map(|(_, output)| output),
+    );
     let clip_t = m.clip_time();
     let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(clip_t));
     let finishing = m.time + dt >= m.action_end();
@@ -144,7 +146,10 @@ fn mantle_drive_system(
         MantleKind::LowLeft => (0.0, 0.0),
         MantleKind::LowRight => (0.0, 1.0),
     };
-    for instance in instances.iter() {
+    for (child_of, instance) in instances.iter() {
+        if child_of.parent() != entity {
+            continue;
+        }
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("mantle_clip_time", DataValue::from(clip_t));
             player.set_input_data("mantle_weight", DataValue::from(weight));
@@ -168,4 +173,3 @@ fn shortest_angle(angle: f32) -> f32 {
         wrapped
     }
 }
-

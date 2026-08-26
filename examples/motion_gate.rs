@@ -1,21 +1,19 @@
-﻿use avian3d::prelude::*;
+use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{
-    effective_gait, gait_max_speed, AlsCapsuleCrouched, AlsInputOverride, AlsMotionPlugin,
-};
-use als_core::character::AlsMovementParamsHandle;
+use als_core::input::AlsInputCommand;
+use als_core::motion::{AlsCapsuleCrouched, AlsInputOverride, effective_gait, gait_max_speed};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use als_core::transition::AlsStateRequest;
+
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 fn main() {
     let mut app = App::new();
@@ -24,14 +22,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
+        AlsPlayableCharacterPlugin,
         AlsStateHudPlugin,
     ))
     .init_resource::<DemoPhase>()
@@ -70,6 +61,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+    assets: Res<AssetServer>,
 ) {
     let ground_mat = materials.add(Color::srgb(0.25, 0.28, 0.25));
     let prop_mat = materials.add(Color::srgb(0.45, 0.4, 0.35));
@@ -119,15 +111,18 @@ fn setup(
         ));
     }
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 1.0, 0.0);
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.0, 0.0)),
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M3GATE] scripted demo armed");
     }
 
@@ -437,11 +432,7 @@ fn speed_report(
             if dy < -180.0 {
                 dy += 360.0;
             }
-            if dt > 1e-4 {
-                dy / dt
-            } else {
-                0.0
-            }
+            if dt > 1e-4 { dy / dt } else { 0.0 }
         }
         None => 0.0,
     };

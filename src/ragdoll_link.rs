@@ -7,6 +7,8 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 
+use crate::character_assembly::AlsCharacterAvatar;
+
 const PELVIS_LABEL: &str = "pelvis";
 const CHARACTER_CENTER_ABOVE_PELVIS: f32 = 0.9;
 
@@ -31,7 +33,13 @@ impl Plugin for AlsRagdollLinkPlugin {
 
 fn ensure_ragdoll_link(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsRagdollLink>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsRagdollLink>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsRagdollLink::default());
@@ -57,24 +65,28 @@ fn find_body_by_label(
 fn ragdoll_link_system(
     mut q: Query<
         (
+            Entity,
             &mut Transform,
             &LocomotionState,
             &mut AlsRagdollLink,
         ),
         With<als_core::character::AlsCharacter>,
     >,
-    instances: Query<&AnimatedSceneInstance>,
+    instances: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
     positions: Query<&Position>,
 ) {
-    let Ok((mut tf, loco, mut link)) = q.single_mut() else {
+    let Ok((character, mut tf, loco, mut link)) = q.single_mut() else {
         return;
     };
     let is_ragdoll = *loco == LocomotionState::Ragdolling;
     let exiting = link.prev_ragdoll && !is_ragdoll;
 
-    let Ok(instance) = instances.single() else {
+    let Some((_, instance)) = instances
+        .iter()
+        .find(|(child_of, _)| child_of.parent() == character)
+    else {
         link.prev_ragdoll = is_ragdoll;
         return;
     };

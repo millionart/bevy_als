@@ -1,18 +1,15 @@
-use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
-use als_core::transition::{
-    AlsStateRequest, AlsStateTransitionPlugin, StateTransitionEvent, StateTransitionRejectedEvent,
-};
+use als_core::transition::{AlsStateRequest, StateTransitionEvent, StateTransitionRejectedEvent};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 fn main() {
     let mut app = App::new();
@@ -21,13 +18,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(Update),
-        EnhancedInputPlugin,
-        AlsCharacterPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
+        AlsPlayableCharacterPlugin,
         AlsStateHudPlugin,
     ))
     .add_systems(Startup, setup)
@@ -46,6 +37,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+    assets: Res<AssetServer>,
 ) {
     commands.spawn((
         RigidBody::Static,
@@ -64,12 +56,13 @@ fn setup(
         Transform::from_xyz(3.0, 5.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 1.0, 0.0);
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.0, 0.0)),
+    );
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands.entity(character).insert(ScriptedDemo { step: 0 });
@@ -117,9 +110,7 @@ fn auto_demo(
                 request.stance = Some(Stance::Crouching);
             }
             6 => {
-                info!(
-                    "[DEMO] step 6: request Grounded (expect accept + queued crouch applies)"
-                );
+                info!("[DEMO] step 6: request Grounded (expect accept + queued crouch applies)");
                 request.locomotion_state = Some(LocomotionState::Grounded);
             }
             7 => {
@@ -131,9 +122,7 @@ fn auto_demo(
                 request.locomotion_state = Some(LocomotionState::Ragdolling);
             }
             9 => {
-                info!(
-                    "[DEMO] step 9: request Air WHILE RAGDOLLED (never legal -> expect reject)"
-                );
+                info!("[DEMO] step 9: request Air WHILE RAGDOLLED (never legal -> expect reject)");
                 request.locomotion_state = Some(LocomotionState::Air);
             }
             10 => {
@@ -148,10 +137,7 @@ fn auto_demo(
     }
 }
 
-fn keyboard_driver(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut q_request: Query<&mut AlsStateRequest>,
-) {
+fn keyboard_driver(keys: Res<ButtonInput<KeyCode>>, mut q_request: Query<&mut AlsStateRequest>) {
     let Ok(mut request) = q_request.single_mut() else {
         return;
     };

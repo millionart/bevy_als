@@ -14,10 +14,7 @@ impl Plugin for AlsDebugDrawPlugin {
     }
 }
 
-fn draw_velocity(
-    q: Query<(&Transform, &LinearVelocity), With<AlsCharacter>>,
-    mut gizmos: Gizmos,
-) {
+fn draw_velocity(q: Query<(&Transform, &LinearVelocity), With<AlsCharacter>>, mut gizmos: Gizmos) {
     let Ok((tf, vel)) = q.single() else {
         return;
     };
@@ -29,18 +26,16 @@ fn draw_velocity(
     if speed > 0.05 {
         let dir = Vec3::new(vel.x, 0.0, vel.z) / speed;
         let end = tf.translation + dir * (0.4 + speed * 0.12);
-        gizmos.arrow(tf.translation + Vec3::Y * 0.05, end, Color::srgb(1.0, 0.85, 0.1));
+        gizmos.arrow(
+            tf.translation + Vec3::Y * 0.05,
+            end,
+            Color::srgb(1.0, 0.85, 0.1),
+        );
     }
 }
 
 fn draw_foot_ik_targets(
-    q: Query<
-        (
-            &als_core::foot_ik::AlsFootBones,
-            &AlsFootProbe,
-        ),
-        With<AlsCharacter>,
-    >,
+    q: Query<(&als_core::foot_ik::AlsFootBones, &AlsFootProbe), With<AlsCharacter>>,
     bone_globals: Query<&GlobalTransform>,
     mut gizmos: Gizmos,
 ) {
@@ -66,10 +61,7 @@ fn draw_foot_ik_targets(
     }
 }
 
-fn draw_bone_links(
-    q: Query<&GlobalTransform, With<AlsCharacter>>,
-    mut gizmos: Gizmos,
-) {
+fn draw_bone_links(q: Query<&GlobalTransform, With<AlsCharacter>>, mut gizmos: Gizmos) {
     let Ok(gtf) = q.single() else {
         return;
     };

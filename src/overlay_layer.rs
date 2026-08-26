@@ -1,17 +1,18 @@
-use als_core::overlay_blend::{OverlayBlendState, BLEND_IN_DURATION, BLEND_OUT_DURATION};
+use als_core::overlay_blend::{BLEND_IN_DURATION, BLEND_OUT_DURATION, OverlayBlendState};
 use als_core::state::OverlayState;
+use als_ext::{
+    AlsAnimCurves, AlsPoseCurves, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
+    TORCH_SPINE_UPPER_BONES, build_bone_mask, build_grouped_bone_mask,
+};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::skeleton::Skeleton;
-use als_ext::{
-    build_grouped_bone_mask, build_bone_mask, AlsAnimCurves, AlsPoseCurves, HEAD_LAYER_BONES,
-    LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES, TORCH_SPINE_UPPER_BONES,
-};
 
-pub const OVERLAY_CURVES_ASSET: &str =
-    "animations/Overlays/Torch/A_Als_Torch_Poses.gltf#AlsCurves";
+use crate::character_assembly::AlsCharacterAvatar;
+
+pub const OVERLAY_CURVES_ASSET: &str = "animations/Overlays/Torch/A_Als_Torch_Poses.gltf#AlsCurves";
 pub const SKELETON_ASSET: &str = "skeletons/SKM_Als.skn.ron";
 
 pub struct OverlayLayerPlugin;
@@ -51,7 +52,11 @@ fn ramp(t: f32, duration: f32) -> f32 {
     }
 }
 
-fn dynamic_upper_mask(curves: &AlsPoseCurves, skeleton: &Skeleton, elapsed: f32) -> bevy_animation_graph::core::edge_data::bone_mask::BoneMask {
+fn dynamic_upper_mask(
+    curves: &AlsPoseCurves,
+    skeleton: &Skeleton,
+    elapsed: f32,
+) -> bevy_animation_graph::core::edge_data::bone_mask::BoneMask {
     let spine_w = curves.sample("LayerSpineAdditive", elapsed).unwrap_or(1.0);
     let arm_w = curves.sample("LayerArmRight", elapsed).unwrap_or(1.0);
     let head_w = curves.sample("LayerHeadAdditive", elapsed).unwrap_or(0.0);
@@ -70,10 +75,11 @@ type OverlayDriverQuery<'w, 's> = Query<
     's,
     (
         Entity,
-        &'static OverlayState,
+        &'static ChildOf,
         Option<&'static mut OverlayBlendState>,
         &'static AnimatedSceneInstance,
     ),
+    With<AlsCharacterAvatar>,
 >;
 
 fn overlay_layer_driver(
@@ -82,6 +88,7 @@ fn overlay_layer_driver(
     layer_assets: Res<OverlayLayerAssets>,
     curve_assets: Res<Assets<AlsAnimCurves>>,
     skeletons: Res<Assets<Skeleton>>,
+    overlays: Query<&OverlayState, With<als_core::character::AlsCharacter>>,
     mut q: OverlayDriverQuery,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -107,7 +114,10 @@ fn overlay_layer_driver(
     let look_mask = build_bone_mask(skeleton, LOOK_SPINE_BONES, 1.0);
     let dt = time.delta_secs();
 
-    for (entity, overlay, blend, instance) in &mut q {
+    for (entity, child_of, blend, instance) in &mut q {
+        let Ok(overlay) = overlays.get(child_of.parent()) else {
+            continue;
+        };
         let Ok(mut player) = players.get_mut(instance.player_entity()) else {
             continue;
         };
@@ -115,7 +125,12 @@ fn overlay_layer_driver(
         let weight = match blend {
             Some(mut state) => {
                 let t = state.phase_time;
-                state.update(target_on, dt, ramp(t, BLEND_IN_DURATION), ramp(t, BLEND_OUT_DURATION))
+                state.update(
+                    target_on,
+                    dt,
+                    ramp(t, BLEND_IN_DURATION),
+                    ramp(t, BLEND_OUT_DURATION),
+                )
             }
             None => {
                 commands.entity(entity).insert(OverlayBlendState::default());

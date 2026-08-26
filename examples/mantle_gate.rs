@@ -3,27 +3,19 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::AlsInputPlugin;
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::mantle::{AlsMantleState, MantleKind};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
+use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::AlsStateTransitionPlugin;
-use als_ext::AlsExtPlugin;
+use als_core::state::{Gait, LocomotionState};
 
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
-use bevy_als::mantle_drive::AlsMantleDrivePlugin;
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 #[derive(Resource, Default)]
 struct MantleShot {
@@ -40,17 +32,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AlsMantleDrivePlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
+        AlsPlayableCharacterPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -66,7 +48,6 @@ fn main() {
             spawn_character_once,
             auto_demo,
             mantle_watcher,
-            graph_router,
             camera_follow,
             fall_guard,
             snapshot_logger,
@@ -115,11 +96,36 @@ struct Step {
 
 fn steps() -> [Step; 5] {
     [
-        Step { t0: 0.5, dur: 1.0, label: "idle", gait: None },
-        Step { t0: 1.5, dur: 2.2, label: "run to low ledge", gait: Some(Gait::Running) },
-        Step { t0: 3.7, dur: 1.8, label: "cross low ledge top", gait: Some(Gait::Running) },
-        Step { t0: 5.5, dur: 2.4, label: "run to high ledge", gait: Some(Gait::Running) },
-        Step { t0: 7.9, dur: 3.8, label: "cross high ledge top", gait: Some(Gait::Running) },
+        Step {
+            t0: 0.5,
+            dur: 1.0,
+            label: "idle",
+            gait: None,
+        },
+        Step {
+            t0: 1.5,
+            dur: 2.2,
+            label: "run to low ledge",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 3.7,
+            dur: 1.8,
+            label: "cross low ledge top",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 5.5,
+            dur: 2.4,
+            label: "run to high ledge",
+            gait: Some(Gait::Running),
+        },
+        Step {
+            t0: 7.9,
+            dur: 3.8,
+            label: "cross high ledge top",
+            gait: Some(Gait::Running),
+        },
     ]
 }
 
@@ -165,15 +171,14 @@ fn spawn_character_once(
         MeshMaterial3d(box_mat),
     ));
 
-    let character = bevy_als::character_assembly::spawn_als_character(
+    let character = spawn_als_character(
         &mut commands,
         &assets,
         &mut params_assets,
         &mut config_assets,
-        bevy_als::character_assembly::AlsCharacterBlueprint::new(
+        AlsCharacterBlueprint::new(
             Transform::from_xyz(0.0, 0.95, -12.0)
                 .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-            "animated_scenes/motion_overlay.animscn.ron",
         ),
     );
 
@@ -329,11 +334,7 @@ fn mantle_watcher(
     }
     if watch.prev_active && !m.active && watch.count < 2 {
         let slot = watch.count.min(1) as usize;
-        info!(
-            "[MGATE][DONE {}] raw_y={:.2}",
-            slot + 1,
-            tf.translation.y
-        );
+        info!("[MGATE][DONE {}] raw_y={:.2}", slot + 1, tf.translation.y);
         watch.pending_slot = Some(slot);
         watch.settle_timer = 1.0;
     }
@@ -352,9 +353,7 @@ fn mantle_watcher(
                     if !(on_top && watch.grounded_seen[i]) {
                         error!(
                             "[MGATE][VERDICT] mantle {i} landing insufficient settle={:.2} target={:.2} grounded={}",
-                            y,
-                            watch.targets[i],
-                            watch.grounded_seen[i]
+                            y, watch.targets[i], watch.grounded_seen[i]
                         );
                         watch.failed = true;
                     }
@@ -371,35 +370,6 @@ fn mantle_watcher(
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         }
         watch.count += 10;
-    }
-}
-
-fn graph_router(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-        }
     }
 }
 

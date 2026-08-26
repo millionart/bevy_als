@@ -3,26 +3,18 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::air::{AirPhase, AlsAirPlugin, AlsAirState, LAND_HEAVY_IMPACT_VY};
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::air::{AirPhase, AlsAirState, LAND_HEAVY_IMPACT_VY};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::flail::AlsFlailState;
-use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
+use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::AlsStateTransitionPlugin;
-use als_ext::AlsExtPlugin;
+use als_core::state::{Gait, LocomotionState};
 
-use bevy_als::motion_graph_link::{
-    compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
+use bevy_als::playable_character::{
+    AlsCharacterAvatar, AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
 };
 
 const PHASE_DURATIONS: [f64; 6] = [1.0, 2.0, 3.0, 2.0, 3.5, 1.5];
@@ -39,19 +31,8 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AlsAirPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
+        AlsPlayableCharacterPlugin,
     ))
-    .add_plugins(bevy_als::air_jump_layer::AirJumpLayerPlugin)
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
     .init_resource::<GateVerdict>()
@@ -66,7 +47,6 @@ fn main() {
             spawn_character_once,
             auto_demo,
             apply_teleport,
-            air_pin_router,
             camera_follow,
             fall_guard,
             metrics_logger,
@@ -160,21 +140,16 @@ fn spawn_character_once(
         MeshMaterial3d(ground_mat),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0)
-        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
-
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(
+    let character = spawn_als_character(
         &mut commands,
         &assets,
-        character,
-        "animated_scenes/motion_overlay.animscn.ron",
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_xyz(0.0, 0.95, 0.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ),
     );
 
     if scripted {
@@ -287,39 +262,6 @@ fn apply_teleport(
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn air_pin_router(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-            &AlsAirState,
-            &AlsFlailState,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle, air, flail)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-            write_air_pins(&mut player, air, flail);
-        }
-    }
-}
-
 fn camera_follow(
     mut cameras: Query<&mut Transform, (With<Camera3d>, Without<AlsCharacter>)>,
     characters: Query<&Transform, (With<AlsCharacter>, Without<Camera3d>)>,
@@ -360,7 +302,13 @@ fn metrics_logger(
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>,
+    avatars: Query<
+        (
+            &ChildOf,
+            &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance,
+        ),
+        With<AlsCharacterAvatar>,
+    >,
     players: Query<&AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -370,12 +318,17 @@ fn metrics_logger(
     }
     *last = t as f32;
 
-    let Ok((_char_entity, tf, vel, loco, gait, air, flail)) = q.single_mut() else {
+    let Ok((char_entity, tf, vel, loco, gait, air, flail)) = q.single_mut() else {
         return;
     };
     let instance = avatars
         .iter()
-        .find(|i| i.player_entity() != Entity::PLACEHOLDER && players.contains(i.player_entity()));
+        .find(|(child_of, instance)| {
+            child_of.parent() == char_entity
+                && instance.player_entity() != Entity::PLACEHOLDER
+                && players.contains(instance.player_entity())
+        })
+        .map(|(_, instance)| instance);
 
     if matches!(air.phase, AirPhase::Airborne) {
         verdict.airborne_seen = true;

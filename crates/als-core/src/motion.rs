@@ -1,16 +1,16 @@
-﻿use avian3d::prelude::{Collider, LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, LinearVelocity, SpatialQuery, SpatialQueryFilter};
 use bevy::asset::{AssetId, Assets};
 use bevy::prelude::*;
+use bevy_tnua::TnuaController;
 use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinJump, TnuaBuiltinWalk, TnuaBuiltinWalkHeadroom,
 };
 use bevy_tnua::controller::TnuaConfig;
-use bevy_tnua::TnuaController;
 
 use crate::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
-use crate::mantle::{detect_mantle, yaw_from_direction, MantleIntent};
+use crate::mantle::{MantleIntent, detect_mantle, yaw_from_direction};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
@@ -57,6 +57,10 @@ fn capsule_for(params: &AlsMovementParams, stance: Stance) -> Collider {
     Collider::capsule((total_half - radius).max(0.0), radius)
 }
 
+fn crouch_base_adjustment(params: &AlsMovementParams) -> f32 {
+    params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height
+}
+
 fn turn_angvel(mode: RotationMode) -> f32 {
     match mode {
         RotationMode::VelocityDirection => deg_to_rad(800.0),
@@ -75,7 +79,26 @@ mod rotation_cap_tests {
         assert!((turn_angvel(RotationMode::ViewDirection) - 500f32.to_radians()).abs() < 1e-4);
         assert!((turn_angvel(RotationMode::Aiming) - 1000f32.to_radians()).abs() < 1e-4);
         assert!(turn_angvel(RotationMode::Aiming) > turn_angvel(RotationMode::VelocityDirection));
-        assert!(turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection));
+        assert!(
+            turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection)
+        );
+    }
+
+    #[test]
+    fn crouch_center_adjustment_preserves_support_height() {
+        let params = AlsMovementParams::default();
+        let standing_center_y = params.crouch.standing_capsule_half_height;
+        let crouching_center_y = standing_center_y - crouch_base_adjustment(&params);
+        let standing_support_y = standing_center_y - params.crouch.standing_capsule_half_height;
+        let crouching_support_y = crouching_center_y - params.crouch.crouched_capsule_half_height;
+        assert!((standing_support_y - crouching_support_y).abs() < 1e-6);
+    }
+
+    #[test]
+    fn step_assist_rejects_walkable_slope_and_accepts_vertical_riser() {
+        let slope = Vec3::new(0.0, 12.0f32.to_radians().cos(), 12.0f32.to_radians().sin());
+        assert!(!step_obstacle_is_blocking(slope));
+        assert!(step_obstacle_is_blocking(Vec3::X));
     }
 }
 
@@ -131,10 +154,10 @@ impl Plugin for AlsMotionPlugin {
         app.add_systems(
             Update,
             (
-                tnua_config_sync_system,
                 locomotion_drive_system.before(crate::transition::state_transition_system),
-                step_up_assist_system,
-                capsule_reshape_system,
+                capsule_reshape_system.after(crate::transition::state_transition_system),
+                tnua_config_sync_system.after(capsule_reshape_system),
+                step_up_assist_system.after(capsule_reshape_system),
                 locomotion_state_sync_system,
             ),
         );
@@ -176,8 +199,8 @@ fn tnua_config_sync_system(
         cfg.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
         cfg.basis.cling_distance = WALK_CLING_DISTANCE;
         let gravity_scale = params.jump.gravity_scale.max(1e-3);
-        cfg.jump.height =
-            params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
+        cfg.jump.height = params.jump.jump_z_velocity * params.jump.jump_z_velocity
+            / (2.0 * 9.81 * gravity_scale);
         cfg.jump.shorten_extra_gravity = 0.0;
         cfg.crouch.float_offset = -(params.crouch.standing_capsule_half_height
             - params.crouch.crouched_capsule_half_height);
@@ -294,7 +317,14 @@ fn locomotion_drive_system(
                             .mul_vec3(Vec3::NEG_Z)
                             .normalize_or_zero();
                         let yaw_start = yaw_from_direction(fwd);
-                        m.begin(i.kind, origin, i.target, i.top_height, yaw_start, i.yaw_target);
+                        m.begin(
+                            i.kind,
+                            origin,
+                            i.target,
+                            i.top_height,
+                            yaw_start,
+                            i.yaw_target,
+                        );
                         info!(
                             "[MOTION] entity={entity:?} mantle begin kind={:?} top_h={:.2}",
                             i.kind, i.top_height
@@ -316,35 +346,25 @@ fn locomotion_drive_system(
 
 type ReshapeQueryItem<'a> = (
     Entity,
-    &'a Stance,
-    &'a Transform,
+    Ref<'a, Stance>,
+    &'a mut Transform,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
+    Has<AlsCapsuleCrouched>,
 );
 
 fn capsule_reshape_system(
     mut commands: Commands,
     spatial_query: SpatialQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
-    q_changed: Query<ReshapeQueryItem, (With<AlsCharacter>, Changed<Stance>)>,
-    q_retry: Query<ReshapeQueryItem, (With<AlsCharacter>, With<AlsCapsuleCrouched>)>,
+    mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
 ) {
-    let mut changed_entities: Vec<Entity> = Vec::new();
-    for (entity, stance, transform, handle, already_deferred) in q_changed.iter() {
-        changed_entities.push(entity);
-        apply_capsule_for_stance(
-            &mut commands,
-            &spatial_query,
-            &params_assets,
-            entity,
-            *stance,
-            transform.translation,
-            handle.id(),
-            already_deferred,
-        );
-    }
-    for (entity, stance, transform, handle, already_deferred) in q_retry.iter() {
-        if *stance != Stance::Standing || changed_entities.contains(&entity) {
+    for (entity, stance, mut transform, handle, already_deferred, was_crouched) in &mut q {
+        if *stance == Stance::Crouching && was_crouched {
+            continue;
+        }
+        let retry_standing = *stance == Stance::Standing && was_crouched;
+        if !stance.is_changed() && !retry_standing {
             continue;
         }
         apply_capsule_for_stance(
@@ -353,9 +373,10 @@ fn capsule_reshape_system(
             &params_assets,
             entity,
             *stance,
-            transform.translation,
+            &mut transform,
             handle.id(),
             already_deferred,
+            was_crouched,
         );
     }
 }
@@ -366,15 +387,19 @@ fn apply_capsule_for_stance(
     params_assets: &Assets<AlsMovementParams>,
     entity: Entity,
     stance: Stance,
-    center: Vec3,
+    transform: &mut Transform,
     params_handle: AssetId<AlsMovementParams>,
     already_deferred: bool,
+    was_crouched: bool,
 ) {
     let Some(params) = params_assets.get(params_handle) else {
         return;
     };
+    let center = transform.translation;
+    let crouch_adjust = crouch_base_adjustment(params);
     match stance {
         Stance::Crouching => {
+            transform.translation.y -= crouch_adjust;
             commands
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
@@ -406,6 +431,9 @@ fn apply_capsule_for_stance(
                 return;
             }
             let was_deferred = already_deferred;
+            if was_crouched {
+                transform.translation.y += crouch_adjust;
+            }
             commands
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
@@ -416,6 +444,10 @@ fn apply_capsule_for_stance(
             }
         }
     }
+}
+
+fn step_obstacle_is_blocking(normal: Vec3) -> bool {
+    normal.normalize_or_zero().y < deg_to_rad(MAX_SLOPE_DEGREES).cos()
 }
 
 fn step_up_assist_system(
@@ -439,17 +471,8 @@ fn step_up_assist_system(
     >,
 ) {
     let dt = time.delta_secs();
-    for (
-        entity,
-        mut transform,
-        vel,
-        loco,
-        cooldown,
-        handle,
-        capsule_crouched,
-        override_cmd,
-        cmd,
-    ) in &mut q
+    for (entity, mut transform, vel, loco, cooldown, handle, capsule_crouched, override_cmd, cmd) in
+        &mut q
     {
         if cooldown.is_none() {
             commands.entity(entity).insert(StepAssistCooldown(0.0));
@@ -497,6 +520,18 @@ fn step_up_assist_system(
         let next_ground_y = probe_origin.y - probe_hit.distance;
         let dh = next_ground_y - cur_ground_y;
         if dh <= 0.03 || dh > MAX_STEP_HEIGHT {
+            continue;
+        }
+        let Ok(step_dir) = Dir3::new(world_dir) else {
+            continue;
+        };
+        let obstacle_origin = Vec3::new(center.x, cur_ground_y + dh * 0.5, center.z);
+        let Some(obstacle_hit) =
+            spatial_query.cast_ray(obstacle_origin, step_dir, radius + 0.15, false, &filter)
+        else {
+            continue;
+        };
+        if !step_obstacle_is_blocking(obstacle_hit.normal) {
             continue;
         }
         let dest_center_y = next_ground_y + half;
@@ -561,11 +596,26 @@ mod tests {
 
     #[test]
     fn crouching_stance_forces_effective_walking_gait() {
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Walking), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Running), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Crouching, Gait::Sprinting), Gait::Walking);
-        assert_eq!(effective_gait(Stance::Standing, Gait::Running), Gait::Running);
-        assert_eq!(effective_gait(Stance::Standing, Gait::Sprinting), Gait::Sprinting);
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Walking),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Running),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Crouching, Gait::Sprinting),
+            Gait::Walking
+        );
+        assert_eq!(
+            effective_gait(Stance::Standing, Gait::Running),
+            Gait::Running
+        );
+        assert_eq!(
+            effective_gait(Stance::Standing, Gait::Sprinting),
+            Gait::Sprinting
+        );
     }
 
     #[test]

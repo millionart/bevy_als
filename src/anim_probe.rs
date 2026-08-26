@@ -7,10 +7,10 @@ use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::animation_graph_player::{
-    AnimationGraphPlayer, AnimationSource,
-};
+use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::edge_data::DataValue;
+
+use crate::character_assembly::AlsCharacterAvatar;
 
 #[derive(Resource, Clone, Copy)]
 pub struct AnimProbeConfig {
@@ -51,11 +51,7 @@ pub fn yaw_deg(v: Vec3) -> f32 {
 
 pub fn angle_err(a: f32, b: f32) -> f32 {
     let d = (a - b).abs() % 360.0;
-    if d > 180.0 {
-        360.0 - d
-    } else {
-        d
-    }
+    if d > 180.0 { 360.0 - d } else { d }
 }
 
 type ProbeCharacters = (
@@ -89,13 +85,12 @@ fn anim_probe_logger(
     config: Res<AnimProbeConfig>,
     mut state: ResMut<AnimProbeState>,
     characters: Query<ProbeCharacters, With<AlsCharacter>>,
-    avatars: Query<ProbeAvatars>,
+    avatars: Query<ProbeAvatars, With<AlsCharacterAvatar>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     players: Query<&AnimationGraphPlayer>,
 ) {
     let t = time.elapsed_secs();
-    let Ok((entity, tf, vel, stance, gait, loco, rot, view_yaw, params_h)) =
-        characters.single()
+    let Ok((entity, tf, vel, stance, gait, loco, rot, view_yaw, params_h)) = characters.single()
     else {
         return;
     };

@@ -1,35 +1,28 @@
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
-use bevy::asset::{AssetEvent, Assets};
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::core::skeleton::Skeleton;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{spawn_als_actions, AlsInputCommand, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::overlay_blend::OverlayBlendState;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_core::view::{AlsViewPitch, AlsViewSmoothed};
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_core::transition::AlsStateRequest;
+use als_core::view::AlsViewSmoothed;
+use als_ext::{PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
 
-use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
-use bevy_als::overlay_layer::OverlayLayerPlugin;
-use bevy_als::view_layer::ViewLayerPlugin;
+use bevy_als::motion_graph_link::compute_motion_graph_inputs;
+use bevy_als::playable_character::{
+    AlsCharacterAvatar, AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 
 const SNAPSHOT_INTERVAL: f32 = 0.25;
-const MOVE_SPEED_EPSILON: f32 = 0.15;
 const PITCH_SCALE: f32 = 0.0022;
 
 const PHASE_DURATIONS: [f64; 6] = [1.5, 3.5, 4.0, 4.0, 2.0, 3.0];
@@ -43,29 +36,14 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        als_core::aim::AlsAimPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
+        AlsPlayableCharacterPlugin,
         AlsStateHudPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
-    ));
-    app.add_plugins((
-        OverlayLayerPlugin,
-        ViewLayerPlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground.ron".into(),
         },
     ));
     app.init_resource::<SpawnOnce>();
     app.init_resource::<DemoDriver>();
-    app.init_resource::<SkeletonReady>();
     app.insert_resource(GlobalAmbientLight {
         brightness: 400.0,
         ..default()
@@ -76,11 +54,7 @@ fn main() {
             spawn_character_once,
             playground_physics_bridge,
             auto_demo,
-            overlay_mirror,
-            pitch_integrator,
-            mask_pin_writer,
             aim_event_logger,
-            graph_input_router_system,
             camera_follow,
             fall_guard,
             snapshot_logger,
@@ -107,12 +81,6 @@ struct SpawnOnce(bool);
 struct DemoDriver {
     phase: usize,
     done: bool,
-}
-
-#[derive(Resource, Default)]
-struct SkeletonReady {
-    handle: Option<Handle<Skeleton>>,
-    sent: bool,
 }
 
 #[derive(Resource)]
@@ -162,32 +130,21 @@ fn spawn_character_once(
         point.position.x, point.position.y, point.position.z
     );
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
-    let spawn_fwd = bundle.transform.forward();
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
-
-    let character = commands
-        .spawn(bundle)
-        .insert(AlsViewYaw(f32::atan2(spawn_fwd.x, -spawn_fwd.z)))
-        .id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = commands
-        .spawn((
-            AnimatedSceneHandle::new(
-                assets.load("animated_scenes/motion_overlay.animscn.ron"),
-            ),
-            OverlayState::Default,
-            AlsViewPitch(0.0),
-        ))
-        .id();
-    commands.entity(character).add_child(avatar);
+    let character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_translation(point.position).with_rotation(point.rotation),
+        ),
+    );
 
     if scripted {
-        commands.entity(character).insert(AlsInputOverride::default());
+        commands
+            .entity(character)
+            .insert(AlsInputOverride::default());
         info!("[M6GATE] scripted demo armed");
     }
 
@@ -220,14 +177,7 @@ fn playground_physics_bridge(
 fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
-    mut q: Query<
-        (
-            &Transform,
-            &mut AlsInputOverride,
-            &mut AlsStateRequest,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&Transform, &mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -324,113 +274,12 @@ fn quadrant_label(yaw_deg: f32) -> &'static str {
     NAMES[(wrapped as usize) % 4]
 }
 
-fn overlay_mirror(
-    characters: Query<&OverlayState, (With<AlsCharacter>, Changed<OverlayState>)>,
-    mut avatars: Query<&mut OverlayState, Without<AlsCharacter>>,
-) {
-    let Some(char_overlay) = characters.iter().next() else {
-        return;
-    };
-    for mut av in avatars.iter_mut() {
-        if *av != *char_overlay {
-            *av = *char_overlay;
-        }
-    }
-}
-
-fn pitch_integrator(
-    characters: Query<(&AlsInputCommand, Option<&AlsInputOverride>), With<AlsCharacter>>,
-    children_q: Query<&Children, With<AlsCharacter>>,
-    mut avatar_pitch: Query<&mut AlsViewPitch, Without<AlsCharacter>>,
-    time: Res<Time>,
-) {
-    let dt = time.delta_secs();
-    let Ok((cmd, ovr)) = characters.single() else {
-        return;
-    };
-    let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let dy = -effective.look_delta.y * PITCH_SCALE;
-    let Ok(children) = children_q.single() else {
-        return;
-    };
-    for child in children.iter() {
-        if let Ok(mut pitch) = avatar_pitch.get_mut(child) {
-            pitch.0 = (pitch.0 + dy).clamp(
-                -85.0f32.to_radians(),
-                85.0f32.to_radians(),
-            );
-        }
-    }
-}
-
-fn track_skeleton(
-    assets: Res<AssetServer>,
-    skeletons: Res<Assets<Skeleton>>,
-    mut ev: MessageReader<AssetEvent<Skeleton>>,
-    mut ready: ResMut<SkeletonReady>,
-) {
-    if ready.handle.is_none() {
-        ready.handle = Some(assets.load("skeletons/SKM_Als.skn.ron"));
-    }
-    let Some(handle) = ready.handle.clone() else {
-        return;
-    };
-    for e in ev.read() {
-        if let AssetEvent::LoadedWithDependencies { id } = e {
-            if *id == handle.id() && skeletons.contains(&handle) && !ready.sent {
-                info!("[M6GATE] skeleton loaded; masks armed");
-                ready.sent = true;
-            }
-        }
-    }
-}
-
-fn mask_pin_writer(
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-) {
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            player.set_input_data("diff_factor", DataValue::from(1.0_f32));
-        }
-    }
-}
-
 fn aim_event_logger(mut ev: MessageReader<als_core::aim::AimStateChanged>) {
     for event in ev.read() {
         info!(
             "[M6GATE][AIM] entity={:?} aiming={} (broadcast to camera hook)",
             event.entity, event.aiming
         );
-    }
-}
-
-fn graph_input_router_system(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-        }
     }
 }
 
@@ -448,16 +297,13 @@ fn snapshot_logger(
             &RotationMode,
             &AlsViewYaw,
             &OverlayState,
+            Option<&AlsViewSmoothed>,
             &als_core::character::AlsMovementParamsHandle,
         ),
         With<AlsCharacter>,
     >,
-    q_avatar: Query<(
-        &OverlayState,
-        &AlsViewSmoothed,
-        Option<&als_core::overlay_blend::OverlayBlendState>,
-    ), Without<AlsCharacter>>,
-    instances: Query<&AnimatedSceneInstance>,
+    q_avatar: Query<Option<&OverlayBlendState>, With<AlsCharacterAvatar>>,
+    instances: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
     mut exit: MessageWriter<AppExit>,
@@ -467,7 +313,8 @@ fn snapshot_logger(
         return;
     }
     *last = t as f32;
-    let Ok((tf, vel, loco, stance, gait, rot, view, char_ov, handle)) = q_char.single() else {
+    let Ok((tf, vel, loco, stance, gait, rot, view, char_ov, smoothed, handle)) = q_char.single()
+    else {
         return;
     };
     let Some(p) = params.get(handle.id()) else {
@@ -479,16 +326,16 @@ fn snapshot_logger(
     let body_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
     let view_deg = view.0.to_degrees();
 
-    let (av_ov, smooth_pitch, blend_w) = q_avatar
+    let blend_w = q_avatar
         .single()
-        .map(|(ov, s, b)| {
-            (
-                *ov,
-                s.0.to_degrees(),
-                b.map(|b| b.last_weight).unwrap_or(0.0),
-            )
-        })
-        .unwrap_or((*char_ov, f32::NAN, 0.0));
+        .ok()
+        .flatten()
+        .map(|blend| blend.last_weight)
+        .unwrap_or(0.0);
+    let av_ov = *char_ov;
+    let smooth_pitch = smoothed
+        .map(|value| value.0.to_degrees())
+        .unwrap_or(f32::NAN);
 
     let mut elapsed_s = "-".to_string();
     for instance in instances.iter() {

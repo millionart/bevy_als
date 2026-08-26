@@ -3,21 +3,16 @@ use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
-use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
+use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::params::AlsMovementParams;
 use als_ext::{
     PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint, PlaygroundStatic,
     PlaygroundTextLabel,
+};
+
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
 };
 
 fn main() {
@@ -27,17 +22,10 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
+        AlsPlayableCharacterPlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground_parity.ron".into(),
         },
-        AnimationGraphPlugin::default(),
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<ParityWatch>()
@@ -48,12 +36,7 @@ fn main() {
     .add_systems(Startup, spawn_camera)
     .add_systems(
         Update,
-        (
-            spawn_character_once,
-            parity_watcher,
-            fall_guard,
-            auto_quit,
-        ),
+        (spawn_character_once, parity_watcher, fall_guard, auto_quit),
     );
 
     let secs: f64 = std::env::var("ALS_BOOT_AUTO_QUIT_SECS")
@@ -94,8 +77,7 @@ fn spawn_camera(mut commands: Commands) {
             illuminance: 80_000.0,
             ..default()
         },
-        Transform::from_xyz(10.0, 30.0, -8.0)
-            .looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(10.0, 30.0, -8.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.insert_resource(GlobalAmbientLight {
         brightness: 400.0,
@@ -117,15 +99,15 @@ fn spawn_character_once(
     once.0 = true;
     let point = *spawn_point.unwrap();
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform =
-        Transform::from_translation(point.position).with_rotation(point.rotation);
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(&mut commands, &assets, character, "animated_scenes/motion_overlay.animscn.ron");
+    let _character = spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(
+            Transform::from_translation(point.position).with_rotation(point.rotation),
+        ),
+    );
     info!("[PGPARITY] character at {:?}", point.position);
 }
 
@@ -140,7 +122,12 @@ fn parity_watcher(
 ) {
     watch.static_count = statics.iter().count() as u32;
     watch.text_count = texts.iter().count() as u32;
-    if !watch.verdict_done && !watch.failed && time.elapsed_secs_f64() >= 3.0 && watch.text_count == 0 && !watch.landscape_seen {
+    if !watch.verdict_done
+        && !watch.failed
+        && time.elapsed_secs_f64() >= 3.0
+        && watch.text_count == 0
+        && !watch.landscape_seen
+    {
         // one-time diagnostic
     }
     if time.elapsed_secs_f64() >= 3.0 && watch.text_count > 0 && !watch.verdict_done {
@@ -167,7 +154,8 @@ fn parity_watcher(
         watch.verdict_done = true;
 
         let ok_landscape = watch.landscape_seen;
-        let ok_text = true;        let ok_static = watch.static_count >= 140;
+        let ok_text = true;
+        let ok_static = watch.static_count >= 140;
         let ok_moving_count = watch.moving_count >= 2;
         let ok_moving_motion = watch.moving_moved;
 
@@ -177,7 +165,11 @@ fn parity_watcher(
             watch.static_count,
             watch.moving_count,
             watch.moving_moved,
-            if ok_landscape && ok_text && ok_static && ok_moving_count && ok_moving_motion { "PASS" } else { "FAIL" }
+            if ok_landscape && ok_text && ok_static && ok_moving_count && ok_moving_motion {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
         if !(ok_landscape && ok_text && ok_static && ok_moving_count && ok_moving_motion) {
             watch.failed = true;
@@ -192,7 +184,10 @@ fn parity_watcher(
     }
 }
 
-fn fall_guard(q: Query<&Transform, With<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>>, mut exit: MessageWriter<AppExit>) {
+fn fall_guard(
+    q: Query<&Transform, With<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>>,
+    mut exit: MessageWriter<AppExit>,
+) {
     for tf in q.iter() {
         if tf.translation.y < -50.0 {
             error!("[PGPARITY] fell below floor");

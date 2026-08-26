@@ -1,17 +1,19 @@
+use als_core::foot_ik::{AlsFootPinHold, extend_foot_pin_hold};
 use als_core::motion::AlsViewYaw;
-use als_core::rotate_in_place::{
-    update_rotate_in_place, RotateInPlaceConfig, RotateInPlaceState,
-};
+use als_core::rotate_in_place::{RotateInPlaceConfig, RotateInPlaceState, update_rotate_in_place};
 use als_core::state::{LocomotionState, Stance};
 use als_core::turn_in_place::{
-    wrap_angle_degrees, TurnInPlaceConfig, TurnInPlaceDetector, TurnVariant,
+    TurnInPlaceConfig, TurnInPlaceDetector, TurnVariant, wrap_angle_degrees,
 };
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
+use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+
+use crate::character_assembly::AlsCharacterAvatar;
 
 pub const TURN_GROUND_SPEED_EPS: f32 = 0.05;
 pub const TURN_YAW_ENV_DECAY: f32 = 250.0;
@@ -33,6 +35,7 @@ pub struct AlsTurnDrive {
     pub rotate_active: bool,
     pub rotate_lr: f32,
     pub rotate_rate: f32,
+    pub rotate_state: RotateInPlaceState,
 }
 
 impl Default for AlsTurnDrive {
@@ -49,6 +52,7 @@ impl Default for AlsTurnDrive {
             rotate_active: false,
             rotate_lr: 0.0,
             rotate_rate: 0.0,
+            rotate_state: RotateInPlaceState::default(),
         }
     }
 }
@@ -84,11 +88,36 @@ fn variant_params(variant: TurnVariant) -> (f32, bool, f32) {
 #[derive(Component, Default)]
 struct TurnDetectorComp(TurnInPlaceDetector);
 
+#[derive(Component, Default)]
+struct TurnYawSampler {
+    yaw_env: f32,
+    prev_view: Option<(f64, f32)>,
+}
+
 pub struct TurnLayerPlugin;
 
 impl Plugin for TurnLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, turn_pin_driver);
+        app.add_systems(
+            Update,
+            (ensure_turn_drive, turn_pin_driver.after(ensure_turn_drive)),
+        );
+    }
+}
+
+fn ensure_turn_drive(
+    mut commands: Commands,
+    avatars: Query<
+        Entity,
+        (
+            With<AlsCharacterAvatar>,
+            With<AnimatedSceneHandle>,
+            Without<AlsTurnDrive>,
+        ),
+    >,
+) {
+    for avatar in &avatars {
+        commands.entity(avatar).insert(AlsTurnDrive::default());
     }
 }
 
@@ -113,23 +142,33 @@ fn turn_pin_driver(
     mut q: Query<
         (
             Entity,
-            &ChildOf,
             &Transform,
             &AlsViewYaw,
             &LinearVelocity,
             &LocomotionState,
             &Stance,
             Option<&mut TurnDetectorComp>,
+            Option<&mut TurnYawSampler>,
+            Option<&mut AlsFootPinHold>,
         ),
         With<als_core::character::AlsCharacter>,
     >,
-    mut drives: Query<(Entity, &'static ChildOf, Option<&'static mut AlsTurnDrive>)>,
+    mut drives: Query<
+        (Entity, &'static ChildOf, &'static mut AlsTurnDrive),
+        With<AlsCharacterAvatar>,
+    >,
     instances: Query<&'static AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let Ok((char_entity, _child_of, body_tf, view, vel, loco, stance, mut detector)) =
+    let Ok((char_entity, body_tf, view, vel, loco, stance, detector, sampler, hold)) =
         q.single_mut()
     else {
+        return;
+    };
+    let (Some(mut detector), Some(mut sampler)) = (detector, sampler) else {
+        commands
+            .entity(char_entity)
+            .insert((TurnDetectorComp::default(), TurnYawSampler::default()));
         return;
     };
     let now = time.elapsed_secs_f64();
@@ -141,106 +180,90 @@ fn turn_pin_driver(
     let rel = wrap_angle_degrees(view_deg - body_deg);
     let allowed = *loco == LocomotionState::Grounded && hspeed < TURN_GROUND_SPEED_EPS;
 
-    let detector = match detector {
-        Some(ref mut d) => &mut d.0,
-        None => {
-            commands.entity(char_entity).insert(TurnDetectorComp::default());
-            return;
-        }
-    };
-
-    let mut sample = TurnYawSampler::default();
-    let yaw_env = sample.update(view_deg, now, dt);
+    let yaw_env = sampler.update(view_deg, now, dt);
     let _ = yaw_env;
 
     let crouching = *stance == Stance::Crouching;
     if crouching {
-        // ALS: crouched turns use RotateInPlace - continuous clip driven by
-        // yaw speed mapped to play rate, no discrete variant selection.
-        *detector = TurnInPlaceDetector::default();
-        for (_e, parent, mut d) in drives.iter_mut() {
+        detector.0 = TurnInPlaceDetector::default();
+        for (_drive_entity, parent, mut drive) in drives.iter_mut() {
             if parent.parent() != char_entity {
                 continue;
             }
-            if let Some(ref mut drive) = d {
-                drive.playing = false;
-                let mut rs = RotateInPlaceState::default();
-                update_rotate_in_place(
-                    &mut rs,
-                    hspeed >= TURN_GROUND_SPEED_EPS,
-                    allowed,
-                    rel,
-                    sample.yaw_env,
-                    &RotateInPlaceConfig::default(),
-                    dt,
-                );
-                match rs.side {
-                    Some(side) => {
-                        drive.rotate_active = true;
-                        drive.rotate_lr = if side == als_core::rotate_in_place::RotateSide::Left {
-                            0.0
-                        } else {
-                            1.0
-                        };
-                        drive.rotate_rate = rs.play_rate;
-                        drive.weight = (drive.weight + TURN_WEIGHT_IN * dt).min(1.0);
-                    }
-                    None => {
-                        drive.rotate_active = false;
-                        drive.rotate_rate = 0.0;
-                        drive.weight = (drive.weight - TURN_WEIGHT_OUT * dt).max(0.0);
-                    }
+            drive.playing = false;
+            update_rotate_in_place(
+                &mut drive.rotate_state,
+                hspeed >= TURN_GROUND_SPEED_EPS,
+                allowed,
+                rel,
+                sampler.yaw_env,
+                &RotateInPlaceConfig::default(),
+                dt,
+            );
+            match drive.rotate_state.side {
+                Some(side) => {
+                    drive.rotate_active = true;
+                    drive.rotate_lr = if side == als_core::rotate_in_place::RotateSide::Left {
+                        0.0
+                    } else {
+                        1.0
+                    };
+                    drive.rotate_rate = drive.rotate_state.play_rate;
+                    drive.weight = (drive.weight + TURN_WEIGHT_IN * dt).min(1.0);
+                }
+                None => {
+                    drive.rotate_active = false;
+                    drive.rotate_rate = 0.0;
+                    drive.weight = (drive.weight - TURN_WEIGHT_OUT * dt).max(0.0);
                 }
             }
         }
-    } else if let Some(ev) = detector.update(
+    } else if let Some(ev) = detector.0.update(
         rel,
-        sample.yaw_env,
+        sampler.yaw_env,
         dt,
         allowed,
         false,
         &TurnInPlaceConfig::default(),
     ) {
+        match hold {
+            Some(mut hold) => extend_foot_pin_hold(&mut hold, now),
+            None => {
+                commands.entity(char_entity).insert(AlsFootPinHold {
+                    until_secs: now + als_core::foot_ik::TURN_PIN_HOLD_SECS,
+                });
+            }
+        }
         let (lr, is_180, duration) = variant_params(ev.variant);
-        for (_e, parent, mut d) in drives.iter_mut() {
+        for (_drive_entity, parent, mut drive) in drives.iter_mut() {
             if parent.parent() != char_entity {
                 continue;
             }
-            if let Some(ref mut drive) = d {
-                drive.rotate_active = false;
-                drive.playing = true;
-                drive.elapsed = 0.0;
-                drive.clip_time = 0.0;
-                drive.duration = duration / ev.play_rate.max(0.01) * ev.play_rate;
-                drive.play_rate = ev.play_rate;
-                drive.lr = lr;
-                drive.is_180 = is_180;
-                drive.weight = drive.weight.max(0.01);
-            }
+            drive.rotate_active = false;
+            drive.playing = true;
+            drive.elapsed = 0.0;
+            drive.clip_time = 0.0;
+            drive.duration = duration / ev.play_rate.max(0.01) * ev.play_rate;
+            drive.play_rate = ev.play_rate;
+            drive.lr = lr;
+            drive.is_180 = is_180;
+            drive.weight = drive.weight.max(0.01);
         }
     }
 
-    for (_e, parent, mut d) in drives.iter_mut() {
+    for (drive_entity, parent, mut drive) in drives.iter_mut() {
         if parent.parent() != char_entity {
             continue;
         }
-        if let Some(ref mut drive) = d {
-            drive.advance(dt);
-            let pin_target = instances
-                .get(parent.parent())
-                .ok()
-                .and_then(|i| players.get_mut(i.player_entity()).ok());
-            if let Some(mut player) = pin_target {
-                write_turn_pins(&mut player, &drive);
-            }
+        drive.advance(dt);
+        let pin_target = instances
+            .get(drive_entity)
+            .ok()
+            .and_then(|instance| players.get_mut(instance.player_entity()).ok());
+        if let Some(mut player) = pin_target {
+            write_turn_pins(&mut player, &drive);
         }
     }
-}
-
-#[derive(Default)]
-struct TurnYawSampler {
-    yaw_env: f32,
-    prev_view: Option<(f64, f32)>,
 }
 
 impl TurnYawSampler {

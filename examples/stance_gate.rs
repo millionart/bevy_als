@@ -2,34 +2,26 @@ use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot};
-use bevy_animation_graph::AnimationGraphPlugin;
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::pose::Pose;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{spawn_als_actions, AlsInputMap, AlsInputPlugin};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
+use als_core::character::AlsCharacter;
+use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::AlsExtPlugin;
+use als_core::state::{RotationMode, Stance};
+use als_core::transition::AlsStateRequest;
 
-use bevy_als::anim_probe::AnimProbePlugin;
-use bevy_als::character_assembly::AvatarGroundCompensationPlugin;
-use bevy_als::direction_layer::DirectionLayerPlugin;
-use bevy_als::motion_graph_link::{
-    compute_motion_graph_inputs, write_motion_graph_pins,
-};
-use bevy_als::stance_layer::{AlsStanceBlend, StanceLayerPlugin};
 use als_core::motion::AlsViewYaw;
-use als_core::movement_direction::{AlsMovementDirectionState, AlsMovementDirection};
+use als_core::movement_direction::AlsMovementDirectionState;
+use bevy_als::playable_character::{
+    AVATAR_MESH_ROOT_WORLD_Y, AlsCharacterAvatar, AlsCharacterBlueprint,
+    AlsPlayableCharacterPlugin, spawn_als_character,
+};
+use bevy_als::stance_layer::AlsStanceBlend;
 
 const CROUCH_AT_SECS: f64 = 1.5;
 const STRAFE_AT_SECS: f64 = 9.6;
@@ -47,22 +39,8 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
-        StanceLayerPlugin,
-        DirectionLayerPlugin,
-        AnimProbePlugin,
-        AvatarGroundCompensationPlugin,
+        AlsPlayableCharacterPlugin,
     ))
-    .add_plugins(bevy_als::gait_layer::GaitLayerPlugin)
     .init_resource::<SpawnOnce>()
     .init_resource::<GateVerdict>()
     .init_resource::<ShotPlan>()
@@ -77,7 +55,6 @@ fn main() {
             scripted_driver,
             direction_probe_driver,
             direction_probe_comparator,
-            motion_pin_router,
             camera_follow,
             metrics_logger,
             screenshot_runner,
@@ -86,7 +63,9 @@ fn main() {
     );
 
     info!("[AP1GATE] stance gate armed, total {TOTAL_SECS}s");
-    app.insert_resource(AutoQuit(Instant::now() + Duration::from_secs_f64(TOTAL_SECS)));
+    app.insert_resource(AutoQuit(
+        Instant::now() + Duration::from_secs_f64(TOTAL_SECS),
+    ));
     app.run();
 }
 
@@ -140,21 +119,16 @@ fn spawn_character_once(
         MeshMaterial3d(ground_mat),
     ));
 
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_xyz(0.0, 0.95, 0.0);
-
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-    commands.entity(character).insert(AlsStateRequest::default());
-    bevy_als::character_assembly::attach_avatar(
+    let character = spawn_als_character(
         &mut commands,
         &assets,
-        character,
-        "animated_scenes/motion_overlay.animscn.ron",
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 0.95, 0.0)),
     );
-    commands.entity(character).insert(AlsInputOverride::default());
+    commands
+        .entity(character)
+        .insert(AlsInputOverride::default());
 
     commands.spawn((
         Camera3d::default(),
@@ -186,7 +160,7 @@ struct ProbeDirectionA;
 struct ProbeDirectionB;
 
 fn direction_probe_driver(
-    mut q: Query<
+    q: Query<
         (
             Entity,
             &AnimatedSceneInstance,
@@ -224,7 +198,8 @@ fn pose_delta(a: &Pose, b: &Pose) -> (f32, usize) {
     let mut n = 0usize;
     for (bone_id, idx_a) in &a.paths {
         if let Some(idx_b) = b.paths.get(bone_id) {
-            if let (Some(ta), Some(tb)) = (&a.bones[*idx_a].translation, &b.bones[*idx_b].translation)
+            if let (Some(ta), Some(tb)) =
+                (&a.bones[*idx_a].translation, &b.bones[*idx_b].translation)
             {
                 let d = ta.distance(*tb);
                 if d > max_d {
@@ -286,14 +261,7 @@ fn direction_probe_comparator(
 fn scripted_driver(
     time: Res<Time>,
     mut latches: Local<(bool, bool, bool, bool, bool)>,
-    mut q: Query<
-        (
-            &mut AlsStateRequest,
-            &mut AlsInputOverride,
-            &Stance,
-        ),
-        With<AlsCharacter>,
-    >,
+    mut q: Query<(&mut AlsStateRequest, &mut AlsInputOverride, &Stance), With<AlsCharacter>>,
 ) {
     let t = time.elapsed_secs_f64();
     let Ok((mut request, mut ovr, _stance)) = q.single_mut() else {
@@ -338,28 +306,6 @@ fn scripted_driver(
     };
 }
 
-fn motion_pin_router(
-    characters: Query<(&Stance, &Gait, &LinearVelocity), With<AlsCharacter>>,
-    avatars: Query<(&ChildOf, Option<&AlsStanceBlend>, &AnimatedSceneInstance)>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-) {
-    for (parent, blend, instance) in &avatars {
-        let Ok((stance, gait, vel)) = characters.get(parent.parent()) else {
-            continue;
-        };
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
-            continue;
-        };
-        let inputs = compute_motion_graph_inputs(
-            &AlsMovementParams::default(),
-            *stance,
-            *gait,
-            Vec2::new(vel.x, vel.z).length(),
-        );
-        write_motion_graph_pins(&mut player, &inputs);
-    }
-}
-
 fn camera_follow(
     mut cameras: Query<&mut Transform, (With<Camera3d>, Without<AlsCharacter>)>,
     characters: Query<&Transform, (With<AlsCharacter>, Without<Camera3d>)>,
@@ -377,22 +323,14 @@ fn metrics_logger(
     time: Res<Time>,
     mut last_log: Local<f64>,
     mut verdict: ResMut<GateVerdict>,
-    characters: Query<
-        (
-            &Stance,
-            &LinearVelocity,
-            &Transform,
-            &AlsViewYaw,
-        ),
-        With<AlsCharacter>,
-    >,
+    characters: Query<(&Stance, &LinearVelocity, &Transform, &AlsViewYaw), With<AlsCharacter>>,
     avatars: Query<
         (
             &AlsStanceBlend,
             Option<&AlsMovementDirectionState>,
             &GlobalTransform,
         ),
-        Without<AlsCharacter>,
+        With<AlsCharacterAvatar>,
     >,
 ) {
     let t = time.elapsed_secs_f64();
@@ -431,7 +369,7 @@ fn metrics_logger(
         if weight >= 0.95 {
             verdict.crouch_weight_seen = true;
         }
-        if (mesh_y - bevy_als::character_assembly::AVATAR_MESH_ROOT_WORLD_Y).abs() < 0.05 {
+        if (mesh_y - AVATAR_MESH_ROOT_WORLD_Y).abs() < 0.05 {
             verdict.feet_grounded_crouch = true;
         }
     }

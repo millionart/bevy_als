@@ -1,10 +1,12 @@
 use bevy::prelude::*;
+use bevy::transform::TransformSystems;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use als_camera::{AlsCameraRig, AlsCameraTarget};
 use als_core::character::{AlsCharacter, AlsCharacterBundle};
 use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::input::{spawn_als_actions, AlsInputMap};
+use als_core::input::{AlsInputMap, spawn_als_actions};
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
 use als_core::state::LocomotionState;
@@ -13,6 +15,10 @@ use als_core::view::AlsViewPitch;
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
+pub const ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_ragdoll.animscn.ron";
+
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct AlsCharacterAvatar;
 
 pub fn avatar_transform() -> Transform {
     Transform::from_xyz(0.0, AVATAR_CAPSULE_BOTTOM_OFFSET, 0.0)
@@ -23,14 +29,19 @@ pub struct AvatarGroundCompensationPlugin;
 
 impl Plugin for AvatarGroundCompensationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, avatar_ground_compensation_system);
+        app.add_systems(
+            PostUpdate,
+            avatar_ground_compensation_system
+                .before(AnimationGraphSet::Final)
+                .before(TransformSystems::Propagate),
+        );
     }
 }
 
 type CompensatedAvatar = (Entity, &'static ChildOf, &'static mut Transform);
 
 fn avatar_ground_compensation_system(
-    mut avatars: Query<CompensatedAvatar, (With<AnimatedSceneHandle>, Without<AlsCharacter>)>,
+    mut avatars: Query<CompensatedAvatar, (With<AlsCharacterAvatar>, Without<AlsCharacter>)>,
     characters: Query<(&Transform, &LocomotionState), With<AlsCharacter>>,
 ) {
     for (_entity, child_of, mut transform) in avatars.iter_mut() {
@@ -45,7 +56,7 @@ fn avatar_ground_compensation_system(
     }
 }
 
-pub fn attach_avatar(
+fn attach_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
@@ -55,25 +66,24 @@ pub fn attach_avatar(
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             avatar_transform(),
+            AlsCharacterAvatar,
         ))
         .id();
     commands.entity(character).add_child(avatar);
     avatar
 }
 
-pub struct AlsCharacterBlueprint<'a> {
+pub struct AlsCharacterBlueprint {
     pub transform: Transform,
-    pub animscn: &'a str,
     pub input_map: AlsInputMap,
     pub spawn_input: bool,
     pub spawn_camera: bool,
 }
 
-impl<'a> AlsCharacterBlueprint<'a> {
-    pub fn new(transform: Transform, animscn: &'a str) -> Self {
+impl AlsCharacterBlueprint {
+    pub fn new(transform: Transform) -> Self {
         Self {
             transform,
-            animscn,
             input_map: AlsInputMap::default(),
             spawn_input: true,
             spawn_camera: false,
@@ -86,7 +96,7 @@ pub fn spawn_als_character(
     assets: &AssetServer,
     params_assets: &mut Assets<AlsMovementParams>,
     config_assets: &mut Assets<AlsControlSchemeConfig>,
-    blueprint: AlsCharacterBlueprint<'_>,
+    blueprint: AlsCharacterBlueprint,
 ) -> Entity {
     let params = params_assets.add(AlsMovementParams::default());
     let tnua_config_handle = config_assets.add(AlsControlSchemeConfig::default());
@@ -104,7 +114,7 @@ pub fn spawn_als_character(
     if blueprint.spawn_input {
         spawn_als_actions(commands, character, &blueprint.input_map);
     }
-    attach_avatar(commands, assets, character, blueprint.animscn);
+    attach_avatar(commands, assets, character, ALS_LINKED_ANIMATED_SCENE);
     if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
         commands.spawn((
@@ -115,4 +125,24 @@ pub fn spawn_als_character(
         ));
     }
     character
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn canonical_scene_uses_linked_graph_composition() {
+        let scene = include_str!("../assets/animated_scenes/als_ragdoll.animscn.ron");
+        let graph = include_str!("../assets/graphs/locomotion_overlay.animgraph.ron");
+        assert!(scene.contains("graphs/locomotion_overlay.animgraph.ron"));
+        assert!(!scene.contains("Monolithic"));
+        assert_eq!(graph.matches("als_ext::LayeredGraphNode").count(), 4);
+        for layer in [
+            "graphs/base_locomotion.animgraph.ron",
+            "graphs/air.animgraph.ron",
+            "graphs/actions.animgraph.ron",
+            "graphs/overlay_view.animgraph.ron",
+        ] {
+            assert!(graph.contains(layer));
+        }
+    }
 }

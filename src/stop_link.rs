@@ -9,6 +9,8 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 
+use crate::character_assembly::AlsCharacterAvatar;
+
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsStopMatch {
     pub active: bool,
@@ -63,7 +65,13 @@ impl Plugin for AlsStopLinkPlugin {
 
 fn ensure_stop_match(
     mut commands: Commands,
-    q: Query<Entity, (With<als_core::character::AlsCharacter>, Without<AlsStopMatch>)>,
+    q: Query<
+        Entity,
+        (
+            With<als_core::character::AlsCharacter>,
+            Without<AlsStopMatch>,
+        ),
+    >,
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsStopMatch::default());
@@ -75,6 +83,7 @@ pub fn stop_link_system(
     time: Res<Time>,
     mut q: Query<
         (
+            Entity,
             &LinearVelocity,
             &LocomotionState,
             &Stance,
@@ -86,11 +95,11 @@ pub fn stop_link_system(
         With<als_core::character::AlsCharacter>,
     >,
     params: Res<Assets<AlsMovementParams>>,
-    instances: Query<&AnimatedSceneInstance>,
+    instances: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((vel, loco, _stance, handle, mut m, cmd, ovr)) = q.single_mut() else {
+    let Ok((character, vel, loco, _stance, handle, mut m, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let Some(p) = params.get(handle.id()) else {
@@ -118,8 +127,7 @@ pub fn stop_link_system(
             && *loco == LocomotionState::Grounded
             && hspeed >= STOP_TRIGGER_MIN_SPEED;
         if released_while_fast {
-            m.total =
-                predict_stop_distance(hspeed, p.acceleration.braking_deceleration).max(0.3);
+            m.total = predict_stop_distance(hspeed, p.acceleration.braking_deceleration).max(0.3);
             m.remaining = m.total;
             m.active = true;
             m.left_weight = 1.0;
@@ -136,7 +144,10 @@ pub fn stop_link_system(
     }
     m.last_input_move = input_move;
 
-    for instance in instances.iter() {
+    for (child_of, instance) in instances.iter() {
+        if child_of.parent() != character {
+            continue;
+        }
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("stop_weight", DataValue::from(m.weight));
             player.set_input_data("stop_right_weight", DataValue::from(m.right_weight));

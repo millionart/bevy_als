@@ -1,14 +1,14 @@
 use als_core::foot_ik::{
-    foot_target_offset, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe,
-    FootSideInput,
+    AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe, FootSideInput,
+    foot_target_offset,
 };
+use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
-use bevy::transform::{systems as transform_systems, TransformSystems};
+use bevy::transform::{TransformSystems, systems as transform_systems};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::systems::apply_animation_to_targets;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
-use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
+use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
 pub struct FootIkApplyPlugin;
 
@@ -84,9 +84,7 @@ fn foot_ik_apply_system(
             if let Ok((_, foot_g, _)) = bone_locals.get(chain.foot) {
                 let ankle_y = foot_g.translation().y;
                 inputs[side] = FootSideInput {
-                    raw_offset: hit
-                        .map(|h| foot_target_offset(ankle_y, &h))
-                        .unwrap_or(0.0),
+                    raw_offset: hit.map(|h| foot_target_offset(ankle_y, &h)).unwrap_or(0.0),
                     pin_request: match side {
                         0 => targets.pin_left,
                         _ => targets.pin_right,
@@ -99,12 +97,13 @@ fn foot_ik_apply_system(
 
         for side in 0..2usize {
             let (offset, _pin_w) = runtime.side(side);
-            if offset.abs() < 1e-4 {
+            let ik_offset = ik_offset_after_pelvis(offset, runtime.pelvis_drop);
+            if ik_offset.abs() < 1e-4 {
                 continue;
             }
             apply_chain_offset(
                 &bones.chain(side),
-                offset,
+                ik_offset,
                 pole,
                 &mut bone_locals,
                 &bone_globals,
@@ -116,11 +115,7 @@ fn foot_ik_apply_system(
 }
 
 fn grounded_target(targets: &AlsFootIkTargets) -> f32 {
-    if targets.grounded {
-        1.0
-    } else {
-        0.0
-    }
+    if targets.grounded { 1.0 } else { 0.0 }
 }
 
 fn apply_chain_offset(
@@ -190,6 +185,30 @@ fn apply_pelvis_drop(
         Err(_) => return,
     };
     if let Ok((mut pelvis_local, _, _)) = bone_locals.get_mut(pelvis_entity) {
-        pelvis_local.translation.y -= drop;
+        pelvis_local.translation.y = pelvis_y_after_drop(pelvis_local.translation.y, drop);
+    }
+}
+
+fn pelvis_y_after_drop(y: f32, drop: f32) -> f32 {
+    y + drop
+}
+
+fn ik_offset_after_pelvis(offset: f32, pelvis_drop: f32) -> f32 {
+    offset - pelvis_drop
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn negative_pelvis_drop_lowers_the_local_pelvis() {
+        assert!((pelvis_y_after_drop(1.0, -0.15) - 0.85).abs() < 1e-6);
+    }
+
+    #[test]
+    fn lowest_foot_offset_is_not_applied_twice_after_pelvis_drop() {
+        assert!(ik_offset_after_pelvis(-0.15, -0.15).abs() < 1e-6);
+        assert!((ik_offset_after_pelvis(-0.05, -0.15) - 0.10).abs() < 1e-6);
     }
 }
