@@ -618,7 +618,7 @@ fn mover_tiles_material(
 }
 
 fn kinematic_probe(
-    time: Res<Time>,
+    time: Res<Time<Fixed>>,
     moving_curve: Res<PlaygroundMovingCurve>,
     mut stats: ResMut<SceneStats>,
     movings: Query<(Entity, &Name, &Transform, &PlaygroundKinematic)>,
