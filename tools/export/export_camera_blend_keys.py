@@ -4,7 +4,9 @@ import json
 import os
 import unreal
 
-ROOT = os.environ.get("BEVY_ALS_ROOT", r"D:/Users/milli/Git/bevy_als")
+ROOT = os.environ.get("BEVY_ALS_ROOT")
+if ROOT is None:
+    raise RuntimeError("BEVY_ALS_ROOT is required")
 OUT_DIR = os.path.join(ROOT, "tmp", "export", "camera_curves")
 os.makedirs(OUT_DIR, exist_ok=True)
 

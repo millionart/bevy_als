@@ -6,14 +6,16 @@ Values here are per-state defaults; runtime values come from gameplay (lean/aim/
 import json
 import subprocess
 import sys
+from pathlib import Path
 
-PROBE = r"D:/Users/milli/Git/bevy_als/tools/mcp_probe.py"
+ROOT = Path(__file__).resolve().parent.parent
+PROBE = ROOT / "tools" / "mcp_probe.py"
 BP_ROOT = "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
 
 
 def call(toolset, tool, args):
     r = subprocess.run(
-        [sys.executable, PROBE, "call", toolset, tool, json.dumps(args)],
+        [sys.executable, str(PROBE), "call", toolset, tool, json.dumps(args)],
         capture_output=True, text=True, timeout=300,
     )
     out = r.stdout.strip()
@@ -67,7 +69,7 @@ def main() -> None:
             detail[name] = res
             merged.update(res["curves"])
 
-    with open(r"D:/Users/milli/Git/bevy_als/docs/bf9-camera-curve-names.json", "w", encoding="utf-8") as f:
+    with (ROOT / "docs" / "bf9-camera-curve-names.json").open("w", encoding="utf-8") as f:
         json.dump({"merged_curve_defaults": merged, "per_graph_detail": detail}, f, indent=1)
     print(json.dumps(sorted(merged.keys()), indent=1))
     print("total distinct curves:", len(merged))

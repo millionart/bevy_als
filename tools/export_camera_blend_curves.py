@@ -2,8 +2,10 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
-PROBE = r"D:/Users/milli/Git/bevy_als/tools/mcp_probe.py"
+ROOT = Path(__file__).resolve().parent.parent
+PROBE = ROOT / "tools" / "mcp_probe.py"
 
 SCRIPT = r'''
 import unreal
@@ -41,7 +43,7 @@ print("CURVE_EXPORT_END")
 
 def main() -> None:
     r = subprocess.run(
-        [sys.executable, PROBE, "call",
+        [sys.executable, str(PROBE), "call",
          "editor_toolset.toolsets.programmatic.ProgrammaticToolset",
          "execute_tool_script", json.dumps({"script": SCRIPT})],
         capture_output=True, text=True, timeout=600,
@@ -53,7 +55,7 @@ def main() -> None:
         print("no markers; raw head:", out[:1500])
         return
     payload = json.loads(out[begin + len("CURVE_EXPORT_BEGIN"):end].strip())
-    with open(r"D:/Users/milli/Git/bevy_als/docs/bf9-camera-blend-curves.json", "w", encoding="utf-8") as f:
+    with (ROOT / "docs" / "bf9-camera-blend-curves.json").open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=1)
     for name, data in payload.items():
         if "keys" in data:
