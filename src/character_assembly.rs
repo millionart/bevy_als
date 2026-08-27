@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
-use als_camera::{AlsCameraRig, AlsCameraTarget};
+use als_camera::{AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraTarget};
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{AlsInputMap, spawn_als_actions};
@@ -187,6 +187,7 @@ pub fn spawn_als_character(
         .insert((
             AlsViewYaw(f32::atan2(fwd.x, -fwd.z)),
             AlsViewPitch(0.0),
+            AlsCameraFovOffset::default(),
             AlsCameraTarget,
         ))
         .id();
@@ -213,6 +214,7 @@ pub fn spawn_als_character(
                     Transform::from_translation(eye)
                         .looking_at(blueprint.transform.translation + Vec3::Y, Vec3::Y),
                     AlsCameraRig::default(),
+                    AlsCameraFieldOfView::default(),
                     AlsCharacterCamera { character },
                 ))
                 .id(),

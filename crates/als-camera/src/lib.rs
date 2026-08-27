@@ -1,6 +1,6 @@
 //! ALSCamera equivalent: spring arm with collision shrink, shoulder offsets, tri-mode camera driven by view yaw/pitch.
 
-use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
@@ -20,6 +20,11 @@ pub struct AlsCameraParams {
     pub probe_skin: f32,
     pub aim_blend_speed: f32,
     pub pivot_height: f32,
+    pub trace_radius: f32,
+    pub third_person_field_of_view_deg: f32,
+    pub first_person_field_of_view_deg: f32,
+    pub field_of_view_min_deg: f32,
+    pub field_of_view_max_deg: f32,
 }
 
 #[derive(Default, bevy::reflect::TypePath)]
@@ -98,6 +103,15 @@ pub fn blended_arm_length(blend: f32, p: &AlsCameraParams) -> f32 {
         .lerp(p.aiming_arm_length, blend.clamp(0.0, 1.0))
 }
 
+pub fn field_of_view_degrees(first_person: bool, offset: f32, p: &AlsCameraParams) -> f32 {
+    if first_person {
+        p.first_person_field_of_view_deg
+    } else {
+        (p.third_person_field_of_view_deg + offset)
+            .clamp(p.field_of_view_min_deg, p.field_of_view_max_deg)
+    }
+}
+
 fn move_toward(current: f32, target: f32, max_delta: f32) -> f32 {
     let diff = target - current;
     if diff.abs() <= max_delta {
@@ -113,6 +127,18 @@ pub struct AlsCameraRig {
     pub aim_blend: f32,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsCameraFovOffset(pub f32);
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsCameraFieldOfView(pub f32);
+
+impl Default for AlsCameraFieldOfView {
+    fn default() -> Self {
+        Self(90.0)
+    }
+}
+
 impl Default for AlsCameraRig {
     fn default() -> Self {
         Self {
@@ -125,7 +151,7 @@ impl Default for AlsCameraRig {
 #[derive(Component)]
 pub struct AlsCameraTarget;
 
-pub const CAMERA_CURVE_NAMES: [&str; 10] = [
+pub const CAMERA_CURVE_NAMES: [&str; 11] = [
     "CameraOffsetX",
     "CameraOffsetY",
     "CameraOffsetZ",
@@ -136,6 +162,7 @@ pub const CAMERA_CURVE_NAMES: [&str; 10] = [
     "PivotOffsetZ",
     "RotationLag",
     "TraceOverride",
+    "FovOffset",
 ];
 
 #[derive(Component, Debug, Clone, Copy, Default)]
@@ -165,12 +192,15 @@ impl AlsCameraDebugInfo {
 
 pub struct AlsCameraPlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsCameraSet;
+
 impl Plugin for AlsCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<AlsCameraParams>()
             .register_asset_loader(AlsCameraParamsLoader)
             .add_systems(Update, load_camera_params)
-            .add_systems(Update, camera_rig_system);
+            .add_systems(Update, camera_rig_system.in_set(AlsCameraSet));
     }
 }
 
@@ -201,6 +231,7 @@ fn load_camera_params(
 
 #[allow(clippy::type_complexity)]
 fn camera_rig_system(
+    mut commands: Commands,
     mut q_target: Query<
         (
             Entity,
@@ -208,12 +239,23 @@ fn camera_rig_system(
             &RotationMode,
             &AlsViewYaw,
             Option<&AlsViewSmoothed>,
+            Option<&AlsCameraFovOffset>,
             Has<als_core::input_request::AlsFirstPersonView>,
             Has<als_core::input_request::AlsCameraLeftShoulder>,
         ),
         With<AlsCameraTarget>,
     >,
-    mut q_cam: Query<(Entity, &mut Transform, &mut AlsCameraRig, Option<&mut AlsCameraDebugInfo>), Without<AlsCameraTarget>>,
+    mut q_cam: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut Projection,
+            &mut AlsCameraRig,
+            Option<&mut AlsCameraFieldOfView>,
+            Option<&mut AlsCameraDebugInfo>,
+        ),
+        Without<AlsCameraTarget>,
+    >,
     spatial: SpatialQuery,
     params: Res<Assets<AlsCameraParams>>,
     time: Res<Time>,
@@ -227,13 +269,22 @@ fn camera_rig_system(
         rotation_mode,
         view_yaw,
         view_smoothed,
+        fov_offset,
         first_person,
         left_shoulder,
     )) = q_target.single_mut()
     else {
         return;
     };
-    let Ok((cam_entity, mut cam_tf, mut rig, mut debug_info)) = q_cam.single_mut() else {
+    let Ok((
+        cam_entity,
+        mut cam_tf,
+        mut projection,
+        mut rig,
+        mut field_of_view,
+        mut debug_info,
+    )) = q_cam.single_mut()
+    else {
         return;
     };
 
@@ -248,6 +299,26 @@ fn camera_rig_system(
     };
     rig.mode = new_mode;
     rig.aim_blend = move_toward(rig.aim_blend, target_blend, p.aim_blend_speed * dt);
+    let fov = field_of_view_degrees(
+        first_person,
+        fov_offset.map(|offset| offset.0).unwrap_or(0.0),
+        p,
+    );
+    match projection.as_mut() {
+        Projection::Perspective(perspective) => perspective.fov = fov.to_radians(),
+        _ => {
+            *projection = Projection::Perspective(PerspectiveProjection {
+                fov: fov.to_radians(),
+                ..default()
+            });
+        }
+    }
+    match field_of_view.as_mut() {
+        Some(current) => current.0 = fov,
+        None => {
+            commands.entity(cam_entity).insert(AlsCameraFieldOfView(fov));
+        }
+    }
 
     let char_pos = char_gtf.translation();
     let yaw = view_yaw.0;
@@ -276,13 +347,9 @@ fn camera_rig_system(
     let len = if rig.mode == AlsCameraMode::FirstPersonPlaceholder {
         max_len
     } else if let Ok(dir) = Dir3::new(back_dir) {
-        let hit = spatial.cast_ray(
-            pivot,
-            dir,
-            (max_len + p.probe_skin).max(0.1),
-            true,
-            &filter,
-        );
+        let shape = Collider::sphere(p.trace_radius);
+        let config = ShapeCastConfig::from_max_distance((max_len + p.probe_skin).max(0.1));
+        let hit = spatial.cast_shape(&shape, pivot, Quat::IDENTITY, dir, &config, &filter);
         match hit {
             Some(h) => {
                 trace_blocking_hit = true;
@@ -309,15 +376,54 @@ fn camera_rig_system(
             char_pos + Vec3::Y * p.pivot_height + rot * blended_shoulder(rig.aim_blend, p);
         debug.pivot_lag = None;
         debug.pivot = Some(pivot);
-        debug.field_of_view_deg = 90.0;
+        debug.field_of_view_deg = fov;
         debug.right_shoulder = !left_shoulder;
         debug.trace_start = trace_start;
         debug.trace_end = trace_end;
-        debug.trace_radius = 0.0;
+        debug.trace_radius = p.trace_radius;
         debug.trace_blocking_hit = trace_blocking_hit;
+        if let Some(index) = CAMERA_CURVE_NAMES
+            .iter()
+            .position(|name| *name == "FovOffset")
+        {
+            debug.curve_values[index] = fov_offset.map(|offset| offset.0).unwrap_or(0.0);
+        }
         debug.valid = true;
         if !was_valid {
             info!("[CAM] debug info valid");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn params() -> AlsCameraParams {
+        AlsCameraParams {
+            third_person_shoulder: Vec3::ZERO,
+            third_person_arm_length: 3.4,
+            aiming_shoulder: Vec3::ZERO,
+            aiming_arm_length: 1.6,
+            first_person_eye_height: 1.62,
+            probe_skin: 0.15,
+            aim_blend_speed: 5.0,
+            pivot_height: 0.65,
+            trace_radius: 0.15,
+            third_person_field_of_view_deg: 90.0,
+            first_person_field_of_view_deg: 90.0,
+            field_of_view_min_deg: 5.0,
+            field_of_view_max_deg: 175.0,
+        }
+    }
+
+    #[test]
+    fn fov_offset_applies_only_to_third_person_and_clamps() {
+        let params = params();
+        assert_eq!(field_of_view_degrees(false, 0.0, &params), 90.0);
+        assert_eq!(field_of_view_degrees(false, 12.0, &params), 102.0);
+        assert_eq!(field_of_view_degrees(false, 500.0, &params), 175.0);
+        assert_eq!(field_of_view_degrees(false, -500.0, &params), 5.0);
+        assert_eq!(field_of_view_degrees(true, 12.0, &params), 90.0);
     }
 }
