@@ -116,7 +116,11 @@ impl NodeLike for RootMotionClipNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let Some(clip) = ctx.graph_context.resources.graph_clip_assets.get(&self.clip)
+        let Some(clip) = ctx
+            .graph_context
+            .resources
+            .graph_clip_assets
+            .get(&self.clip)
         else {
             ctx.set_data_fwd(OUT_POSE, DataValue::Pose(Pose::default()));
             return Ok(());
@@ -156,7 +160,11 @@ impl NodeLike for RootMotionClipNode {
         }
 
         if self.root_motion_mode != RootMotionMode::Disabled {
-            let Some(skeleton) = ctx.graph_context.resources.skeleton_assets.get(&clip.skeleton)
+            let Some(skeleton) = ctx
+                .graph_context
+                .resources
+                .skeleton_assets
+                .get(&clip.skeleton)
             else {
                 ctx.set_data_fwd(OUT_POSE, DataValue::Pose(out_pose));
                 return Ok(());
@@ -196,9 +204,7 @@ impl NodeLike for RootMotionClipNode {
                 let mut delta_translation = cur_tr - prev_tr;
                 let mut delta_rotation = prev_rot.inverse() * cur_rot;
 
-                let rest_local = skeleton
-                    .default_transforms(root_bone_id)
-                    .map(|dt| dt.local);
+                let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
                 let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
                 let rest_rotation = rest_local.map(|t| t.rotation).unwrap_or(Quat::IDENTITY);
 

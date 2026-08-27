@@ -39,12 +39,12 @@ fn unweighted_gait_amount(gait: Gait) -> f32 {
 }
 
 pub fn animated_gait_speed(params: &AlsMovementParams, stance: Stance, gait: Gait) -> f32 {
-let s = params.stance_speeds(stance);
-match gait {
-    Gait::Walking => s.animated_walk_speed,
-    Gait::Running => s.animated_run_speed,
-    Gait::Sprinting => s.animated_sprint_speed,
-}
+    let s = params.stance_speeds(stance);
+    match gait {
+        Gait::Walking => s.animated_walk_speed,
+        Gait::Running => s.animated_run_speed,
+        Gait::Sprinting => s.animated_sprint_speed,
+    }
 }
 
 fn effective_gait(stance: Stance, gait: Gait) -> Gait {
@@ -62,22 +62,50 @@ pub fn als_play_rate(
     stride_blend: f32,
 ) -> AlsPlayRate {
     if stride_blend < 1e-4 {
-        return AlsPlayRate { play_rate: 1.0, stride_blend };
+        return AlsPlayRate {
+            play_rate: 1.0,
+            stride_blend,
+        };
     }
-    if stance == Stance::Crouching || effective_gait(stance, gait) == Gait::Walking {
+    if stance == Stance::Crouching {
         let animated = params.crouch.animated_crouch_speed;
         if animated < 1e-4 {
-            return AlsPlayRate { play_rate: 1.0, stride_blend };
+            return AlsPlayRate {
+                play_rate: 1.0,
+                stride_blend,
+            };
         }
         let rate = (speed_ema / animated / stride_blend).min(CROUCH_PLAY_RATE_MAX);
-        AlsPlayRate { play_rate: rate.max(0.0), stride_blend }
+        AlsPlayRate {
+            play_rate: rate.max(0.0),
+            stride_blend,
+        }
+    } else if effective_gait(stance, gait) == Gait::Walking {
+        let animated = params.speeds.standing.animated_walk_speed;
+        if animated < 1e-4 {
+            return AlsPlayRate {
+                play_rate: 1.0,
+                stride_blend,
+            };
+        }
+        let rate = (speed_ema / animated / stride_blend).min(PLAY_RATE_MAX);
+        AlsPlayRate {
+            play_rate: rate.max(0.0),
+            stride_blend,
+        }
     } else {
         let animated = animated_gait_speed(params, stance, gait);
         if animated < 1e-4 {
-            return AlsPlayRate { play_rate: 1.0, stride_blend };
+            return AlsPlayRate {
+                play_rate: 1.0,
+                stride_blend,
+            };
         }
         let rate = (speed_ema / animated / stride_blend).min(PLAY_RATE_MAX);
-        AlsPlayRate { play_rate: rate.max(0.0), stride_blend }
+        AlsPlayRate {
+            play_rate: rate.max(0.0),
+            stride_blend,
+        }
     }
 }
 
@@ -98,21 +126,41 @@ pub struct GaitWeights {
 
 impl Default for GaitWeights {
     fn default() -> Self {
-        Self { move_w: 0.0, run_w: 0.0, sprint_w: 0.0 }
+        Self {
+            move_w: 0.0,
+            run_w: 0.0,
+            sprint_w: 0.0,
+        }
     }
 }
 
 impl GaitWeights {
     pub fn targets(gait: Gait) -> Self {
         match gait {
-            Gait::Walking => Self { move_w: 1.0, run_w: 0.0, sprint_w: 0.0 },
-            Gait::Running => Self { move_w: 1.0, run_w: 1.0, sprint_w: 0.0 },
-            Gait::Sprinting => Self { move_w: 1.0, run_w: 1.0, sprint_w: 1.0 },
+            Gait::Walking => Self {
+                move_w: 1.0,
+                run_w: 0.0,
+                sprint_w: 0.0,
+            },
+            Gait::Running => Self {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 0.0,
+            },
+            Gait::Sprinting => Self {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 1.0,
+            },
         }
     }
 
     pub fn advance(&self, gait: Gait, moving: bool, dt: f32) -> Self {
-        let t = if moving { Self::targets(gait) } else { Self::default() };
+        let t = if moving {
+            Self::targets(gait)
+        } else {
+            Self::default()
+        };
         let step = |cur: f32, tgt: f32| -> f32 {
             let d = GAIT_CROSSFADE_SECS.max(1e-4);
             if cur < tgt {
@@ -129,7 +177,11 @@ impl GaitWeights {
     }
 
     pub fn settled_target(&self, gait: Gait, moving: bool) -> Self {
-        if moving { Self::targets(gait) } else { Self::default() }
+        if moving {
+            Self::targets(gait)
+        } else {
+            Self::default()
+        }
     }
 
     pub fn running_amount(&self) -> f32 {
@@ -150,6 +202,15 @@ mod tests {
         let pr = als_play_rate(&p, Stance::Standing, Gait::Walking, 1.5, stride);
         assert!((pr.play_rate - 1.5 / 1.5 / stride).abs() < 1e-4);
         assert!((pr.stride_blend - stride).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standing_walk_uses_standing_animated_speed() {
+        let mut p = AlsMovementParams::default();
+        p.speeds.standing.animated_walk_speed = 2.0;
+        p.crouch.animated_crouch_speed = 0.5;
+        let result = als_play_rate(&p, Stance::Standing, Gait::Walking, 1.0, 1.0);
+        assert!((result.play_rate - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -204,7 +265,13 @@ mod tests {
     #[test]
     fn near_idle_speed_gives_near_zero_rate() {
         let p = AlsMovementParams::default();
-        let pr = als_play_rate(&p, Stance::Standing, Gait::Running, 0.05, stride_blend_amount(1.0));
+        let pr = als_play_rate(
+            &p,
+            Stance::Standing,
+            Gait::Running,
+            0.05,
+            stride_blend_amount(1.0),
+        );
         assert!(pr.play_rate < 0.2);
     }
 

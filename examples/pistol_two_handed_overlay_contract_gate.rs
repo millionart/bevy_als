@@ -1,14 +1,15 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    transition_alpha, AlphaBlendMode, AlsExtPlugin, ConstantF32Node, CurveModifyNode,
-    CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode, GameplayTagLayerBlendNode,
-    GlobalF32InputNode, LinkedAnimLayerNode, MeshSpaceAdditiveNode, ProfiledBlendNode,
-    SuppressFirstUpdateNode, TimePositionNode, ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES,
+    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlphaBlendMode, AlsExtPlugin, ConstantF32Node,
+    CurveModifyNode, CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode,
+    GameplayTagLayerBlendNode, GlobalF32InputNode, LinkedAnimLayerNode, MeshSpaceAdditiveNode,
+    ProfiledBlendNode, SuppressFirstUpdateNode, TimePositionNode, transition_alpha,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::{
     blend_node::{BlendMode, BlendNode},
     fsm_node::FsmNode,
@@ -24,7 +25,6 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
     state_machine::high_level::{StateMachine, TransitionKind},
 };
-use bevy_animation_graph::AnimationGraphPlugin;
 
 const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 const PISTOL_PATH: &str = "graphs/ab_als/overlays/pistol_two_handed.animgraph.ron";
@@ -689,7 +689,21 @@ fn verify_static_contract(
         && relaxed_sprint_contract
         && source_contract
         && numeric_contract;
-    info!("[PISTOL-TWO-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_positions={} action_modifiers={} state_machine={} states={} transitions={} sprint={} source={} numeric={}", interface_contract, linked_fsm, action_contract, action_curves, action_positions, action_modifiers, state_machine_contract, state_graph_contract, transition_contract, relaxed_sprint_contract, source_contract, numeric_contract);
+    info!(
+        "[PISTOL-TWO-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_positions={} action_modifiers={} state_machine={} states={} transitions={} sprint={} source={} numeric={}",
+        interface_contract,
+        linked_fsm,
+        action_contract,
+        action_curves,
+        action_positions,
+        action_modifiers,
+        state_machine_contract,
+        state_graph_contract,
+        transition_contract,
+        relaxed_sprint_contract,
+        source_contract,
+        numeric_contract
+    );
     if !pass {
         warn!("[PISTOL-TWO-HANDED-CONTRACT][VERDICT] static=false -> FAIL");
         exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));

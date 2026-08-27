@@ -4,9 +4,9 @@ use std::{
 };
 
 use als_ext::{
-    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlphaBlendMode, AlsExtPlugin, ConstantF32Node, CurveModifyNode,
-    CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode, GameplayTagLayerBlendNode,
-    LinkedAnimLayerNode, ProfiledBlendNode, SuppressFirstUpdateNode,
+    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlphaBlendMode, AlsExtPlugin, ConstantF32Node,
+    CurveModifyNode, CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode,
+    GameplayTagLayerBlendNode, LinkedAnimLayerNode, ProfiledBlendNode, SuppressFirstUpdateNode,
     TimePositionNode, profile_target_weight, transition_alpha,
 };
 use bevy::ecs::message::MessageWriter;
@@ -252,12 +252,7 @@ fn node_data_edge(
     )
 }
 
-fn idle_additive_contract(
-    graph: &AnimationGraph,
-    name: &str,
-    alpha: f32,
-    base_name: &str,
-) -> bool {
+fn idle_additive_contract(graph: &AnimationGraph, name: &str, alpha: f32, base_name: &str) -> bool {
     graph
         .nodes
         .values()
@@ -419,7 +414,8 @@ fn verify_static_contract(
             node.sample_positions == [0.1, 0.2666667, 0.0]
                 && node.curves.iter().any(|curve| curve.name == "PoseAiming")
                 && node.curves.iter().any(|curve| curve.name == "HandRightIk")
-        }) && action_layer.is_some_and(|node| {
+        })
+        && action_layer.is_some_and(|node| {
             node.curve_names
                 .iter()
                 .map(String::as_str)
@@ -470,35 +466,31 @@ fn verify_static_contract(
         && fsm.transitions.values().all(|transition| {
             !transition.data.ignore_external_events && transition.data.reset_target_state
         });
-    let state_graph_contract =
-        idle_additive_contract(
-            relaxed,
-            "relaxed secondary motion additive",
-            0.75,
-            "relaxed stance blend",
-        ) && idle_additive_contract(
-            ready,
-            "ready secondary motion additive",
-            0.75,
-            "ready stance blend",
-        ) && idle_additive_contract(
-            aiming,
-            "aiming secondary motion additive",
-            0.5,
-            "aiming stance blend",
-        )
-            && relaxed.nodes.values().any(|node| {
-                node.try_inner_downcast_ref::<CurveWeightedSamplesNode>()
-                    .is_some()
-            })
-            && ready.nodes.values().any(|node| {
-                node.try_inner_downcast_ref::<SuppressFirstUpdateNode>()
-                    .is_some()
-            })
-            && aiming.nodes.values().any(|node| {
-                node.try_inner_downcast_ref::<SuppressFirstUpdateNode>()
-                    .is_some()
-            });
+    let state_graph_contract = idle_additive_contract(
+        relaxed,
+        "relaxed secondary motion additive",
+        0.75,
+        "relaxed stance blend",
+    ) && idle_additive_contract(
+        ready,
+        "ready secondary motion additive",
+        0.75,
+        "ready stance blend",
+    ) && idle_additive_contract(
+        aiming,
+        "aiming secondary motion additive",
+        0.5,
+        "aiming stance blend",
+    ) && relaxed.nodes.values().any(|node| {
+        node.try_inner_downcast_ref::<CurveWeightedSamplesNode>()
+            .is_some()
+    }) && ready.nodes.values().any(|node| {
+        node.try_inner_downcast_ref::<SuppressFirstUpdateNode>()
+            .is_some()
+    }) && aiming.nodes.values().any(|node| {
+        node.try_inner_downcast_ref::<SuppressFirstUpdateNode>()
+            .is_some()
+    });
     let transition_graph_contract = profile_contract(
         aim_in,
         "aim in profiled blend",
@@ -779,8 +771,7 @@ fn observe_runtime(
             let Ok(mut character) = players.get_mut(character_entity) else {
                 return;
             };
-            if output_f32(&character, "transition_left_request").is_some_and(|value| value > 0.99)
-            {
+            if output_f32(&character, "transition_left_request").is_some_and(|value| value > 0.99) {
                 probe.saw_transition_left_request = true;
                 info!("[BOW-OVERLAY-CONTRACT] transition_left_request=1.0");
             }
@@ -792,7 +783,11 @@ fn observe_runtime(
             }
             probe.fsm_frames += 1;
             if probe.fsm_frames > 4 {
-                fail(&mut exit, 10, "Relaxed to Ready transition left request was not observed");
+                fail(
+                    &mut exit,
+                    10,
+                    "Relaxed to Ready transition left request was not observed",
+                );
                 return;
             }
             character.queue_time_update(TimeUpdate::Delta(0.01));

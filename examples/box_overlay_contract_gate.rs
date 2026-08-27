@@ -122,9 +122,9 @@ fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
 }
 
 fn outputs_match(player: &AnimationGraphPlayer, expected: &[(&str, f32)]) -> bool {
-    expected.iter().all(|(name, value)| {
-        output_f32(player, name).is_some_and(|actual| close(actual, *value))
-    })
+    expected
+        .iter()
+        .all(|(name, value)| output_f32(player, name).is_some_and(|actual| close(actual, *value)))
 }
 
 fn build_linked_root(
@@ -187,7 +187,10 @@ fn modify_contract(graph: &AnimationGraph, name: &str, curves: &[&str], values: 
         .find(|node| node.name == name)
         .and_then(|node| node.try_inner_downcast_ref::<CurveModifyNode>())
         .is_some_and(|node| {
-            node.curve_names.iter().map(String::as_str).eq(curves.iter().copied())
+            node.curve_names
+                .iter()
+                .map(String::as_str)
+                .eq(curves.iter().copied())
                 && node.values == values
                 && close(node.alpha, 1.0)
         })
@@ -224,9 +227,9 @@ fn verify_static_contract(
     let curve_contract = ALS_LAYER_CURVE_NAMES
         .iter()
         .all(|curve| box_graph.io_spec.get_output_data(&curve.to_string()) == Some(DataSpec::F32));
-    let signal_contract = ALS_LAYER_SIGNAL_NAMES
-        .iter()
-        .all(|signal| box_graph.io_spec.get_output_data(&signal.to_string()) == Some(DataSpec::F32));
+    let signal_contract = ALS_LAYER_SIGNAL_NAMES.iter().all(|signal| {
+        box_graph.io_spec.get_output_data(&signal.to_string()) == Some(DataSpec::F32)
+    });
     let evaluators = [
         "box poses frame zero evaluator",
         "box poses frame one evaluator",
@@ -323,7 +326,8 @@ fn verify_static_contract(
         &["LayerArmLeft", "LayerArmRight"],
         &[3.0, 3.0],
     );
-    let source = std::fs::read_to_string(Path::new("assets").join(BOX_GRAPH_PATH)).unwrap_or_default();
+    let source =
+        std::fs::read_to_string(Path::new("assets").join(BOX_GRAPH_PATH)).unwrap_or_default();
     let asset_contract = source.contains("A_Als_Box_Poses.anim.ron")
         && source.contains("A_Als_Idle.anim.ron")
         && !source.contains("AB_Als_Monolithic");
@@ -436,23 +440,37 @@ fn observe_runtime(
             probe.phase = ProbePhase::Walking;
         }
         ProbePhase::Walking => {
-            if !probe.default_pose.as_ref().is_some_and(|default| default != &pose) {
+            if !probe
+                .default_pose
+                .as_ref()
+                .is_some_and(|default| default != &pose)
+            {
                 fail(&mut exit, 6, "Walking frame one pose did not change");
                 return;
             }
             probe.walking_pose = Some(pose.clone());
-            info!("[BOX-OVERLAY-CONTRACT] gait=1 pose_changed=true bones={}", pose.bones.len());
+            info!(
+                "[BOX-OVERLAY-CONTRACT] gait=1 pose_changed=true bones={}",
+                pose.bones.len()
+            );
             set_inputs(&mut player, 0.0, 0.0, 1.0, 0.0);
             player.queue_time_update(TimeUpdate::Delta(0.0));
             probe.phase = ProbePhase::Crouching;
         }
         ProbePhase::Crouching => {
-            if !probe.walking_pose.as_ref().is_some_and(|walking| walking != &pose) {
+            if !probe
+                .walking_pose
+                .as_ref()
+                .is_some_and(|walking| walking != &pose)
+            {
                 fail(&mut exit, 7, "Crouching frame two pose did not change");
                 return;
             }
             probe.crouching_pose = Some(pose.clone());
-            info!("[BOX-OVERLAY-CONTRACT] crouching=1 pose_changed=true bones={}", pose.bones.len());
+            info!(
+                "[BOX-OVERLAY-CONTRACT] crouching=1 pose_changed=true bones={}",
+                pose.bones.len()
+            );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 1.0);
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = ProbePhase::Mantling;
@@ -461,37 +479,53 @@ fn observe_runtime(
             if !outputs_match(
                 &player,
                 &[("LayerHeadAdditive", 0.5), ("LayerSpineAdditive", 0.5)],
-            ) || !probe.crouching_pose.as_ref().is_some_and(|crouching| crouching != &pose) {
+            ) || !probe
+                .crouching_pose
+                .as_ref()
+                .is_some_and(|crouching| crouching != &pose)
+            {
                 fail(&mut exit, 8, "Mantling pose or curves");
                 return;
             }
             probe.mantling_pose = Some(pose.clone());
-            info!("[BOX-OVERLAY-CONTRACT] action=Mantling LayerHeadAdditive=0.5 LayerSpineAdditive=0.5 pose_changed=true");
+            info!(
+                "[BOX-OVERLAY-CONTRACT] action=Mantling LayerHeadAdditive=0.5 LayerSpineAdditive=0.5 pose_changed=true"
+            );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 2.0);
             player.queue_time_update(TimeUpdate::Delta(0.0));
             probe.phase = ProbePhase::GettingUp;
         }
         ProbePhase::GettingUp => {
             if !outputs_match(&player, &[("LayerArmLeft", 3.0), ("LayerArmRight", 3.0)])
-                || !probe.mantling_pose.as_ref().is_some_and(|mantling| mantling != &pose)
+                || !probe
+                    .mantling_pose
+                    .as_ref()
+                    .is_some_and(|mantling| mantling != &pose)
             {
                 fail(&mut exit, 9, "GettingUp pose or curves");
                 return;
             }
             probe.getting_up_pose = Some(pose.clone());
-            info!("[BOX-OVERLAY-CONTRACT] action=GettingUp LayerArmLeft=3 LayerArmRight=3 pose_changed=true");
+            info!(
+                "[BOX-OVERLAY-CONTRACT] action=GettingUp LayerArmLeft=3 LayerArmRight=3 pose_changed=true"
+            );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 3.0);
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = ProbePhase::Rolling;
         }
         ProbePhase::Rolling => {
             if !outputs_match(&player, &[("LayerArmLeft", 3.0), ("LayerArmRight", 3.0)])
-                || !probe.getting_up_pose.as_ref().is_some_and(|getting_up| getting_up != &pose)
+                || !probe
+                    .getting_up_pose
+                    .as_ref()
+                    .is_some_and(|getting_up| getting_up != &pose)
             {
                 fail(&mut exit, 10, "Rolling pose or curves");
                 return;
             }
-            info!("[BOX-OVERLAY-CONTRACT] action=Rolling LayerArmLeft=3 LayerArmRight=3 pose_changed=true");
+            info!(
+                "[BOX-OVERLAY-CONTRACT] action=Rolling LayerArmLeft=3 LayerArmRight=3 pose_changed=true"
+            );
             info!("[BOX-OVERLAY-CONTRACT][VERDICT] linked=true -> PASS");
             exit.write(AppExit::Success);
         }

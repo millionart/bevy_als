@@ -1,8 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{
-    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, LinkedAnimLayerNode,
-};
+use als_ext::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, LinkedAnimLayerNode};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
@@ -164,7 +162,15 @@ fn verify_contract(
         && direct_time;
     info!(
         "[LINKED-LAYER-CONTRACT] interface=ALI_Overlay base_pose={} base_time={} pose={} time={} curve_outputs={} signal_outputs={} no_defaults={} direct_pose={} direct_time={}",
-        base_pose, base_time, pose, time, curve_outputs, signal_outputs, no_defaults, direct_pose, direct_time,
+        base_pose,
+        base_time,
+        pose,
+        time,
+        curve_outputs,
+        signal_outputs,
+        no_defaults,
+        direct_pose,
+        direct_time,
     );
     if !pass {
         info!("[LINKED-LAYER-CONTRACT][VERDICT] interface=ALI_Overlay -> FAIL");

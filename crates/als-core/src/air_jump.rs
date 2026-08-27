@@ -72,8 +72,7 @@ mod tests {
     #[test]
     fn variant_splits_on_speed_threshold() {
         let p = AlsMovementParams::default();
-        let v_walk =
-            select_jump_start_variant(&p, Gait::Walking, 1.0, false);
+        let v_walk = select_jump_start_variant(&p, Gait::Walking, 1.0, false);
         assert_eq!(v_walk, JumpStartVariant::WalkLeft);
         let v_run = select_jump_start_variant(&p, Gait::Running, 3.75, false);
         assert_eq!(v_run, JumpStartVariant::RunLeft);

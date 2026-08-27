@@ -36,9 +36,7 @@ fn als_manny_bone_map_serializes_with_expected_coverage() {
     assert_eq!(bm.bones_from_bodies.len(), 22, "22 mapped bones");
     assert!(bm.bodies_from_bones.is_empty());
     assert!(
-        bm.skeleton
-            .to_string()
-            .contains("SKM_Als.skn.ron"),
+        bm.skeleton.to_string().contains("SKM_Als.skn.ron"),
         "bone map references the ALS skeleton"
     );
     assert!(bm.ragdoll.to_string().contains("als_manny.rag.ron"));

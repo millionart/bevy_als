@@ -1,14 +1,15 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    transition_alpha, AlphaBlendMode, AlsExtPlugin, ConstantF32Node, CurveModifyNode,
-    CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode, GameplayTagLayerBlendNode,
-    GlobalF32InputNode, LinkedAnimLayerNode, MeshSpaceAdditiveNode, ProfiledBlendNode,
-    SuppressFirstUpdateNode, TimePositionNode, ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES,
+    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlphaBlendMode, AlsExtPlugin, ConstantF32Node,
+    CurveModifyNode, CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode,
+    GameplayTagLayerBlendNode, GlobalF32InputNode, LinkedAnimLayerNode, MeshSpaceAdditiveNode,
+    ProfiledBlendNode, SuppressFirstUpdateNode, TimePositionNode, transition_alpha,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::{
     blend_node::{BlendMode, BlendNode},
     fsm_node::FsmNode,
@@ -24,7 +25,6 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
     state_machine::high_level::{StateMachine, TransitionKind},
 };
-use bevy_animation_graph::AnimationGraphPlugin;
 
 const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 const PISTOL_PATH: &str = "graphs/ab_als/overlays/pistol_one_handed.animgraph.ron";
@@ -596,8 +596,29 @@ fn verify_static_contract(
     info!(
         "[PISTOL-ONE-HANDED-CONTRACT] state_detail=inputs:{}:{}:{} frames={}{}{}{}{}{}{}{}{} additive={}{}{} curves={} mesh={} suppress={}",
         global_keys(relaxed, &[GAIT_WALKING, STANDING, CROUCHING, ROTATION_MODE]),
-        global_keys(ready, &[GAIT_WALKING, STANDING, CROUCHING, ROTATION_MODE, MOVING, SPRINTING, IN_AIR, TRANSITIONS_ALLOWED]),
-        global_keys(aiming, &[GAIT_WALKING, STANDING, CROUCHING, ROTATION_MODE, PITCH_AMOUNT]),
+        global_keys(
+            ready,
+            &[
+                GAIT_WALKING,
+                STANDING,
+                CROUCHING,
+                ROTATION_MODE,
+                MOVING,
+                SPRINTING,
+                IN_AIR,
+                TRANSITIONS_ALLOWED
+            ]
+        ),
+        global_keys(
+            aiming,
+            &[
+                GAIT_WALKING,
+                STANDING,
+                CROUCHING,
+                ROTATION_MODE,
+                PITCH_AMOUNT
+            ]
+        ),
         has_time_position(relaxed, "poses frame zero evaluator", 0.0),
         has_time_position(relaxed, "poses frame one evaluator", 0.033333335),
         has_time_position(relaxed, "poses frame six evaluator", 0.2),
@@ -607,12 +628,42 @@ fn verify_static_contract(
         has_time_position(aiming, "poses frame four evaluator", 0.13333334),
         has_time_position(aiming, "poses frame five evaluator", 0.16666667),
         has_time_position(aiming, "poses frame eight evaluator", 0.26666667),
-        additive_contract(relaxed, "relaxed secondary motion additive", 0.75, "relaxed stance blend"),
-        additive_contract(ready, "ready secondary motion additive", 0.75, "ready stance blend"),
-        additive_contract(aiming, "aiming secondary motion additive", 0.5, "aiming stance blend"),
-        [relaxed, ready, aiming].into_iter().all(|graph| graph.nodes.values().any(|node| node.try_inner_downcast_ref::<CurveWeightedSamplesNode>().is_some())),
-        aiming.nodes.values().filter(|node| node.try_inner_downcast_ref::<MeshSpaceAdditiveNode>().is_some()).count() == 2,
-        [relaxed, ready, aiming].into_iter().all(|graph| graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SuppressFirstUpdateNode>().is_some())),
+        additive_contract(
+            relaxed,
+            "relaxed secondary motion additive",
+            0.75,
+            "relaxed stance blend"
+        ),
+        additive_contract(
+            ready,
+            "ready secondary motion additive",
+            0.75,
+            "ready stance blend"
+        ),
+        additive_contract(
+            aiming,
+            "aiming secondary motion additive",
+            0.5,
+            "aiming stance blend"
+        ),
+        [relaxed, ready, aiming]
+            .into_iter()
+            .all(|graph| graph.nodes.values().any(|node| node
+                .try_inner_downcast_ref::<CurveWeightedSamplesNode>()
+                .is_some())),
+        aiming
+            .nodes
+            .values()
+            .filter(|node| node
+                .try_inner_downcast_ref::<MeshSpaceAdditiveNode>()
+                .is_some())
+            .count()
+            == 2,
+        [relaxed, ready, aiming]
+            .into_iter()
+            .all(|graph| graph.nodes.values().any(|node| node
+                .try_inner_downcast_ref::<SuppressFirstUpdateNode>()
+                .is_some())),
     );
     let source_contract = [
         PISTOL_PATH,
@@ -656,7 +707,20 @@ fn verify_static_contract(
         && transition_contract
         && source_contract
         && numeric_contract;
-    info!("[PISTOL-ONE-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_positions={} action_modifiers={} state_machine={} states={} transitions={} source={} numeric={}", interface_contract, linked_fsm, action_contract, action_curves, action_positions, action_modifiers, state_machine_contract, state_graph_contract, transition_contract, source_contract, numeric_contract);
+    info!(
+        "[PISTOL-ONE-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_positions={} action_modifiers={} state_machine={} states={} transitions={} source={} numeric={}",
+        interface_contract,
+        linked_fsm,
+        action_contract,
+        action_curves,
+        action_positions,
+        action_modifiers,
+        state_machine_contract,
+        state_graph_contract,
+        transition_contract,
+        source_contract,
+        numeric_contract
+    );
     if !pass {
         warn!("[PISTOL-ONE-HANDED-CONTRACT][VERDICT] static=false -> FAIL");
         exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));

@@ -13,10 +13,7 @@ fn imported_als_stride_blend_table_loads_and_evaluates() {
     });
     app.add_plugins(AlsExtPlugin);
 
-    let handle: Handle<CurveAsset> = app
-        .world()
-        .resource::<AssetServer>()
-        .load(STRIDE_WALK_RON);
+    let handle: Handle<CurveAsset> = app.world().resource::<AssetServer>().load(STRIDE_WALK_RON);
 
     let mut frames = 0;
     let asset = loop {

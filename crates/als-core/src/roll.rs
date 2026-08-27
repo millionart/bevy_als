@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
 use crate::motion::AlsViewYaw;
-use crate::start_stop::{classify, MoveDirection};
+use crate::start_stop::{MoveDirection, classify};
 use crate::state::{LocomotionState, Stance};
 
 pub const ROLL_DURATION_SECS: f32 = 1.5;
@@ -47,10 +47,7 @@ pub fn roll_weight_at(elapsed: f32) -> f32 {
     w_in.min(w_out)
 }
 
-pub fn select_roll_direction(
-    cmd: &AlsInputCommand,
-    view_yaw: &AlsViewYaw,
-) -> (MoveDirection, f32) {
+pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (MoveDirection, f32) {
     let dir = classify(cmd.move_dir, view_yaw.0);
     let offset = match dir {
         MoveDirection::Forward => 0.0,
@@ -84,8 +81,9 @@ impl AlsRollState {
             }
             return;
         }
-        let can_roll =
-            *loco == LocomotionState::Grounded && *stance == Stance::Standing && self.cooldown <= 0.0;
+        let can_roll = *loco == LocomotionState::Grounded
+            && *stance == Stance::Standing
+            && self.cooldown <= 0.0;
         if can_roll && cmd.roll_pressed {
             let (dir, yaw) = select_roll_direction(cmd, view_yaw);
             self.last_direction = dir;
@@ -115,7 +113,13 @@ mod tests {
         let mut s = AlsRollState::default();
         let cmd = base_cmd();
         let view = AlsViewYaw(std::f32::consts::FRAC_PI_2);
-        s.update(&cmd, &view, &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &view,
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
         assert!(s.active);
         assert_eq!(s.last_direction, MoveDirection::Forward);
         assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
@@ -127,7 +131,13 @@ mod tests {
         let mut cmd = base_cmd();
         cmd.move_dir = Vec2::new(1.0, 0.0);
         let view = AlsViewYaw(0.0);
-        s.update(&cmd, &view, &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &view,
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
         assert_eq!(s.last_direction, MoveDirection::Right);
         assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
         let dir_vec = roll_displacement_dir(s.direction_yaw);
@@ -138,16 +148,40 @@ mod tests {
     fn cannot_roll_midair_or_crouched_or_in_cooldown() {
         let mut s = AlsRollState::default();
         let cmd = base_cmd();
-        s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Air, &Stance::Standing, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &AlsViewYaw(0.0),
+            &LocomotionState::Air,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
         assert!(!s.active);
-        s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Grounded, &Stance::Crouching, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &AlsViewYaw(0.0),
+            &LocomotionState::Grounded,
+            &Stance::Crouching,
+            1.0 / 60.0,
+        );
         assert!(!s.active);
 
-        s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &AlsViewYaw(0.0),
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
         assert!(s.active);
         let mut iters = 0;
         while s.active {
-            s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
+            s.update(
+                &cmd,
+                &AlsViewYaw(0.0),
+                &LocomotionState::Grounded,
+                &Stance::Standing,
+                1.0 / 60.0,
+            );
             iters += 1;
             assert!(iters < 200, "roll never ended");
         }
@@ -155,7 +189,13 @@ mod tests {
             (85..=95).contains(&iters),
             "roll ends near duration, iters={iters}"
         );
-        s.update(&cmd, &AlsViewYaw(0.0), &LocomotionState::Grounded, &Stance::Standing, 1.0 / 60.0);
+        s.update(
+            &cmd,
+            &AlsViewYaw(0.0),
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
         assert!(!s.active, "cooldown blocks immediate re-roll");
     }
 

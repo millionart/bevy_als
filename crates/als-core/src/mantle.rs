@@ -123,7 +123,8 @@ pub fn detect_mantle(
     let target_speed = velocities.get(ledge_entity).ok().map(|v| v.0.length());
     if target_speed.is_some_and(|s| s > MANTLE_TARGET_SPEED_THRESHOLD) {
         return None;
-    }    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
+    }
+    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
     let ledge = LedgeProbe {
         face_distance,
         top_height: top_y - foot_y,
@@ -146,18 +147,18 @@ pub fn detect_mantle(
 
     let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
     if spatial
-        .cast_ray(headroom_o, Dir3::Y, MANTLE_HEADROOM_CLEARANCE, true, &filter)
+        .cast_ray(
+            headroom_o,
+            Dir3::Y,
+            MANTLE_HEADROOM_CLEARANCE,
+            true,
+            &filter,
+        )
         .is_some()
     {
         return None;
     }
-    let start_clearance = spatial.cast_ray(
-        origin + Vec3::Y * 1.2,
-        Dir3::Y,
-        0.9,
-        true,
-        &filter,
-    );
+    let start_clearance = spatial.cast_ray(origin + Vec3::Y * 1.2, Dir3::Y, 0.9, true, &filter);
     if start_clearance.is_some() {
         return None;
     }
@@ -308,7 +309,13 @@ impl AlsMantleState {
         self.prev_pos = Vec3::ZERO;
     }
 
-    pub fn tick(&mut self, cmd: &AlsInputCommand, loco: &LocomotionState, stance: &Stance, dt: f32) {
+    pub fn tick(
+        &mut self,
+        cmd: &AlsInputCommand,
+        loco: &LocomotionState,
+        stance: &Stance,
+        dt: f32,
+    ) {
         self.cooldown = (self.cooldown - dt).max(0.0);
         if !self.active {
             return;
@@ -348,7 +355,10 @@ mod tests {
 
     #[test]
     fn height_bands_select_high_low_or_reject() {
-        assert_eq!(classify_mantle(&probe(1.3, 0.5, 1.0)), Some(MantleKind::High));
+        assert_eq!(
+            classify_mantle(&probe(1.3, 0.5, 1.0)),
+            Some(MantleKind::High)
+        );
         assert_eq!(
             classify_mantle(&probe(1.25, 0.5, 1.0)),
             Some(MantleKind::High),

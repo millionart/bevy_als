@@ -40,11 +40,7 @@ fn perpendicular_fallback(axis: Vec3, pole: Vec3) -> Vec3 {
     if candidate.length_squared() > 1e-8 {
         candidate.normalize()
     } else {
-        let helper = if axis.x.abs() < 0.9 {
-            Vec3::X
-        } else {
-            Vec3::Y
-        };
+        let helper = if axis.x.abs() < 0.9 { Vec3::X } else { Vec3::Y };
         axis.cross(helper).normalize()
     }
 }
@@ -71,8 +67,8 @@ pub fn solve_two_bone_ik(
     let distance = clamp_reach(raw_distance, upper_len, lower_len);
     let reach_point = hip + axis * distance;
 
-    let cos_hip =
-        (distance * distance + upper_len * upper_len - lower_len * lower_len) / (2.0 * distance * upper_len);
+    let cos_hip = (distance * distance + upper_len * upper_len - lower_len * lower_len)
+        / (2.0 * distance * upper_len);
     let sin_hip = (1.0 - cos_hip * cos_hip).clamp(0.0, 1.0).sqrt();
     let side = perpendicular_fallback(axis, pole);
 
@@ -106,26 +102,37 @@ pub fn world_rotation_to_local(parent_world: Quat, world_rotation: Quat) -> Quat
 #[cfg(test)]
 mod hand_target_tests {
     use super::*;
-    use bevy::prelude::*;
     use bevy::MinimalPlugins;
+    use bevy::prelude::*;
 
     #[test]
     fn spawn_parents_named_attach_point_under_hand_bone() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        let hand = app.world_mut().spawn((Name::new("hand_r"), Transform::IDENTITY)).id();
+        let hand = app
+            .world_mut()
+            .spawn((Name::new("hand_r"), Transform::IDENTITY))
+            .id();
         let target = {
             let mut cmds = app.world_mut().commands();
             spawn_ik_hand_gun(&mut cmds, hand)
         };
         app.update();
 
-        assert_eq!(app.world().get::<Name>(target).unwrap().as_str(), IK_HAND_GUN_NAME);
+        assert_eq!(
+            app.world().get::<Name>(target).unwrap().as_str(),
+            IK_HAND_GUN_NAME
+        );
         assert!(app.world().get::<IkHandTarget>(target).is_some());
         let child_of = app.world().get::<ChildOf>(target).unwrap();
         assert_eq!(child_of.0, hand, "attach point parented to hand bone");
         assert!(
-            app.world().get::<Transform>(target).unwrap().translation.distance(Vec3::new(0.10, 0.02, 0.25)) < 1e-5
+            app.world()
+                .get::<Transform>(target)
+                .unwrap()
+                .translation
+                .distance(Vec3::new(0.10, 0.02, 0.25))
+                < 1e-5
         );
     }
 }
@@ -139,15 +146,17 @@ mod tests {
     const LOWER: f32 = 0.45;
 
     fn straight_chain() -> (Vec3, Vec3) {
-        (Vec3::new(0.0, -UPPER, 0.0), Vec3::new(0.0, -(UPPER + LOWER), 0.0))
+        (
+            Vec3::new(0.0, -UPPER, 0.0),
+            Vec3::new(0.0, -(UPPER + LOWER), 0.0),
+        )
     }
 
     #[test]
     fn reachable_target_is_hit_exactly() {
         let (knee, ankle) = straight_chain();
         let target = Vec3::new(0.15, -0.80, 0.05);
-        let solve =
-            solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
+        let solve = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
 
         let d_knee = (solve.knee_position - HIP).length();
         let d_end = (target - solve.knee_position).length();
@@ -162,8 +171,7 @@ mod tests {
     fn knee_displaces_toward_pole_side() {
         let (knee, ankle) = straight_chain();
         let target = Vec3::new(0.0, -1.60, 0.0);
-        let solve_fwd =
-            solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
+        let solve_fwd = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
         assert!(solve_fwd.knee_position.z > 1e-3, "bend toward +Z pole");
         assert!(solve_fwd.knee_position.y > target.y);
     }
@@ -172,8 +180,7 @@ mod tests {
     fn rotations_map_current_dirs_onto_solved_dirs() {
         let (knee, ankle) = straight_chain();
         let target = Vec3::new(-0.12, -0.78, 0.08);
-        let solve =
-            solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::NEG_Y).unwrap();
+        let solve = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::NEG_Y).unwrap();
         let cur_upper = (knee - HIP).normalize();
         let new_upper = (solve.knee_position - HIP).normalize();
         let rotated = solve.hip_rotation_world * cur_upper;
@@ -216,10 +223,7 @@ mod tests {
         let knee = Vec3::new(0.0, -0.40, 0.2131);
         let ankle = knee + Vec3::new(0.0, -0.30, -0.3354).normalize_or_zero() * LOWER;
         let target = ankle;
-        let solve = solve_two_bone_ik(
-            HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z,
-        )
-        .unwrap();
+        let solve = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
         assert!(
             solve.hip_rotation_world.angle_between(Quat::IDENTITY) < 0.03,
             "hip rot {:?}",
@@ -236,19 +240,38 @@ mod tests {
     fn pole_parallel_to_axis_does_not_panic_and_still_solves() {
         let (knee, ankle) = straight_chain();
         let target = Vec3::new(0.0, -1.60, 0.0);
-        let solve =
-            solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::NEG_Y).unwrap();
+        let solve = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::NEG_Y).unwrap();
         assert!((solve.knee_position - HIP).length() - UPPER < 1e-4);
     }
 
     #[test]
     fn degenerate_inputs_return_none() {
         let (_, ankle) = straight_chain();
-        assert!(solve_two_bone_ik(HIP, Vec3::ZERO, ankle, Vec3::ONE, UPPER, LOWER, Vec3::Z).is_none());
-        let clamped =
-            solve_two_bone_ik(HIP, Vec3::Y, ankle, Vec3::new(0.001, -0.02, 0.0), UPPER, LOWER, Vec3::Z);
+        assert!(
+            solve_two_bone_ik(HIP, Vec3::ZERO, ankle, Vec3::ONE, UPPER, LOWER, Vec3::Z).is_none()
+        );
+        let clamped = solve_two_bone_ik(
+            HIP,
+            Vec3::Y,
+            ankle,
+            Vec3::new(0.001, -0.02, 0.0),
+            UPPER,
+            LOWER,
+            Vec3::Z,
+        );
         assert!(clamped.is_some(), "inner clamp keeps the chain solvable");
-        assert!(solve_two_bone_ik(HIP, Vec3::Y, ankle, Vec3::new(0.0, -1.0, 0.0), 0.0, LOWER, Vec3::Z).is_none());
+        assert!(
+            solve_two_bone_ik(
+                HIP,
+                Vec3::Y,
+                ankle,
+                Vec3::new(0.0, -1.0, 0.0),
+                0.0,
+                LOWER,
+                Vec3::Z
+            )
+            .is_none()
+        );
     }
 
     #[test]

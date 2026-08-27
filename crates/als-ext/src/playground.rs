@@ -342,12 +342,7 @@ pub fn playground_setup_system(
                     .components
                     .first()
                     .and_then(|c| {
-                        body_plan_from_comp(
-                            c,
-                            actor.location,
-                            actor.scale,
-                            actor_rotator(actor),
-                        )
+                        body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor))
                     })
                     .or_else(|| body_plan_from_actor_bounds(actor));
                 if let Some(plan) = plan {
@@ -396,9 +391,8 @@ pub fn playground_setup_system(
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
-                    let root_tf =
-                        Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
-                            .with_rotation(plan.quat);
+                    let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
+                        .with_rotation(plan.quat);
                     let offset = plan.center_offset_model;
                     commands
                         .spawn((
@@ -420,9 +414,8 @@ pub fn playground_setup_system(
                 }
                 (Some(base), false) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
-                    let root_tf =
-                        Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
-                            .with_rotation(plan.quat);
+                    let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
+                        .with_rotation(plan.quat);
                     commands
                         .spawn((
                             Name::new(format!("{base}:{}", actor.name)),
@@ -604,10 +597,7 @@ pub fn terrain_height(x: f32, z: f32) -> f32 {
     h.max(-0.5)
 }
 
-fn spawn_text_label(
-    commands: &mut Commands,
-    actor: &PlaygroundActor,
-) {
+fn spawn_text_label(commands: &mut Commands, actor: &PlaygroundActor) {
     let text_str = actor.text.clone().unwrap_or_default();
     if text_str.is_empty() {
         return;
@@ -618,15 +608,21 @@ fn spawn_text_label(
     commands.spawn((
         Name::new(format!("Text:{}", actor.name)),
         Text2d::new(text_str),
-        Transform::from_translation(pos).with_rotation(
-            ue_rotator_to_bevy_quat(
-                actor.rotation.as_ref().map(|r| r.pitch).unwrap_or(0.0),
-                actor.rotation_yaw,
-                actor.rotation.as_ref().map(|r| r.roll).unwrap_or(0.0),
-            ),
-        ),
-        TextFont { font_size: bevy::text::FontSize::Px(size.max(12.0)), ..default() },
-        TextColor(Color::srgba(color_arr[0], color_arr[1], color_arr[2], color_arr[3])),
+        Transform::from_translation(pos).with_rotation(ue_rotator_to_bevy_quat(
+            actor.rotation.as_ref().map(|r| r.pitch).unwrap_or(0.0),
+            actor.rotation_yaw,
+            actor.rotation.as_ref().map(|r| r.roll).unwrap_or(0.0),
+        )),
+        TextFont {
+            font_size: bevy::text::FontSize::Px(size.max(12.0)),
+            ..default()
+        },
+        TextColor(Color::srgba(
+            color_arr[0],
+            color_arr[1],
+            color_arr[2],
+            color_arr[3],
+        )),
         PlaygroundTextLabel,
     ));
 }
@@ -653,7 +649,6 @@ fn spawn_sun_light(commands: &mut Commands, lighting: &SceneLighting) {
         ..default()
     });
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -747,8 +742,7 @@ mod tests {
     #[test]
     fn gltf_base_extraction() {
         assert_eq!(
-            gltf_asset_base("/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock.SM_Als_Rock")
-                .as_deref(),
+            gltf_asset_base("/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock.SM_Als_Rock").as_deref(),
             Some("SM_Als_Rock")
         );
         assert!(gltf_asset_base("/Engine/BasicShapes/Cube.Cube").is_none());

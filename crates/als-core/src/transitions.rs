@@ -37,6 +37,7 @@ pub struct TransitionSelection {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TransitionConfig {
+    pub foot_lock_distance_threshold: f32,
     pub dynamic_play_rate: f32,
     pub blend_duration: f32,
     pub frame_delay: u32,
@@ -45,7 +46,8 @@ pub struct TransitionConfig {
 impl Default for TransitionConfig {
     fn default() -> Self {
         Self {
-            dynamic_play_rate: 1.0,
+            foot_lock_distance_threshold: 0.08,
+            dynamic_play_rate: 1.5,
             blend_duration: 0.2,
             frame_delay: 2,
         }
@@ -100,7 +102,11 @@ pub fn select_dynamic_transition(
     stance: Stance,
     config: &TransitionConfig,
 ) -> Option<TransitionSelection> {
-    let sequence = if !left_allowed || (right_allowed && foot_lock_left_distance_squared < foot_lock_right_distance_squared)
+    if !left_allowed && !right_allowed {
+        return None;
+    }
+    let sequence = if !left_allowed
+        || (right_allowed && foot_lock_left_distance_squared < foot_lock_right_distance_squared)
     {
         match stance {
             Stance::Crouching => TransitionSequence::CrouchingRight,
@@ -145,26 +151,39 @@ mod tests {
     #[test]
     fn foot_lock_distance_picks_opposite_side() {
         let cfg = TransitionConfig::default();
-        let left_locked = select_dynamic_transition(1.0, 100.0, true, true, Stance::Standing, &cfg).unwrap();
+        let left_locked =
+            select_dynamic_transition(1.0, 100.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(left_locked.sequence, TransitionSequence::StandingRight);
-        let right_locked = select_dynamic_transition(100.0, 1.0, true, true, Stance::Standing, &cfg).unwrap();
+        let right_locked =
+            select_dynamic_transition(100.0, 1.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(right_locked.sequence, TransitionSequence::StandingLeft);
     }
 
     #[test]
     fn equal_foot_lock_defaults_left() {
         let cfg = TransitionConfig::default();
-        let sel = select_dynamic_transition(50.0, 50.0, true, true, Stance::Standing, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(50.0, 50.0, true, true, Stance::Standing, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::StandingLeft);
     }
 
     #[test]
     fn disallowed_side_forces_other() {
         let cfg = TransitionConfig::default();
-        let sel = select_dynamic_transition(1.0, 100.0, false, true, Stance::Crouching, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(1.0, 100.0, false, true, Stance::Crouching, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::CrouchingRight);
-        let sel = select_dynamic_transition(100.0, 1.0, true, false, Stance::Crouching, &cfg).unwrap();
+        let sel =
+            select_dynamic_transition(100.0, 1.0, true, false, Stance::Crouching, &cfg).unwrap();
         assert_eq!(sel.sequence, TransitionSequence::CrouchingLeft);
+    }
+
+    #[test]
+    fn no_allowed_foot_does_not_select_a_transition() {
+        let cfg = TransitionConfig::default();
+        assert!(
+            select_dynamic_transition(100.0, 100.0, false, false, Stance::Standing, &cfg).is_none()
+        );
     }
 
     #[test]
@@ -178,5 +197,17 @@ mod tests {
         assert!(cd.is_active());
         cd.tick();
         assert!(!cd.is_active());
+    }
+
+    #[test]
+    fn dynamic_transition_uses_source_play_rate() {
+        assert!((TransitionConfig::default().dynamic_play_rate - 1.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn dynamic_transition_uses_source_foot_lock_threshold() {
+        assert!(
+            (TransitionConfig::default().foot_lock_distance_threshold - 0.08).abs() < f32::EPSILON
+        );
     }
 }

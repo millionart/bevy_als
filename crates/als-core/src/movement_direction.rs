@@ -49,10 +49,7 @@ pub fn classify_direction(angle: f32) -> AlsMovementDirection {
     }
 }
 
-pub fn update_direction(
-    current: Option<AlsMovementDirection>,
-    angle: f32,
-) -> AlsMovementDirection {
+pub fn update_direction(current: Option<AlsMovementDirection>, angle: f32) -> AlsMovementDirection {
     let a = normalize_angle180(angle);
     if let Some(cur) = current {
         let in_current = match cur {

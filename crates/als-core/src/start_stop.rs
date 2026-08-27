@@ -1,11 +1,20 @@
-use bevy::prelude::*;
 use avian3d::prelude::LinearVelocity;
+use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
 use crate::motion::{AlsInputOverride, AlsViewYaw};
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -39,7 +48,16 @@ impl MoveDirection {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -51,7 +69,16 @@ pub enum StartStopPhase {
 }
 
 #[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, serde::Serialize,
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Reflect,
+    serde::Serialize,
     serde::Deserialize,
 )]
 #[reflect(Default)]
@@ -60,9 +87,7 @@ pub struct StartStopState {
     pub last_direction: Option<MoveDirection>,
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Reflect, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Reflect, serde::Serialize, serde::Deserialize)]
 pub struct StartStopConfig {
     pub start_speed_threshold: f32,
     pub stop_speed_threshold: f32,
@@ -231,14 +256,20 @@ mod tests {
             let below = classify(world_dir(yaw, boundary - 1.0), yaw);
             let above = classify(world_dir(yaw, boundary + 1.0), yaw);
             assert_eq!(below, expected[sector], "just below {boundary} deg");
-            assert_eq!(above, expected[(sector + 1) % 8], "just above {boundary} deg");
+            assert_eq!(
+                above,
+                expected[(sector + 1) % 8],
+                "just above {boundary} deg"
+            );
         }
     }
 
     #[test]
     fn classification_is_periodic_in_yaw_and_wraps_negative_angles() {
         let yaw = 2.51f32;
-        for rel in [-179.0f32, -135.0, -90.0, -45.0, 0.0, 45.0, 90.0, 135.0, 179.0] {
+        for rel in [
+            -179.0f32, -135.0, -90.0, -45.0, 0.0, 45.0, 90.0, 135.0, 179.0,
+        ] {
             assert_eq!(
                 classify(world_dir(yaw, rel), yaw),
                 classify(world_dir(yaw - TAU, rel), yaw - TAU),
@@ -285,7 +316,10 @@ mod tests {
         let mut state = StartStopState::default();
         let config = StartStopConfig::default();
 
-        assert_eq!(update_start_stop(&mut state, &config, 0.04, MoveDirection::Forward), None);
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.04, MoveDirection::Forward),
+            None
+        );
         assert_eq!(state.phase, StartStopPhase::Idle);
 
         assert_eq!(
@@ -308,9 +342,18 @@ mod tests {
         };
         let config = StartStopConfig::default();
 
-        assert_eq!(update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward), None);
-        assert_eq!(update_start_stop(&mut state, &config, 0.06, MoveDirection::Forward), None);
-        assert_eq!(update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward), None);
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward),
+            None
+        );
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.06, MoveDirection::Forward),
+            None
+        );
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward),
+            None
+        );
         assert_eq!(state.phase, StartStopPhase::Started(MoveDirection::Forward));
 
         assert_eq!(
@@ -327,8 +370,14 @@ mod tests {
         };
         let config = StartStopConfig::default();
 
-        assert_eq!(update_start_stop(&mut state, &config, 0.06, MoveDirection::Forward), None);
-        assert_eq!(update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward), None);
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.06, MoveDirection::Forward),
+            None
+        );
+        assert_eq!(
+            update_start_stop(&mut state, &config, 0.09, MoveDirection::Forward),
+            None
+        );
         assert_eq!(
             state.phase,
             StartStopPhase::Stopping(MoveDirection::BackwardRight),
@@ -380,7 +429,10 @@ mod tests {
         let config = StartStopConfig::default();
 
         for _ in 0..5 {
-            assert_eq!(update_start_stop(&mut state, &config, 0.0, MoveDirection::Backward), None);
+            assert_eq!(
+                update_start_stop(&mut state, &config, 0.0, MoveDirection::Backward),
+                None
+            );
         }
         assert_eq!(state.phase, StartStopPhase::Idle);
         assert_eq!(state.last_direction, None);

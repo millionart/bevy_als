@@ -41,8 +41,7 @@ impl AssetLoader for AlsCameraParamsLoader {
             .read_to_end(&mut bytes)
             .await
             .map_err(CameraLoaderError::Io)?;
-        ron::de::from_bytes::<AlsCameraParams>(&bytes)
-            .map_err(CameraLoaderError::Ron)
+        ron::de::from_bytes::<AlsCameraParams>(&bytes).map_err(CameraLoaderError::Ron)
     }
 
     fn extensions(&self) -> &[&str] {
@@ -90,7 +89,8 @@ pub fn spring_arm_length(max_len: f32, hit_distance: Option<f32>, skin: f32) -> 
 }
 
 pub fn blended_shoulder(blend: f32, p: &AlsCameraParams) -> Vec3 {
-    p.third_person_shoulder.lerp(p.aiming_shoulder, blend.clamp(0.0, 1.0))
+    p.third_person_shoulder
+        .lerp(p.aiming_shoulder, blend.clamp(0.0, 1.0))
 }
 
 pub fn blended_arm_length(blend: f32, p: &AlsCameraParams) -> f32 {
@@ -144,9 +144,8 @@ fn load_camera_params(
     if *done {
         return;
     }
-    let h = handle.get_or_insert_with(|| {
-        server.load::<AlsCameraParams>("params/als_camera.camera.ron")
-    });
+    let h = handle
+        .get_or_insert_with(|| server.load::<AlsCameraParams>("params/als_camera.camera.ron"));
     let h = h.clone();
     match server.load_state(h.id()) {
         bevy::asset::LoadState::Loaded => {
@@ -235,13 +234,7 @@ fn camera_rig_system(
     let len = if rig.mode == AlsCameraMode::FirstPersonPlaceholder {
         max_len
     } else if let Ok(dir) = Dir3::new(back_dir) {
-        let hit = spatial.cast_ray(
-            pivot,
-            dir,
-            (max_len + p.probe_skin).max(0.1),
-            true,
-            &filter,
-        );
+        let hit = spatial.cast_ray(pivot, dir, (max_len + p.probe_skin).max(0.1), true, &filter);
         spring_arm_length(max_len, hit.map(|h| h.distance), p.probe_skin)
     } else {
         max_len

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_enhanced_input::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
+use bevy_enhanced_input::prelude::*;
 
 pub const SPRINT_HOLD_SECS: f32 = 1.0;
 pub const ROLL_TAP_SECS: f32 = 0.2;
@@ -56,9 +56,7 @@ pub struct SwitchShoulderAction;
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
-#[derive(
-    Component, Debug, Default, Clone, Copy, PartialEq, Reflect,
-)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Reflect)]
 #[reflect(Default)]
 pub struct AlsInputCommand {
     pub move_dir: Vec2,
@@ -128,10 +126,7 @@ impl Default for AlsInputMap {
             look_up: KeyCode::ArrowUp.into(),
             look_down: KeyCode::ArrowDown.into(),
             jump: vec![KeyCode::Space.into(), GamepadButton::South.into()],
-            crouch: vec![
-                KeyCode::ControlLeft.into(),
-                GamepadButton::LeftThumb.into(),
-            ],
+            crouch: vec![KeyCode::ControlLeft.into(), GamepadButton::LeftThumb.into()],
             sprint: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
             aim: vec![
                 MouseButton::Right.into(),
@@ -140,15 +135,9 @@ impl Default for AlsInputMap {
             roll: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
             walk: vec![KeyCode::AltLeft.into(), GamepadButton::LeftTrigger.into()],
             ragdoll: vec![KeyCode::KeyX.into(), GamepadButton::West.into()],
-            rotation_mode: vec![
-                KeyCode::Digit1.into(),
-                GamepadButton::DPadLeft.into(),
-            ],
+            rotation_mode: vec![KeyCode::Digit1.into(), GamepadButton::DPadLeft.into()],
             view_mode: vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()],
-            switch_shoulder: vec![
-                KeyCode::KeyC.into(),
-                GamepadButton::RightThumb.into(),
-            ],
+            switch_shoulder: vec![KeyCode::KeyC.into(), GamepadButton::RightThumb.into()],
         }
     }
 }
@@ -314,7 +303,7 @@ impl Plugin for AlsInputPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::{ecs::system::RunSystemOnce, MinimalPlugins};
+    use bevy::{MinimalPlugins, ecs::system::RunSystemOnce};
 
     #[test]
     fn default_command_is_zeroed() {
@@ -400,7 +389,10 @@ mod tests {
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();
-            assert!(!bindings.is_empty(), "action {action:?} should have bindings");
+            assert!(
+                !bindings.is_empty(),
+                "action {action:?} should have bindings"
+            );
         }
 
         let mut cmds = app.world_mut().commands();
@@ -427,16 +419,8 @@ mod tests {
             .mock_once::<OnFoot, JumpAction>(TriggerState::Fired, true)
             .mock_once::<OnFoot, CrouchAction>(TriggerState::Fired, true)
             .mock_once::<OnFoot, RollAction>(TriggerState::Fired, true)
-            .mock::<OnFoot, SprintAction>(
-                TriggerState::Fired,
-                true,
-                MockSpan::Updates(50),
-            )
-            .mock::<OnFoot, AimAction>(
-                TriggerState::Fired,
-                true,
-                MockSpan::Updates(50),
-            )
+            .mock::<OnFoot, SprintAction>(TriggerState::Fired, true, MockSpan::Updates(50))
+            .mock::<OnFoot, AimAction>(TriggerState::Fired, true, MockSpan::Updates(50))
             .mock::<OnFoot, MoveAction>(
                 TriggerState::Fired,
                 Vec2::new(1.0, 0.5),
