@@ -8,6 +8,7 @@ pub mod mantle_drive;
 pub mod motion_graph_link;
 pub mod overlay_layer;
 pub mod overlay_mode_menu;
+pub mod playground_collision;
 pub mod ragdoll_link;
 pub mod roll_drive;
 pub mod root_motion_link;

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -33,8 +34,8 @@ use als_ext::overlay_materials::{
 use als_ext::playground::PlaygroundLandscape;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{
-    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundKinematicVelocity, PlaygroundMovingObject,
-    PlaygroundPhysicsDriven, PlaygroundPlugin, PlaygroundSpawnPoint,
+    AlsExtPlugin, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundKinematicVelocity,
+    PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint,
     playground_moving_object_system,
 };
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
@@ -44,6 +45,7 @@ use bevy_als::motion_graph_link::{
     compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
 };
 use bevy_als::overlay_layer::OverlayLayerPlugin;
+use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
 use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
 use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
@@ -89,6 +91,7 @@ fn main() {
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground_scene.ron".into(),
         },
+        PlaygroundCollisionPlugin,
         AnimationGraphPlugin::default(),
         PlaygroundMaterialsPlugin,
         OverlayMaterialsPlugin,
@@ -100,6 +103,7 @@ fn main() {
     .init_resource::<PlatformPhysicsProbe>()
     .init_resource::<AmbientOcclusionProbe>()
     .init_resource::<TemporalAntiAliasingProbe>()
+    .init_resource::<CollisionParityProbe>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -113,9 +117,9 @@ fn main() {
             ambient_occlusion_probe,
             temporal_anti_aliasing_probe,
             character_material_probe,
-            playground_physics_bridge,
             platform_physics_probe,
             landscape_collider_bridge,
+            collision_parity_probe,
             graph_router,
             look_pitch_integrator,
             auto_quit,
@@ -144,6 +148,12 @@ struct AmbientOcclusionProbe(bool);
 
 #[derive(Resource, Default)]
 struct TemporalAntiAliasingProbe(bool);
+
+#[derive(Resource, Default)]
+struct CollisionParityProbe {
+    ready_frames: u32,
+    done: bool,
+}
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
@@ -532,44 +542,132 @@ fn character_material_probe(
     probe.0 = true;
 }
 
-fn playground_physics_bridge(
-    mut commands: Commands,
-    bodies: Query<
-        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>),
-        Added<PlaygroundBoxCollider>,
-    >,
-    moving_roots: Query<(), With<PlaygroundMovingObject>>,
-    root_names: Query<&Name>,
+fn collision_parity_probe(
+    mut probe: ResMut<CollisionParityProbe>,
+    sources: Query<(
+        Entity,
+        &PlaygroundCollisionSource,
+        Option<&PlaygroundMeshColliderBuilt>,
+        &GlobalTransform,
+        Has<Collider>,
+    )>,
+    spatial: SpatialQuery,
 ) {
-    for (entity, name, collider, parent) in &bodies {
-        let shape = Collider::cuboid(
-            collider.half_extents.x * 2.0,
-            collider.half_extents.y * 2.0,
-            collider.half_extents.z * 2.0,
-        );
-        if let Some(&ChildOf(root)) = parent
-            && moving_roots.contains(root)
-        {
-            commands.entity(entity).insert(shape);
-            commands
-                .entity(root)
-                .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
-        } else {
-            let parent_is_floor = parent.is_some_and(|&ChildOf(root)| {
-                root_names
-                    .get(root)
-                    .is_ok_and(|root_name| root_name.as_str().ends_with(":BP_SimpleObject5"))
-            });
-            let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
-            let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((RigidBody::Static, shape));
-            if is_floor {
-                entity_commands.insert(AlsCrushRecoveryFloor {
-                    half_extents: collider.half_extents,
-                });
+    if probe.done {
+        return;
+    }
+    let mut box_meshes = HashSet::new();
+    let mut convex_meshes = HashSet::new();
+    let mut trimesh_meshes = HashSet::new();
+    let mut non_box_total = 0usize;
+    let mut non_box_built = 0usize;
+    let mut stair_roots = Vec::new();
+    for (entity, source, built, transform, has_collider) in &sources {
+        match source.kind {
+            PlaygroundColliderKind::Box => {
+                box_meshes.insert(source.mesh_base.as_str());
+            }
+            PlaygroundColliderKind::Convex { .. } => {
+                convex_meshes.insert(source.mesh_base.as_str());
+                non_box_total += 1;
+                if built.is_some_and(|built| {
+                    built.kind == source.kind
+                        && built.vertices > 0
+                        && built.triangles > 0
+                        && has_collider
+                }) {
+                    non_box_built += 1;
+                }
+            }
+            PlaygroundColliderKind::TriMesh => {
+                trimesh_meshes.insert(source.mesh_base.as_str());
+                non_box_total += 1;
+                if built.is_some_and(|built| {
+                    built.kind == source.kind
+                        && built.vertices > 0
+                        && built.triangles > 0
+                        && has_collider
+                }) {
+                    non_box_built += 1;
+                }
             }
         }
+        if source.mesh_base.starts_with("SM_Als_Stairs_")
+            && let Some(built) = built
+        {
+            stair_roots.push((entity, transform, built));
+        }
     }
+    let source_ready = box_meshes.len() == 8
+        && convex_meshes.len() == 5
+        && trimesh_meshes.len() == 7
+        && non_box_total > 0
+        && non_box_built == non_box_total
+        && stair_roots.len() >= 3
+        && stair_roots
+            .iter()
+            .all(|(_, _, built)| built.surface_probes.len() == 2);
+    if !source_ready {
+        return;
+    }
+    probe.ready_frames += 1;
+    if probe.ready_frames < 4 {
+        return;
+    }
+    let stair_count = stair_roots.len();
+    let mut ray_total = 0usize;
+    let mut ray_matching = 0usize;
+    let mut stair_height_delta_min = f32::INFINITY;
+    for (entity, transform, built) in &stair_roots {
+        let mut hit_heights = Vec::new();
+        for local_point in &built.surface_probes {
+            let expected = transform.to_matrix().transform_point3(*local_point);
+            let origin = expected + Vec3::Y * 30.0;
+            let hit = spatial.cast_ray_predicate(
+                origin,
+                Dir3::NEG_Y,
+                60.0,
+                false,
+                &SpatialQueryFilter::default(),
+                &|candidate| candidate == *entity,
+            );
+            ray_total += 1;
+            if let Some(hit) = hit {
+                let hit_height = origin.y - hit.distance;
+                if (hit_height - expected.y).abs() < 0.05 {
+                    ray_matching += 1;
+                    hit_heights.push(hit_height);
+                }
+            }
+        }
+        if hit_heights.len() == 2 {
+            stair_height_delta_min = stair_height_delta_min.min((hit_heights[0] - hit_heights[1]).abs());
+        }
+    }
+    let expected_rays = stair_count * 2;
+    if ray_total != expected_rays && probe.ready_frames < 120 {
+        return;
+    }
+    if ray_matching != expected_rays && probe.ready_frames < 120 {
+        return;
+    }
+    let pass = ray_total == expected_rays
+        && ray_matching == expected_rays
+        && stair_height_delta_min > 0.2;
+    info!(
+        "[PGCOL][VERDICT] mesh_types={} box_types={}/8 convex_types={}/5 trimesh_types={}/7 nonbox_built={}/{} stairs={} rays={}/{} stair_height_delta_min={stair_height_delta_min:.6} -> {}",
+        box_meshes.len() + convex_meshes.len() + trimesh_meshes.len(),
+        box_meshes.len(),
+        convex_meshes.len(),
+        trimesh_meshes.len(),
+        non_box_built,
+        non_box_total,
+        stair_count,
+        ray_matching,
+        expected_rays,
+        if pass { "PASS" } else { "FAIL" }
+    );
+    probe.done = true;
 }
 
 fn playground_kinematic_velocity_bridge(

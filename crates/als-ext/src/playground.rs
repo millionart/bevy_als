@@ -175,6 +175,58 @@ pub struct PlaygroundBoxCollider {
     pub half_extents: Vec3,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlaygroundColliderKind {
+    Box,
+    Convex { source_hulls: u8 },
+    TriMesh,
+}
+
+impl PlaygroundColliderKind {
+    pub fn is_box(self) -> bool {
+        matches!(self, Self::Box)
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct PlaygroundCollisionSource {
+    pub mesh_base: String,
+    pub kind: PlaygroundColliderKind,
+}
+
+impl PlaygroundCollisionSource {
+    pub fn new(mesh_base: impl Into<String>) -> Self {
+        let mesh_base = mesh_base.into();
+        Self {
+            kind: playground_collider_kind(&mesh_base),
+            mesh_base,
+        }
+    }
+}
+
+pub fn playground_collider_kind(mesh_base: &str) -> PlaygroundColliderKind {
+    match mesh_base {
+        "SM_Als_Block_2x2" | "SM_Als_Block_3x3" | "SM_Als_Crate" | "SM_Als_Floor_20x20"
+        | "SM_Als_Pillar" | "SM_Als_TitleBoard" | "SM_Als_Wall_2x20" | "SM_Als_Wall_3x5" => {
+            PlaygroundColliderKind::Box
+        }
+        "SM_Als_Arch_01" => PlaygroundColliderKind::Convex { source_hulls: 5 },
+        "SM_Als_Arch_02" => PlaygroundColliderKind::Convex { source_hulls: 4 },
+        "SM_Als_Barrel" | "SM_Als_Barrel_Broken" => {
+            PlaygroundColliderKind::Convex { source_hulls: 1 }
+        }
+        "SM_Als_Bench" => PlaygroundColliderKind::Convex { source_hulls: 4 },
+        "SM_Als_Cart"
+        | "SM_Als_Crate_Broken"
+        | "SM_Als_Fountain_01"
+        | "SM_Als_Rock"
+        | "SM_Als_Stairs_01"
+        | "SM_Als_Stairs_02"
+        | "SM_Als_Stairs_03" => PlaygroundColliderKind::TriMesh,
+        _ => PlaygroundColliderKind::Box,
+    }
+}
+
 #[derive(Component, Debug)]
 pub struct PlaygroundMovingObject;
 
@@ -856,6 +908,11 @@ pub fn playground_setup_system(
                             },
                         ))
                         .id();
+                    if let Some(base) = mesh_base.as_deref() {
+                        commands
+                            .entity(entity)
+                            .insert(PlaygroundCollisionSource::new(base));
+                    }
                     match mesh_scene {
                         Some(scene) => {
                             commands
@@ -932,6 +989,11 @@ pub fn playground_setup_system(
                             },
                         ))
                         .id();
+                    if let Some(base) = mesh_base.as_deref() {
+                        commands
+                            .entity(entity)
+                            .insert(PlaygroundCollisionSource::new(base));
+                    }
                     match mesh_scene {
                         Some(scene) => {
                             commands
@@ -1007,6 +1069,8 @@ pub fn playground_setup_system(
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
+                    let collision_source = PlaygroundCollisionSource::new(base);
+                    let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
                         .with_rotation(plan.quat)
                         .with_scale(plan.visual_scale);
@@ -1021,20 +1085,25 @@ pub fn playground_setup_system(
                     if no_shadow_caster {
                         visual.insert(PlaygroundNoShadowCaster);
                     }
-                    visual.with_children(|p| {
-                        p.spawn((
-                            Name::new(format!("{base}:collider")),
-                            Transform::from_translation(offset)
-                                .with_scale(inverse_scale(plan.visual_scale)),
-                            PlaygroundBoxCollider {
-                                half_extents: plan.half_extents_model,
-                            },
-                        ));
-                    });
+                    visual.insert(collision_source);
+                    if use_box_collider {
+                        visual.with_children(|p| {
+                            p.spawn((
+                                Name::new(format!("{base}:collider")),
+                                Transform::from_translation(offset)
+                                    .with_scale(inverse_scale(plan.visual_scale)),
+                                PlaygroundBoxCollider {
+                                    half_extents: plan.half_extents_model,
+                                },
+                            ));
+                        });
+                    }
                     spawned_static += 1;
                 }
                 (Some(base), false) => {
                     let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
+                    let collision_source = PlaygroundCollisionSource::new(base);
+                    let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
                         .with_rotation(plan.quat)
                         .with_scale(plan.visual_scale);
@@ -1048,19 +1117,22 @@ pub fn playground_setup_system(
                     if no_shadow_caster {
                         visual.insert(PlaygroundNoShadowCaster);
                     }
-                    visual.with_children(|p| {
-                        p.spawn((
-                            Name::new(format!("{}:aabb", actor.name)),
-                            Transform::from_translation(
-                                (plan.center_world - ue_point_to_bevy(plan.loc_cm))
-                                    / plan.visual_scale,
-                            )
-                            .with_scale(inverse_scale(plan.visual_scale)),
-                            PlaygroundBoxCollider {
-                                half_extents: plan.half_extents_model,
-                            },
-                        ));
-                    });
+                    visual.insert(collision_source);
+                    if use_box_collider {
+                        visual.with_children(|p| {
+                            p.spawn((
+                                Name::new(format!("{}:aabb", actor.name)),
+                                Transform::from_translation(
+                                    (plan.center_world - ue_point_to_bevy(plan.loc_cm))
+                                        / plan.visual_scale,
+                                )
+                                .with_scale(inverse_scale(plan.visual_scale)),
+                                PlaygroundBoxCollider {
+                                    half_extents: plan.half_extents_model,
+                                },
+                            ));
+                        });
+                    }
                     spawned_static += 1;
                 }
                 (None, true) => {
@@ -2267,6 +2339,52 @@ mod tests {
         assert!(!is_engine_basic(
             "/ALS/ALSExtras/Environment/Meshes/SM_Als_Rock.SM_Als_Rock"
         ));
+    }
+
+    #[test]
+    fn source_collision_categories_cover_all_exported_meshes() {
+        let boxes = [
+            "SM_Als_Block_2x2",
+            "SM_Als_Block_3x3",
+            "SM_Als_Crate",
+            "SM_Als_Floor_20x20",
+            "SM_Als_Pillar",
+            "SM_Als_TitleBoard",
+            "SM_Als_Wall_2x20",
+            "SM_Als_Wall_3x5",
+        ];
+        let convexes = [
+            ("SM_Als_Arch_01", 5),
+            ("SM_Als_Arch_02", 4),
+            ("SM_Als_Barrel", 1),
+            ("SM_Als_Barrel_Broken", 1),
+            ("SM_Als_Bench", 4),
+        ];
+        let trimeshes = [
+            "SM_Als_Cart",
+            "SM_Als_Crate_Broken",
+            "SM_Als_Fountain_01",
+            "SM_Als_Rock",
+            "SM_Als_Stairs_01",
+            "SM_Als_Stairs_02",
+            "SM_Als_Stairs_03",
+        ];
+        for mesh in boxes {
+            assert_eq!(playground_collider_kind(mesh), PlaygroundColliderKind::Box);
+        }
+        for (mesh, source_hulls) in convexes {
+            assert_eq!(
+                playground_collider_kind(mesh),
+                PlaygroundColliderKind::Convex { source_hulls }
+            );
+        }
+        for mesh in trimeshes {
+            assert_eq!(
+                playground_collider_kind(mesh),
+                PlaygroundColliderKind::TriMesh
+            );
+        }
+        assert_eq!(boxes.len() + convexes.len() + trimeshes.len(), 20);
     }
 
     #[test]
