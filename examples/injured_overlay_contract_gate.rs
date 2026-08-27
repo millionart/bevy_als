@@ -1,0 +1,578 @@
+use std::{
+    path::Path,
+    time::{Duration, Instant},
+};
+
+use als_ext::{
+    ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, ConstantF32Node, CurveBlendNode,
+    CurveModifyNode, FInterpNode, GameplayTagBlendMode, GameplayTagBlendNode, LinkedAnimLayerNode,
+    MultiWayBlendNode, TimePositionNode,
+};
+use bevy::ecs::message::MessageWriter;
+use bevy::prelude::*;
+use bevy::window::ExitCondition;
+use bevy_animation_graph::AnimationGraphPlugin;
+use bevy_animation_graph::builtin_nodes::{
+    blend_node::{BlendMode, BlendNode},
+    loop_node::LoopNode,
+};
+use bevy_animation_graph::core::{
+    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
+    animation_graph_player::AnimationGraphPlayer,
+    animation_node::AnimationNode,
+    edge_data::{DataSpec, DataValue},
+    plugin::AnimationGraphSet,
+    pose::Pose,
+    skeleton::Skeleton,
+};
+
+const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
+const GRAPH_PATH: &str = "graphs/ab_als/overlays/injured.animgraph.ron";
+const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const GAIT_WALKING: &str = "als_overlay_gait_walking_amount";
+const STANDING: &str = "als_overlay_standing_amount";
+const CROUCHING: &str = "als_overlay_crouching_amount";
+const IN_AIR: &str = "als_overlay_in_air_amount";
+const GROUND_PREDICTION: &str = "als_overlay_ground_prediction_amount";
+const ANIMATION_DELTA_SECONDS: &str = "als_animation_delta_seconds";
+const LOCOMOTION_ACTION: &str = "als_overlay_locomotion_action_index";
+
+fn main() {
+    let mut app = App::new();
+    app.add_plugins((
+        DefaultPlugins
+            .set(AssetPlugin {
+                file_path: "assets".into(),
+                ..default()
+            })
+            .set(WindowPlugin {
+                primary_window: None,
+                exit_condition: ExitCondition::DontExit,
+                ..default()
+            }),
+        AnimationGraphPlugin::from_physics_schedule(Update),
+        AlsExtPlugin,
+    ))
+    .init_resource::<RuntimeProbe>()
+    .add_systems(Startup, load_assets)
+    .add_systems(Update, (verify_static_contract, auto_quit))
+    .add_systems(PostUpdate, observe_runtime.after(AnimationGraphSet::Final));
+    app.run();
+}
+
+#[derive(Resource)]
+struct GateAssets {
+    interface: Handle<AnimationGraph>,
+    implementation: Handle<AnimationGraph>,
+    skeleton: Handle<Skeleton>,
+}
+
+#[derive(Resource)]
+struct AutoQuit(Instant);
+
+#[derive(Resource, Default)]
+struct RuntimeProbe {
+    player: Option<Entity>,
+    phase: ProbePhase,
+    previous_pose: Option<Pose>,
+    static_verified: bool,
+}
+
+#[derive(Default, PartialEq, Eq)]
+enum ProbePhase {
+    #[default]
+    Pending,
+    Default,
+    Walking,
+    AirStart,
+    AirPrediction,
+    GettingUp,
+    Rolling,
+}
+
+fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.insert_resource(GateAssets {
+        interface: assets.load(INTERFACE_PATH),
+        implementation: assets.load(GRAPH_PATH),
+        skeleton: assets.load(SKELETON_PATH),
+    });
+    commands.insert_resource(AutoQuit(Instant::now() + Duration::from_secs(20)));
+    info!("[INJURED-OVERLAY-CONTRACT] loading linked layer assets");
+}
+
+fn close(value: f32, expected: f32) -> bool {
+    (value - expected).abs() < 1e-4
+}
+
+fn graph_has_node<T: 'static>(graph: &AnimationGraph, name: &str) -> bool {
+    graph
+        .nodes
+        .values()
+        .find(|node| node.name == name)
+        .and_then(|node| node.try_inner_downcast_ref::<T>())
+        .is_some()
+}
+
+fn node_data_edge(
+    graph: &AnimationGraph,
+    target_node_name: &str,
+    target_pin: &str,
+    source_node_name: &str,
+    source_pin: &str,
+) -> bool {
+    let Some((target_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == target_node_name)
+    else {
+        return false;
+    };
+    let Some((source_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == source_node_name)
+    else {
+        return false;
+    };
+    matches!(
+        graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(*target_id, target_pin.to_owned())),
+        Some(SourcePin::NodeData(actual_id, actual_pin))
+            if actual_id == source_id && actual_pin == source_pin
+    )
+}
+
+fn build_linked_root(
+    interface: Handle<AnimationGraph>,
+    implementation: Handle<AnimationGraph>,
+) -> AnimationGraph {
+    let mut graph = AnimationGraph::new();
+    let node = AnimationNode::new(
+        "AB_Als Injured linked overlay",
+        LinkedAnimLayerNode {
+            interface,
+            implementations: vec![implementation],
+            selector: "layer_index".to_owned(),
+        },
+    );
+    let id = node.id;
+    graph.add_node(node);
+    graph.add_input_data(GraphInputPin::passthrough("base_pose"), DataSpec::Pose);
+    graph.add_input_time(GraphInputPin::passthrough("base_time"));
+    graph.add_input_data(GraphInputPin::passthrough("layer_index"), DataSpec::F32);
+    graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+    for curve in ALS_LAYER_CURVE_NAMES {
+        graph.add_output_data(curve.to_owned(), DataSpec::F32);
+    }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data(signal.to_owned(), DataSpec::F32);
+    }
+    graph.add_output_time();
+    graph.add_input_data_edge(GraphInputPin::passthrough("base_pose"), id, "base_pose");
+    graph.add_input_time_edge(GraphInputPin::passthrough("base_time"), id, "base_time");
+    graph.add_input_data_edge(GraphInputPin::passthrough("layer_index"), id, "layer_index");
+    graph.add_output_data_edge(id, "pose", "pose");
+    for curve in ALS_LAYER_CURVE_NAMES {
+        graph.add_output_data_edge(id, curve, curve);
+    }
+    for signal in ALS_LAYER_SIGNAL_NAMES {
+        graph.add_output_data_edge(id, signal, signal);
+    }
+    graph.add_output_pose_edge(id);
+    graph
+}
+
+fn expected_curve(name: &str) -> f32 {
+    match name {
+        "LayerArmLeftAdditive" => 0.0,
+        "HandLeftIk" | "HandRightIk" | "HipsDirectionLock" | "LayerHandLeft" | "LayerHandRight"
+        | "PoseAiming" => 0.0,
+        _ => 1.0,
+    }
+}
+
+fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
+    match player.get_outputs().get(name) {
+        Some(DataValue::F32(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+fn outputs_match_source(player: &AnimationGraphPlayer) -> bool {
+    ALS_LAYER_CURVE_NAMES.iter().all(|name| {
+        output_f32(player, name).is_some_and(|value| close(value, expected_curve(name)))
+    }) && output_f32(player, "transition_left_request").is_some_and(|value| value.abs() < 1e-6)
+}
+
+fn set_inputs(
+    player: &mut AnimationGraphPlayer,
+    gait_walking: f32,
+    standing: f32,
+    crouching: f32,
+    in_air: f32,
+    ground_prediction: f32,
+    delta_seconds: f32,
+    locomotion_action: f32,
+) {
+    player.set_global_input_data(GAIT_WALKING, gait_walking);
+    player.set_global_input_data(STANDING, standing);
+    player.set_global_input_data(CROUCHING, crouching);
+    player.set_global_input_data(IN_AIR, in_air);
+    player.set_global_input_data(GROUND_PREDICTION, ground_prediction);
+    player.set_global_input_data(ANIMATION_DELTA_SECONDS, delta_seconds);
+    player.set_global_input_data(LOCOMOTION_ACTION, locomotion_action);
+}
+
+fn left_arm_modify_contract(graph: &AnimationGraph, name: &str) -> bool {
+    graph
+        .nodes
+        .values()
+        .find(|node| node.name == name)
+        .and_then(|node| node.try_inner_downcast_ref::<CurveModifyNode>())
+        .is_some_and(|node| {
+            node.curve_names == ["LayerArmLeft"] && node.values == [3.0] && close(node.alpha, 1.0)
+        })
+}
+
+fn verify_static_contract(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    gate_assets: Res<GateAssets>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut probe: ResMut<RuntimeProbe>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if probe.static_verified
+        || !assets.is_loaded_with_dependencies(&gate_assets.interface)
+        || !assets.is_loaded_with_dependencies(&gate_assets.implementation)
+        || !assets.is_loaded_with_dependencies(&gate_assets.skeleton)
+    {
+        return;
+    }
+    let Some(interface) = graphs.get(&gate_assets.interface) else {
+        return;
+    };
+    let Some(graph) = graphs.get(&gate_assets.implementation) else {
+        return;
+    };
+    let pose_contract = graph
+        .io_spec
+        .get_input_data(&GraphInputPin::passthrough("base_pose"))
+        == Some(DataSpec::Pose)
+        && graph
+            .io_spec
+            .has_input_time(&GraphInputPin::passthrough("base_time"))
+        && graph.io_spec.get_output_data(&"pose".to_owned()) == Some(DataSpec::Pose)
+        && graph.io_spec.has_output_time()
+        && graph.default_data.is_empty();
+    let curve_contract = ALS_LAYER_CURVE_NAMES
+        .iter()
+        .all(|curve| graph.io_spec.get_output_data(&curve.to_string()) == Some(DataSpec::F32));
+    let signal_contract = ALS_LAYER_SIGNAL_NAMES
+        .iter()
+        .all(|signal| graph.io_spec.get_output_data(&signal.to_string()) == Some(DataSpec::F32));
+    let interface_contract = interface
+        .io_spec
+        .get_input_data(&GraphInputPin::passthrough("base_pose"))
+        == Some(DataSpec::Pose)
+        && interface
+            .io_spec
+            .has_input_time(&GraphInputPin::passthrough("base_time"));
+    let evaluators = [
+        "injured poses frame zero evaluator",
+        "injured poses frame one evaluator",
+        "injured poses frame two evaluator",
+        "injured poses frame one air evaluator",
+        "injured poses frame zero air evaluator",
+    ]
+    .into_iter()
+    .all(|name| {
+        graph
+            .nodes
+            .values()
+            .find(|node| node.name == name)
+            .and_then(|node| node.try_inner_downcast_ref::<TimePositionNode>())
+            .is_some_and(|node| close(node.duration_fallback, 0.1))
+    });
+    let f_interp = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "ground prediction interpolation")
+        .and_then(|node| node.try_inner_downcast_ref::<FInterpNode>())
+        .is_some_and(|node| {
+            close(node.increasing_speed, 20.0) && close(node.decreasing_speed, 5.0)
+        });
+    let topology = graph_has_node::<BlendNode>(graph, "grounded gait blend")
+        && graph
+            .nodes
+            .values()
+            .find(|node| node.name == "grounded stance multi way blend")
+            .and_then(|node| node.try_inner_downcast_ref::<MultiWayBlendNode>())
+            .is_some_and(|node| node.pose_count == 2 && node.normalize_alpha)
+        && graph_has_node::<BlendNode>(graph, "air pose blend")
+        && graph_has_node::<BlendNode>(graph, "grounded air blend");
+    let additive = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "secondary motion additive")
+        .and_then(|node| node.try_inner_downcast_ref::<BlendNode>())
+        .is_some_and(|node| matches!(node.mode, BlendMode::Additive))
+        && graph
+            .nodes
+            .values()
+            .find(|node| node.name == "secondary motion additive alpha")
+            .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
+            .is_some_and(|node| close(node.value, 0.5))
+        && graph
+            .nodes
+            .values()
+            .find(|node| node.name == "secondary motion idle loop")
+            .and_then(|node| node.try_inner_downcast_ref::<LoopNode>())
+            .is_some_and(|node| node.interpolation_period.abs() < 1e-6)
+        && node_data_edge(
+            graph,
+            "secondary motion additive",
+            "pose_a",
+            "grounded air blend",
+            "pose",
+        )
+        && node_data_edge(
+            graph,
+            "secondary motion additive",
+            "pose_b",
+            "secondary motion idle loop",
+            "pose",
+        );
+    let action_blend = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "locomotion action tag blend")
+        .and_then(|node| node.try_inner_downcast_ref::<GameplayTagBlendNode>())
+        .is_some_and(|node| {
+            node.tags
+                == [
+                    "Als.LocomotionAction.Mantling",
+                    "Als.LocomotionAction.GettingUp",
+                    "Als.LocomotionAction.Rolling",
+                ]
+                && node.blend_times == [0.3, 0.1, 0.0, 0.1]
+                && node.blend_mode == GameplayTagBlendMode::Linear
+        });
+    let action_curves = left_arm_modify_contract(graph, "getting up left arm curve modify")
+        && left_arm_modify_contract(graph, "rolling left arm curve modify")
+        && graph
+            .nodes
+            .values()
+            .find(|node| node.name == "locomotion action left arm curve blend")
+            .and_then(|node| node.try_inner_downcast_ref::<CurveBlendNode>())
+            .is_some_and(|node| {
+                node.curve_names == ["LayerArmLeft"]
+                    && node.input_count == 4
+                    && !node.normalize_weights
+            });
+    let curves = ALS_LAYER_CURVE_NAMES.iter().all(|curve| {
+        graph
+            .nodes
+            .values()
+            .find(|node| node.name == format!("{curve} curve"))
+            .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
+            .is_some_and(|node| close(node.value, expected_curve(curve)))
+    });
+    let source = std::fs::read_to_string(Path::new("assets").join(GRAPH_PATH)).unwrap_or_default();
+    let global_inputs = [
+        GAIT_WALKING,
+        STANDING,
+        CROUCHING,
+        IN_AIR,
+        GROUND_PREDICTION,
+        ANIMATION_DELTA_SECONDS,
+        LOCOMOTION_ACTION,
+    ]
+    .into_iter()
+    .all(|key| source.contains(key));
+    let asset_contract = source.matches("A_Als_Injured_Poses.anim.ron").count() == 5
+        && source.contains("animations/Base/A_Als_Idle.anim.ron")
+        && !source.contains("AB_Als_Monolithic");
+    let pass = pose_contract
+        && curve_contract
+        && signal_contract
+        && interface_contract
+        && evaluators
+        && f_interp
+        && topology
+        && additive
+        && action_blend
+        && action_curves
+        && curves
+        && global_inputs
+        && asset_contract;
+    info!(
+        "[INJURED-OVERLAY-CONTRACT] pose_contract={} curve_contract={} signal_contract={} interface_contract={} evaluators={} f_interp_20_5={} topology={} additive={} action_blend={} action_curves={} curves={} globals={} asset_contract={}",
+        pose_contract,
+        curve_contract,
+        signal_contract,
+        interface_contract,
+        evaluators,
+        f_interp,
+        topology,
+        additive,
+        action_blend,
+        action_curves,
+        curves,
+        global_inputs,
+        asset_contract,
+    );
+    if !pass {
+        warn!("[INJURED-OVERLAY-CONTRACT][VERDICT] static=false -> FAIL");
+        exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));
+        return;
+    }
+    let root = graphs.add(build_linked_root(
+        gate_assets.interface.clone(),
+        gate_assets.implementation.clone(),
+    ));
+    let mut player = AnimationGraphPlayer::new(gate_assets.skeleton.clone()).with_graph(root);
+    player.set_input_data("base_pose", DataValue::Pose(Pose::default()));
+    player.set_input_data("layer_index", DataValue::F32(0.0));
+    set_inputs(&mut player, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    player.pause();
+    player.queue_time_update(TimeUpdate::Delta(0.0));
+    probe.player = Some(
+        commands
+            .spawn((
+                Name::new("injured_overlay_contract_probe"),
+                Children::default(),
+                Transform::IDENTITY,
+                player,
+            ))
+            .id(),
+    );
+    probe.phase = ProbePhase::Default;
+    probe.static_verified = true;
+    info!("[INJURED-OVERLAY-CONTRACT] linked runtime probe initialized");
+}
+
+fn fail(exit: &mut MessageWriter<AppExit>, code: u8, message: &str) {
+    warn!("[INJURED-OVERLAY-CONTRACT][VERDICT] {message} -> FAIL");
+    exit.write(AppExit::Error(std::num::NonZeroU8::new(code).unwrap()));
+}
+
+fn pose_changed(previous: &Option<Pose>, pose: &Pose) -> bool {
+    previous.as_ref().is_some_and(|value| value != pose)
+}
+
+fn observe_runtime(
+    mut probe: ResMut<RuntimeProbe>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if !probe.static_verified {
+        return;
+    }
+    let Some(entity) = probe.player else {
+        return;
+    };
+    let Ok(mut player) = players.get_mut(entity) else {
+        return;
+    };
+    if let Some(error) = player.get_error() {
+        fail(&mut exit, 4, &format!("runtime error={error:?}"));
+        return;
+    }
+    let Some(pose) = player.get_default_output_pose().cloned() else {
+        return;
+    };
+    match probe.phase {
+        ProbePhase::Default => {
+            if !outputs_match_source(&player) {
+                fail(
+                    &mut exit,
+                    5,
+                    "default source curve or signal value mismatch",
+                );
+                return;
+            }
+            probe.previous_pose = Some(pose);
+            info!(
+                "[INJURED-OVERLAY-CONTRACT] runtime state=grounded_idle bones={} right_additive=1",
+                probe
+                    .previous_pose
+                    .as_ref()
+                    .map_or(0, |value| value.bones.len())
+            );
+            set_inputs(&mut player, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = ProbePhase::Walking;
+        }
+        ProbePhase::Walking => {
+            if !pose_changed(&probe.previous_pose, &pose) {
+                fail(&mut exit, 6, "gait walking did not change pose");
+                return;
+            }
+            probe.previous_pose = Some(pose);
+            info!("[INJURED-OVERLAY-CONTRACT] runtime state=grounded_walk pose_changed=true");
+            set_inputs(&mut player, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0);
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = ProbePhase::AirStart;
+        }
+        ProbePhase::AirStart => {
+            if !pose_changed(&probe.previous_pose, &pose) {
+                fail(&mut exit, 7, "air entry did not change pose");
+                return;
+            }
+            probe.previous_pose = Some(pose);
+            info!("[INJURED-OVERLAY-CONTRACT] runtime state=air_start pose_changed=true");
+            set_inputs(&mut player, 0.0, 1.0, 0.0, 1.0, 1.0, 0.01, 0.0);
+            player.queue_time_update(TimeUpdate::Delta(0.01));
+            probe.phase = ProbePhase::AirPrediction;
+        }
+        ProbePhase::AirPrediction => {
+            if !pose_changed(&probe.previous_pose, &pose) {
+                fail(&mut exit, 8, "ground prediction did not change pose");
+                return;
+            }
+            info!(
+                "[INJURED-OVERLAY-CONTRACT] runtime state=air_prediction pose_changed=true f_interp=0.2"
+            );
+            set_inputs(&mut player, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 2.0);
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = ProbePhase::GettingUp;
+        }
+        ProbePhase::GettingUp => {
+            if !output_f32(&player, "LayerArmLeft").is_some_and(|value| close(value, 3.0))
+                || !output_f32(&player, "LayerArmRight").is_some_and(|value| close(value, 1.0))
+            {
+                fail(&mut exit, 9, "GettingUp left arm curve contract");
+                return;
+            }
+            info!(
+                "[INJURED-OVERLAY-CONTRACT] runtime action=GettingUp LayerArmLeft=3 LayerArmRight=1"
+            );
+            set_inputs(&mut player, 0.0, 1.0, 0.0, 0.0, 0.0, 0.1, 3.0);
+            player.queue_time_update(TimeUpdate::Delta(0.1));
+            probe.phase = ProbePhase::Rolling;
+        }
+        ProbePhase::Rolling => {
+            if !output_f32(&player, "LayerArmLeft").is_some_and(|value| close(value, 3.0))
+                || !output_f32(&player, "LayerArmRight").is_some_and(|value| close(value, 1.0))
+            {
+                fail(&mut exit, 10, "Rolling left arm curve contract");
+                return;
+            }
+            info!(
+                "[INJURED-OVERLAY-CONTRACT] runtime action=Rolling LayerArmLeft=3 LayerArmRight=1"
+            );
+            info!("[INJURED-OVERLAY-CONTRACT][VERDICT] linked=true -> PASS");
+            exit.write(AppExit::Success);
+        }
+        ProbePhase::Pending => {}
+    }
+}
+
+fn auto_quit(time: Res<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+    if Instant::now() >= time.0 {
+        warn!("[INJURED-OVERLAY-CONTRACT][VERDICT] timeout -> FAIL");
+        exit.write(AppExit::Error(std::num::NonZeroU8::new(11).unwrap()));
+    }
+}
