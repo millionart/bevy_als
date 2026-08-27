@@ -1,0 +1,22 @@
+(
+    nodes: [
+        (id: "164c0000-0000-4000-8000-000000000001", name: "crouching stop pose clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000002", name: "crouching stop frame", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000003", name: "crouching stop evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.13333321, loop_position: true) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000004", name: "crouching stop layered factor", inner: { "als_ext::ConstantF32Node": (value: 1.0) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000005", name: "crouching stop combined legs mask", inner: { "als_ext::GlobalBoneMaskInputNode": (key: "als_crouching_stop_legs_mask") }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000006", name: "crouching stop mesh blend", inner: { "als_ext::MeshSpaceLayeredBlendNode": () }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000007", name: "crouching stop base time clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Base/A_Als_Crouch_Pose.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000008", name: "crouching stop base time frame", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (id: "164c0000-0000-4000-8000-000000000009", name: "crouching stop base time evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.033333335, loop_position: true) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("164c0000-0000-4000-8000-000000000003", "position"): NodeData("164c0000-0000-4000-8000-000000000002", "value"), NodeData("164c0000-0000-4000-8000-000000000003", "pose"): NodeData("164c0000-0000-4000-8000-000000000001", "pose"), NodeTime("164c0000-0000-4000-8000-000000000003", "time"): NodeTime("164c0000-0000-4000-8000-000000000001"),
+        NodeData("164c0000-0000-4000-8000-000000000009", "position"): NodeData("164c0000-0000-4000-8000-000000000008", "value"), NodeData("164c0000-0000-4000-8000-000000000009", "pose"): NodeData("164c0000-0000-4000-8000-000000000007", "pose"), NodeTime("164c0000-0000-4000-8000-000000000009", "time"): NodeTime("164c0000-0000-4000-8000-000000000007"),
+        NodeData("164c0000-0000-4000-8000-000000000006", "factor"): NodeData("164c0000-0000-4000-8000-000000000004", "value"), NodeData("164c0000-0000-4000-8000-000000000006", "bone_mask"): NodeData("164c0000-0000-4000-8000-000000000005", "als_crouching_stop_legs_mask"), NodeData("164c0000-0000-4000-8000-000000000006", "pose_a"): InputData(Passthrough("movement_pose")), NodeTime("164c0000-0000-4000-8000-000000000006", "time_a"): InputTime(Passthrough("movement_time")), NodeData("164c0000-0000-4000-8000-000000000006", "pose_b"): NodeData("164c0000-0000-4000-8000-000000000003", "pose"), NodeTime("164c0000-0000-4000-8000-000000000006", "time_b"): NodeTime("164c0000-0000-4000-8000-000000000003"),
+        OutputData("pose"): NodeData("164c0000-0000-4000-8000-000000000006", "pose"), OutputTime: NodeTime("164c0000-0000-4000-8000-000000000006"),
+    },
+    io_spec: (input_times: [Passthrough("movement_time")], input_data: { Passthrough("movement_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Data(Passthrough("movement_pose")): 0, Time(Passthrough("movement_time")): 1 }, output_order: { Data("pose"): 2, Time: 3 }),
+    default_data: {},
+    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

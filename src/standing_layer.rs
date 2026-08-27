@@ -4,12 +4,12 @@ use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
 use als_core::movement_direction::{
-    update_direction, AlsMovementDirection, AlsMovementDirectionState,
+    AlsMovementDirection, AlsMovementDirectionState, update_direction,
 };
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_ext::{
-    build_branch_bone_mask, transition_alpha, AlphaBlendMode, AlsAnimCurves, CurveAsset,
+    AlphaBlendMode, AlsAnimCurves, CurveAsset, build_branch_bone_mask, transition_alpha,
 };
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
@@ -17,7 +17,7 @@ use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::{bone_mask::BoneMask, DataValue};
+use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
@@ -1296,11 +1296,7 @@ fn update_standing_inputs(
     let (quick_stop_index, quick_stop_weight, quick_stop_play_rate) = quick_stop_values(transition);
     let turn_index = turn.map_or(0.0, |drive| {
         if drive.is_180 {
-            if drive.lr <= 0.5 {
-                2.0
-            } else {
-                3.0
-            }
+            if drive.lr <= 0.5 { 2.0 } else { 3.0 }
         } else if drive.lr <= 0.5 {
             0.0
         } else {
@@ -1582,6 +1578,13 @@ fn standing_layer_writer(
         else {
             continue;
         };
+        if *stance != Stance::Standing {
+            commands.entity(entity).remove::<StandingLayerRuntime>();
+            if pivot_request.is_some() {
+                commands.entity(parent.parent()).remove::<AlsPivotRequest>();
+            }
+            continue;
+        }
         let Some(movement_params) = params.get(handle.id()) else {
             continue;
         };

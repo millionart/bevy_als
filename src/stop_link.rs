@@ -30,6 +30,9 @@ pub struct AlsStopMatch {
 pub enum AlsTransitionKind {
     Stop,
     QuickStop,
+    CrouchingStop,
+    CrouchingQuickStop,
+    CrouchingDynamic,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -55,6 +58,7 @@ impl AlsTransitionPlayback {
         blend_out: f32,
         play_rate: f32,
         start_time: f32,
+        duration: f32,
     ) -> Self {
         Self {
             active: true,
@@ -66,7 +70,7 @@ impl AlsTransitionPlayback {
             blend_in,
             blend_out,
             start_time,
-            duration: QUICK_STOP_DURATION,
+            duration,
             weight: 0.0,
         }
     }
@@ -79,6 +83,7 @@ impl AlsTransitionPlayback {
             STOP_TRANSITION_BLEND_OUT,
             STOP_TRANSITION_PLAY_RATE,
             STOP_TRANSITION_START_TIME,
+            QUICK_STOP_DURATION,
         )
     }
 
@@ -90,6 +95,52 @@ impl AlsTransitionPlayback {
             QUICK_STOP_BLEND_OUT,
             play_rate,
             QUICK_STOP_START_TIME,
+            QUICK_STOP_DURATION,
+        )
+    }
+
+    pub fn crouching_stop_right() -> Self {
+        Self::new(
+            AlsTransitionKind::CrouchingStop,
+            1.0,
+            STOP_TRANSITION_BLEND_IN,
+            STOP_TRANSITION_BLEND_OUT,
+            STOP_TRANSITION_PLAY_RATE,
+            CROUCH_STOP_TRANSITION_START_TIME,
+            CROUCH_TRANSITION_DURATION,
+        )
+    }
+
+    pub fn crouching_quick_stop(index: f32, play_rate: f32) -> Self {
+        Self::new(
+            AlsTransitionKind::CrouchingQuickStop,
+            index,
+            QUICK_STOP_BLEND_IN,
+            QUICK_STOP_BLEND_OUT,
+            play_rate,
+            QUICK_STOP_START_TIME,
+            CROUCH_TRANSITION_DURATION,
+        )
+    }
+
+    pub fn crouching_dynamic(index: f32) -> Self {
+        Self::new(
+            AlsTransitionKind::CrouchingDynamic,
+            index,
+            DYNAMIC_TRANSITION_BLEND,
+            DYNAMIC_TRANSITION_BLEND,
+            DYNAMIC_TRANSITION_PLAY_RATE,
+            0.0,
+            CROUCH_DYNAMIC_TRANSITION_DURATION,
+        )
+    }
+
+    pub fn is_crouching(self) -> bool {
+        matches!(
+            self.kind,
+            AlsTransitionKind::CrouchingStop
+                | AlsTransitionKind::CrouchingQuickStop
+                | AlsTransitionKind::CrouchingDynamic
         )
     }
 
@@ -149,6 +200,11 @@ pub const STOP_TRANSITION_BLEND_IN: f32 = 0.2;
 pub const STOP_TRANSITION_BLEND_OUT: f32 = 0.2;
 pub const STOP_TRANSITION_PLAY_RATE: f32 = 1.5;
 pub const STOP_TRANSITION_START_TIME: f32 = 0.4;
+pub const CROUCH_STOP_TRANSITION_START_TIME: f32 = 0.2;
+pub const CROUCH_TRANSITION_DURATION: f32 = 2.33333325;
+pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
+pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
+pub const DYNAMIC_TRANSITION_PLAY_RATE: f32 = 1.5;
 
 pub fn quick_stop_selection(
     rotation_mode: RotationMode,
@@ -318,6 +374,7 @@ fn quick_stop_notify_system(
         (
             &Transform,
             &RotationMode,
+            &Stance,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
         ),
@@ -326,15 +383,19 @@ fn quick_stop_notify_system(
     mut commands: Commands,
 ) {
     for notice in notices.read() {
-        let Ok((body, rotation_mode, command, override_command)) = characters.get(notice.character)
+        let Ok((body, rotation_mode, stance, command, override_command)) =
+            characters.get(notice.character)
         else {
             continue;
         };
         let input = override_command.map_or(command, |value| &value.0);
         let (index, play_rate) = quick_stop_selection(*rotation_mode, input, body);
-        commands
-            .entity(notice.character)
-            .insert(AlsTransitionPlayback::quick_stop(index, play_rate));
+        let playback = if *stance == Stance::Crouching {
+            AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
+        } else {
+            AlsTransitionPlayback::quick_stop(index, play_rate)
+        };
+        commands.entity(notice.character).insert(playback);
     }
 }
 
@@ -397,6 +458,18 @@ mod tests {
     }
 
     #[test]
+    fn crouching_stop_transition_uses_the_source_right_slot_parameters() {
+        let playback = AlsTransitionPlayback::crouching_stop_right();
+        assert_eq!(playback.kind, AlsTransitionKind::CrouchingStop);
+        assert_eq!(playback.index, 1.0);
+        assert_eq!(playback.blend_in, STOP_TRANSITION_BLEND_IN);
+        assert_eq!(playback.blend_out, STOP_TRANSITION_BLEND_OUT);
+        assert_eq!(playback.play_rate, STOP_TRANSITION_PLAY_RATE);
+        assert_eq!(playback.start_time, CROUCH_STOP_TRANSITION_START_TIME);
+        assert_eq!(playback.duration, CROUCH_TRANSITION_DURATION);
+    }
+
+    #[test]
     fn transition_playback_latches_and_ends_at_the_sequence_duration() {
         let mut playback = AlsTransitionPlayback::quick_stop(0.0, QUICK_STOP_MIN_PLAY_RATE);
         playback.advance(QUICK_STOP_BLEND_IN / 2.0);
@@ -420,6 +493,7 @@ mod tests {
                 als_core::character::AlsCharacter,
                 Transform::default(),
                 RotationMode::ViewDirection,
+                Stance::Standing,
                 AlsInputCommand::default(),
             ))
             .id();

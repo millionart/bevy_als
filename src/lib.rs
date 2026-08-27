@@ -4,6 +4,7 @@ pub mod air_jump_layer;
 pub mod anim_probe;
 mod character_assembly;
 pub mod character_runtime;
+pub mod crouching_layer;
 pub mod debug_draw;
 pub mod direction_layer;
 pub mod foot_ik_apply;

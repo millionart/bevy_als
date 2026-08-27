@@ -12,6 +12,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use crate::air_jump_layer::AirJumpLayerPlugin;
 use crate::character_assembly::{AlsCharacterAvatar, AvatarGroundCompensationPlugin};
+use crate::crouching_layer::{AlsCrouchingLayerSet, CrouchingLayerPlugin};
 use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet, GaitLayerPlugin};
@@ -40,6 +41,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             GaitLayerPlugin,
             DirectionLayerPlugin,
             StandingLayerPlugin,
+            CrouchingLayerPlugin,
             AirJumpLayerPlugin,
             StanceLayerPlugin,
             OverlayLayerPlugin,
@@ -47,14 +49,14 @@ impl Plugin for AlsCharacterRuntimePlugin {
             TurnLayerPlugin,
             AlsRollDrivePlugin,
             AlsStopLinkPlugin,
-            AlsMantleDrivePlugin,
-            AlsRagdollLinkPlugin,
         ))
+        .add_plugins((AlsMantleDrivePlugin, AlsRagdollLinkPlugin))
         .add_systems(
             PostUpdate,
             runtime_graph_router
                 .after(AlsGaitLayerSet)
                 .before(AlsStandingLayerSet)
+                .before(AlsCrouchingLayerSet)
                 .before(AnimationGraphSet::Final),
         )
         .add_systems(

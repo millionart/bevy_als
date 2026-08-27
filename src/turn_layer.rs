@@ -21,6 +21,7 @@ pub const TURN_WEIGHT_IN: f32 = 10.0;
 pub const TURN_WEIGHT_OUT: f32 = 8.0;
 pub const TURN_DUR_90: f32 = 2.0;
 pub const TURN_DUR_180: f32 = 2.0;
+pub const CROUCH_TURN_DUR_180: f32 = 2.33333325;
 pub const ROTATE_DUR: f32 = 1.0;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -95,12 +96,28 @@ impl AlsTurnDrive {
     }
 }
 
-fn variant_params(variant: TurnVariant) -> (f32, bool, f32) {
+fn variant_params(variant: TurnVariant, crouching: bool) -> (f32, bool, f32) {
     match variant {
         TurnVariant::Left90 => (0.0, false, TURN_DUR_90),
         TurnVariant::Right90 => (1.0, false, TURN_DUR_90),
-        TurnVariant::Left180 => (0.0, true, TURN_DUR_180),
-        TurnVariant::Right180 => (1.0, true, TURN_DUR_180),
+        TurnVariant::Left180 => (
+            0.0,
+            true,
+            if crouching {
+                CROUCH_TURN_DUR_180
+            } else {
+                TURN_DUR_180
+            },
+        ),
+        TurnVariant::Right180 => (
+            1.0,
+            true,
+            if crouching {
+                CROUCH_TURN_DUR_180
+            } else {
+                TURN_DUR_180
+            },
+        ),
     }
 }
 
@@ -217,8 +234,6 @@ fn turn_pin_driver(
         let fwd = body_tf.forward();
         let body_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
         let rel = wrap_angle_degrees(view_deg - body_deg);
-        let allowed = *loco == LocomotionState::Grounded && hspeed < TURN_GROUND_SPEED_EPS;
-
         sampler.update(view_deg, time.elapsed_secs_f64(), dt);
 
         let crouching = *stance == Stance::Crouching;
@@ -227,50 +242,7 @@ fn turn_pin_driver(
         let rotate_allowed = stationary && standing_rotate_allowed(*rotation_mode, first_person);
         let turn_allowed = stationary && standing_turn_allowed(*rotation_mode, first_person);
 
-        if crouching {
-            detector.0 = TurnInPlaceDetector::default();
-            for (_drive_entity, parent, mut drive) in drives.iter_mut() {
-                if parent.parent() != char_entity {
-                    continue;
-                }
-                drive.playing = false;
-                update_rotate_in_place(
-                    &mut drive.rotate_state,
-                    hspeed >= TURN_GROUND_SPEED_EPS,
-                    allowed,
-                    rel,
-                    sampler.yaw_env,
-                    &RotateInPlaceConfig::default(),
-                    dt,
-                );
-                match drive.rotate_state.side {
-                    Some(side) => {
-                        let rotate_lr = if side == als_core::rotate_in_place::RotateSide::Left {
-                            0.0
-                        } else {
-                            1.0
-                        };
-                        if !drive.rotate_active || drive.rotate_lr != rotate_lr {
-                            drive.rotate_clip_time = 0.0;
-                        }
-                        drive.rotate_active = true;
-                        drive.rotate_finishing = false;
-                        drive.rotate_lr = rotate_lr;
-                        drive.rotate_rate = drive.rotate_state.play_rate;
-                        drive.weight = 0.0;
-                        drive.elapsed = 0.0;
-                        drive.clip_time = 0.0;
-                        drive.rotate_weight = (drive.rotate_weight + TURN_WEIGHT_IN * dt).min(1.0);
-                    }
-                    None => {
-                        drive.rotate_finishing = drive.rotate_active;
-                        drive.rotate_active = false;
-                        drive.rotate_rate = drive.rotate_state.play_rate;
-                        drive.rotate_weight = (drive.rotate_weight - TURN_WEIGHT_OUT * dt).max(0.0);
-                    }
-                }
-            }
-        } else if rotate_allowed {
+        if rotate_allowed {
             detector.0 = TurnInPlaceDetector::default();
             let mut config = RotateInPlaceConfig::default();
             if first_person && *rotation_mode != RotationMode::Aiming {
@@ -335,10 +307,10 @@ fn turn_pin_driver(
                 sampler.yaw_env,
                 dt,
                 turn_allowed,
-                false,
+                crouching,
                 &TurnInPlaceConfig::default(),
             ) {
-                let (lr, is_180, duration) = variant_params(ev.variant);
+                let (lr, is_180, duration) = variant_params(ev.variant, crouching);
                 for (_drive_entity, parent, mut drive) in drives.iter_mut() {
                     if parent.parent() != char_entity {
                         continue;
@@ -412,6 +384,13 @@ mod tests {
     fn source_standing_turn_sequences_are_two_seconds() {
         assert_eq!(TURN_DUR_90, 2.0);
         assert_eq!(TURN_DUR_180, 2.0);
+    }
+
+    #[test]
+    fn source_crouching_turn_one_eighty_sequence_is_two_and_one_third_seconds() {
+        let (_, is_180, duration) = variant_params(TurnVariant::Right180, true);
+        assert!(is_180);
+        assert!((duration - CROUCH_TURN_DUR_180).abs() < f32::EPSILON);
     }
 
     #[test]

@@ -1,0 +1,15 @@
+(
+    nodes: [
+        (id: "16490000-0000-4000-8000-000000000001", name: "crouching idle clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Base/A_Als_Crouch_Pose.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "16490000-0000-4000-8000-000000000002", name: "crouching idle frame zero", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (id: "16490000-0000-4000-8000-000000000003", name: "crouching idle evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.033333335, loop_position: true) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("16490000-0000-4000-8000-000000000003", "position"): NodeData("16490000-0000-4000-8000-000000000002", "value"),
+        NodeData("16490000-0000-4000-8000-000000000003", "pose"): NodeData("16490000-0000-4000-8000-000000000001", "pose"),
+        NodeTime("16490000-0000-4000-8000-000000000003", "time"): NodeTime("16490000-0000-4000-8000-000000000001"),
+        OutputData("pose"): NodeData("16490000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("16490000-0000-4000-8000-000000000003"),
+    },
+    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }), default_data: {},
+    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)
