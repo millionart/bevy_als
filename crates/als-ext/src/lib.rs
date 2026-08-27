@@ -21,6 +21,7 @@ pub mod overlay;
 pub mod playground;
 pub mod profile_blend;
 pub mod ragdoll_config_node;
+pub mod reset_on_activation;
 pub mod rich_curve;
 pub mod root_motion_clip;
 pub mod root_motion_defaults;
@@ -70,6 +71,7 @@ pub use profile_blend::{
     profile_target_weight, transition_alpha,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
+pub use reset_on_activation::{ResetOnActivationNode, activation_reset_required};
 pub use rich_curve::{
     RichCurveInterpolation, RichCurveKey, RichCurveSampleNode, RichCurveTangentMode,
     RichCurveTangentWeightMode, sample_rich_curve,
@@ -99,6 +101,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DistanceMatchNode>()
             .register_type::<FInterpNode>()
             .register_type::<SuppressFirstUpdateNode>()
+            .register_type::<ResetOnActivationNode>()
             .register_type::<GlobalF32InputNode>()
             .register_type::<GameplayTagBlendMode>()
             .register_type::<GameplayTagBlendNode>()

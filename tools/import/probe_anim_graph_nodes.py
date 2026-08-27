@@ -37,6 +37,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("asset")
     parser.add_argument("--contains", default="")
+    parser.add_argument("--outer", default="")
     parser.add_argument("--exports", action="store_true")
     args = parser.parse_args()
     asset = UAsset(args.asset)
@@ -63,13 +64,16 @@ def main():
                 continue
             if args.contains and args.contains not in class_name:
                 continue
+            path = outer_path(asset, export_index)
+            if args.outer and args.outer not in path:
+                continue
             export_properties, export_ok, export_error = PropReader(asset).read_export(export_index)
             if not export_ok:
                 raise ParseError(export_error)
             print(
                 "%s [%s]: %s"
                 % (
-                    outer_path(asset, export_index),
+                    path,
                     class_name,
                     json.dumps(export_properties, default=str),
                 )
