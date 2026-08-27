@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
+use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
+use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -11,7 +13,7 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_camera::AlsCameraPlugin;
+use als_camera::{AlsCameraPlugin, AlsCameraRig};
 use als_core::aim::AlsAimPlugin;
 use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsCharacterPlugin, AlsCrushRecoveryFloor};
@@ -95,6 +97,7 @@ fn main() {
     .init_resource::<SpawnOnce>()
     .init_resource::<CharacterMaterialProbe>()
     .init_resource::<PlatformPhysicsProbe>()
+    .init_resource::<AmbientOcclusionProbe>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -104,6 +107,8 @@ fn main() {
         Update,
         (
             spawn_character_once,
+            enable_character_ssao,
+            ambient_occlusion_probe,
             character_material_probe,
             playground_physics_bridge,
             platform_physics_probe,
@@ -130,6 +135,9 @@ struct CharacterMaterialProbe(bool);
 
 #[derive(Resource, Default)]
 struct PlatformPhysicsProbe(bool);
+
+#[derive(Resource, Default)]
+struct AmbientOcclusionProbe(bool);
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
@@ -333,6 +341,59 @@ fn spawn_character_once(
             )
         },
     );
+}
+
+fn enable_character_ssao(
+    mut commands: Commands,
+    cameras: Query<
+        Entity,
+        (
+            With<Camera3d>,
+            With<AlsCameraRig>,
+            Without<ScreenSpaceAmbientOcclusion>,
+        ),
+    >,
+) {
+    for camera in &cameras {
+        commands
+            .entity(camera)
+            .insert((Msaa::Off, ScreenSpaceAmbientOcclusion::default()));
+    }
+}
+
+fn ambient_occlusion_probe(
+    mut probe: ResMut<AmbientOcclusionProbe>,
+    cameras: Query<
+        (&ScreenSpaceAmbientOcclusion, &Msaa),
+        (With<Camera3d>, With<AlsCameraRig>),
+    >,
+) {
+    if probe.0 {
+        return;
+    }
+    let expected = ScreenSpaceAmbientOcclusion::default();
+    let camera_count = cameras.iter().count();
+    if camera_count == 0 {
+        return;
+    }
+    let default_count = cameras
+        .iter()
+        .filter(|(settings, _)| **settings == expected)
+        .count();
+    let msaa_off_count = cameras
+        .iter()
+        .filter(|(_, msaa)| **msaa == Msaa::Off)
+        .count();
+    if camera_count == 1 && default_count == 1 && msaa_off_count == 1 {
+        info!(
+            "[SSAO][VERDICT] camera={camera_count}/1 default={default_count}/1 msaa_off={msaa_off_count}/1 -> PASS"
+        );
+    } else {
+        error!(
+            "[SSAO][VERDICT] camera={camera_count}/1 default={default_count}/1 msaa_off={msaa_off_count}/1 -> FAIL"
+        );
+    }
+    probe.0 = true;
 }
 
 fn character_material_probe(
