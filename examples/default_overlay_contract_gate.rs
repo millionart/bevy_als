@@ -15,7 +15,7 @@ use bevy_animation_graph::builtin_nodes::{
     loop_node::LoopNode,
 };
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     animation_node::AnimationNode,
     edge_data::{DataSpec, DataValue},
@@ -111,6 +111,36 @@ fn load_graph(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn graph_has_node(graph: &AnimationGraph, name: &str) -> bool {
     graph.nodes.values().any(|node| node.name == name)
+}
+
+fn node_data_edge(
+    graph: &AnimationGraph,
+    target_node_name: &str,
+    target_pin: &str,
+    source_node_name: &str,
+    source_pin: &str,
+) -> bool {
+    let Some((target_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == target_node_name)
+    else {
+        return false;
+    };
+    let Some((source_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == source_node_name)
+    else {
+        return false;
+    };
+    matches!(
+        graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(*target_id, target_pin.to_owned())),
+        Some(SourcePin::NodeData(actual_id, actual_pin))
+            if actual_id == source_id && actual_pin == source_pin
+    )
 }
 
 fn set_overlay_inputs(
@@ -220,6 +250,19 @@ fn verify_static_contract(
         .find(|node| node.name == "secondary motion additive alpha")
         .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
         .is_some_and(|node| (node.value - 0.75).abs() < 1e-6);
+    let additive_order = node_data_edge(
+        graph,
+        "secondary motion additive",
+        "pose_a",
+        "grounded air blend",
+        "pose",
+    ) && node_data_edge(
+        graph,
+        "secondary motion additive",
+        "pose_b",
+        "secondary motion idle loop",
+        "pose",
+    );
     let source = std::fs::read_to_string(Path::new("assets").join(GRAPH_PATH)).unwrap_or_default();
     let global_inputs = [
         GAIT_WALKING,
@@ -259,11 +302,12 @@ fn verify_static_contract(
         && idle_loop
         && additive
         && additive_alpha
+        && additive_order
         && global_inputs
         && curve_nodes
         && asset_paths;
     info!(
-        "[DEFAULT-OVERLAY-CONTRACT] pose_contract={} curve_contract={} evaluators={} f_interp_20_5={} normalized_stance={} idle_loop={} additive={} additive_alpha={} globals={} curve_nodes={} asset_paths={}",
+        "[DEFAULT-OVERLAY-CONTRACT] pose_contract={} curve_contract={} evaluators={} f_interp_20_5={} normalized_stance={} idle_loop={} additive={} additive_alpha={} additive_order={} globals={} curve_nodes={} asset_paths={}",
         pose_contract,
         curve_contract,
         evaluator_count,
@@ -272,6 +316,7 @@ fn verify_static_contract(
         idle_loop,
         additive,
         additive_alpha,
+        additive_order,
         global_inputs,
         curve_nodes,
         asset_paths,
