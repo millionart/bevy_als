@@ -19,7 +19,7 @@ use bevy_animation_graph::builtin_nodes::{
     loop_node::LoopNode,
 };
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     animation_node::AnimationNode,
     edge_data::{DataSpec, DataValue},
@@ -222,7 +222,42 @@ fn set_character_inputs(
     player.set_global_input_data(PITCH_AMOUNT, 0.0);
 }
 
-fn idle_additive_contract(graph: &AnimationGraph, name: &str, alpha: f32) -> bool {
+fn node_data_edge(
+    graph: &AnimationGraph,
+    target_node_name: &str,
+    target_pin: &str,
+    source_node_name: &str,
+    source_pin: &str,
+) -> bool {
+    let Some((target_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == target_node_name)
+    else {
+        return false;
+    };
+    let Some((source_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == source_node_name)
+    else {
+        return false;
+    };
+    matches!(
+        graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(*target_id, target_pin.to_owned())),
+        Some(SourcePin::NodeData(actual_id, actual_pin))
+            if actual_id == source_id && actual_pin == source_pin
+    )
+}
+
+fn idle_additive_contract(
+    graph: &AnimationGraph,
+    name: &str,
+    alpha: f32,
+    base_name: &str,
+) -> bool {
     graph
         .nodes
         .values()
@@ -230,7 +265,10 @@ fn idle_additive_contract(graph: &AnimationGraph, name: &str, alpha: f32) -> boo
         .and_then(|node| node.try_inner_downcast_ref::<BlendNode>())
         .is_some_and(|node| matches!(node.mode, BlendMode::Additive))
         && graph.nodes.values().any(|node| {
-            node.name == "idle loop" && node.try_inner_downcast_ref::<LoopNode>().is_some()
+            node.name == "idle loop"
+                && node
+                    .try_inner_downcast_ref::<LoopNode>()
+                    .is_some_and(|node| node.interpolation_period.abs() < 1e-6)
         })
         && graph.nodes.values().any(|node| {
             node.name == "idle additive alpha"
@@ -238,6 +276,8 @@ fn idle_additive_contract(graph: &AnimationGraph, name: &str, alpha: f32) -> boo
                     .try_inner_downcast_ref::<ConstantF32Node>()
                     .is_some_and(|node| close(node.value, alpha))
         })
+        && node_data_edge(graph, name, "pose_a", base_name, "pose")
+        && node_data_edge(graph, name, "pose_b", "idle loop", "pose")
 }
 
 fn profile_contract(
@@ -431,9 +471,22 @@ fn verify_static_contract(
             !transition.data.ignore_external_events && transition.data.reset_target_state
         });
     let state_graph_contract =
-        idle_additive_contract(relaxed, "relaxed secondary motion additive", 0.75)
-            && idle_additive_contract(ready, "ready secondary motion additive", 0.75)
-            && idle_additive_contract(aiming, "aiming secondary motion additive", 0.5)
+        idle_additive_contract(
+            relaxed,
+            "relaxed secondary motion additive",
+            0.75,
+            "relaxed stance blend",
+        ) && idle_additive_contract(
+            ready,
+            "ready secondary motion additive",
+            0.75,
+            "ready stance blend",
+        ) && idle_additive_contract(
+            aiming,
+            "aiming secondary motion additive",
+            0.5,
+            "aiming stance blend",
+        )
             && relaxed.nodes.values().any(|node| {
                 node.try_inner_downcast_ref::<CurveWeightedSamplesNode>()
                     .is_some()
