@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
-    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode,
+    AlsExtPlugin, AlsRagdollConfigNode, GameplayTagBlendMode, GlobalBoolInputNode,
+    GlobalF32InputNode, GlobalPoseInputNode, RagdollingTagBlendNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -180,16 +180,15 @@ fn output_pose(player: &AnimationGraphPlayer) -> Option<&Pose> {
 }
 
 fn config_matches(player: &AnimationGraphPlayer, dynamic: bool) -> bool {
-    let expected_mode = if dynamic {
-        BodyMode::Dynamic
-    } else {
-        BodyMode::Kinematic
-    };
     matches!(
         player.get_outputs().get("ragdoll_config"),
         Some(DataValue::RagdollConfig(config))
-            if config.default_mode == Some(expected_mode)
-                && config.default_readback == Some(dynamic)
+            if if dynamic {
+                config.default_mode == Some(BodyMode::Dynamic)
+                    && config.default_readback == Some(true)
+            } else {
+                config.default_mode.is_none() && config.default_readback.is_none()
+            }
     )
 }
 
@@ -257,7 +256,7 @@ fn verify_static(
         .is_some_and(|node| node.key == "als_ragdolling_dynamic")
         && node::<GlobalBoolInputNode>(graph, "ragdoll readback")
             .is_some_and(|node| node.key == "als_ragdolling_readback")
-        && node::<RagdollConfigNode>(graph, "ragdoll config").is_some();
+        && node::<AlsRagdollConfigNode>(graph, "ragdoll config").is_some();
     let io = has_input(graph, "ragdolling_pose")
         && graph.io_spec.has_output_time()
         && CURVES.iter().all(|curve| {
@@ -432,7 +431,7 @@ fn observe(
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = Phase::Recovered;
             info!(
-                "[RAGDOLLING-CONTRACT] recovery snapshot=1 outer=.5/.5 curve=.375 config=kinematic/no-readback"
+                "[RAGDOLLING-CONTRACT] recovery snapshot=1 outer=.5/.5 curve=.375 config=asset-default/no-readback"
             );
         }
         Phase::Recovered => {
