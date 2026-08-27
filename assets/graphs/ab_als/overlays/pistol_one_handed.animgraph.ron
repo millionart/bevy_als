@@ -11,7 +11,7 @@
         (id: "c1090000-0000-4000-8000-000000000103", name: "poses frame three rolling clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
         (id: "c1090000-0000-4000-8000-000000000151", name: "frame three position", inner: { "als_ext::ConstantF32Node": (value: 0.1) }, should_debug: false),
         (id: "c1090000-0000-4000-8000-000000000152", name: "frame seven position", inner: { "als_ext::ConstantF32Node": (value: 0.23333334) }, should_debug: false),
-        (id: "c1090000-0000-4000-8000-000000000153", name: "frame zero position", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (id: "c1090000-0000-4000-8000-000000000153", name: "frame three rolling position", inner: { "als_ext::ConstantF32Node": (value: 0.1) }, should_debug: false),
         (id: "c1090000-0000-4000-8000-000000000201", name: "poses frame three evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3) }, should_debug: false),
         (id: "c1090000-0000-4000-8000-000000000202", name: "poses frame seven evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3) }, should_debug: false),
         (id: "c1090000-0000-4000-8000-000000000203", name: "poses frame three rolling evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3) }, should_debug: false),

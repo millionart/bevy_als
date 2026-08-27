@@ -440,6 +440,9 @@ fn verify_static_contract(
                 && curve_key(node, "HandRightIk", 0.0, 0.0)
                 && curve_key(node, "LayerHandLeft", 0.0, 0.0)
         });
+    let action_positions = has_time_position(pistol, "poses frame three evaluator", 0.1)
+        && has_time_position(pistol, "poses frame seven evaluator", 0.23333334)
+        && has_time_position(pistol, "poses frame three rolling evaluator", 0.1);
     let action_modifiers = [
         "getting up LayerArmRight curve modify",
         "rolling LayerArmRight curve modify",
@@ -646,13 +649,14 @@ fn verify_static_contract(
         && linked_fsm
         && action_contract
         && action_curves
+        && action_positions
         && action_modifiers
         && state_machine_contract
         && state_graph_contract
         && transition_contract
         && source_contract
         && numeric_contract;
-    info!("[PISTOL-ONE-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_modifiers={} state_machine={} states={} transitions={} source={} numeric={}", interface_contract, linked_fsm, action_contract, action_curves, action_modifiers, state_machine_contract, state_graph_contract, transition_contract, source_contract, numeric_contract);
+    info!("[PISTOL-ONE-HANDED-CONTRACT] interface={} linked_fsm={} action={} action_curves={} action_positions={} action_modifiers={} state_machine={} states={} transitions={} source={} numeric={}", interface_contract, linked_fsm, action_contract, action_curves, action_positions, action_modifiers, state_machine_contract, state_graph_contract, transition_contract, source_contract, numeric_contract);
     if !pass {
         warn!("[PISTOL-ONE-HANDED-CONTRACT][VERDICT] static=false -> FAIL");
         exit.write(AppExit::Error(std::num::NonZeroU8::new(3).unwrap()));
