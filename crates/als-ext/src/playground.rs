@@ -1171,11 +1171,19 @@ pub struct PlaygroundTextFit {
     pub center_error: f32,
     pub overflow_error: f32,
     pub shared_frame_error: f32,
+    pub local_min_x: f32,
+    pub local_max_x: f32,
     pub inline_anchor_error: f32,
+    pub inline_frame_error: f32,
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PlaygroundTextGlyphColor(pub [f32; 4]);
+
+#[derive(Component, Debug, Clone)]
+struct PlaygroundTextLineLayout {
+    right_edges: Vec<f32>,
+}
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PlaygroundTextFacing {
@@ -1665,6 +1673,7 @@ fn world_text_mesh_system(
     mut sources: Query<
         (
             Entity,
+            &Text2d,
             &TextLayoutInfo,
             &TextColor,
             &Anchor,
@@ -1674,14 +1683,19 @@ fn world_text_mesh_system(
         (With<PlaygroundTextLabel>, Without<WorldTextMeshBuilt>),
     >,
     reference_frames: Query<
-        (&Name, &Transform, &TextLayoutInfo, &Anchor),
+        (
+            &Name,
+            &Transform,
+            &PlaygroundTextFit,
+            &PlaygroundTextLineLayout,
+        ),
         (With<PlaygroundTextLabel>, With<WorldTextMeshBuilt>),
     >,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, layout, text_color, anchor, target, mut transform) in &mut sources {
+    for (entity, text, layout, text_color, anchor, target, mut transform) in &mut sources {
         if layout.glyphs.is_empty() || layout.scale_factor <= 0.0 {
             continue;
         }
@@ -1691,8 +1705,19 @@ fn world_text_mesh_system(
         let mut batches: HashMap<AssetId<Image>, WorldTextMeshBatch> = HashMap::new();
         let mut geometry_min = Vec2::splat(f32::INFINITY);
         let mut geometry_max = Vec2::splat(f32::NEG_INFINITY);
+        let mut line_rights: Vec<(usize, f32)> = Vec::new();
+        let mut layout_characters = text
+            .0
+            .chars()
+            .filter(|character| !matches!(character, '\r' | '\n'));
 
         for glyph in &layout.glyphs {
+            let Some(character) = layout_characters.next() else {
+                continue;
+            };
+            if character.is_whitespace() {
+                continue;
+            }
             let Some(image) = images.get(glyph.atlas_info.texture) else {
                 continue;
             };
@@ -1738,6 +1763,14 @@ fn world_text_mesh_system(
             batch.indices.extend_from_slice(&indices);
             geometry_min = geometry_min.min(Vec2::new(left.min(right), bottom.min(top)));
             geometry_max = geometry_max.max(Vec2::new(left.max(right), bottom.max(top)));
+            if let Some((_, line_right)) = line_rights
+                .iter_mut()
+                .find(|(line_index, _)| *line_index == glyph.line_index)
+            {
+                *line_right = line_right.max(right);
+            } else {
+                line_rights.push((glyph.line_index, right));
+            }
         }
 
         let geometry_size = geometry_max - geometry_min;
@@ -1745,45 +1778,23 @@ fn world_text_mesh_system(
             continue;
         }
 
-        let (fit_size, local_center, shared_frame, inline_x_offset, inline_target_left) = if target
+        line_rights.sort_by(|left, right| left.0.cmp(&right.0));
+        let line_right_edges = line_rights
+            .into_iter()
+            .map(|(_, right)| right)
+            .collect::<Vec<_>>();
+        let (fit_size, local_center, shared_frame, inline_target_left, inline_frame_x) = if target
             .shares_blue_text_frame
         {
-            let Some((_, reference, reference_layout, reference_anchor)) = reference_frames
+            let Some((_, reference, reference_fit, reference_lines)) = reference_frames
                 .iter()
                 .find(|(name, _, _, _)| name.as_str() == "Text:TextRenderActor2_4")
             else {
                 continue;
             };
-            let reference_top_left =
-                (Anchor::TOP_LEFT.0 - reference_anchor.as_vec()) * reference_layout.size;
-            let reference_inverse_scale = reference_layout.scale_factor.recip();
-            let mut line_rights: Vec<(f32, f32)> = Vec::new();
-            for glyph in &reference_layout.glyphs {
-                let Some(image) = images.get(glyph.atlas_info.texture) else {
-                    continue;
-                };
-                let image_size = Vec2::new(
-                    image.texture_descriptor.size.width as f32,
-                    image.texture_descriptor.size.height as f32,
-                );
-                if image_size.x <= 0.0 || image_size.y <= 0.0 {
-                    continue;
-                }
-                let glyph_size = glyph.atlas_info.rect.size();
-                let glyph_max = glyph.position + glyph_size * 0.5;
-                let right = reference_top_left.x + glyph_max.x * reference_inverse_scale;
-                if let Some((_, line_right)) = line_rights
-                    .iter_mut()
-                    .find(|(line_y, _)| (*line_y - glyph.position.y).abs() < 1e-4)
-                {
-                    *line_right = line_right.max(right);
-                } else {
-                    line_rights.push((glyph.position.y, right));
-                }
-            }
-            line_rights.sort_by(|left, right| left.0.total_cmp(&right.0));
-            let Some((_, reference_line_right)) =
-                line_rights.get(target.leading_line_breaks as usize)
+            let Some(reference_line_right) = reference_lines
+                .right_edges
+                .get(target.leading_line_breaks as usize)
             else {
                 continue;
             };
@@ -1791,13 +1802,12 @@ fn world_text_mesh_system(
                 continue;
             }
             let source_space_advance = (geometry_min.x - top_left.x) / target.leading_spaces as f32;
-            let target_left = reference_line_right + source_space_advance;
             (
                 geometry_size,
                 Vec3::ZERO,
                 Some(reference.clone()),
-                target_left - geometry_min.x,
-                Some(target_left),
+                Some(*reference_line_right + source_space_advance),
+                Some((reference_fit.local_min_x, reference_fit.local_max_x)),
             )
         } else {
             (
@@ -1808,24 +1818,34 @@ fn world_text_mesh_system(
                     1.0,
                 ),
                 None,
-                0.0,
+                None,
                 None,
             )
         };
-        if inline_x_offset != 0.0 {
+        if let Some(target_left) = inline_target_left {
+            let whitespace_advance_adjustment = target_left - geometry_min.x;
             for batch in batches.values_mut() {
                 for position in &mut batch.positions {
-                    position[0] += inline_x_offset;
+                    position[0] += whitespace_advance_adjustment;
                 }
             }
         }
+        let actual_min_x = batches
+            .values()
+            .flat_map(|batch| batch.positions.iter().map(|position| position[0]))
+            .fold(f32::INFINITY, f32::min);
+        let actual_max_x = batches
+            .values()
+            .flat_map(|batch| batch.positions.iter().map(|position| position[0]))
+            .fold(f32::NEG_INFINITY, f32::max);
         let inline_anchor_error = inline_target_left
-            .map(|target_left| {
-                let actual_left = batches
-                    .values()
-                    .flat_map(|batch| batch.positions.iter().map(|position| position[0]))
-                    .fold(f32::INFINITY, f32::min);
-                (actual_left - target_left).abs()
+            .map(|target_left| (actual_min_x - target_left).abs())
+            .unwrap_or(0.0);
+        let inline_frame_error = inline_frame_x
+            .map(|(frame_min_x, frame_max_x)| {
+                (frame_min_x - actual_min_x)
+                    .max(0.0)
+                    .max((actual_max_x - frame_max_x).max(0.0))
             })
             .unwrap_or(0.0);
         let (fitted_center, fitted_width, fitted_height, shared_frame_error) =
@@ -1903,7 +1923,13 @@ fn world_text_mesh_system(
                     .max(0.0)
                     .max((fitted_height - target.height).max(0.0)),
                 shared_frame_error,
+                local_min_x: actual_min_x,
+                local_max_x: actual_max_x,
                 inline_anchor_error,
+                inline_frame_error,
+            },
+            PlaygroundTextLineLayout {
+                right_edges: line_right_edges,
             },
         ));
         commands.entity(entity).remove::<Text2d>();

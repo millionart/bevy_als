@@ -83,6 +83,7 @@ struct SceneStats {
     shared_text_frame_error: f32,
     shared_text_source_error: f32,
     per_project_inline_anchor_error: f32,
+    per_project_inline_frame_error: f32,
     per_project_leading_line_breaks: u32,
     per_project_leading_spaces: u32,
     text_color_mesh_count: u32,
@@ -265,6 +266,7 @@ fn stats_collector(
     stats.shared_text_frame_error = 0.0;
     stats.shared_text_source_error = 0.0;
     stats.per_project_inline_anchor_error = 0.0;
+    stats.per_project_inline_frame_error = 0.0;
     stats.per_project_leading_line_breaks = 0;
     stats.per_project_leading_spaces = 0;
     stats.text_center_aligned_count = 0;
@@ -296,6 +298,9 @@ fn stats_collector(
             stats.per_project_inline_anchor_error = stats
                 .per_project_inline_anchor_error
                 .max(fit.inline_anchor_error);
+            stats.per_project_inline_frame_error = stats
+                .per_project_inline_frame_error
+                .max(fit.inline_frame_error);
             stats.per_project_leading_line_breaks = target.leading_line_breaks;
             stats.per_project_leading_spaces = target.leading_spaces;
             per_project_frame = Some((transform.clone(), *target));
@@ -784,6 +789,7 @@ fn verdict_system(
         && stats.shared_text_frame_error < 1e-6
         && stats.shared_text_source_error < 1e-6
         && stats.per_project_inline_anchor_error < 1e-6
+        && stats.per_project_inline_frame_error < 1e-6
         && stats.per_project_leading_line_breaks == 4
         && stats.per_project_leading_spaces == 79;
     let ok_text_color = stats.text_color_mesh_count == stats.world_text_mesh_count
@@ -836,7 +842,7 @@ fn verdict_system(
     let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} inline_frame_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -855,6 +861,7 @@ fn verdict_system(
         stats.shared_text_frame_error,
         stats.shared_text_source_error,
         stats.per_project_inline_anchor_error,
+        stats.per_project_inline_frame_error,
         stats.per_project_leading_line_breaks,
         stats.per_project_leading_spaces,
         stats.text_color_mesh_count,
