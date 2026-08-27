@@ -77,10 +77,9 @@ pub fn apply_als_control_scheme_config(
     capsule_crouched: bool,
 ) {
     config.basis.speed = gait_max_speed(params, &stance, &gait);
-    config.basis.float_height =
-        params.crouch.standing_capsule_half_height
-            + ALS_CHARACTER_FLOOR_CLEARANCE
-            + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+    config.basis.float_height = params.crouch.standing_capsule_half_height
+        + ALS_CHARACTER_FLOOR_CLEARANCE
+        + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
     config.basis.acceleration = params.acceleration.max_acceleration;
     config.basis.coyote_time = params.jump.coyote_time;
     config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
@@ -95,11 +94,11 @@ pub fn apply_als_control_scheme_config(
     config.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
     config.basis.cling_distance = WALK_CLING_DISTANCE;
     let gravity_scale = params.jump.gravity_scale.max(1e-3);
-    config.jump.height = params.jump.jump_z_velocity * params.jump.jump_z_velocity
-        / (2.0 * 9.81 * gravity_scale);
+    config.jump.height =
+        params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
     config.jump.shorten_extra_gravity = 0.0;
-    config.crouch.float_offset = -(params.crouch.standing_capsule_half_height
-        - params.crouch.crouched_capsule_half_height);
+    config.crouch.float_offset =
+        -(params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height);
 }
 
 pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsControlSchemeConfig {
@@ -118,8 +117,8 @@ pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsContr
 pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
     let (sin, cos) = view_yaw.sin_cos();
     Vec2::new(
-        cos * move_dir.x + sin * move_dir.y,
-        -sin * move_dir.x + cos * move_dir.y,
+        cos * move_dir.x - sin * move_dir.y,
+        sin * move_dir.x + cos * move_dir.y,
     )
 }
 
@@ -148,14 +147,17 @@ mod rotation_cap_tests {
         let cases = [
             (0.0, Vec2::Y, Vec3::NEG_Z),
             (0.0, Vec2::X, Vec3::X),
-            (std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::X),
-            (std::f32::consts::FRAC_PI_2, Vec2::X, Vec3::Z),
+            (std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::NEG_X),
+            (std::f32::consts::FRAC_PI_2, Vec2::X, Vec3::NEG_Z),
             (std::f32::consts::PI, Vec2::Y, Vec3::Z),
-            (-std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::NEG_X),
+            (-std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::X),
         ];
         for (yaw, input, expected) in cases {
             let actual = view_relative_move_direction(input, yaw);
-            assert!(actual.distance(expected) < 1e-5, "yaw={yaw} input={input:?}");
+            assert!(
+                actual.distance(expected) < 1e-5,
+                "yaw={yaw} input={input:?}"
+            );
         }
     }
 
@@ -351,7 +353,7 @@ fn locomotion_drive_system(
                 }
             }
             RotationMode::ViewDirection | RotationMode::Aiming => {
-                Dir3::new(Vec3::new(view_yaw.0.sin(), 0.0, -view_yaw.0.cos())).ok()
+                Dir3::new(view_relative_move_direction(Vec2::Y, view_yaw.0)).ok()
             }
         };
 

@@ -109,7 +109,7 @@ pub fn relative_angle(input_dir: Vec2, view_yaw: f32) -> f32 {
     if input_dir.length() <= ZERO_INPUT_EPSILON {
         return 0.0;
     }
-    let forward = Vec2::new(view_yaw.sin(), view_yaw.cos());
+    let forward = Vec2::new(-view_yaw.sin(), view_yaw.cos());
     let dot = forward.dot(input_dir);
     let cross = forward.x * input_dir.y - forward.y * input_dir.x;
     cross.atan2(dot)
@@ -215,7 +215,7 @@ mod tests {
 
     fn world_dir(yaw: f32, rel_degrees: f32) -> Vec2 {
         let rel = rel_degrees.to_radians();
-        let forward = Vec2::new(yaw.sin(), yaw.cos());
+        let forward = Vec2::new(-yaw.sin(), yaw.cos());
         let (s, c) = rel.sin_cos();
         Vec2::new(c * forward.x - s * forward.y, s * forward.x + c * forward.y)
     }

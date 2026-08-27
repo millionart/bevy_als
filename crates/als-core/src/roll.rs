@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
-use crate::motion::{AlsViewYaw, view_relative_move_axes};
+use crate::motion::{AlsViewYaw, view_relative_move_axes, view_relative_move_direction};
 use crate::start_stop::{MoveDirection, classify};
 use crate::state::{LocomotionState, Stance};
 
@@ -48,21 +48,14 @@ pub fn roll_weight_at(elapsed: f32) -> f32 {
 }
 
 pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (MoveDirection, f32) {
-    let dir = classify(
-        view_relative_move_axes(cmd.move_dir, view_yaw.0),
-        view_yaw.0,
-    );
-    let offset = match dir {
-        MoveDirection::Forward => 0.0,
-        MoveDirection::ForwardLeft => -std::f32::consts::FRAC_PI_4,
-        MoveDirection::Left => -std::f32::consts::FRAC_PI_2,
-        MoveDirection::BackwardLeft => -3.0 * std::f32::consts::FRAC_PI_4,
-        MoveDirection::Backward => std::f32::consts::PI,
-        MoveDirection::BackwardRight => 3.0 * std::f32::consts::FRAC_PI_4,
-        MoveDirection::Right => std::f32::consts::FRAC_PI_2,
-        MoveDirection::ForwardRight => std::f32::consts::FRAC_PI_4,
+    let input = if cmd.move_dir.length_squared() > 1e-6 {
+        cmd.move_dir
+    } else {
+        Vec2::Y
     };
-    (dir, view_yaw.0 + offset)
+    let dir = classify(view_relative_move_axes(input, view_yaw.0), view_yaw.0);
+    let world = view_relative_move_direction(input, view_yaw.0);
+    (dir, f32::atan2(world.x, -world.z))
 }
 
 impl AlsRollState {
@@ -125,7 +118,7 @@ mod tests {
         );
         assert!(s.active);
         assert_eq!(s.last_direction, MoveDirection::Forward);
-        assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert!((s.direction_yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-5);
     }
 
     #[test]
@@ -160,8 +153,8 @@ mod tests {
             1.0 / 60.0,
         );
         assert_eq!(s.last_direction, MoveDirection::Forward);
-        assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
-        assert!(roll_displacement_dir(s.direction_yaw).distance(Vec3::X) < 1e-5);
+        assert!((s.direction_yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert!(roll_displacement_dir(s.direction_yaw).distance(Vec3::NEG_X) < 1e-5);
     }
 
     #[test]
