@@ -14,12 +14,12 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 
 use als_ext::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMaterial};
 use als_ext::{
-    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundLandscape,
-    PlaygroundLandscapeTilesMaterial, PlaygroundMaterialApplied, PlaygroundMaterialRole,
-    PlaygroundMovingCurve, PlaygroundPlugin, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing,
-    PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment,
-    PlaygroundTextLabel, PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment,
-    PlaygroundWorldTextMesh, PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS,
+    PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundKinematic,
+    PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundLandscapeTilesMaterial,
+    PlaygroundMaterialApplied, PlaygroundMaterialRole, PlaygroundMovingCurve, PlaygroundPlugin,
+    PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing, PlaygroundTextFit,
+    PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
+    PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
     moving_object_position,
 };
 
@@ -74,12 +74,17 @@ struct SceneStats {
     glyph_text_count: u32,
     world_text_mesh_count: u32,
     world_text_masked_count: u32,
-    text_scale_matching_count: u32,
-    text_scale_max_error: f32,
-    text_aspect_max_error: f32,
-    text_origin_max_error: f32,
+    text_envelope_matching_count: u32,
+    text_envelope_max_error: f32,
+    text_filled_count: u32,
+    text_fill_max_error: f32,
     per_project_count: u32,
-    per_project_aspect_error: f32,
+    shared_text_frame_count: u32,
+    shared_text_frame_error: f32,
+    shared_text_source_error: f32,
+    per_project_inline_anchor_error: f32,
+    per_project_leading_line_breaks: u32,
+    per_project_leading_spaces: u32,
     text_color_mesh_count: u32,
     text_color_max_error: f32,
     text_center_aligned_count: u32,
@@ -175,8 +180,9 @@ fn spawn_camera(mut commands: Commands) {
     let transform = match std::env::var("ALS_SCENE_CAMERA").ok().as_deref() {
         Some("text") => Transform::from_xyz(3.33, 8.78, -42.0)
             .looking_at(Vec3::new(3.33, 8.78, -46.24), Vec3::Y),
-        Some("per_project") => Transform::from_xyz(-18.0, 2.1, 0.0)
-            .looking_at(Vec3::new(-29.37, 1.85, 0.0), Vec3::Y),
+        Some("per_project") => {
+            Transform::from_xyz(-23.0, 1.85, 0.0).looking_at(Vec3::new(-29.37, 1.85, 0.0), Vec3::Y)
+        }
         _ => Transform::from_xyz(-35.0, 45.0, -60.0)
             .looking_at(Vec3::new(-10.0, 0.0, -20.0), Vec3::Y),
     };
@@ -250,31 +256,49 @@ fn stats_collector(
             })
         })
         .count() as u32;
-    stats.text_scale_matching_count = 0;
-    stats.text_scale_max_error = 0.0;
-    stats.text_aspect_max_error = 0.0;
-    stats.text_origin_max_error = 0.0;
+    stats.text_envelope_matching_count = 0;
+    stats.text_envelope_max_error = 0.0;
+    stats.text_filled_count = 0;
+    stats.text_fill_max_error = 0.0;
     stats.per_project_count = 0;
-    stats.per_project_aspect_error = 0.0;
+    stats.shared_text_frame_count = 0;
+    stats.shared_text_frame_error = 0.0;
+    stats.shared_text_source_error = 0.0;
+    stats.per_project_inline_anchor_error = 0.0;
+    stats.per_project_leading_line_breaks = 0;
+    stats.per_project_leading_spaces = 0;
     stats.text_center_aligned_count = 0;
     stats.text_left_top_aligned_count = 0;
     stats.text_front_matching_count = 0;
     stats.text_front_max_error = 0.0;
+    let mut blue_frame = None;
+    let mut per_project_frame = None;
     for (fit, target, transform, facing, name) in &text_fits {
-        let scale_error = fit
-            .horizontal_scale_error
-            .max(fit.vertical_scale_error)
-            .max(fit.origin_error);
-        stats.text_scale_max_error = stats.text_scale_max_error.max(scale_error);
-        stats.text_aspect_max_error = stats.text_aspect_max_error.max(fit.aspect_ratio_error);
-        stats.text_origin_max_error = stats.text_origin_max_error.max(fit.origin_error);
-        if scale_error < 1e-6 && fit.aspect_ratio_error < 1e-6 {
-            stats.text_scale_matching_count += 1;
+        if !target.shares_blue_text_frame {
+            let envelope_error = fit.center_error.max(fit.overflow_error);
+            stats.text_envelope_max_error = stats.text_envelope_max_error.max(envelope_error);
+            if envelope_error < 1e-6 {
+                stats.text_envelope_matching_count += 1;
+            }
+            let fill_error = fit.width_error.max(fit.height_error);
+            stats.text_fill_max_error = stats.text_fill_max_error.max(fill_error);
+            if fill_error < 1e-6 {
+                stats.text_filled_count += 1;
+            }
         }
-        if name.as_str().contains("TextRenderActor3_1") {
+        if name.as_str().contains("TextRenderActor2_4") {
+            blue_frame = Some((transform.clone(), *target));
+        }
+        if name.as_str().contains("TextRenderActor3_1") && target.shares_blue_text_frame {
             stats.per_project_count += 1;
-            stats.per_project_aspect_error =
-                stats.per_project_aspect_error.max(fit.aspect_ratio_error);
+            stats.shared_text_frame_error =
+                stats.shared_text_frame_error.max(fit.shared_frame_error);
+            stats.per_project_inline_anchor_error = stats
+                .per_project_inline_anchor_error
+                .max(fit.inline_anchor_error);
+            stats.per_project_leading_line_breaks = target.leading_line_breaks;
+            stats.per_project_leading_spaces = target.leading_spaces;
+            per_project_frame = Some((transform.clone(), *target));
         }
         if target.horizontal == PlaygroundTextHorizontalAlignment::Center {
             stats.text_center_aligned_count += 1;
@@ -292,6 +316,41 @@ fn stats_collector(
         if error < 1e-4 {
             stats.text_front_matching_count += 1;
         }
+    }
+    if let (Some((blue_transform, blue_target)), Some((project_transform, project_target))) =
+        (blue_frame, per_project_frame)
+    {
+        stats.shared_text_frame_count = 1;
+        stats.shared_text_frame_error = stats.shared_text_frame_error.max(
+            blue_transform
+                .translation
+                .distance(project_transform.translation)
+                .max(blue_transform.scale.distance(project_transform.scale))
+                .max(
+                    1.0 - blue_transform
+                        .rotation
+                        .dot(project_transform.rotation)
+                        .abs(),
+                ),
+        );
+        let alignment_error = if blue_target.horizontal == project_target.horizontal
+            && blue_target.vertical == project_target.vertical
+        {
+            0.0
+        } else {
+            1.0
+        };
+        stats.shared_text_source_error = blue_target
+            .source_origin
+            .distance(project_target.source_origin)
+            .max(
+                blue_target
+                    .source_scale
+                    .distance(project_target.source_scale),
+            )
+            .max((blue_target.source_letter_spacing - project_target.source_letter_spacing).abs())
+            .max((blue_target.source_line_height - project_target.source_line_height).abs())
+            .max(alignment_error);
     }
     stats.text_color_mesh_count = 0;
     stats.text_color_max_error = 0.0;
@@ -349,9 +408,7 @@ fn stats_collector(
         .fold(f32::INFINITY, f32::min);
     stats.sun_shadow_normal_bias_error = sun_lights
         .iter()
-        .map(|(light, _, _)| {
-            (light.shadow_normal_bias - PLAYGROUND_SHADOW_NORMAL_BIAS).abs()
-        })
+        .map(|(light, _, _)| (light.shadow_normal_bias - PLAYGROUND_SHADOW_NORMAL_BIAS).abs())
         .fold(f32::INFINITY, f32::min);
     stats.sun_contact_shadows_enabled = sun_lights
         .iter()
@@ -715,13 +772,20 @@ fn verdict_system(
     let ok_glyph_text = stats.glyph_text_count == stats.text_count;
     let ok_world_text = stats.world_text_mesh_count >= stats.text_count
         && stats.world_text_masked_count == stats.world_text_mesh_count;
-    let ok_text_fit = stats.text_scale_matching_count == stats.text_count
-        && stats.text_scale_max_error < 1e-6
-        && stats.text_aspect_max_error < 1e-6
-        && stats.text_origin_max_error < 1e-6
+    let ok_text_fit = stats.text_envelope_matching_count
+        == stats.text_count - stats.per_project_count
+        && stats.text_envelope_max_error < 1e-6
+        && stats.text_filled_count == stats.text_count - stats.per_project_count
+        && stats.text_fill_max_error < 1e-6
         && stats.text_center_aligned_count == 17
         && stats.text_left_top_aligned_count == 5;
-    let ok_per_project = stats.per_project_count == 1 && stats.per_project_aspect_error < 1e-6;
+    let ok_per_project = stats.per_project_count == 1
+        && stats.shared_text_frame_count == 1
+        && stats.shared_text_frame_error < 1e-6
+        && stats.shared_text_source_error < 1e-6
+        && stats.per_project_inline_anchor_error < 1e-6
+        && stats.per_project_leading_line_breaks == 4
+        && stats.per_project_leading_spaces == 79;
     let ok_text_color = stats.text_color_mesh_count == stats.world_text_mesh_count
         && stats.text_color_max_error < 1e-6;
     let ok_text_front =
@@ -772,7 +836,7 @@ fn verdict_system(
     let ok_brush = stats.brush_count == 0;
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_scale={}/{} scale_error={:.6} aspect_error={:.6} origin_error={:.6} per_project={}/1 per_project_aspect_error={:.6} glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -780,13 +844,19 @@ fn verdict_system(
         stats.text_count,
         stats.world_text_mesh_count,
         stats.world_text_masked_count,
-        stats.text_scale_matching_count,
-        stats.text_count,
-        stats.text_scale_max_error,
-        stats.text_aspect_max_error,
-        stats.text_origin_max_error,
+        stats.text_envelope_matching_count,
+        stats.text_count - stats.per_project_count,
+        stats.text_envelope_max_error,
+        stats.text_filled_count,
+        stats.text_count - stats.per_project_count,
+        stats.text_fill_max_error,
         stats.per_project_count,
-        stats.per_project_aspect_error,
+        stats.shared_text_frame_count,
+        stats.shared_text_frame_error,
+        stats.shared_text_source_error,
+        stats.per_project_inline_anchor_error,
+        stats.per_project_leading_line_breaks,
+        stats.per_project_leading_spaces,
         stats.text_color_mesh_count,
         stats.world_text_mesh_count,
         stats.text_color_max_error,

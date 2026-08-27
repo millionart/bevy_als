@@ -128,6 +128,22 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] BF-Scene-P6 本节 Gate：P1–P5 完成后重跑新增平台 gate、scene_gate、相关单元测试及 manual 冒烟；将实际命令与 `VERDICT PASS` 摘要写入本项和提交说明。Gate 未通过不得宣称本节完成。
   - Gate 记录（2026-08-27）：`cargo test --jobs 2 -p als-ext --lib` 为 66/66 passed。`RUST_LOG=info BEVY_ASSET_ROOT=<worktree> cargo run --jobs 2 --example platform_gate` 实际输出 `[PLATFORMGATE][VERDICT] translation_error=0.000000 rotation_error=0.031322 heading_error=0.000087 crush=(2.246,0.999,8.001) crush_relative=(0.327,0.999,0.001) finite=true -> PASS`。`RUST_LOG=info ALS_SHOT_AFTER_SECS=60 ALS_BOOT_AUTO_QUIT_SECS=20 BEVY_ASSET_ROOT=<worktree> cargo run --jobs 2 --example scene_gate` 实际输出 `contact_depth_bias=0.020000(<= 0.020001) depth_bias_error=0.000000 normal_bias_error=0.000000 contact_shadow=false ... tiling=unit:142/142 half:8/8 other:1/1 ... movers=3 movers_active=3 ... -> PASS`。`RUST_LOG=info ALS_BOOT_AUTO_QUIT_SECS=10 BEVY_ASSET_ROOT=<worktree> cargo run --jobs 2 --example manual_playground` 实际输出 `[PLATFORM][VERDICT] kinematic=3/3 moving=2/2 rotating=1/1 finite=true -> PASS` 和 `[CHARMAT][VERDICT] slots=15/15 color_error=0.000000 -> PASS`，正常自动退出，运行时无 WARN/ERROR。所有命令均使用本 worktree 自身的 `target/`，编译 jobs=2。
 
+## BF-Scene-2026-08-27b（文字范围、下压安全与角色材质返修）
+
+> 依据：用户 2026-08-27 复核报告。先实时提取本次相关 UE 事实；按 P7–P10 顺序实现，每项验收、勾选并单独提交，P11 为本节 Gate。
+
+- [x] BF-Scene-P7 文字范围回退并仅修复 `PER PROJECT` 拉伸：保留 P4 的逐字线性色，以 UE `TextRenderComponent` 的实际变换、WorldSize、X/Y Scale、对齐和间距为唯一布局基线；不得按 Actor AABB 或可见字形包络重排文字。`PER PROJECT` 必须只由源文本的四个 CRLF 与 79 个前置空格推入蓝字的空白位置，不能单独平移或缩放；不得新增字体资产。验收：运行时逐项断言其余 21 个文字恢复 P3 的背景板范围；`TextRenderActor2_4` 与 `TextRenderActor3_1` 的 UE 源组件参数一致，后者运行时根节点严格复制前者的已校准根节点；以蓝字第五行末尾和源空格数校正仅空白的本地 advance，红字字形大小、根节点变换和颜色不变。
+  - 源事实（2026-08-27，实时 UE MCP）：`TextRenderActor2_4` 和 `TextRenderActor3_1` 的 Actor 世界变换均为 Location `(-2937, 235, 247.5)` cm、Rotation `(0,0,0)`、Scale `(1,1,1)`；二者 `NewTextRenderComponent` 的 Relative Location 均为 `(13,235,247.5)` cm，Relative Rotation `(0,0,0)`、Relative Scale `(1,1,1)`。二者同用 `M_Als_OutlinedText`、`RobotoDistanceField`、Left/Top、WorldSize=20、X/Y Scale=1、Horizontal Spacing=0、Vertical Spacing=6.5、CastShadow=false；仅文字与线性色不同。`TextRenderActor3_1` 是四个 CRLF 加 79 个空格后的 `PER PROJECT`，线性红色为 `(1, 0.40784317, 0.34901962, 1)`。Actor AABB 包含 Sprite，不得作为文字布局输入。
+  - Gate 记录（2026-08-27）：`cargo test --jobs 2 -p als-ext --lib` 为 66/66 passed。`RUST_LOG=info BEVY_ASSET_ROOT=<worktree> ALS_SCENE_CAMERA=per_project ALS_SHOT_PATH=target/p7-per-project-inline-anchor.png ALS_SHOT_AFTER_SECS=5 ALS_BOOT_AUTO_QUIT_SECS=20 cargo run --jobs 2 --example scene_gate` 实际输出 `text_envelope=21/21 envelope_error=0.000000 text_fill=21/21 fill_error=0.000000 per_project=1/1 shared_frame=1/1 frame_error=0.000000 source_error=0.000000 inline_anchor_error=0.000000 leading_breaks=4/4 leading_spaces=79/79 glyph_color=22/22 color_error=0.000000 -> PASS`；截图保存为 `target/p7-per-project-inline-anchor.png`。
+
+- [ ] BF-Scene-P8 `B_Als_MovingObject1` 下压安全：从 UE 的垂直平台、地面与角色碰撞事实建立与其一致的下压策略，避免 Bevy 角色被压到地板下并落入虚空；不得破坏平台携带和 `B_Als_MovingObject2` 墙边安全。验收：确定性 avian/Tnua 下压 gate 记录角色相对平台高度、地面安全高度、有限坐标和无越界，实际运行日志 PASS。
+
+- [ ] BF-Scene-P9 角色主体材质粗糙度：实时对标 `MI_Als_Character`/`M_Als_Main` 的实际参数，修正主体材质的 roughness/specular 映射，消除不符合 UE 的过强高光。验收：运行时探针逐值断言主体槽的 linear color、roughness、specular 与源参数一致；manual 冒烟无材质警告。
+
+- [ ] BF-Scene-P10 角色眼睛槽材质：实时确认 `SKM_Als` 的 Element 10 槽，恢复它使用 `M_Als_Main` 等价材质而不是 `MI_Als_Character` 蓝色主体材质。验收：异步网格完成后的槽绑定探针断言 Element 10 的材质角色/参数正确，其他主体槽不受影响。
+
+- [ ] BF-Scene-P11 本节 Gate：P7–P10 完成后重跑文字范围 gate、平台 gate、scene_gate、相关单元测试和 manual 冒烟；将命令及实际 `VERDICT PASS` 摘要写入本项和提交说明。Gate 未通过不得宣称本节完成。
+
 - [ ] BF99 日志级行为对标（原 BF7，2026-08-25 用户指令改名并移序至 BF8 之后；BF1–BF8 与 BF6b 的行为级总验收门）：双侧同脚本插桩 → 同操作流程运行 → 逐帧指标对比 → 差异回修闭环，保证用户可见可操作行为与 ALS-Refactored 一致。
     - ①ALS 侧插桩：修改本地 ALS-Refactored 插件源码（改动落在其自身 git 仓库独立小步提交；CVar 门控默认关闭零侵入）：trace recorder 每 tick 写 CSV——t/frame、actor pos(cm)/vel(cm/s)、facing yaw/pitch、controller view yaw、五状态 tags+LocomotionAction、动作态（mantle/roll/air active）、双脚踝+pelvis 世界位置（IK 后）、capsule 半高/半径、相机 pos/yaw/pitch；script driver 按共享时间线文件程序化调用 Input_On* 处理函数（与人工操作同一入口，含 Hold/Tap 语义）。
     - ②bevy 侧等价 recorder：`examples/trace_parity.rs` + `bevy_als::trace_recorder`——列名/单位规范一致（坐标按既有映射 gltf=(ue.x,ue.z,ue.y)·0.01 反算为 UE cm 帧；yaw 统一定义为水平面朝向量相对 UE +X 的带符号角），消费同一时间线驱动 AlsInputOverride。
