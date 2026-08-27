@@ -362,18 +362,25 @@ fn character_material_probe(
         .max((color.blue - expected[2]).abs())
         .max((color.alpha - 1.0).abs());
     let expected_slots = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_SLOT_COUNT;
+    let expected_roughness =
+        bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS;
+    let expected_reflectance = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_REFLECTANCE;
+    let roughness_error = (material.perceptual_roughness - expected_roughness).abs();
+    let reflectance_error = (material.reflectance - expected_reflectance).abs();
     let passed = applied.slots as usize == expected_slots
         && override_comp.0.len() == expected_slots
-        && color_error < 1e-6;
+        && color_error < 1e-6
+        && roughness_error < 1e-6
+        && reflectance_error < 1e-6;
     if passed {
         info!(
-            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} -> PASS",
-            applied.slots, expected_slots
+            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> PASS",
+            applied.slots, expected_slots, material.perceptual_roughness, material.reflectance
         );
     } else {
         error!(
-            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} -> FAIL",
-            applied.slots, expected_slots
+            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> FAIL",
+            applied.slots, expected_slots, material.perceptual_roughness, material.reflectance
         );
     }
     probe.0 = true;

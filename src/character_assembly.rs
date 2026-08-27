@@ -13,6 +13,8 @@ use als_ext::overlay_materials::AvatarMaterialOverride;
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
+pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
+pub const ALS_CHARACTER_MATERIAL_REFLECTANCE: f32 = 0.5;
 pub const ALS_CHARACTER_MATERIAL_SLOT_COUNT: usize = 15;
 
 pub fn avatar_transform() -> Transform {
@@ -74,7 +76,8 @@ pub fn make_als_character_material(
             ALS_CHARACTER_MATERIAL_LINEAR_RGB[1],
             ALS_CHARACTER_MATERIAL_LINEAR_RGB[2],
         ),
-        perceptual_roughness: 0.5,
+        perceptual_roughness: ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS,
+        reflectance: ALS_CHARACTER_MATERIAL_REFLECTANCE,
         ..default()
     })
 }
@@ -176,6 +179,10 @@ mod tests {
         assert_eq!(color.green, ALS_CHARACTER_MATERIAL_LINEAR_RGB[1]);
         assert_eq!(color.blue, ALS_CHARACTER_MATERIAL_LINEAR_RGB[2]);
         assert_eq!(color.alpha, 1.0);
-        assert_eq!(material.perceptual_roughness, 0.5);
+        assert_eq!(
+            material.perceptual_roughness,
+            ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS
+        );
+        assert_eq!(material.reflectance, ALS_CHARACTER_MATERIAL_REFLECTANCE);
     }
 }
