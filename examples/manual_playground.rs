@@ -45,6 +45,7 @@ use bevy_als::motion_graph_link::{
 };
 use bevy_als::overlay_layer::OverlayLayerPlugin;
 use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
+use bevy_als::overlay_object::OverlayObjectPlugin;
 use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
 use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
@@ -74,6 +75,7 @@ fn main() {
         AlsFootProbePlugin,
         FootIkApplyPlugin,
         OverlayLayerPlugin,
+        OverlayObjectPlugin,
         ViewLayerPlugin,
         AlsRollDrivePlugin,
         AlsStopLinkPlugin,
