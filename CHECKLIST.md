@@ -178,6 +178,33 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ---
 
+## BF-Character-2026-08-28（B_Als_Character 主体对标修复）
+
+> 用户明确授权：本节在独立 `codex/b-als-character-parity` worktree 中推进，和正在另一 worktree 进行的 RG2/动画蓝图修复无数据依赖。本节只处理 `B_Als_Character`、其 `AAlsCharacterExample` 父类所定义的角色装配、输入、相机和运行时 HUD/Overlay 菜单边界；禁止修改 `assets/graphs/`、动画图 RON、`bevy_animation_graph` fork 或动画层驱动功能。RG2 仍保持未通过状态，本节绝不声称替代或完成 RG2/BF99。
+> 每个未完成项开始编码前，必须重新用 Unreal MCP、uasset 解析或 ALS 插件 C++ 源码提取相关当次事实；将事实和运行日志结论补在该项下。验收只认可可复跑的 probe/pin/数值日志，不用单帧截图推断。
+
+**已冻结的实时源事实（2026-08-28，Unreal MCP + ALSExtras/ALSCamera C++）**：`B_Als_Character` 的父类为 `AAlsCharacterExample`。`Input_OnMove()` 读取 controller 的真实 PlayerViewPoint yaw，前向为 `AngleToDirectionXY(ViewRotation.Yaw)`、右向为其逆时针垂线，向 `AddMovementInput(Forward*Value.Y + Right*Value.X)` 提交；绝非世界轴输入。`SprintAction` 在 Triggered/Canceled 上调用 `Input_OnSprint(bool)`，`RollAction` 仅在 Triggered 上调用 `Input_OnRoll()`；默认 Enhanced Input 资产用同一 Shift/FaceButton_Right 的 Hold(1.0s) 与 Tap(0.2s) 区分。`B_Als_Character` EventGraph：BeginPlay 刷新 Overlay object；Overlay 改变时先刷新 linked layer 再刷新 object；High/InAir mantle 与 ragdoll 开始清空 object，结束恢复。`UAlsCameraComponent::TickCamera()` 以 ThirdPerson/FirstPerson 基准 FOV 加 `FovOffset` 动画曲线并钳制至 [5,175]；第一人称全权重时直接使用第一人称 FOV。其菜单交互与视觉细节在 BF-Char5 开始时重新提取。
+
+- [x] BF-Char0 角色对标边界、完整模块图与基线审计：以 `B_Als_Character` 的所有本地图和 `AAlsCharacterExample` 的全部角色入口为范围，建立下列完整依赖图；冻结动画图不改的边界；审查当前 Bevy 对应物和已有 gate。
+    - 证据（2026-08-28）：Unreal MCP 已成功读取 `/ALS/ALS/Character/B_Als_Character` 的 EventGraph、UserConstructionScript、`RefreshOverlayLinkedAnimationLayer`、`RefreshOverlayObject`、`AttachOverlayObject`、`ClearOverlayObject`、`SelectMantlingSettings` 及父类。父类 C++ 实时读取到构造期 Camera 挂 Mesh 且相对 yaw=90°、controller 变更时映射上下文移除/添加、`CalcCamera()` 优先 Camera、完整输入绑定与各 handler。EventGraph 的 BeginPlay/Overlay/Mantle/Ragdoll 生命周期和 source 的 static/skeletal prop 分类已登记。当前 Bevy 审计确认：输入所有 action 已有入口但 `locomotion_drive_system` 仍把 `move_dir` 直接映射世界 XZ；相机 debug FOV 固定为 90 且不写 Projection；角色未装配 Overlay prop；菜单选中项只使用低对比背景色；其余模块必须逐项再取当次 source 后判定是否修复。无代码改动。
+- [ ] BF-Char1 角色 CDO、组件装配与生命周期骨架：依据当次 Blueprint CDO、`AAlsCharacterExample` 构造/BeginPlay/NotifyControllerChanged/CalcCamera 源码，核对并修复 `AlsCharacterBlueprint` 对 capsule、mesh avatar、Camera target/rig、view 初值、输入拥有者和资源生命周期的等价装配；处理角色创建、销毁及控制权更换时唯一输入消费者语义。验收：gate 输出完整组件拓扑、初始化 yaw/pitch、Camera 激活路径和单一输入拥有者 probe。
+- [ ] BF-Char2 Look 与 Enhanced Input 映射层：依据当次 `SetupPlayerInputComponent()`、`Input_OnLookMouse()`、`Input_OnLook()` 和 `IMC_Als_Default` 事实，复刻鼠标/手柄/键盘 look 的轴向、灵敏度、Triggered/Canceled 清零与 controller view state 更新；保留所有 17 个 HUD 显示 action 的正确绑定，不在本项改变状态机或动画图。验收：probe 记录多来源 look delta、yaw/pitch 钳制和 action ownership。
+- [ ] BF-Char3 视角相对移动：依据当次 `Input_OnMove()` C++ 事实，将 WASD/左摇杆二维局部输入投影为真实 `AlsViewYaw` 的相机水平前/右向量，再供 tnua movement 与 VelocityDirection 朝向共同消费；保持 roll、stop 等局部方向分类的输入合同。验收：probe 覆盖 yaw 0/90/180/-90 下 W/A/S/D 的世界速度方向和角色朝向，全部与 source vector 运算一致。
+- [ ] BF-Char4 Desired Gait 与 Shift Hold/Tap 仲裁：依据当次 `IMC_Als_Default`、`IA_Als_Sprint`、`IA_Als_Roll`、`Input_OnSprint()`、`Input_OnWalk()` 和 `Input_OnRoll()` 事实，复刻 Walk toggle、Sprint hold/release、共享 Shift/FaceButton_Right 的 Tap(0.2s)/Hold(1.0s) 仲裁；确保短按释放仅触发一次 Roll、长按达阈值才进入 Sprint、释放只回 Running，绝不在按下帧偷发 Roll。验收：定时输入 probe 记录 walk/tap/hold/release 全部状态时间线、roll 数量和 gait 事件。
+- [ ] BF-Char5 动作优先级与请求链：依据当次 `Input_OnJump()`、`Input_OnAim()`、`Input_OnRagdoll()`、`CanJumpInternal` 和 `IsMantlingAllowedToStart` 源码，核对并修复 Jump 的“起身 ragdoll→mantle→站起→jump”、按住/取消跳跃、Aim hold、ragdoll toggle 和地面 roll 入口；只写角色/ECS 请求与物理驱动，不改动作动画图。验收：逐步骤 gate 日志给出每个优先级分支、拒绝原因、状态转换和 root-motion 驱动结论。
+- [ ] BF-Char6 旋转、视角与肩位状态：依据当次 `Input_OnRotationMode()`、`Input_OnViewMode()`、`Input_OnSwitchShoulder()` 及 ALS state source，复刻 VelocityDirection/ViewDirection 切换、Aiming 下 last-free-mode 记忆、Third/First person 切换和右/左肩位切换；验证它们不错误地劫持 Overlay/UI input。验收：state probe 覆盖自由/Aiming 组合、first-person 与肩位组合、输入冲突组合。
+- [ ] BF-Char7 Overlay linked-layer 接口契约：依据当次 `RefreshOverlayLinkedAnimationLayer()` 和 Overlay 变更 EventGraph，验证角色 Overlay state 变更的事件时序、默认 fallback 和现有 animation-layer driver 的输入/输出接口；此项只允许修复角色到既有驱动的接口/事件传播，禁止修改任何动画图、RON 或 layer 动画功能。验收：probe 证明每次 Overlay change 只发一次正确目标/fallback 通知并由当前动画 worktree 的既有接口消费。
+- [ ] BF-Char8 Overlay static/skeletal prop 生命周期：依据当次 `RefreshOverlayObject()`、`AttachOverlayObject()`、`ClearOverlayObject()`、`bUseGunBoneForOverlayObjects` 和 socket/virtual-bone source，建立角色拥有的 prop 装配与状态转换系统；按 source 复用已登记 Rifle/Pistol/Bow/Torch/Binoculars/Box/Barrel 资产，区分 static/skeletal、socket/virtual-gun-bone、SnapToTarget，且不改动画层。验收：gate 日志证明 Default 清空、各 Overlay 的 prop/socket 分类正确，以及 source 定义的 mantle/ragdoll 生命周期无残留。
+- [ ] BF-Char9 Mantle 选择与 ragdoll/Overlay 生命周期：依据当次 `SelectMantlingSettings()`、OnMantlingStarted/Ended、OnRagdollingStarted/Ended 和 base character source，复刻 Low/High/InAir 与 Overlay 对应的 mantle settings 选择及对象清除/恢复条件；不改动画片段或图，只修复角色端选择/生命周期。验收：Low/High/InAir × Default/Injured/HandsTied/Rifle/Box 的选择表与 prop 可见性 probe 全通过。
+- [ ] BF-Char10 ALSCamera 行为：依据当次 `UAlsCameraComponent`、camera settings、camera animation curve 和 `OnCalculateCamera` source，复刻角色到 Camera 的激活、view target、third/first person、肩位、碰撞 trace、lag、offset、FOV base+`FovOffset`+[5,175] clamp 和 Bevy Projection 写入；FOV 必须由真实角色状态/已导出数据驱动，不能硬编码为“sprint=某个视觉效果”。验收：runtime probe 记录 run/sprint/aim/first-person 的 pivot/trace/FOV/projection/clip 值。
+- [ ] BF-Char11 W_Als_Hud 与 Overlay 菜单角色交互：依据当次 `B_Als_PlayerController`、`W_Als_Hud`、`W_Als_OverlayModeMenu`、`W_Als_OverlayModeOption` 的 UMG 属性与 input graph，复刻 Q hold/release、滚轮/D-pad 环绕 cycle、time dilation、approve、HUD visibility/slomo 协作及 Overlay 当前选择的显著视觉状态；重点修复 Cycle Overlay 高亮不足。验收：gate 以组件、颜色、边框/文字状态和请求状态逐步验证打开、正反 cycle、release approve；实际运行截图仅作补充。
+- [ ] BF-Char12 DisplayDebug、HUD Input 可观测性与诊断：依据当次 `DisplayDebug()`、`UAlsCameraComponent::DisplayDebug()` 和 HUD input source，补齐角色/Camera debug 数据源、FOV/肩位/输入/Overlay/prop/mantle/ragdoll probes，使上述每项可由真实运行日志复查而非视觉猜测。验收：debug gate 覆盖所有 B_Als_Character 模块且无未解释 N/A。
+- [ ] BF-Char99 B_Als_Character 总 Gate：新增或扩展独立角色 gate，按 BF-Char1–12 顺序串联组件装配、look、四向相机相对移动、Walk/Sprint/Roll、动作优先级、旋转/视角/肩位、Overlay interface/props、mantle/ragdoll、Camera、HUD cycle 与 debug probes；跑相关 crate 测试、既有 motion/roll/camera/als_hud gates、manual playground 实机日志。验收：全部 `VERDICT -> PASS`、manual 正常退出且无新增 WARN/panic；提交说明记录命令输出摘要。
+
+依赖关系：BF-Char0 → BF-Char1 → BF-Char2 → BF-Char3 → BF-Char4 → BF-Char5 → BF-Char6 → BF-Char7 → BF-Char8 → BF-Char9 → BF-Char10 → BF-Char11 → BF-Char12 → BF-Char99。BF-Char7 受动画图硬边界约束，仅验证/修复角色接口；清单勾选、提交和总 Gate 统一串行收口。
+
+---
+
 ## REFACTOR-2026-08-25（动画图模块化：单一大图 → AB_Als 式分层子图组合）
 
 > 背景：`assets/graphs/locomotion_overlay.animgraph.ron` 经 M2–M9 逐模块追加已生长为 867 行单一枢纽，review/并行编辑困难，且失去与上游 AB_Als Linked Anim Layers 的结构对应。用户决策（2026-08-25）：按 AB_Als 模块化思路重构；定序在 BF99（原 BF7）之前执行——终评对象须为最终结构，避免终评后结构变更使对标失效。
