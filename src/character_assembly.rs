@@ -5,7 +5,7 @@ use als_camera::{AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCame
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{AlsInputMap, spawn_als_actions};
-use als_core::motion::AlsViewYaw;
+use als_core::motion::{AlsViewYaw, initial_als_control_scheme_config};
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
 use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
@@ -177,8 +177,9 @@ pub fn spawn_als_character(
     config_assets: &mut Assets<AlsControlSchemeConfig>,
     blueprint: AlsCharacterBlueprint<'_>,
 ) -> Entity {
-    let params = params_assets.add(AlsMovementParams::default());
-    let tnua_config_handle = config_assets.add(AlsControlSchemeConfig::default());
+    let params_value = AlsMovementParams::default();
+    let tnua_config_handle = config_assets.add(initial_als_control_scheme_config(&params_value));
+    let params = params_assets.add(params_value);
     let mut bundle = AlsCharacterBundle::new(params, tnua_config_handle);
     bundle.transform = blueprint.transform;
     let fwd = bundle.transform.forward();

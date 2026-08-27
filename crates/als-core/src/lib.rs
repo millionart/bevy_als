@@ -14,6 +14,7 @@ pub mod mantle;
 pub mod motion;
 pub mod overlay_blend;
 pub mod params;
+pub mod player_start;
 pub mod pivot;
 pub mod roll;
 pub mod rotate_in_place;

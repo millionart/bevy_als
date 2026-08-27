@@ -13,11 +13,10 @@ use als_core::debug_hud::AlsStateHudPlugin;
 use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
+use als_core::player_start::AlsPlayerStartReady;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::{
-    PlaygroundBoxCollider, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint,
-};
+use als_ext::{PlaygroundMovingObject, PlaygroundPlugin};
 
 fn main() {
     let mut app = App::new();
@@ -40,7 +39,7 @@ fn main() {
         },
     ))
     .init_resource::<SpawnOnce>()
-    .add_systems(Update, (playground_physics_bridge, spawn_character_once))
+    .add_systems(Update, spawn_character_once)
     .add_systems(
         Update,
         (
@@ -77,31 +76,34 @@ struct AutoQuit(Option<Instant>);
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    player_starts: Query<&AlsPlayerStartReady>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if once.0 {
         return;
     }
+    let Ok(point) = player_starts.single() else {
+        return;
+    };
+    let point = point.transform;
     once.0 = true;
-    let point = *spawn_point.unwrap();
     info!(
         "[PG] spawning character at ({:.2},{:.2},{:.2})",
-        point.position.x, point.position.y, point.position.z
+        point.translation.x, point.translation.y, point.translation.z
     );
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
+    bundle.transform = point;
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
     commands.spawn((
         FollowCamera,
         Camera3d::default(),
-        Transform::from_translation(point.position + Vec3::new(4.0, 3.5, 6.0)),
+        Transform::from_translation(point.translation + Vec3::new(4.0, 3.5, 6.0)),
     ));
     commands.spawn((
         DirectionalLight::default(),
@@ -111,22 +113,6 @@ fn spawn_character_once(
 
 #[derive(Component)]
 struct FollowCamera;
-
-fn playground_physics_bridge(
-    mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
-) {
-    for (entity, collider) in &bodies {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            Collider::cuboid(
-                collider.half_extents.x * 2.0,
-                collider.half_extents.y * 2.0,
-                collider.half_extents.z * 2.0,
-            ),
-        ));
-    }
-}
 
 fn keyboard_driver(
     keys: Res<ButtonInput<KeyCode>>,

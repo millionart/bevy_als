@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::num::NonZeroU8;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -12,31 +13,36 @@ use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
+use bevy_tnua::{
+    TnuaControllerPlugin, TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle,
+};
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_camera::{AlsCameraPlugin, AlsCameraRig};
 use als_core::aim::AlsAimPlugin;
 use als_core::air::AlsAirState;
-use als_core::character::{AlsCharacter, AlsCharacterPlugin, AlsCrushRecoveryFloor};
+use als_core::character::{
+    AlsCharacter, AlsCharacterPlugin, AlsCrushRecovery, AlsCrushRecoveryFloor,
+};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
 use als_core::input::AlsInputPlugin;
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
+use als_core::player_start::AlsPlayerStartReady;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::overlay_materials::{
     AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
 };
 use als_ext::playground::PlaygroundLandscape;
-use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{
-    AlsExtPlugin, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundKinematicVelocity,
-    PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint,
+    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
+    PlaygroundKinematicVelocity, PlaygroundMovingObject, PlaygroundPlugin,
     playground_moving_object_system,
 };
+use bevy_als::character_assembly::AlsCharacterAvatar;
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
@@ -44,13 +50,16 @@ use bevy_als::motion_graph_link::{
     compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
 };
 use bevy_als::overlay_layer::OverlayLayerPlugin;
-use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
 use bevy_als::overlay_object::OverlayObjectPlugin;
+use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
 use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
 use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
 use bevy_als::stop_link::AlsStopLinkPlugin;
 use bevy_als::view_layer::ViewLayerPlugin;
+
+const SPAWN_VISIBLE_VALIDATION_STEPS: u32 = 60;
+const SPAWN_SENSOR_STABLE_STEPS: u32 = 20;
 
 fn main() {
     let mut app = App::new();
@@ -92,7 +101,6 @@ fn main() {
         },
         PlaygroundCollisionPlugin,
         AnimationGraphPlugin::default(),
-        PlaygroundMaterialsPlugin,
         OverlayMaterialsPlugin,
         AlsExtPlugin,
         AlsCameraPlugin,
@@ -103,6 +111,8 @@ fn main() {
     .init_resource::<AmbientOcclusionProbe>()
     .init_resource::<TemporalAntiAliasingProbe>()
     .init_resource::<CollisionParityProbe>()
+    .init_resource::<GroundedSpawnProbe>()
+    .init_resource::<ScenePhysicsReady>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -111,13 +121,14 @@ fn main() {
     .add_systems(
         Update,
         (
-            spawn_character_once,
+            landscape_collider_bridge,
+            scene_physics_ready.after(landscape_collider_bridge),
+            spawn_character_once.after(scene_physics_ready),
             enable_character_ssao_taa,
             ambient_occlusion_probe,
             temporal_anti_aliasing_probe,
             character_material_probe,
             platform_physics_probe,
-            landscape_collider_bridge,
             collision_parity_probe,
             graph_router,
             auto_quit,
@@ -127,6 +138,10 @@ fn main() {
     .add_systems(
         FixedUpdate,
         playground_kinematic_velocity_bridge.after(playground_moving_object_system),
+    )
+    .add_systems(
+        FixedPostUpdate,
+        grounded_spawn_probe.after(PhysicsSystems::Last),
     );
 
     app.run();
@@ -151,6 +166,33 @@ struct TemporalAntiAliasingProbe(bool);
 struct CollisionParityProbe {
     ready_frames: u32,
     done: bool,
+}
+
+#[derive(Resource, Default)]
+struct GroundedSpawnProbe {
+    ground_y: Option<f32>,
+    expected_center_y: Option<f32>,
+    spawn_adjustment: Option<f32>,
+    character: Option<Entity>,
+    controller_enabled: bool,
+    bootstrap_frames: u32,
+    stable_sensor_frames: u32,
+    frames: u32,
+    pre_enable_max_center_error: f32,
+    pre_enable_max_vertical_velocity: f32,
+    max_center_error: f32,
+    max_vertical_velocity: f32,
+    done: bool,
+    passed: Option<bool>,
+}
+
+#[derive(Resource, Default)]
+struct ScenePhysicsReady {
+    ready: bool,
+    stable_frames: u32,
+    wait_frames: u32,
+    sources: usize,
+    boxes: usize,
 }
 
 #[derive(Resource)]
@@ -189,18 +231,35 @@ fn arm_auto_quit(mut commands: Commands) {
     }
 }
 
-fn auto_quit(timer: Option<Res<AutoQuit>>, mut exit: MessageWriter<AppExit>) {
+fn auto_quit(
+    timer: Option<Res<AutoQuit>>,
+    ground_probe: Res<GroundedSpawnProbe>,
+    mut exit: MessageWriter<AppExit>,
+) {
     let Some(t) = timer else {
         return;
     };
     if Instant::now() >= t.0 {
-        info!("[MANUAL] auto quit reached");
-        exit.write(AppExit::Success);
+        match ground_probe.passed {
+            Some(true) => {
+                info!("[MANUAL] auto quit reached after grounded spawn PASS");
+                exit.write(AppExit::Success);
+            }
+            Some(false) => {
+                error!("[MANUAL] auto quit reached after grounded spawn FAIL");
+                exit.write(AppExit::Error(NonZeroU8::new(12).unwrap()));
+            }
+            None => {
+                error!("[MANUAL] auto quit reached before grounded spawn verdict");
+                exit.write(AppExit::Error(NonZeroU8::new(12).unwrap()));
+            }
+        }
     }
 }
 
 fn screenshot_runner(
     plan: Option<ResMut<ShotPlan>>,
+    ground_probe: Res<GroundedSpawnProbe>,
     mut commands: Commands,
     cameras: Query<Entity, With<Camera3d>>,
     mut exit: MessageWriter<AppExit>,
@@ -222,8 +281,20 @@ fn screenshot_runner(
     if let Some(done) = plan.done_at
         && Instant::now() >= done
     {
-        info!("[MANUAL] screenshot flow done, exiting");
-        exit.write(AppExit::Success);
+        match ground_probe.passed {
+            Some(true) => {
+                info!("[MANUAL] screenshot flow done after grounded spawn PASS, exiting");
+                exit.write(AppExit::Success);
+            }
+            Some(false) => {
+                error!("[MANUAL] screenshot flow done after grounded spawn FAIL");
+                exit.write(AppExit::Error(NonZeroU8::new(13).unwrap()));
+            }
+            None => {
+                error!("[MANUAL] screenshot flow done before grounded spawn verdict");
+                exit.write(AppExit::Error(NonZeroU8::new(13).unwrap()));
+            }
+        }
     }
 }
 
@@ -322,26 +393,93 @@ fn landscape_collider_bridge(
     }
 }
 
+fn scene_physics_ready(
+    mut ready: ResMut<ScenePhysicsReady>,
+    player_starts: Query<&AlsPlayerStartReady>,
+    landscapes: Query<Entity, (With<PlaygroundLandscape>, With<LandscapeColliderBuilt>)>,
+    sources: Query<(&PlaygroundCollisionSource, Has<Collider>)>,
+    boxes: Query<Has<Collider>, With<PlaygroundBoxCollider>>,
+) {
+    if ready.ready {
+        return;
+    }
+    let source_total = sources
+        .iter()
+        .filter(|(source, _)| !source.kind.is_box())
+        .count();
+    let source_ready = sources
+        .iter()
+        .filter(|(source, has_collider)| !source.kind.is_box() && *has_collider)
+        .count();
+    let box_total = boxes.iter().count();
+    let box_ready = boxes.iter().filter(|has_collider| *has_collider).count();
+    if landscapes.is_empty()
+        || source_total == 0
+        || source_ready != source_total
+        || box_total == 0
+        || box_ready != box_total
+        || player_starts.single().is_err()
+    {
+        ready.wait_frames += 1;
+        if ready.wait_frames == 30 {
+            info!(
+                "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} -> WAIT",
+                landscapes.iter().count()
+            );
+        }
+        return;
+    }
+    ready.stable_frames += 1;
+    if ready.stable_frames < 2 {
+        return;
+    }
+    ready.ready = true;
+    ready.sources = source_total;
+    ready.boxes = box_total;
+    info!(
+        "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} spatial_frames={} -> PASS",
+        landscapes.iter().count(),
+        ready.stable_frames
+    );
+}
+
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    scene_ready: Res<ScenePhysicsReady>,
+    player_starts: Query<&AlsPlayerStartReady>,
+    landscapes: Query<Entity, (With<PlaygroundLandscape>, With<LandscapeColliderBuilt>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
+    mut ground_probe: ResMut<GroundedSpawnProbe>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if once.0 || !scene_ready.ready || landscapes.is_empty() {
         return;
     }
+    let Ok(point) = player_starts.single() else {
+        return;
+    };
+    let capsule_half_height = AlsMovementParams::default()
+        .crouch
+        .standing_capsule_half_height;
+    let capsule_radius = AlsMovementParams::default().crouch.standing_capsule_radius;
     once.0 = true;
-    let point = *spawn_point.unwrap();
+    ground_probe.ground_y = Some(point.ground_y);
+    ground_probe.expected_center_y = Some(point.transform.translation.y);
+    ground_probe.spawn_adjustment = Some(point.adjustment);
     info!(
-        "[MANUAL] character at ({:.2},{:.2},{:.2})",
-        point.position.x, point.position.y, point.position.z
+        "[SPAWN][FIT] scene_sources={} scene_boxes={} ground_y={:.4} center_y={:.4} adjustment={:.4} capsule_half={capsule_half_height:.4} capsule_radius={capsule_radius:.4} skin={:.4} -> PASS",
+        scene_ready.sources,
+        scene_ready.boxes,
+        point.ground_y,
+        point.transform.translation.y,
+        point.adjustment,
+        bevy_als::player_start::ALS_PLAYER_START_SOURCE_CLEARANCE,
     );
 
-    let _character = bevy_als::character_assembly::spawn_als_character(
+    let character = bevy_als::character_assembly::spawn_als_character(
         &mut commands,
         &assets,
         &mut materials,
@@ -350,11 +488,154 @@ fn spawn_character_once(
         bevy_als::character_assembly::AlsCharacterBlueprint {
             spawn_camera: true,
             ..bevy_als::character_assembly::AlsCharacterBlueprint::new(
-                Transform::from_translation(point.position).with_rotation(point.rotation),
+                point.transform,
                 "animated_scenes/als_ragdoll.animscn.ron",
             )
         },
     );
+    commands
+        .entity(character)
+        .insert((TnuaToggle::SenseOnly, GravityScale(0.0)));
+    ground_probe.character = Some(character);
+    info!(
+        "[SPAWN][BODY] phase=visible_sensor_bootstrap avatar_capsule_same_transaction=true visibility=visible -> PASS"
+    );
+}
+
+fn grounded_spawn_probe(
+    mut commands: Commands,
+    mut probe: ResMut<GroundedSpawnProbe>,
+    characters: Query<
+        (
+            &Transform,
+            &Position,
+            &LinearVelocity,
+            &AlsCrushRecovery,
+            &TnuaSensorsEntities<AlsControlScheme>,
+        ),
+        With<AlsCharacter>,
+    >,
+    avatars: Query<(&Transform, &AlsCharacterAvatar)>,
+    sensors: Query<&TnuaProximitySensor>,
+) {
+    if probe.done || probe.ground_y.is_none() || probe.expected_center_y.is_none() {
+        return;
+    }
+    let Some(character_entity) = probe.character else {
+        return;
+    };
+    let Ok((character, position, velocity, recovery, sensor_entities)) =
+        characters.get(character_entity)
+    else {
+        return;
+    };
+    let Some((avatar, _)) = avatars.iter().next() else {
+        return;
+    };
+    let ground_y = probe.ground_y.unwrap();
+    let expected_center_y = probe.expected_center_y.unwrap();
+    let spawn_adjustment = probe.spawn_adjustment.unwrap_or_default();
+    let capsule_half_height = AlsMovementParams::default()
+        .crouch
+        .standing_capsule_half_height;
+    let capsule_bottom = character.translation.y - capsule_half_height;
+    let bottom_clearance = capsule_bottom - ground_y;
+    let avatar_relative_error =
+        (avatar.translation.y - bevy_als::character_assembly::AVATAR_CAPSULE_BOTTOM_OFFSET).abs();
+    let center_error = (character.translation.y - expected_center_y).abs();
+    let position_error = (position.0.y - character.translation.y).abs();
+    let sensor_proximity = sensor_entities
+        .ground
+        .and_then(|sensor| sensors.get(sensor).ok())
+        .and_then(|sensor| sensor.output.as_ref())
+        .map(|output| output.proximity);
+    if !probe.controller_enabled {
+        probe.bootstrap_frames += 1;
+        let Some(sensor_proximity) = sensor_proximity else {
+            if probe.bootstrap_frames == 120 {
+                info!(
+                    "[SPAWN][BOOTSTRAP] sensor=false center_y={:.4} vertical_velocity={:.4} -> WAIT",
+                    character.translation.y, velocity.0.y
+                );
+            }
+            return;
+        };
+        probe.pre_enable_max_center_error = probe.pre_enable_max_center_error.max(center_error);
+        probe.pre_enable_max_vertical_velocity = probe
+            .pre_enable_max_vertical_velocity
+            .max(velocity.0.y.abs());
+        let stable = center_error <= 0.01
+            && position_error <= 0.001
+            && (sensor_proximity - expected_center_y).abs() <= 0.01
+            && velocity.0.y.abs() <= 0.01;
+        if stable {
+            probe.stable_sensor_frames += 1;
+        } else {
+            probe.stable_sensor_frames = 0;
+        }
+        if probe.stable_sensor_frames < SPAWN_SENSOR_STABLE_STEPS {
+            return;
+        }
+        commands.entity(character_entity).insert((
+            TnuaToggle::Enabled,
+            GravityScale(1.0),
+            TnuaMotor::default(),
+            LinearVelocity::default(),
+        ));
+        probe.controller_enabled = true;
+        info!(
+            "[SPAWN][CONTROLLER] sensor_frames={} center_y={:.4} sensor_proximity={sensor_proximity:.4} vertical_velocity={:.4} phase=active visibility=visible -> PASS",
+            probe.stable_sensor_frames, character.translation.y, velocity.0.y
+        );
+        return;
+    }
+    let Some(sensor_proximity) = sensor_proximity else {
+        return;
+    };
+    probe.frames += 1;
+    probe.max_center_error = probe.max_center_error.max(center_error);
+    probe.max_vertical_velocity = probe.max_vertical_velocity.max(velocity.0.y.abs());
+    if probe.frames < SPAWN_VISIBLE_VALIDATION_STEPS {
+        return;
+    }
+    let pass = bottom_clearance >= -0.01
+        && bottom_clearance <= 0.05
+        && avatar_relative_error <= 0.001
+        && center_error <= 0.05
+        && position_error <= 0.001
+        && velocity.0.y.abs() <= 0.15
+        && probe.pre_enable_max_center_error <= 0.01
+        && probe.pre_enable_max_vertical_velocity <= 0.01
+        && probe.max_center_error <= 0.025
+        && probe.max_vertical_velocity <= 0.15
+        && recovery.corrections == 0;
+    if pass {
+        info!(
+            "[SPAWN][GROUND] ground_y={ground_y:.4} center_y={:.4} spawn_adjustment={spawn_adjustment:.4} capsule_bottom={capsule_bottom:.4} clearance={bottom_clearance:.4} avatar_relative_error={avatar_relative_error:.6} position_error={position_error:.6} sensor_proximity={sensor_proximity:.6} vertical_velocity={:.4} recovery_corrections={} recovery_penetration={:.6} pre_enable_max_center_error={:.6} pre_enable_max_vertical_velocity={:.6} max_center_error={:.6} max_vertical_velocity={:.6} -> PASS",
+            character.translation.y,
+            velocity.0.y,
+            recovery.corrections,
+            recovery.max_penetration,
+            probe.pre_enable_max_center_error,
+            probe.pre_enable_max_vertical_velocity,
+            probe.max_center_error,
+            probe.max_vertical_velocity
+        );
+    } else {
+        error!(
+            "[SPAWN][GROUND] ground_y={ground_y:.4} center_y={:.4} spawn_adjustment={spawn_adjustment:.4} capsule_bottom={capsule_bottom:.4} clearance={bottom_clearance:.4} avatar_relative_error={avatar_relative_error:.6} position_error={position_error:.6} sensor_proximity={sensor_proximity:.6} vertical_velocity={:.4} recovery_corrections={} recovery_penetration={:.6} pre_enable_max_center_error={:.6} pre_enable_max_vertical_velocity={:.6} max_center_error={:.6} max_vertical_velocity={:.6} -> FAIL",
+            character.translation.y,
+            velocity.0.y,
+            recovery.corrections,
+            recovery.max_penetration,
+            probe.pre_enable_max_center_error,
+            probe.pre_enable_max_vertical_velocity,
+            probe.max_center_error,
+            probe.max_vertical_velocity
+        );
+    }
+    probe.passed = Some(pass);
+    probe.done = true;
 }
 
 fn enable_character_ssao_taa(
@@ -370,22 +651,17 @@ fn enable_character_ssao_taa(
     >,
 ) {
     for camera in &cameras {
-        commands
-            .entity(camera)
-            .insert((
-                Msaa::Off,
-                ScreenSpaceAmbientOcclusion::default(),
-                TemporalAntiAliasing::default(),
-            ));
+        commands.entity(camera).insert((
+            Msaa::Off,
+            ScreenSpaceAmbientOcclusion::default(),
+            TemporalAntiAliasing::default(),
+        ));
     }
 }
 
 fn temporal_anti_aliasing_probe(
     mut probe: ResMut<TemporalAntiAliasingProbe>,
-    cameras: Query<
-        (&TemporalAntiAliasing, &Msaa),
-        (With<Camera3d>, With<AlsCameraRig>),
-    >,
+    cameras: Query<(&TemporalAntiAliasing, &Msaa), (With<Camera3d>, With<AlsCameraRig>)>,
 ) {
     if probe.0 {
         return;
@@ -399,23 +675,16 @@ fn temporal_anti_aliasing_probe(
         .filter(|(_, msaa)| **msaa == Msaa::Off)
         .count();
     if camera_count == 1 && msaa_off_count == 1 {
-        info!(
-            "[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> PASS"
-        );
+        info!("[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> PASS");
     } else {
-        error!(
-            "[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> FAIL"
-        );
+        error!("[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> FAIL");
     }
     probe.0 = true;
 }
 
 fn ambient_occlusion_probe(
     mut probe: ResMut<AmbientOcclusionProbe>,
-    cameras: Query<
-        (&ScreenSpaceAmbientOcclusion, &Msaa),
-        (With<Camera3d>, With<AlsCameraRig>),
-    >,
+    cameras: Query<(&ScreenSpaceAmbientOcclusion, &Msaa), (With<Camera3d>, With<AlsCameraRig>)>,
 ) {
     if probe.0 {
         return;
@@ -639,7 +908,8 @@ fn collision_parity_probe(
             }
         }
         if hit_heights.len() == 2 {
-            stair_height_delta_min = stair_height_delta_min.min((hit_heights[0] - hit_heights[1]).abs());
+            stair_height_delta_min =
+                stair_height_delta_min.min((hit_heights[0] - hit_heights[1]).abs());
         }
     }
     let expected_rays = stair_count * 2;
@@ -649,9 +919,8 @@ fn collision_parity_probe(
     if ray_matching != expected_rays && probe.ready_frames < 120 {
         return;
     }
-    let pass = ray_total == expected_rays
-        && ray_matching == expected_rays
-        && stair_height_delta_min > 0.2;
+    let pass =
+        ray_total == expected_rays && ray_matching == expected_rays && stair_height_delta_min > 0.2;
     info!(
         "[PGCOL][VERDICT] mesh_types={} box_types={}/8 convex_types={}/5 trimesh_types={}/7 nonbox_built={}/{} stairs={} rays={}/{} stair_height_delta_min={stair_height_delta_min:.6} -> {}",
         box_meshes.len() + convex_meshes.len() + trimesh_meshes.len(),

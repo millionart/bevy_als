@@ -15,10 +15,8 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_ext::{
-    PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint, PlaygroundStatic,
-    PlaygroundTextLabel,
-};
+use als_core::player_start::AlsPlayerStartReady;
+use als_ext::{PlaygroundMovingObject, PlaygroundPlugin, PlaygroundStatic, PlaygroundTextLabel};
 
 fn main() {
     let mut app = App::new();
@@ -100,21 +98,24 @@ fn spawn_camera(mut commands: Commands) {
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    player_starts: Query<&AlsPlayerStartReady>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if once.0 {
         return;
     }
+    let Ok(point) = player_starts.single() else {
+        return;
+    };
+    let point = point.transform;
     once.0 = true;
-    let point = *spawn_point.unwrap();
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
+    bundle.transform = point;
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
@@ -124,7 +125,7 @@ fn spawn_character_once(
         character,
         "animated_scenes/motion_overlay.animscn.ron",
     );
-    info!("[PGPARITY] character at {:?}", point.position);
+    info!("[PGPARITY] character at {:?}", point.translation);
 }
 
 fn parity_watcher(

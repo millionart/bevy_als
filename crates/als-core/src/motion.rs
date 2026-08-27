@@ -7,7 +7,10 @@ use bevy_tnua::builtins::{
 };
 use bevy_tnua::controller::TnuaConfig;
 
-use crate::character::{AlsCharacter, AlsMovementParamsHandle, als_character_capsule};
+use crate::character::{
+    ALS_CHARACTER_FLOOR_CLEARANCE, ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter,
+    AlsMovementParamsHandle, als_character_capsule,
+};
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
 use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
@@ -63,6 +66,53 @@ fn turn_angvel(mode: RotationMode) -> f32 {
         RotationMode::ViewDirection => deg_to_rad(500.0),
         RotationMode::Aiming => deg_to_rad(1000.0),
     }
+}
+
+pub fn apply_als_control_scheme_config(
+    config: &mut AlsControlSchemeConfig,
+    params: &AlsMovementParams,
+    gait: Gait,
+    stance: Stance,
+    rotation_mode: RotationMode,
+    capsule_crouched: bool,
+) {
+    config.basis.speed = gait_max_speed(params, &stance, &gait);
+    config.basis.float_height =
+        params.crouch.standing_capsule_half_height
+            + ALS_CHARACTER_FLOOR_CLEARANCE
+            + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+    config.basis.acceleration = params.acceleration.max_acceleration;
+    config.basis.coyote_time = params.jump.coyote_time;
+    config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
+        distance_to_collider_top: if capsule_crouched {
+            params.crouch.crouched_capsule_half_height
+        } else {
+            params.crouch.standing_capsule_half_height
+        },
+        ..Default::default()
+    });
+    config.basis.turning_angvel = turn_angvel(rotation_mode);
+    config.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
+    config.basis.cling_distance = WALK_CLING_DISTANCE;
+    let gravity_scale = params.jump.gravity_scale.max(1e-3);
+    config.jump.height = params.jump.jump_z_velocity * params.jump.jump_z_velocity
+        / (2.0 * 9.81 * gravity_scale);
+    config.jump.shorten_extra_gravity = 0.0;
+    config.crouch.float_offset = -(params.crouch.standing_capsule_half_height
+        - params.crouch.crouched_capsule_half_height);
+}
+
+pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsControlSchemeConfig {
+    let mut config = AlsControlSchemeConfig::default();
+    apply_als_control_scheme_config(
+        &mut config,
+        params,
+        Gait::Walking,
+        Stance::Standing,
+        RotationMode::VelocityDirection,
+        false,
+    );
+    config
 }
 
 pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
@@ -232,27 +282,14 @@ fn tnua_config_sync_system(
         let Some(mut cfg) = configs.get_mut(&config.0) else {
             continue;
         };
-        cfg.basis.speed = gait_max_speed(params, stance, gait);
-        cfg.basis.float_height = params.crouch.standing_capsule_half_height;
-        cfg.basis.acceleration = params.acceleration.max_acceleration;
-        cfg.basis.coyote_time = params.jump.coyote_time;
-        cfg.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
-            distance_to_collider_top: if capsule_crouched {
-                params.crouch.crouched_capsule_half_height
-            } else {
-                params.crouch.standing_capsule_half_height
-            },
-            ..Default::default()
-        });
-        cfg.basis.turning_angvel = turn_angvel(*rotation_mode);
-        cfg.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
-        cfg.basis.cling_distance = WALK_CLING_DISTANCE;
-        let gravity_scale = params.jump.gravity_scale.max(1e-3);
-        cfg.jump.height = params.jump.jump_z_velocity * params.jump.jump_z_velocity
-            / (2.0 * 9.81 * gravity_scale);
-        cfg.jump.shorten_extra_gravity = 0.0;
-        cfg.crouch.float_offset = -(params.crouch.standing_capsule_half_height
-            - params.crouch.crouched_capsule_half_height);
+        apply_als_control_scheme_config(
+            &mut cfg,
+            params,
+            *gait,
+            *stance,
+            *rotation_mode,
+            capsule_crouched,
+        );
     }
 }
 
@@ -664,6 +701,24 @@ mod tests {
         assert!((gait_max_speed(&p, &Stance::Standing, &Gait::Walking) - 1.75).abs() < 1e-6);
         assert!((gait_max_speed(&p, &Stance::Standing, &Gait::Running) - 3.75).abs() < 1e-6);
         assert!((gait_max_speed(&p, &Stance::Standing, &Gait::Sprinting) - 6.50).abs() < 1e-6);
+    }
+
+    #[test]
+    fn initial_control_scheme_matches_the_first_runtime_sync() {
+        let params = AlsMovementParams::default();
+        let config = initial_als_control_scheme_config(&params);
+        assert!((config.basis.float_height - 0.925).abs() < 1e-6);
+        assert!((config.basis.speed - 1.75).abs() < 1e-6);
+        assert!((config.basis.cling_distance - WALK_CLING_DISTANCE).abs() < 1e-6);
+        assert_eq!(
+            config
+                .basis
+                .headroom
+                .as_ref()
+                .unwrap()
+                .distance_to_collider_top,
+            params.crouch.standing_capsule_half_height
+        );
     }
 
     #[test]

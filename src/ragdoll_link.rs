@@ -1,11 +1,11 @@
 use als_core::state::LocomotionState;
-use avian3d::prelude::Position;
+use avian3d::prelude::{CollisionLayers, Position};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
-use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
+use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, SpawnedRagdoll};
 
 const PELVIS_LABEL: &str = "pelvis";
 const CHARACTER_CENTER_ABOVE_PELVIS: f32 = 0.9;
@@ -15,10 +15,14 @@ pub struct AlsRagdollLink {
     pub prev_ragdoll: bool,
 }
 
+#[derive(Component, Debug, Clone, Copy)]
+struct AlsRagdollColliderLayers(CollisionLayers);
+
 pub struct AlsRagdollLinkPlugin;
 
 impl Plugin for AlsRagdollLinkPlugin {
     fn build(&self, app: &mut App) {
+        app.add_observer(disable_spawned_ragdoll_collider);
         app.add_systems(
             Update,
             (
@@ -27,6 +31,20 @@ impl Plugin for AlsRagdollLinkPlugin {
             ),
         );
     }
+}
+
+fn disable_spawned_ragdoll_collider(
+    event: On<RagdollColliderSpawned>,
+    layers: Query<&CollisionLayers>,
+    mut commands: Commands,
+) {
+    let collider = event.event().collider;
+    let Ok(layer) = layers.get(collider) else {
+        return;
+    };
+    commands
+        .entity(collider)
+        .insert((AlsRagdollColliderLayers(*layer), CollisionLayers::NONE));
 }
 
 fn ensure_ragdoll_link(
@@ -61,6 +79,7 @@ fn find_body_by_label(
 
 #[allow(clippy::type_complexity)]
 fn ragdoll_link_system(
+    mut commands: Commands,
     mut q: Query<
         (&mut Transform, &LocomotionState, &mut AlsRagdollLink),
         With<als_core::character::AlsCharacter>,
@@ -69,6 +88,7 @@ fn ragdoll_link_system(
     mut players: Query<&mut AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
     positions: Query<&Position>,
+    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers)>,
 ) {
     let Ok((mut tf, loco, mut link)) = q.single_mut() else {
         return;
@@ -87,6 +107,30 @@ fn ragdoll_link_system(
 
     player.set_input_data("ragdoll_dynamic", DataValue::from(is_ragdoll));
     player.set_input_data("ragdoll_readback", DataValue::from(is_ragdoll));
+
+    if let Some(spawned) = player.get_spawned_ragdoll() {
+        for collider in spawned.colliders.values() {
+            let Ok((stored, current)) = layers.get(*collider) else {
+                continue;
+            };
+            if is_ragdoll {
+                if let Some(stored) = stored
+                    && *current != stored.0
+                {
+                    commands.entity(*collider).insert(stored.0);
+                }
+            } else {
+                if stored.is_none() {
+                    commands
+                        .entity(*collider)
+                        .insert(AlsRagdollColliderLayers(*current));
+                }
+                if *current != CollisionLayers::NONE {
+                    commands.entity(*collider).insert(CollisionLayers::NONE);
+                }
+            }
+        }
+    }
 
     if exiting
         && let Some(spawned) = player.get_spawned_ragdoll()

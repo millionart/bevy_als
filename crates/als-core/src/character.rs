@@ -31,6 +31,8 @@ pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
 pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
+pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.02;
+pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
 
 #[derive(Component, Debug, Clone, Copy)]
