@@ -9,6 +9,7 @@ pub mod debug_draw;
 pub mod direction_layer;
 pub mod foot_ik_apply;
 pub mod gait_layer;
+pub mod grounded_layer;
 pub mod mantle_drive;
 pub mod motion_graph_link;
 pub mod overlay_layer;

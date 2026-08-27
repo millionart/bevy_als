@@ -16,6 +16,7 @@ use crate::crouching_layer::{AlsCrouchingLayerSet, CrouchingLayerPlugin};
 use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet, GaitLayerPlugin};
+use crate::grounded_layer::{AlsGroundedLayerSet, GroundedLayerPlugin};
 use crate::mantle_drive::AlsMantleDrivePlugin;
 use crate::motion_graph_link::{
     compute_motion_graph_inputs, compute_motion_graph_inputs_blended, write_air_pins,
@@ -42,6 +43,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             DirectionLayerPlugin,
             StandingLayerPlugin,
             CrouchingLayerPlugin,
+            GroundedLayerPlugin,
             AirJumpLayerPlugin,
             StanceLayerPlugin,
             OverlayLayerPlugin,
@@ -57,6 +59,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
                 .after(AlsGaitLayerSet)
                 .before(AlsStandingLayerSet)
                 .before(AlsCrouchingLayerSet)
+                .before(AlsGroundedLayerSet)
                 .before(AnimationGraphSet::Final),
         )
         .add_systems(
