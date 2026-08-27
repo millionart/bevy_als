@@ -20,6 +20,7 @@ pub mod layered_graph;
 pub mod linked_anim_layer;
 pub mod loader;
 pub mod mesh_space_additive;
+pub mod mesh_space_difference;
 pub mod mesh_space_layered_blend;
 pub mod multi_way_blend;
 pub mod nodes;
@@ -31,6 +32,7 @@ pub mod reset_on_activation;
 pub mod rich_curve;
 pub mod root_motion_clip;
 pub mod root_motion_defaults;
+pub mod slot_node;
 pub mod state_label_event;
 pub mod time_position;
 
@@ -40,9 +42,10 @@ pub use als_curves::{
 };
 pub use curve::{CurveAsset, CurveKey, CurveSampleMode, sample_curve};
 pub use curve_bundle::{
-    CurveBlendNode, CurveModifyNode, CurveSampleSetNode, NamedCurve, active_curve_weights,
-    blend_curve_value, curve_modify_input, curve_sample_output, curve_value_input,
-    curve_weight_input,
+    CurveBlendNode, CurveComposeMode, CurveComposeNode, CurveModifyNode, CurveSampleSetNode,
+    NamedCurve, active_curve_weights, blend_curve_value, compose_curve_value,
+    curve_compose_base_input, curve_compose_overlay_input, curve_modify_input, curve_sample_output,
+    curve_value_input, curve_weight_input,
 };
 pub use curve_weighted_samples::CurveWeightedSamplesNode;
 pub use direct_transition_event::{DirectTransitionEventNode, direct_transition_index};
@@ -64,13 +67,14 @@ pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use mesh_space_additive::{MeshSpaceAdditiveNode, apply_mesh_space_additive};
+pub use mesh_space_difference::{MeshSpaceDifferenceNode, make_mesh_space_difference};
 pub use mesh_space_layered_blend::{MeshSpaceLayeredBlendNode, apply_mesh_space_layered_blend};
 pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use overlay::{
-    HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES, TORCH_RIGHT_HAND_BONES,
-    TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask, build_grouped_bone_mask,
-    mask_coverage,
+    BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
+    TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask,
+    build_branch_filter_bone_mask, build_grouped_bone_mask, mask_coverage,
 };
 pub use playground::{
     PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent, PlaygroundLandscape,
@@ -92,6 +96,7 @@ pub use rich_curve::{
 };
 pub use root_motion_clip::RootMotionClipNode;
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
+pub use slot_node::SlotNode;
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use time_position::{TimePositionNode, resolve_position};
 
@@ -111,6 +116,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<ConstantF32Node>()
             .register_type::<CurveSampleSetNode>()
             .register_type::<CurveBlendNode>()
+            .register_type::<CurveComposeMode>()
+            .register_type::<CurveComposeNode>()
             .register_type::<CurveModifyNode>()
             .register_type::<CurveWeightedSamplesNode>()
             .register_type::<DistanceMatchNode>()
@@ -119,6 +126,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SuppressFirstUpdateNode>()
             .register_type::<ResetOnActivationNode>()
             .register_type::<StateLabelEventNode>()
+            .register_type::<SlotNode>()
             .register_type::<DirectTransitionEventNode>()
             .register_type::<GlobalBoneMaskInputNode>()
             .register_type::<GlobalF32InputNode>()
@@ -126,6 +134,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<GameplayTagBlendNode>()
             .register_type::<GameplayTagLayerBlendNode>()
             .register_type::<MeshSpaceAdditiveNode>()
+            .register_type::<MeshSpaceDifferenceNode>()
             .register_type::<MeshSpaceLayeredBlendNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()

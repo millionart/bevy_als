@@ -5,6 +5,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::curve::{CurveKey, CurveSampleMode, sample_curve};
 
@@ -24,6 +25,14 @@ pub fn curve_modify_input(curve: &str) -> String {
 
 pub fn curve_sample_output(sample_index: usize, curve: &str) -> String {
     format!("sample_{sample_index}_{curve}")
+}
+
+pub fn curve_compose_base_input(curve: &str) -> String {
+    format!("base_{curve}")
+}
+
+pub fn curve_compose_overlay_input(curve: &str) -> String {
+    format!("overlay_{curve}")
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -146,6 +155,76 @@ impl NodeLike for CurveBlendNode {
     }
 }
 
+#[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[reflect(Default, Serialize)]
+pub enum CurveComposeMode {
+    #[default]
+    Accumulate,
+    Override,
+}
+
+pub fn compose_curve_value(mode: CurveComposeMode, base: f32, overlay: f32, alpha: f32) -> f32 {
+    match mode {
+        CurveComposeMode::Accumulate => base + overlay * alpha,
+        CurveComposeMode::Override => overlay * alpha,
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct CurveComposeNode {
+    pub curve_names: Vec<String>,
+    pub alpha: f32,
+    pub mode: CurveComposeMode,
+}
+
+impl Default for CurveComposeNode {
+    fn default() -> Self {
+        Self {
+            curve_names: default(),
+            alpha: 1.0,
+            mode: default(),
+        }
+    }
+}
+
+impl NodeLike for CurveComposeNode {
+    fn display_name(&self) -> String {
+        "ALS Curve Compose".into()
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        for curve in &self.curve_names {
+            let overlay = ctx
+                .data_back(curve_compose_overlay_input(curve))?
+                .as_f32()?;
+            let value = match self.mode {
+                CurveComposeMode::Accumulate => {
+                    let base = ctx.data_back(curve_compose_base_input(curve))?.as_f32()?;
+                    compose_curve_value(self.mode, base, overlay, self.alpha)
+                }
+                CurveComposeMode::Override => {
+                    compose_curve_value(self.mode, 0.0, overlay, self.alpha)
+                }
+            };
+            ctx.set_data_fwd(curve.clone(), value);
+        }
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        for curve in &self.curve_names {
+            if self.mode == CurveComposeMode::Accumulate {
+                ctx.add_input_data(curve_compose_base_input(curve), DataSpec::F32);
+            }
+            ctx.add_input_data(curve_compose_overlay_input(curve), DataSpec::F32)
+                .add_output_data(curve.clone(), DataSpec::F32);
+        }
+        Ok(())
+    }
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -206,15 +285,29 @@ mod tests {
     }
 
     #[test]
+    fn curve_compose_matches_source_accumulate_and_override_semantics() {
+        assert_eq!(
+            compose_curve_value(CurveComposeMode::Accumulate, 0.25, 0.5, 0.5),
+            0.5
+        );
+        assert_eq!(
+            compose_curve_value(CurveComposeMode::Override, 0.25, 0.5, 0.5),
+            0.25
+        );
+    }
+
+    #[test]
     fn nodes_register_node_like_dispatch_keys() {
         use bevy::reflect::TypeRegistry;
         let mut registry = TypeRegistry::default();
         registry.register::<CurveSampleSetNode>();
         registry.register::<CurveBlendNode>();
+        registry.register::<CurveComposeNode>();
         registry.register::<CurveModifyNode>();
         for type_id in [
             std::any::TypeId::of::<CurveSampleSetNode>(),
             std::any::TypeId::of::<CurveBlendNode>(),
+            std::any::TypeId::of::<CurveComposeNode>(),
             std::any::TypeId::of::<CurveModifyNode>(),
         ] {
             assert!(
