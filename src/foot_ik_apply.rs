@@ -1,7 +1,8 @@
 use als_core::foot_ik::{
-    AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe, FootSideInput,
-    foot_target_offset,
+    AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput, AlsFootLockState,
+    AlsFootProbe, FootSideInput, foot_target_offset, refresh_foot_lock,
 };
+use als_core::state::LocomotionState;
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
@@ -22,6 +23,7 @@ impl Plugin for FootIkApplyPlugin {
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
+                ensure_foot_lock_components,
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
                     .after(TransformSystems::Propagate)
@@ -50,6 +52,19 @@ fn ensure_foot_ik_runtime(
     }
 }
 
+fn ensure_foot_lock_components(
+    mut commands: Commands,
+    states: Query<Entity, (With<AlsFootBones>, Without<AlsFootLockState>)>,
+    inputs: Query<Entity, (With<AlsFootBones>, Without<AlsFootLockInput>)>,
+) {
+    for entity in &states {
+        commands.entity(entity).insert(AlsFootLockState::default());
+    }
+    for entity in &inputs {
+        commands.entity(entity).insert(AlsFootLockInput::default());
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn foot_ik_apply_system(
     time: Res<Time>,
@@ -60,7 +75,10 @@ fn foot_ik_apply_system(
             &AlsFootBones,
             &AlsFootProbe,
             &AlsFootIkTargets,
+            &LocomotionState,
+            &AlsFootLockInput,
             &mut AlsFootIkRuntime,
+            &mut AlsFootLockState,
             Option<&AnimationPlayer>,
         ),
         With<als_core::character::AlsCharacter>,
@@ -70,9 +88,55 @@ fn foot_ik_apply_system(
     _scenes: Query<&AnimatedSceneInstance>,
 ) {
     let dt = time.delta_secs();
-    for (_entity, char_gtf, bones, probe, targets, mut runtime, _) in &mut characters {
+    for (
+        _entity,
+        char_gtf,
+        bones,
+        probe,
+        targets,
+        locomotion,
+        lock_input,
+        mut runtime,
+        mut lock_state,
+        _,
+    ) in &mut characters
+    {
         let char_fwd = char_gtf.forward().as_vec3();
         let pole = Vec3::new(char_fwd.x, 0.0, char_fwd.z).normalize_or_zero();
+
+        lock_state.became_valid = !lock_state.valid;
+        lock_state.valid = true;
+        lock_state.foot_planted_amount = lock_input.foot_planted_amount.clamp(-1.0, 1.0);
+        lock_state.feet_crossing_amount = lock_input.feet_crossing_amount.clamp(0.0, 1.0);
+        let became_valid = lock_state.became_valid;
+        for side in 0..2usize {
+            let Ok(target_tf) = bone_globals.get(bones.target(side)) else {
+                continue;
+            };
+            let (foot_state, ik_amount, lock_amount) = match side {
+                0 => (
+                    &mut lock_state.left,
+                    lock_input.left_ik_amount,
+                    lock_input.left_lock_amount,
+                ),
+                _ => (
+                    &mut lock_state.right,
+                    lock_input.right_ik_amount,
+                    lock_input.right_lock_amount,
+                ),
+            };
+            refresh_foot_lock(
+                foot_state,
+                target_tf.translation(),
+                target_tf.rotation(),
+                ik_amount,
+                lock_amount,
+                lock_input.moving_smooth,
+                *locomotion == LocomotionState::Grounded,
+                became_valid,
+                dt,
+            );
+        }
 
         let mut inputs = [FootSideInput::default(), FootSideInput::default()];
         for side in 0..2usize {
@@ -93,17 +157,31 @@ fn foot_ik_apply_system(
             }
         }
 
-        runtime.update(&inputs[0], &inputs[1], grounded_target(targets), dt);
+        runtime.update(
+            &inputs[0],
+            &inputs[1],
+            lock_input.left_ik_amount,
+            lock_input.right_ik_amount,
+            dt,
+        );
 
         for side in 0..2usize {
             let (offset, _pin_w) = runtime.side(side);
             let ik_offset = ik_offset_after_pelvis(offset, runtime.pelvis_drop);
-            if ik_offset.abs() < 1e-4 {
+            let lock_offset = match side {
+                0 => lock_state.left.final_location - lock_state.left.target_location,
+                _ => lock_state.right.final_location - lock_state.right.target_location,
+            };
+            if ik_offset.abs() < 1e-4 && lock_offset.length_squared() < 1e-8 {
                 continue;
             }
+            let chain = bones.chain(side);
+            let Ok(ankle) = bone_globals.get(chain.foot) else {
+                continue;
+            };
             apply_chain_offset(
-                &bones.chain(side),
-                ik_offset,
+                &chain,
+                ankle.translation() + Vec3::Y * ik_offset + lock_offset,
                 pole,
                 &mut bone_locals,
                 &bone_globals,
@@ -114,13 +192,9 @@ fn foot_ik_apply_system(
     }
 }
 
-fn grounded_target(targets: &AlsFootIkTargets) -> f32 {
-    if targets.grounded { 1.0 } else { 0.0 }
-}
-
 fn apply_chain_offset(
     chain: &als_core::foot_ik::FootChain,
-    offset: f32,
+    target: Vec3,
     pole: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
@@ -146,8 +220,6 @@ fn apply_chain_offset(
 
     let upper_len = (knee - hip).length();
     let lower_len = (ankle - knee).length();
-
-    let target = ankle + Vec3::Y * offset;
 
     let Some(solve) = solve_two_bone_ik(hip, knee, ankle, target, upper_len, lower_len, pole)
     else {

@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct TurnInPlaceConfig {
     pub view_yaw_angle_threshold_degrees: f32,
@@ -15,7 +14,7 @@ impl Default for TurnInPlaceConfig {
             view_yaw_speed_threshold_deg_per_s: 50.0,
             turn_180_angle_threshold_degrees: 130.0,
             play_rate: 1.2,
-            max_activation_delay_seconds: 1.0,
+            max_activation_delay_seconds: 0.75,
         }
     }
 }
@@ -50,11 +49,7 @@ pub fn wrap_angle_degrees(angle: f32) -> f32 {
     a
 }
 
-fn mapped_activation_delay(
-    angle_abs: f32,
-    threshold: f32,
-    max_delay: f32,
-) -> f32 {
+fn mapped_activation_delay(angle_abs: f32, threshold: f32, max_delay: f32) -> f32 {
     let span = 180.0 - threshold;
     let t = ((angle_abs - threshold) / span.max(f32::EPSILON)).clamp(0.0, 1.0);
     max_delay * (1.0 - t)
@@ -197,5 +192,12 @@ mod tests {
         assert!((wrap_angle_degrees(270.0) - (-90.0)).abs() < 1e-4);
         assert!((wrap_angle_degrees(-270.0) - 90.0).abs() < 1e-4);
         assert!((wrap_angle_degrees(360.0)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn source_max_activation_delay_is_three_quarters_second() {
+        assert!(
+            (TurnInPlaceConfig::default().max_activation_delay_seconds - 0.75).abs() < f32::EPSILON
+        );
     }
 }

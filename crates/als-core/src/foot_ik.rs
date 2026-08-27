@@ -6,8 +6,15 @@ use bevy::animation::AnimationTargetId;
 use crate::character::AlsCharacter;
 use crate::state::LocomotionState;
 
-pub const FOOT_BONE_NAMES: [&str; 6] = [
-    "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r",
+pub const FOOT_BONE_NAMES: [&str; 8] = [
+    "thigh_l",
+    "calf_l",
+    "foot_l",
+    "ik_foot_l",
+    "thigh_r",
+    "calf_r",
+    "foot_r",
+    "ik_foot_r",
 ];
 pub const PROBE_UP_OFFSET: f32 = 0.15;
 pub const PROBE_DEPTH: f32 = 0.85;
@@ -36,9 +43,11 @@ pub struct AlsFootBones {
     pub left_thigh: Entity,
     pub left_calf: Entity,
     pub left: Entity,
+    pub left_target: Option<Entity>,
     pub right_thigh: Entity,
     pub right_calf: Entity,
     pub right: Entity,
+    pub right_target: Option<Entity>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +72,13 @@ impl AlsFootBones {
             },
         }
     }
+
+    pub fn target(&self, side: usize) -> Entity {
+        match side {
+            0 => self.left_target.unwrap_or(self.left),
+            _ => self.right_target.unwrap_or(self.right),
+        }
+    }
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -76,6 +92,130 @@ pub struct AlsFootIkTargets {
     pub grounded: bool,
     pub pin_left: bool,
     pub pin_right: bool,
+}
+
+pub const FOOT_LOCK_RELEVANCE_THRESHOLD: f32 = 1e-4;
+pub const FOOT_LOCK_MOVING_DECREASE_SPEED: f32 = 5.0;
+pub const FOOT_LOCK_NOT_GROUNDED_DECREASE_SPEED: f32 = 0.6;
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsFootLockInput {
+    pub left_ik_amount: f32,
+    pub right_ik_amount: f32,
+    pub left_lock_amount: f32,
+    pub right_lock_amount: f32,
+    pub allow_transitions: bool,
+    pub moving_smooth: bool,
+    pub foot_planted_amount: f32,
+    pub feet_crossing_amount: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlsFootLockFootState {
+    pub lock_amount: f32,
+    pub target_location: Vec3,
+    pub target_rotation: Quat,
+    pub lock_location: Vec3,
+    pub lock_rotation: Quat,
+    pub final_location: Vec3,
+    pub final_rotation: Quat,
+}
+
+impl Default for AlsFootLockFootState {
+    fn default() -> Self {
+        Self {
+            lock_amount: 0.0,
+            target_location: Vec3::ZERO,
+            target_rotation: Quat::IDENTITY,
+            lock_location: Vec3::ZERO,
+            lock_rotation: Quat::IDENTITY,
+            final_location: Vec3::ZERO,
+            final_rotation: Quat::IDENTITY,
+        }
+    }
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsFootLockState {
+    pub valid: bool,
+    pub became_valid: bool,
+    pub foot_planted_amount: f32,
+    pub feet_crossing_amount: f32,
+    pub left: AlsFootLockFootState,
+    pub right: AlsFootLockFootState,
+}
+
+pub fn is_relevant_animation_weight(value: f32) -> bool {
+    value > FOOT_LOCK_RELEVANCE_THRESHOLD
+}
+
+pub fn is_full_animation_weight(value: f32) -> bool {
+    value >= 1.0 - FOOT_LOCK_RELEVANCE_THRESHOLD
+}
+
+pub fn refresh_foot_lock(
+    state: &mut AlsFootLockFootState,
+    target_location: Vec3,
+    target_rotation: Quat,
+    ik_amount: f32,
+    requested_lock_amount: f32,
+    moving_smooth: bool,
+    grounded: bool,
+    became_valid: bool,
+    delta_seconds: f32,
+) {
+    state.target_location = target_location;
+    state.target_rotation = target_rotation;
+
+    let mut new_lock_amount = requested_lock_amount.clamp(0.0, 1.0);
+    if moving_smooth || !grounded {
+        let decrease_speed = if moving_smooth {
+            FOOT_LOCK_MOVING_DECREASE_SPEED
+        } else {
+            FOOT_LOCK_NOT_GROUNDED_DECREASE_SPEED
+        };
+        new_lock_amount = if became_valid {
+            0.0
+        } else {
+            new_lock_amount
+                .min((state.lock_amount - delta_seconds.max(0.0) * decrease_speed).max(0.0))
+        };
+    }
+
+    if !is_relevant_animation_weight(ik_amount.clamp(0.0, 1.0) * new_lock_amount) {
+        state.lock_amount = 0.0;
+        state.lock_location = Vec3::ZERO;
+        state.lock_rotation = Quat::IDENTITY;
+        state.final_location = target_location;
+        state.final_rotation = target_rotation;
+        return;
+    }
+
+    let full_weight = is_full_animation_weight(new_lock_amount);
+    let greater_than_previous = new_lock_amount > state.lock_amount;
+    if full_weight {
+        if greater_than_previous && state.lock_amount <= 0.9 {
+            let (location, rotation) = if became_valid {
+                (target_location, target_rotation)
+            } else {
+                (state.final_location, state.final_rotation)
+            };
+            state.lock_location = location;
+            state.lock_rotation = rotation;
+        }
+        state.lock_amount = 1.0;
+    } else if !greater_than_previous {
+        state.lock_amount = new_lock_amount;
+    }
+
+    state.final_location = target_location.lerp(state.lock_location, state.lock_amount);
+    state.final_rotation = target_rotation
+        .lerp(state.lock_rotation, state.lock_amount)
+        .normalize();
+}
+
+pub fn foot_lock_distance_squared(state: &AlsFootLockFootState) -> f32 {
+    state.target_location.distance_squared(state.lock_location)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -165,14 +305,20 @@ impl AlsFootIkRuntime {
         &mut self,
         left: &FootSideInput,
         right: &FootSideInput,
-        ik_target: f32,
+        left_ik_target: f32,
+        right_ik_target: f32,
         dt: f32,
     ) -> (f32, f32, f32) {
-        let off_left = step_side(&mut self.left, left, ik_target, dt);
-        let off_right = step_side(&mut self.right, right, ik_target, dt);
+        let off_left = step_side(&mut self.left, left, left_ik_target.clamp(0.0, 1.0), dt);
+        let off_right = step_side(&mut self.right, right, right_ik_target.clamp(0.0, 1.0), dt);
         self.pelvis_drop = move_toward_cap(
             self.pelvis_drop,
-            pelvis_drop(off_left, off_right, self.left.ik_weight, self.right.ik_weight),
+            pelvis_drop(
+                off_left,
+                off_right,
+                self.left.ik_weight,
+                self.right.ik_weight,
+            ),
             PELVIS_INTERP_SPEED * dt,
         );
         (off_left, off_right, self.pelvis_drop)
@@ -232,8 +378,7 @@ pub fn foot_pin_request_system(
     mut q: Query<
         (
             Entity,
-            &crate::start_stop::StartStopState,
-            Option<&mut AlsFootPinHold>,
+            Option<&AlsFootPinHold>,
             Option<&mut AlsFootPinRequest>,
         ),
         With<AlsCharacter>,
@@ -241,13 +386,9 @@ pub fn foot_pin_request_system(
     mut commands: Commands,
 ) {
     let now = time.elapsed_secs_f64();
-    for (entity, start_stop, hold, pins) in &mut q {
-        let stopping = matches!(
-            start_stop.phase,
-            crate::start_stop::StartStopPhase::Stopping(_)
-        );
+    for (entity, hold, pins) in &mut q {
         let turning = hold.map(|h| now < h.until_secs).unwrap_or(false);
-        let want = stopping || turning;
+        let want = turning;
         let desired = AlsFootPinRequest {
             left: want,
             right: want,
@@ -305,15 +446,24 @@ pub fn build_foot_bone_map(
     joint_q: &Query<&AnimationTargetId>,
 ) -> Option<AlsFootBones> {
     let mut found = Vec::new();
-    collect_named_descendants(root, children_q, name_q, joint_q, &FOOT_BONE_NAMES, &mut found);
+    collect_named_descendants(
+        root,
+        children_q,
+        name_q,
+        joint_q,
+        &FOOT_BONE_NAMES,
+        &mut found,
+    );
     let find = |name: &str| found.iter().find(|(n, _)| n == name).map(|(_, e)| *e);
     Some(AlsFootBones {
         left_thigh: find("thigh_l")?,
         left_calf: find("calf_l")?,
         left: find("foot_l")?,
+        left_target: find("ik_foot_l"),
         right_thigh: find("thigh_r")?,
         right_calf: find("calf_r")?,
         right: find("foot_r")?,
+        right_target: find("ik_foot_r"),
     })
 }
 
@@ -409,13 +559,12 @@ mod pin_request_tests {
     }
 
     #[test]
-    fn stopping_phase_pins_both_feet() {
+    fn stopping_phase_does_not_pin_feet() {
         let (mut app, e) = app_with_character(StartStopPhase::Stopping(
             crate::start_stop::MoveDirection::Forward,
         ));
         app.update();
-        let pins = *app.world().get::<AlsFootPinRequest>(e).unwrap();
-        assert!(pins.left && pins.right);
+        assert!(app.world().get::<AlsFootPinRequest>(e).is_none());
     }
 
     #[test]
@@ -498,21 +647,37 @@ mod tests {
         let inp_l = FootSideInput::default();
         let inp_r = FootSideInput::default();
 
-        let (off_l, _, pelvis) = rt.update(&inp_l, &inp_r, 0.0, DT);
+        let (off_l, _, pelvis) = rt.update(&inp_l, &inp_r, 0.0, 0.0, DT);
         assert_eq!(off_l, 0.0);
         assert_eq!(pelvis, 0.0);
 
         for _ in 0..60 {
-            rt.update(&inp_l, &inp_r, 1.0, DT);
+            rt.update(&inp_l, &inp_r, 1.0, 1.0, DT);
         }
         let (wl, wr) = rt.ik_weights();
         assert!((wl - 1.0).abs() < 1e-4 && (wr - 1.0).abs() < 1e-4);
 
         for _ in 0..60 {
-            rt.update(&inp_l, &inp_r, 0.0, DT);
+            rt.update(&inp_l, &inp_r, 0.0, 0.0, DT);
         }
         let (wl2, _) = rt.ik_weights();
         assert!(wl2.abs() < 1e-4);
+    }
+
+    #[test]
+    fn left_and_right_ik_curve_amounts_drive_their_own_feet() {
+        let mut rt = AlsFootIkRuntime::default();
+        let raised = FootSideInput {
+            raw_offset: 0.2,
+            pin_request: false,
+        };
+        for _ in 0..120 {
+            rt.update(&raised, &raised, 1.0, 0.0, DT);
+        }
+        let (left_offset, _) = rt.side(0);
+        let (right_offset, _) = rt.side(1);
+        assert!((left_offset - 0.2).abs() < 1e-3);
+        assert!(right_offset.abs() < 1e-3);
     }
 
     #[test]
@@ -523,7 +688,7 @@ mod tests {
             pin_request: false,
         };
         for _ in 0..120 {
-            rt.update(&raw, &raw, 1.0, DT);
+            rt.update(&raw, &raw, 1.0, 1.0, DT);
         }
         let (off_l, _) = rt.side(0);
         assert!((off_l - 0.20).abs() < 1e-3, "got {off_l}");
@@ -537,7 +702,7 @@ mod tests {
             pin_request: false,
         };
         for _ in 0..90 {
-            rt.update(&raised, &raised, 1.0, DT);
+            rt.update(&raised, &raised, 1.0, 1.0, DT);
         }
         let (settled, _) = rt.side(0);
         assert!((settled - 0.25).abs() < 1e-2);
@@ -547,7 +712,7 @@ mod tests {
             pin_request: true,
         };
         for _ in 0..60 {
-            rt.update(&planted, &planted, 1.0, DT);
+            rt.update(&planted, &planted, 1.0, 1.0, DT);
         }
         let (held, pw) = rt.side(0);
         assert!(pw > 0.99);
@@ -561,7 +726,7 @@ mod tests {
             pin_request: true,
         };
         for _ in 0..60 {
-            rt.update(&swinging, &swinging, 1.0, DT);
+            rt.update(&swinging, &swinging, 1.0, 1.0, DT);
         }
         let (frozen, pw_frozen) = rt.side(0);
         assert!(pw_frozen > 0.99);
@@ -575,11 +740,14 @@ mod tests {
             pin_request: false,
         };
         for _ in 0..120 {
-            rt.update(&released, &released, 1.0, DT);
+            rt.update(&released, &released, 1.0, 1.0, DT);
         }
         let (after, pw_after) = rt.side(0);
         assert!(pw_after < 1e-3);
-        assert!((after - (-0.10)).abs() < 1e-3, "returns to raw after release");
+        assert!(
+            (after - (-0.10)).abs() < 1e-3,
+            "returns to raw after release"
+        );
     }
 
     #[test]
@@ -590,13 +758,16 @@ mod tests {
             pin_request: false,
         };
         for _ in 0..120 {
-            rt.update(&raised, &raised, 1.0, DT);
+            rt.update(&raised, &raised, 1.0, 1.0, DT);
         }
         for _ in 0..120 {
-            rt.update(&raised, &raised, 0.0, DT);
+            rt.update(&raised, &raised, 0.0, 0.0, DT);
         }
         let (off_l, _) = rt.side(0);
-        assert!(off_l.abs() < 1e-2, "ik weight 0 pulls offset to rest, got {off_l}");
+        assert!(
+            off_l.abs() < 1e-2,
+            "ik weight 0 pulls offset to rest, got {off_l}"
+        );
     }
 
     #[test]
@@ -609,11 +780,144 @@ mod tests {
         let flat = FootSideInput::default();
         let mut prev = 0.0;
         for _ in 0..120 {
-            let (_, _, drop) = rt.update(&low, &flat, 1.0, DT);
+            let (_, _, drop) = rt.update(&low, &flat, 1.0, 1.0, DT);
             assert!(drop <= prev + 1e-5, "no overshoot toward negative drop");
             prev = drop;
         }
-        let (_, _, drop) = rt.update(&low, &flat, 1.0, DT);
-        assert!((drop + 0.20).abs() < 1e-2, "settles at min side, got {drop}");
+        let (_, _, drop) = rt.update(&low, &flat, 1.0, 1.0, DT);
+        assert!(
+            (drop + 0.20).abs() < 1e-2,
+            "settles at min side, got {drop}"
+        );
+    }
+
+    #[test]
+    fn foot_lock_captures_the_target_when_feet_become_valid() {
+        let mut state = AlsFootLockFootState::default();
+        let target = Vec3::new(1.0, 2.0, 3.0);
+        refresh_foot_lock(
+            &mut state,
+            target,
+            Quat::IDENTITY,
+            1.0,
+            1.0,
+            false,
+            true,
+            true,
+            DT,
+        );
+        assert_eq!(state.lock_amount, 1.0);
+        assert_eq!(state.lock_location, target);
+        assert_eq!(state.final_location, target);
+    }
+
+    #[test]
+    fn foot_lock_uses_previous_final_target_when_relocking() {
+        let mut state = AlsFootLockFootState {
+            final_location: Vec3::new(1.0, 0.0, 0.0),
+            final_rotation: Quat::IDENTITY,
+            ..Default::default()
+        };
+        refresh_foot_lock(
+            &mut state,
+            Vec3::new(2.0, 0.0, 0.0),
+            Quat::IDENTITY,
+            1.0,
+            1.0,
+            false,
+            true,
+            false,
+            DT,
+        );
+        assert_eq!(state.lock_location, Vec3::new(1.0, 0.0, 0.0));
+        assert_eq!(state.final_location, Vec3::new(1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn foot_lock_does_not_blend_into_an_intermediate_curve_value() {
+        let mut state = AlsFootLockFootState::default();
+        let target = Vec3::new(2.0, 0.0, 0.0);
+        refresh_foot_lock(
+            &mut state,
+            target,
+            Quat::IDENTITY,
+            1.0,
+            0.5,
+            false,
+            true,
+            false,
+            DT,
+        );
+        assert_eq!(state.lock_amount, 0.0);
+        assert_eq!(state.final_location, target);
+    }
+
+    #[test]
+    fn moving_foot_lock_uses_source_decrease_cap() {
+        let mut state = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: Vec3::ZERO,
+            final_location: Vec3::ZERO,
+            ..Default::default()
+        };
+        refresh_foot_lock(
+            &mut state,
+            Vec3::new(1.0, 0.0, 0.0),
+            Quat::IDENTITY,
+            1.0,
+            1.0,
+            true,
+            true,
+            false,
+            0.1,
+        );
+        assert!((state.lock_amount - 0.5).abs() < 1e-6);
+        assert!((state.final_location.x - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn airborne_foot_lock_uses_source_decrease_cap() {
+        let mut state = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: Vec3::ZERO,
+            final_location: Vec3::ZERO,
+            ..Default::default()
+        };
+        refresh_foot_lock(
+            &mut state,
+            Vec3::new(1.0, 0.0, 0.0),
+            Quat::IDENTITY,
+            1.0,
+            1.0,
+            false,
+            false,
+            false,
+            0.1,
+        );
+        assert!((state.lock_amount - 0.94).abs() < 1e-6);
+    }
+
+    #[test]
+    fn irrelevant_foot_lock_resets_to_target() {
+        let mut state = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: Vec3::new(-1.0, 0.0, 0.0),
+            ..Default::default()
+        };
+        let target = Vec3::new(1.0, 0.0, 0.0);
+        refresh_foot_lock(
+            &mut state,
+            target,
+            Quat::IDENTITY,
+            0.0,
+            1.0,
+            false,
+            true,
+            false,
+            DT,
+        );
+        assert_eq!(state.lock_amount, 0.0);
+        assert_eq!(state.final_location, target);
+        assert_eq!(state.lock_location, Vec3::ZERO);
     }
 }

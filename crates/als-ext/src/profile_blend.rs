@@ -39,6 +39,7 @@ pub enum AlphaBlendMode {
     Linear,
     Cubic,
     HermiteCubic,
+    QuadraticInOut,
     Custom,
 }
 
@@ -84,6 +85,13 @@ pub fn transition_alpha(
     let value = match blend_mode {
         AlphaBlendMode::Linear => alpha,
         AlphaBlendMode::Cubic | AlphaBlendMode::HermiteCubic => alpha * alpha * (3.0 - 2.0 * alpha),
+        AlphaBlendMode::QuadraticInOut => {
+            if alpha < 0.5 {
+                2.0 * alpha * alpha
+            } else {
+                1.0 - (-2.0 * alpha + 2.0).powi(2) * 0.5
+            }
+        }
         AlphaBlendMode::Custom => match (custom_curve.first(), custom_curve.last()) {
             (Some(first), Some(last)) if last.t > first.t => {
                 sample_rich_curve(custom_curve, first.t + (last.t - first.t) * alpha)
@@ -223,6 +231,8 @@ mod tests {
     #[test]
     fn alpha_blend_options_match_unreal_curve_mapping() {
         assert!((transition_alpha(0.25, AlphaBlendMode::Cubic, &[]) - 0.15625).abs() < 1e-6);
+        assert!((transition_alpha(0.25, AlphaBlendMode::QuadraticInOut, &[]) - 0.125).abs() < 1e-6);
+        assert!((transition_alpha(0.75, AlphaBlendMode::QuadraticInOut, &[]) - 0.875).abs() < 1e-6);
         let aim_in = [
             RichCurveKey {
                 interpolation: crate::RichCurveInterpolation::Cubic,

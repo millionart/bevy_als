@@ -1,0 +1,35 @@
+(
+    nodes: [
+        (id: "151e0000-0000-4000-8000-000000000001", name: "left backward movement blend", inner: { "als_ext::LayeredGraphNode": (graph: "graphs/ab_als/stances/standing/state_movement_blend.animgraph.ron") }, should_debug: false),
+        (id: "151e0000-0000-4000-8000-000000000002", name: "left backward forward direction index", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (id: "151e0000-0000-4000-8000-000000000003", name: "left backward backward direction index", inner: { "als_ext::ConstantF32Node": (value: 3.0) }, should_debug: false),
+        (id: "151e0000-0000-4000-8000-000000000004", name: "left backward left direction index", inner: { "als_ext::ConstantF32Node": (value: 4.0) }, should_debug: false),
+        (id: "151e0000-0000-4000-8000-000000000005", name: "left backward right direction index", inner: { "als_ext::ConstantF32Node": (value: 1.0) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("151e0000-0000-4000-8000-000000000001", "forward_direction_index"): NodeData("151e0000-0000-4000-8000-000000000002", "value"),
+        NodeData("151e0000-0000-4000-8000-000000000001", "backward_direction_index"): NodeData("151e0000-0000-4000-8000-000000000003", "value"),
+        NodeData("151e0000-0000-4000-8000-000000000001", "left_direction_index"): NodeData("151e0000-0000-4000-8000-000000000004", "value"),
+        NodeData("151e0000-0000-4000-8000-000000000001", "right_direction_index"): NodeData("151e0000-0000-4000-8000-000000000005", "value"),
+        OutputData("pose"): NodeData("151e0000-0000-4000-8000-000000000001", "pose"),
+        OutputTime: NodeTime("151e0000-0000-4000-8000-000000000001"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: true,
+        output_data: { "pose": Pose },
+        input_order: {},
+        output_order: { Data("pose"): 0, Time: 1 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: {},
+        input_position: (0.0, 0.0),
+        output_position: (320.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

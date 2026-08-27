@@ -35,10 +35,24 @@ pub fn build_bone_mask(skeleton: &Skeleton, bone_names: &[&str], weight: f32) ->
     mask
 }
 
-pub fn build_grouped_bone_mask(
-    skeleton: &Skeleton,
-    groups: &[(&[&str], f32)],
-) -> BoneMask {
+pub fn build_branch_bone_mask(skeleton: &Skeleton, branch_names: &[&str], weight: f32) -> BoneMask {
+    let mut mask = BoneMask::none();
+    let weight = weight.clamp(0.0, 1.0);
+    for path in skeleton.iter_paths() {
+        if !path
+            .parts
+            .iter()
+            .any(|part| branch_names.contains(&part.as_str()))
+        {
+            continue;
+        }
+        let id: BoneId = path.id();
+        mask.add_bone_weight(id, path.clone(), weight);
+    }
+    mask
+}
+
+pub fn build_grouped_bone_mask(skeleton: &Skeleton, groups: &[(&[&str], f32)]) -> BoneMask {
     let mut mask = BoneMask::none();
     for (bone_names, weight) in groups {
         if *weight <= 0.0 {
@@ -131,6 +145,16 @@ mod tests {
         assert_eq!(mask.get_weights().len(), 1);
         let pelvis_id = path(&["root", "pelvis"]).id();
         assert!(mask.contains_bone(pelvis_id));
+    }
+
+    #[test]
+    fn branch_mask_includes_descendants_of_the_branch_root() {
+        let sk = skeleton();
+        let mask = build_branch_bone_mask(&sk, &["thigh_l"], 1.0);
+        let thigh = path(&["root", "pelvis", "thigh_l"]).id();
+        let foot = path(&["root", "pelvis", "thigh_l", "foot_l"]).id();
+        assert!((mask.bone_weight(&thigh) - 1.0).abs() < 1e-6);
+        assert!((mask.bone_weight(&foot) - 1.0).abs() < 1e-6);
     }
 
     #[test]

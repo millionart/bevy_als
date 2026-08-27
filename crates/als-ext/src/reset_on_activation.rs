@@ -28,11 +28,15 @@ pub fn activation_reset_required(previous: &mut bool, active: bool) -> bool {
 #[type_path = "als_ext"]
 pub struct ResetOnActivationNode {
     pub threshold: f32,
+    pub reset_time: f32,
 }
 
 impl Default for ResetOnActivationNode {
     fn default() -> Self {
-        Self { threshold: 1e-6 }
+        Self {
+            threshold: 1e-6,
+            reset_time: 0.0,
+        }
     }
 }
 
@@ -54,7 +58,7 @@ impl NodeLike for ResetOnActivationNode {
             activation_reset_required(&mut state.active, active)
         };
         let update = if reset {
-            TimeUpdate::Absolute(0.0)
+            TimeUpdate::Absolute(self.reset_time.max(0.0))
         } else {
             ctx.time_update_fwd()?
         };
@@ -87,6 +91,15 @@ mod tests {
         assert!(!activation_reset_required(&mut active, true));
         assert!(!activation_reset_required(&mut active, false));
         assert!(activation_reset_required(&mut active, true));
+    }
+
+    #[test]
+    fn reset_time_preserves_explicit_sequence_start() {
+        let node = ResetOnActivationNode {
+            threshold: 1e-6,
+            reset_time: 0.25,
+        };
+        assert!((node.reset_time - 0.25).abs() < f32::EPSILON);
     }
 
     #[test]

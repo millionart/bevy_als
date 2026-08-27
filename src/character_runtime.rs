@@ -1,7 +1,6 @@
 use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::flail::AlsFlailState;
-use als_core::foot_ik::AlsFootPinHold;
 use als_core::params::AlsMovementParams;
 use als_core::start_stop::{StartStopState, start_stop_detector_system};
 use als_core::state::{Gait, Stance};
@@ -25,6 +24,7 @@ use crate::overlay_layer::OverlayLayerPlugin;
 use crate::ragdoll_link::AlsRagdollLinkPlugin;
 use crate::roll_drive::AlsRollDrivePlugin;
 use crate::stance_layer::StanceLayerPlugin;
+use crate::standing_layer::{AlsStandingLayerSet, StandingLayerPlugin};
 use crate::stop_link::AlsStopLinkPlugin;
 use crate::turn_layer::TurnLayerPlugin;
 use crate::view_layer::ViewLayerPlugin;
@@ -39,6 +39,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             FootIkApplyPlugin,
             GaitLayerPlugin,
             DirectionLayerPlugin,
+            StandingLayerPlugin,
             AirJumpLayerPlugin,
             StanceLayerPlugin,
             OverlayLayerPlugin,
@@ -53,13 +54,13 @@ impl Plugin for AlsCharacterRuntimePlugin {
             PostUpdate,
             runtime_graph_router
                 .after(AlsGaitLayerSet)
+                .before(AlsStandingLayerSet)
                 .before(AnimationGraphSet::Final),
         )
         .add_systems(
             Update,
             (
                 ensure_start_stop_state,
-                ensure_foot_pin_hold,
                 start_stop_detector_system.after(ensure_start_stop_state),
             ),
         );
@@ -72,15 +73,6 @@ fn ensure_start_stop_state(
 ) {
     for character in &characters {
         commands.entity(character).insert(StartStopState::default());
-    }
-}
-
-fn ensure_foot_pin_hold(
-    mut commands: Commands,
-    characters: Query<Entity, (With<AlsCharacter>, Without<AlsFootPinHold>)>,
-) {
-    for character in &characters {
-        commands.entity(character).insert(AlsFootPinHold::default());
     }
 }
 
@@ -100,34 +92,33 @@ fn runtime_graph_router(
     mut players: Query<&mut AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
-    let Ok((character, (stance, gait, velocity, handle, air, flail))) = characters.single() else {
-        return;
-    };
-    let Some(params) = params.get(handle.id()) else {
-        return;
-    };
-    let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
-    let air = air.copied().unwrap_or_default();
-    let flail = flail.copied().unwrap_or_default();
-    for (child_of, instance) in &instances {
-        if child_of.parent() != character {
+    for (character, (stance, gait, velocity, handle, air, flail)) in &characters {
+        let Some(params) = params.get(handle.id()) else {
             continue;
+        };
+        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let air = air.copied().unwrap_or_default();
+        let flail = flail.copied().unwrap_or_default();
+        for (child_of, instance) in &instances {
+            if child_of.parent() != character {
+                continue;
+            }
+            let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+                continue;
+            };
+            let inputs = match blends.get(instance.player_entity()) {
+                Ok(blend) => compute_motion_graph_inputs_blended(
+                    params,
+                    *stance,
+                    *gait,
+                    horizontal_speed,
+                    blend.speed_ema,
+                    blend.weights,
+                ),
+                Err(_) => compute_motion_graph_inputs(params, *stance, *gait, horizontal_speed),
+            };
+            write_motion_graph_pins(&mut player, &inputs);
+            write_air_pins(&mut player, &air, &flail);
         }
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
-            continue;
-        };
-        let inputs = match blends.get(instance.player_entity()) {
-            Ok(blend) => compute_motion_graph_inputs_blended(
-                params,
-                *stance,
-                *gait,
-                horizontal_speed,
-                blend.speed_ema,
-                blend.weights,
-            ),
-            Err(_) => compute_motion_graph_inputs(params, *stance, *gait, horizontal_speed),
-        };
-        write_motion_graph_pins(&mut player, &inputs);
-        write_air_pins(&mut player, &air, &flail);
     }
 }

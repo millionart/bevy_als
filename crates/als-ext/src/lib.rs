@@ -4,17 +4,23 @@ pub mod als_curves;
 pub mod curve;
 pub mod curve_bundle;
 pub mod curve_weighted_samples;
+pub mod direct_transition_event;
 pub mod distance_match;
+pub mod f32_to_vec2;
 pub mod f_interp;
 pub mod first_update;
 pub mod gameplay_tag_blend;
 pub mod gameplay_tag_layer_blend;
+pub mod global_bone_mask_input;
 pub mod global_f32_input;
 pub mod ik;
+pub mod inertialization;
+pub mod interruptible_fsm;
 pub mod layered_graph;
 pub mod linked_anim_layer;
 pub mod loader;
 pub mod mesh_space_additive;
+pub mod mesh_space_layered_blend;
 pub mod multi_way_blend;
 pub mod nodes;
 pub mod overlay;
@@ -25,6 +31,7 @@ pub mod reset_on_activation;
 pub mod rich_curve;
 pub mod root_motion_clip;
 pub mod root_motion_defaults;
+pub mod state_label_event;
 pub mod time_position;
 
 pub use als_curves::{
@@ -38,25 +45,32 @@ pub use curve_bundle::{
     curve_weight_input,
 };
 pub use curve_weighted_samples::CurveWeightedSamplesNode;
+pub use direct_transition_event::{DirectTransitionEventNode, direct_transition_index};
 pub use distance_match::{
     DistanceMatchNode, default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
 };
 pub use f_interp::{FInterpNode, f_interp_to};
+pub use f32_to_vec2::{F32ToVec2Node, f32_to_vec2};
 pub use first_update::SuppressFirstUpdateNode;
 pub use gameplay_tag_blend::{
     GameplayTagBlendMode, GameplayTagBlendNode, weight_output as gameplay_tag_weight_output,
 };
 pub use gameplay_tag_layer_blend::GameplayTagLayerBlendNode;
+pub use global_bone_mask_input::GlobalBoneMaskInputNode;
 pub use global_f32_input::GlobalF32InputNode;
+pub use inertialization::{InertializationNode, inertial_alpha};
+pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
 pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use mesh_space_additive::{MeshSpaceAdditiveNode, apply_mesh_space_additive};
+pub use mesh_space_layered_blend::{MeshSpaceLayeredBlendNode, apply_mesh_space_layered_blend};
 pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use overlay::{
     HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES, TORCH_RIGHT_HAND_BONES,
-    TORCH_SPINE_UPPER_BONES, build_bone_mask, build_grouped_bone_mask, mask_coverage,
+    TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask, build_grouped_bone_mask,
+    mask_coverage,
 };
 pub use playground::{
     PlaygroundActor, PlaygroundBoxCollider, PlaygroundComponent, PlaygroundLandscape,
@@ -78,6 +92,7 @@ pub use rich_curve::{
 };
 pub use root_motion_clip::RootMotionClipNode;
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
+pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use time_position::{TimePositionNode, resolve_position};
 
 use bevy::prelude::*;
@@ -99,14 +114,19 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveModifyNode>()
             .register_type::<CurveWeightedSamplesNode>()
             .register_type::<DistanceMatchNode>()
+            .register_type::<F32ToVec2Node>()
             .register_type::<FInterpNode>()
             .register_type::<SuppressFirstUpdateNode>()
             .register_type::<ResetOnActivationNode>()
+            .register_type::<StateLabelEventNode>()
+            .register_type::<DirectTransitionEventNode>()
+            .register_type::<GlobalBoneMaskInputNode>()
             .register_type::<GlobalF32InputNode>()
             .register_type::<GameplayTagBlendMode>()
             .register_type::<GameplayTagBlendNode>()
             .register_type::<GameplayTagLayerBlendNode>()
             .register_type::<MeshSpaceAdditiveNode>()
+            .register_type::<MeshSpaceLayeredBlendNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()
             .register_type::<RichCurveInterpolation>()
@@ -117,6 +137,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<AlphaBlendMode>()
             .register_type::<BoneBlendScale>()
             .register_type::<ProfiledBlendNode>()
+            .register_type::<InertializationNode>()
+            .register_type::<InterruptibleFsmNode>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()
             .register_type::<LayeredGraphNode>()
