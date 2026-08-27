@@ -110,6 +110,10 @@ impl AlsInputCommand {
     }
 }
 
+pub fn roll_pressed_from_events(events: ActionEvents) -> bool {
+    events.contains(ActionEvents::FIRE)
+}
+
 #[derive(Debug, Clone)]
 pub struct AlsInputMap {
     pub move_north: Binding,
@@ -349,7 +353,7 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = rolls.iter_many(actions).next() {
-            cmd.roll_pressed = events.contains(ActionEvents::START);
+            cmd.roll_pressed = roll_pressed_from_events(*events);
         }
 
         if let Some(events) = walks.iter_many(actions).next() {
@@ -471,6 +475,14 @@ mod tests {
             AlsInputCommand::default(),
             "reset should produce the default value"
         );
+    }
+
+    #[test]
+    fn roll_requires_the_tap_fire_event_not_the_initial_press_event() {
+        let press = ActionEvents::START | ActionEvents::ONGOING;
+        let release = ActionEvents::FIRE;
+        assert!(!roll_pressed_from_events(press));
+        assert!(roll_pressed_from_events(release));
     }
 
     #[test]
