@@ -1,0 +1,920 @@
+use als_core::character::AlsCharacter;
+use als_core::foot_ik::AlsFootLockState;
+use als_core::input::AlsInputCommand;
+use als_core::motion::AlsInputOverride;
+use als_core::state::{LocomotionState, RotationMode, Stance};
+use als_ext::{AlsAnimCurves, CurveAsset};
+use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use bevy::ecs::hierarchy::ChildOf;
+use bevy::prelude::*;
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
+
+use crate::character_assembly::AlsCharacterAvatar;
+use crate::grounded_layer::AlsGroundedLayerSet;
+use crate::turn_layer::AlsTurnDrive;
+
+const JUMP_SPEED_REFERENCE: f32 = 6.0;
+const JUMP_PLAY_RATE_MIN: f32 = 1.2;
+const JUMP_PLAY_RATE_MAX: f32 = 1.5;
+const JUMP_START_DURATION: f32 = 1.6666665;
+const LAND_DURATION: f32 = 1.1666666;
+const LAND_MOVEMENT_SPEED_THRESHOLD: f32 = 6.5;
+const GROUND_PREDICTION_VERTICAL_THRESHOLD: f32 = -2.0;
+const GROUND_PREDICTION_MIN_SPEED: f32 = -40.0;
+const GROUND_PREDICTION_MIN_DISTANCE: f32 = 1.5;
+const GROUND_PREDICTION_MAX_DISTANCE: f32 = 20.0;
+const AIR_LEAN_REFERENCE_SPEED: f32 = 3.5;
+const LEAN_HALF_LIFE: f32 = 0.2;
+const AIR_LEAN_CURVE: &str =
+    "curves/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.curve.ron";
+const GROUND_PREDICTION_CURVE: &str =
+    "curves/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.curve.ron";
+const JUMP_WALK_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Left.gltf#AlsCurves";
+const JUMP_RUN_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Run_Left.gltf#AlsCurves";
+const JUMP_WALK_RIGHT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Right.gltf#AlsCurves";
+const JUMP_RUN_RIGHT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Run_Right.gltf#AlsCurves";
+
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AlsMovementBaseAnimationState {
+    pub has_relative_location: bool,
+}
+
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
+pub struct AlsGroundPredictionState {
+    pub amount: f32,
+}
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsLocomotionLayerSet;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum LocomotionLayerState {
+    #[default]
+    Grounded,
+    Fall,
+    Jump,
+    Land,
+    LandMovement,
+    LandConduct,
+}
+
+impl LocomotionLayerState {
+    fn index(self) -> f32 {
+        match self {
+            Self::Grounded => 0.0,
+            Self::Fall => 1.0,
+            Self::Jump => 2.0,
+            Self::Land => 3.0,
+            Self::LandMovement => 4.0,
+            Self::LandConduct => 5.0,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LocomotionTransition {
+    GroundedToJump,
+    GroundedToFall,
+    FallToLandConduct,
+    FallToGrounded,
+    JumpToLandConduct,
+    JumpToGrounded,
+    LandToGroundedStance,
+    LandToGroundedAutomatic,
+    LandToLandMovement,
+    LandToJump,
+    LandToFall,
+    LandMovementToGrounded,
+    LandMovementToJump,
+    LandMovementToFall,
+    LandConductToLandMovement,
+    LandConductToLand,
+}
+
+impl LocomotionTransition {
+    fn index(self) -> f32 {
+        match self {
+            Self::GroundedToJump => 0.0,
+            Self::GroundedToFall => 1.0,
+            Self::FallToLandConduct => 2.0,
+            Self::FallToGrounded => 3.0,
+            Self::JumpToLandConduct => 4.0,
+            Self::JumpToGrounded => 5.0,
+            Self::LandToGroundedStance => 6.0,
+            Self::LandToGroundedAutomatic => 7.0,
+            Self::LandToLandMovement => 8.0,
+            Self::LandToJump => 9.0,
+            Self::LandToFall => 10.0,
+            Self::LandMovementToGrounded => 11.0,
+            Self::LandMovementToJump => 12.0,
+            Self::LandMovementToFall => 13.0,
+            Self::LandConductToLandMovement => 14.0,
+            Self::LandConductToLand => 15.0,
+        }
+    }
+
+    fn target(self) -> LocomotionLayerState {
+        match self {
+            Self::GroundedToJump | Self::LandToJump | Self::LandMovementToJump => {
+                LocomotionLayerState::Jump
+            }
+            Self::GroundedToFall | Self::LandToFall | Self::LandMovementToFall => {
+                LocomotionLayerState::Fall
+            }
+            Self::FallToLandConduct | Self::JumpToLandConduct => LocomotionLayerState::LandConduct,
+            Self::FallToGrounded
+            | Self::JumpToGrounded
+            | Self::LandToGroundedStance
+            | Self::LandToGroundedAutomatic
+            | Self::LandMovementToGrounded => LocomotionLayerState::Grounded,
+            Self::LandToLandMovement | Self::LandConductToLandMovement => {
+                LocomotionLayerState::LandMovement
+            }
+            Self::LandConductToLand => LocomotionLayerState::Land,
+        }
+    }
+
+    fn duration(self) -> f32 {
+        match self {
+            Self::GroundedToJump | Self::LandToJump | Self::LandMovementToJump => 0.1,
+            Self::GroundedToFall | Self::LandToFall | Self::LandMovementToFall => 0.6,
+            Self::FallToLandConduct
+            | Self::FallToGrounded
+            | Self::JumpToLandConduct
+            | Self::JumpToGrounded
+            | Self::LandToLandMovement => 0.2,
+            Self::LandToGroundedStance => 0.2,
+            Self::LandToGroundedAutomatic => 0.8,
+            Self::LandMovementToGrounded => 0.3,
+            Self::LandConductToLandMovement | Self::LandConductToLand => 0.1,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum JumpLayerState {
+    #[default]
+    EntryConduit,
+    LeftFoot,
+    RightFoot,
+    Loop,
+    Flail,
+}
+
+impl JumpLayerState {
+    fn index(self) -> f32 {
+        match self {
+            Self::EntryConduit => 0.0,
+            Self::LeftFoot => 1.0,
+            Self::RightFoot => 2.0,
+            Self::Loop => 3.0,
+            Self::Flail => 4.0,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum JumpTransition {
+    EntryToRightFoot,
+    EntryToLeftFoot,
+    LeftFootToLoop,
+    RightFootToLoop,
+    LoopToFlail,
+}
+
+impl JumpTransition {
+    fn index(self) -> f32 {
+        match self {
+            Self::EntryToRightFoot => 0.0,
+            Self::EntryToLeftFoot => 1.0,
+            Self::LeftFootToLoop => 2.0,
+            Self::RightFootToLoop => 3.0,
+            Self::LoopToFlail => 4.0,
+        }
+    }
+
+    fn target(self) -> JumpLayerState {
+        match self {
+            Self::EntryToRightFoot => JumpLayerState::RightFoot,
+            Self::EntryToLeftFoot => JumpLayerState::LeftFoot,
+            Self::LeftFootToLoop | Self::RightFootToLoop => JumpLayerState::Loop,
+            Self::LoopToFlail => JumpLayerState::Flail,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+struct LocomotionLayerRuntime {
+    state: LocomotionLayerState,
+    state_elapsed: f32,
+    transition_elapsed: f32,
+    transition_duration: f32,
+    jump_state: JumpLayerState,
+    jump_state_elapsed: f32,
+    jump_latched: bool,
+    previous_locomotion: LocomotionState,
+    air_lean: Vec2,
+    land_movement_additive_alpha: f32,
+}
+
+impl Default for LocomotionLayerRuntime {
+    fn default() -> Self {
+        Self {
+            state: LocomotionLayerState::Grounded,
+            state_elapsed: 0.0,
+            transition_elapsed: 0.0,
+            transition_duration: 0.0,
+            jump_state: JumpLayerState::EntryConduit,
+            jump_state_elapsed: 0.0,
+            jump_latched: false,
+            previous_locomotion: LocomotionState::Grounded,
+            air_lean: Vec2::ZERO,
+            land_movement_additive_alpha: 1.0,
+        }
+    }
+}
+
+#[derive(Resource)]
+struct LocomotionCurveHandles {
+    air_lean: Handle<CurveAsset>,
+    ground_prediction: Handle<CurveAsset>,
+    jump_walk_left: Handle<AlsAnimCurves>,
+    jump_run_left: Handle<AlsAnimCurves>,
+    jump_walk_right: Handle<AlsAnimCurves>,
+    jump_run_right: Handle<AlsAnimCurves>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct LocomotionCurves {
+    pose_standing: f32,
+    pose_crouching: f32,
+    pose_moving: f32,
+    rotation_yaw_offset: f32,
+    foot_left_lock: f32,
+    foot_right_lock: f32,
+    allow_transitions: f32,
+    rotation_yaw_speed: f32,
+    pose_grounded: f32,
+    foot_left_ik: f32,
+    foot_right_ik: f32,
+    pose_in_air: f32,
+}
+
+impl LocomotionCurves {
+    fn air() -> Self {
+        Self {
+            pose_standing: 1.0,
+            foot_left_ik: 1.0,
+            foot_right_ik: 1.0,
+            pose_in_air: 1.0,
+            ..default()
+        }
+    }
+
+    fn land() -> Self {
+        Self {
+            pose_standing: 1.0,
+            foot_left_lock: 1.0,
+            foot_right_lock: 1.0,
+            pose_grounded: 1.0,
+            foot_left_ik: 1.0,
+            foot_right_ik: 1.0,
+            ..default()
+        }
+    }
+}
+
+pub struct LocomotionLayerPlugin;
+
+impl Plugin for LocomotionLayerPlugin {
+    fn build(&self, app: &mut App) {
+        app.configure_sets(
+            PostUpdate,
+            AlsLocomotionLayerSet
+                .after(AlsGroundedLayerSet)
+                .before(AnimationGraphSet::Final),
+        )
+        .add_systems(Startup, load_locomotion_curve_assets)
+        .add_systems(
+            PostUpdate,
+            locomotion_layer_writer.in_set(AlsLocomotionLayerSet),
+        );
+    }
+}
+
+fn load_locomotion_curve_assets(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.insert_resource(LocomotionCurveHandles {
+        air_lean: assets.load(AIR_LEAN_CURVE),
+        ground_prediction: assets.load(GROUND_PREDICTION_CURVE),
+        jump_walk_left: assets.load(JUMP_WALK_LEFT_CURVES),
+        jump_run_left: assets.load(JUMP_RUN_LEFT_CURVES),
+        jump_walk_right: assets.load(JUMP_WALK_RIGHT_CURVES),
+        jump_run_right: assets.load(JUMP_RUN_RIGHT_CURVES),
+    });
+}
+
+fn damp_alpha(delta_seconds: f32, half_life: f32) -> f32 {
+    if half_life <= f32::EPSILON {
+        1.0
+    } else {
+        1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / half_life)
+    }
+}
+
+fn horizontal_speed(velocity: Vec3) -> f32 {
+    Vec2::new(velocity.x, velocity.z).length()
+}
+
+fn map_range(value: f32, input_min: f32, input_max: f32, output_min: f32, output_max: f32) -> f32 {
+    let extent = input_max - input_min;
+    if extent.abs() <= f32::EPSILON {
+        output_min
+    } else {
+        output_min + (value - input_min) / extent * (output_max - output_min)
+    }
+}
+
+fn map_range_clamped(
+    value: f32,
+    input_min: f32,
+    input_max: f32,
+    output_min: f32,
+    output_max: f32,
+) -> f32 {
+    map_range(value, input_min, input_max, output_min, output_max)
+        .clamp(output_min.min(output_max), output_min.max(output_max))
+}
+
+fn is_air(locomotion: LocomotionState) -> bool {
+    locomotion == LocomotionState::Air
+}
+
+fn next_outer_transition(
+    state: LocomotionLayerState,
+    state_elapsed: f32,
+    locomotion: LocomotionState,
+    jumped: bool,
+    standing: bool,
+    has_input: bool,
+    rotating: bool,
+    speed: f32,
+    has_relative_location: bool,
+) -> Option<LocomotionTransition> {
+    match state {
+        LocomotionLayerState::Grounded if is_air(locomotion) && jumped => {
+            Some(LocomotionTransition::GroundedToJump)
+        }
+        LocomotionLayerState::Grounded if is_air(locomotion) => {
+            Some(LocomotionTransition::GroundedToFall)
+        }
+        LocomotionLayerState::Fall if !is_air(locomotion) => {
+            Some(LocomotionTransition::FallToLandConduct)
+        }
+        LocomotionLayerState::Jump if !is_air(locomotion) => {
+            Some(LocomotionTransition::JumpToLandConduct)
+        }
+        LocomotionLayerState::Land if is_air(locomotion) && jumped => {
+            Some(LocomotionTransition::LandToJump)
+        }
+        LocomotionLayerState::Land if is_air(locomotion) => Some(LocomotionTransition::LandToFall),
+        LocomotionLayerState::Land if !standing => Some(LocomotionTransition::LandToGroundedStance),
+        LocomotionLayerState::Land
+            if has_input || rotating || speed >= LAND_MOVEMENT_SPEED_THRESHOLD =>
+        {
+            Some(LocomotionTransition::LandToLandMovement)
+        }
+        LocomotionLayerState::Land if state_elapsed >= LAND_DURATION => {
+            Some(LocomotionTransition::LandToGroundedAutomatic)
+        }
+        LocomotionLayerState::LandMovement if is_air(locomotion) && jumped => {
+            Some(LocomotionTransition::LandMovementToJump)
+        }
+        LocomotionLayerState::LandMovement if is_air(locomotion) => {
+            Some(LocomotionTransition::LandMovementToFall)
+        }
+        LocomotionLayerState::LandMovement if state_elapsed >= LAND_DURATION => {
+            Some(LocomotionTransition::LandMovementToGrounded)
+        }
+        LocomotionLayerState::LandConduct if has_input || has_relative_location => {
+            Some(LocomotionTransition::LandConductToLandMovement)
+        }
+        LocomotionLayerState::LandConduct => Some(LocomotionTransition::LandConductToLand),
+        _ => None,
+    }
+}
+
+fn next_jump_transition(
+    state: JumpLayerState,
+    elapsed: f32,
+    foot_planted_amount: f32,
+    play_rate: f32,
+) -> Option<JumpTransition> {
+    match state {
+        JumpLayerState::EntryConduit if foot_planted_amount > 0.0 => {
+            Some(JumpTransition::EntryToRightFoot)
+        }
+        JumpLayerState::EntryConduit => Some(JumpTransition::EntryToLeftFoot),
+        JumpLayerState::LeftFoot if elapsed >= JUMP_START_DURATION / play_rate.max(1e-4) => {
+            Some(JumpTransition::LeftFootToLoop)
+        }
+        JumpLayerState::RightFoot if elapsed >= JUMP_START_DURATION / play_rate.max(1e-4) => {
+            Some(JumpTransition::RightFootToLoop)
+        }
+        JumpLayerState::LeftFoot
+        | JumpLayerState::RightFoot
+        | JumpLayerState::Loop
+        | JumpLayerState::Flail => None,
+    }
+}
+
+fn ground_prediction_amount(
+    spatial: &SpatialQuery,
+    entity: Entity,
+    transform: &GlobalTransform,
+    velocity: Vec3,
+    curve: Option<&CurveAsset>,
+    allowance: f32,
+) -> f32 {
+    if velocity.y > GROUND_PREDICTION_VERTICAL_THRESHOLD {
+        return 0.0;
+    }
+    let mut direction = velocity;
+    direction.y = direction.y.clamp(
+        GROUND_PREDICTION_MIN_SPEED,
+        GROUND_PREDICTION_VERTICAL_THRESHOLD,
+    );
+    let Ok(direction) = Dir3::new(direction) else {
+        return 0.0;
+    };
+    let distance = map_range_clamped(
+        velocity.y,
+        GROUND_PREDICTION_VERTICAL_THRESHOLD,
+        GROUND_PREDICTION_MIN_SPEED,
+        GROUND_PREDICTION_MIN_DISTANCE,
+        GROUND_PREDICTION_MAX_DISTANCE,
+    );
+    let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+    let Some(hit) = spatial.cast_ray(
+        transform.translation(),
+        direction,
+        distance.max(0.1),
+        true,
+        &filter,
+    ) else {
+        return 0.0;
+    };
+    if hit.normal.y < 0.7 {
+        return 0.0;
+    }
+    let time = (hit.distance / distance.max(0.1)).clamp(0.0, 1.0);
+    curve.map(|curve| curve.sample(time)).unwrap_or(time) * allowance.clamp(0.0, 1.0)
+}
+
+fn animation_curve_sample(
+    assets: &Assets<AlsAnimCurves>,
+    handle: &Handle<AlsAnimCurves>,
+    name: &str,
+    time: f32,
+) -> f32 {
+    assets
+        .get(handle)
+        .and_then(AlsAnimCurves::first)
+        .and_then(|curves| curves.sample(name, time))
+        .unwrap_or(0.0)
+}
+
+fn jump_ground_prediction_allowance(
+    runtime: LocomotionLayerRuntime,
+    speed: f32,
+    assets: &Assets<AlsAnimCurves>,
+    handles: &LocomotionCurveHandles,
+) -> f32 {
+    if runtime.state != LocomotionLayerState::Jump {
+        return 1.0;
+    }
+    let (walk, run) = match runtime.jump_state {
+        JumpLayerState::LeftFoot => (&handles.jump_walk_left, &handles.jump_run_left),
+        JumpLayerState::RightFoot => (&handles.jump_walk_right, &handles.jump_run_right),
+        JumpLayerState::EntryConduit | JumpLayerState::Loop | JumpLayerState::Flail => {
+            return 1.0;
+        }
+    };
+    let alpha = map_range_clamped(speed, 2.0, 5.0, 0.0, 1.0);
+    let time = runtime.jump_state_elapsed
+        * map_range_clamped(
+            speed,
+            0.0,
+            JUMP_SPEED_REFERENCE,
+            JUMP_PLAY_RATE_MIN,
+            JUMP_PLAY_RATE_MAX,
+        );
+    let block = animation_curve_sample(assets, walk, "GroundPredictionBlock", time).lerp(
+        animation_curve_sample(assets, run, "GroundPredictionBlock", time),
+        alpha,
+    );
+    1.0 - block.clamp(0.0, 1.0)
+}
+
+fn update_air_lean(
+    current: Vec2,
+    delta_seconds: f32,
+    velocity: Vec3,
+    transform: &Transform,
+    curve: Option<&CurveAsset>,
+) -> Vec2 {
+    let forward = transform.rotation * Vec3::NEG_Z;
+    let right = transform.rotation * Vec3::X;
+    let local = Vec2::new(velocity.dot(forward), velocity.dot(right));
+    let multiplier = curve
+        .map(|curve| curve.sample(velocity.y * 100.0))
+        .unwrap_or(0.0);
+    let target = local / AIR_LEAN_REFERENCE_SPEED * multiplier;
+    current.lerp(target, damp_alpha(delta_seconds, LEAN_HALF_LIFE))
+}
+
+fn air_curve_values() -> LocomotionCurves {
+    LocomotionCurves::air()
+}
+
+fn state_curve_values(state: LocomotionLayerState) -> LocomotionCurves {
+    match state {
+        LocomotionLayerState::Fall | LocomotionLayerState::Jump => air_curve_values(),
+        LocomotionLayerState::Land => LocomotionCurves::land(),
+        LocomotionLayerState::Grounded
+        | LocomotionLayerState::LandMovement
+        | LocomotionLayerState::LandConduct => LocomotionCurves::default(),
+    }
+}
+
+fn write_globals(
+    player: &mut AnimationGraphPlayer,
+    runtime: LocomotionLayerRuntime,
+    outer_request: Option<LocomotionTransition>,
+    jump_request: Option<JumpTransition>,
+    curves: LocomotionCurves,
+    vertical_velocity: f32,
+    ground_prediction: f32,
+    speed: f32,
+) {
+    let jump_play_rate = map_range_clamped(
+        speed,
+        0.0,
+        JUMP_SPEED_REFERENCE,
+        JUMP_PLAY_RATE_MIN,
+        JUMP_PLAY_RATE_MAX,
+    );
+    let jump_walk_run_alpha = map_range_clamped(speed, 2.0, 5.0, 0.0, 1.0);
+    let fall_fast_alpha = map_range_clamped(vertical_velocity, 0.0, -10.0, 0.0, 1.0);
+    let flail_alpha = map_range_clamped(vertical_velocity, -5.0, -30.0, 0.0, 1.0);
+    let landing_heavy_alpha = map_range_clamped(vertical_velocity, -5.0, -10.0, 0.0, 1.0);
+    let land_movement_heavy_alpha = map_range(vertical_velocity, -7.5, -15.0, 0.0, 0.75);
+    let land_movement_weight = map_range_clamped(vertical_velocity, 0.0, -2.0, 0.25, 1.0);
+    for (key, value) in [
+        (
+            "als_locomotion_transition_index",
+            outer_request.map_or(-1.0, LocomotionTransition::index),
+        ),
+        (
+            "als_locomotion_jump_transition_index",
+            jump_request.map_or(-1.0, JumpTransition::index),
+        ),
+        ("als_locomotion_state_index", runtime.state.index()),
+        (
+            "als_locomotion_jump_state_index",
+            runtime.jump_state.index(),
+        ),
+        ("als_locomotion_jump_play_rate", jump_play_rate),
+        ("als_locomotion_jump_walk_run_alpha", jump_walk_run_alpha),
+        ("als_locomotion_fall_fast_alpha", fall_fast_alpha),
+        ("als_locomotion_flail_alpha", flail_alpha),
+        ("als_locomotion_landing_heavy_alpha", landing_heavy_alpha),
+        (
+            "als_locomotion_land_movement_heavy_alpha",
+            land_movement_heavy_alpha,
+        ),
+        ("als_locomotion_land_movement_weight", land_movement_weight),
+        (
+            "als_locomotion_land_movement_additive_alpha",
+            runtime.land_movement_additive_alpha,
+        ),
+        ("als_locomotion_air_lean_right", runtime.air_lean.y),
+        ("als_locomotion_air_lean_forward", runtime.air_lean.x),
+        ("als_locomotion_ground_prediction", ground_prediction),
+        ("als_locomotion_vertical_velocity", vertical_velocity),
+        ("als_locomotion_curve_PoseStanding", curves.pose_standing),
+        ("als_locomotion_curve_PoseCrouching", curves.pose_crouching),
+        ("als_locomotion_curve_PoseMoving", curves.pose_moving),
+        (
+            "als_locomotion_curve_RotationYawOffset",
+            curves.rotation_yaw_offset,
+        ),
+        ("als_locomotion_curve_FootLeftLock", curves.foot_left_lock),
+        ("als_locomotion_curve_FootRightLock", curves.foot_right_lock),
+        (
+            "als_locomotion_curve_AllowTransitions",
+            curves.allow_transitions,
+        ),
+        (
+            "als_locomotion_curve_RotationYawSpeed",
+            curves.rotation_yaw_speed,
+        ),
+        ("als_locomotion_curve_PoseGrounded", curves.pose_grounded),
+        ("als_locomotion_curve_FootLeftIk", curves.foot_left_ik),
+        ("als_locomotion_curve_FootRightIk", curves.foot_right_ik),
+        ("als_locomotion_curve_PoseInAir", curves.pose_in_air),
+    ] {
+        player.set_global_input_data(key, value);
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn locomotion_layer_writer(
+    time: Res<Time>,
+    spatial: SpatialQuery,
+    mut commands: Commands,
+    characters: Query<
+        (
+            Entity,
+            &Transform,
+            &GlobalTransform,
+            &LinearVelocity,
+            &LocomotionState,
+            &Stance,
+            &RotationMode,
+            &AlsInputCommand,
+            Option<&AlsInputOverride>,
+            Option<&AlsFootLockState>,
+            Option<&AlsMovementBaseAnimationState>,
+        ),
+        With<AlsCharacter>,
+    >,
+    mut avatars: Query<
+        (
+            Entity,
+            &ChildOf,
+            &AnimatedSceneInstance,
+            Option<&mut LocomotionLayerRuntime>,
+            Option<&AlsTurnDrive>,
+        ),
+        With<AlsCharacterAvatar>,
+    >,
+    curve_assets: Res<Assets<CurveAsset>>,
+    animation_curves: Res<Assets<AlsAnimCurves>>,
+    handles: Res<LocomotionCurveHandles>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+) {
+    let delta_seconds = time.delta_secs();
+    for (avatar, parent, instance, current_runtime, turn) in &mut avatars {
+        let Ok((
+            character,
+            transform,
+            global_transform,
+            velocity,
+            locomotion,
+            stance,
+            rotation_mode,
+            command,
+            override_command,
+            feet,
+            movement_base,
+        )) = characters.get(parent.parent())
+        else {
+            continue;
+        };
+        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+            continue;
+        };
+        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        let effective = override_command.map_or(command, |command| &command.0);
+        let speed = horizontal_speed(velocity.0);
+        let has_input = effective.move_dir.length_squared() > 1e-6;
+        let rotating = turn.is_some_and(|turn| turn.rotate_active);
+        let has_relative_location = movement_base.is_some_and(|state| state.has_relative_location);
+        if effective.jump_pressed && runtime.previous_locomotion == LocomotionState::Grounded {
+            runtime.jump_latched = true;
+        }
+        runtime.state_elapsed += delta_seconds.max(0.0);
+        runtime.transition_elapsed = (runtime.transition_elapsed + delta_seconds.max(0.0))
+            .min(runtime.transition_duration.max(0.0));
+        runtime.jump_state_elapsed += delta_seconds.max(0.0);
+        let outer_request = next_outer_transition(
+            runtime.state,
+            runtime.state_elapsed,
+            *locomotion,
+            runtime.jump_latched,
+            *stance == Stance::Standing,
+            has_input,
+            rotating,
+            speed,
+            has_relative_location,
+        );
+        if let Some(transition) = outer_request {
+            runtime.state = transition.target();
+            runtime.state_elapsed = 0.0;
+            runtime.transition_elapsed = 0.0;
+            runtime.transition_duration = transition.duration();
+            if runtime.state == LocomotionLayerState::Jump {
+                runtime.jump_state = JumpLayerState::EntryConduit;
+                runtime.jump_state_elapsed = 0.0;
+                runtime.jump_latched = false;
+            }
+        }
+        let jump_play_rate = map_range_clamped(
+            speed,
+            0.0,
+            JUMP_SPEED_REFERENCE,
+            JUMP_PLAY_RATE_MIN,
+            JUMP_PLAY_RATE_MAX,
+        );
+        let jump_request = (runtime.state == LocomotionLayerState::Jump)
+            .then(|| {
+                next_jump_transition(
+                    runtime.jump_state,
+                    runtime.jump_state_elapsed,
+                    feet.map(|state| state.foot_planted_amount).unwrap_or(0.0),
+                    jump_play_rate,
+                )
+            })
+            .flatten();
+        if let Some(transition) = jump_request {
+            runtime.jump_state = transition.target();
+            runtime.jump_state_elapsed = 0.0;
+        }
+        let prediction = ground_prediction_amount(
+            &spatial,
+            character,
+            global_transform,
+            velocity.0,
+            curve_assets.get(&handles.ground_prediction),
+            jump_ground_prediction_allowance(runtime, speed, &animation_curves, &handles),
+        );
+        runtime.air_lean = update_air_lean(
+            runtime.air_lean,
+            delta_seconds,
+            velocity.0,
+            transform,
+            curve_assets.get(&handles.air_lean),
+        );
+        let additive_target = if *rotation_mode == RotationMode::Aiming {
+            0.5
+        } else {
+            1.0
+        };
+        let additive_speed = if additive_target > runtime.land_movement_additive_alpha {
+            2.5
+        } else {
+            20.0
+        };
+        runtime.land_movement_additive_alpha = runtime.land_movement_additive_alpha.lerp(
+            additive_target,
+            (additive_speed * delta_seconds).clamp(0.0, 1.0),
+        );
+        let curves = state_curve_values(runtime.state);
+        write_globals(
+            &mut player,
+            runtime,
+            outer_request,
+            jump_request,
+            curves,
+            velocity.y,
+            prediction,
+            speed,
+        );
+        commands
+            .entity(character)
+            .insert(AlsGroundPredictionState { amount: prediction });
+        if movement_base.is_none() {
+            commands
+                .entity(character)
+                .insert(AlsMovementBaseAnimationState::default());
+        }
+        runtime.previous_locomotion = *locomotion;
+        if let Some(mut current_runtime) = current_runtime {
+            *current_runtime = runtime;
+        } else {
+            commands.entity(avatar).insert(runtime);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outer_in_air_priority_matches_the_source_alias() {
+        assert_eq!(
+            next_outer_transition(
+                LocomotionLayerState::Grounded,
+                0.0,
+                LocomotionState::Air,
+                true,
+                true,
+                false,
+                false,
+                0.0,
+                false,
+            ),
+            Some(LocomotionTransition::GroundedToJump)
+        );
+        assert_eq!(
+            next_outer_transition(
+                LocomotionLayerState::Grounded,
+                0.0,
+                LocomotionState::Air,
+                false,
+                true,
+                false,
+                false,
+                0.0,
+                false,
+            ),
+            Some(LocomotionTransition::GroundedToFall)
+        );
+    }
+
+    #[test]
+    fn jump_entry_uses_the_source_foot_planted_boundary() {
+        assert_eq!(
+            next_jump_transition(JumpLayerState::EntryConduit, 0.0, 0.0, 1.2),
+            Some(JumpTransition::EntryToLeftFoot)
+        );
+        assert_eq!(
+            next_jump_transition(JumpLayerState::EntryConduit, 0.0, 0.001, 1.2),
+            Some(JumpTransition::EntryToRightFoot)
+        );
+    }
+
+    #[test]
+    fn jump_start_uses_non_loop_duration_after_source_rate() {
+        assert_eq!(
+            next_jump_transition(
+                JumpLayerState::LeftFoot,
+                JUMP_START_DURATION / 1.2 - 0.001,
+                0.0,
+                1.2,
+            ),
+            None
+        );
+        assert_eq!(
+            next_jump_transition(
+                JumpLayerState::LeftFoot,
+                JUMP_START_DURATION / 1.2,
+                0.0,
+                1.2,
+            ),
+            Some(JumpTransition::LeftFootToLoop)
+        );
+    }
+
+    #[test]
+    fn loop_to_flail_is_not_synthesized_from_the_unconnected_source_rule() {
+        assert_eq!(
+            next_jump_transition(JumpLayerState::Loop, 10.0, 0.0, 1.0),
+            None
+        );
+    }
+
+    #[test]
+    fn land_movement_source_threshold_includes_rotation_and_speed() {
+        assert_eq!(
+            next_outer_transition(
+                LocomotionLayerState::Land,
+                0.0,
+                LocomotionState::Grounded,
+                false,
+                true,
+                false,
+                true,
+                0.0,
+                false,
+            ),
+            Some(LocomotionTransition::LandToLandMovement)
+        );
+        assert_eq!(
+            next_outer_transition(
+                LocomotionLayerState::Land,
+                0.0,
+                LocomotionState::Grounded,
+                false,
+                true,
+                false,
+                false,
+                LAND_MOVEMENT_SPEED_THRESHOLD,
+                false,
+            ),
+            Some(LocomotionTransition::LandToLandMovement)
+        );
+    }
+
+    #[test]
+    fn source_vertical_velocity_maps_use_meter_converted_thresholds() {
+        assert!((map_range_clamped(-5.0, -5.0, -10.0, 0.0, 1.0) - 0.0).abs() < 1e-6);
+        assert!((map_range_clamped(-10.0, -5.0, -10.0, 0.0, 1.0) - 1.0).abs() < 1e-6);
+        assert!((map_range_clamped(-2.0, 0.0, -2.0, 0.25, 1.0) - 1.0).abs() < 1e-6);
+    }
+}

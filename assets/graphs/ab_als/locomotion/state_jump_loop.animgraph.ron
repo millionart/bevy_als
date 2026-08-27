@@ -1,0 +1,15 @@
+(
+    nodes: [
+        (id: "18080000-0000-4000-8000-000000000001", name: "jump loop clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Air/Jump/A_Als_Jump_Loop.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "18080000-0000-4000-8000-000000000002", name: "jump loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),
+        (id: "18080000-0000-4000-8000-000000000003", name: "jump loop rate", inner: { "bevy_animation_graph::builtin_nodes::SpeedNode": () }, should_debug: false),
+        (id: "18080000-0000-4000-8000-000000000004", name: "jump source rate", inner: { "als_ext::GlobalF32InputNode": (key: "als_locomotion_jump_play_rate") }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("18080000-0000-4000-8000-000000000002", "pose"): NodeData("18080000-0000-4000-8000-000000000001", "pose"), NodeTime("18080000-0000-4000-8000-000000000002", "time"): NodeTime("18080000-0000-4000-8000-000000000001"),
+        NodeData("18080000-0000-4000-8000-000000000003", "speed"): NodeData("18080000-0000-4000-8000-000000000004", "als_locomotion_jump_play_rate"), NodeData("18080000-0000-4000-8000-000000000003", "pose"): NodeData("18080000-0000-4000-8000-000000000002", "pose"), NodeTime("18080000-0000-4000-8000-000000000003", "time"): NodeTime("18080000-0000-4000-8000-000000000002"),
+        OutputData("pose"): NodeData("18080000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("18080000-0000-4000-8000-000000000003"),
+    },
+    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }), default_data: {},
+    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)
