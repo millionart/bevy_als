@@ -17,6 +17,7 @@ use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet, GaitLayerPlugin};
 use crate::grounded_layer::{AlsGroundedLayerSet, GroundedLayerPlugin};
+use crate::head_layer::{AlsHeadLayerSet, HeadLayerPlugin};
 use crate::layering_layer::{AlsLayeringLayerSet, LayeringLayerPlugin};
 use crate::locomotion_layer::{AlsLocomotionLayerSet, LocomotionLayerPlugin};
 use crate::mantle_drive::AlsMantleDrivePlugin;
@@ -57,6 +58,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
         .add_plugins((
             LocomotionLayerPlugin,
             LayeringLayerPlugin,
+            HeadLayerPlugin,
             AlsMantleDrivePlugin,
             AlsRagdollLinkPlugin,
         ))
@@ -69,6 +71,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
                 .before(AlsGroundedLayerSet)
                 .before(AlsLocomotionLayerSet)
                 .before(AlsLayeringLayerSet)
+                .before(AlsHeadLayerSet)
                 .before(AnimationGraphSet::Final),
         )
         .add_systems(
