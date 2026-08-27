@@ -108,6 +108,26 @@ mod rotation_cap_tests {
             assert!(actual.distance(expected) < 1e-5, "yaw={yaw} input={input:?}");
         }
     }
+
+    #[test]
+    fn jump_chain_keeps_the_source_priority_order() {
+        assert_eq!(
+            jump_chain(LocomotionState::Ragdolling, Stance::Crouching, true),
+            JumpChain::ExitRagdoll
+        );
+        assert_eq!(
+            jump_chain(LocomotionState::Grounded, Stance::Standing, true),
+            JumpChain::Mantle
+        );
+        assert_eq!(
+            jump_chain(LocomotionState::Grounded, Stance::Crouching, false),
+            JumpChain::StandUp
+        );
+        assert_eq!(
+            jump_chain(LocomotionState::Air, Stance::Standing, false),
+            JumpChain::Jump
+        );
+    }
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
