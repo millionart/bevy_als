@@ -14,6 +14,10 @@ pub struct MoveAction;
 pub struct LookAction;
 
 #[derive(InputAction)]
+#[action_output(Vec2)]
+pub struct LookMouseAction;
+
+#[derive(InputAction)]
 #[action_output(bool)]
 pub struct JumpAction;
 
@@ -81,6 +85,7 @@ pub struct OnFoot;
 pub struct AlsInputCommand {
     pub move_dir: Vec2,
     pub look_delta: Vec2,
+    pub look_rate: Vec2,
     pub jump_held: bool,
     pub jump_pressed: bool,
     pub crouch_pressed: bool,
@@ -189,9 +194,12 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
                 )),
             ),
             (
+                Action::<LookMouseAction>::new(),
+                Bindings::spawn(vec![map.look_mouse]),
+            ),
+            (
                 Action::<LookAction>::new(),
                 Bindings::spawn((
-                    vec![map.look_mouse],
                     Bidirectional::new(map.look_right, map.look_left),
                     Bidirectional::new(map.look_down, map.look_up).with(SwizzleAxis::YXZ),
                     Axial::new(map.look_stick[0], map.look_stick[1])
@@ -288,6 +296,7 @@ pub fn als_input_bridge_system(
     mut receivers: Query<(&mut AlsInputCommand, &Actions<OnFoot>)>,
     keys: Res<ButtonInput<KeyCode>>,
     moves: Query<&Action<MoveAction>>,
+    mouse_looks: Query<&Action<LookMouseAction>>,
     looks: Query<&Action<LookAction>>,
     jumps: Query<(&TriggerState, &ActionEvents), With<Action<JumpAction>>>,
     sprints: Query<&TriggerState, With<Action<SprintAction>>>,
@@ -314,8 +323,12 @@ pub fn als_input_bridge_system(
             cmd.move_dir = **mv;
         }
 
+        if let Some(mouse) = mouse_looks.iter_many(actions).next() {
+            cmd.look_delta = **mouse;
+        }
+
         if let Some(lk) = looks.iter_many(actions).next() {
-            cmd.look_delta = **lk;
+            cmd.look_rate = **lk;
         }
 
         if let Some((state, events)) = jumps.iter_many(actions).next() {
@@ -410,6 +423,7 @@ mod tests {
         let cmd = AlsInputCommand::default();
         assert_eq!(cmd.move_dir, Vec2::ZERO);
         assert_eq!(cmd.look_delta, Vec2::ZERO);
+        assert_eq!(cmd.look_rate, Vec2::ZERO);
         assert!(!cmd.jump_held);
         assert!(!cmd.jump_pressed);
         assert!(!cmd.crouch_pressed);
@@ -433,6 +447,7 @@ mod tests {
         let mut cmd = AlsInputCommand {
             move_dir: Vec2::ONE,
             look_delta: Vec2::NEG_ONE,
+            look_rate: Vec2::ONE,
             jump_held: true,
             jump_pressed: true,
             crouch_pressed: true,
@@ -483,7 +498,7 @@ mod tests {
     }
 
     #[test]
-    fn spawn_creates_seventeen_actions_with_bindings() {
+    fn spawn_creates_eighteen_actions_with_bindings() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
@@ -497,7 +512,7 @@ mod tests {
         app.update();
 
         let world = app.world_mut();
-        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 17);
+        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 18);
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();
@@ -580,6 +595,16 @@ mod tests {
                 Vec2::new(1.0, 0.5),
                 MockSpan::Updates(50),
             )
+            .mock::<OnFoot, LookMouseAction>(
+                TriggerState::Fired,
+                Vec2::new(4.0, -3.0),
+                MockSpan::Updates(50),
+            )
+            .mock::<OnFoot, LookAction>(
+                TriggerState::Fired,
+                Vec2::new(0.5, -0.25),
+                MockSpan::Updates(50),
+            )
             .mock::<OnFoot, OverlayMenuAction>(TriggerState::Fired, true, MockSpan::Updates(50))
             .mock_once::<OnFoot, NextOverlayModeAction>(TriggerState::Fired, 1.0)
             .mock_once::<OnFoot, PreviousOverlayModeAction>(TriggerState::Fired, 1.0)
@@ -601,6 +626,8 @@ mod tests {
         );
         assert!(cmd.slomo_pressed, "slomo pressed");
         assert!(cmd.toggle_ui_pressed, "toggle ui pressed");
+        assert_eq!(cmd.look_delta, Vec2::new(4.0, -3.0));
+        assert_eq!(cmd.look_rate, Vec2::new(0.5, -0.25));
         assert!(
             (cmd.move_dir - Vec2::new(1.0, 0.5)).length() < 1e-5,
             "move_dir should equal mocked value, got {:?}",
@@ -620,6 +647,8 @@ mod tests {
         assert!(!cmd.previous_overlay_mode_pressed);
         assert!(!cmd.slomo_pressed);
         assert!(!cmd.toggle_ui_pressed);
+        assert_eq!(cmd.look_delta, Vec2::new(4.0, -3.0));
+        assert_eq!(cmd.look_rate, Vec2::new(0.5, -0.25));
         assert!(
             (cmd.move_dir - Vec2::new(1.0, 0.5)).length() < 1e-5,
             "move_dir should persist within hold span"

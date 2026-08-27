@@ -148,16 +148,19 @@ pub struct AlsMotionPlugin;
 
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                tnua_config_sync_system,
-                locomotion_drive_system.before(crate::transition::state_transition_system),
-                step_up_assist_system,
-                capsule_reshape_system,
-                locomotion_state_sync_system,
-            ),
-        );
+        app.add_plugins(crate::view::AlsViewInputPlugin)
+            .add_systems(
+                Update,
+                (
+                    tnua_config_sync_system,
+                    locomotion_drive_system
+                        .after(crate::view::AlsViewInputSet)
+                        .before(crate::transition::state_transition_system),
+                    step_up_assist_system,
+                    capsule_reshape_system,
+                    locomotion_state_sync_system,
+                ),
+            );
     }
 }
 
@@ -207,7 +210,7 @@ fn tnua_config_sync_system(
 type DriveQueryItem<'a> = (
     Entity,
     &'a mut TnuaController<AlsControlScheme>,
-    &'a mut AlsViewYaw,
+    &'a AlsViewYaw,
     &'a GlobalTransform,
     &'a LocomotionState,
     Option<&'a mut crate::mantle::AlsMantleState>,
@@ -230,7 +233,7 @@ fn locomotion_drive_system(
     for (
         entity,
         mut controller,
-        mut view_yaw,
+        view_yaw,
         gtf,
         loco,
         mut mantle,
@@ -245,8 +248,6 @@ fn locomotion_drive_system(
     {
         controller.initiate_action_feeding();
         let effective = effective_input(cmd, override_cmd);
-
-        view_yaw.0 -= effective.look_delta.x * 0.0025;
 
         let move_len = effective.move_dir.length().min(1.0);
         let world_dir = if move_len > 1e-4 {

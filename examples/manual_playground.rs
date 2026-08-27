@@ -21,13 +21,12 @@ use als_core::air::AlsAirState;
 use als_core::character::{AlsCharacter, AlsCharacterPlugin, AlsCrushRecoveryFloor};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
-use als_core::input::{AlsInputCommand, AlsInputPlugin};
+use als_core::input::AlsInputPlugin;
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
-use als_core::view::{AlsViewPitch, clamp_pitch};
 use als_ext::overlay_materials::{
     AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
 };
@@ -51,8 +50,6 @@ use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
 use bevy_als::stop_link::AlsStopLinkPlugin;
 use bevy_als::view_layer::ViewLayerPlugin;
-
-const LOOK_RADIANS_PER_COUNT: f32 = 0.0025;
 
 fn main() {
     let mut app = App::new();
@@ -121,7 +118,6 @@ fn main() {
             landscape_collider_bridge,
             collision_parity_probe,
             graph_router,
-            look_pitch_integrator,
             auto_quit,
             screenshot_runner,
         ),
@@ -751,11 +747,5 @@ fn graph_router(
             write_motion_graph_pins(&mut player, &mgi);
             write_air_pins(&mut player, &air_state);
         }
-    }
-}
-
-fn look_pitch_integrator(mut q: Query<(&AlsInputCommand, &mut AlsViewPitch), With<AlsCharacter>>) {
-    for (cmd, mut pitch) in &mut q {
-        pitch.0 = clamp_pitch(pitch.0 - cmd.look_delta.y * LOOK_RADIANS_PER_COUNT);
     }
 }
