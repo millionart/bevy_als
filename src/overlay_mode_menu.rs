@@ -30,8 +30,8 @@ pub const OPTION_HEIGHT_PX: f32 = 25.0;
 pub const OPTION_GAP_PX: f32 = 4.0;
 pub const OPTION_FONT_SIZE_PX: f32 = 14.0;
 
-pub const COLOR_OPTION_SELECTED: Color = Color::srgba(0.15, 0.15, 0.15, 0.5);
-pub const COLOR_OPTION_NOT_SELECTED: Color = Color::srgba(0.015, 0.015, 0.015, 0.5);
+pub const COLOR_OPTION_SELECTED: Color = Color::linear_rgba(0.15, 0.15, 0.15, 0.5);
+pub const COLOR_OPTION_NOT_SELECTED: Color = Color::linear_rgba(0.015, 0.015, 0.015, 0.5);
 
 #[derive(Resource, Default)]
 pub struct OverlayMenuState {
@@ -281,5 +281,16 @@ mod tests {
             "Pistol Two Handed"
         );
         assert_eq!(option_label(OverlayState::HandsTied), "Hands Tied");
+    }
+
+    #[test]
+    fn selection_background_preserves_ue_linear_color_contrast() {
+        let selected = COLOR_OPTION_SELECTED.to_linear();
+        let unselected = COLOR_OPTION_NOT_SELECTED.to_linear();
+        assert!((selected.red - 0.15).abs() < 1e-6);
+        assert!((unselected.red - 0.015).abs() < 1e-6);
+        assert!((selected.alpha - 0.5).abs() < 1e-6);
+        assert!((unselected.alpha - 0.5).abs() < 1e-6);
+        assert!(selected.red / unselected.red >= 9.9);
     }
 }
