@@ -549,7 +549,7 @@ fn verify_static(
             .is_some_and(|node| node.transitions.len() == 24)
         && move_graph.nodes.values().any(|node| {
             node.try_inner_downcast_ref::<TimePositionNode>()
-                .is_some_and(|node| node.loop_position)
+                .is_some_and(|node| !node.loop_position)
         })
         && move_graph.nodes.values().any(|node| {
             node.try_inner_downcast_ref::<ResetOnActivationNode>()
@@ -574,7 +574,7 @@ fn verify_static(
         .nodes
         .values()
         .filter_map(|node| node.try_inner_downcast_ref::<TimePositionNode>())
-        .any(|node| node.loop_position && close(node.duration_fallback, 0.033333335));
+        .any(|node| !node.loop_position && close(node.duration_fallback, 0.033333335));
     let rotate_contract = [rotate_left, rotate_right].into_iter().all(|graph| {
         graph
             .nodes

@@ -547,11 +547,11 @@ fn verify_static(
             .any(|(_, graph)| node::<ResetOnActivationNode>(graph, "land light reset").is_some())
         && graphs.iter().any(|(_, graph)| {
             node::<TimePositionNode>(graph, "fall land light evaluator")
-                .is_some_and(|node| node.loop_position && close(node.duration_fallback, 1.1666666))
+                .is_some_and(|node| !node.loop_position && close(node.duration_fallback, 1.1666666))
         })
         && graphs.iter().any(|(_, graph)| {
             node::<TimePositionNode>(graph, "jump land heavy evaluator")
-                .is_some_and(|node| node.loop_position && close(node.duration_fallback, 1.1666666))
+                .is_some_and(|node| !node.loop_position && close(node.duration_fallback, 1.1666666))
         });
     let source = source_files();
     let architecture = !source.is_empty()

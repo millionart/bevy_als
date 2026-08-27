@@ -339,8 +339,7 @@
             name: "default frame zero evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -349,8 +348,7 @@
             name: "default walking evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -359,8 +357,7 @@
             name: "default sprinting evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -369,8 +366,7 @@
             name: "default crouching evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -379,8 +375,7 @@
             name: "aim standing walk base evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -389,8 +384,7 @@
             name: "aim standing run base evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -399,8 +393,7 @@
             name: "aim crouching base evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -409,8 +402,7 @@
             name: "mantling evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -419,8 +411,7 @@
             name: "getting up evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -429,8 +420,7 @@
             name: "rolling evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 0.2,
-                ),
+                                    duration_fallback: 0.2, loop_position: false),
             },
             should_debug: false,
         ),
@@ -439,8 +429,7 @@
             name: "aim mesh additive evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 1.0,
-                ),
+                                    duration_fallback: 1.0, loop_position: false),
             },
             should_debug: false,
         ),
@@ -449,8 +438,7 @@
             name: "aim crouching mesh additive evaluator",
             inner: {
                 "als_ext::TimePositionNode": (
-                                    duration_fallback: 1.0,
-                ),
+                                    duration_fallback: 1.0, loop_position: false),
             },
             should_debug: false,
         ),

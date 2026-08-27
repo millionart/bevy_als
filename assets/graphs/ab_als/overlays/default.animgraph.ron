@@ -124,7 +124,7 @@
             id: "02020202-0000-4000-8000-000000000111",
             name: "default poses frame zero evaluator",
             inner: {
-                "als_ext::TimePositionNode": (duration_fallback: 0.1),
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
             },
             should_debug: false,
         ),
@@ -132,7 +132,7 @@
             id: "02020202-0000-4000-8000-000000000112",
             name: "default poses frame one evaluator",
             inner: {
-                "als_ext::TimePositionNode": (duration_fallback: 0.1),
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
             },
             should_debug: false,
         ),
@@ -140,7 +140,7 @@
             id: "02020202-0000-4000-8000-000000000113",
             name: "default poses frame two evaluator",
             inner: {
-                "als_ext::TimePositionNode": (duration_fallback: 0.1),
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
             },
             should_debug: false,
         ),
@@ -148,7 +148,7 @@
             id: "02020202-0000-4000-8000-000000000114",
             name: "default poses frame one air evaluator",
             inner: {
-                "als_ext::TimePositionNode": (duration_fallback: 0.1),
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
             },
             should_debug: false,
         ),
@@ -156,7 +156,7 @@
             id: "02020202-0000-4000-8000-000000000115",
             name: "default poses frame zero air evaluator",
             inner: {
-                "als_ext::TimePositionNode": (duration_fallback: 0.1),
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
             },
             should_debug: false,
         ),

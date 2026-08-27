@@ -12,9 +12,9 @@
         (id: "e1090000-0000-4000-8000-000000000151", name: "frame eleven position", inner: { "als_ext::ConstantF32Node": (value: 0.36666667) }, should_debug: false),
         (id: "e1090000-0000-4000-8000-000000000152", name: "frame seven position", inner: { "als_ext::ConstantF32Node": (value: 0.23333334) }, should_debug: false),
         (id: "e1090000-0000-4000-8000-000000000153", name: "frame nine rolling position", inner: { "als_ext::ConstantF32Node": (value: 0.3) }, should_debug: false),
-        (id: "e1090000-0000-4000-8000-000000000201", name: "poses frame eleven evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667) }, should_debug: false),
-        (id: "e1090000-0000-4000-8000-000000000202", name: "poses frame seven evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667) }, should_debug: false),
-        (id: "e1090000-0000-4000-8000-000000000203", name: "poses frame nine rolling evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667) }, should_debug: false),
+        (id: "e1090000-0000-4000-8000-000000000201", name: "poses frame eleven evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
+        (id: "e1090000-0000-4000-8000-000000000202", name: "poses frame seven evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
+        (id: "e1090000-0000-4000-8000-000000000203", name: "poses frame nine rolling evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
         (
             id: "e1090000-0000-4000-8000-000000000401",
             name: "rifle poses curve samples",

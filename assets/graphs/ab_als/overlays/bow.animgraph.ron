@@ -12,9 +12,9 @@
         (id: "b0090000-0000-4000-8000-000000000151", name: "frame three position", inner: { "als_ext::ConstantF32Node": (value: 0.1) }, should_debug: false),
         (id: "b0090000-0000-4000-8000-000000000152", name: "frame eight position", inner: { "als_ext::ConstantF32Node": (value: 0.2666667) }, should_debug: false),
         (id: "b0090000-0000-4000-8000-000000000153", name: "frame zero position", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
-        (id: "b0090000-0000-4000-8000-000000000201", name: "poses frame three evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) }, should_debug: false),
-        (id: "b0090000-0000-4000-8000-000000000202", name: "poses frame eight evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) }, should_debug: false),
-        (id: "b0090000-0000-4000-8000-000000000203", name: "poses frame zero evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) }, should_debug: false),
+        (id: "b0090000-0000-4000-8000-000000000201", name: "poses frame three evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) }, should_debug: false),
+        (id: "b0090000-0000-4000-8000-000000000202", name: "poses frame eight evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) }, should_debug: false),
+        (id: "b0090000-0000-4000-8000-000000000203", name: "poses frame zero evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) }, should_debug: false),
         (
             id: "b0090000-0000-4000-8000-000000000401",
             name: "bow poses curve samples",

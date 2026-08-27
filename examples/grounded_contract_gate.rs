@@ -32,6 +32,7 @@ const GROUNDED_GRAPH_DIR: &str = "assets/graphs/ab_als/grounded";
 #[derive(Resource)]
 struct GateAssets {
     root: Handle<AnimationGraph>,
+    roll: Handle<AnimationGraph>,
     fsm: Handle<StateMachine>,
     skeleton: Handle<bevy_animation_graph::core::skeleton::Skeleton>,
 }
@@ -57,6 +58,8 @@ struct Deadline(Instant);
 struct Probe {
     static_verified: bool,
     curves_verified: bool,
+    roll_player: Option<Entity>,
+    roll_verified: bool,
     cases: Vec<CaseRuntime>,
     seen: BTreeSet<usize>,
 }
@@ -87,6 +90,7 @@ fn main() {
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GateAssets {
         root: assets.load(ROOT_PATH),
+        roll: assets.load("graphs/ab_als/grounded/state_roll.animgraph.ron"),
         fsm: assets.load(FSM_PATH),
         skeleton: assets.load(SKELETON_PATH),
     });
@@ -261,7 +265,10 @@ fn verify_static(
     mut probe: ResMut<Probe>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if probe.static_verified || !server.is_loaded_with_dependencies(&assets.root) {
+    if probe.static_verified
+        || !server.is_loaded_with_dependencies(&assets.root)
+        || !server.is_loaded_with_dependencies(&assets.roll)
+    {
         return;
     }
     let (Some(root), Some(fsm)) = (graphs.get(&assets.root), machines.get(&assets.fsm)) else {
@@ -570,6 +577,20 @@ fn verify_static(
             spawn_case(&mut commands, &assets, &graphs, &index.to_string(), steps)
         })
         .collect();
+    let mut roll_player =
+        AnimationGraphPlayer::new(assets.skeleton.clone()).with_graph(assets.roll.clone());
+    set_default_globals(&mut roll_player, &graphs);
+    roll_player.set_global_input_data("als_root_defaults_enabled", true);
+    roll_player.queue_time_update(TimeUpdate::Delta(0.0));
+    probe.roll_player = Some(
+        commands
+            .spawn((
+                Name::new("grounded_roll_endpoint_probe"),
+                Children::default(),
+                roll_player,
+            ))
+            .id(),
+    );
     probe.static_verified = true;
     info!("[GROUNDED-CONTRACT] linked runtime probes initialized");
 }
@@ -627,6 +648,31 @@ fn observe(
     let (Some(root), Some(machine)) = (graphs.get(&assets.root), machines.get(&assets.fsm)) else {
         return;
     };
+    if !probe.roll_verified {
+        let Some(roll_entity) = probe.roll_player else {
+            return;
+        };
+        let Ok(roll_player) = players.get(roll_entity) else {
+            return;
+        };
+        if let Some(error) = roll_player.get_error() {
+            fail(
+                &mut exit,
+                4,
+                &format!("roll evaluator runtime error={error:?}"),
+            );
+            return;
+        }
+        let Some(DataValue::Pose(pose)) = roll_player.get_outputs().get("pose") else {
+            return;
+        };
+        if !close(pose.timestamp, 1.5) {
+            fail(&mut exit, 4, "roll evaluator endpoint clamp");
+            return;
+        }
+        probe.roll_verified = true;
+        info!("[GROUNDED-CONTRACT] roll evaluator explicit frame=45 endpoint=1.5 clamp=true");
+    }
     if !probe.curves_verified {
         let Some(case) = probe.cases.first() else {
             return;
@@ -700,10 +746,11 @@ fn observe(
         );
     }
     probe.seen.extend(newly_seen);
-    if probe
-        .cases
-        .iter()
-        .any(|case| case.cursor < case.steps.len() || case.pending)
+    if !probe.roll_verified
+        || probe
+            .cases
+            .iter()
+            .any(|case| case.cursor < case.steps.len() || case.pending)
     {
         return;
     }

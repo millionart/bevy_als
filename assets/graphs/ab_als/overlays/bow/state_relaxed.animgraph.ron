@@ -171,31 +171,31 @@
         (
             id: "b0050000-0000-4000-8000-000000000201",
             name: "poses frame zero evaluator",
-            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) },
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) },
             should_debug: false,
         ),
         (
             id: "b0050000-0000-4000-8000-000000000202",
             name: "poses frame one evaluator",
-            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) },
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) },
             should_debug: false,
         ),
         (
             id: "b0050000-0000-4000-8000-000000000203",
             name: "poses frame two evaluator",
-            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) },
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) },
             should_debug: false,
         ),
         (
             id: "b0050000-0000-4000-8000-000000000204",
             name: "poses frame three evaluator",
-            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) },
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) },
             should_debug: false,
         ),
         (
             id: "b0050000-0000-4000-8000-000000000205",
             name: "poses frame eight evaluator",
-            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667) },
+            inner: { "als_ext::TimePositionNode": (duration_fallback: 0.3666667, loop_position: false) },
             should_debug: false,
         ),
         (

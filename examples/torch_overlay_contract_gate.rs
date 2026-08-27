@@ -250,11 +250,11 @@ fn verify_static_contract(
     .into_iter()
     .all(|name| {
         node::<TimePositionNode>(torch_graph, name)
-            .is_some_and(|node| close(node.duration_fallback, 0.2) && node.loop_position)
+            .is_some_and(|node| close(node.duration_fallback, 0.2) && !node.loop_position)
     }) && node::<TimePositionNode>(torch_graph, "torch aim evaluator")
-        .is_some_and(|node| close(node.duration_fallback, 1.0) && node.loop_position)
+        .is_some_and(|node| close(node.duration_fallback, 1.0) && !node.loop_position)
         && node::<TimePositionNode>(torch_graph, "torch crouch aim evaluator")
-            .is_some_and(|node| close(node.duration_fallback, 1.0) && node.loop_position);
+            .is_some_and(|node| close(node.duration_fallback, 1.0) && !node.loop_position);
     let layers = graph_has_node::<BlendNode>(torch_graph, "default gait blend")
         && graph_has_node::<MultiWayBlendNode>(torch_graph, "default stance blend")
         && graph_has_node::<BlendNode>(torch_graph, "aim gait blend")

@@ -238,11 +238,11 @@ fn has_stop_plant_contract(
     layered_blend_name: &str,
     expected_frames: &[(&str, f32)],
 ) -> bool {
-    let looped_evaluators = graph
+    let clamped_evaluators = graph
         .nodes
         .values()
         .filter_map(|node| node.try_inner_downcast_ref::<TimePositionNode>())
-        .filter(|node| node.loop_position)
+        .filter(|node| !node.loop_position)
         .count();
     let normalized_velocity_blend = graph.nodes.values().any(|node| {
         node.try_inner_downcast_ref::<MultiWayBlendNode>()
@@ -252,7 +252,7 @@ fn has_stop_plant_contract(
         node.try_inner_downcast_ref::<GlobalBoneMaskInputNode>()
             .is_some_and(|input| input.key == mask_key)
     });
-    looped_evaluators == 6
+    clamped_evaluators == 7
         && normalized_velocity_blend
         && mask_input
         && has_node::<MeshSpaceLayeredBlendNode>(graph, layered_blend_name)

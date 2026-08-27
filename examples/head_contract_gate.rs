@@ -233,7 +233,7 @@ fn verify_static(
     .into_iter()
     .all(|name| {
         node::<TimePositionNode>(head, name)
-            .is_some_and(|node| node.loop_position && close(node.duration_fallback, 1.0))
+            .is_some_and(|node| !node.loop_position && close(node.duration_fallback, 1.0))
     });
     let io = has_input(head, "view_pose")
         && head.io_spec.has_output_time()
