@@ -17,7 +17,7 @@ use bevy_animation_graph::builtin_nodes::{
     loop_node::LoopNode,
 };
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     animation_node::AnimationNode,
     edge_data::{DataSpec, DataValue},
@@ -103,6 +103,36 @@ fn load_graph(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn graph_has_node(graph: &AnimationGraph, name: &str) -> bool {
     graph.nodes.values().any(|node| node.name == name)
+}
+
+fn node_data_edge(
+    graph: &AnimationGraph,
+    target_node_name: &str,
+    target_pin: &str,
+    source_node_name: &str,
+    source_pin: &str,
+) -> bool {
+    let Some((target_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == target_node_name)
+    else {
+        return false;
+    };
+    let Some((source_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == source_node_name)
+    else {
+        return false;
+    };
+    matches!(
+        graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(*target_id, target_pin.to_owned())),
+        Some(SourcePin::NodeData(actual_id, actual_pin))
+            if actual_id == source_id && actual_pin == source_pin
+    )
 }
 
 fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
@@ -252,6 +282,19 @@ fn verify_static_contract(
         .find(|node| node.name == "secondary motion additive alpha")
         .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
         .is_some_and(|node| close(node.value, 0.25));
+    let additive_order = node_data_edge(
+        graph,
+        "secondary motion additive",
+        "pose_a",
+        "grounded stance multi way blend",
+        "pose",
+    ) && node_data_edge(
+        graph,
+        "secondary motion additive",
+        "pose_b",
+        "secondary motion idle loop",
+        "pose",
+    );
     let idle_loop = graph
         .nodes
         .values()
@@ -349,6 +392,7 @@ fn verify_static_contract(
         && normalized_stance
         && additive
         && additive_alpha
+        && additive_order
         && idle_loop
         && sample_set
         && curve_blends
@@ -356,13 +400,14 @@ fn verify_static_contract(
         && tag_blend
         && asset_paths;
     info!(
-        "[BARREL-OVERLAY-CONTRACT] pose_contract={} curve_contract={} evaluators={} normalized_stance={} additive={} additive_alpha={} idle_loop={} sample_set={} curve_blends={} curve_modifiers={} tag_blend={} asset_paths={}",
+        "[BARREL-OVERLAY-CONTRACT] pose_contract={} curve_contract={} evaluators={} normalized_stance={} additive={} additive_alpha={} additive_order={} idle_loop={} sample_set={} curve_blends={} curve_modifiers={} tag_blend={} asset_paths={}",
         pose_contract,
         curve_contract,
         evaluator_count,
         normalized_stance,
         additive,
         additive_alpha,
+        additive_order,
         idle_loop,
         sample_set,
         curve_blends,
