@@ -1,5 +1,6 @@
 use als_core::character::AlsCharacter;
-use als_core::state::OverlayState;
+use als_core::mantle::MantleKind;
+use als_core::state::{LocomotionState, OverlayState};
 use bevy::gltf::GltfAssetLabel;
 use bevy::prelude::*;
 
@@ -88,6 +89,17 @@ pub fn attachment_bone(spec: OverlayObjectSpec, use_gun_bones: bool) -> &'static
     }
 }
 
+pub fn overlay_object_visible(
+    overlay: OverlayState,
+    locomotion: LocomotionState,
+    mantle_active: bool,
+    mantle_kind: Option<MantleKind>,
+) -> bool {
+    overlay_object_spec(overlay).is_some()
+        && locomotion != LocomotionState::Ragdolling
+        && !(mantle_active && mantle_kind == Some(MantleKind::High))
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsOverlayObjectConfig {
     pub use_gun_bones: bool,
@@ -112,6 +124,7 @@ pub struct AlsOverlayObject {
 pub struct AlsOverlayObjectState {
     pub prop: Option<Entity>,
     pub applied_overlay: Option<OverlayState>,
+    pub visible: bool,
 }
 
 pub struct OverlayObjectPlugin;
@@ -167,6 +180,8 @@ fn sync_overlay_object(
     mut characters: Query<
         (
             &OverlayState,
+            &LocomotionState,
+            Option<&als_core::mantle::AlsMantleState>,
             &AlsCharacterAssembly,
             Ref<AlsOverlayObjectConfig>,
             &mut AlsOverlayObjectState,
@@ -174,13 +189,25 @@ fn sync_overlay_object(
         With<AlsCharacter>,
     >,
 ) {
-    for (overlay, assembly, config, mut state) in &mut characters {
+    for (overlay, locomotion, mantle, assembly, config, mut state) in &mut characters {
+        let visible = overlay_object_visible(
+            *overlay,
+            *locomotion,
+            mantle.is_some_and(|state| state.active),
+            mantle.map(|state| state.kind),
+        );
+        let desired_overlay = visible.then_some(*overlay);
         let prop_exists = state.prop.is_some_and(|prop| props.get(prop).is_ok());
-        if state.applied_overlay == Some(*overlay) && prop_exists && !config.is_changed() {
+        if state.applied_overlay == desired_overlay
+            && state.visible == visible
+            && prop_exists
+            && !config.is_changed()
+        {
             continue;
         }
-        if state.applied_overlay == Some(*overlay)
-            && overlay_object_spec(*overlay).is_none()
+        if state.applied_overlay == desired_overlay
+            && desired_overlay.is_none()
+            && state.prop.is_none()
             && !config.is_changed()
         {
             continue;
@@ -190,14 +217,19 @@ fn sync_overlay_object(
         {
             commands.entity(prop).despawn();
         }
-        state.applied_overlay = Some(*overlay);
-        let Some(spec) = overlay_object_spec(*overlay) else {
+        state.applied_overlay = desired_overlay;
+        state.visible = visible;
+        let Some(overlay) = desired_overlay else {
+            continue;
+        };
+        let Some(spec) = overlay_object_spec(overlay) else {
             continue;
         };
         let bone_name = attachment_bone(spec, config.use_gun_bones);
         let Some(bone) = find_named_descendant(assembly.avatar, bone_name, &children, &names)
         else {
             state.applied_overlay = None;
+            state.visible = false;
             continue;
         };
         let prop = commands
@@ -206,7 +238,7 @@ fn sync_overlay_object(
                 WorldAssetRoot(assets.load(GltfAssetLabel::Scene(0).from_asset(spec.asset_path))),
                 Transform::IDENTITY,
                 AlsOverlayObject {
-                    overlay: *overlay,
+                    overlay,
                     kind: spec.kind,
                     attachment_bone: bone_name,
                 },
@@ -246,5 +278,33 @@ mod tests {
         assert_eq!(attachment_bone(torch, true), LEFT_GUN_BONE);
         assert_eq!(attachment_bone(rifle, false), "hand_r");
         assert_eq!(attachment_bone(torch, false), "hand_l");
+    }
+
+    #[test]
+    fn source_lifecycle_clears_high_mantle_and_ragdoll_but_keeps_low_mantle() {
+        assert!(overlay_object_visible(
+            OverlayState::Rifle,
+            LocomotionState::Grounded,
+            false,
+            None
+        ));
+        assert!(!overlay_object_visible(
+            OverlayState::Rifle,
+            LocomotionState::Grounded,
+            true,
+            Some(MantleKind::High)
+        ));
+        assert!(overlay_object_visible(
+            OverlayState::Rifle,
+            LocomotionState::Grounded,
+            true,
+            Some(MantleKind::LowLeft)
+        ));
+        assert!(!overlay_object_visible(
+            OverlayState::Rifle,
+            LocomotionState::Ragdolling,
+            false,
+            None
+        ));
     }
 }
