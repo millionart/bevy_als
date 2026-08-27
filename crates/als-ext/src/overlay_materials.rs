@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+pub const AVATAR_MAIN_MATERIAL_SLOT: usize = 10;
+
 pub struct OverlayMaterialsPlugin;
 
 impl Plugin for OverlayMaterialsPlugin {
@@ -65,6 +67,9 @@ pub struct AvatarMaterialOverride(pub Vec<Handle<StandardMaterial>>);
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AvatarMaterialApplied {
     pub slots: u32,
+    pub body_slots: u32,
+    pub main_slots: u32,
+    pub source_slot_pattern: bool,
 }
 
 fn avatar_material_bridge(
@@ -75,37 +80,87 @@ fn avatar_material_bridge(
         Option<&AvatarMaterialApplied>,
     )>,
     children: Query<&Children>,
-    mesh_materials: Query<(), With<Mesh3d>>,
+    mesh_materials: Query<&MeshMaterial3d<StandardMaterial>, With<Mesh3d>>,
 ) {
     for (root, override_comp, applied) in &avatars {
         if applied.is_some() {
             continue;
         }
         let mut stack = vec![root];
-        let mut replaced = 0u32;
-        let mut slot = 0usize;
+        let mut mesh_entities = Vec::new();
         while let Some(e) = stack.pop() {
             if let Ok(kids) = children.get(e) {
-                for child in kids.iter() {
+                for child in kids.iter().rev() {
                     stack.push(child);
                 }
             }
-            if mesh_materials.contains(e) {
-                let mat = override_comp
-                    .0
-                    .get(slot)
-                    .unwrap_or(override_comp.0.last().unwrap());
-                commands.entity(e).insert(MeshMaterial3d(mat.clone()));
-                slot += 1;
-                replaced += 1;
+            if mesh_materials.get(e).is_ok() {
+                mesh_entities.push(e);
             }
         }
-        if replaced > 0 {
-            commands
-                .entity(root)
-                .insert(AvatarMaterialApplied { slots: replaced });
-            info!("[OVMAT] avatar root={:?} replaced={} slots", root, replaced);
+        if mesh_entities.is_empty() {
+            continue;
         }
+        let source_materials: Vec<_> = mesh_entities
+            .iter()
+            .filter_map(|entity| {
+                mesh_materials
+                    .get(*entity)
+                    .ok()
+                    .map(|material| material.0.id())
+            })
+            .collect();
+        if source_materials.len() != mesh_entities.len() {
+            continue;
+        }
+        let source_slot_pattern = source_materials.len() == override_comp.0.len()
+            && source_materials.len() > AVATAR_MAIN_MATERIAL_SLOT
+            && source_materials[0] != source_materials[AVATAR_MAIN_MATERIAL_SLOT]
+            && source_materials.iter().enumerate().all(|(slot, source)| {
+                *source
+                    == if slot == AVATAR_MAIN_MATERIAL_SLOT {
+                        source_materials[AVATAR_MAIN_MATERIAL_SLOT]
+                    } else {
+                        source_materials[0]
+                    }
+            });
+        let mut body_slots = 0u32;
+        let mut main_slots = 0u32;
+        for (slot, entity) in mesh_entities.iter().enumerate() {
+            let material = override_comp
+                .0
+                .get(slot)
+                .unwrap_or(override_comp.0.last().unwrap());
+            commands
+                .entity(*entity)
+                .insert(MeshMaterial3d(material.clone()));
+            if slot == AVATAR_MAIN_MATERIAL_SLOT {
+                main_slots += 1;
+            } else {
+                body_slots += 1;
+            }
+        }
+        if !source_slot_pattern {
+            error!(
+                "[OVMAT] avatar root={:?} source slot pattern mismatch slots={}",
+                root,
+                mesh_entities.len()
+            );
+        }
+        commands.entity(root).insert(AvatarMaterialApplied {
+            slots: mesh_entities.len() as u32,
+            body_slots,
+            main_slots,
+            source_slot_pattern,
+        });
+        info!(
+            "[OVMAT] avatar root={:?} replaced={} body={} main={} source_pattern={}",
+            root,
+            mesh_entities.len(),
+            body_slots,
+            main_slots,
+            source_slot_pattern
+        );
     }
 }
 

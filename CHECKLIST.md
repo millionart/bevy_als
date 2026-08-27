@@ -147,7 +147,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 实现（2026-08-27）：`make_als_character_material` 现显式使用 `perceptual_roughness=1.0` 与 `reflectance=0.5`，并把二者作为可复查常量；不触及本项之后的眼睛槽独立绑定。
   - Gate 记录（2026-08-27）：`cargo test --jobs 2 --lib` 为 22/22 passed。`RUST_LOG=info BEVY_ASSET_ROOT=<worktree> ALS_BOOT_AUTO_QUIT_SECS=8 cargo run --jobs 2 --example manual_playground` 实际输出 `[CHARMAT][VERDICT] slots=15/15 color_error=0.000000 roughness=1.000000 roughness_error=0.000000 specular=0.500000 specular_error=0.000000 -> PASS`，正常退出且无材质警告。
 
-- [ ] BF-Scene-P10 角色眼睛槽材质：实时确认 `SKM_Als` 的 Element 10 槽，恢复它使用 `M_Als_Main` 等价材质而不是 `MI_Als_Character` 蓝色主体材质。验收：异步网格完成后的槽绑定探针断言 Element 10 的材质角色/参数正确，其他主体槽不受影响。
+- [x] BF-Scene-P10 角色眼睛槽材质：实时确认 `SKM_Als` 的 Element 10 槽，恢复它使用 `M_Als_Main` 等价材质而不是 `MI_Als_Character` 蓝色主体材质。验收：异步网格完成后的槽绑定探针断言 Element 10 的材质角色/参数正确，其他主体槽不受影响。
+  - 源事实（2026-08-27，实时 UE MCP 与已导出角色资产）：`SKM_Als` 有 15 个材质槽；索引 0–9、11–14 为 `MI_Als_Character`，唯一的索引 10（`Eyes_MAT`）为 `M_Als_Main`。已导出 `A_Als_Idle.gltf` 的 primitive material 序列精确为 `0×10, 1×1, 0×4`。两种 glTF PBR block 均为空，故 Main 等价物为 linear white、roughness=1、specular=0.5。
+  - 实现（2026-08-27）：新增独立白色 `M_Als_Main` 等价材质，并仅绑定到眼睛索引 10；其余 14 槽维持蓝色 `MI_Als_Character` 等价材质。异步桥接由 LIFO 反序遍历改为保留 glTF 子节点顺序的预序遍历，且在覆写前验证导入的 source handle 模式为 `0×10,1×1,0×4`，将实际主体/主材质槽数与模式写入运行时证据。
+  - Gate 记录（2026-08-27）：`cargo test --jobs 2 --lib` 为 23/23 passed（含 Element 10 的单位测试），`cargo check --jobs 2 --example manual_playground` passed。`RUST_LOG=info BEVY_ASSET_ROOT=<worktree> ALS_BOOT_AUTO_QUIT_SECS=8 cargo run --jobs 2 --example manual_playground` 实际输出 `[OVMAT] ... replaced=15 body=14 main=1 source_pattern=true` 及 `[CHARMAT][VERDICT] slots=15/15 body_slots=14/14 main_slots=1/1 eye_slot=10/10 source_pattern=true body_color_error=0.000000 eyes_color_error=0.000000 roughness=1.000000 roughness_error=0.000000 specular=0.500000 specular_error=0.000000 -> PASS`，正常退出且无材质警告。
 
 - [ ] BF-Scene-P11 本节 Gate：P7–P10 完成后重跑文字范围 gate、平台 gate、scene_gate、相关单元测试和 manual 冒烟；将命令及实际 `VERDICT PASS` 摘要写入本项和提交说明。Gate 未通过不得宣称本节完成。
 

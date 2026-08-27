@@ -351,7 +351,16 @@ fn character_material_probe(
         probe.0 = true;
         return;
     };
+    let eye_slot = bevy_als::character_assembly::ALS_CHARACTER_EYES_MATERIAL_SLOT;
+    let Some(eye_handle) = override_comp.0.get(eye_slot) else {
+        error!("[CHARMAT][VERDICT] missing eyes material handle -> FAIL");
+        probe.0 = true;
+        return;
+    };
     let Some(material) = materials.get(handle) else {
+        return;
+    };
+    let Some(eyes_material) = materials.get(eye_handle) else {
         return;
     };
     let color = material.base_color.to_linear();
@@ -362,25 +371,60 @@ fn character_material_probe(
         .max((color.blue - expected[2]).abs())
         .max((color.alpha - 1.0).abs());
     let expected_slots = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_SLOT_COUNT;
+    let expected_main = bevy_als::character_assembly::ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB;
     let expected_roughness =
         bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS;
     let expected_reflectance = bevy_als::character_assembly::ALS_CHARACTER_MATERIAL_REFLECTANCE;
     let roughness_error = (material.perceptual_roughness - expected_roughness).abs();
     let reflectance_error = (material.reflectance - expected_reflectance).abs();
+    let eyes_color = eyes_material.base_color.to_linear();
+    let eyes_color_error = (eyes_color.red - expected_main[0])
+        .abs()
+        .max((eyes_color.green - expected_main[1]).abs())
+        .max((eyes_color.blue - expected_main[2]).abs())
+        .max((eyes_color.alpha - 1.0).abs());
+    let body_slots_match = override_comp
+        .0
+        .iter()
+        .enumerate()
+        .filter(|(slot, _)| *slot != eye_slot)
+        .all(|(_, slot_handle)| slot_handle.id() == handle.id());
     let passed = applied.slots as usize == expected_slots
+        && applied.body_slots as usize == expected_slots - 1
+        && applied.main_slots == 1
+        && applied.source_slot_pattern
         && override_comp.0.len() == expected_slots
+        && body_slots_match
+        && eye_handle.id() != handle.id()
         && color_error < 1e-6
         && roughness_error < 1e-6
-        && reflectance_error < 1e-6;
+        && reflectance_error < 1e-6
+        && eyes_color_error < 1e-6;
     if passed {
         info!(
-            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> PASS",
-            applied.slots, expected_slots, material.perceptual_roughness, material.reflectance
+            "[CHARMAT][VERDICT] slots={}/{} body_slots={}/{} main_slots={}/1 eye_slot={eye_slot}/{} source_pattern={} body_color_error={color_error:.6} eyes_color_error={eyes_color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> PASS",
+            applied.slots,
+            expected_slots,
+            applied.body_slots,
+            expected_slots - 1,
+            applied.main_slots,
+            bevy_als::character_assembly::ALS_CHARACTER_EYES_MATERIAL_SLOT,
+            applied.source_slot_pattern,
+            material.perceptual_roughness,
+            material.reflectance
         );
     } else {
         error!(
-            "[CHARMAT][VERDICT] slots={}/{} color_error={color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> FAIL",
-            applied.slots, expected_slots, material.perceptual_roughness, material.reflectance
+            "[CHARMAT][VERDICT] slots={}/{} body_slots={}/{} main_slots={}/1 eye_slot={eye_slot}/{} source_pattern={} body_color_error={color_error:.6} eyes_color_error={eyes_color_error:.6} roughness={:.6} roughness_error={roughness_error:.6} specular={:.6} specular_error={reflectance_error:.6} -> FAIL",
+            applied.slots,
+            expected_slots,
+            applied.body_slots,
+            expected_slots - 1,
+            applied.main_slots,
+            bevy_als::character_assembly::ALS_CHARACTER_EYES_MATERIAL_SLOT,
+            applied.source_slot_pattern,
+            material.perceptual_roughness,
+            material.reflectance
         );
     }
     probe.0 = true;

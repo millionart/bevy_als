@@ -8,14 +8,16 @@ use als_core::input::{AlsInputMap, spawn_als_actions};
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
-use als_ext::overlay_materials::AvatarMaterialOverride;
+use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
+pub const ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB: [f32; 3] = [1.0, 1.0, 1.0];
 pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
 pub const ALS_CHARACTER_MATERIAL_REFLECTANCE: f32 = 0.5;
 pub const ALS_CHARACTER_MATERIAL_SLOT_COUNT: usize = 15;
+pub const ALS_CHARACTER_EYES_MATERIAL_SLOT: usize = AVATAR_MAIN_MATERIAL_SLOT;
 
 pub fn avatar_transform() -> Transform {
     Transform::from_xyz(0.0, AVATAR_CAPSULE_BOTTOM_OFFSET, 0.0)
@@ -82,17 +84,42 @@ pub fn make_als_character_material(
     })
 }
 
+pub fn make_als_main_material(
+    materials: &mut Assets<StandardMaterial>,
+) -> Handle<StandardMaterial> {
+    materials.add(StandardMaterial {
+        base_color: Color::linear_rgb(
+            ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB[0],
+            ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB[1],
+            ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB[2],
+        ),
+        perceptual_roughness: ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS,
+        reflectance: ALS_CHARACTER_MATERIAL_REFLECTANCE,
+        ..default()
+    })
+}
+
+pub fn als_character_material_slots(
+    body_material: Handle<StandardMaterial>,
+    main_material: Handle<StandardMaterial>,
+) -> Vec<Handle<StandardMaterial>> {
+    let mut slots = vec![body_material; ALS_CHARACTER_MATERIAL_SLOT_COUNT];
+    slots[ALS_CHARACTER_EYES_MATERIAL_SLOT] = main_material;
+    slots
+}
+
 pub fn attach_als_character_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
     scene: &str,
-    material: Handle<StandardMaterial>,
+    body_material: Handle<StandardMaterial>,
+    main_material: Handle<StandardMaterial>,
 ) -> Entity {
     let avatar = commands
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
-            AvatarMaterialOverride(vec![material; ALS_CHARACTER_MATERIAL_SLOT_COUNT]),
+            AvatarMaterialOverride(als_character_material_slots(body_material, main_material)),
             avatar_transform(),
         ))
         .id();
@@ -145,12 +172,14 @@ pub fn spawn_als_character(
         spawn_als_actions(commands, character, &blueprint.input_map);
     }
     let character_material = make_als_character_material(materials);
+    let main_material = make_als_main_material(materials);
     attach_als_character_avatar(
         commands,
         assets,
         character,
         blueprint.animscn,
         character_material,
+        main_material,
     );
     if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
@@ -184,5 +213,22 @@ mod tests {
             ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS
         );
         assert_eq!(material.reflectance, ALS_CHARACTER_MATERIAL_REFLECTANCE);
+    }
+
+    #[test]
+    fn eyes_slot_uses_main_material() {
+        let mut materials = Assets::<StandardMaterial>::default();
+        let body = make_als_character_material(&mut materials);
+        let main = make_als_main_material(&mut materials);
+        let slots = als_character_material_slots(body.clone(), main.clone());
+        assert_eq!(slots.len(), ALS_CHARACTER_MATERIAL_SLOT_COUNT);
+        assert_eq!(slots[ALS_CHARACTER_EYES_MATERIAL_SLOT], main);
+        assert!(
+            slots
+                .iter()
+                .enumerate()
+                .filter(|(slot, _)| *slot != ALS_CHARACTER_EYES_MATERIAL_SLOT)
+                .all(|(_, material)| *material == body)
+        );
     }
 }
