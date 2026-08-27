@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--contains", default="")
     parser.add_argument("--outer", default="")
     parser.add_argument("--exports", action="store_true")
+    parser.add_argument("--indexed", action="store_true")
     args = parser.parse_args()
     asset = UAsset(args.asset)
     index = next(
@@ -55,6 +56,14 @@ def main():
     properties, ok, error = PropReader(asset).read_export(index)
     if not ok:
         raise ParseError(error)
+    if args.indexed:
+        for node_index, (name, value) in enumerate(properties.items()):
+            if not name.startswith(("AnimGraphNode_", "AlsAnimGraphNode_")):
+                continue
+            if args.contains and args.contains not in name:
+                continue
+            print("%d %s: %s" % (node_index, name, json.dumps(value, default=str)))
+        return
     if args.exports:
         for export_index, export in enumerate(asset.exports):
             class_name = export_class(asset, export_index)

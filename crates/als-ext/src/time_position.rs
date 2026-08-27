@@ -14,11 +14,16 @@ pub fn resolve_position(raw: f32, duration: f32) -> f32 {
     raw.clamp(0.0, duration.max(1e-4))
 }
 
+pub fn resolve_looping_position(raw: f32, duration: f32) -> f32 {
+    raw.rem_euclid(duration.max(1e-4))
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct TimePositionNode {
     pub duration_fallback: f32,
+    pub loop_position: bool,
 }
 
 impl NodeLike for TimePositionNode {
@@ -32,7 +37,11 @@ impl NodeLike for TimePositionNode {
             .duration_back(IN_TIME)?
             .unwrap_or(self.duration_fallback)
             .max(1e-4);
-        let position = resolve_position(raw, duration);
+        let position = if self.loop_position {
+            resolve_looping_position(raw, duration)
+        } else {
+            resolve_position(raw, duration)
+        };
 
         ctx.set_time(position);
         ctx.set_time_update_back(IN_TIME, TimeUpdate::Absolute(position));
@@ -68,6 +77,12 @@ mod tests {
     fn zero_duration_falls_back_to_epsilon_bound() {
         assert!(resolve_position(5.0, 0.0) <= 1e-3);
         assert!(resolve_position(-5.0, -1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn looping_position_wraps_across_duration() {
+        assert!((resolve_looping_position(2.75, 1.0) - 0.75).abs() < 1e-6);
+        assert!((resolve_looping_position(-0.25, 1.0) - 0.75).abs() < 1e-6);
     }
 
     #[test]
