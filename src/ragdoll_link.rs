@@ -3,7 +3,6 @@ use avian3d::prelude::Position;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 
@@ -90,13 +89,10 @@ fn ragdoll_link_system(
         link.prev_ragdoll = is_ragdoll;
         return;
     };
-    let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+    let Ok(player) = players.get_mut(instance.player_entity()) else {
         link.prev_ragdoll = is_ragdoll;
         return;
     };
-
-    player.set_input_data("ragdoll_dynamic", DataValue::from(is_ragdoll));
-    player.set_input_data("ragdoll_readback", DataValue::from(is_ragdoll));
 
     if exiting
         && let Some(spawned) = player.get_spawned_ragdoll()

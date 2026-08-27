@@ -13,7 +13,9 @@ pub mod first_update;
 pub mod gameplay_tag_blend;
 pub mod gameplay_tag_layer_blend;
 pub mod global_bone_mask_input;
+pub mod global_bool_input;
 pub mod global_f32_input;
+pub mod global_pose_input;
 pub mod ik;
 pub mod inertialization;
 pub mod interruptible_fsm;
@@ -29,6 +31,7 @@ pub mod overlay;
 pub mod playground;
 pub mod profile_blend;
 pub mod ragdoll_config_node;
+pub mod ragdolling_tag_blend;
 pub mod reset_on_activation;
 pub mod rich_curve;
 pub mod root_motion_clip;
@@ -65,7 +68,9 @@ pub use gameplay_tag_blend::{
 };
 pub use gameplay_tag_layer_blend::GameplayTagLayerBlendNode;
 pub use global_bone_mask_input::GlobalBoneMaskInputNode;
+pub use global_bool_input::GlobalBoolInputNode;
 pub use global_f32_input::GlobalF32InputNode;
+pub use global_pose_input::GlobalPoseInputNode;
 pub use inertialization::{InertializationNode, inertial_alpha};
 pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
 pub use layered_graph::LayeredGraphNode;
@@ -94,6 +99,7 @@ pub use profile_blend::{
     profile_target_weight, transition_alpha,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
+pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reset_on_activation::{ResetOnActivationNode, activation_reset_required};
 pub use rich_curve::{
     RichCurveInterpolation, RichCurveKey, RichCurveSampleNode, RichCurveTangentMode,
@@ -136,7 +142,9 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SlotNode>()
             .register_type::<DirectTransitionEventNode>()
             .register_type::<GlobalBoneMaskInputNode>()
+            .register_type::<GlobalBoolInputNode>()
             .register_type::<GlobalF32InputNode>()
+            .register_type::<GlobalPoseInputNode>()
             .register_type::<GameplayTagBlendMode>()
             .register_type::<GameplayTagBlendNode>()
             .register_type::<GameplayTagLayerBlendNode>()
@@ -145,6 +153,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<MeshSpaceLayeredBlendNode>()
             .register_type::<MultiWayBlendNode>()
             .register_type::<RagdollConfigNode>()
+            .register_type::<RagdollingTagBlendNode>()
             .register_type::<RichCurveInterpolation>()
             .register_type::<RichCurveTangentMode>()
             .register_type::<RichCurveTangentWeightMode>()

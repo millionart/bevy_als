@@ -18,6 +18,7 @@ pub mod motion_graph_link;
 pub mod overlay_layer;
 pub mod playable_character;
 pub mod ragdoll_link;
+pub mod ragdolling_layer;
 pub mod roll_drive;
 pub mod root_motion_link;
 pub mod show_debug_hud;

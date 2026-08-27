@@ -27,6 +27,7 @@ use crate::motion_graph_link::{
 };
 use crate::overlay_layer::OverlayLayerPlugin;
 use crate::ragdoll_link::AlsRagdollLinkPlugin;
+use crate::ragdolling_layer::RagdollingLayerPlugin;
 use crate::roll_drive::AlsRollDrivePlugin;
 use crate::stance_layer::StanceLayerPlugin;
 use crate::standing_layer::{AlsStandingLayerSet, StandingLayerPlugin};
@@ -59,6 +60,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             LocomotionLayerPlugin,
             LayeringLayerPlugin,
             HeadLayerPlugin,
+            RagdollingLayerPlugin,
             AlsMantleDrivePlugin,
             AlsRagdollLinkPlugin,
         ))
