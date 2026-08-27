@@ -18,7 +18,7 @@ use bevy_animation_graph::builtin_nodes::{
     replicate_time::ReplicateTimeNode,
 };
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     animation_node::AnimationNode,
     edge_data::{DataSpec, DataValue},
@@ -111,6 +111,36 @@ fn load_graph(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn graph_has_node(graph: &AnimationGraph, name: &str) -> bool {
     graph.nodes.values().any(|node| node.name == name)
+}
+
+fn node_data_edge(
+    graph: &AnimationGraph,
+    target_node_name: &str,
+    target_pin: &str,
+    source_node_name: &str,
+    source_pin: &str,
+) -> bool {
+    let Some((target_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == target_node_name)
+    else {
+        return false;
+    };
+    let Some((source_id, _)) = graph
+        .nodes
+        .iter()
+        .find(|(_, node)| node.name == source_node_name)
+    else {
+        return false;
+    };
+    matches!(
+        graph
+            .edges_inverted
+            .get(&TargetPin::NodeData(*target_id, target_pin.to_owned())),
+        Some(SourcePin::NodeData(actual_id, actual_pin))
+            if actual_id == source_id && actual_pin == source_pin
+    )
 }
 
 fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
@@ -343,7 +373,21 @@ fn verify_static_contract(
             .values()
             .find(|node| node.name == "secondary motion additive alpha")
             .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
-            .is_some_and(|node| close(node.value, 0.5));
+            .is_some_and(|node| close(node.value, 0.5))
+        && node_data_edge(
+            graph,
+            "secondary motion additive",
+            "pose_a",
+            "rotation mode pose multi way blend",
+            "pose",
+        )
+        && node_data_edge(
+            graph,
+            "secondary motion additive",
+            "pose_b",
+            "secondary motion idle loop",
+            "pose",
+        );
     let idle_loop = graph
         .nodes
         .values()
