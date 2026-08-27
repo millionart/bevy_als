@@ -360,6 +360,10 @@ pub struct CameraSnapshot {
     pub view_rotation_deg: Option<(f32, f32, f32)>,
     pub rig_mode: Option<AlsCameraMode>,
     pub pivot_target_location: Option<Vec3>,
+    pub pivot_lag_location: Option<Vec3>,
+    pub pivot_location: Option<Vec3>,
+    pub field_of_view_deg: Option<f32>,
+    pub right_shoulder: Option<bool>,
     pub camera_curves: Vec<(String, f32)>,
 }
 
@@ -632,6 +636,22 @@ pub fn build_camera_shapes_body(camera: &CameraSnapshot) -> Vec<DebugRow> {
         .pivot_target_location
         .map(format_xyz)
         .unwrap_or_else(|| NA_VALUE.into());
+    let pivot_lag_value = camera
+        .pivot_lag_location
+        .map(format_xyz)
+        .unwrap_or_else(|| NA_VALUE.into());
+    let pivot_location_value = camera
+        .pivot_location
+        .map(format_xyz)
+        .unwrap_or_else(|| NA_VALUE.into());
+    let field_of_view_value = camera
+        .field_of_view_deg
+        .map(|value| format!("{value:.2}"))
+        .unwrap_or_else(|| NA_VALUE.into());
+    let right_shoulder_value = camera
+        .right_shoulder
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| NA_VALUE.into());
     vec![
         DebugRow::pair(
             name_to_display_string("PivotTargetLocation", false),
@@ -641,25 +661,25 @@ pub fn build_camera_shapes_body(camera: &CameraSnapshot) -> Vec<DebugRow> {
         ),
         DebugRow::pair(
             name_to_display_string("PivotLagLocation", false),
-            NA_VALUE,
+            pivot_lag_value,
             orange(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("PivotLocation", false),
-            NA_VALUE,
+            pivot_location_value,
             cyan(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("CameraFieldOfView", false),
-            NA_VALUE,
+            field_of_view_value,
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("bRightShoulder", true),
-            NA_VALUE,
+            right_shoulder_value,
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -885,6 +905,10 @@ fn build_camera_snapshot<'w, 's>(
         view_rotation_deg,
         rig_mode: rig.and_then(|(_, rig)| rig).map(|rig| rig.mode),
         pivot_target_location,
+        pivot_lag_location: debug_info.and_then(|info| info.pivot_lag),
+        pivot_location: debug_info.and_then(|info| info.pivot),
+        field_of_view_deg: debug_info.map(|info| info.field_of_view_deg),
+        right_shoulder: debug_info.map(|info| info.right_shoulder),
         camera_curves,
     }
 }
@@ -1418,6 +1442,23 @@ mod tests {
             camera_block_on[0].len(),
             1 + 2 + build_camera_shapes_body(&camera).len()
         );
+    }
+
+    #[test]
+    fn camera_shape_rows_use_live_debug_values_when_available() {
+        let camera = CameraSnapshot {
+            pivot_target_location: Some(Vec3::new(1.0, 2.0, 3.0)),
+            pivot_lag_location: Some(Vec3::new(4.0, 5.0, 6.0)),
+            pivot_location: Some(Vec3::new(7.0, 8.0, 9.0)),
+            field_of_view_deg: Some(102.0),
+            right_shoulder: Some(true),
+            ..default()
+        };
+        let rows = build_camera_shapes_body(&camera);
+        assert_eq!(rows[1].value, "X: 4.00 Y: 5.00 Z: 6.00");
+        assert_eq!(rows[2].value, "X: 7.00 Y: 8.00 Z: 9.00");
+        assert_eq!(rows[3].value, "102.00");
+        assert_eq!(rows[4].value, "true");
     }
 
     #[test]
