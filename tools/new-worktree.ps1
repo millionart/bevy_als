@@ -41,10 +41,13 @@ robocopy (Join-Path $root "target") (Join-Path $dest "target") /E /MT:16 `
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }
 Write-Host "      robocopy done (code $LASTEXITCODE)"
 
-$gameCache = Join-Path $root "target_game"
+$gameCacheRoot = Join-Path $root "target_game"
+$gameCache = Join-Path $gameCacheRoot "play"
 if (Test-Path -LiteralPath $gameCache) {
     Write-Host "[3/4] copying manual playground cache (excluding incremental)"
-    robocopy $gameCache (Join-Path $dest "target_game") /E /MT:16 `
+    $destGameCache = Join-Path (Join-Path $dest "target_game") "play"
+    robocopy $gameCache $destGameCache /E /MT:16 `
+        /XF *.pdb `
         /XD incremental tmp `
         /NFL /NDL /NJH /NJS /NP /DCOPY:DAT /COPY:DAT | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }
