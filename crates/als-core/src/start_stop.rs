@@ -2,7 +2,7 @@ use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
-use crate::motion::{AlsInputOverride, AlsViewYaw};
+use crate::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_axes};
 
 #[derive(
     Component,
@@ -188,7 +188,7 @@ pub fn start_stop_detector_system(
     let _ = time;
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
-    let dir = classify(input.move_dir, view.0);
+    let dir = classify(view_relative_move_axes(input.move_dir, view.0), view.0);
     update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir);
 }
 pub fn predict_stop_distance(speed: f32, braking_deceleration: f32) -> f32 {

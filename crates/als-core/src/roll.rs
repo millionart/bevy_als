@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
-use crate::motion::AlsViewYaw;
+use crate::motion::{AlsViewYaw, view_relative_move_axes};
 use crate::start_stop::{MoveDirection, classify};
 use crate::state::{LocomotionState, Stance};
 
@@ -48,7 +48,10 @@ pub fn roll_weight_at(elapsed: f32) -> f32 {
 }
 
 pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (MoveDirection, f32) {
-    let dir = classify(cmd.move_dir, view_yaw.0);
+    let dir = classify(
+        view_relative_move_axes(cmd.move_dir, view_yaw.0),
+        view_yaw.0,
+    );
     let offset = match dir {
         MoveDirection::Forward => 0.0,
         MoveDirection::ForwardLeft => -std::f32::consts::FRAC_PI_4,
@@ -142,6 +145,23 @@ mod tests {
         assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
         let dir_vec = roll_displacement_dir(s.direction_yaw);
         assert!(dir_vec.distance(Vec3::X) < 1e-5, "right roll displaces +X");
+    }
+
+    #[test]
+    fn local_forward_roll_tracks_a_rotated_camera() {
+        let mut s = AlsRollState::default();
+        let cmd = base_cmd();
+        let view = AlsViewYaw(std::f32::consts::FRAC_PI_2);
+        s.update(
+            &cmd,
+            &view,
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0 / 60.0,
+        );
+        assert_eq!(s.last_direction, MoveDirection::Forward);
+        assert!((s.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert!(roll_displacement_dir(s.direction_yaw).distance(Vec3::X) < 1e-5);
     }
 
     #[test]

@@ -356,7 +356,10 @@ fn als_detectors_system(
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
 
-    let dir = classify(input.move_dir, view.0);
+    let dir = classify(
+        als_core::motion::view_relative_move_axes(input.move_dir, view.0),
+        view.0,
+    );
     if let Some(phase) = update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir) {
         info!("[M7GATE][STARTSTOP] phase -> {phase:?}");
     }

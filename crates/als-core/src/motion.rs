@@ -65,6 +65,19 @@ fn turn_angvel(mode: RotationMode) -> f32 {
     }
 }
 
+pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
+    let (sin, cos) = view_yaw.sin_cos();
+    Vec2::new(
+        cos * move_dir.x + sin * move_dir.y,
+        -sin * move_dir.x + cos * move_dir.y,
+    )
+}
+
+pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+    let axes = view_relative_move_axes(move_dir, view_yaw);
+    Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()
+}
+
 #[cfg(test)]
 mod rotation_cap_tests {
     use super::*;
@@ -78,6 +91,22 @@ mod rotation_cap_tests {
         assert!(
             turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection)
         );
+    }
+
+    #[test]
+    fn view_relative_move_axes_match_camera_forward_and_right() {
+        let cases = [
+            (0.0, Vec2::Y, Vec3::NEG_Z),
+            (0.0, Vec2::X, Vec3::X),
+            (std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::X),
+            (std::f32::consts::FRAC_PI_2, Vec2::X, Vec3::Z),
+            (std::f32::consts::PI, Vec2::Y, Vec3::Z),
+            (-std::f32::consts::FRAC_PI_2, Vec2::Y, Vec3::NEG_X),
+        ];
+        for (yaw, input, expected) in cases {
+            let actual = view_relative_move_direction(input, yaw);
+            assert!(actual.distance(expected) < 1e-5, "yaw={yaw} input={input:?}");
+        }
     }
 }
 
@@ -251,7 +280,7 @@ fn locomotion_drive_system(
 
         let move_len = effective.move_dir.length().min(1.0);
         let world_dir = if move_len > 1e-4 {
-            Vec3::new(effective.move_dir.x, 0.0, -effective.move_dir.y).normalize()
+            view_relative_move_direction(effective.move_dir, view_yaw.0)
         } else {
             Vec3::ZERO
         };

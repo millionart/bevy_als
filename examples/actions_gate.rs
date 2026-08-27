@@ -323,7 +323,10 @@ fn start_stop_detector(
     };
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
-    let dir = als_core::start_stop::classify(input.move_dir, view.0);
+    let dir = als_core::start_stop::classify(
+        als_core::motion::view_relative_move_axes(input.move_dir, view.0),
+        view.0,
+    );
     als_core::start_stop::update_start_stop(&mut ss, &Default::default(), hspeed, dir);
 }
 
