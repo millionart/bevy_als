@@ -59,6 +59,7 @@ const CURVES: &[&str] = &[
     "HandRightIk",
     "HipsDirectionLock",
     "PoseAiming",
+    "ViewBlock",
 ];
 
 #[derive(Resource)]
