@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
+use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
 use bevy::render::view::Msaa;
@@ -98,6 +99,7 @@ fn main() {
     .init_resource::<CharacterMaterialProbe>()
     .init_resource::<PlatformPhysicsProbe>()
     .init_resource::<AmbientOcclusionProbe>()
+    .init_resource::<TemporalAntiAliasingProbe>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -107,8 +109,9 @@ fn main() {
         Update,
         (
             spawn_character_once,
-            enable_character_ssao,
+            enable_character_ssao_taa,
             ambient_occlusion_probe,
+            temporal_anti_aliasing_probe,
             character_material_probe,
             playground_physics_bridge,
             platform_physics_probe,
@@ -138,6 +141,9 @@ struct PlatformPhysicsProbe(bool);
 
 #[derive(Resource, Default)]
 struct AmbientOcclusionProbe(bool);
+
+#[derive(Resource, Default)]
+struct TemporalAntiAliasingProbe(bool);
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
@@ -343,7 +349,7 @@ fn spawn_character_once(
     );
 }
 
-fn enable_character_ssao(
+fn enable_character_ssao_taa(
     mut commands: Commands,
     cameras: Query<
         Entity,
@@ -351,14 +357,49 @@ fn enable_character_ssao(
             With<Camera3d>,
             With<AlsCameraRig>,
             Without<ScreenSpaceAmbientOcclusion>,
+            Without<TemporalAntiAliasing>,
         ),
     >,
 ) {
     for camera in &cameras {
         commands
             .entity(camera)
-            .insert((Msaa::Off, ScreenSpaceAmbientOcclusion::default()));
+            .insert((
+                Msaa::Off,
+                ScreenSpaceAmbientOcclusion::default(),
+                TemporalAntiAliasing::default(),
+            ));
     }
+}
+
+fn temporal_anti_aliasing_probe(
+    mut probe: ResMut<TemporalAntiAliasingProbe>,
+    cameras: Query<
+        (&TemporalAntiAliasing, &Msaa),
+        (With<Camera3d>, With<AlsCameraRig>),
+    >,
+) {
+    if probe.0 {
+        return;
+    }
+    let camera_count = cameras.iter().count();
+    if camera_count == 0 {
+        return;
+    }
+    let msaa_off_count = cameras
+        .iter()
+        .filter(|(_, msaa)| **msaa == Msaa::Off)
+        .count();
+    if camera_count == 1 && msaa_off_count == 1 {
+        info!(
+            "[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> PASS"
+        );
+    } else {
+        error!(
+            "[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> FAIL"
+        );
+    }
+    probe.0 = true;
 }
 
 fn ambient_occlusion_probe(
