@@ -1,13 +1,16 @@
 use std::time::{Duration, Instant};
 
+use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::params::AlsMovementParams;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+use bevy_als::playable_character::{
+    AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
+};
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::animation_graph::AnimationGraph;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::skeleton::Skeleton;
-use bevy_animation_graph::AnimationGraphPlugin;
 
 fn main() {
     let mut app = App::new();
@@ -16,7 +19,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        AnimationGraphPlugin::default(),
+        AlsPlayableCharacterPlugin,
     ))
     .add_systems(Startup, setup);
 
@@ -75,10 +78,19 @@ fn auto_quit(mut quit: Option<ResMut<AutoQuit>>, mut exit: MessageWriter<AppExit
     }
 }
 
-fn setup(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.spawn(AnimatedSceneHandle::new(
-        assets.load("animated_scenes/skeleton_boot.animscn.ron"),
-    ));
+fn setup(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut params_assets: ResMut<Assets<AlsMovementParams>>,
+    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+) {
+    spawn_als_character(
+        &mut commands,
+        &assets,
+        &mut params_assets,
+        &mut config_assets,
+        AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 0.95, 0.0)),
+    );
 
     commands.spawn((
         Camera3d::default(),
