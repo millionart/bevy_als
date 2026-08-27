@@ -31,10 +31,10 @@ impl Plugin for PlaygroundPlugin {
         app.insert_resource(PlaygroundManifestPath(self.manifest.clone()))
             .init_resource::<PlaygroundMovingCurve>()
             .add_systems(Startup, playground_setup_system)
+            .add_systems(FixedUpdate, playground_moving_object_system)
             .add_systems(
                 Update,
                 (
-                    playground_moving_object_system,
                     world_text_mesh_system,
                     playground_material_tint_system,
                     playground_camera_exposure_system,
@@ -177,6 +177,9 @@ pub struct PlaygroundBoxCollider {
 
 #[derive(Component, Debug)]
 pub struct PlaygroundMovingObject;
+
+#[derive(Component, Debug)]
+pub struct PlaygroundPhysicsDriven;
 
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct PlaygroundKinematicVelocity {
@@ -1232,16 +1235,20 @@ pub fn playground_moving_object_system(
             &mut Transform,
             &mut PlaygroundKinematicVelocity,
             &PlaygroundKinematic,
+            Has<PlaygroundPhysicsDriven>,
         ),
         With<PlaygroundMovingObject>,
     >,
 ) {
     let t = time.elapsed_secs_f64() as f32;
-    for (mut tf, mut velocity, kin) in q.iter_mut() {
+    for (mut tf, mut velocity, kin, physics_driven) in q.iter_mut() {
         match kin.kind {
             PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
                 let yaw = speed_deg * t;
-                tf.rotation = kin.base_transform.rotation * Quat::from_rotation_y(yaw.to_radians());
+                if !physics_driven {
+                    tf.rotation =
+                        kin.base_transform.rotation * Quat::from_rotation_y(yaw.to_radians());
+                }
                 velocity.linear = Vec3::ZERO;
                 velocity.angular = Vec3::Y * speed_deg.to_radians();
             }
@@ -1250,7 +1257,9 @@ pub fn playground_moving_object_system(
                 start,
                 end,
             } => {
-                tf.translation = moving_object_position(&moving_curve, start, end, t, duration);
+                if !physics_driven {
+                    tf.translation = moving_object_position(&moving_curve, start, end, t, duration);
+                }
                 velocity.linear = moving_object_velocity(&moving_curve, start, end, t, duration);
                 velocity.angular = Vec3::ZERO;
             }

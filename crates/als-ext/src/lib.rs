@@ -40,7 +40,7 @@ pub use playground::{
     ue_directional_light_ray_to_bevy, ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy,
     ue_rotator_to_bevy_quat, ue_scale_to_bevy, ue_yaw_to_bevy_quat, PlaygroundActor,
     PlaygroundBoxCollider, PlaygroundComponent, PlaygroundKinematic, PlaygroundKinematicKind,
-    PlaygroundKinematicVelocity,
+    PlaygroundKinematicVelocity, PlaygroundPhysicsDriven,
     PlaygroundLandscape, PlaygroundLandscapeTilesMaterial, PlaygroundManifest,
     PlaygroundManifestPath, PlaygroundMaterialApplied, PlaygroundMovingCurve,
     PlaygroundMaterialRole, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,

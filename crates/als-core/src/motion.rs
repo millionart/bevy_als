@@ -7,7 +7,7 @@ use bevy_tnua::builtins::{
 };
 use bevy_tnua::controller::TnuaConfig;
 
-use crate::character::{AlsCharacter, AlsMovementParamsHandle};
+use crate::character::{AlsCharacter, AlsMovementParamsHandle, als_character_capsule};
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
 use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
@@ -54,7 +54,7 @@ fn capsule_for(params: &AlsMovementParams, stance: Stance) -> Collider {
         Stance::Crouching => params.crouch.crouched_capsule_half_height,
     };
     let radius = params.crouch.standing_capsule_radius;
-    Collider::capsule((total_half - radius).max(0.0), radius)
+    als_character_capsule(total_half, radius)
 }
 
 fn turn_angvel(mode: RotationMode) -> f32 {

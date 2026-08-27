@@ -14,7 +14,7 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_camera::AlsCameraPlugin;
 use als_core::aim::AlsAimPlugin;
 use als_core::air::AlsAirState;
-use als_core::character::{AlsCharacter, AlsCharacterPlugin};
+use als_core::character::{AlsCharacter, AlsCharacterPlugin, AlsCrushRecoveryFloor};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::AlsFootProbePlugin;
 use als_core::input::{AlsInputCommand, AlsInputPlugin};
@@ -31,7 +31,8 @@ use als_ext::playground::PlaygroundLandscape;
 use als_ext::playground_materials::PlaygroundMaterialsPlugin;
 use als_ext::{
     AlsExtPlugin, PlaygroundBoxCollider, PlaygroundKinematicVelocity, PlaygroundMovingObject,
-    PlaygroundPlugin, PlaygroundSpawnPoint, playground_moving_object_system,
+    PlaygroundPhysicsDriven, PlaygroundPlugin, PlaygroundSpawnPoint,
+    playground_moving_object_system,
 };
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
@@ -56,8 +57,8 @@ fn main() {
             ..default()
         }),
         PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+        TnuaAvian3dPlugin::new(FixedPostUpdate),
+        TnuaControllerPlugin::<AlsControlScheme>::new(FixedPostUpdate),
         EnhancedInputPlugin,
         AlsInputPlugin,
         AlsInputRequestPlugin,
@@ -105,14 +106,17 @@ fn main() {
             spawn_character_once,
             character_material_probe,
             playground_physics_bridge,
-            playground_kinematic_velocity_bridge.after(playground_moving_object_system),
-            platform_physics_probe.after(playground_kinematic_velocity_bridge),
+            platform_physics_probe,
             landscape_collider_bridge,
             graph_router,
             look_pitch_integrator,
             auto_quit,
             screenshot_runner,
         ),
+    )
+    .add_systems(
+        FixedUpdate,
+        playground_kinematic_velocity_bridge.after(playground_moving_object_system),
     );
 
     app.run();
@@ -377,10 +381,14 @@ fn character_material_probe(
 
 fn playground_physics_bridge(
     mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider, Option<&ChildOf>), Added<PlaygroundBoxCollider>>,
+    bodies: Query<
+        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>),
+        Added<PlaygroundBoxCollider>,
+    >,
     moving_roots: Query<(), With<PlaygroundMovingObject>>,
+    root_names: Query<&Name>,
 ) {
-    for (entity, collider, parent) in &bodies {
+    for (entity, name, collider, parent) in &bodies {
         let shape = Collider::cuboid(
             collider.half_extents.x * 2.0,
             collider.half_extents.y * 2.0,
@@ -390,9 +398,23 @@ fn playground_physics_bridge(
             && moving_roots.contains(root)
         {
             commands.entity(entity).insert(shape);
-            commands.entity(root).insert(RigidBody::Kinematic);
+            commands
+                .entity(root)
+                .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
         } else {
-            commands.entity(entity).insert((RigidBody::Static, shape));
+            let parent_is_floor = parent.is_some_and(|&ChildOf(root)| {
+                root_names
+                    .get(root)
+                    .is_ok_and(|root_name| root_name.as_str().ends_with(":BP_SimpleObject5"))
+            });
+            let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.insert((RigidBody::Static, shape));
+            if is_floor {
+                entity_commands.insert(AlsCrushRecoveryFloor {
+                    half_extents: collider.half_extents,
+                });
+            }
         }
     }
 }
@@ -416,8 +438,9 @@ fn playground_kinematic_velocity_bridge(
 fn platform_physics_probe(
     mut probe: ResMut<PlatformPhysicsProbe>,
     platforms: Query<(&RigidBody, &LinearVelocity, &AngularVelocity), With<PlaygroundMovingObject>>,
+    floors: Query<(), With<AlsCrushRecoveryFloor>>,
 ) {
-    if probe.0 || platforms.iter().count() != 3 {
+    if probe.0 || platforms.iter().count() != 3 || floors.iter().count() != 1 {
         return;
     }
     let kinematic = platforms
@@ -437,11 +460,11 @@ fn platform_physics_probe(
         .all(|(_, linear, angular)| linear.0.is_finite() && angular.0.is_finite());
     if kinematic == 3 && moving == 2 && rotating == 1 && finite {
         info!(
-            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 finite={finite} -> PASS"
+            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 crush_floor=1/1 finite={finite} -> PASS"
         );
     } else {
         error!(
-            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 finite={finite} -> FAIL"
+            "[PLATFORM][VERDICT] kinematic={kinematic}/3 moving={moving}/2 rotating={rotating}/1 crush_floor=1/1 finite={finite} -> FAIL"
         );
     }
     probe.0 = true;
