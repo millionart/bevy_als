@@ -2,9 +2,19 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::DataSpec,
+    edge_data::{DataSpec, DataValue, bone_mask::BoneMask},
     errors::GraphError,
 };
+
+use crate::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY;
+
+fn root_defaults_enabled(ctx: &NodeContext) -> bool {
+    ctx.graph_context
+        .global_input_data
+        .get(ROOT_DEFAULTS_ENABLED_KEY)
+        .and_then(|value| value.as_bool().ok())
+        .unwrap_or(false)
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
@@ -19,12 +29,11 @@ impl NodeLike for GlobalBoneMaskInputNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = ctx
-            .graph_context
-            .global_input_data
-            .get(&self.key)
-            .cloned()
-            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.key.clone()))?;
+        let value = match ctx.graph_context.global_input_data.get(&self.key).cloned() {
+            Some(value) => value,
+            None if root_defaults_enabled(&ctx) => DataValue::BoneMask(BoneMask::all()),
+            None => return Err(GraphError::GlobalInputDataMissing(self.key.clone())),
+        };
         value.clone().into_bone_mask()?;
         ctx.set_data_fwd(self.key.clone(), value);
         Ok(())

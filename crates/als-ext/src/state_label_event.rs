@@ -9,6 +9,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::global_f32_input::global_f32_or_root_default;
+
 #[derive(Reflect, Clone, Debug, Default)]
 struct StateLabelEventState {
     last_index: Option<usize>,
@@ -40,13 +42,7 @@ impl NodeLike for StateLabelEventNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = ctx
-            .graph_context
-            .global_input_data
-            .get(&self.key)
-            .cloned()
-            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.key.clone()))?
-            .as_f32()?;
+        let value = global_f32_or_root_default(&ctx, &self.key)?;
         let index = state_label_index(value, self.labels.len());
         let event = {
             let state = ctx.state_mut::<StateLabelEventState>()?;

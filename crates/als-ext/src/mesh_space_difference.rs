@@ -203,9 +203,18 @@ impl NodeLike for MeshSpaceDifferenceNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let update = ctx.time_update_fwd()?;
         ctx.set_time_update_back(Self::IN_TIME_A, update);
-        let base = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
+        let mut base = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(base.timestamp));
         let target = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        if ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .is_none()
+        {
+            base.skeleton = target.skeleton.clone();
+        }
         let skeleton = ctx
             .graph_context
             .resources

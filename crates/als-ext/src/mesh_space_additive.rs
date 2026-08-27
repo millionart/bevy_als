@@ -238,6 +238,15 @@ impl NodeLike for MeshSpaceAdditiveNode {
         if alpha.abs() > ALPHA_THRESHOLD {
             ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(base.timestamp));
             let additive = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+            if ctx
+                .graph_context
+                .resources
+                .skeleton_assets
+                .get(&base.skeleton)
+                .is_none()
+            {
+                base.skeleton = additive.skeleton.clone();
+            }
             let Some(skeleton) = ctx
                 .graph_context
                 .resources

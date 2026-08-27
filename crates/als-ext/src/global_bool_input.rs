@@ -6,6 +6,16 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY;
+
+fn root_defaults_enabled(ctx: &NodeContext) -> bool {
+    ctx.graph_context
+        .global_input_data
+        .get(ROOT_DEFAULTS_ENABLED_KEY)
+        .and_then(|value| value.as_bool().ok())
+        .unwrap_or(false)
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -19,12 +29,11 @@ impl NodeLike for GlobalBoolInputNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = ctx
-            .graph_context
-            .global_input_data
-            .get(&self.key)
-            .cloned()
-            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.key.clone()))?;
+        let value = match ctx.graph_context.global_input_data.get(&self.key).cloned() {
+            Some(value) => value,
+            None if root_defaults_enabled(&ctx) => false.into(),
+            None => return Err(GraphError::GlobalInputDataMissing(self.key.clone())),
+        };
         value.as_bool()?;
         ctx.set_data_fwd(self.key.clone(), value);
         Ok(())

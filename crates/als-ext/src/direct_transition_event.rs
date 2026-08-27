@@ -10,6 +10,8 @@ use bevy_animation_graph::core::{
     state_machine::high_level::{DirectTransitionId, TransitionId},
 };
 
+use crate::global_f32_input::global_f32_or_root_default;
+
 pub fn direct_transition_index(value: f32, transition_count: usize) -> Option<usize> {
     if transition_count == 0 || !value.is_finite() || value < 0.0 {
         return None;
@@ -36,13 +38,7 @@ impl NodeLike for DirectTransitionEventNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = ctx
-            .graph_context
-            .global_input_data
-            .get(&self.key)
-            .cloned()
-            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.key.clone()))?
-            .as_f32()?;
+        let value = global_f32_or_root_default(&ctx, &self.key)?;
         let index = direct_transition_index(value, self.transitions.len());
         let transition = index.map(|index| self.transitions[index]);
         let queue = transition.map_or_else(EventQueue::default, |transition| {

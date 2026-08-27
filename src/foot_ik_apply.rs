@@ -11,6 +11,8 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
+use crate::control_rig_apply::AlsControlRigPropagationSet;
+
 pub struct FootIkApplyPlugin;
 
 impl Plugin for FootIkApplyPlugin {
@@ -26,6 +28,7 @@ impl Plugin for FootIkApplyPlugin {
                 ensure_foot_lock_components,
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
+                    .after(AlsControlRigPropagationSet)
                     .after(TransformSystems::Propagate)
                     .after(als_core::foot_ik::foot_ground_probe_system)
                     .after(als_core::foot_ik::foot_pin_request_system)

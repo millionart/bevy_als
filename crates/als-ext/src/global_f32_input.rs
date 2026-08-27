@@ -6,6 +6,24 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+pub const ROOT_DEFAULTS_ENABLED_KEY: &str = "als_root_defaults_enabled";
+
+pub fn root_defaults_enabled(ctx: &NodeContext) -> bool {
+    ctx.graph_context
+        .global_input_data
+        .get(ROOT_DEFAULTS_ENABLED_KEY)
+        .and_then(|value| value.as_bool().ok())
+        .unwrap_or(false)
+}
+
+pub fn global_f32_or_root_default(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
+    match ctx.graph_context.global_input_data.get(key) {
+        Some(value) => value.as_f32(),
+        None if root_defaults_enabled(ctx) => Ok(0.0),
+        None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
+    }
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -19,12 +37,11 @@ impl NodeLike for GlobalF32InputNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = ctx
-            .graph_context
-            .global_input_data
-            .get(&self.key)
-            .cloned()
-            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.key.clone()))?;
+        let value = match ctx.graph_context.global_input_data.get(&self.key).cloned() {
+            Some(value) => value,
+            None if root_defaults_enabled(&ctx) => 0.0_f32.into(),
+            None => return Err(GraphError::GlobalInputDataMissing(self.key.clone())),
+        };
         value.as_f32()?;
         ctx.set_data_fwd(self.key.clone(), value);
         Ok(())

@@ -6,7 +6,7 @@ use std::{
 use als_ext::{
     AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, GlobalBoneMaskInputNode,
     GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
-    LayeredGraphNode, ProfiledBlendNode, ResetOnActivationNode, TimePositionNode,
+    ProfiledBlendNode, ResetOnActivationNode, TimePositionNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -16,11 +16,12 @@ use bevy_animation_graph::builtin_nodes::{
     clip_node::ClipNode, loop_node::LoopNode, speed_node::SpeedNode,
 };
 use bevy_animation_graph::core::{
-    animation_graph::AnimationGraph,
+    animation_graph::{AnimationGraph, GraphInputPin},
     animation_graph_player::AnimationGraphPlayer,
     context::node_states::StateKey,
     edge_data::{DataValue, bone_mask::BoneMask},
     plugin::AnimationGraphSet,
+    pose::Pose,
     state_machine::{
         high_level::{StateMachine, TransitionId, TransitionKind},
         low_level::LowLevelStateId,
@@ -219,6 +220,8 @@ fn spawn_case(
 ) -> CaseRuntime {
     let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph);
     set_default_globals(&mut player, graphs);
+    let skeleton = player.skeleton().clone();
+    set_grounded_inputs(&mut player, skeleton);
     player.queue_time_update(bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0));
     let entity = commands
         .spawn((Name::new(name), Children::default(), player))
@@ -231,18 +234,48 @@ fn spawn_case(
     }
 }
 
+fn set_grounded_inputs(
+    player: &mut AnimationGraphPlayer,
+    skeleton: Handle<bevy_animation_graph::core::skeleton::Skeleton>,
+) {
+    player.set_input_data(
+        "grounded_pose",
+        DataValue::Pose(Pose {
+            skeleton,
+            ..default()
+        }),
+    );
+    for (name, value) in [
+        ("PoseStanding", 1.0),
+        ("PoseCrouching", 0.0),
+        ("PoseMoving", 0.0),
+        ("RotationYawOffset", 0.0),
+        ("FootLeftLock", 0.0),
+        ("FootRightLock", 0.0),
+        ("AllowTransitions", 1.0),
+        ("RotationYawSpeed", 0.0),
+        ("PoseGrounded", 1.0),
+        ("FootLeftIk", 0.0),
+        ("FootRightIk", 0.0),
+    ] {
+        player.set_input_data(format!("grounded_{name}"), DataValue::F32(value));
+    }
+}
+
 fn fsm_state<'a>(
     player: &'a AnimationGraphPlayer,
     graph: &AnimationGraph,
     name: &str,
 ) -> Option<&'a InterruptibleFsmState> {
     let id = graph.nodes.values().find(|node| node.name == name)?.id;
-    player
-        .get_context_arena()?
-        .get_toplevel()
-        .node_states
-        .get::<InterruptibleFsmState>(id, StateKey::Default)
-        .ok()
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().find_map(|context_id| {
+        arena
+            .get_context(context_id)?
+            .node_states
+            .get::<InterruptibleFsmState>(id, StateKey::Default)
+            .ok()
+    })
 }
 
 fn fsm_label(
@@ -322,7 +355,33 @@ fn verify_static(
     ) else {
         return;
     };
-    let root_contract = node::<LayeredGraphNode>(root, "Grounded Input linked graph").is_some()
+    let root_contract = root
+        .io_spec
+        .get_input_data(&GraphInputPin::Passthrough("grounded_pose".to_owned()))
+        .is_some()
+        && root
+            .io_spec
+            .iter_input_times()
+            .any(|pin| pin == &GraphInputPin::Passthrough("grounded_time".to_owned()))
+        && [
+            "PoseStanding",
+            "PoseCrouching",
+            "PoseMoving",
+            "RotationYawOffset",
+            "FootLeftLock",
+            "FootRightLock",
+            "AllowTransitions",
+            "RotationYawSpeed",
+            "PoseGrounded",
+            "FootLeftIk",
+            "FootRightIk",
+        ]
+        .into_iter()
+        .all(|name| {
+            root.io_spec
+                .get_input_data(&GraphInputPin::Passthrough(format!("grounded_{name}")))
+                .is_some()
+        })
         && node::<InterruptibleFsmNode>(root, "Locomotion States").is_some()
         && node::<DirectTransitionEventNode>(root, "locomotion transition driver")
             .is_some_and(|node| node.transitions.len() == 16);
@@ -525,6 +584,14 @@ fn verify_static(
         && architecture)
     {
         fail(&mut exit, "static contract");
+        return;
+    }
+    if std::env::var("LOCOMOTION_CONTRACT_DIRECT").is_err() {
+        info!(
+            "[LOCOMOTION-CONTRACT] Grounded Input is externally driven by the canonical AB_Als root gate"
+        );
+        probe.static_verified = true;
+        exit.write(AppExit::Success);
         return;
     }
     let outer_cases = [

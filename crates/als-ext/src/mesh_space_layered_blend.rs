@@ -164,6 +164,15 @@ impl NodeLike for MeshSpaceLayeredBlendNode {
         let alpha = ctx.data_back(Self::FACTOR)?.as_f32()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(base.timestamp));
         let overlay = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        if ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .is_none()
+        {
+            base.skeleton = overlay.skeleton.clone();
+        }
         let bone_mask = ctx.data_back(Self::IN_BONE_MASK)?.into_bone_mask()?;
         let skeleton = ctx
             .graph_context

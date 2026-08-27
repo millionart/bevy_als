@@ -132,15 +132,16 @@ mod tests {
     #[test]
     fn canonical_scene_uses_linked_graph_composition() {
         let scene = include_str!("../assets/animated_scenes/als_ragdoll.animscn.ron");
-        let graph = include_str!("../assets/graphs/locomotion_overlay.animgraph.ron");
-        assert!(scene.contains("graphs/locomotion_overlay.animgraph.ron"));
+        let graph = include_str!("../assets/graphs/ab_als/ab_als.animgraph.ron");
+        assert!(scene.contains("graphs/ab_als/ab_als.animgraph.ron"));
         assert!(!scene.contains("Monolithic"));
-        assert_eq!(graph.matches("als_ext::LayeredGraphNode").count(), 4);
         for layer in [
-            "graphs/base_locomotion.animgraph.ron",
-            "graphs/air.animgraph.ron",
-            "graphs/actions.animgraph.ron",
-            "graphs/overlay_view.animgraph.ron",
+            "AB_Als_Grounded",
+            "AB_Als_Locomotion",
+            "AB_Als_Layering",
+            "AB_Als_Head",
+            "AB_Als_Ragdolling",
+            "ALI_Overlay Overlay Inertialization",
         ] {
             assert!(graph.contains(layer));
         }
