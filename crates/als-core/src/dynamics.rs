@@ -4,8 +4,9 @@ use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 
 use crate::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
 use crate::control_scheme::AlsControlScheme;
-use crate::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount};
+use crate::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
 use crate::mantle::AlsMantleState;
+use crate::motion::AlsViewYaw;
 use crate::params::{AlsMovementParams, CmcAdapterParams, GroundedDynamics};
 use crate::roll::AlsRollState;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -30,13 +31,12 @@ pub fn max_allowed_speed(
     stance: Stance,
     rotation_mode: RotationMode,
     gait: Gait,
+    velocity: Vec3,
+    view_yaw: f32,
 ) -> f32 {
-    let speeds = params.gait_speeds(stance, rotation_mode);
-    match gait {
-        Gait::Walking => speeds.max_walk_speed,
-        Gait::Running => speeds.max_run_speed,
-        Gait::Sprinting => speeds.max_sprint_speed,
-    }
+    params
+        .gait_speed_thresholds(stance, rotation_mode, velocity, view_yaw)
+        .for_gait(gait)
 }
 
 pub fn grounded_velocity_step(
@@ -127,7 +127,8 @@ pub fn predict_grounded_stop_distance(
         if speed <= 1e-4 {
             break;
         }
-        let gait_amount = calculate_gait_amount(speed, params.gait_speeds(stance, rotation_mode));
+        let thresholds = params.gait_speed_thresholds(stance, rotation_mode, velocity, 0.0);
+        let gait_amount = calculate_gait_amount_for_thresholds(speed, thresholds);
         let dynamics = params.grounded_dynamics(stance, rotation_mode, gait_amount);
         let (next, _) = simulate_grounded_velocity(
             velocity,
@@ -149,6 +150,7 @@ pub fn refresh_grounded_dynamics_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
+            &AlsViewYaw,
             &LinearVelocity,
             &AlsMovementParamsHandle,
             &mut AlsGaitAmount,
@@ -162,6 +164,7 @@ pub fn refresh_grounded_dynamics_system(
         locomotion,
         stance,
         rotation_mode,
+        view_yaw,
         velocity,
         params_handle,
         mut gait_amount,
@@ -175,8 +178,9 @@ pub fn refresh_grounded_dynamics_system(
             continue;
         };
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
-        let speeds = params.gait_speeds(*stance, *rotation_mode);
-        gait_amount.0 = calculate_gait_amount(horizontal_speed, speeds);
+        let thresholds =
+            params.gait_speed_thresholds(*stance, *rotation_mode, velocity.0, view_yaw.0);
+        gait_amount.0 = calculate_gait_amount_for_thresholds(horizontal_speed, thresholds);
         dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
     }
 }
@@ -189,6 +193,7 @@ pub fn grounded_dynamics_motor_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
+            &AlsViewYaw,
             &AlsMaxAllowedGait,
             &AlsGroundedDynamics,
             &LinearVelocity,
@@ -206,6 +211,7 @@ pub fn grounded_dynamics_motor_system(
         locomotion,
         stance,
         rotation_mode,
+        view_yaw,
         max_allowed_gait,
         dynamics,
         velocity,
@@ -226,8 +232,15 @@ pub fn grounded_dynamics_motor_system(
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
-        let max_speed = max_allowed_speed(params, *stance, *rotation_mode, max_allowed_gait.0);
         let current = Vec3::new(velocity.x, 0.0, velocity.z);
+        let max_speed = max_allowed_speed(
+            params,
+            *stance,
+            *rotation_mode,
+            max_allowed_gait.0,
+            current,
+            view_yaw.0,
+        );
         let desired_motion = controller.basis.desired_motion;
         let (next, simulation_substeps) = simulate_grounded_velocity(
             current,
@@ -277,6 +290,26 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn max_allowed_speed_consumes_direction_dependent_thresholds() {
+        let mut params = AlsMovementParams::default();
+        params
+            .speeds
+            .standing
+            .allow_direction_dependent_movement_speed = true;
+        params.speeds.standing.max_run_backward_speed = 2.0;
+        let speed = max_allowed_speed(
+            &params,
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            Gait::Running,
+            Vec3::Z,
+            0.0,
+        );
+        println!("[BF101.5] dynamics_backward_run_speed={speed:.6}");
+        assert!((speed - 2.0).abs() < 1e-6);
+    }
 
     #[test]
     fn braking_uses_the_source_curve_without_braking_friction() {

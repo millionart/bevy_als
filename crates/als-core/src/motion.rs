@@ -53,12 +53,20 @@ pub fn gait_max_speed_for_rotation(
     gait: &Gait,
     rotation_mode: RotationMode,
 ) -> f32 {
-    let speeds = params.gait_speeds(*stance, rotation_mode);
-    match *gait {
-        Gait::Walking => speeds.max_walk_speed,
-        Gait::Running => speeds.max_run_speed,
-        Gait::Sprinting => speeds.max_sprint_speed,
-    }
+    gait_max_speed_for_velocity(params, stance, gait, rotation_mode, Vec3::ZERO, 0.0)
+}
+
+pub fn gait_max_speed_for_velocity(
+    params: &AlsMovementParams,
+    stance: &Stance,
+    gait: &Gait,
+    rotation_mode: RotationMode,
+    velocity: Vec3,
+    view_yaw: f32,
+) -> f32 {
+    params
+        .gait_speed_thresholds(*stance, rotation_mode, velocity, view_yaw)
+        .for_gait(*gait)
 }
 
 fn capsule_for(params: &AlsMovementParams, stance: Stance) -> Collider {
@@ -97,14 +105,17 @@ pub fn apply_als_control_scheme_config(
     stance: Stance,
     rotation_mode: RotationMode,
     capsule_crouched: bool,
-    horizontal_speed: f32,
+    velocity: Vec3,
+    view_yaw: f32,
 ) {
-    config.basis.speed = gait_max_speed_for_rotation(params, &stance, &gait, rotation_mode);
+    config.basis.speed =
+        gait_max_speed_for_velocity(params, &stance, &gait, rotation_mode, velocity, view_yaw);
     config.basis.float_height = params.crouch.standing_capsule_half_height
         + ALS_CHARACTER_FLOOR_CLEARANCE
         + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
     config.basis.acceleration = 0.0;
-    config.basis.air_acceleration = air_acceleration_for_horizontal_speed(params, horizontal_speed);
+    config.basis.air_acceleration =
+        air_acceleration_for_horizontal_speed(params, Vec2::new(velocity.x, velocity.z).length());
     config.basis.coyote_time = params.jump.coyote_time;
     config.basis.free_fall_extra_gravity = 0.0;
     config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
@@ -142,6 +153,7 @@ pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsContr
         Stance::Standing,
         RotationMode::ViewDirection,
         false,
+        Vec3::ZERO,
         0.0,
     );
     config
@@ -744,13 +756,24 @@ fn tnua_config_sync_system(
         &AlsMaxAllowedGait,
         &Stance,
         &RotationMode,
+        &AlsViewYaw,
         Has<AlsCapsuleCrouched>,
         &LinearVelocity,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
 ) {
-    for (config, handle, max_allowed, stance, rotation_mode, capsule_crouched, velocity) in &q {
+    for (
+        config,
+        handle,
+        max_allowed,
+        stance,
+        rotation_mode,
+        view_yaw,
+        capsule_crouched,
+        velocity,
+    ) in &q
+    {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -764,7 +787,8 @@ fn tnua_config_sync_system(
             *stance,
             *rotation_mode,
             capsule_crouched,
-            Vec2::new(velocity.x, velocity.z).length(),
+            velocity.0,
+            view_yaw.0,
         );
     }
 }
@@ -1276,6 +1300,32 @@ mod tests {
                 .distance_to_collider_top,
             params.crouch.standing_capsule_half_height
         );
+    }
+
+    #[test]
+    fn direction_dependent_speed_updates_the_tnua_config() {
+        let mut params = AlsMovementParams::default();
+        params
+            .speeds
+            .standing
+            .allow_direction_dependent_movement_speed = true;
+        params.speeds.standing.max_run_backward_speed = 2.0;
+        let mut config = AlsControlSchemeConfig::default();
+        apply_als_control_scheme_config(
+            &mut config,
+            &params,
+            Gait::Running,
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            false,
+            Vec3::Z,
+            0.0,
+        );
+        println!(
+            "[BF101.5] tnua_backward_run_speed={:.6}",
+            config.basis.speed
+        );
+        assert!((config.basis.speed - 2.0).abs() < 1e-6);
     }
 
     #[test]

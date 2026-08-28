@@ -8,8 +8,8 @@ use crate::aim::{
 use crate::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::input::AlsInputCommand;
 use crate::input_request::AlsFirstPersonView;
-use crate::motion::AlsInputOverride;
-use crate::params::{AlsMovementParams, StanceGaitSpeeds};
+use crate::motion::{AlsInputOverride, AlsViewYaw};
+use crate::params::{AlsMovementParams, GaitSpeedThresholds, StanceGaitSpeeds};
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::stride_curves::{stride_curve_run, stride_curve_walk};
 use crate::transition::{
@@ -146,11 +146,17 @@ pub fn calculate_max_allowed_gait(
 }
 
 pub fn calculate_actual_gait(speed: f32, allowed: Gait, settings: &StanceGaitSpeeds) -> Gait {
-    if speed < settings.max_walk_speed + ACTUAL_GAIT_SPEED_OFFSET {
+    calculate_actual_gait_for_thresholds(speed, allowed, settings.gait_speed_thresholds(1.0))
+}
+
+pub fn calculate_actual_gait_for_thresholds(
+    speed: f32,
+    allowed: Gait,
+    thresholds: GaitSpeedThresholds,
+) -> Gait {
+    if speed < thresholds.walk + ACTUAL_GAIT_SPEED_OFFSET {
         Gait::Walking
-    } else if speed < settings.max_run_speed + ACTUAL_GAIT_SPEED_OFFSET
-        || allowed != Gait::Sprinting
-    {
+    } else if speed < thresholds.run + ACTUAL_GAIT_SPEED_OFFSET || allowed != Gait::Sprinting {
         Gait::Running
     } else {
         Gait::Sprinting
@@ -158,24 +164,16 @@ pub fn calculate_actual_gait(speed: f32, allowed: Gait, settings: &StanceGaitSpe
 }
 
 pub fn calculate_gait_amount(speed: f32, settings: &StanceGaitSpeeds) -> f32 {
-    if speed > settings.max_run_speed {
-        remap_clamped(
-            speed,
-            settings.max_run_speed,
-            settings.max_sprint_speed,
-            2.0,
-            3.0,
-        )
-    } else if speed > settings.max_walk_speed {
-        remap_clamped(
-            speed,
-            settings.max_walk_speed,
-            settings.max_run_speed,
-            1.0,
-            2.0,
-        )
+    calculate_gait_amount_for_thresholds(speed, settings.gait_speed_thresholds(1.0))
+}
+
+pub fn calculate_gait_amount_for_thresholds(speed: f32, thresholds: GaitSpeedThresholds) -> f32 {
+    if speed > thresholds.run {
+        remap_clamped(speed, thresholds.run, thresholds.sprint, 2.0, 3.0)
+    } else if speed > thresholds.walk {
+        remap_clamped(speed, thresholds.walk, thresholds.run, 1.0, 2.0)
     } else {
-        remap_clamped(speed, 0.0, settings.max_walk_speed, 0.0, 1.0)
+        remap_clamped(speed, 0.0, thresholds.walk, 0.0, 1.0)
     }
 }
 
@@ -260,6 +258,7 @@ pub fn refresh_gait_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
+            &AlsViewYaw,
             Option<&AlsLastFreeRotationMode>,
             Has<AlsFirstPersonView>,
             &AlsInputCommand,
@@ -281,6 +280,7 @@ pub fn refresh_gait_system(
         locomotion,
         stance,
         rotation_mode,
+        view_yaw,
         last_free,
         first_person,
         command,
@@ -312,11 +312,12 @@ pub fn refresh_gait_system(
             input.move_dir,
             input.aim_held,
         );
-        let settings = params.gait_speeds(*stance, *rotation_mode);
         let speed = Vec2::new(velocity.x, velocity.z).length();
+        let thresholds =
+            params.gait_speed_thresholds(*stance, *rotation_mode, velocity.0, view_yaw.0);
         max_allowed.0 = allowed;
-        gait_amount.0 = calculate_gait_amount(speed, settings);
-        let actual = calculate_actual_gait(speed, allowed, settings);
+        gait_amount.0 = calculate_gait_amount_for_thresholds(speed, thresholds);
+        let actual = calculate_actual_gait_for_thresholds(speed, allowed, thresholds);
         if *gait != actual {
             let previous = *gait;
             *gait = actual;
@@ -357,6 +358,7 @@ mod tests {
             animated_walk_speed: 1.5,
             animated_run_speed: 3.5,
             animated_sprint_speed: 6.0,
+            ..StanceGaitSpeeds::default()
         }
     }
 
@@ -464,5 +466,54 @@ mod tests {
                 sprint_w: 0.5,
             }
         );
+    }
+
+    #[test]
+    fn refresh_gait_uses_direction_dependent_thresholds() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .add_message::<StateTransitionEvent>()
+            .add_systems(Update, refresh_gait_system);
+        let mut params = AlsMovementParams::default();
+        params
+            .speeds
+            .standing
+            .allow_direction_dependent_movement_speed = true;
+        params.speeds.standing.max_walk_backward_speed = 1.0;
+        params.speeds.standing.max_run_backward_speed = 2.0;
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params);
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Grounded,
+                Stance::Standing,
+                RotationMode::ViewDirection,
+                AlsViewYaw::default(),
+                AlsInputCommand::default(),
+                AlsDesiredGait(Gait::Running),
+                AlsMaxAllowedGait(Gait::Running),
+                AlsGaitAmount::default(),
+                Gait::Walking,
+                LinearVelocity(Vec3::Z * 1.2),
+                AlsMovementParamsHandle(handle),
+            ))
+            .id();
+
+        app.update();
+
+        let entity = app.world().entity(entity);
+        let gait = entity.get::<Gait>().unwrap();
+        let amount = entity.get::<AlsGaitAmount>().unwrap();
+        println!(
+            "[BF101.5] backward_gait={gait:?} gait_amount={:.6}",
+            amount.0
+        );
+        assert_eq!(*gait, Gait::Running);
+        assert!((amount.0 - 1.2).abs() < 1e-6);
     }
 }

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::state::{RotationMode, Stance};
+use crate::state::{Gait, RotationMode, Stance};
 
 pub const UE_CM_TO_M: f32 = 0.01;
 
@@ -32,6 +32,23 @@ impl AlsMovementParams {
             }
             Stance::Standing => &self.speeds.standing,
         }
+    }
+
+    pub fn gait_speed_thresholds(
+        &self,
+        stance: Stance,
+        rotation_mode: RotationMode,
+        velocity: Vec3,
+        view_yaw: f32,
+    ) -> GaitSpeedThresholds {
+        let speeds = self.gait_speeds(stance, rotation_mode);
+        let forward_amount = if speeds.allow_direction_dependent_movement_speed {
+            self.speeds
+                .direction_speed_forward_amount(velocity, view_yaw)
+        } else {
+            1.0
+        };
+        speeds.gait_speed_thresholds(forward_amount)
     }
 
     pub fn grounded_dynamics_profile(
@@ -83,6 +100,8 @@ impl AlsMovementParams {
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct GaitSpeeds {
+    pub velocity_angle_to_speed_interpolation_start_degrees: f32,
+    pub velocity_angle_to_speed_interpolation_end_degrees: f32,
     pub standing: StanceGaitSpeeds,
     pub aiming_standing: StanceGaitSpeeds,
     pub crouching: StanceGaitSpeeds,
@@ -91,18 +110,26 @@ pub struct GaitSpeeds {
 impl Default for GaitSpeeds {
     fn default() -> Self {
         Self {
+            velocity_angle_to_speed_interpolation_start_degrees: 100.0,
+            velocity_angle_to_speed_interpolation_end_degrees: 125.0,
             standing: StanceGaitSpeeds::default(),
             aiming_standing: StanceGaitSpeeds {
+                allow_direction_dependent_movement_speed: false,
                 max_walk_speed: 165.0 * UE_CM_TO_M,
+                max_walk_backward_speed: 165.0 * UE_CM_TO_M,
                 max_run_speed: 375.0 * UE_CM_TO_M,
+                max_run_backward_speed: 375.0 * UE_CM_TO_M,
                 max_sprint_speed: 650.0 * UE_CM_TO_M,
                 animated_walk_speed: 150.0 * UE_CM_TO_M,
                 animated_run_speed: 350.0 * UE_CM_TO_M,
                 animated_sprint_speed: 600.0 * UE_CM_TO_M,
             },
             crouching: StanceGaitSpeeds {
+                allow_direction_dependent_movement_speed: false,
                 max_walk_speed: 150.0 * UE_CM_TO_M,
+                max_walk_backward_speed: 150.0 * UE_CM_TO_M,
                 max_run_speed: 200.0 * UE_CM_TO_M,
+                max_run_backward_speed: 200.0 * UE_CM_TO_M,
                 max_sprint_speed: 300.0 * UE_CM_TO_M,
                 animated_walk_speed: 150.0 * UE_CM_TO_M,
                 animated_run_speed: 350.0 * UE_CM_TO_M,
@@ -113,7 +140,37 @@ impl Default for GaitSpeeds {
 }
 
 impl GaitSpeeds {
+    pub fn direction_speed_forward_amount(&self, velocity: Vec3, view_yaw: f32) -> f32 {
+        let horizontal_velocity = Vec2::new(velocity.x, velocity.z);
+        if horizontal_velocity.length_squared() <= 1e-6 {
+            return 1.0;
+        }
+        let velocity_yaw = f32::atan2(velocity.x, -velocity.z);
+        let relative_yaw = (velocity_yaw - view_yaw + std::f32::consts::PI)
+            .rem_euclid(std::f32::consts::TAU)
+            - std::f32::consts::PI;
+        let angle = relative_yaw.abs().to_degrees();
+        let start = self
+            .velocity_angle_to_speed_interpolation_start_degrees
+            .clamp(0.0, 180.0);
+        let end = self
+            .velocity_angle_to_speed_interpolation_end_degrees
+            .clamp(start, 180.0);
+        let backward_amount = if end <= start + f32::EPSILON {
+            if angle >= end { 1.0 } else { 0.0 }
+        } else {
+            ((angle - start) / (end - start)).clamp(0.0, 1.0)
+        };
+        1.0 - backward_amount
+    }
+
     pub fn apply_override(&mut self, ovr: &GaitSpeedsOverride) {
+        if let Some(v) = ovr.velocity_angle_to_speed_interpolation_start_degrees {
+            self.velocity_angle_to_speed_interpolation_start_degrees = v;
+        }
+        if let Some(v) = ovr.velocity_angle_to_speed_interpolation_end_degrees {
+            self.velocity_angle_to_speed_interpolation_end_degrees = v;
+        }
         if let Some(v) = &ovr.standing {
             self.standing.apply_override(v);
         }
@@ -129,8 +186,11 @@ impl GaitSpeeds {
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct StanceGaitSpeeds {
+    pub allow_direction_dependent_movement_speed: bool,
     pub max_walk_speed: f32,
+    pub max_walk_backward_speed: f32,
     pub max_run_speed: f32,
+    pub max_run_backward_speed: f32,
     pub max_sprint_speed: f32,
     pub animated_walk_speed: f32,
     pub animated_run_speed: f32,
@@ -140,8 +200,11 @@ pub struct StanceGaitSpeeds {
 impl Default for StanceGaitSpeeds {
     fn default() -> Self {
         Self {
+            allow_direction_dependent_movement_speed: false,
             max_walk_speed: 175.0 * UE_CM_TO_M,
+            max_walk_backward_speed: 175.0 * UE_CM_TO_M,
             max_run_speed: 375.0 * UE_CM_TO_M,
+            max_run_backward_speed: 375.0 * UE_CM_TO_M,
             max_sprint_speed: 650.0 * UE_CM_TO_M,
             animated_walk_speed: 150.0 * UE_CM_TO_M,
             animated_run_speed: 350.0 * UE_CM_TO_M,
@@ -151,12 +214,38 @@ impl Default for StanceGaitSpeeds {
 }
 
 impl StanceGaitSpeeds {
+    pub fn gait_speed_thresholds(&self, forward_amount: f32) -> GaitSpeedThresholds {
+        let forward_amount = if self.allow_direction_dependent_movement_speed {
+            forward_amount.clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        GaitSpeedThresholds {
+            walk: self
+                .max_walk_backward_speed
+                .lerp(self.max_walk_speed, forward_amount),
+            run: self
+                .max_run_backward_speed
+                .lerp(self.max_run_speed, forward_amount),
+            sprint: self.max_sprint_speed,
+        }
+    }
+
     pub fn apply_override(&mut self, ovr: &StanceGaitSpeedsOverride) {
+        if let Some(v) = ovr.allow_direction_dependent_movement_speed {
+            self.allow_direction_dependent_movement_speed = v;
+        }
         if let Some(v) = ovr.max_walk_speed {
             self.max_walk_speed = v;
         }
+        if let Some(v) = ovr.max_walk_backward_speed {
+            self.max_walk_backward_speed = v;
+        }
         if let Some(v) = ovr.max_run_speed {
             self.max_run_speed = v;
+        }
+        if let Some(v) = ovr.max_run_backward_speed {
+            self.max_run_backward_speed = v;
         }
         if let Some(v) = ovr.max_sprint_speed {
             self.max_sprint_speed = v;
@@ -718,6 +807,8 @@ pub struct AlsMovementParamsOverride {
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct GaitSpeedsOverride {
+    pub velocity_angle_to_speed_interpolation_start_degrees: Option<f32>,
+    pub velocity_angle_to_speed_interpolation_end_degrees: Option<f32>,
     pub standing: Option<StanceGaitSpeedsOverride>,
     pub aiming_standing: Option<StanceGaitSpeedsOverride>,
     pub crouching: Option<StanceGaitSpeedsOverride>,
@@ -726,12 +817,32 @@ pub struct GaitSpeedsOverride {
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct StanceGaitSpeedsOverride {
+    pub allow_direction_dependent_movement_speed: Option<bool>,
     pub max_walk_speed: Option<f32>,
+    pub max_walk_backward_speed: Option<f32>,
     pub max_run_speed: Option<f32>,
+    pub max_run_backward_speed: Option<f32>,
     pub max_sprint_speed: Option<f32>,
     pub animated_walk_speed: Option<f32>,
     pub animated_run_speed: Option<f32>,
     pub animated_sprint_speed: Option<f32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GaitSpeedThresholds {
+    pub walk: f32,
+    pub run: f32,
+    pub sprint: f32,
+}
+
+impl GaitSpeedThresholds {
+    pub fn for_gait(self, gait: Gait) -> f32 {
+        match gait {
+            Gait::Walking => self.walk,
+            Gait::Running => self.run,
+            Gait::Sprinting => self.sprint,
+        }
+    }
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -830,6 +941,11 @@ mod tests {
         assert!((p.speeds.crouching.max_walk_speed - 1.50).abs() < 1e-6);
         assert!((p.speeds.crouching.max_run_speed - 2.00).abs() < 1e-6);
         assert!((p.speeds.crouching.max_sprint_speed - 3.00).abs() < 1e-6);
+        assert!(!p.speeds.standing.allow_direction_dependent_movement_speed);
+        assert!(
+            (p.speeds.velocity_angle_to_speed_interpolation_start_degrees - 100.0).abs() < 1e-6
+        );
+        assert!((p.speeds.velocity_angle_to_speed_interpolation_end_degrees - 125.0).abs() < 1e-6);
 
         assert!((p.acceleration.max_acceleration - 20.0).abs() < 1e-6);
         assert!((p.acceleration.braking_deceleration - 15.0).abs() < 1e-6);
@@ -889,6 +1005,59 @@ mod tests {
         assert!((p.jump.gravity_scale - 1.0).abs() < 1e-6);
         assert_eq!(p.jump.coyote_time, 0.0);
         assert_eq!(p.jump.jump_buffer_time, 0.0);
+    }
+
+    #[test]
+    fn direction_dependent_speed_defaults_preserve_forward_thresholds() {
+        let p = AlsMovementParams::default();
+        let forward = p.gait_speed_thresholds(
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            Vec3::NEG_Z,
+            0.0,
+        );
+        let backward =
+            p.gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, Vec3::Z, 0.0);
+        assert_eq!(forward, backward);
+        assert!((forward.walk - 1.75).abs() < 1e-6);
+        assert!((forward.run - 3.75).abs() < 1e-6);
+        assert!((forward.sprint - 6.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn direction_dependent_speed_matches_the_source_interpolation_window() {
+        let mut p = AlsMovementParams::default();
+        let standing = &mut p.speeds.standing;
+        standing.allow_direction_dependent_movement_speed = true;
+        standing.max_walk_backward_speed = 1.0;
+        standing.max_run_backward_speed = 2.0;
+        let forward = p.gait_speed_thresholds(
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            Vec3::NEG_Z,
+            0.0,
+        );
+        let middle_yaw = 112.5_f32.to_radians();
+        let middle_velocity = Vec3::new(middle_yaw.sin(), 0.0, -middle_yaw.cos());
+        let middle = p.gait_speed_thresholds(
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            middle_velocity,
+            0.0,
+        );
+        let backward =
+            p.gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, Vec3::Z, 0.0);
+        println!(
+            "[BF101.5] forward=({:.3},{:.3}) middle=({:.3},{:.3}) backward=({:.3},{:.3})",
+            forward.walk, forward.run, middle.walk, middle.run, backward.walk, backward.run
+        );
+        assert!((forward.walk - 1.75).abs() < 1e-6);
+        assert!((forward.run - 3.75).abs() < 1e-6);
+        assert!((middle.walk - 1.375).abs() < 1e-6);
+        assert!((middle.run - 2.875).abs() < 1e-6);
+        assert!((backward.walk - 1.0).abs() < 1e-6);
+        assert!((backward.run - 2.0).abs() < 1e-6);
+        assert!((backward.sprint - 6.5).abs() < 1e-6);
     }
 
     #[test]
