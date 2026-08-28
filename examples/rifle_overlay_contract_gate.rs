@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlphaBlendMode, AlsExtPlugin, ConstantF32Node,
     CurveBlendNode, CurveModifyNode, CurveSampleSetNode, CurveWeightedSamplesNode, FInterpNode,
-    GameplayTagBlendMode, GameplayTagLayerBlendNode, GlobalF32InputNode, LinkedAnimLayerNode,
-    MeshSpaceAdditiveNode, ProfiledBlendNode, ResetOnActivationNode, SuppressFirstUpdateNode,
-    SyncGroupSampleNode, TimePositionNode, transition_alpha,
+    GameplayTagBlendMode, GameplayTagLayerBlendNode, GlobalF32InputNode, GlobalSyncGroupSampleNode,
+    LinkedAnimLayerNode, MeshSpaceAdditiveNode, ProfiledBlendNode, ResetOnActivationNode,
+    SuppressFirstUpdateNode, SyncGroupSampleNode, TimePositionNode, transition_alpha,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -14,7 +14,6 @@ use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::{
     blend_node::{BlendMode, BlendNode},
     fsm_node::FsmNode,
-    loop_node::LoopNode,
 };
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
@@ -278,6 +277,7 @@ fn set_inputs(
     player.set_global_input_data(ANIMATION_DELTA_SECONDS, 0.1);
     player.set_global_input_data(IN_AIR_AMOUNT, 0.0);
     player.set_global_input_data(MOVEMENT_PHASE, 0.5);
+    player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
 }
 
 fn has_time_position(graph: &AnimationGraph, name: &str, position: f32) -> bool {
@@ -310,8 +310,15 @@ fn additive_contract(graph: &AnimationGraph, name: &str, alpha: f32, base: &str)
         && graph.nodes.values().any(|node| {
             node.name == "idle loop"
                 && node
-                    .try_inner_downcast_ref::<LoopNode>()
-                    .is_some_and(|node| close(node.interpolation_period, 0.0))
+                    .try_inner_downcast_ref::<GlobalSyncGroupSampleNode>()
+                    .is_some_and(|node| {
+                        node.key == "als_secondary_motion_phase"
+                            && close(node.leader_duration, 2.666667)
+                            && node.leader_markers.is_empty()
+                            && close(node.follower_duration, 2.666667)
+                            && node.follower_markers.is_empty()
+                            && node.looped
+                    })
         })
         && graph.nodes.values().any(|node| {
             node.name == "idle additive alpha"

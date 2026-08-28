@@ -46,7 +46,7 @@
         (id: "e1060000-0000-4000-8000-000000000201", name: "poses frame zero evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
         (id: "e1060000-0000-4000-8000-000000000202", name: "poses frame one evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
         (id: "e1060000-0000-4000-8000-000000000203", name: "poses frame six evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
-        (id: "e1060000-0000-4000-8000-000000000204", name: "idle loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),
+        (id: "e1060000-0000-4000-8000-000000000204", name: "idle loop", inner: { "als_ext::GlobalSyncGroupSampleNode": (key: "als_secondary_motion_phase", leader_duration: 2.666667, leader_markers: [], follower_duration: 2.666667, follower_markers: [], looped: true) }, should_debug: false),
         (id: "e1060000-0000-4000-8000-000000000205", name: "poses frame nine evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
         (id: "e1060000-0000-4000-8000-000000000206", name: "poses frame ten evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.36666667, loop_position: false) }, should_debug: false),
         (id: "e1060000-0000-4000-8000-000000000207", name: "run arms loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),

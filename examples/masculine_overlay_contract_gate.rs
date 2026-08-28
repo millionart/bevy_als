@@ -5,14 +5,11 @@ use std::{
 
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, ConstantF32Node, FInterpNode,
-    LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
+    GlobalSyncGroupSampleNode, LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
 };
 use bevy::{ecs::message::MessageWriter, prelude::*, window::ExitCondition};
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::builtin_nodes::{
-    blend_node::{BlendMode, BlendNode},
-    loop_node::LoopNode,
-};
+use bevy_animation_graph::builtin_nodes::blend_node::{BlendMode, BlendNode};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
@@ -159,6 +156,7 @@ fn set_inputs(
     player.set_global_input_data(IN_AIR, air);
     player.set_global_input_data(GROUND_PREDICTION, prediction);
     player.set_global_input_data(DELTA_SECONDS, delta);
+    player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
 }
 fn build_root(
     interface: Handle<AnimationGraph>,
@@ -295,8 +293,15 @@ fn verify(
             .nodes
             .values()
             .find(|value| value.name == "secondary motion idle loop")
-            .and_then(|value| value.try_inner_downcast_ref::<LoopNode>())
-            .is_some_and(|value| value.interpolation_period.abs() < 1e-6)
+            .and_then(|value| value.try_inner_downcast_ref::<GlobalSyncGroupSampleNode>())
+            .is_some_and(|value| {
+                value.key == "als_secondary_motion_phase"
+                    && close(value.leader_duration, 2.666667)
+                    && value.leader_markers.is_empty()
+                    && close(value.follower_duration, 2.666667)
+                    && value.follower_markers.is_empty()
+                    && value.looped
+            })
         && node_data_edge(
             graph,
             "secondary motion additive",

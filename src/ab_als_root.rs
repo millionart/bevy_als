@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use als_core::character::AlsCharacter;
 use als_core::input::AlsInputCommand;
 use als_core::mantle::AlsMantleState;
 use als_core::roll::AlsRollState;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::view::AlsViewSmoothed;
+use als_ext::{SyncPhaseInput, SyncPhaseState, advance_sync_phase};
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -23,6 +26,13 @@ pub struct AlsRootGraphSet;
 
 pub struct AlsRootGraphPlugin;
 
+const SECONDARY_MOTION_DURATION: f32 = 2.666667;
+
+#[derive(Resource, Default)]
+struct SecondaryMotionPhases {
+    states: HashMap<Entity, SyncPhaseState>,
+}
+
 impl Plugin for AlsRootGraphPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
@@ -32,6 +42,7 @@ impl Plugin for AlsRootGraphPlugin {
                 .before(AlsLocomotionLayerSet)
                 .before(AnimationGraphSet::Final),
         )
+        .init_resource::<SecondaryMotionPhases>()
         .add_systems(PostUpdate, root_graph_writer.in_set(AlsRootGraphSet))
         .add_systems(
             FixedPostUpdate,
@@ -132,6 +143,7 @@ fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
 #[allow(clippy::type_complexity)]
 fn root_graph_writer(
     time: Res<Time>,
+    mut secondary_motion: ResMut<SecondaryMotionPhases>,
     characters: Query<
         (
             Entity,
@@ -184,6 +196,21 @@ fn root_graph_writer(
             let Ok(mut player) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
+            let secondary_motion_phase = advance_sync_phase(
+                secondary_motion
+                    .states
+                    .entry(instance.player_entity())
+                    .or_default(),
+                SyncPhaseInput {
+                    active: true,
+                    reset: false,
+                    rate: 1.0,
+                    duration: SECONDARY_MOTION_DURATION,
+                    start_phase: 0.0,
+                    looped: true,
+                    delta_seconds: time.delta_secs(),
+                },
+            );
             let crouching_amount = stance_blend.map_or(
                 if *stance == Stance::Crouching {
                     1.0
@@ -212,6 +239,7 @@ fn root_graph_writer(
             for (key, value) in [
                 ("als_root_overlay_index", overlay_layer_index(*overlay)),
                 ("als_animation_delta_seconds", time.delta_secs()),
+                ("als_secondary_motion_phase", secondary_motion_phase),
                 ("als_overlay_standing_amount", 1.0 - crouching_amount),
                 ("als_overlay_crouching_amount", crouching_amount),
                 ("als_overlay_gait_walking_amount", 1.0 - run_amount),
@@ -296,5 +324,27 @@ mod tests {
         assert_eq!(backward, 0.0);
         assert_eq!(left, 0.0);
         assert!((right - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn secondary_motion_phase_uses_the_source_idle_loop_duration() {
+        let mut state = SyncPhaseState::default();
+        let input = |delta_seconds| SyncPhaseInput {
+            active: true,
+            reset: false,
+            rate: 1.0,
+            duration: SECONDARY_MOTION_DURATION,
+            start_phase: 0.0,
+            looped: true,
+            delta_seconds,
+        };
+        assert!(advance_sync_phase(&mut state, input(0.0)).abs() < 1e-6);
+        assert!(
+            (advance_sync_phase(&mut state, input(SECONDARY_MOTION_DURATION * 0.25)) - 0.25).abs()
+                < 1e-6
+        );
+        assert!(
+            (advance_sync_phase(&mut state, input(SECONDARY_MOTION_DURATION * 0.75))).abs() < 1e-6
+        );
     }
 }

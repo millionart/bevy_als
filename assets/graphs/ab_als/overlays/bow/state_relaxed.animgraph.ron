@@ -201,7 +201,7 @@
         (
             id: "b0050000-0000-4000-8000-000000000206",
             name: "idle loop",
-            inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) },
+            inner: { "als_ext::GlobalSyncGroupSampleNode": (key: "als_secondary_motion_phase", leader_duration: 2.666667, leader_markers: [], follower_duration: 2.666667, follower_markers: [], looped: true) },
             should_debug: false,
         ),
         (

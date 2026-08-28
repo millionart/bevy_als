@@ -129,8 +129,8 @@ pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
-    SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode, SyncMarker,
-    SyncMarkerPhaseInput, SyncMarkerPosition, SyncPhaseInput, SyncPhaseState,
+    GlobalSyncGroupSampleNode, SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode,
+    SyncMarker, SyncMarkerPhaseInput, SyncMarkerPosition, SyncPhaseInput, SyncPhaseState,
     advance_marker_sync_phase, advance_sync_phase, follower_sample_time,
     marker_phase_from_sample_time, marker_phase_sample_time, marker_position_at_time,
     normalize_phase, phase_to_time, time_for_marker_position, time_to_phase,
@@ -169,6 +169,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<StateLabelEventNode>()
             .register_type::<SyncGroupPhaseNode>()
             .register_type::<SyncGroupSampleNode>()
+            .register_type::<GlobalSyncGroupSampleNode>()
             .register_type::<SlotNode>()
             .register_type::<DirectTransitionEventNode>()
             .register_type::<GlobalBoneMaskInputNode>()

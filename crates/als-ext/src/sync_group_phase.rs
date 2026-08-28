@@ -10,6 +10,8 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::global_f32_input::global_f32_or_root_default;
+
 const EPSILON: f32 = 1e-6;
 
 pub const IN_ACTIVE: &str = "active";
@@ -449,6 +451,72 @@ impl NodeLike for SyncGroupSampleNode {
     }
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct GlobalSyncGroupSampleNode {
+    pub key: String,
+    pub leader_duration: f32,
+    pub leader_markers: Vec<SyncMarker>,
+    pub follower_duration: f32,
+    pub follower_markers: Vec<SyncMarker>,
+    pub looped: bool,
+}
+
+impl NodeLike for GlobalSyncGroupSampleNode {
+    fn display_name(&self) -> String {
+        "ALS Global Sync Group Sample".into()
+    }
+
+    fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let duration = if self.follower_duration > EPSILON {
+            Some(self.follower_duration)
+        } else {
+            ctx.duration_back(IN_TIME)?
+        };
+        ctx.set_duration_fwd(duration);
+        Ok(())
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let graph_time = ctx
+            .time_update_fwd()?
+            .partial_update_basic(ctx.prev_time())
+            .unwrap_or_else(|| ctx.prev_time());
+        let phase = global_f32_or_root_default(&ctx, &self.key)?;
+        let duration = if self.follower_duration > EPSILON {
+            self.follower_duration
+        } else {
+            ctx.duration_back(IN_TIME)?.unwrap_or(EPSILON)
+        }
+        .max(EPSILON);
+        let sample_time = follower_sample_time(
+            phase,
+            self.leader_duration,
+            &self.leader_markers,
+            duration,
+            &self.follower_markers,
+            self.looped,
+        );
+        ctx.set_time_update_back(IN_TIME, TimeUpdate::Absolute(sample_time));
+        let mut pose = ctx.data_back(IN_POSE)?.into_pose()?;
+        pose.timestamp = graph_time;
+        ctx.set_time(graph_time);
+        ctx.set_data_fwd(OUT_POSE, pose);
+        ctx.set_data_fwd(OUT_SAMPLE_TIME, sample_time);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data(IN_POSE, DataSpec::Pose)
+            .add_input_time(IN_TIME)
+            .add_output_data(OUT_POSE, DataSpec::Pose)
+            .add_output_data(OUT_SAMPLE_TIME, DataSpec::F32)
+            .add_output_time();
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -650,9 +718,11 @@ mod tests {
         let mut registry = TypeRegistry::default();
         registry.register::<SyncGroupPhaseNode>();
         registry.register::<SyncGroupSampleNode>();
+        registry.register::<GlobalSyncGroupSampleNode>();
         for type_id in [
             std::any::TypeId::of::<SyncGroupPhaseNode>(),
             std::any::TypeId::of::<SyncGroupSampleNode>(),
+            std::any::TypeId::of::<GlobalSyncGroupSampleNode>(),
         ] {
             assert!(
                 registry

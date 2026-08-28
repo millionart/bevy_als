@@ -5,17 +5,14 @@ use std::{
 
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, ConstantF32Node, CurveBlendNode,
-    CurveModifyNode, FInterpNode, GameplayTagBlendMode, GameplayTagBlendNode, LinkedAnimLayerNode,
-    MultiWayBlendNode, TimePositionNode,
+    CurveModifyNode, FInterpNode, GameplayTagBlendMode, GameplayTagBlendNode,
+    GlobalSyncGroupSampleNode, LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::builtin_nodes::{
-    blend_node::{BlendMode, BlendNode},
-    loop_node::LoopNode,
-};
+use bevy_animation_graph::builtin_nodes::blend_node::{BlendMode, BlendNode};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
@@ -226,6 +223,7 @@ fn set_inputs(
     player.set_global_input_data(GROUND_PREDICTION, ground_prediction);
     player.set_global_input_data(ANIMATION_DELTA_SECONDS, delta_seconds);
     player.set_global_input_data(LOCOMOTION_ACTION, locomotion_action);
+    player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
 }
 
 fn modify_contract(graph: &AnimationGraph, name: &str) -> bool {
@@ -334,8 +332,15 @@ fn verify_static_contract(
             .nodes
             .values()
             .find(|node| node.name == "secondary motion idle loop")
-            .and_then(|node| node.try_inner_downcast_ref::<LoopNode>())
-            .is_some_and(|node| node.interpolation_period.abs() < 1e-6)
+            .and_then(|node| node.try_inner_downcast_ref::<GlobalSyncGroupSampleNode>())
+            .is_some_and(|node| {
+                node.key == "als_secondary_motion_phase"
+                    && close(node.leader_duration, 2.666667)
+                    && node.leader_markers.is_empty()
+                    && close(node.follower_duration, 2.666667)
+                    && node.follower_markers.is_empty()
+                    && node.looped
+            })
         && node_data_edge(
             graph,
             "secondary motion additive",

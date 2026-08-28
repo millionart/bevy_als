@@ -23,7 +23,7 @@
         (id: "08080808-0000-4000-8000-000000000124", name: "frame one air position", inner: { "als_ext::ConstantF32Node": (value: 0.033333335) }, should_debug: false),
         (id: "08080808-0000-4000-8000-000000000125", name: "frame zero air position", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
         (id: "08080808-0000-4000-8000-000000000201", name: "secondary motion idle clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Base/A_Als_Idle.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
-        (id: "08080808-0000-4000-8000-000000000202", name: "secondary motion idle loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),
+        (id: "08080808-0000-4000-8000-000000000202", name: "secondary motion idle loop", inner: { "als_ext::GlobalSyncGroupSampleNode": (key: "als_secondary_motion_phase", leader_duration: 2.666667, leader_markers: [], follower_duration: 2.666667, follower_markers: [], looped: true) }, should_debug: false),
         (id: "08080808-0000-4000-8000-000000000301", name: "grounded gait blend", inner: { "bevy_animation_graph::builtin_nodes::BlendNode": (mode: LinearInterpolate, sync_mode: Absolute, blend_primary: First, use_bone_mask: false) }, should_debug: false),
         (id: "08080808-0000-4000-8000-000000000302", name: "grounded stance multi way blend", inner: { "als_ext::MultiWayBlendNode": (pose_count: 2, normalize_alpha: true) }, should_debug: false),
         (id: "08080808-0000-4000-8000-000000000303", name: "ground prediction interpolation", inner: { "als_ext::FInterpNode": (increasing_speed: 20.0, decreasing_speed: 5.0) }, should_debug: false),

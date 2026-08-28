@@ -39,7 +39,7 @@
         (id: "f0090000-0000-4000-8000-000000000208", name: "rolling frame zero evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.2, loop_position: false) }, should_debug: false),
         (id: "f0090000-0000-4000-8000-000000000209", name: "torch aim evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.0, loop_position: false) }, should_debug: false),
         (id: "f0090000-0000-4000-8000-000000000210", name: "torch crouch aim evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.0, loop_position: false) }, should_debug: false),
-        (id: "f0090000-0000-4000-8000-000000000211", name: "secondary motion idle loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),
+        (id: "f0090000-0000-4000-8000-000000000211", name: "secondary motion idle loop", inner: { "als_ext::GlobalSyncGroupSampleNode": (key: "als_secondary_motion_phase", leader_duration: 2.666667, leader_markers: [], follower_duration: 2.666667, follower_markers: [], looped: true) }, should_debug: false),
         (id: "f0090000-0000-4000-8000-000000000212", name: "default walking frame zero evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.2, loop_position: false) }, should_debug: false),
         (id: "f0090000-0000-4000-8000-000000000301", name: "default gait blend", inner: { "bevy_animation_graph::builtin_nodes::BlendNode": (mode: LinearInterpolate, sync_mode: Absolute, blend_primary: First, use_bone_mask: false) }, should_debug: false),
         (id: "f0090000-0000-4000-8000-000000000302", name: "default stance blend", inner: { "als_ext::MultiWayBlendNode": (pose_count: 2, normalize_alpha: true) }, should_debug: false),

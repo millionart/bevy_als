@@ -6,16 +6,13 @@ use std::{
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, ConstantF32Node, CurveModifyNode,
     CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode, GameplayTagLayerBlendNode,
-    LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
+    GlobalSyncGroupSampleNode, LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::builtin_nodes::{
-    blend_node::{BlendMode, BlendNode},
-    loop_node::LoopNode,
-};
+use bevy_animation_graph::builtin_nodes::blend_node::{BlendMode, BlendNode};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
@@ -178,6 +175,7 @@ fn set_inputs(
     player.set_global_input_data(STANDING, standing);
     player.set_global_input_data(CROUCHING, crouching);
     player.set_global_input_data(LOCOMOTION_ACTION, locomotion_action);
+    player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
 }
 
 fn modify_contract(graph: &AnimationGraph, name: &str, curves: &[&str], values: &[f32]) -> bool {
@@ -255,7 +253,19 @@ fn verify_static_contract(
             .find(|node| node.name == "secondary motion additive")
             .and_then(|node| node.try_inner_downcast_ref::<BlendNode>())
             .is_some_and(|node| matches!(node.mode, BlendMode::Additive))
-        && graph_has_node::<LoopNode>(box_graph, "secondary motion idle loop")
+        && box_graph
+            .nodes
+            .values()
+            .find(|node| node.name == "secondary motion idle loop")
+            .and_then(|node| node.try_inner_downcast_ref::<GlobalSyncGroupSampleNode>())
+            .is_some_and(|node| {
+                node.key == "als_secondary_motion_phase"
+                    && close(node.leader_duration, 2.666667)
+                    && node.leader_markers.is_empty()
+                    && close(node.follower_duration, 2.666667)
+                    && node.follower_markers.is_empty()
+                    && node.looped
+            })
         && box_graph
             .nodes
             .values()
