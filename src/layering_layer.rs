@@ -249,6 +249,48 @@ fn arm_mesh_space_blend_amount(local_space_blend_amount: f32) -> f32 {
     }
 }
 
+fn curve_value(player: &AnimationGraphPlayer, name: &str) -> f32 {
+    player
+        .get_outputs()
+        .get(name)
+        .and_then(|value| match value {
+            DataValue::F32(value) if value.is_finite() => Some(*value),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+fn refresh_state_from_curves(
+    mut state: AlsLayeringState,
+    player: &AnimationGraphPlayer,
+) -> AlsLayeringState {
+    state.head_blend_amount = curve_value(player, "LayerHead");
+    state.head_additive_blend_amount = curve_value(player, "LayerHeadAdditive");
+    state.head_slot_blend_amount = curve_value(player, "LayerHeadSlot");
+    state.arm_left_blend_amount = curve_value(player, "LayerArmLeft");
+    state.arm_left_additive_blend_amount = curve_value(player, "LayerArmLeftAdditive");
+    state.arm_left_slot_blend_amount = curve_value(player, "LayerArmLeftSlot");
+    state.arm_left_local_space_blend_amount = curve_value(player, "LayerArmLeftLocalSpace");
+    state.arm_right_blend_amount = curve_value(player, "LayerArmRight");
+    state.arm_right_additive_blend_amount = curve_value(player, "LayerArmRightAdditive");
+    state.arm_right_slot_blend_amount = curve_value(player, "LayerArmRightSlot");
+    state.arm_right_local_space_blend_amount = curve_value(player, "LayerArmRightLocalSpace");
+    state.hand_left_blend_amount = curve_value(player, "LayerHandLeft");
+    state.hand_right_blend_amount = curve_value(player, "LayerHandRight");
+    state.spine_blend_amount = curve_value(player, "LayerSpine");
+    state.spine_additive_blend_amount = curve_value(player, "LayerSpineAdditive");
+    state.spine_slot_blend_amount = curve_value(player, "LayerSpineSlot");
+    state.pelvis_blend_amount = curve_value(player, "LayerPelvis");
+    state.pelvis_slot_blend_amount = curve_value(player, "LayerPelvisSlot");
+    state.legs_blend_amount = curve_value(player, "LayerLegs");
+    state.legs_slot_blend_amount = curve_value(player, "LayerLegsSlot");
+    state.arm_left_mesh_space_blend_amount =
+        arm_mesh_space_blend_amount(state.arm_left_local_space_blend_amount);
+    state.arm_right_mesh_space_blend_amount =
+        arm_mesh_space_blend_amount(state.arm_right_local_space_blend_amount);
+    state
+}
+
 fn write_state(player: &mut AnimationGraphPlayer, state: AlsLayeringState, crouching_amount: f32) {
     for (key, value) in [
         ("als_layering_standing_amount", 1.0 - crouching_amount),
@@ -347,11 +389,7 @@ fn layering_layer_writer(
         let Ok((character, stance, current_state)) = characters.get_mut(parent.parent()) else {
             continue;
         };
-        let mut state = current_state.as_deref().copied().unwrap_or_default();
-        state.arm_left_mesh_space_blend_amount =
-            arm_mesh_space_blend_amount(state.arm_left_local_space_blend_amount);
-        state.arm_right_mesh_space_blend_amount =
-            arm_mesh_space_blend_amount(state.arm_right_local_space_blend_amount);
+        let state = current_state.as_deref().copied().unwrap_or_default();
         let crouching_amount = stance_blend.map_or_else(
             || {
                 if stance.is_some_and(|stance| *stance == Stance::Crouching) {
@@ -362,14 +400,15 @@ fn layering_layer_writer(
             },
             |blend| blend.weight,
         );
+        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+            continue;
+        };
+        let state = refresh_state_from_curves(state, &player);
         if let Some(mut current_state) = current_state {
             *current_state = state;
         } else {
             commands.entity(character).insert(state);
         }
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
-            continue;
-        };
         write_state(&mut player, state, crouching_amount);
         write_masks(&mut player, &masks);
     }
