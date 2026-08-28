@@ -65,7 +65,7 @@ BF101.6 F003 播放率消费者与连续权重追踪／修复 ──────
   - 实时事实（2026-08-29，ALS 插件 `6ec0095`）：`RefreshStandingMovement` 以 `PoseState.UnweightedGaitRunningAmount` 与 `UnweightedGaitSprintingAmount` 连续插值 Walk／Run／Sprint 播放率；当前 `motion_graph_link` 的普通和 blended 路径都调用 `als_play_rate`，但传入离散 `Gait`，消费者可达。
   - 验收：运行探针证明消费者与输入来源；仅在可达时验证中间权重与播放率连续、有限且与固定 ALS 参考样本一致。
 
-- [ ] **BF101.Gate — 有限取证批次总验收**
+- [x] **BF101.Gate — 有限取证批次总验收**
   - 依赖：BF101.1–BF101.6。
   - 验收：每项都有真实运行日志 verdict；相关单元／集成 Gate 与 workspace 测试通过；隐私扫描无命中；未验证领域仍明确保持未定性。
 
