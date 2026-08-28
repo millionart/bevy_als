@@ -169,13 +169,73 @@ def source_rows(source_root, animations, blendspaces):
 
 
 def destination_capabilities(bevy_root):
-    text = "\n".join(path.read_text(encoding="utf-8") for path in bevy_root.rglob("*.ron"))
+    graph_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in bevy_root.rglob("*.ron")
+    )
+    workspace_root = bevy_root.parents[2]
+    code_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in (workspace_root / "crates" / "als-ext" / "src", workspace_root / "src")
+        for path in root.rglob("*.rs")
+    )
     return {
-        "sync_group": "SyncGroup" in text,
-        "marker": "Marker" in text,
-        "normalized_phase": "NormalizedPhase" in text,
-        "blendspace_filter": "BlendSpaceFilter" in text,
+        "sync_group": "SyncGroupSampleNode" in graph_text,
+        "global_sync_group": "GlobalSyncGroupSampleNode" in graph_text,
+        "marker": "SyncMarker" in code_text and "markers:" in graph_text,
+        "normalized_phase": "NormalizedBlendSpaceNode" in graph_text
+        and "SyncMarkerPhaseInput" in code_text,
+        "blendspace_filter": "CubicVec2FilterNode" in graph_text,
+        "shared_transition_time": "ResetOnActivationNode" in graph_text
+        and "state_detail_first_pivot" in graph_text
+        and "state_detail_second_pivot" in graph_text
+        and "state_detail_run_start" in graph_text,
+        "graph_text": graph_text,
     }
+
+
+def asset_is_mapped(row, capabilities):
+    asset = row["asset"]
+    if asset == "None":
+        return False
+    if asset.startswith("BS_"):
+        return capabilities["normalized_phase"]
+    return f"{asset}.anim.ron" in capabilities["graph_text"]
+
+
+def mapping_strategy(row, capabilities):
+    group = row["group"]
+    if group == "Secondary Motion":
+        return "global_secondary_motion", capabilities["global_sync_group"]
+    if group in {"Fall", "Jump", "Flail", "Land"}:
+        return "locomotion_sync_group", capabilities["sync_group"]
+    if group == "Movement":
+        return "movement_marker_phase", capabilities["sync_group"] and capabilities[
+            "normalized_phase"
+        ]
+    if group in {"First Pivot", "Second Pivot", "Run Start"}:
+        return "shared_transition_time", capabilities["shared_transition_time"]
+    if row["kind"] == "blendspace_player":
+        return "normalized_blendspace", capabilities["normalized_phase"]
+    return "direct_asset_time", True
+
+
+def destination_mappings(rows, capabilities):
+    for row in rows:
+        strategy, strategy_present = mapping_strategy(row, capabilities)
+        marker_required = bool(row["markers"]) or any(
+            sample["markers"] for sample in row["samples"]
+        )
+        row["destination_mapping"] = strategy
+        row["destination_mapped"] = (
+            asset_is_mapped(row, capabilities)
+            and strategy_present
+            and (not marker_required or capabilities["marker"])
+            and (
+                abs(row["interpolation_time"]) <= 1e-6
+                or capabilities["blendspace_filter"]
+            )
+        )
+    return rows
 
 
 def marker_text(markers):
@@ -208,10 +268,9 @@ def reason(row):
     return ", ".join(values) or "none"
 
 
-def markdown(rows, capabilities, scanned):
-    mapped = capabilities["sync_group"] and capabilities["marker"] and capabilities["normalized_phase"]
+def markdown(rows, capabilities, scanned, metadata_matches):
     required = [row for row in rows if row["needs_mapping"]]
-    unresolved = required if not mapped else []
+    unresolved = [row for row in required if not row["destination_mapped"]]
     lines = [
         "# ALS AnimBP Sync and Phase Audit",
         "",
@@ -222,15 +281,18 @@ def markdown(rows, capabilities, scanned):
         f"- Source timing nodes: {len(rows)}",
         f"- Source nodes requiring timing mapping: {len(required)}",
         f"- Explicit unresolved mappings: {len(unresolved)}",
+        f"- Source metadata matches: {metadata_matches}",
         f"- Destination SyncGroup capability: {capabilities['sync_group']}",
+        f"- Destination global SyncGroup capability: {capabilities['global_sync_group']}",
         f"- Destination marker capability: {capabilities['marker']}",
         f"- Destination normalized phase capability: {capabilities['normalized_phase']}",
         f"- Destination BlendSpace filter capability: {capabilities['blendspace_filter']}",
+        f"- Destination shared transition time capability: {capabilities['shared_transition_time']}",
         "",
         "## Source Timing Inventory",
         "",
-        "| Contract | Kind | Source graph | Asset | Group/role/method | Loop/rate/start/reset | Asset length | BlendSpace filter | Markers or samples | Required mapping | Status |",
-        "| --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- |",
+        "| Contract | Kind | Source graph | Asset | Group/role/method | Loop/rate/start/reset | Asset length | BlendSpace filter | Markers or samples | Required mapping | Destination mapping | Status |",
+        "| --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         sync = f"{row['group']} / {row['role']} / {row['method']}"
@@ -240,9 +302,9 @@ def markdown(rows, capabilities, scanned):
         )
         filter_value = f"{row['interpolation_time']:.6f} / {row['interpolation_type']}"
         timing = marker_text(row["markers"]) if "sequence" in row["kind"] else sample_text(row["samples"])
-        status = "UNRESOLVED" if row in unresolved else "Recorded"
+        status = "UNRESOLVED" if row in unresolved else "MAPPED" if row["needs_mapping"] else "Recorded"
         lines.append(
-            f"| {row['contract']} | {row['kind']} | {row['outer']} | {row['asset']} | {sync} | {playback} | {row['asset_length']:.6f} | {filter_value} | {timing} | {reason(row)} | {status} |"
+            f"| {row['contract']} | {row['kind']} | {row['outer']} | {row['asset']} | {sync} | {playback} | {row['asset_length']:.6f} | {filter_value} | {timing} | {reason(row)} | {row['destination_mapping']} | {status} |"
         )
     coverage = bool(rows) and scanned == {contract for contract, _, _ in TARGETS} and all(
         row["asset"] != "None"
@@ -258,11 +320,12 @@ def markdown(rows, capabilities, scanned):
             "## Result",
             "",
             "- Coverage: PASS" if coverage else "- Coverage: FAIL",
-            f"- Parity: {'PASS' if not unresolved else 'PENDING'}",
+            f"- Metadata: {'PASS' if metadata_matches else 'FAIL'}",
+            f"- Parity: {'PASS' if metadata_matches and not unresolved else 'PENDING'}",
             "",
         ]
     )
-    return "\n".join(lines), coverage
+    return "\n".join(lines), coverage, not unresolved and metadata_matches
 
 
 def main():
@@ -270,12 +333,21 @@ def main():
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--bevy-root", type=Path, default=Path("assets/graphs/ab_als"))
     parser.add_argument("--report", type=Path, default=Path("docs/sync-01-source-audit.md"))
+    parser.add_argument("--metadata", type=Path, default=Path("assets/sync/als_sync_metadata.ron"))
+    parser.add_argument("--require-parity", action="store_true")
     args = parser.parse_args()
     animations = animation_assets(args.source_root)
     blendspaces = blendspace_assets(args.source_root, animations)
     rows, scanned = source_rows(args.source_root, animations, blendspaces)
     capabilities = destination_capabilities(args.bevy_root)
-    report, coverage = markdown(rows, capabilities, scanned)
+    from generate_als_sync_metadata import metadata
+
+    source_metadata, _ = metadata(rows)
+    metadata_matches = args.metadata.is_file() and (
+        args.metadata.read_text(encoding="utf-8") == source_metadata
+    )
+    destination_mappings(rows, capabilities)
+    report, coverage, parity = markdown(rows, capabilities, scanned, metadata_matches)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(report, encoding="utf-8", newline="\n")
     print(
@@ -285,14 +357,13 @@ def main():
                 "source_timing_nodes": len(rows),
                 "requires_mapping": sum(row["needs_mapping"] for row in rows),
                 "coverage_pass": coverage,
-                "parity_pass": capabilities["sync_group"]
-                and capabilities["marker"]
-                and capabilities["normalized_phase"],
+                "metadata_matches": metadata_matches,
+                "parity_pass": parity,
             },
             indent=2,
         )
     )
-    return 0 if coverage else 1
+    return 0 if coverage and (parity or not args.require_parity) else 1
 
 
 if __name__ == "__main__":
