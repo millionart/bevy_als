@@ -9,58 +9,32 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
 use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::{
-    TnuaControllerPlugin, TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle,
-};
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
-use als_camera::{AlsCameraPlugin, AlsCameraRig};
-use als_core::aim::AlsAimPlugin;
-use als_core::air::AlsAirState;
-use als_core::character::{
-    AlsCharacter, AlsCharacterPlugin, AlsCrushRecovery, AlsCrushRecoveryFloor,
-};
+use als_camera::AlsCameraRig;
+use als_core::character::{AlsCharacter, AlsCrushRecovery, AlsCrushRecoveryFloor};
 use als_core::control_scheme::AlsControlScheme;
-use als_core::foot_ik::AlsFootProbePlugin;
-use als_core::input::AlsInputPlugin;
-use als_core::input_request::AlsInputRequestPlugin;
-use als_core::motion::AlsMotionPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::player_start::AlsPlayerStartReady;
-use als_core::state::{Gait, Stance};
-use als_core::transition::AlsStateTransitionPlugin;
 use als_ext::overlay_materials::{
     AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
 };
 use als_ext::playground::PlaygroundLandscape;
 use als_ext::{
-    AlsExtPlugin, PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
+    PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
     PlaygroundKinematicVelocity, PlaygroundMovingObject, PlaygroundPlugin,
     playground_moving_object_system,
 };
 use bevy_als::character_assembly::AlsCharacterAvatar;
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
-use bevy_als::foot_ik_apply::FootIkApplyPlugin;
 use bevy_als::game_mode::{
     AlsGameModePlugin, AlsPlayerAdmission, AlsPlayerAdmissionComplete, AlsScenePhysicsReady,
     request_als_player,
 };
-use bevy_als::mantle_drive::AlsMantleDrivePlugin;
-use bevy_als::motion_graph_link::{
-    compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
-};
-use bevy_als::overlay_layer::OverlayLayerPlugin;
 use bevy_als::overlay_object::OverlayObjectPlugin;
+use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
-use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
-use bevy_als::roll_drive::AlsRollDrivePlugin;
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
-use bevy_als::stop_link::AlsStopLinkPlugin;
-use bevy_als::view_layer::ViewLayerPlugin;
 
 const SPAWN_VISIBLE_VALIDATION_STEPS: u32 = 60;
 const SPAWN_SENSOR_STABLE_STEPS: u32 = 20;
@@ -72,29 +46,11 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedPostUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedPostUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsInputRequestPlugin,
-        AlsAimPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        als_core::air::AlsAirPlugin,
+        AlsPlayableCharacterPlugin,
         AlsGameModePlugin,
     ));
     app.add_plugins((
-        AlsFootProbePlugin,
-        FootIkApplyPlugin,
-        OverlayLayerPlugin,
         OverlayObjectPlugin,
-        ViewLayerPlugin,
-        AlsRollDrivePlugin,
-        AlsStopLinkPlugin,
-        AlsMantleDrivePlugin,
-        AlsRagdollLinkPlugin,
         AlsDebugDisplayPlugin,
         AlsShowDebugHudPlugin,
     ));
@@ -105,10 +61,7 @@ fn main() {
             manifest: "assets/models/playground/playground_scene.ron".into(),
         },
         PlaygroundCollisionPlugin,
-        AnimationGraphPlugin::default(),
         OverlayMaterialsPlugin,
-        AlsExtPlugin,
-        AlsCameraPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<CharacterMaterialProbe>()
@@ -137,7 +90,6 @@ fn main() {
             character_material_probe,
             platform_physics_probe,
             collision_parity_probe,
-            graph_router,
             auto_quit,
             screenshot_runner,
         ),
@@ -991,37 +943,4 @@ fn platform_physics_probe(
         );
     }
     probe.0 = true;
-}
-
-#[allow(clippy::type_complexity)]
-fn graph_router(
-    q: Query<
-        (
-            &Stance,
-            &Gait,
-            &LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-            Option<&AlsAirState>,
-        ),
-        With<AlsCharacter>,
-    >,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params: Res<Assets<AlsMovementParams>>,
-) {
-    let Ok((stance, gait, vel, handle, air)) = q.single() else {
-        return;
-    };
-    let Some(p) = params.get(handle.id()) else {
-        return;
-    };
-    let hspeed = Vec2::new(vel.x, vel.z).length();
-    let mgi = compute_motion_graph_inputs(p, *stance, *gait, hspeed);
-    let air_state = air.copied().unwrap_or(AlsAirState::default());
-    for instance in instances.iter() {
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            write_motion_graph_pins(&mut player, &mgi);
-            write_air_pins(&mut player, &air_state);
-        }
-    }
 }

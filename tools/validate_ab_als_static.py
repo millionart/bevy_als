@@ -163,13 +163,13 @@ def report(root):
     )
     assembly = text(root / "src/character_assembly.rs")
     manual = text(root / "examples/manual_playground.rs")
-    manual_uses_canonical_actor_entry = (
-        "AlsPlayableCharacterPlugin" in manual
-        and "spawn_als_character" in manual
-    ) or (
-        "AlsGameModePlugin" in manual
-        and "AlsPlayerAdmission::new()" in manual
-        and "request_als_player" in manual
+    manual_uses_canonical_actor_entry = "AlsPlayableCharacterPlugin" in manual and (
+        "spawn_als_character" in manual
+        or (
+            "AlsGameModePlugin" in manual
+            and "AlsPlayerAdmission::new()" in manual
+            and "request_als_player" in manual
+        )
     )
     checks["canonical_character_actor_entry"] = (
         'ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_ragdoll.animscn.ron"' in assembly
