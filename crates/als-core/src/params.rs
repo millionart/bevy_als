@@ -10,6 +10,7 @@ pub const UE_CM_TO_M: f32 = 0.01;
 pub struct AlsMovementParams {
     pub speeds: GaitSpeeds,
     pub acceleration: AccelerationParams,
+    pub cmc: CmcAdapterParams,
     pub rotation: RotationParams,
     pub crouch: CrouchParams,
     pub jump: JumpParams,
@@ -63,6 +64,9 @@ impl AlsMovementParams {
         }
         if let Some(v) = &ovr.acceleration {
             self.acceleration.apply_override(v);
+        }
+        if let Some(v) = &ovr.cmc {
+            self.cmc.apply_override(v);
         }
         if let Some(v) = &ovr.rotation {
             self.rotation.apply_override(v);
@@ -179,6 +183,62 @@ impl AccelerationParams {
         }
         if let Some(v) = &ovr.grounded {
             self.grounded = v.clone();
+        }
+    }
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct CmcAdapterParams {
+    pub aiming_yaw_angle_limit_degrees: f32,
+    pub min_analog_walk_speed: f32,
+    pub perch_radius_threshold: f32,
+    pub perch_additional_height: f32,
+    pub jump_off_jump_z_factor: f32,
+    pub max_simulation_time_step: f32,
+    pub max_simulation_iterations: u32,
+    pub braking_substep_time: f32,
+}
+
+impl Default for CmcAdapterParams {
+    fn default() -> Self {
+        Self {
+            aiming_yaw_angle_limit_degrees: 70.0,
+            min_analog_walk_speed: 25.0 * UE_CM_TO_M,
+            perch_radius_threshold: 15.0 * UE_CM_TO_M,
+            perch_additional_height: 0.0,
+            jump_off_jump_z_factor: 0.0,
+            max_simulation_time_step: 0.05,
+            max_simulation_iterations: 8,
+            braking_substep_time: 1.0 / 33.0,
+        }
+    }
+}
+
+impl CmcAdapterParams {
+    pub fn apply_override(&mut self, ovr: &CmcAdapterParamsOverride) {
+        if let Some(v) = ovr.aiming_yaw_angle_limit_degrees {
+            self.aiming_yaw_angle_limit_degrees = v;
+        }
+        if let Some(v) = ovr.min_analog_walk_speed {
+            self.min_analog_walk_speed = v;
+        }
+        if let Some(v) = ovr.perch_radius_threshold {
+            self.perch_radius_threshold = v;
+        }
+        if let Some(v) = ovr.perch_additional_height {
+            self.perch_additional_height = v;
+        }
+        if let Some(v) = ovr.jump_off_jump_z_factor {
+            self.jump_off_jump_z_factor = v;
+        }
+        if let Some(v) = ovr.max_simulation_time_step {
+            self.max_simulation_time_step = v;
+        }
+        if let Some(v) = ovr.max_simulation_iterations {
+            self.max_simulation_iterations = v;
+        }
+        if let Some(v) = ovr.braking_substep_time {
+            self.braking_substep_time = v;
         }
     }
 }
@@ -627,6 +687,7 @@ impl JumpParams {
 pub struct AlsMovementParamsOverride {
     pub speeds: Option<GaitSpeedsOverride>,
     pub acceleration: Option<AccelerationParamsOverride>,
+    pub cmc: Option<CmcAdapterParamsOverride>,
     pub rotation: Option<RotationParamsOverride>,
     pub crouch: Option<CrouchParamsOverride>,
     pub jump: Option<JumpParamsOverride>,
@@ -655,6 +716,19 @@ pub struct AccelerationParamsOverride {
     pub braking_deceleration: Option<f32>,
     pub ground_friction: Option<f32>,
     pub grounded: Option<GroundedDynamicsCurves>,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct CmcAdapterParamsOverride {
+    pub aiming_yaw_angle_limit_degrees: Option<f32>,
+    pub min_analog_walk_speed: Option<f32>,
+    pub perch_radius_threshold: Option<f32>,
+    pub perch_additional_height: Option<f32>,
+    pub jump_off_jump_z_factor: Option<f32>,
+    pub max_simulation_time_step: Option<f32>,
+    pub max_simulation_iterations: Option<u32>,
+    pub braking_substep_time: Option<f32>,
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -735,6 +809,14 @@ mod tests {
         assert!((p.acceleration.max_acceleration - 20.0).abs() < 1e-6);
         assert!((p.acceleration.braking_deceleration - 15.0).abs() < 1e-6);
         assert!((p.acceleration.ground_friction - 4.0).abs() < 1e-6);
+        assert!((p.cmc.aiming_yaw_angle_limit_degrees - 70.0).abs() < 1e-6);
+        assert!((p.cmc.min_analog_walk_speed - 0.25).abs() < 1e-6);
+        assert!((p.cmc.perch_radius_threshold - 0.15).abs() < 1e-6);
+        assert_eq!(p.cmc.perch_additional_height, 0.0);
+        assert_eq!(p.cmc.jump_off_jump_z_factor, 0.0);
+        assert!((p.cmc.max_simulation_time_step - 0.05).abs() < 1e-6);
+        assert_eq!(p.cmc.max_simulation_iterations, 8);
+        assert!((p.cmc.braking_substep_time - 1.0 / 33.0).abs() < 1e-6);
         assert_eq!(
             p.grounded_dynamics_profile(Stance::Standing, RotationMode::VelocityDirection),
             GroundedDynamicsProfile::Responsive
@@ -815,6 +897,7 @@ mod tests {
         let ovr: AlsMovementParamsOverride = ron::from_str(
             "(\
                 speeds: Some((crouching: Some((max_walk_speed: Some(1.2))))), \
+                cmc: Some((min_analog_walk_speed: Some(0.3))), \
                 rotation: Some((in_air_aiming_half_life: Some(0.08))), \
                 jump: Some((jump_z_velocity: Some(4.5))), \
             )",
@@ -823,6 +906,7 @@ mod tests {
         p.apply_override(&ovr);
 
         assert!((p.speeds.crouching.max_walk_speed - 1.2).abs() < 1e-6);
+        assert!((p.cmc.min_analog_walk_speed - 0.3).abs() < 1e-6);
         assert!((p.rotation.in_air_aiming_half_life - 0.08).abs() < 1e-6);
         assert!((p.jump.jump_z_velocity - 4.5).abs() < 1e-6);
 
@@ -836,6 +920,10 @@ mod tests {
             before.speeds.crouching.max_sprint_speed
         );
         assert_eq!(p.acceleration, before.acceleration);
+        assert_eq!(
+            p.cmc.aiming_yaw_angle_limit_degrees,
+            before.cmc.aiming_yaw_angle_limit_degrees
+        );
         assert_eq!(p.crouch, before.crouch);
         assert_eq!(p.jump.gravity_scale, before.jump.gravity_scale);
         assert_eq!(p.jump.coyote_time, before.jump.coyote_time);

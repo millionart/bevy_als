@@ -1,7 +1,7 @@
-use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 
-use crate::character::AlsCharacter;
+use crate::character::{AlsCharacter, als_character_capsule};
 use crate::state::LocomotionState;
 
 pub const LAND_HEAVY_IMPACT_VY: f32 = 8.0;
@@ -14,9 +14,9 @@ pub const LAND_RECOVERY_HEAVY_SECS: f32 = 1.3;
 pub const IMPACT_VY_SMOOTH_ALPHA: f32 = 0.3;
 const LAND_TAIL_SECS: f32 = 0.25;
 
-pub const GROUND_PREDICTION_VERTICAL_VY_THRESHOLD: f32 = 2.0;
-pub const GROUND_PREDICTION_MIN_VY: f32 = 40.0;
-pub const GROUND_PREDICTION_MAX_VY: f32 = 2.0;
+pub const GROUND_PREDICTION_VERTICAL_VY_THRESHOLD: f32 = -2.0;
+pub const GROUND_PREDICTION_MIN_VY: f32 = -40.0;
+pub const GROUND_PREDICTION_MAX_VY: f32 = -2.0;
 pub const GROUND_PREDICTION_MIN_SWEEP_M: f32 = 1.5;
 pub const GROUND_PREDICTION_MAX_SWEEP_M: f32 = 20.0;
 
@@ -200,6 +200,7 @@ fn air_state_system(
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GroundPrediction {
     pub amount: f32,
+    pub hit_fraction: Option<f32>,
     pub sweep_start: Option<Vec3>,
     pub sweep_end: Option<Vec3>,
     pub capsule_half_height: f32,
@@ -208,6 +209,15 @@ pub struct GroundPrediction {
 }
 
 pub const WALKABLE_FLOOR_COS: f32 = 0.71;
+
+pub fn ground_prediction_amount(hit_fraction: f32) -> f32 {
+    let time = hit_fraction.clamp(0.0, 1.0);
+    let time_squared = time * time;
+    let time_cubed = time_squared * time;
+    let h00 = 2.0 * time_cubed - 3.0 * time_squared + 1.0;
+    let h10 = time_cubed - 2.0 * time_squared + time;
+    (h00 - 2.066_088_4 * h10).clamp(0.0, 1.0)
+}
 
 pub fn ground_prediction_sweep(
     spatial: &SpatialQuery,
@@ -219,13 +229,14 @@ pub fn ground_prediction_sweep(
 ) -> GroundPrediction {
     let mut result = GroundPrediction {
         amount: 0.0,
+        hit_fraction: None,
         sweep_start: None,
         sweep_end: None,
         capsule_half_height,
         capsule_radius,
         ground_valid: false,
     };
-    if -velocity.y <= GROUND_PREDICTION_VERTICAL_VY_THRESHOLD {
+    if velocity.y > GROUND_PREDICTION_VERTICAL_VY_THRESHOLD {
         return result;
     }
     let Ok(dir) = Dir3::new(
@@ -233,29 +244,33 @@ pub fn ground_prediction_sweep(
             velocity.x,
             velocity
                 .y
-                .clamp(-GROUND_PREDICTION_MIN_VY, -GROUND_PREDICTION_MAX_VY),
+                .clamp(GROUND_PREDICTION_MIN_VY, GROUND_PREDICTION_MAX_VY),
             velocity.z,
         )
         .normalize_or_zero(),
     ) else {
         return result;
     };
-    let fall_speed = (-velocity.y).clamp(GROUND_PREDICTION_MAX_VY, GROUND_PREDICTION_MIN_VY);
+    let vertical_velocity = velocity
+        .y
+        .clamp(GROUND_PREDICTION_MIN_VY, GROUND_PREDICTION_MAX_VY);
     let distance = GROUND_PREDICTION_MIN_SWEEP_M
-        + (fall_speed - GROUND_PREDICTION_MAX_VY)
+        + (vertical_velocity - GROUND_PREDICTION_MAX_VY)
             / (GROUND_PREDICTION_MIN_VY - GROUND_PREDICTION_MAX_VY)
             * (GROUND_PREDICTION_MAX_SWEEP_M - GROUND_PREDICTION_MIN_SWEEP_M);
     let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
-    let hit = spatial.cast_ray(origin, dir, distance, false, &filter);
+    let shape = als_character_capsule(capsule_half_height, capsule_radius);
+    let config = ShapeCastConfig::from_max_distance(distance);
+    let hit = spatial.cast_shape(&shape, origin, Quat::IDENTITY, dir, &config, &filter);
     result.sweep_start = Some(origin);
     match hit {
         Some(h) => {
             result.sweep_end = Some(origin + dir * h.distance);
-            result.ground_valid = h.normal.y >= WALKABLE_FLOOR_COS;
+            result.ground_valid = h.normal1.y >= WALKABLE_FLOOR_COS;
             if result.ground_valid {
                 let time_frac = (h.distance / distance).clamp(0.0, 1.0);
-                // UE CF_Als_GroundPredictionAmount: t=0 -> 1.0, t=1 -> 0.0 (linear-ish falloff).
-                result.amount = (1.0 - time_frac).clamp(0.0, 1.0);
+                result.hit_fraction = Some(time_frac);
+                result.amount = ground_prediction_amount(time_frac);
             }
         }
         None => {
@@ -402,5 +417,23 @@ mod tests {
     #[test]
     fn source_walkable_floor_cosine_is_preserved() {
         assert!((WALKABLE_FLOOR_COS - 0.71).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ground_prediction_curve_matches_the_exported_source_samples() {
+        assert!((ground_prediction_amount(0.0) - 1.0).abs() < 1e-6);
+        assert!((ground_prediction_amount(0.25) - 0.553_206_3).abs() < 1e-6);
+        assert!((ground_prediction_amount(0.5) - 0.241_738_95).abs() < 1e-6);
+        assert!((ground_prediction_amount(0.75) - 0.059_402_11).abs() < 1e-6);
+        assert!(ground_prediction_amount(1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ground_prediction_source_velocity_contract_is_preserved() {
+        assert!((GROUND_PREDICTION_VERTICAL_VY_THRESHOLD + 2.0).abs() < 1e-6);
+        assert!((GROUND_PREDICTION_MIN_VY + 40.0).abs() < 1e-6);
+        assert!((GROUND_PREDICTION_MAX_VY + 2.0).abs() < 1e-6);
+        assert!((GROUND_PREDICTION_MIN_SWEEP_M - 1.5).abs() < 1e-6);
+        assert!((GROUND_PREDICTION_MAX_SWEEP_M - 20.0).abs() < 1e-6);
     }
 }

@@ -1,4 +1,6 @@
-use avian3d::prelude::{Collider, LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{
+    Collider, LinearVelocity, PhysicsSystems, Rotation, SpatialQuery, SpatialQueryFilter,
+};
 use bevy::asset::{AssetId, Assets};
 use bevy::prelude::*;
 use bevy_tnua::TnuaController;
@@ -14,6 +16,7 @@ use crate::character::{
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
+use crate::input_request::AlsFirstPersonView;
 use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -158,6 +161,87 @@ pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
     Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()
 }
 
+pub fn wrap_yaw_radians(yaw: f32) -> f32 {
+    (yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
+}
+
+pub fn constrained_aiming_yaw(
+    view_yaw: f32,
+    actor_yaw: f32,
+    minimum_limit_degrees: f32,
+    active_limit_degrees: f32,
+    reset: bool,
+) -> (f32, f32) {
+    let minimum_limit = minimum_limit_degrees.clamp(0.0, 180.0).to_radians();
+    let mut limit = if reset {
+        std::f32::consts::PI
+    } else {
+        active_limit_degrees
+            .clamp(minimum_limit_degrees, 180.0)
+            .to_radians()
+    };
+    let view_space_yaw = wrap_yaw_radians(view_yaw - actor_yaw);
+    if view_space_yaw.abs() <= minimum_limit {
+        limit = minimum_limit;
+    } else if !reset && view_space_yaw.abs() <= limit {
+        limit = view_space_yaw.abs().max(minimum_limit);
+    }
+    let constrained = view_space_yaw.clamp(-limit, limit);
+    (wrap_yaw_radians(view_yaw - constrained), limit.to_degrees())
+}
+
+fn aiming_yaw_constraint_system(
+    params_assets: Res<Assets<AlsMovementParams>>,
+    mut q: Query<
+        (
+            &RotationMode,
+            Has<AlsFirstPersonView>,
+            &AlsViewYaw,
+            &AlsMovementParamsHandle,
+            &mut Rotation,
+            &mut Transform,
+            &mut AlsAimingYawConstraint,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (
+        rotation_mode,
+        first_person,
+        view_yaw,
+        params_handle,
+        mut rotation,
+        mut transform,
+        mut constraint,
+    ) in &mut q
+    {
+        let applies = *rotation_mode == RotationMode::Aiming || first_person;
+        if !applies {
+            constraint.applied_last_frame = false;
+            constraint.active_limit_degrees = 180.0;
+            continue;
+        }
+        let Some(params) = params_assets.get(params_handle.id()) else {
+            continue;
+        };
+        let (actor_yaw, _, _) = rotation.0.to_euler(EulerRot::YXZ);
+        let view_direction = view_relative_move_direction(Vec2::Y, view_yaw.0);
+        let view_target_yaw = f32::atan2(view_direction.x, -view_direction.z);
+        let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
+            view_target_yaw,
+            actor_yaw,
+            params.cmc.aiming_yaw_angle_limit_degrees,
+            constraint.active_limit_degrees,
+            !constraint.applied_last_frame,
+        );
+        let next_rotation = Quat::from_rotation_y(constrained_yaw);
+        rotation.0 = next_rotation;
+        transform.rotation = next_rotation;
+        constraint.active_limit_degrees = active_limit_degrees;
+        constraint.applied_last_frame = true;
+    }
+}
+
 #[cfg(test)]
 mod rotation_cap_tests {
     use super::*;
@@ -171,6 +255,24 @@ mod rotation_cap_tests {
         assert!(
             turn_angvel(RotationMode::VelocityDirection) > turn_angvel(RotationMode::ViewDirection)
         );
+    }
+
+    #[test]
+    fn aiming_yaw_constraint_matches_source_reset_and_primary_limit() {
+        let (first_yaw, first_limit) =
+            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, true);
+        assert!(wrap_yaw_radians(first_yaw).abs() < 1e-6);
+        assert!((first_limit - 180.0).abs() < 1e-6);
+
+        let (limited_yaw, limited_limit) =
+            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, false);
+        assert!((limited_yaw.abs() - 110.0_f32.to_radians()).abs() < 1e-6);
+        assert!((limited_limit - 70.0).abs() < 1e-6);
+
+        let (near_yaw, near_limit) =
+            constrained_aiming_yaw(20.0_f32.to_radians(), 0.0, 70.0, 180.0, false);
+        assert!((near_yaw - 0.0).abs() < 1e-6);
+        assert!((near_limit - 70.0).abs() < 1e-6);
     }
 
     #[test]
@@ -215,6 +317,21 @@ mod rotation_cap_tests {
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsViewYaw(pub f32);
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsAimingYawConstraint {
+    pub active_limit_degrees: f32,
+    pub applied_last_frame: bool,
+}
+
+impl Default for AlsAimingYawConstraint {
+    fn default() -> Self {
+        Self {
+            active_limit_degrees: 180.0,
+            applied_last_frame: false,
+        }
+    }
+}
 
 #[derive(Component, Debug, Default, Clone)]
 pub struct AlsInputOverride(pub AlsInputCommand);
@@ -301,6 +418,10 @@ impl Plugin for AlsMotionPlugin {
                 step_up_assist_system,
                 capsule_reshape_system,
             ),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            aiming_yaw_constraint_system.after(PhysicsSystems::Last),
         );
     }
 }

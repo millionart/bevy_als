@@ -192,6 +192,7 @@ struct ActionsVerdict {
     stop_started: bool,
     prev_stop_active: bool,
     stop_start_xz: Vec2,
+    stop_total: f32,
     stop_slide: f32,
     stop_remaining_end: f32,
     stop_peak_weight: f32,
@@ -402,6 +403,7 @@ fn actions_watcher(
     if !v.stop_started && stop.active {
         v.stop_started = true;
         v.stop_start_xz = xz;
+        v.stop_total = stop.total;
         info!("[AGATE][STOP] matched start total={:.3}", stop.total);
     }
     if v.stop_started {
@@ -417,14 +419,17 @@ fn actions_watcher(
             v.stop_remaining_end = stop.remaining;
             let ok_roll = v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
             let ok_land = v.saw_air && v.landed_light;
-            let ok_stop = v.stop_slide <= 1.5
+            let stop_distance_error = (v.stop_slide - v.stop_total).abs();
+            let ok_stop = stop_distance_error <= (0.25_f32).max(v.stop_total * 0.15)
                 && v.stop_peak_weight >= 0.95
                 && (v.stop_remaining_end <= 0.08 || v.stop_slide >= 0.05);
             info!(
-                "[AGATE][VERDICT] roll(dist={:.2},align={:+.3})={ok_roll} jump_light={ok_land} stop(slide={:.2},peak_w={:.2},rem_end={:.3})={ok_stop} -> {}",
+                "[AGATE][VERDICT] roll(dist={:.2},align={:+.3})={ok_roll} jump_light={ok_land} stop(slide={:.2},total={:.2},error={:.2},peak_w={:.2},rem_end={:.3})={ok_stop} -> {}",
                 v.roll_dist,
                 v.roll_align,
                 v.stop_slide,
+                v.stop_total,
+                stop_distance_error,
                 v.stop_peak_weight,
                 v.stop_remaining_end,
                 if ok_roll && ok_land && ok_stop {
