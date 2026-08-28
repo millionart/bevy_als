@@ -5,7 +5,7 @@ use als_ext::{
     CurveBlendNode, CurveModifyNode, CurveSampleSetNode, CurveWeightedSamplesNode, FInterpNode,
     GameplayTagBlendMode, GameplayTagLayerBlendNode, GlobalF32InputNode, LinkedAnimLayerNode,
     MeshSpaceAdditiveNode, ProfiledBlendNode, ResetOnActivationNode, SuppressFirstUpdateNode,
-    TimePositionNode, transition_alpha,
+    SyncGroupSampleNode, TimePositionNode, transition_alpha,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -42,6 +42,7 @@ const MOVING: &str = "als_overlay_is_moving";
 const SPRINTING: &str = "als_overlay_is_sprinting";
 const IN_AIR: &str = "als_overlay_is_in_air";
 const TRANSITIONS_ALLOWED: &str = "als_overlay_transitions_allowed";
+const MOVEMENT_PHASE: &str = "als_movement_marker_phase";
 const PITCH_AMOUNT: &str = "als_overlay_pitch_amount";
 const GROUND_PREDICTION: &str = "als_overlay_ground_prediction_amount";
 const VELOCITY_FORWARD: &str = "als_overlay_velocity_forward_amount";
@@ -276,6 +277,7 @@ fn set_inputs(
     player.set_global_input_data(SPRINT_ACCELERATION, 0.0);
     player.set_global_input_data(ANIMATION_DELTA_SECONDS, 0.1);
     player.set_global_input_data(IN_AIR_AMOUNT, 0.0);
+    player.set_global_input_data(MOVEMENT_PHASE, 0.5);
 }
 
 fn has_time_position(graph: &AnimationGraph, name: &str, position: f32) -> bool {
@@ -721,7 +723,7 @@ fn verify_static_contract(
         relaxed,
         "relaxed velocity directional blend",
         "pose_0",
-        "run arms loop",
+        "run arms movement follower",
         "pose",
     ) && node_data_edge(
         relaxed,
@@ -815,9 +817,33 @@ fn verify_static_contract(
             relaxed,
             "relaxed sprint impulse blend",
             "pose_b",
-            "sprint impulse reset on activation",
+            "sprint impulse arms movement follower",
             "pose",
         )
+        && [
+            ("run arms movement follower", 0.8),
+            ("sprint arms movement follower", 0.6),
+            ("sprint impulse arms movement follower", 0.6),
+        ]
+        .into_iter()
+        .all(|(name, duration)| {
+            relaxed
+                .nodes
+                .values()
+                .find(|node| node.name == name)
+                .and_then(|node| node.try_inner_downcast_ref::<SyncGroupSampleNode>())
+                .is_some_and(|node| {
+                    close(node.leader_duration, 1.0)
+                        && close(node.follower_duration, duration)
+                        && node.looped
+                        && node.leader_markers.len() == 2
+                        && node.follower_markers.len() == 2
+                })
+        })
+        && relaxed.nodes.values().any(|node| {
+            node.try_inner_downcast_ref::<GlobalF32InputNode>()
+                .is_some_and(|node| node.key == MOVEMENT_PHASE)
+        })
         && f_interp_contract(relaxed, "ground prediction interpolation", 20.0, 5.0)
         && f_interp_contract(relaxed, "sprint gait interpolation", 0.0, 5.0)
         && f_interp_contract(relaxed, "running gait interpolation", 0.0, 5.0)

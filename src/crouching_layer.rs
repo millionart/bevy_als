@@ -1207,6 +1207,7 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
             "als_crouching_movement_marker_phase",
             inputs.movement_marker_phase,
         ),
+        ("als_movement_marker_phase", inputs.movement_marker_phase),
         ("als_crouching_delta_seconds", inputs.delta_seconds),
         ("als_crouching_rotate_clip_time", inputs.rotate_clip_time),
         ("als_crouching_turn_index", inputs.turn_index),
@@ -1479,6 +1480,24 @@ mod tests {
         assert_eq!(forward_marker.previous, right_marker.previous);
         assert_eq!(forward_marker.next, right_marker.next);
         assert!((forward_marker.alpha - right_marker.alpha).abs() < 1e-5);
+    }
+
+    #[test]
+    fn crouching_writes_the_canonical_movement_phase_for_linked_overlays() {
+        let mut player = AnimationGraphPlayer::new(default());
+        write_crouching_inputs(
+            &mut player,
+            CrouchingGraphInputs {
+                movement_marker_phase: 0.25,
+                ..default()
+            },
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("als_movement_marker_phase")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.25)
+        );
     }
 
     #[test]

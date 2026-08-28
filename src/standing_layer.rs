@@ -1632,6 +1632,7 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
             "als_standing_movement_marker_phase",
             inputs.movement_marker_phase,
         ),
+        ("als_movement_marker_phase", inputs.movement_marker_phase),
         ("als_standing_rotation_play_rate", inputs.rotation_play_rate),
         ("als_standing_rotate_clip_time", inputs.rotate_clip_time),
         ("als_standing_turn_index", inputs.turn_index),
@@ -1961,6 +1962,24 @@ mod tests {
         assert!(!normal.sprint);
         assert!(sprint.sprint);
         assert!((sprint.duration - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standing_writes_the_canonical_movement_phase_for_linked_overlays() {
+        let mut player = AnimationGraphPlayer::new(default());
+        write_standing_inputs(
+            &mut player,
+            StandingGraphInputs {
+                movement_marker_phase: 0.25,
+                ..default()
+            },
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("als_movement_marker_phase")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.25)
+        );
     }
 
     #[test]
