@@ -14,6 +14,7 @@ use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
+use bevy_animation_graph::builtin_nodes::blend_node::BlendNode;
 use bevy_animation_graph::builtin_nodes::loop_node::LoopNode;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
@@ -226,6 +227,19 @@ fn node<'a, T: 'static>(graph: &'a AnimationGraph, name: &str) -> Option<&'a T> 
         .values()
         .find(|candidate| candidate.name == name)
         .and_then(|candidate| candidate.try_inner_downcast_ref::<T>())
+}
+
+fn has_factor_input(graph: &AnimationGraph, name: &str) -> bool {
+    let Some(node) = graph.nodes.values().find(|node| node.name == name) else {
+        return false;
+    };
+    node.try_inner_downcast_ref::<BlendNode>().is_some()
+        && graph
+            .edges_inverted
+            .contains_key(&TargetPin::NodeData(node.id, "factor".to_owned()))
+        && !graph
+            .edges_inverted
+            .contains_key(&TargetPin::NodeData(node.id, "alpha".to_owned()))
 }
 
 fn has_named_constant(graph: &AnimationGraph, name: &str, expected: f32) -> bool {
@@ -844,6 +858,14 @@ fn verify_static_contract(
         && has_node::<LayeredGraphNode>(root, "standing turn linked layer")
         && has_node::<LayeredGraphNode>(root, "standing quick stop linked layer")
         && has_node::<LayeredGraphNode>(root, "standing lean linked layer");
+    let factor_pins = [
+        "standing turn blend",
+        "standing quick stop blend",
+        "standing lean additive",
+        "standing movement cache clock",
+    ]
+    .into_iter()
+    .all(|name| has_factor_input(root, name));
     let interfaces = [
         "pose",
         "standing_state",
@@ -1090,9 +1112,10 @@ fn verify_static_contract(
         && transition_nodes
         && rotate_completion
         && architecture
-        && asset_contract;
+        && asset_contract
+        && factor_pins;
     info!(
-        "[STANDING-CONTRACT] linked={} interfaces={} state_machines={} wrappers={} cycle={} resets={} velocity_blends={} stop_plants={} transitions={} rotate_completion={} architecture={} assets={}",
+        "[STANDING-CONTRACT] linked={} interfaces={} state_machines={} wrappers={} cycle={} resets={} velocity_blends={} stop_plants={} transitions={} rotate_completion={} architecture={} assets={} factor_pins={}",
         linked,
         interfaces,
         state_machines,
@@ -1105,6 +1128,7 @@ fn verify_static_contract(
         rotate_completion,
         architecture,
         asset_contract,
+        factor_pins,
     );
     if !pass {
         fail(&mut exit, 3, "static contract");
