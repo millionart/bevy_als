@@ -22,7 +22,7 @@ pub fn input_state_request_system(
         (
             Entity,
             &Stance,
-            &Gait,
+            &mut crate::gait::AlsDesiredGait,
             &LocomotionState,
             &RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
@@ -39,7 +39,7 @@ pub fn input_state_request_system(
     for (
         entity,
         stance,
-        gait,
+        mut desired_gait,
         loco,
         rotation_mode,
         mut last_free,
@@ -66,9 +66,9 @@ pub fn input_state_request_system(
         let sprint_now = effective.sprint_held;
         let sprint_was = sprint_prev.as_deref().map(|s| s.0).unwrap_or(false);
         if sprint_now && !sprint_was {
-            request.gait = Some(Gait::Sprinting);
+            desired_gait.0 = Gait::Sprinting;
         } else if !sprint_now && sprint_was {
-            request.gait = Some(Gait::Running);
+            desired_gait.0 = Gait::Running;
         }
         match sprint_prev {
             Some(mut sp) => sp.0 = sprint_now,
@@ -78,13 +78,11 @@ pub fn input_state_request_system(
         }
 
         if effective.walk_pressed {
-            let base = match gait {
+            let base = match desired_gait.0 {
                 Gait::Walking => Gait::Running,
                 _ => Gait::Walking,
             };
-            if *loco == LocomotionState::Grounded || request.gait.is_some() {
-                request.gait = Some(base);
-            }
+            desired_gait.0 = base;
         }
 
         if effective.ragdoll_pressed {
@@ -154,9 +152,7 @@ mod tests {
     use super::*;
     use crate::state::{LocomotionState, OverlayState, RotationMode};
     use crate::transition::AlsStateTransitionPlugin;
-    use crate::transition::{Dimension, StateTransitionEvent, StateValue};
     use bevy::MinimalPlugins;
-    use bevy::ecs::system::RunSystemOnce;
 
     type AppBuilder = App;
 
@@ -167,6 +163,7 @@ mod tests {
                 LocomotionState::Grounded,
                 stance,
                 gait,
+                crate::gait::AlsDesiredGait(gait),
                 RotationMode::VelocityDirection,
                 OverlayState::Default,
                 AlsStateRequest::default(),
@@ -245,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn sprint_hold_requests_sprinting_and_release_restores_running() {
+    fn sprint_hold_updates_desired_gait_and_release_restores_running() {
         let mut app = app_with_plugins();
         let e = spawn_character(
             &mut app,
@@ -258,7 +255,10 @@ mod tests {
         );
 
         app.update();
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Sprinting);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Sprinting
+        );
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
 
         app.world_mut()
@@ -266,12 +266,15 @@ mod tests {
             .unwrap()
             .sprint_held = false;
         app.update();
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Running);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Running
+        );
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
     }
 
     #[test]
-    fn sprint_request_is_idempotent_while_held() {
+    fn sprint_desired_gait_is_idempotent_while_held() {
         let mut app = app_with_plugins();
         let e = spawn_character(
             &mut app,
@@ -286,28 +289,14 @@ mod tests {
         app.update();
         app.update();
 
-        let events = app
-            .world_mut()
-            .run_system_once(|mut r: MessageReader<StateTransitionEvent>| {
-                r.read()
-                    .filter(|ev| ev.dimension == Dimension::Gait)
-                    .copied()
-                    .collect::<Vec<_>>()
-            })
-            .unwrap();
         assert_eq!(
-            events.len(),
-            1,
-            "held sprint must not re-emit gait transitions"
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Sprinting
         );
         assert_eq!(
-            events[0],
-            StateTransitionEvent {
-                entity: e,
-                dimension: Dimension::Gait,
-                from: StateValue::Gait(Gait::Running),
-                to: StateValue::Gait(Gait::Sprinting),
-            }
+            app.world().get::<AlsStateRequest>(e).unwrap().gait,
+            None,
+            "held sprint only changes desired gait on its press edge"
         );
     }
 
@@ -334,11 +323,14 @@ mod tests {
 
         app.update();
         assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Crouching);
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Sprinting);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Sprinting
+        );
     }
 
     #[test]
-    fn airborne_sprint_release_clears_queued_sprint() {
+    fn airborne_sprint_updates_desired_gait_without_changing_actual_gait() {
         let mut app = app_with_plugins();
         let e = spawn_character(
             &mut app,
@@ -353,9 +345,13 @@ mod tests {
 
         app.update();
         assert_eq!(
-            app.world().get::<AlsStateRequest>(e).unwrap().gait,
-            Some(Gait::Sprinting),
-            "sprint in air queues like ALS desired-gait persistence"
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Sprinting
+        );
+        assert_eq!(
+            *app.world().get::<Gait>(e).unwrap(),
+            Gait::Running,
+            "actual gait changes only in the grounded gait refresh"
         );
 
         app.world_mut()
@@ -364,10 +360,10 @@ mod tests {
             .sprint_held = false;
         app.update();
         assert_eq!(
-            app.world().get::<AlsStateRequest>(e).unwrap().gait,
-            None,
-            "release edge overwrites queued sprint with running; same-value accept clears the slot same frame"
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Running
         );
+        assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().gait, None);
 
         *app.world_mut().get_mut::<LocomotionState>(e).unwrap() = LocomotionState::Grounded;
         app.update();
@@ -389,21 +385,30 @@ mod tests {
         );
 
         app.update();
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Walking);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Walking
+        );
 
         app.world_mut()
             .get_mut::<AlsInputCommand>(e)
             .unwrap()
             .walk_pressed = false;
         app.update();
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Walking);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Walking
+        );
 
         app.world_mut()
             .get_mut::<AlsInputCommand>(e)
             .unwrap()
             .walk_pressed = true;
         app.update();
-        assert_eq!(*app.world().get::<Gait>(e).unwrap(), Gait::Running);
+        assert_eq!(
+            app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
+            Gait::Running
+        );
     }
 
     #[test]

@@ -111,6 +111,20 @@ def main() -> None:
         body, _ = post({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                         "params": {"name": "list_toolsets", "arguments": {}}}, sid)
         print(extract_text(body))
+    elif args[0] == "describe_toolset":
+        body, _ = post(
+            {
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "describe_toolset",
+                    "arguments": {"toolset_name": args[1]},
+                },
+            },
+            sid,
+        )
+        print(extract_text(body))
     elif args[0] == "call":
         inner = {"tool_name": args[2] if len(args) > 2 else "",
                  "arguments": json.loads(args[3]) if len(args) > 3 else {}}

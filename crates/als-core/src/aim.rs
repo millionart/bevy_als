@@ -1,6 +1,7 @@
 use bevy::ecs::message::Message;
 use bevy::prelude::*;
 
+use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
@@ -25,7 +26,7 @@ pub fn aim_rotation_mode_system(
             Entity,
             &AlsInputCommand,
             Option<&crate::motion::AlsInputOverride>,
-            &Gait,
+            &AlsMaxAllowedGait,
             &Stance,
             &LocomotionState,
             Has<crate::input_request::AlsFirstPersonView>,
@@ -37,8 +38,18 @@ pub fn aim_rotation_mode_system(
     >,
     mut commands: Commands,
 ) {
-    for (entity, cmd, ovr, gait, stance, loco, first_person, current, last_free, mut request) in
-        &mut q
+    for (
+        entity,
+        cmd,
+        ovr,
+        max_allowed,
+        stance,
+        loco,
+        first_person,
+        current,
+        last_free,
+        mut request,
+    ) in &mut q
     {
         let base = if ovr.map(|o| o.0.aim_held).unwrap_or(false) {
             let mut c = *cmd;
@@ -62,9 +73,7 @@ pub fn aim_rotation_mode_system(
 
         let sprinting = *loco == LocomotionState::Grounded
             && *stance == Stance::Standing
-            && base.sprint_held
-            && base.move_dir.length_squared() > 1e-6
-            && (*gait == Gait::Sprinting || SPRINT_HAS_PRIORITY_OVER_AIMING);
+            && max_allowed.0 == Gait::Sprinting;
         let desired = if *loco == LocomotionState::Air {
             if want_aim && ALLOW_AIMING_IN_AIR {
                 RotationMode::Aiming
@@ -113,7 +122,9 @@ impl Plugin for AlsAimPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<AimStateChanged>().add_systems(
             Update,
-            aim_rotation_mode_system.before(crate::transition::state_transition_system),
+            aim_rotation_mode_system
+                .after(crate::gait::refresh_gait_system)
+                .before(crate::transition::state_transition_system),
         );
     }
 }
@@ -252,6 +263,9 @@ mod tests {
             move_dir: Vec2::Y,
             ..Default::default()
         });
+        app.world_mut()
+            .entity_mut(e)
+            .insert(AlsMaxAllowedGait(Gait::Sprinting));
         app.update();
         assert_eq!(
             *app.world().get::<RotationMode>(e).unwrap(),
@@ -262,6 +276,9 @@ mod tests {
             .get_mut::<AlsInputCommand>(e)
             .unwrap()
             .sprint_held = false;
+        app.world_mut()
+            .entity_mut(e)
+            .insert(AlsMaxAllowedGait(Gait::Running));
         app.update();
         assert_eq!(
             *app.world().get::<RotationMode>(e).unwrap(),

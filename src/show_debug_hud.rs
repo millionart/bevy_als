@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 use als_camera::{AlsCameraMode, AlsCameraParams, AlsCameraRig, blended_shoulder};
 use als_core::character::AlsCharacter;
+use als_core::gait::AlsDesiredGait;
 use als_core::input::AlsInputCommand;
 use als_core::mantle::AlsMantleState;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
@@ -314,6 +315,7 @@ impl CharacterSnapshot {
         rotation_mode: RotationMode,
         stance: Stance,
         gait: Gait,
+        desired_gait: Gait,
         overlay_state: OverlayState,
         request: &AlsStateRequest,
         input_move_dir: Option<Vec2>,
@@ -342,7 +344,7 @@ impl CharacterSnapshot {
             overlay_state,
             desired_rotation_mode: request.rotation_mode.unwrap_or(rotation_mode),
             desired_stance: request.stance.unwrap_or(stance),
-            desired_gait: request.gait.unwrap_or(gait),
+            desired_gait,
             desired_aiming: aiming,
             input_yaw_angle,
             speed: horizontal_speed,
@@ -853,6 +855,7 @@ type CharacterQueryItem<'w, 's> = (
     &'w RotationMode,
     &'w Stance,
     &'w Gait,
+    Option<&'w AlsDesiredGait>,
     &'w OverlayState,
     &'w AlsStateRequest,
     Option<&'w LinearVelocity>,
@@ -871,7 +874,8 @@ fn build_camera_snapshot<'w, 's>(
     params: Option<&AlsCameraParams>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
-    let (_, _, _, _, _, _, _, _, _, _, _, view_yaw, view_smoothed, char_transform) = character_item;
+    let (_, _, _, _, _, _, _, _, _, _, _, _, view_yaw, view_smoothed, char_transform) =
+        character_item;
 
     let view_rotation_deg = rig.map(|(transform, _)| {
         let (yaw, pitch, roll) = transform.rotation().to_euler(EulerRot::YXZ);
@@ -925,6 +929,7 @@ fn hud_sync_system(
             &'static RotationMode,
             &'static Stance,
             &'static Gait,
+            Option<&'static AlsDesiredGait>,
             &'static OverlayState,
             &'static AlsStateRequest,
             Option<&'static LinearVelocity>,
@@ -960,6 +965,7 @@ fn hud_sync_system(
             rotation_mode,
             stance,
             gait,
+            desired_gait,
             overlay_state,
             request,
             velocity,
@@ -983,6 +989,7 @@ fn hud_sync_system(
             *rotation_mode,
             *stance,
             *gait,
+            desired_gait.map(|value| value.0).unwrap_or(*gait),
             *overlay_state,
             request,
             move_dir,
@@ -1296,6 +1303,7 @@ mod tests {
             RotationMode::ViewDirection,
             Stance::Standing,
             Gait::Walking,
+            Gait::Running,
             OverlayState::Default,
             &request,
             Some(Vec2::new(0.0, 1.0)),

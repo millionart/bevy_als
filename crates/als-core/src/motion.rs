@@ -12,6 +12,7 @@ use crate::character::{
     AlsMovementParamsHandle, als_character_capsule,
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
 use crate::params::AlsMovementParams;
@@ -50,20 +51,11 @@ pub fn gait_max_speed_for_rotation(
     gait: &Gait,
     rotation_mode: RotationMode,
 ) -> f32 {
-    match stance {
-        Stance::Crouching => params.crouch.max_walk_speed_crouched,
-        Stance::Standing => {
-            let s = if rotation_mode == RotationMode::Aiming {
-                &params.speeds.aiming_standing
-            } else {
-                &params.speeds.standing
-            };
-            match effective_gait(*stance, *gait) {
-                Gait::Walking => s.max_walk_speed,
-                Gait::Running => s.max_run_speed,
-                Gait::Sprinting => s.max_sprint_speed,
-            }
-        }
+    let speeds = params.gait_speeds(*stance, rotation_mode);
+    match *gait {
+        Gait::Walking => speeds.max_walk_speed,
+        Gait::Running => speeds.max_run_speed,
+        Gait::Sprinting => speeds.max_sprint_speed,
     }
 }
 
@@ -288,17 +280,22 @@ pub struct AlsMotionPlugin;
 
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(crate::view::AlsViewInputPlugin)
+        app.add_plugins((crate::view::AlsViewInputPlugin, crate::gait::AlsGaitPlugin))
             .add_systems(
                 Update,
                 (
-                    tnua_config_sync_system,
+                    locomotion_state_sync_system,
+                    crate::gait::refresh_gait_system
+                        .after(locomotion_state_sync_system)
+                        .after(crate::gait::gait_request_system),
+                    tnua_config_sync_system
+                        .after(crate::gait::refresh_gait_system)
+                        .after(crate::transition::state_transition_system),
                     locomotion_drive_system
                         .after(crate::view::AlsViewInputSet)
                         .before(crate::transition::state_transition_system),
                     step_up_assist_system,
                     capsule_reshape_system,
-                    locomotion_state_sync_system,
                 ),
             );
     }
@@ -308,7 +305,7 @@ fn tnua_config_sync_system(
     q: Query<(
         &TnuaConfig<AlsControlScheme>,
         &AlsMovementParamsHandle,
-        &Gait,
+        &AlsMaxAllowedGait,
         &Stance,
         &RotationMode,
         Has<AlsCapsuleCrouched>,
@@ -317,7 +314,7 @@ fn tnua_config_sync_system(
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
 ) {
-    for (config, handle, gait, stance, rotation_mode, capsule_crouched, velocity) in &q {
+    for (config, handle, max_allowed, stance, rotation_mode, capsule_crouched, velocity) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -327,7 +324,7 @@ fn tnua_config_sync_system(
         apply_als_control_scheme_config(
             &mut cfg,
             params,
-            *gait,
+            max_allowed.0,
             *stance,
             *rotation_mode,
             capsule_crouched,
@@ -799,16 +796,11 @@ mod tests {
     }
 
     #[test]
-    fn crouching_speed_clamped_to_als_crouch_walk() {
+    fn crouching_gait_speeds_match_the_source_table() {
         let p = AlsMovementParams::default();
-        for gait in [Gait::Walking, Gait::Running, Gait::Sprinting] {
-            assert!(
-                (gait_max_speed(&p, &Stance::Crouching, &gait) - p.crouch.max_walk_speed_crouched)
-                    .abs()
-                    < 1e-6
-            );
-        }
-        assert!((p.crouch.max_walk_speed_crouched - 1.50).abs() < 1e-6);
+        assert!((gait_max_speed(&p, &Stance::Crouching, &Gait::Walking) - 1.50).abs() < 1e-6);
+        assert!((gait_max_speed(&p, &Stance::Crouching, &Gait::Running) - 2.00).abs() < 1e-6);
+        assert!((gait_max_speed(&p, &Stance::Crouching, &Gait::Sprinting) - 3.00).abs() < 1e-6);
     }
 
     #[test]

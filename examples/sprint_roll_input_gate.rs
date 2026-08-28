@@ -7,15 +7,16 @@ use bevy_enhanced_input::prelude::*;
 
 use als_core::character::AlsCharacter;
 use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::gait::AlsDesiredGait;
 use als_core::input::{
-    AlsInputCommand, AlsInputPlugin, ROLL_TAP_SECS, RollAction, SPRINT_HOLD_SECS, SprintAction,
-    als_input_bridge_system,
+    als_input_bridge_system, AlsInputCommand, AlsInputPlugin, RollAction, SprintAction,
+    ROLL_TAP_SECS, SPRINT_HOLD_SECS,
 };
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::Gait;
-use als_core::transition::{AlsStateTransitionPlugin, state_transition_system};
-use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
+use als_core::transition::{state_transition_system, AlsStateTransitionPlugin};
+use bevy_als::character_assembly::{spawn_als_character, AlsCharacterBlueprint};
 
 fn main() {
     App::new()
@@ -152,7 +153,7 @@ fn inject_phase(
 
 fn verify_phase(
     mut state: ResMut<GateState>,
-    characters: Query<(&AlsInputCommand, &Gait), With<AlsCharacter>>,
+    characters: Query<(&AlsInputCommand, &Gait, &AlsDesiredGait), With<AlsCharacter>>,
     tap: Query<&Tap, With<Action<RollAction>>>,
     hold: Query<&Hold, With<Action<SprintAction>>>,
     mut exit: MessageWriter<AppExit>,
@@ -160,7 +161,7 @@ fn verify_phase(
     if !state.pending {
         return;
     }
-    let Ok((command, gait)) = characters.single() else {
+    let Ok((command, gait, desired_gait)) = characters.single() else {
         return;
     };
     let Ok(tap) = tap.single() else {
@@ -173,14 +174,14 @@ fn verify_phase(
         0 => !command.roll_pressed && !command.sprint_held,
         1 => command.roll_pressed && !command.sprint_held,
         2 => !command.roll_pressed && !command.sprint_held,
-        3 => !command.roll_pressed && command.sprint_held && *gait == Gait::Sprinting,
-        4 => !command.roll_pressed && command.sprint_held && *gait == Gait::Sprinting,
-        _ => !command.roll_pressed && !command.sprint_held && *gait == Gait::Running,
+        3 => !command.roll_pressed && command.sprint_held && desired_gait.0 == Gait::Sprinting,
+        4 => !command.roll_pressed && command.sprint_held && desired_gait.0 == Gait::Sprinting,
+        _ => !command.roll_pressed && !command.sprint_held && desired_gait.0 == Gait::Running,
     };
     if !pass {
         error!(
-            "[BCHAR4][VERDICT] phase={} roll={} sprint={} gait={gait:?} -> FAIL",
-            state.phase, command.roll_pressed, command.sprint_held
+            "[BCHAR4][VERDICT] phase={} roll={} sprint={} desired={:?} actual={gait:?} -> FAIL",
+            state.phase, command.roll_pressed, command.sprint_held, desired_gait.0
         );
         exit.write(AppExit::Error(NonZeroU8::new(7).unwrap()));
         return;
@@ -191,7 +192,7 @@ fn verify_phase(
         2 => state.prehold_sprint = command.sprint_held,
         3 => state.held_sprint = command.sprint_held,
         4 => state.latched_sprint = command.sprint_held,
-        _ => state.released_sprint = !command.sprint_held && *gait == Gait::Running,
+        _ => state.released_sprint = !command.sprint_held && desired_gait.0 == Gait::Running,
     }
     state.phase += 1;
     state.pending = false;

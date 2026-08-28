@@ -27,6 +27,9 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[derive(Component, Debug, Default, Clone, Copy)]
 #[require(crate::motion::AlsViewYaw)]
 #[require(AlsCrushRecovery)]
+#[require(crate::gait::AlsDesiredGait)]
+#[require(crate::gait::AlsMaxAllowedGait)]
+#[require(crate::gait::AlsGaitAmount)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
@@ -143,6 +146,9 @@ pub struct AlsCharacterBundle {
     pub rotation_mode: RotationMode,
     pub stance: Stance,
     pub gait: Gait,
+    pub desired_gait: crate::gait::AlsDesiredGait,
+    pub max_allowed_gait: crate::gait::AlsMaxAllowedGait,
+    pub gait_amount: crate::gait::AlsGaitAmount,
     pub overlay_state: OverlayState,
     pub request: AlsStateRequest,
 }
@@ -174,6 +180,9 @@ impl AlsCharacterBundle {
             rotation_mode: RotationMode::ViewDirection,
             stance: Stance::Standing,
             gait: Gait::Running,
+            desired_gait: crate::gait::AlsDesiredGait(Gait::Running),
+            max_allowed_gait: crate::gait::AlsMaxAllowedGait(Gait::Running),
+            gait_amount: crate::gait::AlsGaitAmount::default(),
             overlay_state: OverlayState::default(),
             request: AlsStateRequest::default(),
         }
@@ -192,6 +201,8 @@ mod tests {
         );
         assert_eq!(bundle.rotation_mode, RotationMode::ViewDirection);
         assert_eq!(bundle.gait, Gait::Running);
+        assert_eq!(bundle.desired_gait.0, Gait::Running);
+        assert_eq!(bundle.max_allowed_gait.0, Gait::Running);
         assert_eq!(bundle.stance, Stance::Standing);
     }
 }

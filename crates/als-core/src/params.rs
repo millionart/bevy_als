@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::state::{RotationMode, Stance};
+
 pub const UE_CM_TO_M: f32 = 0.01;
 
 #[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -18,6 +20,16 @@ impl AlsMovementParams {
         match stance {
             crate::state::Stance::Standing => &self.speeds.standing,
             crate::state::Stance::Crouching => &self.speeds.crouching,
+        }
+    }
+
+    pub fn gait_speeds(&self, stance: Stance, rotation_mode: RotationMode) -> &StanceGaitSpeeds {
+        match stance {
+            Stance::Crouching => &self.speeds.crouching,
+            Stance::Standing if rotation_mode == RotationMode::Aiming => {
+                &self.speeds.aiming_standing
+            }
+            Stance::Standing => &self.speeds.standing,
         }
     }
 
