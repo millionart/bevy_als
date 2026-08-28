@@ -19,11 +19,12 @@ use als_core::motion::{
 };
 use als_core::params::AlsMovementParams;
 use als_core::pivot::{PivotConfig, PivotDetector};
+use als_core::player_start::AlsPlayerStartReady;
 use als_core::start_stop::{StartStopConfig, StartStopState, classify, update_start_stop};
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::turn_in_place::{TurnInPlaceConfig, TurnInPlaceDetector, wrap_angle_degrees};
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_ext::{AlsExtPlugin, PlaygroundPlugin};
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 
@@ -73,7 +74,6 @@ fn main() {
         Update,
         (
             spawn_character_once,
-            playground_physics_bridge,
             auto_demo,
             als_detectors_system,
             graph_input_router_system,
@@ -131,25 +131,28 @@ fn phase_desc(phase: usize) -> &'static str {
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    player_starts: Query<&AlsPlayerStartReady>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if once.0 {
         return;
     }
+    let Ok(point) = player_starts.single() else {
+        return;
+    };
+    let point = point.transform;
     once.0 = true;
-    let point = *spawn_point.unwrap();
     info!(
         "[M5GATE] spawning character at ({:.2},{:.2},{:.2})",
-        point.position.x, point.position.y, point.position.z
+        point.translation.x, point.translation.y, point.translation.z
     );
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
+    bundle.transform = point;
     let spawn_fwd = bundle.transform.forward();
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
     let character = commands
@@ -179,7 +182,7 @@ fn spawn_character_once(
 
     commands.spawn((
         Camera3d::default(),
-        Transform::from_translation(point.position + Vec3::new(4.0, 3.5, 6.0)),
+        Transform::from_translation(point.translation + Vec3::new(4.0, 3.5, 6.0)),
     ));
     commands.spawn((
         DirectionalLight::default(),
@@ -193,22 +196,6 @@ fn spawn_character_once(
                 + Duration::from_secs_f64(TOTAL_SECS + 35.0)
                 + Duration::from_secs_f64(10.0),
         )));
-    }
-}
-
-fn playground_physics_bridge(
-    mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
-) {
-    for (entity, collider) in &bodies {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            Collider::cuboid(
-                collider.half_extents.x * 2.0,
-                collider.half_extents.y * 2.0,
-                collider.half_extents.z * 2.0,
-            ),
-        ));
     }
 }
 
@@ -350,7 +337,10 @@ fn als_detectors_system(
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
 
-    let dir = classify(input.move_dir, view.0);
+    let dir = classify(
+        als_core::motion::view_relative_move_axes(input.move_dir, view.0),
+        view.0,
+    );
     if let Some(phase) = update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir) {
         info!("[M5GATE][STARTSTOP] phase -> {:?}", phase);
     }

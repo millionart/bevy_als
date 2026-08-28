@@ -27,11 +27,40 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[derive(Component, Debug, Default, Clone, Copy)]
 #[require(crate::motion::AlsViewYaw)]
 #[require(AlsCrushRecovery)]
+#[require(crate::gait::AlsDesiredGait)]
+#[require(crate::gait::AlsMaxAllowedGait)]
+#[require(crate::gait::AlsGaitAmount)]
+#[require(crate::dynamics::AlsGroundedDynamics)]
+#[require(AlsCmcAdapterRuntime)]
+#[require(crate::motion::AlsAimingYawConstraint)]
+#[require(crate::foot_ik::AlsFootLockSettings)]
+#[require(crate::foot_ik::AlsDynamicTransitionState)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
 pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
+pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
+pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsCmcAdapterRuntime {
+    pub support_radius: f32,
+    pub fixed_delta_seconds: f32,
+    pub simulation_substeps: u32,
+    pub min_analog_speed_applied: bool,
+}
+
+impl Default for AlsCmcAdapterRuntime {
+    fn default() -> Self {
+        Self {
+            support_radius: ALS_CHARACTER_CAPSULE_RADIUS - 0.15,
+            fixed_delta_seconds: 0.0,
+            simulation_substeps: 0,
+            min_analog_speed_applied: false,
+        }
+    }
+}
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsCrushRecoveryFloor {
@@ -48,6 +77,17 @@ pub fn als_character_capsule(half_height: f32, radius: f32) -> Collider {
     Collider::capsule(radius, (2.0 * (half_height - radius)).max(0.0))
 }
 
+pub fn als_character_ground_sensor(
+    capsule_radius: f32,
+    perch_radius_threshold: f32,
+    perch_additional_height: f32,
+) -> TnuaAvian3dSensorShape {
+    TnuaAvian3dSensorShape(Collider::cylinder(
+        (capsule_radius - perch_radius_threshold).max(0.001),
+        (perch_additional_height * 2.0).max(0.0),
+    ))
+}
+
 pub struct AlsCharacterPlugin;
 
 impl Plugin for AlsCharacterPlugin {
@@ -57,7 +97,8 @@ impl Plugin for AlsCharacterPlugin {
             .add_systems(
                 FixedPostUpdate,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),
-            );
+            )
+            .add_systems(Update, character_sensor_shape_sync_system);
     }
 }
 
@@ -124,6 +165,28 @@ fn character_crush_recovery_system(
     }
 }
 
+fn character_sensor_shape_sync_system(
+    params_assets: Res<Assets<AlsMovementParams>>,
+    mut characters: Query<
+        (
+            &AlsMovementParamsHandle,
+            &mut TnuaAvian3dSensorShape,
+            &mut AlsCmcAdapterRuntime,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (params_handle, mut sensor, mut runtime) in &mut characters {
+        let Some(params) = params_assets.get(params_handle.id()) else {
+            continue;
+        };
+        let radius = params.crouch.standing_capsule_radius;
+        let perch = params.cmc.perch_radius_threshold;
+        sensor.0 = als_character_ground_sensor(radius, perch, params.cmc.perch_additional_height).0;
+        runtime.support_radius = (radius - perch).max(0.001);
+    }
+}
+
 #[derive(Bundle)]
 pub struct AlsCharacterBundle {
     pub character: AlsCharacter,
@@ -141,6 +204,12 @@ pub struct AlsCharacterBundle {
     pub rotation_mode: RotationMode,
     pub stance: Stance,
     pub gait: Gait,
+    pub desired_gait: crate::gait::AlsDesiredGait,
+    pub max_allowed_gait: crate::gait::AlsMaxAllowedGait,
+    pub gait_amount: crate::gait::AlsGaitAmount,
+    pub grounded_dynamics: crate::dynamics::AlsGroundedDynamics,
+    pub cmc_adapter_runtime: AlsCmcAdapterRuntime,
+    pub aiming_yaw_constraint: crate::motion::AlsAimingYawConstraint,
     pub overlay_state: OverlayState,
     pub request: AlsStateRequest,
 }
@@ -158,10 +227,7 @@ impl AlsCharacterBundle {
                 ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
                 ALS_CHARACTER_CAPSULE_RADIUS,
             ),
-            sensor_shape: TnuaAvian3dSensorShape(Collider::cylinder(
-                ALS_CHARACTER_CAPSULE_RADIUS - 0.01,
-                0.0,
-            )),
+            sensor_shape: als_character_ground_sensor(ALS_CHARACTER_CAPSULE_RADIUS, 0.15, 0.0),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             swept_ccd: SweptCcd::LINEAR,
             controller: TnuaController::default(),
@@ -169,11 +235,38 @@ impl AlsCharacterBundle {
             params: AlsMovementParamsHandle(params),
             input_command: AlsInputCommand::default(),
             locomotion_state: LocomotionState::Grounded,
-            rotation_mode: RotationMode::VelocityDirection,
+            rotation_mode: RotationMode::ViewDirection,
             stance: Stance::Standing,
-            gait: Gait::Walking,
+            gait: Gait::Running,
+            desired_gait: crate::gait::AlsDesiredGait(Gait::Running),
+            max_allowed_gait: crate::gait::AlsMaxAllowedGait(Gait::Running),
+            gait_amount: crate::gait::AlsGaitAmount::default(),
+            grounded_dynamics: crate::dynamics::AlsGroundedDynamics::default(),
+            cmc_adapter_runtime: AlsCmcAdapterRuntime::default(),
+            aiming_yaw_constraint: crate::motion::AlsAimingYawConstraint::default(),
             overlay_state: OverlayState::default(),
             request: AlsStateRequest::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundle_initial_state_matches_b_als_character() {
+        let bundle = AlsCharacterBundle::new(
+            Handle::<AlsMovementParams>::default(),
+            Handle::<AlsControlSchemeConfig>::default(),
+        );
+        assert_eq!(bundle.rotation_mode, RotationMode::ViewDirection);
+        assert_eq!(bundle.gait, Gait::Running);
+        assert_eq!(bundle.desired_gait.0, Gait::Running);
+        assert_eq!(bundle.max_allowed_gait.0, Gait::Running);
+        assert!((bundle.grounded_dynamics.0.acceleration - 20.0).abs() < 1e-6);
+        assert!((bundle.cmc_adapter_runtime.support_radius - 0.15).abs() < 1e-6);
+        assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
+        assert_eq!(bundle.stance, Stance::Standing);
     }
 }

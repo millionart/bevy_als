@@ -3,20 +3,22 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::{AlsCharacter, AlsCharacterPlugin};
+use als_core::control_scheme::AlsControlScheme;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+use als_core::input::AlsInputPlugin;
 use als_core::motion::AlsMotionPlugin;
-use als_core::params::AlsMovementParams;
+use als_core::player_start::AlsPlayerStartReady;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::{
-    PlaygroundBoxCollider, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundSpawnPoint,
+use als_ext::{AlsExtPlugin, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundStatic};
+use bevy_als::game_mode::{
+    AlsGameModePlugin, AlsPlayerAdmission, AlsScenePhysicsReady, request_als_player,
 };
 
 fn main() {
@@ -35,20 +37,25 @@ fn main() {
         AlsCharacterPlugin,
         AlsMotionPlugin,
         AlsStateHudPlugin,
+        AlsGameModePlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground.ron".into(),
         },
+        AnimationGraphPlugin::default(),
+        AlsExtPlugin,
     ))
     .init_resource::<SpawnOnce>()
-    .add_systems(Update, (playground_physics_bridge, spawn_character_once))
+    .init_resource::<AlsScenePhysicsReady>()
     .add_systems(
         Update,
         (
+            scene_physics_ready,
             keyboard_driver,
             position_report,
             camera_follow,
             fall_guard,
             auto_quit_system,
+            spawn_character_once.after(scene_physics_ready),
         ),
     );
 
@@ -74,34 +81,42 @@ struct SpawnOnce(bool);
 #[derive(Resource)]
 struct AutoQuit(Option<Instant>);
 
-fn spawn_character_once(
-    mut commands: Commands,
-    mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
-    mut params_assets: ResMut<Assets<AlsMovementParams>>,
-    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+fn scene_physics_ready(
+    mut ready: ResMut<AlsScenePhysicsReady>,
+    starts: Query<&AlsPlayerStartReady>,
+    statics: Query<Entity, With<PlaygroundStatic>>,
+    mut stable_frames: Local<u32>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if ready.ready {
+        return;
+    }
+    let total = statics.iter().count();
+    if starts.single().is_err() || total == 0 {
+        *stable_frames = 0;
+        return;
+    }
+    *stable_frames += 1;
+    if *stable_frames >= 2 {
+        ready.ready = true;
+        info!("[PG][BARRIER] starts=1 static_roots={total} -> PASS");
+    }
+}
+
+fn spawn_character_once(mut commands: Commands, mut once: ResMut<SpawnOnce>) {
+    if once.0 {
         return;
     }
     once.0 = true;
-    let point = *spawn_point.unwrap();
-    info!(
-        "[PG] spawning character at ({:.2},{:.2},{:.2})",
-        point.position.x, point.position.y, point.position.z
+    request_als_player(
+        &mut commands,
+        AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron"),
     );
-
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+    info!("[PG] player admission requested");
 
     commands.spawn((
         FollowCamera,
         Camera3d::default(),
-        Transform::from_translation(point.position + Vec3::new(4.0, 3.5, 6.0)),
+        Transform::from_xyz(4.0, 3.5, 6.0),
     ));
     commands.spawn((
         DirectionalLight::default(),
@@ -111,22 +126,6 @@ fn spawn_character_once(
 
 #[derive(Component)]
 struct FollowCamera;
-
-fn playground_physics_bridge(
-    mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
-) {
-    for (entity, collider) in &bodies {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            Collider::cuboid(
-                collider.half_extents.x * 2.0,
-                collider.half_extents.y * 2.0,
-                collider.half_extents.z * 2.0,
-            ),
-        ));
-    }
-}
 
 fn keyboard_driver(
     keys: Res<ButtonInput<KeyCode>>,

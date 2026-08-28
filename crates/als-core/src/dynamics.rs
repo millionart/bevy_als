@@ -1,0 +1,351 @@
+use avian3d::prelude::LinearVelocity;
+use bevy::prelude::*;
+use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
+
+use crate::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
+use crate::control_scheme::AlsControlScheme;
+use crate::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount};
+use crate::mantle::AlsMantleState;
+use crate::params::{AlsMovementParams, CmcAdapterParams, GroundedDynamics};
+use crate::roll::AlsRollState;
+use crate::state::{Gait, LocomotionState, RotationMode, Stance};
+
+pub const BRAKING_FRICTION_FACTOR: f32 = 0.0;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsGroundedDynamics(pub GroundedDynamics);
+
+impl Default for AlsGroundedDynamics {
+    fn default() -> Self {
+        Self(GroundedDynamics {
+            acceleration: 20.0,
+            braking_deceleration: 15.0,
+            ground_friction: 5.0,
+        })
+    }
+}
+
+pub fn max_allowed_speed(
+    params: &AlsMovementParams,
+    stance: Stance,
+    rotation_mode: RotationMode,
+    gait: Gait,
+) -> f32 {
+    let speeds = params.gait_speeds(stance, rotation_mode);
+    match gait {
+        Gait::Walking => speeds.max_walk_speed,
+        Gait::Running => speeds.max_run_speed,
+        Gait::Sprinting => speeds.max_sprint_speed,
+    }
+}
+
+pub fn grounded_velocity_step(
+    velocity: Vec3,
+    desired_motion: Vec3,
+    max_speed: f32,
+    dynamics: GroundedDynamics,
+    min_analog_walk_speed: f32,
+    delta_seconds: f32,
+) -> Vec3 {
+    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
+    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);
+    let desired_amount = desired_horizontal.length().min(1.0);
+    let speed = horizontal_velocity.length();
+    let delta_seconds = delta_seconds.max(0.0);
+    if desired_amount <= 1e-6 {
+        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
+        return horizontal_velocity - horizontal_velocity.normalize_or_zero() * braking_delta;
+    }
+    let desired_direction = desired_horizontal.normalize_or_zero();
+    let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
+    let direction_adjusted =
+        horizontal_velocity - (horizontal_velocity - desired_direction * speed) * friction_alpha;
+    let accelerated = direction_adjusted
+        + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds;
+    let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
+    if speed > target_speed && accelerated.dot(horizontal_velocity) > 0.0 {
+        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
+        return horizontal_velocity - horizontal_velocity.normalize_or_zero() * braking_delta;
+    }
+    accelerated.clamp_length_max(target_speed)
+}
+
+pub fn analog_target_speed(max_speed: f32, desired_amount: f32, min_analog_walk_speed: f32) -> f32 {
+    let max_speed = max_speed.max(0.0);
+    (max_speed * desired_amount.clamp(0.0, 1.0)).max(min_analog_walk_speed.max(0.0).min(max_speed))
+}
+
+pub fn simulate_grounded_velocity(
+    velocity: Vec3,
+    desired_motion: Vec3,
+    max_speed: f32,
+    dynamics: GroundedDynamics,
+    cmc: &CmcAdapterParams,
+    delta_seconds: f32,
+) -> (Vec3, u32) {
+    let mut remaining = delta_seconds.max(0.0);
+    let braking_step = cmc.braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);
+    let max_step = if desired_motion.length_squared() <= 1e-6 && BRAKING_FRICTION_FACTOR > 0.0 {
+        cmc.max_simulation_time_step.min(braking_step).max(1e-4)
+    } else {
+        cmc.max_simulation_time_step.max(1e-4)
+    };
+    let max_iterations = cmc.max_simulation_iterations.max(1);
+    let mut current = velocity;
+    let mut substeps = 0;
+    while remaining > 1e-6 && substeps < max_iterations {
+        let step = if substeps + 1 == max_iterations {
+            remaining
+        } else {
+            remaining.min(max_step)
+        };
+        current = grounded_velocity_step(
+            current,
+            desired_motion,
+            max_speed,
+            dynamics,
+            cmc.min_analog_walk_speed,
+            step,
+        );
+        remaining -= step;
+        substeps += 1;
+    }
+    (current, substeps)
+}
+
+pub fn predict_grounded_stop_distance(
+    params: &AlsMovementParams,
+    stance: Stance,
+    rotation_mode: RotationMode,
+    initial_speed: f32,
+) -> f32 {
+    let mut velocity = Vec3::new(initial_speed.max(0.0), 0.0, 0.0);
+    let mut distance = 0.0;
+    let delta_seconds = 1.0 / 128.0;
+    for _ in 0..4096 {
+        let speed = velocity.length();
+        if speed <= 1e-4 {
+            break;
+        }
+        let gait_amount = calculate_gait_amount(speed, params.gait_speeds(stance, rotation_mode));
+        let dynamics = params.grounded_dynamics(stance, rotation_mode, gait_amount);
+        let (next, _) = simulate_grounded_velocity(
+            velocity,
+            Vec3::ZERO,
+            0.0,
+            dynamics,
+            &params.cmc,
+            delta_seconds,
+        );
+        distance += next.length() * delta_seconds;
+        velocity = next;
+    }
+    distance
+}
+
+pub fn refresh_grounded_dynamics_system(
+    mut q: Query<
+        (
+            &LocomotionState,
+            &Stance,
+            &RotationMode,
+            &LinearVelocity,
+            &AlsMovementParamsHandle,
+            &mut AlsGaitAmount,
+            &mut AlsGroundedDynamics,
+        ),
+        With<AlsCharacter>,
+    >,
+    params_assets: Res<Assets<AlsMovementParams>>,
+) {
+    for (
+        locomotion,
+        stance,
+        rotation_mode,
+        velocity,
+        params_handle,
+        mut gait_amount,
+        mut dynamics,
+    ) in &mut q
+    {
+        if *locomotion != LocomotionState::Grounded {
+            continue;
+        }
+        let Some(params) = params_assets.get(params_handle.id()) else {
+            continue;
+        };
+        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let speeds = params.gait_speeds(*stance, *rotation_mode);
+        gait_amount.0 = calculate_gait_amount(horizontal_speed, speeds);
+        dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
+    }
+}
+
+pub fn grounded_dynamics_motor_system(
+    fixed_time: Res<Time<Fixed>>,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    mut q: Query<
+        (
+            &LocomotionState,
+            &Stance,
+            &RotationMode,
+            &AlsMaxAllowedGait,
+            &AlsGroundedDynamics,
+            &LinearVelocity,
+            &AlsMovementParamsHandle,
+            &TnuaController<AlsControlScheme>,
+            &mut TnuaMotor,
+            &mut AlsCmcAdapterRuntime,
+            Option<&AlsRollState>,
+            Option<&AlsMantleState>,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (
+        locomotion,
+        stance,
+        rotation_mode,
+        max_allowed_gait,
+        dynamics,
+        velocity,
+        params_handle,
+        controller,
+        mut motor,
+        mut cmc_runtime,
+        roll,
+        mantle,
+    ) in &mut q
+    {
+        if *locomotion != LocomotionState::Grounded
+            || roll.is_some_and(|state| state.active)
+            || mantle.is_some_and(|state| state.active)
+        {
+            continue;
+        }
+        let Some(params) = params_assets.get(params_handle.id()) else {
+            continue;
+        };
+        let max_speed = max_allowed_speed(params, *stance, *rotation_mode, max_allowed_gait.0);
+        let current = Vec3::new(velocity.x, 0.0, velocity.z);
+        let desired_motion = controller.basis.desired_motion;
+        let (next, simulation_substeps) = simulate_grounded_velocity(
+            current,
+            desired_motion,
+            max_speed,
+            dynamics.0,
+            &params.cmc,
+            fixed_time.delta_secs(),
+        );
+        cmc_runtime.fixed_delta_seconds = fixed_time.delta_secs();
+        cmc_runtime.simulation_substeps = simulation_substeps;
+        cmc_runtime.min_analog_speed_applied = desired_motion.length_squared() > 1e-6
+            && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
+        motor.lin.boost += next - current;
+    }
+}
+
+pub struct AlsGroundedDynamicsPlugin;
+
+impl Plugin for AlsGroundedDynamicsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            refresh_grounded_dynamics_system.after(crate::gait::refresh_gait_system),
+        )
+        .add_systems(
+            FixedUpdate,
+            (
+                refresh_grounded_dynamics_system.before(TnuaPipelineSystems::Logic),
+                grounded_dynamics_motor_system
+                    .after(TnuaPipelineSystems::Logic)
+                    .before(TnuaPipelineSystems::Motors),
+            ),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            (
+                refresh_grounded_dynamics_system.before(TnuaPipelineSystems::Logic),
+                grounded_dynamics_motor_system
+                    .after(TnuaPipelineSystems::Logic)
+                    .before(TnuaPipelineSystems::Motors),
+            ),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn braking_uses_the_source_curve_without_braking_friction() {
+        assert_eq!(BRAKING_FRICTION_FACTOR, 0.0);
+        let current = Vec3::new(4.0, 0.0, 0.0);
+        let next = grounded_velocity_step(
+            current,
+            Vec3::ZERO,
+            6.5,
+            GroundedDynamics {
+                acceleration: 20.0,
+                braking_deceleration: 12.5,
+                ground_friction: 4.0,
+            },
+            0.25,
+            0.02,
+        );
+        assert!((next.x - 3.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn friction_rotates_velocity_toward_the_input_direction() {
+        let next = grounded_velocity_step(
+            Vec3::new(3.0, 0.0, 0.0),
+            Vec3::NEG_Z,
+            6.5,
+            GroundedDynamics {
+                acceleration: 0.0,
+                braking_deceleration: 10.0,
+                ground_friction: 5.0,
+            },
+            0.25,
+            0.02,
+        );
+        assert!(next.x < 3.0);
+        assert!(next.z < 0.0);
+    }
+
+    #[test]
+    fn simulation_adapter_uses_source_step_and_iteration_limits() {
+        let cmc = CmcAdapterParams::default();
+        let (next, substeps) = simulate_grounded_velocity(
+            Vec3::ZERO,
+            Vec3::new(0.01, 0.0, 0.0),
+            3.75,
+            GroundedDynamics {
+                acceleration: 20.0,
+                braking_deceleration: 15.0,
+                ground_friction: 5.0,
+            },
+            &cmc,
+            0.12,
+        );
+        assert_eq!(substeps, 3);
+        assert!(next.length() > 0.0);
+        assert!((analog_target_speed(3.75, 0.01, cmc.min_analog_walk_speed) - 0.25).abs() < 1e-6);
+    }
+
+    #[test]
+    fn dynamic_stop_prediction_consumes_the_speed_dependent_braking_curve() {
+        let params = AlsMovementParams::default();
+        let dynamic_distance = predict_grounded_stop_distance(
+            &params,
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            6.25,
+        );
+        let static_distance = 6.25 * 6.25 / (2.0 * 5.0);
+        assert!(dynamic_distance > 0.0);
+        assert!(dynamic_distance < static_distance);
+    }
+}

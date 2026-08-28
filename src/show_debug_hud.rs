@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 
-use als_camera::{AlsCameraMode, AlsCameraParams, AlsCameraRig, blended_shoulder};
+use als_camera::{AlsCameraMode, AlsCameraRig};
 use als_core::character::AlsCharacter;
+use als_core::gait::AlsDesiredGait;
 use als_core::input::AlsInputCommand;
 use als_core::mantle::AlsMantleState;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
@@ -314,6 +315,7 @@ impl CharacterSnapshot {
         rotation_mode: RotationMode,
         stance: Stance,
         gait: Gait,
+        desired_gait: Gait,
         overlay_state: OverlayState,
         request: &AlsStateRequest,
         input_move_dir: Option<Vec2>,
@@ -342,7 +344,7 @@ impl CharacterSnapshot {
             overlay_state,
             desired_rotation_mode: request.rotation_mode.unwrap_or(rotation_mode),
             desired_stance: request.stance.unwrap_or(stance),
-            desired_gait: request.gait.unwrap_or(gait),
+            desired_gait,
             desired_aiming: aiming,
             input_yaw_angle,
             speed: horizontal_speed,
@@ -360,6 +362,10 @@ pub struct CameraSnapshot {
     pub view_rotation_deg: Option<(f32, f32, f32)>,
     pub rig_mode: Option<AlsCameraMode>,
     pub pivot_target_location: Option<Vec3>,
+    pub pivot_lag_location: Option<Vec3>,
+    pub pivot_location: Option<Vec3>,
+    pub field_of_view_deg: Option<f32>,
+    pub right_shoulder: Option<bool>,
     pub camera_curves: Vec<(String, f32)>,
 }
 
@@ -438,7 +444,7 @@ fn overlay_tag(overlay: OverlayState) -> &'static str {
 fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
     match mode {
         Some(AlsCameraMode::ThirdPerson | AlsCameraMode::AimingShoulder) => Some("ThirdPerson"),
-        Some(AlsCameraMode::FirstPersonPlaceholder) => Some("FirstPerson"),
+        Some(AlsCameraMode::FirstPerson) => Some("FirstPerson"),
         None => None,
     }
 }
@@ -632,6 +638,22 @@ pub fn build_camera_shapes_body(camera: &CameraSnapshot) -> Vec<DebugRow> {
         .pivot_target_location
         .map(format_xyz)
         .unwrap_or_else(|| NA_VALUE.into());
+    let pivot_lag_value = camera
+        .pivot_lag_location
+        .map(format_xyz)
+        .unwrap_or_else(|| NA_VALUE.into());
+    let pivot_location_value = camera
+        .pivot_location
+        .map(format_xyz)
+        .unwrap_or_else(|| NA_VALUE.into());
+    let field_of_view_value = camera
+        .field_of_view_deg
+        .map(|value| format!("{value:.2}"))
+        .unwrap_or_else(|| NA_VALUE.into());
+    let right_shoulder_value = camera
+        .right_shoulder
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| NA_VALUE.into());
     vec![
         DebugRow::pair(
             name_to_display_string("PivotTargetLocation", false),
@@ -641,25 +663,25 @@ pub fn build_camera_shapes_body(camera: &CameraSnapshot) -> Vec<DebugRow> {
         ),
         DebugRow::pair(
             name_to_display_string("PivotLagLocation", false),
-            NA_VALUE,
+            pivot_lag_value,
             orange(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("PivotLocation", false),
-            NA_VALUE,
+            pivot_location_value,
             cyan(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("CameraFieldOfView", false),
-            NA_VALUE,
+            field_of_view_value,
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("bRightShoulder", true),
-            NA_VALUE,
+            right_shoulder_value,
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -833,6 +855,7 @@ type CharacterQueryItem<'w, 's> = (
     &'w RotationMode,
     &'w Stance,
     &'w Gait,
+    Option<&'w AlsDesiredGait>,
     &'w OverlayState,
     &'w AlsStateRequest,
     Option<&'w LinearVelocity>,
@@ -846,33 +869,14 @@ type CharacterQueryItem<'w, 's> = (
 );
 
 fn build_camera_snapshot<'w, 's>(
-    character_item: &CharacterQueryItem<'w, 's>,
+    _character_item: &CharacterQueryItem<'w, 's>,
     rig: Option<(&GlobalTransform, Option<&AlsCameraRig>)>,
-    params: Option<&AlsCameraParams>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
-    let (_, _, _, _, _, _, _, _, _, _, _, view_yaw, view_smoothed, char_transform) = character_item;
-
     let view_rotation_deg = rig.map(|(transform, _)| {
         let (yaw, pitch, roll) = transform.rotation().to_euler(EulerRot::YXZ);
         (yaw.to_degrees(), pitch.to_degrees(), roll.to_degrees())
     });
-    let pivot_target_location = match (char_transform, params, view_yaw) {
-        (Some(char_transform), Some(params), Some(view_yaw)) => {
-            let blend = rig
-                .and_then(|(_, rig)| rig)
-                .map(|rig| rig.aim_blend)
-                .unwrap_or(0.0);
-            let pitch = view_smoothed.map(|s| s.0).unwrap_or(0.0);
-            let rot = Quat::from_euler(EulerRot::YXZ, view_yaw.0, pitch, 0.0);
-            Some(
-                char_transform.translation()
-                    + Vec3::Y * params.pivot_height
-                    + rot * blended_shoulder(blend, params),
-            )
-        }
-        _ => None,
-    };
     let camera_curves = debug_info
         .map(|info| {
             als_camera::CAMERA_CURVE_NAMES
@@ -884,7 +888,11 @@ fn build_camera_snapshot<'w, 's>(
     CameraSnapshot {
         view_rotation_deg,
         rig_mode: rig.and_then(|(_, rig)| rig).map(|rig| rig.mode),
-        pivot_target_location,
+        pivot_target_location: debug_info.map(|info| info.pivot_target),
+        pivot_lag_location: debug_info.and_then(|info| info.pivot_lag),
+        pivot_location: debug_info.and_then(|info| info.pivot),
+        field_of_view_deg: debug_info.map(|info| info.field_of_view_deg),
+        right_shoulder: debug_info.map(|info| info.right_shoulder),
         camera_curves,
     }
 }
@@ -901,6 +909,7 @@ fn hud_sync_system(
             &'static RotationMode,
             &'static Stance,
             &'static Gait,
+            Option<&'static AlsDesiredGait>,
             &'static OverlayState,
             &'static AlsStateRequest,
             Option<&'static LinearVelocity>,
@@ -924,7 +933,6 @@ fn hud_sync_system(
     >,
     q_instances: Query<&AnimatedSceneInstance>,
     q_players: Query<&AnimationGraphPlayer>,
-    camera_params: Option<Res<Assets<AlsCameraParams>>>,
     curve_assets: Option<Res<Assets<AlsAnimCurves>>>,
     sources: Res<AlsShowDebugCurveSources>,
 ) {
@@ -936,6 +944,7 @@ fn hud_sync_system(
             rotation_mode,
             stance,
             gait,
+            desired_gait,
             overlay_state,
             request,
             velocity,
@@ -959,6 +968,7 @@ fn hud_sync_system(
             *rotation_mode,
             *stance,
             *gait,
+            desired_gait.map(|value| value.0).unwrap_or(*gait),
             *overlay_state,
             request,
             move_dir,
@@ -973,11 +983,7 @@ fn hud_sync_system(
             .next()
             .map(|(transform, rig, info)| (Some((transform, rig)), info))
             .unwrap_or((None, None));
-        let params = camera_params
-            .as_ref()
-            .and_then(|assets| assets.iter().next())
-            .map(|(_, params)| params);
-        let camera_snapshot = build_camera_snapshot(&item, rig, params, cam_debug);
+        let camera_snapshot = build_camera_snapshot(&item, rig, cam_debug);
 
         let elapsed = q_instances
             .iter()
@@ -1272,6 +1278,7 @@ mod tests {
             RotationMode::ViewDirection,
             Stance::Standing,
             Gait::Walking,
+            Gait::Running,
             OverlayState::Default,
             &request,
             Some(Vec2::new(0.0, 1.0)),
@@ -1418,6 +1425,23 @@ mod tests {
             camera_block_on[0].len(),
             1 + 2 + build_camera_shapes_body(&camera).len()
         );
+    }
+
+    #[test]
+    fn camera_shape_rows_use_live_debug_values_when_available() {
+        let camera = CameraSnapshot {
+            pivot_target_location: Some(Vec3::new(1.0, 2.0, 3.0)),
+            pivot_lag_location: Some(Vec3::new(4.0, 5.0, 6.0)),
+            pivot_location: Some(Vec3::new(7.0, 8.0, 9.0)),
+            field_of_view_deg: Some(102.0),
+            right_shoulder: Some(true),
+            ..default()
+        };
+        let rows = build_camera_shapes_body(&camera);
+        assert_eq!(rows[1].value, "X: 4.00 Y: 5.00 Z: 6.00");
+        assert_eq!(rows[2].value, "X: 7.00 Y: 8.00 Z: 9.00");
+        assert_eq!(rows[3].value, "102.00");
+        assert_eq!(rows[4].value, "true");
     }
 
     #[test]

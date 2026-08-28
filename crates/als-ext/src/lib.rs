@@ -44,7 +44,7 @@ pub use playground::{
     PlaygroundLandscape, PlaygroundLandscapeTilesMaterial, PlaygroundManifest,
     PlaygroundManifestPath, PlaygroundMaterialApplied, PlaygroundMovingCurve,
     PlaygroundMaterialRole, PlaygroundMaterialTint, PlaygroundMovingObject, PlaygroundPlugin,
-    PlaygroundRotator, PlaygroundSky, PlaygroundSpawnPoint, PlaygroundStatic, PlaygroundTextFacing,
+    PlaygroundRotator, PlaygroundSky, PlaygroundStatic, PlaygroundTextFacing,
     PlaygroundTextFit, PlaygroundTextGlyphColor, PlaygroundTextHorizontalAlignment, PlaygroundTextLabel,
     PlaygroundTextLayoutTarget, PlaygroundTextVerticalAlignment, PlaygroundWorldTextMesh,
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS,

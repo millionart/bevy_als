@@ -150,6 +150,8 @@ dependencies = [
 name = "als-ext"
 version = "0.1.0"
 dependencies = [
+ "als-core",
+ "avian3d",
  "bevy",
  "bevy_animation_graph",
  "bevy_gltf",

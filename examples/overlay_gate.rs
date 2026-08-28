@@ -19,10 +19,11 @@ use als_core::debug_hud::AlsStateHudPlugin;
 use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
+use als_core::player_start::AlsPlayerStartReady;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_core::view::{AlsViewPitch, AlsViewSmoothed};
-use als_ext::{AlsExtPlugin, PlaygroundBoxCollider, PlaygroundPlugin, PlaygroundSpawnPoint};
+use als_ext::{AlsExtPlugin, PlaygroundPlugin};
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 use bevy_als::overlay_layer::OverlayLayerPlugin;
@@ -74,7 +75,6 @@ fn main() {
         Update,
         (
             spawn_character_once,
-            playground_physics_bridge,
             auto_demo,
             overlay_mirror,
             pitch_integrator,
@@ -147,25 +147,28 @@ fn phase_desc(phase: usize) -> &'static str {
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    spawn_point: Option<Res<PlaygroundSpawnPoint>>,
+    player_starts: Query<&AlsPlayerStartReady>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
     assets: Res<AssetServer>,
 ) {
-    if once.0 || spawn_point.is_none() {
+    if once.0 {
         return;
     }
+    let Ok(point) = player_starts.single() else {
+        return;
+    };
+    let point = point.transform;
     once.0 = true;
-    let point = *spawn_point.unwrap();
     info!(
         "[M6GATE] spawning character at ({:.2},{:.2},{:.2})",
-        point.position.x, point.position.y, point.position.z
+        point.translation.x, point.translation.y, point.translation.z
     );
 
     let params = params_assets.add(AlsMovementParams::default());
     let config = config_assets.add(AlsControlSchemeConfig::default());
     let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = Transform::from_translation(point.position).with_rotation(point.rotation);
+    bundle.transform = point;
     let spawn_fwd = bundle.transform.forward();
     let scripted = std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok();
 
@@ -193,28 +196,12 @@ fn spawn_character_once(
 
     commands.spawn((
         Camera3d::default(),
-        Transform::from_translation(point.position + Vec3::new(4.0, 3.0, 5.0)),
+        Transform::from_translation(point.translation + Vec3::new(4.0, 3.0, 5.0)),
     ));
     commands.spawn((
         DirectionalLight::default(),
         Transform::from_xyz(40.0, 80.0, 30.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
-}
-
-fn playground_physics_bridge(
-    mut commands: Commands,
-    bodies: Query<(Entity, &PlaygroundBoxCollider), Added<PlaygroundBoxCollider>>,
-) {
-    for (entity, collider) in &bodies {
-        commands.entity(entity).insert((
-            RigidBody::Static,
-            Collider::cuboid(
-                collider.half_extents.x * 2.0,
-                collider.half_extents.y * 2.0,
-                collider.half_extents.z * 2.0,
-            ),
-        ));
-    }
 }
 
 fn auto_demo(

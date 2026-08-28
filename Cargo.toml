@@ -69,9 +69,9 @@ als-core = { workspace = true }
 als-ext = { workspace = true }
 als-camera = { workspace = true }
 avian3d = { workspace = true }
+bevy-tnua = { workspace = true }
 
 [dev-dependencies]
-bevy-tnua = { workspace = true }
 bevy-tnua-avian3d = { workspace = true }
 
 [[bin]]

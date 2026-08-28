@@ -1,8 +1,12 @@
 use als_core::foot_ik::{
-    AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootProbe, FootSideInput,
+    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets,
+    AlsFootLockSettings, AlsFootProbe, FootSideInput, constrain_foot_lock_location,
     foot_target_offset,
 };
+use als_core::state::Stance;
+use als_core::transitions::TransitionConfig;
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
+use avian3d::prelude::LinearVelocity;
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
 use bevy::transform::{TransformSystems, systems as transform_systems};
@@ -60,7 +64,11 @@ fn foot_ik_apply_system(
             &AlsFootBones,
             &AlsFootProbe,
             &AlsFootIkTargets,
+            &LinearVelocity,
+            &Stance,
+            &AlsFootLockSettings,
             &mut AlsFootIkRuntime,
+            &mut AlsDynamicTransitionState,
             Option<&AnimationPlayer>,
         ),
         With<als_core::character::AlsCharacter>,
@@ -70,7 +78,20 @@ fn foot_ik_apply_system(
     _scenes: Query<&AnimatedSceneInstance>,
 ) {
     let dt = time.delta_secs();
-    for (_entity, char_gtf, bones, probe, targets, mut runtime, _) in &mut characters {
+    for (
+        _entity,
+        char_gtf,
+        bones,
+        probe,
+        targets,
+        velocity,
+        stance,
+        settings,
+        mut runtime,
+        mut dynamic_transition,
+        _,
+    ) in &mut characters
+    {
         let char_fwd = char_gtf.forward().as_vec3();
         let pole = Vec3::new(char_fwd.x, 0.0, char_fwd.z).normalize_or_zero();
 
@@ -93,17 +114,34 @@ fn foot_ik_apply_system(
             }
         }
 
-        runtime.update(&inputs[0], &inputs[1], grounded_target(targets), dt);
+        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let moving_smooth = horizontal_speed >= settings.moving_smooth_speed_threshold;
+        runtime.update_with_foot_lock(
+            &inputs[0],
+            &inputs[1],
+            grounded_target(targets),
+            settings,
+            moving_smooth,
+            targets.grounded,
+            dt,
+        );
+        dynamic_transition.update(&runtime, *stance, &TransitionConfig::default());
 
         for side in 0..2usize {
-            let (offset, _pin_w) = runtime.side(side);
-            if offset.abs() < 1e-4 {
+            let (offset, pin_weight) = runtime.side(side);
+            if offset.abs() < 1e-4 && pin_weight < 1e-3 {
                 continue;
             }
             apply_chain_offset(
                 &bones.chain(side),
                 offset,
                 pole,
+                settings,
+                runtime.constrained_foot_yaw(
+                    side,
+                    target_foot_yaw(&bones.chain(side), &bone_globals),
+                    settings,
+                ),
                 &mut bone_locals,
                 &bone_globals,
             );
@@ -121,6 +159,8 @@ fn apply_chain_offset(
     chain: &als_core::foot_ik::FootChain,
     offset: f32,
     pole: Vec3,
+    settings: &AlsFootLockSettings,
+    constrained_foot_yaw: f32,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
 ) {
@@ -146,7 +186,12 @@ fn apply_chain_offset(
     let upper_len = (knee - hip).length();
     let lower_len = (ankle - knee).length();
 
-    let target = ankle + Vec3::Y * offset;
+    let target = constrain_foot_lock_location(
+        hip,
+        thigh_g.forward().as_vec3(),
+        ankle + Vec3::Y * offset,
+        settings.thigh_angle_limit_degrees,
+    );
 
     let Some(solve) = solve_two_bone_ik(hip, knee, ankle, target, upper_len, lower_len, pole)
     else {
@@ -169,6 +214,28 @@ fn apply_chain_offset(
         return;
     };
     calf_local.rotation = world_rotation_to_local(thigh_world_new, calf_world_new);
+
+    let Ok((mut foot_local, _, foot_child)) = bone_locals.get_mut(chain.foot) else {
+        return;
+    };
+    let foot_parent_rotation = bone_globals
+        .get(foot_child.0)
+        .map(|parent| parent.rotation())
+        .unwrap_or(Quat::IDENTITY);
+    let (_, foot_pitch, foot_roll) = foot_g.rotation().to_euler(EulerRot::YXZ);
+    let foot_world_rotation =
+        Quat::from_euler(EulerRot::YXZ, constrained_foot_yaw, foot_pitch, foot_roll);
+    foot_local.rotation = world_rotation_to_local(foot_parent_rotation, foot_world_rotation);
+}
+
+fn target_foot_yaw(
+    chain: &als_core::foot_ik::FootChain,
+    bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> f32 {
+    bone_globals
+        .get(chain.foot)
+        .map(|transform| transform.rotation().to_euler(EulerRot::YXZ).0)
+        .unwrap_or(0.0)
 }
 
 fn apply_pelvis_drop(

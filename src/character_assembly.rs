@@ -1,11 +1,15 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
-use als_camera::{AlsCameraRig, AlsCameraTarget};
+use als_camera::{
+    AlsCameraAnimationNotifyDriver, AlsCameraCurveProfileDriver, AlsCameraDebugInfo,
+    AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
+    AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
+};
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{AlsInputMap, spawn_als_actions};
-use als_core::motion::AlsViewYaw;
+use als_core::motion::{AlsViewYaw, initial_als_control_scheme_config};
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
 use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
@@ -18,6 +22,25 @@ pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
 pub const ALS_CHARACTER_MATERIAL_REFLECTANCE: f32 = 0.5;
 pub const ALS_CHARACTER_MATERIAL_SLOT_COUNT: usize = 15;
 pub const ALS_CHARACTER_EYES_MATERIAL_SLOT: usize = AVATAR_MAIN_MATERIAL_SLOT;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCharacterAvatar {
+    pub character: Entity,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCharacterCamera {
+    pub character: Entity,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsPlayerCharacter;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCharacterAssembly {
+    pub avatar: Entity,
+    pub camera: Option<Entity>,
+}
 
 pub fn avatar_transform() -> Transform {
     Transform::from_xyz(0.0, AVATAR_CAPSULE_BOTTOM_OFFSET, 0.0)
@@ -33,6 +56,7 @@ pub fn attach_avatar(
     let avatar = commands
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AlsCharacterAvatar { character },
             avatar_transform(),
         ))
         .id();
@@ -62,6 +86,7 @@ pub fn attach_avatar_with_material(
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             AvatarMaterialOverride(handles),
+            AlsCharacterAvatar { character },
             avatar_transform(),
         ))
         .id();
@@ -120,6 +145,7 @@ pub fn attach_als_character_avatar(
         .spawn((
             AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             AvatarMaterialOverride(als_character_material_slots(body_material, main_material)),
+            AlsCharacterAvatar { character },
             avatar_transform(),
         ))
         .id();
@@ -155,8 +181,9 @@ pub fn spawn_als_character(
     config_assets: &mut Assets<AlsControlSchemeConfig>,
     blueprint: AlsCharacterBlueprint<'_>,
 ) -> Entity {
-    let params = params_assets.add(AlsMovementParams::default());
-    let tnua_config_handle = config_assets.add(AlsControlSchemeConfig::default());
+    let params_value = AlsMovementParams::default();
+    let tnua_config_handle = config_assets.add(initial_als_control_scheme_config(&params_value));
+    let params = params_assets.add(params_value);
     let mut bundle = AlsCharacterBundle::new(params, tnua_config_handle);
     bundle.transform = blueprint.transform;
     let fwd = bundle.transform.forward();
@@ -165,15 +192,19 @@ pub fn spawn_als_character(
         .insert((
             AlsViewYaw(f32::atan2(fwd.x, -fwd.z)),
             AlsViewPitch(0.0),
+            AlsCameraFovOffset::default(),
             AlsCameraTarget,
+            AlsCameraCurveProfileDriver,
+            AlsCameraAnimationNotifyDriver,
         ))
         .id();
     if blueprint.spawn_input {
         spawn_als_actions(commands, character, &blueprint.input_map);
+        commands.entity(character).insert(AlsPlayerCharacter);
     }
     let character_material = make_als_character_material(materials);
     let main_material = make_als_main_material(materials);
-    attach_als_character_avatar(
+    let avatar = attach_als_character_avatar(
         commands,
         assets,
         character,
@@ -181,21 +212,71 @@ pub fn spawn_als_character(
         character_material,
         main_material,
     );
-    if blueprint.spawn_camera {
+    commands.entity(character).insert((
+        AlsCameraSocketBinding::new(avatar),
+        AlsCameraSocketLocations::default(),
+    ));
+    let camera = if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
-        commands.spawn((
-            Camera3d::default(),
-            Transform::from_translation(eye)
-                .looking_at(blueprint.transform.translation + Vec3::Y, Vec3::Y),
-            AlsCameraRig::default(),
-        ));
-    }
+        Some(
+            commands
+                .spawn((
+                    Camera3d::default(),
+                    Transform::from_translation(eye)
+                        .looking_at(blueprint.transform.translation + Vec3::Y, Vec3::Y),
+                    AlsCameraRig::default(),
+                    AlsCameraFieldOfView::default(),
+                    AlsCameraDebugInfo::default(),
+                    AlsCameraRuntime::default(),
+                    AlsCharacterCamera { character },
+                ))
+                .id(),
+        )
+    } else {
+        None
+    };
+    commands
+        .entity(character)
+        .insert(AlsCharacterAssembly { avatar, camera });
     character
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::asset::AssetPlugin;
+    use bevy_animation_graph::core::animated_scene::AnimatedScene;
+
+    fn spawn_test_character(app: &mut App, spawn_camera: bool) -> Entity {
+        let assets = app.world().resource::<AssetServer>().clone();
+        let character = app.world_mut().resource_scope(
+            |world, mut materials: Mut<Assets<StandardMaterial>>| {
+                world.resource_scope(|world, mut params_assets: Mut<Assets<AlsMovementParams>>| {
+                    world.resource_scope(
+                        |world, mut config_assets: Mut<Assets<AlsControlSchemeConfig>>| {
+                            let mut commands = world.commands();
+                            spawn_als_character(
+                                &mut commands,
+                                &assets,
+                                &mut materials,
+                                &mut params_assets,
+                                &mut config_assets,
+                                AlsCharacterBlueprint {
+                                    spawn_camera,
+                                    ..AlsCharacterBlueprint::new(
+                                        Transform::IDENTITY,
+                                        "test.animscn.ron",
+                                    )
+                                },
+                            )
+                        },
+                    )
+                })
+            },
+        );
+        app.world_mut().flush();
+        character
+    }
 
     #[test]
     fn als_character_material_matches_the_instance_color() {
@@ -230,5 +311,60 @@ mod tests {
                 .filter(|(slot, _)| *slot != ALS_CHARACTER_EYES_MATERIAL_SLOT)
                 .all(|(_, material)| *material == body)
         );
+    }
+
+    #[test]
+    fn default_blueprint_requests_the_local_player_input_path() {
+        let blueprint = AlsCharacterBlueprint::new(Transform::IDENTITY, "test.animscn.ron");
+        assert!(blueprint.spawn_input);
+        assert!(!blueprint.spawn_camera);
+    }
+
+    #[test]
+    fn assembly_records_avatar_and_optional_camera_relationships() {
+        let avatar = Entity::from_raw_u32(17).unwrap();
+        let camera = Entity::from_raw_u32(23).unwrap();
+        let with_camera = AlsCharacterAssembly {
+            avatar,
+            camera: Some(camera),
+        };
+        let without_camera = AlsCharacterAssembly {
+            avatar,
+            camera: None,
+        };
+        assert_eq!(with_camera.avatar, avatar);
+        assert_eq!(with_camera.camera, Some(camera));
+        assert_eq!(without_camera.camera, None);
+    }
+
+    #[test]
+    fn spawned_character_has_explicit_avatar_camera_and_input_ownership() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<StandardMaterial>()
+            .init_asset::<AlsMovementParams>()
+            .init_asset::<AlsControlSchemeConfig>()
+            .init_asset::<AnimatedScene>();
+        let character = spawn_test_character(&mut app, true);
+        let assembly = *app.world().get::<AlsCharacterAssembly>(character).unwrap();
+        assert!(app.world().get::<AlsPlayerCharacter>(character).is_some());
+        assert!(app.world().get::<AlsCameraTarget>(character).is_some());
+        assert_eq!(
+            app.world()
+                .get::<AlsCharacterAvatar>(assembly.avatar)
+                .unwrap()
+                .character,
+            character
+        );
+        let camera = assembly.camera.unwrap();
+        assert_eq!(
+            app.world()
+                .get::<AlsCharacterCamera>(camera)
+                .unwrap()
+                .character,
+            character
+        );
+        assert!(app.world().get::<Camera3d>(camera).is_some());
+        assert!(app.world().get::<AlsCameraRig>(camera).is_some());
     }
 }

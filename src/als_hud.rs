@@ -18,12 +18,12 @@ pub const FONT_SIZE_DEFAULT_PX: f32 = 12.0;
 pub const FONT_SIZE_VALUE_PX: f32 = 10.0;
 pub const SLMO_TIME_SCALE: f32 = 0.15;
 
-pub const COLOR_ENABLED: Color = Color::srgb(0.0, 1.0, 0.0);
-pub const COLOR_DISABLED: Color = Color::srgb(0.5, 0.5, 0.5);
-pub const COLOR_TITLE_ACCENT: Color = Color::srgb(1.0, 0.666_667, 0.0);
-pub const COLOR_TEXT: Color = Color::srgb(1.0, 1.0, 1.0);
-pub const COLOR_BORDER_WEAK: Color = Color::srgba(0.015, 0.015, 0.015, 0.25);
-pub const COLOR_BORDER_STRONG: Color = Color::srgba(0.015, 0.015, 0.015, 0.5);
+pub const COLOR_ENABLED: Color = Color::linear_rgba(0.0, 1.0, 0.0, 1.0);
+pub const COLOR_DISABLED: Color = Color::linear_rgba(0.5, 0.5, 0.5, 1.0);
+pub const COLOR_TITLE_ACCENT: Color = Color::linear_rgba(1.0, 0.666_667, 0.0, 1.0);
+pub const COLOR_TEXT: Color = Color::linear_rgba(1.0, 1.0, 1.0, 1.0);
+pub const COLOR_BORDER_WEAK: Color = Color::linear_rgba(0.015, 0.015, 0.015, 0.25);
+pub const COLOR_BORDER_STRONG: Color = Color::linear_rgba(0.015, 0.015, 0.015, 0.5);
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsHudState {
@@ -596,6 +596,20 @@ mod tests {
     fn toggle_color_matches_ue_enabled_disabled() {
         assert_eq!(AlsHudState::toggle_color(true), COLOR_ENABLED);
         assert_eq!(AlsHudState::toggle_color(false), COLOR_DISABLED);
+    }
+
+    #[test]
+    fn source_colors_remain_linear() {
+        let disabled = COLOR_DISABLED.to_linear();
+        let accent = COLOR_TITLE_ACCENT.to_linear();
+        let weak = COLOR_BORDER_WEAK.to_linear();
+        let strong = COLOR_BORDER_STRONG.to_linear();
+        assert!((disabled.red - 0.5).abs() < 1e-6);
+        assert!((accent.green - 0.666_667).abs() < 1e-6);
+        assert!((weak.red - 0.015).abs() < 1e-6);
+        assert!((weak.alpha - 0.25).abs() < 1e-6);
+        assert!((strong.red - 0.015).abs() < 1e-6);
+        assert!((strong.alpha - 0.5).abs() < 1e-6);
     }
 
     #[test]

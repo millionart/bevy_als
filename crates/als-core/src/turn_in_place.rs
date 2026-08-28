@@ -14,7 +14,7 @@ impl Default for TurnInPlaceConfig {
             view_yaw_speed_threshold_deg_per_s: 50.0,
             turn_180_angle_threshold_degrees: 130.0,
             play_rate: 1.2,
-            max_activation_delay_seconds: 1.0,
+            max_activation_delay_seconds: 0.75,
         }
     }
 }
@@ -192,5 +192,10 @@ mod tests {
         assert!((wrap_angle_degrees(270.0) - (-90.0)).abs() < 1e-4);
         assert!((wrap_angle_degrees(-270.0) - 90.0).abs() < 1e-4);
         assert!((wrap_angle_degrees(360.0)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn source_activation_delay_upper_bound_is_preserved() {
+        assert!((TurnInPlaceConfig::default().max_activation_delay_seconds - 0.75).abs() < 1e-6);
     }
 }

@@ -185,6 +185,8 @@
 | 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick` | JSON(均匀采样) | `assets/curves/ALSCamera/Data/CF_Als_CameraBlend_Quick.json` |
 | 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth` | JSON(均匀采样) | `assets/curves/ALSCamera/Data/CF_Als_CameraBlend_Smooth.json` |
 | 2026-08-22 | `/ALS/ALSCamera/SKM_Als_Camera.SKM_Als_Camera` | glTF | `assets/models/ALSCamera/SKM_Als_Camera.gltf` |
+| 2026-08-28 | `/ALS/ALS/Character/SKM_Als` camera sockets `FirstPersonCamera`/`ThirdPersonTraceShoulderLeft`/`ThirdPersonTraceShoulderRight` | RON runtime table | `assets/params/als_camera_sockets.ron` |
+| 2026-08-28 | `/ALS/ALSCamera/AB_Als_Camera` ModifyCurve source profiles | RON runtime table | `assets/params/als_camera_profiles.ron` |
 | 2026-08-22 | `/ALS/ALSExtras/Environment/CF_Als_MovingObject` | JSON(均匀采样) | `assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json` |
 
 ## M3.1 增补导出（2026-08-22）— Playground 场景

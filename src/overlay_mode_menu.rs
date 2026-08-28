@@ -8,21 +8,31 @@ use bevy_enhanced_input::prelude::*;
 use crate::als_hud::AlsHudState;
 use crate::als_hud::COLOR_TEXT;
 
-pub const MENU_ORDER: [OverlayState; 13] = [
-    OverlayState::Torch,
-    OverlayState::Rifle,
-    OverlayState::PistolTwoHanded,
-    OverlayState::PistolOneHanded,
-    OverlayState::Masculine,
-    OverlayState::Injured,
-    OverlayState::HandsTied,
-    OverlayState::Feminine,
-    OverlayState::Default,
-    OverlayState::Box,
-    OverlayState::Bow,
-    OverlayState::Binoculars,
+pub const OVERLAY_TAG_CHILD_NODES: [OverlayState; 13] = [
     OverlayState::Barrel,
+    OverlayState::Binoculars,
+    OverlayState::Bow,
+    OverlayState::Box,
+    OverlayState::Default,
+    OverlayState::Feminine,
+    OverlayState::HandsTied,
+    OverlayState::Injured,
+    OverlayState::Masculine,
+    OverlayState::PistolOneHanded,
+    OverlayState::PistolTwoHanded,
+    OverlayState::Rifle,
+    OverlayState::Torch,
 ];
+
+pub fn request_gameplay_tag_children() -> [OverlayState; 13] {
+    let mut tags = OVERLAY_TAG_CHILD_NODES;
+    tags.reverse();
+    tags
+}
+
+pub fn menu_display_order() -> [OverlayState; 13] {
+    request_gameplay_tag_children()
+}
 
 pub const MENU_DILATION: f32 = 0.35;
 pub const OPTION_WIDTH_PX: f32 = 200.0;
@@ -30,8 +40,8 @@ pub const OPTION_HEIGHT_PX: f32 = 25.0;
 pub const OPTION_GAP_PX: f32 = 4.0;
 pub const OPTION_FONT_SIZE_PX: f32 = 14.0;
 
-pub const COLOR_OPTION_SELECTED: Color = Color::srgba(0.15, 0.15, 0.15, 0.5);
-pub const COLOR_OPTION_NOT_SELECTED: Color = Color::srgba(0.015, 0.015, 0.015, 0.5);
+pub const COLOR_OPTION_SELECTED: Color = Color::linear_rgba(0.15, 0.15, 0.15, 0.5);
+pub const COLOR_OPTION_NOT_SELECTED: Color = Color::linear_rgba(0.015, 0.015, 0.015, 0.5);
 
 #[derive(Resource, Default)]
 pub struct OverlayMenuState {
@@ -79,8 +89,8 @@ fn menu_control_system(
     hud_state: Res<AlsHudState>,
     mut time: ResMut<Time<Virtual>>,
     menu_held: Query<&Action<OverlayMenuAction>>,
-    next_events: Query<&ActionEvents, With<Action<als_core::input::NextOverlayModeAction>>>,
-    prev_events: Query<&ActionEvents, With<Action<als_core::input::PreviousOverlayModeAction>>>,
+    next_states: Query<&TriggerState, With<Action<als_core::input::NextOverlayModeAction>>>,
+    prev_states: Query<&TriggerState, With<Action<als_core::input::PreviousOverlayModeAction>>>,
     characters: Query<(Entity, &OverlayState), With<AlsCharacter>>,
     mut requests: Query<&mut AlsStateRequest>,
     mut prev_held: Local<bool>,
@@ -89,16 +99,17 @@ fn menu_control_system(
     let pressed = held && !*prev_held;
     let released = !held && *prev_held;
     *prev_held = held;
+    let display_order = menu_display_order();
 
-    let next = next_events
+    let next = next_states
         .iter()
-        .any(|events| events.contains(ActionEvents::START));
-    let prev = prev_events
+        .any(|state| *state == TriggerState::Fired);
+    let prev = prev_states
         .iter()
-        .any(|events| events.contains(ActionEvents::START));
+        .any(|state| *state == TriggerState::Fired);
 
     if state.open && (next || prev) {
-        let len = MENU_ORDER.len();
+        let len = display_order.len();
         state.selected_index = if next {
             next_index(state.selected_index, len)
         } else {
@@ -112,7 +123,7 @@ fn menu_control_system(
             .iter()
             .next()
             .map(|(_, overlay)| {
-                MENU_ORDER
+                display_order
                     .iter()
                     .position(|candidate| candidate == overlay)
                     .unwrap_or(8)
@@ -121,11 +132,15 @@ fn menu_control_system(
         if !hud_state.slomo_active {
             time.set_relative_speed(MENU_DILATION);
         }
-        state.root = Some(spawn_menu(&mut commands, state.selected_index));
+        state.root = Some(spawn_menu(
+            &mut commands,
+            state.selected_index,
+            &display_order,
+        ));
     }
 
     if released && state.open {
-        let selected = MENU_ORDER[state.selected_index];
+        let selected = display_order[state.selected_index];
         if let Some((entity, _)) = characters.iter().next() {
             match requests.get_mut(entity) {
                 Ok(mut request) => request.overlay_state = Some(selected),
@@ -147,7 +162,11 @@ fn menu_control_system(
     }
 }
 
-fn spawn_menu(commands: &mut Commands, selected_index: usize) -> Entity {
+fn spawn_menu(
+    commands: &mut Commands,
+    selected_index: usize,
+    display_order: &[OverlayState; 13],
+) -> Entity {
     let root = commands
         .spawn(Node {
             position_type: PositionType::Absolute,
@@ -163,7 +182,7 @@ fn spawn_menu(commands: &mut Commands, selected_index: usize) -> Entity {
         })
         .id();
 
-    for (index, overlay) in MENU_ORDER.iter().enumerate() {
+    for (index, overlay) in display_order.iter().enumerate() {
         let selected = index == selected_index;
         let option = commands
             .spawn((
@@ -239,9 +258,9 @@ mod tests {
             OverlayState::Box,
             OverlayState::Barrel,
         ];
-        assert_eq!(MENU_ORDER.len(), all.len());
+        assert_eq!(OVERLAY_TAG_CHILD_NODES.len(), all.len());
         for state in all {
-            let count = MENU_ORDER
+            let count = OVERLAY_TAG_CHILD_NODES
                 .iter()
                 .filter(|candidate| **candidate == state)
                 .count();
@@ -250,15 +269,24 @@ mod tests {
     }
 
     #[test]
-    fn default_is_selected_row_in_reference_screenshot() {
-        assert_eq!(MENU_ORDER[8], OverlayState::Default);
-        assert_eq!(MENU_ORDER[0], OverlayState::Torch);
-        assert_eq!(MENU_ORDER[12], OverlayState::Barrel);
+    fn source_and_display_order_are_explicit_and_complete() {
+        let requested = request_gameplay_tag_children();
+        let display = menu_display_order();
+        assert_eq!(OVERLAY_TAG_CHILD_NODES[4], OverlayState::Default);
+        assert_eq!(OVERLAY_TAG_CHILD_NODES[0], OverlayState::Barrel);
+        assert_eq!(OVERLAY_TAG_CHILD_NODES[12], OverlayState::Torch);
+        assert_eq!(requested[8], OverlayState::Default);
+        assert_eq!(requested[0], OverlayState::Torch);
+        assert_eq!(requested[12], OverlayState::Barrel);
+        assert_eq!(requested, display);
+        assert_eq!(display[8], OverlayState::Default);
+        assert_eq!(display[0], OverlayState::Torch);
+        assert_eq!(display[12], OverlayState::Barrel);
     }
 
     #[test]
     fn wrap_semantics_match_ue_select_functions() {
-        let len = MENU_ORDER.len();
+        let len = menu_display_order().len();
         assert_eq!(next_index(0, len), len - 1, "next from first wraps to last");
         assert_eq!(next_index(8, len), 7);
         assert_eq!(
@@ -281,5 +309,16 @@ mod tests {
             "Pistol Two Handed"
         );
         assert_eq!(option_label(OverlayState::HandsTied), "Hands Tied");
+    }
+
+    #[test]
+    fn selection_background_preserves_ue_linear_color_contrast() {
+        let selected = COLOR_OPTION_SELECTED.to_linear();
+        let unselected = COLOR_OPTION_NOT_SELECTED.to_linear();
+        assert!((selected.red - 0.15).abs() < 1e-6);
+        assert!((unselected.red - 0.015).abs() < 1e-6);
+        assert!((selected.alpha - 0.5).abs() < 1e-6);
+        assert!((unselected.alpha - 0.5).abs() < 1e-6);
+        assert!(selected.red / unselected.red >= 9.9);
     }
 }

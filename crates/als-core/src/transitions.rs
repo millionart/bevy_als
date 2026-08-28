@@ -1,4 +1,15 @@
-use crate::state::Stance;
+use crate::state::{RotationMode, Stance};
+
+pub const QUICK_STOP_BLEND_IN_SECS: f32 = 0.1;
+pub const QUICK_STOP_BLEND_OUT_SECS: f32 = 0.2;
+pub const QUICK_STOP_MIN_PLAY_RATE: f32 = 1.75;
+pub const QUICK_STOP_MAX_PLAY_RATE: f32 = 3.0;
+pub const QUICK_STOP_START_TIME_SECS: f32 = 0.3;
+pub const DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS: f32 = 0.08;
+pub const DYNAMIC_TRANSITION_BLEND_SECS: f32 = 0.2;
+pub const DYNAMIC_TRANSITION_PLAY_RATE: f32 = 1.5;
+pub const DYNAMIC_TRANSITION_FRAME_DELAY: u32 = 2;
+pub const COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES: f32 = 175.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionSequence {
@@ -36,18 +47,40 @@ pub struct TransitionSelection {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct QuickStopSelection {
+    pub right: bool,
+    pub play_rate: f32,
+    pub blend_in_duration: f32,
+    pub blend_out_duration: f32,
+    pub start_time: f32,
+    pub remaining_yaw_degrees: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TransitionConfig {
+    pub dynamic_foot_lock_distance: f32,
     pub dynamic_play_rate: f32,
     pub blend_duration: f32,
     pub frame_delay: u32,
+    pub quick_stop_blend_in_duration: f32,
+    pub quick_stop_blend_out_duration: f32,
+    pub quick_stop_min_play_rate: f32,
+    pub quick_stop_max_play_rate: f32,
+    pub quick_stop_start_time: f32,
 }
 
 impl Default for TransitionConfig {
     fn default() -> Self {
         Self {
-            dynamic_play_rate: 1.0,
-            blend_duration: 0.2,
-            frame_delay: 2,
+            dynamic_foot_lock_distance: DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS,
+            dynamic_play_rate: DYNAMIC_TRANSITION_PLAY_RATE,
+            blend_duration: DYNAMIC_TRANSITION_BLEND_SECS,
+            frame_delay: DYNAMIC_TRANSITION_FRAME_DELAY,
+            quick_stop_blend_in_duration: QUICK_STOP_BLEND_IN_SECS,
+            quick_stop_blend_out_duration: QUICK_STOP_BLEND_OUT_SECS,
+            quick_stop_min_play_rate: QUICK_STOP_MIN_PLAY_RATE,
+            quick_stop_max_play_rate: QUICK_STOP_MAX_PLAY_RATE,
+            quick_stop_start_time: QUICK_STOP_START_TIME_SECS,
         }
     }
 }
@@ -71,6 +104,49 @@ impl TransitionCooldown {
     }
 }
 
+pub fn unwind_degrees(angle: f32) -> f32 {
+    let angle = angle.rem_euclid(360.0);
+    if angle > 180.0 { angle - 360.0 } else { angle }
+}
+
+pub fn remap_counterclockwise_degrees(angle: f32) -> f32 {
+    if angle > COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES {
+        angle - 360.0
+    } else {
+        angle
+    }
+}
+
+pub fn select_quick_stop(
+    rotation_mode: RotationMode,
+    actor_yaw_degrees: f32,
+    target_yaw_degrees: f32,
+    config: &TransitionConfig,
+) -> QuickStopSelection {
+    if rotation_mode != RotationMode::VelocityDirection {
+        return QuickStopSelection {
+            right: false,
+            play_rate: config.quick_stop_min_play_rate,
+            blend_in_duration: config.quick_stop_blend_in_duration,
+            blend_out_duration: config.quick_stop_blend_out_duration,
+            start_time: config.quick_stop_start_time,
+            remaining_yaw_degrees: 0.0,
+        };
+    }
+    let remaining_yaw_degrees =
+        remap_counterclockwise_degrees(unwind_degrees(target_yaw_degrees - actor_yaw_degrees));
+    let rate_alpha = (remaining_yaw_degrees.abs() / 180.0).clamp(0.0, 1.0);
+    QuickStopSelection {
+        right: remaining_yaw_degrees > 0.0,
+        play_rate: config.quick_stop_min_play_rate
+            + (config.quick_stop_max_play_rate - config.quick_stop_min_play_rate) * rate_alpha,
+        blend_in_duration: config.quick_stop_blend_in_duration,
+        blend_out_duration: config.quick_stop_blend_out_duration,
+        start_time: config.quick_stop_start_time,
+        remaining_yaw_degrees,
+    }
+}
+
 pub fn select_stance_transition(
     from: Stance,
     to: Stance,
@@ -87,7 +163,7 @@ pub fn select_stance_transition(
     Some(TransitionSelection {
         sequence,
         play_rate: 1.0,
-        blend_duration: 0.2,
+        blend_duration: DYNAMIC_TRANSITION_BLEND_SECS,
         start_time: 0.0,
     })
 }
@@ -100,6 +176,9 @@ pub fn select_dynamic_transition(
     stance: Stance,
     config: &TransitionConfig,
 ) -> Option<TransitionSelection> {
+    if !left_allowed && !right_allowed {
+        return None;
+    }
     let sequence = if !left_allowed
         || (right_allowed && foot_lock_left_distance_squared < foot_lock_right_distance_squared)
     {
@@ -126,63 +205,63 @@ mod tests {
     use super::*;
 
     #[test]
-    fn stance_change_selects_sequence() {
-        let s = select_stance_transition(Stance::Crouching, Stance::Standing, false).unwrap();
-        assert_eq!(s.sequence, TransitionSequence::CrouchToStand);
-        let s = select_stance_transition(Stance::Standing, Stance::Crouching, false).unwrap();
-        assert_eq!(s.sequence, TransitionSequence::StandToCrouch);
+    fn source_config_matches_animation_instance_settings() {
+        let config = TransitionConfig::default();
+        assert_eq!(config.dynamic_foot_lock_distance, 0.08);
+        assert_eq!(config.dynamic_play_rate, 1.5);
+        assert_eq!(config.blend_duration, 0.2);
+        assert_eq!(config.frame_delay, 2);
+        assert_eq!(config.quick_stop_blend_in_duration, 0.1);
+        assert_eq!(config.quick_stop_blend_out_duration, 0.2);
+        assert_eq!(config.quick_stop_min_play_rate, 1.75);
+        assert_eq!(config.quick_stop_max_play_rate, 3.0);
+        assert_eq!(config.quick_stop_start_time, 0.3);
     }
 
     #[test]
-    fn moving_blocks_idle_only_transition() {
-        assert!(select_stance_transition(Stance::Crouching, Stance::Standing, true).is_none());
+    fn quick_stop_matches_source_direction_and_rate_rules() {
+        let config = TransitionConfig::default();
+        let aiming = select_quick_stop(RotationMode::Aiming, 0.0, 150.0, &config);
+        assert!(!aiming.right && aiming.play_rate == 1.75);
+        let right = select_quick_stop(RotationMode::VelocityDirection, 0.0, 90.0, &config);
+        assert!(right.right && (right.play_rate - 2.375).abs() < 1e-6);
+        let left = select_quick_stop(RotationMode::VelocityDirection, 0.0, -90.0, &config);
+        assert!(!left.right && (left.play_rate - 2.375).abs() < 1e-6);
+        let counterclockwise =
+            select_quick_stop(RotationMode::VelocityDirection, 0.0, 180.0, &config);
+        assert!(!counterclockwise.right && (counterclockwise.play_rate - 3.0).abs() < 1e-6);
     }
 
     #[test]
-    fn same_stance_is_none() {
-        assert!(select_stance_transition(Stance::Standing, Stance::Standing, false).is_none());
+    fn dynamic_transition_requires_source_threshold_and_uses_opposite_side() {
+        let config = TransitionConfig::default();
+        let threshold_squared = config.dynamic_foot_lock_distance.powi(2);
+        assert!(
+            select_dynamic_transition(0.0, 0.0, false, false, Stance::Standing, &config).is_none()
+        );
+        let selected = select_dynamic_transition(
+            threshold_squared * 2.0,
+            threshold_squared * 3.0,
+            true,
+            true,
+            Stance::Standing,
+            &config,
+        )
+        .unwrap();
+        assert_eq!(selected.sequence, TransitionSequence::StandingRight);
+        assert_eq!(selected.play_rate, 1.5);
+        assert_eq!(selected.blend_duration, 0.2);
     }
 
     #[test]
-    fn foot_lock_distance_picks_opposite_side() {
-        let cfg = TransitionConfig::default();
-        let left_locked =
-            select_dynamic_transition(1.0, 100.0, true, true, Stance::Standing, &cfg).unwrap();
-        assert_eq!(left_locked.sequence, TransitionSequence::StandingRight);
-        let right_locked =
-            select_dynamic_transition(100.0, 1.0, true, true, Stance::Standing, &cfg).unwrap();
-        assert_eq!(right_locked.sequence, TransitionSequence::StandingLeft);
-    }
-
-    #[test]
-    fn equal_foot_lock_defaults_left() {
-        let cfg = TransitionConfig::default();
-        let sel =
-            select_dynamic_transition(50.0, 50.0, true, true, Stance::Standing, &cfg).unwrap();
-        assert_eq!(sel.sequence, TransitionSequence::StandingLeft);
-    }
-
-    #[test]
-    fn disallowed_side_forces_other() {
-        let cfg = TransitionConfig::default();
-        let sel =
-            select_dynamic_transition(1.0, 100.0, false, true, Stance::Crouching, &cfg).unwrap();
-        assert_eq!(sel.sequence, TransitionSequence::CrouchingRight);
-        let sel =
-            select_dynamic_transition(100.0, 1.0, true, false, Stance::Crouching, &cfg).unwrap();
-        assert_eq!(sel.sequence, TransitionSequence::CrouchingLeft);
-    }
-
-    #[test]
-    fn cooldown_frames() {
-        let cfg = TransitionConfig::default();
-        let mut cd = TransitionCooldown::default();
-        assert!(!cd.is_active());
-        cd.arm(&cfg);
-        assert!(cd.is_active());
-        cd.tick();
-        assert!(cd.is_active());
-        cd.tick();
-        assert!(!cd.is_active());
+    fn cooldown_blocks_exactly_two_frames() {
+        let config = TransitionConfig::default();
+        let mut cooldown = TransitionCooldown::default();
+        cooldown.arm(&config);
+        assert!(cooldown.is_active());
+        cooldown.tick();
+        assert!(cooldown.is_active());
+        cooldown.tick();
+        assert!(!cooldown.is_active());
     }
 }

@@ -1,7 +1,16 @@
 use bevy::prelude::*;
 
+use crate::character::AlsCharacter;
+use crate::input::AlsInputCommand;
+use crate::motion::{AlsInputOverride, AlsViewYaw};
+
 pub const PITCH_LIMIT_DEGREES: f32 = 85.0;
 pub const LOOK_HALF_LIFE_SECONDS: f32 = 0.08;
+pub const LOOK_MOUSE_RADIANS_PER_COUNT: f32 = 0.0025;
+pub const LOOK_UP_MOUSE_SENSITIVITY: f32 = 1.0;
+pub const LOOK_RIGHT_MOUSE_SENSITIVITY: f32 = 1.0;
+pub const LOOK_UP_RATE_DEGREES_PER_SECOND: f32 = 90.0;
+pub const LOOK_RIGHT_RATE_DEGREES_PER_SECOND: f32 = 240.0;
 
 #[derive(Component, Debug, Default, Clone, Copy, Reflect)]
 #[reflect(Default)]
@@ -10,6 +19,48 @@ pub struct AlsViewPitch(pub f32);
 #[derive(Component, Debug, Default, Clone, Copy, Reflect)]
 #[reflect(Default)]
 pub struct AlsViewSmoothed(pub f32);
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsViewInputSet;
+
+pub fn look_delta_radians(command: &AlsInputCommand, dt: f32) -> Vec2 {
+    Vec2::new(
+        command.look_delta.x * LOOK_RIGHT_MOUSE_SENSITIVITY * LOOK_MOUSE_RADIANS_PER_COUNT
+            + command.look_rate.x * LOOK_RIGHT_RATE_DEGREES_PER_SECOND.to_radians() * dt,
+        command.look_delta.y * LOOK_UP_MOUSE_SENSITIVITY * LOOK_MOUSE_RADIANS_PER_COUNT
+            + command.look_rate.y * LOOK_UP_RATE_DEGREES_PER_SECOND.to_radians() * dt,
+    )
+}
+
+pub fn apply_view_input_system(
+    time: Res<Time>,
+    mut characters: Query<
+        (
+            &mut AlsViewYaw,
+            &mut AlsViewPitch,
+            &AlsInputCommand,
+            Option<&AlsInputOverride>,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (mut yaw, mut pitch, command, override_command) in &mut characters {
+        let effective = override_command
+            .map(|override_command| &override_command.0)
+            .unwrap_or(command);
+        let delta = look_delta_radians(effective, time.delta_secs());
+        yaw.0 -= delta.x;
+        pitch.0 = clamp_pitch(pitch.0 - delta.y);
+    }
+}
+
+pub struct AlsViewInputPlugin;
+
+impl Plugin for AlsViewInputPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, apply_view_input_system.in_set(AlsViewInputSet));
+    }
+}
 
 pub fn clamp_pitch(pitch_radians: f32) -> f32 {
     let limit = PITCH_LIMIT_DEGREES.to_radians();
@@ -73,5 +124,21 @@ mod tests {
     fn half_life_halves_distance() {
         let after = damp_view(1.0, 0.0, 0.5, 0.5);
         assert!((after - 0.5).abs() < 1e-3);
+    }
+
+    #[test]
+    fn mouse_and_rate_look_use_separate_source_units() {
+        let command = AlsInputCommand {
+            look_delta: Vec2::new(4.0, -2.0),
+            look_rate: Vec2::new(0.5, -0.25),
+            ..default()
+        };
+        let delta = look_delta_radians(&command, 0.5);
+        let expected_x = 4.0 * LOOK_MOUSE_RADIANS_PER_COUNT
+            + 0.5 * LOOK_RIGHT_RATE_DEGREES_PER_SECOND.to_radians() * 0.5;
+        let expected_y = -2.0 * LOOK_MOUSE_RADIANS_PER_COUNT
+            - 0.25 * LOOK_UP_RATE_DEGREES_PER_SECOND.to_radians() * 0.5;
+        assert!((delta.x - expected_x).abs() < 1e-6);
+        assert!((delta.y - expected_y).abs() < 1e-6);
     }
 }

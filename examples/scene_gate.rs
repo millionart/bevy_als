@@ -12,7 +12,8 @@ use bevy::text::TextLayoutInfo;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 
-use als_ext::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMaterial};
+use als_core::player_start::{AlsPlayerStart, AlsPlayerStartReady};
+use als_ext::playground_materials::PlaygroundTilesMaterial;
 use als_ext::{
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundKinematic,
     PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundLandscapeTilesMaterial,
@@ -38,7 +39,6 @@ fn main() {
         }),
         PhysicsPlugins::new(FixedPostUpdate),
         EnhancedInputPlugin,
-        PlaygroundMaterialsPlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground_scene.ron".into(),
         },
@@ -54,6 +54,7 @@ fn main() {
         Update,
         (
             stats_collector,
+            player_start_stats_collector,
             landscape_material_stats_collector,
             kinematic_probe,
             verdict_system,
@@ -94,6 +95,9 @@ struct SceneStats {
     text_front_max_error: f32,
     landscape_seen: bool,
     landscape_identity: bool,
+    player_start_count: u32,
+    player_start_ready_count: u32,
+    player_start_error: f32,
     landscape_tiles_material_count: u32,
     landscape_tiles_tiling_error: f32,
     landscape_tiles_color_error: f32,
@@ -521,6 +525,23 @@ fn stats_collector(
     }
 }
 
+fn player_start_stats_collector(
+    mut stats: ResMut<SceneStats>,
+    player_starts: Query<&Transform, With<AlsPlayerStart>>,
+    ready_player_starts: Query<Entity, With<AlsPlayerStartReady>>,
+) {
+    stats.player_start_count = player_starts.iter().count() as u32;
+    stats.player_start_ready_count = ready_player_starts.iter().count() as u32;
+    stats.player_start_error = player_starts
+        .iter()
+        .map(|transform| {
+            transform
+                .translation
+                .distance(Vec3::new(-15.0, 0.92, -15.0))
+        })
+        .fold(f32::INFINITY, f32::min);
+}
+
 fn landscape_material_stats_collector(
     mut stats: ResMut<SceneStats>,
     landscape_materials: Query<
@@ -802,6 +823,9 @@ fn verdict_system(
         && stats.landscape_tiles_tiling_error < 1e-4
         && stats.landscape_tiles_color_error < 1e-4
         && stats.landscape_tiles_mip_count == stats.landscape_tiles_material_count * 3;
+    let ok_player_start = stats.player_start_count == 1
+        && stats.player_start_ready_count == 1
+        && stats.player_start_error < 1e-5;
     let ok_sun = stats.sun_count == 1
         && stats.sun_shadowed
         && stats.sun_ray_error < 1e-4
@@ -840,6 +864,14 @@ fn verdict_system(
         && stats.cube_orientation_max_error < 1e-4;
     let ok_rock_scale = stats.rock_scale_count == 1 && stats.rock_scale_error < 1e-4;
     let ok_brush = stats.brush_count == 0;
+
+    info!(
+        "[SCENEGATE][PLAYERSTART] count={} ready={} translation_error={:.6} -> {}",
+        stats.player_start_count,
+        stats.player_start_ready_count,
+        stats.player_start_error,
+        if ok_player_start { "PASS" } else { "FAIL" }
+    );
 
     info!(
         "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} inline_frame_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
@@ -930,6 +962,7 @@ fn verdict_system(
             && ok_text_color
             && ok_text_front
             && ok_landscape
+            && ok_player_start
             && ok_sun
             && ok_camera_exposure
             && ok_sky
@@ -957,6 +990,7 @@ fn verdict_system(
         && ok_text_color
         && ok_text_front
         && ok_landscape
+        && ok_player_start
         && ok_sun
         && ok_camera_exposure
         && ok_sky

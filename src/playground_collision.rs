@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use als_core::character::AlsCrushRecoveryFloor;
 use als_ext::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
     PlaygroundMovingObject, PlaygroundPhysicsDriven,
@@ -16,7 +15,7 @@ impl Plugin for PlaygroundCollisionPlugin {
             .add_systems(
                 Update,
                 (
-                    playground_box_physics_bridge,
+                    playground_moving_box_physics_bridge,
                     playground_mesh_physics_bridge,
                 ),
             );
@@ -48,43 +47,26 @@ struct PlaygroundMeshGeometry {
     triangles: Vec<[u32; 3]>,
 }
 
-fn playground_box_physics_bridge(
+fn playground_moving_box_physics_bridge(
     mut commands: Commands,
-    bodies: Query<
-        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>),
-        Added<PlaygroundBoxCollider>,
-    >,
+    bodies: Query<(Entity, &PlaygroundBoxCollider, Option<&ChildOf>), Added<PlaygroundBoxCollider>>,
     moving_roots: Query<(), With<PlaygroundMovingObject>>,
-    root_names: Query<&Name>,
 ) {
-    for (entity, name, collider, parent) in &bodies {
-        let shape = Collider::cuboid(
+    for (entity, collider, parent) in &bodies {
+        let Some(&ChildOf(root)) = parent else {
+            continue;
+        };
+        if !moving_roots.contains(root) {
+            continue;
+        }
+        commands.entity(entity).insert(Collider::cuboid(
             collider.half_extents.x * 2.0,
             collider.half_extents.y * 2.0,
             collider.half_extents.z * 2.0,
-        );
-        if let Some(&ChildOf(root)) = parent
-            && moving_roots.contains(root)
-        {
-            commands.entity(entity).insert(shape);
-            commands
-                .entity(root)
-                .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
-        } else {
-            let parent_is_floor = parent.is_some_and(|&ChildOf(root)| {
-                root_names
-                    .get(root)
-                    .is_ok_and(|root_name| root_name.as_str().ends_with(":BP_SimpleObject5"))
-            });
-            let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
-            let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((RigidBody::Static, shape));
-            if is_floor {
-                entity_commands.insert(AlsCrushRecoveryFloor {
-                    half_extents: collider.half_extents,
-                });
-            }
-        }
+        ));
+        commands
+            .entity(root)
+            .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
     }
 }
 

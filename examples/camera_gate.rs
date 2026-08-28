@@ -10,7 +10,10 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_camera::{AlsCameraPlugin, AlsCameraRig, AlsCameraTarget};
+use als_camera::{
+    AlsCameraCurveProfileDriver, AlsCameraDebugInfo, AlsCameraPlugin, AlsCameraRig,
+    AlsCameraSocketLocations, AlsCameraTarget,
+};
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
@@ -61,6 +64,7 @@ fn main() {
             spawn_character_once,
             auto_demo,
             aim_pitch_driver,
+            camera_socket_bridge,
             cam_watcher,
             graph_router,
             fall_guard,
@@ -179,6 +183,9 @@ struct CamWatch {
 #[derive(Resource)]
 struct AutoQuit(Instant);
 
+#[derive(Component)]
+struct CameraGateSockets;
+
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
@@ -229,6 +236,9 @@ fn spawn_character_once(
             AlsInputOverride::default(),
             AlsViewYaw(std::f32::consts::PI),
             AlsCameraTarget,
+            AlsCameraCurveProfileDriver,
+            CameraGateSockets,
+            AlsCameraSocketLocations::default(),
         ));
         info!("[CGATE] scripted demo armed");
         let tname = std::any::type_name::<als_camera::AlsCameraTarget>();
@@ -309,6 +319,26 @@ fn aim_pitch_driver(time: Res<Time>, mut q: Query<&mut AlsViewPitch, With<AlsCha
     }
 }
 
+fn camera_socket_bridge(
+    mut characters: Query<
+        (&GlobalTransform, &mut AlsCameraSocketLocations),
+        (With<AlsCharacter>, With<CameraGateSockets>),
+    >,
+) {
+    for (transform, mut sockets) in &mut characters {
+        let root = transform.translation() - Vec3::Y * 0.92;
+        let head = transform.translation() + Vec3::Y * 0.83;
+        sockets.root = root;
+        sockets.head = head;
+        sockets.first_person = head + Vec3::new(0.0, 0.0, 0.14);
+        sockets.trace_shoulder_right = head + Vec3::new(0.0, 0.20, 0.0);
+        sockets.trace_shoulder_left = head + Vec3::new(0.0, -0.20, 0.0);
+        sockets.mesh_rotation = Quat::IDENTITY;
+        sockets.mesh_scale = 1.0;
+        sockets.valid = true;
+    }
+}
+
 fn graph_router(
     q: Query<
         (
@@ -369,7 +399,10 @@ fn cam_watcher(
         ),
         (Without<AlsCameraRig>, With<AlsCharacter>),
     >,
-    mut cams: Query<(&Transform, &AlsCameraRig), (With<Camera>, Without<AlsCharacter>)>,
+    mut cams: Query<
+        (&Transform, &AlsCameraRig, &AlsCameraDebugInfo),
+        (With<Camera>, Without<AlsCharacter>),
+    >,
     mut exit: MessageWriter<AppExit>,
     q_target_probe: Query<Entity, With<AlsCameraTarget>>,
     q_rot: Query<&RotationMode, With<AlsCharacter>>,
@@ -389,7 +422,7 @@ fn cam_watcher(
         );
         return;
     };
-    let Ok((cam_tf, cam_rig)) = cams.single_mut() else {
+    let Ok((cam_tf, _cam_rig, cam_debug)) = cams.single_mut() else {
         warn!("[CGATE] cam query miss");
         return;
     };
@@ -417,7 +450,7 @@ fn cam_watcher(
         watch.min_clearance = Some(watch.min_clearance.map_or(cand, |m| m.min(cand)));
     }
 
-    if cam_rig.aim_blend > 0.95 {
+    if *rot == RotationMode::Aiming && cam_debug.valid {
         watch.blend_seen_high = true;
     }
 

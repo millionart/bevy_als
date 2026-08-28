@@ -1,4 +1,5 @@
 import json
+import re
 import struct
 import sys
 import uuid
@@ -187,6 +188,29 @@ def main():
     for jname, ibm in zip((nodes[j]["name"] for j in skin["joints"]), ibms):
         rest[jname] = rigid_inverse(ibm)
 
+    parents = {}
+    names = {}
+    for index, node in enumerate(nodes):
+        name = node.get("name")
+        if name:
+            names[name] = index
+        for child in node.get("children", []):
+            parents[child] = index
+
+    def path_parts(name):
+        parts = []
+        index = names[name]
+        while True:
+            current = nodes[index].get("name") or f"GltfNode{index}"
+            parts.append(current)
+            if index not in parents:
+                break
+            index = parents[index]
+        return list(reversed(parts))
+
+    def path_ron(name):
+        return ", ".join(f'"{part}"' for part in path_parts(name))
+
     missing = [b for _, b, _, _ in BODIES if b not in rest]
     if missing:
         sys.exit(f"missing bones: {missing}")
@@ -195,7 +219,22 @@ def main():
         m = rest[name]
         return m[0][3], m[1][3], m[2][3]
 
-    uuids = {label: str(uuid.uuid4()) for label, _, _, _ in BODIES}
+    bone_map_only = "--bone-map-only" in sys.argv
+    if bone_map_only:
+        existing_rag = OUT_RAG.read_text(encoding="utf-8")
+        uuids = {}
+        for label, _bone, _radius, _half_len in BODIES:
+            pattern = (
+                r'\(\s*uuid:\s*"(?P<uuid>[^"]+)",\s*\):\s*\('
+                r'\s*id:\s*\(\s*uuid:\s*"[^"]+",\s*\),\s*'
+                + rf'label:\s*"{re.escape(label)}",'
+            )
+            match = re.search(pattern, existing_rag, re.DOTALL)
+            if match is None:
+                sys.exit(f"missing body UUID: {label}")
+            uuids[label] = match.group("uuid")
+    else:
+        uuids = {label: str(uuid.uuid4()) for label, _, _, _ in BODIES}
 
     rag = ["(", "    bodies: {"]
     collider_ids = {}
@@ -256,14 +295,15 @@ def main():
         bid = uuids[body]
         bw = rest[BODY_ANCHOR[body]]
         bone_w = rest[bone]
+        path = path_ron(bone)
         rel = mmul(rigid_inverse(bw), bone_w)
         q = quat_of(rel)
         tx, ty, tz = rel[0][3], rel[1][3], rel[2][3]
         bm.append(f"""        [
-            "{bone}",
+            {path},
         ]: (
             bone_id: [
-                "{bone}",
+                {path},
             ],
             bodies: [
                 (
@@ -281,7 +321,35 @@ def main():
             created_from: None,
         ),""")
     bm.append("    },")
-    bm.append('    bodies_from_bones: {},')
+    bm.append("    bodies_from_bones: {")
+    for label, bone, _radius, _half_len in BODIES:
+        bid = uuids[label]
+        body_w = rest[BODY_ANCHOR[label]]
+        bone_w = rest[bone]
+        path = path_ron(bone)
+        body_to_bone = mmul(rigid_inverse(body_w), bone_w)
+        bone_to_body = rigid_inverse(body_to_bone)
+        q = quat_of(bone_to_body)
+        tx, ty, tz = bone_to_body[0][3], bone_to_body[1][3], bone_to_body[2][3]
+        bm.append(f'''        (
+            uuid: "{bid}",
+        ): (
+            body_id: (
+                uuid: "{bid}",
+            ),
+            bone: (
+                bone: [
+                    {path},
+                ],
+                offset: (
+                    rotation: ({q[0]:.6f}, {q[1]:.6f}, {q[2]:.6f}, {q[3]:.6f}),
+                    translation: ({tx:.4}, {ty:.4}, {tz:.4}),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),''')
+    bm.append("    },")
     bm.append('    skeleton: "skeletons/SKM_Als.skn.ron",')
     bm.append('    ragdoll: "ragdolls/als_manny.rag.ron",')
     bm.append("""    skeleton_symmetry: (
@@ -335,9 +403,11 @@ def main():
     rag.append(f'    total_mass: {TOTAL_MASS:.3},')
     rag.append(')')
 
-    OUT_RAG.write_text("\n".join(rag) + "\n", encoding="utf-8")
+    if not bone_map_only:
+        OUT_RAG.write_text("\n".join(rag) + "\n", encoding="utf-8")
     OUT_BM.write_text("\n".join(bm) + "\n", encoding="utf-8")
-    print(f"wrote {OUT_RAG}")
+    if not bone_map_only:
+        print(f"wrote {OUT_RAG}")
     print(f"wrote {OUT_BM} ({len(BONE_TO_BODY)} bone mappings)")
 
 

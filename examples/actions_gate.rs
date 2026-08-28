@@ -16,7 +16,10 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{AlsRollState, roll_displacement_dir};
+use als_core::roll::{
+    AlsRollState, ROLL_DURATION_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
+    roll_displacement_dir,
+};
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::start_stop::{StartStopPhase, StartStopState};
@@ -192,6 +195,7 @@ struct ActionsVerdict {
     stop_started: bool,
     prev_stop_active: bool,
     stop_start_xz: Vec2,
+    stop_total: f32,
     stop_slide: f32,
     stop_remaining_end: f32,
     stop_peak_weight: f32,
@@ -323,7 +327,10 @@ fn start_stop_detector(
     };
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
-    let dir = als_core::start_stop::classify(input.move_dir, view.0);
+    let dir = als_core::start_stop::classify(
+        als_core::motion::view_relative_move_axes(input.move_dir, view.0),
+        view.0,
+    );
     als_core::start_stop::update_start_stop(&mut ss, &Default::default(), hspeed, dir);
 }
 
@@ -356,7 +363,7 @@ fn actions_watcher(
     if !v.prev_rolling && roll.active {
         v.roll_start_xz = xz;
         info!(
-            "[AGATE][ROLL begin] yaw={:.2} vec={:?}",
+            "[BCHAR18A][ROLL begin] yaw={:.2} vec={:?} duration={ROLL_DURATION_SECS:.6} rate={ROLL_PLAY_RATE:.2} half_life={ROLL_ROTATION_HALF_LIFE_SECS:.2}",
             roll.direction_yaw,
             roll_displacement_dir(roll.direction_yaw)
         );
@@ -399,7 +406,17 @@ fn actions_watcher(
     if !v.stop_started && stop.active {
         v.stop_started = true;
         v.stop_start_xz = xz;
-        info!("[AGATE][STOP] matched start total={:.3}", stop.total);
+        v.stop_total = stop.total;
+        info!(
+            "[BCHAR18S][STOP] total={:.3} right={} rate={:.2} start={:.2} blend={:.2}/{:.2} yaw={:.1}",
+            stop.total,
+            stop.right_weight > 0.5,
+            stop.quick_stop_play_rate,
+            stop.quick_stop_start_time,
+            stop.quick_stop_blend_in_duration,
+            stop.quick_stop_blend_out_duration,
+            stop.quick_stop_remaining_yaw_degrees,
+        );
     }
     if v.stop_started {
         v.stop_peak_weight = v.stop_peak_weight.max(stop.weight);
@@ -414,14 +431,21 @@ fn actions_watcher(
             v.stop_remaining_end = stop.remaining;
             let ok_roll = v.roll_dist >= 1.9 && v.roll_dist <= 3.4 && v.roll_align >= 0.95;
             let ok_land = v.saw_air && v.landed_light;
-            let ok_stop = v.stop_slide <= 1.5
+            let stop_distance_error = (v.stop_slide - v.stop_total).abs();
+            let ok_stop = stop_distance_error <= (0.25_f32).max(v.stop_total * 0.15)
                 && v.stop_peak_weight >= 0.95
-                && (v.stop_remaining_end <= 0.08 || v.stop_slide >= 0.05);
+                && (v.stop_remaining_end <= 0.08 || v.stop_slide >= 0.05)
+                && (1.75..=3.0).contains(&stop.quick_stop_play_rate)
+                && (stop.quick_stop_start_time - 0.3).abs() <= 1e-6
+                && (stop.quick_stop_blend_in_duration - 0.1).abs() <= 1e-6
+                && (stop.quick_stop_blend_out_duration - 0.2).abs() <= 1e-6;
             info!(
-                "[AGATE][VERDICT] roll(dist={:.2},align={:+.3})={ok_roll} jump_light={ok_land} stop(slide={:.2},peak_w={:.2},rem_end={:.3})={ok_stop} -> {}",
+                "[AGATE][VERDICT] roll(dist={:.2},align={:+.3})={ok_roll} jump_light={ok_land} stop(slide={:.2},total={:.2},error={:.2},peak_w={:.2},rem_end={:.3})={ok_stop} -> {}",
                 v.roll_dist,
                 v.roll_align,
                 v.stop_slide,
+                v.stop_total,
+                stop_distance_error,
                 v.stop_peak_weight,
                 v.stop_remaining_end,
                 if ok_roll && ok_land && ok_stop {

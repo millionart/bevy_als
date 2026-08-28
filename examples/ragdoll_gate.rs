@@ -4,11 +4,11 @@ use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
+use bevy_tnua::{TnuaControllerPlugin, TnuaToggle};
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
@@ -21,7 +21,7 @@ use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use als_ext::AlsExtPlugin;
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
-use bevy_als::ragdoll_link::AlsRagdollLinkPlugin;
+use bevy_als::ragdoll_link::{AlsRagdollGroundFollow, AlsRagdollLinkPlugin};
 use bevy_als::stop_link::AlsStopLinkPlugin;
 
 fn main() {
@@ -84,12 +84,21 @@ struct DemoDriver {
 
 #[derive(Resource, Default)]
 struct RagdollWatch {
+    kinematic_logged: bool,
+    kinematic_valid: bool,
+    initial_physics_captured: bool,
+    initial_layers: Option<CollisionLayers>,
+    initial_body_mode: Option<RigidBody>,
+    initial_tnua_toggle: Option<TnuaToggle>,
     ragdoll_entered: bool,
-    pelvis_peak_y: f32,
-    pelvis_rest_y: f32,
+    handoff_valid: bool,
+    follow_valid: bool,
+    handoff_logged: bool,
+    max_follow_error: f32,
     settle_seen: bool,
     recovered: bool,
-    recovery_y: f32,
+    recovery_physics_valid: bool,
+    recovery_probe_count: u8,
     nan_bodies: u32,
     failed: bool,
     verdict_done: bool,
@@ -188,7 +197,7 @@ fn spawn_character_once(
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(
+    let _avatar = bevy_als::character_assembly::attach_avatar(
         &mut commands,
         &assets,
         character,
@@ -214,7 +223,6 @@ fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
     mut q: Query<(&mut AlsInputOverride, &mut AlsStateRequest), With<AlsCharacter>>,
-    mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
         return;
@@ -227,7 +235,6 @@ fn auto_demo(
     let last = &all[all.len() - 1];
     if t >= last.t0 + last.dur + 0.4 {
         driver.done = true;
-        exit.write(AppExit::Success);
         return;
     }
     let Some(idx) = (0..all.len()).rev().find(|i| t >= all[*i].t0) else {
@@ -266,7 +273,6 @@ fn auto_demo(
 
 #[allow(clippy::type_complexity)]
 fn ragdoll_watcher(
-    time: Res<Time>,
     mut watch: ResMut<RagdollWatch>,
     mut q: Query<
         (
@@ -274,6 +280,10 @@ fn ragdoll_watcher(
             &LinearVelocity,
             &LocomotionState,
             &mut AlsStateRequest,
+            Option<&CollisionLayers>,
+            &RigidBody,
+            Option<&TnuaToggle>,
+            Option<&AlsRagdollGroundFollow>,
         ),
         With<AlsCharacter>,
     >,
@@ -281,17 +291,112 @@ fn ragdoll_watcher(
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
     positions: Query<(&Position, &LinearVelocity)>,
+    modes: Query<&RigidBody>,
+    layers: Query<&CollisionLayers>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((tf, vel, loco, mut req)) = q.single_mut() else {
+    let Ok((tf, vel, loco, mut req, character_layers, character_mode, tnua_toggle, ground_follow)) =
+        q.single_mut()
+    else {
         return;
     };
 
     if *loco == LocomotionState::Ragdolling && !watch.ragdoll_entered {
         watch.ragdoll_entered = true;
-        watch.pelvis_rest_y = 0.93;
         info!("[RGATE][PHASE] ragdoll active -- physics takes over");
         req.locomotion_state = None;
+    }
+
+    if !watch.kinematic_logged && !watch.ragdoll_entered {
+        for instance in instances.iter() {
+            if let Ok(player) = players.get(instance.player_entity())
+                && let Some(spawned) = player.get_spawned_ragdoll()
+            {
+                let mut lowest = f32::INFINITY;
+                let mut highest = f32::NEG_INFINITY;
+                let mut kinematic = 0usize;
+                let mut dynamic = 0usize;
+                let mut pelvis_y = None;
+                for body_entity in spawned.bodies.values() {
+                    if let Ok((pos, _)) = positions.get(*body_entity) {
+                        lowest = lowest.min(pos.y);
+                        highest = highest.max(pos.y);
+                        if labels
+                            .get(*body_entity)
+                            .is_ok_and(|label| label.0 == "pelvis")
+                        {
+                            pelvis_y = Some(pos.y);
+                        }
+                    }
+                    match modes.get(*body_entity) {
+                        Ok(RigidBody::Kinematic) => kinematic += 1,
+                        Ok(RigidBody::Dynamic) => dynamic += 1,
+                        _ => {}
+                    }
+                }
+                if spawned.bodies.len() == 16 {
+                    watch.initial_physics_captured = true;
+                    watch.initial_layers = character_layers.copied();
+                    watch.initial_body_mode = Some(*character_mode);
+                    watch.initial_tnua_toggle = tnua_toggle.copied();
+                    watch.kinematic_valid = kinematic == 16
+                        && dynamic == 0
+                        && lowest.is_finite()
+                        && highest.is_finite()
+                        && lowest > -0.05
+                        && highest < 2.1
+                        && pelvis_y.is_some_and(|y| (0.7..1.2).contains(&y));
+                    info!(
+                        "[RGATE][KINEMATIC] bodies={} kinematic={} dynamic={} lowest={lowest:.3} highest={highest:.3} pelvis={:.3} valid={} capsule_layers={:?} capsule_body={:?} capsule_tnua={:?}",
+                        spawned.bodies.len(),
+                        kinematic,
+                        dynamic,
+                        pelvis_y.unwrap_or(f32::NAN),
+                        watch.kinematic_valid,
+                        watch.initial_layers,
+                        watch.initial_body_mode,
+                        watch.initial_tnua_toggle
+                    );
+                    watch.kinematic_logged = true;
+                }
+            }
+        }
+    }
+
+    if watch.ragdoll_entered {
+        for instance in instances.iter() {
+            if let Ok(player) = players.get(instance.player_entity())
+                && let Some(spawned) = player.get_spawned_ragdoll()
+            {
+                let bodies_dynamic = spawned.bodies.values().all(|body| {
+                    modes
+                        .get(*body)
+                        .is_ok_and(|mode| *mode == RigidBody::Dynamic)
+                });
+                let colliders_active = spawned.colliders.values().all(|collider| {
+                    layers
+                        .get(*collider)
+                        .is_ok_and(|layer| *layer != CollisionLayers::NONE)
+                });
+                let capsule_disabled = character_layers
+                    .is_some_and(|layer| *layer == CollisionLayers::NONE)
+                    && *character_mode == RigidBody::Kinematic
+                    && tnua_toggle.is_some_and(|toggle| *toggle == TnuaToggle::Disabled);
+                watch.handoff_valid |= bodies_dynamic && colliders_active && capsule_disabled;
+                if let Some(follow) = ground_follow {
+                    let error = tf.translation.distance(follow.target);
+                    watch.max_follow_error = watch.max_follow_error.max(error);
+                    watch.follow_valid |= follow.grounded && error <= 0.002;
+                    if !watch.handoff_logged && watch.handoff_valid && watch.follow_valid {
+                        info!(
+                            "[RGATE][HANDOFF] bodies_dynamic={bodies_dynamic} colliders_active={colliders_active} capsule_disabled={capsule_disabled} grounded={} target_y={:.3} error={error:.6} -> PASS",
+                            follow.grounded, follow.target.y
+                        );
+                        watch.handoff_logged = true;
+                    }
+                }
+            }
+        }
     }
 
     if watch.ragdoll_entered && !watch.settle_seen {
@@ -317,47 +422,80 @@ fn ragdoll_watcher(
                 );
                 if lowest < 0.55 && peak < 0.35 {
                     watch.settle_seen = true;
-                    info!(
-                        "[RGATE][SETTLE] bodies at rest (lowest={lowest:.2}) after falling from peak pelvis {:.2}",
-                        watch.pelvis_peak_y
-                    );
+                    info!("[RGATE][SETTLE] bodies at rest (lowest={lowest:.2})");
                 }
             }
         }
     }
+
+    let recovery_physics_restored = watch.initial_physics_captured
+        && watch.initial_layers == character_layers.copied()
+        && watch.initial_body_mode == Some(*character_mode)
+        && watch.initial_tnua_toggle == tnua_toggle.copied();
 
     if watch.settle_seen
         && !watch.recovered
         && *loco == LocomotionState::Grounded
         && tf.translation.y > 0.7
         && tf.translation.y < 1.1
+        && recovery_physics_restored
     {
         watch.recovered = true;
-        watch.recovery_y = tf.translation.y;
+        watch.recovery_physics_valid = true;
         info!(
-            "[RGATE][RECOVERED] back on feet y={:.2} v={:.2}",
+            "[RGATE][RECOVERED] back on feet y={:.2} v={:.2} physics_restored={}",
             tf.translation.y,
-            Vec2::new(vel.x, vel.z).length()
+            Vec2::new(vel.x, vel.z).length(),
+            watch.recovery_physics_valid
         );
     }
 
+    if watch.ragdoll_entered
+        && *loco == LocomotionState::Grounded
+        && !watch.recovered
+        && watch.recovery_probe_count < 3
+    {
+        info!(
+            "[RGATE][RECOVERY_PROBE] y={:.3} body={:?} layers={:?} tnua={:?} restored={recovery_physics_restored}",
+            tf.translation.y, character_mode, character_layers, tnua_toggle
+        );
+        watch.recovery_probe_count += 1;
+    }
+
     if watch.recovered && !watch.verdict_done {
-        let elapsed_since = time.elapsed_secs_f64() % 3600.0;
-        let _ = elapsed_since;
+        let ok_kinematic = watch.kinematic_valid;
+        let ok_handoff = watch.handoff_valid;
+        let ok_follow = watch.follow_valid;
         let ok_settle = watch.settle_seen;
         let ok_recover = watch.recovered;
+        let ok_recovery_physics = watch.recovery_physics_valid;
         let ok_no_nan = watch.nan_bodies == 0;
         info!(
-            "[RGATE][VERDICT] settle={ok_settle} recover={ok_recover} nan_bodies={} -> {}",
+            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} nan_bodies={} max_follow_error={:.6} -> {}",
             watch.nan_bodies,
-            if ok_settle && ok_recover && ok_no_nan {
+            watch.max_follow_error,
+            if ok_kinematic
+                && ok_handoff
+                && ok_follow
+                && ok_settle
+                && ok_recover
+                && ok_recovery_physics
+                && ok_no_nan
+            {
                 "PASS"
             } else {
                 "FAIL"
             }
         );
         watch.verdict_done = true;
-        if !(ok_settle && ok_recover && ok_no_nan) {
+        if !(ok_kinematic
+            && ok_handoff
+            && ok_follow
+            && ok_settle
+            && ok_recover
+            && ok_recovery_physics
+            && ok_no_nan)
+        {
             watch.failed = true;
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         } else {
@@ -418,9 +556,13 @@ fn fall_guard(q: Query<&Transform, With<AlsCharacter>>, mut exit: MessageWriter<
     }
 }
 
-fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+fn auto_quit(quit: Res<AutoQuit>, watch: Res<RagdollWatch>, mut exit: MessageWriter<AppExit>) {
     if Instant::now() >= quit.0 {
-        warn!("[RGATE] wall-clock safety quit");
-        exit.write(AppExit::Success);
+        if watch.verdict_done {
+            exit.write(AppExit::Success);
+        } else {
+            error!("[RGATE] wall-clock safety quit before verdict");
+            exit.write(AppExit::Error(std::num::NonZeroU8::new(7).unwrap()));
+        }
     }
 }

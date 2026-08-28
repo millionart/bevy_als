@@ -13,6 +13,11 @@ use bevy::world_serialization::WorldAssetRoot;
 use ron::de::from_str;
 use serde::Deserialize;
 
+use als_core::character::AlsCrushRecoveryFloor;
+use als_core::player_start::{AlsPlayerStart, AlsPlayerStartPlugin};
+use avian3d::prelude::{Collider, RigidBody};
+
+use crate::playground_materials::PlaygroundMaterialsPlugin;
 use crate::playground_materials::{
     PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
     PlaygroundTilesSettings,
@@ -28,18 +33,66 @@ pub struct PlaygroundPlugin {
 
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(PlaygroundManifestPath(self.manifest.clone()))
+        let manifest = self.manifest.clone();
+        app.add_plugins((PlaygroundMaterialsPlugin, AlsPlayerStartPlugin))
             .init_resource::<PlaygroundMovingCurve>()
-            .add_systems(Startup, playground_setup_system)
+            .add_systems(
+                Startup,
+                (
+                    move |world: &mut World| {
+                        world.insert_resource(PlaygroundManifestPath(manifest.clone()));
+                    },
+                    playground_setup_system,
+                )
+                    .chain(),
+            )
             .add_systems(FixedUpdate, playground_moving_object_system)
             .add_systems(
                 Update,
                 (
+                    playground_box_physics_bridge,
                     world_text_mesh_system,
                     playground_material_tint_system,
                     playground_camera_exposure_system,
                 ),
             );
+    }
+}
+
+fn playground_box_physics_bridge(
+    mut commands: Commands,
+    bodies: Query<
+        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>),
+        Added<PlaygroundBoxCollider>,
+    >,
+    moving_roots: Query<(), With<PlaygroundMovingObject>>,
+    root_names: Query<&Name>,
+) {
+    for (entity, name, collider, parent) in &bodies {
+        let shape = Collider::cuboid(
+            collider.half_extents.x * 2.0,
+            collider.half_extents.y * 2.0,
+            collider.half_extents.z * 2.0,
+        );
+        if let Some(&ChildOf(root)) = parent
+            && moving_roots.contains(root)
+        {
+            continue;
+        } else {
+            let parent_is_floor = parent.is_some_and(|&ChildOf(root)| {
+                root_names
+                    .get(root)
+                    .is_ok_and(|root_name| root_name.as_str().ends_with(":BP_SimpleObject5"))
+            });
+            let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.insert((RigidBody::Static, shape));
+            if is_floor {
+                entity_commands.insert(AlsCrushRecoveryFloor {
+                    half_extents: collider.half_extents,
+                });
+            }
+        }
     }
 }
 
@@ -376,12 +429,6 @@ pub fn moving_object_velocity(
     };
     let curve_time = moving_object_curve_input(elapsed_seconds, duration_seconds);
     (end - start) * (curve.slope(curve_time) * direction / duration_seconds)
-}
-
-#[derive(Resource, Debug, Clone, Copy)]
-pub struct PlaygroundSpawnPoint {
-    pub position: Vec3,
-    pub rotation: Quat,
 }
 
 #[derive(Resource, Debug, Clone, Copy)]
@@ -746,7 +793,7 @@ fn make_translucent_material(
 }
 
 pub fn playground_setup_system(
-    manifest_path: Res<PlaygroundManifestPath>,
+    manifest_path: Option<Res<PlaygroundManifestPath>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -754,6 +801,10 @@ pub fn playground_setup_system(
     mut tiles_materials: ResMut<Assets<PlaygroundTilesMaterial>>,
     material_library: Res<PlaygroundMaterialLibrary>,
 ) {
+    let Some(manifest_path) = manifest_path else {
+        error!("PLAYGROUND manifest path unavailable");
+        return;
+    };
     let text = match std::fs::read_to_string(&manifest_path.0) {
         Ok(t) => t,
         Err(e) => {
@@ -836,10 +887,12 @@ pub fn playground_setup_system(
         }
         match actor.class.as_str() {
             "PlayerStart" => {
-                commands.insert_resource(PlaygroundSpawnPoint {
-                    position: ue_point_to_bevy(Vec3::from(actor.location)),
-                    rotation: ue_yaw_to_bevy_quat(actor.rotation_yaw),
-                });
+                commands.spawn((
+                    Name::new(format!("PlayerStart:{}", actor.name)),
+                    AlsPlayerStart::default(),
+                    Transform::from_translation(ue_point_to_bevy(Vec3::from(actor.location)))
+                        .with_rotation(ue_yaw_to_bevy_quat(actor.rotation_yaw)),
+                ));
                 spawn_point_found = true;
                 continue;
             }

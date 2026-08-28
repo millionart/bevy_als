@@ -14,8 +14,8 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::{
-    ANKLE_TO_SOLE, AlsFootBones, AlsFootIkRuntime, AlsFootPinHold, AlsFootPinRequest, AlsFootProbe,
-    extend_foot_pin_hold,
+    ANKLE_TO_SOLE, AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootLockSettings,
+    AlsFootPinHold, AlsFootPinRequest, AlsFootProbe, extend_foot_pin_hold,
 };
 use als_core::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
@@ -271,13 +271,13 @@ fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
     verdict: Res<GateVerdict>,
-    mut q: Query<&mut AlsInputOverride, With<AlsCharacter>>,
+    mut q: Query<(&mut AlsInputOverride, &mut AlsFootPinHold), With<AlsCharacter>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
         return;
     }
-    let Ok(mut over) = q.single_mut() else {
+    let Ok((mut over, mut pin_hold)) = q.single_mut() else {
         return;
     };
     let t = time.elapsed_secs_f64();
@@ -303,6 +303,9 @@ fn auto_demo(
         );
     }
     apply_phase_motion(idx, t, time.delta_secs_f64() as f32, &mut over);
+    if idx == 4 {
+        pin_hold.until_secs = time.elapsed_secs_f64() + 0.25;
+    }
 }
 
 fn apply_phase_motion(phase: usize, t: f64, dt: f32, over: &mut AlsInputOverride) {
@@ -356,7 +359,10 @@ fn als_detectors_system(
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
 
-    let dir = classify(input.move_dir, view.0);
+    let dir = classify(
+        als_core::motion::view_relative_move_axes(input.move_dir, view.0),
+        view.0,
+    );
     if let Some(phase) = update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir) {
         info!("[M7GATE][STARTSTOP] phase -> {phase:?}");
     }
@@ -469,6 +475,8 @@ fn metrics_logger(
             &AlsFootBones,
             &AlsFootProbe,
             &AlsFootIkRuntime,
+            &AlsFootLockSettings,
+            &AlsDynamicTransitionState,
             Option<&AlsFootPinRequest>,
         ),
         With<AlsCharacter>,
@@ -497,20 +505,38 @@ fn metrics_logger(
     }
     *last = t as f32;
 
-    let Ok((char_tf, vel, loco, bones, probe, runtime, pins)) = q.single_mut() else {
+    let Ok((char_tf, vel, loco, bones, probe, runtime, lock_settings, dynamic, pins)) =
+        q.single_mut()
+    else {
         return;
     };
     if !watch.ready_logged {
         watch.ready_logged = true;
-        info!("[M7GATE] foot bone map + probe live");
+        info!(
+            "[BCHAR18F][SOURCE] smooth={:.2} lock={} thigh={:.1} foot={:.1} release={:.1}/{:.1} dynamic=({:.2},{:.2},{:.1},{})",
+            lock_settings.moving_smooth_speed_threshold,
+            lock_settings.allow_foot_lock,
+            lock_settings.thigh_angle_limit_degrees,
+            lock_settings.foot_angle_limit_degrees,
+            lock_settings.moving_decrease_per_second,
+            lock_settings.not_grounded_decrease_per_second,
+            als_core::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS,
+            als_core::transitions::DYNAMIC_TRANSITION_BLEND_SECS,
+            als_core::transitions::DYNAMIC_TRANSITION_PLAY_RATE,
+            als_core::transitions::DYNAMIC_TRANSITION_FRAME_DELAY,
+        );
     }
 
     let phase = phase_at(t);
     let hspeed = Vec2::new(vel.x, vel.z).length();
     let mut line = format!(
-        "[M7GATE] t={t:.2} phase={} loco={loco:?} v={hspeed:.2} pelvis_drop={:+.3}",
+        "[BCHAR18F] t={t:.2} phase={} loco={loco:?} v={hspeed:.2} pelvis_drop={:+.3} dynamic={:?} d2=({:.4},{:.4}) delay={}",
         phase_desc(phase),
         runtime.pelvis_drop,
+        dynamic.selection,
+        dynamic.left_distance_squared,
+        dynamic.right_distance_squared,
+        dynamic.frames_remaining,
     );
 
     let mut pens = [f32::NAN; 2];
