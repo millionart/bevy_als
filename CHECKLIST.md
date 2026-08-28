@@ -208,6 +208,39 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ---
 
+## SYNC-PARITY-2026-08-28（原版 AnimBP 时间相位、SyncGroup 与 BlendSpace 重审；当前执行批次）
+
+> 触发事实（2026-08-28，原版 uasset、UE 5.8 Engine 源码与现有 Bevy 图实时复核）：BF100-24 的 PASS 仅要求资源未缺失且 `TimePositionNode` 不 wrap，未比较 `GroupName`、`GroupRole`、`StartPosition`、BlendSpace 输入滤波、normalized sample time 或 `AuthoredSyncMarkers`。原版六个 `BS_Als_WalkRun_*` 均为 `Movement` SyncGroup、`StartPosition=0.2`；`A_Als_Sprint` 与 `A_Als_Sprint_Acceleration` 为 `StartPosition=0.166667`；代表性 `BS_Als_WalkRun_Forward` 的 `InterpolationParam` 是 `.4s/BSIT_Cubic`，Walk/Run sample length 为 `1.133333/0.8s`。UE `UBlendSpace::ResetBlendSamples()` 按 normalized phase 分别乘 sample play length，并通过 `Left/Right` AuthoredSyncMarkers 对齐；现有 Bevy `BlendSpaceNode(sync_mode: Absolute)` 把同一秒数传给所有 sample，且图树无 marker/SyncGroup 语义。原版 Rifle 的 `Run_Arms`、`Sprint_Arms`、`Sprint_Impulse_Arms` 是 `Movement` 的 `AlwaysFollower`，当前图仅为独立 LoopNode。该批必须按此实时事实逐项修复，不得修改 `bevy_animation_graph` fork，通用能力一律放入 `crates/als-ext`。
+>
+> 共通规则：每项开始前必须从 `<ALS Content/ALS>` 当次实时重新抽取相关 uasset/Engine 事实；每项 Gate 必须读取真实 player 的 phase、sample time、marker 或 pose 数值，禁止只以图文本或截图断言。每项完成后执行“自测 → 勾选 → 单独提交”，保持工作区干净。
+
+- [x] SYNC-01 原版时间语义全量清单：扩展审计为 23 个合同逐 node 记录并比较 `GroupName`、`GroupRole`、`Method`、`StartPosition`、`bResetPlayTimeWhenBlendSpaceChanges`、BlendSpace interpolation/filter、样本长度、rate scale 和 AuthoredSyncMarkers；现有 BF100-24 的“仅资源/loop PASS”不得再作为同步等价证据。Gate：从原版实时生成的报告逐条列出 destination 映射或明确待实现差异，零静默字段。
+    - 事实（2026-08-28，当次 `<ALS Content/ALS>` 全量 uasset 解析）：23 个 source contract 的 Player/Evaluator/BlendSpace 节点实际为 `224`，不是旧 BF100-24 文档的 `204`；现有旧脚本再次实时运行亦返回 224。新增 timing inventory 中 `81` 条带 SyncGroup、role、method、non-zero start、BlendSpace filter 或 marker 的 source record 需要 destination mapping。六个 `BS_Als_WalkRun_*` 均为 `Movement/Default/SyncGroup`、start `.2`；Sprint 与 Sprint Acceleration 为 Movement start `.166667`；Rifle 三个 Arms 为 `Movement/AlwaysFollower/SyncGroup`、static rate `0`。`BS_Als_WalkRun_Forward` 的 source samples 及 length 为 Walk `1.133333`、Run `.8`，source filter `.4/BSIT_Cubic`，Walk/Run 均含 `Left/Right` AuthoredSyncMarkers。当前 AB_Als 图树和 als-ext/source 均没有 SyncGroup、Marker、NormalizedPhase 或 BlendSpaceFilter capability token。
+    - 实现映射（2026-08-28）：新增 `tools/import/audit_ab_als_sync_semantics.py`，以 source-root CLI 参数重建所有 23 个合同的 source timing rows，并从全部 AnimSequence 读取 duration/markers、从 BlendSpace 读取 sample duration/markers、filter 与 asset length；报告 `docs/sync-01-source-audit.md` 将每条 destination-required source record 标为 `UNRESOLVED`，不再将其静默折入资源存在性 PASS。工具将 Coverage 与 Parity 分离：当全部字段被抽取且差异被明确列出时 Coverage PASS；在通用能力落地前 Parity 明确为 PENDING。
+    - Gate（2026-08-28，实测）：`py -3 tools/import/audit_ab_als_sync_semantics.py --source-root <ALS Content/ALS> --bevy-root assets/graphs/ab_als --report docs/sync-01-source-audit.md` 输出 `source_timing_nodes=224`、`requires_mapping=81`、`coverage_pass=true`、`parity_pass=false`；报告同步列出 destination four capabilities 全为 false、81 条 explicit unresolved row，故没有任何时间字段被错误标为已对齐。`py -3 -m py_compile tools/import/audit_ab_als_sync_semantics.py` 通过。
+
+- [ ] SYNC-02 相位与 marker 派生资产：由 SYNC-01 的原版事实生成可提交的安全派生 metadata（不提交 uasset），覆盖所有参与 SyncGroup 的 clip、normalized phase、marker 名/时刻及 sample duration；定义 Bevy 单位、loop 与反向播放语义。Gate：原版 Walk/Run、Crouch、Jump/Fall/Land、Rifle Arms 与 Secondary Motion 的 metadata probe 均逐项可复查。
+
+- [ ] SYNC-03 `als-ext` 通用 SyncGroup phase runtime：实现 leader/follower、normalized phase、marker position、group join/leave、rate 与 reset 的通用 NodeLike/ECS 边界，禁止场景或某个 overlay 特例。Gate：纯节点/运行时 probe 对比 UE 的 Leader、AlwaysFollower、无 marker fallback、loop wrap 和不同 clip duration 五类输入。
+
+- [ ] SYNC-04 `als-ext` BlendSpace player 等价物：在 SYNC-03 phase 基座上实现 sample-length normalized playback、marker-aware sample alignment、StartPosition、asset change reset 与 `.4s/BSIT_Cubic` coordinate filter；不得以 `BlendSpaceNode(sync_mode: Absolute)` 冒充 UE BlendSpacePlayer。Gate：以原版 `BS_Als_WalkRun_Forward` 的 Walk=`1.133333s`、Run=`0.8s`、phase=`.2` 实测对应 sample time `.226667/.16s`，并验证 cubic filter 的连续响应。
+
+- [ ] SYNC-05 `AB_Als_Standing` 时间相位迁移：将六个 `BS_Als_WalkRun_*`、Sprint 与 Sprint Acceleration 接入通用 phase/player，保留 Movement SyncGroup、六个 `.2` start、两个 `.166667` start、marker phase、input filter 与原版 state lifetime。Gate：真实 Standing player 在 walk/run 混合、六向切换、sprint 进入/退出时记录每个 sample phase、脚 marker 与 pose 连续性。
+
+- [ ] SYNC-06 `AB_Als_Crouching` 时间相位迁移：将六向 Crouch Walk 的 Movement SyncGroup、方向切换与 play-rate binding 接入通用 phase，逐项对照原版 Player。Gate：六向 crouch 轨迹记录 phase continuity、rate 与脚 marker，不允许方向切换回到随机绝对时间。
+
+- [ ] SYNC-07 `AB_Als_Locomotion` 时间相位迁移：将 Fall、Jump、Flail、Land 的 source SyncGroup/role/rate/transition lifetime 接入通用 phase，复核空中 BlendSpace 与落地 additive 的相位边界。Gate：真实走跑跳落序列记录 Jump/Fall/Land group phase、loop/non-loop 结束时刻与 marker/pose 连续性。
+
+- [ ] SYNC-08 `AB_Als_Rifle` Movement follower 迁移：将 Run Arms、Sprint Arms、Sprint Impulse Arms 从独立 LoopNode 改为原版 Movement `AlwaysFollower`，保持与 canonical locomotion leader 同一 normalized/marker phase。Gate：Rifle overlay 下变更 gait、speed、direction 与 sprint impulse，记录 arms 与 locomotion 的 phase delta 为零或同 marker position。
+
+- [ ] SYNC-09 全部 overlay Secondary Motion 同步迁移：逐个对照 Default、Barrel、Binoculars、Bow、Box、Feminine、HandsTied、Injured、Masculine、PistolOneHanded、PistolTwoHanded、Rifle、Torch 的 `Secondary Motion` group，确保跨 state/linked layer 保持原版 phase 规则。Gate：逐 implementation 切换/状态切换 probe 记录 `A_Als_Idle` phase 不重置或仅在原版规定的 relevancy reset 处重置。
+
+- [ ] SYNC-10 时间相位总 Gate：从原版重新生成 SYNC-01 审计并比较已落地映射；根 `AB_Als` 的 canonical character 依次覆盖 Standing、Crouching、Jump/Fall/Land、Rifle 与至少一次 Secondary Motion state switch。Gate：所有 source timing field 均有 destination mapping，phase/marker 数值日志 PASS，`run_manual.bat` 冒烟及 workspace 相关测试通过。
+
+依赖关系：SYNC-01 → SYNC-02 → SYNC-03 → SYNC-04 →（SYNC-05、SYNC-06、SYNC-07、SYNC-08、SYNC-09）→ SYNC-10。
+
+---
+
 ## BUGFIX-2026-08-24（用户实测报告缺陷，按依赖序修复；部分须经 ALS-Refactored 截图对比验证）
 
 > 缺陷来源：run_manual.bat（examples/manual_playground.rs）实机试玩反馈，原文照录：
