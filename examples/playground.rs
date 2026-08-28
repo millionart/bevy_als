@@ -3,20 +3,23 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
+use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::character::{AlsCharacter, AlsCharacterPlugin};
+use als_core::control_scheme::AlsControlScheme;
 use als_core::debug_hud::AlsStateHudPlugin;
-use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+use als_core::input::AlsInputPlugin;
 use als_core::motion::AlsMotionPlugin;
-use als_core::params::AlsMovementParams;
 use als_core::player_start::AlsPlayerStartReady;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use als_ext::{PlaygroundMovingObject, PlaygroundPlugin};
+use als_ext::{AlsExtPlugin, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundStatic};
+use bevy_als::game_mode::{
+    AlsGameModePlugin, AlsPlayerAdmission, AlsScenePhysicsReady, request_als_player,
+};
 
 fn main() {
     let mut app = App::new();
@@ -34,20 +37,25 @@ fn main() {
         AlsCharacterPlugin,
         AlsMotionPlugin,
         AlsStateHudPlugin,
+        AlsGameModePlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground.ron".into(),
         },
+        AnimationGraphPlugin::default(),
+        AlsExtPlugin,
     ))
     .init_resource::<SpawnOnce>()
-    .add_systems(Update, spawn_character_once)
+    .init_resource::<AlsScenePhysicsReady>()
     .add_systems(
         Update,
         (
+            scene_physics_ready,
             keyboard_driver,
             position_report,
             camera_follow,
             fall_guard,
             auto_quit_system,
+            spawn_character_once.after(scene_physics_ready),
         ),
     );
 
@@ -73,37 +81,42 @@ struct SpawnOnce(bool);
 #[derive(Resource)]
 struct AutoQuit(Option<Instant>);
 
-fn spawn_character_once(
-    mut commands: Commands,
-    mut once: ResMut<SpawnOnce>,
-    player_starts: Query<&AlsPlayerStartReady>,
-    mut params_assets: ResMut<Assets<AlsMovementParams>>,
-    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
+fn scene_physics_ready(
+    mut ready: ResMut<AlsScenePhysicsReady>,
+    starts: Query<&AlsPlayerStartReady>,
+    statics: Query<Entity, With<PlaygroundStatic>>,
+    mut stable_frames: Local<u32>,
 ) {
+    if ready.ready {
+        return;
+    }
+    let total = statics.iter().count();
+    if starts.single().is_err() || total == 0 {
+        *stable_frames = 0;
+        return;
+    }
+    *stable_frames += 1;
+    if *stable_frames >= 2 {
+        ready.ready = true;
+        info!("[PG][BARRIER] starts=1 static_roots={total} -> PASS");
+    }
+}
+
+fn spawn_character_once(mut commands: Commands, mut once: ResMut<SpawnOnce>) {
     if once.0 {
         return;
     }
-    let Ok(point) = player_starts.single() else {
-        return;
-    };
-    let point = point.transform;
     once.0 = true;
-    info!(
-        "[PG] spawning character at ({:.2},{:.2},{:.2})",
-        point.translation.x, point.translation.y, point.translation.z
+    request_als_player(
+        &mut commands,
+        AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron"),
     );
-
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = point;
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
+    info!("[PG] player admission requested");
 
     commands.spawn((
         FollowCamera,
         Camera3d::default(),
-        Transform::from_translation(point.translation + Vec3::new(4.0, 3.5, 6.0)),
+        Transform::from_xyz(4.0, 3.5, 6.0),
     ));
     commands.spawn((
         DirectionalLight::default(),

@@ -10,13 +10,14 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
-use als_core::motion::{AlsMotionPlugin, AlsViewYaw};
-use als_core::params::AlsMovementParams;
-use als_core::player_start::AlsPlayerStartReady;
-use als_ext::{PlaygroundMovingObject, PlaygroundPlugin, PlaygroundStatic, PlaygroundTextLabel};
+use als_core::character::AlsCharacterPlugin;
+use als_core::control_scheme::AlsControlScheme;
+use als_core::input::AlsInputPlugin;
+use als_core::motion::AlsMotionPlugin;
+use als_ext::{
+    AlsExtPlugin, PlaygroundMovingObject, PlaygroundPlugin, PlaygroundStatic, PlaygroundTextLabel,
+};
+use bevy_als::game_mode::{AlsGameModePlugin, AlsPlayerAdmission, request_als_player};
 
 fn main() {
     let mut app = App::new();
@@ -32,10 +33,12 @@ fn main() {
         AlsInputPlugin,
         AlsCharacterPlugin,
         AlsMotionPlugin,
+        AlsGameModePlugin,
         PlaygroundPlugin {
             manifest: "assets/models/playground/playground_parity.ron".into(),
         },
         AnimationGraphPlugin::default(),
+        AlsExtPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<ParityWatch>()
@@ -95,37 +98,16 @@ fn spawn_camera(mut commands: Commands) {
     });
 }
 
-fn spawn_character_once(
-    mut commands: Commands,
-    mut once: ResMut<SpawnOnce>,
-    player_starts: Query<&AlsPlayerStartReady>,
-    mut params_assets: ResMut<Assets<AlsMovementParams>>,
-    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
-    assets: Res<AssetServer>,
-) {
+fn spawn_character_once(mut commands: Commands, mut once: ResMut<SpawnOnce>) {
     if once.0 {
         return;
     }
-    let Ok(point) = player_starts.single() else {
-        return;
-    };
-    let point = point.transform;
     once.0 = true;
-
-    let params = params_assets.add(AlsMovementParams::default());
-    let config = config_assets.add(AlsControlSchemeConfig::default());
-    let mut bundle = AlsCharacterBundle::new(params, config);
-    bundle.transform = point;
-    let character = commands.spawn(bundle).id();
-    spawn_als_actions(&mut commands, character, &AlsInputMap::default());
-
-    let avatar = bevy_als::character_assembly::attach_avatar(
+    request_als_player(
         &mut commands,
-        &assets,
-        character,
-        "animated_scenes/motion_overlay.animscn.ron",
+        AlsPlayerAdmission::new("animated_scenes/motion_overlay.animscn.ron"),
     );
-    info!("[PGPARITY] character at {:?}", point.translation);
+    info!("[PGPARITY] player admission requested");
 }
 
 fn parity_watcher(

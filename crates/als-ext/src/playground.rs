@@ -889,7 +889,7 @@ pub fn playground_setup_system(
             "PlayerStart" => {
                 commands.spawn((
                     Name::new(format!("PlayerStart:{}", actor.name)),
-                    AlsPlayerStart,
+                    AlsPlayerStart::default(),
                     Transform::from_translation(ue_point_to_bevy(Vec3::from(actor.location)))
                         .with_rotation(ue_yaw_to_bevy_quat(actor.rotation_yaw)),
                 ));

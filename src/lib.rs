@@ -4,6 +4,7 @@ pub mod als_hud;
 pub mod character_assembly;
 pub mod debug_display;
 pub mod foot_ik_apply;
+pub mod game_mode;
 pub mod mantle_drive;
 pub mod motion_graph_link;
 pub mod overlay_layer;

@@ -24,7 +24,7 @@ use als_core::air::AlsAirState;
 use als_core::character::{
     AlsCharacter, AlsCharacterPlugin, AlsCrushRecovery, AlsCrushRecoveryFloor,
 };
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use als_core::control_scheme::AlsControlScheme;
 use als_core::foot_ik::AlsFootProbePlugin;
 use als_core::input::AlsInputPlugin;
 use als_core::input_request::AlsInputRequestPlugin;
@@ -45,6 +45,10 @@ use als_ext::{
 use bevy_als::character_assembly::AlsCharacterAvatar;
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
 use bevy_als::foot_ik_apply::FootIkApplyPlugin;
+use bevy_als::game_mode::{
+    AlsGameModePlugin, AlsPlayerAdmission, AlsPlayerAdmissionComplete, AlsScenePhysicsReady,
+    request_als_player,
+};
 use bevy_als::mantle_drive::AlsMantleDrivePlugin;
 use bevy_als::motion_graph_link::{
     compute_motion_graph_inputs, write_air_pins, write_motion_graph_pins,
@@ -79,6 +83,7 @@ fn main() {
         AlsCharacterPlugin,
         AlsMotionPlugin,
         als_core::air::AlsAirPlugin,
+        AlsGameModePlugin,
     ));
     app.add_plugins((
         AlsFootProbePlugin,
@@ -112,7 +117,8 @@ fn main() {
     .init_resource::<TemporalAntiAliasingProbe>()
     .init_resource::<CollisionParityProbe>()
     .init_resource::<GroundedSpawnProbe>()
-    .init_resource::<ScenePhysicsReady>()
+    .init_resource::<ManualScenePhysicsReady>()
+    .init_resource::<AlsScenePhysicsReady>()
     .insert_resource(GlobalAmbientLight {
         brightness: 2.0,
         ..default()
@@ -124,6 +130,7 @@ fn main() {
             landscape_collider_bridge,
             scene_physics_ready.after(landscape_collider_bridge),
             spawn_character_once.after(scene_physics_ready),
+            admit_completed_player.after(spawn_character_once),
             enable_character_ssao_taa,
             ambient_occlusion_probe,
             temporal_anti_aliasing_probe,
@@ -187,7 +194,7 @@ struct GroundedSpawnProbe {
 }
 
 #[derive(Resource, Default)]
-struct ScenePhysicsReady {
+struct ManualScenePhysicsReady {
     ready: bool,
     stable_frames: u32,
     wait_frames: u32,
@@ -394,7 +401,8 @@ fn landscape_collider_bridge(
 }
 
 fn scene_physics_ready(
-    mut ready: ResMut<ScenePhysicsReady>,
+    mut ready: ResMut<ManualScenePhysicsReady>,
+    mut admission_ready: ResMut<AlsScenePhysicsReady>,
     player_starts: Query<&AlsPlayerStartReady>,
     landscapes: Query<Entity, (With<PlaygroundLandscape>, With<LandscapeColliderBuilt>)>,
     sources: Query<(&PlaygroundCollisionSource, Has<Collider>)>,
@@ -434,6 +442,7 @@ fn scene_physics_ready(
         return;
     }
     ready.ready = true;
+    admission_ready.ready = true;
     ready.sources = source_total;
     ready.boxes = box_total;
     info!(
@@ -446,57 +455,53 @@ fn scene_physics_ready(
 fn spawn_character_once(
     mut commands: Commands,
     mut once: ResMut<SpawnOnce>,
-    scene_ready: Res<ScenePhysicsReady>,
-    player_starts: Query<&AlsPlayerStartReady>,
+    scene_ready: Res<ManualScenePhysicsReady>,
     landscapes: Query<Entity, (With<PlaygroundLandscape>, With<LandscapeColliderBuilt>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut params_assets: ResMut<Assets<AlsMovementParams>>,
-    mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
-    assets: Res<AssetServer>,
-    mut ground_probe: ResMut<GroundedSpawnProbe>,
 ) {
     if once.0 || !scene_ready.ready || landscapes.is_empty() {
         return;
     }
-    let Ok(point) = player_starts.single() else {
+    once.0 = true;
+    info!(
+        "[SPAWN][REQUEST] scene_sources={} scene_boxes={} barrier=true -> PASS",
+        scene_ready.sources, scene_ready.boxes,
+    );
+    let mut admission = AlsPlayerAdmission::new("animated_scenes/als_ragdoll.animscn.ron");
+    admission.spawn_camera = true;
+    request_als_player(&mut commands, admission);
+}
+
+fn admit_completed_player(
+    mut commands: Commands,
+    admissions: Query<&AlsPlayerAdmissionComplete, Added<AlsPlayerAdmissionComplete>>,
+    mut ground_probe: ResMut<GroundedSpawnProbe>,
+) {
+    let Ok(admission) = admissions.single() else {
         return;
     };
+    let point = admission.selection.fit;
     let capsule_half_height = AlsMovementParams::default()
         .crouch
         .standing_capsule_half_height;
     let capsule_radius = AlsMovementParams::default().crouch.standing_capsule_radius;
-    once.0 = true;
     ground_probe.ground_y = Some(point.ground_y);
     ground_probe.expected_center_y = Some(point.transform.translation.y);
     ground_probe.spawn_adjustment = Some(point.adjustment);
+    ground_probe.character = Some(admission.character);
+    commands
+        .entity(admission.character)
+        .insert((TnuaToggle::SenseOnly, GravityScale(0.0)));
     info!(
-        "[SPAWN][FIT] scene_sources={} scene_boxes={} ground_y={:.4} center_y={:.4} adjustment={:.4} capsule_half={capsule_half_height:.4} capsule_radius={capsule_radius:.4} skin={:.4} -> PASS",
-        scene_ready.sources,
-        scene_ready.boxes,
+        "[SPAWN][FIT] start={:?} occupancy={:?} ground_y={:.4} center_y={:.4} adjustment=({:.4},{:.4},{:.4}) capsule_half={capsule_half_height:.4} capsule_radius={capsule_radius:.4} skin={:.4} -> PASS",
+        admission.selection.entity,
+        point.occupancy,
         point.ground_y,
         point.transform.translation.y,
-        point.adjustment,
+        point.teleport_adjustment.x,
+        point.teleport_adjustment.y,
+        point.teleport_adjustment.z,
         bevy_als::player_start::ALS_PLAYER_START_SOURCE_CLEARANCE,
     );
-
-    let character = bevy_als::character_assembly::spawn_als_character(
-        &mut commands,
-        &assets,
-        &mut materials,
-        &mut params_assets,
-        &mut config_assets,
-        bevy_als::character_assembly::AlsCharacterBlueprint {
-            spawn_camera: true,
-            ..bevy_als::character_assembly::AlsCharacterBlueprint::new(
-                point.transform,
-                "animated_scenes/als_ragdoll.animscn.ron",
-            )
-        },
-    );
-    commands
-        .entity(character)
-        .insert((TnuaToggle::SenseOnly, GravityScale(0.0)));
-    ground_probe.character = Some(character);
     info!(
         "[SPAWN][BODY] phase=visible_sensor_bootstrap avatar_capsule_same_transaction=true visibility=visible -> PASS"
     );
