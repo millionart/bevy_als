@@ -180,6 +180,15 @@ def report(root):
         and "Destination TimePositionNode loop unspecified: 0" in audit
         and "## Result: PASS" in audit
     )
+    additive_audit = text(root / "docs/bf100-additive-assets.md")
+    additive_rows = [line for line in additive_audit.splitlines() if line.startswith("| `")]
+    checks["additive_reference_deltas"] = (
+        len(additive_rows) == 71
+        and all(line.endswith("| True | 1 | True | False |") for line in additive_rows)
+        and "## Converted Inputs: 71" in additive_audit
+        and "## Unit Raw Scale Inputs: 71" in additive_audit
+        and "## Single Pose Consumers: 71" in additive_audit
+    )
     return checks, offenders, [scene.relative_to(root).as_posix() for scene in scenes]
 
 
