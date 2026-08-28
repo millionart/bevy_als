@@ -1,4 +1,6 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use std::sync::LazyLock;
+
 use als_core::foot_ik::{
     AlsFootLockInput, AlsFootLockState, foot_lock_distance_squared, is_relevant_animation_weight,
 };
@@ -11,7 +13,8 @@ use als_core::movement_direction::{
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, RotationMode, Stance};
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, CurveAsset, build_branch_bone_mask, transition_alpha,
+    AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
+    advance_marker_sync_phase, build_branch_bone_mask, transition_alpha,
 };
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
@@ -38,6 +41,32 @@ const OUTER_STOP_TO_IDLE_DURATION: f32 = 0.5;
 const MOVEMENT_TRANSITION_DURATION: f32 = 0.7;
 const ROTATE_COMPLETION_EPSILON: f32 = 1e-4;
 const DYNAMIC_FOOT_LOCK_DISTANCE_METERS: f32 = 0.08;
+const CROUCH_MOVEMENT_DURATION: f32 = 1.133333;
+
+fn marker_set(entries: &[(&str, f32)]) -> Vec<SyncMarker> {
+    entries
+        .iter()
+        .map(|(name, time)| SyncMarker {
+            name: (*name).to_owned(),
+            time: *time,
+        })
+        .collect()
+}
+
+static CROUCH_PHASE_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.0), ("Right", 0.5)]));
+static CROUCH_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.091667), ("Right", 0.65)]));
+static CROUCH_RIGHT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.016667), ("Right", 0.65)]));
+static CROUCH_RIGHT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.483333), ("Left", 1.041667)]));
+static CROUCH_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.5), ("Left", 1.066667)]));
+static CROUCH_LEFT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.466667), ("Left", 1.041667)]));
+static CROUCH_LEFT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.091667), ("Right", 0.591667)]));
 const LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
 const RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
 const STOP_LEG_BRANCHES: &[&str] = &[
@@ -349,13 +378,14 @@ impl CrouchingOuterTransition {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Component, Clone, Debug, Default, PartialEq)]
 struct CrouchingLayerRuntime {
     initialized: bool,
     previous_velocity: Vec3,
     velocity_blend: VelocityBlend,
     lean: Vec2,
     movement_curve_time: f32,
+    movement_marker_phase: SyncPhaseState,
     movement_state: CrouchingMovementState,
     movement_transition_source: Option<CrouchingMovementState>,
     movement_transition_request: Option<f32>,
@@ -409,6 +439,7 @@ struct CrouchingGraphInputs {
     velocity_blend: VelocityBlend,
     stride_amount: f32,
     play_rate: f32,
+    movement_marker_phase: f32,
     delta_seconds: f32,
     rotate_clip_time: f32,
     turn_index: f32,
@@ -554,6 +585,41 @@ fn direction_index(direction: AlsMovementDirection) -> f32 {
         AlsMovementDirection::LeftBackward => 4.0,
         AlsMovementDirection::LeftForward => 5.0,
     }
+}
+
+fn crouching_movement_markers(state: CrouchingMovementState) -> &'static [SyncMarker] {
+    match state {
+        CrouchingMovementState::Forward => &CROUCH_FORWARD_MARKERS,
+        CrouchingMovementState::RightForward => &CROUCH_RIGHT_FORWARD_MARKERS,
+        CrouchingMovementState::RightBackward => &CROUCH_RIGHT_BACKWARD_MARKERS,
+        CrouchingMovementState::Backward => &CROUCH_BACKWARD_MARKERS,
+        CrouchingMovementState::LeftBackward => &CROUCH_LEFT_BACKWARD_MARKERS,
+        CrouchingMovementState::LeftForward => &CROUCH_LEFT_FORWARD_MARKERS,
+    }
+}
+
+fn advance_crouching_movement_marker_phase(
+    runtime: &mut CrouchingLayerRuntime,
+    active: bool,
+    state: CrouchingMovementState,
+    play_rate: f32,
+    delta_seconds: f32,
+) -> f32 {
+    advance_marker_sync_phase(
+        &mut runtime.movement_marker_phase,
+        SyncMarkerPhaseInput {
+            active,
+            reset: false,
+            rate: play_rate,
+            leader_duration: CROUCH_MOVEMENT_DURATION,
+            leader_markers: crouching_movement_markers(state),
+            phase_duration: 1.0,
+            phase_markers: &CROUCH_PHASE_MARKERS,
+            start_time: 0.0,
+            looped: true,
+            delta_seconds,
+        },
+    )
 }
 
 fn direction_for(
@@ -1028,6 +1094,13 @@ fn update_crouching_inputs(
         ),
         CrouchingOuterState::Stop => (9.0, 1.0, play_rate, 0.1),
     };
+    let movement_marker_phase = advance_crouching_movement_marker_phase(
+        runtime,
+        runtime.outer_state == CrouchingOuterState::Move && locomotion == LocomotionState::Grounded,
+        runtime.movement_state,
+        play_rate,
+        delta_seconds,
+    );
     runtime.previous_velocity = velocity;
     runtime.initialized = true;
     CrouchingGraphInputs {
@@ -1050,6 +1123,7 @@ fn update_crouching_inputs(
         velocity_blend: runtime.velocity_blend,
         stride_amount,
         play_rate,
+        movement_marker_phase,
         delta_seconds,
         rotate_clip_time: rotating.map_or(0.0, |turn| turn.rotate_clip_time),
         turn_index,
@@ -1129,6 +1203,10 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
         ),
         ("als_crouching_stride_amount", inputs.stride_amount),
         ("als_crouching_play_rate", inputs.play_rate),
+        (
+            "als_crouching_movement_marker_phase",
+            inputs.movement_marker_phase,
+        ),
         ("als_crouching_delta_seconds", inputs.delta_seconds),
         ("als_crouching_rotate_clip_time", inputs.rotate_clip_time),
         ("als_crouching_turn_index", inputs.turn_index),
@@ -1254,7 +1332,7 @@ fn crouching_layer_writer(
             .and_then(|value| value.as_f32().ok())
             .unwrap_or(0.0)
             .clamp(-1.0, 1.0);
-        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
         let inputs = update_crouching_inputs(
             &mut runtime,
             delta_seconds,
@@ -1328,6 +1406,79 @@ mod tests {
     #[test]
     fn source_crouching_direction_transition_is_seven_tenths_second() {
         assert!((MOVEMENT_TRANSITION_DURATION - 0.7).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn crouching_marker_phase_uses_the_source_zero_start_time() {
+        let mut runtime = CrouchingLayerRuntime::default();
+        let phase = advance_crouching_movement_marker_phase(
+            &mut runtime,
+            true,
+            CrouchingMovementState::Forward,
+            1.0,
+            0.0,
+        );
+        let sample_time = als_ext::marker_phase_sample_time(
+            phase,
+            1.0,
+            &CROUCH_PHASE_MARKERS,
+            CROUCH_MOVEMENT_DURATION,
+            crouching_movement_markers(CrouchingMovementState::Forward),
+            true,
+        );
+        assert!(sample_time.abs() < 1e-5);
+    }
+
+    #[test]
+    fn crouching_marker_phase_preserves_the_foot_interval_across_directions() {
+        let mut runtime = CrouchingLayerRuntime::default();
+        let phase = advance_crouching_movement_marker_phase(
+            &mut runtime,
+            true,
+            CrouchingMovementState::Forward,
+            1.0,
+            0.2,
+        );
+        let right_phase = advance_crouching_movement_marker_phase(
+            &mut runtime,
+            true,
+            CrouchingMovementState::RightBackward,
+            1.0,
+            0.0,
+        );
+        let forward_time = als_ext::marker_phase_sample_time(
+            phase,
+            1.0,
+            &CROUCH_PHASE_MARKERS,
+            CROUCH_MOVEMENT_DURATION,
+            crouching_movement_markers(CrouchingMovementState::Forward),
+            true,
+        );
+        let right_time = als_ext::marker_phase_sample_time(
+            right_phase,
+            1.0,
+            &CROUCH_PHASE_MARKERS,
+            CROUCH_MOVEMENT_DURATION,
+            crouching_movement_markers(CrouchingMovementState::RightBackward),
+            true,
+        );
+        let forward_marker = als_ext::marker_position_at_time(
+            crouching_movement_markers(CrouchingMovementState::Forward),
+            CROUCH_MOVEMENT_DURATION,
+            forward_time,
+            true,
+        )
+        .unwrap();
+        let right_marker = als_ext::marker_position_at_time(
+            crouching_movement_markers(CrouchingMovementState::RightBackward),
+            CROUCH_MOVEMENT_DURATION,
+            right_time,
+            true,
+        )
+        .unwrap();
+        assert_eq!(forward_marker.previous, right_marker.previous);
+        assert_eq!(forward_marker.next, right_marker.next);
+        assert!((forward_marker.alpha - right_marker.alpha).abs() < 1e-5);
     }
 
     #[test]

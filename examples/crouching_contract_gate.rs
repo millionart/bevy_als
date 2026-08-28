@@ -7,7 +7,8 @@ use als_ext::{
     AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, F32ToVec2Node,
     GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode, InterruptibleFsmNode,
     InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode, MultiWayBlendNode,
-    ProfiledBlendNode, ResetOnActivationNode, TimePositionNode, build_branch_bone_mask,
+    ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode, TimePositionNode,
+    build_branch_bone_mask,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -273,6 +274,7 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_crouching_velocity_left_amount", 0.0),
         ("als_crouching_stride_amount", 1.0),
         ("als_crouching_play_rate", 1.0),
+        ("als_crouching_movement_marker_phase", 0.0),
         ("als_crouching_delta_seconds", 0.1),
         ("als_crouching_rotate_clip_time", 0.0),
         ("als_crouching_turn_index", 0.0),
@@ -488,8 +490,25 @@ fn verify_static(
             .filter(|node| node.try_inner_downcast_ref::<TimePositionNode>().is_some())
             .count()
             == 0
-        && node::<GlobalF32InputNode>(direction, "crouching movement play rate")
-            .is_some_and(|node| node.key == "als_crouching_play_rate");
+        && direction
+            .nodes
+            .values()
+            .filter_map(|node| node.try_inner_downcast_ref::<SyncGroupSampleNode>())
+            .all(|node| {
+                node.looped
+                    && close(node.leader_duration, 1.0)
+                    && close(node.follower_duration, 1.133333)
+                    && node.leader_markers.len() == 2
+                    && node.follower_markers.len() == 2
+            })
+        && direction
+            .nodes
+            .values()
+            .filter_map(|node| node.try_inner_downcast_ref::<SyncGroupSampleNode>())
+            .count()
+            == 6
+        && node::<GlobalF32InputNode>(direction, "crouching movement marker phase")
+            .is_some_and(|node| node.key == "als_crouching_movement_marker_phase");
     let blend_contract = blend
         .nodes
         .values()
