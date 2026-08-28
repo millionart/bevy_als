@@ -17,8 +17,8 @@ use bevy_als::als_hud::{
     COLOR_ENABLED,
 };
 use bevy_als::overlay_mode_menu::{
-    MENU_DILATION, MENU_ORDER, OverlayMenuOption, OverlayMenuState, OverlayModeMenuPlugin,
-    option_label,
+    MENU_DILATION, OVERLAY_TAG_CHILD_NODES, OverlayMenuOption, OverlayMenuState,
+    OverlayModeMenuPlugin, menu_display_order, option_label, request_gameplay_tag_children,
 };
 use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
 use bevy_enhanced_input::prelude::*;
@@ -467,7 +467,8 @@ fn script_driver(world: &mut World) {
             };
             let option_count = world.query::<&OverlayMenuOption>().iter(world).count();
             let speed = world.resource::<Time<Virtual>>().relative_speed();
-            let open_ok = menu_is_open && menu_rooted && option_count == MENU_ORDER.len();
+            let open_ok =
+                menu_is_open && menu_rooted && option_count == OVERLAY_TAG_CHILD_NODES.len();
             GateFlags::check(
                 &mut flags.menu_open,
                 "menu_open",
@@ -488,7 +489,7 @@ fn script_driver(world: &mut World) {
                 })
                 .collect();
             labels.sort_by_key(|(index, _)| *index);
-            let expected: Vec<String> = MENU_ORDER
+            let expected: Vec<String> = menu_display_order()
                 .iter()
                 .map(|state| option_label(*state))
                 .collect();
@@ -496,8 +497,13 @@ fn script_driver(world: &mut World) {
             GateFlags::check(
                 &mut flags.menu_order,
                 "menu_order",
-                actual == expected,
-                format!("actual={actual:?} expected={expected:?}"),
+                actual == expected
+                    && expected
+                        == request_gameplay_tag_children()
+                            .iter()
+                            .map(|state| option_label(*state))
+                            .collect::<Vec<_>>(),
+                format!("raw={OVERLAY_TAG_CHILD_NODES:?} actual={actual:?} expected={expected:?}"),
                 &mut failed,
             );
             let highlight_ok = world
