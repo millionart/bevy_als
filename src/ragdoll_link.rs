@@ -5,8 +5,8 @@ use als_core::character::{
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{
-    Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position, RigidBody,
-    ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
+    RigidBody, Rotation, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
@@ -14,8 +14,11 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
-use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, SpawnedRagdoll};
+use bevy_animation_graph::core::ragdoll::{
+    definition::BodyLabel,
+    relative_kinematic_body::{RelativeKinematicBody, RelativeKinematicBodyPositionBased},
+};
 use bevy_tnua::TnuaToggle;
 
 const PELVIS_LABEL: &str = "pelvis";
@@ -27,6 +30,9 @@ pub struct AlsRagdollLink {
 
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollColliderLayers(CollisionLayers);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+struct AlsRagdollPhysicsActive;
 
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollCharacterPhysics {
@@ -126,16 +132,26 @@ fn sync_ragdoll_body_modes(
     characters: Query<&LocomotionState, With<als_core::character::AlsCharacter>>,
     instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
-    body_modes: Query<&RigidBody>,
+    mut bodies: Query<(
+        Entity,
+        &RigidBody,
+        &mut Position,
+        &mut Rotation,
+        &mut LinearVelocity,
+        &mut AngularVelocity,
+        &mut RelativeKinematicBody,
+        &RelativeKinematicBodyPositionBased,
+        Has<AlsRagdollPhysicsActive>,
+    )>,
+    bases: Query<
+        (&Position, &Rotation, &LinearVelocity),
+        Without<RelativeKinematicBodyPositionBased>,
+    >,
 ) {
     let Ok(locomotion) = characters.single() else {
         return;
     };
-    let target_mode = if *locomotion == LocomotionState::Ragdolling {
-        RigidBody::Dynamic
-    } else {
-        RigidBody::Kinematic
-    };
+    let ragdolling = *locomotion == LocomotionState::Ragdolling;
     for instance in &instances {
         let Ok(player) = players.get(instance.player_entity()) else {
             continue;
@@ -144,10 +160,59 @@ fn sync_ragdoll_body_modes(
             continue;
         };
         for body_entity in spawned.bodies.values() {
-            if let Ok(mode) = body_modes.get(*body_entity)
-                && *mode != target_mode
-            {
-                commands.entity(*body_entity).insert(target_mode);
+            let Ok((
+                entity,
+                mode,
+                mut position,
+                mut rotation,
+                mut linear_velocity,
+                mut angular_velocity,
+                mut relative_body,
+                target,
+                activated,
+            )) = bodies.get_mut(*body_entity)
+            else {
+                continue;
+            };
+            if ragdolling {
+                if !activated {
+                    let (world_position, world_rotation, inherited_velocity) = target
+                        .relative_to
+                        .and_then(|base| bases.get(base).ok())
+                        .map(|(base_position, base_rotation, base_velocity)| {
+                            (
+                                base_position.0
+                                    + base_rotation.0
+                                        * Vec3::from(target.relative_target.translation),
+                                base_rotation.0 * target.relative_target.rotation,
+                                base_velocity.0,
+                            )
+                        })
+                        .unwrap_or((
+                            Vec3::from(target.relative_target.translation),
+                            target.relative_target.rotation,
+                            Vec3::ZERO,
+                        ));
+                    position.0 = world_position;
+                    rotation.0 = world_rotation;
+                    linear_velocity.0 = inherited_velocity;
+                    angular_velocity.0 = Vec3::ZERO;
+                    commands.entity(entity).insert(AlsRagdollPhysicsActive);
+                }
+                if *mode != RigidBody::Dynamic {
+                    commands.entity(entity).insert(RigidBody::Dynamic);
+                }
+                continue;
+            }
+            linear_velocity.0 = Vec3::ZERO;
+            angular_velocity.0 = Vec3::ZERO;
+            relative_body.kinematic_linear_velocity = Vec3::ZERO;
+            relative_body.kinematic_angular_velocity = Vec3::ZERO;
+            if activated {
+                commands.entity(entity).remove::<AlsRagdollPhysicsActive>();
+            }
+            if *mode != RigidBody::Kinematic {
+                commands.entity(entity).insert(RigidBody::Kinematic);
             }
         }
     }
