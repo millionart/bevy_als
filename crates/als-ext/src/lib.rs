@@ -30,6 +30,7 @@ pub mod mesh_space_difference;
 pub mod mesh_space_layered_blend;
 pub mod multi_way_blend;
 pub mod nodes;
+pub mod normalized_blendspace;
 pub mod overlay;
 pub mod playground;
 pub mod profile_blend;
@@ -92,6 +93,9 @@ pub use mesh_space_difference::{MeshSpaceDifferenceNode, make_mesh_space_differe
 pub use mesh_space_layered_blend::{MeshSpaceLayeredBlendNode, apply_mesh_space_layered_blend};
 pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
+pub use normalized_blendspace::{
+    CubicVec2FilterNode, NormalizedBlendSpaceNode, NormalizedBlendSpacePoint,
+};
 pub use overlay::{
     BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
     TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask,
@@ -127,7 +131,8 @@ pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
     SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode, SyncMarker,
     SyncMarkerPosition, SyncPhaseInput, SyncPhaseState, advance_sync_phase, follower_sample_time,
-    marker_position_at_time, phase_to_time, time_for_marker_position, time_to_phase,
+    marker_position_at_time, normalize_phase, phase_to_time, time_for_marker_position,
+    time_to_phase,
 };
 pub use time_position::{TimePositionNode, resolve_position};
 
@@ -176,6 +181,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<MeshSpaceDifferenceNode>()
             .register_type::<MeshSpaceLayeredBlendNode>()
             .register_type::<MultiWayBlendNode>()
+            .register_type::<CubicVec2FilterNode>()
+            .register_type::<NormalizedBlendSpaceNode>()
             .register_type::<RagdollConfigNode>()
             .register_type::<RagdollingTagBlendNode>()
             .register_type::<RichCurveInterpolation>()

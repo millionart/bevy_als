@@ -16,6 +16,7 @@ pub const IN_ACTIVE: &str = "active";
 pub const IN_RATE: &str = "rate";
 pub const IN_DURATION: &str = "duration";
 pub const IN_DELTA_SECONDS: &str = "delta_seconds";
+pub const IN_RESET: &str = "reset";
 pub const IN_PHASE: &str = "phase";
 pub const IN_POSE: &str = "pose";
 pub const IN_TIME: &str = "time";
@@ -40,11 +41,13 @@ pub struct SyncMarkerPosition {
 pub struct SyncPhaseState {
     pub phase: f32,
     pub active: bool,
+    pub reset_active: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SyncPhaseInput {
     pub active: bool,
+    pub reset: bool,
     pub rate: f32,
     pub duration: f32,
     pub start_phase: f32,
@@ -96,10 +99,13 @@ pub fn time_to_phase(time: f32, duration: f32, looped: bool) -> f32 {
 pub fn advance_sync_phase(state: &mut SyncPhaseState, input: SyncPhaseInput) -> f32 {
     if !input.active {
         state.active = false;
+        state.reset_active = false;
         return state.phase;
     }
-    if !state.active {
-        state.active = true;
+    let reset = !state.active || (input.reset && !state.reset_active);
+    state.active = true;
+    state.reset_active = input.reset;
+    if reset {
         state.phase = normalize_phase(input.start_phase, input.looped);
         return state.phase;
     }
@@ -248,12 +254,14 @@ impl NodeLike for SyncGroupPhaseNode {
         let rate = ctx.data_back(IN_RATE)?.as_f32()?;
         let duration = ctx.data_back(IN_DURATION)?.as_f32()?;
         let delta_seconds = ctx.data_back(IN_DELTA_SECONDS)?.as_f32()?;
+        let reset = ctx.data_back(IN_RESET)?.as_f32()? > self.activation_threshold;
         let phase = {
             let state = ctx.state_mut::<SyncPhaseState>()?;
             advance_sync_phase(
                 state,
                 SyncPhaseInput {
                     active,
+                    reset,
                     rate,
                     duration,
                     start_phase: self.start_phase,
@@ -271,6 +279,7 @@ impl NodeLike for SyncGroupPhaseNode {
             .add_input_data(IN_RATE, DataSpec::F32)
             .add_input_data(IN_DURATION, DataSpec::F32)
             .add_input_data(IN_DELTA_SECONDS, DataSpec::F32)
+            .add_input_data(IN_RESET, DataSpec::F32)
             .add_output_data(OUT_PHASE, DataSpec::F32);
         Ok(())
     }
@@ -344,6 +353,7 @@ mod tests {
         let mut state = SyncPhaseState::default();
         let input = SyncPhaseInput {
             active: true,
+            reset: false,
             rate: 1.0,
             duration: 1.0,
             start_phase: 0.2,
@@ -378,11 +388,13 @@ mod tests {
         let mut state = SyncPhaseState {
             phase: 0.9,
             active: true,
+            reset_active: false,
         };
         let phase = advance_sync_phase(
             &mut state,
             SyncPhaseInput {
                 active: true,
+                reset: false,
                 rate: 2.0,
                 duration: 1.0,
                 start_phase: 0.0,
@@ -412,6 +424,7 @@ mod tests {
         let mut registry = SyncGroupPhaseRegistry::default();
         let input = SyncPhaseInput {
             active: true,
+            reset: false,
             rate: 1.0,
             duration: 1.0,
             start_phase: 0.2,
@@ -431,6 +444,26 @@ mod tests {
                 < EPSILON
         );
         assert_eq!(registry.phase("Movement"), Some(0.45));
+    }
+
+    #[test]
+    fn explicit_asset_reset_uses_the_source_start_phase_once() {
+        let mut state = SyncPhaseState {
+            phase: 0.7,
+            active: true,
+            reset_active: false,
+        };
+        let input = SyncPhaseInput {
+            active: true,
+            reset: true,
+            rate: 1.0,
+            duration: 1.0,
+            start_phase: 0.2,
+            looped: true,
+            delta_seconds: 0.25,
+        };
+        assert!((advance_sync_phase(&mut state, input) - 0.2).abs() < EPSILON);
+        assert!((advance_sync_phase(&mut state, input) - 0.45).abs() < EPSILON);
     }
 
     #[test]

@@ -22,6 +22,8 @@ struct Deadline(Instant);
 enum Phase {
     Join,
     Advance,
+    Reset,
+    PostReset,
     Wrap,
     Leave,
     Rejoin,
@@ -73,7 +75,7 @@ fn build_graph() -> AnimationGraph {
     );
     let id = node.id;
     graph.add_node(node);
-    for input in ["active", "rate", "duration", "delta_seconds"] {
+    for input in ["active", "rate", "duration", "delta_seconds", "reset"] {
         graph.add_input_data(GraphInputPin::passthrough(input), DataSpec::F32);
         graph.add_input_data_edge(GraphInputPin::passthrough(input), id, input);
     }
@@ -107,6 +109,7 @@ fn set_inputs(player: &mut AnimationGraphPlayer, active: f32, delta_seconds: f32
     player.set_input_data("rate", DataValue::F32(1.0));
     player.set_input_data("duration", DataValue::F32(1.0));
     player.set_input_data("delta_seconds", DataValue::F32(delta_seconds));
+    player.set_input_data("reset", DataValue::F32(0.0));
 }
 
 fn output_phase(player: &AnimationGraphPlayer) -> Option<f32> {
@@ -156,6 +159,25 @@ fn observe(
         Phase::Advance => {
             if !close(phase, 0.7) {
                 fail(&mut exit, "advance phase");
+                return;
+            }
+            set_inputs(&mut player, 1.0, 0.25);
+            player.set_input_data("reset", DataValue::F32(1.0));
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = Phase::Reset;
+        }
+        Phase::Reset => {
+            if !close(phase, 0.2) {
+                fail(&mut exit, "asset reset phase");
+                return;
+            }
+            set_inputs(&mut player, 1.0, 0.5);
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = Phase::PostReset;
+        }
+        Phase::PostReset => {
+            if !close(phase, 0.7) {
+                fail(&mut exit, "post reset phase");
                 return;
             }
             set_inputs(&mut player, 1.0, 0.5);
@@ -214,7 +236,7 @@ fn observe(
                 return;
             }
             info!(
-                "[SYNC-PHASE] join=.2 advance=.7 wrap=.2 rejoin=.2 marker_follower={follower_time:.6}"
+                "[SYNC-PHASE] join=.2 advance=.7 asset_reset=.2 wrap=.2 rejoin=.2 marker_follower={follower_time:.6}"
             );
             info!("[SYNC-PHASE][VERDICT] leader/follower/marker -> PASS");
             exit.write(AppExit::Success);
