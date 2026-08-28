@@ -200,9 +200,9 @@ pub fn animated_gait_speed(params: &AlsMovementParams, stance: Stance, gait: Gai
 pub fn als_play_rate(
     params: &AlsMovementParams,
     stance: Stance,
-    gait: Gait,
     speed_meters_per_second: f32,
     stride_blend: f32,
+    weights: GaitWeights,
 ) -> AlsPlayRate {
     let speed = speed_meters_per_second.max(0.0);
     let stride_blend = stride_blend.max(f32::EPSILON);
@@ -213,15 +213,13 @@ pub fn als_play_rate(
         }
         Stance::Standing => {
             let speeds = &params.speeds.standing;
-            let running_amount = (gait != Gait::Walking) as u8 as f32;
-            let sprinting_amount = (gait == Gait::Sprinting) as u8 as f32;
             let walk_run = (speed / speeds.animated_walk_speed.max(f32::EPSILON)).lerp(
                 speed / speeds.animated_run_speed.max(f32::EPSILON),
-                running_amount,
+                weights.running_amount().clamp(0.0, 1.0),
             );
             let walk_run_sprint = walk_run.lerp(
                 speed / speeds.animated_sprint_speed.max(f32::EPSILON),
-                sprinting_amount,
+                weights.sprint_w.clamp(0.0, 1.0),
             );
             (walk_run_sprint / stride_blend).clamp(MIN_PLAY_RATE, PLAY_RATE_MAX)
         }
@@ -466,6 +464,24 @@ mod tests {
                 sprint_w: 0.5,
             }
         );
+    }
+
+    #[test]
+    fn als_play_rate_uses_continuous_gait_weights() {
+        let params = AlsMovementParams::default();
+        let rate = als_play_rate(
+            &params,
+            Stance::Standing,
+            3.0,
+            1.0,
+            GaitWeights {
+                move_w: 1.0,
+                run_w: 0.5,
+                sprint_w: 0.0,
+            },
+        );
+        println!("[BF101.6] continuous_play_rate={:.6}", rate.play_rate);
+        assert!((rate.play_rate - 1.428_571_5).abs() < 1e-6);
     }
 
     #[test]

@@ -1,5 +1,7 @@
 use als_core::air::AlsAirState;
-use als_core::gait::{GaitWeights, als_play_rate, stride_blend_amount_for_speed};
+use als_core::gait::{
+    GaitWeights, als_play_rate, calculate_gait_amount, stride_blend_amount_for_speed,
+};
 use als_core::graph_router::compute_graph_inputs;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, Stance};
@@ -16,6 +18,30 @@ pub struct MotionGraphInputs {
     pub gait_sprint_weight: f32,
 }
 
+fn motion_gait_weights(
+    params: &AlsMovementParams,
+    stance: Stance,
+    horizontal_speed: f32,
+) -> GaitWeights {
+    if horizontal_speed <= 0.05 {
+        return GaitWeights::default();
+    }
+    match stance {
+        Stance::Standing => {
+            let continuous = GaitWeights::from_gait_amount(calculate_gait_amount(
+                horizontal_speed,
+                params.stance_speeds(stance),
+            ));
+            GaitWeights {
+                move_w: 1.0,
+                run_w: continuous.run_w,
+                sprint_w: continuous.sprint_w,
+            }
+        }
+        Stance::Crouching => GaitWeights::targets(Gait::Walking),
+    }
+}
+
 pub fn compute_motion_graph_inputs(
     params: &AlsMovementParams,
     stance: Stance,
@@ -23,24 +49,10 @@ pub fn compute_motion_graph_inputs(
     horizontal_speed: f32,
 ) -> MotionGraphInputs {
     let gi = compute_graph_inputs(params, stance, gait, horizontal_speed);
-    let running_amount = match stance {
-        Stance::Crouching => 0.0,
-        Stance::Standing => match gait {
-            Gait::Walking => 0.0,
-            Gait::Running | Gait::Sprinting => 1.0,
-        },
-    };
-    let stride = stride_blend_amount_for_speed(running_amount, horizontal_speed.max(gi.speed));
-    let pr = als_play_rate(params, stance, gait, horizontal_speed.max(gi.speed), stride);
-    let effective = match stance {
-        Stance::Standing => gait,
-        Stance::Crouching => Gait::Walking,
-    };
-    let weights = if horizontal_speed > 0.05 {
-        GaitWeights::targets(effective)
-    } else {
-        GaitWeights::default()
-    };
+    let graph_speed = horizontal_speed.max(gi.speed);
+    let weights = motion_gait_weights(params, stance, graph_speed);
+    let stride = stride_blend_amount_for_speed(weights.running_amount(), graph_speed);
+    let pr = als_play_rate(params, stance, graph_speed, stride, weights);
     MotionGraphInputs {
         speed: gi.speed,
         actual_speed: gi.actual_speed,
@@ -61,7 +73,7 @@ pub fn compute_motion_graph_inputs_blended(
 ) -> MotionGraphInputs {
     let gi = compute_graph_inputs(params, stance, gait, horizontal_speed);
     let stride = stride_blend_amount_for_speed(weights.running_amount(), speed_ema);
-    let pr = als_play_rate(params, stance, gait, speed_ema, stride);
+    let pr = als_play_rate(params, stance, speed_ema, stride, weights);
     MotionGraphInputs {
         speed: gi.speed,
         actual_speed: gi.actual_speed,
@@ -156,8 +168,31 @@ mod tests {
         let m =
             compute_motion_graph_inputs_blended(&p, Stance::Standing, Gait::Running, 3.75, 2.0, w);
         let expected_stride = stride_blend_amount_for_speed(0.5, 2.0);
-        assert!((m.play_rate - 2.0 / 3.5 / expected_stride).abs() < 1e-4);
+        let walk_rate = 2.0_f32 / 1.5;
+        let run_rate = 2.0 / 3.5;
+        let expected_rate = (walk_rate + (run_rate - walk_rate) * 0.5) / expected_stride;
+        assert!((m.play_rate - expected_rate).abs() < 1e-4);
         assert!((m.gait_move_weight - 1.0).abs() < 1e-6);
         assert!((m.gait_run_weight - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ordinary_inputs_propagate_continuous_running_weight_to_play_rate() {
+        let p = AlsMovementParams::default();
+        let m = compute_motion_graph_inputs(&p, Stance::Standing, Gait::Running, 3.0);
+        let expected_weights = GaitWeights {
+            move_w: 1.0,
+            run_w: 0.625,
+            sprint_w: 0.0,
+        };
+        let expected_stride = stride_blend_amount_for_speed(expected_weights.running_amount(), 3.0);
+        let expected_rate =
+            als_play_rate(&p, Stance::Standing, 3.0, expected_stride, expected_weights).play_rate;
+        println!(
+            "[BF101.6] ordinary_run_weight={:.6} ordinary_play_rate={:.6}",
+            m.gait_run_weight, m.play_rate
+        );
+        assert!((m.gait_run_weight - expected_weights.run_w).abs() < 1e-6);
+        assert!((m.play_rate - expected_rate).abs() < 1e-6);
     }
 }

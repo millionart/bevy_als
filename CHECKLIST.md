@@ -59,9 +59,10 @@ BF101.6 F003 播放率消费者与连续权重追踪／修复 ──────
   - 实时事实（2026-08-29，ALS 插件 `6ec0095`）：`FAlsMovementGaitSettings` 默认关闭方向相关速度，前／后 Walk 与 Run 默认相等；`UAlsMovementSettings` 的角度区间为 100°–125°；`RefreshGroundedMovementSettings` 用速度相对视角的角度在后退和前进 Walk／Run 速度间插值。
   - 验收：默认关闭时现有运动合同保持不变；只有确定缺少可达消费链时才新增可关闭的适配与数值 Gate。
 
-- [ ] **BF101.6 — F003：追踪播放率消费者并恢复连续 gait 权重语义**
+- [x] **BF101.6 — F003：追踪播放率消费者并恢复连续 gait 权重语义**
   - 依赖：无。
   - 目标：先追踪 `als_play_rate` 是否到达完整角色动画图；若可达，重新从 ALS-Refactored 提取当次函数事实，再把离散 gait 信号替换为等价的连续权重数据流。
+  - 实时事实（2026-08-29，ALS 插件 `6ec0095`）：`RefreshStandingMovement` 以 `PoseState.UnweightedGaitRunningAmount` 与 `UnweightedGaitSprintingAmount` 连续插值 Walk／Run／Sprint 播放率；当前 `motion_graph_link` 的普通和 blended 路径都调用 `als_play_rate`，但传入离散 `Gait`，消费者可达。
   - 验收：运行探针证明消费者与输入来源；仅在可达时验证中间权重与播放率连续、有限且与固定 ALS 参考样本一致。
 
 - [ ] **BF101.Gate — 有限取证批次总验收**
