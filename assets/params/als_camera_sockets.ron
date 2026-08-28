@@ -1,0 +1,5 @@
+(
+    first_person_head_local: (0.04, 0.0, 0.14),
+    trace_shoulder_right_head_local: (0.05, 0.20, 0.0),
+    trace_shoulder_left_head_local: (0.05, -0.20, 0.0),
+)

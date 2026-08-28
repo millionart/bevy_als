@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use als_camera::{AlsCameraMode, AlsCameraParams, AlsCameraRig, blended_shoulder};
+use als_camera::{AlsCameraMode, AlsCameraRig};
 use als_core::character::AlsCharacter;
 use als_core::gait::AlsDesiredGait;
 use als_core::input::AlsInputCommand;
@@ -444,7 +444,7 @@ fn overlay_tag(overlay: OverlayState) -> &'static str {
 fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
     match mode {
         Some(AlsCameraMode::ThirdPerson | AlsCameraMode::AimingShoulder) => Some("ThirdPerson"),
-        Some(AlsCameraMode::FirstPersonPlaceholder) => Some("FirstPerson"),
+        Some(AlsCameraMode::FirstPerson) => Some("FirstPerson"),
         None => None,
     }
 }
@@ -869,34 +869,14 @@ type CharacterQueryItem<'w, 's> = (
 );
 
 fn build_camera_snapshot<'w, 's>(
-    character_item: &CharacterQueryItem<'w, 's>,
+    _character_item: &CharacterQueryItem<'w, 's>,
     rig: Option<(&GlobalTransform, Option<&AlsCameraRig>)>,
-    params: Option<&AlsCameraParams>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
-    let (_, _, _, _, _, _, _, _, _, _, _, _, view_yaw, view_smoothed, char_transform) =
-        character_item;
-
     let view_rotation_deg = rig.map(|(transform, _)| {
         let (yaw, pitch, roll) = transform.rotation().to_euler(EulerRot::YXZ);
         (yaw.to_degrees(), pitch.to_degrees(), roll.to_degrees())
     });
-    let pivot_target_location = match (char_transform, params, view_yaw) {
-        (Some(char_transform), Some(params), Some(view_yaw)) => {
-            let blend = rig
-                .and_then(|(_, rig)| rig)
-                .map(|rig| rig.aim_blend)
-                .unwrap_or(0.0);
-            let pitch = view_smoothed.map(|s| s.0).unwrap_or(0.0);
-            let rot = Quat::from_euler(EulerRot::YXZ, view_yaw.0, pitch, 0.0);
-            Some(
-                char_transform.translation()
-                    + Vec3::Y * params.pivot_height
-                    + rot * blended_shoulder(blend, params),
-            )
-        }
-        _ => None,
-    };
     let camera_curves = debug_info
         .map(|info| {
             als_camera::CAMERA_CURVE_NAMES
@@ -908,7 +888,7 @@ fn build_camera_snapshot<'w, 's>(
     CameraSnapshot {
         view_rotation_deg,
         rig_mode: rig.and_then(|(_, rig)| rig).map(|rig| rig.mode),
-        pivot_target_location,
+        pivot_target_location: debug_info.map(|info| info.pivot_target),
         pivot_lag_location: debug_info.and_then(|info| info.pivot_lag),
         pivot_location: debug_info.and_then(|info| info.pivot),
         field_of_view_deg: debug_info.map(|info| info.field_of_view_deg),
@@ -953,7 +933,6 @@ fn hud_sync_system(
     >,
     q_instances: Query<&AnimatedSceneInstance>,
     q_players: Query<&AnimationGraphPlayer>,
-    camera_params: Option<Res<Assets<AlsCameraParams>>>,
     curve_assets: Option<Res<Assets<AlsAnimCurves>>>,
     sources: Res<AlsShowDebugCurveSources>,
 ) {
@@ -1004,11 +983,7 @@ fn hud_sync_system(
             .next()
             .map(|(transform, rig, info)| (Some((transform, rig)), info))
             .unwrap_or((None, None));
-        let params = camera_params
-            .as_ref()
-            .and_then(|assets| assets.iter().next())
-            .map(|(_, params)| params);
-        let camera_snapshot = build_camera_snapshot(&item, rig, params, cam_debug);
+        let camera_snapshot = build_camera_snapshot(&item, rig, cam_debug);
 
         let elapsed = q_instances
             .iter()

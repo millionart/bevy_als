@@ -1,7 +1,11 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
-use als_camera::{AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraTarget};
+use als_camera::{
+    AlsCameraAnimationNotifyDriver, AlsCameraCurveProfileDriver, AlsCameraDebugInfo,
+    AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
+    AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
+};
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{AlsInputMap, spawn_als_actions};
@@ -190,6 +194,8 @@ pub fn spawn_als_character(
             AlsViewPitch(0.0),
             AlsCameraFovOffset::default(),
             AlsCameraTarget,
+            AlsCameraCurveProfileDriver,
+            AlsCameraAnimationNotifyDriver,
         ))
         .id();
     if blueprint.spawn_input {
@@ -206,6 +212,10 @@ pub fn spawn_als_character(
         character_material,
         main_material,
     );
+    commands.entity(character).insert((
+        AlsCameraSocketBinding::new(avatar),
+        AlsCameraSocketLocations::default(),
+    ));
     let camera = if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
         Some(
@@ -216,6 +226,8 @@ pub fn spawn_als_character(
                         .looking_at(blueprint.transform.translation + Vec3::Y, Vec3::Y),
                     AlsCameraRig::default(),
                     AlsCameraFieldOfView::default(),
+                    AlsCameraDebugInfo::default(),
+                    AlsCameraRuntime::default(),
                     AlsCharacterCamera { character },
                 ))
                 .id(),

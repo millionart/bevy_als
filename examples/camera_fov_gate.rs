@@ -6,12 +6,12 @@ use bevy::prelude::*;
 
 use als_camera::{
     AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraPlugin, AlsCameraRig,
-    AlsCameraSet, AlsCameraTarget,
+    AlsCameraRuntime, AlsCameraSet, AlsCameraSocketLocations, AlsCameraTarget,
 };
 use als_core::input_request::AlsFirstPersonView;
 use als_core::motion::AlsViewYaw;
 use als_core::state::RotationMode;
-use als_core::view::AlsViewSmoothed;
+use als_core::view::AlsViewPitch;
 
 fn main() {
     App::new()
@@ -24,7 +24,7 @@ fn main() {
             AlsCameraPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, verify_camera_fov.after(AlsCameraSet))
+        .add_systems(PostUpdate, verify_camera_fov.after(AlsCameraSet))
         .run();
 }
 
@@ -32,8 +32,18 @@ fn setup(mut commands: Commands) {
     commands.spawn((
         AlsCameraTarget,
         AlsViewYaw(0.0),
-        AlsViewSmoothed(0.0),
+        AlsViewPitch(0.0),
         AlsCameraFovOffset(12.0),
+        AlsCameraSocketLocations {
+            root: Vec3::ZERO,
+            head: Vec3::Y,
+            first_person: Vec3::new(0.0, 1.6, 0.0),
+            trace_shoulder_right: Vec3::new(0.0, 1.6, 0.2),
+            trace_shoulder_left: Vec3::new(0.0, 1.6, -0.2),
+            mesh_rotation: Quat::IDENTITY,
+            mesh_scale: 1.0,
+            valid: true,
+        },
         RotationMode::VelocityDirection,
         Transform::IDENTITY,
     ));
@@ -42,6 +52,7 @@ fn setup(mut commands: Commands) {
         AlsCameraRig::default(),
         AlsCameraFieldOfView::default(),
         AlsCameraDebugInfo::default(),
+        AlsCameraRuntime::default(),
         Transform::from_xyz(0.0, 1.0, 4.0),
     ));
 }

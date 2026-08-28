@@ -22,15 +22,12 @@ fn main() {
 
 fn camera_params() -> AlsCameraParams {
     AlsCameraParams {
-        third_person_shoulder: Vec3::ZERO,
-        third_person_arm_length: 3.4,
-        aiming_shoulder: Vec3::ZERO,
-        aiming_arm_length: 1.6,
-        first_person_eye_height: 1.62,
-        probe_skin: 0.15,
-        aim_blend_speed: 5.0,
-        pivot_height: 0.65,
+        ignore_time_dilation: true,
+        teleport_distance_threshold: 2.0,
         trace_radius: 0.15,
+        trace_override_offset: Vec3::Y * 0.4,
+        trace_distance_smoothing: true,
+        trace_distance_smoothing_half_life: 0.2,
         third_person_field_of_view_deg: 90.0,
         first_person_field_of_view_deg: 90.0,
         field_of_view_min_deg: 5.0,
