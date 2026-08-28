@@ -107,10 +107,7 @@ fn spawn_character_once(mut commands: Commands, mut once: ResMut<SpawnOnce>) {
         return;
     }
     once.0 = true;
-    request_als_player(
-        &mut commands,
-        AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron"),
-    );
+    request_als_player(&mut commands, AlsPlayerAdmission::new());
     info!("[PG] player admission requested");
 
     commands.spawn((

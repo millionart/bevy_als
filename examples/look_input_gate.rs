@@ -13,7 +13,7 @@ use als_core::input::{
 use als_core::motion::AlsViewYaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::{AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch, look_delta_radians};
-use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
+use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
 
 fn main() {
     App::new()
@@ -60,16 +60,13 @@ fn spawn_character(
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
-    spawn_als_character(
+    spawn_als_character_with_materials(
         &mut commands,
         &assets,
         &mut materials,
         &mut params_assets,
         &mut config_assets,
-        AlsCharacterBlueprint::new(
-            Transform::IDENTITY,
-            "animated_scenes/motion_overlay.animscn.ron",
-        ),
+        AlsCharacterBlueprint::new(Transform::IDENTITY),
     );
 }
 

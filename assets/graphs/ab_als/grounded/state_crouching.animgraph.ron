@@ -1,0 +1,36 @@
+(
+    nodes: [
+        (id: "17030000-0000-4000-8000-000000000001", name: "crouching standing amount zero", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("pose"): InputData(Passthrough("crouching_pose")),
+        OutputTime: InputTime(Passthrough("crouching_time")),
+        OutputData("PoseStanding"): NodeData("17030000-0000-4000-8000-000000000001", "value"),
+        OutputData("PoseCrouching"): InputData(Passthrough("crouching_PoseCrouching")),
+        OutputData("PoseMoving"): InputData(Passthrough("crouching_PoseMoving")),
+        OutputData("RotationYawOffset"): InputData(Passthrough("crouching_RotationYawOffset")),
+        OutputData("FootLeftLock"): InputData(Passthrough("crouching_FootLeftLock")),
+        OutputData("FootRightLock"): InputData(Passthrough("crouching_FootRightLock")),
+        OutputData("AllowTransitions"): InputData(Passthrough("crouching_AllowTransitions")),
+        OutputData("RotationYawSpeed"): InputData(Passthrough("crouching_RotationYawSpeed")),
+    },
+    io_spec: (
+        input_times: [Passthrough("crouching_time")],
+        input_data: {
+            Passthrough("crouching_pose"): Pose,
+            Passthrough("crouching_PoseCrouching"): F32,
+            Passthrough("crouching_PoseMoving"): F32,
+            Passthrough("crouching_RotationYawOffset"): F32,
+            Passthrough("crouching_FootLeftLock"): F32,
+            Passthrough("crouching_FootRightLock"): F32,
+            Passthrough("crouching_AllowTransitions"): F32,
+            Passthrough("crouching_RotationYawSpeed"): F32,
+        },
+        output_time: true,
+        output_data: { "pose": Pose, "PoseStanding": F32, "PoseCrouching": F32, "PoseMoving": F32, "RotationYawOffset": F32, "FootLeftLock": F32, "FootRightLock": F32, "AllowTransitions": F32, "RotationYawSpeed": F32 },
+        input_order: {},
+        output_order: { Data("pose"): 0, Data("PoseStanding"): 1, Data("PoseCrouching"): 2, Data("PoseMoving"): 3, Data("RotationYawOffset"): 4, Data("FootLeftLock"): 5, Data("FootRightLock"): 6, Data("AllowTransitions"): 7, Data("RotationYawSpeed"): 8, Time: 9 },
+    ),
+    default_data: {},
+    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

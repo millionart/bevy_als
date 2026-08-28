@@ -111,7 +111,7 @@ fn setup(mut commands: Commands, mut state: ResMut<GateState>) {
             )),
         ))
         .id();
-    let mut regular = AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron");
+    let mut regular = AlsPlayerAdmission::new();
     regular.spawn_input = false;
     let regular_request = request_als_player(&mut commands, regular);
     state.portal = Some(portal);
@@ -205,7 +205,7 @@ fn drive_gate(
         return;
     }
     if state.portal_request.is_none() {
-        let mut request = AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron");
+        let mut request = AlsPlayerAdmission::new();
         request.spawn_input = false;
         request.incoming_start_tag = Some("Portal".into());
         state.portal_request = Some(request_als_player(&mut commands, request));
@@ -219,7 +219,7 @@ fn drive_gate(
         return;
     };
     if state.vertical_request.is_none() {
-        let mut request = AlsPlayerAdmission::new("animated_scenes/motion_graph.animscn.ron");
+        let mut request = AlsPlayerAdmission::new();
         request.spawn_input = false;
         request.incoming_start_tag = Some("Vertical".into());
         state.vertical_request = Some(request_als_player(&mut commands, request));

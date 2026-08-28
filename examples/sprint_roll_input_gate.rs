@@ -9,14 +9,14 @@ use als_core::character::AlsCharacter;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::gait::AlsDesiredGait;
 use als_core::input::{
-    als_input_bridge_system, AlsInputCommand, AlsInputPlugin, RollAction, SprintAction,
-    ROLL_TAP_SECS, SPRINT_HOLD_SECS,
+    AlsInputCommand, AlsInputPlugin, ROLL_TAP_SECS, RollAction, SPRINT_HOLD_SECS, SprintAction,
+    als_input_bridge_system,
 };
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::params::AlsMovementParams;
 use als_core::state::Gait;
-use als_core::transition::{state_transition_system, AlsStateTransitionPlugin};
-use bevy_als::character_assembly::{spawn_als_character, AlsCharacterBlueprint};
+use als_core::transition::{AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
 
 fn main() {
     App::new()
@@ -65,16 +65,13 @@ fn spawn_character(
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
-    spawn_als_character(
+    spawn_als_character_with_materials(
         &mut commands,
         &assets,
         &mut materials,
         &mut params_assets,
         &mut config_assets,
-        AlsCharacterBlueprint::new(
-            Transform::IDENTITY,
-            "animated_scenes/motion_overlay.animscn.ron",
-        ),
+        AlsCharacterBlueprint::new(Transform::IDENTITY),
     );
 }
 

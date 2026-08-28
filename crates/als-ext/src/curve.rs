@@ -32,9 +32,7 @@ impl Default for CurveAsset {
     }
 }
 
-#[derive(
-    Reflect, Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq,
-)]
+#[derive(Reflect, Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CurveSampleMode {
     #[default]
     Linear,
@@ -99,7 +97,10 @@ mod tests {
 
     #[test]
     fn step_holds_left_value_until_next_key() {
-        let c = CurveAsset::new(CurveSampleMode::Step, keys(&[(0.0, 1.0), (1.0, 5.0), (2.0, 9.0)]));
+        let c = CurveAsset::new(
+            CurveSampleMode::Step,
+            keys(&[(0.0, 1.0), (1.0, 5.0), (2.0, 9.0)]),
+        );
         assert_eq!(c.sample(0.999), 1.0);
         assert_eq!(c.sample(1.0), 5.0);
         assert_eq!(c.sample(1.5), 5.0);

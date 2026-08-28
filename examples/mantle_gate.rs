@@ -207,7 +207,7 @@ fn spawn_character_once(
         MeshMaterial3d(box_mat),
     ));
 
-    let character = bevy_als::character_assembly::spawn_als_character(
+    let character = bevy_als::character_assembly::spawn_als_character_with_materials(
         &mut commands,
         &assets,
         &mut materials,
@@ -216,7 +216,6 @@ fn spawn_character_once(
         bevy_als::character_assembly::AlsCharacterBlueprint::new(
             Transform::from_xyz(0.0, 0.95, -12.0)
                 .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-            "animated_scenes/motion_overlay.animscn.ron",
         ),
     );
     commands

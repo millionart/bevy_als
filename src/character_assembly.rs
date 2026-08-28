@@ -16,6 +16,8 @@ use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverri
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
+pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
+pub const ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_ragdoll.animscn.ron";
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
 pub const ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB: [f32; 3] = [1.0, 1.0, 1.0];
 pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
@@ -51,11 +53,11 @@ pub fn attach_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
-    scene: &str,
+    _scene: &str,
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
             AlsCharacterAvatar { character },
             avatar_transform(),
         ))
@@ -69,7 +71,7 @@ pub fn attach_avatar_with_material(
     assets: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
     character: Entity,
-    scene: &str,
+    _scene: &str,
     slot_colors: &[Color],
 ) -> Entity {
     let handles: Vec<Handle<StandardMaterial>> = slot_colors
@@ -84,7 +86,7 @@ pub fn attach_avatar_with_material(
         .collect();
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
             AvatarMaterialOverride(handles),
             AlsCharacterAvatar { character },
             avatar_transform(),
@@ -137,13 +139,13 @@ pub fn attach_als_character_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
-    scene: &str,
+    _scene: &str,
     body_material: Handle<StandardMaterial>,
     main_material: Handle<StandardMaterial>,
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
+            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
             AvatarMaterialOverride(als_character_material_slots(body_material, main_material)),
             AlsCharacterAvatar { character },
             avatar_transform(),
@@ -153,19 +155,17 @@ pub fn attach_als_character_avatar(
     avatar
 }
 
-pub struct AlsCharacterBlueprint<'a> {
+pub struct AlsCharacterBlueprint {
     pub transform: Transform,
-    pub animscn: &'a str,
     pub input_map: AlsInputMap,
     pub spawn_input: bool,
     pub spawn_camera: bool,
 }
 
-impl<'a> AlsCharacterBlueprint<'a> {
-    pub fn new(transform: Transform, animscn: &'a str) -> Self {
+impl AlsCharacterBlueprint {
+    pub fn new(transform: Transform) -> Self {
         Self {
             transform,
-            animscn,
             input_map: AlsInputMap::default(),
             spawn_input: true,
             spawn_camera: false,
@@ -176,10 +176,45 @@ impl<'a> AlsCharacterBlueprint<'a> {
 pub fn spawn_als_character(
     commands: &mut Commands,
     assets: &AssetServer,
+    params_assets: &mut Assets<AlsMovementParams>,
+    config_assets: &mut Assets<AlsControlSchemeConfig>,
+    blueprint: AlsCharacterBlueprint,
+) -> Entity {
+    spawn_als_character_internal(
+        commands,
+        assets,
+        None,
+        params_assets,
+        config_assets,
+        blueprint,
+    )
+}
+
+pub fn spawn_als_character_with_materials(
+    commands: &mut Commands,
+    assets: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
     params_assets: &mut Assets<AlsMovementParams>,
     config_assets: &mut Assets<AlsControlSchemeConfig>,
-    blueprint: AlsCharacterBlueprint<'_>,
+    blueprint: AlsCharacterBlueprint,
+) -> Entity {
+    spawn_als_character_internal(
+        commands,
+        assets,
+        Some(materials),
+        params_assets,
+        config_assets,
+        blueprint,
+    )
+}
+
+fn spawn_als_character_internal(
+    commands: &mut Commands,
+    assets: &AssetServer,
+    materials: Option<&mut Assets<StandardMaterial>>,
+    params_assets: &mut Assets<AlsMovementParams>,
+    config_assets: &mut Assets<AlsControlSchemeConfig>,
+    blueprint: AlsCharacterBlueprint,
 ) -> Entity {
     let params_value = AlsMovementParams::default();
     let tnua_config_handle = config_assets.add(initial_als_control_scheme_config(&params_value));
@@ -202,16 +237,17 @@ pub fn spawn_als_character(
         spawn_als_actions(commands, character, &blueprint.input_map);
         commands.entity(character).insert(AlsPlayerCharacter);
     }
-    let character_material = make_als_character_material(materials);
-    let main_material = make_als_main_material(materials);
-    let avatar = attach_als_character_avatar(
-        commands,
-        assets,
-        character,
-        blueprint.animscn,
-        character_material,
-        main_material,
-    );
+    let avatar = attach_avatar(commands, assets, character, ALS_LINKED_ANIMATED_SCENE);
+    if let Some(materials) = materials {
+        let character_material = make_als_character_material(materials);
+        let main_material = make_als_main_material(materials);
+        commands
+            .entity(avatar)
+            .insert(AvatarMaterialOverride(als_character_material_slots(
+                character_material,
+                main_material,
+            )));
+    }
     commands.entity(character).insert((
         AlsCameraSocketBinding::new(avatar),
         AlsCameraSocketLocations::default(),
@@ -255,7 +291,7 @@ mod tests {
                     world.resource_scope(
                         |world, mut config_assets: Mut<Assets<AlsControlSchemeConfig>>| {
                             let mut commands = world.commands();
-                            spawn_als_character(
+                            spawn_als_character_with_materials(
                                 &mut commands,
                                 &assets,
                                 &mut materials,
@@ -263,10 +299,7 @@ mod tests {
                                 &mut config_assets,
                                 AlsCharacterBlueprint {
                                     spawn_camera,
-                                    ..AlsCharacterBlueprint::new(
-                                        Transform::IDENTITY,
-                                        "test.animscn.ron",
-                                    )
+                                    ..AlsCharacterBlueprint::new(Transform::IDENTITY)
                                 },
                             )
                         },
@@ -315,9 +348,16 @@ mod tests {
 
     #[test]
     fn default_blueprint_requests_the_local_player_input_path() {
-        let blueprint = AlsCharacterBlueprint::new(Transform::IDENTITY, "test.animscn.ron");
+        let blueprint = AlsCharacterBlueprint::new(Transform::IDENTITY);
         assert!(blueprint.spawn_input);
         assert!(!blueprint.spawn_camera);
+    }
+
+    #[test]
+    fn avatar_uses_the_source_capsule_relative_mesh_offset() {
+        let transform = avatar_transform();
+        assert!((transform.translation.y - AVATAR_CAPSULE_BOTTOM_OFFSET).abs() < f32::EPSILON);
+        assert!((AVATAR_MESH_ROOT_WORLD_Y - (-0.02)).abs() < f32::EPSILON);
     }
 
     #[test]

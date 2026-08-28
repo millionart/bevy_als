@@ -57,9 +57,10 @@ mod tests {
         let reg = registry
             .get(std::any::TypeId::of::<RagdollConfigNode>())
             .unwrap();
-        assert!(reg
-            .data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
-            .is_some());
+        assert!(
+            reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
+                .is_some()
+        );
         assert_eq!(
             <RagdollConfigNode as bevy::reflect::TypePath>::type_path(),
             "als_ext::RagdollConfigNode"

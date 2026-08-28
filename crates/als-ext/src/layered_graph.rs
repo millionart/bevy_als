@@ -75,8 +75,7 @@ impl NodeLike for LayeredGraphNode {
             && let Ok(time_update) = ctx.time_update_fwd()
         {
             let key = sub_ctx.state_key;
-            sub_ctx.context_mut().query_output_time =
-                QueryOutputTime::from_key(key, time_update);
+            sub_ctx.context_mut().query_output_time = QueryOutputTime::from_key(key, time_update);
         }
 
         if let Ok(time_update) = ctx.time_update_fwd() {

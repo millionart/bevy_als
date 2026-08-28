@@ -1,5 +1,5 @@
-use bevy::asset::{AssetLoader, LoadContext};
 use bevy::asset::io::Reader;
+use bevy::asset::{AssetLoader, LoadContext};
 use bevy::reflect::TypePath;
 
 use crate::curve::CurveAsset;

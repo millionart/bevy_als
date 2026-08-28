@@ -1,0 +1,598 @@
+(
+    nodes: [
+        (
+            id: "02020202-0000-4000-8000-000000000001",
+            name: "overlay gait walking input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_overlay_gait_walking_amount",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000002",
+            name: "overlay standing input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_overlay_standing_amount",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000003",
+            name: "overlay crouching input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_overlay_crouching_amount",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000004",
+            name: "overlay in air input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_overlay_in_air_amount",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000005",
+            name: "overlay ground prediction input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_overlay_ground_prediction_amount",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000006",
+            name: "animation delta seconds input",
+            inner: {
+                "als_ext::GlobalF32InputNode": (
+                    key: "als_animation_delta_seconds",
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000101",
+            name: "default poses frame zero clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000102",
+            name: "default poses frame one clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000103",
+            name: "default poses frame two clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000104",
+            name: "default poses frame one air clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000105",
+            name: "default poses frame zero air clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000111",
+            name: "default poses frame zero evaluator",
+            inner: {
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000112",
+            name: "default poses frame one evaluator",
+            inner: {
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000113",
+            name: "default poses frame two evaluator",
+            inner: {
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000114",
+            name: "default poses frame one air evaluator",
+            inner: {
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000115",
+            name: "default poses frame zero air evaluator",
+            inner: {
+                "als_ext::TimePositionNode": (duration_fallback: 0.1, loop_position: false),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000121",
+            name: "frame zero position",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000122",
+            name: "frame one position",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.033333335),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000123",
+            name: "frame two position",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.06666667),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000124",
+            name: "frame one air position",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.033333335),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000125",
+            name: "frame zero air position",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000201",
+            name: "secondary motion idle clip",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::ClipNode": (
+                    clip: "animations/Base/A_Als_Idle.anim.ron",
+                    override_duration: None,
+                    override_interpolation: None,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000202",
+            name: "secondary motion idle loop",
+            inner: {
+                "als_ext::GlobalSyncGroupSampleNode": (key: "als_secondary_motion_phase", leader_duration: 2.666667, leader_markers: [], follower_duration: 2.666667, follower_markers: [], looped: true),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000301",
+            name: "grounded gait blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000302",
+            name: "grounded stance multi way blend",
+            inner: {
+                "als_ext::MultiWayBlendNode": (
+                    pose_count: 2,
+                    normalize_alpha: true,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000303",
+            name: "ground prediction interpolation",
+            inner: {
+                "als_ext::FInterpNode": (
+                    increasing_speed: 20.0,
+                    decreasing_speed: 5.0,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000304",
+            name: "air pose blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000305",
+            name: "grounded air blend",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: LinearInterpolate,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000306",
+            name: "secondary motion additive",
+            inner: {
+                "bevy_animation_graph::builtin_nodes::BlendNode": (
+                    mode: Additive,
+                    sync_mode: Absolute,
+                    blend_primary: First,
+                    use_bone_mask: false,
+                ),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000350",
+            name: "secondary motion additive alpha",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.75),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000401",
+            name: "LayerArmLeft curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000402",
+            name: "LayerArmLeftAdditive curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000403",
+            name: "LayerArmLeftLocalSpace curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000404",
+            name: "LayerArmRight curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000405",
+            name: "LayerArmRightAdditive curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000406",
+            name: "LayerArmRightLocalSpace curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000407",
+            name: "LayerHead curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000408",
+            name: "LayerHeadAdditive curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000409",
+            name: "LayerLegs curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040a",
+            name: "LayerPelvis curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040b",
+            name: "LayerSpine curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040c",
+            name: "LayerSpineAdditive curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 1.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040d",
+            name: "HandLeftIk curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040e",
+            name: "HandRightIk curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-00000000040f",
+            name: "HipsDirectionLock curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000410",
+            name: "LayerHandLeft curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000411",
+            name: "LayerHandRight curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000412",
+            name: "PoseAiming curve",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (
+            id: "02020202-0000-4000-8000-000000000413",
+            name: "no transition left request",
+            inner: {
+                "als_ext::ConstantF32Node": (value: 0.0),
+            },
+            should_debug: false,
+        ),
+        (id: "dbc5a5ab-b220-510f-af75-eb6b0d4d0288", name: "additive difference secondary motion idle clip", inner: { "als_ext::ReferenceLocalDifferenceNode": () }, should_debug: false),
+        (id: "b8b18d34-5f69-5cfa-961f-9101c26f531e", name: "additive reference A_Als_Stand_Pose 02020202 clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Base/A_Als_Stand_Pose.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "efb5f99d-d24c-5db8-9339-2e07414d71a1", name: "additive reference A_Als_Stand_Pose 02020202 evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.033333, loop_position: false) }, should_debug: false),
+        (id: "b357ae73-b49f-5a06-9364-bc454d941f2b", name: "additive reference A_Als_Stand_Pose 02020202 frame", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("02020202-0000-4000-8000-000000000111", "pose"): NodeData("02020202-0000-4000-8000-000000000101", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000111", "time"): NodeTime("02020202-0000-4000-8000-000000000101"),
+        NodeData("02020202-0000-4000-8000-000000000111", "position"): NodeData("02020202-0000-4000-8000-000000000121", "value"),
+        NodeData("02020202-0000-4000-8000-000000000112", "pose"): NodeData("02020202-0000-4000-8000-000000000102", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000112", "time"): NodeTime("02020202-0000-4000-8000-000000000102"),
+        NodeData("02020202-0000-4000-8000-000000000112", "position"): NodeData("02020202-0000-4000-8000-000000000122", "value"),
+        NodeData("02020202-0000-4000-8000-000000000113", "pose"): NodeData("02020202-0000-4000-8000-000000000103", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000113", "time"): NodeTime("02020202-0000-4000-8000-000000000103"),
+        NodeData("02020202-0000-4000-8000-000000000113", "position"): NodeData("02020202-0000-4000-8000-000000000123", "value"),
+        NodeData("02020202-0000-4000-8000-000000000114", "pose"): NodeData("02020202-0000-4000-8000-000000000104", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000114", "time"): NodeTime("02020202-0000-4000-8000-000000000104"),
+        NodeData("02020202-0000-4000-8000-000000000114", "position"): NodeData("02020202-0000-4000-8000-000000000124", "value"),
+        NodeData("02020202-0000-4000-8000-000000000115", "pose"): NodeData("02020202-0000-4000-8000-000000000105", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000115", "time"): NodeTime("02020202-0000-4000-8000-000000000105"),
+        NodeData("02020202-0000-4000-8000-000000000115", "position"): NodeData("02020202-0000-4000-8000-000000000125", "value"),
+        NodeData("02020202-0000-4000-8000-000000000301", "pose_a"): NodeData("02020202-0000-4000-8000-000000000111", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000301", "time_a"): NodeTime("02020202-0000-4000-8000-000000000111"),
+        NodeData("02020202-0000-4000-8000-000000000301", "pose_b"): NodeData("02020202-0000-4000-8000-000000000112", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000301", "time_b"): NodeTime("02020202-0000-4000-8000-000000000112"),
+        NodeData("02020202-0000-4000-8000-000000000301", "factor"): NodeData("02020202-0000-4000-8000-000000000001", "als_overlay_gait_walking_amount"),
+        NodeData("02020202-0000-4000-8000-000000000302", "pose_0"): NodeData("02020202-0000-4000-8000-000000000301", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000302", "time_0"): NodeTime("02020202-0000-4000-8000-000000000301"),
+        NodeData("02020202-0000-4000-8000-000000000302", "weight_0"): NodeData("02020202-0000-4000-8000-000000000002", "als_overlay_standing_amount"),
+        NodeData("02020202-0000-4000-8000-000000000302", "pose_1"): NodeData("02020202-0000-4000-8000-000000000113", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000302", "time_1"): NodeTime("02020202-0000-4000-8000-000000000113"),
+        NodeData("02020202-0000-4000-8000-000000000302", "weight_1"): NodeData("02020202-0000-4000-8000-000000000003", "als_overlay_crouching_amount"),
+        NodeData("02020202-0000-4000-8000-000000000303", "target"): NodeData("02020202-0000-4000-8000-000000000005", "als_overlay_ground_prediction_amount"),
+        NodeData("02020202-0000-4000-8000-000000000303", "delta_seconds"): NodeData("02020202-0000-4000-8000-000000000006", "als_animation_delta_seconds"),
+        NodeData("02020202-0000-4000-8000-000000000304", "pose_a"): NodeData("02020202-0000-4000-8000-000000000114", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000304", "time_a"): NodeTime("02020202-0000-4000-8000-000000000114"),
+        NodeData("02020202-0000-4000-8000-000000000304", "pose_b"): NodeData("02020202-0000-4000-8000-000000000115", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000304", "time_b"): NodeTime("02020202-0000-4000-8000-000000000115"),
+        NodeData("02020202-0000-4000-8000-000000000304", "factor"): NodeData("02020202-0000-4000-8000-000000000303", "value"),
+        NodeData("02020202-0000-4000-8000-000000000305", "pose_a"): NodeData("02020202-0000-4000-8000-000000000302", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000305", "time_a"): NodeTime("02020202-0000-4000-8000-000000000302"),
+        NodeData("02020202-0000-4000-8000-000000000305", "pose_b"): NodeData("02020202-0000-4000-8000-000000000304", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000305", "time_b"): NodeTime("02020202-0000-4000-8000-000000000304"),
+        NodeData("02020202-0000-4000-8000-000000000305", "factor"): NodeData("02020202-0000-4000-8000-000000000004", "als_overlay_in_air_amount"),
+        NodeData("02020202-0000-4000-8000-000000000202", "pose"): NodeData("dbc5a5ab-b220-510f-af75-eb6b0d4d0288", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000202", "time"): NodeTime("dbc5a5ab-b220-510f-af75-eb6b0d4d0288"),
+        NodeData("02020202-0000-4000-8000-000000000306", "pose_a"): NodeData("02020202-0000-4000-8000-000000000305", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000306", "time_a"): NodeTime("02020202-0000-4000-8000-000000000305"),
+        NodeData("02020202-0000-4000-8000-000000000306", "pose_b"): NodeData("02020202-0000-4000-8000-000000000202", "pose"),
+        NodeTime("02020202-0000-4000-8000-000000000306", "time_b"): NodeTime("02020202-0000-4000-8000-000000000202"),
+        NodeData("02020202-0000-4000-8000-000000000306", "factor"): NodeData("02020202-0000-4000-8000-000000000350", "value"),
+        OutputData("pose"): NodeData("02020202-0000-4000-8000-000000000306", "pose"),
+        OutputTime: NodeTime("02020202-0000-4000-8000-000000000306"),
+        OutputData("LayerArmLeft"): NodeData("02020202-0000-4000-8000-000000000401", "value"),
+        OutputData("LayerArmLeftAdditive"): NodeData("02020202-0000-4000-8000-000000000402", "value"),
+        OutputData("LayerArmLeftLocalSpace"): NodeData("02020202-0000-4000-8000-000000000403", "value"),
+        OutputData("LayerArmRight"): NodeData("02020202-0000-4000-8000-000000000404", "value"),
+        OutputData("LayerArmRightAdditive"): NodeData("02020202-0000-4000-8000-000000000405", "value"),
+        OutputData("LayerArmRightLocalSpace"): NodeData("02020202-0000-4000-8000-000000000406", "value"),
+        OutputData("LayerHead"): NodeData("02020202-0000-4000-8000-000000000407", "value"),
+        OutputData("LayerHeadAdditive"): NodeData("02020202-0000-4000-8000-000000000408", "value"),
+        OutputData("LayerLegs"): NodeData("02020202-0000-4000-8000-000000000409", "value"),
+        OutputData("LayerPelvis"): NodeData("02020202-0000-4000-8000-00000000040a", "value"),
+        OutputData("LayerSpine"): NodeData("02020202-0000-4000-8000-00000000040b", "value"),
+        OutputData("LayerSpineAdditive"): NodeData("02020202-0000-4000-8000-00000000040c", "value"),
+        OutputData("HandLeftIk"): NodeData("02020202-0000-4000-8000-00000000040d", "value"),
+        OutputData("HandRightIk"): NodeData("02020202-0000-4000-8000-00000000040e", "value"),
+        OutputData("HipsDirectionLock"): NodeData("02020202-0000-4000-8000-00000000040f", "value"),
+        OutputData("LayerHandLeft"): NodeData("02020202-0000-4000-8000-000000000410", "value"),
+        OutputData("LayerHandRight"): NodeData("02020202-0000-4000-8000-000000000411", "value"),
+        OutputData("PoseAiming"): NodeData("02020202-0000-4000-8000-000000000412", "value"),
+        OutputData("transition_left_request"): NodeData("02020202-0000-4000-8000-000000000413", "value"),
+        NodeData("dbc5a5ab-b220-510f-af75-eb6b0d4d0288", "reference_pose"): NodeData("efb5f99d-d24c-5db8-9339-2e07414d71a1", "pose"), NodeTime("dbc5a5ab-b220-510f-af75-eb6b0d4d0288", "reference_time"): NodeTime("efb5f99d-d24c-5db8-9339-2e07414d71a1"), NodeData("dbc5a5ab-b220-510f-af75-eb6b0d4d0288", "target_pose"): NodeData("02020202-0000-4000-8000-000000000201", "pose"), NodeTime("dbc5a5ab-b220-510f-af75-eb6b0d4d0288", "target_time"): NodeTime("02020202-0000-4000-8000-000000000201"),
+        NodeData("efb5f99d-d24c-5db8-9339-2e07414d71a1", "position"): NodeData("b357ae73-b49f-5a06-9364-bc454d941f2b", "value"), NodeData("efb5f99d-d24c-5db8-9339-2e07414d71a1", "pose"): NodeData("b8b18d34-5f69-5cfa-961f-9101c26f531e", "pose"), NodeTime("efb5f99d-d24c-5db8-9339-2e07414d71a1", "time"): NodeTime("b8b18d34-5f69-5cfa-961f-9101c26f531e"),
+    },
+    io_spec: (
+        input_times: [Passthrough("base_time")],
+        input_data: {
+            Passthrough("base_pose"): Pose,
+        },
+        output_time: true,
+        output_data: {
+            "pose": Pose,
+            "LayerArmLeft": F32,
+            "LayerArmLeftAdditive": F32,
+            "LayerArmLeftLocalSpace": F32,
+            "LayerArmRight": F32,
+            "LayerArmRightAdditive": F32,
+            "LayerArmRightLocalSpace": F32,
+            "LayerHead": F32,
+            "LayerHeadAdditive": F32,
+            "LayerLegs": F32,
+            "LayerPelvis": F32,
+            "LayerSpine": F32,
+            "LayerSpineAdditive": F32,
+            "HandLeftIk": F32,
+            "HandRightIk": F32,
+            "HipsDirectionLock": F32,
+            "LayerHandLeft": F32,
+            "LayerHandRight": F32,
+            "PoseAiming": F32,
+            "transition_left_request": F32,
+        },
+        input_order: {
+            Time(Passthrough("base_time")): 0,
+            Data(Passthrough("base_pose")): 1,
+        },
+        output_order: {
+            Time: 0,
+            Data("pose"): 1,
+            Data("LayerArmLeft"): 2,
+            Data("LayerArmLeftAdditive"): 3,
+            Data("LayerArmLeftLocalSpace"): 4,
+            Data("LayerArmRight"): 5,
+            Data("LayerArmRightAdditive"): 6,
+            Data("LayerArmRightLocalSpace"): 7,
+            Data("LayerHead"): 8,
+            Data("LayerHeadAdditive"): 9,
+            Data("LayerLegs"): 10,
+            Data("LayerPelvis"): 11,
+            Data("LayerSpine"): 12,
+            Data("LayerSpineAdditive"): 13,
+            Data("HandLeftIk"): 14,
+            Data("HandRightIk"): 15,
+            Data("HipsDirectionLock"): 16,
+            Data("LayerHandLeft"): 17,
+            Data("LayerHandRight"): 18,
+            Data("PoseAiming"): 19,
+            Data("transition_left_request"): 20,
+        },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: {},
+        input_position: (0.0, 0.0),
+        output_position: (320.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

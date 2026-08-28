@@ -1,0 +1,289 @@
+use std::collections::{HashMap, HashSet};
+
+use bevy::prelude::*;
+use bevy_animation_graph::core::{
+    animation_graph::TimeUpdate,
+    animation_node::{NodeLike, ReflectNodeLike},
+    context::{new_context::NodeContext, spec_context::SpecContext},
+    edge_data::{DataSpec, bone_mask::BoneMask},
+    errors::GraphError,
+    interpolation::linear::LinearInterpolator,
+    pose::{BoneId, BonePose, Pose},
+    skeleton::Skeleton,
+};
+
+const WEIGHT_THRESHOLD: f32 = 1e-6;
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct MeshSpaceLayeredBlendNode;
+
+impl MeshSpaceLayeredBlendNode {
+    pub const FACTOR: &'static str = "factor";
+    pub const IN_POSE_A: &'static str = "pose_a";
+    pub const IN_TIME_A: &'static str = "time_a";
+    pub const IN_POSE_B: &'static str = "pose_b";
+    pub const IN_TIME_B: &'static str = "time_b";
+    pub const IN_BONE_MASK: &'static str = "bone_mask";
+    pub const OUT_POSE: &'static str = "pose";
+}
+
+fn hierarchy_order(skeleton: &Skeleton) -> Vec<BoneId> {
+    fn visit(
+        skeleton: &Skeleton,
+        bone: BoneId,
+        visited: &mut HashSet<BoneId>,
+        order: &mut Vec<BoneId>,
+    ) {
+        if !visited.insert(bone) {
+            return;
+        }
+        if let Some(parent) = skeleton.parent(&bone) {
+            visit(skeleton, parent, visited, order);
+        }
+        order.push(bone);
+    }
+
+    let mut visited = HashSet::default();
+    let mut order = Vec::new();
+    visit(skeleton, skeleton.root(), &mut visited, &mut order);
+    for bone in skeleton.iter_bones() {
+        visit(skeleton, bone, &mut visited, &mut order);
+    }
+    order
+}
+
+fn local_rotation(pose: &Pose, skeleton: &Skeleton, bone: BoneId) -> Quat {
+    pose.paths
+        .get(&bone)
+        .and_then(|index| pose.bones.get(*index))
+        .and_then(|pose| pose.rotation)
+        .or_else(|| {
+            skeleton
+                .default_transforms(bone)
+                .map(|transform| transform.local.rotation)
+        })
+        .unwrap_or(Quat::IDENTITY)
+}
+
+fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[BoneId]) -> HashMap<BoneId, Quat> {
+    let mut rotations = HashMap::default();
+    for bone in hierarchy {
+        let local = local_rotation(pose, skeleton, *bone);
+        let mesh = skeleton
+            .parent(bone)
+            .and_then(|parent| rotations.get(&parent).copied())
+            .map(|parent| parent * local)
+            .unwrap_or(local);
+        rotations.insert(*bone, mesh);
+    }
+    rotations
+}
+
+pub fn apply_mesh_space_layered_blend(
+    base: &mut Pose,
+    overlay: &Pose,
+    alpha: f32,
+    bone_mask: &BoneMask,
+    skeleton: &Skeleton,
+) {
+    let alpha = alpha.clamp(0.0, 1.0);
+    if alpha <= WEIGHT_THRESHOLD {
+        return;
+    }
+
+    let source = base.clone();
+    LinearInterpolator {
+        bone_mask: bone_mask.clone(),
+    }
+    .interpolate_pose(base, overlay, alpha);
+
+    let hierarchy = hierarchy_order(skeleton);
+    let source_mesh = mesh_rotations(&source, skeleton, &hierarchy);
+    let overlay_mesh = mesh_rotations(overlay, skeleton, &hierarchy);
+    let mut output_mesh: HashMap<BoneId, Quat> = HashMap::default();
+
+    for bone in hierarchy {
+        let local = local_rotation(&source, skeleton, bone);
+        let mask_weight = bone_mask.bone_weight(&bone).clamp(0.0, 1.0);
+        let weight = (alpha * mask_weight).clamp(0.0, 1.0);
+        let rotation = if weight <= WEIGHT_THRESHOLD {
+            skeleton
+                .parent(&bone)
+                .and_then(|parent| output_mesh.get(&parent).copied())
+                .map(|parent| parent * local)
+                .unwrap_or(local)
+        } else {
+            let source_rotation = source_mesh.get(&bone).copied().unwrap_or(local);
+            let overlay_rotation = overlay_mesh.get(&bone).copied().unwrap_or(source_rotation);
+            source_rotation.lerp(overlay_rotation, weight).normalize()
+        };
+        output_mesh.insert(bone, rotation);
+
+        if weight <= WEIGHT_THRESHOLD
+            && !base.paths.contains_key(&bone)
+            && !overlay.paths.contains_key(&bone)
+        {
+            continue;
+        }
+        let local = skeleton
+            .parent(&bone)
+            .and_then(|parent| output_mesh.get(&parent).copied())
+            .map(|parent| parent.inverse() * rotation)
+            .unwrap_or(rotation)
+            .normalize();
+        if let Some(index) = base.paths.get(&bone).copied() {
+            base.bones[index].rotation = Some(local);
+        } else {
+            base.add_bone(
+                BonePose {
+                    rotation: Some(local),
+                    ..default()
+                },
+                bone,
+            );
+        }
+    }
+}
+
+impl NodeLike for MeshSpaceLayeredBlendNode {
+    fn display_name(&self) -> String {
+        "ALS Mesh Space Layered Blend".into()
+    }
+
+    fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        ctx.set_duration_fwd(ctx.duration_back(Self::IN_TIME_A)?);
+        Ok(())
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let update = ctx.time_update_fwd()?;
+        ctx.set_time_update_back(Self::IN_TIME_A, update);
+        let mut base = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
+        let alpha = ctx.data_back(Self::FACTOR)?.as_f32()?;
+        ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(base.timestamp));
+        let overlay = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        if ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .is_none()
+        {
+            base.skeleton = overlay.skeleton.clone();
+        }
+        let bone_mask = ctx.data_back(Self::IN_BONE_MASK)?.into_bone_mask()?;
+        let skeleton = ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        apply_mesh_space_layered_blend(&mut base, &overlay, alpha, &bone_mask, skeleton);
+        ctx.set_time(base.timestamp);
+        ctx.set_data_fwd(Self::OUT_POSE, base);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data(Self::FACTOR, DataSpec::F32)
+            .add_input_data(Self::IN_BONE_MASK, DataSpec::BoneMask)
+            .add_input_data(Self::IN_POSE_A, DataSpec::Pose)
+            .add_input_time(Self::IN_TIME_A)
+            .add_input_data(Self::IN_POSE_B, DataSpec::Pose)
+            .add_input_time(Self::IN_TIME_B)
+            .add_output_data(Self::OUT_POSE, DataSpec::Pose)
+            .add_output_time();
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy_animation_graph::core::animation_clip::EntityPath;
+
+    use super::*;
+
+    fn close_rotation(left: Quat, right: Quat) -> bool {
+        (1.0 - left.dot(right).abs()).abs() < 1e-5
+    }
+
+    fn skeleton() -> (Skeleton, BoneId, BoneId) {
+        let root_path = EntityPath::default().child("root");
+        let child_path = root_path.child("child");
+        let root = root_path.id();
+        let child = child_path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
+        (skeleton, root, child)
+    }
+
+    #[test]
+    fn layer_mask_interpolates_selected_rotation_in_mesh_space() {
+        let (skeleton, root, child) = skeleton();
+        let root_rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        let overlay_rotation = Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                rotation: Some(root_rotation),
+                ..default()
+            },
+            root,
+        );
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::IDENTITY),
+                ..default()
+            },
+            child,
+        );
+        let mut overlay = base.clone();
+        let root_index = overlay.paths[&root];
+        overlay.bones[root_index].rotation = Some(Quat::IDENTITY);
+        let child_index = overlay.paths[&child];
+        overlay.bones[child_index].rotation = Some(overlay_rotation);
+        let child_path = skeleton.id_to_path(child).unwrap().clone();
+        let mut mask = BoneMask::none();
+        mask.add_bone_weight(child, child_path, 1.0);
+
+        apply_mesh_space_layered_blend(&mut base, &overlay, 1.0, &mask, &skeleton);
+
+        let output = base.get_bone(child).and_then(|bone| bone.rotation).unwrap();
+        let expected = root_rotation.inverse() * overlay_rotation;
+        assert!(close_rotation(output, expected));
+        assert!(!close_rotation(output, overlay_rotation));
+    }
+
+    #[test]
+    fn layer_mask_keeps_unselected_local_rotation() {
+        let (skeleton, root, child) = skeleton();
+        let source = Quat::from_rotation_z(0.4);
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::IDENTITY),
+                ..default()
+            },
+            root,
+        );
+        base.add_bone(
+            BonePose {
+                rotation: Some(source),
+                ..default()
+            },
+            child,
+        );
+        let mut overlay = base.clone();
+        let child_index = overlay.paths[&child];
+        overlay.bones[child_index].rotation = Some(Quat::from_rotation_x(1.0));
+
+        apply_mesh_space_layered_blend(&mut base, &overlay, 1.0, &BoneMask::none(), &skeleton);
+
+        let output = base.get_bone(child).and_then(|bone| bone.rotation).unwrap();
+        assert!(close_rotation(output, source));
+    }
+}

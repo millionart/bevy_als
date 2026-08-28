@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RotateInPlaceConfig {
     pub view_yaw_angle_threshold_degrees: f32,
+    pub first_person_view_yaw_angle_threshold_degrees: f32,
     pub play_rate_range: (f32, f32),
     pub reference_yaw_speed_range: (f32, f32),
 }
@@ -9,6 +10,7 @@ impl Default for RotateInPlaceConfig {
     fn default() -> Self {
         Self {
             view_yaw_angle_threshold_degrees: 50.0,
+            first_person_view_yaw_angle_threshold_degrees: 65.0,
             play_rate_range: (1.15, 3.0),
             reference_yaw_speed_range: (180.0, 460.0),
         }
@@ -83,7 +85,8 @@ pub fn update_rotate_in_place(
 }
 
 fn damp_exact(current: f32, target: f32, dt: f32) -> f32 {
-    current + (target - current) * (1.0 - (-2.0_f32.max(f32::EPSILON) * dt).exp())
+    let alpha = 1.0 - 2.0_f32.powf(-dt.max(0.0) / 0.15);
+    current + (target - current) * alpha
 }
 
 #[cfg(test)]
@@ -156,5 +159,18 @@ mod tests {
             update_rotate_in_place(&mut s, false, true, 10.0, 0.0, &cfg, 0.1);
         }
         assert!((s.play_rate - 1.15).abs() < 1e-3);
+    }
+
+    #[test]
+    fn source_damping_uses_fifteen_hundredths_half_life() {
+        assert!((damp_exact(0.0, 1.0, 0.15) - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn source_first_person_threshold_is_sixty_five_degrees() {
+        assert_eq!(
+            RotateInPlaceConfig::default().first_person_view_yaw_angle_threshold_degrees,
+            65.0
+        );
     }
 }

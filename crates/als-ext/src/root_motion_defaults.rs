@@ -227,13 +227,9 @@ mod tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default()));
         app.init_asset::<GraphClip>().init_asset::<Skeleton>();
 
-        let target = AnimationTargetId::from_names(
-            [Name::from("GltfNode0"), Name::from("root")].iter(),
-        );
-        let skel_handle = app
-            .world()
-            .resource::<Assets<Skeleton>>()
-            .reserve_handle();
+        let target =
+            AnimationTargetId::from_names([Name::from("GltfNode0"), Name::from("root")].iter());
+        let skel_handle = app.world().resource::<Assets<Skeleton>>().reserve_handle();
         let mut clip = GraphClip {
             duration: 1.0,
             skeleton: skel_handle.clone(),
@@ -259,7 +255,11 @@ mod tests {
         ));
 
         let mut skeleton = Skeleton::default();
-        skeleton.add_bone(path(&["GltfNode0"]), Transform::default(), Transform::default());
+        skeleton.add_bone(
+            path(&["GltfNode0"]),
+            Transform::default(),
+            Transform::default(),
+        );
         skeleton.add_bone(
             path(&["GltfNode0", "root"]),
             Transform::default(),

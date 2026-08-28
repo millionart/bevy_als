@@ -11,7 +11,7 @@ use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
 use bevy_als::character_assembly::{
     AlsCharacterAssembly, AlsCharacterAvatar, AlsCharacterBlueprint, AlsCharacterCamera,
-    AlsPlayerCharacter, spawn_als_character,
+    AlsPlayerCharacter, spawn_als_character_with_materials,
 };
 
 fn main() {
@@ -37,7 +37,7 @@ fn spawn_character(
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
-    spawn_als_character(
+    spawn_als_character_with_materials(
         &mut commands,
         &assets,
         &mut materials,
@@ -45,10 +45,7 @@ fn spawn_character(
         &mut config_assets,
         AlsCharacterBlueprint {
             spawn_camera: true,
-            ..AlsCharacterBlueprint::new(
-                Transform::from_rotation(Quat::from_rotation_y(0.75)),
-                "animated_scenes/motion_overlay.animscn.ron",
-            )
+            ..AlsCharacterBlueprint::new(Transform::from_rotation(Quat::from_rotation_y(0.75)))
         },
     );
 }

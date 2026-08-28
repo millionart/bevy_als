@@ -466,7 +466,7 @@ fn spawn_character_once(
         "[SPAWN][REQUEST] scene_sources={} scene_boxes={} barrier=true -> PASS",
         scene_ready.sources, scene_ready.boxes,
     );
-    let mut admission = AlsPlayerAdmission::new("animated_scenes/als_ragdoll.animscn.ron");
+    let mut admission = AlsPlayerAdmission::new();
     admission.spawn_camera = true;
     request_als_player(&mut commands, admission);
 }

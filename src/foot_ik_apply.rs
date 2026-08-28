@@ -1,18 +1,19 @@
 use als_core::foot_ik::{
-    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets,
-    AlsFootLockSettings, AlsFootProbe, FootSideInput, constrain_foot_lock_location,
-    foot_target_offset,
+    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
+    AlsFootLockSettings, AlsFootLockState, AlsFootProbe, FootSideInput,
+    constrain_foot_lock_location, foot_target_offset, refresh_foot_lock,
 };
-use als_core::state::Stance;
+use als_core::state::{LocomotionState, Stance};
 use als_core::transitions::TransitionConfig;
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
-use avian3d::prelude::LinearVelocity;
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::apply_animation_to_targets;
+
+use crate::character_assembly::AlsCharacterAvatar;
 
 pub struct FootIkApplyPlugin;
 
@@ -26,6 +27,7 @@ impl Plugin for FootIkApplyPlugin {
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
+                ensure_foot_lock_components,
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
                     .after(TransformSystems::Propagate)
@@ -42,6 +44,19 @@ impl Plugin for FootIkApplyPlugin {
                     .after(TransformSystems::Propagate),
             ),
         );
+    }
+}
+
+fn ensure_foot_lock_components(
+    mut commands: Commands,
+    states: Query<Entity, (With<AlsFootBones>, Without<AlsFootLockState>)>,
+    inputs: Query<Entity, (With<AlsFootBones>, Without<AlsFootLockInput>)>,
+) {
+    for entity in &states {
+        commands.entity(entity).insert(AlsFootLockState::default());
+    }
+    for entity in &inputs {
+        commands.entity(entity).insert(AlsFootLockInput::default());
     }
 }
 
@@ -64,10 +79,12 @@ fn foot_ik_apply_system(
             &AlsFootBones,
             &AlsFootProbe,
             &AlsFootIkTargets,
-            &LinearVelocity,
+            &LocomotionState,
+            &AlsFootLockInput,
             &Stance,
             &AlsFootLockSettings,
             &mut AlsFootIkRuntime,
+            &mut AlsFootLockState,
             &mut AlsDynamicTransitionState,
             Option<&AnimationPlayer>,
         ),
@@ -75,25 +92,66 @@ fn foot_ik_apply_system(
     >,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-    _scenes: Query<&AnimatedSceneInstance>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
     for (
-        _entity,
+        entity,
         char_gtf,
         bones,
         probe,
         targets,
-        velocity,
+        locomotion,
+        lock_input,
         stance,
         settings,
         mut runtime,
+        mut lock_state,
         mut dynamic_transition,
         _,
     ) in &mut characters
     {
         let char_fwd = char_gtf.forward().as_vec3();
         let pole = Vec3::new(char_fwd.x, 0.0, char_fwd.z).normalize_or_zero();
+        let left_ik_amount = animation_curve_amount(entity, "FootLeftIk", &avatars, &players)
+            .unwrap_or(lock_input.left_ik_amount)
+            .clamp(0.0, 1.0);
+        let right_ik_amount = animation_curve_amount(entity, "FootRightIk", &avatars, &players)
+            .unwrap_or(lock_input.right_ik_amount)
+            .clamp(0.0, 1.0);
+        let left_lock_amount = animation_curve_amount(entity, "FootLeftLock", &avatars, &players)
+            .unwrap_or(lock_input.left_lock_amount)
+            .clamp(0.0, 1.0);
+        let right_lock_amount = animation_curve_amount(entity, "FootRightLock", &avatars, &players)
+            .unwrap_or(lock_input.right_lock_amount)
+            .clamp(0.0, 1.0);
+        lock_state.became_valid = !lock_state.valid;
+        lock_state.valid = true;
+        lock_state.foot_planted_amount = lock_input.foot_planted_amount.clamp(-1.0, 1.0);
+        lock_state.feet_crossing_amount = lock_input.feet_crossing_amount.clamp(0.0, 1.0);
+        let became_valid = lock_state.became_valid;
+        for side in 0..2usize {
+            let Ok(target) = bone_globals.get(bones.target(side)) else {
+                continue;
+            };
+            let (foot_state, ik_amount, lock_amount) = match side {
+                0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
+                _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
+            };
+            refresh_foot_lock(
+                foot_state,
+                target.translation(),
+                target.rotation(),
+                ik_amount,
+                lock_amount,
+                settings.allow_foot_lock,
+                lock_input.moving_smooth,
+                *locomotion == LocomotionState::Grounded,
+                became_valid,
+                dt,
+            );
+        }
 
         let mut inputs = [FootSideInput::default(), FootSideInput::default()];
         for side in 0..2usize {
@@ -114,14 +172,13 @@ fn foot_ik_apply_system(
             }
         }
 
-        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
-        let moving_smooth = horizontal_speed >= settings.moving_smooth_speed_threshold;
-        runtime.update_with_foot_lock(
+        runtime.update_with_foot_lock_per_side(
             &inputs[0],
             &inputs[1],
-            grounded_target(targets),
+            left_ik_amount,
+            right_ik_amount,
             settings,
-            moving_smooth,
+            lock_input.moving_smooth,
             targets.grounded,
             dt,
         );
@@ -129,12 +186,16 @@ fn foot_ik_apply_system(
 
         for side in 0..2usize {
             let (offset, pin_weight) = runtime.side(side);
-            if offset.abs() < 1e-4 && pin_weight < 1e-3 {
+            let lock_offset = match side {
+                0 => lock_state.left.final_location - lock_state.left.target_location,
+                _ => lock_state.right.final_location - lock_state.right.target_location,
+            };
+            if offset.abs() < 1e-4 && pin_weight < 1e-3 && lock_offset.length_squared() < 1e-8 {
                 continue;
             }
             apply_chain_offset(
                 &bones.chain(side),
-                offset,
+                Vec3::Y * offset + lock_offset,
                 pole,
                 settings,
                 runtime.constrained_foot_yaw(
@@ -151,13 +212,28 @@ fn foot_ik_apply_system(
     }
 }
 
-fn grounded_target(targets: &AlsFootIkTargets) -> f32 {
-    if targets.grounded { 1.0 } else { 0.0 }
+fn animation_curve_amount(
+    character: Entity,
+    name: &str,
+    avatars: &Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: &Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+) -> Option<f32> {
+    let (_, instance) = avatars
+        .iter()
+        .find(|(parent, _)| parent.parent() == character)?;
+    let player = players.get(instance.player_entity()).ok()?;
+    player
+        .get_outputs()
+        .get(name)
+        .and_then(|value| match value {
+            bevy_animation_graph::core::edge_data::DataValue::F32(value) => Some(*value),
+            _ => None,
+        })
 }
 
 fn apply_chain_offset(
     chain: &als_core::foot_ik::FootChain,
-    offset: f32,
+    offset: Vec3,
     pole: Vec3,
     settings: &AlsFootLockSettings,
     constrained_foot_yaw: f32,
@@ -189,7 +265,7 @@ fn apply_chain_offset(
     let target = constrain_foot_lock_location(
         hip,
         thigh_g.forward().as_vec3(),
-        ankle + Vec3::Y * offset,
+        ankle + offset,
         settings.thigh_angle_limit_degrees,
     );
 
@@ -251,6 +327,6 @@ fn apply_pelvis_drop(
         Err(_) => return,
     };
     if let Ok((mut pelvis_local, _, _)) = bone_locals.get_mut(pelvis_entity) {
-        pelvis_local.translation.y -= drop;
+        pelvis_local.translation.y += drop;
     }
 }

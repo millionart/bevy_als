@@ -11,12 +11,75 @@ use crate::input_request::AlsFirstPersonView;
 use crate::motion::AlsInputOverride;
 use crate::params::{AlsMovementParams, StanceGaitSpeeds};
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
+use crate::stride_curves::{stride_curve_run, stride_curve_walk};
 use crate::transition::{
     AlsStateRequest, Dimension, StateTransitionEvent, StateValue, state_transition_system,
 };
 
 pub const ACTUAL_GAIT_SPEED_OFFSET: f32 = 0.1;
 pub const FIRST_PERSON_SPRINT_ANGLE_LIMIT_DEGREES: f32 = 50.0;
+pub const STRIDE_BLEND_RANGE_MAX: f32 = 1.0;
+pub const PLAY_RATE_MAX: f32 = 3.0;
+pub const CROUCH_PLAY_RATE_MAX: f32 = 2.0;
+pub const MIN_PLAY_RATE: f32 = 1e-4;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlsPlayRate {
+    pub play_rate: f32,
+    pub stride_blend: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GaitWeights {
+    pub move_w: f32,
+    pub run_w: f32,
+    pub sprint_w: f32,
+}
+
+impl Default for GaitWeights {
+    fn default() -> Self {
+        Self {
+            move_w: 0.0,
+            run_w: 0.0,
+            sprint_w: 0.0,
+        }
+    }
+}
+
+impl GaitWeights {
+    pub fn targets(gait: Gait) -> Self {
+        match gait {
+            Gait::Walking => Self {
+                move_w: 1.0,
+                run_w: 0.0,
+                sprint_w: 0.0,
+            },
+            Gait::Running => Self {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 0.0,
+            },
+            Gait::Sprinting => Self {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 1.0,
+            },
+        }
+    }
+
+    pub fn from_gait_amount(gait_amount: f32) -> Self {
+        let gait_amount = gait_amount.clamp(0.0, 3.0);
+        Self {
+            move_w: gait_amount.clamp(0.0, 1.0),
+            run_w: (gait_amount - 1.0).clamp(0.0, 1.0),
+            sprint_w: (gait_amount - 2.0).clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn running_amount(&self) -> f32 {
+        self.run_w
+    }
+}
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsDesiredGait(pub Gait);
@@ -113,6 +176,61 @@ pub fn calculate_gait_amount(speed: f32, settings: &StanceGaitSpeeds) -> f32 {
         )
     } else {
         remap_clamped(speed, 0.0, settings.max_walk_speed, 0.0, 1.0)
+    }
+}
+
+pub fn stride_blend_amount(running_amount: f32) -> f32 {
+    stride_blend_amount_for_speed(running_amount, 0.0)
+}
+
+pub fn stride_blend_amount_for_speed(running_amount: f32, speed_meters_per_second: f32) -> f32 {
+    let speed_centimeters_per_second = speed_meters_per_second.max(0.0) * 100.0;
+    let walk = stride_curve_walk(speed_centimeters_per_second);
+    let run = stride_curve_run(speed_centimeters_per_second);
+    walk.lerp(run, running_amount.clamp(0.0, STRIDE_BLEND_RANGE_MAX))
+}
+
+pub fn animated_gait_speed(params: &AlsMovementParams, stance: Stance, gait: Gait) -> f32 {
+    let speeds = params.stance_speeds(stance);
+    match gait {
+        Gait::Walking => speeds.animated_walk_speed,
+        Gait::Running => speeds.animated_run_speed,
+        Gait::Sprinting => speeds.animated_sprint_speed,
+    }
+}
+
+pub fn als_play_rate(
+    params: &AlsMovementParams,
+    stance: Stance,
+    gait: Gait,
+    speed_meters_per_second: f32,
+    stride_blend: f32,
+) -> AlsPlayRate {
+    let speed = speed_meters_per_second.max(0.0);
+    let stride_blend = stride_blend.max(f32::EPSILON);
+    let play_rate = match stance {
+        Stance::Crouching => {
+            let animated_speed = params.crouch.animated_crouch_speed.max(f32::EPSILON);
+            (speed / animated_speed / stride_blend).clamp(MIN_PLAY_RATE, CROUCH_PLAY_RATE_MAX)
+        }
+        Stance::Standing => {
+            let speeds = &params.speeds.standing;
+            let running_amount = (gait != Gait::Walking) as u8 as f32;
+            let sprinting_amount = (gait == Gait::Sprinting) as u8 as f32;
+            let walk_run = (speed / speeds.animated_walk_speed.max(f32::EPSILON)).lerp(
+                speed / speeds.animated_run_speed.max(f32::EPSILON),
+                running_amount,
+            );
+            let walk_run_sprint = walk_run.lerp(
+                speed / speeds.animated_sprint_speed.max(f32::EPSILON),
+                sprinting_amount,
+            );
+            (walk_run_sprint / stride_blend).clamp(MIN_PLAY_RATE, PLAY_RATE_MAX)
+        }
+    };
+    AlsPlayRate {
+        play_rate,
+        stride_blend,
     }
 }
 
@@ -236,6 +354,9 @@ mod tests {
             max_walk_speed: 1.75,
             max_run_speed: 3.75,
             max_sprint_speed: 6.5,
+            animated_walk_speed: 1.5,
+            animated_run_speed: 3.5,
+            animated_sprint_speed: 6.0,
         }
     }
 
@@ -322,5 +443,26 @@ mod tests {
         assert!((calculate_gait_amount(1.75, &settings) - 1.0).abs() < 1e-6);
         assert!((calculate_gait_amount(3.75, &settings) - 2.0).abs() < 1e-6);
         assert!((calculate_gait_amount(6.5, &settings) - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn gait_weights_follow_the_source_curve_ranges() {
+        assert_eq!(GaitWeights::from_gait_amount(0.0), GaitWeights::default());
+        assert_eq!(
+            GaitWeights::from_gait_amount(1.5),
+            GaitWeights {
+                move_w: 1.0,
+                run_w: 0.5,
+                sprint_w: 0.0,
+            }
+        );
+        assert_eq!(
+            GaitWeights::from_gait_amount(2.5),
+            GaitWeights {
+                move_w: 1.0,
+                run_w: 1.0,
+                sprint_w: 0.5,
+            }
+        );
     }
 }

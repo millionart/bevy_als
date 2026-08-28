@@ -1,0 +1,97 @@
+(
+    states: [
+        (
+            id: "15400000-0000-4000-8000-000000000001",
+            label: "Entry",
+            graph: "graphs/ab_als/stances/standing/state_stop_entry.animgraph.ron",
+            state_transition: None,
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000002",
+            label: "Lock Right Foot",
+            graph: "graphs/ab_als/stances/standing/state_stop_lock_right.animgraph.ron",
+            state_transition: None,
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000003",
+            label: "Plant Right Foot",
+            graph: "graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron",
+            state_transition: None,
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000004",
+            label: "Lock Left Foot",
+            graph: "graphs/ab_als/stances/standing/state_stop_lock_left.animgraph.ron",
+            state_transition: None,
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000005",
+            label: "Plant Left Foot",
+            graph: "graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron",
+            state_transition: None,
+        ),
+    ],
+    transitions: [
+        (
+            id: "15400000-0000-4000-8000-000000000101",
+            source: "15400000-0000-4000-8000-000000000001",
+            target: "15400000-0000-4000-8000-000000000002",
+            data: (
+                kind: Immediate,
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000102",
+            source: "15400000-0000-4000-8000-000000000001",
+            target: "15400000-0000-4000-8000-000000000003",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_stop_01.animgraph.ron", timed: Some(0.1)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000103",
+            source: "15400000-0000-4000-8000-000000000001",
+            target: "15400000-0000-4000-8000-000000000004",
+            data: (
+                kind: Immediate,
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+        (
+            id: "15400000-0000-4000-8000-000000000104",
+            source: "15400000-0000-4000-8000-000000000001",
+            target: "15400000-0000-4000-8000-000000000005",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_stop_01.animgraph.ron", timed: Some(0.1)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+    ],
+    start_state: "15400000-0000-4000-8000-000000000001",
+    node_spec: (
+        input_times: [],
+        input_data: {
+            "movement_pose": Pose,
+        },
+        output_time: true,
+        output_data: {
+            "pose": Pose,
+        },
+        input_order: {
+            Data("movement_pose"): 0,
+        },
+        output_order: {
+            Data("pose"): 1,
+            Time: 2,
+        },
+    ),
+    editor_metadata: (
+        states: {},
+    ),
+)

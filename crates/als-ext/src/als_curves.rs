@@ -104,7 +104,9 @@ fn parse_interp(raw: &str) -> AlsKeyInterp {
     }
 }
 
-pub fn parse_curves(extension_value: &serde_json::Value) -> Result<AlsPoseCurves, AlsCurvesParseError> {
+pub fn parse_curves(
+    extension_value: &serde_json::Value,
+) -> Result<AlsPoseCurves, AlsCurvesParseError> {
     let raw: RawCurves = serde_json::from_value(extension_value.clone())
         .map_err(|e| AlsCurvesParseError(format!("json: {e}")))?;
     let mut map = HashMap::new();
@@ -117,11 +119,7 @@ pub fn parse_curves(extension_value: &serde_json::Value) -> Result<AlsPoseCurves
                 c.values.len()
             )));
         }
-        let mut interps: Vec<AlsKeyInterp> = c
-            .interps
-            .iter()
-            .map(|s| parse_interp(s))
-            .collect();
+        let mut interps: Vec<AlsKeyInterp> = c.interps.iter().map(|s| parse_interp(s)).collect();
         interps.resize(c.times.len(), AlsKeyInterp::Linear);
         let curve = AlsFloatCurve {
             times: c.times,
@@ -226,7 +224,11 @@ pub struct AlsCurvesHandler {
 
 impl AlsCurvesHandler {
     pub fn register(app: &mut App) {
-        if app.world().get_resource::<GltfExtensionHandlers>().is_none() {
+        if app
+            .world()
+            .get_resource::<GltfExtensionHandlers>()
+            .is_none()
+        {
             app.init_resource::<GltfExtensionHandlers>();
         }
         let handlers = app.world_mut().resource_mut::<GltfExtensionHandlers>();
@@ -340,7 +342,10 @@ mod tests {
         assert!((s(0.0)).abs() < 1e-6);
         assert!((s(0.25) - 0.5).abs() < 1e-6);
         assert!((s(0.5) - 1.0).abs() < 1e-6);
-        assert!((s(0.7) - 1.0).abs() < 1e-6, "constant holds through segment");
+        assert!(
+            (s(0.7) - 1.0).abs() < 1e-6,
+            "constant holds through segment"
+        );
         assert!((s(0.99) - 1.0).abs() < 1e-6);
         assert!((s(1.0) - 0.5).abs() < 1e-6);
     }

@@ -1,12 +1,33 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::animation_node::{NodeLike, ReflectNodeLike};
-use bevy_animation_graph::core::context::{
-    new_context::NodeContext, spec_context::SpecContext,
-};
+use bevy_animation_graph::core::context::{new_context::NodeContext, spec_context::SpecContext};
 use bevy_animation_graph::core::edge_data::DataSpec;
 use bevy_animation_graph::core::errors::GraphError;
 
-use crate::curve::{sample_curve, CurveKey, CurveSampleMode};
+use crate::curve::{CurveKey, CurveSampleMode, sample_curve};
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct ConstantF32Node {
+    pub value: f32,
+}
+
+impl NodeLike for ConstantF32Node {
+    fn display_name(&self) -> String {
+        "ALS Constant F32".into()
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        ctx.set_data_fwd("value", self.value);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_output_data("value", DataSpec::F32);
+        Ok(())
+    }
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
@@ -72,7 +93,7 @@ impl NodeLike for CurveDrivenValueNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::reflect::{GetTypeRegistration, TypeRegistry, TypeRegistration};
+    use bevy::reflect::{GetTypeRegistration, TypeRegistration, TypeRegistry};
 
     fn registry_with<T: GetTypeRegistration + Default + 'static>() -> TypeRegistry {
         let mut registry = TypeRegistry::default();
@@ -83,27 +104,56 @@ mod tests {
     #[test]
     fn curve_sample_node_registers_node_like_dispatch_key() {
         let registry = registry_with::<CurveSampleNode>();
-        let reg = registry.get(std::any::TypeId::of::<CurveSampleNode>()).unwrap();
-        assert!(reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>().is_some());
-        assert_eq!(<CurveSampleNode as bevy::reflect::TypePath>::type_path(), "als_ext::CurveSampleNode");
+        let reg = registry
+            .get(std::any::TypeId::of::<CurveSampleNode>())
+            .unwrap();
+        assert!(
+            reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
+                .is_some()
+        );
+        assert_eq!(
+            <CurveSampleNode as bevy::reflect::TypePath>::type_path(),
+            "als_ext::CurveSampleNode"
+        );
+    }
+
+    #[test]
+    fn constant_f32_node_registers_node_like_dispatch_key() {
+        let registry = registry_with::<ConstantF32Node>();
+        let reg = registry
+            .get(std::any::TypeId::of::<ConstantF32Node>())
+            .unwrap();
+        assert!(
+            reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
+                .is_some()
+        );
+        assert_eq!(
+            <ConstantF32Node as bevy::reflect::TypePath>::type_path(),
+            "als_ext::ConstantF32Node"
+        );
     }
 
     #[test]
     fn curve_driven_value_node_registers_node_like_dispatch_key() {
         let registry = registry_with::<CurveDrivenValueNode>();
-        let reg = registry.get(std::any::TypeId::of::<CurveDrivenValueNode>()).unwrap();
-        assert!(reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>().is_some());
-        assert_eq!(<CurveDrivenValueNode as bevy::reflect::TypePath>::type_path(), "als_ext::CurveDrivenValueNode");
+        let reg = registry
+            .get(std::any::TypeId::of::<CurveDrivenValueNode>())
+            .unwrap();
+        assert!(
+            reg.data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
+                .is_some()
+        );
+        assert_eq!(
+            <CurveDrivenValueNode as bevy::reflect::TypePath>::type_path(),
+            "als_ext::CurveDrivenValueNode"
+        );
     }
 
     #[test]
     fn driven_value_remap_math() {
         let node = CurveDrivenValueNode {
             mode: CurveSampleMode::Linear,
-            keys: vec![
-                CurveKey { t: 0.0, v: 0.0 },
-                CurveKey { t: 1.0, v: 1.0 },
-            ],
+            keys: vec![CurveKey { t: 0.0, v: 0.0 }, CurveKey { t: 1.0, v: 1.0 }],
             scale: 2.0,
             bias: -1.0,
         };

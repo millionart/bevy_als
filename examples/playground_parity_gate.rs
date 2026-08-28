@@ -103,10 +103,7 @@ fn spawn_character_once(mut commands: Commands, mut once: ResMut<SpawnOnce>) {
         return;
     }
     once.0 = true;
-    request_als_player(
-        &mut commands,
-        AlsPlayerAdmission::new("animated_scenes/motion_overlay.animscn.ron"),
-    );
+    request_als_player(&mut commands, AlsPlayerAdmission::new());
     info!("[PGPARITY] player admission requested");
 }
 

@@ -7,7 +7,7 @@ use als_core::player_start::{
 };
 use bevy::prelude::*;
 
-use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
+use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsScenePhysicsReady {
@@ -22,7 +22,6 @@ impl Default for AlsScenePhysicsReady {
 
 #[derive(Component, Debug, Clone)]
 pub struct AlsPlayerAdmission {
-    pub animscn: String,
     pub input_map: AlsInputMap,
     pub spawn_input: bool,
     pub spawn_camera: bool,
@@ -30,9 +29,8 @@ pub struct AlsPlayerAdmission {
 }
 
 impl AlsPlayerAdmission {
-    pub fn new(animscn: impl Into<String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            animscn: animscn.into(),
             input_map: AlsInputMap::default(),
             spawn_input: true,
             spawn_camera: false,
@@ -143,7 +141,7 @@ fn admit_pending_players(
         ) else {
             continue;
         };
-        let character = spawn_als_character(
+        let character = spawn_als_character_with_materials(
             &mut commands,
             &assets,
             &mut materials,
@@ -151,7 +149,6 @@ fn admit_pending_players(
             &mut config_assets,
             AlsCharacterBlueprint {
                 transform: selection.fit.transform,
-                animscn: &admission.animscn,
                 input_map: admission.input_map.clone(),
                 spawn_input: admission.spawn_input,
                 spawn_camera: admission.spawn_camera,

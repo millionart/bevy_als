@@ -1,0 +1,15 @@
+(
+    nodes: [
+        (id: "164a0000-0000-4000-8000-000000000001", name: "crouching rotate left clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
+        (id: "164a0000-0000-4000-8000-000000000002", name: "crouching rotate left time", inner: { "als_ext::GlobalF32InputNode": (key: "als_crouching_rotate_clip_time") }, should_debug: false),
+        (id: "164a0000-0000-4000-8000-000000000003", name: "crouching rotate left evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.0, loop_position: false) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("164a0000-0000-4000-8000-000000000003", "position"): NodeData("164a0000-0000-4000-8000-000000000002", "als_crouching_rotate_clip_time"),
+        NodeData("164a0000-0000-4000-8000-000000000003", "pose"): NodeData("164a0000-0000-4000-8000-000000000001", "pose"),
+        NodeTime("164a0000-0000-4000-8000-000000000003", "time"): NodeTime("164a0000-0000-4000-8000-000000000001"),
+        OutputData("pose"): NodeData("164a0000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("164a0000-0000-4000-8000-000000000003"),
+    },
+    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }), default_data: {},
+    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)
