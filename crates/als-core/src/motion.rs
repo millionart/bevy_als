@@ -10,16 +10,16 @@ use bevy_tnua::builtins::{
 use bevy_tnua::controller::TnuaConfig;
 
 use crate::character::{
-    ALS_CHARACTER_FLOOR_CLEARANCE, ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter,
-    AlsMovementParamsHandle, als_character_capsule,
+    ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE,
+    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsMovementParamsHandle, als_character_capsule,
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::input_request::AlsFirstPersonView;
-use crate::mantle::{MantleIntent, detect_mantle, trace_mantle_probes, yaw_from_direction};
+use crate::mantle::{MantleDetectionInput, detect_mantle, yaw_from_direction};
 use crate::params::AlsMovementParams;
-use crate::state::{Gait, LocomotionState, RotationMode, Stance};
+use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
 
 const MAX_SLOPE_DEGREES: f32 = 44.765_083;
@@ -464,11 +464,13 @@ type DriveQueryItem<'a> = (
     &'a AlsViewYaw,
     &'a GlobalTransform,
     &'a LocomotionState,
+    &'a LinearVelocity,
     Option<&'a mut crate::mantle::AlsMantleState>,
     Option<&'a AlsInputOverride>,
     &'a AlsInputCommand,
     &'a Stance,
-    &'a RotationMode,
+    &'a OverlayState,
+    &'a AlsMovementParamsHandle,
     &'a mut AlsStateRequest,
     Option<&'a mut AlsJumpPrev>,
     Option<&'a mut AlsCharacterDebug>,
@@ -479,6 +481,8 @@ fn locomotion_drive_system(
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    rotation_modes: Query<&RotationMode, With<AlsCharacter>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
 ) {
     for (
@@ -487,16 +491,21 @@ fn locomotion_drive_system(
         view_yaw,
         gtf,
         loco,
+        velocity,
         mut mantle,
         override_cmd,
         cmd,
         stance,
-        rotation_mode,
+        overlay,
+        params_handle,
         mut request,
         jump_prev,
         character_debug,
     ) in &mut q
     {
+        let Ok(rotation_mode) = rotation_modes.get(entity) else {
+            continue;
+        };
         controller.initiate_action_feeding();
         let effective = effective_input(cmd, override_cmd);
 
@@ -539,28 +548,51 @@ fn locomotion_drive_system(
             }
         }
 
+        let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active);
+        let auto_mantle = mantle_ready && *loco == LocomotionState::Air;
+        let should_probe_mantle = mantle_ready && (jump_edge || auto_mantle);
+        let detection = if should_probe_mantle {
+            let origin = gtf.translation();
+            let fwd = gtf.forward().as_vec3();
+            let (capsule_half_height, capsule_radius) = params_assets
+                .get(params_handle.id())
+                .map(|params| {
+                    (
+                        match *stance {
+                            Stance::Standing => params.crouch.standing_capsule_half_height,
+                            Stance::Crouching => params.crouch.crouched_capsule_half_height,
+                        },
+                        params.crouch.standing_capsule_radius,
+                    )
+                })
+                .unwrap_or((
+                    ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
+                    crate::character::ALS_CHARACTER_CAPSULE_RADIUS,
+                ));
+            Some(detect_mantle(
+                &spatial,
+                entity,
+                MantleDetectionInput {
+                    origin,
+                    actor_yaw: yaw_from_direction(fwd),
+                    velocity: velocity.0,
+                    input_direction: world_dir,
+                    locomotion: *loco,
+                    stance: *stance,
+                    overlay: *overlay,
+                    capsule_half_height,
+                    capsule_radius,
+                },
+                &velocities,
+            ))
+        } else {
+            None
+        };
+        if let (Some(detection), Some(mut debug)) = (detection, character_debug) {
+            debug.0.mantle_probe = Some(detection.trace);
+        }
+        let intent = detection.and_then(|detection| detection.intent);
         if jump_edge {
-            let mantle_ready = mantle.as_deref().is_some_and(|m| {
-                !m.active
-                    && m.cooldown <= 0.0
-                    && *loco == LocomotionState::Grounded
-                    && *stance == Stance::Standing
-            });
-            let mut intent: Option<MantleIntent> = None;
-            let mut probe_trace = None;
-            if mantle_ready {
-                let origin = gtf.translation();
-                let f = gtf.forward();
-                let fwd = Quat::from_rotation_y(f32::atan2(f.x, -f.z))
-                    .mul_vec3(Vec3::NEG_Z)
-                    .normalize_or_zero();
-                let foot_y = origin.y - 0.90;
-                intent = detect_mantle(&spatial, entity, origin, foot_y, fwd, &velocities);
-                probe_trace = trace_mantle_probes(&spatial, entity, origin, foot_y, fwd);
-            }
-            if let (Some(trace), Some(mut debug)) = (probe_trace, character_debug) {
-                debug.0.mantle_probe = Some(trace);
-            }
             match jump_chain(*loco, *stance, intent.is_some()) {
                 JumpChain::ExitRagdoll => {
                     request.locomotion_state = Some(LocomotionState::Grounded);
@@ -568,22 +600,18 @@ fn locomotion_drive_system(
                 JumpChain::Mantle => {
                     if let (Some(m), Some(i)) = (mantle.as_deref_mut(), intent) {
                         let origin = gtf.translation();
-                        let f = gtf.forward();
-                        let fwd = Quat::from_rotation_y(f32::atan2(f.x, -f.z))
-                            .mul_vec3(Vec3::NEG_Z)
-                            .normalize_or_zero();
-                        let yaw_start = yaw_from_direction(fwd);
+                        let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
                         m.begin(
                             i.kind,
                             origin,
                             i.target,
-                            i.top_height,
+                            i.mantling_height,
                             yaw_start,
                             i.yaw_target,
                         );
                         info!(
-                            "[MOTION] entity={entity:?} mantle begin kind={:?} top_h={:.2}",
-                            i.kind, i.top_height
+                            "[MOTION] entity={entity:?} mantle begin kind={:?} height={:.2}",
+                            i.kind, i.mantling_height
                         );
                     }
                 }
@@ -594,6 +622,21 @@ fn locomotion_drive_system(
                     controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
                 }
             }
+        } else if auto_mantle && let (Some(m), Some(i)) = (mantle.as_deref_mut(), intent) {
+            let origin = gtf.translation();
+            let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
+            m.begin(
+                i.kind,
+                origin,
+                i.target,
+                i.mantling_height,
+                yaw_start,
+                i.yaw_target,
+            );
+            info!(
+                "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2}",
+                i.kind, i.mantling_height
+            );
         } else if effective.jump_held && controller.action_flow_status().ongoing().is_some() {
             controller.prolong_action();
         }

@@ -33,6 +33,8 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::dynamics::AlsGroundedDynamics)]
 #[require(AlsCmcAdapterRuntime)]
 #[require(crate::motion::AlsAimingYawConstraint)]
+#[require(crate::foot_ik::AlsFootLockSettings)]
+#[require(crate::foot_ik::AlsDynamicTransitionState)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;

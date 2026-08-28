@@ -243,8 +243,14 @@ fn stop_watcher(
         watch.start_xz = Vec2::new(tf.translation.x, tf.translation.z);
         watch.predicted_total = m.total;
         info!(
-            "[STOPGATE][PREDICT] total={:.3} (from stopping entry speed)",
-            m.total
+            "[BCHAR18S][PREDICT] total={:.3} right={} rate={:.2} start={:.2} blend={:.2}/{:.2} yaw={:.1}",
+            m.total,
+            m.right_weight > 0.5,
+            m.quick_stop_play_rate,
+            m.quick_stop_start_time,
+            m.quick_stop_blend_in_duration,
+            m.quick_stop_blend_out_duration,
+            m.quick_stop_remaining_yaw_degrees,
         );
     }
     if watch.prev_active && !m.active {
@@ -264,15 +270,19 @@ fn stop_watcher(
         let ok_closed = watch.remaining_at_end <= 0.08;
         let ok_weight = watch.peak_weight >= 0.95;
         let ok_slide = (0.05..=1.5).contains(&watch.measured_slide);
+        let source_contract = (1.75..=3.0).contains(&m.quick_stop_play_rate)
+            && (m.quick_stop_start_time - 0.3).abs() <= 1e-6
+            && (m.quick_stop_blend_in_duration - 0.1).abs() <= 1e-6
+            && (m.quick_stop_blend_out_duration - 0.2).abs() <= 1e-6;
         info!(
-            "[STOPGATE][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} -> {}",
-            if ok_closed && ok_weight && ok_slide {
+            "[BCHAR18S][VERDICT] plant_on_stop={ok_closed} weight_ok={ok_weight} slide_in_band={ok_slide} source_contract={source_contract} -> {}",
+            if ok_closed && ok_weight && ok_slide && source_contract {
                 "PASS"
             } else {
                 "FAIL"
             }
         );
-        if !(ok_closed && ok_weight && ok_slide) {
+        if !(ok_closed && ok_weight && ok_slide && source_contract) {
             watch.failed = true;
             exit.write(AppExit::Error(std::num::NonZeroU8::new(6).unwrap()));
         }

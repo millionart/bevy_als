@@ -15,7 +15,10 @@ use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
-use als_core::roll::{AlsRollState, roll_displacement_dir};
+use als_core::roll::{
+    AlsRollState, ROLL_DURATION_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
+    roll_displacement_dir,
+};
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::state::{Gait, LocomotionState, Stance};
@@ -271,7 +274,7 @@ fn roll_watcher(
         watch.expect_dir_yaw = roll.direction_yaw;
         watch.peak_v = 0.0;
         info!(
-            "[ROLLGATE][ROLL {}] started dir_yaw={:.2} expected_vec={:?}",
+            "[BCHAR18R][ROLL {}] dir_yaw={:.2} expected_vec={:?} duration={ROLL_DURATION_SECS:.6} rate={ROLL_PLAY_RATE:.2} half_life={ROLL_ROTATION_HALF_LIFE_SECS:.2}",
             watch.roll_index + 1,
             roll.direction_yaw,
             roll_displacement_dir(roll.direction_yaw)

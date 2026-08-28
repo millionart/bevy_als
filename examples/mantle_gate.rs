@@ -13,8 +13,10 @@ use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 use als_core::character::{AlsCharacter, AlsCharacterPlugin};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::input::AlsInputPlugin;
-use als_core::mantle::{AlsMantleState, MantleKind};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin};
+use als_core::mantle::{
+    AlsMantleState, MANTLE_GROUNDED_TRACE, MANTLE_IN_AIR_TRACE, MANTLE_SLOPE_ANGLE_COS, MantleKind,
+};
+use als_core::motion::{AlsCharacterDebug, AlsInputOverride, AlsMotionPlugin};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::AlsStateTransitionPlugin;
@@ -166,6 +168,19 @@ fn spawn_character_once(
         return;
     }
     once.0 = true;
+    info!(
+        "[BCHAR18M][SOURCE] grounded=({:.2},{:.2},{:.2},{:.2},{:.2}) in_air=({:.2},{:.2},{:.2},{:.2},{:.2}) slope_cos={MANTLE_SLOPE_ANGLE_COS:.6}",
+        MANTLE_GROUNDED_TRACE.minimum_ledge_height,
+        MANTLE_GROUNDED_TRACE.maximum_ledge_height,
+        MANTLE_GROUNDED_TRACE.reach_distance,
+        MANTLE_GROUNDED_TRACE.target_location_offset,
+        MANTLE_GROUNDED_TRACE.start_location_offset,
+        MANTLE_IN_AIR_TRACE.minimum_ledge_height,
+        MANTLE_IN_AIR_TRACE.maximum_ledge_height,
+        MANTLE_IN_AIR_TRACE.reach_distance,
+        MANTLE_IN_AIR_TRACE.target_location_offset,
+        MANTLE_IN_AIR_TRACE.start_location_offset,
+    );
     let ground_mat = materials.add(Color::srgb(0.24, 0.27, 0.24));
     let box_mat = materials.add(Color::srgb(0.45, 0.38, 0.30));
     commands.spawn((
@@ -183,7 +198,7 @@ fn spawn_character_once(
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(2.4, low_top, 1.2)))),
         MeshMaterial3d(box_mat.clone()),
     ));
-    let high_top = 1.25f32;
+    let high_top = 1.35f32;
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(2.4, high_top, 1.2),
@@ -204,6 +219,9 @@ fn spawn_character_once(
             "animated_scenes/motion_overlay.animscn.ron",
         ),
     );
+    commands
+        .entity(character)
+        .insert(AlsCharacterDebug::default());
 
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_ok() {
         commands
@@ -257,7 +275,7 @@ fn auto_demo(
             (zone, !m.active && m.cooldown <= 0.0)
         })
         .unwrap_or((false, false));
-    over.0.move_dir = Vec2::NEG_Y;
+    over.0.move_dir = Vec2::Y;
     over.0.jump_pressed = pulse_zone && mantle_free;
     over.0.jump_held = false;
     over.0.roll_pressed = false;
@@ -312,13 +330,14 @@ fn mantle_watcher(
             &LinearVelocity,
             &LocomotionState,
             &AlsMantleState,
+            Option<&AlsCharacterDebug>,
         ),
         With<AlsCharacter>,
     >,
     mut exit: MessageWriter<AppExit>,
 ) {
     let _ = time;
-    let Ok((tf, vel, loco, m)) = q.single() else {
+    let Ok((tf, vel, loco, m, debug)) = q.single() else {
         return;
     };
     let slot_now = watch.count.clamp(0, 1) as usize;
@@ -327,11 +346,23 @@ fn mantle_watcher(
     if !watch.prev_active && m.active && watch.count < 2 {
         let slot = watch.count.min(1) as usize;
         watch.targets[slot] = m.target.y;
+        let trace: Option<als_core::mantle::MantleProbeTrace> =
+            debug.and_then(|value| value.0.mantle_probe);
         info!(
-            "[MGATE][BEGIN {}] kind={:?} target_y={:.2}",
+            "[BCHAR18M][BEGIN {}] kind={:?} target_y={:.2} duration={:.6} start={:.3} rate={:.2} clip={:.3} warp=({:.3},{:.3}) trace=({:?},{:?},{:?},{:?})",
             slot + 1,
             m.kind,
-            m.target.y
+            m.target.y,
+            m.duration,
+            m.start_offset,
+            m.rate_scale,
+            m.clip_time(),
+            m.location_warp_amount(),
+            m.rotation_warp_amount(),
+            trace.and_then(|trace| trace.forward_start),
+            trace.and_then(|trace| trace.forward_end),
+            trace.and_then(|trace| trace.downward_start),
+            trace.and_then(|trace| trace.downward_end),
         );
     }
     if let Some(slot) = watch.pending_slot {

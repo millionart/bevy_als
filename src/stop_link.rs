@@ -1,9 +1,10 @@
 use als_core::dynamics::{AlsGroundedDynamics, predict_grounded_stop_distance};
 use als_core::input::AlsInputCommand;
-use als_core::motion::AlsInputOverride;
+use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_direction};
 use als_core::params::AlsMovementParams;
 use als_core::start_stop::predict_stop_distance;
 use als_core::state::{LocomotionState, RotationMode, Stance};
+use als_core::transitions::{TransitionConfig, select_quick_stop};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -19,6 +20,12 @@ pub struct AlsStopMatch {
     pub right_weight: f32,
     pub weight: f32,
     pub last_input_move: f32,
+    pub last_input_yaw: Option<f32>,
+    pub quick_stop_play_rate: f32,
+    pub quick_stop_start_time: f32,
+    pub quick_stop_blend_in_duration: f32,
+    pub quick_stop_blend_out_duration: f32,
+    pub quick_stop_remaining_yaw_degrees: f32,
 }
 
 impl Default for AlsStopMatch {
@@ -31,14 +38,18 @@ impl Default for AlsStopMatch {
             right_weight: 0.0,
             weight: 0.0,
             last_input_move: 0.0,
+            last_input_yaw: None,
+            quick_stop_play_rate: 1.75,
+            quick_stop_start_time: 0.3,
+            quick_stop_blend_in_duration: 0.1,
+            quick_stop_blend_out_duration: 0.2,
+            quick_stop_remaining_yaw_degrees: 0.0,
         }
     }
 }
 
 pub const STOP_TRIGGER_MIN_SPEED: f32 = 1.0;
 pub const STOP_RELEASE_INPUT_EPSILON: f32 = 0.05;
-const WEIGHT_IN_SPEED: f32 = 8.0;
-const WEIGHT_OUT_SPEED: f32 = 5.0;
 
 fn move_toward(current: f32, target: f32, max_delta: f32) -> f32 {
     let diff = target - current;
@@ -84,6 +95,8 @@ pub fn stop_link_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
+            &Transform,
+            &AlsViewYaw,
             &als_core::character::AlsMovementParamsHandle,
             Option<&AlsGroundedDynamics>,
             &mut AlsStopMatch,
@@ -97,7 +110,19 @@ pub fn stop_link_system(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((vel, loco, stance, rotation_mode, handle, dynamics, mut m, cmd, ovr)) = q.single_mut()
+    let Ok((
+        vel,
+        loco,
+        stance,
+        rotation_mode,
+        transform,
+        view_yaw,
+        handle,
+        dynamics,
+        mut m,
+        cmd,
+        ovr,
+    )) = q.single_mut()
     else {
         return;
     };
@@ -107,6 +132,12 @@ pub fn stop_link_system(
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
     let hspeed = Vec2::new(vel.x, vel.z).length();
     let input_move = effective.move_dir.length();
+    if input_move > STOP_RELEASE_INPUT_EPSILON {
+        let direction = view_relative_move_direction(effective.move_dir, view_yaw.0);
+        if direction.length_squared() > 1e-6 {
+            m.last_input_yaw = Some(f32::atan2(direction.x, -direction.z));
+        }
+    }
 
     if m.active {
         m.remaining = (m.remaining - hspeed * dt).max(0.0);
@@ -124,6 +155,15 @@ pub fn stop_link_system(
             && *loco == LocomotionState::Grounded
             && hspeed >= STOP_TRIGGER_MIN_SPEED;
         if released_while_fast {
+            let config = TransitionConfig::default();
+            let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+            let target_yaw = m.last_input_yaw.unwrap_or(actor_yaw);
+            let quick_stop = select_quick_stop(
+                *rotation_mode,
+                actor_yaw.to_degrees(),
+                target_yaw.to_degrees(),
+                &config,
+            );
             let fallback_braking = dynamics
                 .map(|value| value.0.braking_deceleration)
                 .unwrap_or(p.acceleration.braking_deceleration);
@@ -137,17 +177,22 @@ pub fn stop_link_system(
             .max(0.3);
             m.remaining = m.total;
             m.active = true;
-            m.left_weight = 1.0;
-            m.right_weight = 0.0;
+            m.left_weight = if quick_stop.right { 0.0 } else { 1.0 };
+            m.right_weight = if quick_stop.right { 1.0 } else { 0.0 };
+            m.quick_stop_play_rate = quick_stop.play_rate;
+            m.quick_stop_start_time = quick_stop.start_time;
+            m.quick_stop_blend_in_duration = quick_stop.blend_in_duration;
+            m.quick_stop_blend_out_duration = quick_stop.blend_out_duration;
+            m.quick_stop_remaining_yaw_degrees = quick_stop.remaining_yaw_degrees;
         }
     }
     m.last_input_move = input_move;
 
     let weight_target = if m.active { 1.0 } else { 0.0 };
     let w_speed = if m.active {
-        WEIGHT_IN_SPEED
+        m.quick_stop_blend_in_duration.recip()
     } else {
-        WEIGHT_OUT_SPEED
+        m.quick_stop_blend_out_duration.recip()
     };
     m.weight = move_toward(m.weight, weight_target, w_speed * dt);
 
@@ -157,6 +202,8 @@ pub fn stop_link_system(
             player.set_input_data("stop_right_weight", DataValue::from(m.right_weight));
             player.set_input_data("stop_remaining", DataValue::from(m.remaining));
             player.set_input_data("stop_total", DataValue::from(m.total));
+            player.set_input_data("stop_play_rate", DataValue::from(m.quick_stop_play_rate));
+            player.set_input_data("stop_start_time", DataValue::from(m.quick_stop_start_time));
         }
     }
 }

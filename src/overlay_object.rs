@@ -97,7 +97,7 @@ pub fn overlay_object_visible(
 ) -> bool {
     overlay_object_spec(overlay).is_some()
         && locomotion != LocomotionState::Ragdolling
-        && !(mantle_active && mantle_kind == Some(MantleKind::High))
+        && !(mantle_active && mantle_kind.is_some_and(MantleKind::is_high))
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]

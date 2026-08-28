@@ -1,7 +1,7 @@
 use als_camera::AlsCameraDebugInfo;
+use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
 use als_core::input::AlsInputCommand;
-use als_core::air::AlsAirState;
 use als_core::mantle::AlsMantleState;
 use als_core::motion::{AlsCharacterDebug, AlsInputOverride};
 use avian3d::prelude::{ColliderAabb, LinearVelocity};
@@ -382,15 +382,12 @@ fn draw_mantle_probes_system(
         let Some(trace) = debug.and_then(|d| d.0.mantle_probe) else {
             continue;
         };
-        for (start, end) in trace.forward_starts.iter().zip(trace.forward_ends.iter()) {
-            let Some(end_point) = end else {
-                continue;
-            };
-            gizmos.line(*start, *end_point, mantle_forward_color());
+        if let (Some(start), Some(end)) = (trace.forward_start, trace.forward_end) {
+            gizmos.line(start, end, mantle_forward_color());
             stats.mantle_probe_lines_drawn += 1;
         }
-        if let (Some(origin), Some(hit)) = (trace.downward_origin, trace.downward_hit) {
-            gizmos.line(origin, hit, mantle_downward_color());
+        if let (Some(start), Some(end)) = (trace.downward_start, trace.downward_end) {
+            gizmos.line(start, end, mantle_downward_color());
             stats.mantle_probe_lines_drawn += 1;
         }
     }
@@ -416,7 +413,13 @@ fn draw_ground_prediction_system(
         } else {
             linear(0.25, 0.0, 1.0)
         };
-        circle_xz(&mut gizmos, start, prediction.capsule_radius, sweep_color, CIRCLE_SIDES);
+        circle_xz(
+            &mut gizmos,
+            start,
+            prediction.capsule_radius,
+            sweep_color,
+            CIRCLE_SIDES,
+        );
         circle_xz(
             &mut gizmos,
             end,
@@ -436,9 +439,7 @@ fn draw_camera_debug_system(
 ) {
     for info in q_camera.iter() {
         if !info.valid {
-            warn!(
-                "[BF9][CAMSYS] camera debug present but invalid so far"
-            );
+            warn!("[BF9][CAMSYS] camera debug present but invalid so far");
             continue;
         }
         stats.camera_debug_valid += 1;

@@ -1,5 +1,5 @@
 use als_core::input::AlsInputCommand;
-use als_core::mantle::{AlsMantleState, MantleKind, mantle_weight_at, warp_envelope};
+use als_core::mantle::{AlsMantleState, mantle_weight_at};
 use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{CollisionLayers, LinearVelocity};
@@ -57,7 +57,7 @@ fn mantle_pose_system(
     let Ok((mut m, mut tf, mut vel)) = q.single_mut() else {
         return;
     };
-    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(m.clip_time()));
+    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
     if m.active {
         tf.rotation = Quat::from_rotation_y(yaw_now);
         return;
@@ -79,6 +79,7 @@ fn mantle_drive_system(
             Entity,
             &mut AlsMantleState,
             &mut LinearVelocity,
+            &Transform,
             &LocomotionState,
             &Stance,
             &AlsInputCommand,
@@ -92,7 +93,7 @@ fn mantle_drive_system(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((entity, mut m, mut vel, loco, stance, cmd, ovr)) = q.single_mut() else {
+    let Ok((entity, mut m, mut vel, transform, loco, stance, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
@@ -121,26 +122,26 @@ fn mantle_drive_system(
 
     let local_delta = read_local_delta(rm_q.iter().next());
     let clip_t = m.clip_time();
-    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, warp_envelope(clip_t));
+    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
     let finishing = m.time + dt >= m.action_end();
 
     let dir = Vec3::new(yaw_now.sin(), 0.0, -yaw_now.cos());
     let forward_speed = -local_delta.z / dt;
     let climb_speed = local_delta.y / dt;
+    let root_drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);
+    let time_remaining = (m.action_end() - m.time).max(dt);
+    let target_drive = (m.target - transform.translation) / time_remaining;
+    let drive = root_drive.lerp(target_drive, m.location_warp_amount());
     if finishing {
         *vel = LinearVelocity(Vec3::ZERO);
         m.settle = als_core::mantle::MANTLE_SETTLE_SECS;
     } else {
-        let drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);
         *vel = LinearVelocity(clamp_drive_speed(drive, 14.0));
     }
 
     let weight = mantle_weight_at(m.time, m.action_end());
-    let (high_w, lr) = match m.kind {
-        MantleKind::High => (1.0, 0.0),
-        MantleKind::LowLeft => (0.0, 0.0),
-        MantleKind::LowRight => (0.0, 1.0),
-    };
+    let high_w = if m.kind.is_high() { 1.0 } else { 0.0 };
+    let lr = m.kind.graph_low_right_weight();
     for instance in instances.iter() {
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("mantle_clip_time", DataValue::from(clip_t));

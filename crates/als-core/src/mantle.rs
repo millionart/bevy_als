@@ -1,281 +1,449 @@
+use avian3d::prelude::{
+    Collider, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+};
 use bevy::prelude::*;
 
-use crate::character::AlsCharacter;
+use crate::character::{
+    ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS, ALS_CHARACTER_FLOOR_CLEARANCE,
+    als_character_capsule,
+};
 use crate::input::AlsInputCommand;
-use crate::state::{LocomotionState, Stance};
-use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use crate::state::{LocomotionState, OverlayState, Stance};
 
-pub const MANTLE_HIGH_MIN_HEIGHT: f32 = 1.25;
-pub const MANTLE_MAX_LEDGE_HEIGHT: f32 = 1.6;
-pub const MANTLE_MIN_LEDGE_HEIGHT: f32 = 0.45;
-pub const MANTLE_PROBE_REACH: f32 = 0.7;
-pub const MANTLE_PROBE_SHIFT: f32 = 0.45;
-pub const MANTLE_TARGET_INSET: f32 = 0.45;
-pub const MANTLE_HIGH_DURATION: f32 = 2.667;
-pub const MANTLE_LOW_DURATION: f32 = 1.5;
-pub const MANTLE_SLOPE_ANGLE_COS: f32 = 0.819;
+pub const MANTLE_HIGH_HEIGHT_THRESHOLD: f32 = 1.25;
+pub const MANTLE_TRACE_ANGLE_LIMIT: f32 = 110.0_f32.to_radians();
+pub const MANTLE_MAX_REACH_ANGLE: f32 = 50.0_f32.to_radians();
+pub const MANTLE_WALKABLE_FLOOR_COS: f32 = 0.71;
+pub const MANTLE_SLOPE_ANGLE_COS: f32 = 0.819_152_06;
 pub const MANTLE_TARGET_SPEED_THRESHOLD: f32 = 0.1;
-pub const MANTLE_HEADROOM_CLEARANCE: f32 = 1.85;
-const WEIGHT_IN_SECS: f32 = 0.15;
-const WEIGHT_OUT_SECS: f32 = 0.25;
-
-pub const MANTLE_WARP_SECS: f32 = 0.3;
+pub const MANTLE_TRACE_CAPSULE_SHRINK: f32 = 0.01;
+pub const MANTLE_MIN_FLOOR_DISTANCE: f32 = ALS_CHARACTER_FLOOR_CLEARANCE;
+pub const MANTLE_MAX_FLOOR_DISTANCE: f32 = 0.024;
 pub const MANTLE_SETTLE_SECS: f32 = 0.35;
-pub const MANTLE_SCALE_MIN: f32 = 0.35;
-pub const MANTLE_SCALE_MAX: f32 = 1.6;
-pub const MANTLE_START_OFFSET_REF_HEIGHT: f32 = 0.5;
-pub const MANTLE_START_OFFSET_MAX_SECS: f32 = 0.5;
-pub const HIGH_CLIP_TRAVEL: Vec3 = Vec3::new(0.0, 2.0, -0.65);
-pub const LOW_CLIP_TRAVEL: Vec3 = Vec3::new(0.0, 1.0, -0.65);
+pub const MANTLE_BLEND_IN_SECS: f32 = 0.2;
+pub const MANTLE_BLEND_OUT_SECS: f32 = 0.2;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleTraceSettings {
+    pub minimum_ledge_height: f32,
+    pub maximum_ledge_height: f32,
+    pub reach_distance: f32,
+    pub target_location_offset: f32,
+    pub start_location_offset: f32,
+}
+
+pub const MANTLE_GROUNDED_TRACE: MantleTraceSettings = MantleTraceSettings {
+    minimum_ledge_height: 0.5,
+    maximum_ledge_height: 2.25,
+    reach_distance: 0.75,
+    target_location_offset: 0.15,
+    start_location_offset: 0.55,
+};
+
+pub const MANTLE_IN_AIR_TRACE: MantleTraceSettings = MantleTraceSettings {
+    minimum_ledge_height: 0.5,
+    maximum_ledge_height: 1.5,
+    reach_distance: 0.7,
+    target_location_offset: 0.15,
+    start_location_offset: 0.55,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleActionSettings {
+    pub sequence_length: f32,
+    pub rate_scale: f32,
+    pub start_time_reference_min_height: f32,
+    pub start_time_reference_max_height: f32,
+    pub start_time_at_min_height: f32,
+    pub start_time_at_max_height: f32,
+    pub motion_warping_start_time: f32,
+    pub motion_warping_end_time: f32,
+}
+
+pub const MANTLE_HIGH_ACTION: MantleActionSettings = MantleActionSettings {
+    sequence_length: 2.666_666_7,
+    rate_scale: 1.2,
+    start_time_reference_min_height: 1.25,
+    start_time_reference_max_height: 2.0,
+    start_time_at_min_height: 0.6,
+    start_time_at_max_height: 0.0,
+    motion_warping_start_time: 0.3,
+    motion_warping_end_time: 0.6,
+};
+
+pub const MANTLE_IN_AIR_ACTION: MantleActionSettings = MantleActionSettings {
+    sequence_length: 2.666_666_7,
+    rate_scale: 1.2,
+    start_time_reference_min_height: 1.25,
+    start_time_reference_max_height: 2.0,
+    start_time_at_min_height: 0.8,
+    start_time_at_max_height: 0.0,
+    motion_warping_start_time: 0.3,
+    motion_warping_end_time: 0.6,
+};
+
+pub const MANTLE_LOW_ACTION: MantleActionSettings = MantleActionSettings {
+    sequence_length: 1.5,
+    rate_scale: 1.0,
+    start_time_reference_min_height: 0.5,
+    start_time_reference_max_height: 1.0,
+    start_time_at_min_height: 0.5,
+    start_time_at_max_height: 0.0,
+    motion_warping_start_time: 0.3,
+    motion_warping_end_time: 0.7,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MantleKind {
     #[default]
     High,
+    InAir,
     LowLeft,
     LowRight,
+    LowBothHands,
+    LowBox,
 }
 
 impl MantleKind {
-    pub fn duration(self) -> f32 {
+    pub fn action_settings(self) -> MantleActionSettings {
         match self {
-            MantleKind::High => MANTLE_HIGH_DURATION,
-            MantleKind::LowLeft | MantleKind::LowRight => MANTLE_LOW_DURATION,
+            Self::High => MANTLE_HIGH_ACTION,
+            Self::InAir => MANTLE_IN_AIR_ACTION,
+            Self::LowLeft | Self::LowRight | Self::LowBothHands | Self::LowBox => MANTLE_LOW_ACTION,
         }
     }
 
-    pub fn clip_travel(self) -> Vec3 {
+    pub fn is_high(self) -> bool {
+        matches!(self, Self::High | Self::InAir)
+    }
+
+    pub fn graph_low_right_weight(self) -> f32 {
         match self {
-            MantleKind::High => HIGH_CLIP_TRAVEL,
-            MantleKind::LowLeft | MantleKind::LowRight => LOW_CLIP_TRAVEL,
+            Self::LowLeft => 0.0,
+            Self::High | Self::InAir | Self::LowRight | Self::LowBothHands | Self::LowBox => 1.0,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct LedgeProbe {
-    pub face_distance: f32,
-    pub top_height: f32,
-    pub lateral_sign: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MantleIntent {
     pub kind: MantleKind,
     pub target: Vec3,
-    pub top_height: f32,
+    pub mantling_height: f32,
     pub yaw_target: f32,
+    pub target_entity: Entity,
 }
 
-pub fn yaw_from_direction(dir: Vec3) -> f32 {
-    f32::atan2(dir.x, -dir.z)
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn detect_mantle(
-    spatial: &SpatialQuery,
-    excluded: Entity,
-    origin: Vec3,
-    foot_y: f32,
-    fwd: Vec3,
-    velocities: &Query<&LinearVelocity, Without<AlsCharacter>>,
-) -> Option<MantleIntent> {
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
-    let Ok(dir) = Dir3::new(fwd) else {
-        return None;
-    };
-    let mut face: Option<(f32, Vec3, f32, Entity)> = None;
-    for h in [0.35f32, 0.65, 0.95] {
-        let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
-        if let Some(hit) = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter) {
-            let best = face.map(|(d, _, _, _)| d).unwrap_or(f32::INFINITY);
-            if hit.distance < best {
-                let top_o = o + fwd * hit.distance + Vec3::Y * 1.2;
-                let top_hit = spatial.cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter);
-                let (top_y, _top_normal_y) = top_hit
-                    .map(|t| (top_o.y - t.distance, t.normal.y))
-                    .unwrap_or((f32::NEG_INFINITY, 0.0));
-                face = Some((
-                    hit.distance,
-                    hit.normal,
-                    top_y,
-                    top_hit.map(|t| t.entity).expect("top hit"),
-                ));
-            }
-        }
-    }
-    let (face_distance, normal, top_y, ledge_entity) = face?;
-
-    let top_normal = spatial
-        .cast_ray(
-            origin + fwd * (MANTLE_PROBE_SHIFT + face_distance) + Vec3::Y * 1.4,
-            Dir3::NEG_Y,
-            2.0,
-            true,
-            &filter,
-        )
-        .map(|t| t.normal.y)
-        .unwrap_or(0.0);
-    if top_normal < MANTLE_SLOPE_ANGLE_COS {
-        return None;
-    }
-
-    let target_speed = velocities.get(ledge_entity).ok().map(|v| v.0.length());
-    if target_speed.is_some_and(|s| s > MANTLE_TARGET_SPEED_THRESHOLD) {
-        return None;
-    }
-    let right_of = Vec3::Y.cross(fwd).normalize_or_zero();
-    let ledge = LedgeProbe {
-        face_distance,
-        top_height: top_y - foot_y,
-        lateral_sign: normal.dot(right_of),
-    };
-    let kind = classify_mantle(&ledge)?;
-
-    let face_plane_dist = MANTLE_PROBE_SHIFT + face_distance;
-    let target = Vec3::new(
-        origin.x + fwd.x * (face_plane_dist + MANTLE_TARGET_INSET),
-        top_y + 0.92,
-        origin.z + fwd.z * (face_plane_dist + MANTLE_TARGET_INSET),
-    );
-    let wall_dir = Vec3::new(-normal.x, 0.0, -normal.z).normalize_or_zero();
-    let yaw_target = yaw_from_direction(if wall_dir.length_squared() > 1e-4 {
-        wall_dir
-    } else {
-        fwd
-    });
-
-    let headroom_o = Vec3::new(target.x, top_y + 0.30, target.z);
-    if spatial
-        .cast_ray(
-            headroom_o,
-            Dir3::Y,
-            MANTLE_HEADROOM_CLEARANCE,
-            true,
-            &filter,
-        )
-        .is_some()
-    {
-        return None;
-    }
-    let start_clearance = spatial.cast_ray(origin + Vec3::Y * 1.2, Dir3::Y, 0.9, true, &filter);
-    if start_clearance.is_some() {
-        return None;
-    }
-
-    Some(MantleIntent {
-        kind,
-        target,
-        top_height: ledge.top_height,
-        yaw_target,
-    })
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct MantleProbeTrace {
+    pub forward_start: Option<Vec3>,
+    pub forward_end: Option<Vec3>,
+    pub forward_hit: Option<Vec3>,
+    pub downward_start: Option<Vec3>,
+    pub downward_end: Option<Vec3>,
+    pub downward_hit: Option<Vec3>,
+    pub target_capsule_center: Option<Vec3>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MantleProbeTrace {
-    pub forward_starts: [Vec3; 3],
-    pub forward_ends: [Option<Vec3>; 3],
-    pub downward_origin: Option<Vec3>,
-    pub downward_hit: Option<Vec3>,
+pub struct MantleDetection {
+    pub intent: Option<MantleIntent>,
+    pub trace: MantleProbeTrace,
 }
 
-const PROBE_ROW_HEIGHTS: [f32; 3] = [0.35, 0.65, 0.95];
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleDetectionInput {
+    pub origin: Vec3,
+    pub actor_yaw: f32,
+    pub velocity: Vec3,
+    pub input_direction: Vec3,
+    pub locomotion: LocomotionState,
+    pub stance: Stance,
+    pub overlay: OverlayState,
+    pub capsule_half_height: f32,
+    pub capsule_radius: f32,
+}
 
-pub fn trace_mantle_probes(
-    spatial: &SpatialQuery,
-    excluded: Entity,
-    origin: Vec3,
-    foot_y: f32,
-    fwd: Vec3,
-) -> Option<MantleProbeTrace> {
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
-    let Ok(dir) = Dir3::new(fwd) else {
-        return None;
-    };
-    let mut forward_starts = [Vec3::ZERO; 3];
-    let mut forward_ends = [None; 3];
-    let mut best: Option<(usize, f32)> = None;
-    for (i, h) in PROBE_ROW_HEIGHTS.into_iter().enumerate() {
-        let o = origin + fwd * MANTLE_PROBE_SHIFT + Vec3::Y * (h - (origin.y - foot_y));
-        forward_starts[i] = o;
-        let hit = spatial.cast_ray(o, dir, MANTLE_PROBE_REACH, true, &filter);
-        forward_ends[i] = hit.map(|t| o + fwd * t.distance);
-        if let Some(t) = hit {
-            let better = best.is_none_or(|(_, d)| t.distance < d);
-            if better {
-                best = Some((i, t.distance));
-            }
+impl Default for MantleDetectionInput {
+    fn default() -> Self {
+        Self {
+            origin: Vec3::ZERO,
+            actor_yaw: 0.0,
+            velocity: Vec3::ZERO,
+            input_direction: Vec3::ZERO,
+            locomotion: LocomotionState::Grounded,
+            stance: Stance::Standing,
+            overlay: OverlayState::Default,
+            capsule_half_height: ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
+            capsule_radius: ALS_CHARACTER_CAPSULE_RADIUS,
         }
     }
-    let (downward_origin, downward_hit) = best
-        .map(|(i, distance)| {
-            let top_o = forward_starts[i] + fwd * distance + Vec3::Y * 1.2;
-            let down = spatial
-                .cast_ray(top_o, Dir3::NEG_Y, 1.8, true, &filter)
-                .map(|t| top_o - Vec3::Y * t.distance);
-            (Some(top_o), down)
-        })
-        .unwrap_or((None, None));
-    Some(MantleProbeTrace {
-        forward_starts,
-        forward_ends,
-        downward_origin,
-        downward_hit,
-    })
 }
 
-pub fn classify_mantle(probe: &LedgeProbe) -> Option<MantleKind> {
-    if probe.top_height < MANTLE_MIN_LEDGE_HEIGHT || probe.top_height > MANTLE_MAX_LEDGE_HEIGHT {
-        return None;
+pub fn yaw_from_direction(direction: Vec3) -> f32 {
+    f32::atan2(direction.x, -direction.z)
+}
+
+pub fn wrap_angle(angle: f32) -> f32 {
+    (angle + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
+}
+
+pub fn mantle_trace_settings(locomotion: LocomotionState) -> MantleTraceSettings {
+    match locomotion {
+        LocomotionState::Air => MANTLE_IN_AIR_TRACE,
+        LocomotionState::Grounded | LocomotionState::Ragdolling => MANTLE_GROUNDED_TRACE,
     }
-    if probe.face_distance > MANTLE_PROBE_REACH {
-        return None;
+}
+
+pub fn select_low_mantle_kind(overlay: OverlayState) -> MantleKind {
+    match overlay {
+        OverlayState::Injured => MantleKind::LowLeft,
+        OverlayState::HandsTied => MantleKind::LowBothHands,
+        OverlayState::Box => MantleKind::LowBox,
+        OverlayState::Rifle
+        | OverlayState::Default
+        | OverlayState::Masculine
+        | OverlayState::Feminine
+        | OverlayState::PistolOneHanded
+        | OverlayState::PistolTwoHanded
+        | OverlayState::Bow
+        | OverlayState::Torch
+        | OverlayState::Binoculars
+        | OverlayState::Barrel => MantleKind::LowRight,
     }
-    if probe.top_height >= MANTLE_HIGH_MIN_HEIGHT {
-        Some(MantleKind::High)
-    } else if probe.lateral_sign >= 0.0 {
-        Some(MantleKind::LowRight)
+}
+
+pub fn select_mantle_kind(
+    locomotion: LocomotionState,
+    overlay: OverlayState,
+    mantling_height: f32,
+) -> MantleKind {
+    if locomotion == LocomotionState::Air {
+        MantleKind::InAir
+    } else if mantling_height > MANTLE_HIGH_HEIGHT_THRESHOLD {
+        MantleKind::High
     } else {
-        Some(MantleKind::LowLeft)
+        select_low_mantle_kind(overlay)
     }
 }
 
-pub fn start_offset_for_height(top_height: f32) -> f32 {
-    let norm = ((top_height - MANTLE_START_OFFSET_REF_HEIGHT)
-        / (MANTLE_HIGH_MIN_HEIGHT - MANTLE_START_OFFSET_REF_HEIGHT))
+pub fn mantle_start_time(kind: MantleKind, mantling_height: f32) -> f32 {
+    let settings = kind.action_settings();
+    let alpha = ((mantling_height - settings.start_time_reference_min_height)
+        / (settings.start_time_reference_max_height - settings.start_time_reference_min_height))
         .clamp(0.0, 1.0);
-    MANTLE_START_OFFSET_MAX_SECS * (1.0 - norm)
+    settings.start_time_at_min_height
+        + (settings.start_time_at_max_height - settings.start_time_at_min_height) * alpha
 }
 
-pub fn warp_envelope(clip_time: f32) -> f32 {
-    smoothstep((clip_time / MANTLE_WARP_SECS).clamp(0.0, 1.0))
+pub fn mantle_duration(kind: MantleKind, mantling_height: f32) -> f32 {
+    let settings = kind.action_settings();
+    (settings.sequence_length - mantle_start_time(kind, mantling_height)) / settings.rate_scale
 }
 
-pub fn fit_translation_scale(required_length: f32, travel_length: f32) -> f32 {
-    if travel_length < 1e-4 {
-        return 1.0;
+pub fn mantle_motion_warp_location_amount(kind: MantleKind, clip_time: f32) -> f32 {
+    let settings = kind.action_settings();
+    ((clip_time - settings.motion_warping_start_time)
+        / (settings.motion_warping_end_time - settings.motion_warping_start_time))
+        .clamp(0.0, 1.0)
+}
+
+pub fn mantle_motion_warp_rotation_amount(kind: MantleKind, clip_time: f32) -> f32 {
+    let alpha = mantle_motion_warp_location_amount(kind, clip_time);
+    alpha * alpha * (3.0 - 2.0 * alpha)
+}
+
+pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
+    let velocity = Vec3::new(input.velocity.x, 0.0, input.velocity.z);
+    let desired_yaw = if velocity.length_squared() > 1e-6 {
+        let velocity_yaw = yaw_from_direction(velocity);
+        if input.input_direction.length_squared() > 1e-6 {
+            let input_yaw = yaw_from_direction(input.input_direction);
+            velocity_yaw
+                + wrap_angle(input_yaw - velocity_yaw)
+                    .clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE)
+        } else {
+            velocity_yaw
+        }
+    } else if input.input_direction.length_squared() > 1e-6 {
+        yaw_from_direction(input.input_direction)
+    } else {
+        input.actor_yaw
+    };
+    let delta = wrap_angle(desired_yaw - input.actor_yaw);
+    if delta.abs() > MANTLE_TRACE_ANGLE_LIMIT {
+        return None;
     }
-    (required_length / travel_length).clamp(MANTLE_SCALE_MIN, MANTLE_SCALE_MAX)
+    let clamped_yaw =
+        input.actor_yaw + delta.clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE);
+    Some(Vec3::new(clamped_yaw.sin(), 0.0, -clamped_yaw.cos()))
 }
 
-fn smoothstep(x: f32) -> f32 {
-    let x = x.clamp(0.0, 1.0);
-    x * x * (3.0 - 2.0 * x)
+pub fn detect_mantle(
+    spatial: &SpatialQuery,
+    excluded: Entity,
+    input: MantleDetectionInput,
+    velocities: &Query<&LinearVelocity, Without<crate::character::AlsCharacter>>,
+) -> MantleDetection {
+    let mut trace = MantleProbeTrace::default();
+    if input.locomotion == LocomotionState::Ragdolling {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let Some(forward) = mantle_trace_direction(&input) else {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    };
+    let Ok(forward_direction) = Dir3::new(forward) else {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    };
+    let settings = mantle_trace_settings(input.locomotion);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let capsule_bottom = input.origin - Vec3::Y * input.capsule_half_height;
+    let trace_radius = (input.capsule_radius - MANTLE_TRACE_CAPSULE_SHRINK).max(0.001);
+    let ledge_height_delta = settings.maximum_ledge_height - settings.minimum_ledge_height;
+    let forward_start = capsule_bottom - forward * input.capsule_radius
+        + Vec3::Y
+            * ((settings.minimum_ledge_height + settings.maximum_ledge_height) * 0.5
+                - MANTLE_MAX_FLOOR_DISTANCE);
+    let forward_distance =
+        input.capsule_radius + settings.reach_distance + MANTLE_TRACE_CAPSULE_SHRINK;
+    let forward_end = forward_start + forward * forward_distance;
+    trace.forward_start = Some(forward_start);
+    trace.forward_end = Some(forward_end);
+    let forward_shape = als_character_capsule(ledge_height_delta * 0.5, trace_radius);
+    let forward_config = ShapeCastConfig::from_max_distance(forward_distance);
+    let Some(forward_hit) = spatial.cast_shape(
+        &forward_shape,
+        forward_start,
+        Quat::IDENTITY,
+        forward_direction,
+        &forward_config,
+        &filter,
+    ) else {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    };
+    trace.forward_hit = Some(forward_hit.point1);
+    if forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
+        || velocities
+            .get(forward_hit.entity)
+            .ok()
+            .is_some_and(|velocity| velocity.0.length() > MANTLE_TARGET_SPEED_THRESHOLD)
+    {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let target_direction =
+        Vec3::new(-forward_hit.normal1.x, 0.0, -forward_hit.normal1.z).normalize_or_zero();
+    if target_direction.length_squared() <= 1e-6 {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let downward_start = Vec3::new(
+        forward_hit.point1.x + target_direction.x * settings.target_location_offset,
+        capsule_bottom.y + ledge_height_delta + 2.5 * trace_radius + MANTLE_MIN_FLOOR_DISTANCE,
+        forward_hit.point1.z + target_direction.z * settings.target_location_offset,
+    );
+    let downward_end = Vec3::new(
+        downward_start.x,
+        capsule_bottom.y + settings.minimum_ledge_height + trace_radius - MANTLE_MAX_FLOOR_DISTANCE,
+        downward_start.z,
+    );
+    let downward_distance = (downward_start.y - downward_end.y).max(0.0);
+    trace.downward_start = Some(downward_start);
+    trace.downward_end = Some(downward_end);
+    let downward_shape = Collider::sphere(trace_radius);
+    let downward_config = ShapeCastConfig::from_max_distance(downward_distance);
+    let Some(downward_hit) = spatial.cast_shape(
+        &downward_shape,
+        downward_start,
+        Quat::IDENTITY,
+        Dir3::NEG_Y,
+        &downward_config,
+        &filter,
+    ) else {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    };
+    trace.downward_hit = Some(downward_hit.point1);
+    let downward_location = downward_start - Vec3::Y * downward_hit.distance;
+    let approximate_slope_normal = (downward_location - downward_hit.point1).normalize_or_zero();
+    if downward_hit.normal1.y < MANTLE_SLOPE_ANGLE_COS
+        || approximate_slope_normal.y < MANTLE_SLOPE_ANGLE_COS
+    {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let target_ground = downward_hit.point1.y + MANTLE_MIN_FLOOR_DISTANCE;
+    let target = Vec3::new(
+        downward_location.x,
+        target_ground + input.capsule_half_height,
+        downward_location.z,
+    );
+    trace.target_capsule_center = Some(target);
+    let target_capsule = als_character_capsule(input.capsule_half_height, input.capsule_radius);
+    if !spatial
+        .shape_intersections(&target_capsule, target, Quat::IDENTITY, &filter)
+        .is_empty()
+    {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let start_location = Vec3::new(
+        forward_hit.point1.x - target_direction.x * settings.start_location_offset,
+        (downward_location.y + downward_end.y) * 0.5,
+        forward_hit.point1.z - target_direction.z * settings.start_location_offset,
+    );
+    let start_half_height = (downward_location.y - downward_end.y) * 0.5 + trace_radius;
+    let start_capsule = als_character_capsule(start_half_height.max(trace_radius), trace_radius);
+    if !spatial
+        .shape_intersections(&start_capsule, start_location, Quat::IDENTITY, &filter)
+        .is_empty()
+    {
+        return MantleDetection {
+            intent: None,
+            trace,
+        };
+    }
+    let mantling_height = target_ground - capsule_bottom.y;
+    let kind = select_mantle_kind(input.locomotion, input.overlay, mantling_height);
+    MantleDetection {
+        intent: Some(MantleIntent {
+            kind,
+            target,
+            mantling_height,
+            yaw_target: yaw_from_direction(target_direction),
+            target_entity: forward_hit.entity,
+        }),
+        trace,
+    }
 }
 
 pub fn mantle_weight_at(elapsed: f32, duration: f32) -> f32 {
     let remaining = (duration - elapsed).max(0.0);
-    let w_in = if WEIGHT_IN_SECS <= 0.0 {
-        1.0
-    } else {
-        (elapsed / WEIGHT_IN_SECS).clamp(0.0, 1.0)
-    };
-    let w_out = if WEIGHT_OUT_SECS <= 0.0 {
-        1.0
-    } else {
-        (remaining / WEIGHT_OUT_SECS).clamp(0.0, 1.0)
-    };
-    w_in.min(w_out)
+    (elapsed / MANTLE_BLEND_IN_SECS)
+        .clamp(0.0, 1.0)
+        .min((remaining / MANTLE_BLEND_OUT_SECS).clamp(0.0, 1.0))
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -288,12 +456,9 @@ pub struct AlsMantleState {
     pub target: Vec3,
     pub cooldown: f32,
     pub start_offset: f32,
+    pub rate_scale: f32,
     pub yaw_start: f32,
     pub yaw_target: f32,
-    pub scale: f32,
-    pub q_total: Vec3,
-    pub root_travel: Vec3,
-    pub prev_pos: Vec3,
     pub settle: f32,
 }
 
@@ -303,17 +468,14 @@ impl Default for AlsMantleState {
             active: false,
             kind: MantleKind::High,
             time: 0.0,
-            duration: MANTLE_LOW_DURATION,
+            duration: mantle_duration(MantleKind::LowRight, 0.5),
             start: Vec3::ZERO,
             target: Vec3::ZERO,
             cooldown: 0.0,
             start_offset: 0.0,
+            rate_scale: 1.0,
             yaw_start: 0.0,
             yaw_target: 0.0,
-            scale: 1.0,
-            q_total: Vec3::ZERO,
-            root_travel: Vec3::ZERO,
-            prev_pos: Vec3::ZERO,
             settle: 0.0,
         }
     }
@@ -325,71 +487,57 @@ impl AlsMantleState {
         kind: MantleKind,
         start: Vec3,
         target: Vec3,
-        top_height: f32,
+        mantling_height: f32,
         yaw_start: f32,
         yaw_target: f32,
     ) {
-        let duration = kind.duration();
-        let start_offset = start_offset_for_height(top_height);
-        let remaining_frac = ((duration - start_offset) / duration).max(1e-3);
-        let q_total = kind.clip_travel() * remaining_frac;
-        let scale = fit_translation_scale((target - start).length(), q_total.length());
+        let settings = kind.action_settings();
         self.active = true;
         self.kind = kind;
-        self.duration = duration;
         self.time = 0.0;
+        self.duration = mantle_duration(kind, mantling_height);
         self.start = start;
         self.target = target;
-        self.start_offset = start_offset;
+        self.cooldown = 0.0;
+        self.start_offset = mantle_start_time(kind, mantling_height);
+        self.rate_scale = settings.rate_scale;
         self.yaw_start = yaw_start;
         self.yaw_target = yaw_target;
-        self.scale = scale;
-        self.q_total = q_total;
-        self.root_travel = Vec3::ZERO;
-        self.prev_pos = start;
+        self.settle = 0.0;
     }
 
     pub fn clip_time(&self) -> f32 {
-        (self.time + self.start_offset).min(self.duration)
+        let settings = self.kind.action_settings();
+        (self.start_offset + self.time * self.rate_scale).min(settings.sequence_length)
     }
 
     pub fn action_end(&self) -> f32 {
-        self.duration - self.start_offset
+        self.duration
     }
 
-    fn reset_motion(&mut self) {
-        self.root_travel = Vec3::ZERO;
-        self.prev_pos = Vec3::ZERO;
+    pub fn location_warp_amount(&self) -> f32 {
+        mantle_motion_warp_location_amount(self.kind, self.clip_time())
+    }
+
+    pub fn rotation_warp_amount(&self) -> f32 {
+        mantle_motion_warp_rotation_amount(self.kind, self.clip_time())
     }
 
     pub fn tick(
         &mut self,
-        cmd: &AlsInputCommand,
-        loco: &LocomotionState,
-        stance: &Stance,
+        _cmd: &AlsInputCommand,
+        _loco: &LocomotionState,
+        _stance: &Stance,
         dt: f32,
     ) {
-        self.cooldown = (self.cooldown - dt).max(0.0);
         if !self.active {
-            return;
-        }
-        let abort = *loco != LocomotionState::Air && *loco != LocomotionState::Grounded
-            || *stance == Stance::Crouching
-            || cmd.roll_pressed;
-        if abort {
-            self.active = false;
-            self.time = 0.0;
-            self.cooldown = 0.4;
-            self.reset_motion();
             return;
         }
         self.time += dt;
         if self.time >= self.action_end() {
             self.active = false;
-            self.time = 0.0;
-            self.cooldown = 0.3;
+            self.time = self.action_end();
             self.settle = MANTLE_SETTLE_SECS;
-            self.reset_motion();
         }
     }
 }
@@ -398,102 +546,95 @@ impl AlsMantleState {
 mod tests {
     use super::*;
 
-    fn probe(h: f32, dist: f32, lateral: f32) -> LedgeProbe {
-        LedgeProbe {
-            face_distance: dist,
-            top_height: h,
-            lateral_sign: lateral,
-        }
+    #[test]
+    fn trace_settings_match_grounded_and_in_air_source_values() {
+        assert_eq!(MANTLE_GROUNDED_TRACE.minimum_ledge_height, 0.5);
+        assert_eq!(MANTLE_GROUNDED_TRACE.maximum_ledge_height, 2.25);
+        assert_eq!(MANTLE_GROUNDED_TRACE.reach_distance, 0.75);
+        assert_eq!(MANTLE_IN_AIR_TRACE.maximum_ledge_height, 1.5);
+        assert_eq!(MANTLE_IN_AIR_TRACE.reach_distance, 0.7);
+        assert_eq!(MANTLE_WALKABLE_FLOOR_COS, 0.71);
+        assert!((MANTLE_SLOPE_ANGLE_COS - 35.0_f32.to_radians().cos()).abs() < 1e-6);
     }
 
     #[test]
-    fn height_bands_select_high_low_or_reject() {
+    fn source_type_selection_uses_strict_high_threshold_and_overlay_route() {
         assert_eq!(
-            classify_mantle(&probe(1.3, 0.5, 1.0)),
-            Some(MantleKind::High)
+            select_mantle_kind(LocomotionState::Grounded, OverlayState::Default, 1.25),
+            MantleKind::LowRight
         );
         assert_eq!(
-            classify_mantle(&probe(1.25, 0.5, 1.0)),
-            Some(MantleKind::High),
-            "high threshold inclusive at 125cm"
+            select_mantle_kind(LocomotionState::Grounded, OverlayState::Default, 1.250_01),
+            MantleKind::High
         );
         assert_eq!(
-            classify_mantle(&probe(1.24, 0.5, 0.4)),
-            Some(MantleKind::LowRight),
-            "below threshold falls to low band"
+            select_mantle_kind(LocomotionState::Air, OverlayState::Injured, 0.6),
+            MantleKind::InAir
         );
         assert_eq!(
-            classify_mantle(&probe(0.8, 0.5, 0.4)),
-            Some(MantleKind::LowRight)
+            select_low_mantle_kind(OverlayState::Injured),
+            MantleKind::LowLeft
         );
         assert_eq!(
-            classify_mantle(&probe(0.8, 0.5, -0.4)),
-            Some(MantleKind::LowLeft)
+            select_low_mantle_kind(OverlayState::HandsTied),
+            MantleKind::LowBothHands
         );
-        assert_eq!(classify_mantle(&probe(0.2, 0.5, 1.0)), None);
-        assert_eq!(classify_mantle(&probe(1.9, 0.5, 1.0)), None);
-        assert_eq!(classify_mantle(&probe(0.9, 1.5, 1.0)), None);
+        assert_eq!(
+            select_low_mantle_kind(OverlayState::Box),
+            MantleKind::LowBox
+        );
     }
 
     #[test]
-    fn slope_cos_threshold_matches_35_deg() {
-        let cos35 = (35.0f32.to_radians()).cos();
-        assert!((MANTLE_SLOPE_ANGLE_COS - cos35).abs() < 1e-3);
-        assert!(MANTLE_TARGET_SPEED_THRESHOLD > 0.0);
-        assert!(MANTLE_HEADROOM_CLEARANCE > 1.7);
+    fn source_start_times_and_rate_scaled_durations_are_preserved() {
+        assert!((mantle_start_time(MantleKind::High, 1.25) - 0.6).abs() < 1e-6);
+        assert!(mantle_start_time(MantleKind::High, 2.0).abs() < 1e-6);
+        assert!((mantle_start_time(MantleKind::InAir, 1.25) - 0.8).abs() < 1e-6);
+        assert!((mantle_start_time(MantleKind::LowRight, 0.5) - 0.5).abs() < 1e-6);
+        assert!((mantle_start_time(MantleKind::LowRight, 1.0)).abs() < 1e-6);
+        assert!((mantle_duration(MantleKind::High, 2.0) - 2.666_666_7 / 1.2).abs() < 1e-6);
+        assert!(
+            (mantle_duration(MantleKind::InAir, 1.25) - (2.666_666_7 - 0.8) / 1.2).abs() < 1e-6
+        );
     }
 
     #[test]
-    fn start_offset_skips_deeper_for_lower_ledges() {
-        assert!((start_offset_for_height(0.45) - 0.5).abs() < 1e-5);
-        assert!(start_offset_for_height(MANTLE_HIGH_MIN_HEIGHT).abs() < 1e-5);
-        assert!(start_offset_for_height(MANTLE_MAX_LEDGE_HEIGHT).abs() < 1e-5);
-        let mid = start_offset_for_height(0.85);
-        assert!(mid > 0.2 && mid < 0.3, "mid ledge offset {mid}");
+    fn motion_warp_blend_modes_match_source_windows() {
+        assert!(mantle_motion_warp_location_amount(MantleKind::High, 0.3) <= 1e-6);
+        assert!((mantle_motion_warp_location_amount(MantleKind::High, 0.6) - 1.0).abs() < 1e-6);
+        assert!((mantle_motion_warp_rotation_amount(MantleKind::High, 0.45) - 0.5).abs() < 1e-6);
+        assert!((mantle_motion_warp_location_amount(MantleKind::LowRight, 0.7) - 1.0).abs() < 1e-6);
     }
 
     #[test]
-    fn warp_envelope_saturates_within_window() {
-        assert!(warp_envelope(0.0) <= 1e-5);
-        assert!(warp_envelope(0.15) > 0.4 && warp_envelope(0.15) < 0.7);
-        assert!((warp_envelope(0.3) - 1.0).abs() < 1e-5);
-        assert!((warp_envelope(2.0) - 1.0).abs() < 1e-5);
+    fn forward_trace_direction_limits_input_to_source_angles() {
+        let input = MantleDetectionInput {
+            actor_yaw: 0.0,
+            input_direction: Vec3::X,
+            ..default()
+        };
+        let direction = mantle_trace_direction(&input).unwrap();
+        assert!((yaw_from_direction(direction) - MANTLE_MAX_REACH_ANGLE).abs() < 1e-6);
+        let behind = MantleDetectionInput {
+            actor_yaw: 0.0,
+            input_direction: Vec3::Z,
+            ..default()
+        };
+        assert!(mantle_trace_direction(&behind).is_none());
     }
 
     #[test]
-    fn translation_scale_fits_and_clamps() {
-        let s = fit_translation_scale(1.25, 2.2);
-        assert!((s - 1.25 / 2.2).abs() < 1e-5);
-        assert!((fit_translation_scale(9.0, 1.0) - MANTLE_SCALE_MAX).abs() < 1e-5);
-        assert!((fit_translation_scale(0.05, 1.0) - MANTLE_SCALE_MIN).abs() < 1e-5);
-        assert!((fit_translation_scale(1.0, 0.0) - 1.0).abs() < 1e-5);
-    }
-
-    #[test]
-    fn weight_envelope_fades_before_clip_end() {
-        assert!(mantle_weight_at(0.0, 1.5) <= 0.01);
-        assert!((mantle_weight_at(0.5, 1.5) - 1.0).abs() < 1e-4);
-        assert!(mantle_weight_at(1.5, 1.5) <= 0.01);
-    }
-
-    #[test]
-    fn state_times_out_and_sets_cooldown() {
-        let mut s = AlsMantleState::default();
-        s.begin(MantleKind::LowLeft, Vec3::ZERO, Vec3::ONE, 0.8, 0.0, 0.0);
-        assert!(s.active);
-        let cmd = AlsInputCommand::default();
-        let end = s.action_end();
-        let iters = (end / (1.0 / 60.0)) as usize + 2;
-        for _ in 0..iters {
-            s.tick(
-                &cmd,
-                &LocomotionState::Grounded,
-                &Stance::Standing,
-                1.0 / 60.0,
-            );
-        }
-        assert!(!s.active);
-        assert!(s.cooldown > 0.0);
-        assert!(s.clip_time() <= MANTLE_LOW_DURATION);
+    fn state_drives_montage_time_with_rate_scale_without_custom_cooldown() {
+        let mut state = AlsMantleState::default();
+        state.begin(MantleKind::High, Vec3::ZERO, Vec3::ONE, 1.25, 0.0, 1.0);
+        assert!((state.clip_time() - 0.6).abs() < 1e-6);
+        state.tick(
+            &AlsInputCommand::default(),
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            0.25,
+        );
+        assert!((state.clip_time() - 0.9).abs() < 1e-6);
+        assert_eq!(state.cooldown, 0.0);
     }
 }
