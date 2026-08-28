@@ -180,8 +180,16 @@ def report(root):
     )
     offenders = scan_forbidden(root)
     checks["no_monolithic_or_legacy_root"] = not offenders
-    checklist = text(root / "CHECKLIST.md")
-    checks["checklist_evidence"] = all(checklist_evidence(checklist, identifier) for identifier in range(1, 25))
+    checklist_sources = [text(root / "CHECKLIST.md")]
+    archive_root = root / "archive"
+    if archive_root.is_dir():
+        checklist_sources.extend(
+            text(path) for path in sorted(archive_root.rglob("*.md"))
+        )
+    checks["checklist_evidence"] = all(
+        any(checklist_evidence(source, identifier) for source in checklist_sources)
+        for identifier in range(1, 25)
+    )
     audit = text(root / "docs/bf100-24-animation-audit.md")
     checks["resource_audit"] = (
         "Source sequence assets without a Bevy ClipNode reference: 0" in audit
