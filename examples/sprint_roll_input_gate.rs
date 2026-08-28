@@ -53,6 +53,7 @@ struct GateState {
     tap_roll: bool,
     prehold_sprint: bool,
     held_sprint: bool,
+    latched_sprint: bool,
     released_sprint: bool,
 }
 
@@ -84,17 +85,22 @@ fn inject_phase(
         (With<Action<RollAction>>, Without<Action<SprintAction>>),
     >,
     mut sprint_actions: Query<
-        (&mut TriggerState, &mut ActionEvents),
+        (
+            &mut TriggerState,
+            &mut ActionEvents,
+            &mut Action<SprintAction>,
+        ),
         (With<Action<SprintAction>>, Without<Action<RollAction>>),
     >,
 ) {
-    if state.pending || state.phase >= 5 || characters.single().is_err() {
+    if state.pending || state.phase >= 6 || characters.single().is_err() {
         return;
     }
     let Ok((mut roll_state, mut roll_events)) = roll_actions.single_mut() else {
         return;
     };
-    let Ok((mut sprint_state, mut sprint_events)) = sprint_actions.single_mut() else {
+    let Ok((mut sprint_state, mut sprint_events, mut sprint_action)) = sprint_actions.single_mut()
+    else {
         return;
     };
     match state.phase {
@@ -103,30 +109,42 @@ fn inject_phase(
             *roll_events = ActionEvents::START | ActionEvents::ONGOING;
             *sprint_state = TriggerState::None;
             *sprint_events = ActionEvents::empty();
+            **sprint_action = false;
         }
         1 => {
             *roll_state = TriggerState::Fired;
             *roll_events = ActionEvents::FIRE;
             *sprint_state = TriggerState::None;
             *sprint_events = ActionEvents::empty();
+            **sprint_action = false;
         }
         2 => {
             *roll_state = TriggerState::None;
             *roll_events = ActionEvents::COMPLETE;
             *sprint_state = TriggerState::Ongoing;
             *sprint_events = ActionEvents::START | ActionEvents::ONGOING;
+            **sprint_action = true;
         }
         3 => {
             *roll_state = TriggerState::None;
             *roll_events = ActionEvents::empty();
             *sprint_state = TriggerState::Fired;
             *sprint_events = ActionEvents::FIRE;
+            **sprint_action = true;
+        }
+        4 => {
+            *roll_state = TriggerState::None;
+            *roll_events = ActionEvents::empty();
+            *sprint_state = TriggerState::None;
+            *sprint_events = ActionEvents::empty();
+            **sprint_action = true;
         }
         _ => {
             *roll_state = TriggerState::None;
             *roll_events = ActionEvents::empty();
             *sprint_state = TriggerState::None;
             *sprint_events = ActionEvents::COMPLETE;
+            **sprint_action = false;
         }
     }
     state.pending = true;
@@ -156,6 +174,7 @@ fn verify_phase(
         1 => command.roll_pressed && !command.sprint_held,
         2 => !command.roll_pressed && !command.sprint_held,
         3 => !command.roll_pressed && command.sprint_held && *gait == Gait::Sprinting,
+        4 => !command.roll_pressed && command.sprint_held && *gait == Gait::Sprinting,
         _ => !command.roll_pressed && !command.sprint_held && *gait == Gait::Running,
     };
     if !pass {
@@ -171,37 +190,43 @@ fn verify_phase(
         1 => state.tap_roll = command.roll_pressed,
         2 => state.prehold_sprint = command.sprint_held,
         3 => state.held_sprint = command.sprint_held,
+        4 => state.latched_sprint = command.sprint_held,
         _ => state.released_sprint = !command.sprint_held && *gait == Gait::Running,
     }
     state.phase += 1;
     state.pending = false;
-    if state.phase == 5 {
+    if state.phase == 6 {
         let tap_secs = tap.timer().duration().as_secs_f32();
         let hold_secs = hold.timer().duration().as_secs_f32();
+        let one_shot = hold.one_shot;
         let complete = !state.press_roll
             && state.tap_roll
             && !state.prehold_sprint
             && state.held_sprint
+            && state.latched_sprint
             && state.released_sprint
+            && one_shot
             && (tap_secs - ROLL_TAP_SECS).abs() < 1e-6
             && (hold_secs - SPRINT_HOLD_SECS).abs() < 1e-6;
         if complete {
             info!(
-                "[BCHAR4][VERDICT] press_roll={} tap_roll={} prehold_sprint={} held_sprint={} released_sprint={} tap_secs={tap_secs:.3} hold_secs={hold_secs:.3} -> PASS",
+                "[BCHAR4][VERDICT] press_roll={} tap_roll={} prehold_sprint={} held_sprint={} latched_sprint={} released_sprint={} one_shot={one_shot} tap_secs={tap_secs:.3} hold_secs={hold_secs:.3} -> PASS",
                 state.press_roll,
                 state.tap_roll,
                 state.prehold_sprint,
                 state.held_sprint,
+                state.latched_sprint,
                 state.released_sprint,
             );
             exit.write(AppExit::Success);
         } else {
             error!(
-                "[BCHAR4][VERDICT] press_roll={} tap_roll={} prehold_sprint={} held_sprint={} released_sprint={} tap_secs={tap_secs:.3} hold_secs={hold_secs:.3} -> FAIL",
+                "[BCHAR4][VERDICT] press_roll={} tap_roll={} prehold_sprint={} held_sprint={} latched_sprint={} released_sprint={} one_shot={one_shot} tap_secs={tap_secs:.3} hold_secs={hold_secs:.3} -> FAIL",
                 state.press_roll,
                 state.tap_roll,
                 state.prehold_sprint,
                 state.held_sprint,
+                state.latched_sprint,
                 state.released_sprint,
             );
             exit.write(AppExit::Error(NonZeroU8::new(8).unwrap()));

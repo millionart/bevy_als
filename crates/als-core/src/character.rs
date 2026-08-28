@@ -31,7 +31,7 @@ pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
 pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
-pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.02;
+pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
 pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
 
@@ -171,11 +171,27 @@ impl AlsCharacterBundle {
             params: AlsMovementParamsHandle(params),
             input_command: AlsInputCommand::default(),
             locomotion_state: LocomotionState::Grounded,
-            rotation_mode: RotationMode::VelocityDirection,
+            rotation_mode: RotationMode::ViewDirection,
             stance: Stance::Standing,
-            gait: Gait::Walking,
+            gait: Gait::Running,
             overlay_state: OverlayState::default(),
             request: AlsStateRequest::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundle_initial_state_matches_b_als_character() {
+        let bundle = AlsCharacterBundle::new(
+            Handle::<AlsMovementParams>::default(),
+            Handle::<AlsControlSchemeConfig>::default(),
+        );
+        assert_eq!(bundle.rotation_mode, RotationMode::ViewDirection);
+        assert_eq!(bundle.gait, Gait::Running);
+        assert_eq!(bundle.stance, Stance::Standing);
     }
 }

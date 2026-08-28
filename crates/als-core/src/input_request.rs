@@ -142,7 +142,9 @@ impl Plugin for AlsInputRequestPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            input_state_request_system.before(state_transition_system),
+            input_state_request_system
+                .before(crate::aim::aim_rotation_mode_system)
+                .before(state_transition_system),
         );
     }
 }

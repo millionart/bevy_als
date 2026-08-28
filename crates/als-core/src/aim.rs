@@ -2,8 +2,12 @@ use bevy::ecs::message::Message;
 use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
-use crate::state::RotationMode;
+use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
+
+pub const SPRINT_HAS_PRIORITY_OVER_AIMING: bool = true;
+pub const ROTATE_TO_VELOCITY_WHEN_SPRINTING: bool = true;
+pub const ALLOW_AIMING_IN_AIR: bool = true;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsLastFreeRotationMode(pub RotationMode);
@@ -21,6 +25,10 @@ pub fn aim_rotation_mode_system(
             Entity,
             &AlsInputCommand,
             Option<&crate::motion::AlsInputOverride>,
+            &Gait,
+            &Stance,
+            &LocomotionState,
+            Has<crate::input_request::AlsFirstPersonView>,
             &RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
             &mut AlsStateRequest,
@@ -29,7 +37,9 @@ pub fn aim_rotation_mode_system(
     >,
     mut commands: Commands,
 ) {
-    for (entity, cmd, ovr, current, last_free, mut request) in &mut q {
+    for (entity, cmd, ovr, gait, stance, loco, first_person, current, last_free, mut request) in
+        &mut q
+    {
         let base = if ovr.map(|o| o.0.aim_held).unwrap_or(false) {
             let mut c = *cmd;
             c.aim_held = true;
@@ -37,50 +47,64 @@ pub fn aim_rotation_mode_system(
         } else {
             *cmd
         };
-        let aiming_now = *current == RotationMode::Aiming;
         let want_aim = base.aim_held;
+        let stored = last_free.as_deref().map(|lf| lf.0).unwrap_or(*current);
+        let free = if stored == RotationMode::Aiming {
+            default_free_mode()
+        } else {
+            stored
+        };
+        if last_free.is_none() && *current != RotationMode::Aiming {
+            commands
+                .entity(entity)
+                .insert(AlsLastFreeRotationMode(free));
+        }
 
-        if want_aim && !aiming_now {
-            let stored = last_free.as_deref().map(|lf| lf.0).unwrap_or(*current);
-            let free = if stored == RotationMode::Aiming {
-                default_free_mode()
+        let sprinting = *loco == LocomotionState::Grounded
+            && *stance == Stance::Standing
+            && base.sprint_held
+            && base.move_dir.length_squared() > 1e-6
+            && (*gait == Gait::Sprinting || SPRINT_HAS_PRIORITY_OVER_AIMING);
+        let desired = if *loco == LocomotionState::Air {
+            if want_aim && ALLOW_AIMING_IN_AIR {
+                RotationMode::Aiming
+            } else if first_person {
+                RotationMode::ViewDirection
             } else {
-                stored
-            };
-            match last_free {
-                Some(mut lf) => lf.0 = free,
-                None => {
-                    commands
-                        .entity(entity)
-                        .insert(AlsLastFreeRotationMode(free));
-                }
+                free
             }
-            request.rotation_mode = Some(RotationMode::Aiming);
-            events.write(AimStateChanged {
-                entity,
-                aiming: true,
-            });
-        } else if !want_aim && aiming_now {
-            let stored = last_free
-                .as_deref()
-                .map(|lf| lf.0)
-                .unwrap_or_else(default_free_mode);
-            let free = if stored == RotationMode::Aiming {
-                default_free_mode()
+        } else if first_person {
+            if want_aim && (!sprinting || !SPRINT_HAS_PRIORITY_OVER_AIMING) {
+                RotationMode::Aiming
             } else {
-                stored
-            };
-            request.rotation_mode = Some(free);
+                RotationMode::ViewDirection
+            }
+        } else if sprinting {
+            if want_aim && !SPRINT_HAS_PRIORITY_OVER_AIMING {
+                RotationMode::Aiming
+            } else if ROTATE_TO_VELOCITY_WHEN_SPRINTING {
+                RotationMode::VelocityDirection
+            } else {
+                free
+            }
+        } else if want_aim {
+            RotationMode::Aiming
+        } else {
+            free
+        };
+
+        if *current != desired {
+            request.rotation_mode = Some(desired);
             events.write(AimStateChanged {
                 entity,
-                aiming: false,
+                aiming: desired == RotationMode::Aiming,
             });
         }
     }
 }
 
 const fn default_free_mode() -> RotationMode {
-    RotationMode::VelocityDirection
+    RotationMode::ViewDirection
 }
 
 pub struct AlsAimPlugin;
@@ -214,6 +238,34 @@ mod tests {
             stored.0,
             RotationMode::Aiming,
             "stored free mode must never be Aiming"
+        );
+    }
+
+    #[test]
+    fn sprint_with_aim_uses_velocity_direction_then_restores_aiming() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin, AlsAimPlugin));
+        let e = spawn_character(&mut app, true, RotationMode::ViewDirection);
+        app.world_mut().entity_mut(e).insert(AlsInputCommand {
+            aim_held: true,
+            sprint_held: true,
+            move_dir: Vec2::Y,
+            ..Default::default()
+        });
+        app.update();
+        assert_eq!(
+            *app.world().get::<RotationMode>(e).unwrap(),
+            RotationMode::VelocityDirection
+        );
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(e)
+            .unwrap()
+            .sprint_held = false;
+        app.update();
+        assert_eq!(
+            *app.world().get::<RotationMode>(e).unwrap(),
+            RotationMode::Aiming
         );
     }
 }

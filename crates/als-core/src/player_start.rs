@@ -1,7 +1,7 @@
 use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 
-pub const ALS_PLAYER_START_SOURCE_CLEARANCE: f32 = 0.02;
+pub const ALS_PLAYER_START_SOURCE_CLEARANCE: f32 = 0.019;
 pub const PLAYER_START_VERTICAL_ADJUSTMENTS: [f32; 8] =
     [0.0, 0.005, 0.01, 0.02, 0.04, 0.08, 0.16, 0.32];
 
@@ -168,8 +168,8 @@ mod tests {
 
     #[test]
     fn player_start_height_preserves_the_source_clearance() {
-        assert!((player_start_grounded_height(0.0, 0.90) - 0.92).abs() < 1e-6);
-        assert!((player_start_grounded_height(1.25, 0.90) - 2.17).abs() < 1e-6);
+        assert!((player_start_grounded_height(0.0, 0.90) - 0.919).abs() < 1e-6);
+        assert!((player_start_grounded_height(1.25, 0.90) - 2.169).abs() < 1e-6);
     }
 
     #[test]

@@ -5,10 +5,10 @@ use crate::motion::{AlsViewYaw, view_relative_move_axes, view_relative_move_dire
 use crate::start_stop::{MoveDirection, classify};
 use crate::state::{LocomotionState, Stance};
 
-pub const ROLL_DURATION_SECS: f32 = 1.5;
+pub const ROLL_DURATION_SECS: f32 = 1.5 / 1.3;
 pub const ROLL_DISTANCE_METERS: f32 = 3.0;
-pub const ROLL_WEIGHT_IN_SECS: f32 = 0.12;
-pub const ROLL_WEIGHT_OUT_SECS: f32 = 0.18;
+pub const ROLL_WEIGHT_IN_SECS: f32 = 0.1;
+pub const ROLL_WEIGHT_OUT_SECS: f32 = 0.3;
 pub const ROLL_COOLDOWN_SECS: f32 = 0.35;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -199,7 +199,7 @@ mod tests {
             assert!(iters < 200, "roll never ended");
         }
         assert!(
-            (85..=95).contains(&iters),
+            (65..=75).contains(&iters),
             "roll ends near duration, iters={iters}"
         );
         s.update(
@@ -239,6 +239,13 @@ mod tests {
         assert!((roll_weight_at(ROLL_WEIGHT_IN_SECS) - 1.0).abs() < 1e-4);
         assert!((roll_weight_at(ROLL_DURATION_SECS * 0.5) - 1.0).abs() < 1e-4);
         assert!(roll_weight_at(ROLL_DURATION_SECS) <= 0.01);
+    }
+
+    #[test]
+    fn source_clip_rate_and_blend_windows_are_preserved() {
+        assert!((ROLL_DURATION_SECS - 1.5 / 1.3).abs() < 1e-6);
+        assert!((ROLL_WEIGHT_IN_SECS - 0.1).abs() < 1e-6);
+        assert!((ROLL_WEIGHT_OUT_SECS - 0.3).abs() < 1e-6);
     }
 
     #[test]

@@ -18,8 +18,11 @@ use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::transition::AlsStateRequest;
 
-const MAX_SLOPE_DEGREES: f32 = 50.0;
-const WALK_CLING_DISTANCE: f32 = 0.5;
+const MAX_SLOPE_DEGREES: f32 = 44.765_083;
+const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+const AIR_CONTROL: f32 = 0.15;
+const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
+const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
 const HEADROOM_SKIN: f32 = 0.01;
 const FOOTROOM_SKIN: f32 = 0.03;
 const MAX_STEP_HEIGHT: f32 = 0.45;
@@ -38,10 +41,23 @@ pub fn effective_gait(stance: Stance, gait: Gait) -> Gait {
 }
 
 pub fn gait_max_speed(params: &AlsMovementParams, stance: &Stance, gait: &Gait) -> f32 {
+    gait_max_speed_for_rotation(params, stance, gait, RotationMode::VelocityDirection)
+}
+
+pub fn gait_max_speed_for_rotation(
+    params: &AlsMovementParams,
+    stance: &Stance,
+    gait: &Gait,
+    rotation_mode: RotationMode,
+) -> f32 {
     match stance {
         Stance::Crouching => params.crouch.max_walk_speed_crouched,
         Stance::Standing => {
-            let s = params.stance_speeds(*stance);
+            let s = if rotation_mode == RotationMode::Aiming {
+                &params.speeds.aiming_standing
+            } else {
+                &params.speeds.standing
+            };
             match effective_gait(*stance, *gait) {
                 Gait::Walking => s.max_walk_speed,
                 Gait::Running => s.max_run_speed,
@@ -68,6 +84,18 @@ fn turn_angvel(mode: RotationMode) -> f32 {
     }
 }
 
+pub fn air_acceleration_for_horizontal_speed(
+    params: &AlsMovementParams,
+    horizontal_speed: f32,
+) -> f32 {
+    let multiplier = if horizontal_speed < AIR_CONTROL_BOOST_SPEED {
+        AIR_CONTROL_BOOST_MULTIPLIER
+    } else {
+        1.0
+    };
+    params.acceleration.max_acceleration * AIR_CONTROL * multiplier
+}
+
 pub fn apply_als_control_scheme_config(
     config: &mut AlsControlSchemeConfig,
     params: &AlsMovementParams,
@@ -75,13 +103,16 @@ pub fn apply_als_control_scheme_config(
     stance: Stance,
     rotation_mode: RotationMode,
     capsule_crouched: bool,
+    horizontal_speed: f32,
 ) {
-    config.basis.speed = gait_max_speed(params, &stance, &gait);
+    config.basis.speed = gait_max_speed_for_rotation(params, &stance, &gait, rotation_mode);
     config.basis.float_height = params.crouch.standing_capsule_half_height
         + ALS_CHARACTER_FLOOR_CLEARANCE
         + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
     config.basis.acceleration = params.acceleration.max_acceleration;
+    config.basis.air_acceleration = air_acceleration_for_horizontal_speed(params, horizontal_speed);
     config.basis.coyote_time = params.jump.coyote_time;
+    config.basis.free_fall_extra_gravity = 0.0;
     config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
         distance_to_collider_top: if capsule_crouched {
             params.crouch.crouched_capsule_half_height
@@ -96,7 +127,14 @@ pub fn apply_als_control_scheme_config(
     let gravity_scale = params.jump.gravity_scale.max(1e-3);
     config.jump.height =
         params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
+    config.jump.upslope_extra_gravity = 0.0;
+    config.jump.takeoff_extra_gravity = 0.0;
+    config.jump.takeoff_above_velocity = f32::INFINITY;
+    config.jump.fall_extra_gravity = 0.0;
     config.jump.shorten_extra_gravity = 0.0;
+    config.jump.peak_prevention_at_upward_velocity = f32::INFINITY;
+    config.jump.peak_prevention_extra_gravity = 0.0;
+    config.jump.input_buffer_time = params.jump.jump_buffer_time;
     config.crouch.float_offset =
         -(params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height);
 }
@@ -106,10 +144,11 @@ pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsContr
     apply_als_control_scheme_config(
         &mut config,
         params,
-        Gait::Walking,
+        Gait::Running,
         Stance::Standing,
-        RotationMode::VelocityDirection,
+        RotationMode::ViewDirection,
         false,
+        0.0,
     );
     config
 }
@@ -273,11 +312,12 @@ fn tnua_config_sync_system(
         &Stance,
         &RotationMode,
         Has<AlsCapsuleCrouched>,
+        &LinearVelocity,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
 ) {
-    for (config, handle, gait, stance, rotation_mode, capsule_crouched) in &q {
+    for (config, handle, gait, stance, rotation_mode, capsule_crouched, velocity) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -291,6 +331,7 @@ fn tnua_config_sync_system(
             *stance,
             *rotation_mode,
             capsule_crouched,
+            Vec2::new(velocity.x, velocity.z).length(),
         );
     }
 }
@@ -706,12 +747,46 @@ mod tests {
     }
 
     #[test]
+    fn aiming_walk_speed_matches_the_source_table() {
+        let p = AlsMovementParams::default();
+        assert!(
+            (gait_max_speed_for_rotation(
+                &p,
+                &Stance::Standing,
+                &Gait::Walking,
+                RotationMode::Aiming,
+            ) - 1.65)
+                .abs()
+                < 1e-6
+        );
+        assert!(
+            (gait_max_speed_for_rotation(
+                &p,
+                &Stance::Standing,
+                &Gait::Running,
+                RotationMode::Aiming,
+            ) - 3.75)
+                .abs()
+                < 1e-6
+        );
+    }
+
+    #[test]
     fn initial_control_scheme_matches_the_first_runtime_sync() {
         let params = AlsMovementParams::default();
         let config = initial_als_control_scheme_config(&params);
-        assert!((config.basis.float_height - 0.925).abs() < 1e-6);
-        assert!((config.basis.speed - 1.75).abs() < 1e-6);
+        assert!((config.basis.float_height - 0.924).abs() < 1e-6);
+        assert!((config.basis.speed - 3.75).abs() < 1e-6);
         assert!((config.basis.cling_distance - WALK_CLING_DISTANCE).abs() < 1e-6);
+        assert!((config.basis.air_acceleration - 6.0).abs() < 1e-6);
+        assert_eq!(config.basis.coyote_time, 0.0);
+        assert_eq!(config.basis.free_fall_extra_gravity, 0.0);
+        assert_eq!(config.jump.upslope_extra_gravity, 0.0);
+        assert_eq!(config.jump.takeoff_extra_gravity, 0.0);
+        assert_eq!(config.jump.fall_extra_gravity, 0.0);
+        assert_eq!(config.jump.shorten_extra_gravity, 0.0);
+        assert_eq!(config.jump.peak_prevention_extra_gravity, 0.0);
+        assert_eq!(config.jump.input_buffer_time, 0.0);
         assert_eq!(
             config
                 .basis
@@ -734,5 +809,12 @@ mod tests {
             );
         }
         assert!((p.crouch.max_walk_speed_crouched - 1.50).abs() < 1e-6);
+    }
+
+    #[test]
+    fn air_control_matches_source_base_and_low_speed_boost() {
+        let p = AlsMovementParams::default();
+        assert!((air_acceleration_for_horizontal_speed(&p, 0.0) - 6.0).abs() < 1e-6);
+        assert!((air_acceleration_for_horizontal_speed(&p, 0.25) - 3.0).abs() < 1e-6);
     }
 }

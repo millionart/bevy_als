@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
 use bevy_enhanced_input::prelude::*;
 
-pub const SPRINT_HOLD_SECS: f32 = 1.0;
-pub const ROLL_TAP_SECS: f32 = 0.2;
+pub const SPRINT_HOLD_SECS: f32 = 0.1;
+pub const ROLL_TAP_SECS: f32 = 0.3;
 
 #[derive(InputAction)]
 #[action_output(Vec2)]
@@ -80,8 +80,12 @@ pub struct ToggleUiAction;
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsSprintInputLatch(pub bool);
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Reflect)]
 #[reflect(Default)]
+#[require(AlsSprintInputLatch)]
 pub struct AlsInputCommand {
     pub move_dir: Vec2,
     pub look_delta: Vec2,
@@ -112,6 +116,16 @@ impl AlsInputCommand {
 
 pub fn roll_pressed_from_events(events: ActionEvents) -> bool {
     events.contains(ActionEvents::FIRE)
+}
+
+pub fn sprint_held_from(trigger: TriggerState, raw_held: bool, latched: &mut bool) -> bool {
+    if trigger == TriggerState::Fired {
+        *latched = true;
+    }
+    if !raw_held {
+        *latched = false;
+    }
+    *latched
 }
 
 #[derive(Debug, Clone)]
@@ -165,12 +179,9 @@ impl Default for AlsInputMap {
             jump: vec![KeyCode::Space.into(), GamepadButton::South.into()],
             crouch: vec![KeyCode::ControlLeft.into(), GamepadButton::LeftThumb.into()],
             sprint: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
-            aim: vec![
-                MouseButton::Right.into(),
-                GamepadButton::RightTrigger.into(),
-            ],
+            aim: vec![MouseButton::Right.into(), GamepadButton::LeftTrigger.into()],
             roll: vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()],
-            walk: vec![KeyCode::AltLeft.into(), GamepadButton::LeftTrigger.into()],
+            walk: vec![KeyCode::AltLeft.into(), GamepadButton::RightTrigger.into()],
             ragdoll: vec![KeyCode::KeyX.into(), GamepadButton::West.into()],
             rotation_mode: vec![KeyCode::Digit1.into(), GamepadButton::DPadLeft.into()],
             view_mode: vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()],
@@ -221,7 +232,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<SprintAction>::new(),
-                Hold::new(SPRINT_HOLD_SECS),
+                Hold::new(SPRINT_HOLD_SECS).one_shot(true),
                 Bindings::spawn(map.sprint.clone()),
             ),
             (
@@ -265,7 +276,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<NextOverlayModeAction>::new(),
-                EIPress::default(),
+                Down::default(),
                 Clamp::pos(),
                 bindings![
                     GamepadButton::DPadUp,
@@ -274,7 +285,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<PreviousOverlayModeAction>::new(),
-                EIPress::default(),
+                Down::default(),
                 Clamp::pos(),
                 bindings![
                     GamepadButton::DPadDown,
@@ -297,13 +308,17 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
 
 #[allow(clippy::too_many_arguments)]
 pub fn als_input_bridge_system(
-    mut receivers: Query<(&mut AlsInputCommand, &Actions<OnFoot>)>,
+    mut receivers: Query<(
+        &mut AlsInputCommand,
+        &Actions<OnFoot>,
+        &mut AlsSprintInputLatch,
+    )>,
     keys: Res<ButtonInput<KeyCode>>,
     moves: Query<&Action<MoveAction>>,
     mouse_looks: Query<&Action<LookMouseAction>>,
     looks: Query<&Action<LookAction>>,
     jumps: Query<(&TriggerState, &ActionEvents), With<Action<JumpAction>>>,
-    sprints: Query<&TriggerState, With<Action<SprintAction>>>,
+    sprints: Query<(&TriggerState, &Action<SprintAction>), With<Action<SprintAction>>>,
     aims: Query<&TriggerState, With<Action<AimAction>>>,
     crouches: Query<&ActionEvents, With<Action<CrouchAction>>>,
     rolls: Query<&ActionEvents, With<Action<RollAction>>>,
@@ -314,13 +329,13 @@ pub fn als_input_bridge_system(
     switch_shoulders: Query<&ActionEvents, With<Action<SwitchShoulderAction>>>,
     mut ui_actions: (
         Query<(&TriggerState, &Action<OverlayMenuAction>)>,
-        Query<&ActionEvents, With<Action<NextOverlayModeAction>>>,
-        Query<&ActionEvents, With<Action<PreviousOverlayModeAction>>>,
+        Query<&TriggerState, With<Action<NextOverlayModeAction>>>,
+        Query<&TriggerState, With<Action<PreviousOverlayModeAction>>>,
         Query<&ActionEvents, With<Action<SlomoAction>>>,
         Query<&ActionEvents, With<Action<ToggleUiAction>>>,
     ),
 ) {
-    for (mut cmd, actions) in &mut receivers {
+    for (mut cmd, actions, mut sprint_latch) in &mut receivers {
         cmd.reset();
 
         if let Some(mv) = moves.iter_many(actions).next() {
@@ -340,8 +355,9 @@ pub fn als_input_bridge_system(
             cmd.jump_pressed = events.contains(ActionEvents::START);
         }
 
-        if let Some(state) = sprints.iter_many(actions).next() {
-            cmd.sprint_held = *state == TriggerState::Fired;
+        if let Some((state, action)) = sprints.iter_many(actions).next() {
+            let raw_held = **action;
+            cmd.sprint_held = sprint_held_from(*state, raw_held, &mut sprint_latch.0);
         }
 
         if let Some(state) = aims.iter_many(actions).next() {
@@ -382,12 +398,12 @@ pub fn als_input_bridge_system(
             cmd.overlay_menu_held = *state == TriggerState::Fired;
         }
 
-        if let Some(events) = next_overlays.iter_many(actions).next() {
-            cmd.next_overlay_mode_pressed = events.contains(ActionEvents::START);
+        if let Some(state) = next_overlays.iter_many(actions).next() {
+            cmd.next_overlay_mode_pressed = *state == TriggerState::Fired;
         }
 
-        if let Some(events) = previous_overlays.iter_many(actions).next() {
-            cmd.previous_overlay_mode_pressed = events.contains(ActionEvents::START);
+        if let Some(state) = previous_overlays.iter_many(actions).next() {
+            cmd.previous_overlay_mode_pressed = *state == TriggerState::Fired;
         }
 
         if let Some(events) = slomos.iter_many(actions).next() {
@@ -486,6 +502,15 @@ mod tests {
     }
 
     #[test]
+    fn sprint_latch_persists_after_one_shot_hold_and_clears_on_release() {
+        let mut latched = false;
+        assert!(!sprint_held_from(TriggerState::Ongoing, true, &mut latched));
+        assert!(sprint_held_from(TriggerState::Fired, true, &mut latched));
+        assert!(sprint_held_from(TriggerState::None, true, &mut latched));
+        assert!(!sprint_held_from(TriggerState::None, false, &mut latched));
+    }
+
+    #[test]
     fn bridge_tolerates_missing_actions_and_entities() {
         let mut world = World::new();
         world.insert_resource(ButtonInput::<KeyCode>::default());
@@ -534,9 +559,123 @@ mod tests {
             );
         }
 
+        let (sprint_one_shot, sprint_secs) = {
+            let sprint = world
+                .query_filtered::<&Hold, With<Action<SprintAction>>>()
+                .single(world)
+                .unwrap();
+            (sprint.one_shot, sprint.timer().duration().as_secs_f32())
+        };
+        let roll_secs = {
+            let roll = world
+                .query_filtered::<&Tap, With<Action<RollAction>>>()
+                .single(world)
+                .unwrap();
+            roll.timer().duration().as_secs_f32()
+        };
+        let next_actuation = {
+            let next_overlay = world
+                .query_filtered::<&Down, With<Action<NextOverlayModeAction>>>()
+                .single(world)
+                .unwrap();
+            next_overlay.actuation
+        };
+        let previous_actuation = {
+            let previous_overlay = world
+                .query_filtered::<&Down, With<Action<PreviousOverlayModeAction>>>()
+                .single(world)
+                .unwrap();
+            previous_overlay.actuation
+        };
+        assert!(sprint_one_shot);
+        assert!((sprint_secs - SPRINT_HOLD_SECS).abs() < 1e-6);
+        assert!((roll_secs - ROLL_TAP_SECS).abs() < 1e-6);
+        assert!((next_actuation - 0.5).abs() < f32::EPSILON);
+        assert!((previous_actuation - 0.5).abs() < f32::EPSILON);
+
         let mut cmds = app.world_mut().commands();
         spawn_als_actions(&mut cmds, player, &AlsInputMap::default());
         app.update();
+    }
+
+    #[test]
+    fn default_input_map_matches_the_als_context() {
+        let map = AlsInputMap::default();
+        assert_eq!(map.move_north, KeyCode::KeyW.into());
+        assert_eq!(map.move_south, KeyCode::KeyS.into());
+        assert_eq!(map.move_west, KeyCode::KeyA.into());
+        assert_eq!(map.move_east, KeyCode::KeyD.into());
+        assert_eq!(
+            map.move_stick,
+            [
+                GamepadAxis::LeftStickX.into(),
+                GamepadAxis::LeftStickY.into()
+            ]
+        );
+        assert_eq!(map.look_mouse, Binding::mouse_motion());
+        assert_eq!(
+            map.look_stick,
+            [
+                GamepadAxis::RightStickX.into(),
+                GamepadAxis::RightStickY.into()
+            ]
+        );
+        assert_eq!(map.look_left, KeyCode::ArrowLeft.into());
+        assert_eq!(map.look_right, KeyCode::ArrowRight.into());
+        assert_eq!(map.look_up, KeyCode::ArrowUp.into());
+        assert_eq!(map.look_down, KeyCode::ArrowDown.into());
+        assert_eq!(
+            map.jump,
+            vec![KeyCode::Space.into(), GamepadButton::South.into()]
+        );
+        assert_eq!(
+            map.crouch,
+            vec![KeyCode::ControlLeft.into(), GamepadButton::LeftThumb.into()]
+        );
+        assert_eq!(
+            map.sprint,
+            vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()]
+        );
+        assert_eq!(
+            map.aim,
+            vec![MouseButton::Right.into(), GamepadButton::LeftTrigger.into()]
+        );
+        assert_eq!(
+            map.roll,
+            vec![KeyCode::ShiftLeft.into(), GamepadButton::East.into()]
+        );
+        assert_eq!(
+            map.walk,
+            vec![KeyCode::AltLeft.into(), GamepadButton::RightTrigger.into()]
+        );
+        assert_eq!(
+            map.ragdoll,
+            vec![KeyCode::KeyX.into(), GamepadButton::West.into()]
+        );
+        assert_eq!(
+            map.rotation_mode,
+            vec![KeyCode::Digit1.into(), GamepadButton::DPadLeft.into()]
+        );
+        assert_eq!(
+            map.view_mode,
+            vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()]
+        );
+        assert_eq!(
+            map.switch_shoulder,
+            vec![KeyCode::KeyC.into(), GamepadButton::RightThumb.into()]
+        );
+        assert_eq!(
+            map.overlay_menu,
+            vec![KeyCode::KeyQ.into(), GamepadButton::North.into()]
+        );
+        assert_eq!(
+            map.slomo,
+            vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()]
+        );
+        assert_eq!(
+            map.toggle_ui,
+            vec![KeyCode::Tab.into(), GamepadButton::Start.into()]
+        );
     }
 
     #[test]

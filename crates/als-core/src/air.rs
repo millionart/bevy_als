@@ -167,7 +167,6 @@ fn air_state_system(
     spatial: SpatialQuery,
     mut q: Query<AirQueryItem, With<AlsCharacter>>,
     params_assets: Res<Assets<crate::params::AlsMovementParams>>,
-    handles: Query<&crate::character::AlsMovementParamsHandle>,
     crouched: Query<Has<crate::motion::AlsCapsuleCrouched>>,
 ) {
     let dt = time.delta_secs();
@@ -208,7 +207,7 @@ pub struct GroundPrediction {
     pub ground_valid: bool,
 }
 
-pub const WALKABLE_FLOOR_COS: f32 = 0.819;
+pub const WALKABLE_FLOOR_COS: f32 = 0.71;
 
 pub fn ground_prediction_sweep(
     spatial: &SpatialQuery,
@@ -229,18 +228,19 @@ pub fn ground_prediction_sweep(
     if -velocity.y <= GROUND_PREDICTION_VERTICAL_VY_THRESHOLD {
         return result;
     }
-    let Ok(dir) = Dir3::new(Vec3::new(
-        velocity.x,
-        velocity.y.clamp(-GROUND_PREDICTION_MIN_VY, -GROUND_PREDICTION_MAX_VY),
-        velocity.z,
-    )
-    .normalize_or_zero()) else {
+    let Ok(dir) = Dir3::new(
+        Vec3::new(
+            velocity.x,
+            velocity
+                .y
+                .clamp(-GROUND_PREDICTION_MIN_VY, -GROUND_PREDICTION_MAX_VY),
+            velocity.z,
+        )
+        .normalize_or_zero(),
+    ) else {
         return result;
     };
-    let fall_speed = (-velocity.y).clamp(
-        GROUND_PREDICTION_MAX_VY,
-        GROUND_PREDICTION_MIN_VY,
-    );
+    let fall_speed = (-velocity.y).clamp(GROUND_PREDICTION_MAX_VY, GROUND_PREDICTION_MIN_VY);
     let distance = GROUND_PREDICTION_MIN_SWEEP_M
         + (fall_speed - GROUND_PREDICTION_MAX_VY)
             / (GROUND_PREDICTION_MIN_VY - GROUND_PREDICTION_MAX_VY)
@@ -397,5 +397,10 @@ mod tests {
         }
         assert!((s.air_weight - 1.0).abs() < 1e-2);
         assert!(s.land_weight < 0.5);
+    }
+
+    #[test]
+    fn source_walkable_floor_cosine_is_preserved() {
+        assert!((WALKABLE_FLOOR_COS - 0.71).abs() < 1e-6);
     }
 }

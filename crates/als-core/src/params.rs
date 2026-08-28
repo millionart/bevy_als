@@ -40,16 +40,39 @@ impl AlsMovementParams {
     }
 }
 
-#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct GaitSpeeds {
     pub standing: StanceGaitSpeeds,
+    pub aiming_standing: StanceGaitSpeeds,
     pub crouching: StanceGaitSpeeds,
+}
+
+impl Default for GaitSpeeds {
+    fn default() -> Self {
+        Self {
+            standing: StanceGaitSpeeds::default(),
+            aiming_standing: StanceGaitSpeeds {
+                max_walk_speed: 165.0 * UE_CM_TO_M,
+                max_run_speed: 375.0 * UE_CM_TO_M,
+                max_sprint_speed: 650.0 * UE_CM_TO_M,
+            },
+            crouching: StanceGaitSpeeds {
+                max_walk_speed: 150.0 * UE_CM_TO_M,
+                max_run_speed: 200.0 * UE_CM_TO_M,
+                max_sprint_speed: 300.0 * UE_CM_TO_M,
+            },
+        }
+    }
 }
 
 impl GaitSpeeds {
     pub fn apply_override(&mut self, ovr: &GaitSpeedsOverride) {
         if let Some(v) = &ovr.standing {
             self.standing.apply_override(v);
+        }
+        if let Some(v) = &ovr.aiming_standing {
+            self.aiming_standing.apply_override(v);
         }
         if let Some(v) = &ovr.crouching {
             self.crouching.apply_override(v);
@@ -304,7 +327,7 @@ impl Default for CrouchParams {
         Self {
             standing_capsule_half_height: 90.0 * UE_CM_TO_M,
             standing_capsule_radius: 30.0 * UE_CM_TO_M,
-            crouched_capsule_half_height: 40.0 * UE_CM_TO_M,
+            crouched_capsule_half_height: 56.0 * UE_CM_TO_M,
             animated_crouch_speed: 150.0 * UE_CM_TO_M,
             max_walk_speed_crouched: 150.0 * UE_CM_TO_M,
         }
@@ -344,8 +367,8 @@ impl Default for JumpParams {
         Self {
             jump_z_velocity: 420.0 * UE_CM_TO_M,
             gravity_scale: 1.0,
-            coyote_time: 0.10,
-            jump_buffer_time: 0.15,
+            coyote_time: 0.0,
+            jump_buffer_time: 0.0,
         }
     }
 }
@@ -381,6 +404,7 @@ pub struct AlsMovementParamsOverride {
 #[serde(default)]
 pub struct GaitSpeedsOverride {
     pub standing: Option<StanceGaitSpeedsOverride>,
+    pub aiming_standing: Option<StanceGaitSpeedsOverride>,
     pub crouching: Option<StanceGaitSpeedsOverride>,
 }
 
@@ -468,7 +492,12 @@ mod tests {
         assert!((p.speeds.standing.max_walk_speed - 1.75).abs() < 1e-6);
         assert!((p.speeds.standing.max_run_speed - 3.75).abs() < 1e-6);
         assert!((p.speeds.standing.max_sprint_speed - 6.50).abs() < 1e-6);
-        assert_eq!(p.speeds.standing, p.speeds.crouching);
+        assert!((p.speeds.aiming_standing.max_walk_speed - 1.65).abs() < 1e-6);
+        assert!((p.speeds.aiming_standing.max_run_speed - 3.75).abs() < 1e-6);
+        assert!((p.speeds.aiming_standing.max_sprint_speed - 6.50).abs() < 1e-6);
+        assert!((p.speeds.crouching.max_walk_speed - 1.50).abs() < 1e-6);
+        assert!((p.speeds.crouching.max_run_speed - 2.00).abs() < 1e-6);
+        assert!((p.speeds.crouching.max_sprint_speed - 3.00).abs() < 1e-6);
 
         assert!((p.acceleration.max_acceleration - 20.0).abs() < 1e-6);
         assert!((p.acceleration.braking_deceleration - 15.0).abs() < 1e-6);
@@ -502,10 +531,12 @@ mod tests {
 
         assert!((p.crouch.standing_capsule_half_height - 0.90).abs() < 1e-6);
         assert!((p.crouch.standing_capsule_radius - 0.30).abs() < 1e-6);
-        assert!((p.crouch.crouched_capsule_half_height - 0.40).abs() < 1e-6);
+        assert!((p.crouch.crouched_capsule_half_height - 0.56).abs() < 1e-6);
 
         assert!((p.jump.jump_z_velocity - 4.20).abs() < 1e-6);
         assert!((p.jump.gravity_scale - 1.0).abs() < 1e-6);
+        assert_eq!(p.jump.coyote_time, 0.0);
+        assert_eq!(p.jump.jump_buffer_time, 0.0);
     }
 
     #[test]
