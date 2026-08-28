@@ -45,6 +45,7 @@ pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
 pub mod state_label_event;
+pub mod sync_group_phase;
 pub mod time_position;
 
 pub use als_curves::{
@@ -123,6 +124,11 @@ pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_anima
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
 pub use state_label_event::{StateLabelEventNode, state_label_index};
+pub use sync_group_phase::{
+    SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode, SyncMarker,
+    SyncMarkerPosition, SyncPhaseInput, SyncPhaseState, advance_sync_phase, follower_sample_time,
+    marker_position_at_time, phase_to_time, time_for_marker_position, time_to_phase,
+};
 pub use time_position::{TimePositionNode, resolve_position};
 
 use bevy::prelude::*;
@@ -136,6 +142,7 @@ impl Plugin for AlsExtPlugin {
         app.register_asset_loader(CurveAssetLoader)
             .init_asset::<CurveAsset>()
             .init_asset::<als_curves::AlsAnimCurves>()
+            .init_resource::<SyncGroupPhaseRegistry>()
             .register_type::<AlsRagdollConfigNode>()
             .register_type::<BlendSpace1DPoint>()
             .register_type::<BlendSpace1DNode>()
@@ -154,6 +161,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SuppressFirstUpdateNode>()
             .register_type::<ResetOnActivationNode>()
             .register_type::<StateLabelEventNode>()
+            .register_type::<SyncGroupPhaseNode>()
+            .register_type::<SyncGroupSampleNode>()
             .register_type::<SlotNode>()
             .register_type::<DirectTransitionEventNode>()
             .register_type::<GlobalBoneMaskInputNode>()
