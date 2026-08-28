@@ -44,6 +44,10 @@ impl InterruptibleFsmState {
     pub fn cached_source_pose(&self) -> Option<&Pose> {
         self.source_pose.as_ref()
     }
+
+    pub fn last_output_pose(&self) -> Option<&Pose> {
+        self.last_pose.as_ref()
+    }
 }
 
 #[derive(Reflect, Clone, Debug, Default)]

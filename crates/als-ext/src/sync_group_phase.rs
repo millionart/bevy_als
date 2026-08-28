@@ -22,6 +22,7 @@ pub const IN_POSE: &str = "pose";
 pub const IN_TIME: &str = "time";
 pub const OUT_PHASE: &str = "phase";
 pub const OUT_POSE: &str = "pose";
+pub const OUT_SAMPLE_TIME: &str = "sample_time";
 
 #[derive(Reflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[reflect(Default, Serialize, Deserialize)]
@@ -171,7 +172,7 @@ pub fn marker_position_at_time(
         ),
         None => return None,
     };
-    let current_time = if looped && time < previous.time {
+    let current_time = if looped && time < previous_time {
         time + duration
     } else {
         time
@@ -235,6 +236,103 @@ pub fn follower_sample_time(
         .unwrap_or_else(|| phase_to_time(phase, follower_duration, looped))
 }
 
+#[derive(Clone, Debug)]
+pub struct SyncMarkerPhaseInput<'a> {
+    pub active: bool,
+    pub reset: bool,
+    pub rate: f32,
+    pub leader_duration: f32,
+    pub leader_markers: &'a [SyncMarker],
+    pub phase_duration: f32,
+    pub phase_markers: &'a [SyncMarker],
+    pub start_time: f32,
+    pub looped: bool,
+    pub delta_seconds: f32,
+}
+
+pub fn marker_phase_sample_time(
+    phase: f32,
+    phase_duration: f32,
+    phase_markers: &[SyncMarker],
+    sample_duration: f32,
+    sample_markers: &[SyncMarker],
+    looped: bool,
+) -> f32 {
+    let fallback = phase_to_time(phase, sample_duration, looped);
+    let phase_time = phase_to_time(phase, phase_duration, looped);
+    marker_position_at_time(phase_markers, phase_duration, phase_time, looped)
+        .and_then(|position| {
+            time_for_marker_position(sample_markers, sample_duration, &position, looped)
+        })
+        .unwrap_or(fallback)
+}
+
+pub fn marker_phase_from_sample_time(
+    sample_time: f32,
+    sample_duration: f32,
+    sample_markers: &[SyncMarker],
+    phase_duration: f32,
+    phase_markers: &[SyncMarker],
+    looped: bool,
+) -> f32 {
+    let fallback = time_to_phase(sample_time, sample_duration, looped);
+    marker_position_at_time(sample_markers, sample_duration, sample_time, looped)
+        .and_then(|position| {
+            time_for_marker_position(phase_markers, phase_duration, &position, looped)
+        })
+        .map(|phase_time| time_to_phase(phase_time, phase_duration, looped))
+        .unwrap_or(fallback)
+}
+
+pub fn advance_marker_sync_phase(
+    state: &mut SyncPhaseState,
+    input: SyncMarkerPhaseInput<'_>,
+) -> f32 {
+    if !input.active {
+        state.active = false;
+        state.reset_active = false;
+        return state.phase;
+    }
+    let reset = !state.active || (input.reset && !state.reset_active);
+    state.active = true;
+    state.reset_active = input.reset;
+    if reset {
+        state.phase = marker_phase_from_sample_time(
+            input.start_time,
+            input.leader_duration,
+            input.leader_markers,
+            input.phase_duration,
+            input.phase_markers,
+            input.looped,
+        );
+        return state.phase;
+    }
+    let duration = input.leader_duration.max(EPSILON);
+    let current_time = marker_phase_sample_time(
+        state.phase,
+        input.phase_duration,
+        input.phase_markers,
+        duration,
+        input.leader_markers,
+        input.looped,
+    );
+    let rate = input.rate.is_finite().then_some(input.rate).unwrap_or(0.0);
+    let next_time = if input.looped {
+        (current_time + input.delta_seconds.max(0.0) * rate).rem_euclid(duration)
+    } else {
+        (current_time + input.delta_seconds.max(0.0) * rate).clamp(0.0, duration)
+    };
+    state.phase = marker_phase_from_sample_time(
+        next_time,
+        duration,
+        input.leader_markers,
+        input.phase_duration,
+        input.phase_markers,
+        input.looped,
+    );
+    state.phase
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -291,6 +389,7 @@ impl NodeLike for SyncGroupPhaseNode {
 pub struct SyncGroupSampleNode {
     pub leader_duration: f32,
     pub leader_markers: Vec<SyncMarker>,
+    pub follower_duration: f32,
     pub follower_markers: Vec<SyncMarker>,
     pub looped: bool,
 }
@@ -301,13 +400,27 @@ impl NodeLike for SyncGroupSampleNode {
     }
 
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        ctx.set_duration_fwd(ctx.duration_back(IN_TIME)?);
+        let duration = if self.follower_duration > EPSILON {
+            Some(self.follower_duration)
+        } else {
+            ctx.duration_back(IN_TIME)?
+        };
+        ctx.set_duration_fwd(duration);
         Ok(())
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let graph_time = ctx
+            .time_update_fwd()?
+            .partial_update_basic(ctx.prev_time())
+            .unwrap_or_else(|| ctx.prev_time());
         let phase = ctx.data_back(IN_PHASE)?.as_f32()?;
-        let duration = ctx.duration_back(IN_TIME)?.unwrap_or(EPSILON).max(EPSILON);
+        let duration = if self.follower_duration > EPSILON {
+            self.follower_duration
+        } else {
+            ctx.duration_back(IN_TIME)?.unwrap_or(EPSILON)
+        }
+        .max(EPSILON);
         let sample_time = follower_sample_time(
             phase,
             self.leader_duration,
@@ -318,9 +431,10 @@ impl NodeLike for SyncGroupSampleNode {
         );
         ctx.set_time_update_back(IN_TIME, TimeUpdate::Absolute(sample_time));
         let mut pose = ctx.data_back(IN_POSE)?.into_pose()?;
-        pose.timestamp = sample_time;
-        ctx.set_time(sample_time);
+        pose.timestamp = graph_time;
+        ctx.set_time(graph_time);
         ctx.set_data_fwd(OUT_POSE, pose);
+        ctx.set_data_fwd(OUT_SAMPLE_TIME, sample_time);
         Ok(())
     }
 
@@ -329,6 +443,7 @@ impl NodeLike for SyncGroupSampleNode {
             .add_input_data(IN_POSE, DataSpec::Pose)
             .add_input_time(IN_TIME)
             .add_output_data(OUT_POSE, DataSpec::Pose)
+            .add_output_data(OUT_SAMPLE_TIME, DataSpec::F32)
             .add_output_time();
         Ok(())
     }
@@ -417,6 +532,68 @@ mod tests {
     fn follower_uses_normalized_duration_when_markers_are_absent() {
         let time = follower_sample_time(0.2, 1.133333, &[], 0.8, &[], true);
         assert!((time - 0.16).abs() < EPSILON);
+    }
+
+    #[test]
+    fn marker_phase_preserves_the_foot_interval_across_leader_changes() {
+        let template = markers(&[("Left", 0.0), ("Right", 0.5)]);
+        let forward = markers(&[("Left", 0.083333), ("Right", 0.65)]);
+        let backward = markers(&[("Right", 0.516667), ("Left", 1.083333)]);
+        let mut state = SyncPhaseState::default();
+        let forward_phase = advance_marker_sync_phase(
+            &mut state,
+            SyncMarkerPhaseInput {
+                active: true,
+                reset: false,
+                rate: 1.0,
+                leader_duration: 1.133333,
+                leader_markers: &forward,
+                phase_duration: 1.0,
+                phase_markers: &template,
+                start_time: 0.2 * 1.133333,
+                looped: true,
+                delta_seconds: 0.0,
+            },
+        );
+        let forward_time =
+            marker_phase_sample_time(forward_phase, 1.0, &template, 1.133333, &forward, true);
+        let backward_time =
+            marker_phase_sample_time(forward_phase, 1.0, &template, 1.133333, &backward, true);
+        let forward_position =
+            marker_position_at_time(&forward, 1.133333, forward_time, true).unwrap();
+        let backward_position =
+            marker_position_at_time(&backward, 1.133333, backward_time, true).unwrap();
+        assert!((forward_time - 0.2266666).abs() < 1e-5);
+        assert_eq!(forward_position.previous, backward_position.previous);
+        assert_eq!(forward_position.next, backward_position.next);
+        assert!(
+            (forward_position.alpha - backward_position.alpha).abs() < EPSILON,
+            "forward={forward_position:?} backward={backward_position:?}"
+        );
+    }
+
+    #[test]
+    fn marker_phase_uses_the_sequence_start_time_on_activation() {
+        let template = markers(&[("Left", 0.0), ("Right", 0.5)]);
+        let sprint = markers(&[("Left", 0.016667), ("Right", 0.316667)]);
+        let mut state = SyncPhaseState::default();
+        let phase = advance_marker_sync_phase(
+            &mut state,
+            SyncMarkerPhaseInput {
+                active: true,
+                reset: false,
+                rate: 1.0,
+                leader_duration: 0.6,
+                leader_markers: &sprint,
+                phase_duration: 1.0,
+                phase_markers: &template,
+                start_time: 0.166667,
+                looped: true,
+                delta_seconds: 0.0,
+            },
+        );
+        let sprint_time = marker_phase_sample_time(phase, 1.0, &template, 0.6, &sprint, true);
+        assert!((sprint_time - 0.166667).abs() < 1e-5);
     }
 
     #[test]

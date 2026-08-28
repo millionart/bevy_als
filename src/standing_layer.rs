@@ -8,8 +8,11 @@ use als_core::movement_direction::{
 };
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
+use std::sync::LazyLock;
+
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, CurveAsset, build_branch_bone_mask, transition_alpha,
+    AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
+    advance_marker_sync_phase, build_branch_bone_mask, transition_alpha,
 };
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
@@ -38,6 +41,48 @@ const PIVOT_DURATION: f32 = 0.6;
 const OUTER_DEFAULT_TRANSITION_DURATION: f32 = 0.2;
 const OUTER_STOP_TRANSITION_DURATION: f32 = 0.3;
 const ROTATE_COMPLETION_EPSILON: f32 = 1e-4;
+const MOVEMENT_BLENDSPACE_START_PHASE: f32 = 0.2;
+const SPRINT_START_TIME: f32 = 0.166667;
+const SPRINT_ACCELERATION_RATE_SCALE: f32 = 0.833333;
+
+fn marker_set(entries: &[(&str, f32)]) -> Vec<SyncMarker> {
+    entries
+        .iter()
+        .map(|(name, time)| SyncMarker {
+            name: (*name).to_owned(),
+            time: *time,
+        })
+        .collect()
+}
+
+static MOVEMENT_PHASE_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.0), ("Right", 0.5)]));
+static WALK_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.083333), ("Right", 0.65)]));
+static RUN_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.033333), ("Right", 0.433333)]));
+static WALK_RIGHT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.091667), ("Right", 0.65)]));
+static RUN_RIGHT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.05), ("Right", 0.433333)]));
+static WALK_RIGHT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.491667), ("Left", 1.075)]));
+static RUN_RIGHT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.316667), ("Left", 0.65)]));
+static WALK_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.516667), ("Left", 1.083333)]));
+static RUN_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.05), ("Right", 0.383333)]));
+static WALK_LEFT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.508333), ("Left", 1.058333)]));
+static RUN_LEFT_BACKWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Right", 0.316667), ("Left", 0.65)]));
+static WALK_LEFT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.083333), ("Right", 0.658333)]));
+static RUN_LEFT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.033333), ("Right", 0.45)]));
+static SPRINT_MARKERS: LazyLock<Vec<SyncMarker>> =
+    LazyLock::new(|| marker_set(&[("Left", 0.016667), ("Right", 0.316667)]));
 
 const ROTATION_YAW_OFFSET_FORWARD_BACKWARD: &str =
     "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.curve.ron";
@@ -408,7 +453,7 @@ impl StandingOuterTransition {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Component, Clone, Debug, Default, PartialEq)]
 struct StandingLayerRuntime {
     initialized: bool,
     previous_velocity: Vec3,
@@ -422,6 +467,7 @@ struct StandingLayerRuntime {
     velocity_blend: VelocityBlend,
     lean: Vec2,
     sprint_time: f32,
+    movement_marker_phase: SyncPhaseState,
     hips_direction: AlsMovementDirection,
     movement_state: StandingMovementState,
     movement_transition_source: Option<StandingMovementState>,
@@ -457,6 +503,7 @@ struct StandingGraphInputs {
     sprint_amount: f32,
     sprint_acceleration_amount: f32,
     sprint_play_rate: f32,
+    movement_marker_phase: f32,
     rotation_play_rate: f32,
     rotate_clip_time: f32,
     turn_index: f32,
@@ -632,6 +679,98 @@ pub fn standing_play_rate(
         sprinting.clamp(0.0, 1.0),
     );
     (sprint / stride_amount.max(f32::EPSILON)).clamp(MIN_PLAY_RATE, 3.0)
+}
+
+#[derive(Clone, Copy)]
+struct StandingMovementSyncLeader {
+    duration: f32,
+    markers: &'static [SyncMarker],
+    sprint: bool,
+}
+
+fn standing_movement_sync_leader(
+    gait: Gait,
+    direction: StandingMovementState,
+    stride_amount: f32,
+    sprint_amount: f32,
+) -> StandingMovementSyncLeader {
+    if gait == Gait::Sprinting && sprint_amount > 0.5 {
+        return StandingMovementSyncLeader {
+            duration: 0.6,
+            markers: &SPRINT_MARKERS,
+            sprint: true,
+        };
+    }
+    let pose = stride_amount <= 0.5;
+    let (duration, markers) = if gait == Gait::Walking {
+        match direction {
+            StandingMovementState::Forward => (1.133333, &*WALK_FORWARD_MARKERS),
+            StandingMovementState::RightForward => (1.133333, &*WALK_RIGHT_FORWARD_MARKERS),
+            StandingMovementState::RightBackward if pose => (1.133333, &*WALK_LEFT_FORWARD_MARKERS),
+            StandingMovementState::RightBackward => (1.133333, &*WALK_RIGHT_BACKWARD_MARKERS),
+            StandingMovementState::Backward if pose => (1.133333, &*WALK_FORWARD_MARKERS),
+            StandingMovementState::Backward => (1.133333, &*WALK_BACKWARD_MARKERS),
+            StandingMovementState::LeftBackward if pose => (1.133333, &*WALK_RIGHT_FORWARD_MARKERS),
+            StandingMovementState::LeftBackward => (1.133333, &*WALK_LEFT_BACKWARD_MARKERS),
+            StandingMovementState::LeftForward => (1.133333, &*WALK_LEFT_FORWARD_MARKERS),
+        }
+    } else {
+        match direction {
+            StandingMovementState::Forward => (0.8, &*RUN_FORWARD_MARKERS),
+            StandingMovementState::RightForward => (0.8, &*RUN_RIGHT_FORWARD_MARKERS),
+            StandingMovementState::RightBackward if pose => (0.8, &*RUN_LEFT_FORWARD_MARKERS),
+            StandingMovementState::RightBackward => (0.666667, &*RUN_RIGHT_BACKWARD_MARKERS),
+            StandingMovementState::Backward if pose => (0.8, &*RUN_FORWARD_MARKERS),
+            StandingMovementState::Backward => (0.666667, &*RUN_BACKWARD_MARKERS),
+            StandingMovementState::LeftBackward if pose => (0.8, &*RUN_RIGHT_FORWARD_MARKERS),
+            StandingMovementState::LeftBackward => (0.666667, &*RUN_LEFT_BACKWARD_MARKERS),
+            StandingMovementState::LeftForward => (0.8, &*RUN_LEFT_FORWARD_MARKERS),
+        }
+    };
+    StandingMovementSyncLeader {
+        duration,
+        markers,
+        sprint: false,
+    }
+}
+
+fn advance_standing_movement_marker_phase(
+    runtime: &mut StandingLayerRuntime,
+    active: bool,
+    gait: Gait,
+    direction: StandingMovementState,
+    stride_amount: f32,
+    sprint_amount: f32,
+    sprint_acceleration_amount: f32,
+    play_rate: f32,
+    delta_seconds: f32,
+) -> f32 {
+    let leader = standing_movement_sync_leader(gait, direction, stride_amount, sprint_amount);
+    let start_time = if leader.sprint {
+        SPRINT_START_TIME
+    } else {
+        MOVEMENT_BLENDSPACE_START_PHASE * leader.duration
+    };
+    let rate_scale = if leader.sprint && sprint_acceleration_amount > 0.5 {
+        SPRINT_ACCELERATION_RATE_SCALE
+    } else {
+        1.0
+    };
+    advance_marker_sync_phase(
+        &mut runtime.movement_marker_phase,
+        SyncMarkerPhaseInput {
+            active,
+            reset: false,
+            rate: play_rate * rate_scale,
+            leader_duration: leader.duration,
+            leader_markers: leader.markers,
+            phase_duration: 1.0,
+            phase_markers: &MOVEMENT_PHASE_MARKERS,
+            start_time,
+            looped: true,
+            delta_seconds,
+        },
+    )
 }
 
 fn direction_index(direction: AlsMovementDirection) -> f32 {
@@ -1347,6 +1486,17 @@ fn update_standing_inputs(
         ),
         _ => (0.0, 0.0, 1.0, 0.0),
     };
+    let movement_marker_phase = advance_standing_movement_marker_phase(
+        runtime,
+        state_index == 1.0 && stance == Stance::Standing && locomotion == LocomotionState::Grounded,
+        gait,
+        runtime.movement_state,
+        stride_amount,
+        gait_sprinting_amount,
+        sprint_acceleration_amount,
+        play_rate,
+        delta_seconds,
+    );
     runtime.previous_velocity = velocity;
     runtime.previous_gait = gait;
     runtime.previous_moving_smooth = moving_smooth;
@@ -1374,6 +1524,7 @@ fn update_standing_inputs(
         sprint_amount: gait_sprinting_amount,
         sprint_acceleration_amount,
         sprint_play_rate: play_rate,
+        movement_marker_phase,
         rotation_play_rate,
         rotate_clip_time: rotating.map_or(0.0, |drive| drive.rotate_clip_time),
         turn_index,
@@ -1477,6 +1628,10 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
             inputs.sprint_acceleration_amount,
         ),
         ("als_standing_sprint_play_rate", inputs.sprint_play_rate),
+        (
+            "als_standing_movement_marker_phase",
+            inputs.movement_marker_phase,
+        ),
         ("als_standing_rotation_play_rate", inputs.rotation_play_rate),
         ("als_standing_rotate_clip_time", inputs.rotate_clip_time),
         ("als_standing_turn_index", inputs.turn_index),
@@ -1602,7 +1757,7 @@ fn standing_layer_writer(
         let gait_sprinting_amount = gait_blend
             .map(|blend| blend.weights.sprint_w)
             .unwrap_or((gait == &Gait::Sprinting) as u8 as f32);
-        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
         let input = override_command.map_or(command, |value| &value.0);
         let inputs = update_standing_inputs(
             &mut runtime,
@@ -1760,6 +1915,116 @@ mod tests {
         assert!((rate - 1.0).abs() < 1e-6);
         let sprint = standing_play_rate(&params, 6.0, 1.0, 1.0, 1.0);
         assert!((sprint - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standing_marker_phase_uses_the_source_blendspace_start() {
+        let mut runtime = StandingLayerRuntime::default();
+        let phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Walking,
+            StandingMovementState::Forward,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+        );
+        let leader =
+            standing_movement_sync_leader(Gait::Walking, StandingMovementState::Forward, 1.0, 0.0);
+        let time = als_ext::marker_phase_sample_time(
+            phase,
+            1.0,
+            &MOVEMENT_PHASE_MARKERS,
+            leader.duration,
+            leader.markers,
+            true,
+        );
+        assert!((time - 0.2266666).abs() < 1e-5);
+    }
+
+    #[test]
+    fn standing_marker_phase_uses_the_highest_weighted_sprint_leader() {
+        let normal = standing_movement_sync_leader(
+            Gait::Sprinting,
+            StandingMovementState::Forward,
+            1.0,
+            0.5,
+        );
+        let sprint = standing_movement_sync_leader(
+            Gait::Sprinting,
+            StandingMovementState::Forward,
+            1.0,
+            0.500001,
+        );
+        assert!(!normal.sprint);
+        assert!(sprint.sprint);
+        assert!((sprint.duration - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standing_marker_phase_preserves_the_marker_interval_across_direction_changes() {
+        let mut runtime = StandingLayerRuntime::default();
+        let phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Running,
+            StandingMovementState::Forward,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+        );
+        let forward =
+            standing_movement_sync_leader(Gait::Running, StandingMovementState::Forward, 1.0, 0.0);
+        let backward_phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Running,
+            StandingMovementState::RightBackward,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+        );
+        let backward = standing_movement_sync_leader(
+            Gait::Running,
+            StandingMovementState::RightBackward,
+            1.0,
+            0.0,
+        );
+        let forward_time = als_ext::marker_phase_sample_time(
+            phase,
+            1.0,
+            &MOVEMENT_PHASE_MARKERS,
+            forward.duration,
+            forward.markers,
+            true,
+        );
+        let backward_time = als_ext::marker_phase_sample_time(
+            backward_phase,
+            1.0,
+            &MOVEMENT_PHASE_MARKERS,
+            backward.duration,
+            backward.markers,
+            true,
+        );
+        let forward_marker =
+            als_ext::marker_position_at_time(forward.markers, forward.duration, forward_time, true)
+                .unwrap();
+        let backward_marker = als_ext::marker_position_at_time(
+            backward.markers,
+            backward.duration,
+            backward_time,
+            true,
+        )
+        .unwrap();
+        assert_eq!(forward_marker.previous, backward_marker.previous);
+        assert_eq!(forward_marker.next, backward_marker.next);
+        assert!((forward_marker.alpha - backward_marker.alpha).abs() < 1e-5);
     }
 
     #[test]

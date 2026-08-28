@@ -137,14 +137,17 @@ fn build_normalized_graph() -> AnimationGraph {
                 NormalizedBlendSpacePoint {
                     id: "walk".to_owned(),
                     point: Vec2::new(1.0, 0.0),
+                    duration: 1.133333,
                     markers: markers(&[("Left", 0.083333), ("Right", 0.65)]),
                 },
                 NormalizedBlendSpacePoint {
                     id: "run".to_owned(),
                     point: Vec2::new(1.0, 1.0),
+                    duration: 0.8,
                     markers: markers(&[("Left", 0.033333), ("Right", 0.433333)]),
                 },
             ],
+            ..default()
         },
     );
     let id = node.id;
@@ -161,6 +164,8 @@ fn build_normalized_graph() -> AnimationGraph {
     graph.add_node_pose_edge(run_id, id, "time_run");
     graph.add_output_data("pose".to_owned(), DataSpec::Pose);
     graph.add_output_data_edge(id, "pose", "pose");
+    graph.add_output_data("sample_time".to_owned(), DataSpec::F32);
+    graph.add_output_data_edge(id, "sample_time", "sample_time");
     graph.add_output_pose_edge(id);
     graph
 }
@@ -174,6 +179,7 @@ fn build_follower_graph() -> AnimationGraph {
         SyncGroupSampleNode {
             leader_duration: 1.133333,
             leader_markers: markers(&[("Left", 0.083333), ("Right", 0.65)]),
+            follower_duration: 0.8,
             follower_markers: markers(&[("Left", 0.033333), ("Right", 0.433333)]),
             looped: true,
         },
@@ -187,6 +193,8 @@ fn build_follower_graph() -> AnimationGraph {
     graph.add_node_pose_edge(follower_id, id, "time");
     graph.add_output_data("pose".to_owned(), DataSpec::Pose);
     graph.add_output_data_edge(id, "pose", "pose");
+    graph.add_output_data("sample_time".to_owned(), DataSpec::F32);
+    graph.add_output_data_edge(id, "sample_time", "sample_time");
     graph.add_output_pose_edge(id);
     graph
 }
@@ -258,9 +266,9 @@ fn setup(mut commands: Commands, mut graphs: ResMut<Assets<AnimationGraph>>) {
     info!("[NORMALIZED-BLENDSPACE] graph probes initialized");
 }
 
-fn output_pose_time(player: &AnimationGraphPlayer) -> Option<f32> {
-    match player.get_outputs().get("pose") {
-        Some(DataValue::Pose(pose)) => Some(pose.timestamp),
+fn output_sample_time(player: &AnimationGraphPlayer) -> Option<f32> {
+    match player.get_outputs().get("sample_time") {
+        Some(DataValue::F32(time)) => Some(*time),
         _ => None,
     }
 }
@@ -309,8 +317,8 @@ fn observe(
         return;
     }
     let (Some(leader_time), Some(follower_time), Some(filtered)) = (
-        output_pose_time(&normalized),
-        output_pose_time(&follower),
+        output_sample_time(&normalized),
+        output_sample_time(&follower),
         output_vec2(&filter),
     ) else {
         return;

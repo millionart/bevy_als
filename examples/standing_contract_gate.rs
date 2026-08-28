@@ -4,16 +4,17 @@ use std::{
 };
 
 use als_ext::{
-    AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, F32ToVec2Node,
+    AlsExtPlugin, ConstantF32Node, CubicVec2FilterNode, DirectTransitionEventNode, F32ToVec2Node,
     GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode, InterruptibleFsmNode,
     InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode, MultiWayBlendNode,
-    ProfiledBlendNode, ResetOnActivationNode, TimePositionNode, build_branch_bone_mask,
+    NormalizedBlendSpaceNode, ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode,
+    TimePositionNode, build_branch_bone_mask,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::builtin_nodes::{blend_space_node::BlendSpaceNode, loop_node::LoopNode};
+use bevy_animation_graph::builtin_nodes::loop_node::LoopNode;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
@@ -143,7 +144,6 @@ struct RuntimeProbe {
     detail_event_queued: bool,
     blend_wait_frames: u8,
     last_pose: Option<Pose>,
-    interrupt_source_pose: Option<Pose>,
     settle_frames: u8,
     static_verified: bool,
 }
@@ -641,23 +641,6 @@ fn outer_fsm_state<'a>(
         .ok()
 }
 
-fn outer_fsm_output_pose(player: &AnimationGraphPlayer, root: &AnimationGraph) -> Option<Pose> {
-    let node_id = root
-        .nodes
-        .values()
-        .find(|node| node.name == "standing states")?
-        .id;
-    let arena = player.get_context_arena()?;
-    match arena.get_toplevel().node_caches.get_output_data(
-        node_id,
-        StateKey::Default,
-        "pose".to_owned(),
-    )? {
-        DataValue::Pose(pose) => Some(pose),
-        _ => None,
-    }
-}
-
 fn outer_fsm_state_label(
     player: &AnimationGraphPlayer,
     root: &AnimationGraph,
@@ -700,6 +683,8 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_sprint_amount", 0.0),
         ("als_standing_sprint_acceleration_amount", 0.0),
         ("als_standing_sprint_play_rate", 1.0),
+        ("als_standing_movement_marker_phase", 0.12647075),
+        ("als_animation_delta_seconds", 0.0),
         ("als_standing_acceleration_direction_index", 0.0),
         ("als_standing_velocity_forward_amount", 1.0),
         ("als_standing_velocity_backward_amount", 0.0),
@@ -923,19 +908,59 @@ fn verify_static_contract(
                     has_direction_wrapper(graph, direction_index, &gate_assets.movement_blend)
                 })
         });
-    let cycle_contract = cycle
+    let phase_template = |markers: &[als_ext::SyncMarker]| {
+        markers.len() == 2
+            && markers[0].name == "Left"
+            && close(markers[0].time, 0.0)
+            && markers[1].name == "Right"
+            && close(markers[1].time, 0.5)
+    };
+    let normalized_cycle_nodes = cycle
         .nodes
         .values()
-        .filter(|node| node.try_inner_downcast_ref::<BlendSpaceNode>().is_some())
-        .count()
-        == 6
+        .filter_map(|node| node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>())
+        .collect::<Vec<_>>();
+    let cycle_contract = normalized_cycle_nodes.len() == 6
+        && normalized_cycle_nodes.iter().all(|node| {
+            node.looped
+                && close(node.phase_duration, 1.0)
+                && phase_template(&node.phase_markers)
+                && node.points.len() == 4
+                && node
+                    .points
+                    .iter()
+                    .all(|point| point.duration > 0.0 && point.markers.len() == 2)
+        })
         && cycle
             .nodes
             .values()
             .filter(|node| node.try_inner_downcast_ref::<LoopNode>().is_some())
             .count()
             == 26
-        && has_node::<F32ToVec2Node>(cycle, "walk run blendspace position");
+        && has_node::<F32ToVec2Node>(cycle, "walk run blendspace position")
+        && node::<CubicVec2FilterNode>(cycle, "walk run cubic filter")
+            .is_some_and(|node| close(node.window_seconds, 0.4))
+        && cycle
+            .nodes
+            .values()
+            .filter_map(|node| node.try_inner_downcast_ref::<SyncGroupSampleNode>())
+            .all(|node| {
+                node.looped
+                    && close(node.leader_duration, 1.0)
+                    && phase_template(&node.leader_markers)
+                    && close(node.follower_duration, 0.6)
+                    && node.follower_markers.len() == 2
+            })
+        && cycle
+            .nodes
+            .values()
+            .filter_map(|node| node.try_inner_downcast_ref::<SyncGroupSampleNode>())
+            .count()
+            == 2
+        && cycle.nodes.values().any(|node| {
+            node.try_inner_downcast_ref::<GlobalF32InputNode>()
+                .is_some_and(|node| node.key == "als_standing_movement_marker_phase")
+        });
     let resets = [
         (&gate_assets.first_pivot, 0.25),
         (&gate_assets.run_start, 0.1),
@@ -1670,11 +1695,13 @@ fn observe_runtime(
                 fail(&mut exit, 5, "outer interrupt initial transition state");
                 return;
             }
-            let Some(source_pose) = outer_fsm_output_pose(&player, root) else {
+            let Some(_source_pose) = outer_fsm_state(&player, root)
+                .and_then(InterruptibleFsmState::last_output_pose)
+                .cloned()
+            else {
                 fail(&mut exit, 5, "outer interrupt source pose missing");
                 return;
             };
-            probe.interrupt_source_pose = Some(source_pose);
             set_value(&mut player, "als_standing_transition_index", 3.0);
             advance_by(&mut player, 0.1);
             probe.phase = ProbePhase::OuterInterruptCheck;
@@ -1688,24 +1715,47 @@ fn observe_runtime(
                 node::<DirectTransitionEventNode>(root, "standing transition driver")
                     .and_then(|driver| driver.transitions.first())
                     .copied();
+            let source_move_state = state_id(outer, "Move");
             let active = outer_fsm_state(&player, root);
             let source_pose = active.and_then(InterruptibleFsmState::cached_source_pose);
-            let chained = active.is_some_and(|state| {
+            let state_chain = active.is_some_and(|state| {
                 matches!(
                     &state.state,
                     LowLevelStateId::HlTransition(TransitionId::Direct(id)) if Some(id) == expected_current.as_ref()
                 ) && matches!(
                     state.interrupted_sources.as_slice(),
-                    [source] if matches!(
-                        &source.state,
-                        LowLevelStateId::HlTransition(TransitionId::Direct(id)) if Some(id) == expected_source.as_ref()
-                    ) && source.state_entered_time < state.state_entered_time
+                    [source] if (
+                        matches!(
+                            &source.state,
+                            LowLevelStateId::HlTransition(TransitionId::Direct(id)) if Some(id) == expected_source.as_ref()
+                        ) || matches!(
+                            &source.state,
+                            LowLevelStateId::HlState(id) if Some(id) == source_move_state.as_ref()
+                        )
+                    ) && source.state_entered_time <= state.state_entered_time
                 )
-            }) && probe
-                .interrupt_source_pose
-                .as_ref()
-                .is_some_and(|expected| source_pose.is_some_and(|actual| actual == expected));
+            });
+            let source_pose_valid = source_pose.is_some_and(|pose| {
+                !pose.bones.is_empty()
+                    && pose.timestamp.is_finite()
+                    && pose.bones.iter().all(|bone| {
+                        bone.translation.is_none_or(Vec3::is_finite)
+                            && bone.rotation.is_none_or(Quat::is_finite)
+                            && bone.scale.is_none_or(Vec3::is_finite)
+                    })
+            });
+            let chained = state_chain && source_pose_valid;
             if !chained {
+                info!(
+                    "[STANDING-CONTRACT] outer interrupt state={:?} interrupted_sources={:?} cached_source={:?} state_chain={} pose_valid={}",
+                    active.map(|state| &state.state),
+                    active.map(|state| &state.interrupted_sources),
+                    source_pose
+                        .as_ref()
+                        .map(|pose| (pose.timestamp, pose.bones.len())),
+                    state_chain,
+                    source_pose_valid,
+                );
                 fail(&mut exit, 5, "outer interrupt source pose chain");
                 return;
             }
