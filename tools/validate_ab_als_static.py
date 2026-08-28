@@ -163,7 +163,7 @@ def report(root):
     )
     assembly = text(root / "src/character_assembly.rs")
     manual = text(root / "examples/manual_playground.rs")
-    manual_uses_canonical_entry = (
+    manual_uses_canonical_actor_entry = (
         "AlsPlayableCharacterPlugin" in manual
         and "spawn_als_character" in manual
     ) or (
@@ -171,10 +171,12 @@ def report(root):
         and "AlsPlayerAdmission::new()" in manual
         and "request_als_player" in manual
     )
-    checks["canonical_character_entry"] = (
+    checks["canonical_character_actor_entry"] = (
         'ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_ragdoll.animscn.ron"' in assembly
         and "attach_avatar(commands, assets, character, ALS_LINKED_ANIMATED_SCENE)" in assembly
-        and manual_uses_canonical_entry
+        and "AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE))" in assembly
+        and "pub fn spawn_als_character(" in assembly
+        and manual_uses_canonical_actor_entry
     )
     offenders = scan_forbidden(root)
     checks["no_monolithic_or_legacy_root"] = not offenders
