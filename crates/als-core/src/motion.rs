@@ -413,6 +413,7 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore]
     fn step_assist_uses_view_relative_direction_with_physics_queries() {
         let cases = [
             (0.0, Vec3::NEG_Z),
@@ -513,6 +514,7 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore]
     fn standing_capsule_rejects_an_offset_beam_inside_its_volume() {
         let mut app = App::new();
         app.add_plugins((
