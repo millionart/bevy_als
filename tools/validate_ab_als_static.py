@@ -181,7 +181,7 @@ def report(root):
     offenders = scan_forbidden(root)
     checks["no_monolithic_or_legacy_root"] = not offenders
     checklist_sources = [text(root / "CHECKLIST.md")]
-    archive_root = root / "archive"
+    archive_root = root / "docs" / "archive"
     if archive_root.is_dir():
         checklist_sources.extend(
             text(path) for path in sorted(archive_root.rglob("*.md"))

@@ -185,6 +185,6 @@ ALS_TIMESCALE 基建可用（Time<Virtual>）。
 ## 9. 文档地图
 
 agents.md=执行纪律（10 条规则+教训）；CHECKLIST.md=权威清单（进行中工作；已完成基座见本目录归档）；
-goal.md=goal 启动方式；archive/2026-08-24/parity-report.md=与 ALS 差异对照；docs/ik-scheduling.md=IK 调度链路；
+goal.md=goal 启动方式；docs/archive/2026-08-24/parity-report.md=与 ALS 差异对照；docs/ik-scheduling.md=IK 调度链路；
 assets/docs/export-manifest.md=资产登记簿；docs/env.md=本地隐私环境（gitignored，内容严禁入库或外传）；
-archive/2026-08-24/=M0–M11 完成态归档（快照+状态+日志+parity-report）。
+docs/archive/2026-08-24/=M0–M11 完成态归档（快照+状态+日志+parity-report）。
