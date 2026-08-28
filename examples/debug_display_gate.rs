@@ -1,21 +1,20 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
-use bevy::prelude::*;
-use bevy::window::WindowResolution;
-use bevy_enhanced_input::prelude::*;
 use als_camera::{AlsCameraDebugInfo, AlsCameraPlugin};
 use als_core::character::AlsCharacter;
 use als_core::input::{
-    spawn_als_actions, AlsInputCommand, AlsInputMap, OnFoot, RotationModeAction,
-    ViewModeAction,
+    AlsInputCommand, AlsInputMap, OnFoot, RotationModeAction, ViewModeAction, spawn_als_actions,
 };
 use als_core::motion::{AlsCharacterDebug, CharacterDebugFrame};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
 use avian3d::prelude::PhysicsPlugins;
+use bevy::prelude::*;
+use bevy::window::WindowResolution;
 use bevy_als::debug_display::{AlsDebugDisplayPlugin, AlsDebugDisplayStats};
-use bevy_als::show_debug_hud::{apply_show_debug_key, AlsShowDebugHudState};
+use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
+use bevy_enhanced_input::prelude::*;
 
 #[derive(Resource, Default)]
 struct GateFlags {
@@ -283,8 +282,7 @@ fn script_driver(world: &mut World) {
             format!("rotation_mode={rotation_mode:?}"),
             &mut failed,
         );
-        flags.shift_suppresses_rotation_mode
-            && flags.bare_digit_actuates_pending
+        flags.shift_suppresses_rotation_mode && flags.bare_digit_actuates_pending
     }) {}
 
     if phase!(7, 1.7, {
@@ -295,25 +293,22 @@ fn script_driver(world: &mut World) {
     }) {}
 
     if phase!(8, 1.75, {
-        world.commands().entity(player).mock::<OnFoot, RotationModeAction>(
-            TriggerState::Fired,
-            true,
-            MockSpan::Manual,
-        );
+        world
+            .commands()
+            .entity(player)
+            .mock::<OnFoot, RotationModeAction>(TriggerState::Fired, true, MockSpan::Manual);
         true
     }) {}
 
     if elapsed >= 1.76 && !flags.bare_digit_actuates {
         if let Some(action) = find_rotation_mode_action(world, player) {
             let events = world.get::<ActionEvents>(action).copied();
-            let mock = world.get::<ActionMock>(action).map(|m| (m.enabled, m.span.clone()));
-            info!(
-                "[BF9][DBG] action={action:?} events={events:?} mock={mock:?}"
-            );
-            let fired = events.is_some_and(|e| {
-                e.contains(ActionEvents::START)
-                    || e.contains(ActionEvents::FIRE)
-            });
+            let mock = world
+                .get::<ActionMock>(action)
+                .map(|m| (m.enabled, m.span.clone()));
+            info!("[BF9][DBG] action={action:?} events={events:?} mock={mock:?}");
+            let fired = events
+                .is_some_and(|e| e.contains(ActionEvents::START) || e.contains(ActionEvents::FIRE));
             GateFlags::check(
                 &mut flags.bare_digit_actuates,
                 "bare_digit_actuates",
@@ -332,31 +327,29 @@ fn script_driver(world: &mut World) {
     if elapsed >= 1.8 && !flags.bare_digit_actuates && step == 9 {
         // keep step 9 pending until caught
     } else {
-    if phase!(9, 1.8, {
-        // START event lasts one update; poll across several frames to catch it.
-        if let Some(action) = find_rotation_mode_action(world, player) {
-            if let Some(cmd) = world.get::<AlsInputCommand>(player).copied() {
-                GateFlags::check(
-                    &mut flags.bare_digit_actuates,
-                    "bare_digit_actuates",
-                    cmd.rotation_mode_pressed,
-                    format!("cmd={cmd:?}"),
-                    &mut failed,
-                );
-                if flags.bare_digit_actuates {
-                    if let Some(mut mock) = world.get_mut::<ActionMock>(action) {
-                        mock.enabled = false;
+        if phase!(9, 1.8, {
+            // START event lasts one update; poll across several frames to catch it.
+            if let Some(action) = find_rotation_mode_action(world, player) {
+                if let Some(cmd) = world.get::<AlsInputCommand>(player).copied() {
+                    GateFlags::check(
+                        &mut flags.bare_digit_actuates,
+                        "bare_digit_actuates",
+                        cmd.rotation_mode_pressed,
+                        format!("cmd={cmd:?}"),
+                        &mut failed,
+                    );
+                    if flags.bare_digit_actuates {
+                        if let Some(mut mock) = world.get_mut::<ActionMock>(action) {
+                            mock.enabled = false;
+                        }
                     }
                 }
             }
-        }
-        flags.bare_digit_actuates
-    }) {}
+            flags.bare_digit_actuates
+        }) {}
     }
 
-    if phase!(10, 1.82, {
-        true
-    }) {}
+    if phase!(10, 1.82, { true }) {}
 
     if phase!(11, 1.83, {
         if let Some(action) = find_rotation_mode_action(world, player) {

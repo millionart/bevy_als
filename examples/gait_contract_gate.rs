@@ -1,6 +1,6 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::gait::{
-    refresh_gait_system, AlsDesiredGait, AlsGaitAmount, AlsGaitPlugin, AlsMaxAllowedGait,
+    AlsDesiredGait, AlsGaitAmount, AlsGaitPlugin, AlsMaxAllowedGait, refresh_gait_system,
 };
 use als_core::input::AlsInputCommand;
 use als_core::input_request::{AlsFirstPersonView, AlsInputRequestPlugin, AlsSprintPrev};
