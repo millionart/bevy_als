@@ -161,6 +161,10 @@ pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
     Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()
 }
 
+fn step_assist_world_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
+    view_relative_move_direction(move_dir, view_yaw)
+}
+
 pub fn wrap_yaw_radians(yaw: f32) -> f32 {
     (yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
@@ -291,6 +295,22 @@ mod rotation_cap_tests {
                 actual.distance(expected) < 1e-5,
                 "yaw={yaw} input={input:?}"
             );
+        }
+    }
+
+    #[test]
+    fn step_assist_direction_matches_locomotion_across_view_yaws() {
+        let cases = [
+            (0.0, Vec3::NEG_Z),
+            (std::f32::consts::FRAC_PI_2, Vec3::NEG_X),
+            (std::f32::consts::PI, Vec3::Z),
+            (-std::f32::consts::FRAC_PI_2, Vec3::X),
+        ];
+        for (yaw, expected) in cases {
+            let locomotion = view_relative_move_direction(Vec2::Y, yaw);
+            let assist = step_assist_world_direction(Vec2::Y, yaw);
+            assert!(assist.distance(expected) < 1e-5, "yaw={yaw}");
+            assert!(assist.distance(locomotion) < 1e-5, "yaw={yaw}");
         }
     }
 
@@ -758,6 +778,7 @@ fn step_up_assist_system(
             &mut Transform,
             &LinearVelocity,
             &LocomotionState,
+            &AlsViewYaw,
             Option<&mut StepAssistCooldown>,
             &AlsMovementParamsHandle,
             Has<AlsCapsuleCrouched>,
@@ -768,8 +789,18 @@ fn step_up_assist_system(
     >,
 ) {
     let dt = time.delta_secs();
-    for (entity, mut transform, vel, loco, cooldown, handle, capsule_crouched, override_cmd, cmd) in
-        &mut q
+    for (
+        entity,
+        mut transform,
+        vel,
+        loco,
+        view_yaw,
+        cooldown,
+        handle,
+        capsule_crouched,
+        override_cmd,
+        cmd,
+    ) in &mut q
     {
         if cooldown.is_none() {
             commands.entity(entity).insert(StepAssistCooldown(0.0));
@@ -795,7 +826,7 @@ fn step_up_assist_system(
             params.crouch.standing_capsule_half_height
         };
         let center = transform.translation;
-        let world_dir = Vec3::new(want.x, 0.0, -want.y).normalize();
+        let world_dir = step_assist_world_direction(want, view_yaw.0);
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
         let Some(cur_hit) =
             spatial_query.cast_ray(center, Dir3::NEG_Y, MAX_STEP_HEIGHT + 1.5, false, &filter)
