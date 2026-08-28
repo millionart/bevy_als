@@ -33,6 +33,30 @@ impl AlsMovementParams {
         }
     }
 
+    pub fn grounded_dynamics_profile(
+        &self,
+        stance: Stance,
+        rotation_mode: RotationMode,
+    ) -> GroundedDynamicsProfile {
+        if stance == Stance::Crouching || rotation_mode == RotationMode::VelocityDirection {
+            GroundedDynamicsProfile::Responsive
+        } else {
+            GroundedDynamicsProfile::Normal
+        }
+    }
+
+    pub fn grounded_dynamics(
+        &self,
+        stance: Stance,
+        rotation_mode: RotationMode,
+        gait_amount: f32,
+    ) -> GroundedDynamics {
+        self.acceleration.grounded.sample(
+            self.grounded_dynamics_profile(stance, rotation_mode),
+            gait_amount,
+        )
+    }
+
     pub fn apply_override(&mut self, ovr: &AlsMovementParamsOverride) {
         if let Some(v) = &ovr.speeds {
             self.speeds.apply_override(v);
@@ -128,6 +152,7 @@ pub struct AccelerationParams {
     pub max_acceleration: f32,
     pub braking_deceleration: f32,
     pub ground_friction: f32,
+    pub grounded: GroundedDynamicsCurves,
 }
 
 impl Default for AccelerationParams {
@@ -136,6 +161,7 @@ impl Default for AccelerationParams {
             max_acceleration: 2000.0 * UE_CM_TO_M,
             braking_deceleration: 1500.0 * UE_CM_TO_M,
             ground_friction: 4.0,
+            grounded: GroundedDynamicsCurves::default(),
         }
     }
 }
@@ -150,6 +176,200 @@ impl AccelerationParams {
         }
         if let Some(v) = ovr.ground_friction {
             self.ground_friction = v;
+        }
+        if let Some(v) = &ovr.grounded {
+            self.grounded = v.clone();
+        }
+    }
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum GroundedDynamicsProfile {
+    #[default]
+    Normal,
+    Responsive,
+    Sluggish,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+pub struct GroundedDynamics {
+    pub acceleration: f32,
+    pub braking_deceleration: f32,
+    pub ground_friction: f32,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+pub struct HermiteKey {
+    pub time: f32,
+    pub value: f32,
+    pub arrive_tangent: f32,
+    pub leave_tangent: f32,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct HermiteCurve {
+    pub keys: Vec<HermiteKey>,
+}
+
+impl HermiteCurve {
+    pub fn sample(&self, time: f32) -> f32 {
+        let Some(first) = self.keys.first() else {
+            return 0.0;
+        };
+        let Some(last) = self.keys.last() else {
+            return 0.0;
+        };
+        if time <= first.time {
+            return first.value;
+        }
+        if time >= last.time {
+            return last.value;
+        }
+        let upper = self.keys.partition_point(|key| key.time <= time);
+        let start = self.keys[upper - 1];
+        let end = self.keys[upper];
+        let duration = (end.time - start.time).max(f32::EPSILON);
+        let normalized = ((time - start.time) / duration).clamp(0.0, 1.0);
+        let normalized_squared = normalized * normalized;
+        let normalized_cubed = normalized_squared * normalized;
+        let h00 = 2.0 * normalized_cubed - 3.0 * normalized_squared + 1.0;
+        let h10 = normalized_cubed - 2.0 * normalized_squared + normalized;
+        let h01 = -2.0 * normalized_cubed + 3.0 * normalized_squared;
+        let h11 = normalized_cubed - normalized_squared;
+        h00 * start.value
+            + h10 * duration * start.leave_tangent
+            + h01 * end.value
+            + h11 * duration * end.arrive_tangent
+    }
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct GroundedDynamicsCurve {
+    pub acceleration: HermiteCurve,
+    pub braking_deceleration: HermiteCurve,
+    pub ground_friction: HermiteCurve,
+}
+
+impl GroundedDynamicsCurve {
+    pub fn sample(&self, gait_amount: f32) -> GroundedDynamics {
+        GroundedDynamics {
+            acceleration: self.acceleration.sample(gait_amount),
+            braking_deceleration: self.braking_deceleration.sample(gait_amount),
+            ground_friction: self.ground_friction.sample(gait_amount),
+        }
+    }
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct GroundedDynamicsCurves {
+    pub normal: GroundedDynamicsCurve,
+    pub responsive: GroundedDynamicsCurve,
+    pub sluggish: GroundedDynamicsCurve,
+}
+
+impl GroundedDynamicsCurves {
+    pub fn curve(&self, profile: GroundedDynamicsProfile) -> &GroundedDynamicsCurve {
+        match profile {
+            GroundedDynamicsProfile::Normal => &self.normal,
+            GroundedDynamicsProfile::Responsive => &self.responsive,
+            GroundedDynamicsProfile::Sluggish => &self.sluggish,
+        }
+    }
+
+    pub fn sample(&self, profile: GroundedDynamicsProfile, gait_amount: f32) -> GroundedDynamics {
+        self.curve(profile).sample(gait_amount)
+    }
+}
+
+fn source_curve(keys: &[(f32, f32, f32, f32)]) -> HermiteCurve {
+    HermiteCurve {
+        keys: keys
+            .iter()
+            .map(|&(time, value, arrive_tangent, leave_tangent)| HermiteKey {
+                time,
+                value,
+                arrive_tangent,
+                leave_tangent,
+            })
+            .collect(),
+    }
+}
+
+fn source_dynamics_curve(
+    acceleration: &[(f32, f32, f32, f32)],
+    braking_deceleration: &[(f32, f32, f32, f32)],
+    ground_friction: &[(f32, f32, f32, f32)],
+) -> GroundedDynamicsCurve {
+    GroundedDynamicsCurve {
+        acceleration: source_curve(acceleration),
+        braking_deceleration: source_curve(braking_deceleration),
+        ground_friction: source_curve(ground_friction),
+    }
+}
+
+impl Default for GroundedDynamicsCurves {
+    fn default() -> Self {
+        Self {
+            normal: source_dynamics_curve(
+                &[
+                    (0.0, 20.0, 0.0, 0.0),
+                    (1.0, 20.0, 0.0, 0.0),
+                    (2.0, 20.0, 0.0, -36.423_724),
+                    (3.0, 7.5, 0.0, 0.0),
+                ],
+                &[
+                    (0.0, 15.0, 0.0, 0.0),
+                    (1.0, 15.0, 0.0, -2.5),
+                    (2.0, 12.5, -2.5, -7.5),
+                    (3.0, 5.0, -7.5, 0.0),
+                ],
+                &[
+                    (0.0, 5.0, 0.0, 0.0),
+                    (1.0, 5.0, 0.0, -1.0),
+                    (2.0, 4.0, -1.0, -3.5),
+                    (3.0, 0.5, -3.5, 0.0),
+                ],
+            ),
+            responsive: source_dynamics_curve(
+                &[
+                    (0.0, 25.0, 0.0, 0.0),
+                    (1.0, 25.0, 0.0, 0.0),
+                    (2.0, 25.0, 0.0, -58.633_94),
+                    (3.0, 5.0, 0.0, 0.0),
+                ],
+                &[
+                    (0.0, 20.0, 0.0, 0.0),
+                    (1.0, 20.0, 0.0, 0.0),
+                    (2.0, 20.0, 0.0, -27.156_406),
+                    (3.0, 8.0, 0.0, 0.0),
+                ],
+                &[
+                    (0.0, 10.0, 0.0, 0.0),
+                    (1.0, 10.0, 0.0, 0.0),
+                    (2.0, 10.0, 0.0, 0.0),
+                    (3.0, 5.0, 0.0, 0.0),
+                ],
+            ),
+            sluggish: source_dynamics_curve(
+                &[
+                    (0.0, 5.0, 0.0, 0.0),
+                    (1.0, 5.0, 0.0, 0.0),
+                    (2.0, 5.0, 0.0, -8.434_028),
+                    (3.0, 2.0, 0.0, 0.0),
+                ],
+                &[
+                    (0.0, 10.0, 0.0, 0.0),
+                    (1.0, 10.0, 0.0, 0.0),
+                    (2.0, 7.5, -5.853_719, -5.853_719),
+                    (3.0, 3.0, 0.0, 0.0),
+                ],
+                &[
+                    (0.0, 4.0, 0.0, 0.0),
+                    (1.0, 4.0, 0.0, 0.0),
+                    (2.0, 3.0, -2.125_014, -2.125_014),
+                    (3.0, 1.0, 0.0, 0.0),
+                ],
+            ),
         }
     }
 }
@@ -434,6 +654,7 @@ pub struct AccelerationParamsOverride {
     pub max_acceleration: Option<f32>,
     pub braking_deceleration: Option<f32>,
     pub ground_friction: Option<f32>,
+    pub grounded: Option<GroundedDynamicsCurves>,
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -495,7 +716,7 @@ pub struct JumpParamsOverride {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Gait, Stance};
+    use crate::state::{Gait, RotationMode, Stance};
 
     #[test]
     fn defaults_match_als_source_values() {
@@ -514,6 +735,18 @@ mod tests {
         assert!((p.acceleration.max_acceleration - 20.0).abs() < 1e-6);
         assert!((p.acceleration.braking_deceleration - 15.0).abs() < 1e-6);
         assert!((p.acceleration.ground_friction - 4.0).abs() < 1e-6);
+        assert_eq!(
+            p.grounded_dynamics_profile(Stance::Standing, RotationMode::VelocityDirection),
+            GroundedDynamicsProfile::Responsive
+        );
+        assert_eq!(
+            p.grounded_dynamics_profile(Stance::Standing, RotationMode::ViewDirection),
+            GroundedDynamicsProfile::Normal
+        );
+        assert_eq!(
+            p.grounded_dynamics_profile(Stance::Crouching, RotationMode::Aiming),
+            GroundedDynamicsProfile::Responsive
+        );
 
         assert_eq!(
             p.rotation
@@ -670,5 +903,28 @@ mod tests {
             p.stance_speeds(Stance::Crouching),
             &p.speeds.crouching
         ));
+    }
+
+    #[test]
+    fn grounded_dynamics_samples_match_the_live_source_contract() {
+        let params = AlsMovementParams::default();
+        let normal = params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, 2.5);
+        assert!((normal.acceleration - 9.197_034).abs() < 1e-4);
+        assert!((normal.braking_deceleration - 8.75).abs() < 1e-6);
+        assert!((normal.ground_friction - 2.25).abs() < 1e-6);
+
+        let responsive =
+            params.grounded_dynamics(Stance::Standing, RotationMode::VelocityDirection, 2.5);
+        assert!((responsive.acceleration - 7.670_757).abs() < 1e-4);
+        assert!((responsive.braking_deceleration - 10.605_449).abs() < 1e-4);
+        assert!((responsive.ground_friction - 7.5).abs() < 1e-6);
+
+        let sluggish = params
+            .acceleration
+            .grounded
+            .sample(GroundedDynamicsProfile::Sluggish, 2.5);
+        assert!((sluggish.acceleration - 2.445_746).abs() < 1e-4);
+        assert!((sluggish.braking_deceleration - 4.518_285).abs() < 1e-4);
+        assert!((sluggish.ground_friction - 1.734_373).abs() < 1e-4);
     }
 }

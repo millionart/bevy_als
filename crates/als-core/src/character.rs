@@ -30,6 +30,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::gait::AlsDesiredGait)]
 #[require(crate::gait::AlsMaxAllowedGait)]
 #[require(crate::gait::AlsGaitAmount)]
+#[require(crate::dynamics::AlsGroundedDynamics)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
@@ -149,6 +150,7 @@ pub struct AlsCharacterBundle {
     pub desired_gait: crate::gait::AlsDesiredGait,
     pub max_allowed_gait: crate::gait::AlsMaxAllowedGait,
     pub gait_amount: crate::gait::AlsGaitAmount,
+    pub grounded_dynamics: crate::dynamics::AlsGroundedDynamics,
     pub overlay_state: OverlayState,
     pub request: AlsStateRequest,
 }
@@ -183,6 +185,7 @@ impl AlsCharacterBundle {
             desired_gait: crate::gait::AlsDesiredGait(Gait::Running),
             max_allowed_gait: crate::gait::AlsMaxAllowedGait(Gait::Running),
             gait_amount: crate::gait::AlsGaitAmount::default(),
+            grounded_dynamics: crate::dynamics::AlsGroundedDynamics::default(),
             overlay_state: OverlayState::default(),
             request: AlsStateRequest::default(),
         }
@@ -203,6 +206,7 @@ mod tests {
         assert_eq!(bundle.gait, Gait::Running);
         assert_eq!(bundle.desired_gait.0, Gait::Running);
         assert_eq!(bundle.max_allowed_gait.0, Gait::Running);
+        assert!((bundle.grounded_dynamics.0.acceleration - 20.0).abs() < 1e-6);
         assert_eq!(bundle.stance, Stance::Standing);
     }
 }

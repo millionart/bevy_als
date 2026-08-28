@@ -101,7 +101,7 @@ pub fn apply_als_control_scheme_config(
     config.basis.float_height = params.crouch.standing_capsule_half_height
         + ALS_CHARACTER_FLOOR_CLEARANCE
         + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
-    config.basis.acceleration = params.acceleration.max_acceleration;
+    config.basis.acceleration = 0.0;
     config.basis.air_acceleration = air_acceleration_for_horizontal_speed(params, horizontal_speed);
     config.basis.coyote_time = params.jump.coyote_time;
     config.basis.free_fall_extra_gravity = 0.0;
@@ -280,24 +280,28 @@ pub struct AlsMotionPlugin;
 
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((crate::view::AlsViewInputPlugin, crate::gait::AlsGaitPlugin))
-            .add_systems(
-                Update,
-                (
-                    locomotion_state_sync_system,
-                    crate::gait::refresh_gait_system
-                        .after(locomotion_state_sync_system)
-                        .after(crate::gait::gait_request_system),
-                    tnua_config_sync_system
-                        .after(crate::gait::refresh_gait_system)
-                        .after(crate::transition::state_transition_system),
-                    locomotion_drive_system
-                        .after(crate::view::AlsViewInputSet)
-                        .before(crate::transition::state_transition_system),
-                    step_up_assist_system,
-                    capsule_reshape_system,
-                ),
-            );
+        app.add_plugins((
+            crate::view::AlsViewInputPlugin,
+            crate::gait::AlsGaitPlugin,
+            crate::dynamics::AlsGroundedDynamicsPlugin,
+        ))
+        .add_systems(
+            Update,
+            (
+                locomotion_state_sync_system,
+                crate::gait::refresh_gait_system
+                    .after(locomotion_state_sync_system)
+                    .after(crate::gait::gait_request_system),
+                tnua_config_sync_system
+                    .after(crate::gait::refresh_gait_system)
+                    .after(crate::transition::state_transition_system),
+                locomotion_drive_system
+                    .after(crate::view::AlsViewInputSet)
+                    .before(crate::transition::state_transition_system),
+                step_up_assist_system,
+                capsule_reshape_system,
+            ),
+        );
     }
 }
 
@@ -776,6 +780,7 @@ mod tests {
         assert!((config.basis.speed - 3.75).abs() < 1e-6);
         assert!((config.basis.cling_distance - WALK_CLING_DISTANCE).abs() < 1e-6);
         assert!((config.basis.air_acceleration - 6.0).abs() < 1e-6);
+        assert_eq!(config.basis.acceleration, 0.0);
         assert_eq!(config.basis.coyote_time, 0.0);
         assert_eq!(config.basis.free_fall_extra_gravity, 0.0);
         assert_eq!(config.jump.upslope_extra_gravity, 0.0);

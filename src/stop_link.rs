@@ -1,3 +1,4 @@
+use als_core::dynamics::AlsGroundedDynamics;
 use als_core::input::AlsInputCommand;
 use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
@@ -83,6 +84,7 @@ pub fn stop_link_system(
             &LocomotionState,
             &Stance,
             &als_core::character::AlsMovementParamsHandle,
+            Option<&AlsGroundedDynamics>,
             &mut AlsStopMatch,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
@@ -94,7 +96,7 @@ pub fn stop_link_system(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((vel, loco, _stance, handle, mut m, cmd, ovr)) = q.single_mut() else {
+    let Ok((vel, loco, _stance, handle, dynamics, mut m, cmd, ovr)) = q.single_mut() else {
         return;
     };
     let Some(p) = params.get(handle.id()) else {
@@ -120,7 +122,10 @@ pub fn stop_link_system(
             && *loco == LocomotionState::Grounded
             && hspeed >= STOP_TRIGGER_MIN_SPEED;
         if released_while_fast {
-            m.total = predict_stop_distance(hspeed, p.acceleration.braking_deceleration).max(0.3);
+            let braking_deceleration = dynamics
+                .map(|value| value.0.braking_deceleration)
+                .unwrap_or(p.acceleration.braking_deceleration);
+            m.total = predict_stop_distance(hspeed, braking_deceleration).max(0.3);
             m.remaining = m.total;
             m.active = true;
             m.left_weight = 1.0;

@@ -6,6 +6,7 @@ pub mod bones;
 pub mod character;
 pub mod control_scheme;
 pub mod debug_hud;
+pub mod dynamics;
 pub mod foot_ik;
 pub mod gait;
 pub mod graph_router;
