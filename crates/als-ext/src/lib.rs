@@ -35,6 +35,8 @@ pub mod playground;
 pub mod profile_blend;
 pub mod ragdoll_config_node;
 pub mod ragdolling_tag_blend;
+pub mod reference_local_difference;
+pub mod reference_mesh_difference;
 pub mod reset_on_activation;
 pub mod rich_curve;
 pub mod root_graph_boundaries;
@@ -108,6 +110,8 @@ pub use profile_blend::{
 };
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
+pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};
+pub use reference_mesh_difference::ReferenceMeshDifferenceNode;
 pub use reset_on_activation::{ResetOnActivationNode, activation_reset_required};
 pub use rich_curve::{
     RichCurveInterpolation, RichCurveKey, RichCurveSampleNode, RichCurveTangentMode,
@@ -183,6 +187,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SkeletonAwareLayeredGraphNode>()
             .register_type::<RootMotionClipNode>()
             .register_type::<ControlRigBoundaryNode>()
+            .register_type::<ReferenceMeshDifferenceNode>()
+            .register_type::<ReferenceLocalDifferenceNode>()
             .register_type::<GlobalInput>()
             .register_type::<DataSpecWithOptionalDefault>()
             .register_type::<DataSpec>()

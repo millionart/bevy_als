@@ -1,7 +1,8 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    AlsExtPlugin, BlendSpace1DNode, GlobalF32InputNode, MeshSpaceAdditiveNode, TimePositionNode,
+    AlsExtPlugin, BlendSpace1DNode, GlobalF32InputNode, MeshSpaceAdditiveNode,
+    ReferenceMeshDifferenceNode, TimePositionNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -191,6 +192,21 @@ fn output_pose(player: &AnimationGraphPlayer) -> Option<&Pose> {
     }
 }
 
+fn pose_scales_are_unit(pose: &Pose) -> bool {
+    pose.bones
+        .iter()
+        .filter_map(|bone| bone.scale)
+        .all(|scale| {
+            scale.is_finite()
+                && scale.x.abs() >= 0.95
+                && scale.y.abs() >= 0.95
+                && scale.z.abs() >= 0.95
+                && scale.x.abs() <= 1.05
+                && scale.y.abs() <= 1.05
+                && scale.z.abs() <= 1.05
+        })
+}
+
 fn verify_static(
     mut commands: Commands,
     server: Res<AssetServer>,
@@ -235,6 +251,15 @@ fn verify_static(
         node::<TimePositionNode>(head, name)
             .is_some_and(|node| !node.loop_position && close(node.duration_fallback, 1.0))
     });
+    let reference_deltas = head
+        .nodes
+        .values()
+        .filter(|node| {
+            node.try_inner_downcast_ref::<ReferenceMeshDifferenceNode>()
+                .is_some()
+        })
+        .count()
+        == 3;
     let io = has_input(head, "view_pose")
         && head.io_spec.has_output_time()
         && head.io_spec.get_output_data(&"pose".to_owned()).is_some()
@@ -254,10 +279,10 @@ fn verify_static(
         && !source.contains("manual")
         && !source.contains("playground");
     info!(
-        "[HEAD-CONTRACT] root={} evaluators={} io={} redirect_input={} architecture={}",
-        root, evaluators, io, redirect_input, architecture
+        "[HEAD-CONTRACT] root={} evaluators={} reference_deltas={} io={} redirect_input={} architecture={}",
+        root, evaluators, reference_deltas, io, redirect_input, architecture
     );
-    if !(root && evaluators && io && redirect_input && architecture) {
+    if !(root && evaluators && reference_deltas && io && redirect_input && architecture) {
         fail(&mut exit, "static contract");
         return;
     }
@@ -366,7 +391,11 @@ fn observe(
                 .is_some_and(|value| close(value, 90.0))
                 && output_f32(&head, "head_yaw_amount").is_some_and(|value| close(value, 0.5))
                 && output_f32(&head, "head_blend_amount").is_some_and(|value| close(value, 1.0));
-            if !values || pose == *base || !close(pose.timestamp, 1.75) {
+            if !values
+                || pose == *base
+                || !close(pose.timestamp, 1.75)
+                || !pose_scales_are_unit(&pose)
+            {
                 fail(&mut exit, "additive runtime probe");
                 return;
             }

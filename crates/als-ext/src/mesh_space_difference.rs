@@ -94,6 +94,10 @@ fn scale_difference(base: Vec3, target: Vec3) -> Vec3 {
     )
 }
 
+fn non_zero_scale_difference(value: Vec3) -> Option<Vec3> {
+    (value.abs().max_element() > SCALE_EPSILON).then_some(value)
+}
+
 fn default_transform(skeleton: &Skeleton, bone: BoneId) -> Transform {
     skeleton
         .default_transforms(bone)
@@ -118,10 +122,13 @@ fn scale_difference_for_bone(
     target: Option<Vec3>,
     default: Vec3,
 ) -> Option<Vec3> {
-    target.map(|target| match base.and_then(|bone| bone.scale) {
-        Some(base) => scale_difference(base, target),
-        None if base.is_none() => scale_difference(default, target),
-        None => target - Vec3::ONE,
+    target.and_then(|target| {
+        let difference = match base.and_then(|bone| bone.scale) {
+            Some(base) => scale_difference(base, target),
+            None if base.is_none() => scale_difference(default, target),
+            None => target - Vec3::ONE,
+        };
+        non_zero_scale_difference(difference)
     })
 }
 
