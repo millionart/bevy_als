@@ -248,7 +248,46 @@ fn aiming_yaw_constraint_system(
 
 #[cfg(test)]
 mod rotation_cap_tests {
+    use crate::character::ALS_CHARACTER_CAPSULE_RADIUS;
+    use avian3d::prelude::{GravityScale, PhysicsPlugins, Position, RigidBody};
+    use bevy::asset::AssetPlugin;
+    use bevy::transform::TransformPlugin;
+    use bevy_tnua::{TnuaController, TnuaControllerPlugin};
+    use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
     use super::*;
+
+    #[derive(Component)]
+    struct StepAssistPhysicsCase {
+        origin: Vec3,
+        expected: Vec3,
+    }
+
+    #[derive(Resource)]
+    struct StepAssistPhysicsProbe {
+        ground_distance: f32,
+        step_distance: f32,
+    }
+
+    fn record_step_assist_physics_probe(
+        spatial_query: SpatialQuery,
+        cases: Query<(Entity, &StepAssistPhysicsCase)>,
+        mut probe: ResMut<StepAssistPhysicsProbe>,
+    ) {
+        let Ok((entity, case)) = cases.single() else {
+            return;
+        };
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        probe.ground_distance = spatial_query
+            .cast_ray(case.origin, Dir3::NEG_Y, 2.0, false, &filter)
+            .map(|hit| hit.distance)
+            .unwrap_or(f32::NAN);
+        let probe_origin = case.origin + case.expected * 0.45 + Vec3::Y * MAX_STEP_HEIGHT;
+        probe.step_distance = spatial_query
+            .cast_ray(probe_origin, Dir3::NEG_Y, 2.0, false, &filter)
+            .map(|hit| hit.distance)
+            .unwrap_or(f32::NAN);
+    }
 
     #[test]
     fn yaw_caps_match_als_rotation_speeds() {
@@ -311,6 +350,106 @@ mod rotation_cap_tests {
             let assist = step_assist_world_direction(Vec2::Y, yaw);
             assert!(assist.distance(expected) < 1e-5, "yaw={yaw}");
             assert!(assist.distance(locomotion) < 1e-5, "yaw={yaw}");
+        }
+    }
+
+    #[test]
+    fn step_assist_uses_view_relative_direction_with_physics_queries() {
+        let cases = [
+            (0.0, Vec3::NEG_Z),
+            (std::f32::consts::FRAC_PI_2, Vec3::NEG_X),
+            (std::f32::consts::PI, Vec3::Z),
+            (-std::f32::consts::FRAC_PI_2, Vec3::X),
+        ];
+        for (index, (yaw, expected)) in cases.into_iter().enumerate() {
+            let origin = Vec3::new(index as f32 * 4.0, ALS_CHARACTER_CAPSULE_HALF_HEIGHT, 0.0);
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                PhysicsPlugins::new(FixedPostUpdate),
+                TransformPlugin,
+                TnuaAvian3dPlugin::new(FixedPostUpdate),
+                TnuaControllerPlugin::<AlsControlScheme>::new(FixedPostUpdate),
+            ))
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .insert_resource(StepAssistPhysicsProbe {
+                ground_distance: f32::NAN,
+                step_distance: f32::NAN,
+            })
+            .add_systems(
+                Update,
+                (
+                    step_up_assist_system,
+                    record_step_assist_physics_probe.after(step_up_assist_system),
+                ),
+            );
+            app.finish();
+            let params = app
+                .world_mut()
+                .resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let mut input = AlsInputCommand::default();
+            input.move_dir = Vec2::Y;
+            app.world_mut().spawn((
+                RigidBody::Static,
+                Collider::cuboid(40.0, 0.2, 20.0),
+                Transform::from_xyz(0.0, -0.1, 0.0),
+            ));
+            let step_center = Vec3::new(origin.x, 0.15, origin.z) + expected * 0.7;
+            app.world_mut().spawn((
+                RigidBody::Static,
+                Collider::cuboid(0.6, 0.3, 0.6),
+                Transform::from_translation(step_center),
+            ));
+            let character = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    RigidBody::Dynamic,
+                    GravityScale(0.0),
+                    Collider::capsule(ALS_CHARACTER_CAPSULE_RADIUS, 1.2),
+                    Position(origin),
+                    Transform::from_translation(origin),
+                    LinearVelocity::ZERO,
+                    TnuaController::<AlsControlScheme>::default(),
+                    LocomotionState::Grounded,
+                    AlsViewYaw(yaw),
+                    StepAssistCooldown(0.0),
+                    AlsMovementParamsHandle(params),
+                    input,
+                    StepAssistPhysicsCase { origin, expected },
+                ))
+                .id();
+
+            for _ in 0..8 {
+                app.update();
+                app.world_mut().run_schedule(FixedPostUpdate);
+            }
+            app.update();
+
+            let probe = app.world().resource::<StepAssistPhysicsProbe>();
+            let ground_distance = probe.ground_distance;
+            let step_distance = probe.step_distance;
+            let entity = app.world().entity(character);
+            let transform = entity.get::<Transform>().unwrap();
+            let position = entity.get::<Position>().unwrap();
+            let displacement = transform.translation - origin;
+            let horizontal = Vec3::new(displacement.x, 0.0, displacement.z);
+            let direction = horizontal.normalize_or_zero();
+            let direction_dot = direction.dot(expected);
+            let sync_error = transform.translation.distance(position.0);
+            let capsule_bottom = transform.translation.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
+            let step_top = step_center.y + 0.15;
+            println!(
+                "[BF101.3] yaw={yaw:.6} ground_distance={ground_distance:.6} step_distance={step_distance:.6} direction_dot={direction_dot:.6} rise={:.6} sync_error={sync_error:.6} floor_gap={:.6}",
+                displacement.y,
+                capsule_bottom - step_top
+            );
+            assert!(direction_dot > 0.99, "yaw={yaw}");
+            assert!(displacement.y > 0.25, "yaw={yaw}");
+            assert!(sync_error < 1e-4, "yaw={yaw}");
+            assert!(capsule_bottom >= step_top - 0.01, "yaw={yaw}");
         }
     }
 
