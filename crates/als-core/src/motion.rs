@@ -28,7 +28,6 @@ const AIR_CONTROL: f32 = 0.15;
 const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
 const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
 const HEADROOM_SKIN: f32 = 0.01;
-const FOOTROOM_SKIN: f32 = 0.03;
 const MAX_STEP_HEIGHT: f32 = 0.45;
 const STEP_ASSIST_COOLDOWN: f32 = 0.3;
 const STALL_SPEED_EPSILON: f32 = 1.2;
@@ -248,7 +247,7 @@ fn aiming_yaw_constraint_system(
 
 #[cfg(test)]
 mod rotation_cap_tests {
-    use crate::character::ALS_CHARACTER_CAPSULE_RADIUS;
+    use crate::character::{ALS_CHARACTER_CAPSULE_RADIUS, als_character_capsule};
     use avian3d::prelude::{GravityScale, PhysicsPlugins, Position, RigidBody};
     use bevy::asset::AssetPlugin;
     use bevy::transform::TransformPlugin;
@@ -269,6 +268,22 @@ mod rotation_cap_tests {
         step_distance: f32,
     }
 
+    #[derive(Component)]
+    struct StandingCapsulePhysicsCase {
+        beam: Entity,
+    }
+
+    #[derive(Component)]
+    struct StandingCapsuleBeam;
+
+    #[derive(Resource)]
+    struct StandingCapsulePhysicsProbe {
+        beam_overlap: bool,
+        stance: Stance,
+        physical_crouched: bool,
+        sync_error: f32,
+    }
+
     fn record_step_assist_physics_probe(
         spatial_query: SpatialQuery,
         cases: Query<(Entity, &StepAssistPhysicsCase)>,
@@ -287,6 +302,38 @@ mod rotation_cap_tests {
             .cast_ray(probe_origin, Dir3::NEG_Y, 2.0, false, &filter)
             .map(|hit| hit.distance)
             .unwrap_or(f32::NAN);
+    }
+
+    fn record_standing_capsule_physics_probe(
+        spatial_query: SpatialQuery,
+        cases: Query<
+            (
+                Entity,
+                &StandingCapsulePhysicsCase,
+                &Collider,
+                &Position,
+                &Transform,
+                &Stance,
+                Has<AlsCapsuleCrouched>,
+            ),
+            With<AlsCharacter>,
+        >,
+        beams: Query<(), With<StandingCapsuleBeam>>,
+        mut probe: ResMut<StandingCapsulePhysicsProbe>,
+    ) {
+        let Ok((entity, case, collider, position, transform, stance, physical_crouched)) =
+            cases.single()
+        else {
+            return;
+        };
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        probe.beam_overlap = spatial_query
+            .shape_intersections(collider, transform.translation, transform.rotation, &filter)
+            .into_iter()
+            .any(|other| other == case.beam && beams.get(other).is_ok());
+        probe.stance = *stance;
+        probe.physical_crouched = physical_crouched;
+        probe.sync_error = transform.translation.distance(position.0);
     }
 
     #[test]
@@ -451,6 +498,111 @@ mod rotation_cap_tests {
             assert!(sync_error < 1e-4, "yaw={yaw}");
             assert!(capsule_bottom >= step_top - 0.01, "yaw={yaw}");
         }
+    }
+
+    #[test]
+    fn standing_capsule_rejects_an_offset_beam_inside_its_volume() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            PhysicsPlugins::new(FixedPostUpdate),
+            TransformPlugin,
+        ))
+        .insert_resource(Assets::<AlsMovementParams>::default())
+        .insert_resource(StandingCapsulePhysicsProbe {
+            beam_overlap: false,
+            stance: Stance::Crouching,
+            physical_crouched: true,
+            sync_error: f32::NAN,
+        })
+        .add_systems(
+            Update,
+            (
+                capsule_reshape_system,
+                record_standing_capsule_physics_probe.after(capsule_reshape_system),
+            ),
+        );
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params_value.clone());
+        let beam = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(0.08, 0.1, 0.4),
+                Transform::from_xyz(0.26, 1.65, 0.0),
+                StandingCapsuleBeam,
+            ))
+            .id();
+        let center = Vec3::new(0.0, params_value.crouch.standing_capsule_half_height, 0.0);
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                RigidBody::Kinematic,
+                als_character_capsule(
+                    params_value.crouch.crouched_capsule_half_height,
+                    params_value.crouch.standing_capsule_radius,
+                ),
+                Position(center),
+                Transform::from_translation(center),
+                LinearVelocity::ZERO,
+                LocomotionState::Grounded,
+                AlsMovementParamsHandle(params),
+                Stance::Crouching,
+                AlsCapsuleCrouched,
+                StandingCapsulePhysicsCase { beam },
+            ))
+            .id();
+
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.world_mut()
+            .entity_mut(character)
+            .insert(Stance::Standing);
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+
+        let blocked_probe = {
+            let probe = app.world().resource::<StandingCapsulePhysicsProbe>();
+            (
+                probe.stance,
+                probe.physical_crouched,
+                probe.beam_overlap,
+                probe.sync_error,
+            )
+        };
+        app.world_mut().despawn(beam);
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+
+        let restored_probe = app.world().resource::<StandingCapsulePhysicsProbe>();
+        println!(
+            "[BF101.4] blocked_stance={:?} blocked_crouched={} blocked_overlap={} blocked_sync_error={:.6} restored_stance={:?} restored_crouched={} restored_overlap={} restored_sync_error={:.6}",
+            blocked_probe.0,
+            blocked_probe.1,
+            blocked_probe.2,
+            blocked_probe.3,
+            restored_probe.stance,
+            restored_probe.physical_crouched,
+            restored_probe.beam_overlap,
+            restored_probe.sync_error
+        );
+        assert_eq!(blocked_probe.0, Stance::Standing);
+        assert!(blocked_probe.1);
+        assert!(!blocked_probe.2);
+        assert!(blocked_probe.3 < 1e-4);
+        assert_eq!(restored_probe.stance, Stance::Standing);
+        assert!(!restored_probe.physical_crouched);
+        assert!(!restored_probe.beam_overlap);
+        assert!(restored_probe.sync_error < 1e-4);
     }
 
     #[test]
@@ -827,6 +979,7 @@ fn capsule_reshape_system(
             entity,
             *stance,
             transform.translation,
+            transform.rotation,
             handle.id(),
             already_deferred,
         );
@@ -842,6 +995,7 @@ fn capsule_reshape_system(
             entity,
             *stance,
             transform.translation,
+            transform.rotation,
             handle.id(),
             already_deferred,
         );
@@ -855,6 +1009,7 @@ fn apply_capsule_for_stance(
     entity: Entity,
     stance: Stance,
     center: Vec3,
+    rotation: Quat,
     params_handle: AssetId<AlsMovementParams>,
     already_deferred: bool,
 ) {
@@ -870,27 +1025,16 @@ fn apply_capsule_for_stance(
                 .insert(capsule_for(params, stance));
         }
         Stance::Standing => {
-            let half = params.crouch.standing_capsule_half_height;
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            let headroom_hit = spatial_query.cast_ray(center, Dir3::Y, half, true, &filter);
-            let headroom_clear = headroom_hit
-                .as_ref()
-                .is_none_or(|hit| hit.distance >= half - HEADROOM_SKIN);
-            if !headroom_clear {
+            let standing_capsule = capsule_for(params, Stance::Standing);
+            let blocked = !spatial_query
+                .shape_intersections(&standing_capsule, center, rotation, &filter)
+                .is_empty();
+            if blocked {
                 if !already_deferred {
-                    info!(
-                        "[MOTION] entity={entity:?} stand-up deferred: headroom blocked (ceiling at {:.2}, need {:.2})",
-                        headroom_hit.map(|hit| hit.distance).unwrap_or(f32::NAN),
-                        half
-                    );
+                    info!("[MOTION] entity={entity:?} stand-up deferred: target capsule blocked");
                     commands.entity(entity).insert(CapsuleReshapeDeferred);
                 }
-                return;
-            }
-            let footroom_clear = spatial_query
-                .cast_ray(center, Dir3::NEG_Y, half, false, &filter)
-                .is_none_or(|hit| hit.distance >= half - FOOTROOM_SKIN);
-            if !footroom_clear {
                 return;
             }
             let was_deferred = already_deferred;
@@ -898,7 +1042,7 @@ fn apply_capsule_for_stance(
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
                 .remove::<AlsCapsuleCrouched>()
-                .insert(capsule_for(params, stance));
+                .insert(standing_capsule);
             if was_deferred {
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
             }
