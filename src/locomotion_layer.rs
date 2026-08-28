@@ -3,7 +3,7 @@ use als_core::foot_ik::AlsFootLockState;
 use als_core::input::AlsInputCommand;
 use als_core::motion::AlsInputOverride;
 use als_core::state::{LocomotionState, RotationMode, Stance};
-use als_ext::{AlsAnimCurves, CurveAsset};
+use als_ext::{AlsAnimCurves, CurveAsset, SyncPhaseInput, SyncPhaseState, advance_sync_phase};
 use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -21,6 +21,9 @@ const JUMP_PLAY_RATE_MAX: f32 = 1.5;
 const JUMP_START_DURATION: f32 = 1.6666665;
 const LAND_DURATION: f32 = 1.1666666;
 const LAND_MOVEMENT_SPEED_THRESHOLD: f32 = 6.5;
+const FALL_DURATION: f32 = 1.0;
+const JUMP_DURATION: f32 = 1.666667;
+const FLAIL_DURATION: f32 = 0.666667;
 const GROUND_PREDICTION_VERTICAL_THRESHOLD: f32 = -2.0;
 const GROUND_PREDICTION_MIN_SPEED: f32 = -40.0;
 const GROUND_PREDICTION_MIN_DISTANCE: f32 = 1.5;
@@ -207,7 +210,7 @@ impl JumpTransition {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Debug, PartialEq)]
 struct LocomotionLayerRuntime {
     state: LocomotionLayerState,
     state_elapsed: f32,
@@ -219,6 +222,10 @@ struct LocomotionLayerRuntime {
     previous_locomotion: LocomotionState,
     air_lean: Vec2,
     land_movement_additive_alpha: f32,
+    fall_phase: SyncPhaseState,
+    jump_phase: SyncPhaseState,
+    flail_phase: SyncPhaseState,
+    land_phase: SyncPhaseState,
 }
 
 impl Default for LocomotionLayerRuntime {
@@ -234,6 +241,10 @@ impl Default for LocomotionLayerRuntime {
             previous_locomotion: LocomotionState::Grounded,
             air_lean: Vec2::ZERO,
             land_movement_additive_alpha: 1.0,
+            fall_phase: default(),
+            jump_phase: default(),
+            flail_phase: default(),
+            land_phase: default(),
         }
     }
 }
@@ -488,7 +499,7 @@ fn animation_curve_sample(
 }
 
 fn jump_ground_prediction_allowance(
-    runtime: LocomotionLayerRuntime,
+    runtime: &LocomotionLayerRuntime,
     speed: f32,
     assets: &Assets<AlsAnimCurves>,
     handles: &LocomotionCurveHandles,
@@ -550,9 +561,103 @@ fn state_curve_values(state: LocomotionLayerState) -> LocomotionCurves {
     }
 }
 
+fn advance_locomotion_sync_phase(
+    state: &mut SyncPhaseState,
+    active: bool,
+    rate: f32,
+    duration: f32,
+    looped: bool,
+    delta_seconds: f32,
+) {
+    advance_sync_phase(
+        state,
+        SyncPhaseInput {
+            active,
+            reset: false,
+            rate,
+            duration,
+            start_phase: 0.0,
+            looped,
+            delta_seconds,
+        },
+    );
+}
+
+fn update_locomotion_sync_phases(
+    runtime: &mut LocomotionLayerRuntime,
+    speed: f32,
+    vertical_velocity: f32,
+    delta_seconds: f32,
+) {
+    let jump_rate = map_range_clamped(
+        speed,
+        0.0,
+        JUMP_SPEED_REFERENCE,
+        JUMP_PLAY_RATE_MIN,
+        JUMP_PLAY_RATE_MAX,
+    );
+    let flail_alpha = map_range_clamped(vertical_velocity, -5.0, -30.0, 0.0, 1.0);
+    let land_movement_heavy_alpha = map_range(vertical_velocity, -7.5, -15.0, 0.0, 0.75);
+    advance_locomotion_sync_phase(
+        &mut runtime.fall_phase,
+        runtime.state == LocomotionLayerState::Fall,
+        1.0,
+        FALL_DURATION,
+        true,
+        delta_seconds,
+    );
+    advance_locomotion_sync_phase(
+        &mut runtime.jump_phase,
+        runtime.state == LocomotionLayerState::Jump
+            && matches!(
+                runtime.jump_state,
+                JumpLayerState::LeftFoot | JumpLayerState::RightFoot
+            ),
+        jump_rate,
+        JUMP_DURATION,
+        false,
+        delta_seconds,
+    );
+    let flail_rate = if runtime.jump_state == JumpLayerState::Loop && flail_alpha <= 0.5 {
+        jump_rate
+    } else {
+        1.0
+    };
+    advance_locomotion_sync_phase(
+        &mut runtime.flail_phase,
+        runtime.state == LocomotionLayerState::Jump
+            && matches!(
+                runtime.jump_state,
+                JumpLayerState::Loop | JumpLayerState::Flail
+            ),
+        flail_rate,
+        FLAIL_DURATION,
+        true,
+        delta_seconds,
+    );
+    let land_active = matches!(
+        runtime.state,
+        LocomotionLayerState::Land | LocomotionLayerState::LandMovement
+    );
+    let land_rate = match runtime.state {
+        LocomotionLayerState::Land => 1.0,
+        LocomotionLayerState::LandMovement if land_movement_heavy_alpha > 0.5 => 1.5,
+        LocomotionLayerState::LandMovement => 1.75,
+        _ => 1.0,
+    };
+    advance_locomotion_sync_phase(
+        &mut runtime.land_phase,
+        land_active,
+        land_rate,
+        LAND_DURATION,
+        false,
+        delta_seconds,
+    );
+}
+
 fn write_globals(
     player: &mut AnimationGraphPlayer,
-    runtime: LocomotionLayerRuntime,
+    runtime: &LocomotionLayerRuntime,
     outer_request: Option<LocomotionTransition>,
     jump_request: Option<JumpTransition>,
     curves: LocomotionCurves,
@@ -588,6 +693,10 @@ fn write_globals(
             runtime.jump_state.index(),
         ),
         ("als_locomotion_jump_play_rate", jump_play_rate),
+        ("als_locomotion_fall_phase", runtime.fall_phase.phase),
+        ("als_locomotion_jump_phase", runtime.jump_phase.phase),
+        ("als_locomotion_flail_phase", runtime.flail_phase.phase),
+        ("als_locomotion_land_phase", runtime.land_phase.phase),
         ("als_locomotion_jump_walk_run_alpha", jump_walk_run_alpha),
         ("als_locomotion_fall_fast_alpha", fall_fast_alpha),
         ("als_locomotion_flail_alpha", flail_alpha),
@@ -688,7 +797,7 @@ fn locomotion_layer_writer(
         let Ok(mut player) = players.get_mut(instance.player_entity()) else {
             continue;
         };
-        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
         let effective = override_command.map_or(command, |command| &command.0);
         let speed = horizontal_speed(velocity.0);
         let has_input = effective.move_dir.length_squared() > 1e-6;
@@ -750,7 +859,7 @@ fn locomotion_layer_writer(
             global_transform,
             velocity.0,
             curve_assets.get(&handles.ground_prediction),
-            jump_ground_prediction_allowance(runtime, speed, &animation_curves, &handles),
+            jump_ground_prediction_allowance(&runtime, speed, &animation_curves, &handles),
         );
         runtime.air_lean = update_air_lean(
             runtime.air_lean,
@@ -773,10 +882,11 @@ fn locomotion_layer_writer(
             additive_target,
             (additive_speed * delta_seconds).clamp(0.0, 1.0),
         );
+        update_locomotion_sync_phases(&mut runtime, speed, velocity.y, delta_seconds);
         let curves = state_curve_values(runtime.state);
         write_globals(
             &mut player,
-            runtime,
+            &runtime,
             outer_request,
             jump_request,
             curves,
@@ -877,6 +987,34 @@ mod tests {
             next_jump_transition(JumpLayerState::Loop, 10.0, 0.0, 1.0),
             None
         );
+    }
+
+    #[test]
+    fn locomotion_sync_groups_preserve_source_loop_and_non_loop_domains() {
+        let mut jump = LocomotionLayerRuntime {
+            state: LocomotionLayerState::Jump,
+            jump_state: JumpLayerState::LeftFoot,
+            ..default()
+        };
+        update_locomotion_sync_phases(&mut jump, 6.0, 0.0, 0.0);
+        update_locomotion_sync_phases(&mut jump, 6.0, 0.0, 10.0);
+        assert_eq!(jump.jump_phase.phase, 1.0);
+
+        let mut fall = LocomotionLayerRuntime {
+            state: LocomotionLayerState::Fall,
+            ..default()
+        };
+        update_locomotion_sync_phases(&mut fall, 0.0, 0.0, 0.0);
+        update_locomotion_sync_phases(&mut fall, 0.0, 0.0, 1.2);
+        assert!((fall.fall_phase.phase - 0.2).abs() < 1e-6);
+
+        let mut land = LocomotionLayerRuntime {
+            state: LocomotionLayerState::Land,
+            ..default()
+        };
+        update_locomotion_sync_phases(&mut land, 0.0, -8.0, 0.0);
+        update_locomotion_sync_phases(&mut land, 0.0, -8.0, 10.0);
+        assert_eq!(land.land_phase.phase, 1.0);
     }
 
     #[test]

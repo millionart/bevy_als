@@ -6,7 +6,7 @@ use std::{
 use als_ext::{
     AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, GlobalBoneMaskInputNode,
     GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
-    ProfiledBlendNode, ResetOnActivationNode, TimePositionNode,
+    ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode, TimePositionNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -141,6 +141,25 @@ fn contains_loop(graph: &AnimationGraph) -> bool {
 
 fn constant_is(graph: &AnimationGraph, name: &str, expected: f32) -> bool {
     node::<ConstantF32Node>(graph, name).is_some_and(|node| close(node.value, expected))
+}
+
+fn sync_group_sample(
+    graph: &AnimationGraph,
+    name: &str,
+    phase_key: &str,
+    duration: f32,
+    looped: bool,
+) -> bool {
+    node::<SyncGroupSampleNode>(graph, name).is_some_and(|sample| {
+        close(sample.leader_duration, duration)
+            && close(sample.follower_duration, duration)
+            && sample.looped == looped
+            && sample.leader_markers.is_empty()
+            && sample.follower_markers.is_empty()
+    }) && graph.nodes.values().any(|node| {
+        node.try_inner_downcast_ref::<GlobalF32InputNode>()
+            .is_some_and(|node| node.key == phase_key)
+    })
 }
 
 fn labels(machine: &StateMachine) -> Vec<&str> {
@@ -444,45 +463,78 @@ fn verify_static(
                 "jump walk left clip",
                 "jump walk left reset",
                 "jump run left reset",
-                "jump walk left rate",
-                "jump run left rate",
+                "jump walk left marker player",
+                "jump run left marker player",
             ),
             (
                 "jump walk right clip",
                 "jump walk right reset",
                 "jump run right reset",
-                "jump walk right rate",
-                "jump run right rate",
+                "jump walk right marker player",
+                "jump run right marker player",
             ),
         ]
         .into_iter()
         .all(
-            |(clip, first_reset, second_reset, first_rate, second_rate)| {
+            |(clip, first_reset, second_reset, first_player, second_player)| {
                 graph_with_node::<ClipNode>(&graphs, clip).is_some_and(|graph| {
                     !contains_loop(graph)
                         && node::<ResetOnActivationNode>(graph, first_reset).is_some()
                         && node::<ResetOnActivationNode>(graph, second_reset).is_some()
-                        && node::<SpeedNode>(graph, first_rate).is_some()
-                        && node::<SpeedNode>(graph, second_rate).is_some()
-                        && node::<GlobalF32InputNode>(graph, "jump source rate")
-                            .is_some_and(|node| node.key == "als_locomotion_jump_play_rate")
+                        && sync_group_sample(
+                            graph,
+                            first_player,
+                            "als_locomotion_jump_phase",
+                            1.666667,
+                            false,
+                        )
+                        && sync_group_sample(
+                            graph,
+                            second_player,
+                            "als_locomotion_jump_phase",
+                            1.666667,
+                            false,
+                        )
                 })
             },
         ) && graph_with_node::<ClipNode>(&graphs, "jump loop clip").is_some_and(|graph| {
             node::<LoopNode>(graph, "jump loop").is_some()
-                && node::<SpeedNode>(graph, "jump loop rate").is_some()
-                && node::<GlobalF32InputNode>(graph, "jump source rate")
-                    .is_some_and(|node| node.key == "als_locomotion_jump_play_rate")
+                && sync_group_sample(
+                    graph,
+                    "jump loop marker player",
+                    "als_locomotion_flail_phase",
+                    0.666667,
+                    true,
+                )
         }) && graph_with_node::<ClipNode>(&graphs, "jump flail clip").is_some_and(|graph| {
             node::<LoopNode>(graph, "jump flail loop").is_some()
-                && node::<SpeedNode>(graph, "jump flail rate").is_some()
-                && constant_is(graph, "jump flail source rate", 1.2)
+                && sync_group_sample(
+                    graph,
+                    "jump flail marker player",
+                    "als_locomotion_flail_phase",
+                    0.666667,
+                    true,
+                )
         }) && graph_with_node::<ClipNode>(&graphs, "fall clip").is_some_and(|graph| {
             node::<ClipNode>(graph, "fall fast clip").is_some()
                 && node::<ClipNode>(graph, "fall flail clip").is_some()
                 && node::<LoopNode>(graph, "fall loop").is_some()
                 && node::<LoopNode>(graph, "fall fast loop").is_some()
                 && node::<LoopNode>(graph, "fall flail loop").is_some()
+                && sync_group_sample(
+                    graph,
+                    "fall marker player",
+                    "als_locomotion_fall_phase",
+                    1.0,
+                    true,
+                )
+                && sync_group_sample(
+                    graph,
+                    "fall fast marker player",
+                    "als_locomotion_fall_phase",
+                    1.0,
+                    true,
+                )
                 && node::<SpeedNode>(graph, "fall flail rate").is_some()
                 && constant_is(graph, "fall flail source rate", 1.0)
         }) && graph_with_node::<ClipNode>(&graphs, "land light clip").is_some_and(|graph| {
@@ -490,16 +542,40 @@ fn verify_static(
                 && node::<ClipNode>(graph, "land heavy clip").is_some()
                 && node::<ResetOnActivationNode>(graph, "land light reset").is_some()
                 && node::<ResetOnActivationNode>(graph, "land heavy reset").is_some()
+                && sync_group_sample(
+                    graph,
+                    "land light marker player",
+                    "als_locomotion_land_phase",
+                    1.166667,
+                    false,
+                )
+                && sync_group_sample(
+                    graph,
+                    "land heavy marker player",
+                    "als_locomotion_land_phase",
+                    1.166667,
+                    false,
+                )
         }) && graph_with_node::<ClipNode>(&graphs, "land movement light additive clip")
             .is_some_and(|graph| {
                 !contains_loop(graph)
                     && node::<ClipNode>(graph, "land movement heavy additive clip").is_some()
                     && node::<ResetOnActivationNode>(graph, "land movement light reset").is_some()
                     && node::<ResetOnActivationNode>(graph, "land movement heavy reset").is_some()
-                    && node::<SpeedNode>(graph, "land movement light rate").is_some()
-                    && node::<SpeedNode>(graph, "land movement heavy rate").is_some()
-                    && constant_is(graph, "land movement light source rate", 1.75)
-                    && constant_is(graph, "land movement heavy source rate", 1.5)
+                    && sync_group_sample(
+                        graph,
+                        "land movement light marker player",
+                        "als_locomotion_land_phase",
+                        1.166667,
+                        false,
+                    )
+                    && sync_group_sample(
+                        graph,
+                        "land movement heavy marker player",
+                        "als_locomotion_land_phase",
+                        1.166667,
+                        false,
+                    )
             })
             && graph_with_node::<ClipNode>(&graphs, "air lean center clip").is_some_and(|graph| {
                 [

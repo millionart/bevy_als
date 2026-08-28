@@ -2,12 +2,12 @@
     nodes: [
         (id: "18090000-0000-4000-8000-000000000001", name: "jump flail clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Air/Fall/A_Als_Flail.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
         (id: "18090000-0000-4000-8000-000000000002", name: "jump flail loop", inner: { "bevy_animation_graph::builtin_nodes::LoopNode": (interpolation_period: 0.0) }, should_debug: false),
-        (id: "18090000-0000-4000-8000-000000000003", name: "jump flail rate", inner: { "bevy_animation_graph::builtin_nodes::SpeedNode": () }, should_debug: false),
-        (id: "18090000-0000-4000-8000-000000000004", name: "jump flail source rate", inner: { "als_ext::ConstantF32Node": (value: 1.2) }, should_debug: false),
+        (id: "18090000-0000-4000-8000-000000000003", name: "jump flail marker player", inner: { "als_ext::SyncGroupSampleNode": (leader_duration: 0.666667, leader_markers: [], follower_duration: 0.666667, follower_markers: [], looped: true) }, should_debug: false),
+        (id: "18090000-0000-4000-8000-000000000004", name: "flail movement phase", inner: { "als_ext::GlobalF32InputNode": (key: "als_locomotion_flail_phase") }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("18090000-0000-4000-8000-000000000002", "pose"): NodeData("18090000-0000-4000-8000-000000000001", "pose"), NodeTime("18090000-0000-4000-8000-000000000002", "time"): NodeTime("18090000-0000-4000-8000-000000000001"),
-        NodeData("18090000-0000-4000-8000-000000000003", "speed"): NodeData("18090000-0000-4000-8000-000000000004", "value"), NodeData("18090000-0000-4000-8000-000000000003", "pose"): NodeData("18090000-0000-4000-8000-000000000002", "pose"), NodeTime("18090000-0000-4000-8000-000000000003", "time"): NodeTime("18090000-0000-4000-8000-000000000002"),
+        NodeData("18090000-0000-4000-8000-000000000003", "phase"): NodeData("18090000-0000-4000-8000-000000000004", "als_locomotion_flail_phase"), NodeData("18090000-0000-4000-8000-000000000003", "pose"): NodeData("18090000-0000-4000-8000-000000000002", "pose"), NodeTime("18090000-0000-4000-8000-000000000003", "time"): NodeTime("18090000-0000-4000-8000-000000000002"),
         OutputData("pose"): NodeData("18090000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("18090000-0000-4000-8000-000000000003"),
     },
     io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }), default_data: {},
