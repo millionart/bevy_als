@@ -109,6 +109,24 @@ fn character_half_height(params: &AlsMovementParams, stance: Stance) -> f32 {
     }
 }
 
+fn vertical_intervals_overlap(
+    first_bottom: f32,
+    first_top: f32,
+    second_bottom: f32,
+    second_top: f32,
+) -> bool {
+    first_bottom < second_top && first_top > second_bottom
+}
+
+fn crush_recovery_floor_vertical_bounds(transform: &Transform, half_extents: Vec3) -> (f32, f32) {
+    let matrix = transform.to_matrix();
+    let center = matrix.transform_point3(Vec3::ZERO).y;
+    let vertical_half_extent = matrix.transform_vector3(Vec3::X * half_extents.x).y.abs()
+        + matrix.transform_vector3(Vec3::Y * half_extents.y).y.abs()
+        + matrix.transform_vector3(Vec3::Z * half_extents.z).y.abs();
+    (center - vertical_half_extent, center + vertical_half_extent)
+}
+
 fn character_crush_recovery_system(
     floors: Query<(&GlobalTransform, &AlsCrushRecoveryFloor)>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -132,20 +150,20 @@ fn character_crush_recovery_system(
             .map(|params| character_half_height(params, *stance))
             .unwrap_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT);
         let capsule_bottom = position.0.y - half_height;
+        let capsule_top = position.0.y + half_height;
         let mut recovery_top = None;
         for (floor_transform, floor) in &floors {
-            let transform = floor_transform.compute_transform();
-            let local_position = transform.to_matrix().inverse().transform_point3(position.0);
+            let floor_transform = floor_transform.compute_transform();
+            let floor_matrix = floor_transform.to_matrix();
+            let local_position = floor_matrix.inverse().transform_point3(position.0);
             if local_position.x.abs() > floor.half_extents.x
                 || local_position.z.abs() > floor.half_extents.z
             {
                 continue;
             }
-            let top = transform
-                .to_matrix()
-                .transform_point3(Vec3::Y * floor.half_extents.y)
-                .y;
-            if capsule_bottom < top {
+            let (floor_bottom, top) =
+                crush_recovery_floor_vertical_bounds(&floor_transform, floor.half_extents);
+            if vertical_intervals_overlap(capsule_bottom, capsule_top, floor_bottom, top) {
                 recovery_top = Some(recovery_top.map_or(top, |current: f32| current.max(top)));
             }
         }
@@ -254,6 +272,42 @@ impl AlsCharacterBundle {
 mod tests {
     use super::*;
 
+    fn crush_recovery_test_app() -> (App, Handle<AlsMovementParams>) {
+        let mut app = App::new();
+        app.insert_resource(Assets::<AlsMovementParams>::default())
+            .add_systems(Update, character_crush_recovery_system);
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        (app, params)
+    }
+
+    fn spawn_crush_recovery_character(
+        app: &mut App,
+        params: Handle<AlsMovementParams>,
+        center: Vec3,
+        vertical_velocity: f32,
+    ) -> Entity {
+        app.world_mut()
+            .spawn((
+                AlsCharacter,
+                Position(center),
+                Transform::from_translation(center),
+                LinearVelocity(Vec3::Y * vertical_velocity),
+                Stance::Standing,
+                AlsMovementParamsHandle(params),
+            ))
+            .id()
+    }
+
+    fn spawn_crush_recovery_floor(app: &mut App, center: Vec3, half_extents: Vec3) {
+        app.world_mut().spawn((
+            GlobalTransform::from(Transform::from_translation(center)),
+            AlsCrushRecoveryFloor { half_extents },
+        ));
+    }
+
     #[test]
     fn bundle_initial_state_matches_b_als_character() {
         let bundle = AlsCharacterBundle::new(
@@ -268,5 +322,47 @@ mod tests {
         assert!((bundle.cmc_adapter_runtime.support_radius - 0.15).abs() < 1e-6);
         assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
         assert_eq!(bundle.stance, Stance::Standing);
+    }
+
+    #[test]
+    fn crush_recovery_ignores_an_overhead_floor_without_vertical_overlap() {
+        let (mut app, params) = crush_recovery_test_app();
+        let character =
+            spawn_crush_recovery_character(&mut app, params, Vec3::new(0.0, 1.0, 0.0), -1.0);
+        spawn_crush_recovery_floor(&mut app, Vec3::new(0.0, 3.0, 0.0), Vec3::new(2.0, 0.2, 2.0));
+
+        app.update();
+
+        let entity = app.world().entity(character);
+        let position = entity.get::<Position>().unwrap();
+        let transform = entity.get::<Transform>().unwrap();
+        let velocity = entity.get::<LinearVelocity>().unwrap();
+        let recovery = entity.get::<AlsCrushRecovery>().unwrap();
+        assert_eq!(position.0, Vec3::new(0.0, 1.0, 0.0));
+        assert_eq!(transform.translation, position.0);
+        assert_eq!(velocity.0.y, -1.0);
+        assert_eq!(recovery.corrections, 0);
+    }
+
+    #[test]
+    fn crush_recovery_resolves_a_vertically_overlapping_floor() {
+        let (mut app, params) = crush_recovery_test_app();
+        let character =
+            spawn_crush_recovery_character(&mut app, params, Vec3::new(0.0, 3.0, 0.0), -1.0);
+        spawn_crush_recovery_floor(&mut app, Vec3::new(0.0, 3.0, 0.0), Vec3::new(2.0, 0.2, 2.0));
+
+        app.update();
+
+        let entity = app.world().entity(character);
+        let position = entity.get::<Position>().unwrap();
+        let transform = entity.get::<Transform>().unwrap();
+        let velocity = entity.get::<LinearVelocity>().unwrap();
+        let recovery = entity.get::<AlsCrushRecovery>().unwrap();
+        let expected_y = 3.2 + ALS_CHARACTER_CAPSULE_HALF_HEIGHT + CRUSH_RECOVERY_SKIN;
+        assert!((position.0.y - expected_y).abs() < 1e-6);
+        assert_eq!(transform.translation, position.0);
+        assert_eq!(velocity.0.y, 0.0);
+        assert_eq!(recovery.corrections, 1);
+        assert!((recovery.max_penetration - 1.1).abs() < 1e-6);
     }
 }
