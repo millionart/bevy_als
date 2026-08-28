@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use als_ext::{
     AlsExtPlugin, ControlRigBoundaryNode, GlobalBoneMaskInputNode, GlobalBoolInputNode,
-    GlobalF32InputNode, InertializedLinkedAnimLayerNode, LayeredGraphNode, LocalRefPoseNode,
-    InterruptibleFsmNode, SkeletonAwareLayeredGraphNode,
+    GlobalF32InputNode, InertializedLinkedAnimLayerNode, InterruptibleFsmNode, LayeredGraphNode,
+    LocalRefPoseNode, SkeletonAwareLayeredGraphNode,
 };
 use bevy::asset::LoadedFolder;
 use bevy::ecs::message::MessageWriter;
@@ -228,7 +228,8 @@ fn config_matches(player: &AnimationGraphPlayer, dynamic: bool) -> bool {
                 config.default_mode == Some(BodyMode::Dynamic)
                     && config.default_readback == Some(true)
             } else {
-                config.default_mode.is_none() && config.default_readback.is_none()
+                config.default_mode == Some(BodyMode::Kinematic)
+                    && config.default_readback == Some(false)
             }
     )
 }

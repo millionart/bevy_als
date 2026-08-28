@@ -14,7 +14,6 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
-use bevy_animation_graph::core::pose::Pose;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, SpawnedRagdoll};
 use bevy_tnua::TnuaToggle;
@@ -34,12 +33,6 @@ struct AlsRagdollCharacterPhysics {
     rigid_body: RigidBody,
     collision_layers: Option<CollisionLayers>,
     tnua_toggle: Option<TnuaToggle>,
-}
-
-#[derive(Component, Clone)]
-struct AlsRagdollPoseBackup {
-    pose: Pose,
-    normal_restore_count: u64,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default)]
@@ -66,15 +59,10 @@ impl Plugin for AlsRagdollLinkPlugin {
             FixedPostUpdate,
             (
                 sync_ragdoll_body_modes.after(AnimationGraphSet::PrePhysics),
-                capture_non_ragdoll_pose.after(sync_ragdoll_body_modes),
                 ApplyDeferred,
             )
                 .chain()
                 .before(PhysicsSystems::First),
-        )
-        .add_systems(
-            FixedPostUpdate,
-            restore_non_ragdoll_pose.after(AnimationGraphSet::PostPhysics),
         )
         .add_systems(
             FixedPostUpdate,
@@ -161,66 +149,6 @@ fn sync_ragdoll_body_modes(
             {
                 commands.entity(*body_entity).insert(target_mode);
             }
-        }
-    }
-}
-
-fn capture_non_ragdoll_pose(
-    mut commands: Commands,
-    characters: Query<&LocomotionState, With<AlsCharacter>>,
-    instances: Query<&AnimatedSceneInstance>,
-    players: Query<&AnimationGraphPlayer>,
-    mut backups: Query<&mut AlsRagdollPoseBackup>,
-) {
-    let Ok(locomotion) = characters.single() else {
-        return;
-    };
-    if *locomotion == LocomotionState::Ragdolling {
-        return;
-    }
-    for instance in &instances {
-        let player_entity = instance.player_entity();
-        let Ok(player) = players.get(player_entity) else {
-            continue;
-        };
-        let Some(pose) = player.get_default_output_pose() else {
-            continue;
-        };
-        if let Ok(mut backup) = backups.get_mut(player_entity) {
-            backup.pose = pose.clone();
-        } else {
-            commands.entity(player_entity).insert(AlsRagdollPoseBackup {
-                pose: pose.clone(),
-                normal_restore_count: 0,
-            });
-        }
-    }
-}
-
-fn restore_non_ragdoll_pose(
-    characters: Query<&LocomotionState, With<AlsCharacter>>,
-    instances: Query<&AnimatedSceneInstance>,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    mut backups: Query<&mut AlsRagdollPoseBackup>,
-) {
-    let Ok(locomotion) = characters.single() else {
-        return;
-    };
-    if *locomotion == LocomotionState::Ragdolling {
-        return;
-    }
-    for instance in &instances {
-        let player_entity = instance.player_entity();
-        let Ok(mut player) = players.get_mut(player_entity) else {
-            continue;
-        };
-        let Ok(mut backup) = backups.get_mut(player_entity) else {
-            continue;
-        };
-        player.set_default_output_pose(backup.pose.clone());
-        backup.normal_restore_count += 1;
-        if backup.normal_restore_count == 1 {
-            info!("[RAGLINK][NORMAL] animation pose restored after physics readback");
         }
     }
 }

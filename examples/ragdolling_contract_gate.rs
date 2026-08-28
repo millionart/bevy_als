@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    AlsExtPlugin, AlsRagdollConfigNode, GameplayTagBlendMode, GlobalBoolInputNode,
-    GlobalF32InputNode, GlobalPoseInputNode, RagdollingTagBlendNode,
+    AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
+    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -187,7 +187,8 @@ fn config_matches(player: &AnimationGraphPlayer, dynamic: bool) -> bool {
                 config.default_mode == Some(BodyMode::Dynamic)
                     && config.default_readback == Some(true)
             } else {
-                config.default_mode.is_none() && config.default_readback.is_none()
+                config.default_mode == Some(BodyMode::Kinematic)
+                    && config.default_readback == Some(false)
             }
     )
 }
@@ -256,7 +257,7 @@ fn verify_static(
         .is_some_and(|node| node.key == "als_ragdolling_dynamic")
         && node::<GlobalBoolInputNode>(graph, "ragdoll readback")
             .is_some_and(|node| node.key == "als_ragdolling_readback")
-        && node::<AlsRagdollConfigNode>(graph, "ragdoll config").is_some();
+        && node::<RagdollConfigNode>(graph, "ragdoll config").is_some();
     let io = has_input(graph, "ragdolling_pose")
         && graph.io_spec.has_output_time()
         && CURVES.iter().all(|curve| {
@@ -431,7 +432,7 @@ fn observe(
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = Phase::Recovered;
             info!(
-                "[RAGDOLLING-CONTRACT] recovery snapshot=1 outer=.5/.5 curve=.375 config=asset-default/no-readback"
+                "[RAGDOLLING-CONTRACT] recovery snapshot=1 outer=.5/.5 curve=.375 config=kinematic/no-readback"
             );
         }
         Phase::Recovered => {
