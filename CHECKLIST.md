@@ -231,9 +231,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 动画底座与条件资源语义
 
-- [ ] **BF102.24 — F01：InertializationNode 端点收敛与惯性语义（P1）**
+- [x] **BF102.24 — F01：InertializationNode 端点收敛与惯性语义（P1）**
   - 依赖：BF102.05。
   - 验收：过渡结束时无残留源姿态；源姿态继续求值与 UE 惯性混合差异有明确处理方案。
+  - 当次 UE 事实：`FAnimNode_Inertialization` 保存当前/前两帧 pose snapshot 与差分速度，并用五次多项式让残差、速度和加速度在结束时间归零；端点不保留源姿态。
+  - 实现：项目节点现在在过渡开始或 factor 回退时捕获 target→source 的加性 pose 残差，随后只衰减该残差，并在端点直接返回 target。当前 transition graph 拓扑只在过渡期间求值 source，无法取得 UE 所需的过渡前两帧历史；因此明确采用零初速度的残差策略，source 继续被图调度仅用于输入/时间，不再逐帧影响输出 pose。
+  - 证据：`inertialization_gate` 用 source=0°、target=90°、过渡后 source=180° 验证输出为 `start=0° midpoint=72° end=90°`，且后续 source 变化不改写捕获残差，输出 `start_matches_source=true end_matches_target=true captured_residual_is_stable=true -> PASS`。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（164 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.25 — F02：InertializedLinkedAnimLayer 复位/请求转发（P1）**
   - 依赖：BF102.09、BF102.24。

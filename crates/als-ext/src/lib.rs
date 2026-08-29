@@ -81,7 +81,10 @@ pub use global_bone_mask_input::GlobalBoneMaskInputNode;
 pub use global_bool_input::GlobalBoolInputNode;
 pub use global_f32_input::{GlobalF32InputNode, ROOT_DEFAULTS_ENABLED_KEY};
 pub use global_pose_input::GlobalPoseInputNode;
-pub use inertialization::{InertializationNode, inertial_alpha};
+pub use inertialization::{
+    InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
+    inertial_residual_weight,
+};
 pub use inertialized_linked_anim_layer::InertializedLinkedAnimLayerNode;
 pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
 pub use layered_graph::LayeredGraphNode;
