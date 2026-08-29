@@ -1117,18 +1117,42 @@ fn camera_delta_seconds(
     delta.max(0.0)
 }
 
+pub fn vertical_fov_radians_from_horizontal_degrees(
+    horizontal_degrees: f32,
+    aspect_ratio: f32,
+) -> f32 {
+    let horizontal_radians = horizontal_degrees.clamp(0.001, 179.999).to_radians();
+    let aspect = aspect_ratio.max(f32::EPSILON);
+    2.0 * (0.5 * horizontal_radians).tan().atan2(aspect)
+}
+
+pub fn horizontal_fov_degrees_from_vertical_radians(
+    vertical_radians: f32,
+    aspect_ratio: f32,
+) -> f32 {
+    let aspect = aspect_ratio.max(f32::EPSILON);
+    (2.0 * ((0.5 * vertical_radians).tan() * aspect).atan()).to_degrees()
+}
+
 fn set_field_of_view(
     projection: &mut Projection,
     field_of_view: &mut AlsCameraFieldOfView,
     value_degrees: f32,
 ) {
     match projection {
-        Projection::Perspective(perspective) => perspective.fov = value_degrees.to_radians(),
+        Projection::Perspective(perspective) => {
+            perspective.fov = vertical_fov_radians_from_horizontal_degrees(
+                value_degrees,
+                perspective.aspect_ratio,
+            );
+        }
         _ => {
-            *projection = Projection::Perspective(PerspectiveProjection {
-                fov: value_degrees.to_radians(),
-                ..default()
-            });
+            let mut perspective = PerspectiveProjection::default();
+            perspective.fov = vertical_fov_radians_from_horizontal_degrees(
+                value_degrees,
+                perspective.aspect_ratio,
+            );
+            *projection = Projection::Perspective(perspective);
         }
     }
     field_of_view.0 = value_degrees;
@@ -1607,6 +1631,44 @@ mod tests {
         assert_eq!(field_of_view_degrees(false, 12.0, &params), 102.0);
         assert_eq!(field_of_view_degrees(true, 12.0, &params), 90.0);
         assert_eq!(field_of_view_degrees(false, 500.0, &params), 175.0);
+    }
+
+    #[test]
+    fn horizontal_field_of_view_converts_to_vertical_projection_field_of_view() {
+        let aspect = 16.0 / 9.0;
+        let vertical = vertical_fov_radians_from_horizontal_degrees(90.0, aspect);
+        assert!((vertical.to_degrees() - 58.7155).abs() < 1e-3);
+        let horizontal = horizontal_fov_degrees_from_vertical_radians(vertical, aspect);
+        assert!((horizontal - 90.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn field_of_view_recomputes_for_projection_aspect_ratio() {
+        let mut projection = Projection::Perspective(PerspectiveProjection {
+            aspect_ratio: 4.0 / 3.0,
+            ..default()
+        });
+        let mut field_of_view = AlsCameraFieldOfView::default();
+        set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+        let first_vertical = match projection {
+            Projection::Perspective(ref perspective) => perspective.fov,
+            _ => unreachable!(),
+        };
+        if let Projection::Perspective(ref mut perspective) = projection {
+            perspective.aspect_ratio = 16.0 / 9.0;
+        }
+        set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+        let second_vertical = match projection {
+            Projection::Perspective(ref perspective) => perspective.fov,
+            _ => unreachable!(),
+        };
+        assert!(second_vertical < first_vertical);
+        assert_eq!(field_of_view.0, 90.0);
+        assert!(
+            (horizontal_fov_degrees_from_vertical_radians(second_vertical, 16.0 / 9.0) - 90.0)
+                .abs()
+                < 1e-4
+        );
     }
 
     #[test]

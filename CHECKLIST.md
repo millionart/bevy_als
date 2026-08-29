@@ -151,9 +151,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `aim_override_gate` 依次记录 `(raw=false, override=None) → ViewDirection`、`(true, None) → Aiming`、`(false, true) → Aiming`、`(true, false) → ViewDirection`，输出 `complete_override_truth_table -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.14 — C01：UE 水平 FOV 转换为 Bevy 垂直 FOV（P1）**
+- [x] **BF102.14 — C01：UE 水平 FOV 转换为 Bevy 垂直 FOV（P1）**
   - 依赖：BF102.10。
   - 验收：多宽高比下投影矩阵的水平/垂直 FOV 与 UE 契约一致，16:9 水平 90° 的垂直值约为 58.7155°。
+  - 当次 ALS 事实：`UAlsCameraComponent::GetViewInfo()` 将 `CameraFieldOfView` 写入 `FMinimalViewInfo.FOV`；UE `FMinimalViewInfo` 明确将该值定义为水平 FOV，投影阶段再按宽高比与 axis constraint 构造矩阵。
+  - 实现：相机仍以 ALS 水平角度保存 `AlsCameraFieldOfView`／调试值；写入 Bevy `PerspectiveProjection` 时转换为 `2*atan(tan(horizontal/2)/aspect)`。每帧沿相机运行路径重新转换，因此 Bevy 自动更新 projection aspect 后会重算垂直 FOV。
+  - 证据：`als-camera` 单测覆盖 16:9 的 90°→58.7155° 与 4:3→16:9 的重新计算。真实窗口 `camera_fov_gate` 输出 `horizontal=90.000 vertical=58.7155 aspect=1.7778`，并保持第三人称 offset、第一人称忽略 offset 与 175° clamp；`camera_runtime_gate` 全链路仍通过。
+  - 回归：`cargo test -p als-camera --jobs 2` 通过（7 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 ### 每角色所有权、移动基座与临时物理状态
 

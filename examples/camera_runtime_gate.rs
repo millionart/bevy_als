@@ -10,6 +10,7 @@ use als_camera::{
     AlsCameraCurve, AlsCameraCurveValues, AlsCameraDebugInfo, AlsCameraFieldOfView,
     AlsCameraFovOffset, AlsCameraPlugin, AlsCameraRig, AlsCameraRuntime, AlsCameraSet,
     AlsCameraShakeRequest, AlsCameraSocketLocations, AlsCameraTarget, CAMERA_CURVE_NAMES,
+    horizontal_fov_degrees_from_vertical_radians,
 };
 use als_core::input_request::AlsCameraLeftShoulder;
 use als_core::motion::AlsViewYaw;
@@ -97,7 +98,9 @@ fn setup(mut commands: Commands) {
 
 fn projection_degrees(projection: &Projection) -> f32 {
     match projection {
-        Projection::Perspective(value) => value.fov.to_degrees(),
+        Projection::Perspective(value) => {
+            horizontal_fov_degrees_from_vertical_radians(value.fov, value.aspect_ratio)
+        }
         _ => f32::NAN,
     }
 }
