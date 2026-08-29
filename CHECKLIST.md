@@ -101,9 +101,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`LOCOMOTION_CONTRACT_DIRECT=1 cargo run --example locomotion_contract_gate --jobs 2` 通过。16 个 outer direct transition 均记录 `request=<index>`、writer `state=97`、`actual_state=-1`、相同的 `actual_transition=<index>`、`active=1`、单调前进的进入时间、`clip_sample_time` 和 81 根有效最终姿态骨骼；Gate 输出 `actual_fsm_telemetry=true final_pose=true -> PASS`。另 `cargo test -p als-ext --jobs 2 telemetry_indexes_actual_high_level_state_and_transition -- --nocapture` 通过。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（113 tests）；`cargo test -p als-ext --jobs 2` 通过（162 tests、6 integration tests）；`cargo run --example head_curve_gate --jobs 2` 仍输出 PASS。
 
-- [ ] **BF102.08 — A05：overlay 运行输入去硬编码（P2）**
+- [x] **BF102.08 — A05：overlay 运行输入去硬编码（P2）**
   - 依赖：BF102.04、BF102.06。
   - 验收：SprintAcceleration 和 AllowTransitions 由实际 standing/曲线状态提供，并在各 overlay 消费者处量测。
+  - 当次 ALS 事实：`RefreshStandingMovement()` 仅在 sprint 开始后的 0.5 s 内使用加速度量；`RefreshTransitions()` 以 `AllowTransitions` 曲线是否满权重决定 `bTransitionsAllowed`，而非将任意正数当作允许。
+  - 实现：`AlsRootGraphSet` 显式排在 `AlsStandingLayerSet` 后；root writer 读取同一 avatar 当前帧的 `als_standing_sprint_acceleration_amount` 和 `als_standing_curve_allow_transitions`。前者原样交给 overlay，后者仅在满权重时映射为 1；非 standing 时 sprint 值归零，许可回退到最终曲线。
+  - 证据：完整 `AlsPlayableCharacterPlugin` 的 `overlay_runtime_input_gate` 以确定性的 standing 上游探针验证根桥接：`0.350 → 0.350 → Rifle consumer 0.350`，`AllowTransitions=-1 → overlay_allowed=0`；同时加载并核验 Bow、两种 Pistol 和 Rifle 共 7 个声明许可输入的状态图。Gate 输出 `standing_and_curve_inputs_reach_rifle -> PASS`。`rifle_overlay_contract_gate` 仍运行 Sprint impulse 姿态分支并通过。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（116 tests）；`cargo run --example rifle_overlay_contract_gate --jobs 2`、`cargo run --example head_curve_gate --jobs 2` 通过。
 
 - [ ] **BF102.09 — A06：slot 姿态与曲线同权重混合（P2）**
   - 依赖：BF102.04、BF102.08。

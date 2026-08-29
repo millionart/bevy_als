@@ -20,6 +20,7 @@ use crate::character_assembly::AlsCharacterAvatar;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet};
 use crate::locomotion_layer::{AlsGroundPredictionState, AlsLocomotionLayerSet};
 use crate::stance_layer::AlsStanceBlend;
+use crate::standing_layer::AlsStandingLayerSet;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRootGraphSet;
@@ -27,6 +28,7 @@ pub struct AlsRootGraphSet;
 pub struct AlsRootGraphPlugin;
 
 const SECONDARY_MOTION_DURATION: f32 = 2.666667;
+const FULL_WEIGHT_EPSILON: f32 = 1e-4;
 
 #[derive(Resource, Default)]
 struct SecondaryMotionPhases {
@@ -39,6 +41,7 @@ impl Plugin for AlsRootGraphPlugin {
             PostUpdate,
             AlsRootGraphSet
                 .after(AlsGaitLayerSet)
+                .after(AlsStandingLayerSet)
                 .before(AlsLocomotionLayerSet)
                 .before(AnimationGraphSet::Final),
         )
@@ -140,6 +143,38 @@ fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
     }
 }
 
+fn player_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
+    player
+        .get_global_input_data(key)
+        .and_then(|value| value.as_f32().ok())
+        .filter(|value| value.is_finite())
+}
+
+fn output_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
+    player
+        .get_outputs()
+        .get(key)
+        .and_then(|value| value.as_f32().ok())
+        .filter(|value| value.is_finite())
+}
+
+fn overlay_runtime_inputs(player: &AnimationGraphPlayer, stance: Stance) -> (f32, f32) {
+    let sprint_acceleration = if stance == Stance::Standing {
+        player_f32(player, "als_standing_sprint_acceleration_amount").unwrap_or(0.0)
+    } else {
+        0.0
+    };
+    let allow_curve = if stance == Stance::Standing {
+        player_f32(player, "als_standing_curve_allow_transitions")
+    } else {
+        output_f32(player, "AllowTransitions")
+    };
+    let transitions_allowed = allow_curve.map_or(1.0, |value| {
+        (value >= 1.0 - FULL_WEIGHT_EPSILON) as u8 as f32
+    });
+    (sprint_acceleration, transitions_allowed)
+}
+
 #[allow(clippy::type_complexity)]
 fn root_graph_writer(
     time: Res<Time>,
@@ -236,6 +271,8 @@ fn root_graph_writer(
             let moving = Vec2::new(velocity.x, velocity.z).length() > 0.05;
             let pitch_amount = view.map_or(0.5, |value| 0.5 - value.0 / std::f32::consts::PI);
             let has_input = input.is_some_and(|value| value.move_dir.length_squared() > 1e-6);
+            let (sprint_acceleration, transitions_allowed) =
+                overlay_runtime_inputs(&player, *stance);
             for (key, value) in [
                 ("als_root_overlay_index", overlay_layer_index(*overlay)),
                 ("als_animation_delta_seconds", time.delta_secs()),
@@ -266,8 +303,11 @@ fn root_graph_writer(
                         0.0
                     },
                 ),
-                ("als_overlay_sprint_acceleration_amount", 0.0),
-                ("als_overlay_transitions_allowed", 1.0),
+                (
+                    "als_overlay_sprint_acceleration_amount",
+                    sprint_acceleration,
+                ),
+                ("als_overlay_transitions_allowed", transitions_allowed),
                 ("als_overlay_velocity_forward_amount", forward),
                 ("als_overlay_velocity_backward_amount", backward),
                 ("als_overlay_velocity_left_amount", left),
@@ -345,6 +385,39 @@ mod tests {
         );
         assert!(
             (advance_sync_phase(&mut state, input(SECONDARY_MOTION_DURATION * 0.75))).abs() < 1e-6
+        );
+    }
+
+    #[test]
+    fn overlay_inputs_forward_current_standing_sprint_and_transition_curve() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("als_standing_sprint_acceleration_amount", 0.35_f32);
+        player.set_global_input_data("als_standing_curve_allow_transitions", 1.0_f32);
+        assert_eq!(
+            overlay_runtime_inputs(&player, Stance::Standing),
+            (0.35, 1.0)
+        );
+    }
+
+    #[test]
+    fn overlay_transition_input_requires_a_full_weight_curve() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("als_standing_sprint_acceleration_amount", 0.2_f32);
+        player.set_global_input_data("als_standing_curve_allow_transitions", 0.9998_f32);
+        assert_eq!(
+            overlay_runtime_inputs(&player, Stance::Standing),
+            (0.2, 0.0)
+        );
+    }
+
+    #[test]
+    fn overlay_inputs_do_not_reuse_standing_sprint_while_crouching() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("als_standing_sprint_acceleration_amount", 0.7_f32);
+        player.set_global_input_data("als_standing_curve_allow_transitions", 0.0_f32);
+        assert_eq!(
+            overlay_runtime_inputs(&player, Stance::Crouching),
+            (0.0, 1.0)
         );
     }
 }
