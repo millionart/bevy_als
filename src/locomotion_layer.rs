@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use als_core::character::AlsCharacter;
 use als_core::foot_ik::AlsFootLockState;
 use als_core::input::AlsInputCommand;
@@ -226,6 +228,8 @@ struct LocomotionLayerRuntime {
     jump_phase: SyncPhaseState,
     flail_phase: SyncPhaseState,
     land_phase: SyncPhaseState,
+    outer_transition_requests: VecDeque<LocomotionTransition>,
+    jump_transition_requests: VecDeque<JumpTransition>,
 }
 
 impl Default for LocomotionLayerRuntime {
@@ -245,8 +249,17 @@ impl Default for LocomotionLayerRuntime {
             jump_phase: default(),
             flail_phase: default(),
             land_phase: default(),
+            outer_transition_requests: VecDeque::new(),
+            jump_transition_requests: VecDeque::new(),
         }
     }
+}
+
+#[derive(Component, Debug, Clone, Default, PartialEq)]
+pub struct AlsLocomotionTransitionReceipt {
+    pub sequence: u64,
+    pub outer_transition: Option<f32>,
+    pub jump_transition: Option<f32>,
 }
 
 #[derive(Resource)]
@@ -313,6 +326,10 @@ impl Plugin for LocomotionLayerPlugin {
         .add_systems(
             PostUpdate,
             locomotion_layer_writer.in_set(AlsLocomotionLayerSet),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            acknowledge_locomotion_transition_requests.after(AnimationGraphSet::PrePhysics),
         );
     }
 }
@@ -658,8 +675,6 @@ fn update_locomotion_sync_phases(
 fn write_globals(
     player: &mut AnimationGraphPlayer,
     runtime: &LocomotionLayerRuntime,
-    outer_request: Option<LocomotionTransition>,
-    jump_request: Option<JumpTransition>,
     curves: LocomotionCurves,
     vertical_velocity: f32,
     ground_prediction: f32,
@@ -681,11 +696,19 @@ fn write_globals(
     for (key, value) in [
         (
             "als_locomotion_transition_index",
-            outer_request.map_or(-1.0, LocomotionTransition::index),
+            runtime
+                .outer_transition_requests
+                .front()
+                .copied()
+                .map_or(-1.0, LocomotionTransition::index),
         ),
         (
             "als_locomotion_jump_transition_index",
-            jump_request.map_or(-1.0, JumpTransition::index),
+            runtime
+                .jump_transition_requests
+                .front()
+                .copied()
+                .map_or(-1.0, JumpTransition::index),
         ),
         ("als_locomotion_state_index", runtime.state.index()),
         (
@@ -826,6 +849,7 @@ fn locomotion_layer_writer(
             runtime.state_elapsed = 0.0;
             runtime.transition_elapsed = 0.0;
             runtime.transition_duration = transition.duration();
+            runtime.outer_transition_requests.push_back(transition);
             if runtime.state == LocomotionLayerState::Jump {
                 runtime.jump_state = JumpLayerState::EntryConduit;
                 runtime.jump_state_elapsed = 0.0;
@@ -852,6 +876,7 @@ fn locomotion_layer_writer(
         if let Some(transition) = jump_request {
             runtime.jump_state = transition.target();
             runtime.jump_state_elapsed = 0.0;
+            runtime.jump_transition_requests.push_back(transition);
         }
         let prediction = ground_prediction_amount(
             &spatial,
@@ -884,16 +909,7 @@ fn locomotion_layer_writer(
         );
         update_locomotion_sync_phases(&mut runtime, speed, velocity.y, delta_seconds);
         let curves = state_curve_values(runtime.state);
-        write_globals(
-            &mut player,
-            &runtime,
-            outer_request,
-            jump_request,
-            curves,
-            velocity.y,
-            prediction,
-            speed,
-        );
+        write_globals(&mut player, &runtime, curves, velocity.y, prediction, speed);
         commands
             .entity(character)
             .insert(AlsGroundPredictionState { amount: prediction });
@@ -911,9 +927,110 @@ fn locomotion_layer_writer(
     }
 }
 
+fn acknowledge_locomotion_transition_requests(
+    mut commands: Commands,
+    mut avatars: Query<
+        (
+            Entity,
+            &AnimatedSceneInstance,
+            &mut LocomotionLayerRuntime,
+            Option<&mut AlsLocomotionTransitionReceipt>,
+        ),
+        With<AlsCharacterAvatar>,
+    >,
+    players: Query<&AnimationGraphPlayer>,
+) {
+    for (avatar, instance, mut runtime, receipt) in &mut avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
+            continue;
+        };
+        if player.get_error().is_some() || player.get_default_output_pose().is_none() {
+            continue;
+        }
+        let outer_transition = runtime
+            .outer_transition_requests
+            .pop_front()
+            .map(LocomotionTransition::index);
+        let jump_transition = runtime
+            .jump_transition_requests
+            .pop_front()
+            .map(JumpTransition::index);
+        let consumed = outer_transition.is_some() || jump_transition.is_some();
+        if let Some(mut receipt) = receipt {
+            if consumed {
+                receipt.sequence += 1;
+                receipt.outer_transition = outer_transition;
+                receipt.jump_transition = jump_transition;
+            }
+        } else {
+            commands
+                .entity(avatar)
+                .insert(AlsLocomotionTransitionReceipt {
+                    sequence: u64::from(consumed),
+                    outer_transition,
+                    jump_transition,
+                });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn delivered_transition_count(render_hz: f32, fixed_hz: f32) -> usize {
+        let render_dt = 1.0 / render_hz;
+        let fixed_dt = 1.0 / fixed_hz;
+        let request_time = fixed_dt * 0.25;
+        let end_time = (fixed_dt * 4.0).max(render_dt * 3.0);
+        let mut next_render = 0.0;
+        let mut next_fixed = fixed_dt;
+        let mut time = 0.0;
+        let mut issued = false;
+        let mut requests = VecDeque::new();
+        let mut previous = None;
+        let mut deliveries = 0;
+        while time <= end_time {
+            if next_render <= next_fixed {
+                time = next_render;
+                if !issued && time >= request_time {
+                    requests.push_back(4.0_f32);
+                    issued = true;
+                }
+                next_render += render_dt;
+            } else {
+                time = next_fixed;
+                let value = requests.front().copied().unwrap_or(-1.0);
+                if als_ext::direct_transition_event::take_direct_transition_edge(
+                    &mut previous,
+                    value,
+                    16,
+                )
+                .is_some()
+                {
+                    deliveries += 1;
+                    requests.pop_front();
+                }
+                next_fixed += fixed_dt;
+            }
+        }
+        assert!(issued);
+        assert!(requests.is_empty());
+        deliveries
+    }
+
+    #[test]
+    fn transition_requests_survive_render_frames_until_fixed_consumption() {
+        for render_hz in [30.0, 60.0, 144.0, 240.0] {
+            for fixed_hz in [30.0, 60.0, 120.0] {
+                let deliveries = delivered_transition_count(render_hz, fixed_hz);
+                println!(
+                    "[BF102.05] render_hz={render_hz:.0} fixed_hz={fixed_hz:.0} deliveries={deliveries}"
+                );
+                assert_eq!(deliveries, 1);
+            }
+        }
+    }
 
     #[test]
     fn outer_in_air_priority_matches_the_source_alias() {

@@ -19,6 +19,22 @@ pub fn direct_transition_index(value: f32, transition_count: usize) -> Option<us
     Some(value.round().clamp(0.0, (transition_count - 1) as f32) as usize)
 }
 
+pub fn take_direct_transition_edge(
+    previous: &mut Option<usize>,
+    value: f32,
+    transition_count: usize,
+) -> Option<usize> {
+    let index = direct_transition_index(value, transition_count);
+    let changed = *previous != index;
+    *previous = index;
+    changed.then_some(index).flatten()
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct DirectTransitionEventState {
+    last_index: Option<usize>,
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -39,7 +55,11 @@ impl NodeLike for DirectTransitionEventNode {
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let value = global_f32_or_root_default(&ctx, &self.key)?;
-        let index = direct_transition_index(value, self.transitions.len());
+        let index = take_direct_transition_edge(
+            &mut ctx.state_mut::<DirectTransitionEventState>()?.last_index,
+            value,
+            self.transitions.len(),
+        );
         let transition = index.map(|index| self.transitions[index]);
         let queue = transition.map_or_else(EventQueue::default, |transition| {
             EventQueue::with_events([SampledEvent::instant(AnimationEvent::Transition(
@@ -69,6 +89,15 @@ mod tests {
         assert_eq!(direct_transition_index(20.0, 3), Some(2));
         assert_eq!(direct_transition_index(f32::NAN, 3), None);
         assert_eq!(direct_transition_index(1.0, 0), None);
+    }
+
+    #[test]
+    fn transition_index_emits_once_until_cleared() {
+        let mut previous = None;
+        assert_eq!(take_direct_transition_edge(&mut previous, 1.0, 3), Some(1));
+        assert_eq!(take_direct_transition_edge(&mut previous, 1.0, 3), None);
+        assert_eq!(take_direct_transition_edge(&mut previous, -1.0, 3), None);
+        assert_eq!(take_direct_transition_edge(&mut previous, 1.0, 3), Some(1));
     }
 
     #[test]

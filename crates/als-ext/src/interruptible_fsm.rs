@@ -634,6 +634,7 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::direct_transition_event::take_direct_transition_edge;
     use bevy_animation_graph::core::state_machine::low_level::{
         LlTransitionData, LowLevelState, LowLevelTransitionType,
     };
@@ -667,6 +668,50 @@ mod tests {
         assert!(selected.is_some_and(|transition| {
             transition.id == LowLevelTransitionId::Immediate(transition_id)
         }));
+    }
+
+    #[test]
+    fn edge_triggered_direct_event_advances_the_fsm_once() {
+        let state_id = StateId::default();
+        let transition_id = TransitionId::Direct(default());
+        let source = LowLevelStateId::HlState(state_id);
+        let target = LowLevelStateId::HlTransition(transition_id);
+        let mut machine = LowLevelStateMachine::new();
+        machine.add_transition(LowLevelTransition {
+            id: LowLevelTransitionId::Immediate(transition_id),
+            ignore_external: false,
+            reset_target_state: false,
+            source: source.clone(),
+            target: target.clone(),
+            transition_type: LowLevelTransitionType::Direct,
+            hl_source: state_id,
+            hl_target: state_id,
+        });
+        let mut runtime = InterruptibleFsmState {
+            state: source,
+            state_entered_time: 0.0,
+            interrupted_sources: Vec::new(),
+            source_pose: None,
+            last_pose: None,
+        };
+        let mut previous = None;
+        let mut deliveries = 0;
+        if take_direct_transition_edge(&mut previous, 0.0, 1).is_some() {
+            let transition =
+                InterruptibleFsmNode::direct_transition(&machine, &runtime, transition_id).unwrap();
+            InterruptibleFsmNode::activate_transition(&mut runtime, transition, 0.25);
+            deliveries += 1;
+        }
+        if take_direct_transition_edge(&mut previous, 0.0, 1).is_some() {
+            deliveries += 1;
+        }
+        println!(
+            "[BF102.05] fsm_state={:?} entered_time={:.2} deliveries={deliveries}",
+            runtime.state, runtime.state_entered_time
+        );
+        assert_eq!(runtime.state, target);
+        assert_eq!(runtime.state_entered_time, 0.25);
+        assert_eq!(deliveries, 1);
     }
 
     #[test]

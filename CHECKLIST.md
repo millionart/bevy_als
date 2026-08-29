@@ -77,9 +77,15 @@ BF102.58 网络范围 ─► BF102.Gate
     - 证据：完整 `AlsPlayableCharacterPlugin` 入口运行 `roll_gate`（12 s safety timeout）输出 `completed=true`。两次滚翻均记录距离约 2.75 m、方向点积 1、slot weight 1、slot root delta 约 0.0732 m、slot pose=true、roll curve=1、Roll state=true、final pose=true，最终 Pose 指纹变化分别约 7.08／7.87。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（111 tests）。
 
-- [ ] **BF102.05 — A02：一次性动画转换事件跨时钟可靠消费（P1）**
+- [x] **BF102.05 — A02：一次性动画转换事件跨时钟可靠消费（P1）**
   - 依赖：BF102.04。
   - 验收：30/60/144/240 FPS × fixed dt 下的每个 transition 都有一次实际 FSM 消费记录，不能被后续渲染帧覆盖。
+  - 当次 ALS 事实：`PlayTransitionAnimation` 在工作线程仅写入 queued transition；`NativePostUpdateAnimation` 在可执行动画的阶段调用 `PlayQueuedTransitionAnimation`，成功后才清空 queued sequence。
+  - [x] **BF102.05.a — A02：按图求值确认消费 locomotion transition（P1）**
+    - 依赖：BF102.05 当次 ALS 队列语义与当前跨时钟反例。
+    - 验收：每 avatar 的 outer/jump transition 仅在 `AnimationGraphSet::PrePhysics` 后确认出队；同一待消费 index 在任意渲染帧数下保持可见，但 DirectTransition 只发出一次。
+    - 证据：30/60/144/240 Hz 渲染 × 30/60/120 Hz fixed 的 12 组 `BF102.05` 探针均为 `deliveries=1`；`InterruptibleFsmNode` 实测消费后状态为 `HlTransition(Direct(...))`、进入时间 0.25、`deliveries=1`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（112 tests）；`cargo test -p als-ext --jobs 2` 通过（161 tests）。实际默认入口的 FSM 可观测性会在 BF102.07 单独继续增强。
 
 - [ ] **BF102.06 — A03：头部 ViewBlock/PoseAiming 曲线桥接（P1）**
   - 依赖：BF102.04。
