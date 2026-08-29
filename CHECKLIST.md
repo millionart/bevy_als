@@ -189,9 +189,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 依赖：BF102.17、BF102.31。
   - 验收：落地后的临时制动窗口、曲线与恢复时机有可复查速度轨迹。
 
-- [ ] **BF102.19 — I04：Foot Lock 使用 movement-base 相对坐标（P1）**
+- [x] **BF102.19 — I04：Foot Lock 使用 movement-base 相对坐标（P1）**
   - 依赖：BF102.17。
   - 验收：移动/旋转平台上锁点按基座换算，角色与脚锁互不产生世界空间漂移。
+  - 当次 ALS 事实：`ProcessFootLockBaseChange()` 在锁脚相关且基座首次有效或变更时，将世界锁点保存为 movement-base 局部位置/旋转；`RefreshFootLock()` 每帧以当前基座变换重建世界锁点。失去基座时清除相对值但保留最后的世界锁点。
+  - 实现：每只脚的 lock state 现在保存基座实体、局部位置与局部旋转。应用 Foot IK 前以原基座更新世界锁点，刷新锁权重后以 BF102.17 的当前支撑实体重新捕获局部变换；清锁、换基座、基座失效均不会留下过期相对状态。
+  - 证据：`foot_lock_base_gate` 通过真实 `FootIkApplyPlugin` 路径依次验证首次锁定、基座 A 的平移/旋转跟随、换至基座 B 时世界锁点不跳变、基座 B 跟随、脱离基座及基座继续移动后的世界锁点冻结；输出 `first_followed=true rebase_preserved=true second_followed=true detach_preserved=true base_loss_preserved=true -> PASS`。
+  - 回归：`cargo test --workspace --jobs 2` 通过（als-camera 7 passed；als-core 204 passed、2 ignored；als-ext 163 passed；根包 117 passed；其余集成测试均通过）。
 
 - [ ] **BF102.20 — X01：Mantle 保留目标身份和相对变换（P1）**
   - 依赖：BF102.15、BF102.17。

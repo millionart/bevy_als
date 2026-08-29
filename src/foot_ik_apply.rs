@@ -1,7 +1,9 @@
+use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{
     AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
-    AlsFootLockSettings, AlsFootLockState, AlsFootProbe, FootSideInput,
-    constrain_foot_lock_location, foot_target_offset, refresh_foot_lock,
+    AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootProbe, FootSideInput,
+    advance_foot_lock_movement_base, capture_foot_lock_movement_base, constrain_foot_lock_location,
+    foot_target_offset, refresh_foot_lock,
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transitions::TransitionConfig;
@@ -83,6 +85,7 @@ fn foot_ik_apply_system(
             &AlsFootLockInput,
             &Stance,
             &AlsFootLockSettings,
+            Option<&AlsMovementBaseDynamicsState>,
             &mut AlsFootIkRuntime,
             &mut AlsFootLockState,
             &mut AlsDynamicTransitionState,
@@ -106,6 +109,7 @@ fn foot_ik_apply_system(
         lock_input,
         stance,
         settings,
+        movement_base,
         mut runtime,
         mut lock_state,
         mut dynamic_transition,
@@ -131,6 +135,11 @@ fn foot_ik_apply_system(
         lock_state.foot_planted_amount = lock_input.foot_planted_amount.clamp(-1.0, 1.0);
         lock_state.feet_crossing_amount = lock_input.feet_crossing_amount.clamp(0.0, 1.0);
         let became_valid = lock_state.became_valid;
+        let current_base = movement_base.and_then(|state| {
+            state
+                .entity
+                .and_then(|entity| foot_lock_movement_base(entity, &bone_globals))
+        });
         for side in 0..2usize {
             let Ok(target) = bone_globals.get(bones.target(side)) else {
                 continue;
@@ -139,6 +148,10 @@ fn foot_ik_apply_system(
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
+            let latest_base = foot_state
+                .movement_base
+                .and_then(|base| foot_lock_movement_base(base.entity, &bone_globals));
+            advance_foot_lock_movement_base(foot_state, latest_base);
             refresh_foot_lock(
                 foot_state,
                 target.translation(),
@@ -151,6 +164,7 @@ fn foot_ik_apply_system(
                 became_valid,
                 dt,
             );
+            capture_foot_lock_movement_base(foot_state, current_base);
         }
 
         let mut inputs = [FootSideInput::default(), FootSideInput::default()];
@@ -210,6 +224,18 @@ fn foot_ik_apply_system(
 
         apply_pelvis_drop(bones.left_thigh, runtime.pelvis_drop, &mut bone_locals);
     }
+}
+
+fn foot_lock_movement_base(
+    entity: Entity,
+    transforms: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> Option<AlsFootLockMovementBase> {
+    let transform = transforms.get(entity).ok()?;
+    Some(AlsFootLockMovementBase {
+        entity,
+        translation: transform.translation(),
+        rotation: transform.rotation(),
+    })
 }
 
 fn animation_curve_amount(

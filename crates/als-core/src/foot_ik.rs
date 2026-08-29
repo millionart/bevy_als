@@ -155,12 +155,22 @@ pub struct AlsFootLockInput {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlsFootLockMovementBase {
+    pub entity: Entity,
+    pub translation: Vec3,
+    pub rotation: Quat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlsFootLockFootState {
     pub lock_amount: f32,
     pub target_location: Vec3,
     pub target_rotation: Quat,
     pub lock_location: Vec3,
     pub lock_rotation: Quat,
+    pub movement_base: Option<AlsFootLockMovementBase>,
+    pub lock_location_movement_base: Vec3,
+    pub lock_rotation_movement_base: Quat,
     pub final_location: Vec3,
     pub final_rotation: Quat,
 }
@@ -173,10 +183,49 @@ impl Default for AlsFootLockFootState {
             target_rotation: Quat::IDENTITY,
             lock_location: Vec3::ZERO,
             lock_rotation: Quat::IDENTITY,
+            movement_base: None,
+            lock_location_movement_base: Vec3::ZERO,
+            lock_rotation_movement_base: Quat::IDENTITY,
             final_location: Vec3::ZERO,
             final_rotation: Quat::IDENTITY,
         }
     }
+}
+
+pub fn advance_foot_lock_movement_base(
+    state: &mut AlsFootLockFootState,
+    latest_base: Option<AlsFootLockMovementBase>,
+) {
+    let Some(saved_base) = state.movement_base else {
+        return;
+    };
+    let base = latest_base
+        .filter(|base| base.entity == saved_base.entity)
+        .unwrap_or(saved_base);
+    state.lock_location = base.translation + base.rotation * state.lock_location_movement_base;
+    state.lock_rotation = (base.rotation * state.lock_rotation_movement_base).normalize();
+}
+
+pub fn capture_foot_lock_movement_base(
+    state: &mut AlsFootLockFootState,
+    current_base: Option<AlsFootLockMovementBase>,
+) {
+    if !is_relevant_animation_weight(state.lock_amount) {
+        state.movement_base = None;
+        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_rotation_movement_base = Quat::IDENTITY;
+        return;
+    }
+    let Some(base) = current_base else {
+        state.movement_base = None;
+        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_rotation_movement_base = Quat::IDENTITY;
+        return;
+    };
+    let inverse = base.rotation.conjugate();
+    state.lock_location_movement_base = inverse * (state.lock_location - base.translation);
+    state.lock_rotation_movement_base = (inverse * state.lock_rotation).normalize();
+    state.movement_base = Some(base);
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -234,6 +283,9 @@ pub fn refresh_foot_lock(
         state.lock_amount = 0.0;
         state.lock_location = Vec3::ZERO;
         state.lock_rotation = Quat::IDENTITY;
+        state.movement_base = None;
+        state.lock_location_movement_base = Vec3::ZERO;
+        state.lock_rotation_movement_base = Quat::IDENTITY;
         state.final_location = target_location;
         state.final_rotation = target_rotation;
         return;
@@ -900,6 +952,65 @@ mod tests {
         assert!((constrained.length() - 1.0).abs() < 1e-6);
         let foot_yaw = constrain_foot_lock_yaw(100.0_f32.to_radians(), 0.0, 40.0);
         assert!((foot_yaw - 40.0_f32.to_radians()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn foot_lock_tracks_translation_and_rotation_of_its_movement_base() {
+        let mut state = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: Vec3::new(2.0, 0.0, 0.0),
+            lock_rotation: Quat::IDENTITY,
+            ..Default::default()
+        };
+        let initial_base = AlsFootLockMovementBase {
+            entity: Entity::from_raw_u32(1).unwrap(),
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+        };
+        capture_foot_lock_movement_base(&mut state, Some(initial_base));
+        let moved_base = AlsFootLockMovementBase {
+            entity: initial_base.entity,
+            translation: Vec3::new(3.0, 0.0, 0.0),
+            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+        };
+        advance_foot_lock_movement_base(&mut state, Some(moved_base));
+        assert!(state.lock_location.distance(Vec3::new(3.0, 0.0, -2.0)) < 1e-5);
+        assert!(state.lock_rotation.dot(moved_base.rotation).abs() > 0.99999);
+    }
+
+    #[test]
+    fn foot_lock_rebases_and_detaches_without_losing_its_world_transform() {
+        let mut state = AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: Vec3::new(1.0, 0.0, 0.0),
+            lock_rotation: Quat::IDENTITY,
+            ..Default::default()
+        };
+        let first = AlsFootLockMovementBase {
+            entity: Entity::from_raw_u32(1).unwrap(),
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+        };
+        capture_foot_lock_movement_base(&mut state, Some(first));
+        let moved_first = AlsFootLockMovementBase {
+            entity: first.entity,
+            translation: Vec3::new(2.0, 0.0, 0.0),
+            rotation: Quat::IDENTITY,
+        };
+        advance_foot_lock_movement_base(&mut state, Some(moved_first));
+        let second = AlsFootLockMovementBase {
+            entity: Entity::from_raw_u32(2).unwrap(),
+            translation: Vec3::new(5.0, 0.0, 0.0),
+            rotation: Quat::IDENTITY,
+        };
+        capture_foot_lock_movement_base(&mut state, Some(second));
+        assert_eq!(
+            state.movement_base.map(|base| base.entity),
+            Some(second.entity)
+        );
+        capture_foot_lock_movement_base(&mut state, None);
+        assert_eq!(state.movement_base, None);
+        assert!(state.lock_location.distance(Vec3::new(3.0, 0.0, 0.0)) < 1e-5);
     }
 
     #[test]
