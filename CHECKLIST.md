@@ -42,9 +42,11 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### BF101 基线回归
 
-- [ ] **BF102.01 — M02：视角相对台阶方向回归核验（P1）**
+- [x] **BF102.01 — M02：视角相对台阶方向回归核验（P1）**
   - 依赖：已通过 BF101.Gate。
   - 验收：默认生产入口在四个 view yaw 下的台阶探针方向与 locomotion 世界方向一致；只对仍复现的缺口创建修复子项。
+  - 当次 ALS 事实：`AAlsCharacterExample::Input_OnMove` 以当前 View yaw 求世界前／右向量并调用 `AddMovementInput`；`UAlsCharacterMovementComponent::MoveSmooth` 在刷新 grounded 配置后委托 UE 原生 `Super::MoveSmooth`。
+  - 证据：`cargo test -p als-core --jobs 2 rotation_cap_tests::step_assist_uses_default_motion_plugin_with_physics_queries -- --ignored --nocapture --test-threads=1` 通过；`AlsMotionPlugin` 生产调度下 yaw 0／+90／180／-90° 的方向点积均为 1，上抬均为 0.305 m，Position／Transform 同步误差均为 0。
 
 - [ ] **BF102.02 — M03：逻辑 stance 与物理胶囊同步回归核验（P1）**
   - 依赖：已通过 BF101.Gate。

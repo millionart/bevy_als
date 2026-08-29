@@ -414,7 +414,7 @@ mod rotation_cap_tests {
 
     #[test]
     #[ignore]
-    fn step_assist_uses_view_relative_direction_with_physics_queries() {
+    fn step_assist_uses_default_motion_plugin_with_physics_queries() {
         let cases = [
             (0.0, Vec3::NEG_Z),
             (std::f32::consts::FRAC_PI_2, Vec3::NEG_X),
@@ -429,8 +429,9 @@ mod rotation_cap_tests {
                 AssetPlugin::default(),
                 PhysicsPlugins::new(FixedPostUpdate),
                 TransformPlugin,
-                TnuaAvian3dPlugin::new(FixedPostUpdate),
-                TnuaControllerPlugin::<AlsControlScheme>::new(FixedPostUpdate),
+                TnuaAvian3dPlugin::new(FixedUpdate),
+                TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+                AlsMotionPlugin,
             ))
             .insert_resource(Assets::<AlsMovementParams>::default())
             .insert_resource(StepAssistPhysicsProbe {
@@ -439,10 +440,7 @@ mod rotation_cap_tests {
             })
             .add_systems(
                 Update,
-                (
-                    step_up_assist_system,
-                    record_step_assist_physics_probe.after(step_up_assist_system),
-                ),
+                record_step_assist_physics_probe.after(step_up_assist_system),
             );
             app.finish();
             let params = app
@@ -484,6 +482,7 @@ mod rotation_cap_tests {
 
             for _ in 0..8 {
                 app.update();
+                app.world_mut().run_schedule(FixedUpdate);
                 app.world_mut().run_schedule(FixedPostUpdate);
             }
             app.update();
@@ -502,7 +501,7 @@ mod rotation_cap_tests {
             let capsule_bottom = transform.translation.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
             let step_top = step_center.y + 0.15;
             println!(
-                "[BF101.3] yaw={yaw:.6} ground_distance={ground_distance:.6} step_distance={step_distance:.6} direction_dot={direction_dot:.6} rise={:.6} sync_error={sync_error:.6} floor_gap={:.6}",
+                "[BF102.01] yaw={yaw:.6} ground_distance={ground_distance:.6} step_distance={step_distance:.6} direction_dot={direction_dot:.6} rise={:.6} sync_error={sync_error:.6} floor_gap={:.6}",
                 displacement.y,
                 capsule_bottom - step_top
             );
