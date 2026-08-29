@@ -96,6 +96,9 @@ pub struct AlsStateRequest {
     pub on_invalid: InvalidRequestPolicy,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsDesiredStance(pub Stance);
+
 impl AlsStateRequest {
     pub const fn with_locomotion_state(mut self, v: LocomotionState) -> Self {
         self.locomotion_state = Some(v);
@@ -284,6 +287,47 @@ fn process_dimension<T: Copy + PartialEq>(
     }
 }
 
+fn process_stance_dimension(
+    entity: Entity,
+    request_slot: &mut Option<Stance>,
+    current: &mut Stance,
+    desired: Option<Mut<AlsDesiredStance>>,
+    verdict: Option<Verdict>,
+    transitions: &mut MessageWriter<StateTransitionEvent>,
+    rejections: &mut MessageWriter<StateTransitionRejectedEvent>,
+) {
+    let (Some(verdict), Some(requested)) = (verdict, *request_slot) else {
+        return;
+    };
+    match verdict {
+        Verdict::Accept => {
+            *request_slot = None;
+            if let Some(mut desired) = desired {
+                desired.0 = requested;
+            } else if requested != *current {
+                let from = *current;
+                *current = requested;
+                transitions.write(StateTransitionEvent {
+                    entity,
+                    dimension: Dimension::Stance,
+                    from: StateValue::Stance(from),
+                    to: StateValue::Stance(requested),
+                });
+            }
+        }
+        Verdict::Reject(reason) => {
+            *request_slot = None;
+            rejections.write(StateTransitionRejectedEvent {
+                entity,
+                dimension: Dimension::Stance,
+                requested: StateValue::Stance(requested),
+                reason,
+            });
+        }
+        Verdict::Queue => {}
+    }
+}
+
 pub fn state_transition_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut rejections: MessageWriter<StateTransitionRejectedEvent>,
@@ -292,12 +336,22 @@ pub fn state_transition_system(
         &mut AlsStateRequest,
         &mut LocomotionState,
         &mut Stance,
+        Option<&mut AlsDesiredStance>,
         &mut Gait,
         &mut RotationMode,
         &mut OverlayState,
     )>,
 ) {
-    for (entity, mut req, mut loco, mut stance, mut gait, mut rotation, mut overlay) in &mut actors
+    for (
+        entity,
+        mut req,
+        mut loco,
+        mut stance,
+        desired_stance,
+        mut gait,
+        mut rotation,
+        mut overlay,
+    ) in &mut actors
     {
         let cur = AlsCurrentStates {
             locomotion_state: *loco,
@@ -318,13 +372,12 @@ pub fn state_transition_system(
             &mut transitions,
             &mut rejections,
         );
-        process_dimension(
+        process_stance_dimension(
             entity,
-            Dimension::Stance,
             &mut req.stance,
             &mut *stance,
+            desired_stance,
             verdicts.stance,
-            StateValue::Stance,
             &mut transitions,
             &mut rejections,
         );

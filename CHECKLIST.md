@@ -48,9 +48,15 @@ BF102.58 网络范围 ─► BF102.Gate
   - 当次 ALS 事实：`AAlsCharacterExample::Input_OnMove` 以当前 View yaw 求世界前／右向量并调用 `AddMovementInput`；`UAlsCharacterMovementComponent::MoveSmooth` 在刷新 grounded 配置后委托 UE 原生 `Super::MoveSmooth`。
   - 证据：`cargo test -p als-core --jobs 2 rotation_cap_tests::step_assist_uses_default_motion_plugin_with_physics_queries -- --ignored --nocapture --test-threads=1` 通过；`AlsMotionPlugin` 生产调度下 yaw 0／+90／180／-90° 的方向点积均为 1，上抬均为 0.305 m，Position／Transform 同步误差均为 0。
 
-- [ ] **BF102.02 — M03：逻辑 stance 与物理胶囊同步回归核验（P1）**
+- [x] **BF102.02 — M03：逻辑 stance 与物理胶囊同步回归核验（P1）**
   - 依赖：已通过 BF101.Gate。
   - 验收：低顶取消蹲伏时同时记录逻辑请求、实际 collider、Tnua headroom 和最终碰撞状态；区分 BF101 后保留的请求语义与真实不同步。
+  - 当次 ALS 事实：`ApplyDesiredStance` 依据 `DesiredStance` 调用 `Crouch`／`UnCrouch`；只有原生动作成功进入 `OnStartCrouch`／`OnEndCrouch` 后才调用 `SetStance` 更新实际姿态。
+  - [x] **BF102.02.a — M03：分离 desired 与 actual stance（P1）**
+    - 依赖：BF102.02 当次 ALS 事实与低顶复现。
+    - 验收：受阻站起时 desired 保持 Standing、actual `Stance`/胶囊/动画/Tnua 均保持 Crouching；净空恢复后原子切换为 Standing 并保留请求的可追溯性。
+    - 证据：`cargo test -p als-core --jobs 2 rotation_cap_tests -- --ignored --nocapture --test-threads=1` 通过。低顶时 `desired=Standing`、`actual=Crouching`、物理 crouched=true、Tnua headroom=0.560 m、碰撞重叠=false、同步误差=0；移除低顶后 actual=Standing、crouched=false、headroom=0.900 m、同步误差=0。
+  - 回归：`cargo test --workspace --jobs 2` 通过；als-core 196 通过／2 专用 Gate 已单独通过，als-ext 159、als-camera 5、bevy_als 110 均通过。
 
 - [ ] **BF102.03 — M09：方向相关速度配置回归核验（P3）**
   - 依赖：已通过 BF101.Gate。

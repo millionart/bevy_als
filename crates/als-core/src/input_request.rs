@@ -5,7 +5,7 @@ use crate::character::AlsCharacter;
 use crate::input::AlsInputCommand;
 use crate::motion::AlsInputOverride;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
-use crate::transition::{AlsStateRequest, state_transition_system};
+use crate::transition::{AlsDesiredStance, AlsStateRequest, state_transition_system};
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsFirstPersonView;
@@ -22,6 +22,7 @@ pub fn input_state_request_system(
         (
             Entity,
             &Stance,
+            Option<&AlsDesiredStance>,
             &mut crate::gait::AlsDesiredGait,
             &LocomotionState,
             &RotationMode,
@@ -39,6 +40,7 @@ pub fn input_state_request_system(
     for (
         entity,
         stance,
+        desired_stance,
         mut desired_gait,
         loco,
         rotation_mode,
@@ -54,7 +56,7 @@ pub fn input_state_request_system(
         let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
         if effective.crouch_pressed {
-            let target = match stance {
+            let target = match desired_stance.map(|desired| desired.0).unwrap_or(*stance) {
                 Stance::Standing => Stance::Crouching,
                 Stance::Crouching => Stance::Standing,
             };
@@ -183,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn crouch_edge_toggles_stance_once_per_press() {
+    fn crouch_edge_toggles_desired_stance_once_per_press() {
         let mut app = app_with_plugins();
         let e = spawn_character(
             &mut app,
@@ -196,7 +198,11 @@ mod tests {
         );
 
         app.update();
-        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Crouching);
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
+        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Standing);
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().stance, None);
 
         app.world_mut()
@@ -205,7 +211,7 @@ mod tests {
             .crouch_pressed = false;
         app.update();
         assert_eq!(
-            *app.world().get::<Stance>(e).unwrap(),
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
             Stance::Crouching,
             "released edge must not toggle again"
         );
@@ -229,7 +235,10 @@ mod tests {
             app.update();
         }
 
-        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Crouching);
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
 
         for press in [true, false] {
             app.world_mut()
@@ -238,7 +247,10 @@ mod tests {
                 .crouch_pressed = press;
             app.update();
         }
-        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Standing);
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Standing
+        );
     }
 
     #[test]
@@ -322,7 +334,10 @@ mod tests {
             }));
 
         app.update();
-        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Crouching);
+        assert_eq!(
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
+        );
         assert_eq!(
             app.world().get::<crate::gait::AlsDesiredGait>(e).unwrap().0,
             Gait::Sprinting

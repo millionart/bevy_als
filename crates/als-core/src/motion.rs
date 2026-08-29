@@ -20,7 +20,9 @@ use crate::input_request::AlsFirstPersonView;
 use crate::mantle::{MantleDetectionInput, detect_mantle, yaw_from_direction};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use crate::transition::AlsStateRequest;
+use crate::transition::{
+    AlsDesiredStance, AlsStateRequest, Dimension, StateTransitionEvent, StateValue,
+};
 
 const MAX_SLOPE_DEGREES: f32 = 44.765_083;
 const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
@@ -259,7 +261,10 @@ fn aiming_yaw_constraint_system(
 
 #[cfg(test)]
 mod rotation_cap_tests {
-    use crate::character::{ALS_CHARACTER_CAPSULE_RADIUS, als_character_capsule};
+    use crate::character::{
+        ALS_CHARACTER_CAPSULE_RADIUS, AlsCharacterBundle, AlsCharacterPlugin, als_character_capsule,
+    };
+    use crate::transition::AlsStateTransitionPlugin;
     use avian3d::prelude::{GravityScale, PhysicsPlugins, Position, RigidBody};
     use bevy::asset::AssetPlugin;
     use bevy::transform::TransformPlugin;
@@ -291,8 +296,10 @@ mod rotation_cap_tests {
     #[derive(Resource)]
     struct StandingCapsulePhysicsProbe {
         beam_overlap: bool,
-        stance: Stance,
+        desired_stance: Stance,
+        actual_stance: Stance,
         physical_crouched: bool,
+        headroom: f32,
         sync_error: f32,
     }
 
@@ -326,15 +333,27 @@ mod rotation_cap_tests {
                 &Position,
                 &Transform,
                 &Stance,
+                &AlsDesiredStance,
+                &TnuaConfig<AlsControlScheme>,
                 Has<AlsCapsuleCrouched>,
             ),
             With<AlsCharacter>,
         >,
         beams: Query<(), With<StandingCapsuleBeam>>,
+        configs: Res<Assets<AlsControlSchemeConfig>>,
         mut probe: ResMut<StandingCapsulePhysicsProbe>,
     ) {
-        let Ok((entity, case, collider, position, transform, stance, physical_crouched)) =
-            cases.single()
+        let Ok((
+            entity,
+            case,
+            collider,
+            position,
+            transform,
+            stance,
+            desired_stance,
+            config,
+            physical_crouched,
+        )) = cases.single()
         else {
             return;
         };
@@ -343,8 +362,14 @@ mod rotation_cap_tests {
             .shape_intersections(collider, transform.translation, transform.rotation, &filter)
             .into_iter()
             .any(|other| other == case.beam && beams.get(other).is_ok());
-        probe.stance = *stance;
+        probe.desired_stance = desired_stance.0;
+        probe.actual_stance = *stance;
         probe.physical_crouched = physical_crouched;
+        probe.headroom = configs
+            .get(&config.0)
+            .and_then(|config| config.basis.headroom.as_ref())
+            .map(|headroom| headroom.distance_to_collider_top)
+            .unwrap_or(f32::NAN);
         probe.sync_error = transform.translation.distance(position.0);
     }
 
@@ -472,6 +497,7 @@ mod rotation_cap_tests {
                     LinearVelocity::ZERO,
                     TnuaController::<AlsControlScheme>::default(),
                     LocomotionState::Grounded,
+                    Stance::Standing,
                     AlsViewYaw(yaw),
                     StepAssistCooldown(0.0),
                     AlsMovementParamsHandle(params),
@@ -514,27 +540,30 @@ mod rotation_cap_tests {
 
     #[test]
     #[ignore]
-    fn standing_capsule_rejects_an_offset_beam_inside_its_volume() {
+    fn desired_stance_waits_for_clearance_before_actual_stance_changes() {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
             AssetPlugin::default(),
             PhysicsPlugins::new(FixedPostUpdate),
             TransformPlugin,
+            TnuaAvian3dPlugin::new(FixedUpdate),
+            TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+            AlsStateTransitionPlugin,
+            AlsCharacterPlugin,
+            AlsMotionPlugin,
         ))
-        .insert_resource(Assets::<AlsMovementParams>::default())
         .insert_resource(StandingCapsulePhysicsProbe {
             beam_overlap: false,
-            stance: Stance::Crouching,
+            desired_stance: Stance::Crouching,
+            actual_stance: Stance::Crouching,
             physical_crouched: true,
+            headroom: f32::NAN,
             sync_error: f32::NAN,
         })
         .add_systems(
             Update,
-            (
-                capsule_reshape_system,
-                record_standing_capsule_physics_probe.after(capsule_reshape_system),
-            ),
+            record_standing_capsule_physics_probe.after(capsule_reshape_system),
         );
         app.finish();
         let params_value = AlsMovementParams::default();
@@ -542,6 +571,10 @@ mod rotation_cap_tests {
             .world_mut()
             .resource_mut::<Assets<AlsMovementParams>>()
             .add(params_value.clone());
+        let config = app
+            .world_mut()
+            .resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
         let beam = app
             .world_mut()
             .spawn((
@@ -552,70 +585,97 @@ mod rotation_cap_tests {
             ))
             .id();
         let center = Vec3::new(0.0, params_value.crouch.standing_capsule_half_height, 0.0);
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform = Transform::from_translation(center);
+        bundle.rigid_body = RigidBody::Kinematic;
+        bundle.collider = als_character_capsule(
+            params_value.crouch.crouched_capsule_half_height,
+            params_value.crouch.standing_capsule_radius,
+        );
+        bundle.stance = Stance::Crouching;
+        bundle.desired_stance = AlsDesiredStance(Stance::Crouching);
         let character = app
             .world_mut()
             .spawn((
-                AlsCharacter,
-                RigidBody::Kinematic,
-                als_character_capsule(
-                    params_value.crouch.crouched_capsule_half_height,
-                    params_value.crouch.standing_capsule_radius,
-                ),
+                bundle,
                 Position(center),
-                Transform::from_translation(center),
                 LinearVelocity::ZERO,
-                LocomotionState::Grounded,
-                AlsMovementParamsHandle(params),
-                Stance::Crouching,
                 AlsCapsuleCrouched,
                 StandingCapsulePhysicsCase { beam },
             ))
             .id();
 
         app.update();
+        app.world_mut().run_schedule(FixedUpdate);
         app.world_mut().run_schedule(FixedPostUpdate);
         app.world_mut()
             .entity_mut(character)
-            .insert(Stance::Standing);
-        app.update();
-        app.world_mut().run_schedule(FixedPostUpdate);
-        app.update();
+            .get_mut::<AlsStateRequest>()
+            .unwrap()
+            .stance = Some(Stance::Standing);
+        for _ in 0..2 {
+            app.update();
+            app.world_mut().run_schedule(FixedUpdate);
+            app.world_mut().run_schedule(FixedPostUpdate);
+        }
 
         let blocked_probe = {
             let probe = app.world().resource::<StandingCapsulePhysicsProbe>();
             (
-                probe.stance,
+                probe.desired_stance,
+                probe.actual_stance,
                 probe.physical_crouched,
+                probe.headroom,
                 probe.beam_overlap,
                 probe.sync_error,
             )
         };
         app.world_mut().despawn(beam);
         app.world_mut().run_schedule(FixedPostUpdate);
-        app.update();
-        app.world_mut().run_schedule(FixedPostUpdate);
-        app.update();
+        for _ in 0..2 {
+            app.update();
+            app.world_mut().run_schedule(FixedUpdate);
+            app.world_mut().run_schedule(FixedPostUpdate);
+        }
 
-        let restored_probe = app.world().resource::<StandingCapsulePhysicsProbe>();
+        let restored_probe = {
+            let probe = app.world().resource::<StandingCapsulePhysicsProbe>();
+            (
+                probe.desired_stance,
+                probe.actual_stance,
+                probe.physical_crouched,
+                probe.headroom,
+                probe.beam_overlap,
+                probe.sync_error,
+            )
+        };
         println!(
-            "[BF101.4] blocked_stance={:?} blocked_crouched={} blocked_overlap={} blocked_sync_error={:.6} restored_stance={:?} restored_crouched={} restored_overlap={} restored_sync_error={:.6}",
+            "[BF102.02] blocked_desired={:?} blocked_actual={:?} blocked_crouched={} blocked_headroom={:.6} blocked_overlap={} blocked_sync_error={:.6} restored_desired={:?} restored_actual={:?} restored_crouched={} restored_headroom={:.6} restored_overlap={} restored_sync_error={:.6}",
             blocked_probe.0,
             blocked_probe.1,
             blocked_probe.2,
             blocked_probe.3,
-            restored_probe.stance,
-            restored_probe.physical_crouched,
-            restored_probe.beam_overlap,
-            restored_probe.sync_error
+            blocked_probe.4,
+            blocked_probe.5,
+            restored_probe.0,
+            restored_probe.1,
+            restored_probe.2,
+            restored_probe.3,
+            restored_probe.4,
+            restored_probe.5,
         );
         assert_eq!(blocked_probe.0, Stance::Standing);
-        assert!(blocked_probe.1);
-        assert!(!blocked_probe.2);
-        assert!(blocked_probe.3 < 1e-4);
-        assert_eq!(restored_probe.stance, Stance::Standing);
-        assert!(!restored_probe.physical_crouched);
-        assert!(!restored_probe.beam_overlap);
-        assert!(restored_probe.sync_error < 1e-4);
+        assert_eq!(blocked_probe.1, Stance::Crouching);
+        assert!(blocked_probe.2);
+        assert!((blocked_probe.3 - params_value.crouch.crouched_capsule_half_height).abs() < 1e-4);
+        assert!(!blocked_probe.4);
+        assert!(blocked_probe.5 < 1e-4);
+        assert_eq!(restored_probe.0, Stance::Standing);
+        assert_eq!(restored_probe.1, Stance::Standing);
+        assert!(!restored_probe.2);
+        assert!((restored_probe.3 - params_value.crouch.standing_capsule_half_height).abs() < 1e-4);
+        assert!(!restored_probe.4);
+        assert!(restored_probe.5 < 1e-4);
     }
 
     #[test]
@@ -721,32 +781,34 @@ pub struct AlsMotionPlugin;
 
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            crate::view::AlsViewInputPlugin,
-            crate::gait::AlsGaitPlugin,
-            crate::dynamics::AlsGroundedDynamicsPlugin,
-        ))
-        .add_systems(
-            Update,
-            (
-                locomotion_state_sync_system,
-                crate::gait::refresh_gait_system
-                    .after(locomotion_state_sync_system)
-                    .after(crate::gait::gait_request_system),
-                tnua_config_sync_system
-                    .after(crate::gait::refresh_gait_system)
-                    .after(crate::transition::state_transition_system),
-                locomotion_drive_system
-                    .after(crate::view::AlsViewInputSet)
-                    .before(crate::transition::state_transition_system),
-                step_up_assist_system,
-                capsule_reshape_system,
-            ),
-        )
-        .add_systems(
-            FixedPostUpdate,
-            aiming_yaw_constraint_system.after(PhysicsSystems::Last),
-        );
+        app.add_message::<StateTransitionEvent>()
+            .add_plugins((
+                crate::view::AlsViewInputPlugin,
+                crate::gait::AlsGaitPlugin,
+                crate::dynamics::AlsGroundedDynamicsPlugin,
+            ))
+            .add_systems(
+                Update,
+                (
+                    locomotion_state_sync_system,
+                    crate::gait::refresh_gait_system
+                        .after(locomotion_state_sync_system)
+                        .after(crate::gait::gait_request_system),
+                    tnua_config_sync_system
+                        .after(crate::gait::refresh_gait_system)
+                        .after(crate::transition::state_transition_system)
+                        .after(capsule_reshape_system),
+                    locomotion_drive_system
+                        .after(crate::view::AlsViewInputSet)
+                        .before(crate::transition::state_transition_system),
+                    step_up_assist_system,
+                    capsule_reshape_system.after(crate::transition::state_transition_system),
+                ),
+            )
+            .add_systems(
+                FixedPostUpdate,
+                aiming_yaw_constraint_system.after(PhysicsSystems::Last),
+            );
     }
 }
 
@@ -758,23 +820,12 @@ fn tnua_config_sync_system(
         &Stance,
         &RotationMode,
         &AlsViewYaw,
-        Has<AlsCapsuleCrouched>,
         &LinearVelocity,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
 ) {
-    for (
-        config,
-        handle,
-        max_allowed,
-        stance,
-        rotation_mode,
-        view_yaw,
-        capsule_crouched,
-        velocity,
-    ) in &q
-    {
+    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -787,7 +838,7 @@ fn tnua_config_sync_system(
             max_allowed.0,
             *stance,
             *rotation_mode,
-            capsule_crouched,
+            *stance == Stance::Crouching,
             velocity.0,
             view_yaw.0,
         );
@@ -981,7 +1032,8 @@ fn locomotion_drive_system(
 
 type ReshapeQueryItem<'a> = (
     Entity,
-    &'a Stance,
+    &'a mut Stance,
+    &'a AlsDesiredStance,
     &'a Transform,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
@@ -991,26 +1043,11 @@ fn capsule_reshape_system(
     mut commands: Commands,
     spatial_query: SpatialQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
-    q_changed: Query<ReshapeQueryItem, (With<AlsCharacter>, Changed<Stance>)>,
-    q_retry: Query<ReshapeQueryItem, (With<AlsCharacter>, With<AlsCapsuleCrouched>)>,
+    mut transitions: MessageWriter<StateTransitionEvent>,
+    mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
 ) {
-    let mut changed_entities: Vec<Entity> = Vec::new();
-    for (entity, stance, transform, handle, already_deferred) in q_changed.iter() {
-        changed_entities.push(entity);
-        apply_capsule_for_stance(
-            &mut commands,
-            &spatial_query,
-            &params_assets,
-            entity,
-            *stance,
-            transform.translation,
-            transform.rotation,
-            handle.id(),
-            already_deferred,
-        );
-    }
-    for (entity, stance, transform, handle, already_deferred) in q_retry.iter() {
-        if *stance != Stance::Standing || changed_entities.contains(&entity) {
+    for (entity, mut stance, desired, transform, handle, already_deferred) in &mut q {
+        if desired.0 == *stance && !already_deferred {
             continue;
         }
         apply_capsule_for_stance(
@@ -1018,11 +1055,13 @@ fn capsule_reshape_system(
             &spatial_query,
             &params_assets,
             entity,
-            *stance,
+            desired.0,
+            &mut stance,
             transform.translation,
             transform.rotation,
             handle.id(),
             already_deferred,
+            &mut transitions,
         );
     }
 }
@@ -1032,22 +1071,25 @@ fn apply_capsule_for_stance(
     spatial_query: &SpatialQuery,
     params_assets: &Assets<AlsMovementParams>,
     entity: Entity,
-    stance: Stance,
+    target: Stance,
+    stance: &mut Stance,
     center: Vec3,
     rotation: Quat,
     params_handle: AssetId<AlsMovementParams>,
     already_deferred: bool,
+    transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
     let Some(params) = params_assets.get(params_handle) else {
         return;
     };
-    match stance {
+    match target {
         Stance::Crouching => {
             commands
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
                 .insert(AlsCapsuleCrouched)
-                .insert(capsule_for(params, stance));
+                .insert(capsule_for(params, target));
+            apply_actual_stance(entity, stance, target, transitions);
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
@@ -1068,11 +1110,31 @@ fn apply_capsule_for_stance(
                 .remove::<CapsuleReshapeDeferred>()
                 .remove::<AlsCapsuleCrouched>()
                 .insert(standing_capsule);
+            apply_actual_stance(entity, stance, target, transitions);
             if was_deferred {
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
             }
         }
     }
+}
+
+fn apply_actual_stance(
+    entity: Entity,
+    stance: &mut Stance,
+    target: Stance,
+    transitions: &mut MessageWriter<StateTransitionEvent>,
+) {
+    if *stance == target {
+        return;
+    }
+    let from = *stance;
+    *stance = target;
+    transitions.write(StateTransitionEvent {
+        entity,
+        dimension: Dimension::Stance,
+        from: StateValue::Stance(from),
+        to: StateValue::Stance(target),
+    });
 }
 
 fn step_up_assist_system(
@@ -1089,7 +1151,7 @@ fn step_up_assist_system(
             &AlsViewYaw,
             Option<&mut StepAssistCooldown>,
             &AlsMovementParamsHandle,
-            Has<AlsCapsuleCrouched>,
+            &Stance,
             Option<&AlsInputOverride>,
             &AlsInputCommand,
         ),
@@ -1097,18 +1159,8 @@ fn step_up_assist_system(
     >,
 ) {
     let dt = time.delta_secs();
-    for (
-        entity,
-        mut transform,
-        vel,
-        loco,
-        view_yaw,
-        cooldown,
-        handle,
-        capsule_crouched,
-        override_cmd,
-        cmd,
-    ) in &mut q
+    for (entity, mut transform, vel, loco, view_yaw, cooldown, handle, stance, override_cmd, cmd) in
+        &mut q
     {
         if cooldown.is_none() {
             commands.entity(entity).insert(StepAssistCooldown(0.0));
@@ -1128,10 +1180,9 @@ fn step_up_assist_system(
             continue;
         };
         let radius = params.crouch.standing_capsule_radius;
-        let half = if capsule_crouched {
-            params.crouch.crouched_capsule_half_height
-        } else {
-            params.crouch.standing_capsule_half_height
+        let half = match *stance {
+            Stance::Crouching => params.crouch.crouched_capsule_half_height,
+            Stance::Standing => params.crouch.standing_capsule_half_height,
         };
         let center = transform.translation;
         let world_dir = step_assist_world_direction(want, view_yaw.0);

@@ -11,7 +11,7 @@ use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::input::AlsInputCommand;
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use crate::transition::AlsStateRequest;
+use crate::transition::{AlsDesiredStance, AlsStateRequest};
 
 #[derive(Component, Debug, Default, Clone)]
 pub struct AlsMovementParamsHandle(pub Handle<AlsMovementParams>);
@@ -35,6 +35,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::motion::AlsAimingYawConstraint)]
 #[require(crate::foot_ik::AlsFootLockSettings)]
 #[require(crate::foot_ik::AlsDynamicTransitionState)]
+#[require(AlsDesiredStance)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
@@ -221,6 +222,7 @@ pub struct AlsCharacterBundle {
     pub locomotion_state: LocomotionState,
     pub rotation_mode: RotationMode,
     pub stance: Stance,
+    pub desired_stance: AlsDesiredStance,
     pub gait: Gait,
     pub desired_gait: crate::gait::AlsDesiredGait,
     pub max_allowed_gait: crate::gait::AlsMaxAllowedGait,
@@ -255,6 +257,7 @@ impl AlsCharacterBundle {
             locomotion_state: LocomotionState::Grounded,
             rotation_mode: RotationMode::ViewDirection,
             stance: Stance::Standing,
+            desired_stance: AlsDesiredStance(Stance::Standing),
             gait: Gait::Running,
             desired_gait: crate::gait::AlsDesiredGait(Gait::Running),
             max_allowed_gait: crate::gait::AlsMaxAllowedGait(Gait::Running),
@@ -322,6 +325,7 @@ mod tests {
         assert!((bundle.cmc_adapter_runtime.support_radius - 0.15).abs() < 1e-6);
         assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
         assert_eq!(bundle.stance, Stance::Standing);
+        assert_eq!(bundle.desired_stance.0, Stance::Standing);
     }
 
     #[test]
