@@ -38,6 +38,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::foot_ik::AlsDynamicTransitionState)]
 #[require(AlsDesiredStance)]
 #[require(AlsCollisionLayerOwnership)]
+#[require(AlsEffectiveGravity)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
@@ -110,6 +111,25 @@ pub fn set_collision_layer_owner(
         }
         None => {
             commands.entity(entity).remove::<CollisionLayers>();
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsEffectiveGravity {
+    pub value: Vec3,
+    pub global: Vec3,
+    pub gravity_scale: f32,
+    pub tnua_gravity: Vec3,
+}
+
+impl Default for AlsEffectiveGravity {
+    fn default() -> Self {
+        Self {
+            value: Vec3::ZERO,
+            global: Vec3::ZERO,
+            gravity_scale: 1.0,
+            tnua_gravity: Vec3::ZERO,
         }
     }
 }

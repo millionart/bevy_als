@@ -1,17 +1,19 @@
 use avian3d::prelude::{
-    Collider, LinearVelocity, PhysicsSystems, Rotation, SpatialQuery, SpatialQueryFilter,
+    Collider, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Rotation, SpatialQuery,
+    SpatialQueryFilter,
 };
 use bevy::asset::{AssetId, Assets};
 use bevy::prelude::*;
-use bevy_tnua::TnuaController;
 use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinJump, TnuaBuiltinWalk, TnuaBuiltinWalkHeadroom,
 };
 use bevy_tnua::controller::TnuaConfig;
+use bevy_tnua::{TnuaController, TnuaGravity, TnuaPipelineSystems, TnuaRigidBodyTracker};
 
 use crate::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE,
-    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsMovementParamsHandle, als_character_capsule,
+    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsEffectiveGravity, AlsMovementParamsHandle,
+    als_character_capsule,
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
@@ -98,6 +100,14 @@ pub fn air_acceleration_for_horizontal_speed(
         1.0
     };
     params.acceleration.max_acceleration * AIR_CONTROL * multiplier
+}
+
+pub fn effective_tnua_gravity(
+    global_gravity: Vec3,
+    gravity_scale: f32,
+    tnua_gravity: Option<Vec3>,
+) -> Vec3 {
+    global_gravity * gravity_scale + tnua_gravity.unwrap_or(Vec3::ZERO)
 }
 
 pub fn apply_als_control_scheme_config(
@@ -1027,6 +1037,18 @@ impl Plugin for AlsMotionPlugin {
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
             )
+            .add_systems(
+                FixedUpdate,
+                sync_effective_gravity_system
+                    .after(TnuaPipelineSystems::Sensors)
+                    .before(TnuaPipelineSystems::Logic),
+            )
+            .add_systems(
+                FixedPostUpdate,
+                sync_effective_gravity_system
+                    .after(TnuaPipelineSystems::Sensors)
+                    .before(TnuaPipelineSystems::Logic),
+            )
             .configure_sets(
                 FixedPostUpdate,
                 AlsRotationResponseSet.after(PhysicsSystems::Last),
@@ -1035,6 +1057,35 @@ impl Plugin for AlsMotionPlugin {
                 FixedPostUpdate,
                 rotation_response_system.in_set(AlsRotationResponseSet),
             );
+    }
+}
+
+fn sync_effective_gravity_system(
+    gravity: Option<Res<Gravity>>,
+    mut characters: Query<
+        (
+            Option<&GravityScale>,
+            Option<&TnuaGravity>,
+            &mut TnuaRigidBodyTracker,
+            &mut AlsEffectiveGravity,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    let Some(gravity) = gravity else {
+        return;
+    };
+    for (gravity_scale, tnua_gravity, mut tracker, mut effective_gravity) in &mut characters {
+        let gravity_scale = gravity_scale.map_or(1.0, |scale| scale.0);
+        let tnua_gravity = tnua_gravity.map_or(Vec3::ZERO, |gravity| gravity.0);
+        let value = effective_tnua_gravity(gravity.0, gravity_scale, Some(tnua_gravity));
+        tracker.gravity = value;
+        *effective_gravity = AlsEffectiveGravity {
+            value,
+            global: gravity.0,
+            gravity_scale,
+            tnua_gravity,
+        };
     }
 }
 
@@ -1527,6 +1578,17 @@ mod tests {
         assert_eq!(
             effective_gait(Stance::Standing, Gait::Sprinting),
             Gait::Sprinting
+        );
+    }
+
+    #[test]
+    fn effective_tnua_gravity_matches_physics_gravity_and_overrides() {
+        let global = Vec3::new(0.0, -12.0, 0.0);
+        assert_eq!(effective_tnua_gravity(global, 0.5, None), Vec3::Y * -6.0);
+        assert_eq!(effective_tnua_gravity(global, 2.0, None), Vec3::Y * -24.0);
+        assert_eq!(
+            effective_tnua_gravity(global, 0.25, Some(Vec3::new(1.0, 5.0, -2.0))),
+            Vec3::new(1.0, 2.0, -2.0)
         );
     }
 

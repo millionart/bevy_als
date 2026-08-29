@@ -221,9 +221,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `camera_movement_base_gate` 让两名默认角色分别站在平移和旋转平台上，记录角色 state 与 camera base 均为对应平台；之后销毁旋转平台，组件自动移除，输出 `camera_receives_live_movement_base_state_and_clears_destroyed_base -> PASS`。
   - 回归：`cargo test -p als-camera --jobs 2` 通过（7 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.23 — F09：Tnua 重力与每刚体 GravityScale 一致（P2）**
+- [x] **BF102.23 — F09：Tnua 重力与每刚体 GravityScale 一致（P2）**
   - 依赖：BF102.17。
   - 验收：非 1 GravityScale 和自定义重力下，传感、Tnua 轨迹和角色物理使用同一实际重力。
+  - 当次 ALS／Tnua／Avian 事实：ALS movement component 的 floor、旋转与运动计算使用角色的实际 gravity direction。Avian 的 `GravityScale` 缩放每刚体全局重力；Tnua Avian backend 默认只将全局 Gravity 或 `TnuaGravity` 写入 tracker，而 `TnuaGravity` 同时作为额外物理加速度施加。
+  - 实现：在 Tnua Sensors→Logic 区间（FixedUpdate 与 FixedPostUpdate）重写 tracker gravity 为 `global Gravity × GravityScale + TnuaGravity`，并公开记录为 `AlsEffectiveGravity`。物理层仍由 Avian/Tnua backend 原路径施力，避免上层重复施力。
+  - 证据：完整 `gravity_scale_gate` 使用全局 `-12 m/s²`，四个角色分别为 scale 0.5/1/2 与 `scale=0.25 + TnuaGravity=-5`。tracker 读数为 `-6/-12/-24/-8`，真实速度斜率为 `-6/-12/-24/-8 m/s²`，输出 `tracker_and_physics_share_effective_gravity -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（209 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 ### 动画底座与条件资源语义
 
