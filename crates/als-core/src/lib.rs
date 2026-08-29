@@ -17,6 +17,7 @@ pub mod input_request;
 pub mod mantle;
 pub mod motion;
 pub mod movement_direction;
+pub mod orientation;
 pub mod overlay_blend;
 pub mod params;
 pub mod pivot;

@@ -1,7 +1,8 @@
 use als_core::character::AlsCharacter;
 use als_core::input::AlsInputCommand;
 use als_core::input_request::AlsFirstPersonView;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_direction};
+use als_core::orientation::world_forward_to_yaw;
 use als_core::state::RotationMode;
 use als_core::view::AlsViewSmoothed;
 use bevy::ecs::hierarchy::ChildOf;
@@ -171,14 +172,14 @@ pub fn critical_spring_damper(
 
 fn body_yaw_degrees(transform: &Transform) -> f32 {
     let forward = transform.rotation * Vec3::NEG_Z;
-    f32::atan2(forward.x, -forward.z).to_degrees()
+    world_forward_to_yaw(forward).to_degrees()
 }
 
-fn input_yaw_degrees(input: &AlsInputCommand, fallback: f32) -> f32 {
+fn input_yaw_degrees(input: &AlsInputCommand, view_yaw: f32, fallback: f32) -> f32 {
     if input.move_dir.length_squared() <= 1e-6 {
         fallback
     } else {
-        f32::atan2(input.move_dir.x, -input.move_dir.y).to_degrees()
+        world_forward_to_yaw(view_relative_move_direction(input.move_dir, view_yaw)).to_degrees()
     }
 }
 
@@ -383,7 +384,7 @@ fn head_layer_writer(
         runtime.previous_body_yaw = body_yaw;
         let curves = curve_state.copied().unwrap_or_default();
         let movement_base = movement_base.copied().unwrap_or_default();
-        let input_yaw = input_yaw_degrees(effective, body_yaw);
+        let input_yaw = input_yaw_degrees(effective, view_yaw.0, body_yaw);
         update_head_state(
             &mut state,
             HeadUpdateInput {
@@ -447,6 +448,18 @@ mod tests {
     fn exact_angle_damper_uses_source_half_life() {
         let half = damper_exact_angle(0.0, 90.0, 0.1, 0.1);
         assert!((half - 45.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn head_yaw_uses_the_same_world_forward_convention_as_view_yaw() {
+        let transform =
+            Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
+        assert!((body_yaw_degrees(&transform) - 90.0).abs() < 1e-4);
+        let input = AlsInputCommand {
+            move_dir: Vec2::Y,
+            ..default()
+        };
+        assert!((input_yaw_degrees(&input, std::f32::consts::FRAC_PI_2, 0.0) - 90.0).abs() < 1e-4);
     }
 
     #[test]

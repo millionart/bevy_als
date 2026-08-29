@@ -119,9 +119,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 坐标、状态、旋转与投影
 
-- [ ] **BF102.10 — M01：统一 yaw 正负号与翻滚/头部约定（P1）**
+- [x] **BF102.10 — M01：统一 yaw 正负号与翻滚/头部约定（P1）**
   - 依赖：BF102.04。
   - 验收：非零朝向、横向翻滚和头部相对 yaw 的身体朝向、位移与局部角均满足同一数值约定。
+  - 当次 ALS 事实：`RefreshView()` 以 `ViewYaw - LocomotionRotationYaw` 计算相对头部角；`RefreshHead()` 再以该世界旋转状态更新头部。因此同一世界方向、角色旋转与 view yaw 必须共享角度正负号。
+  - 实现：新增唯一的 `world_forward_to_yaw`／`yaw_to_world_forward`，定义 `Quat::from_rotation_y(yaw) * -Z` 的双向变换。翻滚、瞄准约束、mantle、速度/方向、停止/转身、ControlRig、角色初始 view yaw 与头部均改用该约定；滚翻期间 Tnua `desired_forward` 锁定为 roll yaw，防止下一固定步覆盖动作朝向。
+  - 证据：方向 round-trip 单测覆盖 0、±45、±90、180°。完整 `head_yaw_gate` 在身体/视角均为 +90° 时记录 `body_yaw=1.571 view_yaw=1.571 head_yaw=0 amount=0.500` 并通过。完整 `roll_gate` 两次结果均记录位移对齐、`body_forward_align=1`、`rotation_forward_align=1`、slot/root-motion/final-pose Gate 通过；横向滚翻的 `dir_yaw=+1.57` 对应世界 −X。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（198 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.11 — M04：旋转半衰期/曲线成为实际角色旋转律（P1）**
   - 依赖：BF102.05、BF102.10。

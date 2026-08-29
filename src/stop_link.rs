@@ -1,6 +1,7 @@
 use als_core::dynamics::{AlsGroundedDynamics, predict_grounded_stop_distance};
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_direction};
+use als_core::orientation::world_forward_to_yaw;
 use als_core::params::AlsMovementParams;
 use als_core::start_stop::predict_stop_distance;
 use als_core::state::{LocomotionState, RotationMode, Stance};
@@ -223,10 +224,10 @@ pub fn quick_stop_selection(
         return (0.0, QUICK_STOP_MIN_PLAY_RATE);
     }
     let forward = body.rotation * Vec3::NEG_Z;
-    let body_yaw = f32::atan2(forward.x, -forward.z).to_degrees();
+    let body_yaw = world_forward_to_yaw(forward).to_degrees();
     let input_yaw = if input.move_dir.length_squared() > f32::EPSILON {
         let direction = view_relative_move_direction(input.move_dir, view_yaw);
-        f32::atan2(direction.x, -direction.z).to_degrees()
+        world_forward_to_yaw(direction).to_degrees()
     } else {
         body_yaw
     };
@@ -342,7 +343,7 @@ pub fn stop_link_system(
     if input_move > STOP_RELEASE_INPUT_EPSILON {
         let direction = view_relative_move_direction(effective.move_dir, view_yaw.0);
         if direction.length_squared() > 1e-6 {
-            m.last_input_yaw = Some(f32::atan2(direction.x, -direction.z));
+            m.last_input_yaw = Some(world_forward_to_yaw(direction));
         }
     }
 

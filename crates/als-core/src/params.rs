@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::orientation::world_forward_to_yaw;
 use crate::state::{Gait, RotationMode, Stance};
 
 pub const UE_CM_TO_M: f32 = 0.01;
@@ -145,7 +146,7 @@ impl GaitSpeeds {
         if horizontal_velocity.length_squared() <= 1e-6 {
             return 1.0;
         }
-        let velocity_yaw = f32::atan2(velocity.x, -velocity.z);
+        let velocity_yaw = world_forward_to_yaw(velocity);
         let relative_yaw = (velocity_yaw - view_yaw + std::f32::consts::PI)
             .rem_euclid(std::f32::consts::TAU)
             - std::f32::consts::PI;
@@ -1038,7 +1039,7 @@ mod tests {
             0.0,
         );
         let middle_yaw = 112.5_f32.to_radians();
-        let middle_velocity = Vec3::new(middle_yaw.sin(), 0.0, -middle_yaw.cos());
+        let middle_velocity = crate::orientation::yaw_to_world_forward(middle_yaw);
         let middle = p.gait_speed_thresholds(
             Stance::Standing,
             RotationMode::ViewDirection,

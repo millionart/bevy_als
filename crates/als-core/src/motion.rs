@@ -18,6 +18,7 @@ use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::input_request::AlsFirstPersonView;
 use crate::mantle::{MantleDetectionInput, detect_mantle, yaw_from_direction};
+use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::transition::{
@@ -243,7 +244,7 @@ fn aiming_yaw_constraint_system(
         };
         let (actor_yaw, _, _) = rotation.0.to_euler(EulerRot::YXZ);
         let view_direction = view_relative_move_direction(Vec2::Y, view_yaw.0);
-        let view_target_yaw = f32::atan2(view_direction.x, -view_direction.z);
+        let view_target_yaw = world_forward_to_yaw(view_direction);
         let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
             view_target_yaw,
             actor_yaw,
@@ -870,6 +871,7 @@ fn locomotion_drive_system(
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rotation_modes: Query<&RotationMode, With<AlsCharacter>>,
+    rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
 ) {
     for (
@@ -893,6 +895,7 @@ fn locomotion_drive_system(
         let Ok(rotation_mode) = rotation_modes.get(entity) else {
             continue;
         };
+        let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
         let effective = effective_input(cmd, override_cmd);
 
@@ -903,18 +906,21 @@ fn locomotion_drive_system(
             Vec3::ZERO
         };
 
-        let desired_forward: Option<Dir3> = match *rotation_mode {
-            RotationMode::VelocityDirection => {
-                if move_len > 1e-4 {
-                    Dir3::new(world_dir).ok()
-                } else {
-                    None
+        let desired_forward = roll
+            .filter(|state| state.active)
+            .and_then(|state| Dir3::new(yaw_to_world_forward(state.direction_yaw)).ok())
+            .or_else(|| match *rotation_mode {
+                RotationMode::VelocityDirection => {
+                    if move_len > 1e-4 {
+                        Dir3::new(world_dir).ok()
+                    } else {
+                        None
+                    }
                 }
-            }
-            RotationMode::ViewDirection | RotationMode::Aiming => {
-                Dir3::new(view_relative_move_direction(Vec2::Y, view_yaw.0)).ok()
-            }
-        };
+                RotationMode::ViewDirection | RotationMode::Aiming => {
+                    Dir3::new(view_relative_move_direction(Vec2::Y, view_yaw.0)).ok()
+                }
+            });
 
         controller.basis = TnuaBuiltinWalk {
             desired_motion: world_dir * move_len,

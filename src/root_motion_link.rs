@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
+use als_core::orientation::world_forward_to_yaw;
+
 use crate::character_assembly::AlsCharacterAvatar;
 
 pub fn mesh_to_entity_yaw() -> Quat {
@@ -38,5 +40,5 @@ pub fn clamp_drive_speed(velocity: Vec3, max_speed: f32) -> Vec3 {
 }
 
 pub fn yaw_from_direction(dir: Vec3) -> f32 {
-    f32::atan2(dir.x, -dir.z)
+    world_forward_to_yaw(dir)
 }

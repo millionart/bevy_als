@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
 use crate::motion::{AlsViewYaw, view_relative_move_axes, view_relative_move_direction};
+use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::start_stop::{MoveDirection, classify};
 use crate::state::{LocomotionState, Stance};
 
@@ -57,11 +58,11 @@ pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (M
     };
     let dir = classify(view_relative_move_axes(input, view_yaw.0), view_yaw.0);
     let world = view_relative_move_direction(input, view_yaw.0);
-    (dir, f32::atan2(world.x, -world.z))
+    (dir, world_forward_to_yaw(world))
 }
 
 pub fn roll_displacement_dir(yaw: f32) -> Vec3 {
-    Vec3::new(yaw.sin(), 0.0, -yaw.cos())
+    yaw_to_world_forward(yaw)
 }
 
 pub fn wrap_angle(angle: f32) -> f32 {
@@ -94,7 +95,7 @@ impl AlsRollState {
         }
         let horizontal = Vec3::new(horizontal_velocity.x, 0.0, horizontal_velocity.z);
         self.direction_yaw = if horizontal.length_squared() > 1e-6 {
-            f32::atan2(horizontal.x, -horizontal.z)
+            world_forward_to_yaw(horizontal)
         } else {
             actor_yaw
         };
@@ -163,7 +164,7 @@ mod tests {
         );
         assert!(lifecycle.started && state.active);
         assert_eq!(state.last_direction, MoveDirection::Forward);
-        assert!((state.direction_yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert!((state.direction_yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
     }
 
     #[test]

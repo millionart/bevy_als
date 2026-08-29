@@ -1,6 +1,7 @@
 use als_core::input::AlsInputCommand;
 use als_core::mantle::{AlsMantleState, mantle_weight_at};
 use als_core::motion::AlsInputOverride;
+use als_core::orientation::yaw_to_world_forward;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{CollisionLayers, LinearVelocity};
 use bevy::prelude::*;
@@ -125,7 +126,7 @@ fn mantle_drive_system(
     let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
     let finishing = m.time + dt >= m.action_end();
 
-    let dir = Vec3::new(yaw_now.sin(), 0.0, -yaw_now.cos());
+    let dir = yaw_to_world_forward(yaw_now);
     let forward_speed = -local_delta.z / dt;
     let climb_speed = local_delta.y / dt;
     let root_drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);

@@ -1,6 +1,7 @@
 use als_core::character::AlsCharacter;
 use als_core::input_request::AlsFirstPersonView;
 use als_core::motion::AlsViewYaw;
+use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{LocomotionState, RotationMode};
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use avian3d::prelude::LinearVelocity;
@@ -149,7 +150,7 @@ fn lerp_angle(from: f32, to: f32, amount: f32) -> f32 {
 
 fn body_yaw_degrees(transform: &Transform) -> f32 {
     let forward = transform.rotation * Vec3::NEG_Z;
-    f32::atan2(forward.x, -forward.z).to_degrees()
+    world_forward_to_yaw(forward).to_degrees()
 }
 
 fn velocity_blend_amounts(velocity: Vec3, transform: &Transform) -> (f32, f32) {

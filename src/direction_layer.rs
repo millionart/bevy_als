@@ -3,6 +3,7 @@ use als_core::motion::AlsViewYaw;
 use als_core::movement_direction::{
     AlsMovementDirectionState, normalize_angle180, unwrap_angle_continuous, update_direction,
 };
+use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{Gait, RotationMode};
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
@@ -16,7 +17,7 @@ use crate::character_assembly::AlsCharacterAvatar;
 pub const DIRECTION_MIN_SPEED: f32 = 0.2;
 
 pub fn velocity_yaw_deg(vel: Vec3) -> f32 {
-    f32::atan2(vel.x, -vel.z).to_degrees()
+    world_forward_to_yaw(vel).to_degrees()
 }
 
 pub fn view_space_direction_angle(velocity_yaw: f32, view_yaw: f32) -> f32 {
@@ -102,8 +103,8 @@ mod tests {
     #[test]
     fn velocity_yaw_matches_body_convention() {
         assert!((velocity_yaw_deg(Vec3::NEG_Z) - 0.0).abs() < 1e-4);
-        assert!((velocity_yaw_deg(Vec3::X) - 90.0).abs() < 1e-4);
-        assert!((velocity_yaw_deg(Vec3::Z) - 180.0).abs() < 1e-4);
+        assert!((velocity_yaw_deg(Vec3::X) + 90.0).abs() < 1e-4);
+        assert!((velocity_yaw_deg(Vec3::Z).abs() - 180.0).abs() < 1e-4);
     }
 
     #[test]

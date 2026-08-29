@@ -135,6 +135,8 @@ struct RollWatch {
     expect_dir_yaw: f32,
     roll_index: usize,
     peak_v: f32,
+    peak_body_forward_alignment: f32,
+    peak_rotation_forward_alignment: f32,
     peak_slot_weight: f32,
     peak_slot_root_delta: f32,
     slot_pose_observed: bool,
@@ -278,6 +280,7 @@ fn roll_watcher(
     q: Query<
         (
             &Transform,
+            Option<&Rotation>,
             &LinearVelocity,
             &Stance,
             &LocomotionState,
@@ -290,7 +293,7 @@ fn roll_watcher(
     players: Query<&AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((tf, vel, _stance, _loco, roll, slot)) = q.single() else {
+    let Ok((tf, rotation, vel, _stance, _loco, roll, slot)) = q.single() else {
         return;
     };
     let xz = Vec2::new(tf.translation.x, tf.translation.z);
@@ -299,6 +302,8 @@ fn roll_watcher(
         watch.start_xz = Some(xz);
         watch.expect_dir_yaw = roll.direction_yaw;
         watch.peak_v = 0.0;
+        watch.peak_body_forward_alignment = -1.0;
+        watch.peak_rotation_forward_alignment = -1.0;
         watch.peak_slot_weight = 0.0;
         watch.peak_slot_root_delta = 0.0;
         watch.slot_pose_observed = false;
@@ -337,6 +342,19 @@ fn roll_watcher(
                 .max(slot.root_motion_delta.length());
             watch.slot_pose_observed |= slot.pose_ready;
             watch.min_slot_pose_grounded = watch.min_slot_pose_grounded.min(slot.pose_grounded);
+            if slot.weight >= 0.95 {
+                let body_forward = tf.rotation * Vec3::NEG_Z;
+                let target_forward = roll_displacement_dir(roll.direction_yaw);
+                watch.peak_body_forward_alignment = watch
+                    .peak_body_forward_alignment
+                    .max(body_forward.dot(target_forward));
+                if let Some(rotation) = rotation {
+                    let physics_forward = rotation.0 * Vec3::NEG_Z;
+                    watch.peak_rotation_forward_alignment = watch
+                        .peak_rotation_forward_alignment
+                        .max(physics_forward.dot(target_forward));
+                }
+            }
         }
         for instance in &avatars {
             let Ok(player) = players.get(instance.player_entity()) else {
@@ -383,6 +401,8 @@ fn roll_watcher(
             0.0
         };
         let peak_v = watch.peak_v;
+        let peak_body_forward_alignment = watch.peak_body_forward_alignment;
+        let peak_rotation_forward_alignment = watch.peak_rotation_forward_alignment;
         let peak_slot_weight = watch.peak_slot_weight;
         let peak_slot_root_delta = watch.peak_slot_root_delta;
         let slot_pose_observed = watch.slot_pose_observed;
@@ -394,11 +414,13 @@ fn roll_watcher(
         let peak_final_pose_delta = watch.peak_final_pose_delta;
         let final_pose_observed = watch.final_pose_observed;
         info!(
-            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} slot_pose_grounded_min={min_slot_pose_grounded:.3} final_pose_grounded_base={base_final_pose_grounded:.3} final_pose_grounded_min={min_final_pose_grounded:.3} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
+            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} body_forward_align={peak_body_forward_alignment:+.3} rotation_forward_align={peak_rotation_forward_alignment:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} slot_pose_grounded_min={min_slot_pose_grounded:.3} final_pose_grounded_base={base_final_pose_grounded:.3} final_pose_grounded_min={min_final_pose_grounded:.3} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
             watch.roll_index + 1
         );
         let ok_dist = (dist - ROLL_CLIP_DISTANCE).abs() <= 0.6;
-        let ok_align = align >= 0.95;
+        let ok_align = align >= 0.95
+            && peak_body_forward_alignment >= 0.95
+            && peak_rotation_forward_alignment >= 0.95;
         let ok_slot = peak_slot_weight >= 0.95 && peak_slot_root_delta > 1e-5 && slot_pose_observed;
         let ok_curves = peak_roll_curve >= 0.99
             && roll_state_observed

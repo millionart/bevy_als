@@ -1,5 +1,6 @@
 use als_core::input_request::AlsFirstPersonView;
 use als_core::motion::AlsViewYaw;
+use als_core::orientation::world_forward_to_yaw;
 use als_core::rotate_in_place::{RotateInPlaceConfig, RotateInPlaceState, update_rotate_in_place};
 use als_core::state::{LocomotionState, RotationMode, Stance};
 use als_core::turn_in_place::{
@@ -232,7 +233,7 @@ fn turn_pin_driver(
         let hspeed = Vec2::new(vel.x, vel.z).length();
         let view_deg = view.0.to_degrees();
         let fwd = body_tf.forward();
-        let body_deg = f32::atan2(fwd.x, -fwd.z).to_degrees();
+        let body_deg = world_forward_to_yaw(*fwd).to_degrees();
         let rel = wrap_angle_degrees(view_deg - body_deg);
         sampler.update(view_deg, time.elapsed_secs_f64(), dt);
 

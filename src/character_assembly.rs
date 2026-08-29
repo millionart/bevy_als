@@ -10,6 +10,7 @@ use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::{AlsInputMap, spawn_als_actions};
 use als_core::motion::{AlsViewYaw, initial_als_control_scheme_config};
+use als_core::orientation::world_forward_to_yaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
 use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
@@ -225,7 +226,7 @@ fn spawn_als_character_internal(
     let character = commands
         .spawn(bundle)
         .insert((
-            AlsViewYaw(f32::atan2(fwd.x, -fwd.z)),
+            AlsViewYaw(world_forward_to_yaw(*fwd)),
             AlsViewPitch(0.0),
             AlsCameraFovOffset::default(),
             AlsCameraTarget,

@@ -8,6 +8,7 @@ use crate::character::{
     als_character_capsule,
 };
 use crate::input::AlsInputCommand;
+use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::state::{LocomotionState, OverlayState, Stance};
 
 pub const MANTLE_HIGH_HEIGHT_THRESHOLD: f32 = 1.25;
@@ -181,7 +182,7 @@ impl Default for MantleDetectionInput {
 }
 
 pub fn yaw_from_direction(direction: Vec3) -> f32 {
-    f32::atan2(direction.x, -direction.z)
+    world_forward_to_yaw(direction)
 }
 
 pub fn wrap_angle(angle: f32) -> f32 {
@@ -276,7 +277,7 @@ pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
     }
     let clamped_yaw =
         input.actor_yaw + delta.clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE);
-    Some(Vec3::new(clamped_yaw.sin(), 0.0, -clamped_yaw.cos()))
+    Some(yaw_to_world_forward(clamped_yaw))
 }
 
 pub fn detect_mantle(
@@ -614,7 +615,7 @@ mod tests {
             ..default()
         };
         let direction = mantle_trace_direction(&input).unwrap();
-        assert!((yaw_from_direction(direction) - MANTLE_MAX_REACH_ANGLE).abs() < 1e-6);
+        assert!((yaw_from_direction(direction) + MANTLE_MAX_REACH_ANGLE).abs() < 1e-6);
         let behind = MantleDetectionInput {
             actor_yaw: 0.0,
             input_direction: Vec3::Z,
