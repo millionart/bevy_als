@@ -127,9 +127,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：方向 round-trip 单测覆盖 0、±45、±90、180°。完整 `head_yaw_gate` 在身体/视角均为 +90° 时记录 `body_yaw=1.571 view_yaw=1.571 head_yaw=0 amount=0.500` 并通过。完整 `roll_gate` 两次结果均记录位移对齐、`body_forward_align=1`、`rotation_forward_align=1`、slot/root-motion/final-pose Gate 通过；横向滚翻的 `dir_yaw=+1.57` 对应世界 −X。
   - 回归：`cargo test -p als-core --jobs 2` 通过（198 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.11 — M04：旋转半衰期/曲线成为实际角色旋转律（P1）**
+- [x] **BF102.11 — M04：旋转半衰期/曲线成为实际角色旋转律（P1）**
   - 依赖：BF102.05、BF102.10。
   - 验收：运动、瞄准和原地转向的最终 Transform yaw 与当前曲线/半衰期配置一致。
+  - 当次 ALS 事实：`AAlsCharacter::RefreshGroundedRotation()` 在静止时应用 `RotationYawSpeed` 动画曲线；移动时按 VelocityDirection、ViewDirection／Sprint、Aiming 分别选择目标 yaw、目标角速度与半衰期。`CalculateGroundedMovingRotationInterpolationHalfLife()` 将 view yaw speed 映射到半衰期倍率；`ApplyRotationYawSpeedAnimationCurve()` 直接以曲线角速度与 DeltaTime 积分 actor yaw。
+  - 实现：`AlsMotionPlugin` 在物理完成后以固定步长运行每角色旋转响应，写回 `Transform` 与物理 `Rotation`；目标角速度、gait 半衰期、view-yaw 响应倍率、空中/瞄准半衰期均读取当前参数。standing 层把当前 `RotationYawOffset`／`RotationYawSpeed` 曲线桥接为每角色旋转动画状态。
+  - 证据：完整 `AlsPlayableCharacterPlugin` 入口的 `rotation_response_gate` 记录 fast=1.548 rad、slow=0.163 rad、curve=0.712 rad、moving speed=1.000 m/s/moving yaw=1.548 rad、aiming yaw=0.347 rad/`Aiming`；输出 `stationary_moving_aiming_and_curve_drive_transform_yaw -> PASS`。`head_yaw_gate` 保持 `body_yaw=1.571`、`head_yaw=0` 并通过；`roll_gate` 两次翻滚均有 `body_forward_align=1`、`rotation_forward_align=1` 且完成。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（199 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.12 — M05：VelocityDirection 使用实际速度方向（P2）**
   - 依赖：BF102.10、BF102.11。

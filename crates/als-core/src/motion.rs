@@ -16,7 +16,6 @@ use crate::character::{
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
-use crate::input_request::AlsFirstPersonView;
 use crate::mantle::{MantleDetectionInput, detect_mantle, yaw_from_direction};
 use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::params::AlsMovementParams;
@@ -208,55 +207,221 @@ pub fn constrained_aiming_yaw(
     (wrap_yaw_radians(view_yaw - constrained), limit.to_degrees())
 }
 
-fn aiming_yaw_constraint_system(
+fn damper_yaw(current: f32, target: f32, delta_seconds: f32, half_life: f32) -> f32 {
+    if half_life <= f32::EPSILON {
+        return target;
+    }
+    let alpha = 1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / half_life);
+    wrap_yaw_radians(current + wrap_yaw_radians(target - current) * alpha)
+}
+
+fn advance_yaw(current: f32, target: f32, speed_degrees: f32, delta_seconds: f32) -> f32 {
+    let max_delta = speed_degrees.max(0.0).to_radians() * delta_seconds.max(0.0);
+    wrap_yaw_radians(current + wrap_yaw_radians(target - current).clamp(-max_delta, max_delta))
+}
+
+fn moving_rotation_half_life(
+    params: &AlsMovementParams,
+    gait: Gait,
+    rotation_mode: RotationMode,
+    moving: bool,
+    view_yaw_speed: f32,
+) -> f32 {
+    let base = match (rotation_mode, moving) {
+        (RotationMode::VelocityDirection, true) => params
+            .rotation
+            .grounded_moving_velocity_direction
+            .interpolation_half_lives
+            .half_life(gait),
+        (RotationMode::ViewDirection, true) => params
+            .rotation
+            .grounded_moving_view_direction
+            .interpolation_half_lives
+            .half_life(gait),
+        (RotationMode::Aiming, _) => {
+            params
+                .rotation
+                .grounded_moving_aiming
+                .interpolation_half_life
+        }
+        (RotationMode::VelocityDirection, false) => {
+            params
+                .rotation
+                .grounded_stationary_velocity_direction
+                .interpolation_half_life
+        }
+        (RotationMode::ViewDirection, false) => params
+            .rotation
+            .grounded_stationary_view_direction
+            .interpolation_half_lives
+            .half_life(gait),
+    };
+    if rotation_mode == RotationMode::Aiming {
+        return base;
+    }
+    let responsiveness =
+        (view_yaw_speed.abs() / params.rotation.reference_view_yaw_speed).clamp(0.0, 1.0);
+    base * (1.0 + (params.rotation.min_interpolation_half_life_multiplier - 1.0) * responsiveness)
+}
+
+fn target_yaw_speed(params: &AlsMovementParams, rotation_mode: RotationMode) -> f32 {
+    match rotation_mode {
+        RotationMode::VelocityDirection => {
+            params
+                .rotation
+                .grounded_moving_velocity_direction
+                .target_yaw_angle_speed
+        }
+        RotationMode::ViewDirection => {
+            params
+                .rotation
+                .grounded_moving_view_direction
+                .target_yaw_angle_speed
+        }
+        RotationMode::Aiming => {
+            params
+                .rotation
+                .grounded_moving_aiming
+                .target_yaw_angle_speed
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn rotation_response_system(
+    fixed_time: Res<Time<Fixed>>,
+    mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut q: Query<
         (
+            Entity,
+            &mut Transform,
+            Option<&mut Rotation>,
+            &Gait,
+            &LocomotionState,
             &RotationMode,
-            Has<AlsFirstPersonView>,
             &AlsViewYaw,
             &AlsMovementParamsHandle,
-            &mut Rotation,
-            &mut Transform,
+            &LinearVelocity,
+            Option<&AlsRotationAnimationState>,
+            Option<&mut AlsRotationResponseState>,
+            Option<&crate::roll::AlsRollState>,
             &mut AlsAimingYawConstraint,
         ),
         With<AlsCharacter>,
     >,
 ) {
+    let delta_seconds = fixed_time.delta_secs();
     for (
+        entity,
+        mut transform,
+        rotation,
+        gait,
+        locomotion,
         rotation_mode,
-        first_person,
         view_yaw,
         params_handle,
-        mut rotation,
-        mut transform,
+        velocity,
+        animation,
+        current_runtime,
+        roll,
         mut constraint,
     ) in &mut q
     {
-        let applies = *rotation_mode == RotationMode::Aiming || first_person;
-        if !applies {
-            constraint.applied_last_frame = false;
-            constraint.active_limit_degrees = 180.0;
+        if roll.is_some_and(|state| state.active) || *locomotion == LocomotionState::Ragdolling {
             continue;
         }
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
-        let (actor_yaw, _, _) = rotation.0.to_euler(EulerRot::YXZ);
-        let view_direction = view_relative_move_direction(Vec2::Y, view_yaw.0);
-        let view_target_yaw = world_forward_to_yaw(view_direction);
-        let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
-            view_target_yaw,
-            actor_yaw,
-            params.cmc.aiming_yaw_angle_limit_degrees,
-            constraint.active_limit_degrees,
-            !constraint.applied_last_frame,
-        );
-        let next_rotation = Quat::from_rotation_y(constrained_yaw);
-        rotation.0 = next_rotation;
+        let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
+        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+        let view_yaw_speed = if runtime.initialized && delta_seconds > f32::EPSILON {
+            wrap_yaw_radians(view_yaw.0 - runtime.previous_view_yaw).abs() / delta_seconds
+        } else {
+            0.0
+        };
+        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let moving = horizontal_speed > 0.05;
+        let animation = animation.copied().unwrap_or_default();
+        let mut target_yaw = match *rotation_mode {
+            RotationMode::VelocityDirection if moving => world_forward_to_yaw(velocity.0),
+            RotationMode::ViewDirection if moving && *gait == Gait::Sprinting => {
+                world_forward_to_yaw(velocity.0)
+            }
+            RotationMode::ViewDirection => {
+                wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
+            }
+            RotationMode::Aiming => view_yaw.0,
+            _ => current_yaw,
+        };
+        let aiming = *rotation_mode == RotationMode::Aiming;
+        if aiming {
+            let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
+                view_yaw.0,
+                current_yaw,
+                params.cmc.aiming_yaw_angle_limit_degrees,
+                constraint.active_limit_degrees,
+                !constraint.applied_last_frame,
+            );
+            target_yaw = constrained_yaw;
+            constraint.active_limit_degrees = active_limit_degrees;
+            constraint.applied_last_frame = true;
+        } else {
+            constraint.active_limit_degrees = 180.0;
+            constraint.applied_last_frame = false;
+        }
+        let curve_driven = !moving && !aiming && animation.yaw_speed_degrees.abs() > f32::EPSILON;
+        if curve_driven {
+            if !runtime.initialized {
+                runtime.smooth_target_yaw = current_yaw;
+            }
+            runtime.smooth_target_yaw = wrap_yaw_radians(
+                runtime.smooth_target_yaw
+                    + animation.yaw_speed_degrees.to_radians() * delta_seconds,
+            );
+        } else {
+            if !runtime.initialized {
+                runtime.smooth_target_yaw = current_yaw;
+            }
+            runtime.smooth_target_yaw = advance_yaw(
+                runtime.smooth_target_yaw,
+                target_yaw,
+                target_yaw_speed(params, *rotation_mode),
+                delta_seconds,
+            );
+        }
+        let half_life = if *locomotion == LocomotionState::Air {
+            if aiming {
+                params.rotation.in_air_aiming_half_life
+            } else {
+                params.rotation.in_air_half_life
+            }
+        } else {
+            moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed)
+        };
+        let next_yaw = if curve_driven {
+            runtime.smooth_target_yaw
+        } else {
+            damper_yaw(
+                current_yaw,
+                runtime.smooth_target_yaw,
+                delta_seconds,
+                half_life,
+            )
+        };
+        let next_rotation = Quat::from_rotation_y(next_yaw);
         transform.rotation = next_rotation;
-        constraint.active_limit_degrees = active_limit_degrees;
-        constraint.applied_last_frame = true;
+        if let Some(mut rotation) = rotation {
+            rotation.0 = next_rotation;
+        }
+        runtime.initialized = true;
+        runtime.previous_view_yaw = view_yaw.0;
+        if let Some(mut current_runtime) = current_runtime {
+            *current_runtime = runtime;
+        } else {
+            commands.entity(entity).insert(runtime);
+        }
     }
 }
 
@@ -401,6 +566,31 @@ mod rotation_cap_tests {
             constrained_aiming_yaw(20.0_f32.to_radians(), 0.0, 70.0, 180.0, false);
         assert!((near_yaw - 0.0).abs() < 1e-6);
         assert!((near_limit - 70.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rotation_response_uses_half_life_and_target_speed_settings() {
+        let half = damper_yaw(0.0, std::f32::consts::FRAC_PI_2, 0.1, 0.1);
+        assert!((half - std::f32::consts::FRAC_PI_4).abs() < 1e-5);
+        let advanced = advance_yaw(0.0, std::f32::consts::FRAC_PI_2, 500.0, 0.1);
+        assert!((advanced - 50.0_f32.to_radians()).abs() < 1e-5);
+        let params = AlsMovementParams::default();
+        let normal = moving_rotation_half_life(
+            &params,
+            Gait::Running,
+            RotationMode::ViewDirection,
+            true,
+            0.0,
+        );
+        let responsive = moving_rotation_half_life(
+            &params,
+            Gait::Running,
+            RotationMode::ViewDirection,
+            true,
+            params.rotation.reference_view_yaw_speed,
+        );
+        assert!((normal - 0.15).abs() < 1e-6);
+        assert!((responsive - 0.05).abs() < 1e-6);
     }
 
     #[test]
@@ -718,6 +908,19 @@ impl Default for AlsAimingYawConstraint {
     }
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsRotationAnimationState {
+    pub yaw_offset_degrees: f32,
+    pub yaw_speed_degrees: f32,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsRotationResponseState {
+    pub initialized: bool,
+    pub smooth_target_yaw: f32,
+    pub previous_view_yaw: f32,
+}
+
 #[derive(Component, Debug, Default, Clone)]
 pub struct AlsInputOverride(pub AlsInputCommand);
 
@@ -780,6 +983,9 @@ pub fn jump_chain(loco: LocomotionState, stance: Stance, mantle_available: bool)
 
 pub struct AlsMotionPlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsRotationResponseSet;
+
 impl Plugin for AlsMotionPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<StateTransitionEvent>()
@@ -806,9 +1012,13 @@ impl Plugin for AlsMotionPlugin {
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
             )
+            .configure_sets(
+                FixedPostUpdate,
+                AlsRotationResponseSet.after(PhysicsSystems::Last),
+            )
             .add_systems(
                 FixedPostUpdate,
-                aiming_yaw_constraint_system.after(PhysicsSystems::Last),
+                rotation_response_system.in_set(AlsRotationResponseSet),
             );
     }
 }
@@ -870,7 +1080,6 @@ fn locomotion_drive_system(
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
-    rotation_modes: Query<&RotationMode, With<AlsCharacter>>,
     rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
 ) {
@@ -892,9 +1101,6 @@ fn locomotion_drive_system(
         character_debug,
     ) in &mut q
     {
-        let Ok(rotation_mode) = rotation_modes.get(entity) else {
-            continue;
-        };
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
         let effective = effective_input(cmd, override_cmd);
@@ -909,18 +1115,7 @@ fn locomotion_drive_system(
         let desired_forward = roll
             .filter(|state| state.active)
             .and_then(|state| Dir3::new(yaw_to_world_forward(state.direction_yaw)).ok())
-            .or_else(|| match *rotation_mode {
-                RotationMode::VelocityDirection => {
-                    if move_len > 1e-4 {
-                        Dir3::new(world_dir).ok()
-                    } else {
-                        None
-                    }
-                }
-                RotationMode::ViewDirection | RotationMode::Aiming => {
-                    Dir3::new(view_relative_move_direction(Vec2::Y, view_yaw.0)).ok()
-                }
-            });
+            .or_else(|| Dir3::new(gtf.forward().as_vec3()).ok());
 
         controller.basis = TnuaBuiltinWalk {
             desired_motion: world_dir * move_len,

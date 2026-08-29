@@ -2,7 +2,7 @@ use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::foot_ik::AlsFootLockInput;
 use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::motion::{AlsInputOverride, AlsRotationAnimationState, AlsViewYaw};
 use als_core::movement_direction::{
     AlsMovementDirection, AlsMovementDirectionState, update_direction,
 };
@@ -1812,6 +1812,12 @@ fn standing_layer_writer(
             feet_crossing_amount: inputs.feet_crossing_amount,
             ..Default::default()
         });
+        commands
+            .entity(parent.parent())
+            .insert(AlsRotationAnimationState {
+                yaw_offset_degrees: inputs.rotation_yaw_offset,
+                yaw_speed_degrees: inputs.rotation_yaw_speed,
+            });
     }
 }
 
