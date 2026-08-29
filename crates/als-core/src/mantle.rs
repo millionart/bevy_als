@@ -447,6 +447,13 @@ pub fn mantle_weight_at(elapsed: f32, duration: f32) -> f32 {
         .min((remaining / MANTLE_BLEND_OUT_SECS).clamp(0.0, 1.0))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AlsMantleTargetBase {
+    pub entity: Entity,
+    pub translation: Vec3,
+    pub rotation: Quat,
+}
+
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsMantleState {
     pub active: bool,
@@ -461,6 +468,12 @@ pub struct AlsMantleState {
     pub yaw_start: f32,
     pub yaw_target: f32,
     pub settle: f32,
+    pub target_base: Option<AlsMantleTargetBase>,
+    pub start_location_base: Vec3,
+    pub start_rotation_base: Quat,
+    pub target_location_base: Vec3,
+    pub target_rotation_base: Quat,
+    pub target_invalid: bool,
 }
 
 impl Default for AlsMantleState {
@@ -478,6 +491,12 @@ impl Default for AlsMantleState {
             yaw_start: 0.0,
             yaw_target: 0.0,
             settle: 0.0,
+            target_base: None,
+            start_location_base: Vec3::ZERO,
+            start_rotation_base: Quat::IDENTITY,
+            target_location_base: Vec3::ZERO,
+            target_rotation_base: Quat::IDENTITY,
+            target_invalid: false,
         }
     }
 }
@@ -505,6 +524,58 @@ impl AlsMantleState {
         self.yaw_start = yaw_start;
         self.yaw_target = yaw_target;
         self.settle = 0.0;
+        self.target_base = None;
+        self.start_location_base = Vec3::ZERO;
+        self.start_rotation_base = Quat::IDENTITY;
+        self.target_location_base = Vec3::ZERO;
+        self.target_rotation_base = Quat::IDENTITY;
+        self.target_invalid = false;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_with_target_base(
+        &mut self,
+        kind: MantleKind,
+        start: Vec3,
+        target: Vec3,
+        mantling_height: f32,
+        yaw_start: f32,
+        yaw_target: f32,
+        target_base: AlsMantleTargetBase,
+    ) {
+        self.begin(kind, start, target, mantling_height, yaw_start, yaw_target);
+        self.capture_target_base(target_base);
+    }
+
+    pub fn capture_target_base(&mut self, target_base: AlsMantleTargetBase) {
+        let inverse = target_base.rotation.conjugate();
+        self.start_location_base = inverse * (self.start - target_base.translation);
+        self.start_rotation_base = (inverse * Quat::from_rotation_y(self.yaw_start)).normalize();
+        self.target_location_base = inverse * (self.target - target_base.translation);
+        self.target_rotation_base = (inverse * Quat::from_rotation_y(self.yaw_target)).normalize();
+        self.target_base = Some(target_base);
+        self.target_invalid = false;
+    }
+
+    pub fn refresh_target_base(&mut self, latest_base: Option<AlsMantleTargetBase>) -> bool {
+        let Some(saved_base) = self.target_base else {
+            return true;
+        };
+        let Some(target_base) = latest_base.filter(|base| base.entity == saved_base.entity) else {
+            self.active = false;
+            self.settle = 0.0;
+            self.target_invalid = true;
+            return false;
+        };
+        self.start = target_base.translation + target_base.rotation * self.start_location_base;
+        self.target = target_base.translation + target_base.rotation * self.target_location_base;
+        let start_rotation = target_base.rotation * self.start_rotation_base;
+        let target_rotation = target_base.rotation * self.target_rotation_base;
+        self.yaw_start = yaw_from_direction(start_rotation * Vec3::NEG_Z);
+        self.yaw_target = yaw_from_direction(target_rotation * Vec3::NEG_Z);
+        self.target_base = Some(target_base);
+        self.target_invalid = false;
+        true
     }
 
     pub fn clip_time(&self) -> f32 {
@@ -637,5 +708,72 @@ mod tests {
         );
         assert!((state.clip_time() - 0.9).abs() < 1e-6);
         assert_eq!(state.cooldown, 0.0);
+    }
+
+    #[test]
+    fn mantle_target_base_updates_start_target_and_yaw() {
+        let target = Entity::from_raw_u32(1).unwrap();
+        let initial_base = AlsMantleTargetBase {
+            entity: target,
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+        };
+        let mut state = AlsMantleState::default();
+        state.begin_with_target_base(
+            MantleKind::High,
+            Vec3::new(-1.0, 0.0, 0.0),
+            Vec3::new(2.0, 0.0, 0.0),
+            1.25,
+            0.0,
+            0.0,
+            initial_base,
+        );
+        let moved_base = AlsMantleTargetBase {
+            entity: target,
+            translation: Vec3::new(3.0, 0.0, -2.0),
+            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+        };
+        assert!(state.refresh_target_base(Some(moved_base)));
+        assert!(
+            state
+                .start
+                .distance(moved_base.translation + moved_base.rotation * Vec3::new(-1.0, 0.0, 0.0))
+                < 1e-5
+        );
+        assert!(
+            state
+                .target
+                .distance(moved_base.translation + moved_base.rotation * Vec3::new(2.0, 0.0, 0.0))
+                < 1e-5
+        );
+        assert!((state.yaw_target - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert_eq!(state.target_base.map(|base| base.entity), Some(target));
+    }
+
+    #[test]
+    fn mantle_target_base_loss_cancels_without_settle() {
+        let base = AlsMantleTargetBase {
+            entity: Entity::from_raw_u32(1).unwrap(),
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+        };
+        let mut state = AlsMantleState::default();
+        state.begin_with_target_base(
+            MantleKind::High,
+            Vec3::ZERO,
+            Vec3::ONE,
+            1.25,
+            0.0,
+            0.0,
+            base,
+        );
+        assert!(!state.refresh_target_base(None));
+        assert!(!state.active);
+        assert!(state.target_invalid);
+        assert_eq!(state.settle, 0.0);
+        assert_eq!(
+            state.target_base.map(|value| value.entity),
+            Some(base.entity)
+        );
     }
 }

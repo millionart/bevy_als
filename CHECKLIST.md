@@ -197,9 +197,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`foot_lock_base_gate` 通过真实 `FootIkApplyPlugin` 路径依次验证首次锁定、基座 A 的平移/旋转跟随、换至基座 B 时世界锁点不跳变、基座 B 跟随、脱离基座及基座继续移动后的世界锁点冻结；输出 `first_followed=true rebase_preserved=true second_followed=true detach_preserved=true base_loss_preserved=true -> PASS`。
   - 回归：`cargo test --workspace --jobs 2` 通过（als-camera 7 passed；als-core 204 passed、2 ignored；als-ext 163 passed；根包 117 passed；其余集成测试均通过）。
 
-- [ ] **BF102.20 — X01：Mantle 保留目标身份和相对变换（P1）**
+- [x] **BF102.20 — X01：Mantle 保留目标身份和相对变换（P1）**
   - 依赖：BF102.15、BF102.17。
   - 验收：移动、旋转、销毁攀爬目标时，每角色目标身份、相对变换和失效恢复均可追踪。
+  - 当次 ALS 事实：`StartMantling()` 保存命中的 `TargetPrimitive`；若该基座使用相对位置，则将 start/target 位置与旋转转换进 primitive 空间。`FAlsRootMotionSource_Mantling::PrepareRootMotion()` 每步用当前 primitive 变换重建世界 start/target；target primitive 无效时清空 root motion。
+  - 实现：`AlsMantleState` 现在保存 target base 实体，以及 start/target 的局部位置和旋转。开始攀爬必须解析目标实体变换；pose 和 fixed drive 在每步以当前 target base 还原世界 start/target/yaw。实体或变换失效时动作取消、速度归零、取消原因以 `target_invalid` 保留，且不启动旧目标 settle。
+  - 证据：`mantle_target_base_gate` 通过实际 `AlsMantleDrivePlugin` 路径验证 target identity、平移/旋转后 start/target 重建，以及 despawn 后的取消；输出 `target_followed=true target_loss_handled=true ... invalidated_active=false invalidated=true -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（206 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.21 — X02：Mantle 临时碰撞状态拥有所有权并恢复原值（P1）**
   - 依赖：BF102.20。

@@ -1,5 +1,5 @@
 use als_core::input::AlsInputCommand;
-use als_core::mantle::{AlsMantleState, mantle_weight_at};
+use als_core::mantle::{AlsMantleState, AlsMantleTargetBase, mantle_weight_at};
 use als_core::motion::AlsInputOverride;
 use als_core::orientation::yaw_to_world_forward;
 use als_core::state::{LocomotionState, Stance};
@@ -57,6 +57,7 @@ fn ensure_mantle_state(
 
 fn mantle_pose_system(
     time: Res<Time>,
+    target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut q: Query<
         (&mut AlsMantleState, &mut Transform, &mut LinearVelocity),
         With<als_core::character::AlsCharacter>,
@@ -64,6 +65,11 @@ fn mantle_pose_system(
 ) {
     let dt = time.delta_secs();
     for (mut m, mut tf, mut vel) in &mut q {
+        let target_base = mantle_target_base(&m, &target_transforms);
+        if m.active && !m.refresh_target_base(target_base) {
+            *vel = LinearVelocity(Vec3::ZERO);
+            continue;
+        }
         let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
         if m.active {
             tf.rotation = Quat::from_rotation_y(yaw_now);
@@ -96,6 +102,7 @@ fn mantle_drive_system(
         With<als_core::character::AlsCharacter>,
     >,
     layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
+    target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     avatars: Query<(
         &AlsCharacterAvatar,
         &AnimatedSceneInstance,
@@ -105,6 +112,11 @@ fn mantle_drive_system(
 ) {
     let dt = time.delta_secs();
     for (entity, mut m, mut vel, transform, loco, stance, cmd, ovr) in &mut q {
+        let target_base = mantle_target_base(&m, &target_transforms);
+        let target_valid = !m.active || m.refresh_target_base(target_base);
+        if !target_valid {
+            *vel = LinearVelocity(Vec3::ZERO);
+        }
         let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
         m.tick(effective, loco, stance, dt);
@@ -121,7 +133,7 @@ fn mantle_drive_system(
             commands.entity(entity).remove::<CollisionLayers>();
         }
 
-        if !m.active || dt <= 1e-5 {
+        if !target_valid || !m.active || dt <= 1e-5 {
             continue;
         }
 
@@ -161,6 +173,19 @@ fn mantle_drive_system(
             player.set_input_data("mantle_lr", DataValue::from(lr));
         }
     }
+}
+
+fn mantle_target_base(
+    state: &AlsMantleState,
+    transforms: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> Option<AlsMantleTargetBase> {
+    let base = state.target_base?;
+    let transform = transforms.get(base.entity).ok()?;
+    Some(AlsMantleTargetBase {
+        entity: base.entity,
+        translation: transform.translation(),
+        rotation: transform.rotation(),
+    })
 }
 
 fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {

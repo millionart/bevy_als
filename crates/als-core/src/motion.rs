@@ -16,7 +16,7 @@ use crate::character::{
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
-use crate::mantle::{MantleDetectionInput, detect_mantle, yaw_from_direction};
+use crate::mantle::{AlsMantleTargetBase, MantleDetectionInput, detect_mantle, yaw_from_direction};
 use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
@@ -1094,6 +1094,7 @@ fn locomotion_drive_system(
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
@@ -1194,23 +1195,40 @@ fn locomotion_drive_system(
         if let (Some(detection), Some(mut debug)) = (detection, character_debug) {
             debug.0.mantle_probe = Some(detection.trace);
         }
-        let intent = detection.and_then(|detection| detection.intent);
+        let intent = detection.and_then(|detection| {
+            detection.intent.and_then(|intent| {
+                target_transforms
+                    .get(intent.target_entity)
+                    .ok()
+                    .map(|transform| {
+                        (
+                            intent,
+                            AlsMantleTargetBase {
+                                entity: intent.target_entity,
+                                translation: transform.translation(),
+                                rotation: transform.rotation(),
+                            },
+                        )
+                    })
+            })
+        });
         if jump_edge {
             match jump_chain(*loco, *stance, intent.is_some()) {
                 JumpChain::ExitRagdoll => {
                     request.locomotion_state = Some(LocomotionState::Grounded);
                 }
                 JumpChain::Mantle => {
-                    if let (Some(m), Some(i)) = (mantle.as_deref_mut(), intent) {
+                    if let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent) {
                         let origin = gtf.translation();
                         let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
-                        m.begin(
+                        m.begin_with_target_base(
                             i.kind,
                             origin,
                             i.target,
                             i.mantling_height,
                             yaw_start,
                             i.yaw_target,
+                            target_base,
                         );
                         info!(
                             "[MOTION] entity={entity:?} mantle begin kind={:?} height={:.2}",
@@ -1225,16 +1243,19 @@ fn locomotion_drive_system(
                     controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
                 }
             }
-        } else if auto_mantle && let (Some(m), Some(i)) = (mantle.as_deref_mut(), intent) {
+        } else if auto_mantle
+            && let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent)
+        {
             let origin = gtf.translation();
             let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
-            m.begin(
+            m.begin_with_target_base(
                 i.kind,
                 origin,
                 i.target,
                 i.mantling_height,
                 yaw_start,
                 i.yaw_target,
+                target_base,
             );
             info!(
                 "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2}",
