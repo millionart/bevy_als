@@ -7,6 +7,7 @@ fn main() {
         interps: vec![AlsKeyInterp::Linear, AlsKeyInterp::Linear],
         pre_infinity: AlsExtrapolation::Cycle,
         post_infinity: AlsExtrapolation::Cycle,
+        ..Default::default()
     };
     let values = [
         curve.sample(1.25),

@@ -255,9 +255,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`cycle_curve_gate` 对 `1.25/2.25/-0.25/-1.25` 输出 `0.25/0.25/0.75/0.75`，输出 `samples=[0.25, 0.25, 0.75, 0.75] ... -> PASS`。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（166 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.27 — F04：浮点曲线 cubic/tangent 载入语义（P2）**
+- [x] **BF102.27 — F04：浮点曲线 cubic/tangent 载入语义（P2）**
   - 依赖：BF102.06、BF102.26。
   - 验收：未预烘焙 cubic 曲线保留切线/插值语义，或给出受控烘焙及数值误差 Gate。
+  - 当次事实：曲线导出器会保留 `CUBIC`，并按 key 导出 `tangent_modes`、`weight_modes`、`arrive_tangents`、`leave_tangents`、`arrive_weights`、`leave_weights`；`A_Als_Roll` 与 GetUp 导出物均含 `CUBIC` 条目。UE 5.8 `WeightedEvalForTwoKeys` 以切线角度和欧氏权重构造二维 Bezier 控制点，并求时间维的三次根；因此不能降格为线性或仅把权重当作时间偏移。
+  - 实现：`AlsFloatCurve` 与 JSON 载入器完整保留上述 key 数据；无权重区段按 RichCurve 的 Hermite/Bezier 等价式取样，有 arrive/leave 权重的区段按引擎的切线角度、权重与最大有效时间根取样。
+  - 证据：`cubic_curve_gate` 对两个端点值为 `0→1`、两侧有效切线为 `2` 的 cubic 曲线输出 `cubic=(0.34375,0.50000,0.65625)`；另对加权控制柄输出 `weighted_midpoint=0.78125`，均为 `PASS`，并与线性值可区分。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（169 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.28 — F05：CycleWithOffset/Oscillate 外推语义（P2）**
   - 依赖：BF102.26。

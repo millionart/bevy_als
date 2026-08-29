@@ -46,6 +46,12 @@ pub struct AlsFloatCurve {
     pub times: Vec<f32>,
     pub values: Vec<f32>,
     pub interps: Vec<AlsKeyInterp>,
+    pub tangent_modes: Vec<u8>,
+    pub weight_modes: Vec<u8>,
+    pub arrive_tangents: Vec<f32>,
+    pub leave_tangents: Vec<f32>,
+    pub arrive_weights: Vec<f32>,
+    pub leave_weights: Vec<f32>,
     pub pre_infinity: AlsExtrapolation,
     pub post_infinity: AlsExtrapolation,
 }
@@ -55,6 +61,7 @@ pub enum AlsKeyInterp {
     #[default]
     Linear,
     Constant,
+    Cubic,
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +91,18 @@ struct RawCurve {
     pre_infinity: Option<String>,
     #[serde(default)]
     post_infinity: Option<String>,
+    #[serde(default)]
+    tangent_modes: Vec<u8>,
+    #[serde(default)]
+    weight_modes: Vec<u8>,
+    #[serde(default)]
+    arrive_tangents: Vec<f32>,
+    #[serde(default)]
+    leave_tangents: Vec<f32>,
+    #[serde(default)]
+    arrive_weights: Vec<f32>,
+    #[serde(default)]
+    leave_weights: Vec<f32>,
 }
 
 fn parse_extrapolation(raw: Option<&String>) -> AlsExtrapolation {
@@ -100,8 +119,14 @@ fn parse_extrapolation(raw: Option<&String>) -> AlsExtrapolation {
 fn parse_interp(raw: &str) -> AlsKeyInterp {
     match raw {
         "CONSTANT" => AlsKeyInterp::Constant,
+        "CUBIC" => AlsKeyInterp::Cubic,
         _ => AlsKeyInterp::Linear,
     }
+}
+
+fn resize_values<T: Clone>(mut values: Vec<T>, length: usize, default: T) -> Vec<T> {
+    values.resize(length, default);
+    values
 }
 
 pub fn parse_curves(
@@ -121,10 +146,17 @@ pub fn parse_curves(
         }
         let mut interps: Vec<AlsKeyInterp> = c.interps.iter().map(|s| parse_interp(s)).collect();
         interps.resize(c.times.len(), AlsKeyInterp::Linear);
+        let length = c.times.len();
         let curve = AlsFloatCurve {
             times: c.times,
             values: c.values,
             interps,
+            tangent_modes: resize_values(c.tangent_modes, length, 0),
+            weight_modes: resize_values(c.weight_modes, length, 0),
+            arrive_tangents: resize_values(c.arrive_tangents, length, 0.0),
+            leave_tangents: resize_values(c.leave_tangents, length, 0.0),
+            arrive_weights: resize_values(c.arrive_weights, length, 0.0),
+            leave_weights: resize_values(c.leave_weights, length, 0.0),
             pre_infinity: parse_extrapolation(c.pre_infinity.as_ref()),
             post_infinity: parse_extrapolation(c.post_infinity.as_ref()),
         };
@@ -190,7 +222,63 @@ impl AlsFloatCurve {
                 let a = (t - t0) / (t1 - t0);
                 v0 + (v1 - v0) * a
             }
+            AlsKeyInterp::Cubic => self.sample_cubic(lo, hi, t, t0, t1, v0, v1),
         }
+    }
+
+    fn sample_cubic(
+        &self,
+        lo: usize,
+        hi: usize,
+        t: f32,
+        t0: f32,
+        t1: f32,
+        v0: f32,
+        v1: f32,
+    ) -> f32 {
+        let duration = t1 - t0;
+        if duration <= f32::EPSILON {
+            return v0;
+        }
+        let leave_weighted = self.weight_modes.get(lo).copied().unwrap_or(0) & 2 != 0;
+        let arrive_weighted = self.weight_modes.get(hi).copied().unwrap_or(0) & 1 != 0;
+        if !leave_weighted && !arrive_weighted {
+            let x = ((t - t0) / duration).clamp(0.0, 1.0);
+            let x2 = x * x;
+            let x3 = x2 * x;
+            return (2.0 * x3 - 3.0 * x2 + 1.0) * v0
+                + (x3 - 2.0 * x2 + x) * duration * self.leave_tangent(lo)
+                + (-2.0 * x3 + 3.0 * x2) * v1
+                + (x3 - x2) * duration * self.arrive_tangent(hi);
+        }
+        let leave_tangent = self.leave_tangent(lo);
+        let arrive_tangent = self.arrive_tangent(hi);
+        let leave_weight = if leave_weighted {
+            self.leave_weights.get(lo).copied().unwrap_or(0.0)
+        } else {
+            tangent_weight(duration, leave_tangent)
+        };
+        let arrive_weight = if arrive_weighted {
+            self.arrive_weights.get(hi).copied().unwrap_or(0.0)
+        } else {
+            tangent_weight(duration, arrive_tangent)
+        };
+        let (leave_sine, leave_cosine) = leave_tangent.atan().sin_cos();
+        let (arrive_sine, arrive_cosine) = arrive_tangent.atan().sin_cos();
+        let control_time_1 = t0 + leave_cosine * leave_weight;
+        let control_time_2 = t1 - arrive_cosine * arrive_weight;
+        let control_value_1 = v0 + leave_sine * leave_weight;
+        let control_value_2 = v1 - arrive_sine * arrive_weight;
+        let parameter = cubic_parameter_for_time(t, t0, control_time_1, control_time_2, t1);
+        cubic_bezier(v0, control_value_1, control_value_2, v1, parameter)
+    }
+
+    fn arrive_tangent(&self, index: usize) -> f32 {
+        self.arrive_tangents.get(index).copied().unwrap_or(0.0)
+    }
+
+    fn leave_tangent(&self, index: usize) -> f32 {
+        self.leave_tangents.get(index).copied().unwrap_or(0.0)
     }
 
     fn extrapolate_start(&self, t: f32) -> f32 {
@@ -215,6 +303,91 @@ impl AlsFloatCurve {
         let slope = (vn - self.values[n - 2]) / (tn - tp);
         vn + slope * (t - tn)
     }
+}
+
+fn cubic_bezier(a: f32, b: f32, c: f32, d: f32, parameter: f32) -> f32 {
+    let inverse = 1.0 - parameter;
+    inverse * inverse * inverse * a
+        + 3.0 * inverse * inverse * parameter * b
+        + 3.0 * inverse * parameter * parameter * c
+        + parameter * parameter * parameter * d
+}
+
+fn tangent_weight(duration: f32, tangent: f32) -> f32 {
+    let value_delta = tangent * duration;
+    (duration * duration + value_delta * value_delta).sqrt() / 3.0
+}
+
+fn cubic_parameter_for_time(time: f32, t0: f32, t1: f32, t2: f32, t3: f32) -> f32 {
+    let range = t3 - t0;
+    if range.abs() <= f32::EPSILON {
+        return 0.0;
+    }
+    let control_1 = ((t1 - t0) / range) as f64;
+    let control_2 = ((t2 - t0) / range) as f64;
+    let alpha = ((time - t0) / range) as f64;
+    let cubic = 1.0 - 3.0 * control_2 + 3.0 * control_1;
+    let quadratic = 3.0 * control_2 - 6.0 * control_1;
+    let linear = 3.0 * control_1;
+    let roots = cubic_roots(cubic, quadratic, linear, -alpha);
+    roots
+        .into_iter()
+        .filter(|root| *root >= -1e-9 && *root <= 1.0 + 1e-9)
+        .map(|root| root.clamp(0.0, 1.0))
+        .max_by(f64::total_cmp)
+        .unwrap_or(0.0) as f32
+}
+
+fn cubic_roots(cubic: f64, quadratic: f64, linear: f64, constant: f64) -> Vec<f64> {
+    if cubic.abs() <= 1e-12 {
+        return quadratic_roots(quadratic, linear, constant);
+    }
+    let normalized_quadratic = quadratic / cubic;
+    let normalized_linear = linear / cubic;
+    let normalized_constant = constant / cubic;
+    let p = normalized_linear - normalized_quadratic * normalized_quadratic / 3.0;
+    let q = 2.0 * normalized_quadratic.powi(3) / 27.0
+        - normalized_quadratic * normalized_linear / 3.0
+        + normalized_constant;
+    let discriminant = (q * 0.5).powi(2) + (p / 3.0).powi(3);
+    let offset = normalized_quadratic / 3.0;
+    if discriminant > 1e-12 {
+        let root =
+            (-q * 0.5 + discriminant.sqrt()).cbrt() + (-q * 0.5 - discriminant.sqrt()).cbrt();
+        return vec![root - offset];
+    }
+    if discriminant >= -1e-12 {
+        let root = (-q * 0.5).cbrt();
+        return vec![2.0 * root - offset, -root - offset];
+    }
+    let radius = 2.0 * (-p / 3.0).sqrt();
+    let cosine = (-q * 0.5 / (-p / 3.0).sqrt().powi(3)).clamp(-1.0, 1.0);
+    let angle = cosine.acos();
+    (0..3)
+        .map(|index| radius * ((angle + std::f64::consts::TAU * index as f64) / 3.0).cos() - offset)
+        .collect()
+}
+
+fn quadratic_roots(quadratic: f64, linear: f64, constant: f64) -> Vec<f64> {
+    if quadratic.abs() <= 1e-12 {
+        return if linear.abs() <= 1e-12 {
+            Vec::new()
+        } else {
+            vec![-constant / linear]
+        };
+    }
+    let discriminant = linear * linear - 4.0 * quadratic * constant;
+    if discriminant < -1e-12 {
+        return Vec::new();
+    }
+    if discriminant <= 1e-12 {
+        return vec![-linear / (2.0 * quadratic)];
+    }
+    let square_root = discriminant.sqrt();
+    vec![
+        (-linear + square_root) / (2.0 * quadratic),
+        (-linear - square_root) / (2.0 * quadratic),
+    ]
 }
 
 #[derive(Default, Clone)]
@@ -382,6 +555,7 @@ mod tests {
             interps: vec![AlsKeyInterp::Linear, AlsKeyInterp::Linear],
             pre_infinity: AlsExtrapolation::Cycle,
             post_infinity: AlsExtrapolation::Cycle,
+            ..Default::default()
         };
         assert!((curve.sample(1.25) - 0.25).abs() < 1e-6);
         assert!((curve.sample(2.25) - 0.25).abs() < 1e-6);
@@ -397,8 +571,67 @@ mod tests {
             interps: vec![],
             pre_infinity: AlsExtrapolation::default(),
             post_infinity: AlsExtrapolation::default(),
+            ..Default::default()
         };
         assert!((one.sample(0.0) - 0.7).abs() < 1e-6);
         assert!((one.sample(10.0) - 0.7).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cubic_segments_preserve_exported_tangents() {
+        let curve = AlsFloatCurve {
+            times: vec![0.0, 1.0],
+            values: vec![0.0, 1.0],
+            interps: vec![AlsKeyInterp::Cubic, AlsKeyInterp::Cubic],
+            arrive_tangents: vec![0.0, 2.0],
+            leave_tangents: vec![2.0, 0.0],
+            ..Default::default()
+        };
+        assert!((curve.sample(0.25) - 0.34375).abs() < 1e-6);
+        assert!((curve.sample(0.75) - 0.65625).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cubic_segments_follow_weighted_tangent_handles() {
+        let curve = AlsFloatCurve {
+            times: vec![0.0, 1.0],
+            values: vec![0.0, 1.0],
+            interps: vec![AlsKeyInterp::Cubic, AlsKeyInterp::Cubic],
+            weight_modes: vec![2, 1],
+            arrive_tangents: vec![0.0, 0.0],
+            leave_tangents: vec![1.0, 0.0],
+            arrive_weights: vec![0.0, 0.75],
+            leave_weights: vec![1.0606602, 0.0],
+            ..Default::default()
+        };
+        assert!((curve.sample(0.5) - 0.78125).abs() < 1e-5);
+    }
+
+    #[test]
+    fn parser_keeps_cubic_interpolation_and_tangent_arrays() {
+        let value: serde_json::Value = serde_json::json!({
+            "curves": [{
+                "name": "Cubic",
+                "interps": ["CUBIC", "CUBIC"],
+                "times": [0.0, 1.0],
+                "values": [0.0, 1.0],
+                "tangent_modes": [1, 2],
+                "weight_modes": [0, 0],
+                "arrive_tangents": [0.0, 2.0],
+                "leave_tangents": [2.0, 0.0],
+                "arrive_weights": [0.0, 0.0],
+                "leave_weights": [0.0, 0.0]
+            }]
+        });
+        let curves = parse_curves(&value).unwrap();
+        let curve = curves.0.get("Cubic").unwrap();
+        assert_eq!(curve.interps[0], AlsKeyInterp::Cubic);
+        assert_eq!(curve.tangent_modes, vec![1, 2]);
+        assert_eq!(curve.weight_modes, vec![0, 0]);
+        assert_eq!(curve.arrive_tangents, vec![0.0, 2.0]);
+        assert_eq!(curve.leave_tangents, vec![2.0, 0.0]);
+        assert_eq!(curve.arrive_weights, vec![0.0, 0.0]);
+        assert_eq!(curve.leave_weights, vec![0.0, 0.0]);
+        assert!((curve.sample(0.25) - 0.34375).abs() < 1e-6);
     }
 }
