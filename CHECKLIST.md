@@ -205,9 +205,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`mantle_target_base_gate` 通过实际 `AlsMantleDrivePlugin` 路径验证 target identity、平移/旋转后 start/target 重建，以及 despawn 后的取消；输出 `target_followed=true target_loss_handled=true ... invalidated_active=false invalidated=true -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（206 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.21 — X02：Mantle 临时碰撞状态拥有所有权并恢复原值（P1）**
+- [x] **BF102.21 — X02：Mantle 临时碰撞状态拥有所有权并恢复原值（P1）**
   - 依赖：BF102.20。
   - 验收：攀爬、布娃娃和自定义碰撞禁用并存时，结束任一动作不会删除其他动作的状态或丢失原层。
+  - 当次 ALS 事实：`StartMantlingImplementation()` 通过 custom movement mode、movement-mode lock 与 movement base 管理攀爬，并不把“碰撞当前为禁用”当成 Mantle 自己可删除的标记。因而项目端的临时碰撞覆盖必须显式记录来源，不能用 `CollisionLayers::NONE` 推断所有权。
+  - 实现：每个 `AlsCharacter` 现在要求 `AlsCollisionLayerOwnership`。Mantle 和 Ragdoll 分别持有独立 owner 位；首个 owner 捕获原 `CollisionLayers`（包括组件缺失），任意 owner 存在时层为 NONE，只有最后一个 owner 释放才恢复该原值。Ragdoll 不再另行快照/恢复同一 collision component。
+  - 证据：`collision_ownership_gate` 验证 Mantle→Ragdoll→释放 Mantle 仍保持 NONE、释放 Ragdoll 后恢复自定义 `memberships=0b0010/filters=0b1100`，以及原先就是 NONE 的自定义禁用仍保持 NONE；输出 `mantle_disabled=true ragdoll_disabled=true mantle_release_preserved_ragdoll=true restored_custom=true pre_disabled_preserved=true -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（208 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.22 — C06：相机 movement-base 生产状态接线（P2）**
   - 依赖：BF102.17、BF102.20。

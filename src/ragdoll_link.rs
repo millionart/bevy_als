@@ -1,6 +1,7 @@
 use als_core::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS, ALS_CHARACTER_FLOOR_CLEARANCE,
-    AlsCharacter, AlsMovementParamsHandle,
+    AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, AlsMovementParamsHandle,
+    set_collision_layer_owner,
 };
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, Stance};
@@ -39,7 +40,6 @@ struct AlsRagdollPhysicsActive;
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRagdollCharacterPhysics {
     rigid_body: RigidBody,
-    collision_layers: Option<CollisionLayers>,
     tnua_toggle: Option<TnuaToggle>,
 }
 
@@ -253,6 +253,7 @@ fn ragdoll_character_physics_system(
             &LocomotionState,
             &RigidBody,
             Option<&CollisionLayers>,
+            &mut AlsCollisionLayerOwnership,
             Option<&TnuaToggle>,
             Option<&AlsRagdollCharacterPhysics>,
             Option<&AlsRagdollGroundFollow>,
@@ -268,6 +269,7 @@ fn ragdoll_character_physics_system(
         locomotion,
         rigid_body,
         collision_layers,
+        mut collision_ownership,
         tnua_toggle,
         previous_physics,
         ground_follow,
@@ -278,21 +280,33 @@ fn ragdoll_character_physics_system(
             if previous_physics.is_none() {
                 commands.entity(entity).insert(AlsRagdollCharacterPhysics {
                     rigid_body: *rigid_body,
-                    collision_layers: collision_layers.copied(),
                     tnua_toggle: tnua_toggle.copied(),
                 });
             }
             if *rigid_body != RigidBody::Kinematic {
                 commands.entity(entity).insert(RigidBody::Kinematic);
             }
-            if collision_layers.is_none_or(|layers| *layers != CollisionLayers::NONE) {
-                commands.entity(entity).insert(CollisionLayers::NONE);
-            }
+            set_collision_layer_owner(
+                &mut commands,
+                entity,
+                &mut collision_ownership,
+                collision_layers.copied(),
+                AlsCollisionLayerOwner::Ragdoll,
+                true,
+            );
             if tnua_toggle.is_none_or(|toggle| *toggle != TnuaToggle::Disabled) {
                 commands.entity(entity).insert(TnuaToggle::Disabled);
             }
             continue;
         }
+        set_collision_layer_owner(
+            &mut commands,
+            entity,
+            &mut collision_ownership,
+            collision_layers.copied(),
+            AlsCollisionLayerOwner::Ragdoll,
+            false,
+        );
         let Some(previous_physics) = previous_physics else {
             continue;
         };
@@ -310,14 +324,6 @@ fn ragdoll_character_physics_system(
             );
         }
         commands.entity(entity).insert(previous_physics.rigid_body);
-        match previous_physics.collision_layers {
-            Some(layers) => {
-                commands.entity(entity).insert(layers);
-            }
-            None => {
-                commands.entity(entity).remove::<CollisionLayers>();
-            }
-        }
         match previous_physics.tnua_toggle {
             Some(toggle) => {
                 commands.entity(entity).insert(toggle);

@@ -1,3 +1,6 @@
+use als_core::character::{
+    AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, set_collision_layer_owner,
+};
 use als_core::input::AlsInputCommand;
 use als_core::mantle::{AlsMantleState, AlsMantleTargetBase, mantle_weight_at};
 use als_core::motion::AlsInputOverride;
@@ -56,18 +59,37 @@ fn ensure_mantle_state(
 }
 
 fn mantle_pose_system(
+    mut commands: Commands,
     time: Res<Time>,
     target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut q: Query<
-        (&mut AlsMantleState, &mut Transform, &mut LinearVelocity),
-        With<als_core::character::AlsCharacter>,
+        (
+            Entity,
+            &mut AlsMantleState,
+            &mut Transform,
+            &mut LinearVelocity,
+            Option<&CollisionLayers>,
+            &mut AlsCollisionLayerOwnership,
+        ),
+        With<AlsCharacter>,
     >,
 ) {
     let dt = time.delta_secs();
-    for (mut m, mut tf, mut vel) in &mut q {
+    for (entity, mut m, mut tf, mut vel, layers, mut ownership) in &mut q {
         let target_base = mantle_target_base(&m, &target_transforms);
-        if m.active && !m.refresh_target_base(target_base) {
+        let target_valid = !m.active || m.refresh_target_base(target_base);
+        if !target_valid {
             *vel = LinearVelocity(Vec3::ZERO);
+        }
+        set_collision_layer_owner(
+            &mut commands,
+            entity,
+            &mut ownership,
+            layers.copied(),
+            AlsCollisionLayerOwner::Mantle,
+            m.active,
+        );
+        if !target_valid {
             continue;
         }
         let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
@@ -98,10 +120,11 @@ fn mantle_drive_system(
             &Stance,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&CollisionLayers>,
+            &mut AlsCollisionLayerOwnership,
         ),
-        With<als_core::character::AlsCharacter>,
+        With<AlsCharacter>,
     >,
-    layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
     target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     avatars: Query<(
         &AlsCharacterAvatar,
@@ -111,7 +134,8 @@ fn mantle_drive_system(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    for (entity, mut m, mut vel, transform, loco, stance, cmd, ovr) in &mut q {
+    for (entity, mut m, mut vel, transform, loco, stance, cmd, ovr, layers, mut ownership) in &mut q
+    {
         let target_base = mantle_target_base(&m, &target_transforms);
         let target_valid = !m.active || m.refresh_target_base(target_base);
         if !target_valid {
@@ -120,18 +144,14 @@ fn mantle_drive_system(
         let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
         m.tick(effective, loco, stance, dt);
-
-        let layers_none = layers_q
-            .get(entity)
-            .ok()
-            .flatten()
-            .map(|l| *l == CollisionLayers::NONE)
-            .unwrap_or(false);
-        if m.active && !layers_none {
-            commands.entity(entity).insert(CollisionLayers::NONE);
-        } else if !m.active && layers_none {
-            commands.entity(entity).remove::<CollisionLayers>();
-        }
+        set_collision_layer_owner(
+            &mut commands,
+            entity,
+            &mut ownership,
+            layers.copied(),
+            AlsCollisionLayerOwner::Mantle,
+            m.active,
+        );
 
         if !target_valid || !m.active || dt <= 1e-5 {
             continue;

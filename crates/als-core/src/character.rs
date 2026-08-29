@@ -1,5 +1,6 @@
 use avian3d::prelude::{
-    Collider, LinearVelocity, LockedAxes, PhysicsSystems, Position, RigidBody, SweptCcd,
+    Collider, CollisionLayers, LinearVelocity, LockedAxes, PhysicsSystems, Position, RigidBody,
+    SweptCcd,
 };
 use bevy::asset::Handle;
 use bevy::prelude::*;
@@ -36,6 +37,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::foot_ik::AlsFootLockSettings)]
 #[require(crate::foot_ik::AlsDynamicTransitionState)]
 #[require(AlsDesiredStance)]
+#[require(AlsCollisionLayerOwnership)]
 pub struct AlsCharacter;
 
 pub const ALS_CHARACTER_CAPSULE_HALF_HEIGHT: f32 = 0.9;
@@ -43,6 +45,74 @@ pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
 pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
 pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlsCollisionLayerOwner {
+    Mantle,
+    Ragdoll,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCollisionLayerOwnership {
+    pub mantle: bool,
+    pub ragdoll: bool,
+    original: Option<CollisionLayers>,
+    had_original: bool,
+}
+
+impl AlsCollisionLayerOwnership {
+    pub fn active(&self) -> bool {
+        self.mantle || self.ragdoll
+    }
+
+    pub fn set_owner(
+        &mut self,
+        owner: AlsCollisionLayerOwner,
+        current: Option<CollisionLayers>,
+        active: bool,
+    ) -> Option<Option<CollisionLayers>> {
+        let was_active = self.active();
+        if active && !was_active {
+            self.original = current;
+            self.had_original = current.is_some();
+        }
+        match owner {
+            AlsCollisionLayerOwner::Mantle => self.mantle = active,
+            AlsCollisionLayerOwner::Ragdoll => self.ragdoll = active,
+        }
+        if self.active() {
+            (current != Some(CollisionLayers::NONE)).then_some(Some(CollisionLayers::NONE))
+        } else if was_active {
+            let restored = self.had_original.then_some(self.original).flatten();
+            self.original = None;
+            self.had_original = false;
+            Some(restored)
+        } else {
+            None
+        }
+    }
+}
+
+pub fn set_collision_layer_owner(
+    commands: &mut Commands,
+    entity: Entity,
+    ownership: &mut AlsCollisionLayerOwnership,
+    current: Option<CollisionLayers>,
+    owner: AlsCollisionLayerOwner,
+    active: bool,
+) {
+    let Some(layers) = ownership.set_owner(owner, current, active) else {
+        return;
+    };
+    match layers {
+        Some(layers) => {
+            commands.entity(entity).insert(layers);
+        }
+        None => {
+            commands.entity(entity).remove::<CollisionLayers>();
+        }
+    }
+}
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsCmcAdapterRuntime {
@@ -326,6 +396,57 @@ mod tests {
         assert_eq!(bundle.aiming_yaw_constraint.active_limit_degrees, 180.0);
         assert_eq!(bundle.stance, Stance::Standing);
         assert_eq!(bundle.desired_stance.0, Stance::Standing);
+    }
+
+    #[test]
+    fn collision_layer_owners_restore_only_after_the_last_release() {
+        let custom = CollisionLayers::from_bits(0b0010, 0b1100);
+        let mut ownership = AlsCollisionLayerOwnership::default();
+        assert_eq!(
+            ownership.set_owner(AlsCollisionLayerOwner::Mantle, Some(custom), true),
+            Some(Some(CollisionLayers::NONE))
+        );
+        assert_eq!(
+            ownership.set_owner(
+                AlsCollisionLayerOwner::Ragdoll,
+                Some(CollisionLayers::NONE),
+                true
+            ),
+            None
+        );
+        assert_eq!(
+            ownership.set_owner(
+                AlsCollisionLayerOwner::Mantle,
+                Some(CollisionLayers::NONE),
+                false
+            ),
+            None
+        );
+        assert_eq!(
+            ownership.set_owner(
+                AlsCollisionLayerOwner::Ragdoll,
+                Some(CollisionLayers::NONE),
+                false
+            ),
+            Some(Some(custom))
+        );
+    }
+
+    #[test]
+    fn collision_layer_owner_restores_an_absent_component() {
+        let mut ownership = AlsCollisionLayerOwnership::default();
+        assert_eq!(
+            ownership.set_owner(AlsCollisionLayerOwner::Mantle, None, true),
+            Some(Some(CollisionLayers::NONE))
+        );
+        assert_eq!(
+            ownership.set_owner(
+                AlsCollisionLayerOwner::Mantle,
+                Some(CollisionLayers::NONE),
+                false
+            ),
+            Some(None)
+        );
     }
 
     #[test]
