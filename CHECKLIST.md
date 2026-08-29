@@ -279,9 +279,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`root_motion_blend_gate` 输出 `identical_rotation_alignment=1.000000 translation_error=0.000000 -> PASS`。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.30 — F07：Morph 权重线性混合保留起始值（P2）**
+- [x] **BF102.30 — F07：Morph 权重线性混合保留起始值（P2）**
   - 依赖：BF102.24。
   - 验收：含 morph targets 的模型/动画在 alpha=0、alpha=1 和中间值均保持正确起点、终点和插值。
+  - 当次事实：动画图 core 的 `BonePose::linear_blend_mut()` 原先仅计算 `(new-old)*alpha`，丢失起始值；内置 `BlendNode` 在当前 ALS 图资产中被广泛使用并直接构造依赖内 `LinearInterpolator`，项目内没有可覆盖该固有方法的扩展点。当前导出 `.anim.ron` 未检出 `weights` 字段，故默认 ALS 素材是否触发保持条件性结论。
+  - 实现：项目内替换所有内置 BlendNode 既不完整也无法截获依赖内部调用，故按已验证阻塞修改 animation-graph fork `81a0293`（已独立推送）；权重改为 `old + (new-old)*alpha`，不同通道长度按缺失值 `0` 补齐，主仓库 `Cargo.lock` 锁定该 revision。
+  - 证据：`morph_weight_gate` 输出 `start=[0.6, 0.4] middle=[0.70000005, 0.3] end=[0.8, 0.2] same=[0.6, 0.4] short_middle=[0.70000005, 0.2] -> PASS`。
+  - 回归：fork `cargo +stable test -p bevy_animation_graph_core --lib --jobs 2` 通过（35 tests）；主仓库 `cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests），`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests），`cargo check --all-targets --jobs 2` 通过。
 
 ### 空中、落地与动作时间
 
