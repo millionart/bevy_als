@@ -21,7 +21,7 @@ use bevy_animation_graph::core::{
     context::node_states::StateKey,
     edge_data::{DataValue, bone_mask::BoneMask},
     plugin::AnimationGraphSet,
-    pose::Pose,
+    pose::{BonePose, Pose},
     state_machine::{
         high_level::{StateMachine, TransitionId, TransitionKind},
         low_level::LowLevelStateId,
@@ -34,6 +34,7 @@ const JUMP_PATH: &str = "graphs/ab_als/locomotion/state_jump.animgraph.ron";
 const JUMP_FSM_PATH: &str = "graphs/ab_als/locomotion/jump_states.fsm.ron";
 const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
 const LOCOMOTION_GRAPH_DIR: &str = "assets/graphs/ab_als/locomotion";
+const WRITER_STATE_PROBE: f32 = 97.0;
 
 #[derive(Resource)]
 struct GateAssets {
@@ -59,6 +60,7 @@ struct CaseRuntime {
     steps: Vec<Step>,
     cursor: usize,
     pending: bool,
+    last_entered_time: Option<f32>,
 }
 
 #[derive(Resource, Default)]
@@ -67,6 +69,7 @@ struct Probe {
     jump_cases: Vec<CaseRuntime>,
     static_verified: bool,
     curves_verified: bool,
+    final_pose_observed: bool,
     outer_seen: BTreeSet<usize>,
     jump_seen: BTreeSet<usize>,
 }
@@ -108,6 +111,53 @@ fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn close(actual: f32, expected: f32) -> bool {
     (actual - expected).abs() < 1e-4
+}
+
+#[derive(Clone, Copy)]
+struct ActualTelemetry {
+    state: f32,
+    transition: f32,
+    transition_active: f32,
+    entered_time: f32,
+    elapsed_time: f32,
+}
+
+fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
+    match player.get_outputs().get(name) {
+        Some(DataValue::F32(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+fn output_pose(player: &AnimationGraphPlayer) -> Option<&Pose> {
+    match player.get_outputs().get("pose") {
+        Some(DataValue::Pose(pose)) => Some(pose),
+        _ => None,
+    }
+}
+
+fn actual_telemetry(player: &AnimationGraphPlayer) -> Option<ActualTelemetry> {
+    Some(ActualTelemetry {
+        state: output_f32(player, "actual_state")?,
+        transition: output_f32(player, "actual_transition")?,
+        transition_active: output_f32(player, "actual_transition_active")?,
+        entered_time: output_f32(player, "actual_state_entered_time")?,
+        elapsed_time: output_f32(player, "actual_state_elapsed_time")?,
+    })
+}
+
+fn pose_is_valid(pose: &Pose) -> bool {
+    !pose.bones.is_empty()
+        && pose.timestamp.is_finite()
+        && pose.bones.iter().all(|bone| {
+            bone.translation.is_none_or(Vec3::is_finite)
+                && bone.rotation.is_none_or(Quat::is_finite)
+                && bone.scale.is_none_or(Vec3::is_finite)
+                && bone
+                    .weights
+                    .as_ref()
+                    .is_none_or(|weights| weights.iter().all(|value| value.is_finite()))
+        })
 }
 
 fn fail(exit: &mut MessageWriter<AppExit>, message: &str) {
@@ -233,6 +283,7 @@ fn spawn_case(
     commands: &mut Commands,
     graph: Handle<AnimationGraph>,
     skeleton: Handle<bevy_animation_graph::core::skeleton::Skeleton>,
+    skeleton_data: &bevy_animation_graph::core::skeleton::Skeleton,
     graphs: &Assets<AnimationGraph>,
     name: String,
     steps: &[Step],
@@ -240,7 +291,7 @@ fn spawn_case(
     let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph);
     set_default_globals(&mut player, graphs);
     let skeleton = player.skeleton().clone();
-    set_grounded_inputs(&mut player, skeleton);
+    set_grounded_inputs(&mut player, skeleton, skeleton_data);
     player.queue_time_update(bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0));
     let entity = commands
         .spawn((Name::new(name), Children::default(), player))
@@ -250,20 +301,25 @@ fn spawn_case(
         steps: steps.to_vec(),
         cursor: 0,
         pending: false,
+        last_entered_time: None,
     }
 }
 
 fn set_grounded_inputs(
     player: &mut AnimationGraphPlayer,
     skeleton: Handle<bevy_animation_graph::core::skeleton::Skeleton>,
+    skeleton_data: &bevy_animation_graph::core::skeleton::Skeleton,
 ) {
-    player.set_input_data(
-        "grounded_pose",
-        DataValue::Pose(Pose {
-            skeleton,
-            ..default()
-        }),
-    );
+    let mut grounded_pose = Pose {
+        skeleton,
+        ..default()
+    };
+    for bone in skeleton_data.iter_bones() {
+        if let Some(default_transform) = skeleton_data.default_transforms(bone) {
+            grounded_pose.add_bone(BonePose::from_transform(default_transform.local), bone);
+        }
+    }
+    player.set_input_data("grounded_pose", DataValue::Pose(grounded_pose));
     for (name, value) in [
         ("PoseStanding", 1.0),
         ("PoseCrouching", 0.0),
@@ -357,20 +413,23 @@ fn verify_static(
     assets: Res<GateAssets>,
     graphs: Res<Assets<AnimationGraph>>,
     machines: Res<Assets<StateMachine>>,
+    skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     mut probe: ResMut<Probe>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if probe.static_verified
         || !server.is_loaded_with_dependencies(&assets.root)
         || !server.is_loaded_with_dependencies(&assets.jump)
+        || !server.is_loaded_with_dependencies(&assets.skeleton)
     {
         return;
     }
-    let (Some(root), Some(fsm), Some(jump), Some(jump_fsm)) = (
+    let (Some(root), Some(fsm), Some(jump), Some(jump_fsm), Some(skeleton)) = (
         graphs.get(&assets.root),
         machines.get(&assets.fsm),
         graphs.get(&assets.jump),
         machines.get(&assets.jump_fsm),
+        skeletons.get(&assets.skeleton),
     ) else {
         return;
     };
@@ -404,6 +463,28 @@ fn verify_static(
         && node::<InterruptibleFsmNode>(root, "Locomotion States").is_some()
         && node::<DirectTransitionEventNode>(root, "locomotion transition driver")
             .is_some_and(|node| node.transitions.len() == 16);
+    let telemetry_contract = match (
+        node::<InterruptibleFsmNode>(root, "Locomotion States"),
+        node::<DirectTransitionEventNode>(root, "locomotion transition driver"),
+    ) {
+        (Some(fsm_node), Some(driver)) => {
+            fsm_node
+                .telemetry_states
+                .iter()
+                .filter_map(|id| fsm.states.get(id).map(|state| state.label.as_str()))
+                .collect::<Vec<_>>()
+                == vec![
+                    "Grounded",
+                    "Fall",
+                    "Jump",
+                    "Land",
+                    "Land Movement",
+                    "Land Conduct",
+                ]
+                && fsm_node.telemetry_transitions == driver.transitions
+        }
+        _ => false,
+    };
     let state_contract = labels(fsm)
         == vec![
             "Fall",
@@ -454,6 +535,11 @@ fn verify_static(
         "FootLeftIk",
         "FootRightIk",
         "PoseInAir",
+        "actual_state",
+        "actual_transition",
+        "actual_transition_active",
+        "actual_state_entered_time",
+        "actual_state_elapsed_time",
     ]
     .into_iter()
     .all(|name| root.io_spec.get_output_data(&name.to_owned()).is_some());
@@ -640,8 +726,9 @@ fn verify_static(
                 && !text.contains("playground")
         });
     info!(
-        "[LOCOMOTION-CONTRACT] root={} states={} jump={} loops={} curves={} nodes={} outputs={} architecture={}",
+        "[LOCOMOTION-CONTRACT] root={} telemetry={} states={} jump={} loops={} curves={} nodes={} outputs={} architecture={}",
         root_contract,
+        telemetry_contract,
         state_contract,
         jump_contract,
         loop_contract,
@@ -651,6 +738,7 @@ fn verify_static(
         architecture
     );
     if !(root_contract
+        && telemetry_contract
         && state_contract
         && jump_contract
         && loop_contract
@@ -863,6 +951,7 @@ fn verify_static(
                 &mut commands,
                 assets.root.clone(),
                 assets.skeleton.clone(),
+                skeleton,
                 &graphs,
                 format!("locomotion_outer_case_{index}"),
                 steps,
@@ -903,6 +992,7 @@ fn verify_static(
                 &mut commands,
                 assets.jump.clone(),
                 assets.skeleton.clone(),
+                skeleton,
                 &graphs,
                 format!("locomotion_jump_case_{index}"),
                 steps,
@@ -918,16 +1008,18 @@ fn observe(
     assets: Res<GateAssets>,
     graphs: Res<Assets<AnimationGraph>>,
     machines: Res<Assets<StateMachine>>,
+    skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if !probe.static_verified {
         return;
     }
-    let (Some(root), Some(fsm), Some(jump), Some(jump_fsm)) = (
+    let (Some(root), Some(fsm), Some(jump), Some(jump_fsm), Some(skeleton)) = (
         graphs.get(&assets.root),
         machines.get(&assets.fsm),
         graphs.get(&assets.jump),
         machines.get(&assets.jump_fsm),
+        skeletons.get(&assets.skeleton),
     ) else {
         return;
     };
@@ -942,15 +1034,33 @@ fn observe(
             fail(&mut exit, &format!("runtime error={error:?}"));
             return;
         }
-        let values = ["PoseGrounded", "FootLeftIk", "FootRightIk"]
-            .into_iter()
-            .all(|name| {
-                matches!(player.get_outputs().get(name), Some(DataValue::F32(value)) if close(*value, 1.0))
-            });
-        if !values {
+        let values = [
+            ("PoseGrounded", 1.0),
+            ("FootLeftIk", 0.0),
+            ("FootRightIk", 0.0),
+        ]
+        .into_iter()
+        .all(|(name, expected)| {
+            matches!(player.get_outputs().get(name), Some(DataValue::F32(value)) if close(*value, expected))
+        });
+        let Some(pose) = output_pose(&player) else {
+            return;
+        };
+        let root_translation = pose
+            .get_bone(skeleton.root())
+            .and_then(|bone| bone.translation)
+            .filter(|translation| translation.is_finite());
+        if !values || !pose_is_valid(pose) || root_translation.is_none() {
             return;
         }
         probe.curves_verified = true;
+        probe.final_pose_observed = true;
+        info!(
+            "[BF102.07] final_pose sample_time={:.3} bones={} root={:?}",
+            pose.timestamp,
+            pose.bones.len(),
+            root_translation.unwrap_or_default()
+        );
         info!("[LOCOMOTION-CONTRACT] grounded input pose/time/curves propagated");
     }
     let mut outer_seen = Vec::new();
@@ -966,6 +1076,7 @@ fn observe(
             &mut outer_seen,
             &mut exit,
             "outer",
+            true,
         ) {
             return;
         }
@@ -984,6 +1095,7 @@ fn observe(
             &mut jump_seen,
             &mut exit,
             "jump",
+            false,
         ) {
             return;
         }
@@ -1006,8 +1118,13 @@ fn observe(
         fail(&mut exit, "runtime topology coverage");
         return;
     }
+    if !probe.final_pose_observed {
+        fail(&mut exit, "final pose telemetry");
+        return;
+    }
     info!("[LOCOMOTION-CONTRACT] outer direct topology=16/16");
     info!("[LOCOMOTION-CONTRACT] jump executable topology=4/4 loop_to_flail=source_unreachable");
+    info!("[BF102.07][VERDICT] actual_fsm_telemetry=true final_pose=true -> PASS");
     info!("[LOCOMOTION-CONTRACT][VERDICT] linked=true -> PASS");
     exit.write(AppExit::Success);
 }
@@ -1024,6 +1141,7 @@ fn drive_case(
     seen: &mut Vec<usize>,
     exit: &mut MessageWriter<AppExit>,
     name: &str,
+    verify_actual_telemetry: bool,
 ) -> bool {
     let Ok(mut player) = players.get_mut(case.player) else {
         return true;
@@ -1047,6 +1165,69 @@ fn drive_case(
             fail(exit, &format!("{name} direct transition did not activate"));
             return false;
         }
+        if verify_actual_telemetry {
+            let Some(telemetry) = actual_telemetry(&player) else {
+                fail(exit, "actual telemetry missing");
+                return false;
+            };
+            let Some(writer_state) = output_f32(&player, "state") else {
+                fail(exit, "writer state telemetry missing");
+                return false;
+            };
+            let Some(request) = output_f32(&player, "transition") else {
+                fail(exit, "writer transition telemetry missing");
+                return false;
+            };
+            let Some(pose) = output_pose(&player) else {
+                fail(exit, "transition pose telemetry missing");
+                return false;
+            };
+            let pose_valid = pose_is_valid(pose);
+            let expected_transition = node::<InterruptibleFsmNode>(graph, fsm_name)
+                .and_then(|node| {
+                    expected.as_ref().and_then(|id| {
+                        node.telemetry_transitions
+                            .iter()
+                            .position(|candidate| candidate == id)
+                    })
+                })
+                .map(|index| index as f32);
+            let previous_entered_time = case.last_entered_time.unwrap_or(f32::NEG_INFINITY);
+            if !active
+                || !close(request, step.index as f32)
+                || !close(writer_state, WRITER_STATE_PROBE)
+                || !close(telemetry.state, -1.0)
+                || !expected_transition.is_some_and(|index| close(telemetry.transition, index))
+                || !close(telemetry.transition_active, 1.0)
+                || !telemetry.entered_time.is_finite()
+                || telemetry.entered_time <= previous_entered_time
+                || !close(telemetry.elapsed_time, 0.0)
+                || !pose_valid
+            {
+                warn!(
+                    "[BF102.07] telemetry mismatch active={active} request={request:.3} writer_state={writer_state:.3} expected_transition={expected_transition:?} previous_entered={previous_entered_time:.3} actual_state={:.3} actual_transition={:.3} transition_active={:.3} entered={:.3} elapsed={:.6} pose_valid={pose_valid} pose_timestamp={:.6} pose_bones={}",
+                    telemetry.state,
+                    telemetry.transition,
+                    telemetry.transition_active,
+                    telemetry.entered_time,
+                    telemetry.elapsed_time,
+                    pose.timestamp,
+                    pose.bones.len(),
+                );
+                fail(exit, "actual transition telemetry");
+                return false;
+            }
+            info!(
+                "[BF102.07] request={request:.0} writer_state={writer_state:.0} actual_state={:.0} actual_transition={:.0} active={:.0} entered={:.3} elapsed={:.3} clip_sample_time={:.3} pose_bones={}",
+                telemetry.state,
+                telemetry.transition,
+                telemetry.transition_active,
+                telemetry.entered_time,
+                telemetry.elapsed_time,
+                pose.timestamp,
+                pose.bones.len(),
+            );
+        }
         player.set_global_input_data(input_key, -1.0_f32);
         advance(&mut player, case.cursor as f32 * 10.0 + 2.0);
         seen.push(step.index);
@@ -1065,6 +1246,34 @@ fn drive_case(
     if fsm_label(&player, graph, machine, fsm_name).as_deref() != Some(step.source) {
         fail(exit, &format!("{name} direct transition source state"));
         return false;
+    }
+    if verify_actual_telemetry {
+        let Some(telemetry) = actual_telemetry(&player) else {
+            fail(exit, "actual state telemetry missing");
+            return false;
+        };
+        let expected_state = node::<InterruptibleFsmNode>(graph, fsm_name)
+            .and_then(|node| match &state.state {
+                LowLevelStateId::HlState(id) => node
+                    .telemetry_states
+                    .iter()
+                    .position(|candidate| candidate == id),
+                LowLevelStateId::HlTransition(_) => None,
+            })
+            .map(|index| index as f32);
+        if !expected_state.is_some_and(|index| close(telemetry.state, index))
+            || !close(telemetry.transition, -1.0)
+            || !close(telemetry.transition_active, 0.0)
+            || !telemetry.entered_time.is_finite()
+            || !telemetry.elapsed_time.is_finite()
+        {
+            fail(exit, "actual state telemetry");
+            return false;
+        }
+        case.last_entered_time = Some(telemetry.entered_time);
+    }
+    if verify_actual_telemetry {
+        player.set_global_input_data("als_locomotion_state_index", WRITER_STATE_PROBE);
     }
     player.set_global_input_data(input_key, step.index as f32);
     advance(&mut player, case.cursor as f32 * 10.0 + 1.0);

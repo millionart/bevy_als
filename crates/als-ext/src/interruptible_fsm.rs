@@ -17,7 +17,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     pose::Pose,
     state_machine::{
-        high_level::{StateId, StateMachine, TransitionId},
+        high_level::{DirectTransitionId, StateId, StateMachine, TransitionId},
         low_level::{
             FsmBuiltinPin, LowLevelStateId, LowLevelStateMachine, LowLevelTransition,
             LowLevelTransitionId,
@@ -55,13 +55,49 @@ impl InterruptibleFsmState {
 #[type_path = "als_ext"]
 pub struct InterruptibleFsmNode {
     pub fsm: Handle<StateMachine>,
+    pub telemetry_states: Vec<StateId>,
+    pub telemetry_transitions: Vec<DirectTransitionId>,
 }
 
 impl InterruptibleFsmNode {
     pub const OUT_POSE: &'static str = "pose";
+    pub const OUT_ACTUAL_STATE: &'static str = "actual_state";
+    pub const OUT_ACTUAL_TRANSITION: &'static str = "actual_transition";
+    pub const OUT_ACTUAL_TRANSITION_ACTIVE: &'static str = "actual_transition_active";
+    pub const OUT_ACTUAL_STATE_ENTERED_TIME: &'static str = "actual_state_entered_time";
+    pub const OUT_ACTUAL_STATE_ELAPSED_TIME: &'static str = "actual_state_elapsed_time";
 
     pub fn new(fsm: Handle<StateMachine>) -> Self {
-        Self { fsm }
+        Self {
+            fsm,
+            telemetry_states: Vec::new(),
+            telemetry_transitions: Vec::new(),
+        }
+    }
+
+    fn telemetry_state_index(&self, state: &LowLevelStateId) -> f32 {
+        match state {
+            LowLevelStateId::HlState(state) => self
+                .telemetry_states
+                .iter()
+                .position(|candidate| candidate == state)
+                .map(|index| index as f32)
+                .unwrap_or(-1.0),
+            LowLevelStateId::HlTransition(_) => -1.0,
+        }
+    }
+
+    fn telemetry_transition_index(&self, state: &LowLevelStateId) -> f32 {
+        match state {
+            LowLevelStateId::HlTransition(TransitionId::Direct(transition)) => self
+                .telemetry_transitions
+                .iter()
+                .position(|candidate| candidate == transition)
+                .map(|index| index as f32)
+                .unwrap_or(-1.0),
+            LowLevelStateId::HlTransition(_) => -1.0,
+            LowLevelStateId::HlState(_) => -1.0,
+        }
     }
 
     fn state_machine<'a>(
@@ -349,7 +385,22 @@ impl NodeLike for InterruptibleFsmNode {
             .into_event_queue()?;
         self.process_events(machine, external_events, true, &mut ctx)?;
         let internal_events = self.evaluate_active_state(machine, &mut ctx)?;
-        self.process_events(machine, internal_events, false, &mut ctx)
+        self.process_events(machine, internal_events, false, &mut ctx)?;
+        let state = ctx.state::<InterruptibleFsmState>()?;
+        let actual_state = self.telemetry_state_index(&state.state);
+        let actual_transition = self.telemetry_transition_index(&state.state);
+        let transition_active = matches!(state.state, LowLevelStateId::HlTransition(_));
+        let state_entered_time = state.state_entered_time;
+        let state_elapsed_time = (ctx.time() - state_entered_time).max(0.0);
+        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE, actual_state);
+        ctx.set_data_fwd(Self::OUT_ACTUAL_TRANSITION, actual_transition);
+        ctx.set_data_fwd(
+            Self::OUT_ACTUAL_TRANSITION_ACTIVE,
+            if transition_active { 1.0 } else { 0.0 },
+        );
+        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ENTERED_TIME, state_entered_time);
+        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, state_elapsed_time);
+        Ok(())
     }
 
     fn try_get_time(&self, ctx: NodeContext, pin: PinId) -> Result<TimeUpdate, GraphError> {
@@ -367,7 +418,12 @@ impl NodeLike for InterruptibleFsmNode {
             LowLevelStateMachine::DRIVER_EVENT_QUEUE,
             DataSpec::EventQueue,
         )
-        .update_from_node_spec(&machine.node_spec);
+        .update_from_node_spec(&machine.node_spec)
+        .add_output_data(Self::OUT_ACTUAL_STATE, DataSpec::F32)
+        .add_output_data(Self::OUT_ACTUAL_TRANSITION, DataSpec::F32)
+        .add_output_data(Self::OUT_ACTUAL_TRANSITION_ACTIVE, DataSpec::F32)
+        .add_output_data(Self::OUT_ACTUAL_STATE_ENTERED_TIME, DataSpec::F32)
+        .add_output_data(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, DataSpec::F32);
         Ok(())
     }
 
@@ -712,6 +768,37 @@ mod tests {
         assert_eq!(runtime.state, target);
         assert_eq!(runtime.state_entered_time, 0.25);
         assert_eq!(deliveries, 1);
+    }
+
+    #[test]
+    fn telemetry_indexes_actual_high_level_state_and_transition() {
+        let state_id = StateId::default();
+        let transition_id = DirectTransitionId::default();
+        let node = InterruptibleFsmNode {
+            fsm: Handle::default(),
+            telemetry_states: vec![state_id],
+            telemetry_transitions: vec![transition_id.clone()],
+        };
+        assert_eq!(
+            node.telemetry_state_index(&LowLevelStateId::HlState(state_id)),
+            0.0
+        );
+        assert_eq!(
+            node.telemetry_state_index(&LowLevelStateId::HlTransition(TransitionId::Direct(
+                transition_id.clone(),
+            ))),
+            -1.0
+        );
+        assert_eq!(
+            node.telemetry_transition_index(&LowLevelStateId::HlState(state_id)),
+            -1.0
+        );
+        assert_eq!(
+            node.telemetry_transition_index(&LowLevelStateId::HlTransition(TransitionId::Direct(
+                transition_id,
+            ))),
+            0.0
+        );
     }
 
     #[test]

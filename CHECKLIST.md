@@ -93,9 +93,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 当次 ALS 事实：`RefreshView` 读取 `ViewBlock` 与 `PoseAiming`，并以 `(1 - ViewBlock) × (1 - PoseAiming)` 计算 HeadBlendAmount。
   - 证据：`head_curve_gate` 在完整 `AlsPlayableCharacterPlugin` 的 Rifle+Aiming 默认图中记录 `PoseAiming=1`、`ViewBlock=0`、`als_head_blend_amount=0`，与桥接组件和 ALS 公式一致；`cargo test -p bevy_als --lib --jobs 2` 通过（113 tests）。
 
-- [ ] **BF102.07 — Q01：遥测改为实际 FSM 状态证据（P2）**
+- [x] **BF102.07 — Q01：遥测改为实际 FSM 状态证据（P2）**
   - 依赖：BF102.05。
   - 验收：探针同时记录请求输入、FSM state id、状态进入时间和最终 pose，禁止将 writer 回显当作已消费状态。
+  - 当次 ALS 事实：`UAlsAnimationInstance::NativePostUpdateAnimation()` 在游戏线程调用 `PlayQueuedTransitionAnimation()`；`AlsTraceRecorder` 同时记录 locomotion 标签和 pelvis／左右脚的实际骨骼位置。因此请求排队、实际执行状态和最终姿态必须分别取证。
+  - 实现：`InterruptibleFsmNode` 公开映射后的实际 state／direct transition 索引、transition 活跃标志、状态进入时间和已历时；locomotion 图显式声明 state／transition 映射。`locomotion_contract_gate` 验证映射与 driver 一致，并以完整参考骨架输入验证最终 pose。
+  - 证据：`LOCOMOTION_CONTRACT_DIRECT=1 cargo run --example locomotion_contract_gate --jobs 2` 通过。16 个 outer direct transition 均记录 `request=<index>`、writer `state=97`、`actual_state=-1`、相同的 `actual_transition=<index>`、`active=1`、单调前进的进入时间、`clip_sample_time` 和 81 根有效最终姿态骨骼；Gate 输出 `actual_fsm_telemetry=true final_pose=true -> PASS`。另 `cargo test -p als-ext --jobs 2 telemetry_indexes_actual_high_level_state_and_transition -- --nocapture` 通过。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（113 tests）；`cargo test -p als-ext --jobs 2` 通过（162 tests、6 integration tests）；`cargo run --example head_curve_gate --jobs 2` 仍输出 PASS。
 
 - [ ] **BF102.08 — A05：overlay 运行输入去硬编码（P2）**
   - 依赖：BF102.04、BF102.06。
