@@ -152,12 +152,12 @@ impl AlsFloatCurve {
         match (t < first, t > last) {
             (true, _) => match self.pre_infinity {
                 AlsExtrapolation::Constant => return self.values[0],
-                AlsExtrapolation::Cycle => t += span * ((first - t) / span).ceil(),
+                AlsExtrapolation::Cycle => t = first + (t - first).rem_euclid(span),
                 AlsExtrapolation::Linear => {}
             },
             (_, true) => match self.post_infinity {
                 AlsExtrapolation::Constant => return self.values[n - 1],
-                AlsExtrapolation::Cycle => t -= span * ((t - last) / span).floor(),
+                AlsExtrapolation::Cycle => t = first + (t - first).rem_euclid(span),
                 AlsExtrapolation::Linear => {}
             },
             _ => {}
@@ -372,6 +372,21 @@ mod tests {
             "post-cycle wraps back onto domain"
         );
         assert!((foot_t(9.9) - 1.0).abs() < 1e-6, "post-constant clamps");
+    }
+
+    #[test]
+    fn post_cycle_wraps_inside_the_first_out_of_range_period() {
+        let curve = AlsFloatCurve {
+            times: vec![0.0, 1.0],
+            values: vec![0.0, 1.0],
+            interps: vec![AlsKeyInterp::Linear, AlsKeyInterp::Linear],
+            pre_infinity: AlsExtrapolation::Cycle,
+            post_infinity: AlsExtrapolation::Cycle,
+        };
+        assert!((curve.sample(1.25) - 0.25).abs() < 1e-6);
+        assert!((curve.sample(2.25) - 0.25).abs() < 1e-6);
+        assert!((curve.sample(-0.25) - 0.75).abs() < 1e-6);
+        assert!((curve.sample(-1.25) - 0.75).abs() < 1e-6);
     }
 
     #[test]

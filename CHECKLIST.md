@@ -247,9 +247,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`inertialized_linked_layer_gate` 覆盖 first→switch→return→skipped-relevant→continuous，输出 `first=(true,false) switch=(true,true) return=(true,true) relevant_again=(true,true) continuous=(false,false) -> PASS`。
   - 回归：animation-graph fork `cargo +stable test -p bevy_animation_graph_core --lib --jobs 2` 通过（34 tests）；`cargo test -p als-ext --jobs 2` 通过（165 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.26 — F03：浮点曲线后向 Cycle 外推周期（P2）**
+- [x] **BF102.26 — F03：浮点曲线后向 Cycle 外推周期（P2）**
   - 依赖：BF102.06。
   - 验收：超出末帧的 Cycle 采样返回正确周期值；无对应资产时明确保持条件性结论。
+  - 当次事实：导出格式保留 UE `RCCE_Cycle` infinity 元数据；周期外推应相对首 key 按 span 取模，因此 0→1 的曲线在 `1.25` 必须采样为 `0.25`。当前导出 assets 未检出 `RCCE_Cycle`，故默认资产是否触发保持条件性结论。
+  - 实现：`AlsFloatCurve::sample()` 的前/后 Cycle 均改为 `first + (t - first).rem_euclid(span)`，修复首个越界周期此前仍落在终点分支的问题。`CycleWithOffset` 与 `Oscillate` 保持 BF102.28 单独处理。
+  - 证据：`cycle_curve_gate` 对 `1.25/2.25/-0.25/-1.25` 输出 `0.25/0.25/0.75/0.75`，输出 `samples=[0.25, 0.25, 0.75, 0.75] ... -> PASS`。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（166 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.27 — F04：浮点曲线 cubic/tangent 载入语义（P2）**
   - 依赖：BF102.06、BF102.26。
