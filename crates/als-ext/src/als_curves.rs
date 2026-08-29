@@ -39,6 +39,8 @@ pub enum AlsExtrapolation {
     Constant,
     Linear,
     Cycle,
+    CycleWithOffset,
+    Oscillate,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -111,7 +113,9 @@ fn parse_extrapolation(raw: Option<&String>) -> AlsExtrapolation {
     };
     match s.as_str() {
         "RCCE_Linear" => AlsExtrapolation::Linear,
-        "RCCE_Cycle" | "RCCE_CycleWithOffset" | "RCCE_Oscillate" => AlsExtrapolation::Cycle,
+        "RCCE_Cycle" => AlsExtrapolation::Cycle,
+        "RCCE_CycleWithOffset" => AlsExtrapolation::CycleWithOffset,
+        "RCCE_Oscillate" => AlsExtrapolation::Oscillate,
         _ => AlsExtrapolation::Constant,
     }
 }
@@ -176,30 +180,56 @@ impl AlsFloatCurve {
         }
         let first = self.times[0];
         let last = self.times[n - 1];
-        let span = last - first;
         let mut t = t;
-        if span <= 0.0 {
+        let mut cycle_value_offset = 0.0;
+        if last - first <= 0.0 {
             return self.values[0];
         }
-        match (t < first, t > last) {
-            (true, _) => match self.pre_infinity {
+        if t < first {
+            match self.pre_infinity {
                 AlsExtrapolation::Constant => return self.values[0],
-                AlsExtrapolation::Cycle => t = first + (t - first).rem_euclid(span),
                 AlsExtrapolation::Linear => {}
-            },
-            (_, true) => match self.post_infinity {
+                extrapolation => {
+                    let (cycled_time, cycle_count) = cycle_time(first, last, t);
+                    t = cycled_time;
+                    match extrapolation {
+                        AlsExtrapolation::CycleWithOffset => {
+                            cycle_value_offset =
+                                (self.values[0] - self.values[n - 1]) * cycle_count as f32;
+                        }
+                        AlsExtrapolation::Oscillate if cycle_count % 2 == 1 => {
+                            t = first + (last - t);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        } else if t > last {
+            match self.post_infinity {
                 AlsExtrapolation::Constant => return self.values[n - 1],
-                AlsExtrapolation::Cycle => t = first + (t - first).rem_euclid(span),
                 AlsExtrapolation::Linear => {}
-            },
-            _ => {}
+                extrapolation => {
+                    let (cycled_time, cycle_count) = cycle_time(first, last, t);
+                    t = cycled_time;
+                    match extrapolation {
+                        AlsExtrapolation::CycleWithOffset => {
+                            cycle_value_offset =
+                                (self.values[n - 1] - self.values[0]) * cycle_count as f32;
+                        }
+                        AlsExtrapolation::Oscillate if cycle_count % 2 == 1 => {
+                            t = first + (last - t);
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         if t <= first {
-            return self.extrapolate_start(t);
+            return self.extrapolate_start(t) + cycle_value_offset;
         }
         if t >= last {
-            return self.extrapolate_end(t);
+            return self.extrapolate_end(t) + cycle_value_offset;
         }
 
         let mut lo = 0usize;
@@ -216,14 +246,15 @@ impl AlsFloatCurve {
         let t1 = self.times[hi];
         let v0 = self.values[lo];
         let v1 = self.values[hi];
-        match self.interps.get(lo).copied().unwrap_or_default() {
+        let value = match self.interps.get(lo).copied().unwrap_or_default() {
             AlsKeyInterp::Constant => v0,
             AlsKeyInterp::Linear => {
                 let a = (t - t0) / (t1 - t0);
                 v0 + (v1 - v0) * a
             }
             AlsKeyInterp::Cubic => self.sample_cubic(lo, hi, t, t0, t1, v0, v1),
-        }
+        };
+        value + cycle_value_offset
     }
 
     fn sample_cubic(
@@ -316,6 +347,32 @@ fn cubic_bezier(a: f32, b: f32, c: f32, d: f32, parameter: f32) -> f32 {
 fn tangent_weight(duration: f32, tangent: f32) -> f32 {
     let value_delta = tangent * duration;
     (duration * duration + value_delta * value_delta).sqrt() / 3.0
+}
+
+fn cycle_time(min_time: f32, max_time: f32, time: f32) -> (f32, u64) {
+    let duration = max_time - min_time;
+    if duration <= f32::EPSILON {
+        return (min_time, 0);
+    }
+    let mut remapped_time = time;
+    let cycle_count = if time > max_time {
+        let count = ((max_time - time) / duration).floor() as i64;
+        remapped_time += duration * count as f32;
+        count
+    } else if time < min_time {
+        let count = ((time - min_time) / duration).floor() as i64;
+        remapped_time -= duration * count as f32;
+        count
+    } else {
+        0
+    };
+    if remapped_time == max_time && time < min_time {
+        remapped_time = min_time;
+    }
+    if remapped_time == min_time && time > max_time {
+        remapped_time = max_time;
+    }
+    (remapped_time, cycle_count.unsigned_abs())
 }
 
 fn cubic_parameter_for_time(time: f32, t0: f32, t1: f32, t2: f32, t3: f32) -> f32 {
@@ -561,6 +618,54 @@ mod tests {
         assert!((curve.sample(2.25) - 0.25).abs() < 1e-6);
         assert!((curve.sample(-0.25) - 0.75).abs() < 1e-6);
         assert!((curve.sample(-1.25) - 0.75).abs() < 1e-6);
+        assert!((curve.sample(2.0) - 1.0).abs() < 1e-6);
+        assert!((curve.sample(-1.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cycle_with_offset_accumulates_endpoint_delta() {
+        let curve = AlsFloatCurve {
+            times: vec![0.0, 1.0],
+            values: vec![0.0, 1.0],
+            interps: vec![AlsKeyInterp::Linear, AlsKeyInterp::Linear],
+            pre_infinity: AlsExtrapolation::CycleWithOffset,
+            post_infinity: AlsExtrapolation::CycleWithOffset,
+            ..Default::default()
+        };
+        assert!((curve.sample(1.25) - 1.25).abs() < 1e-6);
+        assert!((curve.sample(2.25) - 2.25).abs() < 1e-6);
+        assert!((curve.sample(-0.25) + 0.25).abs() < 1e-6);
+        assert!((curve.sample(-1.25) + 1.25).abs() < 1e-6);
+    }
+
+    #[test]
+    fn oscillate_reverses_every_other_period() {
+        let curve = AlsFloatCurve {
+            times: vec![0.0, 1.0],
+            values: vec![0.0, 1.0],
+            interps: vec![AlsKeyInterp::Linear, AlsKeyInterp::Linear],
+            pre_infinity: AlsExtrapolation::Oscillate,
+            post_infinity: AlsExtrapolation::Oscillate,
+            ..Default::default()
+        };
+        assert!((curve.sample(1.25) - 0.75).abs() < 1e-6);
+        assert!((curve.sample(2.25) - 0.25).abs() < 1e-6);
+        assert!((curve.sample(-0.25) - 0.25).abs() < 1e-6);
+        assert!((curve.sample(-1.25) - 0.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn parser_distinguishes_extended_extrapolation_modes() {
+        let offset = "RCCE_CycleWithOffset".to_owned();
+        let oscillate = "RCCE_Oscillate".to_owned();
+        assert_eq!(
+            parse_extrapolation(Some(&offset)),
+            AlsExtrapolation::CycleWithOffset
+        );
+        assert_eq!(
+            parse_extrapolation(Some(&oscillate)),
+            AlsExtrapolation::Oscillate
+        );
     }
 
     #[test]

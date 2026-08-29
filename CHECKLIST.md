@@ -250,8 +250,8 @@ BF102.58 网络范围 ─► BF102.Gate
 - [x] **BF102.26 — F03：浮点曲线后向 Cycle 外推周期（P2）**
   - 依赖：BF102.06。
   - 验收：超出末帧的 Cycle 采样返回正确周期值；无对应资产时明确保持条件性结论。
-  - 当次事实：导出格式保留 UE `RCCE_Cycle` infinity 元数据；周期外推应相对首 key 按 span 取模，因此 0→1 的曲线在 `1.25` 必须采样为 `0.25`。当前导出 assets 未检出 `RCCE_Cycle`，故默认资产是否触发保持条件性结论。
-  - 实现：`AlsFloatCurve::sample()` 的前/后 Cycle 均改为 `first + (t - first).rem_euclid(span)`，修复首个越界周期此前仍落在终点分支的问题。`CycleWithOffset` 与 `Oscillate` 保持 BF102.28 单独处理。
+  - 当次事实：导出格式保留 UE `RCCE_Cycle` infinity 元数据；UE `CycleTime` 以 floor 周期数回绕，正向完整周期保留末 key、反向完整周期保留首 key，因此 0→1 的曲线在 `1.25` 必须采样为 `0.25`。当前导出 assets 未检出 `RCCE_Cycle`，故默认资产是否触发保持条件性结论。
+  - 实现：共享 `cycle_time` 按 UE 的周期数与边界规则重映射时间，`Cycle` 使用该重映射；`CycleWithOffset` 与 `Oscillate` 已由 BF102.28 以各自语义实现。
   - 证据：`cycle_curve_gate` 对 `1.25/2.25/-0.25/-1.25` 输出 `0.25/0.25/0.75/0.75`，输出 `samples=[0.25, 0.25, 0.75, 0.75] ... -> PASS`。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（166 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
@@ -263,9 +263,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`cubic_curve_gate` 对两个端点值为 `0→1`、两侧有效切线为 `2` 的 cubic 曲线输出 `cubic=(0.34375,0.50000,0.65625)`；另对加权控制柄输出 `weighted_midpoint=0.78125`，均为 `PASS`，并与线性值可区分。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（169 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.28 — F05：CycleWithOffset/Oscillate 外推语义（P2）**
+- [x] **BF102.28 — F05：CycleWithOffset/Oscillate 外推语义（P2）**
   - 依赖：BF102.26。
   - 验收：三类外推模式分别可采样、可区分，并按资产触发条件验证。
+  - 当次事实：UE `FRichCurve::RemapTimeValue()` 先调用 `CycleTime`；`CycleWithOffset` 在 post/pre 方向分别以末减首/首减末乘周期数，`Oscillate` 在奇数周期反射时间。当前导出 glTF 未检出 `RCCE_CycleWithOffset` 或 `RCCE_Oscillate`，因此资产触发仍为条件性结论。
+  - 实现：`AlsExtrapolation` 拆分为 `Cycle`、`CycleWithOffset`、`Oscillate`；采样保留周期数，将端值差加到带偏移模式的结果，或在往返模式的奇数周期反射时间。共享周期 helper 同时补齐 UE 的完整周期端点语义。
+  - 证据：`extrapolation_curve_gate` 输出 `cycle=[0.25, 0.25] offset=[1.25, 2.25, -0.25, -1.25] oscillate=[0.75, 0.25, 0.25, 0.75] -> PASS`；复跑 `cycle_curve_gate` 仍输出 `samples=[0.25, 0.25, 0.75, 0.75] ... -> PASS`。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（172 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.29 — F06：根运动旋转 weighted sum 不重复加权（P2）**
   - 依赖：BF102.09、BF102.24。
