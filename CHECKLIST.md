@@ -239,9 +239,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`inertialization_gate` 用 source=0°、target=90°、过渡后 source=180° 验证输出为 `start=0° midpoint=72° end=90°`，且后续 source 变化不改写捕获残差，输出 `start_matches_source=true end_matches_target=true captured_residual_is_stable=true -> PASS`。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（164 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.25 — F02：InertializedLinkedAnimLayer 复位/请求转发（P1）**
+- [x] **BF102.25 — F02：InertializedLinkedAnimLayer 复位/请求转发（P1）**
   - 依赖：BF102.09、BF102.24。
   - 验收：overlay 实现切换时 activation、复位、请求与消费标志与实际链接层输出一致。
+  - 当次 UE 事实：`FAnimNode_Inertialization::Update_AnyThread()` 在 `bResetOnBecomingRelevant` 且 update counter 不连续时清空 request、惯性状态与 pose history；开启 skipped cached pose forwarding 时，将待处理请求转发至因缓存跳过更新的 inertialization ancestor。
+  - 实现：公开图运行时此前没有“上一帧是否求值”的信息，项目内局部实现不足；按授权扩展 animation-graph fork `eb6af7c`，提供 graph frame index，主仓库锁定该提交。链接层现在跟踪 selector 与 frame：切换 implementation、首次激活、或 gap 后重新相关时清空 child node state；`forward_requests_through_skipped_cached_poses` 将同一 reset 请求前递并消费为 child reset。当前图运行时没有 UE 通用 message stack，因此该请求显式限定为链接层 child state reset。
+  - 证据：`inertialized_linked_layer_gate` 覆盖 first→switch→return→skipped-relevant→continuous，输出 `first=(true,false) switch=(true,true) return=(true,true) relevant_again=(true,true) continuous=(false,false) -> PASS`。
+  - 回归：animation-graph fork `cargo +stable test -p bevy_animation_graph_core --lib --jobs 2` 通过（34 tests）；`cargo test -p als-ext --jobs 2` 通过（165 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.26 — F03：浮点曲线后向 Cycle 外推周期（P2）**
   - 依赖：BF102.06。

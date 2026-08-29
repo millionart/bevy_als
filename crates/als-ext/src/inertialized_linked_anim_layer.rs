@@ -12,6 +12,39 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InertializedLinkedLayerActivation {
+    pub reset_child: bool,
+    pub forward_request: bool,
+}
+
+pub fn inertialized_linked_layer_activation(
+    previous_selection: Option<usize>,
+    previous_frame: Option<u64>,
+    selection: usize,
+    frame: u64,
+    reset_on_becoming_relevant: bool,
+    forward_requests_through_skipped_cached_poses: bool,
+) -> InertializedLinkedLayerActivation {
+    let selection_changed = previous_selection.is_some_and(|previous| previous != selection);
+    let became_relevant = previous_frame.is_some_and(|previous| previous.wrapping_add(1) != frame);
+    InertializedLinkedLayerActivation {
+        reset_child: previous_selection.is_none()
+            || selection_changed
+            || (reset_on_becoming_relevant && became_relevant),
+        forward_request: forward_requests_through_skipped_cached_poses
+            && (selection_changed || became_relevant),
+    }
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct InertializedLinkedLayerState {
+    selected_implementation: Option<usize>,
+    last_update_frame: Option<u64>,
+    reset_generation: u64,
+    forwarded_request_generation: u64,
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -36,10 +69,7 @@ impl Default for InertializedLinkedAnimLayerNode {
 }
 
 impl InertializedLinkedAnimLayerNode {
-    fn selected_implementation(
-        &self,
-        ctx: &NodeContext,
-    ) -> Result<Handle<AnimationGraph>, GraphError> {
+    fn selected_implementation_index(&self, ctx: &NodeContext) -> Result<usize, GraphError> {
         let Some(_) = self.implementations.first() else {
             return Err(GraphError::GraphAssetMissing);
         };
@@ -51,7 +81,15 @@ impl InertializedLinkedAnimLayerNode {
         } else {
             0
         };
-        Ok(self.implementations[index].clone())
+        Ok(index)
+    }
+
+    fn selected_implementation(
+        &self,
+        ctx: &NodeContext,
+    ) -> Result<(usize, Handle<AnimationGraph>), GraphError> {
+        let index = self.selected_implementation_index(ctx)?;
+        Ok((index, self.implementations[index].clone()))
     }
 }
 
@@ -69,7 +107,7 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
             .ok_or(GraphError::GraphAssetMissing)?
             .io_spec
             .has_output_time();
-        let implementation = self.selected_implementation(&ctx)?;
+        let (_, implementation) = self.selected_implementation(&ctx)?;
         let graph = ctx
             .graph_context
             .resources
@@ -112,7 +150,7 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
                     .collect::<Vec<_>>(),
             )
         };
-        let implementation = self.selected_implementation(&ctx)?;
+        let (implementation_index, implementation) = self.selected_implementation(&ctx)?;
         let graph = ctx
             .graph_context
             .resources
@@ -122,6 +160,40 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
         let sub_ctx_io = NestedGraphIoEnv {
             parent_ctx: ctx.clone(),
         };
+        let frame = ctx.graph_context.frame_index();
+        let activation = {
+            let state = ctx.state_mut::<InertializedLinkedLayerState>()?;
+            let activation = inertialized_linked_layer_activation(
+                state.selected_implementation,
+                state.last_update_frame,
+                implementation_index,
+                frame,
+                self.reset_on_becoming_relevant,
+                self.forward_requests_through_skipped_cached_poses,
+            );
+            state.selected_implementation = Some(implementation_index);
+            state.last_update_frame = Some(frame);
+            if activation.reset_child {
+                state.reset_generation = state.reset_generation.wrapping_add(1);
+            }
+            if activation.forward_request {
+                state.forwarded_request_generation =
+                    state.forwarded_request_generation.wrapping_add(1);
+            }
+            activation
+        };
+        let child_context_id = ctx.create_child_context_id(implementation.id(), None);
+        if activation.reset_child || activation.forward_request {
+            if let Some(child_context) = ctx
+                .graph_context
+                .context_arena
+                .get_mut()
+                .get_context_mut(child_context_id)
+            {
+                child_context.node_states.clear();
+                child_context.query_output_time = QueryOutputTime::None;
+            }
+        }
         let mut sub_ctx = ctx
             .create_child_context(implementation.id(), graph, None)
             .with_io(&sub_ctx_io);
@@ -195,5 +267,22 @@ mod tests {
                 .data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn activation_resets_on_switch_and_relevance_return() {
+        let first = inertialized_linked_layer_activation(None, None, 0, 3, true, true);
+        assert!(first.reset_child);
+        assert!(!first.forward_request);
+        let switch = inertialized_linked_layer_activation(Some(0), Some(3), 1, 4, true, true);
+        assert!(switch.reset_child);
+        assert!(switch.forward_request);
+        let return_after_skip =
+            inertialized_linked_layer_activation(Some(1), Some(4), 1, 7, true, true);
+        assert!(return_after_skip.reset_child);
+        assert!(return_after_skip.forward_request);
+        let continuous = inertialized_linked_layer_activation(Some(1), Some(7), 1, 8, true, true);
+        assert!(!continuous.reset_child);
+        assert!(!continuous.forward_request);
     }
 }

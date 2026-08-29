@@ -85,7 +85,10 @@ pub use inertialization::{
     InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
     inertial_residual_weight,
 };
-pub use inertialized_linked_anim_layer::InertializedLinkedAnimLayerNode;
+pub use inertialized_linked_anim_layer::{
+    InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,
+    inertialized_linked_layer_activation,
+};
 pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
 pub use layered_graph::LayeredGraphNode;
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
