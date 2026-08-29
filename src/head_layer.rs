@@ -110,7 +110,11 @@ impl Plugin for HeadLayerPlugin {
                 .after(AlsLayeringLayerSet)
                 .before(AnimationGraphSet::Final),
         )
-        .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet));
+        .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
+        .add_systems(
+            FixedPostUpdate,
+            bridge_head_curve_states.after(AnimationGraphSet::PrePhysics),
+        );
     }
 }
 
@@ -181,6 +185,47 @@ fn input_yaw_degrees(input: &AlsInputCommand, fallback: f32) -> f32 {
 fn head_blend_amount(curves: AlsHeadCurveState) -> f32 {
     (1.0 - curves.view_block_amount.clamp(0.0, 1.0))
         * (1.0 - curves.pose_aiming_amount.clamp(0.0, 1.0))
+}
+
+fn head_curve_state_from_values(
+    view_block: Option<f32>,
+    pose_aiming: Option<f32>,
+) -> AlsHeadCurveState {
+    AlsHeadCurveState {
+        view_block_amount: view_block.unwrap_or(0.0).clamp(0.0, 1.0),
+        pose_aiming_amount: pose_aiming.unwrap_or(0.0).clamp(0.0, 1.0),
+    }
+}
+
+fn bridge_head_curve_states(
+    mut commands: Commands,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
+    mut characters: Query<Option<&mut AlsHeadCurveState>, With<AlsCharacter>>,
+) {
+    for (parent, instance) in &avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
+            continue;
+        };
+        let Ok(current) = characters.get_mut(parent.parent()) else {
+            continue;
+        };
+        let curves = head_curve_state_from_values(
+            player
+                .get_outputs()
+                .get("ViewBlock")
+                .and_then(|value| value.as_f32().ok()),
+            player
+                .get_outputs()
+                .get("PoseAiming")
+                .and_then(|value| value.as_f32().ok()),
+        );
+        if let Some(mut current) = current {
+            *current = curves;
+        } else {
+            commands.entity(parent.parent()).insert(curves);
+        }
+    }
 }
 
 fn update_head_state(state: &mut AlsHeadState, input: HeadUpdateInput, settings: AlsHeadSettings) {
@@ -385,6 +430,18 @@ fn head_layer_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_view_and_aiming_curves_gate_head_blend() {
+        let neutral = head_curve_state_from_values(None, None);
+        let blocked = head_curve_state_from_values(Some(1.0), Some(0.0));
+        let aiming = head_curve_state_from_values(Some(0.0), Some(1.0));
+        let mixed = head_curve_state_from_values(Some(0.25), Some(0.5));
+        assert_eq!(head_blend_amount(neutral), 1.0);
+        assert_eq!(head_blend_amount(blocked), 0.0);
+        assert_eq!(head_blend_amount(aiming), 0.0);
+        assert!((head_blend_amount(mixed) - 0.375).abs() < 1e-6);
+    }
 
     #[test]
     fn exact_angle_damper_uses_source_half_life() {

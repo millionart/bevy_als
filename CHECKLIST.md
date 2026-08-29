@@ -87,9 +87,11 @@ BF102.58 网络范围 ─► BF102.Gate
     - 证据：30/60/144/240 Hz 渲染 × 30/60/120 Hz fixed 的 12 组 `BF102.05` 探针均为 `deliveries=1`；`InterruptibleFsmNode` 实测消费后状态为 `HlTransition(Direct(...))`、进入时间 0.25、`deliveries=1`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（112 tests）；`cargo test -p als-ext --jobs 2` 通过（161 tests）。实际默认入口的 FSM 可观测性会在 BF102.07 单独继续增强。
 
-- [ ] **BF102.06 — A03：头部 ViewBlock/PoseAiming 曲线桥接（P1）**
+- [x] **BF102.06 — A03：头部 ViewBlock/PoseAiming 曲线桥接（P1）**
   - 依赖：BF102.04。
   - 验收：默认主图的实际曲线在正确时间点驱动每角色 `AlsHeadCurveState` 与最终头部权重。
+  - 当次 ALS 事实：`RefreshView` 读取 `ViewBlock` 与 `PoseAiming`，并以 `(1 - ViewBlock) × (1 - PoseAiming)` 计算 HeadBlendAmount。
+  - 证据：`head_curve_gate` 在完整 `AlsPlayableCharacterPlugin` 的 Rifle+Aiming 默认图中记录 `PoseAiming=1`、`ViewBlock=0`、`als_head_blend_amount=0`，与桥接组件和 ALS 公式一致；`cargo test -p bevy_als --lib --jobs 2` 通过（113 tests）。
 
 - [ ] **BF102.07 — Q01：遥测改为实际 FSM 状态证据（P2）**
   - 依赖：BF102.05。
