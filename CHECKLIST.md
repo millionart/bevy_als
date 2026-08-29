@@ -135,9 +135,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `AlsPlayableCharacterPlugin` 入口的 `rotation_response_gate` 记录 fast=1.548 rad、slow=0.163 rad、curve=0.712 rad、moving speed=1.000 m/s/moving yaw=1.548 rad、aiming yaw=0.347 rad/`Aiming`；输出 `stationary_moving_aiming_and_curve_drive_transform_yaw -> PASS`。`head_yaw_gate` 保持 `body_yaw=1.571`、`head_yaw=0` 并通过；`roll_gate` 两次翻滚均有 `body_forward_align=1`、`rotation_forward_align=1` 且完成。
   - 回归：`cargo test -p als-core --jobs 2` 通过（199 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.12 — M05：VelocityDirection 使用实际速度方向（P2）**
+- [x] **BF102.12 — M05：VelocityDirection 使用实际速度方向（P2）**
   - 依赖：BF102.10、BF102.11。
   - 验收：刹车、反向输入和碰撞滑动时，身体目标来自实际速度而非新输入方向。
+  - 当次 ALS 事实：`RefreshGroundedRotation()` 在 VelocityDirection 选择 `DesiredVelocityYawAngle` 或 `LocomotionState.VelocityYawAngle`，不直接使用 `InputYawAngle`。默认 `CS_Als_Default` 开启前者；`RefreshLocomotionLate()` 在没有一次性 pre-penetration 调整速度时，把该值回退为物理 `VelocityYawAngle`。
+  - 实现：旋转响应在物理完成后从 `LinearVelocity` 选择 VelocityDirection target，并公开每角色 input yaw、velocity yaw 与 target yaw，避免将输入、速度和选定目标混为同一值。
+  - 证据：完整 `velocity_direction_gate` 中反向输入记录 `input_yaw=-3.142`、`velocity_yaw≈0`、`target_yaw≈0`、`body_yaw=0.001`。真实静态墙碰撞后，角色保持在 x=1.150 的墙前并沿 z 负方向侧滑，记录 `input_yaw=-0.785`、物理速度 `(0,-1.367)`、`velocity_yaw≈0`、`target_yaw≈0`、`body_yaw≈0`，输出 `velocity_direction_uses_post_physics_velocity -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（199 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`rotation_response_gate` 仍通过。
 
 - [ ] **BF102.13 — M08：输入 override 可强制解除瞄准（P2）**
   - 依赖：BF102.05、BF102.12。

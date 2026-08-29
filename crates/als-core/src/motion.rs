@@ -303,6 +303,8 @@ fn rotation_response_system(
             &AlsViewYaw,
             &AlsMovementParamsHandle,
             &LinearVelocity,
+            Option<&AlsInputOverride>,
+            &AlsInputCommand,
             Option<&AlsRotationAnimationState>,
             Option<&mut AlsRotationResponseState>,
             Option<&crate::roll::AlsRollState>,
@@ -322,6 +324,8 @@ fn rotation_response_system(
         view_yaw,
         params_handle,
         velocity,
+        input_override,
+        input,
         animation,
         current_runtime,
         roll,
@@ -341,13 +345,18 @@ fn rotation_response_system(
         } else {
             0.0
         };
+        let effective = effective_input(input, input_override);
+        let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
+            world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
+        });
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
         let moving = horizontal_speed > 0.05;
+        let velocity_yaw = moving.then(|| world_forward_to_yaw(velocity.0));
         let animation = animation.copied().unwrap_or_default();
         let mut target_yaw = match *rotation_mode {
-            RotationMode::VelocityDirection if moving => world_forward_to_yaw(velocity.0),
+            RotationMode::VelocityDirection if moving => velocity_yaw.unwrap_or(current_yaw),
             RotationMode::ViewDirection if moving && *gait == Gait::Sprinting => {
-                world_forward_to_yaw(velocity.0)
+                velocity_yaw.unwrap_or(current_yaw)
             }
             RotationMode::ViewDirection => {
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
@@ -417,6 +426,9 @@ fn rotation_response_system(
         }
         runtime.initialized = true;
         runtime.previous_view_yaw = view_yaw.0;
+        runtime.input_yaw = input_yaw;
+        runtime.velocity_yaw = velocity_yaw;
+        runtime.target_yaw = target_yaw;
         if let Some(mut current_runtime) = current_runtime {
             *current_runtime = runtime;
         } else {
@@ -919,6 +931,9 @@ pub struct AlsRotationResponseState {
     pub initialized: bool,
     pub smooth_target_yaw: f32,
     pub previous_view_yaw: f32,
+    pub input_yaw: Option<f32>,
+    pub velocity_yaw: Option<f32>,
+    pub target_yaw: f32,
 }
 
 #[derive(Component, Debug, Default, Clone)]
