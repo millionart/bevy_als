@@ -2,12 +2,14 @@ use avian3d::prelude::{
     Collider, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
+use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
 use bevy::time::{Real, Virtual};
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use serde::{Deserialize, Serialize};
 
+use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::motion::AlsViewYaw;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::{Gait, RotationMode};
@@ -395,7 +397,7 @@ impl Default for AlsCameraSocketLocations {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsCameraMovementBase {
     pub entity: Entity,
     pub has_relative_rotation: bool,
@@ -512,14 +514,13 @@ impl Plugin for AlsCameraPlugin {
             .add_systems(PostUpdate, ensure_camera_runtime)
             .add_systems(
                 PostUpdate,
-                resolve_camera_socket_locations.after(TransformSystems::Propagate),
-            )
-            .add_systems(
-                PostUpdate,
-                camera_rig_system
-                    .after(resolve_camera_socket_locations)
-                    .after(TransformSystems::Propagate)
-                    .in_set(AlsCameraSet),
+                (
+                    resolve_camera_socket_locations.after(TransformSystems::Propagate),
+                    camera_movement_base_bridge_system.after(TransformSystems::Propagate),
+                    ApplyDeferred,
+                    camera_rig_system.in_set(AlsCameraSet),
+                )
+                    .chain(),
             )
             .add_systems(
                 PostUpdate,
@@ -1115,6 +1116,37 @@ fn camera_delta_seconds(
     };
     runtime.previous_global_time_dilation = virtual_time.effective_speed();
     delta.max(0.0)
+}
+
+fn camera_movement_base_bridge_system(
+    mut commands: Commands,
+    targets: Query<
+        (
+            Entity,
+            Option<&AlsMovementBaseDynamicsState>,
+            Option<&AlsCameraMovementBase>,
+        ),
+        With<AlsCameraTarget>,
+    >,
+    bases: Query<&GlobalTransform, Without<AlsCameraTarget>>,
+) {
+    for (entity, dynamics, current) in &targets {
+        let next = dynamics.and_then(|state| state.entity).and_then(|base| {
+            bases.get(base).ok().map(|_| AlsCameraMovementBase {
+                entity: base,
+                has_relative_rotation: true,
+            })
+        });
+        if current.copied() == next {
+            continue;
+        }
+        let mut entity_commands = commands.entity(entity);
+        if let Some(next) = next {
+            entity_commands.insert(next);
+        } else {
+            entity_commands.remove::<AlsCameraMovementBase>();
+        }
+    }
 }
 
 pub fn vertical_fov_radians_from_horizontal_degrees(

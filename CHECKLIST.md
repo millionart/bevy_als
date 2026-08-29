@@ -213,9 +213,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`collision_ownership_gate` 验证 Mantle→Ragdoll→释放 Mantle 仍保持 NONE、释放 Ragdoll 后恢复自定义 `memberships=0b0010/filters=0b1100`，以及原先就是 NONE 的自定义禁用仍保持 NONE；输出 `mantle_disabled=true ragdoll_disabled=true mantle_release_preserved_ragdoll=true restored_custom=true pre_disabled_preserved=true -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（208 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.22 — C06：相机 movement-base 生产状态接线（P2）**
+- [x] **BF102.22 — C06：相机 movement-base 生产状态接线（P2）**
   - 依赖：BF102.17、BF102.20。
   - 验收：移动/旋转平台时相机消费者收到与角色相同归属的基座状态。
+  - 当次 ALS 事实：`UAlsCameraComponent::TickCamera()` 从 `Character.GetBasedMovement()` 读取当前 base 与相对旋转；base/bone 变化时先将 pivot lag 与 camera rotation 写为 base-space，随后用当前 base 变换还原并继续阻尼。
+  - 实现：相机 PostUpdate 链现在在 Transform propagation 后、camera rig 前从 BF102.17 的 `AlsMovementBaseDynamicsState` 生产 `AlsCameraMovementBase`；所有有效支撑实体发布相对旋转，基座实体/变换失效时移除组件。显式 `ApplyDeferred` 确保同帧 rig 消费桥接结果。
+  - 证据：完整 `camera_movement_base_gate` 让两名默认角色分别站在平移和旋转平台上，记录角色 state 与 camera base 均为对应平台；之后销毁旋转平台，组件自动移除，输出 `camera_receives_live_movement_base_state_and_clears_destroyed_base -> PASS`。
+  - 回归：`cargo test -p als-camera --jobs 2` 通过（7 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.23 — F09：Tnua 重力与每刚体 GravityScale 一致（P2）**
   - 依赖：BF102.17。
