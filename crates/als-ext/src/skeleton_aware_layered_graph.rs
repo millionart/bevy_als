@@ -22,18 +22,60 @@ pub struct SkeletonAwareLayeredGraphNode {
     pub slot_name: Option<String>,
     pub slot_pose_key: String,
     pub slot_weight_key: String,
+    pub slot_curve_prefix: Option<String>,
+    pub slot_curve_names: Vec<String>,
     pub always_update_source_pose: bool,
 }
 
 impl SkeletonAwareLayeredGraphNode {
+    fn slot_weight(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        if self.slot_name.is_none() {
+            return Ok(0.0);
+        }
+        Ok(ctx
+            .graph_context
+            .global_input_data
+            .get(&self.slot_weight_key)
+            .map(|value| value.as_f32())
+            .transpose()?
+            .filter(|value| value.is_finite())
+            .unwrap_or_default()
+            .clamp(0.0, 1.0))
+    }
+
+    fn slot_curve_value(
+        &self,
+        output_id: &str,
+        ctx: &NodeContext,
+    ) -> Result<Option<f32>, GraphError> {
+        if self.slot_name.is_none() || !self.slot_curve_names.iter().any(|name| name == output_id) {
+            return Ok(None);
+        }
+        let Some(prefix) = &self.slot_curve_prefix else {
+            return Ok(None);
+        };
+        ctx.graph_context
+            .global_input_data
+            .get(&format!("{prefix}{output_id}"))
+            .map(|value| value.as_f32())
+            .transpose()
+            .map(|value| value.filter(|value| value.is_finite()))
+    }
+
     fn apply_fallback(
         &self,
         output_id: &str,
         value: DataValue,
         ctx: &NodeContext,
     ) -> Result<DataValue, GraphError> {
-        let DataValue::Pose(mut pose) = value else {
-            return Ok(value);
+        let weight = self.slot_weight(ctx)?;
+        let mut pose = match value {
+            DataValue::F32(base) => {
+                let slot_curve = self.slot_curve_value(output_id, ctx)?;
+                return Ok(DataValue::F32(blend_slot_curve(base, slot_curve, weight)));
+            }
+            DataValue::Pose(pose) => pose,
+            value => return Ok(value),
         };
         if ctx
             .graph_context
@@ -52,15 +94,6 @@ impl SkeletonAwareLayeredGraphNode {
             pose.skeleton = fallback.skeleton;
         }
         if output_id == "pose" && self.slot_name.is_some() {
-            let weight = ctx
-                .graph_context
-                .global_input_data
-                .get(&self.slot_weight_key)
-                .map(|value| value.as_f32())
-                .transpose()?
-                .filter(|value| value.is_finite())
-                .unwrap_or_default()
-                .clamp(0.0, 1.0);
             if weight > 0.0 {
                 if let Some(slot_pose) = ctx
                     .graph_context
@@ -80,6 +113,13 @@ impl SkeletonAwareLayeredGraphNode {
             }
         }
         Ok(DataValue::Pose(pose))
+    }
+}
+
+fn blend_slot_curve(base: f32, slot: Option<f32>, weight: f32) -> f32 {
+    match slot.filter(|value| value.is_finite()) {
+        Some(slot) => base.lerp(slot, weight.clamp(0.0, 1.0)),
+        None => base,
     }
 }
 
@@ -194,5 +234,13 @@ mod tests {
                 .data::<bevy_animation_graph::core::animation_node::ReflectNodeLike>()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn slot_curve_blend_uses_the_pose_weight() {
+        assert_eq!(blend_slot_curve(1.0, Some(0.0), 0.25), 0.75);
+        assert_eq!(blend_slot_curve(0.0, Some(1.0), 0.5), 0.5);
+        assert_eq!(blend_slot_curve(0.3, None, 1.0), 0.3);
+        assert_eq!(blend_slot_curve(0.3, Some(f32::NAN), 1.0), 0.3);
     }
 }

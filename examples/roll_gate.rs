@@ -138,6 +138,9 @@ struct RollWatch {
     peak_slot_weight: f32,
     peak_slot_root_delta: f32,
     slot_pose_observed: bool,
+    min_slot_pose_grounded: f32,
+    min_final_pose_grounded: f32,
+    base_final_pose_grounded: Option<f32>,
     peak_roll_curve: f32,
     roll_state_observed: bool,
     base_final_pose_signal: Option<f32>,
@@ -299,6 +302,17 @@ fn roll_watcher(
         watch.peak_slot_weight = 0.0;
         watch.peak_slot_root_delta = 0.0;
         watch.slot_pose_observed = false;
+        watch.min_slot_pose_grounded = 1.0;
+        watch.min_final_pose_grounded = 1.0;
+        watch.base_final_pose_grounded = avatars
+            .iter()
+            .find_map(|instance| players.get(instance.player_entity()).ok())
+            .and_then(|player| {
+                player
+                    .get_outputs()
+                    .get("PoseGrounded")
+                    .and_then(|value| value.as_f32().ok())
+            });
         watch.peak_roll_curve = 0.0;
         watch.roll_state_observed = false;
         watch.base_final_pose_signal = avatars
@@ -322,6 +336,7 @@ fn roll_watcher(
                 .peak_slot_root_delta
                 .max(slot.root_motion_delta.length());
             watch.slot_pose_observed |= slot.pose_ready;
+            watch.min_slot_pose_grounded = watch.min_slot_pose_grounded.min(slot.pose_grounded);
         }
         for instance in &avatars {
             let Ok(player) = players.get(instance.player_entity()) else {
@@ -333,6 +348,13 @@ fn roll_watcher(
                     watch.peak_final_pose_delta =
                         watch.peak_final_pose_delta.max((signal - base).abs());
                 }
+            }
+            if let Some(value) = player
+                .get_outputs()
+                .get("PoseGrounded")
+                .and_then(|value| value.as_f32().ok())
+            {
+                watch.min_final_pose_grounded = watch.min_final_pose_grounded.min(value);
             }
             let foot_lock = player
                 .get_global_input_data("als_grounded_curve_FootLeftLock")
@@ -364,18 +386,25 @@ fn roll_watcher(
         let peak_slot_weight = watch.peak_slot_weight;
         let peak_slot_root_delta = watch.peak_slot_root_delta;
         let slot_pose_observed = watch.slot_pose_observed;
+        let min_slot_pose_grounded = watch.min_slot_pose_grounded;
+        let min_final_pose_grounded = watch.min_final_pose_grounded;
+        let base_final_pose_grounded = watch.base_final_pose_grounded.unwrap_or_default();
         let peak_roll_curve = watch.peak_roll_curve;
         let roll_state_observed = watch.roll_state_observed;
         let peak_final_pose_delta = watch.peak_final_pose_delta;
         let final_pose_observed = watch.final_pose_observed;
         info!(
-            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
+            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} slot_pose_grounded_min={min_slot_pose_grounded:.3} final_pose_grounded_base={base_final_pose_grounded:.3} final_pose_grounded_min={min_final_pose_grounded:.3} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
             watch.roll_index + 1
         );
         let ok_dist = (dist - ROLL_CLIP_DISTANCE).abs() <= 0.6;
         let ok_align = align >= 0.95;
         let ok_slot = peak_slot_weight >= 0.95 && peak_slot_root_delta > 1e-5 && slot_pose_observed;
-        let ok_curves = peak_roll_curve >= 0.99 && roll_state_observed;
+        let ok_curves = peak_roll_curve >= 0.99
+            && roll_state_observed
+            && min_slot_pose_grounded < 0.1
+            && base_final_pose_grounded > 0.9
+            && min_final_pose_grounded < 0.1;
         let ok_final_pose = final_pose_observed && peak_final_pose_delta > 1e-3;
         if !(ok_dist && ok_align && ok_slot && ok_curves && ok_final_pose) {
             watch.failed = true;

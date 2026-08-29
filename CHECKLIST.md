@@ -109,9 +109,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `AlsPlayableCharacterPlugin` 的 `overlay_runtime_input_gate` 以确定性的 standing 上游探针验证根桥接：`0.350 → 0.350 → Rifle consumer 0.350`，`AllowTransitions=-1 → overlay_allowed=0`；同时加载并核验 Bow、两种 Pistol 和 Rifle 共 7 个声明许可输入的状态图。Gate 输出 `standing_and_curve_inputs_reach_rifle -> PASS`。`rifle_overlay_contract_gate` 仍运行 Sprint impulse 姿态分支并通过。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（116 tests）；`cargo run --example rifle_overlay_contract_gate --jobs 2`、`cargo run --example head_curve_gate --jobs 2` 通过。
 
-- [ ] **BF102.09 — A06：slot 姿态与曲线同权重混合（P2）**
+- [x] **BF102.09 — A06：slot 姿态与曲线同权重混合（P2）**
   - 依赖：BF102.04、BF102.08。
   - 验收：槽位动作注入 FootLock、ViewBlock 等曲线时，最终曲线按同一角色、同一时间、同一权重混合。
+  - 当次 ALS 事实：`RefreshFeet()` 从已评估的 `FootLeftLock`／`FootRightLock` 曲线读取锁定权重，`RefreshView()` 从 `ViewBlock` 曲线读取视图阻断；曲线必须与实际动作姿态属于同一次动画求值。
+  - 实现：`SkeletonAwareLayeredGraphNode` 为声明的 slot 曲线按 pose slot weight 线性混合 F32 输出；Transition 与 PostLocomotion 根槽位显式列出可混曲线。roll sampler 从 `A_Als_Roll.gltf#AlsCurves` 采样 `PoseStanding`／`PoseGrounded` 并写入 PostLocomotion 的每角色曲线键。
+  - 证据：`slot_curve_gate` 在真实图求值中记录 weight=0.25 时 `FootLeftLock=0.75`、`ViewBlock=0.25`，weight=0.75 时两者为 0.25／0.75，输出 `pose_and_curves_share_slot_weight -> PASS`。完整 `roll_gate` 的两次滚翻均记录 `slot_pose_grounded_min=0`、`final_pose_grounded_base=1`、`final_pose_grounded_min=0`，并维持 slot pose、根运动和最终姿态 Gate 通过。`ab_als_contract_gate` 也验证根图槽位配置与完整链路通过。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（163 tests、6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（116 tests）。
 
 ### 坐标、状态、旋转与投影
 

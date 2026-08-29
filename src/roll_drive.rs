@@ -7,6 +7,7 @@ use als_core::roll::{
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transition::AlsStateRequest;
+use als_ext::AlsAnimCurves;
 use avian3d::prelude::{LinearVelocity, Rotation};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -25,6 +26,9 @@ const ROOT_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "als_root_post_locomotion_slot_
 const ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "als_root_post_locomotion_slot_weight";
 const ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str =
     "als_root_post_locomotion_slot_layer_weight";
+const ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX: &str = "als_root_post_locomotion_slot_curve_";
+const ROLL_SLOT_CURVES: &str = "animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
+const ROLL_SLOT_CURVE_NAMES: [&str; 2] = ["PoseStanding", "PoseGrounded"];
 
 #[derive(Component, Debug, Clone, Copy)]
 struct AlsRollSlotSampler {
@@ -39,13 +43,19 @@ pub struct AlsRollSlotRuntime {
     pub weight: f32,
     pub pose_ready: bool,
     pub root_motion_delta: Vec3,
+    pub pose_standing: f32,
+    pub pose_grounded: f32,
 }
+
+#[derive(Resource)]
+struct RollSlotCurveHandle(Handle<AlsAnimCurves>);
 
 pub struct AlsRollDrivePlugin;
 
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, ensure_roll_slot_samplers)
+        app.add_systems(Startup, load_roll_slot_curve_asset)
+            .add_systems(Update, ensure_roll_slot_samplers)
             .add_systems(
                 FixedPostUpdate,
                 (
@@ -60,6 +70,10 @@ impl Plugin for AlsRollDrivePlugin {
                 ),
             );
     }
+}
+
+fn load_roll_slot_curve_asset(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.insert_resource(RollSlotCurveHandle(assets.load(ROLL_SLOT_CURVES)));
 }
 
 fn ensure_roll_state(
@@ -126,8 +140,30 @@ fn prepare_roll_slot_samples(
     }
 }
 
+fn write_roll_slot_curves(
+    player: &mut AnimationGraphPlayer,
+    curves: Option<&als_ext::AlsPoseCurves>,
+    clip_time: f32,
+) -> (f32, f32) {
+    let mut values = [0.0_f32; 2];
+    for (index, name) in ROLL_SLOT_CURVE_NAMES.iter().enumerate() {
+        let value = curves
+            .and_then(|curves| curves.sample(name, clip_time))
+            .filter(|value| value.is_finite())
+            .unwrap_or_default();
+        player.set_global_input_data(
+            format!("{ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX}{name}"),
+            value,
+        );
+        values[index] = value;
+    }
+    (values[0], values[1])
+}
+
 fn bridge_roll_slot_samples(
     rolls: Query<&AlsRollState, With<als_core::character::AlsCharacter>>,
+    curve_handle: Res<RollSlotCurveHandle>,
+    curves: Res<Assets<AlsAnimCurves>>,
     mut samplers: Query<
         (
             &mut AlsRollSlotSampler,
@@ -147,6 +183,7 @@ fn bridge_roll_slot_samples(
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            write_roll_slot_curves(&mut target_player, None, 0.0);
             commands
                 .entity(sampler.character)
                 .insert(AlsRollSlotRuntime::default());
@@ -165,6 +202,7 @@ fn bridge_roll_slot_samples(
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            write_roll_slot_curves(&mut target_player, None, 0.0);
             commands
                 .entity(sampler.character)
                 .insert(AlsRollSlotRuntime {
@@ -172,6 +210,8 @@ fn bridge_roll_slot_samples(
                     weight: 0.0,
                     pose_ready: false,
                     root_motion_delta: root_motion.translation_delta,
+                    pose_standing: 0.0,
+                    pose_grounded: 0.0,
                 });
             continue;
         };
@@ -179,6 +219,12 @@ fn bridge_roll_slot_samples(
             .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose));
         target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
         target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, weight);
+        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+        let (pose_standing, pose_grounded) = write_roll_slot_curves(
+            &mut target_player,
+            curves.get(&curve_handle.0).and_then(AlsAnimCurves::first),
+            clip_time,
+        );
         sampler.reported_unready = false;
         commands
             .entity(sampler.character)
@@ -187,6 +233,8 @@ fn bridge_roll_slot_samples(
                 weight,
                 pose_ready: true,
                 root_motion_delta: root_motion.translation_delta,
+                pose_standing,
+                pose_grounded,
             });
     }
 }

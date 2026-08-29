@@ -64,6 +64,21 @@ const CURVES: &[&str] = &[
     "ViewBlock",
 ];
 
+const SLOT_CURVES: &[&str] = &[
+    "PoseStanding",
+    "PoseCrouching",
+    "PoseMoving",
+    "RotationYawOffset",
+    "FootLeftLock",
+    "FootRightLock",
+    "AllowTransitions",
+    "RotationYawSpeed",
+    "PoseGrounded",
+    "FootLeftIk",
+    "FootRightIk",
+    "PoseInAir",
+];
+
 #[derive(Resource)]
 struct GateAssets {
     root: Handle<AnimationGraph>,
@@ -344,6 +359,12 @@ fn verify_static(
             node.slot_name.as_deref() == Some("Transition")
                 && node.slot_pose_key == "als_root_transition_slot_pose"
                 && node.slot_weight_key == "als_root_transition_slot_weight"
+                && node.slot_curve_prefix.as_deref() == Some("als_root_transition_slot_curve_")
+                && node
+                    .slot_curve_names
+                    .iter()
+                    .map(String::as_str)
+                    .eq(SLOT_CURVES.iter().copied())
                 && !node.always_update_source_pose
         })
         && node::<SkeletonAwareLayeredGraphNode>(root, "AB_Als_Locomotion Slot PostLocomotion")
@@ -351,6 +372,13 @@ fn verify_static(
                 node.slot_name.as_deref() == Some("PostLocomotion")
                     && node.slot_pose_key == "als_root_post_locomotion_slot_pose"
                     && node.slot_weight_key == "als_root_post_locomotion_slot_weight"
+                    && node.slot_curve_prefix.as_deref()
+                        == Some("als_root_post_locomotion_slot_curve_")
+                    && node
+                        .slot_curve_names
+                        .iter()
+                        .map(String::as_str)
+                        .eq(SLOT_CURVES.iter().copied())
                     && !node.always_update_source_pose
             });
     let inertialization = overlay;
