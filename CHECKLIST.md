@@ -177,9 +177,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `tnua_toggle_gate` 以生成顺序 Enabled/Disabled/Enabled/SenseOnly/Enabled 运行。暂停阶段三个 Enabled 均移动 0.527 m；恢复后五者位移为约 `(-3.164,-15.217,-3.164,-2.314,-3.164)`，三个原始 Enabled 速度均为 3.75 m/s，输出 `disabled_entities_do_not_stop_other_motors -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p als-ext --jobs 2` 通过（163 tests、6 integration tests）；`cargo test -p als-camera --jobs 2` 通过（7 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.17 — M06：地面制动扣除支撑面速度（P1）**
+- [x] **BF102.17 — M06：地面制动扣除支撑面速度（P1）**
   - 依赖：BF102.15、BF102.02。
   - 验收：移动/旋转平台上记录相对速度、世界速度和制动输出，角色制动不抵消平台自身运动。
+  - 当次 ALS／Tnua 事实：ALS `CalcVelocity()` 与 based-movement 在基座空间处理速度；UE 的基座速度由线速度与接触点的角速度分量组成。Tnua walk memory 明确将 running velocity 定义为相对支撑实体速度，其传感输出包含支撑点线／角速度。
+  - 实现：地面 dynamics 现在从当前 `standing_on_entity()` 解析基座，在胶囊接触点计算 `linear + angular × offset`；gait、动态配置、最大速度和制动积分均使用相对水平速度，最后仅把相对速度增量作为 world motor boost。新增每角色 `AlsMovementBaseDynamicsState` 记录基座、world/support/relative velocity 与 boost。
+  - 证据：完整 `movement_base_braking_gate` 平移平台记录 `world=(2,0,0)`、`support=(2,0,0)`、`relative=(0,0,0)`、`boost=(0,0,0)`；旋转平台记录 `world≈(-1.382,1.399)`、`support≈(-1.403,1.378)`、`relative≈(0.021,0.021)`，boost 仅抵消该相对误差，输出 `braking_uses_movement_base_relative_velocity -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（202 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.18 — M07：落地短暂 BrakingFrictionFactor 语义（P2）**
   - 依赖：BF102.17、BF102.31。

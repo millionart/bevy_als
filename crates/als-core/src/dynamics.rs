@@ -1,4 +1,4 @@
-use avian3d::prelude::LinearVelocity;
+use avian3d::prelude::{AngularVelocity, LinearVelocity, Position};
 use bevy::prelude::*;
 use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 
@@ -24,6 +24,54 @@ impl Default for AlsGroundedDynamics {
             ground_friction: 5.0,
         })
     }
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsMovementBaseDynamicsState {
+    pub entity: Option<Entity>,
+    pub world_velocity: Vec3,
+    pub support_velocity: Vec3,
+    pub relative_velocity: Vec3,
+    pub motor_boost: Vec3,
+}
+
+pub fn support_point_velocity(
+    base_position: Vec3,
+    base_linear_velocity: Vec3,
+    base_angular_velocity: Vec3,
+    point: Vec3,
+) -> Vec3 {
+    base_linear_velocity + base_angular_velocity.cross(point - base_position)
+}
+
+fn character_contact_point(params: &AlsMovementParams, stance: Stance, position: Vec3) -> Vec3 {
+    let half_height = match stance {
+        Stance::Standing => params.crouch.standing_capsule_half_height,
+        Stance::Crouching => params.crouch.crouched_capsule_half_height,
+    };
+    position - Vec3::Y * half_height
+}
+
+fn support_velocity_from_base(
+    base_entity: Option<Entity>,
+    contact_point: Vec3,
+    bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+) -> (Option<Entity>, Vec3) {
+    let Some(entity) = base_entity else {
+        return (None, Vec3::ZERO);
+    };
+    let Ok((position, linear_velocity, angular_velocity)) = bases.get(entity) else {
+        return (None, Vec3::ZERO);
+    };
+    (
+        Some(entity),
+        support_point_velocity(
+            position.0,
+            linear_velocity.0,
+            angular_velocity.map_or(Vec3::ZERO, |velocity| velocity.0),
+            contact_point,
+        ),
+    )
 }
 
 pub fn max_allowed_speed(
@@ -151,7 +199,9 @@ pub fn refresh_grounded_dynamics_system(
             &Stance,
             &RotationMode,
             &AlsViewYaw,
+            &Position,
             &LinearVelocity,
+            &TnuaController<AlsControlScheme>,
             &AlsMovementParamsHandle,
             &mut AlsGaitAmount,
             &mut AlsGroundedDynamics,
@@ -159,13 +209,16 @@ pub fn refresh_grounded_dynamics_system(
         With<AlsCharacter>,
     >,
     params_assets: Res<Assets<AlsMovementParams>>,
+    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
 ) {
     for (
         locomotion,
         stance,
         rotation_mode,
         view_yaw,
+        position,
         velocity,
+        controller,
         params_handle,
         mut gait_amount,
         mut dynamics,
@@ -177,9 +230,20 @@ pub fn refresh_grounded_dynamics_system(
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
-        let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+        let contact_point = character_contact_point(params, *stance, position.0);
+        let (_, support_velocity) = support_velocity_from_base(
+            controller.basis_memory.standing_on_entity(),
+            contact_point,
+            &bases,
+        );
+        let relative_velocity = Vec3::new(
+            velocity.x - support_velocity.x,
+            0.0,
+            velocity.z - support_velocity.z,
+        );
+        let horizontal_speed = relative_velocity.length();
         let thresholds =
-            params.gait_speed_thresholds(*stance, *rotation_mode, velocity.0, view_yaw.0);
+            params.gait_speed_thresholds(*stance, *rotation_mode, relative_velocity, view_yaw.0);
         gait_amount.0 = calculate_gait_amount_for_thresholds(horizontal_speed, thresholds);
         dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
     }
@@ -187,42 +251,52 @@ pub fn refresh_grounded_dynamics_system(
 
 pub fn grounded_dynamics_motor_system(
     fixed_time: Res<Time<Fixed>>,
+    mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut q: Query<
         (
+            Entity,
             &LocomotionState,
             &Stance,
             &RotationMode,
             &AlsViewYaw,
             &AlsMaxAllowedGait,
-            &AlsGroundedDynamics,
+            &mut AlsGroundedDynamics,
+            &mut AlsGaitAmount,
+            &Position,
             &LinearVelocity,
             &AlsMovementParamsHandle,
             &TnuaController<AlsControlScheme>,
             &mut TnuaMotor,
             &mut AlsCmcAdapterRuntime,
-            Option<&AlsRollState>,
-            Option<&AlsMantleState>,
+            Option<&mut AlsMovementBaseDynamicsState>,
         ),
         With<AlsCharacter>,
     >,
+    actions: Query<(Option<&AlsRollState>, Option<&AlsMantleState>), With<AlsCharacter>>,
+    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
 ) {
     for (
+        entity,
         locomotion,
         stance,
         rotation_mode,
         view_yaw,
         max_allowed_gait,
-        dynamics,
+        mut dynamics,
+        mut gait_amount,
+        position,
         velocity,
         params_handle,
         controller,
         mut motor,
         mut cmc_runtime,
-        roll,
-        mantle,
+        current_base_state,
     ) in &mut q
     {
+        let Ok((roll, mantle)) = actions.get(entity) else {
+            continue;
+        };
         if *locomotion != LocomotionState::Grounded
             || roll.is_some_and(|state| state.active)
             || mantle.is_some_and(|state| state.active)
@@ -232,7 +306,21 @@ pub fn grounded_dynamics_motor_system(
         let Some(params) = params_assets.get(params_handle.id()) else {
             continue;
         };
-        let current = Vec3::new(velocity.x, 0.0, velocity.z);
+        let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
+        let contact_point = character_contact_point(params, *stance, position.0);
+        let (base_entity, support_velocity) = support_velocity_from_base(
+            controller.basis_memory.standing_on_entity(),
+            contact_point,
+            &bases,
+        );
+        let current = Vec3::new(
+            world_velocity.x - support_velocity.x,
+            0.0,
+            world_velocity.z - support_velocity.z,
+        );
+        let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);
+        gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);
+        dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
         let max_speed = max_allowed_speed(
             params,
             *stance,
@@ -254,7 +342,20 @@ pub fn grounded_dynamics_motor_system(
         cmc_runtime.simulation_substeps = simulation_substeps;
         cmc_runtime.min_analog_speed_applied = desired_motion.length_squared() > 1e-6
             && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
-        motor.lin.boost += next - current;
+        let motor_boost = next - current;
+        motor.lin.boost += motor_boost;
+        let base_state = AlsMovementBaseDynamicsState {
+            entity: base_entity,
+            world_velocity,
+            support_velocity: Vec3::new(support_velocity.x, 0.0, support_velocity.z),
+            relative_velocity: current,
+            motor_boost,
+        };
+        if let Some(mut current_base_state) = current_base_state {
+            *current_base_state = base_state;
+        } else {
+            commands.entity(entity).insert(base_state);
+        }
     }
 }
 
@@ -328,6 +429,34 @@ mod tests {
             0.02,
         );
         assert!((next.x - 3.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn braking_uses_velocity_relative_to_the_support_base() {
+        let support_velocity = Vec3::X * 2.0;
+        let world_velocity = support_velocity;
+        let relative_velocity = world_velocity - support_velocity;
+        let next = grounded_velocity_step(
+            relative_velocity,
+            Vec3::ZERO,
+            6.5,
+            GroundedDynamics {
+                acceleration: 20.0,
+                braking_deceleration: 15.0,
+                ground_friction: 5.0,
+            },
+            0.25,
+            0.02,
+        );
+        assert_eq!(next, Vec3::ZERO);
+        assert_eq!(next - relative_velocity, Vec3::ZERO);
+    }
+
+    #[test]
+    fn support_velocity_includes_angular_velocity_at_the_contact_point() {
+        let velocity = support_point_velocity(Vec3::ZERO, Vec3::X * 2.0, Vec3::Y, Vec3::X * 3.0);
+        assert!((velocity.x - 2.0).abs() < 1e-6);
+        assert!((velocity.z + 3.0).abs() < 1e-6);
     }
 
     #[test]
