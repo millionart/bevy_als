@@ -58,9 +58,12 @@ BF102.58 网络范围 ─► BF102.Gate
     - 证据：`cargo test -p als-core --jobs 2 rotation_cap_tests -- --ignored --nocapture --test-threads=1` 通过。低顶时 `desired=Standing`、`actual=Crouching`、物理 crouched=true、Tnua headroom=0.560 m、碰撞重叠=false、同步误差=0；移除低顶后 actual=Standing、crouched=false、headroom=0.900 m、同步误差=0。
   - 回归：`cargo test --workspace --jobs 2` 通过；als-core 196 通过／2 专用 Gate 已单独通过，als-ext 159、als-camera 5、bevy_als 110 均通过。
 
-- [ ] **BF102.03 — M09：方向相关速度配置回归核验（P3）**
+- [x] **BF102.03 — M09：方向相关速度配置回归核验（P3）**
   - 依赖：已通过 BF101.Gate。
   - 验收：默认关闭保持原速度；启用后前进/中间/后退阈值、gait、Tnua 和最终动画输入使用同一当前配置。
+  - 当次 ALS 事实：`FAlsMovementGaitSettings` 默认关闭方向相关速度；`RefreshGroundedMovementSettings` 以速度相对 view 的绝对角、`VelocityAngleToSpeedInterpolationRange` 100°–125°插值前后 walk/run，并用结果映射 gait amount。
+  - 证据：`cargo test -p als-core --jobs 2 direction_dependent_speed -- --nocapture`、`refresh_gait_uses_direction_dependent_thresholds` 与 `max_allowed_speed_consumes_direction_dependent_thresholds` 均通过。默认关闭前后阈值相同；启用后前进=(1.75,3.75)、中间=(1.375,2.875)、后退=(1.0,2.0) m/s，后退 gait amount=1.2、dynamics/Tnua run speed=2.0 m/s。
+  - 最终动画链证据：`cargo test --jobs 2 direction_dependent_gait_amount_reaches_animation_layer -- --nocapture` 通过；生产 `GaitLayer` 接收核心的后退 gait amount=1.2，写入最终动画 running amount=0.2、sprint amount=0。
 
 ### 默认执行链与槽位
 

@@ -48,3 +48,74 @@ fn gait_blend_driver(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+    use als_core::gait::{
+        AlsDesiredGait, AlsGaitAmount, AlsMaxAllowedGait, GaitWeights, refresh_gait_system,
+    };
+    use als_core::input::AlsInputCommand;
+    use als_core::motion::AlsViewYaw;
+    use als_core::params::AlsMovementParams;
+    use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
+    use als_core::transition::StateTransitionEvent;
+    use avian3d::prelude::LinearVelocity;
+
+    #[test]
+    fn direction_dependent_gait_amount_reaches_animation_layer() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .add_message::<StateTransitionEvent>()
+            .add_systems(Update, refresh_gait_system)
+            .add_plugins(GaitLayerPlugin);
+        let mut params = AlsMovementParams::default();
+        params
+            .speeds
+            .standing
+            .allow_direction_dependent_movement_speed = true;
+        params.speeds.standing.max_walk_backward_speed = 1.0;
+        params.speeds.standing.max_run_backward_speed = 2.0;
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params);
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Grounded,
+                Stance::Standing,
+                RotationMode::ViewDirection,
+                AlsViewYaw::default(),
+                AlsInputCommand::default(),
+                AlsDesiredGait(Gait::Running),
+                AlsMaxAllowedGait(Gait::Running),
+                AlsGaitAmount::default(),
+                Gait::Walking,
+                LinearVelocity(Vec3::Z * 1.2),
+                AlsMovementParamsHandle(params),
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((ChildOf(character), AlsCharacterAvatar { character }))
+            .id();
+
+        app.update();
+
+        let amount = app.world().get::<AlsGaitAmount>(character).unwrap().0;
+        let gait = *app.world().get::<Gait>(character).unwrap();
+        let weights = app.world().get::<AlsGaitBlend>(avatar).unwrap().weights;
+        println!(
+            "[BF102.03] backward_gait={gait:?} gait_amount={amount:.6} animation_running_amount={:.6} animation_sprint_amount={:.6}",
+            weights.running_amount(),
+            weights.sprint_w
+        );
+        assert_eq!(gait, Gait::Running);
+        assert!((amount - 1.2).abs() < 1e-6);
+        assert_eq!(weights, GaitWeights::from_gait_amount(amount));
+    }
+}
