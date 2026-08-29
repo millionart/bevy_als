@@ -169,9 +169,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `character_ownership_gate` 同时运行两个角色和一个无关 animated scene。角色一仅记录 `roll=0.409`、`ragdoll=true`；角色二仅记录 `mantle=1`、`ragdoll=false`；无关场景无动作输入。即使向无关场景注入 `-99 m` root-motion delta，角色二速度仍为 0，输出 `character_owned_action_and_root_motion_paths -> PASS`。静态扫描三条生产路径无 `single()`／`single_mut()`／未归属 root-motion `next()`。
   - 回归：`roll_gate` 两次滚翻均通过；`ragdoll_gate` 的 kinematic、handoff、ground follow 与 recovery 均通过。`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.16 — F08：禁用 Tnua 实体不终止其他实体电机（P1）**
+- [x] **BF102.16 — F08：禁用 Tnua 实体不终止其他实体电机（P1）**
   - 依赖：BF102.15。
   - 验收：Enabled/Disabled/Enabled 三实体探针证明 A、C 均更新，Disabled 只跳过自身。
+  - 当次底座事实：`bevy-tnua-avian3d` 的 `apply_motors_system()` 原先在 `Disabled`／`SenseOnly` motor 上从整个迭代函数 `return`；因此后续实体不会获得 motor。项目内公开调度 guard 经真实 ragdoll 验证不能保持等价动态，按用户授权改为 fork 独立修复 `9f83188`：该分支改为 `continue`。
+  - 实现：主仓库 `Cargo.lock` 锁定 `bevy-tnua`、`bevy-tnua-avian3d`、宏与 integration-layer 到 `9f83188`，不使用 path/vendor 依赖。
+  - 证据：完整 `tnua_toggle_gate` 以生成顺序 Enabled/Disabled/Enabled/SenseOnly/Enabled 运行。暂停阶段三个 Enabled 均移动 0.527 m；恢复后五者位移为约 `(-3.164,-15.217,-3.164,-2.314,-3.164)`，三个原始 Enabled 速度均为 3.75 m/s，输出 `disabled_entities_do_not_stop_other_motors -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p als-ext --jobs 2` 通过（163 tests、6 integration tests）；`cargo test -p als-camera --jobs 2` 通过（7 tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.17 — M06：地面制动扣除支撑面速度（P1）**
   - 依赖：BF102.15、BF102.02。
