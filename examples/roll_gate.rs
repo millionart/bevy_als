@@ -3,17 +3,13 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_enhanced_input::prelude::EnhancedInputPlugin;
-use bevy_tnua::TnuaControllerPlugin;
-use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
+use als_core::character::{AlsCharacter, AlsCharacterBundle};
+use als_core::control_scheme::AlsControlSchemeConfig;
+use als_core::input::{AlsInputMap, spawn_als_actions};
+use als_core::motion::{AlsInputOverride, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::roll::{
     AlsRollState, ROLL_DURATION_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
@@ -22,11 +18,10 @@ use als_core::roll::{
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
 use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::AlsStateTransitionPlugin;
-use als_ext::AlsExtPlugin;
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
-use bevy_als::roll_drive::AlsRollDrivePlugin;
+use bevy_als::playable_character::AlsPlayableCharacterPlugin;
+use bevy_als::roll_drive::AlsRollSlotRuntime;
 
 const SNAPSHOT_INTERVAL: f32 = 0.1;
 
@@ -37,17 +32,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
-        TnuaAvian3dPlugin::new(FixedUpdate),
-        TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-        EnhancedInputPlugin,
-        AlsInputPlugin,
-        AlsStateTransitionPlugin,
-        AlsCharacterPlugin,
-        AlsMotionPlugin,
-        AlsRollDrivePlugin,
-        AnimationGraphPlugin::default(),
-        AlsExtPlugin,
+        AlsPlayableCharacterPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -150,12 +135,40 @@ struct RollWatch {
     expect_dir_yaw: f32,
     roll_index: usize,
     peak_v: f32,
+    peak_slot_weight: f32,
+    peak_slot_root_delta: f32,
+    slot_pose_observed: bool,
+    peak_roll_curve: f32,
+    roll_state_observed: bool,
+    base_final_pose_signal: Option<f32>,
+    peak_final_pose_delta: f32,
+    final_pose_observed: bool,
     results: [Option<(f32, f32, f32)>; 2],
     failed: bool,
 }
 
 #[derive(Resource)]
 struct AutoQuit(Instant);
+
+fn roll_gate_complete(watch: &RollWatch) -> bool {
+    !watch.failed && watch.roll_index == 2 && watch.results.iter().all(Option::is_some)
+}
+
+fn pose_signal(player: &AnimationGraphPlayer) -> Option<f32> {
+    player.get_default_output_pose().map(|pose| {
+        pose.bones.iter().fold(0.0, |signal, bone| {
+            signal
+                + bone
+                    .translation
+                    .map(|translation| translation.length())
+                    .unwrap_or(0.0)
+                + bone
+                    .rotation
+                    .map(|rotation| 1.0 - rotation.w.abs())
+                    .unwrap_or(0.0)
+        })
+    })
+}
 
 fn spawn_character_once(
     mut commands: Commands,
@@ -187,7 +200,7 @@ fn spawn_character_once(
     let character = commands.spawn(bundle).id();
     spawn_als_actions(&mut commands, character, &AlsInputMap::default());
 
-    let avatar = bevy_als::character_assembly::attach_avatar(
+    let _avatar = bevy_als::character_assembly::attach_avatar(
         &mut commands,
         &assets,
         character,
@@ -213,6 +226,7 @@ fn auto_demo(
     time: Res<Time>,
     mut driver: ResMut<DemoDriver>,
     mut q: Query<&mut AlsInputOverride, With<AlsCharacter>>,
+    watch: Res<RollWatch>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if std::env::var("ALS_BOOT_AUTO_QUIT_SECS").is_err() || driver.done {
@@ -234,7 +248,13 @@ fn auto_demo(
     }
     if t >= all[all.len() - 1].t0 + all[all.len() - 1].dur + 0.5 {
         driver.done = true;
-        exit.write(AppExit::Success);
+        let passed = roll_gate_complete(&watch);
+        info!("[ROLLGATE][VERDICT] completed={passed}");
+        exit.write(if passed {
+            AppExit::Success
+        } else {
+            AppExit::Error(std::num::NonZeroU8::new(8).unwrap())
+        });
         return;
     }
     let s = &all[idx];
@@ -259,12 +279,15 @@ fn roll_watcher(
             &Stance,
             &LocomotionState,
             &AlsRollState,
+            Option<&AlsRollSlotRuntime>,
         ),
         With<AlsCharacter>,
     >,
+    avatars: Query<&AnimatedSceneInstance, With<bevy_als::character_assembly::AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((tf, vel, _stance, _loco, roll)) = q.single() else {
+    let Ok((tf, vel, _stance, _loco, roll, slot)) = q.single() else {
         return;
     };
     let xz = Vec2::new(tf.translation.x, tf.translation.z);
@@ -273,6 +296,17 @@ fn roll_watcher(
         watch.start_xz = Some(xz);
         watch.expect_dir_yaw = roll.direction_yaw;
         watch.peak_v = 0.0;
+        watch.peak_slot_weight = 0.0;
+        watch.peak_slot_root_delta = 0.0;
+        watch.slot_pose_observed = false;
+        watch.peak_roll_curve = 0.0;
+        watch.roll_state_observed = false;
+        watch.base_final_pose_signal = avatars
+            .iter()
+            .find_map(|instance| players.get(instance.player_entity()).ok())
+            .and_then(pose_signal);
+        watch.peak_final_pose_delta = 0.0;
+        watch.final_pose_observed = false;
         info!(
             "[BCHAR18R][ROLL {}] dir_yaw={:.2} expected_vec={:?} duration={ROLL_DURATION_SECS:.6} rate={ROLL_PLAY_RATE:.2} half_life={ROLL_ROTATION_HALF_LIFE_SECS:.2}",
             watch.roll_index + 1,
@@ -282,6 +316,35 @@ fn roll_watcher(
     }
     if roll.active {
         watch.peak_v = watch.peak_v.max(Vec2::new(vel.x, vel.z).length());
+        if let Some(slot) = slot {
+            watch.peak_slot_weight = watch.peak_slot_weight.max(slot.weight);
+            watch.peak_slot_root_delta = watch
+                .peak_slot_root_delta
+                .max(slot.root_motion_delta.length());
+            watch.slot_pose_observed |= slot.pose_ready;
+        }
+        for instance in &avatars {
+            let Ok(player) = players.get(instance.player_entity()) else {
+                continue;
+            };
+            if let Some(signal) = pose_signal(player) {
+                watch.final_pose_observed = true;
+                if let Some(base) = watch.base_final_pose_signal {
+                    watch.peak_final_pose_delta =
+                        watch.peak_final_pose_delta.max((signal - base).abs());
+                }
+            }
+            let foot_lock = player
+                .get_global_input_data("als_grounded_curve_FootLeftLock")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap_or(0.0);
+            let grounded_state = player
+                .get_global_input_data("als_grounded_state_index")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap_or(-1.0);
+            watch.peak_roll_curve = watch.peak_roll_curve.max(foot_lock);
+            watch.roll_state_observed |= (grounded_state - 5.0).abs() < 1e-4;
+        }
     }
     if watch.active_prev && !roll.active {
         let Some(start) = watch.start_xz.take() else {
@@ -298,16 +361,26 @@ fn roll_watcher(
             0.0
         };
         let peak_v = watch.peak_v;
+        let peak_slot_weight = watch.peak_slot_weight;
+        let peak_slot_root_delta = watch.peak_slot_root_delta;
+        let slot_pose_observed = watch.slot_pose_observed;
+        let peak_roll_curve = watch.peak_roll_curve;
+        let roll_state_observed = watch.roll_state_observed;
+        let peak_final_pose_delta = watch.peak_final_pose_delta;
+        let final_pose_observed = watch.final_pose_observed;
         info!(
-            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2}",
+            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
             watch.roll_index + 1
         );
         let ok_dist = (dist - ROLL_CLIP_DISTANCE).abs() <= 0.6;
         let ok_align = align >= 0.95;
-        if !(ok_dist && ok_align) {
+        let ok_slot = peak_slot_weight >= 0.95 && peak_slot_root_delta > 1e-5 && slot_pose_observed;
+        let ok_curves = peak_roll_curve >= 0.99 && roll_state_observed;
+        let ok_final_pose = final_pose_observed && peak_final_pose_delta > 1e-3;
+        if !(ok_dist && ok_align && ok_slot && ok_curves && ok_final_pose) {
             watch.failed = true;
             error!(
-                "[ROLLGATE][FAIL {}] dist_ok={ok_dist} align_ok={ok_align}",
+                "[ROLLGATE][FAIL {}] dist_ok={ok_dist} align_ok={ok_align} slot_ok={ok_slot} curves_ok={ok_curves} final_pose_ok={ok_final_pose}",
                 watch.roll_index + 1
             );
         } else if watch.roll_index < 2 {
@@ -336,7 +409,6 @@ fn graph_router(
     mut players: Query<&mut AnimationGraphPlayer>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
-    use als_core::state::Gait;
     let Ok((stance, gait, vel, handle)) = q.single() else {
         return;
     };
@@ -388,8 +460,6 @@ fn snapshot_logger(
         ),
         With<AlsCharacter>,
     >,
-    mut watch: ResMut<RollWatch>,
-    mut exit: MessageWriter<AppExit>,
 ) {
     let t = time.elapsed_secs_f64();
     if (t as f32) - *last < SNAPSHOT_INTERVAL {
@@ -411,9 +481,14 @@ fn snapshot_logger(
     );
 }
 
-fn auto_quit(mut quit: ResMut<AutoQuit>, mut exit: MessageWriter<AppExit>) {
+fn auto_quit(quit: Res<AutoQuit>, watch: Res<RollWatch>, mut exit: MessageWriter<AppExit>) {
     if Instant::now() >= quit.0 {
-        warn!("[ROLLGATE] wall-clock safety quit");
-        exit.write(AppExit::Success);
+        let passed = roll_gate_complete(&watch);
+        warn!("[ROLLGATE] wall-clock safety quit completed={passed}");
+        exit.write(if passed {
+            AppExit::Success
+        } else {
+            AppExit::Error(std::num::NonZeroU8::new(9).unwrap())
+        });
     }
 }

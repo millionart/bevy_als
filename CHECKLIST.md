@@ -67,9 +67,15 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 默认执行链与槽位
 
-- [ ] **BF102.04 — A01：默认 PostLocomotion 槽位接通翻滚驱动（P1）**
+- [x] **BF102.04 — A01：默认 PostLocomotion 槽位接通翻滚驱动（P1）**
   - 依赖：BF102.01。
   - 验收：默认 avatar 入口中翻滚请求可追到每角色 slot 姿态、权重、曲线、根运动和最终骨骼。
+  - 当次 ALS 事实：`StartRollingImplementation` 以 `Montage_Play` 启动滚翻；当前 `AM_Als_Roll` 二进制资产含 `PostLocomotion` 槽位标识。
+  - [x] **BF102.04.a — A01：实现每角色 Roll PostLocomotion slot 调度（P1）**
+    - 依赖：BF102.04 当次 ALS Montage／槽位事实与默认入口运行反例。
+    - 验收：滚翻 clip 以每角色独立时间采样，向 `als_root_post_locomotion_slot_pose`／weight 写入姿态与曲线；同一 clip 的 root motion 驱动角色；默认 Gate 记录槽位权重、最终 pose 及累计位移。
+    - 证据：完整 `AlsPlayableCharacterPlugin` 入口运行 `roll_gate`（12 s safety timeout）输出 `completed=true`。两次滚翻均记录距离约 2.75 m、方向点积 1、slot weight 1、slot root delta 约 0.0732 m、slot pose=true、roll curve=1、Roll state=true、final pose=true，最终 Pose 指纹变化分别约 7.08／7.87。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（111 tests）。
 
 - [ ] **BF102.05 — A02：一次性动画转换事件跨时钟可靠消费（P1）**
   - 依赖：BF102.04。

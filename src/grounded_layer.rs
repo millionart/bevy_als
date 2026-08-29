@@ -1,4 +1,5 @@
 use als_core::character::AlsCharacter;
+use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::Stance;
 use als_ext::{AlsAnimCurves, CurveAsset};
 use avian3d::prelude::LinearVelocity;
@@ -418,6 +419,7 @@ fn transition_curves(
     runtime: GroundedLayerRuntime,
     curves: &Assets<AlsAnimCurves>,
     handles: &GroundedCurveHandles,
+    roll_clip_time: Option<f32>,
 ) -> GroundedCurves {
     match runtime.state {
         GroundedState::StandingToCrouching => GroundedCurves::sample(
@@ -431,8 +433,11 @@ fn transition_curves(
             runtime.state_elapsed * STANCE_CLIP_PLAY_RATE,
         ),
         GroundedState::Roll => {
-            let mut values =
-                GroundedCurves::sample(curves, &handles.roll, STANCE_CLIP_DURATION * 1.5);
+            let mut values = GroundedCurves::sample(
+                curves,
+                &handles.roll,
+                roll_clip_time.unwrap_or(runtime.state_elapsed),
+            );
             values.foot_left_lock = 1.0;
             values.foot_right_lock = 1.0;
             values
@@ -505,6 +510,7 @@ fn grounded_layer_writer(
         (
             Option<&Stance>,
             Option<&AlsGroundedEntryMode>,
+            Option<&AlsRollState>,
             &LinearVelocity,
         ),
         With<AlsCharacter>,
@@ -525,7 +531,7 @@ fn grounded_layer_writer(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (avatar, parent, instance, current_runtime, turn) in &mut avatars {
-        let Ok((stance, entry_mode, velocity)) = characters.get(parent.parent()) else {
+        let Ok((stance, entry_mode, roll, velocity)) = characters.get(parent.parent()) else {
             continue;
         };
         let Ok(mut player) = players.get_mut(instance.player_entity()) else {
@@ -536,21 +542,40 @@ fn grounded_layer_writer(
         let moving_or_rotating = horizontal_speed(velocity.0) >= MOVING_SMOOTH_SPEED_THRESHOLD
             || turn.is_some_and(|drive| drive.rotate_active);
         let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
-        let request = advance_runtime(
-            &mut runtime,
-            time.delta_secs(),
-            entry_mode.copied().unwrap_or_default(),
-            crouching_amount,
-            standing_amount,
-            stance.is_some_and(|stance| *stance == Stance::Crouching),
-            moving_or_rotating,
-        );
+        let roll_clip_time = roll
+            .filter(|roll| roll.active)
+            .map(|roll| roll.time * ROLL_PLAY_RATE);
+        let request = if let Some(roll_clip_time) = roll_clip_time {
+            let entered = runtime.state != GroundedState::Roll;
+            runtime.initialized = true;
+            runtime.state = GroundedState::Roll;
+            runtime.state_elapsed = roll_clip_time;
+            runtime.transition_elapsed = 0.0;
+            runtime.transition_duration = GroundedTransition::EntryToRoll.duration();
+            if entered {
+                runtime.entry_index = GroundedTransition::EntryToRoll.index();
+                runtime.last_transition = Some(GroundedTransition::EntryToRoll);
+                Some(GroundedTransition::EntryToRoll)
+            } else {
+                None
+            }
+        } else {
+            advance_runtime(
+                &mut runtime,
+                time.delta_secs(),
+                entry_mode.copied().unwrap_or_default(),
+                crouching_amount,
+                standing_amount,
+                stance.is_some_and(|stance| *stance == Stance::Crouching),
+                moving_or_rotating,
+            )
+        };
         if resets_entry_mode(request, entry_mode.is_none()) {
             commands
                 .entity(parent.parent())
                 .insert(AlsGroundedEntryMode::None);
         }
-        let values = transition_curves(runtime, &animation_curves, &handles);
+        let values = transition_curves(runtime, &animation_curves, &handles, roll_clip_time);
         let stance_alpha = current_transition_alpha(runtime, &curves, &handles);
         write_globals(&mut player, runtime, request, values, stance_alpha);
         if let Some(mut current_runtime) = current_runtime {
