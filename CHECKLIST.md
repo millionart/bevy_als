@@ -161,9 +161,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 每角色所有权、移动基座与临时物理状态
 
-- [ ] **BF102.15 — A04：动作和动画实例按角色归属（P1）**
+- [x] **BF102.15 — A04：动作和动画实例按角色归属（P1）**
   - 依赖：BF102.04。
   - 验收：两个 ALS 角色及无关动画实例同时存在时，roll/mantle/ragdoll/root motion 不使用 `single()` 或未归属的 `next()`。
+  - 当次 ALS 事实：`AAlsCharacter::StartRollingImplementation()` 只在该 actor 的 `GetMesh()->GetAnimInstance()` 播放 Montage 并写入该 actor 的 `RollingState`；`StartMantlingImplementation()` 为该 actor 创建并应用 root-motion source；`StartRagdollingImplementation()` 只操作该 actor 的 mesh、capsule 与 `RagdollingState`。
+  - 实现：roll、mantle、ragdoll 均通过 `AlsCharacterAvatar.character` 精确解析角色→avatar→`AnimatedSceneInstance`→player／root motion，并按角色循环；无关联时仅跳过该角色。mantle 公开固定步 set，以便在动画预物理后把根运动交给正确角色。移除了这些生产路径中的全局 `single()`、未归属 `iter().next()` 与全实例广播。
+  - 证据：完整 `character_ownership_gate` 同时运行两个角色和一个无关 animated scene。角色一仅记录 `roll=0.409`、`ragdoll=true`；角色二仅记录 `mantle=1`、`ragdoll=false`；无关场景无动作输入。即使向无关场景注入 `-99 m` root-motion delta，角色二速度仍为 0，输出 `character_owned_action_and_root_motion_paths -> PASS`。静态扫描三条生产路径无 `single()`／`single_mut()`／未归属 root-motion `next()`。
+  - 回归：`roll_gate` 两次滚翻均通过；`ragdoll_gate` 的 kinematic、handoff、ground follow 与 recovery 均通过。`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.16 — F08：禁用 Tnua 实体不终止其他实体电机（P1）**
   - 依赖：BF102.15。

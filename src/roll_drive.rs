@@ -93,12 +93,12 @@ fn ensure_roll_state(
 
 fn ensure_roll_slot_samplers(
     asset_server: Res<AssetServer>,
-    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     samplers: Query<&AlsRollSlotSampler>,
     players: Query<&AnimationGraphPlayer>,
     mut commands: Commands,
 ) {
-    for (avatar, parent, instance) in &avatars {
+    for (avatar, character_avatar, instance) in &avatars {
         let target_player = instance.player_entity();
         if samplers
             .iter()
@@ -117,7 +117,7 @@ fn ensure_roll_slot_samplers(
                 .with_graph(asset_server.load(ROLL_SLOT_GRAPH)),
             RootMotionOutput::default(),
             AlsRollSlotSampler {
-                character: parent.parent(),
+                character: character_avatar.character,
                 target_player,
                 reported_unready: false,
             },
@@ -260,11 +260,11 @@ fn roll_drive_system(
         With<als_core::character::AlsCharacter>,
     >,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
-    instances: Query<&AnimatedSceneInstance>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((
+    for (
         character,
         mut roll,
         loco,
@@ -277,54 +277,60 @@ fn roll_drive_system(
         air,
         cmd,
         ovr,
-    )) = q.single_mut()
-    else {
-        return;
-    };
-    let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
-
-    let mut lifecycle = roll.update(effective, view, loco, stance, dt);
-    if !lifecycle.started && !roll.active && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
+    ) in &mut q
     {
-        let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
-    }
-    if lifecycle.started {
-        request.stance = Some(Stance::Crouching);
-    } else if lifecycle.ended {
-        request.stance = Some(roll.stance_before_roll);
-    }
+        let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
-    if !roll.active || dt <= 1e-5 {
-        return;
-    }
+        let mut lifecycle = roll.update(effective, view, loco, stance, dt);
+        if !lifecycle.started
+            && !roll.active
+            && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
+        {
+            let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+            lifecycle =
+                roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
+        }
+        if lifecycle.started {
+            request.stance = Some(Stance::Crouching);
+        } else if lifecycle.ended {
+            request.stance = Some(roll.stance_before_roll);
+        }
 
-    let (current_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-    let next_rotation = Quat::from_rotation_y(damper_exact_angle(
-        current_yaw,
-        roll.direction_yaw,
-        dt,
-        ROLL_ROTATION_HALF_LIFE_SECS,
-    ));
-    transform.rotation = next_rotation;
-    if let Some(mut rotation) = rotation {
-        rotation.0 = next_rotation;
-    }
-    let weight = roll_weight_at(roll.time);
-    let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-    let local = sampler_root_motion
-        .iter()
-        .find_map(|(sampler, output)| {
-            (sampler.character == character).then_some(read_local_delta(Some(output)))
-        })
-        .unwrap_or(Vec3::ZERO);
-    let forward_speed = -local.z / dt;
-    let dir = roll_displacement_dir(roll.direction_yaw);
-    let drive = clamp_drive_speed(dir * forward_speed, 14.0);
-    vel.x = drive.x;
-    vel.z = drive.z;
+        if !roll.active || dt <= 1e-5 {
+            continue;
+        }
 
-    for instance in instances.iter() {
+        let (current_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+        let next_rotation = Quat::from_rotation_y(damper_exact_angle(
+            current_yaw,
+            roll.direction_yaw,
+            dt,
+            ROLL_ROTATION_HALF_LIFE_SECS,
+        ));
+        transform.rotation = next_rotation;
+        if let Some(mut rotation) = rotation {
+            rotation.0 = next_rotation;
+        }
+        let weight = roll_weight_at(roll.time);
+        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+        let local = sampler_root_motion
+            .iter()
+            .find_map(|(sampler, output)| {
+                (sampler.character == character).then_some(read_local_delta(Some(output)))
+            })
+            .unwrap_or(Vec3::ZERO);
+        let forward_speed = -local.z / dt;
+        let dir = roll_displacement_dir(roll.direction_yaw);
+        let drive = clamp_drive_speed(dir * forward_speed, 14.0);
+        vel.x = drive.x;
+        vel.z = drive.z;
+
+        let Some(instance) = avatars
+            .iter()
+            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
+        else {
+            continue;
+        };
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("roll_clip_time", DataValue::from(clip_time));
             player.set_input_data("roll_weight", DataValue::from(weight));

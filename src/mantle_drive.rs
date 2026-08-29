@@ -11,9 +11,13 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
+use crate::character_assembly::AlsCharacterAvatar;
 use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
 
 pub struct AlsMantleDrivePlugin;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsMantleDriveSet;
 
 impl Plugin for AlsMantleDrivePlugin {
     fn build(&self, app: &mut App) {
@@ -25,9 +29,13 @@ impl Plugin for AlsMantleDrivePlugin {
                 mantle_pose_system.after(ensure_mantle_state),
             ),
         );
-        app.add_systems(
+        app.configure_sets(
             FixedPostUpdate,
-            mantle_drive_system.after(AnimationGraphSet::PrePhysics),
+            AlsMantleDriveSet.after(AnimationGraphSet::PrePhysics),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            mantle_drive_system.in_set(AlsMantleDriveSet),
         );
     }
 }
@@ -55,19 +63,18 @@ fn mantle_pose_system(
     >,
 ) {
     let dt = time.delta_secs();
-    let Ok((mut m, mut tf, mut vel)) = q.single_mut() else {
-        return;
-    };
-    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
-    if m.active {
-        tf.rotation = Quat::from_rotation_y(yaw_now);
-        return;
-    }
-    if m.settle > 0.0 {
-        m.settle -= dt;
-        tf.translation = m.target;
-        tf.rotation = Quat::from_rotation_y(yaw_now);
-        *vel = LinearVelocity(Vec3::ZERO);
+    for (mut m, mut tf, mut vel) in &mut q {
+        let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
+        if m.active {
+            tf.rotation = Quat::from_rotation_y(yaw_now);
+            continue;
+        }
+        if m.settle > 0.0 {
+            m.settle -= dt;
+            tf.translation = m.target;
+            tf.rotation = Quat::from_rotation_y(yaw_now);
+            *vel = LinearVelocity(Vec3::ZERO);
+        }
     }
 }
 
@@ -89,61 +96,64 @@ fn mantle_drive_system(
         With<als_core::character::AlsCharacter>,
     >,
     layers_q: Query<Option<&CollisionLayers>, With<als_core::character::AlsCharacter>>,
-    rm_q: Query<&RootMotionOutput, With<AnimatedSceneInstance>>,
-    instances: Query<&AnimatedSceneInstance>,
+    avatars: Query<(
+        &AlsCharacterAvatar,
+        &AnimatedSceneInstance,
+        Option<&RootMotionOutput>,
+    )>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    let Ok((entity, mut m, mut vel, transform, loco, stance, cmd, ovr)) = q.single_mut() else {
-        return;
-    };
-    let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
+    for (entity, mut m, mut vel, transform, loco, stance, cmd, ovr) in &mut q {
+        let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
-    m.tick(effective, loco, stance, dt);
+        m.tick(effective, loco, stance, dt);
 
-    let layers_none = layers_q
-        .get(entity)
-        .ok()
-        .flatten()
-        .map(|l| *l == CollisionLayers::NONE)
-        .unwrap_or(false);
-    if m.active && !layers_none {
-        commands.entity(entity).insert(CollisionLayers::NONE);
-    } else if !m.active && layers_none {
-        commands.entity(entity).remove::<CollisionLayers>();
-    }
+        let layers_none = layers_q
+            .get(entity)
+            .ok()
+            .flatten()
+            .map(|l| *l == CollisionLayers::NONE)
+            .unwrap_or(false);
+        if m.active && !layers_none {
+            commands.entity(entity).insert(CollisionLayers::NONE);
+        } else if !m.active && layers_none {
+            commands.entity(entity).remove::<CollisionLayers>();
+        }
 
-    if !m.active {
-        return;
-    }
+        if !m.active || dt <= 1e-5 {
+            continue;
+        }
 
-    if dt <= 1e-5 {
-        return;
-    }
+        let Some((instance, root_motion)) =
+            avatars.iter().find_map(|(avatar, instance, root_motion)| {
+                (avatar.character == entity).then_some((instance, root_motion))
+            })
+        else {
+            continue;
+        };
+        let local_delta = read_local_delta(root_motion);
+        let clip_t = m.clip_time();
+        let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
+        let finishing = m.time + dt >= m.action_end();
 
-    let local_delta = read_local_delta(rm_q.iter().next());
-    let clip_t = m.clip_time();
-    let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
-    let finishing = m.time + dt >= m.action_end();
+        let dir = yaw_to_world_forward(yaw_now);
+        let forward_speed = -local_delta.z / dt;
+        let climb_speed = local_delta.y / dt;
+        let root_drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);
+        let time_remaining = (m.action_end() - m.time).max(dt);
+        let target_drive = (m.target - transform.translation) / time_remaining;
+        let drive = root_drive.lerp(target_drive, m.location_warp_amount());
+        if finishing {
+            *vel = LinearVelocity(Vec3::ZERO);
+            m.settle = als_core::mantle::MANTLE_SETTLE_SECS;
+        } else {
+            *vel = LinearVelocity(clamp_drive_speed(drive, 14.0));
+        }
 
-    let dir = yaw_to_world_forward(yaw_now);
-    let forward_speed = -local_delta.z / dt;
-    let climb_speed = local_delta.y / dt;
-    let root_drive = Vec3::new(dir.x * forward_speed, climb_speed, dir.z * forward_speed);
-    let time_remaining = (m.action_end() - m.time).max(dt);
-    let target_drive = (m.target - transform.translation) / time_remaining;
-    let drive = root_drive.lerp(target_drive, m.location_warp_amount());
-    if finishing {
-        *vel = LinearVelocity(Vec3::ZERO);
-        m.settle = als_core::mantle::MANTLE_SETTLE_SECS;
-    } else {
-        *vel = LinearVelocity(clamp_drive_speed(drive, 14.0));
-    }
-
-    let weight = mantle_weight_at(m.time, m.action_end());
-    let high_w = if m.kind.is_high() { 1.0 } else { 0.0 };
-    let lr = m.kind.graph_low_right_weight();
-    for instance in instances.iter() {
+        let weight = mantle_weight_at(m.time, m.action_end());
+        let high_w = if m.kind.is_high() { 1.0 } else { 0.0 };
+        let lr = m.kind.graph_low_right_weight();
         if let Ok(mut player) = players.get_mut(instance.player_entity()) {
             player.set_input_data("mantle_clip_time", DataValue::from(clip_t));
             player.set_input_data("mantle_weight", DataValue::from(weight));
