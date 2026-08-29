@@ -143,9 +143,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `velocity_direction_gate` 中反向输入记录 `input_yaw=-3.142`、`velocity_yaw≈0`、`target_yaw≈0`、`body_yaw=0.001`。真实静态墙碰撞后，角色保持在 x=1.150 的墙前并沿 z 负方向侧滑，记录 `input_yaw=-0.785`、物理速度 `(0,-1.367)`、`velocity_yaw≈0`、`target_yaw≈0`、`body_yaw≈0`，输出 `velocity_direction_uses_post_physics_velocity -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（199 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`rotation_response_gate` 仍通过。
 
-- [ ] **BF102.13 — M08：输入 override 可强制解除瞄准（P2）**
+- [x] **BF102.13 — M08：输入 override 可强制解除瞄准（P2）**
   - 依赖：BF102.05、BF102.12。
   - 验收：重放、AI 和脚本 override 与真实按键冲突时，最终 aim/rotation state 等于明确的 override 合同。
+  - 当次 ALS 事实：`SetDesiredAiming(bool)` 将传入布尔值完整地保存为 desired aiming；`RefreshRotationMode()` 直接以该值（及 rotation-mode 条件）决定实际 Aiming／自由旋转状态，false 与 true 都是有效的状态写入。
+  - 实现：aim 系统先一次性选择 `AlsInputOverride` 或真实命令，再读取 `aim_held`；不再把“存在 override”误解为“仅 override true 有效”。新增四组合核心真值表。
+  - 证据：完整 `aim_override_gate` 依次记录 `(raw=false, override=None) → ViewDirection`、`(true, None) → Aiming`、`(false, true) → Aiming`、`(true, false) → ViewDirection`，输出 `complete_override_truth_table -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（200 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
 - [ ] **BF102.14 — C01：UE 水平 FOV 转换为 Bevy 垂直 FOV（P1）**
   - 依赖：BF102.10。

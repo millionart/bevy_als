@@ -966,7 +966,7 @@ pub struct CapsuleReshapeDeferred;
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct StepAssistCooldown(pub f32);
 
-fn effective_input<'a>(
+pub(crate) fn effective_input<'a>(
     cmd: &'a AlsInputCommand,
     ovr: Option<&'a AlsInputOverride>,
 ) -> &'a AlsInputCommand {

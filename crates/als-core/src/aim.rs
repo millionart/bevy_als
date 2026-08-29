@@ -51,14 +51,7 @@ pub fn aim_rotation_mode_system(
         mut request,
     ) in &mut q
     {
-        let base = if ovr.map(|o| o.0.aim_held).unwrap_or(false) {
-            let mut c = *cmd;
-            c.aim_held = true;
-            c
-        } else {
-            *cmd
-        };
-        let want_aim = base.aim_held;
+        let want_aim = crate::motion::effective_input(cmd, ovr).aim_held;
         let stored = last_free.as_deref().map(|lf| lf.0).unwrap_or(*current);
         let free = if stored == RotationMode::Aiming {
             default_free_mode()
@@ -144,6 +137,7 @@ fn collect_events(mut reader: MessageReader<AimStateChanged>, mut log: ResMut<Ev
 mod tests {
     use super::*;
     use crate::character::AlsCharacter;
+    use crate::motion::AlsInputOverride;
     use crate::state::{Gait, LocomotionState, OverlayState, Stance};
     use crate::transition::AlsStateTransitionPlugin;
     use bevy::MinimalPlugins;
@@ -284,5 +278,34 @@ mod tests {
             *app.world().get::<RotationMode>(e).unwrap(),
             RotationMode::Aiming
         );
+    }
+
+    #[test]
+    fn input_override_selects_the_complete_aim_command() {
+        let cases = [
+            (false, None, false),
+            (true, None, true),
+            (false, Some(true), true),
+            (true, Some(false), false),
+        ];
+        for (input_aim, override_aim, expected_aim) in cases {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin, AlsAimPlugin));
+            let entity = spawn_character(&mut app, input_aim, RotationMode::ViewDirection);
+            if let Some(aim_held) = override_aim {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(AlsInputOverride(AlsInputCommand {
+                        aim_held,
+                        ..Default::default()
+                    }));
+            }
+            app.update();
+            assert_eq!(
+                *app.world().get::<RotationMode>(entity).unwrap() == RotationMode::Aiming,
+                expected_aim,
+                "input_aim={input_aim} override_aim={override_aim:?}"
+            );
+        }
     }
 }
