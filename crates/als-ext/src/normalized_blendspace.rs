@@ -5,7 +5,7 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::Pose,
+    pose::{Pose, RootMotionDelta},
     utils::delaunay::Triangulation,
 };
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,35 @@ pub const IN_PHASE: &str = "phase";
 pub const OUT_VALUE: &str = "value";
 pub const OUT_POSE: &str = "pose";
 pub const OUT_SAMPLE_TIME: &str = "sample_time";
+
+pub fn blend_normalized_root_motion(
+    root_motions: &[(Option<RootMotionDelta>, f32)],
+) -> Option<RootMotionDelta> {
+    let mut translation = Vec3::ZERO;
+    let mut rotation = None;
+    for (root_motion, weight) in root_motions {
+        let Some(root_motion) = root_motion else {
+            continue;
+        };
+        let weighted_rotation = root_motion.rotation * *weight;
+        rotation = Some(match rotation {
+            Some(accumulated) if weighted_rotation.dot(accumulated) < 0.0 => {
+                accumulated - weighted_rotation
+            }
+            Some(accumulated) => accumulated + weighted_rotation,
+            None => weighted_rotation,
+        });
+        translation += root_motion.translation * *weight;
+    }
+    rotation.map(|rotation| RootMotionDelta {
+        translation,
+        rotation: if rotation.length_squared() > EPSILON {
+            rotation.normalize()
+        } else {
+            Quat::IDENTITY
+        },
+    })
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct CubicFilterSample {
@@ -283,12 +312,19 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 weight,
             ));
         }
+        let root_motion = blend_normalized_root_motion(
+            &poses
+                .iter()
+                .map(|(pose, weight)| (pose.root_motion.clone(), *weight))
+                .collect::<Vec<_>>(),
+        );
         let mut output = poses
-            .into_iter()
-            .map(|(pose, weight)| pose.scalar_mult(weight))
+            .iter()
+            .map(|(pose, weight)| pose.scalar_mult(*weight))
             .reduce(|accumulator, pose| accumulator.linear_add(&pose))
             .unwrap_or_default()
             .normalize_quat();
+        output.root_motion = root_motion;
         output.timestamp = graph_time;
         ctx.set_time(graph_time);
         ctx.set_data_fwd(OUT_POSE, output);
@@ -421,6 +457,20 @@ mod tests {
             (forward_position.alpha - backward_position.alpha).abs() < EPSILON,
             "forward={forward_position:?} backward={backward_position:?}"
         );
+    }
+
+    #[test]
+    fn normalized_root_motion_blend_preserves_identical_rotation() {
+        let rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        let delta = RootMotionDelta {
+            translation: Vec3::new(2.0, 0.0, 0.0),
+            rotation,
+        };
+        let blended =
+            blend_normalized_root_motion(&[(Some(delta.clone()), 0.5), (Some(delta), 0.5)])
+                .unwrap();
+        assert!((blended.rotation.dot(rotation).abs() - 1.0).abs() < 1e-6);
+        assert!((blended.translation - Vec3::new(2.0, 0.0, 0.0)).length() < 1e-6);
     }
 
     #[test]

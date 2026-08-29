@@ -271,9 +271,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`extrapolation_curve_gate` 输出 `cycle=[0.25, 0.25] offset=[1.25, 2.25, -0.25, -1.25] oscillate=[0.75, 0.25, 0.25, 0.75] -> PASS`；复跑 `cycle_curve_gate` 仍输出 `samples=[0.25, 0.25, 0.75, 0.75] ... -> PASS`。
   - 回归：`cargo test -p als-ext --jobs 2` 通过（172 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.29 — F06：根运动旋转 weighted sum 不重复加权（P2）**
+- [x] **BF102.29 — F06：根运动旋转 weighted sum 不重复加权（P2）**
   - 依赖：BF102.09、BF102.24。
   - 验收：含 root rotation 的 normalized blendspace 以相等权重混合时保持正确旋转量。
+  - 当次事实：UE `BlendSpace.cpp` 对每个 root-motion sample 调用 `AccumulateWithBlend`；其 `AccumulateWithShortestRotation` 对已乘权的四元数分量按与累积值的 dot 符号相加，最后归一化。因此两个同为 90° 的旋转以 `0.5/0.5` 混合必须仍为 90°。当前 `Pose::scalar_mult()` 则先从 identity slerp，再由 `linear_add()` 相加，造成二次衰减。
+  - 实现：在项目内 `NormalizedBlendSpaceNode` 中分离 root-motion 混合，`blend_normalized_root_motion` 直接对原始候选旋转做 UE 同类 shortest-path 加权分量累积与单次归一化；骨骼 pose 仍走原有通用混合。未修改动画图依赖。
+  - 证据：`root_motion_blend_gate` 输出 `identical_rotation_alignment=1.000000 translation_error=0.000000 -> PASS`。
+  - 回归：`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.30 — F07：Morph 权重线性混合保留起始值（P2）**
   - 依赖：BF102.24。

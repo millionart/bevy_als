@@ -101,6 +101,7 @@ pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use normalized_blendspace::{
     CubicVec2FilterNode, NormalizedBlendSpaceNode, NormalizedBlendSpacePoint,
+    blend_normalized_root_motion,
 };
 pub use overlay::{
     BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
