@@ -60,6 +60,81 @@ pub struct MantleActionSettings {
     pub motion_warping_end_time: f32,
 }
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsMantleControlSettings {
+    pub allow_mantling: bool,
+    pub auto_start_in_air: bool,
+}
+
+impl Default for AlsMantleControlSettings {
+    fn default() -> Self {
+        Self {
+            allow_mantling: true,
+            auto_start_in_air: true,
+        }
+    }
+}
+
+pub fn mantle_start_allowed(settings: AlsMantleControlSettings, action_active: bool) -> bool {
+    settings.allow_mantling && !action_active
+}
+
+pub fn auto_mantle_start_allowed(
+    settings: AlsMantleControlSettings,
+    action_active: bool,
+    locomotion: LocomotionState,
+) -> bool {
+    mantle_start_allowed(settings, action_active)
+        && settings.auto_start_in_air
+        && locomotion == LocomotionState::Air
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsMantleTargetPermission {
+    pub allows_step_up: bool,
+}
+
+impl Default for AlsMantleTargetPermission {
+    fn default() -> Self {
+        Self {
+            allows_step_up: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MantleRootHeightSample {
+    pub time: f32,
+    pub height: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum MantleStartTimeMode {
+    #[default]
+    SourceDefault,
+    AutoRootHeight {
+        samples: Vec<MantleRootHeightSample>,
+        sampling_interval: f32,
+    },
+}
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct AlsMantleStartTimeSettings {
+    pub high: MantleStartTimeMode,
+    pub in_air: MantleStartTimeMode,
+    pub low: MantleStartTimeMode,
+}
+
+impl Default for AlsMantleStartTimeSettings {
+    fn default() -> Self {
+        Self {
+            high: MantleStartTimeMode::SourceDefault,
+            in_air: MantleStartTimeMode::SourceDefault,
+            low: MantleStartTimeMode::SourceDefault,
+        }
+    }
+}
+
 pub const MANTLE_HIGH_ACTION: MantleActionSettings = MantleActionSettings {
     sequence_length: 2.666_666_7,
     rate_scale: 1.2,
@@ -125,6 +200,23 @@ impl MantleKind {
     }
 }
 
+impl AlsMantleStartTimeSettings {
+    pub fn mode_for(&self, kind: MantleKind) -> &MantleStartTimeMode {
+        match kind {
+            MantleKind::High => &self.high,
+            MantleKind::InAir => &self.in_air,
+            MantleKind::LowLeft
+            | MantleKind::LowRight
+            | MantleKind::LowBothHands
+            | MantleKind::LowBox => &self.low,
+        }
+    }
+
+    pub fn start_time_for(&self, kind: MantleKind, mantling_height: f32) -> f32 {
+        mantle_start_time_with_mode(kind, mantling_height, self.mode_for(kind))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MantleIntent {
     pub kind: MantleKind,
@@ -162,6 +254,7 @@ pub struct MantleDetectionInput {
     pub overlay: OverlayState,
     pub capsule_half_height: f32,
     pub capsule_radius: f32,
+    pub capsule_scale: f32,
 }
 
 impl Default for MantleDetectionInput {
@@ -176,8 +269,22 @@ impl Default for MantleDetectionInput {
             overlay: OverlayState::Default,
             capsule_half_height: ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
             capsule_radius: ALS_CHARACTER_CAPSULE_RADIUS,
+            capsule_scale: 1.0,
         }
     }
+}
+
+pub fn scaled_mantle_capsule_dimensions(
+    base_half_height: f32,
+    base_radius: f32,
+    world_scale: Vec3,
+) -> (f32, f32, f32) {
+    let world_scale = world_scale.abs();
+    let vertical_scale = world_scale.y.max(1e-4);
+    let horizontal_scale = world_scale.x.max(world_scale.z).max(1e-4);
+    let capsule_radius = base_radius * horizontal_scale;
+    let capsule_half_height = (base_half_height * vertical_scale).max(capsule_radius);
+    (capsule_half_height, capsule_radius, vertical_scale)
 }
 
 pub fn yaw_from_direction(direction: Vec3) -> f32 {
@@ -236,9 +343,109 @@ pub fn mantle_start_time(kind: MantleKind, mantling_height: f32) -> f32 {
         + (settings.start_time_at_max_height - settings.start_time_at_min_height) * alpha
 }
 
-pub fn mantle_duration(kind: MantleKind, mantling_height: f32) -> f32 {
+pub fn mantle_start_time_with_mode(
+    kind: MantleKind,
+    mantling_height: f32,
+    mode: &MantleStartTimeMode,
+) -> f32 {
+    match mode {
+        MantleStartTimeMode::SourceDefault => mantle_start_time(kind, mantling_height),
+        MantleStartTimeMode::AutoRootHeight {
+            samples,
+            sampling_interval,
+        } => auto_mantle_start_time(kind, mantling_height, samples, *sampling_interval)
+            .unwrap_or_else(|| mantle_start_time(kind, mantling_height)),
+    }
+}
+
+pub fn configured_mantle_start_time(
+    settings: Option<&AlsMantleStartTimeSettings>,
+    kind: MantleKind,
+    mantling_height: f32,
+) -> f32 {
+    settings.map_or_else(
+        || mantle_start_time(kind, mantling_height),
+        |settings| settings.start_time_for(kind, mantling_height),
+    )
+}
+
+pub fn auto_mantle_start_time(
+    kind: MantleKind,
+    mantling_height: f32,
+    samples: &[MantleRootHeightSample],
+    sampling_interval: f32,
+) -> Option<f32> {
+    if samples.len() < 2 || !sampling_interval.is_finite() || sampling_interval <= 0.0 {
+        return None;
+    }
+    let mut previous = samples[0];
+    if !previous.time.is_finite() || !previous.height.is_finite() {
+        return None;
+    }
+    for sample in &samples[1..] {
+        if !sample.time.is_finite() || !sample.height.is_finite() || sample.time <= previous.time {
+            return None;
+        }
+        previous = *sample;
+    }
+
+    let sequence_length = kind.action_settings().sequence_length;
+    let mut search_start_time = 0.0;
+    let mut search_end_time = sequence_length;
+    let search_start_height = root_height_at(samples, search_start_time)?;
+    let search_end_height = root_height_at(samples, search_end_time)?;
+    let target_height = (search_end_height - mantling_height).max(0.0);
+    const LOCATION_TOLERANCE: f32 = 0.01;
+
+    if (search_start_height - target_height).abs() <= LOCATION_TOLERANCE {
+        return Some(search_start_time);
+    }
+
+    for _ in 0..128 {
+        let time = (search_start_time + search_end_time) * 0.5;
+        let height = root_height_at(samples, time)?;
+        if (height - target_height).abs() <= LOCATION_TOLERANCE
+            || search_end_time - search_start_time <= sampling_interval
+        {
+            return Some(time);
+        }
+        if height < target_height {
+            search_start_time = time;
+        } else {
+            search_end_time = time;
+        }
+    }
+    None
+}
+
+fn root_height_at(samples: &[MantleRootHeightSample], time: f32) -> Option<f32> {
+    let first = *samples.first()?;
+    let last = *samples.last()?;
+    if time < first.time || time > last.time {
+        return None;
+    }
+    if time <= first.time {
+        return Some(first.height);
+    }
+    for pair in samples.windows(2) {
+        let left = pair[0];
+        let right = pair[1];
+        if time <= right.time {
+            let alpha = (time - left.time) / (right.time - left.time);
+            return Some(left.height + (right.height - left.height) * alpha);
+        }
+    }
+    Some(last.height)
+}
+
+pub fn mantle_duration_from_start_time(kind: MantleKind, start_time: f32) -> f32 {
     let settings = kind.action_settings();
-    (settings.sequence_length - mantle_start_time(kind, mantling_height)) / settings.rate_scale
+    (settings.sequence_length - start_time.clamp(0.0, settings.sequence_length))
+        / settings.rate_scale
+}
+
+pub fn mantle_duration(kind: MantleKind, mantling_height: f32) -> f32 {
+    mantle_duration_from_start_time(kind, mantle_start_time(kind, mantling_height))
 }
 
 pub fn mantle_motion_warp_location_amount(kind: MantleKind, clip_time: f32) -> f32 {
@@ -288,6 +495,10 @@ pub fn detect_mantle(
     excluded: Entity,
     input: MantleDetectionInput,
     velocities: &Query<&LinearVelocity, Without<crate::character::AlsCharacter>>,
+    target_permissions: &Query<
+        Option<&AlsMantleTargetPermission>,
+        Without<crate::character::AlsCharacter>,
+    >,
 ) -> MantleDetection {
     let mut trace = MantleProbeTrace::default();
     if input.locomotion == LocomotionState::Ragdolling {
@@ -310,15 +521,19 @@ pub fn detect_mantle(
     };
     let settings = mantle_trace_settings(input.locomotion);
     let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let capsule_scale = input.capsule_scale.abs().max(1e-4);
     let capsule_bottom = input.origin - Vec3::Y * input.capsule_half_height;
     let trace_radius = (input.capsule_radius - MANTLE_TRACE_CAPSULE_SHRINK).max(0.001);
-    let ledge_height_delta = settings.maximum_ledge_height - settings.minimum_ledge_height;
+    let ledge_height_delta =
+        (settings.maximum_ledge_height - settings.minimum_ledge_height) * capsule_scale;
     let forward_start = capsule_bottom - forward * input.capsule_radius
         + Vec3::Y
-            * ((settings.minimum_ledge_height + settings.maximum_ledge_height) * 0.5
+            * ((settings.minimum_ledge_height + settings.maximum_ledge_height)
+                * 0.5
+                * capsule_scale
                 - MANTLE_MAX_FLOOR_DISTANCE);
-    let forward_distance =
-        input.capsule_radius + settings.reach_distance + MANTLE_TRACE_CAPSULE_SHRINK;
+    let forward_distance = input.capsule_radius
+        + (settings.reach_distance + MANTLE_TRACE_CAPSULE_SHRINK) * capsule_scale;
     let forward_end = forward_start + forward * forward_distance;
     trace.forward_start = Some(forward_start);
     trace.forward_end = Some(forward_end);
@@ -338,7 +553,14 @@ pub fn detect_mantle(
         };
     };
     trace.forward_hit = Some(forward_hit.point1);
+    let target_allows_step_up = target_permissions
+        .get(forward_hit.entity)
+        .ok()
+        .flatten()
+        .map(|permission| permission.allows_step_up)
+        .unwrap_or(true);
     if forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
+        || !target_allows_step_up
         || velocities
             .get(forward_hit.entity)
             .ok()
@@ -358,13 +580,14 @@ pub fn detect_mantle(
         };
     }
     let downward_start = Vec3::new(
-        forward_hit.point1.x + target_direction.x * settings.target_location_offset,
+        forward_hit.point1.x + target_direction.x * settings.target_location_offset * capsule_scale,
         capsule_bottom.y + ledge_height_delta + 2.5 * trace_radius + MANTLE_MIN_FLOOR_DISTANCE,
-        forward_hit.point1.z + target_direction.z * settings.target_location_offset,
+        forward_hit.point1.z + target_direction.z * settings.target_location_offset * capsule_scale,
     );
     let downward_end = Vec3::new(
         downward_start.x,
-        capsule_bottom.y + settings.minimum_ledge_height + trace_radius - MANTLE_MAX_FLOOR_DISTANCE,
+        capsule_bottom.y + settings.minimum_ledge_height * capsule_scale + trace_radius
+            - MANTLE_MAX_FLOOR_DISTANCE,
         downward_start.z,
     );
     let downward_distance = (downward_start.y - downward_end.y).max(0.0);
@@ -414,9 +637,9 @@ pub fn detect_mantle(
         };
     }
     let start_location = Vec3::new(
-        forward_hit.point1.x - target_direction.x * settings.start_location_offset,
+        forward_hit.point1.x - target_direction.x * settings.start_location_offset * capsule_scale,
         (downward_location.y + downward_end.y) * 0.5,
-        forward_hit.point1.z - target_direction.z * settings.start_location_offset,
+        forward_hit.point1.z - target_direction.z * settings.start_location_offset * capsule_scale,
     );
     let start_half_height = (downward_location.y - downward_end.y) * 0.5 + trace_radius;
     let start_capsule = als_character_capsule(start_half_height.max(trace_radius), trace_radius);
@@ -429,7 +652,7 @@ pub fn detect_mantle(
             trace,
         };
     }
-    let mantling_height = target_ground - capsule_bottom.y;
+    let mantling_height = (target_ground - capsule_bottom.y) / capsule_scale;
     let kind = select_mantle_kind(input.locomotion, input.overlay, mantling_height);
     MantleDetection {
         intent: Some(MantleIntent {
@@ -516,15 +739,35 @@ impl AlsMantleState {
         yaw_start: f32,
         yaw_target: f32,
     ) {
+        self.begin_with_start_time(
+            kind,
+            start,
+            target,
+            mantle_start_time(kind, mantling_height),
+            yaw_start,
+            yaw_target,
+        );
+    }
+
+    pub fn begin_with_start_time(
+        &mut self,
+        kind: MantleKind,
+        start: Vec3,
+        target: Vec3,
+        start_time: f32,
+        yaw_start: f32,
+        yaw_target: f32,
+    ) {
         let settings = kind.action_settings();
+        let start_time = start_time.clamp(0.0, settings.sequence_length);
         self.active = true;
         self.kind = kind;
         self.time = 0.0;
-        self.duration = mantle_duration(kind, mantling_height);
+        self.duration = mantle_duration_from_start_time(kind, start_time);
         self.start = start;
         self.target = target;
         self.cooldown = 0.0;
-        self.start_offset = mantle_start_time(kind, mantling_height);
+        self.start_offset = start_time;
         self.rate_scale = settings.rate_scale;
         self.yaw_start = yaw_start;
         self.yaw_target = yaw_target;
@@ -550,6 +793,21 @@ impl AlsMantleState {
         target_base: AlsMantleTargetBase,
     ) {
         self.begin(kind, start, target, mantling_height, yaw_start, yaw_target);
+        self.capture_target_base(target_base);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_with_target_base_and_start_time(
+        &mut self,
+        kind: MantleKind,
+        start: Vec3,
+        target: Vec3,
+        start_time: f32,
+        yaw_start: f32,
+        yaw_target: f32,
+        target_base: AlsMantleTargetBase,
+    ) {
+        self.begin_with_start_time(kind, start, target, start_time, yaw_start, yaw_target);
         self.capture_target_base(target_base);
     }
 
@@ -724,6 +982,69 @@ mod tests {
         assert!(
             (mantle_duration(MantleKind::InAir, 1.25) - (2.666_666_7 - 0.8) / 1.2).abs() < 1e-6
         );
+    }
+
+    #[test]
+    fn auto_root_height_start_time_uses_source_binary_search_policy() {
+        let settings = AlsMantleStartTimeSettings {
+            low: MantleStartTimeMode::AutoRootHeight {
+                samples: vec![
+                    MantleRootHeightSample {
+                        time: 0.0,
+                        height: 0.0,
+                    },
+                    MantleRootHeightSample {
+                        time: 0.75,
+                        height: 0.75,
+                    },
+                    MantleRootHeightSample {
+                        time: 1.5,
+                        height: 1.5,
+                    },
+                ],
+                sampling_interval: 1.0 / 60.0,
+            },
+            ..default()
+        };
+        let height = 0.75;
+        let manual_start = mantle_start_time(MantleKind::LowRight, height);
+        let auto_start = settings.start_time_for(MantleKind::LowRight, height);
+        let mut state = AlsMantleState::default();
+        state.begin_with_start_time(
+            MantleKind::LowRight,
+            Vec3::ZERO,
+            Vec3::ONE,
+            auto_start,
+            0.0,
+            0.0,
+        );
+        let control = AlsMantleControlSettings::default();
+        let disabled_control = AlsMantleControlSettings {
+            allow_mantling: false,
+            auto_start_in_air: false,
+        };
+        let permission = AlsMantleTargetPermission {
+            allows_step_up: false,
+        };
+        let (scaled_half_height, scaled_radius, scaled_vertical) =
+            scaled_mantle_capsule_dimensions(0.9, 0.3, Vec3::new(1.5, 2.0, 0.5));
+        let passed = mantle_start_allowed(control, false)
+            && auto_mantle_start_allowed(control, false, LocomotionState::Air)
+            && !mantle_start_allowed(disabled_control, false)
+            && !auto_mantle_start_allowed(disabled_control, false, LocomotionState::Air)
+            && !permission.allows_step_up
+            && (auto_start - 0.75).abs() <= 0.02
+            && (auto_start - manual_start).abs() > 0.3
+            && (state.start_offset - auto_start).abs() <= 1e-6
+            && (scaled_half_height - 1.8).abs() <= 1e-6
+            && (scaled_radius - 0.45).abs() <= 1e-6
+            && (scaled_vertical - 2.0).abs() <= 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.49][VERDICT] manual_start={manual_start:.6} auto_start={auto_start:.6} state_start={:.6} permission={} scaled=({scaled_half_height:.6},{scaled_radius:.6},{scaled_vertical:.6}) -> {verdict}",
+            state.start_offset, permission.allows_step_up,
+        );
+        assert!(passed);
     }
 
     #[test]

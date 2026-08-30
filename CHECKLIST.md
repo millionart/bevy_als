@@ -441,9 +441,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`root_motion_transform_keeps_lateral_translation_and_rotation` 输出 `[BF102.48][VERDICT] translation_error=0.000000 rotation_alignment=1.000000 legacy_error=0.100000 -> PASS`。真实 `roll_gate`（`ALS_BOOT_AUTO_QUIT_SECS=12`）记录 Forward roll `dist=2.64 ... align=+0.998 ... rotation_forward_align=+1.000` 与 Right roll `dist=2.75 ... align=+1.000 ... rotation_forward_align=+1.000`，最终 `completed=true`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（216 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（129 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example roll_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.49 — X06：Mantle 权限、自动起始时间与缩放语义（P3）**
+- [x] **BF102.49 — X06：Mantle 权限、自动起始时间与缩放语义（P3）**
   - 依赖：BF102.20、BF102.38。
   - 验收：自定义权限、缩放角色和自动 start-time 配置分别有条件性结论和可复查的行为。
+  - 当次 ALS 事实：先按 `docs/env.md` 指定的本地 ALS-Refactored 源码读取 `AlsCharacter_Actions.cpp`：开始前检查总开关、角色权限钩子（默认无 locomotion action）、目标 `CanCharacterStepUp()` 与目标速度；空中自动开始额外要求 `bAutoStartMantlingInAir`、in-air 和 locally controlled。源以胶囊垂直 scale 乘 ledge/reach/target/start trace 参数，使用 scaled capsule radius/half-height，并将最终 mantling height 除以该 scale。`CalculateMantlingStartTime()` 在默认模式用 reference-height 映射；启用自动模式时以 montage root Z 和采样帧间隔二分搜索。实时 Unreal MCP 读取默认 Character Settings，确认总开关／空中自动开始均为 true；实际 High/InAir/Low mantle settings 资产均为手工 start-time 模式。
+  - 实现：项目内新增角色 `AlsMantleControlSettings`、目标 `AlsMantleTargetPermission` 和按 High/InAir/Low 分别配置的 `AlsMantleStartTimeSettings`。自动模式接收显式 root-height samples，以源同构的二分搜索计算 phase；状态直接按该 phase 计算 duration。运动主链消费这些配置，并将角色 `GlobalTransform` 缩放转换为实际胶囊尺寸和 source-height scale；探测链对目标权限、所有 trace offset/range 和高度归一化使用同一尺度合同。
+  - 证据：`auto_root_height_start_time_uses_source_binary_search_policy` 输出 `[BF102.49][VERDICT] manual_start=0.250000 auto_start=0.750000 state_start=0.750000 permission=false scaled=(1.800000,0.450000,2.000000) -> PASS`。实际 Avian `mantle_configuration_gate` 输出 `[BF102.49][GATE] controls=true permission_blocked=true heights=(0.7690,0.7845) height_delta=0.0155 kinds=(LowRight,LowRight) default_start=0.2310 source_start=0.2310 auto_start=0.7266 state_start=0.7266 -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（217 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（129 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example mantle_configuration_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.50 — X07：布娃娃退出按空中/落地分流并保留速度（P1）**
   - 依赖：BF102.15、BF102.31。

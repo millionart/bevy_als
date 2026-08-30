@@ -18,7 +18,12 @@ use crate::character::{
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
-use crate::mantle::{AlsMantleTargetBase, MantleDetectionInput, detect_mantle, yaw_from_direction};
+use crate::mantle::{
+    AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleTargetBase,
+    AlsMantleTargetPermission, MantleDetectionInput, auto_mantle_start_allowed,
+    configured_mantle_start_time, detect_mantle, mantle_start_allowed,
+    scaled_mantle_capsule_dimensions, yaw_from_direction,
+};
 use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
@@ -1145,7 +1150,10 @@ fn locomotion_drive_system(
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    target_permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
+    mantle_controls: Query<Option<&AlsMantleControlSettings>, With<AlsCharacter>>,
+    mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
@@ -1203,13 +1211,23 @@ fn locomotion_drive_system(
             }
         }
 
-        let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active);
-        let auto_mantle = mantle_ready && *loco == LocomotionState::Air;
+        let mantle_control = mantle_controls
+            .get(entity)
+            .ok()
+            .flatten()
+            .copied()
+            .unwrap_or_default();
+        let mantle_start_time_settings = mantle_start_time_settings.get(entity).ok().flatten();
+        let action_active = roll.is_some_and(|state| state.active);
+        let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active)
+            && mantle_start_allowed(mantle_control, action_active);
+        let auto_mantle = mantle.as_deref().is_some_and(|m| !m.active)
+            && auto_mantle_start_allowed(mantle_control, action_active, *loco);
         let should_probe_mantle = mantle_ready && (jump_edge || auto_mantle);
         let detection = if should_probe_mantle {
             let origin = gtf.translation();
             let fwd = gtf.forward().as_vec3();
-            let (capsule_half_height, capsule_radius) = params_assets
+            let (base_half_height, base_radius) = params_assets
                 .get(params_handle.id())
                 .map(|params| {
                     (
@@ -1224,6 +1242,9 @@ fn locomotion_drive_system(
                     ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
                     crate::character::ALS_CHARACTER_CAPSULE_RADIUS,
                 ));
+            let (scale, _, _) = gtf.to_scale_rotation_translation();
+            let (capsule_half_height, capsule_radius, vertical_scale) =
+                scaled_mantle_capsule_dimensions(base_half_height, base_radius, scale);
             Some(detect_mantle(
                 &spatial,
                 entity,
@@ -1237,8 +1258,10 @@ fn locomotion_drive_system(
                     overlay: *overlay,
                     capsule_half_height,
                     capsule_radius,
+                    capsule_scale: vertical_scale,
                 },
                 &velocities,
+                &target_permissions,
             ))
         } else {
             None
@@ -1272,18 +1295,23 @@ fn locomotion_drive_system(
                     if let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent) {
                         let origin = gtf.translation();
                         let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
-                        m.begin_with_target_base(
+                        let start_time = configured_mantle_start_time(
+                            mantle_start_time_settings,
+                            i.kind,
+                            i.mantling_height,
+                        );
+                        m.begin_with_target_base_and_start_time(
                             i.kind,
                             origin,
                             i.target,
-                            i.mantling_height,
+                            start_time,
                             yaw_start,
                             i.yaw_target,
                             target_base,
                         );
                         info!(
-                            "[MOTION] entity={entity:?} mantle begin kind={:?} height={:.2}",
-                            i.kind, i.mantling_height
+                            "[MOTION] entity={entity:?} mantle begin kind={:?} height={:.2} start_time={start_time:.3}",
+                            i.kind, i.mantling_height,
                         );
                     }
                 }
@@ -1299,18 +1327,20 @@ fn locomotion_drive_system(
         {
             let origin = gtf.translation();
             let yaw_start = yaw_from_direction(gtf.forward().as_vec3());
-            m.begin_with_target_base(
+            let start_time =
+                configured_mantle_start_time(mantle_start_time_settings, i.kind, i.mantling_height);
+            m.begin_with_target_base_and_start_time(
                 i.kind,
                 origin,
                 i.target,
-                i.mantling_height,
+                start_time,
                 yaw_start,
                 i.yaw_target,
                 target_base,
             );
             info!(
-                "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2}",
-                i.kind, i.mantling_height
+                "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2} start_time={start_time:.3}",
+                i.kind, i.mantling_height,
             );
         } else if effective.jump_held && controller.action_flow_status().ongoing().is_some() {
             controller.prolong_action();
