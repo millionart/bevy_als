@@ -84,7 +84,8 @@ pub use event_loop::{
     EventLoopNode, loop_position as event_loop_position,
 };
 pub use event_lifecycle::{
-    EventClock, EventLifecycle, EventLifecycleSignal, EventPhase, PlaybackDirection, TimedEvent,
+    EventClock, EventDispatchContext, EventLifecycle, EventLifecycleSignal, EventPhase,
+    PlaybackDirection, TimedEvent,
     TimedEventKind, StateIntervalBoundary, crossed_time,
 };
 pub use f_interp::{FInterpNode, f_interp_to};

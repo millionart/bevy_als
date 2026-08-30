@@ -1,4 +1,3 @@
-use als_camera::AlsCameraAnimationTiming;
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsGroundedDynamics;
 use als_core::foot_ik::AlsFootLockInput;
@@ -27,6 +26,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::animation_events::AlsStandingEventClock;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle};
 use crate::gait_layer::AlsGaitBlend;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
@@ -1746,7 +1746,7 @@ fn standing_layer_writer(
     mut curve_handles: ResMut<StandingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
     mut players: Query<&mut AnimationGraphPlayer>,
-    mut camera_timings: Query<&mut AlsCameraAnimationTiming>,
+    mut event_clocks: Query<&mut AlsStandingEventClock>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
 ) {
     let delta_seconds = time.delta_secs();
@@ -1773,8 +1773,8 @@ fn standing_layer_writer(
             continue;
         };
         if *stance != Stance::Standing {
-            if let Ok(mut timing) = camera_timings.get_mut(parent.parent()) {
-                timing.sprint_time = None;
+            if let Ok(mut clock) = event_clocks.get_mut(parent.parent()) {
+                *clock = AlsStandingEventClock::default();
             }
             commands.entity(entity).remove::<StandingLayerRuntime>();
             if pivot_request.is_some() {
@@ -1826,14 +1826,22 @@ fn standing_layer_writer(
             &animation_curves,
             &curve_handles,
         );
-        let sprint_time = (inputs.state_index == 1.0 && inputs.sprint_amount > 0.5)
-            .then(|| sprint_camera_animation_time(inputs.movement_marker_phase));
-        if let Ok(mut timing) = camera_timings.get_mut(parent.parent()) {
-            timing.sprint_time = sprint_time;
+        let active_sprint = inputs.state_index == 1.0 && inputs.sprint_amount > 0.5;
+        let event_clock = AlsStandingEventClock {
+            sprint_time: active_sprint.then(|| sprint_camera_animation_time(inputs.movement_marker_phase)),
+            sprint_weight: if active_sprint { inputs.sprint_amount } else { 0.0 },
+            sprint_acceleration_weight: if active_sprint {
+                inputs.sprint_amount * inputs.sprint_acceleration_amount.clamp(0.0, 1.0)
+            } else {
+                0.0
+            },
+        };
+        if let Ok(mut clock) = event_clocks.get_mut(parent.parent()) {
+            *clock = event_clock;
         } else {
             commands
                 .entity(parent.parent())
-                .insert(AlsCameraAnimationTiming { sprint_time });
+                .insert(event_clock);
         }
         if let Some(mut current_runtime) = current_runtime {
             *current_runtime = runtime;

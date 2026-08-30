@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraAnimationNotifyDriver, AlsCameraAnimationTiming, AlsCameraCurveProfileDriver,
+    AlsCameraCurveProfileDriver,
     AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
     AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
 };
@@ -14,6 +14,11 @@ use als_core::orientation::world_forward_to_yaw;
 use als_core::params::AlsMovementParams;
 use als_core::view::AlsViewPitch;
 use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverride};
+
+use crate::animation_events::{
+    AlsAnimationEventPlaybacks, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction,
+    AlsNotifyRootMotionScale, AlsStandingEventClock,
+};
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
@@ -231,8 +236,11 @@ fn spawn_als_character_internal(
             AlsCameraFovOffset::default(),
             AlsCameraTarget,
             AlsCameraCurveProfileDriver,
-            AlsCameraAnimationNotifyDriver,
-            AlsCameraAnimationTiming::default(),
+            AlsStandingEventClock::default(),
+            AlsAnimationEventPlaybacks::default(),
+            AlsNotifyLocomotionAction::None,
+            AlsNotifyRootMotionScale::default(),
+            AlsNotifyEarlyBlendOut::default(),
         ))
         .id();
     if blueprint.spawn_input {

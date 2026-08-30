@@ -18,6 +18,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::animation_events::AlsNotifyRootMotionScale;
 use crate::root_motion_link::{
     ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
 };
@@ -55,10 +56,17 @@ struct RollSlotCurveHandle(Handle<AlsAnimCurves>);
 
 pub struct AlsRollDrivePlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsRollDriveSet;
+
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_roll_slot_curve_asset)
             .add_systems(Update, ensure_roll_slot_samplers)
+            .configure_sets(
+                FixedPostUpdate,
+                AlsRollDriveSet.after(AnimationGraphSet::PrePhysics),
+            )
             .add_systems(
                 FixedPostUpdate,
                 (
@@ -69,7 +77,8 @@ impl Plugin for AlsRollDrivePlugin {
                     roll_drive_system
                         .after(ensure_roll_state)
                         .after(bridge_roll_slot_samples)
-                        .after(AnimationGraphSet::PrePhysics),
+                        .after(AnimationGraphSet::PrePhysics)
+                        .in_set(AlsRollDriveSet),
                 ),
             );
     }
@@ -259,6 +268,7 @@ fn roll_drive_system(
             &mut LinearVelocity,
             &mut AlsStateRequest,
             Option<&AlsAirState>,
+            Option<&AlsNotifyRootMotionScale>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
         ),
@@ -280,6 +290,7 @@ fn roll_drive_system(
         mut vel,
         mut request,
         air,
+        notify_root_scale,
         cmd,
         ovr,
     ) in &mut q
@@ -305,13 +316,16 @@ fn roll_drive_system(
             continue;
         }
 
-        let (local_translation, local_rotation) = sampler_root_motion
+        let (mut local_translation, local_rotation) = sampler_root_motion
             .iter()
             .find_map(|(sampler, output)| {
                 (sampler.character == character)
                     .then_some(read_local_root_motion_delta(Some(output)))
             })
             .unwrap_or((Vec3::ZERO, Quat::IDENTITY));
+        local_translation *= notify_root_scale
+            .map_or(1.0, |scale| scale.0)
+            .max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(transform.rotation, local_translation, local_rotation);
         let next_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {

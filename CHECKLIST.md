@@ -41,10 +41,13 @@
   - 实现／归属：`crates/als-ext::EventLifecycle` 以每实例 active state 维护 Begin／Active／End，按 source policy 去重和过滤；支持标准 `[start,end)` 与 native `(start,end]` 两种边界、完整跳帧脉冲、正反向 wrap、精确 point／marker crossing 和 reset End。其输入仅为 EventQueue、事件定义和实际 clip clock，不含 ALS tag／类名或角色规则；ALS 的 class 映射留给 BF103.05。
   - 证据：`cargo test -p als-ext --lib event_lifecycle --jobs 2` 8/8 通过，覆盖 lifecycle、threshold、point／marker、正反 loop、jump、native boundary、follower／dedicated、reset 与隔离；`cargo test -p als-ext --lib --jobs 2` 192/192 通过。
 
-- [ ] **BF103.05 — N05：ALS Notify 消费者接线并移除临时代码路径（P1）**
+- [x] **BF103.05 — N05：ALS Notify 消费者接线并移除临时代码路径（P1）**
   - 依赖：BF103.04。
   - 执行前：重新从本地 ALS-Refactored 提取每个本项消费的 Notify／Notify State 类、参数与角色／相机行为，明确范围内外差异。
   - 验收：范围内 ALS 专用消费者只消费实际 GraphClip 事件，不从 gait、输入或全局时间推断；现有 `AlsCameraAnimationNotifyDriver` 临时定时路径被真实事件路径取代或删除。范围外通知显式登记原因，不得静默丢弃。
+  - 当次 ALS 事实（2026-08-30，重新读取本地 uasset、ALS／ALSCamera C++、AnimNotifyQueue／AnimSequenceBase／AnimMontage 源码与 Standing source graph）：CameraShake 只调用本地 player camera manager，asset scale 分别为 Sprint `.5/.5`、SprintAcceleration `1.25/1.25`、Roll `1/2`；Roll `.933333 s` 的 SetGroundedEntryMode 参数为 `Als.GroundedEntryMode.FromRoll`；Roll RootMotionScale 为 `1.3`。Standing source graph 以 shared marker phase 采样 Sprint 与 SprintAcceleration，后者先以 sprint acceleration alpha 混合，再以 sprint alpha 混入 movement；其 effective clip weight必须参与通知阈值。Mantle source状态通过 Montage→sequence segment 运行，LocomotionAction／EarlyBlendOut 的 native state 由实际 clip time 激活。FootstepEffects 源行为涉及地面 trace、sound、decal 与 Niagara，属于既有附录明确排除的音频／特效范围。
+  - 实现：新增 `AlsAnimationEventPlugin` 读取 `als_notify_manifest.json`、缓存真实 GraphClip、以 Standing marker phase、Roll clip time 和 Mantle clip time 形成每角色 playback，而不自增全局时间；它经 GraphClip EventTrack+EventLifecycle 发出 `AlsAnimationEvent`，并消费 CameraShake、SetGroundedEntryMode、SetLocomotionAction、SetRootMotionScale、EarlyBlendOut。Root graph 的 overlay action 改读 source Notify state；Roll root delta 读取 source RootMotionScale。`AlsCameraAnimationNotifyDriver`、`AlsCameraAnimationTiming`、硬编码通知时刻和旧 sprint timing Gate 已删除。EarlyBlendOut 以 `AlsNotifyEarlyBlendOut` ECS 状态承载精确活动区间／BlendOutDuration；本仓库没有 UE Montage instance，故不伪造 `MontageInstance::Stop`。FootstepEffects 与当前未激活的 GetUp source 仍逐条发出事件，但音频／decal／Niagara 与未接的 GetUp action 保持现有范围外登记，不静默丢弃。
+  - 证据：`cargo run --example camera_notify_gate --jobs 2` 输出 PASS：Sprint `[.5,.5]`、SprintAcceleration `[1.25,1.25]`、Roll `[1,2]`、Marker `Left/Right`、Rolling、Mantling、EarlyBlendOut、FromRoll 与 RootMotionScale `1.3` 均被记录；`ALS_BOOT_AUTO_QUIT_SECS=12 BEVY_ASSET_ROOT=<repo-root> roll_gate` 的两次真实滚翻记录 `dist=3.37/3.22`（source `2.75×1.3` 目标带内）、并输出 `completed=true`；`cargo test -p als-camera --lib --jobs 2` 10/10、`cargo test -p bevy_als --lib --jobs 2` 136/136、`cargo check --examples --jobs 2` 通过，`ab_als_contract_gate` exit=0。
 
 - [ ] **BF103.06 — N06：真实入口场景与可复查遥测（P1）**
   - 依赖：BF103.05。

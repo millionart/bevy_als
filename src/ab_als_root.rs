@@ -17,6 +17,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::Pose;
 
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::animation_events::AlsNotifyLocomotionAction;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet};
 use crate::locomotion_layer::{AlsGroundPredictionState, AlsLocomotionLayerSet};
 use crate::stance_layer::AlsStanceBlend;
@@ -127,13 +128,19 @@ fn velocity_blend(velocity: Vec3, transform: &Transform) -> (f32, f32, f32, f32)
     )
 }
 
-fn locomotion_action_index(mantle: Option<&AlsMantleState>, roll: Option<&AlsRollState>) -> f32 {
-    if mantle.is_some_and(|state| state.active) {
-        1.0
-    } else if roll.is_some_and(|state| state.active) {
-        3.0
-    } else {
-        0.0
+fn locomotion_action_index(
+    notify_action: Option<&AlsNotifyLocomotionAction>,
+    mantle: Option<&AlsMantleState>,
+    roll: Option<&AlsRollState>,
+) -> f32 {
+    match notify_action {
+        Some(AlsNotifyLocomotionAction::Mantling) => 1.0,
+        Some(AlsNotifyLocomotionAction::GettingUp) => 2.0,
+        Some(AlsNotifyLocomotionAction::Rolling) => 3.0,
+        Some(AlsNotifyLocomotionAction::None) => 0.0,
+        None if mantle.is_some_and(|state| state.active) => 1.0,
+        None if roll.is_some_and(|state| state.active) => 3.0,
+        None => 0.0,
     }
 }
 
@@ -192,6 +199,7 @@ fn root_graph_writer(
             Option<&AlsInputCommand>,
             Option<&AlsViewSmoothed>,
             Option<&AlsGroundPredictionState>,
+            Option<&AlsNotifyLocomotionAction>,
             Option<&AlsMantleState>,
             Option<&AlsRollState>,
         ),
@@ -220,6 +228,7 @@ fn root_graph_writer(
         input,
         view,
         ground_prediction,
+        notify_action,
         mantle,
         roll,
     ) in &characters
@@ -292,7 +301,7 @@ fn root_graph_writer(
                 ("als_overlay_is_sprinting", sprint_amount),
                 (
                     "als_overlay_locomotion_action_index",
-                    locomotion_action_index(mantle, roll),
+                    locomotion_action_index(notify_action, mantle, roll),
                 ),
                 ("als_overlay_pitch_amount", pitch_amount),
                 (
@@ -353,6 +362,26 @@ mod tests {
         assert_eq!(overlay_layer_index(OverlayState::Bow), 8.0);
         assert_eq!(overlay_layer_index(OverlayState::Torch), 9.0);
         assert_eq!(overlay_layer_index(OverlayState::Barrel), 12.0);
+    }
+
+    #[test]
+    fn notify_action_overrides_legacy_action_inference() {
+        assert_eq!(
+            locomotion_action_index(Some(&AlsNotifyLocomotionAction::Mantling), None, None),
+            1.0
+        );
+        assert_eq!(
+            locomotion_action_index(Some(&AlsNotifyLocomotionAction::GettingUp), None, None),
+            2.0
+        );
+        assert_eq!(
+            locomotion_action_index(Some(&AlsNotifyLocomotionAction::Rolling), None, None),
+            3.0
+        );
+        assert_eq!(
+            locomotion_action_index(Some(&AlsNotifyLocomotionAction::None), None, None),
+            0.0
+        );
     }
 
     #[test]

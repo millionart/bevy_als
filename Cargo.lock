@@ -551,6 +551,8 @@ dependencies = [
  "bevy-tnua-avian3d",
  "bevy_animation_graph",
  "bevy_enhanced_input",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

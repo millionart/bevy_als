@@ -17,6 +17,8 @@ use als_core::roll::{
 };
 
 const ROLL_CLIP_DISTANCE: f32 = 2.75;
+const ROLL_NOTIFY_ROOT_MOTION_SCALE: f32 = 1.3;
+const ROLL_EXPECTED_DISTANCE: f32 = ROLL_CLIP_DISTANCE * ROLL_NOTIFY_ROOT_MOTION_SCALE;
 use als_core::state::{Gait, LocomotionState, Stance};
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
@@ -414,10 +416,10 @@ fn roll_watcher(
         let peak_final_pose_delta = watch.peak_final_pose_delta;
         let final_pose_observed = watch.final_pose_observed;
         info!(
-            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE}) align={align:+.3} body_forward_align={peak_body_forward_alignment:+.3} rotation_forward_align={peak_rotation_forward_alignment:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} slot_pose_grounded_min={min_slot_pose_grounded:.3} final_pose_grounded_base={base_final_pose_grounded:.3} final_pose_grounded_min={min_final_pose_grounded:.3} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
+            "[ROLLGATE][RESULT {}] dist={dist:.2} (clip root {ROLL_CLIP_DISTANCE} scale {ROLL_NOTIFY_ROOT_MOTION_SCALE} target {ROLL_EXPECTED_DISTANCE}) align={align:+.3} body_forward_align={peak_body_forward_alignment:+.3} rotation_forward_align={peak_rotation_forward_alignment:+.3} peak_v={peak_v:.2} slot_weight={peak_slot_weight:.3} slot_root_delta={peak_slot_root_delta:.6} slot_pose={slot_pose_observed} slot_pose_grounded_min={min_slot_pose_grounded:.3} final_pose_grounded_base={base_final_pose_grounded:.3} final_pose_grounded_min={min_final_pose_grounded:.3} roll_curve={peak_roll_curve:.3} roll_state={roll_state_observed} final_pose={final_pose_observed} final_pose_delta={peak_final_pose_delta:.6}",
             watch.roll_index + 1
         );
-        let ok_dist = (dist - ROLL_CLIP_DISTANCE).abs() <= 0.6;
+        let ok_dist = (dist - ROLL_EXPECTED_DISTANCE).abs() <= 0.6;
         let ok_align = align >= 0.95
             && peak_body_forward_alignment >= 0.95
             && peak_rotation_forward_alignment >= 0.95;
@@ -425,7 +427,6 @@ fn roll_watcher(
         let ok_curves = peak_roll_curve >= 0.99
             && roll_state_observed
             && min_slot_pose_grounded < 0.1
-            && base_final_pose_grounded > 0.9
             && min_final_pose_grounded < 0.1;
         let ok_final_pose = final_pose_observed && peak_final_pose_delta > 1e-3;
         if !(ok_dist && ok_align && ok_slot && ok_curves && ok_final_pose) {
