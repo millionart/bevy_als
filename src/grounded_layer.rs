@@ -1,13 +1,18 @@
 use als_core::character::AlsCharacter;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::Stance;
-use als_ext::{AlsAnimCurves, CurveAsset};
+use als_ext::{AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState};
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_graph::AnimationGraph;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
+use bevy_animation_graph::core::state_machine::{
+    high_level::StateMachine, low_level::LowLevelStateId,
+};
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::crouching_layer::AlsCrouchingLayerSet;
@@ -22,6 +27,7 @@ const CROUCH_TO_STAND_CURVES: &str = "animations/Transitions/A_Als_CrouchToStand
 const ROLL_CURVES: &str = "animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
 const STANCE_CHANGE_CURVE: &str =
     "curves/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.curve.ron";
+const GROUNDED_GRAPH: &str = "graphs/ab_als/grounded.animgraph.ron";
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AlsGroundedEntryMode {
@@ -210,6 +216,14 @@ struct GroundedCurveHandles {
     crouch_to_stand: Handle<AlsAnimCurves>,
     roll: Handle<AlsAnimCurves>,
     stance_change: Handle<CurveAsset>,
+    graph: Handle<AnimationGraph>,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsGroundedGraphTelemetry {
+    pub actual_state: Option<u8>,
+    pub transition_active: Option<bool>,
+    pub pose_ready: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -260,6 +274,10 @@ impl Plugin for GroundedLayerPlugin {
         .add_systems(
             PostUpdate,
             grounded_layer_writer.in_set(AlsGroundedLayerSet),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            capture_grounded_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }
 }
@@ -270,6 +288,7 @@ fn load_grounded_curve_assets(mut commands: Commands, assets: Res<AssetServer>) 
         crouch_to_stand: assets.load(CROUCH_TO_STAND_CURVES),
         roll: assets.load(ROLL_CURVES),
         stance_change: assets.load(STANCE_CHANGE_CURVE),
+        graph: assets.load(GROUNDED_GRAPH),
     });
 }
 
@@ -586,6 +605,87 @@ fn grounded_layer_writer(
     }
 }
 
+fn grounded_state_index(label: &str) -> Option<u8> {
+    match label {
+        "Entry Conduit" => Some(0),
+        "Standing" => Some(1),
+        "Crouching" => Some(2),
+        "Standing To Crouching" => Some(3),
+        "Crouching To Standing" => Some(4),
+        "Roll" => Some(5),
+        _ => None,
+    }
+}
+
+fn actual_grounded_fsm_telemetry(
+    player: &AnimationGraphPlayer,
+    graph: &AnimationGraph,
+    graph_handle: &Handle<AnimationGraph>,
+    state_machines: &Assets<StateMachine>,
+) -> Option<(Option<u8>, bool, bool)> {
+    let node = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "Grounded States")?;
+    let fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
+    let machine = state_machines.get(&fsm.fsm)?;
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().find_map(|context_id| {
+        let context = arena.get_context(context_id)?;
+        if context.get_graph_id() != graph_handle.id() {
+            return None;
+        }
+        let state = context
+            .node_states
+            .get::<InterruptibleFsmState>(node.id, StateKey::Default)
+            .ok()?;
+        let actual_state = match &state.state {
+            LowLevelStateId::HlState(state) => machine
+                .states
+                .get(state)
+                .and_then(|state| grounded_state_index(&state.label)),
+            LowLevelStateId::HlTransition(_) => None,
+        };
+        Some((
+            actual_state,
+            matches!(state.state, LowLevelStateId::HlTransition(_)),
+            state.last_output_pose().is_some(),
+        ))
+    })
+}
+
+fn capture_grounded_graph_telemetry(
+    mut commands: Commands,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
+    graph_assets: Res<Assets<AnimationGraph>>,
+    state_machines: Res<Assets<StateMachine>>,
+    handles: Res<GroundedCurveHandles>,
+    mut characters: Query<Option<&mut AlsGroundedGraphTelemetry>, With<AlsCharacter>>,
+) {
+    for (parent, instance) in &avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
+            continue;
+        };
+        let actual = graph_assets.get(&handles.graph).and_then(|graph| {
+            actual_grounded_fsm_telemetry(player, graph, &handles.graph, &state_machines)
+        });
+        let telemetry = AlsGroundedGraphTelemetry {
+            actual_state: actual.and_then(|value| value.0),
+            transition_active: actual.map(|value| value.1),
+            pose_ready: actual.map(|value| value.2),
+        };
+        let Ok(current) = characters.get_mut(parent.parent()) else {
+            continue;
+        };
+        if let Some(mut current) = current {
+            *current = telemetry;
+        } else {
+            commands.entity(parent.parent()).insert(telemetry);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -680,5 +780,16 @@ mod tests {
             false
         ));
         assert!(resets_entry_mode(None, true));
+    }
+
+    #[test]
+    fn grounded_graph_telemetry_labels_match_the_loaded_fsm() {
+        assert_eq!(grounded_state_index("Entry Conduit"), Some(0));
+        assert_eq!(grounded_state_index("Standing"), Some(1));
+        assert_eq!(grounded_state_index("Crouching"), Some(2));
+        assert_eq!(grounded_state_index("Standing To Crouching"), Some(3));
+        assert_eq!(grounded_state_index("Crouching To Standing"), Some(4));
+        assert_eq!(grounded_state_index("Roll"), Some(5));
+        assert_eq!(grounded_state_index("Unknown"), None);
     }
 }

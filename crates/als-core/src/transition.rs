@@ -143,15 +143,7 @@ pub fn legality(value: StateValue, cur: &AlsCurrentStates) -> Legality {
             }
             Legality::Legal
         }
-        StateValue::Stance(to) => {
-            if to == cur.stance {
-                return Legality::Legal;
-            }
-            match cur.locomotion_state {
-                LocomotionState::Grounded => Legality::Legal,
-                _ => Legality::IllegalQueuable(RejectReason::StanceRequiresGrounded),
-            }
-        }
+        StateValue::Stance(_) => Legality::Legal,
         StateValue::Gait(to) => {
             if to == cur.gait {
                 return Legality::Legal;
@@ -433,27 +425,27 @@ mod tests {
     }
 
     #[test]
-    fn air_crouch_queues_by_default_and_rejects_under_reject_policy() {
+    fn air_crouch_updates_desired_stance_regardless_of_request_policy() {
         let c = cur(LocomotionState::Air);
         let req = AlsStateRequest::default().with_stance(Stance::Crouching);
         assert_eq!(
             validate(&req, &c).stance,
-            Some(Verdict::Queue),
-            "crouch request in air should queue by default"
+            Some(Verdict::Accept),
+            "desired stance updates immediately in air"
         );
         let req = req.with_policy(InvalidRequestPolicy::Reject);
         assert_eq!(
             validate(&req, &c).stance,
-            Some(Verdict::Reject(RejectReason::StanceRequiresGrounded)),
-            "crouch request in air should be rejected immediately under Reject policy"
+            Some(Verdict::Accept),
+            "desired stance is not a physical crouch request"
         );
     }
 
     #[test]
-    fn queued_stance_becomes_acceptable_after_landing() {
+    fn stance_requests_remain_legal_after_landing() {
         let req = AlsStateRequest::default().with_stance(Stance::Crouching);
         let in_air = validate(&req, &cur(LocomotionState::Air));
-        assert_eq!(in_air.stance, Some(Verdict::Queue));
+        assert_eq!(in_air.stance, Some(Verdict::Accept));
         let landed = validate(&req, &cur(LocomotionState::Grounded));
         assert_eq!(landed.stance, Some(Verdict::Accept));
     }
@@ -548,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn queued_crouch_applies_on_landing_and_emits_correct_event() {
+    fn airborne_crouch_updates_desired_stance_without_writing_actual_stance() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(AlsStateTransitionPlugin);
@@ -558,6 +550,7 @@ mod tests {
             .spawn((
                 LocomotionState::Air,
                 Stance::Standing,
+                AlsDesiredStance(Stance::Standing),
                 Gait::Walking,
                 RotationMode::VelocityDirection,
                 OverlayState::Default,
@@ -569,40 +562,25 @@ mod tests {
         assert_eq!(
             *app.world().get::<Stance>(e).unwrap(),
             Stance::Standing,
-            "queued crouch request must not apply while airborne"
+            "desired stance must not write the actual stance"
         );
         assert_eq!(
-            app.world().get::<AlsStateRequest>(e).unwrap().stance,
-            Some(Stance::Crouching),
-            "queued request stays in the request component"
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching,
+            "airborne input persists desired crouching"
         );
-
-        *app.world_mut().get_mut::<LocomotionState>(e).unwrap() = LocomotionState::Grounded;
-        app.update();
-
-        assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Crouching);
         assert_eq!(app.world().get::<AlsStateRequest>(e).unwrap().stance, None);
-
         let events = app
             .world_mut()
             .run_system_once(|mut reader: MessageReader<StateTransitionEvent>| {
                 reader.read().copied().collect::<Vec<_>>()
             })
             .unwrap();
-        assert_eq!(
-            events,
-            vec![StateTransitionEvent {
-                entity: e,
-                dimension: Dimension::Stance,
-                from: StateValue::Stance(Stance::Standing),
-                to: StateValue::Stance(Stance::Crouching),
-            }],
-            "landing emits exactly one correct Stance transition event"
-        );
+        assert!(events.is_empty());
     }
 
     #[test]
-    fn reject_policy_drops_request_and_emits_rejection_event() {
+    fn airborne_crouch_uses_desired_stance_with_reject_policy_too() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(AlsStateTransitionPlugin);
@@ -612,6 +590,7 @@ mod tests {
             .spawn((
                 LocomotionState::Air,
                 Stance::Standing,
+                AlsDesiredStance(Stance::Standing),
                 Gait::Walking,
                 RotationMode::VelocityDirection,
                 OverlayState::Default,
@@ -624,9 +603,8 @@ mod tests {
         app.update();
         assert_eq!(*app.world().get::<Stance>(e).unwrap(), Stance::Standing);
         assert_eq!(
-            app.world().get::<AlsStateRequest>(e).unwrap().stance,
-            None,
-            "request cleared under Reject policy"
+            app.world().get::<AlsDesiredStance>(e).unwrap().0,
+            Stance::Crouching
         );
 
         let rejections = app
@@ -635,15 +613,7 @@ mod tests {
                 r.read().copied().collect::<Vec<_>>()
             })
             .unwrap();
-        assert_eq!(
-            rejections,
-            vec![StateTransitionRejectedEvent {
-                entity: e,
-                dimension: Dimension::Stance,
-                requested: StateValue::Stance(Stance::Crouching),
-                reason: RejectReason::StanceRequiresGrounded,
-            }]
-        );
+        assert!(rejections.is_empty());
 
         let transitions = app
             .world_mut()
@@ -651,7 +621,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             transitions, 0,
-            "rejected requests must not emit transition events"
+            "desired stance updates do not emit actual-stance transitions"
         );
     }
 

@@ -12,6 +12,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 
 use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::standing_layer::AlsStandingGraphTelemetry;
 
 #[derive(Resource, Clone, Copy)]
@@ -78,6 +79,18 @@ fn movement_detail_label(value: Option<u8>) -> &'static str {
     }
 }
 
+fn grounded_state_label(value: Option<u8>) -> &'static str {
+    match value {
+        Some(0) => "EntryConduit",
+        Some(1) => "Standing",
+        Some(2) => "Crouching",
+        Some(3) => "StandingToCrouching",
+        Some(4) => "CrouchingToStanding",
+        Some(5) => "Roll",
+        _ => "Inactive",
+    }
+}
+
 type ProbeCharacters = (
     Entity,
     &'static Transform,
@@ -92,6 +105,7 @@ type ProbeCharacters = (
     Option<&'static AlsMovementParamsHandle>,
     Option<&'static AlsStandingGraphTelemetry>,
     Option<&'static AlsCrouchTransaction>,
+    Option<&'static AlsGroundedGraphTelemetry>,
 );
 
 type ProbeAvatars = (
@@ -139,6 +153,7 @@ fn anim_probe_logger(
         params_h,
         standing_telemetry,
         crouch_transaction,
+        grounded_telemetry,
     )) = characters.single()
     else {
         return;
@@ -192,7 +207,7 @@ fn anim_probe_logger(
     let crouch_transaction_text = crouch_transaction
         .map(|transaction| {
             format!(
-                "desired={:?},actual={:?},phase={:?},retries={},controller={},half={:.2},radius={:.2},blocked={}",
+                "desired={:?},actual={:?},phase={:?},retries={},controller={},half={:.2},radius={:.2},blocked={},forced={}",
                 transaction.desired_stance,
                 transaction.actual_stance,
                 transaction.phase,
@@ -201,8 +216,19 @@ fn anim_probe_logger(
                 transaction.collider_half_height,
                 transaction.collider_radius,
                 transaction.headroom_blocked,
+                transaction.forced_standing,
             )
         })
+        .unwrap_or_else(|| "?".into());
+    let grounded_state =
+        grounded_state_label(grounded_telemetry.and_then(|telemetry| telemetry.actual_state));
+    let grounded_transition_active = grounded_telemetry
+        .and_then(|telemetry| telemetry.transition_active)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "?".into());
+    let grounded_pose_ready = grounded_telemetry
+        .and_then(|telemetry| telemetry.pose_ready)
+        .map(|value| value.to_string())
         .unwrap_or_else(|| "?".into());
 
     let (src_name, is_graph) = match player.get_animation_source() {
@@ -224,7 +250,7 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} crouch_tx=({crouch_transaction_text}) gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} crouch_tx=({crouch_transaction_text}) gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} grounded_fsm={grounded_state} grounded_transition_active={grounded_transition_active} grounded_pose_ready={grounded_pose_ready} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,

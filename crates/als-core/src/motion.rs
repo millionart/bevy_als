@@ -19,7 +19,7 @@ use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::mantle::{
-    AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleTargetBase,
+    AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleState, AlsMantleTargetBase,
     AlsMantleTargetPermission, MantleDetectionInput, auto_mantle_start_allowed,
     configured_mantle_start_time, detect_mantle, mantle_start_allowed,
     scaled_mantle_capsule_dimensions, yaw_from_direction,
@@ -1000,14 +1000,42 @@ mod rotation_cap_tests {
         let mut first = AlsCrouchTransaction::default();
         let mut second = AlsCrouchTransaction::default();
         for _ in 0..100 {
-            first.synchronize(Stance::Crouching, Stance::Standing, 0.9, 0.3, Vec3::ZERO);
+            first.synchronize(
+                Stance::Crouching,
+                Stance::Standing,
+                0.9,
+                0.3,
+                Vec3::ZERO,
+                false,
+            );
             first.crouch_applied(0.56, 0.3, Vec3::ZERO);
-            first.synchronize(Stance::Standing, Stance::Crouching, 0.56, 0.3, Vec3::ZERO);
+            first.synchronize(
+                Stance::Standing,
+                Stance::Crouching,
+                0.56,
+                0.3,
+                Vec3::ZERO,
+                false,
+            );
             first.standing_applied(0.9, 0.3, Vec3::ZERO);
         }
-        second.synchronize(Stance::Crouching, Stance::Standing, 0.9, 0.3, Vec3::ZERO);
+        second.synchronize(
+            Stance::Crouching,
+            Stance::Standing,
+            0.9,
+            0.3,
+            Vec3::ZERO,
+            false,
+        );
         second.crouch_applied(0.56, 0.3, Vec3::ZERO);
-        second.synchronize(Stance::Standing, Stance::Crouching, 0.56, 0.3, Vec3::ZERO);
+        second.synchronize(
+            Stance::Standing,
+            Stance::Crouching,
+            0.56,
+            0.3,
+            Vec3::ZERO,
+            false,
+        );
         second.stand_blocked(0.56, 0.3, Vec3::ZERO);
         assert_eq!(first.actual_stance, Stance::Standing);
         assert_eq!(first.phase, AlsCrouchTransactionPhase::ExitingCrouch);
@@ -1018,6 +1046,121 @@ mod rotation_cap_tests {
         println!(
             "[CROUCH-TRANSACTION][VERDICT] pairs=100 first={:?} second={:?} retries={} -> PASS",
             first.phase, second.phase, second.blocked_retry_count,
+        );
+    }
+
+    #[test]
+    fn airborne_crouch_keeps_intent_but_targets_a_standing_capsule() {
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Crouching,
+                Stance::Standing,
+                LocomotionState::Grounded,
+                false,
+            ),
+            Stance::Crouching
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Crouching,
+                Stance::Standing,
+                LocomotionState::Air,
+                false,
+            ),
+            Stance::Standing
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Standing,
+                Stance::Crouching,
+                LocomotionState::Air,
+                true,
+            ),
+            Stance::Crouching
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Standing,
+                Stance::Standing,
+                LocomotionState::Air,
+                false,
+            ),
+            Stance::Standing
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Crouching,
+                Stance::Standing,
+                LocomotionState::Air,
+                true,
+            ),
+            Stance::Standing
+        );
+    }
+
+    #[test]
+    fn airborne_desired_crouch_keeps_actual_capsule_standing_until_landing() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            PhysicsPlugins::new(FixedPostUpdate),
+            TransformPlugin,
+            AlsStateTransitionPlugin,
+            AlsCharacterPlugin,
+        ))
+        .add_systems(Update, capsule_reshape_system);
+        app.finish();
+
+        let params_value = AlsMovementParams::default();
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params_value.clone());
+        let config = app
+            .world_mut()
+            .resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
+        let center = Vec3::new(0.0, params_value.crouch.standing_capsule_half_height, 0.0);
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.rigid_body = RigidBody::Kinematic;
+        bundle.transform = Transform::from_translation(center);
+        bundle.locomotion_state = LocomotionState::Air;
+        bundle.desired_stance = AlsDesiredStance(Stance::Crouching);
+        let character = app
+            .world_mut()
+            .spawn((bundle, Position(center), LinearVelocity::ZERO))
+            .id();
+
+        app.update();
+
+        let airborne = app.world().entity(character);
+        let airborne_transaction = airborne.get::<AlsCrouchTransaction>().unwrap();
+        assert_eq!(airborne.get::<Stance>(), Some(&Stance::Standing));
+        assert_eq!(
+            airborne.get::<AlsDesiredStance>(),
+            Some(&AlsDesiredStance(Stance::Crouching))
+        );
+        assert!(airborne_transaction.forced_standing);
+        assert!(!airborne_transaction.controller_crouch_active);
+        assert!(!airborne.contains::<AlsCapsuleCrouched>());
+
+        *app.world_mut()
+            .get_mut::<LocomotionState>(character)
+            .unwrap() = LocomotionState::Grounded;
+        app.update();
+
+        let landed = app.world().entity(character);
+        let landed_transaction = landed.get::<AlsCrouchTransaction>().unwrap();
+        assert_eq!(landed.get::<Stance>(), Some(&Stance::Crouching));
+        assert!(landed.contains::<AlsCapsuleCrouched>());
+        assert!(!landed_transaction.forced_standing);
+        assert!(landed_transaction.controller_crouch_active);
+        assert!(
+            (landed_transaction.collider_half_height
+                - params_value.crouch.crouched_capsule_half_height)
+                .abs()
+                < 1e-4
         );
     }
 
@@ -1033,10 +1176,10 @@ mod rotation_cap_tests {
             TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
             AlsStateTransitionPlugin,
             AlsCharacterPlugin,
-            AlsMotionPlugin,
         ))
         .insert_resource(Assets::<AlsMovementParams>::default())
-        .insert_resource(Assets::<AlsControlSchemeConfig>::default());
+        .insert_resource(Assets::<AlsControlSchemeConfig>::default())
+        .add_systems(Update, capsule_reshape_system);
         app.finish();
         let params_value = AlsMovementParams::default();
         let params = app
@@ -1205,6 +1348,7 @@ pub struct AlsCrouchTransaction {
     pub collider_radius: f32,
     pub collider_center: Vec3,
     pub headroom_blocked: bool,
+    pub forced_standing: bool,
 }
 
 impl Default for AlsCrouchTransaction {
@@ -1220,6 +1364,7 @@ impl Default for AlsCrouchTransaction {
             collider_radius: 0.0,
             collider_center: Vec3::ZERO,
             headroom_blocked: false,
+            forced_standing: false,
         }
     }
 }
@@ -1232,6 +1377,7 @@ impl AlsCrouchTransaction {
         half_height: f32,
         radius: f32,
         center: Vec3,
+        forced_standing: bool,
     ) {
         if self.desired_stance != desired {
             self.revision = self.revision.wrapping_add(1);
@@ -1243,7 +1389,15 @@ impl AlsCrouchTransaction {
         self.collider_radius = radius;
         self.collider_center = center;
         self.controller_crouch_active = actual == Stance::Crouching;
-        if desired == actual {
+        self.forced_standing = forced_standing;
+        if forced_standing {
+            self.phase = if actual == Stance::Standing {
+                AlsCrouchTransactionPhase::Standing
+            } else {
+                AlsCrouchTransactionPhase::ExitingCrouch
+            };
+            self.headroom_blocked = false;
+        } else if desired == actual {
             self.phase = match actual {
                 Stance::Standing => AlsCrouchTransactionPhase::Standing,
                 Stance::Crouching => AlsCrouchTransactionPhase::Crouching,
@@ -1265,6 +1419,7 @@ impl AlsCrouchTransaction {
         self.collider_radius = radius;
         self.collider_center = center;
         self.headroom_blocked = false;
+        self.forced_standing = false;
     }
 
     fn stand_blocked(&mut self, half_height: f32, radius: f32, center: Vec3) {
@@ -1275,6 +1430,7 @@ impl AlsCrouchTransaction {
         self.collider_radius = radius;
         self.collider_center = center;
         self.headroom_blocked = true;
+        self.forced_standing = false;
         self.blocked_retry_count = self.blocked_retry_count.saturating_add(1);
     }
 
@@ -1286,6 +1442,7 @@ impl AlsCrouchTransaction {
         self.collider_radius = radius;
         self.collider_center = center;
         self.headroom_blocked = false;
+        self.forced_standing = false;
         self.blocked_retry_count = 0;
     }
 }
@@ -1709,6 +1866,8 @@ type ReshapeQueryItem<'a> = (
     Entity,
     &'a mut Stance,
     &'a AlsDesiredStance,
+    &'a LocomotionState,
+    Option<&'a AlsMantleState>,
     &'a Transform,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
@@ -1722,21 +1881,33 @@ fn capsule_reshape_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
 ) {
-    for (entity, mut stance, desired, transform, handle, already_deferred, mut transaction) in
-        &mut q
+    for (
+        entity,
+        mut stance,
+        desired,
+        locomotion,
+        mantle,
+        transform,
+        handle,
+        already_deferred,
+        mut transaction,
+    ) in &mut q
     {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
         let (half_height, radius) = capsule_dimensions(params, *stance);
+        let action_active = mantle.is_some_and(|mantle| mantle.active);
         transaction.synchronize(
             desired.0,
             *stance,
             half_height,
             radius,
             transform.translation,
+            *locomotion == LocomotionState::Air && !action_active,
         );
-        if desired.0 == *stance && !already_deferred {
+        let target = capsule_target_for_locomotion(desired.0, *stance, *locomotion, action_active);
+        if target == *stance && !already_deferred {
             continue;
         }
         apply_capsule_for_stance(
@@ -1744,7 +1915,7 @@ fn capsule_reshape_system(
             &spatial_query,
             params,
             entity,
-            desired.0,
+            target,
             &mut stance,
             &mut transaction,
             transform.translation,
@@ -1816,6 +1987,21 @@ fn capsule_dimensions(params: &AlsMovementParams, stance: Stance) -> (f32, f32) 
         Stance::Crouching => params.crouch.crouched_capsule_half_height,
     };
     (half_height, params.crouch.standing_capsule_radius)
+}
+
+fn capsule_target_for_locomotion(
+    desired: Stance,
+    actual: Stance,
+    locomotion: LocomotionState,
+    action_active: bool,
+) -> Stance {
+    if action_active {
+        actual
+    } else if locomotion == LocomotionState::Air {
+        Stance::Standing
+    } else {
+        desired
+    }
 }
 
 fn crouch_controller_transaction_system(

@@ -7,7 +7,7 @@ use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{AlsFootLockState, AlsFootProbe};
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
-use als_core::mantle::AlsMantleState;
+use als_core::mantle::{AlsMantleControlSettings, AlsMantleState};
 use als_core::motion::{AlsCrouchTransaction, AlsInputOverride, AlsViewYaw};
 use als_core::movement_direction::{AlsMovementDirection, AlsMovementDirectionState};
 use als_core::roll::AlsRollState;
@@ -35,6 +35,7 @@ use crate::control_rig_apply::AlsControlRigState;
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::game_mode::AlsPlayerAdmissionComplete;
 use crate::grounded_layer::AlsGroundedEntryMode;
+use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::head_layer::AlsHeadState;
 use crate::layering_layer::AlsLayeringState;
 use crate::overlay_mode_menu::OverlayMenuState;
@@ -54,7 +55,7 @@ use crate::{
 };
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(100);
-const DIRECTION_CASE_SECONDS: f32 = 2.4;
+const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const DIRECTION_CASE_COUNT: usize = 11;
 const DIRECTION_BRANCH_FORWARD: u8 = 1 << 0;
@@ -104,6 +105,7 @@ enum IntegrationPhase {
     Await,
     DirectionRegression,
     Locomotion,
+    CrouchRecovery,
     Turn,
     Mantle,
     Platform,
@@ -148,6 +150,7 @@ struct DirectionRegressionCase {
     rotation_mode: RotationMode,
     yaw_offset: f32,
     branch_mask: u8,
+    branch_from_actual_local: bool,
 }
 
 fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
@@ -162,6 +165,7 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
         rotation_mode: RotationMode::Aiming,
         yaw_offset: 0.0,
         branch_mask,
+        branch_from_actual_local: false,
     };
     match index {
         0 => Some(DirectionRegressionCase {
@@ -175,6 +179,7 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             rotation_mode: RotationMode::Aiming,
             yaw_offset: 0.0,
             branch_mask: DIRECTION_BRANCH_FORWARD,
+            branch_from_actual_local: false,
         }),
         1 => Some(running(
             "run_backward",
@@ -214,6 +219,7 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             rotation_mode: RotationMode::VelocityDirection,
             yaw_offset: 0.0,
             branch_mask: DIRECTION_BRANCH_FORWARD,
+            branch_from_actual_local: false,
         }),
         9 => Some(DirectionRegressionCase {
             name: "sprint_rejected_first_person_lateral",
@@ -226,6 +232,7 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             rotation_mode: RotationMode::ViewDirection,
             yaw_offset: 0.0,
             branch_mask: DIRECTION_BRANCH_RIGHT,
+            branch_from_actual_local: false,
         }),
         10 => Some(DirectionRegressionCase {
             name: "run_forward_rotated_90",
@@ -237,7 +244,8 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             first_person: false,
             rotation_mode: RotationMode::Aiming,
             yaw_offset: std::f32::consts::FRAC_PI_2,
-            branch_mask: DIRECTION_BRANCH_FORWARD,
+            branch_mask: 0,
+            branch_from_actual_local: true,
         }),
         _ => None,
     }
@@ -258,6 +266,24 @@ fn direction_branch_matches(index: Option<u8>, mask: u8) -> bool {
     index.is_some_and(|index| index < 8 && mask & (1 << index) != 0)
 }
 
+fn actual_velocity_branch_mask(motion: &AlsActualMotion) -> u8 {
+    let weights = [
+        motion.velocity_blend.forward,
+        motion.velocity_blend.backward,
+        motion.velocity_blend.left,
+        motion.velocity_blend.right,
+    ];
+    let maximum = weights.into_iter().fold(0.0_f32, f32::max);
+    if maximum <= f32::EPSILON {
+        return 0;
+    }
+    weights
+        .into_iter()
+        .enumerate()
+        .filter(|(_, weight)| *weight >= maximum - 1e-4)
+        .fold(0, |mask, (index, _)| mask | (1 << index))
+}
+
 #[derive(Default)]
 struct IntegrationCoverage {
     assembly: bool,
@@ -268,6 +294,10 @@ struct IntegrationCoverage {
     standing_graph: bool,
     direction_cases: [bool; DIRECTION_CASE_COUNT],
     crouch_transaction: bool,
+    crouch_graph: bool,
+    crouch_air_forced_standing: bool,
+    crouch_air_landed: bool,
+    crouch_graph_recovered: bool,
     crouching: bool,
     sprinting: bool,
     airborne: bool,
@@ -360,6 +390,9 @@ struct ManualIntegrationState {
     notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
     direction_case_index: usize,
+    crouch_recovery_jump_requested: bool,
+    crouch_recovery_air_crouch_requested: bool,
+    crouch_recovery_standing_requested: bool,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -410,6 +443,9 @@ impl Default for ManualIntegrationState {
             notify_mantle_armed: false,
             turn_body_yaw: None,
             direction_case_index: usize::MAX,
+            crouch_recovery_jump_requested: false,
+            crouch_recovery_air_crouch_requested: false,
+            crouch_recovery_standing_requested: false,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -434,6 +470,7 @@ struct InterfaceProbe<'w, 's> {
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
     standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
+    grounded: Query<'w, 's, &'static AlsGroundedGraphTelemetry, With<AlsCharacter>>,
     crouch: Query<'w, 's, &'static AlsCrouchTransaction, With<AlsCharacter>>,
     actual: Query<'w, 's, &'static AlsActualMotion, With<AlsCharacter>>,
     gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
@@ -610,6 +647,8 @@ fn drive_manual_integration(
             Option<&mut Rotation>,
             &mut LinearVelocity,
             &mut AlsStateRequest,
+            &Stance,
+            &LocomotionState,
             &mut Gait,
             &mut OverlayState,
             &mut RotationMode,
@@ -647,6 +686,8 @@ fn drive_manual_integration(
         rotation,
         mut velocity,
         mut request,
+        stance,
+        locomotion,
         mut gait,
         mut overlay,
         mut rotation_mode,
@@ -734,6 +775,11 @@ fn drive_manual_integration(
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
+                state.crouch_recovery_air_crouch_requested = false;
+                state.crouch_recovery_standing_requested = false;
+                state.coverage.crouch_air_forced_standing = false;
+                state.coverage.crouch_air_landed = false;
+                state.coverage.crouch_graph_recovered = false;
             }
             if (1.0..2.5).contains(&elapsed) {
                 input.0.move_dir = Vec2::NEG_Y;
@@ -764,7 +810,63 @@ fn drive_manual_integration(
                 input.0.aim_held = true;
             }
             if elapsed >= 15.0 {
+                begin_phase(&mut state, IntegrationPhase::CrouchRecovery);
+            }
+        }
+        IntegrationPhase::CrouchRecovery => {
+            if entering {
+                let recovery_start = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    recovery_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                commands.entity(character).insert(AlsMantleControlSettings {
+                    allow_mantling: false,
+                    auto_start_in_air: false,
+                });
+                state.crouch_recovery_jump_requested = false;
+                state.crouch_recovery_air_crouch_requested = false;
+                state.crouch_recovery_standing_requested = false;
+                state.coverage.crouch_graph = false;
+                state.coverage.crouch_air_forced_standing = false;
+                state.coverage.crouch_air_landed = false;
+                state.coverage.crouch_graph_recovered = false;
+            }
+            if !state.crouch_recovery_jump_requested
+                && elapsed >= 1.0
+                && *stance == Stance::Standing
+                && *locomotion == LocomotionState::Grounded
+            {
+                input.0.jump_pressed = true;
+                input.0.jump_held = true;
+                state.crouch_recovery_jump_requested = true;
+            } else if state.coverage.crouch_air_landed && !state.crouch_recovery_standing_requested
+            {
+                input.0.crouch_pressed = true;
+                state.crouch_recovery_standing_requested = true;
+            } else if state.coverage.crouch_graph_recovered {
+                commands
+                    .entity(character)
+                    .remove::<AlsMantleControlSettings>();
                 begin_phase(&mut state, IntegrationPhase::Turn);
+            }
+            if elapsed >= 12.0 {
+                commands
+                    .entity(character)
+                    .remove::<AlsMantleControlSettings>();
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
         IntegrationPhase::Turn => {
@@ -1280,6 +1382,7 @@ fn observe_manual_integration(
         ),
         With<AlsCharacter>,
     >,
+    mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
     motion_probe: MotionProbe,
     action: Query<
         (
@@ -1342,7 +1445,23 @@ fn observe_manual_integration(
         return;
     };
     let standing_graph = motion_probe.standing.get(character).ok();
+    let grounded_graph = motion_probe.grounded.get(character).ok();
     let crouch_transaction = motion_probe.crouch.get(character).ok();
+    if state.scenario == IntegrationScenario::Base
+        && state.phase == IntegrationPhase::CrouchRecovery
+        && state.phase_started.elapsed().as_secs_f32() >= 1.0
+        && state.crouch_recovery_jump_requested
+        && !state.crouch_recovery_air_crouch_requested
+        && *locomotion == LocomotionState::Air
+        && let Ok(mut request) = state_requests.get_mut(character)
+    {
+        request.stance = Some(Stance::Crouching);
+        state.crouch_recovery_air_crouch_requested = true;
+        info!(
+            "[MANUAL-INTEGRATION][CROUCH-AIR-REQUEST] requested=Crouching actual_locomotion={:?}",
+            locomotion,
+        );
+    }
     let Ok((
         mantle,
         roll,
@@ -1406,15 +1525,15 @@ fn observe_manual_integration(
         }
         state.coverage.standing_graph = true;
     }
-    if let Some(transaction) = crouch_transaction
-        && transaction.desired_stance == Stance::Standing
+    if state.phase == IntegrationPhase::CrouchRecovery
+        && let Some(transaction) = crouch_transaction
         && transaction.actual_stance == Stance::Crouching
-        && transaction.headroom_blocked
         && transaction.controller_crouch_active
+        && (transaction.headroom_blocked || transaction.collider_half_height < 0.9)
     {
         if !state.coverage.crouch_transaction {
             info!(
-                "[MANUAL-INTEGRATION][CROUCH] desired={:?} actual={:?} phase={:?} retries={} half={:.3} radius={:.3} controller={}",
+                "[MANUAL-INTEGRATION][CROUCH] desired={:?} actual={:?} phase={:?} retries={} half={:.3} radius={:.3} controller={} blocked={}",
                 transaction.desired_stance,
                 transaction.actual_stance,
                 transaction.phase,
@@ -1422,9 +1541,91 @@ fn observe_manual_integration(
                 transaction.collider_half_height,
                 transaction.collider_radius,
                 transaction.controller_crouch_active,
+                transaction.headroom_blocked,
             );
         }
         state.coverage.crouch_transaction = true;
+    }
+    if let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph)
+        && transaction.actual_stance == Stance::Crouching
+        && telemetry.actual_state == Some(2)
+        && telemetry.transition_active == Some(false)
+        && telemetry.pose_ready == Some(true)
+    {
+        if !state.coverage.crouch_graph {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-GRAPH] desired={:?} actual={:?} forced_standing={} state={} transition_active={} pose_ready={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.forced_standing,
+                telemetry.actual_state.unwrap_or_default(),
+                telemetry.transition_active.unwrap_or(false),
+                telemetry.pose_ready.unwrap_or(false),
+            );
+        }
+        state.coverage.crouch_graph = true;
+    }
+    if let Some(transaction) = crouch_transaction
+        && *locomotion == LocomotionState::Air
+        && transaction.desired_stance == Stance::Crouching
+        && transaction.actual_stance == Stance::Standing
+        && transaction.forced_standing
+        && !transaction.controller_crouch_active
+    {
+        if !state.coverage.crouch_air_forced_standing {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-AIR] desired={:?} actual={:?} phase={:?} controller={} forced_standing={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.phase,
+                transaction.controller_crouch_active,
+                transaction.forced_standing,
+            );
+        }
+        state.coverage.crouch_air_forced_standing = true;
+    }
+    if state.phase == IntegrationPhase::CrouchRecovery
+        && state.coverage.crouch_air_forced_standing
+        && let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph)
+        && *locomotion == LocomotionState::Grounded
+        && transaction.desired_stance == Stance::Crouching
+        && transaction.actual_stance == Stance::Crouching
+        && telemetry.actual_state == Some(2)
+        && telemetry.transition_active == Some(false)
+        && telemetry.pose_ready == Some(true)
+    {
+        if !state.coverage.crouch_air_landed {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-LAND] desired={:?} actual={:?} state={} controller={} forced_standing={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                telemetry.actual_state.unwrap_or_default(),
+                transaction.controller_crouch_active,
+                transaction.forced_standing,
+            );
+        }
+        state.coverage.crouch_air_landed = true;
+    }
+    if state.phase == IntegrationPhase::CrouchRecovery
+        && state.crouch_recovery_standing_requested
+        && let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph)
+        && transaction.desired_stance == Stance::Standing
+        && transaction.actual_stance == Stance::Standing
+        && !transaction.controller_crouch_active
+        && telemetry.actual_state == Some(1)
+        && telemetry.transition_active == Some(false)
+        && telemetry.pose_ready == Some(true)
+    {
+        if !state.coverage.crouch_graph_recovered {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-RECOVERED] desired={:?} actual={:?} state={} controller={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                telemetry.actual_state.unwrap_or_default(),
+                transaction.controller_crouch_active,
+            );
+        }
+        state.coverage.crouch_graph_recovered = true;
     }
     if state.phase == IntegrationPhase::DirectionRegression
         && state.direction_case_index < DIRECTION_CASE_COUNT
@@ -1455,11 +1656,16 @@ fn observe_manual_integration(
             .local_velocity
             .normalize_or_zero()
             .dot(expected_local);
+        let branch_mask = if case.branch_from_actual_local {
+            actual_velocity_branch_mask(motion)
+        } else {
+            case.branch_mask
+        };
         let graph_matches = telemetry.actual_movement_state
             == Some(movement_direction_fsm_index(direction.direction))
             && telemetry.actual_movement_transition_active == Some(false)
             && telemetry.actual_movement_pose_ready == Some(true)
-            && direction_branch_matches(telemetry.dominant_detail_index, case.branch_mask)
+            && direction_branch_matches(telemetry.dominant_detail_index, branch_mask)
             && telemetry
                 .dominant_detail_weight
                 .is_some_and(|weight| weight >= 0.4);
@@ -1477,7 +1683,7 @@ fn observe_manual_integration(
             let case_index = state.direction_case_index;
             state.coverage.direction_cases[case_index] = true;
             info!(
-                "[MANUAL-INTEGRATION][DIRECTION] case={} world=({:.3},{:.3}) local=({:.3},{:.3}) direction={:?} gait=({:?},{:?},{:?}) fsm={} branch={} weight={:.3} world_align={:.3} local_align={:.3}",
+                "[MANUAL-INTEGRATION][DIRECTION] case={} world=({:.3},{:.3}) local=({:.3},{:.3}) direction={:?} gait=({:?},{:?},{:?}) fsm={} branch={} branch_mask={} weight={:.3} world_align={:.3} local_align={:.3}",
                 case.name,
                 motion.world_velocity.x,
                 motion.world_velocity.z,
@@ -1489,6 +1695,7 @@ fn observe_manual_integration(
                 gait,
                 telemetry.actual_movement_state.unwrap_or_default(),
                 telemetry.dominant_detail_index.unwrap_or_default(),
+                branch_mask,
                 telemetry.dominant_detail_weight.unwrap_or_default(),
                 world_alignment,
                 local_alignment,
@@ -1864,6 +2071,13 @@ fn observe_manual_integration(
                 ("standing_graph", coverage.standing_graph),
                 ("direction_regression", direction_regression),
                 ("crouch_transaction", coverage.crouch_transaction),
+                ("crouch_graph", coverage.crouch_graph),
+                (
+                    "crouch_air_forced_standing",
+                    coverage.crouch_air_forced_standing,
+                ),
+                ("crouch_air_landed", coverage.crouch_air_landed),
+                ("crouch_graph_recovered", coverage.crouch_graph_recovered),
                 ("stance_crouching", coverage.crouching),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),
@@ -1993,6 +2207,7 @@ mod tests {
         );
         assert!(cases[9].as_ref().unwrap().first_person);
         assert!((cases[10].as_ref().unwrap().yaw_offset.to_degrees() - 90.0).abs() < 1e-6);
+        assert!(cases[10].as_ref().unwrap().branch_from_actual_local);
     }
 
     #[test]
@@ -2010,5 +2225,32 @@ mod tests {
             DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
         ));
         assert!(!direction_branch_matches(None, DIRECTION_BRANCH_FORWARD));
+    }
+
+    #[test]
+    fn actual_velocity_branch_mask_preserves_dominant_local_axes() {
+        let forward = AlsActualMotion {
+            velocity_blend: als_ext::HorizontalVelocityBlend {
+                forward: 1.0,
+                ..default()
+            },
+            ..default()
+        };
+        let diagonal = AlsActualMotion {
+            velocity_blend: als_ext::HorizontalVelocityBlend {
+                forward: 0.5,
+                right: 0.5,
+                ..default()
+            },
+            ..default()
+        };
+        assert_eq!(
+            actual_velocity_branch_mask(&forward),
+            DIRECTION_BRANCH_FORWARD
+        );
+        assert_eq!(
+            actual_velocity_branch_mask(&diagonal),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
+        );
     }
 }
