@@ -399,9 +399,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`foot_lock_lifecycle_rebases_teleports_and_resets_missing_bones` 输出 `[BF102.43][VERDICT] teleport_location_error=0.000001 teleport_rotation_alignment=1.000000 recovery_fresh=true reload_reset=true teleport_message=true -> PASS`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（212 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.44 — I06：动态过渡检测水平脚锁漂移（P1）**
+- [x] **BF102.44 — I06：动态过渡检测水平脚锁漂移（P1）**
   - 依赖：BF102.19、BF102.42。
   - 验收：平地原地转身和水平位移触发条件同时检测高度与水平误差，资源选择/重入受控。
+  - 当次 ALS 事实：实时读取 `RefreshDynamicTransitions`：源使用 `FVector::DistSquared(TargetLocationWorldSpace, LockLocationWorldSpace)`，因此包含完整水平和垂直误差；要求相关 lock weight、`AllowTransitions`，阈值乘 `ScaleWorldSpace`，并在选择后阻止约 2 帧。实时 Unreal MCP 确认左右 standing/crouching DynamicTransition 序列均存在，长度为 1.533333 秒，且为 mesh-space additive。
+  - 实现：`AlsDynamicTransitionState` 改为直接消费完整 `AlsFootLockState`，以 avatar 世界缩放后的阈值、完整 lock 权重与 `allow_transitions` 判定；移除仅包含竖直 offset 的运行时距离。更新受影响的 `bf_char18_dynamic_transition_gate`，使其以完整 Foot Lock 状态验证选择和重入。
+  - 证据：`dynamic_transition_detects_horizontal_lock_drift_and_respects_gates` 输出 `[BF102.44][VERDICT] horizontal_distance_squared=0.014400 blocked=true first=Some(StandingLeft) reentry=(true,true,true) -> PASS`；真实 Gate 输出 `selection=Some(...StandingLeft... play_rate: 1.5, blend_duration: 0.2...) ... delay=2 -> PASS`，其后两帧均 blocked。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（213 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example bf_char18_dynamic_transition_gate --jobs 2` 通过；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.45 — I07：脚高/骨盆跟随使用源弹簧状态响应（P2）**
   - 依赖：BF102.32、BF102.41。

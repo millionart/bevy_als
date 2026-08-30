@@ -1,9 +1,7 @@
 use std::num::NonZeroU8;
 
 use als_core::character::AlsCharacter;
-use als_core::foot_ik::{
-    AlsDynamicTransitionState, AlsFootIkRuntime, AlsFootLockSettings, FootSideInput,
-};
+use als_core::foot_ik::{AlsDynamicTransitionState, AlsFootLockState};
 use als_core::state::Stance;
 use als_core::transitions::{TransitionConfig, TransitionSequence};
 use bevy::ecs::message::MessageWriter;
@@ -25,8 +23,10 @@ fn setup(mut commands: Commands) {
     commands.spawn((
         AlsCharacter,
         Stance::Standing,
-        AlsFootIkRuntime::default(),
-        AlsFootLockSettings::default(),
+        AlsFootLockState {
+            valid: true,
+            ..Default::default()
+        },
         AlsDynamicTransitionState::default(),
     ));
 }
@@ -36,42 +36,33 @@ fn drive_gate(
     mut q: Query<
         (
             &Stance,
-            &AlsFootLockSettings,
-            &mut AlsFootIkRuntime,
+            &mut AlsFootLockState,
             &mut AlsDynamicTransitionState,
         ),
         With<AlsCharacter>,
     >,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((stance, settings, mut foot_ik, mut dynamic)) = q.single_mut() else {
+    let Ok((stance, mut foot_lock, mut dynamic)) = q.single_mut() else {
         return;
-    };
-    let planted = FootSideInput {
-        raw_offset: 0.0,
-        pin_request: true,
-    };
-    let displaced = FootSideInput {
-        raw_offset: 0.2,
-        pin_request: true,
     };
     let config = TransitionConfig::default();
     match phase.0 {
         0 => {
-            foot_ik.update_with_foot_lock(&planted, &planted, 1.0, settings, false, true, 0.01);
-            let none = dynamic.update(&foot_ik, *stance, &config).is_none();
+            foot_lock.left.lock_amount = 1.0;
+            foot_lock.left.target_location = Vec3::ZERO;
+            foot_lock.left.lock_location = Vec3::ZERO;
+            let none = dynamic
+                .update(&foot_lock, true, 1.0, *stance, &config)
+                .is_none();
             println!(
                 "[BCHAR18D][LOCK] threshold={:.3} planted_none={none}",
                 config.dynamic_foot_lock_distance
             );
         }
         1 => {
-            for _ in 0..20 {
-                foot_ik.update_with_foot_lock(
-                    &displaced, &displaced, 1.0, settings, false, true, 0.05,
-                );
-            }
-            let selection = dynamic.update(&foot_ik, *stance, &config);
+            foot_lock.left.target_location = Vec3::new(0.2, 0.0, 0.0);
+            let selection = dynamic.update(&foot_lock, true, 1.0, *stance, &config);
             let pass = selection.is_some_and(|selection| {
                 selection.sequence == TransitionSequence::StandingLeft
                     && (selection.play_rate - 1.5).abs() <= 1e-6
@@ -90,7 +81,9 @@ fn drive_gate(
             }
         }
         2 => {
-            let blocked = dynamic.update(&foot_ik, *stance, &config).is_none()
+            let blocked = dynamic
+                .update(&foot_lock, true, 1.0, *stance, &config)
+                .is_none()
                 && dynamic.frames_remaining == 1;
             println!(
                 "[BCHAR18D][BLOCK] first_blocked={blocked} delay={}",
@@ -101,7 +94,9 @@ fn drive_gate(
             }
         }
         3 => {
-            let blocked = dynamic.update(&foot_ik, *stance, &config).is_none()
+            let blocked = dynamic
+                .update(&foot_lock, true, 1.0, *stance, &config)
+                .is_none()
                 && dynamic.frames_remaining == 0;
             println!(
                 "[BCHAR18D][BLOCK] second_blocked={blocked} delay={} -> {}",

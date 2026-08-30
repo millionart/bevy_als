@@ -589,46 +589,34 @@ impl AlsFootIkRuntime {
     pub fn ik_weights(&self) -> (f32, f32) {
         (self.left.ik_weight, self.right.ik_weight)
     }
-
-    pub fn foot_lock_distance_squared(&self, side: usize) -> f32 {
-        let runtime = match side {
-            0 => &self.left,
-            _ => &self.right,
-        };
-        runtime
-            .locked_offset
-            .map(|locked| (runtime.target_offset - locked).powi(2))
-            .unwrap_or(0.0)
-    }
-
-    pub fn foot_lock_is_relevant(&self, side: usize) -> bool {
-        let runtime = match side {
-            0 => &self.left,
-            _ => &self.right,
-        };
-        runtime.pin_weight > 1e-3 && runtime.locked_offset.is_some()
-    }
 }
 
 impl AlsDynamicTransitionState {
     pub fn update(
         &mut self,
-        foot_ik: &AlsFootIkRuntime,
+        foot_lock: &AlsFootLockState,
+        allow_transitions: bool,
+        scale_world_space: f32,
         stance: Stance,
         config: &TransitionConfig,
     ) -> Option<TransitionSelection> {
-        self.left_distance_squared = foot_ik.foot_lock_distance_squared(0);
-        self.right_distance_squared = foot_ik.foot_lock_distance_squared(1);
+        self.left_distance_squared = foot_lock_distance_squared(&foot_lock.left);
+        self.right_distance_squared = foot_lock_distance_squared(&foot_lock.right);
         if self.frames_remaining > 0 {
             self.frames_remaining -= 1;
             self.selection = None;
             return None;
         }
-        let threshold_squared = config.dynamic_foot_lock_distance.powi(2);
-        let left_allowed =
-            foot_ik.foot_lock_is_relevant(0) && self.left_distance_squared > threshold_squared;
-        let right_allowed =
-            foot_ik.foot_lock_is_relevant(1) && self.right_distance_squared > threshold_squared;
+        if !allow_transitions || !foot_lock.valid {
+            self.selection = None;
+            return None;
+        }
+        let threshold_squared =
+            (config.dynamic_foot_lock_distance * scale_world_space.max(f32::EPSILON)).powi(2);
+        let left_allowed = is_relevant_animation_weight(foot_lock.left.lock_amount)
+            && self.left_distance_squared > threshold_squared;
+        let right_allowed = is_relevant_animation_weight(foot_lock.right.lock_amount)
+            && self.right_distance_squared > threshold_squared;
         let selection = select_dynamic_transition(
             self.left_distance_squared,
             self.right_distance_squared,
@@ -1042,35 +1030,107 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_transition_uses_real_lock_distance_and_two_frame_block() {
-        let settings = AlsFootLockSettings::default();
-        let mut runtime = AlsFootIkRuntime::default();
-        let planted = FootSideInput {
-            raw_offset: 0.0,
-            pin_request: true,
+    fn dynamic_transition_uses_full_lock_distance_and_two_frame_block() {
+        let mut foot_lock = AlsFootLockState {
+            valid: true,
+            ..Default::default()
         };
-        runtime.update_with_foot_lock(&planted, &planted, 1.0, &settings, false, true, 0.01);
-        let displaced = FootSideInput {
-            raw_offset: 0.2,
-            pin_request: true,
-        };
-        for _ in 0..20 {
-            runtime
-                .update_with_foot_lock(&displaced, &displaced, 1.0, &settings, false, true, 0.05);
-        }
+        foot_lock.left.lock_amount = 1.0;
+        foot_lock.left.target_location = Vec3::new(0.2, 0.0, 0.0);
+        foot_lock.left.lock_location = Vec3::ZERO;
         let mut dynamic = AlsDynamicTransitionState::default();
         let selected = dynamic
-            .update(&runtime, Stance::Standing, &TransitionConfig::default())
+            .update(
+                &foot_lock,
+                true,
+                1.0,
+                Stance::Standing,
+                &TransitionConfig::default(),
+            )
             .unwrap();
         assert_eq!(selected.sequence, TransitionSequence::StandingLeft);
         assert_eq!(selected.play_rate, 1.5);
         assert_eq!(dynamic.frames_remaining, 2);
         assert!(
             dynamic
-                .update(&runtime, Stance::Standing, &TransitionConfig::default())
+                .update(
+                    &foot_lock,
+                    true,
+                    1.0,
+                    Stance::Standing,
+                    &TransitionConfig::default(),
+                )
                 .is_none()
         );
         assert_eq!(dynamic.frames_remaining, 1);
+    }
+
+    #[test]
+    fn dynamic_transition_detects_horizontal_lock_drift_and_respects_gates() {
+        let mut foot_lock = AlsFootLockState {
+            valid: true,
+            ..Default::default()
+        };
+        foot_lock.left.lock_amount = 1.0;
+        foot_lock.left.target_location = Vec3::new(0.12, 0.0, 0.0);
+        foot_lock.left.lock_location = Vec3::ZERO;
+        let mut dynamic = AlsDynamicTransitionState::default();
+        let blocked = dynamic.update(
+            &foot_lock,
+            false,
+            1.0,
+            Stance::Standing,
+            &TransitionConfig::default(),
+        );
+        let selected = dynamic.update(
+            &foot_lock,
+            true,
+            1.0,
+            Stance::Standing,
+            &TransitionConfig::default(),
+        );
+        let horizontal_distance_squared = dynamic.left_distance_squared;
+        let first_sequence = selected.map(|selection| selection.sequence);
+        let reentry_one = dynamic.update(
+            &foot_lock,
+            true,
+            1.0,
+            Stance::Standing,
+            &TransitionConfig::default(),
+        );
+        let reentry_two = dynamic.update(
+            &foot_lock,
+            true,
+            1.0,
+            Stance::Standing,
+            &TransitionConfig::default(),
+        );
+        let reentry_three = dynamic.update(
+            &foot_lock,
+            true,
+            1.0,
+            Stance::Standing,
+            &TransitionConfig::default(),
+        );
+        let passed = blocked.is_none()
+            && first_sequence == Some(TransitionSequence::StandingLeft)
+            && horizontal_distance_squared
+                > TransitionConfig::default()
+                    .dynamic_foot_lock_distance
+                    .powi(2)
+            && reentry_one.is_none()
+            && reentry_two.is_none()
+            && reentry_three.is_some();
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.44][VERDICT] horizontal_distance_squared={horizontal_distance_squared:.6} blocked={} first={:?} reentry=({},{},{}) -> {verdict}",
+            blocked.is_none(),
+            first_sequence,
+            reentry_one.is_none(),
+            reentry_two.is_none(),
+            reentry_three.is_some(),
+        );
+        assert!(passed);
     }
 
     #[test]

@@ -273,7 +273,7 @@ fn foot_ik_apply_system(
     >,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
@@ -424,7 +424,13 @@ fn foot_ik_apply_system(
             targets.grounded,
             dt,
         );
-        dynamic_transition.update(&runtime, *stance, &TransitionConfig::default());
+        dynamic_transition.update(
+            &lock_state,
+            lock_input.allow_transitions,
+            animation_world_scale(entity, &avatars),
+            *stance,
+            &TransitionConfig::default(),
+        );
 
         for side in 0..2usize {
             let (offset, pin_weight) = runtime.side(side);
@@ -488,12 +494,12 @@ fn foot_lock_movement_base(
 fn animation_curve_amount(
     character: Entity,
     name: &str,
-    avatars: &Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: &Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     players: &Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) -> Option<f32> {
-    let (_, instance) = avatars
+    let (_, instance, _) = avatars
         .iter()
-        .find(|(parent, _)| parent.parent() == character)?;
+        .find(|(parent, _, _)| parent.parent() == character)?;
     let player = players.get(instance.player_entity()).ok()?;
     player
         .get_outputs()
@@ -502,6 +508,18 @@ fn animation_curve_amount(
             bevy_animation_graph::core::edge_data::DataValue::F32(value) => Some(*value),
             _ => None,
         })
+}
+
+fn animation_world_scale(
+    character: Entity,
+    avatars: &Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
+) -> f32 {
+    avatars
+        .iter()
+        .find(|(parent, _, _)| parent.parent() == character)
+        .map(|(_, _, transform)| transform.to_scale_rotation_translation().0.z.abs())
+        .unwrap_or(1.0)
+        .max(f32::EPSILON)
 }
 
 fn apply_chain_offset(
