@@ -534,10 +534,15 @@ BF102.58 网络范围 ─► BF102.Gate
 - [ ] **BF102.Gate — 58 项原子审计总验收**
   - 依赖：BF102.01–BF102.58。
   - 验收：58 个 ID 各有“当前已修复／确认待修复／条件性不适用或待证”三态记录；每个确认缺陷有独立修复提交和真实运行 verdict；未执行项不得宣称完成。
-  - [ ] **BF102.Gate.a — manual_playground 真实入口集成验收（待执行）**
+  - [x] **BF102.Gate.a — manual_playground 真实入口集成验收**
     - 依赖：BF102.01–BF102.58。
     - 验收：通过 `run_manual.bat` 启动当前源码的 `manual_playground` 时，记录完整 runtime 装配，至少覆盖 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin` 及其关键子系统；建立当前全部已实现运行时功能、修复和动画图的覆盖清单，并以可重复触发的自动场景、HUD 或 probe 验证每项实际行为。覆盖范围不限于 BF102 的单点缺陷，至少包含 Mantle、Roll、Foot IK、移动基座、Ragdoll、相机及所有已接入动画图。
     - 证据：每个功能／图 probe 必须记录“已执行”或“未覆盖”状态及真实运行日志；不得以“插件已注册”、组件存在或静态图文件代替行为验证。任一未覆盖项使本 Gate 失败，直至补齐真实入口行为；此条目用于确保用户可从真实试玩入口测试所有已完成的功能，而非只测试独立 Gate。
+    - 实现：新增 `ManualPlaygroundIntegrationPlugin`，仅在 `ALS_MANUAL_INTEGRATION_GATE=1` 时由 `manual_playground` 装配；它先等待原有 PlayerStart、景观 collider、可见角色和运行时 Gate 全部通过，才开始自动场景。运行时装配日志明确记录 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin`、animation graph、Tnua 和 camera。`run_manual_integration_gate.bat` 依次启动 Base、Ragdoll、Camera、Interface 四个独立的真实入口进程，任一项未覆盖即以失败退出。
+    - 真实场景约束：所有会话均先记录 `PLAYGROUND setup done`、`[SCENE][PHYSICS] ... -> PASS`、`[GAMEMODE][ADMIT] ... -> PASS` 和 `[SPAWN][GROUND] ... -> PASS`；辅助 Mantle／移动基座／相机 MTD 物体均为有可见 mesh/material 与 collider 的实体，锚定在当前 PlayerStart 的真实景观地面，未生成离场白色空间、隐形地板或 collider-only 测试场。
+    - 覆盖清单：Base 记录 root graph、locomotion、前后左右方向、crouching、sprint、gait layer、stance layer、jump/land/jump variant、overlay layer 与 Rifle 道具挂载、start/stop、view/head、Control Rig、停驻转身、动态 layering、Mantle、移动基座、Foot probe/lock、Roll/root-motion slot；Ragdoll 记录 enter、ground follow、joint drive 和 grounded recovery；Camera 记录 rig、真实两 MTD 起点恢复/阻挡/恢复、第一人称、肩位、shake 和未缩放时间；Interface 经实际 Tab/Z/Q 输入路径记录 HUD 布局/显隐/慢动作、Overlay 菜单开闭，以及 ShowDebug 全分类的 HUD 同步和 gizmo 绘制。
+    - 归属决定：manual 入口编排、ALS 生命周期和验收 probe 保留主项目；`crates/als-ext::ragdolling_tag_blend` 保留通用的“空输入保持上游 Pose/skeleton”行为，避免 graph blend 丢失 skeleton；`src/ragdolling_layer.rs` 保留 ALS 专用的 ragdoll exit snapshot 生命周期。两者均由真实 Ragdoll 会话回归覆盖，未把 ALS 常量写入通用扩展。
+    - 证据：`CARGO_BUILD_JOBS=2 RUST_LOG=info run_manual_integration_gate.bat` 完成并返回 0。四会话分别输出 `[MANUAL-INTEGRATION][VERDICT] scenario=Base/Ragdoll/Camera/Interface real_entry_paths -> PASS`；Camera 同时记录 `[CAMERA][MTD] blocking=true adjustment_count=2 resolved=true`，Ragdoll 记录 `exit route grounded=true` 与 `ragdoll recovered ... velocity=0.000`，每个场景末尾逐项输出 `[EXECUTED]`。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

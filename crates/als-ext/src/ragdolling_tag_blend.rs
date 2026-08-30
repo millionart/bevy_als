@@ -79,9 +79,10 @@ fn advance_weights(
     )
 }
 
-fn blend_poses(mut poses: Vec<(Pose, f32)>) -> Pose {
+fn blend_poses(mut poses: Vec<(Pose, f32)>, fallback: Pose) -> Pose {
+    let fallback_skeleton = fallback.skeleton.clone();
     let Some((mut output, mut accumulated_weight)) = poses.pop() else {
-        return Pose::default();
+        return fallback;
     };
     for (pose, weight) in poses {
         if weight <= WEIGHT_THRESHOLD {
@@ -94,6 +95,7 @@ fn blend_poses(mut poses: Vec<(Pose, f32)>) -> Pose {
         .interpolate_pose(&mut output, &pose, factor);
         accumulated_weight += weight;
     }
+    output.skeleton = fallback_skeleton;
     output
 }
 
@@ -127,6 +129,7 @@ impl NodeLike for RagdollingTagBlendNode {
                 delta_seconds,
             )
         };
+        let input_pose = ctx.data_back(INPUT_POSE)?.into_pose()?;
         let mut inner_weights = vec![0.0, 0.0];
         let mut inner_pose = None;
         if outer_weights[1] > WEIGHT_THRESHOLD {
@@ -149,17 +152,17 @@ impl NodeLike for RagdollingTagBlendNode {
                 ctx.set_time_update_back(FLAIL_TIME, time_update.clone());
                 inner_poses.push((ctx.data_back(FLAIL_POSE)?.into_pose()?, inner_weights[1]));
             }
-            inner_pose = Some(blend_poses(inner_poses));
+            inner_pose = Some(blend_poses(inner_poses, input_pose.clone()));
         }
         let mut outer_poses = Vec::new();
         if outer_weights[0] > WEIGHT_THRESHOLD {
             ctx.set_time_update_back(INPUT_TIME, time_update.clone());
-            outer_poses.push((ctx.data_back(INPUT_POSE)?.into_pose()?, outer_weights[0]));
+            outer_poses.push((input_pose.clone(), outer_weights[0]));
         }
         if outer_weights[1] > WEIGHT_THRESHOLD {
             outer_poses.push((inner_pose.unwrap_or_default(), outer_weights[1]));
         }
-        let output = blend_poses(outer_poses);
+        let output = blend_poses(outer_poses, input_pose);
         let curve_weights = active_curve_weights(&outer_weights, self.normalize_curve_weights);
         for curve in &self.curve_names {
             let value = if curve_weights[0] > WEIGHT_THRESHOLD {
@@ -247,5 +250,24 @@ mod tests {
             0.25,
         );
         assert_eq!(inner, vec![0.0, 1.0]);
+    }
+
+    #[test]
+    fn empty_blend_preserves_the_input_pose() {
+        let fallback = Pose {
+            timestamp: 0.75,
+            ..default()
+        };
+        assert_eq!(blend_poses(Vec::new(), fallback.clone()), fallback);
+    }
+
+    #[test]
+    fn blend_uses_the_input_pose_skeleton() {
+        let mut skeletons = Assets::<bevy_animation_graph::core::skeleton::Skeleton>::default();
+        let mut fallback = Pose::default();
+        fallback.skeleton =
+            skeletons.add(bevy_animation_graph::core::skeleton::Skeleton::default());
+        let output = blend_poses(vec![(Pose::default(), 1.0)], fallback.clone());
+        assert_eq!(output.skeleton, fallback.skeleton);
     }
 }

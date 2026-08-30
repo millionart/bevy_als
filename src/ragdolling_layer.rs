@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::pose::Pose;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 
 use crate::character_assembly::AlsCharacterAvatar;
@@ -77,6 +78,12 @@ fn write_globals(player: &mut AnimationGraphPlayer, ragdolling: bool, flail_play
     player.set_global_input_data("als_ragdolling_readback", ragdolling);
 }
 
+fn player_pose_with_skeleton(player: &AnimationGraphPlayer) -> Option<Pose> {
+    let mut pose = player.get_default_output_pose().cloned()?;
+    pose.skeleton = player.skeleton().clone();
+    Some(pose)
+}
+
 #[allow(clippy::type_complexity)]
 fn ragdolling_layer_writer(
     mut commands: Commands,
@@ -106,7 +113,8 @@ fn ragdolling_layer_writer(
                 continue;
             };
             if runtime.was_ragdolling && !ragdolling {
-                if let Some(snapshot) = player.get_default_output_pose().cloned() {
+                if let Some(snapshot) = player_pose_with_skeleton(&player) {
+                    player.set_default_output_pose(snapshot.clone());
                     player.set_global_input_data(
                         "als_ragdolling_snapshot_pose",
                         DataValue::Pose(snapshot),
@@ -115,7 +123,7 @@ fn ragdolling_layer_writer(
             } else if player
                 .get_global_input_data("als_ragdolling_snapshot_pose")
                 .is_none()
-                && let Some(snapshot) = player.get_default_output_pose().cloned()
+                && let Some(snapshot) = player_pose_with_skeleton(&player)
             {
                 player.set_global_input_data(
                     "als_ragdolling_snapshot_pose",

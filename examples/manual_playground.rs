@@ -35,6 +35,12 @@ use bevy_als::overlay_object::OverlayObjectPlugin;
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
+use bevy_als::{
+    anim_probe::AnimProbePlugin,
+    manual_playground_integration::{
+        ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
+    },
+};
 
 const SPAWN_VISIBLE_VALIDATION_STEPS: u32 = 60;
 const SPAWN_SENSOR_STABLE_STEPS: u32 = 20;
@@ -54,6 +60,9 @@ fn main() {
         AlsDebugDisplayPlugin,
         AlsShowDebugHudPlugin,
     ));
+    if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
+        app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
+    }
     app.add_plugins((
         bevy_als::als_hud::AlsHudPlugin,
         bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
@@ -70,6 +79,7 @@ fn main() {
     .init_resource::<TemporalAntiAliasingProbe>()
     .init_resource::<CollisionParityProbe>()
     .init_resource::<GroundedSpawnProbe>()
+    .init_resource::<ManualPlaygroundStartupReady>()
     .init_resource::<ManualScenePhysicsReady>()
     .init_resource::<AlsScenePhysicsReady>()
     .insert_resource(GlobalAmbientLight {
@@ -103,7 +113,9 @@ fn main() {
         grounded_spawn_probe.after(PhysicsSystems::Last),
     );
 
-    app.run();
+    if let AppExit::Error(code) = app.run() {
+        std::process::exit(i32::from(code.get()));
+    }
 }
 
 #[derive(Resource, Default)]
@@ -462,6 +474,7 @@ fn admit_completed_player(
 fn grounded_spawn_probe(
     mut commands: Commands,
     mut probe: ResMut<GroundedSpawnProbe>,
+    mut manual_startup: ResMut<ManualPlaygroundStartupReady>,
     characters: Query<
         (
             &Transform,
@@ -567,6 +580,7 @@ fn grounded_spawn_probe(
         && probe.max_vertical_velocity <= 0.15
         && recovery.corrections == 0;
     if pass {
+        manual_startup.passed = true;
         info!(
             "[SPAWN][GROUND] ground_y={ground_y:.4} center_y={:.4} spawn_adjustment={spawn_adjustment:.4} capsule_bottom={capsule_bottom:.4} clearance={bottom_clearance:.4} avatar_relative_error={avatar_relative_error:.6} position_error={position_error:.6} sensor_proximity={sensor_proximity:.6} vertical_velocity={:.4} recovery_corrections={} recovery_penetration={:.6} pre_enable_max_center_error={:.6} pre_enable_max_vertical_velocity={:.6} max_center_error={:.6} max_vertical_velocity={:.6} -> PASS",
             character.translation.y,
