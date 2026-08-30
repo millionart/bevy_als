@@ -21,6 +21,7 @@ pub mod global_bool_input;
 pub mod global_f32_input;
 pub mod global_pose_input;
 pub mod ik;
+pub mod ik_space;
 pub mod inertialization;
 pub mod inertialized_linked_anim_layer;
 pub mod interruptible_fsm;
@@ -102,6 +103,12 @@ pub use global_bone_mask_input::GlobalBoneMaskInputNode;
 pub use global_bool_input::GlobalBoolInputNode;
 pub use global_f32_input::{GlobalF32InputNode, ROOT_DEFAULTS_ENABLED_KEY};
 pub use global_pose_input::GlobalPoseInputNode;
+pub use ik_space::{
+    ArmatureDirection, ArmaturePoint, BoneLocalPoint, ParentPoint, WorldDirection, WorldPoint,
+    armature_direction_from_world, armature_point_from_world, bone_local_point_from_world,
+    parent_point_from_world, world_direction_from_armature, world_point_from_armature,
+    world_point_from_bone_local, world_point_from_parent,
+};
 pub use inertialization::{
     InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
     inertial_residual_weight,

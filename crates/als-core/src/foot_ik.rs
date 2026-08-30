@@ -17,10 +17,11 @@ pub const FOOT_BONE_NAMES: [&str; 8] = [
     "foot_r",
     "ik_foot_r",
 ];
-pub const PROBE_UP_OFFSET: f32 = 0.15;
-pub const PROBE_DEPTH: f32 = 0.85;
-pub const ANKLE_TO_SOLE: f32 = 0.09;
+pub const PROBE_UP_OFFSET: f32 = 0.50;
+pub const PROBE_DEPTH: f32 = 0.80;
+pub const ANKLE_TO_SOLE: f32 = 0.135;
 pub const MAX_FOOT_REACH: f32 = 0.45;
+pub const FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES: f32 = 45.0;
 pub const FOOT_IK_MOVING_SMOOTH_SPEED_THRESHOLD: f32 = 1.5;
 pub const FOOT_LOCK_THIGH_ANGLE_LIMIT_DEGREES: f32 = 90.0;
 pub const FOOT_LOCK_FOOT_ANGLE_LIMIT_DEGREES: f32 = 40.0;
@@ -472,12 +473,30 @@ pub fn foot_target_offset(ankle_y: f32, hit: &AlsGroundHit) -> f32 {
     raw.clamp(-MAX_FOOT_REACH, MAX_FOOT_REACH)
 }
 
+pub fn foot_target_offset_in_armature(
+    foot_target_armature: Vec3,
+    hit_armature: Vec3,
+    hit_normal_armature: Vec3,
+) -> f32 {
+    let slope_cos = hit_normal_armature.normalize_or_zero().y;
+    if slope_cos <= f32::EPSILON {
+        return 0.0;
+    }
+    let slope_offset = ANKLE_TO_SOLE / slope_cos - ANKLE_TO_SOLE;
+    (hit_armature.y + ANKLE_TO_SOLE + slope_offset - foot_target_armature.y)
+        .clamp(-MAX_FOOT_REACH, MAX_FOOT_REACH)
+}
+
 pub fn foot_ik_target(hit: &AlsGroundHit) -> Vec3 {
     hit.point + Vec3::Y * ANKLE_TO_SOLE
 }
 
 pub fn slope_is_walkable(normal: Vec3, max_slope_degrees: f32) -> bool {
-    let up_dot = normal.normalize_or_zero().dot(Vec3::Y);
+    slope_is_walkable_relative(normal, Vec3::Y, max_slope_degrees)
+}
+
+pub fn slope_is_walkable_relative(normal: Vec3, up: Vec3, max_slope_degrees: f32) -> bool {
+    let up_dot = normal.normalize_or_zero().dot(up.normalize_or_zero());
     up_dot >= max_slope_degrees.to_radians().cos()
 }
 
@@ -891,21 +910,26 @@ pub fn foot_ground_probe_system(
 ) {
     for (entity, char_tf, feet) in &characters {
         let origin_base = char_tf.translation();
+        let up = char_tf.up().as_vec3();
+        let down = Dir3::new(-up).unwrap_or(Dir3::NEG_Y);
         let mut probe = AlsFootProbe::default();
         for side in 0..2usize {
             let chain = feet.chain(side);
-            let Ok(bone_tf) = bones_tf.get(chain.foot) else {
+            let target = feet.target(side);
+            let Ok(target_tf) = bones_tf.get(target) else {
                 continue;
             };
-            let ankle = bone_tf.translation();
-            if (ankle - origin_base).length() > 3.0 {
+            let target_location = target_tf.translation();
+            if (target_location - origin_base).length() > 3.0 {
                 continue;
             }
-            let origin = ankle + Vec3::Y * PROBE_UP_OFFSET;
-            let filter = SpatialQueryFilter::from_excluded_entities([entity, chain.foot]);
-            if let Some(hit) = spatial.cast_ray(origin, Dir3::NEG_Y, PROBE_DEPTH, true, &filter) {
+            let origin = target_location + up * PROBE_UP_OFFSET;
+            let filter = SpatialQueryFilter::from_excluded_entities([entity, chain.foot, target]);
+            if let Some(hit) = spatial.cast_ray(origin, down, PROBE_DEPTH, true, &filter)
+                && slope_is_walkable_relative(hit.normal, up, FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES)
+            {
                 let value = AlsGroundHit {
-                    point: origin - Vec3::Y * hit.distance,
+                    point: origin - up * hit.distance,
                     normal: hit.normal,
                 };
                 if side == 0 {
@@ -1035,6 +1059,35 @@ mod tests {
         let steep = Vec3::new(1.0, 0.5, 0.0);
         assert!(!slope_is_walkable(steep, 50.0));
         assert!(!slope_is_walkable(Vec3::ZERO, 50.0));
+    }
+
+    #[test]
+    fn source_trace_contract_uses_armature_space_and_source_units() {
+        assert!((PROBE_UP_OFFSET - 0.50).abs() < f32::EPSILON);
+        assert!((PROBE_DEPTH - 0.80).abs() < f32::EPSILON);
+        assert!((ANKLE_TO_SOLE - 0.135).abs() < f32::EPSILON);
+        assert!((FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES - 45.0).abs() < f32::EPSILON);
+
+        let target = Vec3::new(0.15, -0.92, -0.25);
+        let hit = Vec3::new(0.15, -1.00, -0.25);
+        let flat = foot_target_offset_in_armature(target, hit, Vec3::Y);
+        let slope_normal = Vec3::new(0.0, 0.866_025_4, 0.5);
+        let slope = foot_target_offset_in_armature(target, hit, slope_normal);
+        let rotated_up = Quat::from_rotation_z(0.4) * Vec3::Y;
+
+        assert!((flat - 0.055).abs() < 1e-5);
+        assert!(slope > flat);
+        assert!(slope_is_walkable_relative(
+            rotated_up,
+            rotated_up,
+            FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES
+        ));
+        assert!(!slope_is_walkable_relative(
+            -rotated_up,
+            rotated_up,
+            FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES
+        ));
+        assert_eq!(foot_target_offset_in_armature(target, hit, Vec3::ZERO), 0.0);
     }
 
     #[test]
