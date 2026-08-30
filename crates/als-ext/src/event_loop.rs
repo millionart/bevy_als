@@ -158,7 +158,10 @@ mod tests {
         }]);
         GraphTestHarness::node(EventLoopNode::new(0.0))
             .with_const_input_data(GraphInputPin::Passthrough(IN_POSE.into()), Pose::default())
-            .with_const_input_data(GraphInputPin::Passthrough(IN_EVENTS.into()), expected.clone())
+            .with_const_input_data(
+                GraphInputPin::Passthrough(IN_EVENTS.into()),
+                expected.clone(),
+            )
             .with_const_input_duration(GraphInputPin::Passthrough(IN_TIME.into()), Some(1.0))
             .with_time_fwd(Some(TimeUpdate::Absolute(1.25)))
             .when_queried()

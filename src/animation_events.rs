@@ -13,9 +13,7 @@ use bevy::ecs::message::{Message, MessageWriter};
 use bevy::prelude::*;
 use bevy::reflect::TypePath;
 use bevy_animation_graph::core::{
-    animation_clip::GraphClip,
-    edge_data::events::EventQueue,
-    event_track::sample_tracks,
+    animation_clip::GraphClip, edge_data::events::EventQueue, event_track::sample_tracks,
     plugin::AnimationGraphSet,
 };
 use serde::Deserialize;
@@ -27,12 +25,9 @@ use crate::roll_drive::AlsRollDriveSet;
 
 pub const ALS_NOTIFY_MANIFEST_PATH: &str = "animation_events/als_notify_manifest.json";
 
-const SOURCE_ROLL_SEQUENCE: &str =
-    "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll";
-const SOURCE_ROLL_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll";
-const SOURCE_SPRINT: &str =
-    "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint";
+const SOURCE_ROLL_SEQUENCE: &str = "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll";
+const SOURCE_ROLL_MONTAGE: &str = "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll";
+const SOURCE_SPRINT: &str = "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint";
 const SOURCE_SPRINT_ACCELERATION: &str =
     "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration";
 const SOURCE_MANTLE_HIGH_SEQUENCE: &str =
@@ -370,7 +365,10 @@ fn mantle_sources(kind: MantleKind) -> (&'static str, &'static str) {
     }
 }
 
-fn graph_clip_for_source<'a>(manifest: &'a AlsNotifyManifest, source_asset: &str) -> Option<&'a str> {
+fn graph_clip_for_source<'a>(
+    manifest: &'a AlsNotifyManifest,
+    source_asset: &str,
+) -> Option<&'a str> {
     manifest
         .clips
         .iter()
@@ -509,7 +507,11 @@ fn timed_events(clip: &AlsNotifyManifestClip) -> Vec<TimedEvent> {
 }
 
 fn marker_event_id(source_asset: &str, marker_id: &str) -> String {
-    format!("als_marker:{}:{}", source_asset.to_lowercase(), marker_id.to_lowercase())
+    format!(
+        "als_marker:{}:{}",
+        source_asset.to_lowercase(),
+        marker_id.to_lowercase()
+    )
 }
 
 fn graph_clip_handle(
@@ -530,7 +532,10 @@ fn sampled_queue(graph_clip: Option<&GraphClip>, time: f32) -> EventQueue {
     })
 }
 
-fn playback_clock(runtime: &mut AlsAnimationEventSourceRuntime, playback: &AlsAnimationEventPlayback) -> Option<EventClock> {
+fn playback_clock(
+    runtime: &mut AlsAnimationEventSourceRuntime,
+    playback: &AlsAnimationEventPlayback,
+) -> Option<EventClock> {
     let Some(previous) = runtime.previous_time.replace(playback.time) else {
         return Some(EventClock {
             previous_time: playback.time,
@@ -553,7 +558,10 @@ fn playback_clock(runtime: &mut AlsAnimationEventSourceRuntime, playback: &AlsAn
     })
 }
 
-fn source_clip<'a>(manifest: &'a AlsNotifyManifest, source_asset: &str) -> Option<&'a AlsNotifyManifestClip> {
+fn source_clip<'a>(
+    manifest: &'a AlsNotifyManifest,
+    source_asset: &str,
+) -> Option<&'a AlsNotifyManifestClip> {
     manifest
         .clips
         .iter()
@@ -621,11 +629,8 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
             };
-            let graph_handle = graph_clip_handle(
-                &mut graph_clip_handles,
-                &asset_server,
-                &playback.graph_clip,
-            );
+            let graph_handle =
+                graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
             let queue = sampled_queue(graph_clips.get(&graph_handle), playback.time);
             let source_runtime = runtime
                 .sources
@@ -642,7 +647,10 @@ fn dispatch_animation_events(
             );
             active_sources.insert(playback.source_asset.clone(), true);
             for signal in signals {
-                let event = source.events.iter().find(|event| event.event_id == signal.id);
+                let event = source
+                    .events
+                    .iter()
+                    .find(|event| event.event_id == signal.id);
                 let (class_name, name, parameters) = match event {
                     Some(event) => (
                         event.class_name.clone(),
@@ -654,7 +662,9 @@ fn dispatch_animation_events(
                         source
                             .sync_markers
                             .iter()
-                            .find(|marker| marker_event_id(&source.source_asset, &marker.id) == signal.id)
+                            .find(|marker| {
+                                marker_event_id(&source.source_asset, &marker.id) == signal.id
+                            })
                             .map_or_else(|| "None".into(), |marker| marker.name.clone()),
                         Value::Null,
                     ),
@@ -730,12 +740,19 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &source_asset) else {
                 continue;
             };
-            let source_runtime = runtime.sources.get_mut(&source_asset).expect("source runtime must exist");
+            let source_runtime = runtime
+                .sources
+                .get_mut(&source_asset)
+                .expect("source runtime must exist");
             for signal in source_runtime.lifecycle.reset() {
-                let event = source.events.iter().find(|event| event.event_id == signal.id);
+                let event = source
+                    .events
+                    .iter()
+                    .find(|event| event.event_id == signal.id);
                 if let Some(event) = event {
                     if event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
-                        let next_action = notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
+                        let next_action =
+                            notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
                         if *action == next_action {
                             *action = AlsNotifyLocomotionAction::None;
                         }
@@ -778,12 +795,18 @@ mod tests {
 
     #[test]
     fn source_paths_select_the_expected_mantle_variants() {
-        assert_eq!(mantle_sources(MantleKind::High).0, SOURCE_MANTLE_HIGH_SEQUENCE);
+        assert_eq!(
+            mantle_sources(MantleKind::High).0,
+            SOURCE_MANTLE_HIGH_SEQUENCE
+        );
         assert_eq!(
             mantle_sources(MantleKind::LowBothHands).1,
             SOURCE_MANTLE_LOW_BOTH_MONTAGE
         );
-        assert_eq!(mantle_sources(MantleKind::LowBox).1, SOURCE_MANTLE_LOW_BOX_MONTAGE);
+        assert_eq!(
+            mantle_sources(MantleKind::LowBox).1,
+            SOURCE_MANTLE_LOW_BOX_MONTAGE
+        );
     }
 
     #[test]

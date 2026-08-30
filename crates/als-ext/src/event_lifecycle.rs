@@ -97,7 +97,10 @@ impl EventLifecycle {
         ids.sort();
         let mut output = Vec::with_capacity(ids.len());
         for id in ids {
-            let state = self.active_states.remove(&id).expect("active state must exist");
+            let state = self
+                .active_states
+                .remove(&id)
+                .expect("active state must exist");
             output.push(EventLifecycleSignal {
                 id,
                 phase: EventPhase::End,
@@ -168,7 +171,8 @@ impl EventLifecycle {
         if let Some(clock) = clock {
             for definition in definitions.values().copied() {
                 if definition.kind != TimedEventKind::State
-                    || definition.state_boundary != StateIntervalBoundary::StartExclusiveEndInclusive
+                    || definition.state_boundary
+                        != StateIntervalBoundary::StartExclusiveEndInclusive
                     || point_weight < definition.weight_threshold
                     || !passes_dispatch(definition, dispatch)
                     || !state_active_at(definition, clock.current_time)
@@ -186,11 +190,7 @@ impl EventLifecycle {
             }
         }
 
-        let previously_active = self
-            .active_states
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
+        let previously_active = self.active_states.keys().cloned().collect::<HashSet<_>>();
         let mut output = Vec::new();
         let mut ended = self
             .active_states
@@ -200,7 +200,10 @@ impl EventLifecycle {
             .collect::<Vec<_>>();
         ended.sort();
         for id in ended {
-            let state = self.active_states.remove(&id).expect("active state must exist");
+            let state = self
+                .active_states
+                .remove(&id)
+                .expect("active state must exist");
             output.push(EventLifecycleSignal {
                 id,
                 phase: EventPhase::End,
@@ -315,7 +318,11 @@ pub fn crossed_time(time: f32, clock: EventClock) -> bool {
     }
 }
 
-fn point_order(first: &TimedEvent, second: &TimedEvent, direction: PlaybackDirection) -> std::cmp::Ordering {
+fn point_order(
+    first: &TimedEvent,
+    second: &TimedEvent,
+    direction: PlaybackDirection,
+) -> std::cmp::Ordering {
     let order = first.start_time.total_cmp(&second.start_time);
     match direction {
         PlaybackDirection::Forward => order.then_with(|| first.id.cmp(&second.id)),
@@ -353,7 +360,13 @@ mod tests {
 
     use super::*;
 
-    fn definition(id: &str, kind: TimedEventKind, start: f32, end: f32, threshold: f32) -> TimedEvent {
+    fn definition(
+        id: &str,
+        kind: TimedEventKind,
+        start: f32,
+        end: f32,
+        threshold: f32,
+    ) -> TimedEvent {
         TimedEvent {
             id: id.into(),
             kind,
@@ -390,12 +403,31 @@ mod tests {
     fn state_emits_begin_active_and_end_once() {
         let state = definition("state", TimedEventKind::State, 0.0, 1.0, 0.5);
         let mut lifecycle = EventLifecycle::default();
-        let begin = lifecycle.update(&[state.clone()], &state_queue("state", 0.75, 0.25), None, 0.0);
-        assert_eq!(begin.iter().map(|signal| signal.phase).collect::<Vec<_>>(), vec![EventPhase::Begin, EventPhase::Active]);
-        let active = lifecycle.update(&[state.clone()], &state_queue("state", 0.75, 0.5), None, 0.0);
-        assert_eq!(active.iter().map(|signal| signal.phase).collect::<Vec<_>>(), vec![EventPhase::Active]);
+        let begin = lifecycle.update(
+            &[state.clone()],
+            &state_queue("state", 0.75, 0.25),
+            None,
+            0.0,
+        );
+        assert_eq!(
+            begin.iter().map(|signal| signal.phase).collect::<Vec<_>>(),
+            vec![EventPhase::Begin, EventPhase::Active]
+        );
+        let active = lifecycle.update(
+            &[state.clone()],
+            &state_queue("state", 0.75, 0.5),
+            None,
+            0.0,
+        );
+        assert_eq!(
+            active.iter().map(|signal| signal.phase).collect::<Vec<_>>(),
+            vec![EventPhase::Active]
+        );
         let end = lifecycle.update(&[state], &EventQueue::default(), None, 0.0);
-        assert_eq!(end.iter().map(|signal| signal.phase).collect::<Vec<_>>(), vec![EventPhase::End]);
+        assert_eq!(
+            end.iter().map(|signal| signal.phase).collect::<Vec<_>>(),
+            vec![EventPhase::End]
+        );
     }
 
     #[test]
@@ -411,11 +443,26 @@ mod tests {
         let point = definition("point", TimedEventKind::Point, 0.25, 0.25, 0.5);
         let marker = definition("marker", TimedEventKind::Marker, 0.75, 0.75, 0.5);
         let mut lifecycle = EventLifecycle::default();
-        let none = lifecycle.update(&[point.clone(), marker.clone()], &EventQueue::default(), Some(forward(0.0, 0.2, false)), 1.0);
+        let none = lifecycle.update(
+            &[point.clone(), marker.clone()],
+            &EventQueue::default(),
+            Some(forward(0.0, 0.2, false)),
+            1.0,
+        );
         assert!(none.is_empty());
-        let point_signal = lifecycle.update(&[point.clone(), marker.clone()], &EventQueue::default(), Some(forward(0.2, 0.3, false)), 1.0);
+        let point_signal = lifecycle.update(
+            &[point.clone(), marker.clone()],
+            &EventQueue::default(),
+            Some(forward(0.2, 0.3, false)),
+            1.0,
+        );
         assert_eq!(point_signal[0].phase, EventPhase::Point);
-        let marker_signal = lifecycle.update(&[point, marker], &EventQueue::default(), Some(forward(0.7, 0.8, false)), 1.0);
+        let marker_signal = lifecycle.update(
+            &[point, marker],
+            &EventQueue::default(),
+            Some(forward(0.7, 0.8, false)),
+            1.0,
+        );
         assert_eq!(marker_signal[0].phase, EventPhase::Marker);
     }
 
@@ -423,7 +470,12 @@ mod tests {
     fn forward_and_backward_wraps_cross_each_point_once() {
         let point = definition("point", TimedEventKind::Point, 0.1, 0.1, 0.0);
         let mut lifecycle = EventLifecycle::default();
-        let forward_wrap = lifecycle.update(&[point.clone()], &EventQueue::default(), Some(forward(0.9, 0.2, true)), 1.0);
+        let forward_wrap = lifecycle.update(
+            &[point.clone()],
+            &EventQueue::default(),
+            Some(forward(0.9, 0.2, true)),
+            1.0,
+        );
         assert_eq!(forward_wrap.len(), 1);
         let backward = EventClock {
             previous_time: 0.2,
@@ -458,7 +510,10 @@ mod tests {
             0.75,
         );
         assert_eq!(
-            signals.iter().map(|signal| signal.phase).collect::<Vec<_>>(),
+            signals
+                .iter()
+                .map(|signal| signal.phase)
+                .collect::<Vec<_>>(),
             vec![EventPhase::Begin, EventPhase::End]
         );
     }

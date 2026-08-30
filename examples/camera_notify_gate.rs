@@ -10,13 +10,12 @@ use bevy::asset::AssetPlugin;
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
+use bevy_als::animation_events::{
+    AlsAnimationEvent, AlsAnimationEventPlugin, AlsAnimationEventSet, AlsNotifyEarlyBlendOut,
+    AlsNotifyLocomotionAction, AlsNotifyManifest, AlsNotifyRootMotionScale, AlsStandingEventClock,
+};
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::core::animation_clip::GraphClip;
-use bevy_als::animation_events::{
-    AlsAnimationEventPlugin, AlsAnimationEventSet, AlsNotifyLocomotionAction,
-    AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyManifest, AlsNotifyRootMotionScale,
-    AlsStandingEventClock,
-};
 
 fn main() {
     App::new()
@@ -42,7 +41,10 @@ fn main() {
         .init_resource::<GateState>()
         .add_systems(Startup, setup)
         .add_systems(PreUpdate, drive)
-        .add_systems(FixedPostUpdate, observe.after(AlsAnimationEventSet::Dispatch))
+        .add_systems(
+            FixedPostUpdate,
+            observe.after(AlsAnimationEventSet::Dispatch),
+        )
         .run();
 }
 
@@ -159,14 +161,7 @@ fn drive(
                 roll.active = false;
             }
             if let Ok(mut mantle) = mantles.get_mut(target) {
-                mantle.begin(
-                    MantleKind::High,
-                    Vec3::ZERO,
-                    Vec3::ONE,
-                    2.0,
-                    0.0,
-                    0.0,
-                );
+                mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::ONE, 2.0, 0.0, 0.0);
                 mantle.time = 0.8;
             }
         }
@@ -194,7 +189,10 @@ fn observe(
     let Some(target) = state.target else {
         return;
     };
-    for event in animation_events.read().filter(|event| event.character == target) {
+    for event in animation_events
+        .read()
+        .filter(|event| event.character == target)
+    {
         if event.class_name == "AlsAnimNotify_CameraShake" {
             println!(
                 "[BF103][EVENT] source={} time={:.6} phase={:?} weight={:.3}",

@@ -16,8 +16,8 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::Pose;
 
-use crate::character_assembly::AlsCharacterAvatar;
 use crate::animation_events::AlsNotifyLocomotionAction;
+use crate::character_assembly::AlsCharacterAvatar;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet};
 use crate::locomotion_layer::{AlsGroundPredictionState, AlsLocomotionLayerSet};
 use crate::stance_layer::AlsStanceBlend;

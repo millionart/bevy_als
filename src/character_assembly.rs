@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraCurveProfileDriver,
-    AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
-    AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
+    AlsCameraCurveProfileDriver, AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset,
+    AlsCameraRig, AlsCameraRuntime, AlsCameraSocketBinding, AlsCameraSocketLocations,
+    AlsCameraTarget,
 };
 use als_core::character::AlsCharacterBundle;
 use als_core::control_scheme::AlsControlSchemeConfig;

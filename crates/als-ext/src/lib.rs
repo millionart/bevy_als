@@ -7,9 +7,9 @@ pub mod curve_bundle;
 pub mod curve_weighted_samples;
 pub mod direct_transition_event;
 pub mod distance_match;
-pub mod event_queue_blend;
-pub mod event_loop;
 pub mod event_lifecycle;
+pub mod event_loop;
+pub mod event_queue_blend;
 pub mod f32_to_vec2;
 pub mod f_interp;
 pub mod first_update;
@@ -76,17 +76,14 @@ pub use direct_transition_event::{DirectTransitionEventNode, direct_transition_i
 pub use distance_match::{
     DistanceMatchNode, default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
 };
+pub use event_lifecycle::{
+    EventClock, EventDispatchContext, EventLifecycle, EventLifecycleSignal, EventPhase,
+    PlaybackDirection, StateIntervalBoundary, TimedEvent, TimedEventKind, crossed_time,
+};
+pub use event_loop::{EventLoopNode, loop_position as event_loop_position};
 pub use event_queue_blend::{
     EventQueueBlendNode, IN_EVENTS_A, IN_EVENTS_B, IN_WEIGHT_A, IN_WEIGHT_B, OUT_EVENTS,
     merge_weighted_event_queues, weighted_event_queue,
-};
-pub use event_loop::{
-    EventLoopNode, loop_position as event_loop_position,
-};
-pub use event_lifecycle::{
-    EventClock, EventDispatchContext, EventLifecycle, EventLifecycleSignal, EventPhase,
-    PlaybackDirection, TimedEvent,
-    TimedEventKind, StateIntervalBoundary, crossed_time,
 };
 pub use f_interp::{FInterpNode, f_interp_to};
 pub use f32_to_vec2::{F32ToVec2Node, f32_to_vec2};

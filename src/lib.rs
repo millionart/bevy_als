@@ -1,10 +1,10 @@
 //! bevy_als orchestration crate: graph links, camera/ragdoll/stop/roll drivers, debug draw.
 
 pub mod ab_als_root;
-pub mod animation_events;
 pub mod air_jump_layer;
 pub mod als_hud;
 pub mod anim_probe;
+pub mod animation_events;
 pub mod character_assembly;
 pub mod character_runtime;
 pub mod control_rig_apply;

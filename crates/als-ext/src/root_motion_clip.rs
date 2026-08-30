@@ -13,8 +13,8 @@ use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::{DataSpec, DataValue, events::EventQueue},
-    event_track::sample_tracks,
     errors::GraphError,
+    event_track::sample_tracks,
     id::BoneId,
     pose::{BonePose, Pose, RootMotionDelta, RootMotionMode},
 };
@@ -138,7 +138,8 @@ impl NodeLike for RootMotionClipNode {
             .partial_update_with_tracks(clamped_prev, &clip.event_tracks)
             .unwrap_or(clamped_prev)
             .clamp(0.0, clip_duration);
-        let events = EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
+        let events =
+            EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
 
         let mut out_pose = Pose {
             timestamp: current_time,

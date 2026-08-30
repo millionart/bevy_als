@@ -1,12 +1,16 @@
-use std::{collections::BTreeSet, fs, path::{Path, PathBuf}};
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
+use als_ext::RootMotionClipNode;
 use bevy::{
     asset::{Assets, Handle},
     ecs::system::{Res, ResMut, SystemParamItem},
     platform::collections::HashMap,
 };
 use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
-use als_ext::RootMotionClipNode;
 use bevy_animation_graph::core::{
     animation_clip::{GraphClip, loader::GraphClipSerial},
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
@@ -140,7 +144,8 @@ fn roll_state_track_samples_through_actual_graph_clip_serialization() {
     let event = sampled
         .iter()
         .find(|event| {
-            string_id(&event.event).is_some_and(|value| value.contains("decc527d-454b1467-02c76397-aa1bfb95"))
+            string_id(&event.event)
+                .is_some_and(|value| value.contains("decc527d-454b1467-02c76397-aa1bfb95"))
         })
         .expect("root motion state must be active at half roll time");
     assert!((event.percentage - 0.5).abs() < 1e-5);
@@ -154,7 +159,8 @@ fn point_track_preserves_exact_source_timestamp() {
         .values()
         .flat_map(|track| track.events.iter())
         .find(|item| {
-            string_id(&item.value.event).is_some_and(|value| value.contains("b9e2bd85-40978ab9-277e1a94-a3ee4e3c"))
+            string_id(&item.value.event)
+                .is_some_and(|value| value.contains("b9e2bd85-40978ab9-277e1a94-a3ee4e3c"))
         })
         .expect("roll camera shake point event must exist");
     assert!((point.value.start_time - 0.1).abs() < 1e-6);
@@ -179,8 +185,16 @@ fn sprint_tracks_keep_all_source_point_events() {
         .flat_map(|track| track.events.iter())
         .collect::<Vec<_>>();
     assert_eq!(events.len(), 4);
-    assert!(events.iter().any(|item| (item.value.start_time - 0.066667).abs() < 1e-6));
-    assert!(events.iter().any(|item| (item.value.start_time - 0.366667).abs() < 1e-6));
+    assert!(
+        events
+            .iter()
+            .any(|item| (item.value.start_time - 0.066667).abs() < 1e-6)
+    );
+    assert!(
+        events
+            .iter()
+            .any(|item| (item.value.start_time - 0.366667).abs() < 1e-6)
+    );
 }
 
 #[test]
@@ -312,8 +326,13 @@ fn every_compiled_event_track_deserializes_and_preserves_the_manifest_count() {
     .expect("notify manifest must be valid json");
     let mut graph_clips = BTreeSet::new();
     let mut expected_events = 0usize;
-    for source in manifest["clips"].as_array().expect("clips must be an array") {
-        let events = source["events"].as_array().expect("events must be an array");
+    for source in manifest["clips"]
+        .as_array()
+        .expect("clips must be an array")
+    {
+        let events = source["events"]
+            .as_array()
+            .expect("events must be an array");
         if events.is_empty() {
             continue;
         }

@@ -49,10 +49,13 @@
   - 实现：新增 `AlsAnimationEventPlugin` 读取 `als_notify_manifest.json`、缓存真实 GraphClip、以 Standing marker phase、Roll clip time 和 Mantle clip time 形成每角色 playback，而不自增全局时间；它经 GraphClip EventTrack+EventLifecycle 发出 `AlsAnimationEvent`，并消费 CameraShake、SetGroundedEntryMode、SetLocomotionAction、SetRootMotionScale、EarlyBlendOut。Root graph 的 overlay action 改读 source Notify state；Roll root delta 读取 source RootMotionScale。`AlsCameraAnimationNotifyDriver`、`AlsCameraAnimationTiming`、硬编码通知时刻和旧 sprint timing Gate 已删除。EarlyBlendOut 以 `AlsNotifyEarlyBlendOut` ECS 状态承载精确活动区间／BlendOutDuration；本仓库没有 UE Montage instance，故不伪造 `MontageInstance::Stop`。FootstepEffects 与当前未激活的 GetUp source 仍逐条发出事件，但音频／decal／Niagara 与未接的 GetUp action 保持现有范围外登记，不静默丢弃。
   - 证据：`cargo run --example camera_notify_gate --jobs 2` 输出 PASS：Sprint `[.5,.5]`、SprintAcceleration `[1.25,1.25]`、Roll `[1,2]`、Marker `Left/Right`、Rolling、Mantling、EarlyBlendOut、FromRoll 与 RootMotionScale `1.3` 均被记录；`ALS_BOOT_AUTO_QUIT_SECS=12 BEVY_ASSET_ROOT=<repo-root> roll_gate` 的两次真实滚翻记录 `dist=3.37/3.22`（source `2.75×1.3` 目标带内）、并输出 `completed=true`；`cargo test -p als-camera --lib --jobs 2` 10/10、`cargo test -p bevy_als --lib --jobs 2` 136/136、`cargo check --examples --jobs 2` 通过，`ab_als_contract_gate` exit=0。
 
-- [ ] **BF103.06 — N06：真实入口场景与可复查遥测（P1）**
+- [x] **BF103.06 — N06：真实入口场景与可复查遥测（P1）**
   - 依赖：BF103.05。
   - 执行前：重新提取本项实际演示场景涉及的 ALS 触发事实与预期时序。
-  - 验收：`run_manual.bat` 的 `manual_playground` 在可见原始 Playground 地形、正常角色和相机中可重复触发点式 Notify 与 Notify State；HUD／probe 记录 clip、轨道、事件、时间、权重、生命周期和消费者结果。自动场景不离开 Playground，运行日志给出逐项 PASS。
+  - 当前平台（2026-08-30，用户指令）：用户完成全屏游戏后授权 native 验收，并明确无需再测试 Web 版；本项只以原生真实入口验收。
+  - 当次 ALS 事实（2026-08-30，重新运行本地原版动画事件审计）：范围仍为 137 个动画资产、177 条 Notify、60 个 AuthoredSyncMarker 和 9 个 Montage segment；N06 场景必须真实覆盖 Sprint／SprintAcceleration CameraShake、Roll RootMotionScale／GroundedEntryMode／Rolling、Mantle Mantling／EarlyBlendOut 和 marker crossing，不能由状态或全局时钟伪造。
+  - 实现：`ManualPlaygroundIntegrationPlugin` 新增 Notify 场景。它在原始 Playground 的 PlayerStart、地形 collider、可见角色、相机、grounded spawn 和 Graph source 全部通过后，依次以实际输入触发 Sprint、Roll、Mantle；读取 `AlsAnimationEvent` 以及 RootMotionScale、GroundedEntryMode、LocomotionAction、EarlyBlendOut 消费者状态，记录 source、class、phase、time 和 weight。自动摆件仍位于原始 Playground 地面，未传送至场外或独立测试世界。
+  - 证据：`ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=notify RUST_LOG=info run_manual.bat` 在自身 `target_game`、`CARGO_BUILD_JOBS=2` 下退出码为 0。真实入口先输出 PlayerStart、场景物理、可见角色和 grounded spawn PASS；随后输出 Sprint／SprintAcceleration CameraShake 与 Left／Right marker、Roll RootMotionScale Begin／Active、Rolling、FromRoll 和 Mantle Mantling／EarlyBlendOut 的实际事件。最终 `runtime_assembly`、`animation_graph`、9 个 Notify 覆盖项和 `camera_shake` 全部 `[EXECUTED]`，`scenario=Notify real_entry_paths -> PASS`。
 
 - [ ] **BF103.Gate — Notify／Notify State／Marker 全链路验收（P1）**
   - 依赖：BF103.01–BF103.06。

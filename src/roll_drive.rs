@@ -17,8 +17,8 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
-use crate::character_assembly::AlsCharacterAvatar;
 use crate::animation_events::AlsNotifyRootMotionScale;
+use crate::character_assembly::AlsCharacterAvatar;
 use crate::root_motion_link::{
     ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
 };
@@ -323,9 +323,7 @@ fn roll_drive_system(
                     .then_some(read_local_root_motion_delta(Some(output)))
             })
             .unwrap_or((Vec3::ZERO, Quat::IDENTITY));
-        local_translation *= notify_root_scale
-            .map_or(1.0, |scale| scale.0)
-            .max(0.0);
+        local_translation *= notify_root_scale.map_or(1.0, |scale| scale.0).max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(transform.rotation, local_translation, local_rotation);
         let next_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {

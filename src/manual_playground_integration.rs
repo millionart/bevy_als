@@ -14,7 +14,7 @@ use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance}
 use als_core::transition::AlsStateRequest;
 use als_core::view::AlsViewPitch;
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
-use bevy::ecs::message::MessageWriter;
+use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
@@ -24,10 +24,14 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_tnua::TnuaToggle;
 
+use crate::animation_events::{
+    AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
+};
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::AlsControlRigState;
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::game_mode::AlsPlayerAdmissionComplete;
+use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::head_layer::AlsHeadState;
 use crate::layering_layer::AlsLayeringState;
 use crate::overlay_mode_menu::OverlayMenuState;
@@ -95,6 +99,7 @@ enum IntegrationPhase {
     Ragdoll,
     Camera,
     Interface,
+    Notify,
     Finish,
 }
 
@@ -104,6 +109,7 @@ enum IntegrationScenario {
     Ragdoll,
     Camera,
     Interface,
+    Notify,
 }
 
 impl IntegrationScenario {
@@ -112,6 +118,7 @@ impl IntegrationScenario {
             Some("ragdoll") => Self::Ragdoll,
             Some("camera") => Self::Camera,
             Some("interface") => Self::Interface,
+            Some("notify") => Self::Notify,
             _ => Self::Base,
         }
     }
@@ -162,6 +169,15 @@ struct IntegrationCoverage {
     overlay_menu: bool,
     show_debug: bool,
     debug_draw: bool,
+    notify_sprint: bool,
+    notify_sprint_acceleration: bool,
+    notify_roll: bool,
+    notify_marker: bool,
+    notify_grounded_entry: bool,
+    notify_root_scale: bool,
+    notify_rolling_action: bool,
+    notify_mantling_action: bool,
+    notify_early_blend_out: bool,
 }
 
 #[derive(Resource)]
@@ -203,6 +219,8 @@ struct ManualIntegrationState {
     interface_slomo_restored_seen: bool,
     interface_menu_open_seen: bool,
     interface_menu_closed_seen: bool,
+    notify_roll_armed: bool,
+    notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
     timed_out: bool,
     final_logged: bool,
@@ -250,6 +268,8 @@ impl Default for ManualIntegrationState {
             interface_slomo_restored_seen: false,
             interface_menu_open_seen: false,
             interface_menu_closed_seen: false,
+            notify_roll_armed: false,
+            notify_mantle_armed: false,
             turn_body_yaw: None,
             timed_out: false,
             final_logged: false,
@@ -417,6 +437,7 @@ fn initialize_manual_integration(
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
+        IntegrationScenario::Notify => IntegrationPhase::Notify,
     };
     begin_phase(&mut state, first_phase);
     info!(
@@ -877,6 +898,81 @@ fn drive_manual_integration(
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
+        IntegrationPhase::Notify => {
+            if entering {
+                state.notify_roll_armed = false;
+                state.notify_mantle_armed = false;
+                state.coverage.notify_sprint = false;
+                state.coverage.notify_sprint_acceleration = false;
+                state.coverage.notify_roll = false;
+                state.coverage.notify_marker = false;
+                state.coverage.notify_grounded_entry = false;
+                state.coverage.notify_root_scale = false;
+                state.coverage.notify_rolling_action = false;
+                state.coverage.notify_mantling_action = false;
+                state.coverage.notify_early_blend_out = false;
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+            }
+            if elapsed < 3.0 {
+                input.0.move_dir = Vec2::Y;
+                input.0.sprint_held = true;
+            } else if elapsed < 6.0 {
+                if !state.notify_roll_armed {
+                    reset_character_without_rotation(
+                        &mut transform,
+                        &mut position,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.roll_start,
+                        fixture.facing_yaw,
+                    );
+                    *gait = Gait::Running;
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.stance = Some(Stance::Standing);
+                    state.notify_roll_armed = true;
+                }
+                input.0.move_dir = Vec2::Y;
+                input.0.roll_pressed = (3.5..3.8).contains(&elapsed);
+            } else {
+                if !state.notify_mantle_armed {
+                    reset_character_without_rotation(
+                        &mut transform,
+                        &mut position,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.mantle_start,
+                        fixture.facing_yaw,
+                    );
+                    *gait = Gait::Running;
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.stance = Some(Stance::Standing);
+                    state.notify_mantle_armed = true;
+                }
+                let forward = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::NEG_Z;
+                let progress = (transform.translation - fixture.mantle_start).dot(forward);
+                input.0.move_dir = Vec2::Y;
+                input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 13.0;
+            }
+            if elapsed >= 17.0 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
         IntegrationPhase::Finish => {}
     }
 }
@@ -898,6 +994,23 @@ fn reset_character(
     if let Some(mut rotation) = rotation {
         rotation.0 = rotation_value;
     }
+    velocity.0 = Vec3::ZERO;
+    view_yaw.0 = yaw;
+    view_pitch.0 = 0.0;
+}
+
+fn reset_character_without_rotation(
+    transform: &mut Transform,
+    position: &mut Position,
+    velocity: &mut LinearVelocity,
+    view_yaw: &mut AlsViewYaw,
+    view_pitch: &mut AlsViewPitch,
+    translation: Vec3,
+    yaw: f32,
+) {
+    transform.translation = translation;
+    transform.rotation = Quat::from_rotation_y(yaw);
+    position.0 = translation;
     velocity.0 = Vec3::ZERO;
     view_yaw.0 = yaw;
     view_pitch.0 = 0.0;
@@ -944,6 +1057,7 @@ fn observe_manual_integration(
     fixture: Option<Res<ManualIntegrationFixture>>,
     mut state: ResMut<ManualIntegrationState>,
     real_time: Res<Time<Real>>,
+    mut animation_events: MessageReader<AlsAnimationEvent>,
     interface: InterfaceProbe,
     core: Query<
         (
@@ -975,6 +1089,10 @@ fn observe_manual_integration(
             Option<&AlsMovementBaseDynamicsState>,
             Option<&AlsRagdollGroundFollow>,
             Option<&AlsRagdollJointDrive>,
+            Option<&AlsNotifyLocomotionAction>,
+            Option<&AlsNotifyRootMotionScale>,
+            Option<&AlsNotifyEarlyBlendOut>,
+            Option<&AlsGroundedEntryMode>,
         ),
         With<AlsCharacter>,
     >,
@@ -1029,6 +1147,10 @@ fn observe_manual_integration(
         movement_base,
         ragdoll_follow,
         joint_drive,
+        notify_action,
+        notify_root_scale,
+        notify_early_blend_out,
+        grounded_entry,
     )) = action.get(character)
     else {
         return;
@@ -1051,6 +1173,81 @@ fn observe_manual_integration(
         && player.get_error().is_none();
     if !source_ready {
         state.coverage.graph = false;
+    }
+    for event in animation_events
+        .read()
+        .filter(|event| event.character == character)
+    {
+        if state.scenario != IntegrationScenario::Notify {
+            continue;
+        }
+        match event.class_name.as_str() {
+            "AlsAnimNotify_CameraShake"
+                if event.source_asset.contains("A_Als_Sprint_Acceleration") =>
+            {
+                state.coverage.notify_sprint_acceleration = true;
+            }
+            "AlsAnimNotify_CameraShake" if event.source_asset.contains("A_Als_Sprint") => {
+                state.coverage.notify_sprint = true;
+            }
+            "AlsAnimNotify_CameraShake" if event.source_asset.contains("A_Als_Roll") => {
+                state.coverage.notify_roll = true;
+            }
+            "AuthoredSyncMarker" => {
+                state.coverage.notify_marker = true;
+            }
+            "AlsAnimNotify_SetGroundedEntryMode" => {
+                state.coverage.notify_grounded_entry = true;
+            }
+            "AlsAnimNotifyState_SetRootMotionScale" => {
+                state.coverage.notify_root_scale = true;
+            }
+            "AlsAnimNotifyState_SetLocomotionAction" => {
+                if event.phase == als_ext::EventPhase::Active {
+                    match event.parameters.get("LocomotionAction") {
+                        Some(value)
+                            if value
+                                .get("__tagged__")
+                                .and_then(|value| value.get("TagName"))
+                                .and_then(serde_json::Value::as_str)
+                                == Some("Als.LocomotionAction.Rolling") =>
+                        {
+                            state.coverage.notify_rolling_action = true;
+                        }
+                        Some(value)
+                            if value
+                                .get("__tagged__")
+                                .and_then(|value| value.get("TagName"))
+                                .and_then(serde_json::Value::as_str)
+                                == Some("Als.LocomotionAction.Mantling") =>
+                        {
+                            state.coverage.notify_mantling_action = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            "AlsAnimNotifyState_EarlyBlendOut" => {
+                state.coverage.notify_early_blend_out = true;
+            }
+            _ => {}
+        }
+        info!(
+            "[MANUAL-INTEGRATION][NOTIFY] source={} class={} name={} phase={:?} time={:.6} weight={:.3}",
+            event.source_asset, event.class_name, event.name, event.phase, event.time, event.weight,
+        );
+    }
+    if state.scenario == IntegrationScenario::Notify {
+        state.coverage.notify_rolling_action |=
+            notify_action.is_some_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
+        state.coverage.notify_mantling_action |=
+            notify_action.is_some_and(|action| *action == AlsNotifyLocomotionAction::Mantling);
+        state.coverage.notify_root_scale |=
+            notify_root_scale.is_some_and(|scale| (scale.0 - 1.3).abs() < 1e-4);
+        state.coverage.notify_early_blend_out |= notify_early_blend_out
+            .is_some_and(|state| state.active && state.blend_out_duration > 0.0);
+        state.coverage.notify_grounded_entry |=
+            grounded_entry.is_some_and(|mode| *mode == AlsGroundedEntryMode::FromRoll);
     }
     state.coverage.locomotion |= speed > 0.25 && direction.is_some();
     if speed > 0.5 && direction.is_some_and(|value| value.abs() > 150.0) {
@@ -1380,6 +1577,23 @@ fn observe_manual_integration(
                 ("overlay_menu", coverage.overlay_menu),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
+            ],
+            IntegrationScenario::Notify => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("notify_sprint", coverage.notify_sprint),
+                (
+                    "notify_sprint_acceleration",
+                    coverage.notify_sprint_acceleration,
+                ),
+                ("notify_roll", coverage.notify_roll),
+                ("notify_marker", coverage.notify_marker),
+                ("notify_grounded_entry", coverage.notify_grounded_entry),
+                ("notify_root_scale", coverage.notify_root_scale),
+                ("notify_rolling_action", coverage.notify_rolling_action),
+                ("notify_mantling_action", coverage.notify_mantling_action),
+                ("notify_early_blend_out", coverage.notify_early_blend_out),
+                ("camera_shake", coverage.camera_shake),
             ],
         };
         for (name, covered) in &results {

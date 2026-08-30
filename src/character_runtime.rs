@@ -3,8 +3,8 @@ use als_core::start_stop::{StartStopState, start_stop_detector_system};
 use bevy::prelude::*;
 
 use crate::ab_als_root::AlsRootGraphPlugin;
-use crate::animation_events::AlsAnimationEventPlugin;
 use crate::air_jump_layer::AirJumpLayerPlugin;
+use crate::animation_events::AlsAnimationEventPlugin;
 use crate::control_rig_apply::ControlRigApplyPlugin;
 use crate::crouching_layer::CrouchingLayerPlugin;
 use crate::direction_layer::DirectionLayerPlugin;

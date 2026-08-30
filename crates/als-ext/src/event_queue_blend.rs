@@ -86,7 +86,10 @@ mod tests {
         let queue = EventQueue::with_events([SampledEvent::instant(AnimationEvent::StringId(
             "event".into(),
         ))]);
-        assert_eq!(weighted_event_queue(queue.clone(), -1.0).events[0].weight, 0.0);
+        assert_eq!(
+            weighted_event_queue(queue.clone(), -1.0).events[0].weight,
+            0.0
+        );
         assert_eq!(weighted_event_queue(queue, 2.0).events[0].weight, 1.0);
     }
 }
