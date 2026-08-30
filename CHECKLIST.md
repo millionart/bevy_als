@@ -329,9 +329,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`jump_latch_requires_an_actual_upward_air_transition` 输出 `rejected_latch=false rejected_transition=Some(GroundedToFall) successful_latch=true successful_transition=Some(GroundedToJump) -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（122 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.36 — L06：落地滚翻使用确定性的撞击速度记录（P2）**
+- [x] **BF102.36 — L06：落地滚翻使用确定性的撞击速度记录（P2）**
   - 依赖：BF102.31、BF102.04。
   - 验收：不同渲染 FPS 下自动落地滚翻阈值与选择一致，不依赖逐渲染帧 EMA 偶然值。
+  - 当次事实：`roll_drive` 以 `AlsAirState.last_impact_vy` 调用 `start_from_landing()`；修复前该值由 render Update 的固定系数 EMA 形成，同一物理轨迹在不同 render FPS 有不同采样次数。Tnua 固定 pipeline 提供 Sensors→Logic→Motors 顺序，可在 Sensors 前保存该物理步的空中速度。
+  - 实现：新增 `AlsPreImpactVelocity`，在 FixedUpdate、Tnua Sensors 前记录 Air 状态的 y 速度；render-side `AlsAirState` 在落地边沿优先消费这条固定记录，`roll_drive` 无需改动即可收到确定性的 `last_impact_vy`。
+  - 证据：`fixed_pre_impact_record_keeps_landing_roll_deterministic` 输出 `fixed_record=-7.200 render30_impact=7.200 render120_impact=7.200 roll30=true roll120=true -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（211 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（122 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.37 — L07：lean 使用当前曲线的加减速度归一化（P2）**
   - 依赖：BF102.17、BF102.18。

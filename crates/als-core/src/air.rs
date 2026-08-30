@@ -1,5 +1,6 @@
 use avian3d::prelude::{LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
+use bevy_tnua::TnuaPipelineSystems;
 
 use crate::character::{AlsCharacter, als_character_capsule};
 use crate::state::LocomotionState;
@@ -56,6 +57,11 @@ pub struct AlsAirState {
     pub last_impact_vy: f32,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsPreImpactVelocity {
+    pub last_air_vertical_velocity: f32,
+}
+
 impl Default for AlsAirState {
     fn default() -> Self {
         Self {
@@ -76,6 +82,16 @@ impl Default for AlsAirState {
 
 impl AlsAirState {
     pub fn update(&mut self, loco: &LocomotionState, vy: f32, dt: f32) {
+        self.update_with_pre_impact_velocity(loco, vy, None, dt);
+    }
+
+    pub fn update_with_pre_impact_velocity(
+        &mut self,
+        loco: &LocomotionState,
+        vy: f32,
+        pre_impact_velocity: Option<f32>,
+        dt: f32,
+    ) {
         let dt = dt.max(0.0);
         match self.phase {
             AirPhase::Idle => {
@@ -87,7 +103,9 @@ impl AlsAirState {
             }
             AirPhase::Airborne => {
                 if *loco == LocomotionState::Grounded {
-                    self.last_impact_vy = (-self.last_air_vertical_velocity).max(0.0);
+                    let pre_impact_velocity =
+                        pre_impact_velocity.unwrap_or(self.last_air_vertical_velocity);
+                    self.last_impact_vy = (-pre_impact_velocity).max(0.0);
                     self.landing_heavy = self.last_impact_vy >= LAND_HEAVY_IMPACT_VY;
                     self.landing_time = 0.0;
                     self.phase = AirPhase::Landing;
@@ -168,6 +186,7 @@ type AirQueryItem<'w, 's> = (
     &'w LinearVelocity,
     &'w GlobalTransform,
     Option<&'s mut AlsAirState>,
+    Option<&'w AlsPreImpactVelocity>,
     Option<&'w crate::character::AlsMovementParamsHandle>,
 );
 #[allow(clippy::type_complexity)]
@@ -179,9 +198,14 @@ fn air_state_system(
     crouched: Query<Has<crate::motion::AlsCapsuleCrouched>>,
 ) {
     let dt = time.delta_secs();
-    for (entity, loco, vel, transform, state, handle) in &mut q {
+    for (entity, loco, vel, transform, state, pre_impact, handle) in &mut q {
         if let Some(mut s) = state {
-            s.update(loco, vel.y, dt);
+            s.update_with_pre_impact_velocity(
+                loco,
+                vel.y,
+                pre_impact.map(|record| record.last_air_vertical_velocity),
+                dt,
+            );
             let half_height = handle
                 .and_then(|h| params_assets.get(h.id()))
                 .map(|p| {
@@ -296,7 +320,24 @@ impl Plugin for AlsAirPlugin {
         app.add_systems(
             Update,
             (ensure_air_state, air_state_system.after(ensure_air_state)),
+        )
+        .add_systems(
+            FixedUpdate,
+            record_pre_impact_velocity_system.before(TnuaPipelineSystems::Sensors),
         );
+    }
+}
+
+fn record_pre_impact_velocity_system(
+    mut q: Query<
+        (&LocomotionState, &LinearVelocity, &mut AlsPreImpactVelocity),
+        With<AlsCharacter>,
+    >,
+) {
+    for (locomotion, velocity, mut record) in &mut q {
+        if *locomotion == LocomotionState::Air {
+            record.last_air_vertical_velocity = velocity.y;
+        }
     }
 }
 
@@ -305,15 +346,19 @@ fn ensure_air_state(
     q: Query<Entity, (With<AlsCharacter>, Without<AlsAirState>)>,
 ) {
     for entity in &q {
-        commands.entity(entity).insert(AlsAirState::default());
+        commands
+            .entity(entity)
+            .insert((AlsAirState::default(), AlsPreImpactVelocity::default()));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use avian3d::prelude::{Collider, PhysicsPlugins, PhysicsSystems, Position, RigidBody};
+    use bevy::ecs::system::RunSystemOnce;
 
     use super::*;
+    use crate::state::Stance;
 
     const DT: f32 = 1.0 / 60.0;
 
@@ -384,6 +429,59 @@ mod tests {
             prediction.hit_fraction,
             prediction.capsule_half_height,
             prediction.capsule_radius,
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn fixed_pre_impact_record_keeps_landing_roll_deterministic() {
+        let mut world = World::new();
+        let entity = world
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Air,
+                LinearVelocity(Vec3::new(0.0, -7.2, 0.0)),
+                AlsPreImpactVelocity::default(),
+            ))
+            .id();
+        world
+            .run_system_once(record_pre_impact_velocity_system)
+            .unwrap();
+        let fixed_record = world
+            .get::<AlsPreImpactVelocity>(entity)
+            .unwrap()
+            .last_air_vertical_velocity;
+        let mut impacts = Vec::new();
+        for render_updates in [1, 4] {
+            let mut air = AlsAirState::default();
+            for _ in 0..render_updates {
+                air.update_with_pre_impact_velocity(&LocomotionState::Air, -1.0, None, 1.0 / 120.0);
+            }
+            air.update_with_pre_impact_velocity(
+                &LocomotionState::Grounded,
+                0.0,
+                Some(fixed_record),
+                1.0 / 60.0,
+            );
+            impacts.push(air.last_impact_vy);
+        }
+        let mut roll_30 = crate::roll::AlsRollState::default();
+        let mut roll_120 = crate::roll::AlsRollState::default();
+        let roll_30_started = roll_30
+            .start_from_landing(impacts[0], Vec3::NEG_Z, 0.0, Stance::Standing)
+            .started;
+        let roll_120_started = roll_120
+            .start_from_landing(impacts[1], Vec3::NEG_Z, 0.0, Stance::Standing)
+            .started;
+        let passed = (fixed_record + 7.2).abs() < 1e-6
+            && (impacts[0] - 7.2).abs() < 1e-6
+            && (impacts[1] - 7.2).abs() < 1e-6
+            && roll_30_started
+            && roll_120_started;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.36][VERDICT] fixed_record={fixed_record:.3} render30_impact={:.3} render120_impact={:.3} roll30={} roll120={} -> {verdict}",
+            impacts[0], impacts[1], roll_30_started, roll_120_started,
         );
         assert!(passed);
     }
