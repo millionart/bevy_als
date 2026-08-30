@@ -1,4 +1,5 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use als_core::dynamics::AlsGroundedDynamics;
 use als_core::foot_ik::AlsFootLockInput;
 use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
@@ -642,12 +643,13 @@ fn acceleration_amount(
     acceleration: Vec3,
     velocity: Vec3,
     transform: &Transform,
-    params: &AlsMovementParams,
+    maximum_acceleration: f32,
+    maximum_braking_deceleration: f32,
 ) -> Vec2 {
     let maximum = if acceleration.dot(velocity) >= 0.0 {
-        params.acceleration.max_acceleration
+        maximum_acceleration
     } else {
-        params.acceleration.braking_deceleration
+        maximum_braking_deceleration
     };
     if maximum <= f32::EPSILON {
         return Vec2::ZERO;
@@ -1200,6 +1202,7 @@ fn update_standing_inputs(
     transform: &Transform,
     velocity: Vec3,
     params: &AlsMovementParams,
+    dynamics: Option<&AlsGroundedDynamics>,
     locomotion: LocomotionState,
     stance: Stance,
     gait: Gait,
@@ -1228,7 +1231,19 @@ fn update_standing_inputs(
         Vec3::ZERO
     };
     let target_velocity_blend = velocity_blend_target(local_horizontal(velocity, transform));
-    let target_lean = acceleration_amount(acceleration, velocity, transform, params);
+    let (maximum_acceleration, maximum_braking_deceleration) = dynamics
+        .map(|dynamics| (dynamics.0.acceleration, dynamics.0.braking_deceleration))
+        .unwrap_or((
+            params.acceleration.max_acceleration,
+            params.acceleration.braking_deceleration,
+        ));
+    let target_lean = acceleration_amount(
+        acceleration,
+        velocity,
+        transform,
+        maximum_acceleration,
+        maximum_braking_deceleration,
+    );
     if runtime.initialized {
         runtime.velocity_blend = damp_velocity_blend(
             runtime.velocity_blend,
@@ -1680,6 +1695,7 @@ fn standing_layer_writer(
             &Transform,
             &LinearVelocity,
             &AlsMovementParamsHandle,
+            Option<&AlsGroundedDynamics>,
             &LocomotionState,
             &Stance,
             &Gait,
@@ -1719,6 +1735,7 @@ fn standing_layer_writer(
             transform,
             velocity,
             handle,
+            dynamics,
             locomotion,
             stance,
             gait,
@@ -1766,6 +1783,7 @@ fn standing_layer_writer(
             transform,
             velocity.0,
             movement_params,
+            dynamics,
             *locomotion,
             *stance,
             *gait,
@@ -1913,6 +1931,24 @@ mod tests {
                 < 1e-6
         );
         assert!((damper_exact_alpha(LEAN_HALF_LIFE, LEAN_HALF_LIFE) - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn lean_normalizes_against_current_braking_dynamics() {
+        let transform = Transform::default();
+        let acceleration = Vec3::NEG_X * 5.0;
+        let velocity = Vec3::X;
+        let current = acceleration_amount(acceleration, velocity, &transform, 20.0, 5.0);
+        let static_params = acceleration_amount(acceleration, velocity, &transform, 20.0, 15.0);
+        let passed = (current.length() - 1.0).abs() < 1e-6
+            && (static_params.length() - 1.0 / 3.0).abs() < 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.37][VERDICT] current_braking_lean={:.3} static_braking_lean={:.3} -> {verdict}",
+            current.length(),
+            static_params.length(),
+        );
+        assert!(passed);
     }
 
     #[test]

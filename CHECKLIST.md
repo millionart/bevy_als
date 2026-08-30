@@ -341,9 +341,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`fixed_pre_impact_record_keeps_landing_roll_deterministic` 输出 `fixed_record=-7.200 render30_impact=7.200 render120_impact=7.200 roll30=true roll120=true -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（211 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（122 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.37 — L07：lean 使用当前曲线的加减速度归一化（P2）**
+- [x] **BF102.37 — L07：lean 使用当前曲线的加减速度归一化（P2）**
   - 依赖：BF102.17、BF102.18。
   - 验收：不同 gait 区间的起停/加速均以当前曲线值归一化，最终 lean 与数值探针一致。
+  - 当次事实：ALS `GetAccelerationAmount()` 对同向加速度除以当前 MaxAcceleration、对反向减速度除以当前 MaxBrakingDeceleration；`RefreshGroundedLean()` 直接消费该结果。修复前 standing layer 以静态运动参数归一化，而 `AlsGroundedDynamics` 已按 gait 曲线提供当前实际 acceleration/braking 值。
+  - 实现：standing writer 读取同一角色的 `AlsGroundedDynamics`，以其当前 acceleration 与 braking_deceleration 计算 lean；动态组件缺失时保持静态参数回退。
+  - 证据：`lean_normalizes_against_current_braking_dynamics` 输出 `current_braking_lean=1.000 static_braking_lean=0.333 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（123 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.38 — L08：播放率缩放来自实际动画网格世界缩放（P3）**
   - 依赖：BF102.06、BF102.15。
