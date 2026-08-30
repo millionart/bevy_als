@@ -468,9 +468,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 相机 lag、时间、模式与碰撞恢复
 
-- [ ] **BF102.52 — C02：轴独立相机 lag 做 UE→Bevy 坐标映射（P2）**
+- [x] **BF102.52 — C02：轴独立相机 lag 做 UE→Bevy 坐标映射（P2）**
   - 依赖：BF102.14。
   - 验收：各轴 LocationLag 不相同时，位置响应按映射后的轴和时间常数一致。
+  - 当次 ALS 事实：本地 ALS 源码的 `CalculatePivotLagLocation()` 先将当前和目标 pivot 位置以 camera yaw 反旋转到相机空间，再独立以 `LocationLagX`、`LocationLagY`、`LocationLagZ` 对 UE 相机空间 X/Y/Z 调用 `DamperExact()`，最后旋转回世界空间。
+  - 实现：既有向量转换使 UE 相机空间 `(X,Y,Z)` 映射为 Bevy 相机空间 `(-Z,X,Y)`；因此 lag 半衰期按 `(UE Y, UE Z, UE X)` 映射到 Bevy `(X,Y,Z)`。生产 camera rig 与独立 Gate 都调用同一 `damp_ue_location_lag()` 路径。
+  - 证据：`camera_lag_axis_gate` 输出 `[BF102.52][GATE] bevy_half_lives=(0.400,0.800,0.200) response=(0.292893,0.159104,0.500000) -> PASS`；`als-camera` 单测以相同的非对称三轴输入复核该映射。
+  - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（8 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（131 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.53 — C03：冲刺镜头震动使用冲刺动画实际时间（P2）**
   - 依赖：BF102.33、BF102.34。

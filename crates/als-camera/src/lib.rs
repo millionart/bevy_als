@@ -903,6 +903,24 @@ fn damp_exact(current: f32, target: f32, delta_seconds: f32, half_life_seconds: 
     current.lerp(target, damp_alpha(delta_seconds, half_life_seconds))
 }
 
+pub fn ue_location_lag_to_bevy_camera_space(ue_half_lives: Vec3) -> Vec3 {
+    Vec3::new(ue_half_lives.y, ue_half_lives.z, ue_half_lives.x)
+}
+
+pub fn damp_ue_location_lag(
+    current: Vec3,
+    target: Vec3,
+    delta_seconds: f32,
+    ue_half_lives: Vec3,
+) -> Vec3 {
+    let lag = ue_location_lag_to_bevy_camera_space(ue_half_lives);
+    Vec3::new(
+        damp_exact(current.x, target.x, delta_seconds, lag.x),
+        damp_exact(current.y, target.y, delta_seconds, lag.y),
+        damp_exact(current.z, target.z, delta_seconds, lag.z),
+    )
+}
+
 fn shortest_angle_delta(current: f32, target: f32) -> f32 {
     (target - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
         - std::f32::consts::PI
@@ -1466,14 +1484,12 @@ fn camera_rig_system(
     let pivot_lag = if allow_lag {
         let current = yaw_rotation.inverse().mul_vec3(runtime.pivot_lag_location);
         let target = yaw_rotation.inverse().mul_vec3(pivot_target);
-        let lag_x = curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX));
-        let lag_y = curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY));
-        let lag_z = curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ));
-        yaw_rotation.mul_vec3(Vec3::new(
-            damp_exact(current.x, target.x, delta_seconds, lag_x),
-            damp_exact(current.y, target.y, delta_seconds, lag_y),
-            damp_exact(current.z, target.z, delta_seconds, lag_z),
-        ))
+        let ue_lag = Vec3::new(
+            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX)),
+            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY)),
+            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ)),
+        );
+        yaw_rotation.mul_vec3(damp_ue_location_lag(current, target, delta_seconds, ue_lag))
     } else {
         pivot_target
     };
@@ -1706,6 +1722,23 @@ mod tests {
     #[test]
     fn exact_damper_halves_distance_at_its_half_life() {
         assert!((damp_exact(0.0, 1.0, 0.2, 0.2) - 0.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn location_lag_half_lives_follow_camera_axis_conversion() {
+        let bevy = ue_location_lag_to_bevy_camera_space(Vec3::new(0.2, 0.4, 0.8));
+        let current = Vec3::ZERO;
+        let target = Vec3::ONE;
+        let next = damp_ue_location_lag(current, target, 0.2, Vec3::new(0.2, 0.4, 0.8));
+        let expected = Vec3::new(0.292_893_23, 0.159_103_59, 0.5);
+        let passed =
+            bevy.distance(Vec3::new(0.4, 0.8, 0.2)) <= 1e-6 && next.distance(expected) <= 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.52][VERDICT] bevy_half_lives=({:.3},{:.3},{:.3}) response=({:.6},{:.6},{:.6}) -> {verdict}",
+            bevy.x, bevy.y, bevy.z, next.x, next.y, next.z,
+        );
+        assert!(passed);
     }
 
     #[test]
