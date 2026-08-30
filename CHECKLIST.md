@@ -5,7 +5,43 @@
 > 基座模块提交前缀沿用 `M<编号>`；缺陷修复清单用 `BF<编号>`。
 > 已归档清单：[archivedchecklist.md](docs/archive/archivedchecklist.md)
 
-当前没有待执行清单项；新的功能、缺陷修复或验收工作必须先在此登记，再按 `agents.md` 执行。
+## BF103 — ALS Notify / Notify State / Marker 事件管线
+
+目标：以 `bevy_animation_graph` 的 `EventTrack`／`EventQueue` 为实际播放时钟，重建当前范围内 ALS 的动画 Notify、Notify State 与标记触发；不得再以角色状态、输入边沿或全局时间模拟动画事件。所有项目语义、源参数映射和消费者保留在主项目／`als-core`，可复用的事件轨道桥接与生命周期机制优先归属 `als-ext`。
+
+- [ ] **BF103.01 — N01：原版 Notify／Notify State／Marker 事实清点与导出合同（P1）**
+  - 依赖：BF102.Gate 已通过。
+  - 执行前：仅在本项成为当前项后，从本地 ALS-Refactored 的实际动画资产、通知类源码和消费者源码重新提取本项事实；不得复用历史记录作为实现依据。
+  - 验收：记录当前已导出动画集合中每个实际 Notify、Notify State 与相关 Marker 的资产路径、类型、名称、时间区间、参数、权重／过滤条件和消费者；定义可复现、无 UE 原始资产的项目侧导出格式，并以解析器验证全部记录的时间与引用。
+
+- [ ] **BF103.02 — N02：Notify 资产侧数据生成与完整性校验（P1）**
+  - 依赖：BF103.01。
+  - 执行前：重新从本地 ALS-Refactored 提取本项所覆盖资产的通知事实与导出边界。
+  - 验收：每个已审计且在范围内的动画都有与其真实播放片段对应的项目侧事件数据；批量校验检测缺失、重复、越界时间、非法区间和不匹配片段。数据不得依赖角色全局时间或手写的按状态定时表。
+
+- [ ] **BF103.03 — N03：`bevy_animation_graph` EventTrack／EventQueue 通用桥接（P1）**
+  - 依赖：BF103.02。
+  - 执行前：重新提取本项涉及 ALS 动画时间、混合权重和事件消费事实，并核对当前锁定的 `bevy_animation_graph` 公共接口。
+  - 验收：项目侧事件数据进入相应 GraphClip 的 `EventTrack`，由实际 `ClipNode` 时间采样并经 `EventQueue` 输出；实例化、循环、seek、混合权重和多个角色之间互不串扰。通用桥接归属 `crates/als-ext`，不得修改依赖 fork。
+
+- [ ] **BF103.04 — N04：Notify State 生命周期与 Marker 触发适配（P1）**
+  - 依赖：BF103.03。
+  - 执行前：重新提取原版通知状态和标记在开始、持续、结束、循环／跳转及混合时的实际语义。
+  - 验收：在项目运行时为同一角色、同一轨道可靠地产生一次 Begin、连续 Active 和一次 End，且点式 Marker 仅在真实跨越时间点时触发一次；对循环、跳帧、反向／重置和低权重过滤的处理有可复查的数值 Gate。可复用机制归属 `crates/als-ext`。
+
+- [ ] **BF103.05 — N05：ALS Notify 消费者接线并移除临时代码路径（P1）**
+  - 依赖：BF103.04。
+  - 执行前：重新从本地 ALS-Refactored 提取每个本项消费的 Notify／Notify State 类、参数与角色／相机行为，明确范围内外差异。
+  - 验收：范围内 ALS 专用消费者只消费实际 GraphClip 事件，不从 gait、输入或全局时间推断；现有 `AlsCameraAnimationNotifyDriver` 临时定时路径被真实事件路径取代或删除。范围外通知显式登记原因，不得静默丢弃。
+
+- [ ] **BF103.06 — N06：真实入口场景与可复查遥测（P1）**
+  - 依赖：BF103.05。
+  - 执行前：重新提取本项实际演示场景涉及的 ALS 触发事实与预期时序。
+  - 验收：`run_manual.bat` 的 `manual_playground` 在可见原始 Playground 地形、正常角色和相机中可重复触发点式 Notify 与 Notify State；HUD／probe 记录 clip、轨道、事件、时间、权重、生命周期和消费者结果。自动场景不离开 Playground，运行日志给出逐项 PASS。
+
+- [ ] **BF103.Gate — Notify／Notify State／Marker 全链路验收（P1）**
+  - 依赖：BF103.01–BF103.06。
+  - 验收：从项目侧导出数据到实际 GraphClip、EventQueue、生命周期、ALS 消费者和 `manual_playground` 的完整链路都有真实运行日志；覆盖至少一个点式 Notify、一个 Notify State、一个 Marker、循环与多角色隔离，确认不存在临时状态／全局时间替代路径。
 
 ## 背景与基础事实（已核实，持续有效）
 
