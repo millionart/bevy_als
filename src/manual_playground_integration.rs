@@ -5,9 +5,11 @@ use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeR
 use als_core::character::AlsCharacter;
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{AlsFootLockState, AlsFootProbe};
+use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::AlsMantleState;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::movement_direction::{AlsMovementDirection, AlsMovementDirectionState};
 use als_core::roll::AlsRollState;
 use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
@@ -24,6 +26,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_tnua::TnuaToggle;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::animation_events::{
     AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
 };
@@ -51,6 +54,13 @@ use crate::{
 };
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(100);
+const DIRECTION_CASE_SECONDS: f32 = 2.4;
+const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
+const DIRECTION_CASE_COUNT: usize = 11;
+const DIRECTION_BRANCH_FORWARD: u8 = 1 << 0;
+const DIRECTION_BRANCH_BACKWARD: u8 = 1 << 1;
+const DIRECTION_BRANCH_LEFT: u8 = 1 << 2;
+const DIRECTION_BRANCH_RIGHT: u8 = 1 << 3;
 
 #[derive(Resource, Default)]
 pub struct ManualPlaygroundStartupReady {
@@ -92,6 +102,7 @@ struct ManualIntegrationFixture {
 enum IntegrationPhase {
     #[default]
     Await,
+    DirectionRegression,
     Locomotion,
     Turn,
     Mantle,
@@ -125,6 +136,128 @@ impl IntegrationScenario {
     }
 }
 
+#[derive(Clone, Copy)]
+struct DirectionRegressionCase {
+    name: &'static str,
+    move_dir: Vec2,
+    desired_gait: Gait,
+    expected_allowed_gait: Gait,
+    expected_actual_gait: Gait,
+    sprint_held: bool,
+    first_person: bool,
+    rotation_mode: RotationMode,
+    yaw_offset: f32,
+    branch_mask: u8,
+}
+
+fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
+    let running = |name, move_dir, branch_mask| DirectionRegressionCase {
+        name,
+        move_dir,
+        desired_gait: Gait::Running,
+        expected_allowed_gait: Gait::Running,
+        expected_actual_gait: Gait::Running,
+        sprint_held: false,
+        first_person: false,
+        rotation_mode: RotationMode::Aiming,
+        yaw_offset: 0.0,
+        branch_mask,
+    };
+    match index {
+        0 => Some(DirectionRegressionCase {
+            name: "walk_forward",
+            move_dir: Vec2::Y,
+            desired_gait: Gait::Walking,
+            expected_allowed_gait: Gait::Walking,
+            expected_actual_gait: Gait::Walking,
+            sprint_held: false,
+            first_person: false,
+            rotation_mode: RotationMode::Aiming,
+            yaw_offset: 0.0,
+            branch_mask: DIRECTION_BRANCH_FORWARD,
+        }),
+        1 => Some(running(
+            "run_backward",
+            Vec2::NEG_Y,
+            DIRECTION_BRANCH_BACKWARD,
+        )),
+        2 => Some(running("run_right", Vec2::X, DIRECTION_BRANCH_RIGHT)),
+        3 => Some(running("run_left", Vec2::NEG_X, DIRECTION_BRANCH_LEFT)),
+        4 => Some(running(
+            "run_forward_right",
+            Vec2::new(1.0, 1.0).normalize(),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT,
+        )),
+        5 => Some(running(
+            "run_backward_right",
+            Vec2::new(1.0, -1.0).normalize(),
+            DIRECTION_BRANCH_BACKWARD | DIRECTION_BRANCH_RIGHT,
+        )),
+        6 => Some(running(
+            "run_backward_left",
+            Vec2::new(-1.0, -1.0).normalize(),
+            DIRECTION_BRANCH_BACKWARD | DIRECTION_BRANCH_LEFT,
+        )),
+        7 => Some(running(
+            "run_forward_left",
+            Vec2::new(-1.0, 1.0).normalize(),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_LEFT,
+        )),
+        8 => Some(DirectionRegressionCase {
+            name: "sprint_allowed_forward",
+            move_dir: Vec2::Y,
+            desired_gait: Gait::Sprinting,
+            expected_allowed_gait: Gait::Sprinting,
+            expected_actual_gait: Gait::Sprinting,
+            sprint_held: true,
+            first_person: false,
+            rotation_mode: RotationMode::VelocityDirection,
+            yaw_offset: 0.0,
+            branch_mask: DIRECTION_BRANCH_FORWARD,
+        }),
+        9 => Some(DirectionRegressionCase {
+            name: "sprint_rejected_first_person_lateral",
+            move_dir: Vec2::X,
+            desired_gait: Gait::Sprinting,
+            expected_allowed_gait: Gait::Running,
+            expected_actual_gait: Gait::Running,
+            sprint_held: true,
+            first_person: true,
+            rotation_mode: RotationMode::ViewDirection,
+            yaw_offset: 0.0,
+            branch_mask: DIRECTION_BRANCH_RIGHT,
+        }),
+        10 => Some(DirectionRegressionCase {
+            name: "run_forward_rotated_90",
+            move_dir: Vec2::Y,
+            desired_gait: Gait::Running,
+            expected_allowed_gait: Gait::Running,
+            expected_actual_gait: Gait::Running,
+            sprint_held: false,
+            first_person: false,
+            rotation_mode: RotationMode::Aiming,
+            yaw_offset: std::f32::consts::FRAC_PI_2,
+            branch_mask: DIRECTION_BRANCH_FORWARD,
+        }),
+        _ => None,
+    }
+}
+
+fn movement_direction_fsm_index(direction: AlsMovementDirection) -> u8 {
+    match direction {
+        AlsMovementDirection::Forward => 0,
+        AlsMovementDirection::Backward => 1,
+        AlsMovementDirection::RightForward => 2,
+        AlsMovementDirection::RightBackward => 3,
+        AlsMovementDirection::LeftForward => 4,
+        AlsMovementDirection::LeftBackward => 5,
+    }
+}
+
+fn direction_branch_matches(index: Option<u8>, mask: u8) -> bool {
+    index.is_some_and(|index| index < 8 && mask & (1 << index) != 0)
+}
+
 #[derive(Default)]
 struct IntegrationCoverage {
     assembly: bool,
@@ -133,6 +266,7 @@ struct IntegrationCoverage {
     backward: bool,
     sideways: bool,
     standing_graph: bool,
+    direction_cases: [bool; DIRECTION_CASE_COUNT],
     crouching: bool,
     sprinting: bool,
     airborne: bool,
@@ -224,6 +358,7 @@ struct ManualIntegrationState {
     notify_roll_armed: bool,
     notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
+    direction_case_index: usize,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -273,6 +408,7 @@ impl Default for ManualIntegrationState {
             notify_roll_armed: false,
             notify_mantle_armed: false,
             turn_body_yaw: None,
+            direction_case_index: usize::MAX,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -435,7 +571,7 @@ fn initialize_manual_integration(
     state.coverage.assembly = true;
     state.coverage.graph = true;
     let first_phase = match state.scenario {
-        IntegrationScenario::Base => IntegrationPhase::Locomotion,
+        IntegrationScenario::Base => IntegrationPhase::DirectionRegression,
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
@@ -518,6 +654,60 @@ fn drive_manual_integration(
 
     match state.phase {
         IntegrationPhase::Await => {}
+        IntegrationPhase::DirectionRegression => {
+            if entering {
+                state.direction_case_index = usize::MAX;
+                state.coverage.direction_cases = [false; DIRECTION_CASE_COUNT];
+            }
+            let case_index = (elapsed / DIRECTION_CASE_SECONDS) as usize;
+            let Some(case) = direction_regression_case(case_index) else {
+                commands.entity(character).remove::<AlsFirstPersonView>();
+                begin_phase(&mut state, IntegrationPhase::Locomotion);
+                return;
+            };
+            if state.direction_case_index != case_index {
+                let yaw = fixture.facing_yaw + case.yaw_offset;
+                if entering || case.yaw_offset.abs() > f32::EPSILON {
+                    reset_character(
+                        &mut transform,
+                        &mut position,
+                        rotation,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        fixture.locomotion_start,
+                        yaw,
+                    );
+                }
+                *overlay = OverlayState::Default;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(case.desired_gait);
+                request.rotation_mode = Some(case.rotation_mode);
+                if case.first_person {
+                    commands.entity(character).insert(AlsFirstPersonView);
+                } else {
+                    commands.entity(character).remove::<AlsFirstPersonView>();
+                }
+                state.direction_case_index = case_index;
+                info!(
+                    "[MANUAL-INTEGRATION][DIRECTION][START] case={} input=({:.3},{:.3}) desired={:?} first_person={} yaw_offset={:.1}",
+                    case.name,
+                    case.move_dir.x,
+                    case.move_dir.y,
+                    case.desired_gait,
+                    case.first_person,
+                    case.yaw_offset.to_degrees(),
+                );
+            }
+            input.0.move_dir = case.move_dir;
+            input.0.sprint_held = case.sprint_held;
+            *rotation_mode = case.rotation_mode;
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(case.desired_gait);
+            request.rotation_mode = Some(case.rotation_mode);
+        }
         IntegrationPhase::Locomotion => {
             if entering {
                 reset_character(
@@ -1082,6 +1272,8 @@ fn observe_manual_integration(
         With<AlsCharacter>,
     >,
     standing_telemetry: Query<&AlsStandingGraphTelemetry, With<AlsCharacter>>,
+    actual_motion: Query<&AlsActualMotion, With<AlsCharacter>>,
+    gait_state: Query<(&AlsDesiredGait, &AlsMaxAllowedGait), With<AlsCharacter>>,
     action: Query<
         (
             Option<&AlsMantleState>,
@@ -1106,6 +1298,7 @@ fn observe_manual_integration(
         Option<&AlsStanceBlend>,
         Option<&AlsJumpVariantState>,
         Option<&AlsTurnDrive>,
+        Option<&AlsMovementDirectionState>,
     )>,
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
@@ -1159,9 +1352,10 @@ fn observe_manual_integration(
     else {
         return;
     };
-    let Some((_, instance, gait_blend, stance_blend, jump_variant, turn_drive)) = avatars
-        .iter()
-        .find(|(avatar, _, _, _, _, _)| avatar.character == character)
+    let Some((_, instance, gait_blend, stance_blend, jump_variant, turn_drive, movement_direction)) =
+        avatars
+            .iter()
+            .find(|(avatar, _, _, _, _, _, _)| avatar.character == character)
     else {
         return;
     };
@@ -1169,6 +1363,8 @@ fn observe_manual_integration(
         return;
     };
     let speed = Vec2::new(velocity.0.x, velocity.0.z).length();
+    let actual_motion = actual_motion.get(character).ok();
+    let gait_state = gait_state.get(character).ok();
     let direction = graph_f32(player, "direction_angle");
     let jump_phase = graph_global_f32(player, "als_locomotion_jump_phase");
     let land_phase = graph_global_f32(player, "als_locomotion_land_phase");
@@ -1201,6 +1397,75 @@ fn observe_manual_integration(
             );
         }
         state.coverage.standing_graph = true;
+    }
+    if state.phase == IntegrationPhase::DirectionRegression
+        && state.direction_case_index < DIRECTION_CASE_COUNT
+        && !state.coverage.direction_cases[state.direction_case_index]
+        && state.phase_started.elapsed().as_secs_f32()
+            >= state.direction_case_index as f32 * DIRECTION_CASE_SECONDS
+                + DIRECTION_CASE_SETTLE_SECONDS
+        && let Some(case) = direction_regression_case(state.direction_case_index)
+        && let (Some(motion), Some((desired, allowed)), Some(telemetry), Some(direction)) = (
+            actual_motion,
+            gait_state,
+            standing_graph,
+            movement_direction,
+        )
+    {
+        let expected_world =
+            als_core::motion::view_relative_move_direction(case.move_dir, view_yaw.0);
+        let expected_local = Vec2::new(
+            expected_world.dot(transform.rotation * Vec3::NEG_Z),
+            expected_world.dot(transform.rotation * Vec3::X),
+        )
+        .normalize_or_zero();
+        let world_alignment = motion
+            .world_velocity
+            .normalize_or_zero()
+            .dot(expected_world);
+        let local_alignment = motion
+            .local_velocity
+            .normalize_or_zero()
+            .dot(expected_local);
+        let graph_matches = telemetry.actual_movement_state
+            == Some(movement_direction_fsm_index(direction.direction))
+            && telemetry.actual_movement_transition_active == Some(false)
+            && telemetry.actual_movement_pose_ready == Some(true)
+            && direction_branch_matches(telemetry.dominant_detail_index, case.branch_mask)
+            && telemetry
+                .dominant_detail_weight
+                .is_some_and(|weight| weight >= 0.4);
+        let gait_matches = desired.0 == case.desired_gait
+            && allowed.0 == case.expected_allowed_gait
+            && *gait == case.expected_actual_gait
+            && first_person == case.first_person;
+        if source_ready
+            && motion.horizontal_speed > 0.75
+            && world_alignment >= 0.8
+            && local_alignment >= 0.8
+            && gait_matches
+            && graph_matches
+        {
+            let case_index = state.direction_case_index;
+            state.coverage.direction_cases[case_index] = true;
+            info!(
+                "[MANUAL-INTEGRATION][DIRECTION] case={} world=({:.3},{:.3}) local=({:.3},{:.3}) direction={:?} gait=({:?},{:?},{:?}) fsm={} branch={} weight={:.3} world_align={:.3} local_align={:.3}",
+                case.name,
+                motion.world_velocity.x,
+                motion.world_velocity.z,
+                motion.local_velocity.x,
+                motion.local_velocity.y,
+                direction.direction,
+                desired.0,
+                allowed.0,
+                gait,
+                telemetry.actual_movement_state.unwrap_or_default(),
+                telemetry.dominant_detail_index.unwrap_or_default(),
+                telemetry.dominant_detail_weight.unwrap_or_default(),
+                world_alignment,
+                local_alignment,
+            );
+        }
     }
     for event in animation_events
         .read()
@@ -1548,6 +1813,19 @@ fn observe_manual_integration(
     if state.phase == IntegrationPhase::Finish && !state.final_logged {
         state.final_logged = true;
         let coverage = &state.coverage;
+        let direction_regression = coverage.direction_cases.iter().all(|covered| *covered);
+        if state.scenario == IntegrationScenario::Base {
+            for index in 0..DIRECTION_CASE_COUNT {
+                if !coverage.direction_cases[index]
+                    && let Some(case) = direction_regression_case(index)
+                {
+                    error!(
+                        "[MANUAL-INTEGRATION][DIRECTION][NOT_COVERED] case={}",
+                        case.name
+                    );
+                }
+            }
+        }
         let results = match state.scenario {
             IntegrationScenario::Base => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -1556,6 +1834,7 @@ fn observe_manual_integration(
                 ("direction_backward", coverage.backward),
                 ("direction_sideways", coverage.sideways),
                 ("standing_graph", coverage.standing_graph),
+                ("direction_regression", direction_regression),
                 ("stance_crouching", coverage.crouching),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),
@@ -1646,5 +1925,61 @@ fn observe_manual_integration(
             );
             exit.write(AppExit::Error(NonZeroU8::new(91).unwrap()));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn direction_regression_covers_cardinals_diagonals_and_sprint_guards() {
+        let cases: Vec<_> = (0..DIRECTION_CASE_COUNT)
+            .map(direction_regression_case)
+            .collect();
+        assert!(cases.iter().all(Option::is_some));
+        assert_eq!(
+            cases[0].as_ref().unwrap().branch_mask,
+            DIRECTION_BRANCH_FORWARD
+        );
+        assert_eq!(
+            cases[1].as_ref().unwrap().branch_mask,
+            DIRECTION_BRANCH_BACKWARD
+        );
+        assert_eq!(
+            cases[2].as_ref().unwrap().branch_mask,
+            DIRECTION_BRANCH_RIGHT
+        );
+        assert_eq!(
+            cases[3].as_ref().unwrap().branch_mask,
+            DIRECTION_BRANCH_LEFT
+        );
+        assert_eq!(
+            cases[8].as_ref().unwrap().expected_actual_gait,
+            Gait::Sprinting
+        );
+        assert_eq!(
+            cases[9].as_ref().unwrap().expected_allowed_gait,
+            Gait::Running
+        );
+        assert!(cases[9].as_ref().unwrap().first_person);
+        assert!((cases[10].as_ref().unwrap().yaw_offset.to_degrees() - 90.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn direction_branch_masks_accept_only_declared_axes() {
+        assert!(direction_branch_matches(
+            Some(0),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
+        ));
+        assert!(direction_branch_matches(
+            Some(3),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
+        ));
+        assert!(!direction_branch_matches(
+            Some(2),
+            DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
+        ));
+        assert!(!direction_branch_matches(None, DIRECTION_BRANCH_FORWARD));
     }
 }

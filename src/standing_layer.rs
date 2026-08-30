@@ -228,6 +228,15 @@ enum StandingMovementState {
 }
 
 impl StandingMovementState {
+    const ALL: [Self; 6] = [
+        Self::Forward,
+        Self::Backward,
+        Self::RightForward,
+        Self::RightBackward,
+        Self::LeftForward,
+        Self::LeftBackward,
+    ];
+
     fn from_direction(direction: AlsMovementDirection) -> Self {
         match direction {
             AlsMovementDirection::Forward => Self::Forward,
@@ -344,6 +353,50 @@ impl StandingMovementState {
             (Self::LeftForward, Self::LeftBackward) => Some(19.0),
             _ => None,
         }
+    }
+
+    fn next_transition_toward(
+        self,
+        target: Self,
+        hips_lock: f32,
+        feet_crossing: f32,
+        source_full_weight: bool,
+    ) -> Option<(Self, f32)> {
+        if let Some(index) =
+            self.transition_index(target, hips_lock, feet_crossing, source_full_weight)
+        {
+            return Some((target, index));
+        }
+        let mut visited = [false; 6];
+        let mut queue = [(self, self); 6];
+        let mut queue_head = 0;
+        let mut queue_tail = 1;
+        visited[self.index() as usize] = true;
+        while queue_head < queue_tail {
+            let (current, first_hop) = queue[queue_head];
+            queue_head += 1;
+            for next in Self::ALL {
+                if current
+                    .transition_index(next, hips_lock, feet_crossing, source_full_weight)
+                    .is_none()
+                {
+                    continue;
+                }
+                let first_hop = if current == self { next } else { first_hop };
+                if next == target {
+                    return self
+                        .transition_index(first_hop, hips_lock, feet_crossing, source_full_weight)
+                        .map(|index| (first_hop, index));
+                }
+                let next_index = next.index() as usize;
+                if !visited[next_index] {
+                    visited[next_index] = true;
+                    queue[queue_tail] = (next, first_hop);
+                    queue_tail += 1;
+                }
+            }
+        }
+        None
     }
 
     fn transition_duration(index: f32) -> f32 {
@@ -1411,26 +1464,28 @@ fn update_standing_inputs(
     }
     let movement_detail_transition_index = runtime.detail_transition_request.unwrap_or(-1.0);
     let desired_movement_state = StandingMovementState::from_direction(direction);
-    let new_movement_transition =
-        if state_index == 1.0 && runtime.movement_state != desired_movement_state {
-            match runtime.movement_state.transition_index(
-                desired_movement_state,
-                hips_direction_lock_amount,
-                feet_crossing_amount,
-                runtime.movement_transition_remaining <= f32::EPSILON,
-            ) {
-                Some(index) => {
-                    runtime.movement_transition_source = Some(runtime.movement_state);
-                    runtime.movement_state = desired_movement_state;
-                    runtime.movement_transition_remaining =
-                        StandingMovementState::transition_duration(index);
-                    Some(index)
-                }
-                None => None,
+    let new_movement_transition = if state_index == 1.0
+        && runtime.movement_transition_remaining <= f32::EPSILON
+        && runtime.movement_state != desired_movement_state
+    {
+        match runtime.movement_state.next_transition_toward(
+            desired_movement_state,
+            hips_direction_lock_amount,
+            feet_crossing_amount,
+            runtime.movement_transition_remaining <= f32::EPSILON,
+        ) {
+            Some((next_state, index)) => {
+                runtime.movement_transition_source = Some(runtime.movement_state);
+                runtime.movement_state = next_state;
+                runtime.movement_transition_remaining =
+                    StandingMovementState::transition_duration(index);
+                Some(index)
             }
-        } else {
-            None
-        };
+            None => None,
+        }
+    } else {
+        None
+    };
     if let Some(index) = new_movement_transition {
         runtime.movement_transition_request = Some(index);
     } else if runtime.movement_transition_remaining <= f32::EPSILON {
@@ -2599,6 +2654,37 @@ mod tests {
                 false,
             ),
             Some(19.0)
+        );
+    }
+
+    #[test]
+    fn movement_routes_nonadjacent_directions_through_source_edges() {
+        assert_eq!(
+            StandingMovementState::Forward.next_transition_toward(
+                StandingMovementState::RightBackward,
+                0.0,
+                0.0,
+                true,
+            ),
+            Some((StandingMovementState::Backward, 0.0))
+        );
+        assert_eq!(
+            StandingMovementState::LeftBackward.next_transition_toward(
+                StandingMovementState::Forward,
+                0.0,
+                0.0,
+                true,
+            ),
+            Some((StandingMovementState::Backward, 8.0))
+        );
+        assert_eq!(
+            StandingMovementState::Backward.next_transition_toward(
+                StandingMovementState::LeftForward,
+                0.0,
+                0.0,
+                true,
+            ),
+            Some((StandingMovementState::Forward, 1.0))
         );
     }
 
