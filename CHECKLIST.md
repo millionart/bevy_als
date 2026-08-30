@@ -485,9 +485,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：主侧 `sprint_camera_time_tracks_the_marker_synced_animation_rate` 输出 `[BF102.53][VERDICT] start=0.166667 half_rate=0.216667 full_rate=0.366667 -> PASS`。真实 `camera_sprint_timing_gate` 在非均匀 source samples `[0.07, 0.35, 0.4]` 下记录 `shake_events=[(0.07, 0.5), (0.4, 0.5)] -> PASS`；回归 `camera_notify_gate` 记录 5 个冲刺事件和 2 个翻滚事件后 `PASS`。
   - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（9 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.54 — C04：ignore_time_dilation 覆盖相机曲线过渡（P2）**
+- [x] **BF102.54 — C04：ignore_time_dilation 覆盖相机曲线过渡（P2）**
   - 依赖：BF102.53。
   - 验收：慢动作/暂停附近的模式切换中，所有声明去缩放的相机计算使用同一未缩放时间源。
+  - 当次 ALS 事实：本地 `UAlsCameraSettings::bIgnoreTimeDilation` 默认 true；`UAlsCameraComponent::TickComponent()` 以“上一帧 global dilation × owner custom dilation”还原传入 delta，零/极小分母时回退 real-time delta，随后更新 previous global dilation，并将该同一 delta 传入 `TickCamera()` 的整条相机计算路径。
+  - 归属决定：这不是底层依赖能力缺口，而是 `AlsCameraParams` 所定义的相机运行时策略；共享时钟计算、profile runtime 和 rig 都保留在 `crates/als-camera`，没有向 `als-ext` 注入 ALS 相机参数或语义。
+  - 实现：curve profile runtime 增加独立的 previous-global-dilation 状态；profile 过渡和 camera rig 共同调用 `camera_delta_seconds_from_times()`，二者均接收 global effective speed、角色 custom dilation 与 real-time fallback。由此 profile 的 mode／first-person curve 过渡不再独自使用缩放后的 `Time<Virtual>::delta_secs()`。
+  - 证据：单测 `curve_profile_uses_the_camera_unscaled_delta` 输出 `[BF102.54][VERDICT] profile_delta=0.100000 rig_delta=0.100000 elapsed=0.100000 value=0.200000 -> PASS`，覆盖 global=0.2、custom=0.5 的同源计算。真实 `camera_curve_dilation_gate` 在 virtual speed=0.1 时记录 `profile_elapsed=0.500000 real_elapsed=0.769251 target_x=-200.000 -> PASS`；既有 `camera_runtime_gate` 仍记录 `unscaled_time=true ... -> PASS`。
+  - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（10 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.55 — C05：第一人称 profile 使用 DesiredRotationMode（P2）**
   - 依赖：BF102.13。

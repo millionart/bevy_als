@@ -317,6 +317,7 @@ pub struct AlsCameraCurveProfileRuntime {
     pub elapsed: f32,
     pub source: [f32; CAMERA_CURVE_COUNT],
     pub target: [f32; CAMERA_CURVE_COUNT],
+    pub previous_global_time_dilation: f32,
 }
 
 impl Default for AlsCameraCurveProfileRuntime {
@@ -326,6 +327,7 @@ impl Default for AlsCameraCurveProfileRuntime {
             elapsed: 0.0,
             source: [0.0; CAMERA_CURVE_COUNT],
             target: [0.0; CAMERA_CURVE_COUNT],
+            previous_global_time_dilation: 1.0,
         }
     }
 }
@@ -627,11 +629,14 @@ fn ensure_camera_curve_profile_values(
 
 fn source_camera_curve_profile_system(
     profiles_assets: Res<Assets<AlsCameraCurveProfiles>>,
+    params_assets: Res<Assets<AlsCameraParams>>,
     virtual_time: Res<Time<Virtual>>,
+    real_time: Res<Time<Real>>,
     mut targets: Query<
         (
             &RotationMode,
             Has<als_core::input_request::AlsFirstPersonView>,
+            Option<&AlsCameraCustomTimeDilation>,
             &mut AlsCameraCurveValues,
             &mut AlsCameraCurveProfileRuntime,
         ),
@@ -641,31 +646,51 @@ fn source_camera_curve_profile_system(
     let Some((_, profiles)) = profiles_assets.iter().next() else {
         return;
     };
-    for (rotation_mode, first_person, mut values, mut runtime) in &mut targets {
+    let Some((_, params)) = params_assets.iter().next() else {
+        return;
+    };
+    for (rotation_mode, first_person, custom_time_dilation, mut values, mut runtime) in &mut targets
+    {
         let mut target = match rotation_mode {
             RotationMode::VelocityDirection => profiles.velocity_direction,
             RotationMode::ViewDirection => profiles.view_direction,
             RotationMode::Aiming => profiles.aiming,
         };
         target[AlsCameraCurve::FirstPersonOverride.index()] = if first_person { 1.0 } else { 0.0 };
-        if !runtime.initialized {
-            runtime.initialized = true;
-            runtime.target = target;
-            runtime.source = target;
-            values.values = target;
-            continue;
-        }
-        if target != runtime.target {
-            runtime.source = values.values;
-            runtime.target = target;
-            runtime.elapsed = 0.0;
-        }
-        runtime.elapsed =
-            (runtime.elapsed + virtual_time.delta_secs()).min(CAMERA_PROFILE_BLEND_DURATION_SECS);
-        let alpha = (runtime.elapsed / CAMERA_PROFILE_BLEND_DURATION_SECS).clamp(0.0, 1.0);
-        values.values =
-            std::array::from_fn(|index| runtime.source[index].lerp(runtime.target[index], alpha));
+        let delta_seconds = camera_delta_seconds_from_times(
+            &mut runtime.previous_global_time_dilation,
+            params,
+            virtual_time.delta_secs(),
+            real_time.delta_secs(),
+            virtual_time.effective_speed(),
+            custom_time_dilation.map_or(1.0, |dilation| dilation.0),
+        );
+        advance_camera_curve_profile(&mut runtime, &mut values, target, delta_seconds);
     }
+}
+
+fn advance_camera_curve_profile(
+    runtime: &mut AlsCameraCurveProfileRuntime,
+    values: &mut AlsCameraCurveValues,
+    target: [f32; CAMERA_CURVE_COUNT],
+    delta_seconds: f32,
+) {
+    if !runtime.initialized {
+        runtime.initialized = true;
+        runtime.target = target;
+        runtime.source = target;
+        values.values = target;
+        return;
+    }
+    if target != runtime.target {
+        runtime.source = values.values;
+        runtime.target = target;
+        runtime.elapsed = 0.0;
+    }
+    runtime.elapsed = (runtime.elapsed + delta_seconds).min(CAMERA_PROFILE_BLEND_DURATION_SECS);
+    let alpha = (runtime.elapsed / CAMERA_PROFILE_BLEND_DURATION_SECS).clamp(0.0, 1.0);
+    values.values =
+        std::array::from_fn(|index| runtime.source[index].lerp(runtime.target[index], alpha));
 }
 
 fn ensure_camera_notify_timeline(
@@ -1137,6 +1162,28 @@ fn calculate_camera_trace(
     trace
 }
 
+fn camera_delta_seconds_from_times(
+    previous_global_time_dilation: &mut f32,
+    params: &AlsCameraParams,
+    virtual_delta_seconds: f32,
+    real_delta_seconds: f32,
+    effective_global_time_dilation: f32,
+    custom_time_dilation: f32,
+) -> f32 {
+    let delta = if params.ignore_time_dilation {
+        let time_dilation = *previous_global_time_dilation * custom_time_dilation;
+        if time_dilation > f32::EPSILON {
+            virtual_delta_seconds / time_dilation
+        } else {
+            real_delta_seconds
+        }
+    } else {
+        virtual_delta_seconds
+    };
+    *previous_global_time_dilation = effective_global_time_dilation;
+    delta.max(0.0)
+}
+
 fn camera_delta_seconds(
     runtime: &mut AlsCameraRuntime,
     params: &AlsCameraParams,
@@ -1144,18 +1191,14 @@ fn camera_delta_seconds(
     real_time: &Time<Real>,
     custom_time_dilation: f32,
 ) -> f32 {
-    let delta = if params.ignore_time_dilation {
-        let time_dilation = runtime.previous_global_time_dilation * custom_time_dilation;
-        if time_dilation > f32::EPSILON {
-            virtual_time.delta_secs() / time_dilation
-        } else {
-            real_time.delta_secs()
-        }
-    } else {
-        virtual_time.delta_secs()
-    };
-    runtime.previous_global_time_dilation = virtual_time.effective_speed();
-    delta.max(0.0)
+    camera_delta_seconds_from_times(
+        &mut runtime.previous_global_time_dilation,
+        params,
+        virtual_time.delta_secs(),
+        real_time.delta_secs(),
+        virtual_time.effective_speed(),
+        custom_time_dilation,
+    )
 }
 
 fn camera_movement_base_bridge_system(
@@ -1781,6 +1824,50 @@ mod tests {
         println!(
             "[BF102.53][VERDICT] sprint_time={time:.6} weight={weight:.3} missing_clip={} -> {verdict}",
             missing_clip.is_none(),
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn curve_profile_uses_the_camera_unscaled_delta() {
+        let params = params();
+        let mut profile = AlsCameraCurveProfileRuntime {
+            initialized: true,
+            previous_global_time_dilation: 0.2,
+            ..default()
+        };
+        let mut values = AlsCameraCurveValues::default();
+        let mut rig_previous_global_time_dilation = 0.2;
+        let profile_delta = camera_delta_seconds_from_times(
+            &mut profile.previous_global_time_dilation,
+            &params,
+            0.01,
+            0.1,
+            0.2,
+            0.5,
+        );
+        let rig_delta = camera_delta_seconds_from_times(
+            &mut rig_previous_global_time_dilation,
+            &params,
+            0.01,
+            0.1,
+            0.2,
+            0.5,
+        );
+        advance_camera_curve_profile(
+            &mut profile,
+            &mut values,
+            [1.0; CAMERA_CURVE_COUNT],
+            profile_delta,
+        );
+        let passed = (profile_delta - 0.1).abs() <= 1e-6
+            && (rig_delta - profile_delta).abs() <= 1e-6
+            && (profile.elapsed - 0.1).abs() <= 1e-6
+            && (values.values[0] - 0.2).abs() <= 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.54][VERDICT] profile_delta={profile_delta:.6} rig_delta={rig_delta:.6} elapsed={:.6} value={:.6} -> {verdict}",
+            profile.elapsed, values.values[0],
         );
         assert!(passed);
     }
