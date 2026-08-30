@@ -355,6 +355,7 @@ fn ensure_air_state(
 #[cfg(test)]
 mod tests {
     use avian3d::prelude::{Collider, PhysicsPlugins, PhysicsSystems, Position, RigidBody};
+    use bevy::asset::AssetEvent;
     use bevy::ecs::system::RunSystemOnce;
 
     use super::*;
@@ -397,6 +398,8 @@ mod tests {
     fn ground_prediction_capsule_sweep_hits_an_edge_missed_by_center_ray() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(Update)))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<AssetEvent<Mesh>>()
             .init_resource::<CapsuleSweepProbe>()
             .add_systems(
                 Update,

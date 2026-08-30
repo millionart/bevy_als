@@ -534,6 +534,11 @@ BF102.58 网络范围 ─► BF102.Gate
 - [ ] **BF102.Gate — 58 项原子审计总验收**
   - 依赖：BF102.01–BF102.58。
   - 验收：58 个 ID 各有“当前已修复／确认待修复／条件性不适用或待证”三态记录；每个确认缺陷有独立修复提交和真实运行 verdict；未执行项不得宣称完成。
+  - [x] **BF102.Gate.b — workspace feature 完整测试初始化**
+    - 依赖：BF102.32、当前 workspace feature 集。
+    - 验收：`ground_prediction_capsule_sweep_hits_an_edge_missed_by_center_ray` 在完整 workspace feature 集下初始化其 Avian mesh-collider cache 所需资源与消息，并随 `cargo test --workspace --lib` 稳定通过。
+    - 实现：测试 App 显式初始化 `Assets<Mesh>` 与 `AssetEvent<Mesh>`。这是 `collider-from-mesh` 在 workspace feature 合并后由 Avian `ColliderCachePlugin` 的真实前置条件；测试仍只使用显式 cuboid collider，不把资产读取加入被测行为。
+    - 证据：完整 feature 集下的定向运行输出 `[BF102.32][VERDICT] ray_hit=false capsule_hit=true hit_fraction=Some(0.1964) ... -> PASS`；随后 `cargo test --workspace --lib --jobs 2 -- --test-threads=1 --format=terse` 通过：als-camera 11、als-core 217 passed/2 ignored、als-ext 178、bevy_als 133。
   - [x] **BF102.Gate.a — manual_playground 真实入口集成验收**
     - 依赖：BF102.01–BF102.58。
     - 验收：通过 `run_manual.bat` 启动当前源码的 `manual_playground` 时，记录完整 runtime 装配，至少覆盖 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin` 及其关键子系统；建立当前全部已实现运行时功能、修复和动画图的覆盖清单，并以可重复触发的自动场景、HUD 或 probe 验证每项实际行为。覆盖范围不限于 BF102 的单点缺陷，至少包含 Mantle、Roll、Foot IK、移动基座、Ragdoll、相机及所有已接入动画图。
