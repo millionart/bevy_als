@@ -11,7 +11,7 @@
 | 文件 | 内容 |
 |---|---|
 | `agents.md` | 执行规则（本文件） |
-| `CHECKLIST.md` | 执行清单：基础事实、M0–M11 模块、每模块 Gate、附录 |
+| `CHECKLIST.md` | 当前执行清单：仅保留进行中项；完成批次见归档索引 |
 | `goal.md` | goal 执行入口说明 |
 | `docs/env.md` | 本地隐私环境（gitignore）：路径、引擎版本、Unreal MCP 连接步骤 |
 

@@ -4,7 +4,7 @@
 
 - **不做代码级移植**：以 [bevy_animation_graph](https://github.com/mbrea-c/bevy_animation_graph)（替代 AnimBP）与 [bevy-tnua](https://github.com/idanarye/bevy-tnua)（替代 CharacterMovement）为基座，按需扩展。
 - **不含网络同步**。
-- 执行规则见 [agents.md](agents.md)，执行清单见 [CHECKLIST.md](CHECKLIST.md)（M0–M11 模块 + Gate），启动说明见 [goal.md](goal.md)。
+- 执行规则见 [agents.md](agents.md)，当前执行清单见 [CHECKLIST.md](CHECKLIST.md)，已完成批次见 [归档索引](docs/archive/archivedchecklist.md)，启动说明见 [goal.md](goal.md)。
 - 本地环境与 Unreal MCP 配置见 `docs/env.md`（隐私，不入库）。
 
 ## 基座插件 fork
@@ -31,7 +31,7 @@ ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓�
 
 ## 状态
 
-**M0–M11 全部完成**（2026-08-24）：详见 [CHECKLIST.md](CHECKLIST.md)（逐项 Gate 证据）与 [docs/parity-report.md](docs/parity-report.md)（与 ALS-Refactored 差异对照）。
+**M0–M11 与 BF102 已完成并归档**：详见 [归档清单索引](docs/archive/archivedchecklist.md)（逐项 Gate 证据）与 [docs/parity-report.md](docs/parity-report.md)（与 ALS-Refactored 差异对照）。
 
 ## 快速上手
 
