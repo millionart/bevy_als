@@ -2,6 +2,7 @@
 
 pub mod als_curves;
 pub mod blend_space_1d;
+pub mod crouch_transaction;
 pub mod curve;
 pub mod curve_bundle;
 pub mod curve_weighted_samples;
@@ -64,6 +65,10 @@ pub use als_curves::{
 pub use blend_space_1d::{
     BlendSpace1DNode, BlendSpace1DPoint, blend_weights as blend_space_1d_weights,
     pose_input as blend_space_1d_pose_input, time_input as blend_space_1d_time_input,
+};
+pub use crouch_transaction::{
+    CapsuleStance, CapsuleStanceCommand, CapsuleStancePhase, CapsuleStanceResult,
+    CapsuleStanceTransaction,
 };
 pub use curve::{CurveAsset, CurveKey, CurveSampleMode, sample_curve};
 pub use curve_bundle::{

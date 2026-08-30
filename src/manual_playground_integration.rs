@@ -8,7 +8,7 @@ use als_core::foot_ik::{AlsFootLockState, AlsFootProbe};
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::AlsMantleState;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::motion::{AlsCrouchTransaction, AlsInputOverride, AlsViewYaw};
 use als_core::movement_direction::{AlsMovementDirection, AlsMovementDirectionState};
 use als_core::roll::AlsRollState;
 use als_core::start_stop::{StartStopPhase, StartStopState};
@@ -267,6 +267,7 @@ struct IntegrationCoverage {
     sideways: bool,
     standing_graph: bool,
     direction_cases: [bool; DIRECTION_CASE_COUNT],
+    crouch_transaction: bool,
     crouching: bool,
     sprinting: bool,
     airborne: bool,
@@ -428,6 +429,14 @@ struct InterfaceProbe<'w, 's> {
     hud_debug_nodes: Query<'w, 's, &'static Node, With<AlsHudDebugSection>>,
     hud_input_nodes: Query<'w, 's, &'static Node, With<AlsHudInputSection>>,
     show_debug_roots: Query<'w, 's, (), With<AlsShowDebugHudRoot>>,
+}
+
+#[derive(SystemParam)]
+struct MotionProbe<'w, 's> {
+    standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
+    crouch: Query<'w, 's, &'static AlsCrouchTransaction, With<AlsCharacter>>,
+    actual: Query<'w, 's, &'static AlsActualMotion, With<AlsCharacter>>,
+    gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
 }
 
 fn spawn_manual_integration_fixture(
@@ -1271,9 +1280,7 @@ fn observe_manual_integration(
         ),
         With<AlsCharacter>,
     >,
-    standing_telemetry: Query<&AlsStandingGraphTelemetry, With<AlsCharacter>>,
-    actual_motion: Query<&AlsActualMotion, With<AlsCharacter>>,
-    gait_state: Query<(&AlsDesiredGait, &AlsMaxAllowedGait), With<AlsCharacter>>,
+    motion_probe: MotionProbe,
     action: Query<
         (
             Option<&AlsMantleState>,
@@ -1334,7 +1341,8 @@ fn observe_manual_integration(
     else {
         return;
     };
-    let standing_graph = standing_telemetry.get(character).ok();
+    let standing_graph = motion_probe.standing.get(character).ok();
+    let crouch_transaction = motion_probe.crouch.get(character).ok();
     let Ok((
         mantle,
         roll,
@@ -1363,8 +1371,8 @@ fn observe_manual_integration(
         return;
     };
     let speed = Vec2::new(velocity.0.x, velocity.0.z).length();
-    let actual_motion = actual_motion.get(character).ok();
-    let gait_state = gait_state.get(character).ok();
+    let actual_motion = motion_probe.actual.get(character).ok();
+    let gait_state = motion_probe.gait.get(character).ok();
     let direction = graph_f32(player, "direction_angle");
     let jump_phase = graph_global_f32(player, "als_locomotion_jump_phase");
     let land_phase = graph_global_f32(player, "als_locomotion_land_phase");
@@ -1397,6 +1405,26 @@ fn observe_manual_integration(
             );
         }
         state.coverage.standing_graph = true;
+    }
+    if let Some(transaction) = crouch_transaction
+        && transaction.desired_stance == Stance::Standing
+        && transaction.actual_stance == Stance::Crouching
+        && transaction.headroom_blocked
+        && transaction.controller_crouch_active
+    {
+        if !state.coverage.crouch_transaction {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH] desired={:?} actual={:?} phase={:?} retries={} half={:.3} radius={:.3} controller={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.phase,
+                transaction.blocked_retry_count,
+                transaction.collider_half_height,
+                transaction.collider_radius,
+                transaction.controller_crouch_active,
+            );
+        }
+        state.coverage.crouch_transaction = true;
     }
     if state.phase == IntegrationPhase::DirectionRegression
         && state.direction_case_index < DIRECTION_CASE_COUNT
@@ -1835,6 +1863,7 @@ fn observe_manual_integration(
                 ("direction_sideways", coverage.sideways),
                 ("standing_graph", coverage.standing_graph),
                 ("direction_regression", direction_regression),
+                ("crouch_transaction", coverage.crouch_transaction),
                 ("stance_crouching", coverage.crouching),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),

@@ -1,6 +1,6 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
-use als_core::motion::AlsViewYaw;
+use als_core::motion::{AlsCrouchTransaction, AlsViewYaw};
 use als_core::movement_direction::AlsMovementDirectionState;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -91,6 +91,7 @@ type ProbeCharacters = (
     &'static AlsViewYaw,
     Option<&'static AlsMovementParamsHandle>,
     Option<&'static AlsStandingGraphTelemetry>,
+    Option<&'static AlsCrouchTransaction>,
 );
 
 type ProbeAvatars = (
@@ -137,6 +138,7 @@ fn anim_probe_logger(
         view_yaw,
         params_h,
         standing_telemetry,
+        crouch_transaction,
     )) = characters.single()
     else {
         return;
@@ -187,6 +189,21 @@ fn anim_probe_logger(
         .and_then(|telemetry| telemetry.dominant_detail_weight)
         .map(|value| format!("{value:.2}"))
         .unwrap_or_else(|| "?".into());
+    let crouch_transaction_text = crouch_transaction
+        .map(|transaction| {
+            format!(
+                "desired={:?},actual={:?},phase={:?},retries={},controller={},half={:.2},radius={:.2},blocked={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.phase,
+                transaction.blocked_retry_count,
+                transaction.controller_crouch_active,
+                transaction.collider_half_height,
+                transaction.collider_radius,
+                transaction.headroom_blocked,
+            )
+        })
+        .unwrap_or_else(|| "?".into());
 
     let (src_name, is_graph) = match player.get_animation_source() {
         AnimationSource::Graph(_) => ("Graph", true),
@@ -207,7 +224,7 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} crouch_tx=({crouch_transaction_text}) gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,

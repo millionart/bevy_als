@@ -39,6 +39,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::foot_ik::AlsFootLockSettings)]
 #[require(crate::foot_ik::AlsDynamicTransitionState)]
 #[require(AlsDesiredStance)]
+#[require(crate::motion::AlsCrouchTransaction)]
 #[require(AlsCollisionLayerOwnership)]
 #[require(AlsEffectiveGravity)]
 pub struct AlsCharacter;

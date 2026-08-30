@@ -2,7 +2,7 @@ use avian3d::prelude::{
     Collider, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Rotation, SpatialQuery,
     SpatialQueryFilter,
 };
-use bevy::asset::{AssetId, Assets};
+use bevy::asset::Assets;
 use bevy::prelude::*;
 use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinJump, TnuaBuiltinWalk, TnuaBuiltinWalkHeadroom,
@@ -540,6 +540,11 @@ mod rotation_cap_tests {
         physical_crouched: bool,
         headroom: f32,
         sync_error: f32,
+        phase: AlsCrouchTransactionPhase,
+        retry_count: u32,
+        transaction_half_height: f32,
+        transaction_controller_crouch: bool,
+        transaction_headroom_blocked: bool,
     }
 
     fn record_step_assist_physics_probe(
@@ -575,6 +580,7 @@ mod rotation_cap_tests {
                 &AlsDesiredStance,
                 &TnuaConfig<AlsControlScheme>,
                 Has<AlsCapsuleCrouched>,
+                &AlsCrouchTransaction,
             ),
             With<AlsCharacter>,
         >,
@@ -592,6 +598,7 @@ mod rotation_cap_tests {
             desired_stance,
             config,
             physical_crouched,
+            transaction,
         )) = cases.single()
         else {
             return;
@@ -610,6 +617,11 @@ mod rotation_cap_tests {
             .map(|headroom| headroom.distance_to_collider_top)
             .unwrap_or(f32::NAN);
         probe.sync_error = transform.translation.distance(position.0);
+        probe.phase = transaction.phase;
+        probe.retry_count = transaction.blocked_retry_count;
+        probe.transaction_half_height = transaction.collider_half_height;
+        probe.transaction_controller_crouch = transaction.controller_crouch_active;
+        probe.transaction_headroom_blocked = transaction.headroom_blocked;
     }
 
     #[test]
@@ -803,7 +815,6 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    #[ignore]
     fn desired_stance_waits_for_clearance_before_actual_stance_changes() {
         let mut app = App::new();
         app.add_plugins((
@@ -824,6 +835,11 @@ mod rotation_cap_tests {
             physical_crouched: true,
             headroom: f32::NAN,
             sync_error: f32::NAN,
+            phase: AlsCrouchTransactionPhase::Crouching,
+            retry_count: 0,
+            transaction_half_height: f32::NAN,
+            transaction_controller_crouch: false,
+            transaction_headroom_blocked: false,
         })
         .add_systems(
             Update,
@@ -892,6 +908,11 @@ mod rotation_cap_tests {
                 probe.headroom,
                 probe.beam_overlap,
                 probe.sync_error,
+                probe.phase,
+                probe.retry_count,
+                probe.transaction_half_height,
+                probe.transaction_controller_crouch,
+                probe.transaction_headroom_blocked,
             )
         };
         app.world_mut().despawn(beam);
@@ -911,22 +932,37 @@ mod rotation_cap_tests {
                 probe.headroom,
                 probe.beam_overlap,
                 probe.sync_error,
+                probe.phase,
+                probe.retry_count,
+                probe.transaction_half_height,
+                probe.transaction_controller_crouch,
+                probe.transaction_headroom_blocked,
             )
         };
         println!(
-            "[BF102.02] blocked_desired={:?} blocked_actual={:?} blocked_crouched={} blocked_headroom={:.6} blocked_overlap={} blocked_sync_error={:.6} restored_desired={:?} restored_actual={:?} restored_crouched={} restored_headroom={:.6} restored_overlap={} restored_sync_error={:.6}",
+            "[BF102.02] blocked_desired={:?} blocked_actual={:?} blocked_crouched={} blocked_headroom={:.6} blocked_overlap={} blocked_sync_error={:.6} blocked_phase={:?} blocked_retries={} blocked_half={:.6} blocked_controller={} blocked_headroom_state={} restored_desired={:?} restored_actual={:?} restored_crouched={} restored_headroom={:.6} restored_overlap={} restored_sync_error={:.6} restored_phase={:?} restored_retries={} restored_half={:.6} restored_controller={} restored_headroom_state={}",
             blocked_probe.0,
             blocked_probe.1,
             blocked_probe.2,
             blocked_probe.3,
             blocked_probe.4,
             blocked_probe.5,
+            blocked_probe.6,
+            blocked_probe.7,
+            blocked_probe.8,
+            blocked_probe.9,
+            blocked_probe.10,
             restored_probe.0,
             restored_probe.1,
             restored_probe.2,
             restored_probe.3,
             restored_probe.4,
             restored_probe.5,
+            restored_probe.6,
+            restored_probe.7,
+            restored_probe.8,
+            restored_probe.9,
+            restored_probe.10,
         );
         assert_eq!(blocked_probe.0, Stance::Standing);
         assert_eq!(blocked_probe.1, Stance::Crouching);
@@ -934,12 +970,156 @@ mod rotation_cap_tests {
         assert!((blocked_probe.3 - params_value.crouch.crouched_capsule_half_height).abs() < 1e-4);
         assert!(!blocked_probe.4);
         assert!(blocked_probe.5 < 1e-4);
+        assert_eq!(
+            blocked_probe.6,
+            AlsCrouchTransactionPhase::BlockedFromStanding
+        );
+        assert!(blocked_probe.7 >= 1);
+        assert!((blocked_probe.8 - params_value.crouch.crouched_capsule_half_height).abs() < 1e-4);
+        assert!(blocked_probe.9);
+        assert!(blocked_probe.10);
         assert_eq!(restored_probe.0, Stance::Standing);
         assert_eq!(restored_probe.1, Stance::Standing);
         assert!(!restored_probe.2);
         assert!((restored_probe.3 - params_value.crouch.standing_capsule_half_height).abs() < 1e-4);
         assert!(!restored_probe.4);
         assert!(restored_probe.5 < 1e-4);
+        assert_eq!(restored_probe.6, AlsCrouchTransactionPhase::Standing);
+        assert_eq!(restored_probe.7, 0);
+        assert!((restored_probe.8 - params_value.crouch.standing_capsule_half_height).abs() < 1e-4);
+        assert!(!restored_probe.9);
+        assert!(!restored_probe.10);
+        println!(
+            "[CROUCH-TRANSACTION][PHYSICS] blocked_retries={} restored_phase={:?} -> PASS",
+            blocked_probe.7, restored_probe.6,
+        );
+    }
+
+    #[test]
+    fn crouch_transaction_pairs_and_entities_remain_isolated() {
+        let mut first = AlsCrouchTransaction::default();
+        let mut second = AlsCrouchTransaction::default();
+        for _ in 0..100 {
+            first.synchronize(Stance::Crouching, Stance::Standing, 0.9, 0.3, Vec3::ZERO);
+            first.crouch_applied(0.56, 0.3, Vec3::ZERO);
+            first.synchronize(Stance::Standing, Stance::Crouching, 0.56, 0.3, Vec3::ZERO);
+            first.standing_applied(0.9, 0.3, Vec3::ZERO);
+        }
+        second.synchronize(Stance::Crouching, Stance::Standing, 0.9, 0.3, Vec3::ZERO);
+        second.crouch_applied(0.56, 0.3, Vec3::ZERO);
+        second.synchronize(Stance::Standing, Stance::Crouching, 0.56, 0.3, Vec3::ZERO);
+        second.stand_blocked(0.56, 0.3, Vec3::ZERO);
+        assert_eq!(first.actual_stance, Stance::Standing);
+        assert_eq!(first.phase, AlsCrouchTransactionPhase::ExitingCrouch);
+        assert_eq!(first.blocked_retry_count, 0);
+        assert_eq!(second.actual_stance, Stance::Crouching);
+        assert_eq!(second.phase, AlsCrouchTransactionPhase::BlockedFromStanding);
+        assert_eq!(second.blocked_retry_count, 1);
+        println!(
+            "[CROUCH-TRANSACTION][VERDICT] pairs=100 first={:?} second={:?} retries={} -> PASS",
+            first.phase, second.phase, second.blocked_retry_count,
+        );
+    }
+
+    #[test]
+    fn capsule_transactions_repeat_with_two_physical_characters() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            PhysicsPlugins::new(FixedPostUpdate),
+            TransformPlugin,
+            TnuaAvian3dPlugin::new(FixedUpdate),
+            TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+            AlsStateTransitionPlugin,
+            AlsCharacterPlugin,
+            AlsMotionPlugin,
+        ))
+        .insert_resource(Assets::<AlsMovementParams>::default())
+        .insert_resource(Assets::<AlsControlSchemeConfig>::default());
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(params_value.clone());
+        let config = app
+            .world_mut()
+            .resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
+        let characters: Vec<_> = [Vec3::new(-4.0, 0.9, 0.0), Vec3::new(4.0, 0.9, 0.0)]
+            .into_iter()
+            .map(|position| {
+                let mut bundle = AlsCharacterBundle::new(params.clone(), config.clone());
+                bundle.transform = Transform::from_translation(position);
+                bundle.rigid_body = RigidBody::Kinematic;
+                bundle.collider = als_character_capsule(
+                    params_value.crouch.standing_capsule_half_height,
+                    params_value.crouch.standing_capsule_radius,
+                );
+                bundle.stance = Stance::Standing;
+                bundle.desired_stance = AlsDesiredStance(Stance::Standing);
+                app.world_mut()
+                    .spawn((bundle, Position(position), GravityScale(0.0)))
+                    .id()
+            })
+            .collect();
+        for _ in 0..100 {
+            for entity in &characters {
+                app.world_mut()
+                    .get_mut::<AlsDesiredStance>(*entity)
+                    .unwrap()
+                    .0 = Stance::Crouching;
+            }
+            app.update();
+            for entity in &characters {
+                let entity_ref = app.world().entity(*entity);
+                let transaction = entity_ref.get::<AlsCrouchTransaction>().unwrap();
+                assert_eq!(entity_ref.get::<Stance>(), Some(&Stance::Crouching));
+                assert!(entity_ref.contains::<AlsCapsuleCrouched>());
+                assert!(transaction.controller_crouch_active);
+                assert!(
+                    (transaction.collider_half_height
+                        - params_value.crouch.crouched_capsule_half_height)
+                        .abs()
+                        < 1e-4
+                );
+            }
+            for entity in &characters {
+                app.world_mut()
+                    .get_mut::<AlsDesiredStance>(*entity)
+                    .unwrap()
+                    .0 = Stance::Standing;
+            }
+            app.update();
+            for entity in &characters {
+                let entity_ref = app.world().entity(*entity);
+                let transaction = entity_ref.get::<AlsCrouchTransaction>().unwrap();
+                assert_eq!(entity_ref.get::<Stance>(), Some(&Stance::Standing));
+                assert!(!entity_ref.contains::<AlsCapsuleCrouched>());
+                assert!(!transaction.controller_crouch_active);
+                assert!(
+                    (transaction.collider_half_height
+                        - params_value.crouch.standing_capsule_half_height)
+                        .abs()
+                        < 1e-4
+                );
+            }
+        }
+        let revisions: Vec<_> = characters
+            .iter()
+            .map(|entity| {
+                app.world()
+                    .get::<AlsCrouchTransaction>(*entity)
+                    .unwrap()
+                    .revision
+            })
+            .collect();
+        println!(
+            "[CROUCH-TRANSACTION][PHYSICS-CYCLES] pairs=100 characters={} revisions={revisions:?} -> PASS",
+            characters.len(),
+        );
+        assert_eq!(revisions, vec![200, 200]);
     }
 
     #[test]
@@ -1002,6 +1182,113 @@ pub struct AlsInputOverride(pub AlsInputCommand);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCapsuleCrouched;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlsCrouchTransactionPhase {
+    Standing,
+    EnteringCrouch,
+    Crouching,
+    TryingToStand,
+    BlockedFromStanding,
+    ExitingCrouch,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsCrouchTransaction {
+    pub desired_stance: Stance,
+    pub actual_stance: Stance,
+    pub phase: AlsCrouchTransactionPhase,
+    pub blocked_retry_count: u32,
+    pub revision: u64,
+    pub controller_crouch_active: bool,
+    pub collider_half_height: f32,
+    pub collider_radius: f32,
+    pub collider_center: Vec3,
+    pub headroom_blocked: bool,
+}
+
+impl Default for AlsCrouchTransaction {
+    fn default() -> Self {
+        Self {
+            desired_stance: Stance::Standing,
+            actual_stance: Stance::Standing,
+            phase: AlsCrouchTransactionPhase::Standing,
+            blocked_retry_count: 0,
+            revision: 0,
+            controller_crouch_active: false,
+            collider_half_height: 0.0,
+            collider_radius: 0.0,
+            collider_center: Vec3::ZERO,
+            headroom_blocked: false,
+        }
+    }
+}
+
+impl AlsCrouchTransaction {
+    fn synchronize(
+        &mut self,
+        desired: Stance,
+        actual: Stance,
+        half_height: f32,
+        radius: f32,
+        center: Vec3,
+    ) {
+        if self.desired_stance != desired {
+            self.revision = self.revision.wrapping_add(1);
+            self.blocked_retry_count = 0;
+        }
+        self.desired_stance = desired;
+        self.actual_stance = actual;
+        self.collider_half_height = half_height;
+        self.collider_radius = radius;
+        self.collider_center = center;
+        self.controller_crouch_active = actual == Stance::Crouching;
+        if desired == actual {
+            self.phase = match actual {
+                Stance::Standing => AlsCrouchTransactionPhase::Standing,
+                Stance::Crouching => AlsCrouchTransactionPhase::Crouching,
+            };
+            self.headroom_blocked = false;
+        } else if desired == Stance::Crouching {
+            self.phase = AlsCrouchTransactionPhase::EnteringCrouch;
+            self.headroom_blocked = false;
+        } else if self.phase != AlsCrouchTransactionPhase::BlockedFromStanding {
+            self.phase = AlsCrouchTransactionPhase::TryingToStand;
+        }
+    }
+
+    fn crouch_applied(&mut self, half_height: f32, radius: f32, center: Vec3) {
+        self.actual_stance = Stance::Crouching;
+        self.phase = AlsCrouchTransactionPhase::Crouching;
+        self.controller_crouch_active = true;
+        self.collider_half_height = half_height;
+        self.collider_radius = radius;
+        self.collider_center = center;
+        self.headroom_blocked = false;
+    }
+
+    fn stand_blocked(&mut self, half_height: f32, radius: f32, center: Vec3) {
+        self.actual_stance = Stance::Crouching;
+        self.phase = AlsCrouchTransactionPhase::BlockedFromStanding;
+        self.controller_crouch_active = true;
+        self.collider_half_height = half_height;
+        self.collider_radius = radius;
+        self.collider_center = center;
+        self.headroom_blocked = true;
+        self.blocked_retry_count = self.blocked_retry_count.saturating_add(1);
+    }
+
+    fn standing_applied(&mut self, half_height: f32, radius: f32, center: Vec3) {
+        self.actual_stance = Stance::Standing;
+        self.phase = AlsCrouchTransactionPhase::ExitingCrouch;
+        self.controller_crouch_active = false;
+        self.collider_half_height = half_height;
+        self.collider_radius = radius;
+        self.collider_center = center;
+        self.headroom_blocked = false;
+        self.blocked_retry_count = 0;
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CharacterDebugFrame {
@@ -1090,6 +1377,9 @@ impl Plugin for AlsMotionPlugin {
                     locomotion_drive_system
                         .after(crate::view::AlsViewInputSet)
                         .before(crate::transition::state_transition_system),
+                    crouch_controller_transaction_system
+                        .after(locomotion_drive_system)
+                        .after(capsule_reshape_system),
                     step_up_assist_system,
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
@@ -1422,6 +1712,7 @@ type ReshapeQueryItem<'a> = (
     &'a Transform,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
+    &'a mut AlsCrouchTransaction,
 );
 
 fn capsule_reshape_system(
@@ -1431,20 +1722,33 @@ fn capsule_reshape_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
 ) {
-    for (entity, mut stance, desired, transform, handle, already_deferred) in &mut q {
+    for (entity, mut stance, desired, transform, handle, already_deferred, mut transaction) in
+        &mut q
+    {
+        let Some(params) = params_assets.get(handle.id()) else {
+            continue;
+        };
+        let (half_height, radius) = capsule_dimensions(params, *stance);
+        transaction.synchronize(
+            desired.0,
+            *stance,
+            half_height,
+            radius,
+            transform.translation,
+        );
         if desired.0 == *stance && !already_deferred {
             continue;
         }
         apply_capsule_for_stance(
             &mut commands,
             &spatial_query,
-            &params_assets,
+            params,
             entity,
             desired.0,
             &mut stance,
+            &mut transaction,
             transform.translation,
             transform.rotation,
-            handle.id(),
             already_deferred,
             &mut transitions,
         );
@@ -1454,27 +1758,26 @@ fn capsule_reshape_system(
 fn apply_capsule_for_stance(
     commands: &mut Commands,
     spatial_query: &SpatialQuery,
-    params_assets: &Assets<AlsMovementParams>,
+    params: &AlsMovementParams,
     entity: Entity,
     target: Stance,
     stance: &mut Stance,
+    transaction: &mut AlsCrouchTransaction,
     center: Vec3,
     rotation: Quat,
-    params_handle: AssetId<AlsMovementParams>,
     already_deferred: bool,
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
-    let Some(params) = params_assets.get(params_handle) else {
-        return;
-    };
     match target {
         Stance::Crouching => {
+            let (half_height, radius) = capsule_dimensions(params, target);
             commands
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
                 .insert(AlsCapsuleCrouched)
                 .insert(capsule_for(params, target));
             apply_actual_stance(entity, stance, target, transitions);
+            transaction.crouch_applied(half_height, radius, center);
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
@@ -1483,6 +1786,8 @@ fn apply_capsule_for_stance(
                 .shape_intersections(&standing_capsule, center, rotation, &filter)
                 .is_empty();
             if blocked {
+                let (half_height, radius) = capsule_dimensions(params, Stance::Crouching);
+                transaction.stand_blocked(half_height, radius, center);
                 if !already_deferred {
                     info!("[MOTION] entity={entity:?} stand-up deferred: target capsule blocked");
                     commands.entity(entity).insert(CapsuleReshapeDeferred);
@@ -1496,10 +1801,28 @@ fn apply_capsule_for_stance(
                 .remove::<AlsCapsuleCrouched>()
                 .insert(standing_capsule);
             apply_actual_stance(entity, stance, target, transitions);
+            let (half_height, radius) = capsule_dimensions(params, Stance::Standing);
+            transaction.standing_applied(half_height, radius, center);
             if was_deferred {
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
             }
         }
+    }
+}
+
+fn capsule_dimensions(params: &AlsMovementParams, stance: Stance) -> (f32, f32) {
+    let half_height = match stance {
+        Stance::Standing => params.crouch.standing_capsule_half_height,
+        Stance::Crouching => params.crouch.crouched_capsule_half_height,
+    };
+    (half_height, params.crouch.standing_capsule_radius)
+}
+
+fn crouch_controller_transaction_system(
+    mut transactions: Query<(&Stance, &mut AlsCrouchTransaction), With<AlsCharacter>>,
+) {
+    for (stance, mut transaction) in &mut transactions {
+        transaction.controller_crouch_active = *stance == Stance::Crouching;
     }
 }
 
