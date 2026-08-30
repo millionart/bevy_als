@@ -349,9 +349,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`lean_normalizes_against_current_braking_dynamics` 输出 `current_braking_lean=1.000 static_braking_lean=0.333 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（123 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.38 — L08：播放率缩放来自实际动画网格世界缩放（P3）**
+- [x] **BF102.38 — L08：播放率缩放来自实际动画网格世界缩放（P3）**
   - 依赖：BF102.06、BF102.15。
   - 验收：独立缩放 avatar 或缩放父级时，动画速度使用实际网格世界缩放而非替代来源。
+  - 当次事实：实时 MCP 确认实际 `AB_Als_Standing` 资产存在；ALS `RefreshLocomotionEarly()` 从动画组件 `Proxy.GetComponentTransform().GetScale3D().Z` 写入 `ScaleWorldSpace`，standing play rate 以该值归一化速度。修复前 port 读取角色局部 `Transform.scale.x`。
+  - 实现：standing writer 改为读取 `AlsCharacterAvatar` 的 `GlobalTransform`，仅使用其世界 Z 缩放计算 animation speed，支持独立 avatar 与父级缩放；非均匀缩放按源合同选择纵向 Z。
+  - 证据：`animation_speed_divides_by_avatar_world_z_scale` 输出 `character_local_scale=1.000 avatar_world_z_scale=2.000 animation_speed=3.000 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（123 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.39 — L09：原地转向移除额外视角速度衰减包络（P2）**
   - 依赖：BF102.11。

@@ -613,8 +613,13 @@ fn local_horizontal(vector: Vec3, transform: &Transform) -> Vec2 {
     Vec2::new(vector.dot(forward), vector.dot(right))
 }
 
-fn animation_scale(transform: &Transform) -> f32 {
-    transform.scale.x.abs().max(f32::EPSILON)
+fn animation_world_scale(transform: &GlobalTransform) -> f32 {
+    transform
+        .to_scale_rotation_translation()
+        .0
+        .z
+        .abs()
+        .max(f32::EPSILON)
 }
 
 fn velocity_blend_target(velocity: Vec2) -> VelocityBlend {
@@ -1200,6 +1205,7 @@ fn update_standing_inputs(
     runtime: &mut StandingLayerRuntime,
     delta_seconds: f32,
     transform: &Transform,
+    animation_world_scale: f32,
     velocity: Vec3,
     params: &AlsMovementParams,
     dynamics: Option<&AlsGroundedDynamics>,
@@ -1261,7 +1267,7 @@ fn update_standing_inputs(
 
     let walk_run_amount = if gait == Gait::Walking { 0.0 } else { 1.0 };
     let sprinting = if gait == Gait::Sprinting { 1.0 } else { 0.0 };
-    let animation_speed = horizontal_speed / animation_scale(transform);
+    let animation_speed = horizontal_speed / animation_world_scale;
     let stride_amount = stride_blend_amount_for_speed(gait_running_amount, animation_speed);
     let play_rate = standing_play_rate(
         params,
@@ -1714,6 +1720,7 @@ fn standing_layer_writer(
         (
             Entity,
             &ChildOf,
+            &GlobalTransform,
             &AnimatedSceneInstance,
             Option<&mut StandingLayerRuntime>,
             Option<&AlsTurnDrive>,
@@ -1730,7 +1737,7 @@ fn standing_layer_writer(
 ) {
     let delta_seconds = time.delta_secs();
     update_stop_leg_masks(&mut curve_handles, &skeletons);
-    for (entity, parent, instance, current_runtime, turn) in &mut avatars {
+    for (entity, parent, avatar_transform, instance, current_runtime, turn) in &mut avatars {
         let Ok((
             transform,
             velocity,
@@ -1781,6 +1788,7 @@ fn standing_layer_writer(
             &mut runtime,
             delta_seconds,
             transform,
+            animation_world_scale(avatar_transform),
             velocity.0,
             movement_params,
             dynamics,
@@ -2089,9 +2097,17 @@ mod tests {
     }
 
     #[test]
-    fn animation_speed_divides_by_source_world_scale() {
-        let transform = Transform::from_scale(Vec3::splat(2.0));
-        assert!((6.0 / animation_scale(&transform) - 3.0).abs() < 1e-6);
+    fn animation_speed_divides_by_avatar_world_z_scale() {
+        let avatar_transform =
+            GlobalTransform::from(Transform::from_scale(Vec3::new(4.0, 1.0, 2.0)));
+        let animation_speed = 6.0 / animation_world_scale(&avatar_transform);
+        let passed = (animation_speed - 3.0).abs() < 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.38][VERDICT] character_local_scale=1.000 avatar_world_z_scale={:.3} animation_speed={animation_speed:.3} -> {verdict}",
+            animation_world_scale(&avatar_transform),
+        );
+        assert!(passed);
     }
 
     #[test]
