@@ -4,4 +4,32 @@
         animation_name: "A_Als_Land_Heavy_Additive_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:0": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:0",
+            events: [
+                (
+                    id: "5fb6a9a2-bd2a-5f80-807f-f2ba7f2c9be4",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:5c677cfd-41b076ba-9df84cb6-e58a674e"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:1": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:1",
+            events: [
+                (
+                    id: "57f81d98-f5b9-5cf7-a3c4-ae74358b5af2",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_heavy_additive.a_als_land_heavy_additive:8370d753-4b4a8b30-559e3098-13167361"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

@@ -4,4 +4,27 @@
         animation_name: "A_Als_Stand_Transition_Right_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/transitions/a_als_stand_transition_right.a_als_stand_transition_right:0": (
+            name: "als_notify:/als/als/animations/transitions/a_als_stand_transition_right.a_als_stand_transition_right:0",
+            events: [
+                (
+                    id: "9a83b839-5ac7-5057-ac4b-da4674d299d5",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_stand_transition_right.a_als_stand_transition_right:45461718-4dd9ba51-0eea7caa-5bdba94d"),
+                        start_time: 0.833333,
+                        end_time: 0.833333,
+                    ),
+                ),
+                (
+                    id: "eed16142-7f4a-5fba-a715-f9fa13b9cccc",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/transitions/a_als_stand_transition_right.a_als_stand_transition_right:e8eda29f-4ad2f76e-d93b5dba-32c3df15"),
+                        start_time: 1.366667,
+                        end_time: 1.366667,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

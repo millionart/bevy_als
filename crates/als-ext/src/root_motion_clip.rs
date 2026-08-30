@@ -10,10 +10,10 @@ use bevy::{
 };
 use bevy_animation_graph::core::{
     animation_clip::{EntityPath, GraphClip},
-    animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, DataValue},
+    edge_data::{DataSpec, DataValue, events::EventQueue},
+    event_track::sample_tracks,
     errors::GraphError,
     id::BoneId,
     pose::{BonePose, Pose, RootMotionDelta, RootMotionMode},
@@ -23,6 +23,7 @@ use crate::root_motion_defaults::derive_default_root_bone;
 
 pub const IN_TIME: &str = "time";
 pub const OUT_POSE: &str = "pose";
+pub const OUT_EVENTS: &str = "events";
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct RmPrevState {
@@ -123,6 +124,7 @@ impl NodeLike for RootMotionClipNode {
             .get(&self.clip)
         else {
             ctx.set_data_fwd(OUT_POSE, DataValue::Pose(Pose::default()));
+            ctx.set_data_fwd(OUT_EVENTS, EventQueue::default());
             return Ok(());
         };
         let clip_duration = clip.duration();
@@ -132,12 +134,11 @@ impl NodeLike for RootMotionClipNode {
             let prev = ctx.state_mut_or_else(RmPrevState::default)?;
             prev.time.clamp(0.0, clip_duration)
         };
-        let current_time = match time_update {
-            TimeUpdate::Absolute(t) => t,
-            TimeUpdate::Delta(dt) => clamped_prev + dt,
-            TimeUpdate::PercentOfEvent { .. } => clamped_prev,
-        }
-        .clamp(0.0, clip_duration);
+        let current_time = time_update
+            .partial_update_with_tracks(clamped_prev, &clip.event_tracks)
+            .unwrap_or(clamped_prev)
+            .clamp(0.0, clip_duration);
+        let events = EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
 
         let mut out_pose = Pose {
             timestamp: current_time,
@@ -167,6 +168,7 @@ impl NodeLike for RootMotionClipNode {
                 .get(&clip.skeleton)
             else {
                 ctx.set_data_fwd(OUT_POSE, DataValue::Pose(out_pose));
+                ctx.set_data_fwd(OUT_EVENTS, events);
                 return Ok(());
             };
             let cached_root = {
@@ -242,6 +244,7 @@ impl NodeLike for RootMotionClipNode {
         }
 
         ctx.set_time(current_time);
+        ctx.set_data_fwd(OUT_EVENTS, events);
         ctx.set_data_fwd(OUT_POSE, DataValue::Pose(out_pose));
         Ok(())
     }
@@ -249,6 +252,7 @@ impl NodeLike for RootMotionClipNode {
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_time(IN_TIME);
         ctx.add_output_data(OUT_POSE, DataSpec::Pose)
+            .add_output_data(OUT_EVENTS, DataSpec::EventQueue)
             .add_output_time();
         Ok(())
     }

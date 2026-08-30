@@ -25,10 +25,13 @@
   - 实现：`tools/import/generate_als_notify_manifest.py` 从审计 JSON 确定性生成 `assets/animation_events/als_notify_manifest.json`（v1），保留 point／state 原始区间、class／parameters、weight／filter、同步 marker 和 Montage→GraphClip 映射；生成时验证缺失 GraphClip、未映射 Montage、重复 ID、越界／倒置时间与非法 marker。`assets/docs/export-manifest.md` 已登记此项目侧导出物。
   - 证据：生成器输出 `clips=137 events=177 markers=60`；复查 event ID 唯一数=177、9 个 Montage 均有存在的 runtime segment GraphClip。`python tools/import/test_generate_als_notify_manifest.py` 7/7 通过，覆盖精确 point 时间、重复 ID、越界、倒置区间、缺失 GraphClip、Montage 映射及虚拟源路径解析；`python tools/import/generate_als_notify_manifest.py --check` 通过。
 
-- [ ] **BF103.03 — N03：`bevy_animation_graph` EventTrack／EventQueue 通用桥接（P1）**
+- [x] **BF103.03 — N03：`bevy_animation_graph` EventTrack／EventQueue 通用桥接（P1）**
   - 依赖：BF103.02。
   - 执行前：重新提取本项涉及 ALS 动画时间、混合权重和事件消费事实，并核对当前锁定的 `bevy_animation_graph` 公共接口。
   - 验收：项目侧事件数据进入相应 GraphClip 的 `EventTrack`，由实际 `ClipNode` 时间采样并经 `EventQueue` 输出；实例化、循环、seek、混合权重和多个角色之间互不串扰。通用桥接归属 `crates/als-ext`，不得修改依赖 fork。
+  - 当次事实（2026-08-30，重新运行本地 ALS 审计并读取锁定 `bevy_animation_graph` 源码）：源数据仍为 177 条 event／60 个 marker；`GraphClipSerial.event_tracks` 直接载入 GraphClip，`ClipNode` 以 `partial_update_with_tracks()` 处理 event seek、以 `sample_tracks()` 输出 `EventQueue`，区间采样为 `[start_time,end_time)`。内建 `LoopNode` 和 `BlendNode` 不将 EventQueue 作为输出传播，故若直接依赖它们会丢失事件／权重；这属于公开扩展点能力缺口，不修改 fork。
+  - 实现／归属：`tools/import/compile_als_event_tracks.py` 将 manifest 177 条记录编译为 65 个 GraphClip 的 98 条 EventTrack，source asset+GUID 生成稳定事件 ID，Montage 时间经 segment 映射到真实 sequence GraphClip。`crates/als-ext` 新增通用 `EventQueueBlendNode`、`EventLoopNode`，并令 `RootMotionClipNode` 与 `TimePositionNode`传递 EventQueue／PercentOfEvent；`roll_slot` 和 `state_roll` 图暴露实际 `events` 输出。所有实现使用 `bevy_animation_graph` 公共接口，无依赖 fork 改动。
+  - 证据：`python tools/import/compile_als_event_tracks.py --check` 输出 `graph_clips=65 tracks=98 events=177`；`cargo test -p als-ext --test notify_event_tracks --jobs 2` 9/9 通过（真实 `.anim.ron` 反序列化、全部编译记录、ClipNode 输出、seek、独立上下文、根运动 clip）；`cargo test -p als-ext --lib --jobs 2` 184/184 通过（含 queue weight 与 loop forwarding）；`BEVY_ASSET_ROOT=<repo-root> target/debug/examples/ab_als_contract_gate.exe` exit=0。
 
 - [ ] **BF103.04 — N04：Notify State 生命周期与 Marker 触发适配（P1）**
   - 依赖：BF103.03。

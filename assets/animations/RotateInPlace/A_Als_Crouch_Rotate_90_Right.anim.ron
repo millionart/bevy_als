@@ -4,4 +4,27 @@
         animation_name: "A_Als_Crouch_Rotate_90_Right_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_right.a_als_crouch_rotate_90_right:0": (
+            name: "als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_right.a_als_crouch_rotate_90_right:0",
+            events: [
+                (
+                    id: "1b99389c-310a-56d1-8bdf-4456b13de058",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_right.a_als_crouch_rotate_90_right:f04c667a-4e2ff1ab-8d6756ba-b57d966f"),
+                        start_time: 0.433333,
+                        end_time: 0.433333,
+                    ),
+                ),
+                (
+                    id: "368b6e93-c1d5-5c9b-8174-376ff6f72abe",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/rotateinplace/a_als_crouch_rotate_90_right.a_als_crouch_rotate_90_right:5d918d90-40eaaaa8-977986ba-4b8bf7a0"),
+                        start_time: 0.733333,
+                        end_time: 0.733333,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

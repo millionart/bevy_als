@@ -5,10 +5,10 @@
         (id: "17150000-0000-4000-8000-000000000003", name: "roll slot evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.5, loop_position: false) }, should_debug: false),
     ],
     edges_inverted: {
-        NodeData("17150000-0000-4000-8000-000000000003", "position"): NodeData("17150000-0000-4000-8000-000000000002", "als_roll_slot_time"), NodeData("17150000-0000-4000-8000-000000000003", "pose"): NodeData("17150000-0000-4000-8000-000000000001", "pose"), NodeTime("17150000-0000-4000-8000-000000000003", "time"): NodeTime("17150000-0000-4000-8000-000000000001"),
-        OutputData("pose"): NodeData("17150000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("17150000-0000-4000-8000-000000000003"),
+        NodeData("17150000-0000-4000-8000-000000000003", "position"): NodeData("17150000-0000-4000-8000-000000000002", "als_roll_slot_time"), NodeData("17150000-0000-4000-8000-000000000003", "pose"): NodeData("17150000-0000-4000-8000-000000000001", "pose"), NodeData("17150000-0000-4000-8000-000000000003", "events"): NodeData("17150000-0000-4000-8000-000000000001", "events"), NodeTime("17150000-0000-4000-8000-000000000003", "time"): NodeTime("17150000-0000-4000-8000-000000000001"),
+        OutputData("pose"): NodeData("17150000-0000-4000-8000-000000000003", "pose"), OutputData("events"): NodeData("17150000-0000-4000-8000-000000000003", "events"), OutputTime: NodeTime("17150000-0000-4000-8000-000000000003"),
     },
-    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }),
+    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose, "events": EventQueue }, input_order: {}, output_order: { Data("pose"): 0, Data("events"): 1, Time: 2 }),
     default_data: {},
     editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

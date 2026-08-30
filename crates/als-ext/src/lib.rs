@@ -7,6 +7,8 @@ pub mod curve_bundle;
 pub mod curve_weighted_samples;
 pub mod direct_transition_event;
 pub mod distance_match;
+pub mod event_queue_blend;
+pub mod event_loop;
 pub mod f32_to_vec2;
 pub mod f_interp;
 pub mod first_update;
@@ -72,6 +74,13 @@ pub use curve_weighted_samples::CurveWeightedSamplesNode;
 pub use direct_transition_event::{DirectTransitionEventNode, direct_transition_index};
 pub use distance_match::{
     DistanceMatchNode, default_stop_distance_curve, invert_distance_curve, sample_distance_curve,
+};
+pub use event_queue_blend::{
+    EventQueueBlendNode, IN_EVENTS_A, IN_EVENTS_B, IN_WEIGHT_A, IN_WEIGHT_B, OUT_EVENTS,
+    merge_weighted_event_queues, weighted_event_queue,
+};
+pub use event_loop::{
+    EventLoopNode, loop_position as event_loop_position,
 };
 pub use f_interp::{FInterpNode, f_interp_to};
 pub use f32_to_vec2::{F32ToVec2Node, f32_to_vec2};
@@ -184,6 +193,8 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CurveModifyNode>()
             .register_type::<CurveWeightedSamplesNode>()
             .register_type::<DistanceMatchNode>()
+            .register_type::<EventQueueBlendNode>()
+            .register_type::<EventLoopNode>()
             .register_type::<F32ToVec2Node>()
             .register_type::<FInterpNode>()
             .register_type::<SuppressFirstUpdateNode>()

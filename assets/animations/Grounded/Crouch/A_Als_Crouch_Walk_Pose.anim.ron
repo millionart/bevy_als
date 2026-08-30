@@ -4,4 +4,27 @@
         animation_name: "A_Als_Crouch_Walk_Pose_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_pose.a_als_crouch_walk_pose:0": (
+            name: "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_pose.a_als_crouch_walk_pose:0",
+            events: [
+                (
+                    id: "2bcfddc4-9e30-52c3-9fed-f2f4ce595786",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_pose.a_als_crouch_walk_pose:98796c10-49042951-eb5ffe87-f7bd774d"),
+                        start_time: 0.133333,
+                        end_time: 0.133333,
+                    ),
+                ),
+                (
+                    id: "75c99fa5-7dcf-54ea-90f2-29a42ce5c388",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_pose.a_als_crouch_walk_pose:bcecd950-48e37687-805130bb-27bea849"),
+                        start_time: 0.7,
+                        end_time: 0.7,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

@@ -360,4 +360,5 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 - 依据：BF103.01 本地 ALS 动画资产审计；源序列与 Montage 的 Notify、Notify State、AuthoredSyncMarker 均从 uasset 标签属性实时读取，不提交原始 uasset。
 - 工具：`tools/import/audit_als_animation_events.py` 生成可复查的 `docs/bf103-notify-source-audit.{json,md}`；`tools/import/generate_als_notify_manifest.py` 从该审计生成并校验项目侧事件数据。
 - 输出：`assets/animation_events/als_notify_manifest.json`（v1）。包含 137 个 source clip、177 条 Notify／Notify State、60 个同步 Marker 和 9 个 Montage→序列 segment 映射；时间、引用、GraphClip 路径和 source event ID 均由生成器验证。
-- 边界：该 JSON 是 source-preserved sidecar，尚未替代 `.anim.ron` 内的 EventTrack；BF103.03 才将其编译进实际 GraphClip／EventQueue。AuthoredSyncMarker 的同步相位数据继续以 `assets/sync/als_sync_metadata.ron` 为运行时规范，不作为角色全局定时器。
+- 编译：`tools/import/compile_als_event_tracks.py` 将 177 条 source event 确定性写入 65 个 `.anim.ron` GraphClip 的 98 个 EventTrack；point event 保留零长度精确时间，state event 保留原区间，Montage event 映射到其实际 sequence GraphClip。`--check` 验证生成物无漂移。
+- 边界：AuthoredSyncMarker 的同步相位数据继续以 `assets/sync/als_sync_metadata.ron` 为运行时规范，不作为角色全局定时器；Marker crossed event 的运行时生命周期留待 BF103.04。

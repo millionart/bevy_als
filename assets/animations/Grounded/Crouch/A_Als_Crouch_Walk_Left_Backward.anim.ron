@@ -4,4 +4,48 @@
         animation_name: "A_Als_Crouch_Walk_Left_Backward_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:0": (
+            name: "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:0",
+            events: [
+                (
+                    id: "3cdbce86-15fa-5909-a31b-24f149b676a3",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:62a036a3-4be81ddd-9035309a-2d52e466"),
+                        start_time: 0.366667,
+                        end_time: 0.366667,
+                    ),
+                ),
+                (
+                    id: "e51563df-4317-5311-84df-9160ad1cbf55",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:4c24d72b-4a94b9dc-f300e18a-61c5eb16"),
+                        start_time: 0.933333,
+                        end_time: 0.933333,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:1": (
+            name: "als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:1",
+            events: [
+                (
+                    id: "ea2b23e8-d4bb-522b-9894-b4be4a1dcd25",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:440c3c60-455478c4-36eee58b-7e685df9"),
+                        start_time: 0.533333,
+                        end_time: 0.533333,
+                    ),
+                ),
+                (
+                    id: "44048292-97a2-5576-97eb-9296af959a66",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/crouch/a_als_crouch_walk_left_backward.a_als_crouch_walk_left_backward:60bcb922-4efda191-06537990-f19a7e00"),
+                        start_time: 1.1,
+                        end_time: 1.1,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

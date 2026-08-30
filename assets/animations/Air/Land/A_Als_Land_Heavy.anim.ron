@@ -4,4 +4,32 @@
         animation_name: "A_Als_Land_Heavy_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:0": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:0",
+            events: [
+                (
+                    id: "8f3e754c-b326-5807-b29b-28eade841209",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:d459b403-4047e40c-e2af7393-8d245cd0"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:1": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:1",
+            events: [
+                (
+                    id: "2289c915-e4a1-563b-9182-c58e136f8102",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_heavy.a_als_land_heavy:19b8e245-4d180d6f-cb948ca2-386101d4"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+    },
 )

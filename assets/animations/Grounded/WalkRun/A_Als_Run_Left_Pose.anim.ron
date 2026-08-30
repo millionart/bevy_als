@@ -4,4 +4,27 @@
         animation_name: "A_Als_Run_Left_Pose_0",
     ),
     skeleton: "skeletons/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:0": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:0",
+            events: [
+                (
+                    id: "a67436ca-d5a9-5a13-b865-a41ec9bd9b38",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:26f3ecfa-40f962a3-327041b2-90ae1816"),
+                        start_time: 0.066667,
+                        end_time: 0.066667,
+                    ),
+                ),
+                (
+                    id: "a668d6c5-2efd-5a2c-bfa3-3e6b9055ae29",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_run_left_pose.a_als_run_left_pose:53b487e8-4e462944-f79e7089-2574564c"),
+                        start_time: 0.466667,
+                        end_time: 0.466667,
+                    ),
+                ),
+            ],
+        ),
+    },
 )
