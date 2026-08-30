@@ -17,7 +17,6 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use crate::character_assembly::AlsCharacterAvatar;
 
 pub const TURN_GROUND_SPEED_EPS: f32 = 0.05;
-pub const TURN_YAW_ENV_DECAY: f32 = 250.0;
 pub const TURN_WEIGHT_IN: f32 = 10.0;
 pub const TURN_WEIGHT_OUT: f32 = 8.0;
 pub const TURN_DUR_90: f32 = 2.0;
@@ -135,7 +134,6 @@ struct TurnDetectorComp(TurnInPlaceDetector);
 
 #[derive(Component, Default)]
 struct TurnYawSampler {
-    yaw_env: f32,
     prev_view: Option<(f64, f32)>,
 }
 
@@ -235,7 +233,7 @@ fn turn_pin_driver(
         let fwd = body_tf.forward();
         let body_deg = world_forward_to_yaw(*fwd).to_degrees();
         let rel = wrap_angle_degrees(view_deg - body_deg);
-        sampler.update(view_deg, time.elapsed_secs_f64(), dt);
+        let view_yaw_speed = sampler.update(view_deg, time.elapsed_secs_f64());
 
         let crouching = *stance == Stance::Crouching;
         let first_person = first_person.is_some();
@@ -260,7 +258,7 @@ fn turn_pin_driver(
                     false,
                     true,
                     rel,
-                    sampler.yaw_env,
+                    view_yaw_speed,
                     &config,
                     dt,
                 );
@@ -305,7 +303,7 @@ fn turn_pin_driver(
             }
             if let Some(ev) = detector.0.update(
                 rel,
-                sampler.yaw_env,
+                view_yaw_speed,
                 dt,
                 turn_allowed,
                 crouching,
@@ -346,7 +344,7 @@ fn turn_pin_driver(
 }
 
 impl TurnYawSampler {
-    fn update(&mut self, view_deg: f32, now: f64, dt: f32) -> f32 {
+    fn update(&mut self, view_deg: f32, now: f64) -> f32 {
         let sample_dt = match self.prev_view {
             Some((pt, _)) => ((now - pt) as f32).max(1e-4),
             None => 0.0,
@@ -355,11 +353,8 @@ impl TurnYawSampler {
             Some((_, pv)) if sample_dt > 1e-4 => wrap_angle_degrees(view_deg - pv) / sample_dt,
             _ => 0.0,
         };
-        self.yaw_env = (self.yaw_env - TURN_YAW_ENV_DECAY * dt)
-            .max(0.0)
-            .max(inst.abs());
         self.prev_view = Some((now, view_deg));
-        self.yaw_env
+        inst.abs()
     }
 }
 
@@ -416,5 +411,19 @@ mod tests {
         drive.advance(1.0);
         assert_eq!(drive.rotate_clip_time, ROTATE_DUR);
         assert!(!drive.rotate_finishing);
+    }
+
+    #[test]
+    fn turn_yaw_sampler_does_not_extend_stopped_view_speed() {
+        let mut sampler = TurnYawSampler::default();
+        let initial = sampler.update(0.0, 0.0);
+        let fast = sampler.update(40.0, 0.1);
+        let stopped = sampler.update(40.0, 0.2);
+        let passed = initial == 0.0 && (fast - 400.0).abs() < 1e-4 && stopped == 0.0;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.39][VERDICT] initial={initial:.1} fast={fast:.1} stopped={stopped:.1} -> {verdict}"
+        );
+        assert!(passed);
     }
 }

@@ -357,9 +357,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`animation_speed_divides_by_avatar_world_z_scale` 输出 `character_local_scale=1.000 avatar_world_z_scale=2.000 animation_speed=3.000 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（123 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.39 — L09：原地转向移除额外视角速度衰减包络（P2）**
+- [x] **BF102.39 — L09：原地转向移除额外视角速度衰减包络（P2）**
   - 依赖：BF102.11。
   - 验收：快速转动相机后停止时，触发阈值/延迟/播放率只受源合同定义的量控制。
+  - 当次事实：L09 审计确认 ALS 原地转向使用当前 ViewState.YawSpeed 与阈值/激活延迟；修复前 port 将速度包络为 `max(previous−250×dt,current)`，400°/s 停下后还会阻塞约 1.4 秒。
+  - 实现：`TurnYawSampler` 改为直接返回当前相邻视图样本的绝对 yaw speed，移除衰减包络；rotate-in-place 与 turn-in-place 共用该当前值。
+  - 证据：`turn_yaw_sampler_does_not_extend_stopped_view_speed` 输出 `initial=0.0 fast=400.0 stopped=0.0 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（124 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 ### Foot IK、骨盆与动态过渡
 
