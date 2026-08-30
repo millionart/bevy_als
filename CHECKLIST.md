@@ -367,9 +367,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### Foot IK、骨盆与动态过渡
 
-- [ ] **BF102.40 — I01：脚局部旋转使用更新后的小腿父旋转（P1）**
+- [x] **BF102.40 — I01：脚局部旋转使用更新后的小腿父旋转（P1）**
   - 依赖：BF102.10。
   - 验收：腿 IK 修正后，脚世界朝向与由更新后父骨骼换算的局部旋转一致。
+  - 当次事实：实际导出 ALS 骨架中 `calf_l` 的 children 包含直接子 `foot_l`（另一 child 为 twist）；根图在层叠动画后执行 `ControlRig CR_Als`。腿 IK 写回时，脚局部旋转必须由最终 calf 世界旋转换算，不能读取传播前旧 global。
+  - 实现：`apply_chain_offset()` 在 foot 直接挂在 chain.calf 时使用 `calf_world_new` 作为脚父空间；非直接父关系保留现有 global 回退。
+  - 证据：`foot_local_rotation_uses_the_updated_calf_parent` 输出 `corrected_alignment=1.000000 legacy_alignment=0.984808 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（125 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.41 — I02：骨盆偏移先于最终双腿 IK 求解（P1）**
   - 依赖：BF102.40。

@@ -320,14 +320,22 @@ fn apply_chain_offset(
     let Ok((mut foot_local, _, foot_child)) = bone_locals.get_mut(chain.foot) else {
         return;
     };
-    let foot_parent_rotation = bone_globals
-        .get(foot_child.0)
-        .map(|parent| parent.rotation())
-        .unwrap_or(Quat::IDENTITY);
+    let foot_parent_rotation = if foot_child.0 == chain.calf {
+        calf_world_new
+    } else {
+        bone_globals
+            .get(foot_child.0)
+            .map(|parent| parent.rotation())
+            .unwrap_or(Quat::IDENTITY)
+    };
     let (_, foot_pitch, foot_roll) = foot_g.rotation().to_euler(EulerRot::YXZ);
     let foot_world_rotation =
         Quat::from_euler(EulerRot::YXZ, constrained_foot_yaw, foot_pitch, foot_roll);
-    foot_local.rotation = world_rotation_to_local(foot_parent_rotation, foot_world_rotation);
+    foot_local.rotation = foot_local_rotation(foot_parent_rotation, foot_world_rotation);
+}
+
+fn foot_local_rotation(parent_world_rotation: Quat, foot_world_rotation: Quat) -> Quat {
+    world_rotation_to_local(parent_world_rotation, foot_world_rotation)
 }
 
 fn target_foot_yaw(
@@ -354,5 +362,29 @@ fn apply_pelvis_drop(
     };
     if let Ok((mut pelvis_local, _, _)) = bone_locals.get_mut(pelvis_entity) {
         pelvis_local.translation.y += drop;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn foot_local_rotation_uses_the_updated_calf_parent() {
+        let calf_old = Quat::from_rotation_y(30.0_f32.to_radians());
+        let calf_new = Quat::from_rotation_y(50.0_f32.to_radians());
+        let foot_target = Quat::IDENTITY;
+        let corrected_local = foot_local_rotation(calf_new, foot_target);
+        let legacy_local = foot_local_rotation(calf_old, foot_target);
+        let corrected_world = calf_new * corrected_local;
+        let legacy_world = calf_new * legacy_local;
+        let corrected_alignment = corrected_world.dot(foot_target).abs();
+        let legacy_alignment = legacy_world.dot(foot_target).abs();
+        let passed = corrected_alignment > 0.99999 && legacy_alignment < 0.99;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.40][VERDICT] corrected_alignment={corrected_alignment:.6} legacy_alignment={legacy_alignment:.6} -> {verdict}"
+        );
+        assert!(passed);
     }
 }
