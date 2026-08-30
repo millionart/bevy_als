@@ -33,10 +33,13 @@
   - 实现／归属：`tools/import/compile_als_event_tracks.py` 将 manifest 177 条记录编译为 65 个 GraphClip 的 98 条 EventTrack，source asset+GUID 生成稳定事件 ID，Montage 时间经 segment 映射到真实 sequence GraphClip。`crates/als-ext` 新增通用 `EventQueueBlendNode`、`EventLoopNode`，并令 `RootMotionClipNode` 与 `TimePositionNode`传递 EventQueue／PercentOfEvent；`roll_slot` 和 `state_roll` 图暴露实际 `events` 输出。所有实现使用 `bevy_animation_graph` 公共接口，无依赖 fork 改动。
   - 证据：`python tools/import/compile_als_event_tracks.py --check` 输出 `graph_clips=65 tracks=98 events=177`；`cargo test -p als-ext --test notify_event_tracks --jobs 2` 9/9 通过（真实 `.anim.ron` 反序列化、全部编译记录、ClipNode 输出、seek、独立上下文、根运动 clip）；`cargo test -p als-ext --lib --jobs 2` 184/184 通过（含 queue weight 与 loop forwarding）；`BEVY_ASSET_ROOT=<repo-root> target/debug/examples/ab_als_contract_gate.exe` exit=0。
 
-- [ ] **BF103.04 — N04：Notify State 生命周期与 Marker 触发适配（P1）**
+- [x] **BF103.04 — N04：Notify State 生命周期与 Marker 触发适配（P1）**
   - 依赖：BF103.03。
   - 执行前：重新提取原版通知状态和标记在开始、持续、结束、循环／跳转及混合时的实际语义。
   - 验收：在项目运行时为同一角色、同一轨道可靠地产生一次 Begin、连续 Active 和一次 End，且点式 Marker 仅在真实跨越时间点时触发一次；对循环、跳帧、反向／重置和低权重过滤的处理有可复查的数值 Gate。可复用机制归属 `crates/als-ext`。
+  - 当次 ALS／UE 事实（2026-08-30，重新读取本地 ALS NotifyState 类、AnimSequenceBase／AnimMontage／AnimInstance／AnimNotifyQueue 源码并重跑资产审计）：队列先以 leader／follower、dedicated-server、weight threshold、LOD 与 chance 过滤；Notify State 在同一 source instance 内去重，旧状态 End 先于新状态 Begin。标准 sequence 正放依据 `start<=current && end>previous`，反放依据 `start<previous && end>=current`，整段跳过仍作为 Begin+End；原版 native branching state 的活动区间为 `(start,end]`。当前 ALS 177 条记录均 chance=1、均不在 follower 触发、160 条禁 dedicated server、无 converted branching point；`SetLocomotionAction`／`EarlyBlendOut` 的类构造启用 native branching，RootMotionScale 使用常规状态语义。Engine SyncMarker 只在有效同步组记录本帧 crossed marker，不能按角色全局时钟模拟。
+  - 实现／归属：`crates/als-ext::EventLifecycle` 以每实例 active state 维护 Begin／Active／End，按 source policy 去重和过滤；支持标准 `[start,end)` 与 native `(start,end]` 两种边界、完整跳帧脉冲、正反向 wrap、精确 point／marker crossing 和 reset End。其输入仅为 EventQueue、事件定义和实际 clip clock，不含 ALS tag／类名或角色规则；ALS 的 class 映射留给 BF103.05。
+  - 证据：`cargo test -p als-ext --lib event_lifecycle --jobs 2` 8/8 通过，覆盖 lifecycle、threshold、point／marker、正反 loop、jump、native boundary、follower／dedicated、reset 与隔离；`cargo test -p als-ext --lib --jobs 2` 192/192 通过。
 
 - [ ] **BF103.05 — N05：ALS Notify 消费者接线并移除临时代码路径（P1）**
   - 依赖：BF103.04。

@@ -9,6 +9,7 @@ pub mod direct_transition_event;
 pub mod distance_match;
 pub mod event_queue_blend;
 pub mod event_loop;
+pub mod event_lifecycle;
 pub mod f32_to_vec2;
 pub mod f_interp;
 pub mod first_update;
@@ -81,6 +82,10 @@ pub use event_queue_blend::{
 };
 pub use event_loop::{
     EventLoopNode, loop_position as event_loop_position,
+};
+pub use event_lifecycle::{
+    EventClock, EventLifecycle, EventLifecycleSignal, EventPhase, PlaybackDirection, TimedEvent,
+    TimedEventKind, StateIntervalBoundary, crossed_time,
 };
 pub use f_interp::{FInterpNode, f_interp_to};
 pub use f32_to_vec2::{F32ToVec2Node, f32_to_vec2};
