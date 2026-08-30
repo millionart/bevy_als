@@ -50,6 +50,7 @@ pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
 pub mod state_label_event;
 pub mod sync_group_phase;
+pub mod time_dilation;
 pub mod time_position;
 
 pub use als_curves::{
@@ -156,6 +157,7 @@ pub use sync_group_phase::{
     marker_phase_from_sample_time, marker_phase_sample_time, marker_position_at_time,
     normalize_phase, phase_to_time, time_for_marker_position, time_to_phase,
 };
+pub use time_dilation::unscaled_delta_seconds;
 pub use time_position::{TimePositionNode, resolve_position};
 
 use bevy::prelude::*;

@@ -15,7 +15,7 @@ use als_core::motion::AlsViewYaw;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::{Gait, RotationMode};
 use als_core::view::AlsViewPitch;
-use als_ext::sum_penetration_adjustments;
+use als_ext::{sum_penetration_adjustments, unscaled_delta_seconds};
 
 pub const CAMERA_CURVE_NAMES: [&str; 13] = [
     "CameraOffsetX",
@@ -1263,18 +1263,18 @@ fn camera_delta_seconds_from_times(
     effective_global_time_dilation: f32,
     custom_time_dilation: f32,
 ) -> f32 {
-    let delta = if params.ignore_time_dilation {
-        let time_dilation = *previous_global_time_dilation * custom_time_dilation;
-        if time_dilation > f32::EPSILON {
-            virtual_delta_seconds / time_dilation
-        } else {
-            real_delta_seconds
-        }
+    if params.ignore_time_dilation {
+        unscaled_delta_seconds(
+            previous_global_time_dilation,
+            virtual_delta_seconds,
+            real_delta_seconds,
+            effective_global_time_dilation,
+            custom_time_dilation,
+        )
     } else {
-        virtual_delta_seconds
-    };
-    *previous_global_time_dilation = effective_global_time_dilation;
-    delta.max(0.0)
+        *previous_global_time_dilation = effective_global_time_dilation;
+        virtual_delta_seconds.max(0.0)
+    }
 }
 
 fn camera_delta_seconds(

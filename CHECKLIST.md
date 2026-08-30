@@ -512,9 +512,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`als-ext` 单测输出 `[BF102.56][VERDICT] adjustment=(0.200,0.300,0.000) -> PASS`。真实 `camera_multi_mtd_gate` 在两面墙角记录 `count=2 adjustment=(0.085,0.085,-0.000) start=(0.085,0.085,-0.000) resolved=true blocking=true -> PASS`，证明两个 MTD 均参与起点恢复；后续 trace blocking 属于调整后 sweep 的正常结果。
   - 回归：`camera_runtime_gate` 继续通过；`cargo test -p als-camera --lib --jobs 2` 通过（11 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（175 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.57 — C08：第一人称头部输入使用未缩放 dt（P2）**
+- [x] **BF102.57 — C08：第一人称头部输入使用未缩放 dt（P2）**
   - 依赖：BF102.06、BF102.54。
   - 验收：第一人称慢动作下头部参数和曲线输入按声明的未缩放时间更新。
+  - 当次 ALS 事实：本地 `UAlsAnimationInstance::NativeUpdateAnimation()` 按上一帧 global dilation 与角色 custom dilation 产生 `DeltaTimeWithoutTimeDilation`。`RefreshHead()` 在第一人称将此值作为 pitch exact-damper 的 `EffectiveDeltaTime`，源码说明这可防止慢动作快速转镜头时头部/骨架相交；yaw critical spring 保持 source 的普通 `DeltaTime` 路径。
+  - 归属决定：未缩放 delta 的“上一帧 global × custom、real-time fallback”计算不含 ALS 头部或相机常量，提升为 `crates/als-ext::unscaled_delta_seconds`；camera 与 head 分别保留各自的 previous-global-dilation 生命周期。head 层只将该值接入 source 对应的第一人称 pitch 输入，未改动 source yaw 时间语义。
+  - 实现：`HeadRuntime` 保存 previous global dilation，head writer 读取 virtual/real time 与角色的 custom-dilation adapter，向 `HeadUpdateInput::delta_seconds_without_time_dilation` 写入通用 helper 的结果；相机 time-dilation 路径也改为调用同一 helper。
+  - 证据：`als-ext` 单测输出 `[BF102.57][VERDICT] delta=0.100000 previous_global=0.200 -> PASS`。主侧单测输出 `[BF102.57][VERDICT] unscaled_pitch=0.780579 scaled_pitch=44.989895 -> PASS`；真实 `head_unscaled_time_gate` 在 virtual speed=0.1 下记录 `frames=8 ... pitch=0.000000 -> PASS`。
+  - 回归：`camera_curve_dilation_gate` 与 `camera_runtime_gate` 继续通过；`cargo test -p als-camera --lib --jobs 2` 通过（11 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（133 tests）；`cargo test -p als-ext --jobs 2` 通过（176 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 ### 范围与最终 Gate
 

@@ -1,3 +1,4 @@
+use als_camera::AlsCameraCustomTimeDilation;
 use als_core::character::AlsCharacter;
 use als_core::input::AlsInputCommand;
 use als_core::input_request::AlsFirstPersonView;
@@ -5,8 +6,10 @@ use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_directio
 use als_core::orientation::world_forward_to_yaw;
 use als_core::state::RotationMode;
 use als_core::view::AlsViewSmoothed;
+use als_ext::unscaled_delta_seconds;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
+use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -55,10 +58,21 @@ pub struct AlsHeadMovementBaseState {
     pub delta_yaw_degrees: f32,
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
 struct HeadRuntime {
     initialized_body_yaw: bool,
     previous_body_yaw: f32,
+    previous_global_time_dilation: f32,
+}
+
+impl Default for HeadRuntime {
+    fn default() -> Self {
+        Self {
+            initialized_body_yaw: false,
+            previous_body_yaw: 0.0,
+            previous_global_time_dilation: 1.0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -333,7 +347,8 @@ fn write_globals(
 
 #[allow(clippy::type_complexity)]
 fn head_layer_writer(
-    time: Res<Time>,
+    virtual_time: Res<Time<Virtual>>,
+    real_time: Res<Time<Real>>,
     mut commands: Commands,
     mut characters: Query<
         (
@@ -345,6 +360,7 @@ fn head_layer_writer(
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             Has<AlsFirstPersonView>,
+            Option<&AlsCameraCustomTimeDilation>,
             Option<&AlsHeadCurveState>,
             Option<&AlsHeadMovementBaseState>,
             Option<&mut AlsHeadState>,
@@ -355,7 +371,7 @@ fn head_layer_writer(
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let delta_seconds = time.delta_secs();
+    let delta_seconds = virtual_time.delta_secs();
     for (
         entity,
         transform,
@@ -365,6 +381,7 @@ fn head_layer_writer(
         command,
         override_command,
         first_person,
+        custom_time_dilation,
         curve_state,
         movement_base,
         current_state,
@@ -382,6 +399,13 @@ fn head_layer_writer(
         };
         runtime.initialized_body_yaw = true;
         runtime.previous_body_yaw = body_yaw;
+        let delta_seconds_without_time_dilation = unscaled_delta_seconds(
+            &mut runtime.previous_global_time_dilation,
+            delta_seconds,
+            real_time.delta_secs(),
+            virtual_time.effective_speed(),
+            custom_time_dilation.map_or(1.0, |dilation| dilation.0),
+        );
         let curves = curve_state.copied().unwrap_or_default();
         let movement_base = movement_base.copied().unwrap_or_default();
         let input_yaw = input_yaw_degrees(effective, view_yaw.0, body_yaw);
@@ -389,7 +413,7 @@ fn head_layer_writer(
             &mut state,
             HeadUpdateInput {
                 delta_seconds,
-                delta_seconds_without_time_dilation: delta_seconds,
+                delta_seconds_without_time_dilation,
                 first_person,
                 rotation_mode: *rotation_mode,
                 has_input: effective.move_dir.length_squared() > 1e-6,
@@ -448,6 +472,47 @@ mod tests {
     fn exact_angle_damper_uses_source_half_life() {
         let half = damper_exact_angle(0.0, 90.0, 0.1, 0.1);
         assert!((half - 45.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn first_person_pitch_uses_the_unscaled_delta() {
+        let base = AlsHeadState {
+            initialization_required: false,
+            pitch_angle: 90.0,
+            ..default()
+        };
+        let mut unscaled = base;
+        let mut scaled = base;
+        let input = HeadUpdateInput {
+            delta_seconds: 0.01,
+            delta_seconds_without_time_dilation: 0.1,
+            first_person: true,
+            rotation_mode: RotationMode::ViewDirection,
+            has_input: false,
+            input_yaw_world: 0.0,
+            target_yaw_world: 0.0,
+            body_yaw_world: 0.0,
+            body_yaw_velocity_world: 0.0,
+            view_yaw_angle: 0.0,
+            view_pitch_angle: 0.0,
+            movement_base_relative_yaw: 0.0,
+        };
+        update_head_state(&mut unscaled, input, AlsHeadSettings::default());
+        update_head_state(
+            &mut scaled,
+            HeadUpdateInput {
+                delta_seconds_without_time_dilation: input.delta_seconds,
+                ..input
+            },
+            AlsHeadSettings::default(),
+        );
+        let passed = unscaled.pitch_angle < 1.0 && scaled.pitch_angle > 20.0;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.57][VERDICT] unscaled_pitch={:.6} scaled_pitch={:.6} -> {verdict}",
+            unscaled.pitch_angle, scaled.pitch_angle,
+        );
+        assert!(passed);
     }
 
     #[test]
