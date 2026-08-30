@@ -57,9 +57,11 @@
   - 实现：`next_transition_toward()` 在本地已提取的六态直边上选择下一跳，先完成已发 transition 再继续多跳路线，保留每条源 transition 的 hips／feet 条件和时长。真实 `manual_playground` 新增 `DirectionRegression`：在可见原始地形中连续驱动 walk forward、run 的后/右/左/四对角、允许 Sprint、第一人称侧移拒绝 Sprint、同步旋转角色与视角 90°后的 forward；每个稳定窗口要求实际 world/local velocity 对齐、desired/allowed/actual gait、实际 FSM、pose ready 与 MultiWay dominant branch/weight 同时成立，否则 Base verdict 失败并列出 case。
   - 证据：`cargo test -p bevy_als --lib --jobs 2` 为 140 passed；`cargo run --example standing_contract_gate --jobs 2` 返回 0；`cargo check --all-targets --jobs 2` 通过（仅既有示例警告）。真实入口以 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=base RUST_LOG=<manual integration filter> run_manual.bat`（`CARGO_BUILD_JOBS=2`）返回 0，逐项记录全部 11 个 case：walk forward、run 四基向与四对角、`Sprinting/Sprinting/Sprinting` 允许路径、第一人称横移 `Sprinting/Running/Running` 拒绝路径，以及 rotated-90 的 `world_align=1.000 local_align=1.000`；最终有 `EXECUTED direction_regression` 和 `Base real_entry_paths -> PASS`。
 
-- [ ] **BF104.Gate — 局部方向到最终 Locomotion Pose 全链路验收（P0）**
+- [x] **BF104.Gate — 局部方向到最终 Locomotion Pose 全链路验收（P0）**
   - 依赖：BF104.01–BF104.05。
   - 验收：源事实、控制器最终事实、局部方向、步态权限、图参数、实际输出及真实入口八方向回归形成单一可追溯链；前、后、左、右、对角和角色旋转场景均以日志证明正确，且无输入意图／全局时间／默认前向 clip 的替代路径。
+  - Gate 结果（2026-08-31）：通过。控制器链以最终物理水平速度计算 desired／allowed／actual gait，direction 以实际 velocity/view 规则选择，Standing runtime 再将非直连六态请求分解为源图允许的下一跳；图 context 证明实际 FSM 输出 pose，MultiWay 的实际输入证明 dominant branch／weight。真实 Playground 的八方向日志记录每个 case 的 world/local velocity、direction、三层 gait、FSM、branch／weight；没有未覆盖项或 graph error。
+  - 可复查证据：`cargo test -p als-core --lib --jobs 2` 为 219 passed／2 ignored；`cargo test -p bevy_als --lib --jobs 2` 为 140 passed；`cargo run --example gait_contract_gate --jobs 2` 输出 idle、1.84/1.86 阈值、第三人称允许、第一人称拒绝和 Air 路径 PASS；`cargo run --example standing_contract_gate --jobs 2` 返回 0；`cargo check --all-targets --jobs 2` 通过（仅既有示例警告）。真实入口在原始可见 Playground、PlayerStart、scene physics、grounded spawn 全部 PASS 后，`ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=base RUST_LOG=<manual integration filter> run_manual.bat` 返回 0，并输出 11 个方向 case、`EXECUTED direction_regression` 与 `Base real_entry_paths -> PASS`。
 
 ## BF105 — P0 蹲伏／起身的控制器、碰撞体与动画对称事务
 
