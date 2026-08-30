@@ -523,13 +523,21 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 范围与最终 Gate
 
-- [ ] **BF102.58 — Q02：网络范围与本地确定性边界（P2）**
+- [x] **BF102.58 — Q02：网络范围与本地确定性边界（P2）**
   - 依赖：BF102.15、BF102.16、BF102.50。
   - 验收：网络缺失不被伪装成单机画面缺陷，A04/F08 等本地多实体错误不被推迟；扩展网络范围时另建清单。
+  - 当次 ALS 事实：本地 ALS 源码对 desired state／view rotation 使用 replication，并在动画状态读取中按 simulated proxy、listen-server 与 network smoothing 分支处理 transform；因此这是 ALS 上游真实存在、但本项目明确排除的一整套能力范围，而非单机动作或相机缺陷的解释。
+  - 范围结论：本仓库只声明单进程本地 ECS 行为；不声明 authority、snapshot、prediction、rollback、reconciliation、replication 或网络 smoothing 等价。工作区 manifest 与 lockfile 静态扫描无 `bevy_renet`、`lightyear`、`bevy_ggrs`、`renet`、`naia`、`netcode`、`replication` 依赖；README、goal 与 agents 均已明确“不含网络同步”。任何网络范围扩展必须先新增独立的 `CHECKLIST.md` 条目、协议与双端 Gate，不得附会为本地审计修复。
+  - 本地责任未延期：重新运行真实 `character_ownership_gate`，两角色与无关动画实例下仍输出 `character_owned_action_and_root_motion_paths -> PASS`；重新运行真实 `tnua_toggle_gate`，Enabled/Disabled/Enabled/SenseOnly/Enabled 五实体下仍输出 `disabled_entities_do_not_stop_other_motors -> PASS`。这两项均是单机多实体隔离问题，已分别由 BF102.15／.16 处理，不能归因于网络缺失。
+  - 回归：依赖静态扫描无网络框架命中；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.Gate — 58 项原子审计总验收**
   - 依赖：BF102.01–BF102.58。
   - 验收：58 个 ID 各有“当前已修复／确认待修复／条件性不适用或待证”三态记录；每个确认缺陷有独立修复提交和真实运行 verdict；未执行项不得宣称完成。
+  - [ ] **BF102.Gate.a — manual_playground 真实入口集成验收（待执行）**
+    - 依赖：BF102.01–BF102.58。
+    - 验收：通过 `run_manual.bat` 启动当前源码的 `manual_playground` 时，记录完整 runtime 装配，至少覆盖 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin` 及其关键子系统；以可重复触发的自动场景或 HUD/probe 覆盖 Mantle、Roll、Foot IK、移动基座、Ragdoll、相机等关键 BF102 路径。
+    - 证据：每个 probe 必须记录“已执行”或“未覆盖”状态及真实运行日志；不得以“插件已注册”代替行为验证。此条目的目标是补足单点 Gate 与用户真实试玩入口之间的集成覆盖缺口。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
