@@ -313,9 +313,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`jump_play_rate_latches_the_takeoff_speed` 输出 `takeoff_rate=1.200 post_takeoff_speed_rate=1.500 latched_rate=1.200 phase=0.360 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（120 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.34 — L04：跳跃曲线时间积分播放率（P1）**
+- [x] **BF102.34 — L04：跳跃曲线时间积分播放率（P1）**
   - 依赖：BF102.33、BF102.26。
   - 验收：变速跳跃的曲线时间等于播放率积分而非 elapsed×当前速率，并与姿态相位一致。
+  - 当次事实：实时 MCP 确认实际 `A_Als_Jump_Run_Left` 资产存在；实际 Jump 动画导出含 `GroundPredictionBlock` 曲线。姿态侧的 `jump_phase` 已按 `rate × delta_seconds / duration` 累加，而修复前 curve 侧独立使用 `jump_state_elapsed × current_rate`，两者在速率变化后分离。
+  - 实现：GroundPredictionBlock 的采样时间改为 `jump_phase.phase × JUMP_DURATION`，与动画图已写入的 jump phase 使用同一积分时钟；不再从 elapsed 和最后一帧 rate 重建时间。
+  - 证据：`jump_curve_time_uses_the_integrated_sync_phase` 输出 `integrated_time=1.350 legacy_time=1.500 expected=1.350 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（121 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.35 — L05：jump_latched 基于成功起跳事件（P2）**
   - 依赖：BF102.05、BF102.33。

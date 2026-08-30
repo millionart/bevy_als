@@ -574,6 +574,10 @@ fn animation_curve_sample(
         .unwrap_or(0.0)
 }
 
+fn jump_curve_sample_time(runtime: &LocomotionLayerRuntime) -> f32 {
+    (runtime.jump_phase.phase * JUMP_DURATION).clamp(0.0, JUMP_DURATION)
+}
+
 fn jump_ground_prediction_allowance(
     runtime: &LocomotionLayerRuntime,
     speed: f32,
@@ -591,7 +595,7 @@ fn jump_ground_prediction_allowance(
         }
     };
     let alpha = map_range_clamped(speed, 2.0, 5.0, 0.0, 1.0);
-    let time = runtime.jump_state_elapsed * runtime.jump_play_rate;
+    let time = jump_curve_sample_time(runtime);
     let block = animation_curve_sample(assets, walk, "GroundPredictionBlock", time).lerp(
         animation_curve_sample(assets, run, "GroundPredictionBlock", time),
         alpha,
@@ -1239,6 +1243,32 @@ mod tests {
         println!(
             "[BF102.33][VERDICT] takeoff_rate={takeoff_rate:.3} post_takeoff_speed_rate={after_takeoff_rate:.3} latched_rate={:.3} phase={:.3} -> {verdict}",
             runtime.jump_play_rate, runtime.jump_phase.phase,
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn jump_curve_time_uses_the_integrated_sync_phase() {
+        let mut runtime = LocomotionLayerRuntime {
+            state: LocomotionLayerState::Jump,
+            jump_state: JumpLayerState::LeftFoot,
+            jump_play_rate: 1.2,
+            ..Default::default()
+        };
+        update_locomotion_sync_phases(&mut runtime, 0.0, 0.0, 0.0);
+        update_locomotion_sync_phases(&mut runtime, 0.0, 0.0, 0.5);
+        runtime.jump_play_rate = 1.5;
+        update_locomotion_sync_phases(&mut runtime, 0.0, 0.0, 0.5);
+        runtime.jump_state_elapsed = 1.0;
+        let sample_time = jump_curve_sample_time(&runtime);
+        let expected_integrated_time = 0.5 * 1.2 + 0.5 * 1.5;
+        let legacy_time = runtime.jump_state_elapsed * runtime.jump_play_rate;
+        let passed = (sample_time - expected_integrated_time).abs() < 1e-6
+            && (legacy_time - 1.5).abs() < 1e-6
+            && (sample_time - legacy_time).abs() > 0.1;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.34][VERDICT] integrated_time={sample_time:.3} legacy_time={legacy_time:.3} expected={expected_integrated_time:.3} -> {verdict}"
         );
         assert!(passed);
     }
