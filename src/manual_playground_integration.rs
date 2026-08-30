@@ -56,7 +56,7 @@ use crate::{
 };
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(180);
-const CROUCH_CLEARANCE_TIMEOUT: f32 = 60.0;
+const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const DIRECTION_CASE_COUNT: usize = 11;
@@ -127,6 +127,7 @@ enum CrouchClearanceStage {
     Cycling,
     PrepareCanopyCrouch,
     ArmCanopy,
+    AwaitCanopyReady,
     RequestStanding,
     AwaitBlocked,
     MoveAway,
@@ -420,6 +421,7 @@ struct ManualIntegrationState {
     crouch_clearance_last_actual: Stance,
     crouch_canopy: Option<Entity>,
     crouch_canopy_center: Option<Vec3>,
+    crouch_canopy_armed_at: Option<Instant>,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -478,6 +480,7 @@ impl Default for ManualIntegrationState {
             crouch_clearance_last_actual: Stance::Standing,
             crouch_canopy: None,
             crouch_canopy_center: None,
+            crouch_canopy_armed_at: None,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -1027,12 +1030,21 @@ fn drive_manual_integration(
                             .id();
                         state.crouch_canopy = Some(canopy);
                         state.crouch_canopy_center = Some(canopy_center);
+                        state.crouch_canopy_armed_at = Some(Instant::now());
                         state.coverage.crouch_canopy_visible = true;
-                        state.crouch_clearance_stage = CrouchClearanceStage::RequestStanding;
+                        state.crouch_clearance_stage = CrouchClearanceStage::AwaitCanopyReady;
                         info!(
                             "[MANUAL-INTEGRATION][CROUCH-CANOPY] center=({:.3},{:.3},{:.3}) bottom={:.3}",
                             canopy_center.x, canopy_center.y, canopy_center.z, canopy_bottom,
                         );
+                    }
+                }
+                CrouchClearanceStage::AwaitCanopyReady => {
+                    if state
+                        .crouch_canopy_armed_at
+                        .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(0.5))
+                    {
+                        state.crouch_clearance_stage = CrouchClearanceStage::RequestStanding;
                     }
                 }
                 CrouchClearanceStage::RequestStanding => {
@@ -1558,6 +1570,7 @@ fn cleanup_crouch_canopy(commands: &mut Commands, state: &mut ManualIntegrationS
         info!("[MANUAL-INTEGRATION][CROUCH-CANOPY] cleaned entity={entity:?}");
     }
     state.crouch_canopy_center = None;
+    state.crouch_canopy_armed_at = None;
 }
 
 fn graph_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
