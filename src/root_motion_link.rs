@@ -31,6 +31,16 @@ pub fn read_local_delta(rm: Option<&RootMotionOutput>) -> Vec3 {
         .unwrap_or(Vec3::ZERO)
 }
 
+pub fn read_local_rotation_delta(rm: Option<&RootMotionOutput>) -> Quat {
+    let basis = mesh_to_entity_yaw();
+    rm.map(|root_motion| (basis * root_motion.rotation_delta * basis.conjugate()).normalize())
+        .unwrap_or(Quat::IDENTITY)
+}
+
+pub fn read_local_root_motion_delta(rm: Option<&RootMotionOutput>) -> (Vec3, Quat) {
+    (read_local_delta(rm), read_local_rotation_delta(rm))
+}
+
 pub fn clamp_drive_speed(velocity: Vec3, max_speed: f32) -> Vec3 {
     if velocity.length() > max_speed {
         velocity.normalize_or_zero() * max_speed

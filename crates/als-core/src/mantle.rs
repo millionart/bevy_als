@@ -254,6 +254,10 @@ pub fn mantle_motion_warp_rotation_amount(kind: MantleKind, clip_time: f32) -> f
     alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
+pub fn mantle_blend_in_amount(time: f32) -> f32 {
+    (time / MANTLE_BLEND_IN_SECS).clamp(0.0, 1.0)
+}
+
 pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
     let velocity = Vec3::new(input.velocity.x, 0.0, input.velocity.z);
     let desired_yaw = if velocity.length_squared() > 1e-6 {
@@ -474,6 +478,8 @@ pub struct AlsMantleState {
     pub target_location_base: Vec3,
     pub target_rotation_base: Quat,
     pub target_invalid: bool,
+    pub root_motion_translation: Vec3,
+    pub root_motion_rotation: Quat,
 }
 
 impl Default for AlsMantleState {
@@ -497,6 +503,8 @@ impl Default for AlsMantleState {
             target_location_base: Vec3::ZERO,
             target_rotation_base: Quat::IDENTITY,
             target_invalid: false,
+            root_motion_translation: Vec3::ZERO,
+            root_motion_rotation: Quat::IDENTITY,
         }
     }
 }
@@ -530,6 +538,8 @@ impl AlsMantleState {
         self.target_location_base = Vec3::ZERO;
         self.target_rotation_base = Quat::IDENTITY;
         self.target_invalid = false;
+        self.root_motion_translation = Vec3::ZERO;
+        self.root_motion_rotation = Quat::IDENTITY;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -579,8 +589,12 @@ impl AlsMantleState {
     }
 
     pub fn clip_time(&self) -> f32 {
+        self.clip_time_at(self.time)
+    }
+
+    pub fn clip_time_at(&self, time: f32) -> f32 {
         let settings = self.kind.action_settings();
-        (self.start_offset + self.time * self.rate_scale).min(settings.sequence_length)
+        (self.start_offset + time * self.rate_scale).min(settings.sequence_length)
     }
 
     pub fn action_end(&self) -> f32 {
@@ -588,11 +602,59 @@ impl AlsMantleState {
     }
 
     pub fn location_warp_amount(&self) -> f32 {
-        mantle_motion_warp_location_amount(self.kind, self.clip_time())
+        self.location_warp_amount_at(self.time)
     }
 
     pub fn rotation_warp_amount(&self) -> f32 {
-        mantle_motion_warp_rotation_amount(self.kind, self.clip_time())
+        self.rotation_warp_amount_at(self.time)
+    }
+
+    pub fn location_warp_amount_at(&self, time: f32) -> f32 {
+        mantle_blend_in_amount(time)
+            * mantle_motion_warp_location_amount(self.kind, self.clip_time_at(time))
+    }
+
+    pub fn rotation_warp_amount_at(&self, time: f32) -> f32 {
+        mantle_blend_in_amount(time)
+            * mantle_motion_warp_rotation_amount(self.kind, self.clip_time_at(time))
+    }
+
+    pub fn warp_transform_at(&self, time: f32) -> Transform {
+        let location = self
+            .start
+            .lerp(self.target, self.location_warp_amount_at(time));
+        let rotation = self
+            .start_rotation()
+            .lerp(self.target_rotation(), self.rotation_warp_amount_at(time))
+            .normalize();
+        Transform {
+            translation: location,
+            rotation,
+            ..Default::default()
+        }
+    }
+
+    pub fn target_actor_transform_at(&self, time: f32) -> Transform {
+        let warp = self.warp_transform_at(time);
+        Transform {
+            translation: warp.translation + warp.rotation * self.root_motion_translation,
+            rotation: (warp.rotation * self.root_motion_rotation).normalize(),
+            ..Default::default()
+        }
+    }
+
+    pub fn accumulate_root_motion(&mut self, translation_delta: Vec3, rotation_delta: Quat) {
+        let rotation_delta = rotation_delta.normalize();
+        self.root_motion_translation += self.root_motion_rotation * translation_delta;
+        self.root_motion_rotation = (self.root_motion_rotation * rotation_delta).normalize();
+    }
+
+    fn start_rotation(&self) -> Quat {
+        Quat::from_rotation_y(self.yaw_start)
+    }
+
+    fn target_rotation(&self) -> Quat {
+        Quat::from_rotation_y(self.yaw_target)
     }
 
     pub fn tick(
@@ -708,6 +770,38 @@ mod tests {
         );
         assert!((state.clip_time() - 0.9).abs() < 1e-6);
         assert_eq!(state.cooldown, 0.0);
+    }
+
+    #[test]
+    fn mantle_root_motion_composes_full_transform_in_warp_space() {
+        let mut state = AlsMantleState::default();
+        state.begin(
+            MantleKind::High,
+            Vec3::new(-1.0, 0.0, 0.0),
+            Vec3::new(2.0, 1.0, -3.0),
+            1.25,
+            0.0,
+            std::f32::consts::FRAC_PI_2,
+        );
+        let root_translation = Vec3::new(0.15, 0.25, -0.35);
+        let root_rotation = Quat::from_rotation_y(20.0_f32.to_radians());
+        state.accumulate_root_motion(root_translation, root_rotation);
+        let actor = state.target_actor_transform_at(0.6);
+        let target_rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        let expected_translation = state.target + target_rotation * root_translation;
+        let expected_rotation = target_rotation * root_rotation;
+        let translation_error = actor.translation.distance(expected_translation);
+        let rotation_alignment = actor.rotation.dot(expected_rotation).abs();
+        let legacy_translation =
+            state.target + Vec3::new(0.0, root_translation.y, -root_translation.z);
+        let legacy_error = actor.translation.distance(legacy_translation);
+        let passed =
+            translation_error < 1e-6 && rotation_alignment > 0.999_99 && legacy_error > 0.1;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.46][VERDICT] translation_error={translation_error:.6} rotation_alignment={rotation_alignment:.6} legacy_error={legacy_error:.6} -> {verdict}"
+        );
+        assert!(passed);
     }
 
     #[test]

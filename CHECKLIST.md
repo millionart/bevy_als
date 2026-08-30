@@ -417,9 +417,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 攀爬、翻滚与布娃娃动作闭环
 
-- [ ] **BF102.46 — X03：Mantle 轨迹使用根运动变换合成（P1）**
+- [x] **BF102.46 — X03：Mantle 轨迹使用根运动变换合成（P1）**
   - 依赖：BF102.04、BF102.20、BF102.29。
   - 验收：实际攀爬的姿态、根运动、目标相对变换和角色位移使用同一相位，先验证 slot 接线。
+  - 当次 ALS 事实：实时读取 `FAlsRootMotionSource_Mantling::PrepareRootMotion()`：每个 simulation step 先推进 time；用 Montage current root transform、当前 target-base 还原的 start/target transform、blend-in 和位置／旋转 warp 生成 `TargetActorTransform`；最终根运动为目标与当前 actor 的完整 rotation delta 及 location delta/DeltaTime。实际动作图中的 mantle clips 采用 Full root motion。
+  - 实现：为每个角色新增项目内 mantle root sampler，直接采样 `graphs/actions.animgraph.ron` 的 Full root motion。驱动链累计完整本地根平移／旋转，按 `root * warp` 顺序合成为目标 actor transform，写入完整线速度与物理／Transform 旋转；删除原先的剩余时间追目标、前向／纵向分量简化和 14 m/s 限速。warp 同时消费 Montage blend-in。
+  - 证据：`mantle_root_motion_composes_full_transform_in_warp_space` 输出 `[BF102.46][VERDICT] translation_error=0.000000 rotation_alignment=1.000000 legacy_error=0.610328 -> PASS`。真实 `mantle_gate` 在完整主图中记录 High mantle `BEGIN` 后到达 `target_y=2.27`，并记录 `DONE`；采样器无图资产或调度错误。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（215 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`RUST_LOG=info cargo run --example mantle_gate --jobs 2` 通过；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.47 — X04：Mantle 结束不引入固定目标锁定收尾（P2）**
   - 依赖：BF102.46。
