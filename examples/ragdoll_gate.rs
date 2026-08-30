@@ -22,7 +22,7 @@ use als_ext::AlsExtPlugin;
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 use bevy_als::ragdoll_link::{
-    AlsRagdollGroundFollow, AlsRagdollLinkPlugin, ragdoll_exit_route_system,
+    AlsRagdollGroundFollow, AlsRagdollJointDrive, AlsRagdollLinkPlugin, ragdoll_exit_route_system,
 };
 use bevy_als::stop_link::AlsStopLinkPlugin;
 
@@ -101,6 +101,14 @@ struct RagdollWatch {
     recovered: bool,
     recovery_physics_valid: bool,
     ground_exit_velocity: Option<f32>,
+    joint_drive_delay_frames: u8,
+    joint_drive_injected: bool,
+    joint_drive_startup: Option<(f32, f32)>,
+    joint_drive_full: bool,
+    joint_drive_expected_targets: u32,
+    joint_drive_peak_targets: u32,
+    joint_drive_peak_speed_amount: f32,
+    joint_drive_peak_stiffness: f32,
     recovery_probe_count: u8,
     nan_bodies: u32,
     failed: bool,
@@ -278,6 +286,7 @@ fn auto_demo(
 #[allow(clippy::type_complexity)]
 fn ragdoll_watcher(
     mut watch: ResMut<RagdollWatch>,
+    mut commands: Commands,
     mut q: Query<
         (
             &Transform,
@@ -288,6 +297,7 @@ fn ragdoll_watcher(
             &RigidBody,
             Option<&TnuaToggle>,
             Option<&AlsRagdollGroundFollow>,
+            Option<&AlsRagdollJointDrive>,
         ),
         With<AlsCharacter>,
     >,
@@ -299,8 +309,17 @@ fn ragdoll_watcher(
     layers: Query<&CollisionLayers>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let Ok((tf, vel, loco, mut req, character_layers, character_mode, tnua_toggle, ground_follow)) =
-        q.single_mut()
+    let Ok((
+        tf,
+        vel,
+        loco,
+        mut req,
+        character_layers,
+        character_mode,
+        tnua_toggle,
+        ground_follow,
+        joint_drive,
+    )) = q.single_mut()
     else {
         return;
     };
@@ -387,6 +406,26 @@ fn ragdoll_watcher(
                     && *character_mode == RigidBody::Kinematic
                     && tnua_toggle.is_some_and(|toggle| *toggle == TnuaToggle::Disabled);
                 watch.handoff_valid |= bodies_dynamic && colliders_active && capsule_disabled;
+                watch.joint_drive_expected_targets = watch
+                    .joint_drive_expected_targets
+                    .max(spawned.joints.len() as u32);
+                if watch.handoff_valid && !watch.joint_drive_injected {
+                    watch.joint_drive_delay_frames =
+                        watch.joint_drive_delay_frames.saturating_add(1);
+                    if watch.joint_drive_delay_frames >= 3 {
+                        if let Some(pelvis) = spawned
+                            .bodies
+                            .values()
+                            .find(|body| labels.get(**body).is_ok_and(|label| label.0 == "pelvis"))
+                        {
+                            commands
+                                .entity(*pelvis)
+                                .insert(LinearVelocity(Vec3::X * 10.0));
+                            watch.joint_drive_injected = true;
+                            info!("[RGATE][DRIVE] injected_pelvis_speed=10.000");
+                        }
+                    }
+                }
                 if let Some(follow) = ground_follow {
                     let error = tf.translation.distance(follow.target);
                     watch.max_follow_error = watch.max_follow_error.max(error);
@@ -399,6 +438,40 @@ fn ragdoll_watcher(
                         watch.handoff_logged = true;
                     }
                 }
+            }
+        }
+    }
+
+    if *loco == LocomotionState::Ragdolling {
+        if let Some(drive) = joint_drive {
+            if watch.joint_drive_startup.is_none() {
+                watch.joint_drive_startup = Some((drive.speed_amount, drive.angular_stiffness));
+                info!(
+                    "[RGATE][DRIVE] startup_speed_amount={:.3} startup_stiffness={:.1}",
+                    drive.speed_amount, drive.angular_stiffness
+                );
+            }
+            watch.joint_drive_peak_targets =
+                watch.joint_drive_peak_targets.max(drive.target_joint_count);
+            watch.joint_drive_peak_speed_amount =
+                watch.joint_drive_peak_speed_amount.max(drive.speed_amount);
+            watch.joint_drive_peak_stiffness = watch
+                .joint_drive_peak_stiffness
+                .max(drive.angular_stiffness);
+            if !watch.joint_drive_full
+                && watch.joint_drive_injected
+                && drive.speed_amount >= 0.95
+                && drive.angular_stiffness >= 24_999.0
+                && drive.target_joint_count >= watch.joint_drive_expected_targets
+            {
+                watch.joint_drive_full = true;
+                info!(
+                    "[RGATE][DRIVE] full_speed_amount={:.3} stiffness={:.1} targets={} driven={}",
+                    drive.speed_amount,
+                    drive.angular_stiffness,
+                    drive.target_joint_count,
+                    drive.driven_joint_count
+                );
             }
         }
     }
@@ -478,10 +551,21 @@ fn ragdoll_watcher(
         let ok_ground_exit_velocity = watch
             .ground_exit_velocity
             .is_some_and(|velocity| velocity <= 0.1);
+        let ok_joint_drive = watch.joint_drive_startup.is_some()
+            && watch.joint_drive_injected
+            && watch.joint_drive_full
+            && watch.joint_drive_expected_targets > 0
+            && watch.joint_drive_peak_targets >= watch.joint_drive_expected_targets;
         let ok_no_nan = watch.nan_bodies == 0;
         info!(
-            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} ground_exit_velocity={:?} nan_bodies={} max_follow_error={:.6} -> {}",
+            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} ground_exit_velocity={:?} drive_startup={:?} drive_full={} drive_targets={}/{} drive_peak=({:.3},{:.1}) nan_bodies={} max_follow_error={:.6} -> {}",
             watch.ground_exit_velocity,
+            watch.joint_drive_startup,
+            watch.joint_drive_full,
+            watch.joint_drive_peak_targets,
+            watch.joint_drive_expected_targets,
+            watch.joint_drive_peak_speed_amount,
+            watch.joint_drive_peak_stiffness,
             watch.nan_bodies,
             watch.max_follow_error,
             if ok_kinematic
@@ -491,6 +575,7 @@ fn ragdoll_watcher(
                 && ok_recover
                 && ok_recovery_physics
                 && ok_ground_exit_velocity
+                && ok_joint_drive
                 && ok_no_nan
             {
                 "PASS"
@@ -506,6 +591,7 @@ fn ragdoll_watcher(
             && ok_recover
             && ok_recovery_physics
             && ok_ground_exit_velocity
+            && ok_joint_drive
             && ok_no_nan)
         {
             watch.failed = true;

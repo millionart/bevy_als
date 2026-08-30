@@ -35,6 +35,7 @@ pub mod overlay_materials;
 pub mod playground;
 pub mod playground_materials;
 pub mod profile_blend;
+pub mod ragdoll_angular_drive;
 pub mod ragdoll_config_node;
 pub mod ragdolling_tag_blend;
 pub mod reference_local_difference;
@@ -126,6 +127,10 @@ pub use playground::{
 pub use profile_blend::{
     AlphaBlendMode, BoneBlendScale, ProfiledBlendNode, curve_a_input, curve_b_input,
     profile_target_weight, transition_alpha,
+};
+pub use ragdoll_angular_drive::{
+    RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDrivePlugin,
+    RagdollAngularDriveSet, angular_drive_torque,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
@@ -225,6 +230,9 @@ impl Plugin for AlsExtPlugin {
             .register_type::<DataSpec>()
             .register_type::<DataValue>();
         AlsCurvesHandler::register(app);
-        app.add_plugins(root_motion_defaults::RootMotionDefaultsPlugin);
+        app.add_plugins((
+            root_motion_defaults::RootMotionDefaultsPlugin,
+            RagdollAngularDrivePlugin,
+        ));
     }
 }

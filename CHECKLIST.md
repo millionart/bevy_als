@@ -457,9 +457,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`ragdoll_exit_routes_airborne_velocity_and_grounded_recovery` 输出 `[BF102.50][VERDICT] air_state=Air air_hold=true air_velocity=(2.500,-4.000,-1.500) ground_state=Grounded ground_velocity=0.000 -> PASS`；实际 `ragdoll_exit_gate` 输出同值 Gate PASS。真实 `ragdoll_gate` 先记录 `exit route grounded=false state=Air velocity=(-3.644,11.797,-3.083)`，随后 `air exit hold released on ground`，最终记录 `ground_exit_velocity=Some(0.096652135) ... -> PASS`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（217 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（130 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example ragdoll_exit_gate --jobs 2`、`ALS_BOOT_AUTO_QUIT_SECS=15 RUST_LOG=info cargo run --example ragdoll_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.51 — X08：布娃娃速度相关关节驱动（P2）**
+- [x] **BF102.51 — X08：布娃娃速度相关关节驱动（P2）**
   - 依赖：BF102.16、BF102.50。
   - 验收：布娃娃运动中关节驱动随源合同定义的速度变化，启动行为单独量测。
+  - 当次 ALS 事实：先按 `docs/env.md` 指定的本地 ALS-Refactored 源码读取 `RefreshRagdolling()`：每帧由 pelvis rigid body 更新 `RagdollingState.Velocity`，以 `SpeedAmount = clamp(|Velocity| / 1000 cm/s)` 计算量，并调用 `SetAllMotorsAngularDriveParams(SpeedAmount * 25000, 0, 0)`；启动路径同样先读取 pelvis velocity。因此速度参考值为 10 m/s，damping 和 force limit 均为零。
+  - 归属决定：`crates/als-ext` 新增通用 `RagdollAngularDrive` bridge，负责读取 `RelativeKinematicBodyPositionBased`、计算动画 target 与当前 body 的相对旋转误差，并对 joint body pair 施加等大反向 `Forces::apply_torque`；其接口不含 ALS 常量。主项目保留 pelvis 标签／速度来源、10 m/s→25000 源映射、零 damping/force limit、启停与 Tnua 生命周期。源 stiffness 到 Avian torque 的项目侧校准为 `0.0001`：实测直接的 N·cm→N·m 比例会使 Avian solver 发散，校准后真实 ragdoll 保持稳定；此换算不进入通用扩展。
+  - 实现：主适配器将每角色 ALS drive 状态映射为 `als-ext` 的 generic torque stiffness 并回读 generic target/driven joint metrics。实际 Manny 的 16 body／15 spherical joint 都由 bridge 目标化；速度为零时 stiffness 为零，10 m/s 时源 stiffness 为 25000。
+  - 证据：主侧 `joint_drive_scales_source_stiffness_with_pelvis_speed` 输出 `[BF102.51][VERDICT] idle=0.000 half=0.500/12500.0 full=1.000/25000.0 torque_stiffness=2.500 -> PASS`；`als-ext` 的 `angular_drive_uses_relative_rotation_error` 通过。真实 `ragdoll_gate` 记录 `startup_speed_amount=0.000 startup_stiffness=0.0`，注入 10 m/s 后记录 `full_speed_amount=1.000 stiffness=25000.0 targets=15 driven=15`，最终 Gate 输出 `drive_full=true drive_targets=15/15 drive_peak=(1.000,25000.0) ... -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（217 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（131 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests 与 6 integration tests）；`ALS_BOOT_AUTO_QUIT_SECS=15 RUST_LOG=info cargo run --example ragdoll_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
 ### 相机 lag、时间、模式与碰撞恢复
 
