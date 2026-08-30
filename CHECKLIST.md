@@ -57,9 +57,11 @@
   - 实现：`ManualPlaygroundIntegrationPlugin` 新增 Notify 场景。它在原始 Playground 的 PlayerStart、地形 collider、可见角色、相机、grounded spawn 和 Graph source 全部通过后，依次以实际输入触发 Sprint、Roll、Mantle；读取 `AlsAnimationEvent` 以及 RootMotionScale、GroundedEntryMode、LocomotionAction、EarlyBlendOut 消费者状态，记录 source、class、phase、time 和 weight。自动摆件仍位于原始 Playground 地面，未传送至场外或独立测试世界。
   - 证据：`ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=notify RUST_LOG=info run_manual.bat` 在自身 `target_game`、`CARGO_BUILD_JOBS=2` 下退出码为 0。真实入口先输出 PlayerStart、场景物理、可见角色和 grounded spawn PASS；随后输出 Sprint／SprintAcceleration CameraShake 与 Left／Right marker、Roll RootMotionScale Begin／Active、Rolling、FromRoll 和 Mantle Mantling／EarlyBlendOut 的实际事件。最终 `runtime_assembly`、`animation_graph`、9 个 Notify 覆盖项和 `camera_shake` 全部 `[EXECUTED]`，`scenario=Notify real_entry_paths -> PASS`。
 
-- [ ] **BF103.Gate — Notify／Notify State／Marker 全链路验收（P1）**
+- [x] **BF103.Gate — Notify／Notify State／Marker 全链路验收（P1）**
   - 依赖：BF103.01–BF103.06。
   - 验收：从项目侧导出数据到实际 GraphClip、EventQueue、生命周期、ALS 消费者和 `manual_playground` 的完整链路都有真实运行日志；覆盖至少一个点式 Notify、一个 Notify State、一个 Marker、循环与多角色隔离，确认不存在临时状态／全局时间替代路径。
+  - Gate 证据（2026-08-30）：`python tools/import/generate_als_notify_manifest.py --check` 输出 `clips=137 events=177 markers=60`；`python tools/import/compile_als_event_tracks.py --check` 输出 `graph_clips=65 tracks=98 events=177`。`cargo test -p als-ext --lib --jobs 2` 为 192/192，覆盖生命周期、loop／seek、filter、reset 与隔离；`cargo test -p als-ext --test notify_event_tracks --jobs 2` 为 9/9，覆盖真实 GraphClip 序列化、ClipNode EventQueue、Montage segment、seek、RootMotionClip 与独立上下文。`cargo test -p als-camera --lib --jobs 2` 为 10/10，`cargo test -p bevy_als --lib --jobs 2` 为 136/136。
+  - 真实运行证据：`cargo run --example camera_notify_gate --jobs 2` 记录实际 point crossing，并输出 Sprint `[.5,.5]`、SprintAcceleration `[1.25,1.25]`、Roll `[1,2]`、Left／Right marker、Rolling、Mantling、EarlyBlendOut、FromRoll、RootMotionScale 全部 PASS。N06 的原生 `manual_playground` Notify 场景再次输出完整原始 Playground／PlayerStart／scene physics／grounded spawn PASS，并对所有 Notify 覆盖项输出 `[EXECUTED]` 与 `real_entry_paths -> PASS`。静态检索确认旧 `AlsCameraAnimationNotifyDriver`、`AlsCameraAnimationTiming` 和硬编码通知时刻均无残留；运行时播放只取 GraphClip EventTrack、source clip time／marker phase 和每角色 EventLifecycle，不使用临时状态或全局时间替代。
 
 ## 背景与基础事实（已核实，持续有效）
 
