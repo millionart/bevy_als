@@ -69,7 +69,6 @@ pub enum InvalidRequestPolicy {
 pub enum RejectReason {
     StanceRequiresGrounded,
     GaitRequiresGrounded,
-    RagdollCannotEnterAir,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +88,7 @@ pub enum Verdict {
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsStateRequest {
     pub locomotion_state: Option<LocomotionState>,
+    pub ragdoll_exit: bool,
     pub stance: Option<Stance>,
     pub gait: Option<Gait>,
     pub rotation_mode: Option<RotationMode>,
@@ -141,12 +141,7 @@ pub fn legality(value: StateValue, cur: &AlsCurrentStates) -> Legality {
             if to == cur.locomotion_state {
                 return Legality::Legal;
             }
-            match (cur.locomotion_state, to) {
-                (LocomotionState::Ragdolling, LocomotionState::Air) => {
-                    Legality::Illegal(RejectReason::RagdollCannotEnterAir)
-                }
-                _ => Legality::Legal,
-            }
+            Legality::Legal
         }
         StateValue::Stance(to) => {
             if to == cur.stance {
@@ -489,8 +484,8 @@ mod tests {
         );
         assert_eq!(
             v(LocomotionState::Ragdolling, LocomotionState::Air),
-            Verdict::Reject(RejectReason::RagdollCannotEnterAir),
-            "ragdolling to air must be rejected regardless of policy"
+            Verdict::Accept,
+            "ragdolling exit may enter air when the ground trace is clear"
         );
     }
 
@@ -661,7 +656,7 @@ mod tests {
     }
 
     #[test]
-    fn ragdoll_to_air_is_rejected_end_to_end() {
+    fn ragdoll_to_air_transitions_end_to_end() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(AlsStateTransitionPlugin);
@@ -681,8 +676,8 @@ mod tests {
         app.update();
         assert_eq!(
             *app.world().get::<LocomotionState>(e).unwrap(),
-            LocomotionState::Ragdolling,
-            "ragdolling to air must be rejected"
+            LocomotionState::Air,
+            "ragdolling exit may enter air"
         );
         assert_eq!(
             app.world()
@@ -690,9 +685,14 @@ mod tests {
                 .unwrap()
                 .locomotion_state,
             None,
-            "non-queuable illegal request cleared instead of queued"
+            "accepted request clears after transition"
         );
-
+        let transitions = app
+            .world_mut()
+            .run_system_once(|mut r: MessageReader<StateTransitionEvent>| {
+                r.read().copied().collect::<Vec<_>>()
+            })
+            .unwrap();
         let rejections = app
             .world_mut()
             .run_system_once(|mut r: MessageReader<StateTransitionRejectedEvent>| {
@@ -700,15 +700,16 @@ mod tests {
             })
             .unwrap();
         assert_eq!(
-            rejections,
-            vec![StateTransitionRejectedEvent {
+            transitions,
+            vec![StateTransitionEvent {
                 entity: e,
                 dimension: Dimension::LocomotionState,
-                requested: StateValue::LocomotionState(LocomotionState::Air),
-                reason: RejectReason::RagdollCannotEnterAir,
+                from: StateValue::LocomotionState(LocomotionState::Ragdolling),
+                to: StateValue::LocomotionState(LocomotionState::Air),
             }],
-            "must not queue even under default Queue policy"
+            "ragdoll-to-air transition must be observable"
         );
+        assert!(rejections.is_empty());
     }
 
     #[test]

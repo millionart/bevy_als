@@ -3,6 +3,7 @@ use als_core::character::{
     AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, AlsMovementParamsHandle,
     set_collision_layer_owner,
 };
+use als_core::motion::AlsRagdollAirExit;
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, Stance};
 use avian3d::prelude::{
@@ -47,7 +48,16 @@ struct AlsRagdollCharacterPhysics {
 pub struct AlsRagdollGroundFollow {
     pub pelvis: Vec3,
     pub target: Vec3,
+    pub velocity: Vec3,
     pub grounded: bool,
+}
+
+pub fn ragdoll_exit_route(grounded: bool, ragdoll_velocity: Vec3) -> (LocomotionState, Vec3) {
+    if grounded {
+        (LocomotionState::Grounded, Vec3::ZERO)
+    } else {
+        (LocomotionState::Air, ragdoll_velocity)
+    }
 }
 
 pub struct AlsRagdollLinkPlugin;
@@ -59,7 +69,12 @@ impl Plugin for AlsRagdollLinkPlugin {
             Update,
             (
                 ensure_ragdoll_link,
-                ragdoll_character_physics_system.after(ensure_ragdoll_link),
+                ragdoll_exit_route_system
+                    .after(als_core::input_request::input_state_request_system)
+                    .before(als_core::transition::state_transition_system),
+                ragdoll_character_physics_system
+                    .after(ensure_ragdoll_link)
+                    .after(als_core::transition::state_transition_system),
                 ragdoll_link_system.after(ragdoll_character_physics_system),
             ),
         )
@@ -75,6 +90,7 @@ impl Plugin for AlsRagdollLinkPlugin {
         .add_systems(
             FixedPostUpdate,
             (
+                release_ragdoll_air_exit_on_ground.after(PhysicsSystems::Last),
                 ragdoll_ground_follow.after(PhysicsSystems::Last),
                 ApplyDeferred,
                 apply_ragdoll_ground_follow,
@@ -241,6 +257,82 @@ fn ragdoll_capsule_dimensions(
     (half_height, params.crouch.standing_capsule_radius)
 }
 
+pub fn ragdoll_exit_route_system(
+    mut commands: Commands,
+    mut characters: Query<
+        (
+            Entity,
+            &LocomotionState,
+            &mut als_core::transition::AlsStateRequest,
+            Option<&AlsRagdollGroundFollow>,
+            Option<&mut LinearVelocity>,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (entity, locomotion, mut request, follow, velocity) in &mut characters {
+        if !request.ragdoll_exit {
+            continue;
+        }
+        if *locomotion != LocomotionState::Ragdolling {
+            request.ragdoll_exit = false;
+            continue;
+        }
+        let Some(follow) = follow else {
+            continue;
+        };
+        let (state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
+        request.locomotion_state = Some(state);
+        if state == LocomotionState::Air {
+            commands.entity(entity).insert(AlsRagdollAirExit);
+        } else {
+            commands.entity(entity).remove::<AlsRagdollAirExit>();
+        }
+        if let Some(mut velocity) = velocity {
+            velocity.0 = exit_velocity;
+        }
+        info!(
+            "[RAGLINK] exit route grounded={} state={state:?} velocity=({:.3},{:.3},{:.3})",
+            follow.grounded, exit_velocity.x, exit_velocity.y, exit_velocity.z
+        );
+        request.ragdoll_exit = false;
+    }
+}
+
+fn release_ragdoll_air_exit_on_ground(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    characters: Query<
+        (Entity, &Position, &Stance, &AlsMovementParamsHandle),
+        (With<AlsCharacter>, With<AlsRagdollAirExit>),
+    >,
+) {
+    for (entity, position, stance, params_handle) in &characters {
+        let (half_height, radius) =
+            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets);
+        let trace_start = position.0 + Vec3::Y * (2.0 * radius);
+        let trace_distance = half_height + radius;
+        let shape = Collider::sphere(radius);
+        let config = ShapeCastConfig::from_max_distance(trace_distance);
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        if spatial
+            .cast_shape(
+                &shape,
+                trace_start,
+                Quat::IDENTITY,
+                Dir3::NEG_Y,
+                &config,
+                &filter,
+            )
+            .is_some()
+        {
+            commands.entity(entity).remove::<AlsRagdollAirExit>();
+            info!("[RAGLINK] air exit hold released on ground");
+        }
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn ragdoll_character_physics_system(
     mut commands: Commands,
@@ -311,16 +403,23 @@ fn ragdoll_character_physics_system(
             continue;
         };
         if let Some(follow) = ground_follow {
+            let (exit_state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
             transform.translation = follow.target;
             if let Some(position) = position.as_deref_mut() {
                 position.0 = follow.target;
             }
             if let Some(velocity) = velocity.as_deref_mut() {
-                velocity.0 = Vec3::ZERO;
+                velocity.0 = exit_velocity;
             }
             info!(
-                "[RAGLINK] exit realign to ground ({:.2},{:.2},{:.2})",
-                follow.target.x, follow.target.y, follow.target.z
+                "[RAGLINK] exit realign grounded={} state={exit_state:?} target=({:.2},{:.2},{:.2}) velocity=({:.3},{:.3},{:.3})",
+                follow.grounded,
+                follow.target.x,
+                follow.target.y,
+                follow.target.z,
+                exit_velocity.x,
+                exit_velocity.y,
+                exit_velocity.z
             );
         }
         commands.entity(entity).insert(previous_physics.rigid_body);
@@ -357,7 +456,7 @@ fn ragdoll_ground_follow(
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
-    body_positions: Query<&Position, Without<AlsCharacter>>,
+    body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
     for (entity, _position, locomotion, stance, params_handle) in &characters {
         if *locomotion != LocomotionState::Ragdolling {
@@ -378,7 +477,7 @@ fn ragdoll_ground_follow(
         let Some(pelvis_entity) = find_body_by_label(spawned, &labels, PELVIS_LABEL) else {
             continue;
         };
-        let Ok(pelvis_position) = body_positions.get(pelvis_entity) else {
+        let Ok((pelvis_position, pelvis_velocity)) = body_states.get(pelvis_entity) else {
             continue;
         };
         let pelvis = pelvis_position.0;
@@ -415,6 +514,7 @@ fn ragdoll_ground_follow(
         commands.entity(entity).insert(AlsRagdollGroundFollow {
             pelvis,
             target,
+            velocity: pelvis_velocity.0,
             grounded,
         });
     }
@@ -492,5 +592,89 @@ fn ragdoll_link_system(
         }
 
         link.prev_ragdoll = is_ragdoll;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use als_core::state::{Gait, OverlayState, RotationMode};
+    use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+
+    #[test]
+    fn ragdoll_exit_routes_airborne_velocity_and_grounded_recovery() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin))
+            .add_systems(
+                Update,
+                ragdoll_exit_route_system.before(als_core::transition::state_transition_system),
+            );
+        let air_velocity = Vec3::new(2.5, -4.0, -1.5);
+        let airborne = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Ragdolling,
+                Stance::Standing,
+                Gait::Running,
+                RotationMode::VelocityDirection,
+                OverlayState::Default,
+                AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
+                LinearVelocity(Vec3::ZERO),
+                AlsRagdollGroundFollow {
+                    pelvis: Vec3::ZERO,
+                    target: Vec3::new(0.0, 4.0, 0.0),
+                    velocity: air_velocity,
+                    grounded: false,
+                },
+            ))
+            .id();
+        let grounded = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Ragdolling,
+                Stance::Standing,
+                Gait::Running,
+                RotationMode::VelocityDirection,
+                OverlayState::Default,
+                AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
+                LinearVelocity(Vec3::ONE),
+                AlsRagdollGroundFollow {
+                    pelvis: Vec3::ZERO,
+                    target: Vec3::Y,
+                    velocity: air_velocity,
+                    grounded: true,
+                },
+            ))
+            .id();
+        app.world_mut()
+            .get_mut::<AlsStateRequest>(airborne)
+            .unwrap()
+            .ragdoll_exit = true;
+        app.world_mut()
+            .get_mut::<AlsStateRequest>(grounded)
+            .unwrap()
+            .ragdoll_exit = true;
+        app.update();
+        let air_state = *app.world().get::<LocomotionState>(airborne).unwrap();
+        let air_after = app.world().get::<LinearVelocity>(airborne).unwrap().0;
+        let air_hold = app.world().get::<AlsRagdollAirExit>(airborne).is_some();
+        let ground_state = *app.world().get::<LocomotionState>(grounded).unwrap();
+        let ground_after = app.world().get::<LinearVelocity>(grounded).unwrap().0;
+        let passed = air_state == LocomotionState::Air
+            && air_after.distance(air_velocity) <= 1e-6
+            && air_hold
+            && ground_state == LocomotionState::Grounded
+            && ground_after.length_squared() <= 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.50][VERDICT] air_state={air_state:?} air_hold={air_hold} air_velocity=({:.3},{:.3},{:.3}) ground_state={ground_state:?} ground_velocity={:.3} -> {verdict}",
+            air_after.x,
+            air_after.y,
+            air_after.z,
+            ground_after.length(),
+        );
+        assert!(passed);
     }
 }

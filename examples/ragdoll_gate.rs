@@ -17,11 +17,13 @@ use als_core::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
 use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
 use als_ext::AlsExtPlugin;
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
-use bevy_als::ragdoll_link::{AlsRagdollGroundFollow, AlsRagdollLinkPlugin};
+use bevy_als::ragdoll_link::{
+    AlsRagdollGroundFollow, AlsRagdollLinkPlugin, ragdoll_exit_route_system,
+};
 use bevy_als::stop_link::AlsStopLinkPlugin;
 
 fn main() {
@@ -55,8 +57,8 @@ fn main() {
         Update,
         (
             spawn_character_once,
-            auto_demo,
-            ragdoll_watcher,
+            auto_demo.before(ragdoll_exit_route_system),
+            ragdoll_watcher.after(state_transition_system),
             graph_router,
             camera_follow,
             fall_guard,
@@ -98,6 +100,7 @@ struct RagdollWatch {
     settle_seen: bool,
     recovered: bool,
     recovery_physics_valid: bool,
+    ground_exit_velocity: Option<f32>,
     recovery_probe_count: u8,
     nan_bodies: u32,
     failed: bool,
@@ -146,7 +149,7 @@ fn steps() -> [Step; 5] {
         Step {
             t0: 6.3,
             dur: 2.4,
-            label: "recover to grounded idle",
+            label: "recover through source route",
             move_dir: Vec2::ZERO,
             gait: None,
             trigger_ragdoll: false,
@@ -183,9 +186,9 @@ fn spawn_character_once(
     let ground_mat = materials.add(Color::srgb(0.24, 0.27, 0.24));
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(60.0, 0.3, 60.0),
+        Collider::cuboid(200.0, 0.3, 200.0),
         Transform::from_xyz(0.0, -0.15, 0.0),
-        Mesh3d(meshes.add(Mesh::from(Cuboid::new(60.0, 0.3, 60.0)))),
+        Mesh3d(meshes.add(Mesh::from(Cuboid::new(200.0, 0.3, 200.0)))),
         MeshMaterial3d(ground_mat),
     ));
 
@@ -250,7 +253,8 @@ fn auto_demo(
         }
         if s.trigger_recover {
             req.locomotion_state = Some(LocomotionState::Grounded);
-            info!("[RGATE] request Grounded recovery");
+            req.ragdoll_exit = true;
+            info!("[RGATE] request ragdoll recovery");
         }
         if let Some(g) = s.gait {
             req.gait = Some(g);
@@ -439,9 +443,11 @@ fn ragdoll_watcher(
         && tf.translation.y > 0.7
         && tf.translation.y < 1.1
         && recovery_physics_restored
+        && vel.0.length() <= 0.1
     {
         watch.recovered = true;
         watch.recovery_physics_valid = true;
+        watch.ground_exit_velocity = Some(vel.0.length());
         info!(
             "[RGATE][RECOVERED] back on feet y={:.2} v={:.2} physics_restored={}",
             tf.translation.y,
@@ -469,9 +475,13 @@ fn ragdoll_watcher(
         let ok_settle = watch.settle_seen;
         let ok_recover = watch.recovered;
         let ok_recovery_physics = watch.recovery_physics_valid;
+        let ok_ground_exit_velocity = watch
+            .ground_exit_velocity
+            .is_some_and(|velocity| velocity <= 0.1);
         let ok_no_nan = watch.nan_bodies == 0;
         info!(
-            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} nan_bodies={} max_follow_error={:.6} -> {}",
+            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} ground_exit_velocity={:?} nan_bodies={} max_follow_error={:.6} -> {}",
+            watch.ground_exit_velocity,
             watch.nan_bodies,
             watch.max_follow_error,
             if ok_kinematic
@@ -480,6 +490,7 @@ fn ragdoll_watcher(
                 && ok_settle
                 && ok_recover
                 && ok_recovery_physics
+                && ok_ground_exit_velocity
                 && ok_no_nan
             {
                 "PASS"
@@ -494,6 +505,7 @@ fn ragdoll_watcher(
             && ok_settle
             && ok_recover
             && ok_recovery_physics
+            && ok_ground_exit_velocity
             && ok_no_nan)
         {
             watch.failed = true;

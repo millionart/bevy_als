@@ -999,6 +999,9 @@ pub enum JumpChain {
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsJumpPrev(pub bool);
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsRagdollAirExit;
+
 pub fn jump_chain(loco: LocomotionState, stance: Stance, mantle_available: bool) -> JumpChain {
     if loco == LocomotionState::Ragdolling {
         JumpChain::ExitRagdoll
@@ -1557,12 +1560,13 @@ fn locomotion_state_sync_system(
             &TnuaController<AlsControlScheme>,
             &LocomotionState,
             &mut AlsStateRequest,
+            Has<AlsRagdollAirExit>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, controller, current, mut request) in &mut q {
-        if *current == LocomotionState::Ragdolling {
+    for (entity, controller, current, mut request, ragdoll_air_exit) in &mut q {
+        if *current == LocomotionState::Ragdolling || ragdoll_air_exit {
             continue;
         }
         let Ok(airborne) = controller.is_airborne() else {

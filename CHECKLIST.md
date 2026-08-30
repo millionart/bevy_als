@@ -449,9 +449,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`auto_root_height_start_time_uses_source_binary_search_policy` 输出 `[BF102.49][VERDICT] manual_start=0.250000 auto_start=0.750000 state_start=0.750000 permission=false scaled=(1.800000,0.450000,2.000000) -> PASS`。实际 Avian `mantle_configuration_gate` 输出 `[BF102.49][GATE] controls=true permission_blocked=true heights=(0.7690,0.7845) height_delta=0.0155 kinds=(LowRight,LowRight) default_start=0.2310 source_start=0.2310 auto_start=0.7266 state_start=0.7266 -> PASS`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（217 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（129 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example mantle_configuration_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.50 — X07：布娃娃退出按空中/落地分流并保留速度（P1）**
+- [x] **BF102.50 — X07：布娃娃退出按空中/落地分流并保留速度（P1）**
   - 依赖：BF102.15、BF102.31。
   - 验收：空中布娃娃恢复时保留退出速度并进入正确 locomotion 分支，落地恢复不误走空中分支。
+  - 当次 ALS 事实：先按 `docs/env.md` 指定的本地 ALS-Refactored 源码读取 `AlsCharacter_Actions.cpp`。`RefreshRagdolling()` 每帧从 pelvis rigid body 写入 `RagdollingState.Velocity`，并以 sphere sweep 得到 `bGrounded`；`StopRagdollingImplementation()` 在落地时设 `MOVE_Walking`／播放 GetUp，在未落地时设 `MOVE_Falling` 并将 character movement velocity 设为最后的 ragdoll velocity。不存在将空中恢复强制成站稳起身的分支。
+  - 实现：每次项目侧 ragdoll ground follow 都保存 pelvis 最新线速度。退出请求携带即时 `ragdoll_exit` 意图，路由系统在状态转换前按 `grounded` 选择 Grounded+零速度或 Air+完整 pelvis velocity；状态机允许该源合同的 Ragdolling→Air 事件。Air 分支新增 `AlsRagdollAirExit`，屏蔽过期 Tnua airborne 读数，直至按源同构的 sphere sweep 真正命中地面才释放。完整 Gate 同时要求 Grounded 退出速度不超过 0.1 m/s。
+  - 证据：`ragdoll_exit_routes_airborne_velocity_and_grounded_recovery` 输出 `[BF102.50][VERDICT] air_state=Air air_hold=true air_velocity=(2.500,-4.000,-1.500) ground_state=Grounded ground_velocity=0.000 -> PASS`；实际 `ragdoll_exit_gate` 输出同值 Gate PASS。真实 `ragdoll_gate` 先记录 `exit route grounded=false state=Air velocity=(-3.644,11.797,-3.083)`，随后 `air exit hold released on ground`，最终记录 `ground_exit_velocity=Some(0.096652135) ... -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（217 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（130 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example ragdoll_exit_gate --jobs 2`、`ALS_BOOT_AUTO_QUIT_SECS=15 RUST_LOG=info cargo run --example ragdoll_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.51 — X08：布娃娃速度相关关节驱动（P2）**
   - 依赖：BF102.16、BF102.50。

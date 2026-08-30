@@ -89,8 +89,14 @@ pub fn input_state_request_system(
 
         if effective.ragdoll_pressed {
             let target = match loco {
-                LocomotionState::Ragdolling => LocomotionState::Grounded,
-                _ => LocomotionState::Ragdolling,
+                LocomotionState::Ragdolling => {
+                    request.ragdoll_exit = true;
+                    LocomotionState::Grounded
+                }
+                _ => {
+                    request.ragdoll_exit = false;
+                    LocomotionState::Ragdolling
+                }
             };
             request.locomotion_state = Some(target);
         }
@@ -460,6 +466,10 @@ mod tests {
             *app.world().get::<LocomotionState>(e).unwrap(),
             LocomotionState::Grounded,
             "second press while ragdolled requests recovery"
+        );
+        assert!(
+            app.world().get::<AlsStateRequest>(e).unwrap().ragdoll_exit,
+            "ragdoll recovery carries the route intent"
         );
     }
 
