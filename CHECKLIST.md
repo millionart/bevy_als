@@ -476,9 +476,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`camera_lag_axis_gate` 输出 `[BF102.52][GATE] bevy_half_lives=(0.400,0.800,0.200) response=(0.292893,0.159104,0.500000) -> PASS`；`als-camera` 单测以相同的非对称三轴输入复核该映射。
   - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（8 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（131 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.53 — C03：冲刺镜头震动使用冲刺动画实际时间（P2）**
+- [x] **BF102.53 — C03：冲刺镜头震动使用冲刺动画实际时间（P2）**
   - 依赖：BF102.33、BF102.34。
   - 验收：任意时刻起跑和变播放率时，震动曲线时间与冲刺动画相位一致。
+  - 当次 ALS 事实：本地 `UAlsAnimNotify_CameraShake::Notify()` 由 `UAnimSequenceBase` 的动画通知回调触发，并立即以该通知的 scale 调用 `PlayerCameraManager::StartCameraShake()`；本地 `A_Als_Sprint` 和 `A_Als_Sprint_Acceleration` 资产都登记了 `AlsCameraShake`／`B_Als_CameraShake_Sprint` 引用。因此触发时钟属于实际动画序列采样，而非角色的全局虚拟时间。
+  - 归属决定：`als-ext` 已有与 ALS 无关的 `marker_phase_sample_time()`，继续承担通用 phase→sample-time 换算；主项目保留 ALS 的 sprint duration、同步标记和角色动画层生命周期，发布 `AlsCameraAnimationTiming`；`als-camera` 只消费这个明确的实际 sample time。该边界避免把 ALS 标记和常量写入通用扩展。
+  - 实现：standing layer 从当前 marker-synced sprint phase 映射到真实 sprint sample time 后写入角色 timing component；camera notify sidecar 仅在该时间存在时处理 sprint 通知，删除原先 `Time<Virtual>::elapsed_secs().rem_euclid()` 的平行计时器。既有 `camera_notify_gate` 改为向测试角色提供动画时间输入，继续验证历史通知行为。
+  - 证据：主侧 `sprint_camera_time_tracks_the_marker_synced_animation_rate` 输出 `[BF102.53][VERDICT] start=0.166667 half_rate=0.216667 full_rate=0.366667 -> PASS`。真实 `camera_sprint_timing_gate` 在非均匀 source samples `[0.07, 0.35, 0.4]` 下记录 `shake_events=[(0.07, 0.5), (0.4, 0.5)] -> PASS`；回归 `camera_notify_gate` 记录 5 个冲刺事件和 2 个翻滚事件后 `PASS`。
+  - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（9 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.54 — C04：ignore_time_dilation 覆盖相机曲线过渡（P2）**
   - 依赖：BF102.53。

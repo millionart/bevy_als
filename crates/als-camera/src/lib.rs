@@ -333,6 +333,11 @@ impl Default for AlsCameraCurveProfileRuntime {
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCameraAnimationNotifyDriver;
 
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsCameraAnimationTiming {
+    pub sprint_time: Option<f32>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlsCameraNotifyClip {
     Sprint,
@@ -670,17 +675,21 @@ fn ensure_camera_notify_timeline(
             Entity,
             Has<AlsCameraNotifyTimeline>,
             Has<AlsCameraActiveClip>,
+            Has<AlsCameraAnimationTiming>,
         ),
         (With<AlsCameraTarget>, With<AlsCameraAnimationNotifyDriver>),
     >,
 ) {
-    for (entity, has_timeline, has_clip) in &targets {
+    for (entity, has_timeline, has_clip, has_timing) in &targets {
         let mut entity_commands = commands.entity(entity);
         if !has_timeline {
             entity_commands.insert(AlsCameraNotifyTimeline::default());
         }
         if !has_clip {
             entity_commands.insert(AlsCameraActiveClip::default());
+        }
+        if !has_timing {
+            entity_commands.insert(AlsCameraAnimationTiming::default());
         }
     }
 }
@@ -695,14 +704,44 @@ fn crosses_notify(previous_time: f32, current_time: f32, duration: f32, notify_t
     }
 }
 
+fn camera_notify_sample(
+    gait: Gait,
+    speed: f32,
+    roll: Option<&AlsRollState>,
+    timing: Option<&AlsCameraAnimationTiming>,
+) -> (Option<AlsCameraNotifyClip>, f32, f32) {
+    if roll.is_some_and(|state| state.active) {
+        return (
+            Some(AlsCameraNotifyClip::Roll),
+            roll.map_or(0.0, |state| state.time * ROLL_PLAY_RATE),
+            1.0,
+        );
+    }
+    if gait != Gait::Sprinting {
+        return (None, 0.0, 0.0);
+    }
+    let Some(time) = timing
+        .and_then(|value| value.sprint_time)
+        .filter(|value| value.is_finite())
+    else {
+        return (None, 0.0, 0.0);
+    };
+    let sprint_weight = ((speed - 3.75) / (6.5 - 3.75)).clamp(0.0, 1.0);
+    (
+        Some(AlsCameraNotifyClip::Sprint),
+        time.rem_euclid(SPRINT_CAMERA_NOTIFY_DURATION_SECS),
+        sprint_weight,
+    )
+}
+
 fn camera_notify_sidecar_system(
-    virtual_time: Res<Time<Virtual>>,
     mut targets: Query<
         (
             Entity,
             &Gait,
             Option<&LinearVelocity>,
             Option<&AlsRollState>,
+            Option<&AlsCameraAnimationTiming>,
             &mut AlsCameraActiveClip,
             &mut AlsCameraNotifyTimeline,
         ),
@@ -710,26 +749,9 @@ fn camera_notify_sidecar_system(
     >,
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
 ) {
-    for (entity, gait, velocity, roll, mut active_clip, mut timeline) in &mut targets {
-        let (clip, time, weight) = if roll.is_some_and(|state| state.active) {
-            (
-                Some(AlsCameraNotifyClip::Roll),
-                roll.map_or(0.0, |state| state.time * ROLL_PLAY_RATE),
-                1.0,
-            )
-        } else if *gait == Gait::Sprinting {
-            let speed = velocity.map_or(0.0, |value| Vec2::new(value.x, value.z).length());
-            let sprint_weight = ((speed - 3.75) / (6.5 - 3.75)).clamp(0.0, 1.0);
-            (
-                Some(AlsCameraNotifyClip::Sprint),
-                virtual_time
-                    .elapsed_secs()
-                    .rem_euclid(SPRINT_CAMERA_NOTIFY_DURATION_SECS),
-                sprint_weight,
-            )
-        } else {
-            (None, 0.0, 0.0)
-        };
+    for (entity, gait, velocity, roll, timing, mut active_clip, mut timeline) in &mut targets {
+        let speed = velocity.map_or(0.0, |value| Vec2::new(value.x, value.z).length());
+        let (clip, time, weight) = camera_notify_sample(*gait, speed, roll, timing);
         active_clip.clip = clip;
         active_clip.time = time;
         active_clip.weight = weight;
@@ -1737,6 +1759,28 @@ mod tests {
         println!(
             "[BF102.52][VERDICT] bevy_half_lives=({:.3},{:.3},{:.3}) response=({:.6},{:.6},{:.6}) -> {verdict}",
             bevy.x, bevy.y, bevy.z, next.x, next.y, next.z,
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn sprint_notify_uses_the_source_animation_time() {
+        let timing = AlsCameraAnimationTiming {
+            sprint_time: Some(0.366_666_67),
+        };
+        let (clip, time, weight) = camera_notify_sample(Gait::Sprinting, 6.5, None, Some(&timing));
+        let (missing_clip, missing_time, missing_weight) =
+            camera_notify_sample(Gait::Sprinting, 6.5, None, None);
+        let passed = clip == Some(AlsCameraNotifyClip::Sprint)
+            && (time - 0.366_666_67).abs() <= 1e-6
+            && (weight - 1.0).abs() <= 1e-6
+            && missing_clip.is_none()
+            && missing_time == 0.0
+            && missing_weight == 0.0;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.53][VERDICT] sprint_time={time:.6} weight={weight:.3} missing_clip={} -> {verdict}",
+            missing_clip.is_none(),
         );
         assert!(passed);
     }

@@ -1,3 +1,4 @@
+use als_camera::AlsCameraAnimationTiming;
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsGroundedDynamics;
 use als_core::foot_ik::AlsFootLockInput;
@@ -13,7 +14,7 @@ use std::sync::LazyLock;
 
 use als_ext::{
     AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
-    advance_marker_sync_phase, build_branch_bone_mask, transition_alpha,
+    advance_marker_sync_phase, build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
 };
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
@@ -45,6 +46,7 @@ const ROTATE_COMPLETION_EPSILON: f32 = 1e-4;
 const MOVEMENT_BLENDSPACE_START_PHASE: f32 = 0.2;
 const SPRINT_START_TIME: f32 = 0.166667;
 const SPRINT_ACCELERATION_RATE_SCALE: f32 = 0.833333;
+const SPRINT_DURATION_SECS: f32 = 0.6;
 
 fn marker_set(entries: &[(&str, f32)]) -> Vec<SyncMarker> {
     entries
@@ -703,7 +705,7 @@ fn standing_movement_sync_leader(
 ) -> StandingMovementSyncLeader {
     if gait == Gait::Sprinting && sprint_amount > 0.5 {
         return StandingMovementSyncLeader {
-            duration: 0.6,
+            duration: SPRINT_DURATION_SECS,
             markers: &SPRINT_MARKERS,
             sprint: true,
         };
@@ -777,6 +779,17 @@ fn advance_standing_movement_marker_phase(
             looped: true,
             delta_seconds,
         },
+    )
+}
+
+fn sprint_camera_animation_time(movement_marker_phase: f32) -> f32 {
+    marker_phase_sample_time(
+        movement_marker_phase,
+        1.0,
+        &MOVEMENT_PHASE_MARKERS,
+        SPRINT_DURATION_SECS,
+        &SPRINT_MARKERS,
+        true,
     )
 }
 
@@ -1733,6 +1746,7 @@ fn standing_layer_writer(
     mut curve_handles: ResMut<StandingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
     mut players: Query<&mut AnimationGraphPlayer>,
+    mut camera_timings: Query<&mut AlsCameraAnimationTiming>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
 ) {
     let delta_seconds = time.delta_secs();
@@ -1759,6 +1773,9 @@ fn standing_layer_writer(
             continue;
         };
         if *stance != Stance::Standing {
+            if let Ok(mut timing) = camera_timings.get_mut(parent.parent()) {
+                timing.sprint_time = None;
+            }
             commands.entity(entity).remove::<StandingLayerRuntime>();
             if pivot_request.is_some() {
                 commands.entity(parent.parent()).remove::<AlsPivotRequest>();
@@ -1809,6 +1826,15 @@ fn standing_layer_writer(
             &animation_curves,
             &curve_handles,
         );
+        let sprint_time = (inputs.state_index == 1.0 && inputs.sprint_amount > 0.5)
+            .then(|| sprint_camera_animation_time(inputs.movement_marker_phase));
+        if let Ok(mut timing) = camera_timings.get_mut(parent.parent()) {
+            timing.sprint_time = sprint_time;
+        } else {
+            commands
+                .entity(parent.parent())
+                .insert(AlsCameraAnimationTiming { sprint_time });
+        }
         if let Some(mut current_runtime) = current_runtime {
             *current_runtime = runtime;
         } else {
@@ -2012,6 +2038,55 @@ mod tests {
         assert!(!normal.sprint);
         assert!(sprint.sprint);
         assert!((sprint.duration - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn sprint_camera_time_tracks_the_marker_synced_animation_rate() {
+        let mut runtime = StandingLayerRuntime::default();
+        let start_phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Sprinting,
+            StandingMovementState::Forward,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+        );
+        let half_rate_phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Sprinting,
+            StandingMovementState::Forward,
+            1.0,
+            1.0,
+            0.0,
+            0.5,
+            0.1,
+        );
+        let full_rate_phase = advance_standing_movement_marker_phase(
+            &mut runtime,
+            true,
+            Gait::Sprinting,
+            StandingMovementState::Forward,
+            1.0,
+            1.0,
+            0.0,
+            1.5,
+            0.1,
+        );
+        let start = sprint_camera_animation_time(start_phase);
+        let half_rate = sprint_camera_animation_time(half_rate_phase);
+        let full_rate = sprint_camera_animation_time(full_rate_phase);
+        let passed = (start - SPRINT_START_TIME).abs() <= 1e-5
+            && (half_rate - (SPRINT_START_TIME + 0.05)).abs() <= 1e-5
+            && (full_rate - (SPRINT_START_TIME + 0.2)).abs() <= 1e-5;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.53][VERDICT] start={start:.6} half_rate={half_rate:.6} full_rate={full_rate:.6} -> {verdict}",
+        );
+        assert!(passed);
     }
 
     #[test]

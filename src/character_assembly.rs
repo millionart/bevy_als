@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraAnimationNotifyDriver, AlsCameraCurveProfileDriver, AlsCameraDebugInfo,
-    AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
+    AlsCameraAnimationNotifyDriver, AlsCameraAnimationTiming, AlsCameraCurveProfileDriver,
+    AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset, AlsCameraRig, AlsCameraRuntime,
     AlsCameraSocketBinding, AlsCameraSocketLocations, AlsCameraTarget,
 };
 use als_core::character::AlsCharacterBundle;
@@ -232,6 +232,7 @@ fn spawn_als_character_internal(
             AlsCameraTarget,
             AlsCameraCurveProfileDriver,
             AlsCameraAnimationNotifyDriver,
+            AlsCameraAnimationTiming::default(),
         ))
         .id();
     if blueprint.spawn_input {

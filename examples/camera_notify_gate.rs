@@ -8,8 +8,8 @@ use bevy::prelude::*;
 use bevy::time::Virtual;
 
 use als_camera::{
-    AlsCameraActiveClip, AlsCameraAnimationNotifyDriver, AlsCameraNotifyClip, AlsCameraPlugin,
-    AlsCameraShakeRequest, AlsCameraTarget,
+    AlsCameraActiveClip, AlsCameraAnimationNotifyDriver, AlsCameraAnimationTiming,
+    AlsCameraNotifyClip, AlsCameraPlugin, AlsCameraShakeRequest, AlsCameraTarget,
 };
 use als_core::roll::{AlsRollState, ROLL_DURATION_SECS};
 use als_core::state::{Gait, Stance};
@@ -26,7 +26,7 @@ fn main() {
         ))
         .init_resource::<GateState>()
         .add_systems(Startup, setup)
-        .add_systems(PreUpdate, advance_roll_time)
+        .add_systems(PreUpdate, (advance_sprint_time, advance_roll_time))
         .add_systems(PostUpdate, verify)
         .run();
 }
@@ -45,11 +45,28 @@ fn setup(mut commands: Commands, mut state: ResMut<GateState>) {
         .spawn((
             AlsCameraTarget,
             AlsCameraAnimationNotifyDriver,
+            AlsCameraAnimationTiming {
+                sprint_time: Some(0.0),
+            },
             Gait::Sprinting,
             LinearVelocity(Vec3::new(6.5, 0.0, 0.0)),
         ))
         .id();
     state.target = Some(target);
+}
+
+fn advance_sprint_time(
+    time: Res<Time<Virtual>>,
+    state: Res<GateState>,
+    mut timing: Query<&mut AlsCameraAnimationTiming>,
+) {
+    if state.phase != 0 {
+        return;
+    }
+    for mut value in &mut timing {
+        value.sprint_time =
+            Some((value.sprint_time.unwrap_or(0.0) + time.delta_secs()).rem_euclid(0.6));
+    }
 }
 
 fn advance_roll_time(
