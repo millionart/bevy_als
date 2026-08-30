@@ -305,9 +305,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：真实 Avian 物理 Gate 输出 `ray_hit=false capsule_hit=true hit_fraction=Some(0.1964) half=0.900 radius=0.300 -> PASS`；缩放 Gate 输出 `standing_half=1.800 standing_radius=0.450 crouching_half=1.120 crouching_radius=0.450 shape=capsule_sweep -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（210 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（119 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.33 — L03：起跳播放率在成功起跳时锁存（P2）**
+- [x] **BF102.33 — L03：起跳播放率在成功起跳时锁存（P2）**
   - 依赖：BF102.05。
   - 验收：空中水平速度变化不改写当前跳跃播放率；新起跳重新建立锁存值。
+  - 当次事实：实时 MCP 确认实际 `AB_Als_Locomotion` 含 Jump 状态，`A_Als_Jump_Walk_Left` 为 `AnimSequence`；本机 ALS 插件为二进制包，审计所对应的源契约是在成功起跳分支按起跳水平速度建立 JumpPlayRate，之后不按每帧空中速度改写。修复前 writer、状态退出阈值与同步相位均按当前速度实时映射 `1.2–1.5`。
+  - 实现：`LocomotionLayerRuntime` 在进入 Jump 时锁存 `jump_play_rate`；Jump 状态的退出阈值、sync phase、动画图输入和 GroundPredictionBlock 的当前速率读取同一锁存值。BF102.34 仍负责把其曲线时间从 `elapsed × rate` 改为积分相位。
+  - 证据：`jump_play_rate_latches_the_takeoff_speed` 输出 `takeoff_rate=1.200 post_takeoff_speed_rate=1.500 latched_rate=1.200 phase=0.360 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（120 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.34 — L04：跳跃曲线时间积分播放率（P1）**
   - 依赖：BF102.33、BF102.26。

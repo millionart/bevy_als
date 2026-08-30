@@ -222,6 +222,7 @@ struct LocomotionLayerRuntime {
     transition_duration: f32,
     jump_state: JumpLayerState,
     jump_state_elapsed: f32,
+    jump_play_rate: f32,
     jump_latched: bool,
     previous_locomotion: LocomotionState,
     last_air_vertical_velocity: f32,
@@ -245,6 +246,7 @@ impl Default for LocomotionLayerRuntime {
             transition_duration: 0.0,
             jump_state: JumpLayerState::EntryConduit,
             jump_state_elapsed: 0.0,
+            jump_play_rate: JUMP_PLAY_RATE_MIN,
             jump_latched: false,
             previous_locomotion: LocomotionState::Grounded,
             last_air_vertical_velocity: 0.0,
@@ -381,6 +383,16 @@ fn map_range_clamped(
 ) -> f32 {
     map_range(value, input_min, input_max, output_min, output_max)
         .clamp(output_min.min(output_max), output_min.max(output_max))
+}
+
+fn jump_play_rate_for_speed(speed: f32) -> f32 {
+    map_range_clamped(
+        speed,
+        0.0,
+        JUMP_SPEED_REFERENCE,
+        JUMP_PLAY_RATE_MIN,
+        JUMP_PLAY_RATE_MAX,
+    )
 }
 
 fn is_air(locomotion: LocomotionState) -> bool {
@@ -579,14 +591,7 @@ fn jump_ground_prediction_allowance(
         }
     };
     let alpha = map_range_clamped(speed, 2.0, 5.0, 0.0, 1.0);
-    let time = runtime.jump_state_elapsed
-        * map_range_clamped(
-            speed,
-            0.0,
-            JUMP_SPEED_REFERENCE,
-            JUMP_PLAY_RATE_MIN,
-            JUMP_PLAY_RATE_MAX,
-        );
+    let time = runtime.jump_state_elapsed * runtime.jump_play_rate;
     let block = animation_curve_sample(assets, walk, "GroundPredictionBlock", time).lerp(
         animation_curve_sample(assets, run, "GroundPredictionBlock", time),
         alpha,
@@ -653,13 +658,11 @@ fn update_locomotion_sync_phases(
     vertical_velocity: f32,
     delta_seconds: f32,
 ) {
-    let jump_rate = map_range_clamped(
-        speed,
-        0.0,
-        JUMP_SPEED_REFERENCE,
-        JUMP_PLAY_RATE_MIN,
-        JUMP_PLAY_RATE_MAX,
-    );
+    let jump_rate = if runtime.state == LocomotionLayerState::Jump {
+        runtime.jump_play_rate
+    } else {
+        jump_play_rate_for_speed(speed)
+    };
     let flail_alpha = map_range_clamped(vertical_velocity, -5.0, -30.0, 0.0, 1.0);
     let land_movement_heavy_alpha = map_range(vertical_velocity, -7.5, -15.0, 0.0, 0.75);
     advance_locomotion_sync_phase(
@@ -727,13 +730,11 @@ fn write_globals(
     ground_prediction: f32,
     speed: f32,
 ) {
-    let jump_play_rate = map_range_clamped(
-        speed,
-        0.0,
-        JUMP_SPEED_REFERENCE,
-        JUMP_PLAY_RATE_MIN,
-        JUMP_PLAY_RATE_MAX,
-    );
+    let jump_play_rate = if runtime.state == LocomotionLayerState::Jump {
+        runtime.jump_play_rate
+    } else {
+        jump_play_rate_for_speed(speed)
+    };
     let jump_walk_run_alpha = map_range_clamped(speed, 2.0, 5.0, 0.0, 1.0);
     let fall_fast_alpha = map_range_clamped(vertical_velocity, 0.0, -10.0, 0.0, 1.0);
     let flail_alpha = map_range_clamped(vertical_velocity, -5.0, -30.0, 0.0, 1.0);
@@ -906,16 +907,15 @@ fn locomotion_layer_writer(
             if runtime.state == LocomotionLayerState::Jump {
                 runtime.jump_state = JumpLayerState::EntryConduit;
                 runtime.jump_state_elapsed = 0.0;
+                runtime.jump_play_rate = jump_play_rate_for_speed(speed);
                 runtime.jump_latched = false;
             }
         }
-        let jump_play_rate = map_range_clamped(
-            speed,
-            0.0,
-            JUMP_SPEED_REFERENCE,
-            JUMP_PLAY_RATE_MIN,
-            JUMP_PLAY_RATE_MAX,
-        );
+        let jump_play_rate = if runtime.state == LocomotionLayerState::Jump {
+            runtime.jump_play_rate
+        } else {
+            jump_play_rate_for_speed(speed)
+        };
         let jump_request = (runtime.state == LocomotionLayerState::Jump)
             .then(|| {
                 next_jump_transition(
@@ -1203,6 +1203,44 @@ mod tests {
         update_locomotion_sync_phases(&mut land, 0.0, -8.0, 0.0);
         update_locomotion_sync_phases(&mut land, 0.0, -8.0, 10.0);
         assert_eq!(land.land_phase.phase, 1.0);
+    }
+
+    #[test]
+    fn jump_play_rate_latches_the_takeoff_speed() {
+        let takeoff_rate = jump_play_rate_for_speed(0.0);
+        let after_takeoff_rate = jump_play_rate_for_speed(JUMP_SPEED_REFERENCE);
+        let mut runtime = LocomotionLayerRuntime {
+            state: LocomotionLayerState::Jump,
+            jump_state: JumpLayerState::LeftFoot,
+            jump_play_rate: takeoff_rate,
+            ..Default::default()
+        };
+        update_locomotion_sync_phases(&mut runtime, JUMP_SPEED_REFERENCE, 0.0, 0.0);
+        update_locomotion_sync_phases(&mut runtime, JUMP_SPEED_REFERENCE, 0.0, 0.5);
+        let expected_phase = takeoff_rate * 0.5 / JUMP_DURATION;
+        let loop_before = next_jump_transition(
+            JumpLayerState::LeftFoot,
+            JUMP_START_DURATION / takeoff_rate - 1e-3,
+            0.0,
+            runtime.jump_play_rate,
+        );
+        let loop_after = next_jump_transition(
+            JumpLayerState::LeftFoot,
+            JUMP_START_DURATION / takeoff_rate + 1e-3,
+            0.0,
+            runtime.jump_play_rate,
+        );
+        let passed = (runtime.jump_play_rate - takeoff_rate).abs() < 1e-6
+            && (runtime.jump_phase.phase - expected_phase).abs() < 1e-6
+            && loop_before.is_none()
+            && loop_after == Some(JumpTransition::LeftFootToLoop)
+            && after_takeoff_rate > runtime.jump_play_rate;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.33][VERDICT] takeoff_rate={takeoff_rate:.3} post_takeoff_speed_rate={after_takeoff_rate:.3} latched_rate={:.3} phase={:.3} -> {verdict}",
+            runtime.jump_play_rate, runtime.jump_phase.phase,
+        );
+        assert!(passed);
     }
 
     #[test]
