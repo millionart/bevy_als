@@ -5,16 +5,37 @@ use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 use crate::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
 use crate::control_scheme::AlsControlScheme;
 use crate::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
+use crate::input::AlsInputCommand;
 use crate::mantle::AlsMantleState;
-use crate::motion::AlsViewYaw;
+use crate::motion::{AlsInputOverride, AlsViewYaw};
 use crate::params::{AlsMovementParams, CmcAdapterParams, GroundedDynamics};
 use crate::roll::AlsRollState;
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 
 pub const BRAKING_FRICTION_FACTOR: f32 = 0.0;
+pub const LANDING_BRAKING_FRICTION_WITH_INPUT: f32 = 0.5;
+pub const LANDING_BRAKING_FRICTION_WITHOUT_INPUT: f32 = 3.0;
+pub const LANDING_BRAKING_FRICTION_DURATION: f32 = 0.5;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsGroundedDynamics(pub GroundedDynamics);
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsLandingBrakingFriction {
+    pub factor: f32,
+    pub remaining_seconds: f32,
+    pub previous_locomotion: LocomotionState,
+}
+
+impl Default for AlsLandingBrakingFriction {
+    fn default() -> Self {
+        Self {
+            factor: BRAKING_FRICTION_FACTOR,
+            remaining_seconds: 0.0,
+            previous_locomotion: LocomotionState::Grounded,
+        }
+    }
+}
 
 impl Default for AlsGroundedDynamics {
     fn default() -> Self {
@@ -95,14 +116,39 @@ pub fn grounded_velocity_step(
     min_analog_walk_speed: f32,
     delta_seconds: f32,
 ) -> Vec3 {
+    grounded_velocity_step_with_braking_friction(
+        velocity,
+        desired_motion,
+        max_speed,
+        dynamics,
+        min_analog_walk_speed,
+        BRAKING_FRICTION_FACTOR,
+        delta_seconds,
+    )
+}
+
+pub fn grounded_velocity_step_with_braking_friction(
+    velocity: Vec3,
+    desired_motion: Vec3,
+    max_speed: f32,
+    dynamics: GroundedDynamics,
+    min_analog_walk_speed: f32,
+    braking_friction_factor: f32,
+    delta_seconds: f32,
+) -> Vec3 {
     let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
     let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);
     let desired_amount = desired_horizontal.length().min(1.0);
     let speed = horizontal_velocity.length();
     let delta_seconds = delta_seconds.max(0.0);
     if desired_amount <= 1e-6 {
-        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
-        return horizontal_velocity - horizontal_velocity.normalize_or_zero() * braking_delta;
+        let friction_alpha =
+            (dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0) * delta_seconds)
+                .clamp(0.0, 1.0);
+        let frictioned_velocity = horizontal_velocity * (1.0 - friction_alpha);
+        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds)
+            .min(frictioned_velocity.length());
+        return frictioned_velocity - frictioned_velocity.normalize_or_zero() * braking_delta;
     }
     let desired_direction = desired_horizontal.normalize_or_zero();
     let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
@@ -131,9 +177,29 @@ pub fn simulate_grounded_velocity(
     cmc: &CmcAdapterParams,
     delta_seconds: f32,
 ) -> (Vec3, u32) {
+    simulate_grounded_velocity_with_braking_friction(
+        velocity,
+        desired_motion,
+        max_speed,
+        dynamics,
+        cmc,
+        BRAKING_FRICTION_FACTOR,
+        delta_seconds,
+    )
+}
+
+pub fn simulate_grounded_velocity_with_braking_friction(
+    velocity: Vec3,
+    desired_motion: Vec3,
+    max_speed: f32,
+    dynamics: GroundedDynamics,
+    cmc: &CmcAdapterParams,
+    braking_friction_factor: f32,
+    delta_seconds: f32,
+) -> (Vec3, u32) {
     let mut remaining = delta_seconds.max(0.0);
     let braking_step = cmc.braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);
-    let max_step = if desired_motion.length_squared() <= 1e-6 && BRAKING_FRICTION_FACTOR > 0.0 {
+    let max_step = if desired_motion.length_squared() <= 1e-6 && braking_friction_factor > 0.0 {
         cmc.max_simulation_time_step.min(braking_step).max(1e-4)
     } else {
         cmc.max_simulation_time_step.max(1e-4)
@@ -147,12 +213,13 @@ pub fn simulate_grounded_velocity(
         } else {
             remaining.min(max_step)
         };
-        current = grounded_velocity_step(
+        current = grounded_velocity_step_with_braking_friction(
             current,
             desired_motion,
             max_speed,
             dynamics,
             cmc.min_analog_walk_speed,
+            braking_friction_factor,
             step,
         );
         remaining -= step;
@@ -167,6 +234,22 @@ pub fn predict_grounded_stop_distance(
     rotation_mode: RotationMode,
     initial_speed: f32,
 ) -> f32 {
+    predict_grounded_stop_distance_with_braking_friction(
+        params,
+        stance,
+        rotation_mode,
+        initial_speed,
+        BRAKING_FRICTION_FACTOR,
+    )
+}
+
+pub fn predict_grounded_stop_distance_with_braking_friction(
+    params: &AlsMovementParams,
+    stance: Stance,
+    rotation_mode: RotationMode,
+    initial_speed: f32,
+    braking_friction_factor: f32,
+) -> f32 {
     let mut velocity = Vec3::new(initial_speed.max(0.0), 0.0, 0.0);
     let mut distance = 0.0;
     let delta_seconds = 1.0 / 128.0;
@@ -178,12 +261,13 @@ pub fn predict_grounded_stop_distance(
         let thresholds = params.gait_speed_thresholds(stance, rotation_mode, velocity, 0.0);
         let gait_amount = calculate_gait_amount_for_thresholds(speed, thresholds);
         let dynamics = params.grounded_dynamics(stance, rotation_mode, gait_amount);
-        let (next, _) = simulate_grounded_velocity(
+        let (next, _) = simulate_grounded_velocity_with_braking_friction(
             velocity,
             Vec3::ZERO,
             0.0,
             dynamics,
             &params.cmc,
+            braking_friction_factor,
             delta_seconds,
         );
         distance += next.length() * delta_seconds;
@@ -249,6 +333,63 @@ pub fn refresh_grounded_dynamics_system(
     }
 }
 
+fn landing_braking_friction_system(
+    fixed_time: Res<Time<Fixed>>,
+    mut q: Query<
+        (
+            &LocomotionState,
+            &AlsInputCommand,
+            Option<&AlsInputOverride>,
+            Option<&AlsRollState>,
+            Option<&AlsMantleState>,
+            &mut AlsLandingBrakingFriction,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (locomotion, input, input_override, roll, mantle, mut braking) in &mut q {
+        let effective_input = input_override.map_or(input, |input| &input.0);
+        update_landing_braking_friction(
+            &mut braking,
+            *locomotion,
+            effective_input.move_dir.length_squared() > 1e-6,
+            roll.is_some_and(|state| state.active) || mantle.is_some_and(|state| state.active),
+            fixed_time.delta_secs(),
+        );
+    }
+}
+
+fn update_landing_braking_friction(
+    braking: &mut AlsLandingBrakingFriction,
+    locomotion: LocomotionState,
+    has_input: bool,
+    suppress: bool,
+    delta_seconds: f32,
+) {
+    let landed = braking.previous_locomotion == LocomotionState::Air
+        && locomotion == LocomotionState::Grounded;
+    if landed {
+        if suppress {
+            braking.factor = BRAKING_FRICTION_FACTOR;
+            braking.remaining_seconds = 0.0;
+        } else {
+            braking.factor = if has_input {
+                LANDING_BRAKING_FRICTION_WITH_INPUT
+            } else {
+                LANDING_BRAKING_FRICTION_WITHOUT_INPUT
+            };
+            braking.remaining_seconds = LANDING_BRAKING_FRICTION_DURATION;
+        }
+    }
+    if braking.remaining_seconds > 0.0 {
+        braking.remaining_seconds = (braking.remaining_seconds - delta_seconds.max(0.0)).max(0.0);
+        if braking.remaining_seconds <= 0.0 {
+            braking.factor = BRAKING_FRICTION_FACTOR;
+        }
+    }
+    braking.previous_locomotion = locomotion;
+}
+
 pub fn grounded_dynamics_motor_system(
     fixed_time: Res<Time<Fixed>>,
     mut commands: Commands,
@@ -274,6 +415,7 @@ pub fn grounded_dynamics_motor_system(
         With<AlsCharacter>,
     >,
     actions: Query<(Option<&AlsRollState>, Option<&AlsMantleState>), With<AlsCharacter>>,
+    landing_braking: Query<&AlsLandingBrakingFriction, With<AlsCharacter>>,
     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
 ) {
     for (
@@ -330,12 +472,16 @@ pub fn grounded_dynamics_motor_system(
             view_yaw.0,
         );
         let desired_motion = controller.basis.desired_motion;
-        let (next, simulation_substeps) = simulate_grounded_velocity(
+        let braking_friction_factor = landing_braking
+            .get(entity)
+            .map_or(BRAKING_FRICTION_FACTOR, |state| state.factor);
+        let (next, simulation_substeps) = simulate_grounded_velocity_with_braking_friction(
             current,
             desired_motion,
             max_speed,
             dynamics.0,
             &params.cmc,
+            braking_friction_factor,
             fixed_time.delta_secs(),
         );
         cmc_runtime.fixed_delta_seconds = fixed_time.delta_secs();
@@ -380,6 +526,9 @@ impl Plugin for AlsGroundedDynamicsPlugin {
             FixedPostUpdate,
             (
                 refresh_grounded_dynamics_system.before(TnuaPipelineSystems::Logic),
+                landing_braking_friction_system
+                    .after(TnuaPipelineSystems::Logic)
+                    .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
                     .after(TnuaPipelineSystems::Logic)
                     .before(TnuaPipelineSystems::Motors),
@@ -429,6 +578,66 @@ mod tests {
             0.02,
         );
         assert!((next.x - 3.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn landing_braking_friction_uses_source_window_and_updates_prediction() {
+        let mut with_input = AlsLandingBrakingFriction {
+            previous_locomotion: LocomotionState::Air,
+            ..Default::default()
+        };
+        update_landing_braking_friction(
+            &mut with_input,
+            LocomotionState::Grounded,
+            true,
+            false,
+            0.0,
+        );
+        let mut without_input = AlsLandingBrakingFriction {
+            previous_locomotion: LocomotionState::Air,
+            ..Default::default()
+        };
+        update_landing_braking_friction(
+            &mut without_input,
+            LocomotionState::Grounded,
+            false,
+            false,
+            0.0,
+        );
+        let initial_factor = without_input.factor;
+        update_landing_braking_friction(
+            &mut without_input,
+            LocomotionState::Grounded,
+            false,
+            false,
+            LANDING_BRAKING_FRICTION_DURATION,
+        );
+        let params = AlsMovementParams::default();
+        let no_friction_distance = predict_grounded_stop_distance_with_braking_friction(
+            &params,
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            4.0,
+            0.0,
+        );
+        let landing_friction_distance = predict_grounded_stop_distance_with_braking_friction(
+            &params,
+            Stance::Standing,
+            RotationMode::ViewDirection,
+            4.0,
+            LANDING_BRAKING_FRICTION_WITHOUT_INPUT,
+        );
+        let passed = (with_input.factor - LANDING_BRAKING_FRICTION_WITH_INPUT).abs() < 1e-6
+            && (initial_factor - LANDING_BRAKING_FRICTION_WITHOUT_INPUT).abs() < 1e-6
+            && without_input.factor == BRAKING_FRICTION_FACTOR
+            && without_input.remaining_seconds == 0.0
+            && landing_friction_distance < no_friction_distance;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.18][VERDICT] input_factor={:.3} no_input_factor={initial_factor:.3} reset_factor={:.3} stop_distance=({no_friction_distance:.3},{landing_friction_distance:.3}) -> {verdict}",
+            with_input.factor, without_input.factor,
+        );
+        assert!(passed);
     }
 
     #[test]

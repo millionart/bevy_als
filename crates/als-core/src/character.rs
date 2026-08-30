@@ -32,6 +32,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::gait::AlsMaxAllowedGait)]
 #[require(crate::gait::AlsGaitAmount)]
 #[require(crate::dynamics::AlsGroundedDynamics)]
+#[require(crate::dynamics::AlsLandingBrakingFriction)]
 #[require(AlsCmcAdapterRuntime)]
 #[require(crate::motion::AlsAimingYawConstraint)]
 #[require(crate::foot_ik::AlsFootLockSettings)]

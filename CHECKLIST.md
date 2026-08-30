@@ -185,9 +185,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：完整 `movement_base_braking_gate` 平移平台记录 `world=(2,0,0)`、`support=(2,0,0)`、`relative=(0,0,0)`、`boost=(0,0,0)`；旋转平台记录 `world≈(-1.382,1.399)`、`support≈(-1.403,1.378)`、`relative≈(0.021,0.021)`，boost 仅抵消该相对误差，输出 `braking_uses_movement_base_relative_velocity -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（202 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（117 tests）。
 
-- [ ] **BF102.18 — M07：落地短暂 BrakingFrictionFactor 语义（P2）**
+- [x] **BF102.18 — M07：落地短暂 BrakingFrictionFactor 语义（P2）**
   - 依赖：BF102.17、BF102.31。
   - 验收：落地后的临时制动窗口、曲线与恢复时机有可复查速度轨迹。
+  - 当次事实：ALS `AAlsCharacter::NotifyLocomotionModeChanged()` 在非自动滚翻/布娃娃的 InAir→Grounded 边沿，有输入设置 `BrakingFrictionFactor=0.5`、无输入设置 `3.0`，并在 `0.5 s` 后重置为 `0`。UE 制动使用 `GroundFriction × BrakingFrictionFactor` 与 braking deceleration 的子步积分。
+  - 实现：新增每角色 `AlsLandingBrakingFriction`，在 FixedPostUpdate 的 Tnua Logic 后建立/倒计时该窗口；grounded motor 与 stop-link 的动态停止距离使用同一 factor。滚翻或攀爬动作激活时不建立窗口。
+  - 证据：`landing_braking_friction_uses_source_window_and_updates_prediction` 输出 `input_factor=0.500 no_input_factor=3.000 reset_factor=0.000 stop_distance=(0.575,0.153) -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（212 passed、2 ignored；另 1 integration test 通过）；`cargo test -p bevy_als --lib --jobs 2` 通过（122 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [x] **BF102.19 — I04：Foot Lock 使用 movement-base 相对坐标（P1）**
   - 依赖：BF102.17。

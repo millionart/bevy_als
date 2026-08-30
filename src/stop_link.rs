@@ -1,4 +1,7 @@
-use als_core::dynamics::{AlsGroundedDynamics, predict_grounded_stop_distance};
+use als_core::dynamics::{
+    AlsGroundedDynamics, AlsLandingBrakingFriction,
+    predict_grounded_stop_distance_with_braking_friction,
+};
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_direction};
 use als_core::orientation::world_forward_to_yaw;
@@ -307,6 +310,7 @@ pub fn stop_link_system(
             &AlsViewYaw,
             &als_core::character::AlsMovementParamsHandle,
             Option<&AlsGroundedDynamics>,
+            Option<&AlsLandingBrakingFriction>,
             &mut AlsStopMatch,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
@@ -327,6 +331,7 @@ pub fn stop_link_system(
         view_yaw,
         handle,
         dynamics,
+        landing_braking,
         mut m,
         cmd,
         ovr,
@@ -375,8 +380,13 @@ pub fn stop_link_system(
             let fallback_braking = dynamics
                 .map(|value| value.0.braking_deceleration)
                 .unwrap_or(p.acceleration.braking_deceleration);
-            let dynamic_distance =
-                predict_grounded_stop_distance(p, *stance, *rotation_mode, hspeed);
+            let dynamic_distance = predict_grounded_stop_distance_with_braking_friction(
+                p,
+                *stance,
+                *rotation_mode,
+                hspeed,
+                landing_braking.map_or(0.0, |state| state.factor),
+            );
             m.total = if dynamic_distance > 0.0 {
                 dynamic_distance
             } else {
