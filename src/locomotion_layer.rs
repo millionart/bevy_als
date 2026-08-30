@@ -1,13 +1,18 @@
 use std::collections::VecDeque;
 
 use als_core::air::AlsAirState;
-use als_core::character::AlsCharacter;
+use als_core::air::ground_prediction_sweep;
+use als_core::character::{
+    ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS, AlsCharacter,
+    AlsMovementParamsHandle,
+};
 use als_core::foot_ik::AlsFootLockState;
 use als_core::input::AlsInputCommand;
 use als_core::motion::AlsInputOverride;
+use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, RotationMode, Stance};
 use als_ext::{AlsAnimCurves, CurveAsset, SyncPhaseInput, SyncPhaseState, advance_sync_phase};
-use avian3d::prelude::{LinearVelocity, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{LinearVelocity, SpatialQuery};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -27,10 +32,6 @@ const LAND_MOVEMENT_SPEED_THRESHOLD: f32 = 6.5;
 const FALL_DURATION: f32 = 1.0;
 const JUMP_DURATION: f32 = 1.666667;
 const FLAIL_DURATION: f32 = 0.666667;
-const GROUND_PREDICTION_VERTICAL_THRESHOLD: f32 = -2.0;
-const GROUND_PREDICTION_MIN_SPEED: f32 = -40.0;
-const GROUND_PREDICTION_MIN_DISTANCE: f32 = 1.5;
-const GROUND_PREDICTION_MAX_DISTANCE: f32 = 20.0;
 const AIR_LEAN_REFERENCE_SPEED: f32 = 3.5;
 const LEAN_HALF_LIFE: f32 = 0.2;
 const AIR_LEAN_CURVE: &str =
@@ -503,42 +504,49 @@ fn ground_prediction_amount(
     entity: Entity,
     transform: &GlobalTransform,
     velocity: Vec3,
+    params: Option<&AlsMovementParams>,
+    stance: Stance,
     curve: Option<&CurveAsset>,
     allowance: f32,
 ) -> f32 {
-    if velocity.y > GROUND_PREDICTION_VERTICAL_THRESHOLD {
-        return 0.0;
-    }
-    let mut direction = velocity;
-    direction.y = direction.y.clamp(
-        GROUND_PREDICTION_MIN_SPEED,
-        GROUND_PREDICTION_VERTICAL_THRESHOLD,
-    );
-    let Ok(direction) = Dir3::new(direction) else {
-        return 0.0;
-    };
-    let distance = map_range_clamped(
-        velocity.y,
-        GROUND_PREDICTION_VERTICAL_THRESHOLD,
-        GROUND_PREDICTION_MIN_SPEED,
-        GROUND_PREDICTION_MIN_DISTANCE,
-        GROUND_PREDICTION_MAX_DISTANCE,
-    );
-    let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-    let Some(hit) = spatial.cast_ray(
+    let (capsule_half_height, capsule_radius) =
+        scaled_ground_prediction_capsule(params, stance, transform);
+    let prediction = ground_prediction_sweep(
+        spatial,
+        entity,
         transform.translation(),
-        direction,
-        distance.max(0.1),
-        true,
-        &filter,
-    ) else {
+        velocity,
+        capsule_half_height,
+        capsule_radius,
+    );
+    let Some(time) = prediction.hit_fraction else {
         return 0.0;
     };
-    if hit.normal.y < 0.7 {
-        return 0.0;
-    }
-    let time = (hit.distance / distance.max(0.1)).clamp(0.0, 1.0);
     curve.map(|curve| curve.sample(time)).unwrap_or(time) * allowance.clamp(0.0, 1.0)
+}
+
+fn scaled_ground_prediction_capsule(
+    params: Option<&AlsMovementParams>,
+    stance: Stance,
+    transform: &GlobalTransform,
+) -> (f32, f32) {
+    let (half_height, radius) = params
+        .map(|params| {
+            let half_height = match stance {
+                Stance::Standing => params.crouch.standing_capsule_half_height,
+                Stance::Crouching => params.crouch.crouched_capsule_half_height,
+            };
+            (half_height, params.crouch.standing_capsule_radius)
+        })
+        .unwrap_or((
+            ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
+            ALS_CHARACTER_CAPSULE_RADIUS,
+        ));
+    let (scale, _, _) = transform.to_scale_rotation_translation();
+    let vertical_scale = scale.y.abs().max(1e-4);
+    let horizontal_scale = scale.x.abs().max(scale.z.abs()).max(1e-4);
+    let radius = radius * horizontal_scale;
+    ((half_height * vertical_scale).max(radius), radius)
 }
 
 fn animation_curve_sample(
@@ -813,6 +821,7 @@ fn locomotion_layer_writer(
             &Transform,
             &GlobalTransform,
             &LinearVelocity,
+            &AlsMovementParamsHandle,
             Option<&AlsAirState>,
             &LocomotionState,
             &Stance,
@@ -836,6 +845,7 @@ fn locomotion_layer_writer(
     >,
     curve_assets: Res<Assets<CurveAsset>>,
     animation_curves: Res<Assets<AlsAnimCurves>>,
+    params_assets: Res<Assets<AlsMovementParams>>,
     handles: Res<LocomotionCurveHandles>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -846,6 +856,7 @@ fn locomotion_layer_writer(
             transform,
             global_transform,
             velocity,
+            params_handle,
             air_state,
             locomotion,
             stance,
@@ -925,6 +936,8 @@ fn locomotion_layer_writer(
             character,
             global_transform,
             velocity.0,
+            params_assets.get(params_handle.0.id()),
+            *stance,
             curve_assets.get(&handles.ground_prediction),
             jump_ground_prediction_allowance(&runtime, speed, &animation_curves, &handles),
         );
@@ -1258,6 +1271,29 @@ mod tests {
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.31][VERDICT] pre_collision=-10.000 post_collision=0.000 land={land_velocity:.3} land_movement={land_movement_velocity:.3} recovered={recovered_velocity:.3} heavy={heavy_alpha:.3} movement_weight={movement_weight:.3} -> {verdict}"
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn ground_prediction_uses_scaled_actual_capsule_dimensions() {
+        let params = AlsMovementParams::default();
+        let transform = GlobalTransform::from(Transform {
+            scale: Vec3::new(1.5, 2.0, 0.5),
+            ..Default::default()
+        });
+        let standing =
+            scaled_ground_prediction_capsule(Some(&params), Stance::Standing, &transform);
+        let crouching =
+            scaled_ground_prediction_capsule(Some(&params), Stance::Crouching, &transform);
+        let passed = (standing.0 - 1.8).abs() < 1e-6
+            && (standing.1 - 0.45).abs() < 1e-6
+            && (crouching.0 - 1.12).abs() < 1e-6
+            && (crouching.1 - 0.45).abs() < 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.32][VERDICT] standing_half={:.3} standing_radius={:.3} crouching_half={:.3} crouching_radius={:.3} shape=capsule_sweep -> {verdict}",
+            standing.0, standing.1, crouching.0, crouching.1,
         );
         assert!(passed);
     }

@@ -297,9 +297,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`landing_animation_velocity_latches_the_pre_collision_value` 输出 `pre_collision=-10.000 post_collision=0.000 land=-10.000 land_movement=-10.000 recovered=-10.000 heavy=1.000 movement_weight=1.000 -> PASS`。
   - 回归：`cargo test -p als-core --jobs 2` 通过（209 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（118 tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.32 — L02：主路径地面预测使用目标胶囊 sweep（P1）**
+- [x] **BF102.32 — L02：主路径地面预测使用目标胶囊 sweep（P1）**
   - 依赖：BF102.17、BF102.23。
   - 验收：台阶边缘、斜落、窄台和缩放角色下，预测形状、命中、法线和输出曲线可复查。
+  - 当次事实：实时 MCP 确认实际 ALS 资产 `CF_Als_GroundPredictionAmount` 为 `CurveFloat`，项目导出曲线同样从 `1→0`；UE CharacterMovement 以缩放后的 capsule 和 `WalkableFloorZ` 判定地面。修复前主 writer 从角色中心 `cast_ray`、固定法线阈值，未使用姿态与缩放后的胶囊。
+  - 实现：主 writer 改为复用项目内 `ground_prediction_sweep()` 的 `cast_shape` 路径，按实际 stance、运动参数和 `GlobalTransform` 的垂直/水平缩放计算 capsule half-height/radius；曲线采样与最终 GroundPredictionBlock allowance 仍在该 query 结果后应用。
+  - 证据：真实 Avian 物理 Gate 输出 `ray_hit=false capsule_hit=true hit_fraction=Some(0.1964) half=0.900 radius=0.300 -> PASS`；缩放 Gate 输出 `standing_half=1.800 standing_radius=0.450 crouching_half=1.120 crouching_radius=0.450 shape=capsule_sweep -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（210 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（119 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.33 — L03：起跳播放率在成功起跳时锁存（P2）**
   - 依赖：BF102.05。

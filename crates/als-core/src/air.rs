@@ -311,9 +311,82 @@ fn ensure_air_state(
 
 #[cfg(test)]
 mod tests {
+    use avian3d::prelude::{Collider, PhysicsPlugins, PhysicsSystems, Position, RigidBody};
+
     use super::*;
 
     const DT: f32 = 1.0 / 60.0;
+
+    #[derive(Component)]
+    struct CapsuleSweepProbeOrigin;
+
+    #[derive(Resource, Default)]
+    struct CapsuleSweepProbe {
+        ray_hit: bool,
+        prediction: Option<GroundPrediction>,
+    }
+
+    fn record_capsule_sweep_probe(
+        spatial: SpatialQuery,
+        origins: Query<(Entity, &GlobalTransform), With<CapsuleSweepProbeOrigin>>,
+        mut probe: ResMut<CapsuleSweepProbe>,
+    ) {
+        let Ok((entity, transform)) = origins.single() else {
+            return;
+        };
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        probe.ray_hit = spatial
+            .cast_ray(transform.translation(), Dir3::NEG_Y, 20.0, true, &filter)
+            .is_some();
+        probe.prediction = Some(ground_prediction_sweep(
+            &spatial,
+            entity,
+            transform.translation(),
+            Vec3::new(0.0, -10.0, 0.0),
+            0.9,
+            0.3,
+        ));
+    }
+
+    #[test]
+    fn ground_prediction_capsule_sweep_hits_an_edge_missed_by_center_ray() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::new(Update)))
+            .init_resource::<CapsuleSweepProbe>()
+            .add_systems(
+                Update,
+                record_capsule_sweep_probe.after(PhysicsSystems::Last),
+            );
+        app.finish();
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(0.05, 0.1, 0.5),
+            Position(Vec3::new(0.1, 0.0, 0.0)),
+            Transform::from_xyz(0.1, 0.0, 0.0),
+        ));
+        app.world_mut()
+            .spawn((CapsuleSweepProbeOrigin, Transform::from_xyz(0.0, 2.0, 0.0)));
+        for _ in 0..3 {
+            app.update();
+        }
+        let probe = app.world().resource::<CapsuleSweepProbe>();
+        let prediction = probe.prediction.unwrap();
+        let passed = !probe.ray_hit
+            && prediction.ground_valid
+            && prediction.hit_fraction.is_some()
+            && prediction.capsule_half_height == 0.9
+            && prediction.capsule_radius == 0.3;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.32][VERDICT] ray_hit={} capsule_hit={} hit_fraction={:?} half={:.3} radius={:.3} -> {verdict}",
+            probe.ray_hit,
+            prediction.ground_valid,
+            prediction.hit_fraction,
+            prediction.capsule_half_height,
+            prediction.capsule_radius,
+        );
+        assert!(passed);
+    }
 
     #[test]
     fn grounded_idle_stays_all_zero() {
