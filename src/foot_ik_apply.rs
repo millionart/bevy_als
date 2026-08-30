@@ -33,6 +33,27 @@ struct FootLockLifecycleState {
     teleport_remaining: f32,
 }
 
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+pub struct AlsFootIkTelemetrySide {
+    pub valid: bool,
+    pub target_world: Vec3,
+    pub target_armature_local: Vec3,
+    pub target_parent_local: Vec3,
+    pub reference_chain_error: f32,
+    pub pole_sign: f32,
+    pub ik_weight: f32,
+    pub pin_weight: f32,
+}
+
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+pub struct AlsFootIkTelemetry {
+    pub left: AlsFootIkTelemetrySide,
+    pub right: AlsFootIkTelemetrySide,
+}
+
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct AlsFootIkTelemetryEnabled(pub bool);
+
 impl Default for FootOffsetRotationState {
     fn default() -> Self {
         Self {
@@ -71,11 +92,13 @@ impl Plugin for FootIkApplyPlugin {
             PostUpdate,
             AnimationGraphSet::Final.before(TransformSystems::Propagate),
         );
-        app.add_message::<AlsFootLockTeleported>();
+        app.init_resource::<AlsFootIkTelemetryEnabled>()
+            .add_message::<AlsFootLockTeleported>();
         app.add_systems(
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
+                ensure_foot_ik_telemetry,
                 ensure_foot_lock_components,
                 ensure_foot_offset_rotation_state,
                 ensure_foot_lock_lifecycle_state,
@@ -119,6 +142,17 @@ fn ensure_foot_ik_runtime(
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsFootIkRuntime::default());
+    }
+}
+
+fn ensure_foot_ik_telemetry(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<AlsFootIkTelemetry>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(AlsFootIkTelemetry::default());
     }
 }
 
@@ -172,11 +206,12 @@ fn invalidate_missing_foot_bones(
             Option<&mut FootOffsetRotationState>,
             Option<&mut AlsDynamicTransitionState>,
             Option<&mut FootLockLifecycleState>,
+            Option<&mut AlsFootIkTelemetry>,
         ),
         With<als_core::character::AlsCharacter>,
     >,
 ) {
-    for (bones, lock_state, runtime, offset_rotation, dynamic_transition, lifecycle) in
+    for (bones, lock_state, runtime, offset_rotation, dynamic_transition, lifecycle, telemetry) in
         &mut characters
     {
         if bones.is_some() {
@@ -196,6 +231,9 @@ fn invalidate_missing_foot_bones(
         }
         if let Some(mut lifecycle) = lifecycle {
             *lifecycle = FootLockLifecycleState::default();
+        }
+        if let Some(mut telemetry) = telemetry {
+            *telemetry = AlsFootIkTelemetry::default();
         }
     }
 }
@@ -252,6 +290,7 @@ fn reset_foot_ik_runtime(
 #[allow(clippy::type_complexity)]
 fn foot_ik_apply_system(
     time: Res<Time>,
+    telemetry_enabled: Res<AlsFootIkTelemetryEnabled>,
     mut characters: Query<
         (
             Entity,
@@ -274,6 +313,7 @@ fn foot_ik_apply_system(
     >,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+    mut telemetry: Query<&mut AlsFootIkTelemetry, With<als_core::character::AlsCharacter>>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) {
@@ -434,6 +474,7 @@ fn foot_ik_apply_system(
         );
 
         for side in 0..2usize {
+            let chain = bones.chain(side);
             let (offset, pin_weight) = runtime.side(side);
             let foot_state = match side {
                 0 => &lock_state.left,
@@ -453,6 +494,54 @@ fn foot_ik_apply_system(
             let foot_world_rotation =
                 foot_rotation_with_offset(foot_state.final_rotation, offset_normal);
             let lock_offset = foot_state.final_location - foot_state.target_location;
+            let telemetry_target = foot_state.final_location + Vec3::Y * offset;
+            if telemetry_enabled.0
+                && let (Ok(thigh), Ok(calf), Ok(foot_local)) = (
+                    bone_globals.get(chain.thigh),
+                    bone_globals.get(chain.calf),
+                    bone_locals.get(chain.foot),
+                )
+            {
+                let hip = thigh.translation();
+                let knee = calf.translation();
+                let ankle = foot_local.1.translation();
+                let upper_length = knee.distance(hip);
+                let lower_length = ankle.distance(knee);
+                let armature_inverse = current_character_transform.to_matrix().inverse();
+                let parent_local = bone_globals
+                    .get(foot_local.2.0)
+                    .map(|parent| {
+                        parent
+                            .to_matrix()
+                            .inverse()
+                            .transform_point3(telemetry_target)
+                    })
+                    .unwrap_or(telemetry_target);
+                let target_axis = (telemetry_target - hip).normalize_or_zero();
+                let pole_sign = target_axis.cross(knee - hip).dot(pole);
+                let entry = AlsFootIkTelemetrySide {
+                    valid: telemetry_target.is_finite()
+                        && upper_length.is_finite()
+                        && lower_length.is_finite()
+                        && pole_sign.is_finite(),
+                    target_world: telemetry_target,
+                    target_armature_local: armature_inverse.transform_point3(telemetry_target),
+                    target_parent_local: parent_local,
+                    reference_chain_error: (telemetry_target.distance(hip)
+                        - (upper_length + lower_length) * FOOT_MAX_LEG_STRETCH_RATIO)
+                        .max(0.0),
+                    pole_sign,
+                    ik_weight: ik_amount,
+                    pin_weight,
+                };
+                if let Ok(mut telemetry) = telemetry.get_mut(entity) {
+                    if side == 0 {
+                        telemetry.left = entry;
+                    } else {
+                        telemetry.right = entry;
+                    }
+                }
+            }
             let has_slope_rotation = offset_normal.dot(Vec3::Y) < 1.0 - 1e-4;
             let has_lock_rotation = foot_state.lock_amount > 1e-3;
             if ik_amount <= 1e-4
@@ -465,7 +554,7 @@ fn foot_ik_apply_system(
                 continue;
             }
             apply_chain_offset(
-                &bones.chain(side),
+                &chain,
                 Vec3::Y * offset + lock_offset,
                 pole,
                 settings,

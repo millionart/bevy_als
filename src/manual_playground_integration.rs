@@ -34,6 +34,7 @@ use crate::animation_events::{
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::AlsControlRigState;
 use crate::debug_display::AlsDebugDisplayStats;
+use crate::foot_ik_apply::{AlsFootIkTelemetry, AlsFootIkTelemetryEnabled};
 use crate::game_mode::AlsPlayerAdmissionComplete;
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
@@ -64,6 +65,7 @@ const DIRECTION_BRANCH_FORWARD: u8 = 1 << 0;
 const DIRECTION_BRANCH_BACKWARD: u8 = 1 << 1;
 const DIRECTION_BRANCH_LEFT: u8 = 1 << 2;
 const DIRECTION_BRANCH_RIGHT: u8 = 1 << 3;
+const FOOT_IK_BASELINE_MASK: u8 = 0b1_1111;
 
 #[derive(Resource, Default)]
 pub struct ManualPlaygroundStartupReady {
@@ -137,6 +139,7 @@ enum CrouchClearanceStage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IntegrationScenario {
     Base,
+    FootIk,
     Ragdoll,
     Camera,
     Interface,
@@ -146,6 +149,7 @@ enum IntegrationScenario {
 impl IntegrationScenario {
     fn from_environment() -> Self {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
+            Some("foot_ik") => Self::FootIk,
             Some("ragdoll") => Self::Ragdoll,
             Some("camera") => Self::Camera,
             Some("interface") => Self::Interface,
@@ -301,6 +305,17 @@ fn actual_velocity_branch_mask(motion: &AlsActualMotion) -> u8 {
         .fold(0, |mask, (index, _)| mask | (1 << index))
 }
 
+fn foot_ik_baseline_bit(index: usize) -> Option<u8> {
+    match index {
+        0 => Some(1 << 0),
+        1 => Some(1 << 1),
+        2 => Some(1 << 2),
+        3 => Some(1 << 3),
+        10 => Some(1 << 4),
+        _ => None,
+    }
+}
+
 #[derive(Default)]
 struct IntegrationCoverage {
     assembly: bool,
@@ -340,6 +355,7 @@ struct IntegrationCoverage {
     movement_base: bool,
     foot_probe: bool,
     foot_lock: bool,
+    foot_ik_space_baseline: bool,
     roll_started: bool,
     roll_slot: bool,
     ragdoll_entered: bool,
@@ -413,6 +429,7 @@ struct ManualIntegrationState {
     notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
     direction_case_index: usize,
+    foot_ik_baseline_mask: u8,
     crouch_recovery_jump_requested: bool,
     crouch_recovery_air_crouch_requested: bool,
     crouch_recovery_standing_requested: bool,
@@ -472,6 +489,7 @@ impl Default for ManualIntegrationState {
             notify_mantle_armed: false,
             turn_body_yaw: None,
             direction_case_index: usize::MAX,
+            foot_ik_baseline_mask: 0,
             crouch_recovery_jump_requested: false,
             crouch_recovery_air_crouch_requested: false,
             crouch_recovery_standing_requested: false,
@@ -582,6 +600,7 @@ fn spawn_manual_integration_fixture(
 fn initialize_manual_integration(
     mut commands: Commands,
     mut state: ResMut<ManualIntegrationState>,
+    mut foot_ik_telemetry_enabled: ResMut<AlsFootIkTelemetryEnabled>,
     startup: Res<ManualPlaygroundStartupReady>,
     admissions: Query<&AlsPlayerAdmissionComplete>,
     assemblies: Query<&AlsCharacterAssembly>,
@@ -649,10 +668,13 @@ fn initialize_manual_integration(
     state.initial_view_yaw = Some(view_yaw.0);
     state.initial_view_pitch = Some(view_pitch.0);
     state.initialized = true;
+    foot_ik_telemetry_enabled.0 = state.scenario == IntegrationScenario::FootIk;
     state.coverage.assembly = true;
     state.coverage.graph = true;
     let first_phase = match state.scenario {
-        IntegrationScenario::Base => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::Base | IntegrationScenario::FootIk => {
+            IntegrationPhase::DirectionRegression
+        }
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
@@ -749,11 +771,17 @@ fn drive_manual_integration(
             if entering {
                 state.direction_case_index = usize::MAX;
                 state.coverage.direction_cases = [false; DIRECTION_CASE_COUNT];
+                state.foot_ik_baseline_mask = 0;
+                state.coverage.foot_ik_space_baseline = false;
             }
             let case_index = (elapsed / DIRECTION_CASE_SECONDS) as usize;
             let Some(case) = direction_regression_case(case_index) else {
                 commands.entity(character).remove::<AlsFirstPersonView>();
-                begin_phase(&mut state, IntegrationPhase::Locomotion);
+                if state.scenario == IntegrationScenario::FootIk {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Locomotion);
+                }
                 return;
             };
             if state.direction_case_index != case_index {
@@ -1617,6 +1645,7 @@ fn observe_manual_integration(
     >,
     mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
     motion_probe: MotionProbe,
+    foot_ik_telemetry: Query<&AlsFootIkTelemetry, With<AlsCharacter>>,
     action: Query<
         (
             Option<&AlsMantleState>,
@@ -2148,6 +2177,61 @@ fn observe_manual_integration(
     if let Some(lock) = foot_lock {
         state.coverage.foot_lock |= lock.valid;
     }
+    if state.scenario == IntegrationScenario::FootIk
+        && state.phase == IntegrationPhase::DirectionRegression
+        && let Some(bit) = foot_ik_baseline_bit(state.direction_case_index)
+        && let Ok(telemetry) = foot_ik_telemetry.get(character)
+        && telemetry.left.valid
+        && telemetry.right.valid
+        && telemetry.left.target_world.is_finite()
+        && telemetry.right.target_world.is_finite()
+        && telemetry.left.target_armature_local.is_finite()
+        && telemetry.right.target_armature_local.is_finite()
+        && telemetry.left.target_parent_local.is_finite()
+        && telemetry.right.target_parent_local.is_finite()
+        && telemetry.left.reference_chain_error.is_finite()
+        && telemetry.right.reference_chain_error.is_finite()
+        && telemetry.left.pole_sign.is_finite()
+        && telemetry.right.pole_sign.is_finite()
+    {
+        if state.foot_ik_baseline_mask & bit == 0
+            && let Some(case) = direction_regression_case(state.direction_case_index)
+        {
+            info!(
+                "[MANUAL-INTEGRATION][FOOT-IK-BASELINE] case={} left_world=({:.3},{:.3},{:.3}) left_armature=({:.3},{:.3},{:.3}) left_parent=({:.3},{:.3},{:.3}) left_error={:.6} left_pole={:.6} left_weights=({:.3},{:.3}) right_world=({:.3},{:.3},{:.3}) right_armature=({:.3},{:.3},{:.3}) right_parent=({:.3},{:.3},{:.3}) right_error={:.6} right_pole={:.6} right_weights=({:.3},{:.3})",
+                case.name,
+                telemetry.left.target_world.x,
+                telemetry.left.target_world.y,
+                telemetry.left.target_world.z,
+                telemetry.left.target_armature_local.x,
+                telemetry.left.target_armature_local.y,
+                telemetry.left.target_armature_local.z,
+                telemetry.left.target_parent_local.x,
+                telemetry.left.target_parent_local.y,
+                telemetry.left.target_parent_local.z,
+                telemetry.left.reference_chain_error,
+                telemetry.left.pole_sign,
+                telemetry.left.ik_weight,
+                telemetry.left.pin_weight,
+                telemetry.right.target_world.x,
+                telemetry.right.target_world.y,
+                telemetry.right.target_world.z,
+                telemetry.right.target_armature_local.x,
+                telemetry.right.target_armature_local.y,
+                telemetry.right.target_armature_local.z,
+                telemetry.right.target_parent_local.x,
+                telemetry.right.target_parent_local.y,
+                telemetry.right.target_parent_local.z,
+                telemetry.right.reference_chain_error,
+                telemetry.right.pole_sign,
+                telemetry.right.ik_weight,
+                telemetry.right.pin_weight,
+            );
+        }
+        state.foot_ik_baseline_mask |= bit;
+        state.coverage.foot_ik_space_baseline =
+            state.foot_ik_baseline_mask == FOOT_IK_BASELINE_MASK;
+    }
     if let Some(base) = movement_base {
         state.coverage.movement_base |= base.entity == Some(fixture.platform)
             && base.support_velocity.length() > 0.25
@@ -2399,6 +2483,15 @@ fn observe_manual_integration(
                 ("foot_lock", coverage.foot_lock),
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
+            ],
+            IntegrationScenario::FootIk => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("standing_graph", coverage.standing_graph),
+                ("direction_regression", direction_regression),
+                ("foot_probe", coverage.foot_probe),
+                ("foot_lock", coverage.foot_lock),
+                ("foot_ik_space_baseline", coverage.foot_ik_space_baseline),
             ],
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
