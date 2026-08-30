@@ -433,9 +433,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`mantle_completion_has_no_fixed_target_lock_phase` 输出 `[BF102.47][VERDICT] completion_time=1.000000 duration=1.000000 released=true -> PASS`。真实 `mantle_gate` 在 `DONE 1 raw_y=2.27` 后下一帧记录 `mantling=false`、位置变为 `y=2.52,z=2.10`，随后继续响应输入，未回写旧目标；`mantle_target_base_gate` 输出 `target_loss_handled=true ... -> PASS`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（216 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example mantle_target_base_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.48 — X05：根运动适配器保留侧向位移与旋转（P2）**
+- [x] **BF102.48 — X05：根运动适配器保留侧向位移与旋转（P2）**
   - 依赖：BF102.29、BF102.46。
   - 验收：非纯前向 root-motion clip 的平移和旋转分量均提交给正确角色控制器。
+  - 当次 ALS 事实：实时读取 `AAlsCharacter::RefreshRolling()`：仅在 simulated proxy 或 root motion 被忽略时调用手动 `RefreshRollingPhysics()`；正常根运动路径不应退化为手动前向速度。实时读取 `FAlsRootMotionSource_Mantling::PrepareRootMotion()`：源将完整 target rotation delta 与 location delta 作为 root-motion source 输出。
+  - 实现：项目侧根运动链接新增完整本地平移／旋转读取和 `root_motion_world_transform`；翻滚驱动不再提取单一前向速度或施加 14 m/s 限速，而是将本地完整平移变换到世界空间后写入 `LinearVelocity`，并在采样到非单位旋转 delta 时同步写入角色 Transform／物理 rotation。slot telemetry 同时保存 root-motion rotation。
+  - 证据：`root_motion_transform_keeps_lateral_translation_and_rotation` 输出 `[BF102.48][VERDICT] translation_error=0.000000 rotation_alignment=1.000000 legacy_error=0.100000 -> PASS`。真实 `roll_gate`（`ALS_BOOT_AUTO_QUIT_SECS=12`）记录 Forward roll `dist=2.64 ... align=+0.998 ... rotation_forward_align=+1.000` 与 Right roll `dist=2.75 ... align=+1.000 ... rotation_forward_align=+1.000`，最终 `completed=true`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（216 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（129 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example roll_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.49 — X06：Mantle 权限、自动起始时间与缩放语义（P3）**
   - 依赖：BF102.20、BF102.38。

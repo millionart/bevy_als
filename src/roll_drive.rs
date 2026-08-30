@@ -3,7 +3,7 @@ use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsViewYaw};
 use als_core::roll::{
     AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
-    damper_exact_angle, roll_displacement_dir, roll_weight_at,
+    damper_exact_angle, roll_weight_at,
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transition::AlsStateRequest;
@@ -18,7 +18,9 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::root_motion_link::{clamp_drive_speed, ensure_root_motion_output, read_local_delta};
+use crate::root_motion_link::{
+    ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
+};
 
 const ROLL_SLOT_GRAPH: &str = "graphs/ab_als/grounded/roll_slot.animgraph.ron";
 const ROLL_SLOT_TIME_KEY: &str = "als_roll_slot_time";
@@ -43,6 +45,7 @@ pub struct AlsRollSlotRuntime {
     pub weight: f32,
     pub pose_ready: bool,
     pub root_motion_delta: Vec3,
+    pub root_motion_rotation: Quat,
     pub pose_standing: f32,
     pub pose_grounded: f32,
 }
@@ -210,6 +213,7 @@ fn bridge_roll_slot_samples(
                     weight: 0.0,
                     pose_ready: false,
                     root_motion_delta: root_motion.translation_delta,
+                    root_motion_rotation: root_motion.rotation_delta,
                     pose_standing: 0.0,
                     pose_grounded: 0.0,
                 });
@@ -233,6 +237,7 @@ fn bridge_roll_slot_samples(
                 weight,
                 pose_ready: true,
                 root_motion_delta: root_motion.translation_delta,
+                root_motion_rotation: root_motion.rotation_delta,
                 pose_standing,
                 pose_grounded,
             });
@@ -300,30 +305,33 @@ fn roll_drive_system(
             continue;
         }
 
-        let (current_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let next_rotation = Quat::from_rotation_y(damper_exact_angle(
-            current_yaw,
-            roll.direction_yaw,
-            dt,
-            ROLL_ROTATION_HALF_LIFE_SECS,
-        ));
+        let (local_translation, local_rotation) = sampler_root_motion
+            .iter()
+            .find_map(|(sampler, output)| {
+                (sampler.character == character)
+                    .then_some(read_local_root_motion_delta(Some(output)))
+            })
+            .unwrap_or((Vec3::ZERO, Quat::IDENTITY));
+        let (world_translation, root_rotation) =
+            root_motion_world_transform(transform.rotation, local_translation, local_rotation);
+        let next_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {
+            root_rotation
+        } else {
+            let (current_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
+            Quat::from_rotation_y(damper_exact_angle(
+                current_yaw,
+                roll.direction_yaw,
+                dt,
+                ROLL_ROTATION_HALF_LIFE_SECS,
+            ))
+        };
         transform.rotation = next_rotation;
         if let Some(mut rotation) = rotation {
             rotation.0 = next_rotation;
         }
         let weight = roll_weight_at(roll.time);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-        let local = sampler_root_motion
-            .iter()
-            .find_map(|(sampler, output)| {
-                (sampler.character == character).then_some(read_local_delta(Some(output)))
-            })
-            .unwrap_or(Vec3::ZERO);
-        let forward_speed = -local.z / dt;
-        let dir = roll_displacement_dir(roll.direction_yaw);
-        let drive = clamp_drive_speed(dir * forward_speed, 14.0);
-        vel.x = drive.x;
-        vel.z = drive.z;
+        vel.0 = world_translation / dt;
 
         let Some(instance) = avatars
             .iter()
