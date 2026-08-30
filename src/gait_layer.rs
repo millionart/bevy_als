@@ -57,11 +57,10 @@ mod tests {
         AlsDesiredGait, AlsGaitAmount, AlsMaxAllowedGait, GaitWeights, refresh_gait_system,
     };
     use als_core::input::AlsInputCommand;
-    use als_core::motion::AlsViewYaw;
+    use als_core::motion::{AlsActualVelocity, AlsViewYaw};
     use als_core::params::AlsMovementParams;
     use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
     use als_core::transition::StateTransitionEvent;
-    use avian3d::prelude::LinearVelocity;
 
     #[test]
     fn direction_dependent_gait_amount_reaches_animation_layer() {
@@ -95,7 +94,10 @@ mod tests {
                 AlsMaxAllowedGait(Gait::Running),
                 AlsGaitAmount::default(),
                 Gait::Walking,
-                LinearVelocity(Vec3::Z * 1.2),
+                AlsActualVelocity {
+                    world_velocity: Vec3::Z * 1.2,
+                    horizontal_speed: 1.2,
+                },
                 AlsMovementParamsHandle(params),
             ))
             .id();

@@ -41,6 +41,22 @@ const MAX_STEP_HEIGHT: f32 = 0.45;
 const STEP_ASSIST_COOLDOWN: f32 = 0.3;
 const STALL_SPEED_EPSILON: f32 = 1.2;
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsActualVelocity {
+    pub world_velocity: Vec3,
+    pub horizontal_speed: f32,
+}
+
+impl AlsActualVelocity {
+    fn from_physics_velocity(world_velocity: Vec3) -> Self {
+        let world_velocity = Vec3::new(world_velocity.x, 0.0, world_velocity.z);
+        Self {
+            horizontal_speed: Vec2::new(world_velocity.x, world_velocity.z).length(),
+            world_velocity,
+        }
+    }
+}
+
 fn deg_to_rad(deg: f32) -> f32 {
     deg * std::f32::consts::PI / 180.0
 }
@@ -465,6 +481,36 @@ mod rotation_cap_tests {
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
+
+    #[test]
+    fn actual_velocity_snapshot_uses_horizontal_physics_velocity() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_systems(FixedPostUpdate, snapshot_actual_velocity_system);
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LinearVelocity(Vec3::new(3.0, 7.0, -4.0)),
+                AlsActualVelocity::default(),
+            ))
+            .id();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let motion = *app.world().get::<AlsActualVelocity>(entity).unwrap();
+        assert_eq!(motion.world_velocity, Vec3::new(3.0, 0.0, -4.0));
+        assert!((motion.horizontal_speed - 5.0).abs() < 1e-6);
+
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(LinearVelocity::ZERO);
+        app.world_mut().run_schedule(FixedPostUpdate);
+        assert_eq!(
+            *app.world().get::<AlsActualVelocity>(entity).unwrap(),
+            AlsActualVelocity::default()
+        );
+    }
 
     #[derive(Component)]
     struct StepAssistPhysicsCase {
@@ -1017,6 +1063,9 @@ pub fn jump_chain(loco: LocomotionState, stance: Stance, mantle_available: bool)
 pub struct AlsMotionPlugin;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsActualVelocitySet;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRotationResponseSet;
 
 impl Plugin for AlsMotionPlugin {
@@ -1059,12 +1108,27 @@ impl Plugin for AlsMotionPlugin {
             )
             .configure_sets(
                 FixedPostUpdate,
-                AlsRotationResponseSet.after(PhysicsSystems::Last),
+                (
+                    AlsActualVelocitySet.after(PhysicsSystems::Last),
+                    AlsRotationResponseSet.after(AlsActualVelocitySet),
+                ),
+            )
+            .add_systems(
+                FixedPostUpdate,
+                snapshot_actual_velocity_system.in_set(AlsActualVelocitySet),
             )
             .add_systems(
                 FixedPostUpdate,
                 rotation_response_system.in_set(AlsRotationResponseSet),
             );
+    }
+}
+
+fn snapshot_actual_velocity_system(
+    mut characters: Query<(&LinearVelocity, &mut AlsActualVelocity), With<AlsCharacter>>,
+) {
+    for (velocity, mut actual) in &mut characters {
+        *actual = AlsActualVelocity::from_physics_velocity(velocity.0);
     }
 }
 

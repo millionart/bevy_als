@@ -1,4 +1,5 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::motion::AlsViewYaw;
 use als_core::movement_direction::AlsMovementDirectionState;
 use als_core::params::AlsMovementParams;
@@ -59,6 +60,8 @@ type ProbeCharacters = (
     &'static Transform,
     &'static AlsActualMotion,
     &'static Stance,
+    &'static AlsDesiredGait,
+    &'static AlsMaxAllowedGait,
     &'static Gait,
     &'static LocomotionState,
     &'static RotationMode,
@@ -97,7 +100,19 @@ fn anim_probe_logger(
     players: Query<&AnimationGraphPlayer>,
 ) {
     let t = time.elapsed_secs();
-    let Ok((entity, tf, motion, stance, gait, loco, rot, view_yaw, params_h)) = characters.single()
+    let Ok((
+        entity,
+        tf,
+        motion,
+        stance,
+        desired_gait,
+        allowed_gait,
+        gait,
+        loco,
+        rot,
+        view_yaw,
+        params_h,
+    )) = characters.single()
     else {
         return;
     };
@@ -149,13 +164,15 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait={gait:?} loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,
             capsule_h
                 .map(|h| format!("{h:.2}"))
                 .unwrap_or_else(|| "?".into()),
+            desired_gait.0,
+            allowed_gait.0,
             view_yaw.0,
             motion.world_velocity.x,
             motion.world_velocity.y,

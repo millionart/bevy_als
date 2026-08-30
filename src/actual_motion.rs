@@ -1,7 +1,6 @@
 use als_core::character::AlsCharacter;
-use als_core::motion::AlsRotationResponseSet;
+use als_core::motion::{AlsActualVelocity, AlsActualVelocitySet, AlsRotationResponseSet};
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
-use avian3d::prelude::{LinearVelocity, PhysicsSystems};
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -36,7 +35,7 @@ impl Plugin for AlsActualMotionPlugin {
         app.configure_sets(
             FixedPostUpdate,
             AlsActualMotionSet
-                .after(PhysicsSystems::Last)
+                .after(AlsActualVelocitySet)
                 .after(AlsRotationResponseSet),
         )
         .add_systems(
@@ -51,7 +50,7 @@ fn snapshot_actual_motion_system(
     mut characters: Query<
         (
             Entity,
-            &LinearVelocity,
+            &AlsActualVelocity,
             &Transform,
             Option<&mut AlsActualMotion>,
         ),
@@ -59,7 +58,8 @@ fn snapshot_actual_motion_system(
     >,
 ) {
     for (entity, velocity, transform, current) in &mut characters {
-        let next = AlsActualMotion::from_physics_velocity(velocity.0, transform.rotation);
+        let next =
+            AlsActualMotion::from_physics_velocity(velocity.world_velocity, transform.rotation);
         if let Some(mut current) = current {
             *current = next;
         } else {
@@ -82,7 +82,10 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::default(),
-                LinearVelocity(Vec3::NEG_Z),
+                AlsActualVelocity {
+                    world_velocity: Vec3::NEG_Z,
+                    horizontal_speed: 1.0,
+                },
             ))
             .id();
         let second = app
@@ -90,7 +93,10 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
-                LinearVelocity(Vec3::NEG_X),
+                AlsActualVelocity {
+                    world_velocity: Vec3::NEG_X,
+                    horizontal_speed: 1.0,
+                },
             ))
             .id();
 
@@ -105,7 +111,7 @@ mod tests {
 
         app.world_mut()
             .entity_mut(first)
-            .insert(LinearVelocity::ZERO);
+            .insert(AlsActualVelocity::default());
         app.world_mut().run_schedule(FixedPostUpdate);
 
         let stopped_motion = *app.world().get::<AlsActualMotion>(first).unwrap();

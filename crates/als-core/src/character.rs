@@ -35,6 +35,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::dynamics::AlsLandingBrakingFriction)]
 #[require(AlsCmcAdapterRuntime)]
 #[require(crate::motion::AlsAimingYawConstraint)]
+#[require(crate::motion::AlsActualVelocity)]
 #[require(crate::foot_ik::AlsFootLockSettings)]
 #[require(crate::foot_ik::AlsDynamicTransitionState)]
 #[require(AlsDesiredStance)]

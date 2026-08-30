@@ -4,10 +4,10 @@ use als_core::gait::{
 };
 use als_core::input::AlsInputCommand;
 use als_core::input_request::{AlsFirstPersonView, AlsInputRequestPlugin, AlsSprintPrev};
+use als_core::motion::AlsActualVelocity;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
-use avian3d::prelude::LinearVelocity;
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
 
@@ -38,7 +38,7 @@ fn main() {
             AlsDesiredGait(Gait::Running),
             AlsMaxAllowedGait(Gait::Running),
             AlsGaitAmount::default(),
-            LinearVelocity::default(),
+            AlsActualVelocity::default(),
             AlsMovementParamsHandle(params),
             AlsInputCommand::default(),
             AlsStateRequest::default(),
@@ -51,14 +51,20 @@ fn main() {
 
     app.world_mut()
         .entity_mut(entity)
-        .insert(LinearVelocity(Vec3::new(1.84, 0.0, 0.0)));
+        .insert(AlsActualVelocity {
+            world_velocity: Vec3::new(1.84, 0.0, 0.0),
+            horizontal_speed: 1.84,
+        });
     app.update();
     let walk_threshold = snapshot(&app, entity);
     assert_eq!(walk_threshold.2, Gait::Walking);
 
     app.world_mut()
         .entity_mut(entity)
-        .insert(LinearVelocity(Vec3::new(1.86, 0.0, 0.0)));
+        .insert(AlsActualVelocity {
+            world_velocity: Vec3::new(1.86, 0.0, 0.0),
+            horizontal_speed: 1.86,
+        });
     app.update();
     let run_threshold = snapshot(&app, entity);
     assert_eq!(run_threshold.2, Gait::Running);
@@ -71,7 +77,10 @@ fn main() {
                 move_dir: Vec2::X,
                 ..default()
             },
-            LinearVelocity(Vec3::new(4.0, 0.0, 0.0)),
+            AlsActualVelocity {
+                world_velocity: Vec3::new(4.0, 0.0, 0.0),
+                horizontal_speed: 4.0,
+            },
         ));
     }
     app.update();

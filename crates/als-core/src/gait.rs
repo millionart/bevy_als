@@ -1,4 +1,3 @@
-use avian3d::prelude::LinearVelocity;
 use bevy::asset::Assets;
 use bevy::prelude::*;
 
@@ -8,7 +7,7 @@ use crate::aim::{
 use crate::character::{AlsCharacter, AlsMovementParamsHandle};
 use crate::input::AlsInputCommand;
 use crate::input_request::AlsFirstPersonView;
-use crate::motion::{AlsInputOverride, AlsViewYaw};
+use crate::motion::{AlsActualVelocity, AlsInputOverride, AlsViewYaw};
 use crate::params::{AlsMovementParams, GaitSpeedThresholds, StanceGaitSpeeds};
 use crate::state::{Gait, LocomotionState, RotationMode, Stance};
 use crate::stride_curves::{stride_curve_run, stride_curve_walk};
@@ -265,7 +264,7 @@ pub fn refresh_gait_system(
             &mut AlsMaxAllowedGait,
             &mut AlsGaitAmount,
             &mut Gait,
-            &LinearVelocity,
+            &AlsActualVelocity,
             &AlsMovementParamsHandle,
         ),
         With<AlsCharacter>,
@@ -287,7 +286,7 @@ pub fn refresh_gait_system(
         mut max_allowed,
         mut gait_amount,
         mut gait,
-        velocity,
+        actual_velocity,
         params_handle,
     ) in &mut q
     {
@@ -310,9 +309,13 @@ pub fn refresh_gait_system(
             input.move_dir,
             input.aim_held,
         );
-        let speed = Vec2::new(velocity.x, velocity.z).length();
-        let thresholds =
-            params.gait_speed_thresholds(*stance, *rotation_mode, velocity.0, view_yaw.0);
+        let speed = actual_velocity.horizontal_speed;
+        let thresholds = params.gait_speed_thresholds(
+            *stance,
+            *rotation_mode,
+            actual_velocity.world_velocity,
+            view_yaw.0,
+        );
         max_allowed.0 = allowed;
         gait_amount.0 = calculate_gait_amount_for_thresholds(speed, thresholds);
         let actual = calculate_actual_gait_for_thresholds(speed, allowed, thresholds);
@@ -515,7 +518,10 @@ mod tests {
                 AlsMaxAllowedGait(Gait::Running),
                 AlsGaitAmount::default(),
                 Gait::Walking,
-                LinearVelocity(Vec3::Z * 1.2),
+                AlsActualVelocity {
+                    world_velocity: Vec3::Z * 1.2,
+                    horizontal_speed: 1.2,
+                },
                 AlsMovementParamsHandle(handle),
             ))
             .id();
@@ -531,5 +537,65 @@ mod tests {
         );
         assert_eq!(*gait, Gait::Running);
         assert!((amount.0 - 1.2).abs() < 1e-6);
+    }
+
+    #[test]
+    fn refresh_gait_uses_final_velocity_and_rechecks_sprint_permission() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Assets::<AlsMovementParams>::default())
+            .add_message::<StateTransitionEvent>()
+            .add_systems(Update, refresh_gait_system);
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                LocomotionState::Grounded,
+                Stance::Standing,
+                RotationMode::VelocityDirection,
+                AlsViewYaw::default(),
+                AlsInputCommand {
+                    move_dir: Vec2::X,
+                    ..default()
+                },
+                AlsDesiredGait(Gait::Sprinting),
+                AlsMaxAllowedGait::default(),
+                AlsGaitAmount::default(),
+                Gait::Walking,
+                AlsActualVelocity::default(),
+                AlsMovementParamsHandle(handle),
+            ))
+            .id();
+
+        app.update();
+        assert_eq!(
+            app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,
+            Gait::Sprinting
+        );
+        assert_eq!(*app.world().get::<Gait>(entity).unwrap(), Gait::Walking);
+
+        *app.world_mut()
+            .get_mut::<AlsActualVelocity>(entity)
+            .unwrap() = AlsActualVelocity {
+            world_velocity: Vec3::NEG_Z * 6.5,
+            horizontal_speed: 6.5,
+        };
+        app.update();
+        assert_eq!(*app.world().get::<Gait>(entity).unwrap(), Gait::Sprinting);
+
+        app.world_mut()
+            .get_mut::<AlsInputCommand>(entity)
+            .unwrap()
+            .move_dir = Vec2::ZERO;
+        app.update();
+        assert_eq!(
+            app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,
+            Gait::Running
+        );
+        assert_eq!(*app.world().get::<Gait>(entity).unwrap(), Gait::Running);
     }
 }
