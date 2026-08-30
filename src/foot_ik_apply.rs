@@ -19,6 +19,7 @@ use bevy_animation_graph::core::systems::apply_animation_to_targets;
 use crate::character_assembly::AlsCharacterAvatar;
 
 const FOOT_OFFSET_NORMAL_HALF_LIFE: f32 = 0.1;
+const FOOT_MAX_LEG_STRETCH_RATIO: f32 = 0.99;
 
 #[derive(Component, Debug, Clone, Copy)]
 struct FootOffsetRotationState {
@@ -358,12 +359,6 @@ fn foot_ik_apply_system(
                 }
             }
         }
-        let pelvis_world_offset = apply_pelvis_drop(
-            bones.left_thigh,
-            runtime.pelvis_drop,
-            &mut bone_locals,
-            &bone_globals,
-        );
         for side in 0..2usize {
             let Ok(target) = bone_globals.get(bones.target(side)) else {
                 continue;
@@ -423,6 +418,12 @@ fn foot_ik_apply_system(
             lock_input.moving_smooth,
             targets.grounded,
             dt,
+        );
+        let pelvis_world_offset = apply_pelvis_drop(
+            bones.left_thigh,
+            runtime.pelvis_drop,
+            &mut bone_locals,
+            &bone_globals,
         );
         dynamic_transition.update(
             &lock_state,
@@ -561,6 +562,11 @@ fn apply_chain_offset(
         ankle_before_pelvis_drop + offset,
         settings.thigh_angle_limit_degrees,
     );
+    let target = limit_leg_stretch(
+        hip,
+        target,
+        (upper_len + lower_len) * FOOT_MAX_LEG_STRETCH_RATIO,
+    );
 
     let Some(solve) = solve_two_bone_ik(hip, knee, ankle, target, upper_len, lower_len, pole)
     else {
@@ -600,6 +606,16 @@ fn apply_chain_offset(
 
 fn foot_local_rotation(parent_world_rotation: Quat, foot_world_rotation: Quat) -> Quat {
     world_rotation_to_local(parent_world_rotation, foot_world_rotation)
+}
+
+fn limit_leg_stretch(hip: Vec3, target: Vec3, max_length: f32) -> Vec3 {
+    let offset = target - hip;
+    let length = offset.length();
+    if length > max_length && length > f32::EPSILON {
+        hip + offset * (max_length / length)
+    } else {
+        target
+    }
 }
 
 fn pelvis_adjusted_position(position: Vec3, pelvis_world_offset: Vec3) -> Vec3 {

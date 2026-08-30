@@ -407,9 +407,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`dynamic_transition_detects_horizontal_lock_drift_and_respects_gates` 输出 `[BF102.44][VERDICT] horizontal_distance_squared=0.014400 blocked=true first=Some(StandingLeft) reentry=(true,true,true) -> PASS`；真实 Gate 输出 `selection=Some(...StandingLeft... play_rate: 1.5, blend_duration: 0.2...) ... delay=2 -> PASS`，其后两帧均 blocked。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（213 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example bf_char18_dynamic_transition_gate --jobs 2` 通过；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.45 — I07：脚高/骨盆跟随使用源弹簧状态响应（P2）**
+- [x] **BF102.45 — I07：脚高/骨盆跟随使用源弹簧状态响应（P2）**
   - 依赖：BF102.32、BF102.41。
   - 验收：阶梯高度突变和不同帧率下的足端/骨盆响应符合可复查的弹簧状态轨迹。
+  - 当次 ALS 事实：实时读取 `AlsRigUnit_ApplyFootOffsetLocation` 和 `UAlsMath::SpringDamperFloat`：脚偏移保存 velocity／previous target 状态，以频率和阻尼比积分，首帧直接从 target 初始化；位置随后受最小骨盆距离与 0.99 最大腿伸展限制。实时 Unreal MCP 读取实际 `CR_Als` 节点：脚为 frequency `12`、damping ratio `2`、target velocity amount `0`；骨盆 `SpringInterpV2` 为 strength `2` Hz、critical damping `1`、target velocity amount `0`、初始化自 target。
+  - 实现：项目侧将脚偏移和骨盆下移从速度上限线性追踪替换为独立的 ALS 状态弹簧，保留 velocity／previous target；骨盆在同帧脚偏移更新后、双腿 IK 前应用；IK target 追加 0.99 最大腿伸展限制。
+  - 证据：`foot_offset_and_pelvis_follow_source_spring_trajectory` 输出 `[BF102.45][VERDICT] first30=-0.090121 first120=-0.019400 foot30=-0.199996 foot120=-0.199993 pelvis30=-0.196526 pelvis120=-0.194899 legacy_first=-0.200000 -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（214 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 ### 攀爬、翻滚与布娃娃动作闭环
 

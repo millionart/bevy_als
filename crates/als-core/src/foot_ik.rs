@@ -29,9 +29,11 @@ pub const FOOT_LOCK_NOT_GROUNDED_DECREASE_PER_SECOND: f32 = 0.6;
 pub const FOOT_LOCK_RELEVANCE_THRESHOLD: f32 = 1e-4;
 pub const FOOT_LOCK_TELEPORT_WINDOW_SECONDS: f32 = 0.2;
 
-const PELVIS_INTERP_SPEED: f32 = 12.0;
-const FOOT_INTERP_SPEED: f32 = 18.0;
 const WEIGHT_BLEND_SPEED: f32 = 10.0;
+const FOOT_OFFSET_SPRING_FREQUENCY_HZ: f32 = 12.0;
+const FOOT_OFFSET_SPRING_DAMPING_RATIO: f32 = 2.0;
+const PELVIS_OFFSET_SPRING_FREQUENCY_HZ: f32 = 2.0;
+const PELVIS_OFFSET_SPRING_DAMPING_RATIO: f32 = 1.0;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsFootLockSettings {
@@ -363,18 +365,105 @@ impl Default for FootSideInput {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
+struct SpringFloatState {
+    velocity: f32,
+    previous_target: f32,
+    valid: bool,
+}
+
+fn spring_damper_float(
+    state: &mut SpringFloatState,
+    current: f32,
+    target: f32,
+    delta_seconds: f32,
+    frequency_hz: f32,
+    damping_ratio: f32,
+    target_velocity_amount: f32,
+) -> f32 {
+    if delta_seconds <= f32::EPSILON {
+        return current;
+    }
+    if !state.valid {
+        state.velocity = 0.0;
+        state.previous_target = target;
+        state.valid = true;
+        return target;
+    }
+    let target_velocity =
+        (target - state.previous_target) * target_velocity_amount.clamp(0.0, 1.0) / delta_seconds;
+    let angular_frequency = frequency_hz.max(0.0) * std::f32::consts::TAU;
+    if angular_frequency <= f32::EPSILON {
+        state.previous_target = target;
+        return current + state.velocity * delta_seconds;
+    }
+    let damping_ratio = damping_ratio.max(0.0);
+    if damping_ratio <= f32::EPSILON {
+        let error = current - target;
+        let velocity_scaled = state.velocity / angular_frequency;
+        let angle = angular_frequency * delta_seconds;
+        let (sin, cos) = angle.sin_cos();
+        let value = target + error * cos + velocity_scaled * sin;
+        state.velocity = state.velocity * cos - error * angular_frequency * sin;
+        state.previous_target = target;
+        return value;
+    }
+    let smoothing_time = 2.0 / angular_frequency;
+    let adjusted_target = target + target_velocity * damping_ratio * smoothing_time;
+    let error = current - adjusted_target;
+    let (value, velocity) = if damping_ratio > 1.0 {
+        let damped_frequency = angular_frequency * (damping_ratio * damping_ratio - 1.0).sqrt();
+        let c2 = -(state.velocity + (angular_frequency * damping_ratio - damped_frequency) * error)
+            / (2.0 * damped_frequency);
+        let c1 = error - c2;
+        let a1 = damped_frequency - damping_ratio * angular_frequency;
+        let a2 = -(damped_frequency + damping_ratio * angular_frequency);
+        let e1 = (a1 * delta_seconds).exp();
+        let e2 = (a2 * delta_seconds).exp();
+        (
+            adjusted_target + e1 * c1 + e2 * c2,
+            e1 * c1 * a1 + e2 * c2 * a2,
+        )
+    } else if damping_ratio < 1.0 {
+        let damped_frequency = angular_frequency * (1.0 - damping_ratio * damping_ratio).sqrt();
+        let b = (state.velocity + error * damping_ratio * angular_frequency) / damped_frequency;
+        let angle = damped_frequency * delta_seconds;
+        let (sin, cos) = angle.sin_cos();
+        let decay = (-damping_ratio * angular_frequency * delta_seconds).exp();
+        let displacement = decay * (error * cos + b * sin);
+        (
+            adjusted_target + displacement,
+            -displacement * damping_ratio * angular_frequency
+                + decay * (b * damped_frequency * cos - error * damped_frequency * sin),
+        )
+    } else {
+        let c1 = error;
+        let c2 = state.velocity + error * angular_frequency;
+        let decay = (-angular_frequency * delta_seconds).exp();
+        (
+            adjusted_target + (c1 + c2 * delta_seconds) * decay,
+            (c2 - c1 * angular_frequency - c2 * angular_frequency * delta_seconds) * decay,
+        )
+    };
+    state.velocity = velocity;
+    state.previous_target = target;
+    value
+}
+
+#[derive(Debug, Clone, Copy, Default)]
 struct SideRuntime {
     offset: f32,
     target_offset: f32,
     ik_weight: f32,
     pin_weight: f32,
     locked_offset: Option<f32>,
+    offset_spring: SpringFloatState,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsFootIkRuntime {
     left: SideRuntime,
     right: SideRuntime,
+    pelvis_spring: SpringFloatState,
     pub pelvis_drop: f32,
 }
 
@@ -488,7 +577,15 @@ fn step_side(
     let base = rt.target_offset;
     let target = base + (locked - base) * rt.pin_weight;
 
-    rt.offset = move_toward_cap(rt.offset, target, FOOT_INTERP_SPEED * dt);
+    rt.offset = spring_damper_float(
+        &mut rt.offset_spring,
+        rt.offset,
+        target,
+        dt,
+        FOOT_OFFSET_SPRING_FREQUENCY_HZ,
+        FOOT_OFFSET_SPRING_DAMPING_RATIO,
+        0.0,
+    );
     rt.offset
 }
 
@@ -565,7 +662,8 @@ impl AlsFootIkRuntime {
             grounded,
             dt,
         );
-        self.pelvis_drop = move_toward_cap(
+        self.pelvis_drop = spring_damper_float(
+            &mut self.pelvis_spring,
             self.pelvis_drop,
             pelvis_drop(
                 off_left,
@@ -573,7 +671,10 @@ impl AlsFootIkRuntime {
                 self.left.ik_weight,
                 self.right.ik_weight,
             ),
-            PELVIS_INTERP_SPEED * dt,
+            dt,
+            PELVIS_OFFSET_SPRING_FREQUENCY_HZ,
+            PELVIS_OFFSET_SPRING_DAMPING_RATIO,
+            0.0,
         );
         (off_left, off_right, self.pelvis_drop)
     }
@@ -1273,5 +1374,44 @@ mod tests {
             (drop + 0.20).abs() < 1e-2,
             "settles at min side, got {drop}"
         );
+    }
+
+    #[test]
+    fn foot_offset_and_pelvis_follow_source_spring_trajectory() {
+        fn response(delta_seconds: f32) -> (f32, f32, f32) {
+            let mut runtime = AlsFootIkRuntime::default();
+            let flat = FootSideInput::default();
+            let step = FootSideInput {
+                raw_offset: -0.20,
+                pin_request: false,
+            };
+            runtime.update(&flat, &flat, 1.0, delta_seconds);
+            runtime.left.ik_weight = 1.0;
+            runtime.right.ik_weight = 1.0;
+            let (first, _, _) = runtime.update(&step, &step, 1.0, delta_seconds);
+            let steps = (0.5 / delta_seconds).round() as usize;
+            for _ in 1..steps {
+                runtime.update(&step, &step, 1.0, delta_seconds);
+            }
+            let (foot, _, pelvis) = runtime.update(&step, &step, 1.0, delta_seconds);
+            (first, foot, pelvis)
+        }
+
+        let (first_30, foot_30, pelvis_30) = response(1.0 / 30.0);
+        let (first_120, foot_120, pelvis_120) = response(1.0 / 120.0);
+        let legacy_first = -0.20;
+        let passed = first_30 > legacy_first + 1e-3
+            && first_120 > legacy_first + 1e-3
+            && pelvis_30 > foot_30
+            && pelvis_120 > foot_120
+            && (foot_30 - foot_120).abs() < 2e-3
+            && (pelvis_30 - pelvis_120).abs() < 2e-3
+            && (foot_30 + 0.20).abs() < 2e-3
+            && (pelvis_30 + 0.20).abs() < 6e-3;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.45][VERDICT] first30={first_30:.6} first120={first_120:.6} foot30={foot_30:.6} foot120={foot_120:.6} pelvis30={pelvis_30:.6} pelvis120={pelvis_120:.6} legacy_first={legacy_first:.6} -> {verdict}"
+        );
+        assert!(passed);
     }
 }
