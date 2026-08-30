@@ -12,6 +12,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 
 use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::standing_layer::AlsStandingGraphTelemetry;
 
 #[derive(Resource, Clone, Copy)]
 pub struct AnimProbeConfig {
@@ -55,6 +56,28 @@ pub fn angle_err(a: f32, b: f32) -> f32 {
     if d > 180.0 { 360.0 - d } else { d }
 }
 
+fn standing_movement_state_label(value: Option<u8>) -> &'static str {
+    match value {
+        Some(0) => "Forward",
+        Some(1) => "Backward",
+        Some(2) => "RightForward",
+        Some(3) => "RightBackward",
+        Some(4) => "LeftForward",
+        Some(5) => "LeftBackward",
+        _ => "Inactive",
+    }
+}
+
+fn movement_detail_label(value: Option<u8>) -> &'static str {
+    match value {
+        Some(0) => "Forward",
+        Some(1) => "Backward",
+        Some(2) => "Left",
+        Some(3) => "Right",
+        _ => "Inactive",
+    }
+}
+
 type ProbeCharacters = (
     Entity,
     &'static Transform,
@@ -67,6 +90,7 @@ type ProbeCharacters = (
     &'static RotationMode,
     &'static AlsViewYaw,
     Option<&'static AlsMovementParamsHandle>,
+    Option<&'static AlsStandingGraphTelemetry>,
 );
 
 type ProbeAvatars = (
@@ -112,6 +136,7 @@ fn anim_probe_logger(
         rot,
         view_yaw,
         params_h,
+        standing_telemetry,
     )) = characters.single()
     else {
         return;
@@ -144,6 +169,24 @@ fn anim_probe_logger(
     let dir_name = dir_state
         .map(|s| format!("{:?}", s.direction))
         .unwrap_or_else(|| "None".into());
+    let fsm_state = standing_movement_state_label(
+        standing_telemetry.and_then(|telemetry| telemetry.actual_movement_state),
+    );
+    let fsm_detail = movement_detail_label(
+        standing_telemetry.and_then(|telemetry| telemetry.dominant_detail_index),
+    );
+    let fsm_transition_active = standing_telemetry
+        .and_then(|telemetry| telemetry.actual_movement_transition_active)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "?".into());
+    let fsm_pose_ready = standing_telemetry
+        .and_then(|telemetry| telemetry.actual_movement_pose_ready)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "?".into());
+    let dominant_weight = standing_telemetry
+        .and_then(|telemetry| telemetry.dominant_detail_weight)
+        .map(|value| format!("{value:.2}"))
+        .unwrap_or_else(|| "?".into());
 
     let (src_name, is_graph) = match player.get_animation_source() {
         AnimationSource::Graph(_) => ("Graph", true),
@@ -164,7 +207,7 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,

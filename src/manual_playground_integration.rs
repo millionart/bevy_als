@@ -42,6 +42,7 @@ use crate::show_debug_hud::{
     AlsShowDebugHudRoot, AlsShowDebugHudState, DebugCategory, apply_show_debug_key,
 };
 use crate::stance_layer::AlsStanceBlend;
+use crate::standing_layer::AlsStandingGraphTelemetry;
 use crate::turn_layer::AlsTurnDrive;
 use crate::{
     air_jump_layer::AlsJumpVariantState,
@@ -131,6 +132,7 @@ struct IntegrationCoverage {
     locomotion: bool,
     backward: bool,
     sideways: bool,
+    standing_graph: bool,
     crouching: bool,
     sprinting: bool,
     airborne: bool,
@@ -1079,6 +1081,7 @@ fn observe_manual_integration(
         ),
         With<AlsCharacter>,
     >,
+    standing_telemetry: Query<&AlsStandingGraphTelemetry, With<AlsCharacter>>,
     action: Query<
         (
             Option<&AlsMantleState>,
@@ -1138,6 +1141,7 @@ fn observe_manual_integration(
     else {
         return;
     };
+    let standing_graph = standing_telemetry.get(character).ok();
     let Ok((
         mantle,
         roll,
@@ -1173,6 +1177,30 @@ fn observe_manual_integration(
         && player.get_error().is_none();
     if !source_ready {
         state.coverage.graph = false;
+    }
+    let standing_graph_live = standing_graph.is_some_and(|telemetry| {
+        (telemetry.actual_movement_state.is_some()
+            || telemetry.actual_movement_transition_active == Some(true))
+            && telemetry.actual_movement_pose_ready == Some(true)
+            && telemetry.dominant_detail_index.is_some()
+            && telemetry
+                .dominant_detail_weight
+                .is_some_and(|weight| (0.0..=1.0).contains(&weight))
+    });
+    if *stance == Stance::Standing && speed > 0.5 && source_ready && standing_graph_live {
+        if !state.coverage.standing_graph
+            && let Some(telemetry) = standing_graph
+        {
+            info!(
+                "[MANUAL-INTEGRATION][STANDING-GRAPH] fsm_state={:?} transition_active={} pose_ready={} dominant_branch={:?} dominant_weight={:.3}",
+                telemetry.actual_movement_state,
+                telemetry.actual_movement_transition_active.unwrap_or(false),
+                telemetry.actual_movement_pose_ready.unwrap_or(false),
+                telemetry.dominant_detail_index,
+                telemetry.dominant_detail_weight.unwrap_or_default(),
+            );
+        }
+        state.coverage.standing_graph = true;
     }
     for event in animation_events
         .read()
@@ -1527,6 +1555,7 @@ fn observe_manual_integration(
                 ("locomotion", coverage.locomotion),
                 ("direction_backward", coverage.backward),
                 ("direction_sideways", coverage.sideways),
+                ("standing_graph", coverage.standing_graph),
                 ("stance_crouching", coverage.crouching),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),

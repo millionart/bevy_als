@@ -12,17 +12,23 @@ use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use std::sync::LazyLock;
 
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
-    advance_marker_sync_phase, build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
+    AlphaBlendMode, AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState,
+    SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
+    build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_graph::AnimationGraph;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
+use bevy_animation_graph::core::state_machine::{
+    high_level::StateMachine, low_level::LowLevelStateId,
+};
 
 use crate::actual_motion::AlsActualMotion;
 use crate::animation_events::AlsStandingEventClock;
@@ -121,6 +127,7 @@ const TURN_RIGHT_180_CURVE_ASSET: &str =
     "animations/TurnInPlace/A_Als_Turn_180_Right.gltf#AlsCurves";
 const QUICK_STOP_LEFT_CURVE_ASSET: &str = "animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
 const QUICK_STOP_RIGHT_CURVE_ASSET: &str = "animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
+const STANDING_MOVE_GRAPH: &str = "graphs/ab_als/stances/standing/state_move.animgraph.ron";
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsStandingLayerSet;
@@ -147,6 +154,7 @@ struct StandingCurveHandles {
     turn_right_180: Handle<AlsAnimCurves>,
     quick_stop_left: Handle<AlsAnimCurves>,
     quick_stop_right: Handle<AlsAnimCurves>,
+    movement_graph: Handle<AnimationGraph>,
     skeleton: Handle<Skeleton>,
     stop_left_leg_mask: Option<BoneMask>,
     stop_right_leg_mask: Option<BoneMask>,
@@ -531,6 +539,15 @@ struct StandingGraphInputs {
     quick_stop_notify: bool,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsStandingGraphTelemetry {
+    pub actual_movement_state: Option<u8>,
+    pub actual_movement_transition_active: Option<bool>,
+    pub actual_movement_pose_ready: Option<bool>,
+    pub dominant_detail_index: Option<u8>,
+    pub dominant_detail_weight: Option<f32>,
+}
+
 pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
@@ -548,6 +565,10 @@ impl Plugin for StandingLayerPlugin {
             (pivot_notify_system, standing_layer_writer)
                 .chain()
                 .in_set(AlsStandingLayerSet),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            capture_standing_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }
 }
@@ -575,6 +596,7 @@ fn load_standing_curve_assets(mut commands: Commands, assets: Res<AssetServer>) 
         turn_right_180: assets.load(TURN_RIGHT_180_CURVE_ASSET),
         quick_stop_left: assets.load(QUICK_STOP_LEFT_CURVE_ASSET),
         quick_stop_right: assets.load(QUICK_STOP_RIGHT_CURVE_ASSET),
+        movement_graph: assets.load(STANDING_MOVE_GRAPH),
         skeleton: assets.load(STANDING_SKELETON),
         stop_left_leg_mask: None,
         stop_right_leg_mask: None,
@@ -1682,6 +1704,125 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
     }
 }
 
+fn actual_movement_fsm_telemetry(
+    player: &AnimationGraphPlayer,
+    graph: &AnimationGraph,
+    graph_handle: &Handle<AnimationGraph>,
+    state_machines: &Assets<StateMachine>,
+) -> Option<(Option<u8>, bool, bool)> {
+    let node = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "standing movement states")?;
+    let fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
+    let state_machine = state_machines.get(&fsm.fsm)?;
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().find_map(|context_id| {
+        let context = arena.get_context(context_id)?;
+        if context.get_graph_id() != graph_handle.id() {
+            return None;
+        }
+        let state = context
+            .node_states
+            .get::<InterruptibleFsmState>(node.id, StateKey::Default)
+            .ok()?;
+        let actual_state = match &state.state {
+            LowLevelStateId::HlState(state) => {
+                state_machine
+                    .states
+                    .get(state)
+                    .and_then(|state| match state.label.as_str() {
+                        "Move Forward" => Some(0),
+                        "Move Backward" => Some(1),
+                        "Move Right Forward" => Some(2),
+                        "Move Right Backward" => Some(3),
+                        "Move Left Forward" => Some(4),
+                        "Move Left Backward" => Some(5),
+                        _ => None,
+                    })
+            }
+            LowLevelStateId::HlTransition(_) => None,
+        };
+        let transition_active = matches!(state.state, LowLevelStateId::HlTransition(_));
+        Some((
+            actual_state,
+            transition_active,
+            state.last_output_pose().is_some(),
+        ))
+    })
+}
+
+fn standing_dominant_branch(player: &AnimationGraphPlayer) -> (Option<u8>, Option<f32>) {
+    let keys = [
+        "als_standing_velocity_forward_amount",
+        "als_standing_velocity_backward_amount",
+        "als_standing_velocity_left_amount",
+        "als_standing_velocity_right_amount",
+    ];
+    let mut total = 0.0;
+    let mut dominant_index = None;
+    let mut dominant_weight = 0.0;
+    for (index, key) in keys.into_iter().enumerate() {
+        let weight = player
+            .get_global_input_data(key)
+            .and_then(|value| value.as_f32().ok())
+            .filter(|weight| weight.is_finite() && *weight > 0.0)
+            .unwrap_or(0.0);
+        total += weight;
+        if weight > dominant_weight {
+            dominant_index = Some(index as u8);
+            dominant_weight = weight;
+        }
+    }
+    if total <= f32::EPSILON {
+        (None, None)
+    } else {
+        (dominant_index, Some(dominant_weight / total))
+    }
+}
+
+fn capture_standing_graph_telemetry(
+    mut commands: Commands,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
+    graph_assets: Res<Assets<AnimationGraph>>,
+    state_machines: Res<Assets<StateMachine>>,
+    curve_handles: Res<StandingCurveHandles>,
+    mut characters: Query<Option<&mut AlsStandingGraphTelemetry>, With<AlsCharacter>>,
+) {
+    for (parent, instance) in &avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
+            continue;
+        };
+        let actual = graph_assets
+            .get(&curve_handles.movement_graph)
+            .and_then(|graph| {
+                actual_movement_fsm_telemetry(
+                    player,
+                    graph,
+                    &curve_handles.movement_graph,
+                    &state_machines,
+                )
+            });
+        let (dominant_detail_index, dominant_detail_weight) = standing_dominant_branch(player);
+        let telemetry = AlsStandingGraphTelemetry {
+            actual_movement_state: actual.and_then(|value| value.0),
+            actual_movement_transition_active: actual.map(|value| value.1),
+            actual_movement_pose_ready: actual.map(|value| value.2),
+            dominant_detail_index,
+            dominant_detail_weight,
+        };
+        let Ok(current) = characters.get_mut(parent.parent()) else {
+            continue;
+        };
+        if let Some(mut current) = current {
+            *current = telemetry;
+        } else {
+            commands.entity(parent.parent()).insert(telemetry);
+        }
+    }
+}
+
 fn write_stop_leg_masks(player: &mut AnimationGraphPlayer, handles: &StandingCurveHandles) {
     let left = handles
         .stop_left_leg_mask
@@ -1892,6 +2033,18 @@ mod tests {
         assert!((blend.right - 0.5).abs() < 1e-6);
         assert_eq!(blend.backward, 0.0);
         assert_eq!(blend.left, 0.0);
+    }
+
+    #[test]
+    fn standing_graph_telemetry_uses_active_multiway_weights() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("als_standing_velocity_forward_amount", 1.0);
+        player.set_global_input_data("als_standing_velocity_backward_amount", f32::NAN);
+        player.set_global_input_data("als_standing_velocity_left_amount", -2.0);
+        player.set_global_input_data("als_standing_velocity_right_amount", 3.0);
+        let (index, weight) = standing_dominant_branch(&player);
+        assert_eq!(index, Some(3));
+        assert!((weight.unwrap() - 0.75).abs() < 1e-6);
     }
 
     #[test]
