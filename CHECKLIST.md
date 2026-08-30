@@ -536,8 +536,8 @@ BF102.58 网络范围 ─► BF102.Gate
   - 验收：58 个 ID 各有“当前已修复／确认待修复／条件性不适用或待证”三态记录；每个确认缺陷有独立修复提交和真实运行 verdict；未执行项不得宣称完成。
   - [ ] **BF102.Gate.a — manual_playground 真实入口集成验收（待执行）**
     - 依赖：BF102.01–BF102.58。
-    - 验收：通过 `run_manual.bat` 启动当前源码的 `manual_playground` 时，记录完整 runtime 装配，至少覆盖 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin` 及其关键子系统；以可重复触发的自动场景或 HUD/probe 覆盖 Mantle、Roll、Foot IK、移动基座、Ragdoll、相机等关键 BF102 路径。
-    - 证据：每个 probe 必须记录“已执行”或“未覆盖”状态及真实运行日志；不得以“插件已注册”代替行为验证。此条目的目标是补足单点 Gate 与用户真实试玩入口之间的集成覆盖缺口。
+    - 验收：通过 `run_manual.bat` 启动当前源码的 `manual_playground` 时，记录完整 runtime 装配，至少覆盖 `AlsPlayableCharacterPlugin`、`AlsCharacterRuntimePlugin` 及其关键子系统；建立当前全部已实现运行时功能、修复和动画图的覆盖清单，并以可重复触发的自动场景、HUD 或 probe 验证每项实际行为。覆盖范围不限于 BF102 的单点缺陷，至少包含 Mantle、Roll、Foot IK、移动基座、Ragdoll、相机及所有已接入动画图。
+    - 证据：每个功能／图 probe 必须记录“已执行”或“未覆盖”状态及真实运行日志；不得以“插件已注册”、组件存在或静态图文件代替行为验证。任一未覆盖项使本 Gate 失败，直至补齐真实入口行为；此条目用于确保用户可从真实试玩入口测试所有已完成的功能，而非只测试独立 Gate。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
