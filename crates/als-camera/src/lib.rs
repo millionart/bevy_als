@@ -9,6 +9,7 @@ use bevy::time::{Real, Virtual};
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use serde::{Deserialize, Serialize};
 
+use als_core::aim::AlsLastFreeRotationMode;
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::motion::AlsViewYaw;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
@@ -511,7 +512,10 @@ impl Plugin for AlsCameraPlugin {
             .add_systems(Update, ensure_camera_curve_profile_values)
             .add_systems(
                 Update,
-                source_camera_curve_profile_system.after(ensure_camera_curve_profile_values),
+                source_camera_curve_profile_system
+                    .after(ensure_camera_curve_profile_values)
+                    .after(als_core::input_request::input_state_request_system)
+                    .after(als_core::transition::state_transition_system),
             )
             .add_systems(Update, ensure_camera_notify_timeline)
             .add_systems(
@@ -636,6 +640,7 @@ fn source_camera_curve_profile_system(
         (
             &RotationMode,
             Has<als_core::input_request::AlsFirstPersonView>,
+            Option<&AlsLastFreeRotationMode>,
             Option<&AlsCameraCustomTimeDilation>,
             &mut AlsCameraCurveValues,
             &mut AlsCameraCurveProfileRuntime,
@@ -649,9 +654,21 @@ fn source_camera_curve_profile_system(
     let Some((_, params)) = params_assets.iter().next() else {
         return;
     };
-    for (rotation_mode, first_person, custom_time_dilation, mut values, mut runtime) in &mut targets
+    for (
+        rotation_mode,
+        first_person,
+        desired_rotation_mode,
+        custom_time_dilation,
+        mut values,
+        mut runtime,
+    ) in &mut targets
     {
-        let mut target = match rotation_mode {
+        let profile_rotation_mode = camera_profile_rotation_mode(
+            *rotation_mode,
+            first_person,
+            desired_rotation_mode.copied(),
+        );
+        let mut target = match profile_rotation_mode {
             RotationMode::VelocityDirection => profiles.velocity_direction,
             RotationMode::ViewDirection => profiles.view_direction,
             RotationMode::Aiming => profiles.aiming,
@@ -666,6 +683,18 @@ fn source_camera_curve_profile_system(
             custom_time_dilation.map_or(1.0, |dilation| dilation.0),
         );
         advance_camera_curve_profile(&mut runtime, &mut values, target, delta_seconds);
+    }
+}
+
+fn camera_profile_rotation_mode(
+    rotation_mode: RotationMode,
+    first_person: bool,
+    desired_rotation_mode: Option<AlsLastFreeRotationMode>,
+) -> RotationMode {
+    if first_person {
+        desired_rotation_mode.map_or(rotation_mode, |desired| desired.0)
+    } else {
+        rotation_mode
     }
 }
 
@@ -1868,6 +1897,24 @@ mod tests {
         println!(
             "[BF102.54][VERDICT] profile_delta={profile_delta:.6} rig_delta={rig_delta:.6} elapsed={:.6} value={:.6} -> {verdict}",
             profile.elapsed, values.values[0],
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn first_person_profile_uses_the_desired_rotation_mode() {
+        let desired = AlsLastFreeRotationMode(RotationMode::VelocityDirection);
+        let first_person =
+            camera_profile_rotation_mode(RotationMode::ViewDirection, true, Some(desired));
+        let third_person =
+            camera_profile_rotation_mode(RotationMode::ViewDirection, false, Some(desired));
+        let missing_desired = camera_profile_rotation_mode(RotationMode::Aiming, true, None);
+        let passed = first_person == RotationMode::VelocityDirection
+            && third_person == RotationMode::ViewDirection
+            && missing_desired == RotationMode::Aiming;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.55][VERDICT] first_person={first_person:?} third_person={third_person:?} fallback={missing_desired:?} -> {verdict}",
         );
         assert!(passed);
     }

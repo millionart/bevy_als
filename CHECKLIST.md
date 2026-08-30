@@ -494,9 +494,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：单测 `curve_profile_uses_the_camera_unscaled_delta` 输出 `[BF102.54][VERDICT] profile_delta=0.100000 rig_delta=0.100000 elapsed=0.100000 value=0.200000 -> PASS`，覆盖 global=0.2、custom=0.5 的同源计算。真实 `camera_curve_dilation_gate` 在 virtual speed=0.1 时记录 `profile_elapsed=0.500000 real_elapsed=0.769251 target_x=-200.000 -> PASS`；既有 `camera_runtime_gate` 仍记录 `unscaled_time=true ... -> PASS`。
   - 回归：`cargo test -p als-camera --lib --jobs 2` 通过（10 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.55 — C05：第一人称 profile 使用 DesiredRotationMode（P2）**
+- [x] **BF102.55 — C05：第一人称 profile 使用 DesiredRotationMode（P2）**
   - 依赖：BF102.13。
   - 验收：VelocityDirection 与第一人称互切时，profile 选择跟随 desired 而非滞后的实际 rotation mode。
+  - 当次 ALS 事实：本地 `UAlsCameraAnimationInstance::NativeUpdateAnimation()` 在第三人称读取 `Character->GetRotationMode()`，但第一人称特意读取 `Character->GetDesiredRotationMode()`；源码明确说明这是为了避免与 VelocityDirection 互切时出现异常镜头运动。`RefreshRotationMode()` 也将 DesiredRotationMode 与实际 RotationMode 区分维护。
+  - 归属决定：自由旋转意图属于 `als-core` 的角色状态语义，现有 `AlsLastFreeRotationMode` 是本项目对应的 desired free rotation state；`als-camera` 只消费该状态选择 profile，不重建或拥有角色意图，也不需要新增 `als-ext` 通用机制。
+  - 实现：profile selector 在第一人称优先使用 `AlsLastFreeRotationMode`，缺失时才回退实际 mode；第三人称保持实际 mode。profile 更新调度在 input request 与 state transition 之后，使本帧的 desired／actual 收口结果可直接用于相机。
+  - 证据：单测 `first_person_profile_uses_the_desired_rotation_mode` 输出 `[BF102.55][VERDICT] first_person=VelocityDirection third_person=ViewDirection fallback=Aiming -> PASS`。真实 `camera_desired_rotation_gate` 记录 `first_person_x=-325.000 third_person_x=-250.000 actual=ViewDirection desired=VelocityDirection -> PASS`。
+  - 回归：`camera_curve_dilation_gate` 继续通过；`camera_runtime_gate` 继续输出 `unscaled_time=true ... -> PASS`；`cargo test -p als-camera --lib --jobs 2` 通过（11 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.56 — C07：相机起点穿透恢复聚合多重 MTD（P2）**
   - 依赖：BF102.52。
