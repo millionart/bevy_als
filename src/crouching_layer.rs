@@ -16,7 +16,6 @@ use als_ext::{
     AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
     advance_marker_sync_phase, build_branch_bone_mask, transition_alpha,
 };
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -25,6 +24,7 @@ use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle};
 use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback};
@@ -537,19 +537,6 @@ fn animation_scale(transform: &Transform) -> f32 {
     transform.scale.x.abs().max(f32::EPSILON)
 }
 
-fn velocity_blend_target(velocity: Vec2) -> VelocityBlend {
-    let Some(unit) = velocity.try_normalize() else {
-        return VelocityBlend::default();
-    };
-    let normalized = unit / (unit.x.abs() + unit.y.abs()).max(f32::EPSILON);
-    VelocityBlend {
-        forward: normalized.x.max(0.0),
-        backward: (-normalized.x).max(0.0),
-        right: normalized.y.max(0.0),
-        left: (-normalized.y).max(0.0),
-    }
-}
-
 fn damp_velocity_blend(current: VelocityBlend, target: VelocityBlend, alpha: f32) -> VelocityBlend {
     VelocityBlend {
         forward: current.forward.lerp(target.forward, alpha),
@@ -863,7 +850,7 @@ fn update_crouching_inputs(
     runtime: &mut CrouchingLayerRuntime,
     delta_seconds: f32,
     transform: &Transform,
-    velocity: Vec3,
+    actual_motion: &AlsActualMotion,
     params: &AlsMovementParams,
     locomotion: LocomotionState,
     rotation_mode: RotationMode,
@@ -878,7 +865,8 @@ fn update_crouching_inputs(
     animation_curves: &Assets<AlsAnimCurves>,
     handles: &CrouchingCurveHandles,
 ) -> CrouchingGraphInputs {
-    let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+    let velocity = actual_motion.world_velocity;
+    let horizontal_speed = actual_motion.horizontal_speed;
     let has_input = input.move_dir.length_squared() > f32::EPSILON;
     let has_velocity = horizontal_speed >= VELOCITY_EPSILON;
     let moving_smooth =
@@ -888,7 +876,12 @@ fn update_crouching_inputs(
     } else {
         Vec3::ZERO
     };
-    let blend_target = velocity_blend_target(local_horizontal(velocity, transform));
+    let blend_target = VelocityBlend {
+        forward: actual_motion.velocity_blend.forward,
+        backward: actual_motion.velocity_blend.backward,
+        right: actual_motion.velocity_blend.right,
+        left: actual_motion.velocity_blend.left,
+    };
     let lean_target = acceleration_amount(acceleration, velocity, transform, params);
     if runtime.initialized {
         runtime.velocity_blend = damp_velocity_blend(
@@ -1267,7 +1260,7 @@ fn crouching_layer_writer(
     characters: Query<
         (
             &Transform,
-            &LinearVelocity,
+            &AlsActualMotion,
             &AlsMovementParamsHandle,
             &LocomotionState,
             &Stance,
@@ -1303,7 +1296,7 @@ fn crouching_layer_writer(
     for (avatar, parent, instance, current_runtime, turn) in &mut avatars {
         let Ok((
             transform,
-            velocity,
+            actual_motion,
             handle,
             locomotion,
             stance,
@@ -1338,7 +1331,7 @@ fn crouching_layer_writer(
             &mut runtime,
             delta_seconds,
             transform,
-            velocity.0,
+            actual_motion,
             movement_params,
             *locomotion,
             *rotation_mode,

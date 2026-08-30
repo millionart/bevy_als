@@ -7,7 +7,6 @@ use als_core::roll::AlsRollState;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::view::AlsViewSmoothed;
 use als_ext::{SyncPhaseInput, SyncPhaseState, advance_sync_phase};
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -16,6 +15,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::Pose;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::animation_events::AlsNotifyLocomotionAction;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::gait_layer::{AlsGaitBlend, AlsGaitLayerSet};
@@ -112,22 +112,6 @@ pub fn overlay_layer_index(overlay: OverlayState) -> f32 {
     }
 }
 
-fn velocity_blend(velocity: Vec3, transform: &Transform) -> (f32, f32, f32, f32) {
-    let forward = transform.rotation * Vec3::NEG_Z;
-    let right = transform.rotation * Vec3::X;
-    let local = Vec2::new(velocity.dot(forward), velocity.dot(right));
-    let Some(unit) = local.try_normalize() else {
-        return (0.0, 0.0, 0.0, 0.0);
-    };
-    let normalized = unit / (unit.x.abs() + unit.y.abs()).max(f32::EPSILON);
-    (
-        normalized.x.max(0.0),
-        (-normalized.x).max(0.0),
-        (-normalized.y).max(0.0),
-        normalized.y.max(0.0),
-    )
-}
-
 fn locomotion_action_index(
     notify_action: Option<&AlsNotifyLocomotionAction>,
     mantle: Option<&AlsMantleState>,
@@ -194,8 +178,7 @@ fn root_graph_writer(
             &Gait,
             &LocomotionState,
             &RotationMode,
-            &LinearVelocity,
-            &Transform,
+            &AlsActualMotion,
             Option<&AlsInputCommand>,
             Option<&AlsViewSmoothed>,
             Option<&AlsGroundPredictionState>,
@@ -223,8 +206,7 @@ fn root_graph_writer(
         gait,
         locomotion,
         rotation_mode,
-        velocity,
-        transform,
+        actual_motion,
         input,
         view,
         ground_prediction,
@@ -271,13 +253,16 @@ fn root_graph_writer(
                 },
                 |value| (value.weights.running_amount(), value.weights.sprint_w),
             );
-            let (forward, backward, left, right) = velocity_blend(velocity.0, transform);
+            let forward = actual_motion.velocity_blend.forward;
+            let backward = actual_motion.velocity_blend.backward;
+            let left = actual_motion.velocity_blend.left;
+            let right = actual_motion.velocity_blend.right;
             let in_air_amount = if *locomotion == LocomotionState::Air {
                 1.0
             } else {
                 0.0
             };
-            let moving = Vec2::new(velocity.x, velocity.z).length() > 0.05;
+            let moving = actual_motion.horizontal_speed > 0.05;
             let pitch_amount = view.map_or(0.5, |value| 0.5 - value.0 / std::f32::consts::PI);
             let has_input = input.is_some_and(|value| value.move_dir.length_squared() > 1e-6);
             let (sprint_acceleration, transitions_allowed) =
@@ -382,17 +367,6 @@ mod tests {
             locomotion_action_index(Some(&AlsNotifyLocomotionAction::None), None, None),
             0.0
         );
-    }
-
-    #[test]
-    fn velocity_blend_uses_the_source_four_way_normalization() {
-        let transform = Transform::default();
-        let (forward, backward, left, right) =
-            velocity_blend(Vec3::new(1.0, 0.0, -1.0), &transform);
-        assert!((forward - 0.5).abs() < 1e-6);
-        assert_eq!(backward, 0.0);
-        assert_eq!(left, 0.0);
-        assert!((right - 0.5).abs() < 1e-6);
     }
 
     #[test]

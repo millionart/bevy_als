@@ -5,16 +5,16 @@ use als_core::movement_direction::{
 };
 use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{Gait, RotationMode};
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
 
-pub const DIRECTION_MIN_SPEED: f32 = 0.2;
+pub const DIRECTION_MIN_SPEED: f32 = 0.01;
 
 pub fn velocity_yaw_deg(vel: Vec3) -> f32 {
     world_forward_to_yaw(vel).to_degrees()
@@ -53,15 +53,15 @@ type DirectionAvatarQuery = (
 
 fn direction_angle_driver(
     mut commands: Commands,
-    characters: Query<(&LinearVelocity, &AlsViewYaw, &RotationMode, &Gait), With<AlsCharacter>>,
+    characters: Query<(&AlsActualMotion, &AlsViewYaw, &RotationMode, &Gait), With<AlsCharacter>>,
     mut avatars: Query<DirectionAvatarQuery, With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (entity, child_of, state, instance) in avatars.iter_mut() {
-        let Ok((vel, view_yaw, rotation_mode, gait)) = characters.get(child_of.parent()) else {
+        let Ok((motion, view_yaw, rotation_mode, gait)) = characters.get(child_of.parent()) else {
             continue;
         };
-        let hspeed = Vec2::new(vel.x, vel.z).length();
+        let hspeed = motion.horizontal_speed;
         if hspeed < DIRECTION_MIN_SPEED {
             continue;
         }
@@ -71,7 +71,7 @@ fn direction_angle_driver(
                 if *gait == Gait::Sprinting {
                     0.0
                 } else {
-                    view_space_direction_angle(velocity_yaw_deg(vel.0), view_yaw.0)
+                    view_space_direction_angle(velocity_yaw_deg(motion.world_velocity), view_yaw.0)
                 }
             }
         };

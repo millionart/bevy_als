@@ -3,13 +3,13 @@ use als_core::motion::AlsViewYaw;
 use als_core::movement_direction::AlsMovementDirectionState;
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::edge_data::DataValue;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
 
 #[derive(Resource, Clone, Copy)]
@@ -57,7 +57,7 @@ pub fn angle_err(a: f32, b: f32) -> f32 {
 type ProbeCharacters = (
     Entity,
     &'static Transform,
-    &'static LinearVelocity,
+    &'static AlsActualMotion,
     &'static Stance,
     &'static Gait,
     &'static LocomotionState,
@@ -97,7 +97,7 @@ fn anim_probe_logger(
     players: Query<&AnimationGraphPlayer>,
 ) {
     let t = time.elapsed_secs();
-    let Ok((entity, tf, vel, stance, gait, loco, rot, view_yaw, params_h)) = characters.single()
+    let Ok((entity, tf, motion, stance, gait, loco, rot, view_yaw, params_h)) = characters.single()
     else {
         return;
     };
@@ -118,10 +118,10 @@ fn anim_probe_logger(
             Stance::Crouching => p.crouch.crouched_capsule_half_height,
             Stance::Standing => p.crouch.standing_capsule_half_height,
         });
-    let hspeed = Vec2::new(vel.x, vel.z).length();
+    let hspeed = motion.horizontal_speed;
     let face = yaw_deg(*tf.forward());
     let velyaw = if hspeed > 1e-3 {
-        yaw_deg(vel.0)
+        yaw_deg(motion.world_velocity)
     } else {
         f32::NAN
     };
@@ -149,7 +149,7 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait={gait:?} loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} dir={dir_name} dir_ang={dir_angle:.0} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} gait={gait:?} loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,
@@ -157,6 +157,16 @@ fn anim_probe_logger(
                 .map(|h| format!("{h:.2}"))
                 .unwrap_or_else(|| "?".into()),
             view_yaw.0,
+            motion.world_velocity.x,
+            motion.world_velocity.y,
+            motion.world_velocity.z,
+            motion.local_velocity.x,
+            motion.local_velocity.y,
+            motion.signed_direction_radians.to_degrees(),
+            motion.velocity_blend.forward,
+            motion.velocity_blend.backward,
+            motion.velocity_blend.left,
+            motion.velocity_blend.right,
             read_global_f32(player, "als_secondary_motion_phase")
                 .map(|value| format!("{value:.3}"))
                 .unwrap_or_else(|| "?".into()),

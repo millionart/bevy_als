@@ -15,7 +15,6 @@ use als_ext::{
     AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
     advance_marker_sync_phase, build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
 };
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -25,6 +24,7 @@ use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
+use crate::actual_motion::AlsActualMotion;
 use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle};
@@ -624,19 +624,6 @@ fn animation_world_scale(transform: &GlobalTransform) -> f32 {
         .max(f32::EPSILON)
 }
 
-fn velocity_blend_target(velocity: Vec2) -> VelocityBlend {
-    let Some(unit) = velocity.try_normalize() else {
-        return VelocityBlend::default();
-    };
-    let normalized = unit / (unit.x.abs() + unit.y.abs()).max(f32::EPSILON);
-    VelocityBlend {
-        forward: normalized.x.max(0.0),
-        backward: (-normalized.x).max(0.0),
-        right: normalized.y.max(0.0),
-        left: (-normalized.y).max(0.0),
-    }
-}
-
 fn damp_velocity_blend(current: VelocityBlend, target: VelocityBlend, alpha: f32) -> VelocityBlend {
     VelocityBlend {
         forward: current.forward.lerp(target.forward, alpha),
@@ -1219,7 +1206,7 @@ fn update_standing_inputs(
     delta_seconds: f32,
     transform: &Transform,
     animation_world_scale: f32,
-    velocity: Vec3,
+    actual_motion: &AlsActualMotion,
     params: &AlsMovementParams,
     dynamics: Option<&AlsGroundedDynamics>,
     locomotion: LocomotionState,
@@ -1239,7 +1226,8 @@ fn update_standing_inputs(
     animation_curves: &Assets<AlsAnimCurves>,
     curve_handles: &StandingCurveHandles,
 ) -> StandingGraphInputs {
-    let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
+    let velocity = actual_motion.world_velocity;
+    let horizontal_speed = actual_motion.horizontal_speed;
     let has_input = input.move_dir.length_squared() > f32::EPSILON;
     let has_velocity = horizontal_speed >= VELOCITY_EPSILON;
     let moving_smooth =
@@ -1249,7 +1237,12 @@ fn update_standing_inputs(
     } else {
         Vec3::ZERO
     };
-    let target_velocity_blend = velocity_blend_target(local_horizontal(velocity, transform));
+    let target_velocity_blend = VelocityBlend {
+        forward: actual_motion.velocity_blend.forward,
+        backward: actual_motion.velocity_blend.backward,
+        right: actual_motion.velocity_blend.right,
+        left: actual_motion.velocity_blend.left,
+    };
     let (maximum_acceleration, maximum_braking_deceleration) = dynamics
         .map(|dynamics| (dynamics.0.acceleration, dynamics.0.braking_deceleration))
         .unwrap_or((
@@ -1712,7 +1705,7 @@ fn standing_layer_writer(
     characters: Query<
         (
             &Transform,
-            &LinearVelocity,
+            &AlsActualMotion,
             &AlsMovementParamsHandle,
             Option<&AlsGroundedDynamics>,
             &LocomotionState,
@@ -1754,7 +1747,7 @@ fn standing_layer_writer(
     for (entity, parent, avatar_transform, instance, current_runtime, turn) in &mut avatars {
         let Ok((
             transform,
-            velocity,
+            actual_motion,
             handle,
             dynamics,
             locomotion,
@@ -1806,7 +1799,7 @@ fn standing_layer_writer(
             delta_seconds,
             transform,
             animation_world_scale(avatar_transform),
-            velocity.0,
+            actual_motion,
             movement_params,
             dynamics,
             *locomotion,
@@ -1890,7 +1883,11 @@ mod tests {
 
     #[test]
     fn diagonal_velocity_blend_matches_source_normalization() {
-        let blend = velocity_blend_target(Vec2::new(1.0, 1.0));
+        let blend = als_ext::horizontal_motion_from_world_velocity(
+            Vec3::new(1.0, 0.0, -1.0),
+            Quat::IDENTITY,
+        )
+        .velocity_blend;
         assert!((blend.forward - 0.5).abs() < 1e-6);
         assert!((blend.right - 0.5).abs() < 1e-6);
         assert_eq!(blend.backward, 0.0);

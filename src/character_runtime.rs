@@ -3,6 +3,7 @@ use als_core::start_stop::{StartStopState, start_stop_detector_system};
 use bevy::prelude::*;
 
 use crate::ab_als_root::AlsRootGraphPlugin;
+use crate::actual_motion::AlsActualMotionPlugin;
 use crate::air_jump_layer::AirJumpLayerPlugin;
 use crate::animation_events::AlsAnimationEventPlugin;
 use crate::control_rig_apply::ControlRigApplyPlugin;
@@ -28,39 +29,40 @@ pub struct AlsCharacterRuntimePlugin;
 
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            als_core::foot_ik::AlsFootProbePlugin,
-            ControlRigApplyPlugin,
-            FootIkApplyPlugin,
-            GaitLayerPlugin,
-            DirectionLayerPlugin,
-            StandingLayerPlugin,
-            CrouchingLayerPlugin,
-            GroundedLayerPlugin,
-            AlsAnimationEventPlugin,
-            AirJumpLayerPlugin,
-            StanceLayerPlugin,
-            ViewLayerPlugin,
-            TurnLayerPlugin,
-            AlsRollDrivePlugin,
-            AlsStopLinkPlugin,
-        ))
-        .add_plugins((
-            LocomotionLayerPlugin,
-            LayeringLayerPlugin,
-            HeadLayerPlugin,
-            RagdollingLayerPlugin,
-            AlsRootGraphPlugin,
-            AlsMantleDrivePlugin,
-            AlsRagdollLinkPlugin,
-        ))
-        .add_systems(
-            Update,
-            (
-                ensure_start_stop_state,
-                start_stop_detector_system.after(ensure_start_stop_state),
-            ),
-        );
+        app.add_plugins(AlsActualMotionPlugin)
+            .add_plugins((
+                als_core::foot_ik::AlsFootProbePlugin,
+                ControlRigApplyPlugin,
+                FootIkApplyPlugin,
+                GaitLayerPlugin,
+                DirectionLayerPlugin,
+                StandingLayerPlugin,
+                CrouchingLayerPlugin,
+                GroundedLayerPlugin,
+                AlsAnimationEventPlugin,
+                AirJumpLayerPlugin,
+                StanceLayerPlugin,
+                ViewLayerPlugin,
+                TurnLayerPlugin,
+                AlsRollDrivePlugin,
+                AlsStopLinkPlugin,
+            ))
+            .add_plugins((
+                LocomotionLayerPlugin,
+                LayeringLayerPlugin,
+                HeadLayerPlugin,
+                RagdollingLayerPlugin,
+                AlsRootGraphPlugin,
+                AlsMantleDrivePlugin,
+                AlsRagdollLinkPlugin,
+            ))
+            .add_systems(
+                Update,
+                (
+                    ensure_start_stop_state,
+                    start_stop_detector_system.after(ensure_start_stop_state),
+                ),
+            );
     }
 }
 

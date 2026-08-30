@@ -30,6 +30,7 @@ pub mod local_ref_pose;
 pub mod mesh_space_additive;
 pub mod mesh_space_difference;
 pub mod mesh_space_layered_blend;
+pub mod motion;
 pub mod multi_way_blend;
 pub mod nodes;
 pub mod normalized_blendspace;
@@ -112,6 +113,9 @@ pub use local_ref_pose::LocalRefPoseNode;
 pub use mesh_space_additive::{MeshSpaceAdditiveNode, apply_mesh_space_additive};
 pub use mesh_space_difference::{MeshSpaceDifferenceNode, make_mesh_space_difference};
 pub use mesh_space_layered_blend::{MeshSpaceLayeredBlendNode, apply_mesh_space_layered_blend};
+pub use motion::{
+    HorizontalMotion, HorizontalVelocityBlend, horizontal_motion_from_world_velocity,
+};
 pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use normalized_blendspace::{
