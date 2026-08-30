@@ -70,12 +70,15 @@ fn ensure_mantle_state(
 }
 
 fn ensure_mantle_root_samplers(
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     samplers: Query<&AlsMantleRootSampler>,
     players: Query<&AnimationGraphPlayer>,
     mut commands: Commands,
 ) {
+    let Some(asset_server) = asset_server else {
+        return;
+    };
     for (avatar, character_avatar, instance) in &avatars {
         if samplers
             .iter()
@@ -135,13 +138,11 @@ fn prepare_mantle_root_samples(
 
 fn mantle_pose_system(
     mut commands: Commands,
-    time: Res<Time>,
     target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut q: Query<
         (
             Entity,
             &mut AlsMantleState,
-            &mut Transform,
             &mut LinearVelocity,
             Option<&CollisionLayers>,
             &mut AlsCollisionLayerOwnership,
@@ -149,8 +150,7 @@ fn mantle_pose_system(
         With<AlsCharacter>,
     >,
 ) {
-    let dt = time.delta_secs();
-    for (entity, mut m, mut tf, mut vel, layers, mut ownership) in &mut q {
+    for (entity, mut m, mut vel, layers, mut ownership) in &mut q {
         let target_base = mantle_target_base(&m, &target_transforms);
         let target_valid = !m.active || m.refresh_target_base(target_base);
         if !target_valid {
@@ -164,19 +164,6 @@ fn mantle_pose_system(
             AlsCollisionLayerOwner::Mantle,
             m.active,
         );
-        if !target_valid {
-            continue;
-        }
-        if m.active {
-            continue;
-        }
-        if m.settle > 0.0 {
-            let yaw_now = lerp_angle(m.yaw_start, m.yaw_target, m.rotation_warp_amount());
-            m.settle -= dt;
-            tf.translation = m.target;
-            tf.rotation = Quat::from_rotation_y(yaw_now);
-            *vel = LinearVelocity(Vec3::ZERO);
-        }
     }
 }
 
@@ -246,7 +233,6 @@ fn mantle_drive_system(
         let finishing = current_time >= m.action_end();
         if finishing {
             m.active = false;
-            m.settle = als_core::mantle::MANTLE_SETTLE_SECS;
         }
         set_collision_layer_owner(
             &mut commands,
@@ -283,19 +269,4 @@ fn mantle_target_base(
         translation: transform.translation(),
         rotation: transform.rotation(),
     })
-}
-
-fn lerp_angle(a: f32, b: f32, t: f32) -> f32 {
-    let delta = shortest_angle(b - a);
-    a + delta * t
-}
-
-fn shortest_angle(angle: f32) -> f32 {
-    let two_pi = std::f32::consts::TAU;
-    let wrapped = angle.rem_euclid(two_pi);
-    if wrapped > std::f32::consts::PI {
-        wrapped - two_pi
-    } else {
-        wrapped
-    }
 }

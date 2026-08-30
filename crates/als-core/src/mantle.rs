@@ -20,7 +20,6 @@ pub const MANTLE_TARGET_SPEED_THRESHOLD: f32 = 0.1;
 pub const MANTLE_TRACE_CAPSULE_SHRINK: f32 = 0.01;
 pub const MANTLE_MIN_FLOOR_DISTANCE: f32 = ALS_CHARACTER_FLOOR_CLEARANCE;
 pub const MANTLE_MAX_FLOOR_DISTANCE: f32 = 0.024;
-pub const MANTLE_SETTLE_SECS: f32 = 0.35;
 pub const MANTLE_BLEND_IN_SECS: f32 = 0.2;
 pub const MANTLE_BLEND_OUT_SECS: f32 = 0.2;
 
@@ -471,7 +470,6 @@ pub struct AlsMantleState {
     pub rate_scale: f32,
     pub yaw_start: f32,
     pub yaw_target: f32,
-    pub settle: f32,
     pub target_base: Option<AlsMantleTargetBase>,
     pub start_location_base: Vec3,
     pub start_rotation_base: Quat,
@@ -496,7 +494,6 @@ impl Default for AlsMantleState {
             rate_scale: 1.0,
             yaw_start: 0.0,
             yaw_target: 0.0,
-            settle: 0.0,
             target_base: None,
             start_location_base: Vec3::ZERO,
             start_rotation_base: Quat::IDENTITY,
@@ -531,7 +528,6 @@ impl AlsMantleState {
         self.rate_scale = settings.rate_scale;
         self.yaw_start = yaw_start;
         self.yaw_target = yaw_target;
-        self.settle = 0.0;
         self.target_base = None;
         self.start_location_base = Vec3::ZERO;
         self.start_rotation_base = Quat::IDENTITY;
@@ -573,7 +569,6 @@ impl AlsMantleState {
         };
         let Some(target_base) = latest_base.filter(|base| base.entity == saved_base.entity) else {
             self.active = false;
-            self.settle = 0.0;
             self.target_invalid = true;
             return false;
         };
@@ -671,7 +666,6 @@ impl AlsMantleState {
         if self.time >= self.action_end() {
             self.active = false;
             self.time = self.action_end();
-            self.settle = MANTLE_SETTLE_SECS;
         }
     }
 }
@@ -773,6 +767,34 @@ mod tests {
     }
 
     #[test]
+    fn mantle_completion_has_no_fixed_target_lock_phase() {
+        let mut state = AlsMantleState::default();
+        state.begin(MantleKind::LowRight, Vec3::ZERO, Vec3::ONE, 0.5, 0.0, 0.0);
+        let duration = state.action_end();
+        state.tick(
+            &AlsInputCommand::default(),
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            duration + 0.1,
+        );
+        let completion_time = state.time;
+        state.tick(
+            &AlsInputCommand::default(),
+            &LocomotionState::Grounded,
+            &Stance::Standing,
+            1.0,
+        );
+        let released = !state.active
+            && (completion_time - duration).abs() < 1e-6
+            && (state.time - duration).abs() < 1e-6;
+        let verdict = if released { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.47][VERDICT] completion_time={completion_time:.6} duration={duration:.6} released={released} -> {verdict}"
+        );
+        assert!(released);
+    }
+
+    #[test]
     fn mantle_root_motion_composes_full_transform_in_warp_space() {
         let mut state = AlsMantleState::default();
         state.begin(
@@ -845,7 +867,7 @@ mod tests {
     }
 
     #[test]
-    fn mantle_target_base_loss_cancels_without_settle() {
+    fn mantle_target_base_loss_cancels_immediately() {
         let base = AlsMantleTargetBase {
             entity: Entity::from_raw_u32(1).unwrap(),
             translation: Vec3::ZERO,
@@ -864,7 +886,6 @@ mod tests {
         assert!(!state.refresh_target_base(None));
         assert!(!state.active);
         assert!(state.target_invalid);
-        assert_eq!(state.settle, 0.0);
         assert_eq!(
             state.target_base.map(|value| value.entity),
             Some(base.entity)

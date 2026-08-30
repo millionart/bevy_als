@@ -425,9 +425,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`mantle_root_motion_composes_full_transform_in_warp_space` 输出 `[BF102.46][VERDICT] translation_error=0.000000 rotation_alignment=1.000000 legacy_error=0.610328 -> PASS`。真实 `mantle_gate` 在完整主图中记录 High mantle `BEGIN` 后到达 `target_y=2.27`，并记录 `DONE`；采样器无图资产或调度错误。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（215 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`RUST_LOG=info cargo run --example mantle_gate --jobs 2` 通过；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.47 — X04：Mantle 结束不引入固定目标锁定收尾（P2）**
+- [x] **BF102.47 — X04：Mantle 结束不引入固定目标锁定收尾（P2）**
   - 依赖：BF102.46。
   - 验收：攀爬结束时目标锁定/恢复时机来自源合同，不能固定附加约 0.35 秒。
+  - 当次 ALS 事实：实时读取 `AAlsCharacter::StopMantling()`：源只标记 root-motion source removal、恢复 network smoothing、解锁 movement mode 并切至 walking；没有独立的目标位置锁定／settle 计时器。目标 primitive 失效也同样通过 `StopMantling(true)` 结束。
+  - 实现：删除 `MANTLE_SETTLE_SECS` 和 `AlsMantleState::settle`，mantle pose 系统不再在动作失效后写回保存的 target transform 或清零速度；完成帧的根运动 delta 后立即释放 Mantle collision ownership，后续输入和物理接管。sampler 在无 AssetServer 的最小诊断 App 中自动跳过。
+  - 证据：`mantle_completion_has_no_fixed_target_lock_phase` 输出 `[BF102.47][VERDICT] completion_time=1.000000 duration=1.000000 released=true -> PASS`。真实 `mantle_gate` 在 `DONE 1 raw_y=2.27` 后下一帧记录 `mantling=false`、位置变为 `y=2.52,z=2.10`，随后继续响应输入，未回写旧目标；`mantle_target_base_gate` 输出 `target_loss_handled=true ... -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（216 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo run --example mantle_target_base_gate --jobs 2` 与 `cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.48 — X05：根运动适配器保留侧向位移与旋转（P2）**
   - 依赖：BF102.29、BF102.46。

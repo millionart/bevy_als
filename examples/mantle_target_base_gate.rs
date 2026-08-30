@@ -28,7 +28,6 @@ struct MantleSnapshot {
     target_location_base: Vec3,
     target_rotation_base: Quat,
     target_invalid: bool,
-    settle: f32,
 }
 
 fn main() {
@@ -65,8 +64,7 @@ fn main() {
     let invalidated = mantle_snapshot(&app, entities.character);
     let target_loss_handled = !invalidated.active
         && invalidated.target_base == Some(entities.target)
-        && invalidated.target_invalid
-        && invalidated.settle.abs() <= EPSILON;
+        && invalidated.target_invalid;
 
     let passed = initial.active
         && initial.target_base == Some(entities.target)
@@ -130,7 +128,6 @@ fn mantle_snapshot(app: &App, character: Entity) -> MantleSnapshot {
         target_location_base: state.target_location_base,
         target_rotation_base: state.target_rotation_base,
         target_invalid: state.target_invalid,
-        settle: state.settle,
     }
 }
 
