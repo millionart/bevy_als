@@ -375,9 +375,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`foot_local_rotation_uses_the_updated_calf_parent` 输出 `corrected_alignment=1.000000 legacy_alignment=0.984808 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（125 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.41 — I02：骨盆偏移先于最终双腿 IK 求解（P1）**
+- [x] **BF102.41 — I02：骨盆偏移先于最终双腿 IK 求解（P1）**
   - 依赖：BF102.40。
   - 验收：骨盆下移非零时，最终脚世界位置仍命中目标，且无事后整体下拉误差。
+  - 当次事实：I02 审计确认修复前先解左右腿、循环结束才执行 `pelvis_local.translation.y += drop`；这会把已求解脚一并移动。目标 IK 必须以最终骨盆/髋关节位置求解。
+  - 实现：骨盆偏移现在先写入 local transform，并换算为世界偏移；左右腿求解使用偏移后的 hip/knee/ankle，而足端世界目标保持不变，最终传播不再把脚目标整体下拉。
+  - 证据：`pelvis_drop_is_applied_before_solving_the_leg_target` 输出 `corrected_error=0.000 legacy_error=0.100 -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（126 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.42 — I03：脚旋转完整消费地面法线和三维脚锁旋转（P1）**
   - 依赖：BF102.06、BF102.41。

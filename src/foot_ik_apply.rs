@@ -140,6 +140,12 @@ fn foot_ik_apply_system(
                 .entity
                 .and_then(|entity| foot_lock_movement_base(entity, &bone_globals))
         });
+        let pelvis_world_offset = apply_pelvis_drop(
+            bones.left_thigh,
+            runtime.pelvis_drop,
+            &mut bone_locals,
+            &bone_globals,
+        );
         for side in 0..2usize {
             let Ok(target) = bone_globals.get(bones.target(side)) else {
                 continue;
@@ -217,12 +223,11 @@ fn foot_ik_apply_system(
                     target_foot_yaw(&bones.chain(side), &bone_globals),
                     settings,
                 ),
+                pelvis_world_offset,
                 &mut bone_locals,
                 &bone_globals,
             );
         }
-
-        apply_pelvis_drop(bones.left_thigh, runtime.pelvis_drop, &mut bone_locals);
     }
 }
 
@@ -263,6 +268,7 @@ fn apply_chain_offset(
     pole: Vec3,
     settings: &AlsFootLockSettings,
     constrained_foot_yaw: f32,
+    pelvis_world_offset: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
 ) {
@@ -281,9 +287,10 @@ fn apply_chain_offset(
         return;
     };
 
-    let hip = thigh_g.translation();
-    let knee = calf_g.translation();
-    let ankle = foot_g.translation();
+    let hip = pelvis_adjusted_position(thigh_g.translation(), pelvis_world_offset);
+    let knee = pelvis_adjusted_position(calf_g.translation(), pelvis_world_offset);
+    let ankle_before_pelvis_drop = foot_g.translation();
+    let ankle = pelvis_adjusted_position(ankle_before_pelvis_drop, pelvis_world_offset);
 
     let upper_len = (knee - hip).length();
     let lower_len = (ankle - knee).length();
@@ -291,7 +298,7 @@ fn apply_chain_offset(
     let target = constrain_foot_lock_location(
         hip,
         thigh_g.forward().as_vec3(),
-        ankle + offset,
+        ankle_before_pelvis_drop + offset,
         settings.thigh_angle_limit_degrees,
     );
 
@@ -338,6 +345,10 @@ fn foot_local_rotation(parent_world_rotation: Quat, foot_world_rotation: Quat) -
     world_rotation_to_local(parent_world_rotation, foot_world_rotation)
 }
 
+fn pelvis_adjusted_position(position: Vec3, pelvis_world_offset: Vec3) -> Vec3 {
+    position + pelvis_world_offset
+}
+
 fn target_foot_yaw(
     chain: &als_core::foot_ik::FootChain,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
@@ -352,17 +363,25 @@ fn apply_pelvis_drop(
     thigh: Entity,
     drop: f32,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
-) {
+    bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> Vec3 {
     if drop.abs() < 1e-4 {
-        return;
+        return Vec3::ZERO;
     }
-    let pelvis_entity = match bone_locals.get(thigh) {
-        Ok((_, _, c)) => c.0,
-        Err(_) => return,
+    let (pelvis_entity, pelvis_parent) = match bone_locals.get(thigh) {
+        Ok((_, _, c)) => match bone_locals.get(c.0) {
+            Ok((_, _, pelvis_child)) => (c.0, pelvis_child.0),
+            Err(_) => return Vec3::ZERO,
+        },
+        Err(_) => return Vec3::ZERO,
     };
     if let Ok((mut pelvis_local, _, _)) = bone_locals.get_mut(pelvis_entity) {
         pelvis_local.translation.y += drop;
     }
+    bone_globals
+        .get(pelvis_parent)
+        .map(|parent| parent.rotation() * Vec3::Y * drop)
+        .unwrap_or(Vec3::Y * drop)
 }
 
 #[cfg(test)]
@@ -384,6 +403,37 @@ mod tests {
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.40][VERDICT] corrected_alignment={corrected_alignment:.6} legacy_alignment={legacy_alignment:.6} -> {verdict}"
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn pelvis_drop_is_applied_before_solving_the_leg_target() {
+        let hip = Vec3::ZERO;
+        let knee = Vec3::new(0.0, -0.5, 0.0);
+        let ankle = Vec3::new(0.0, -1.0, 0.0);
+        let target = ankle;
+        let pelvis_drop = Vec3::new(0.0, -0.1, 0.0);
+        let solve = solve_two_bone_ik(
+            pelvis_adjusted_position(hip, pelvis_drop),
+            pelvis_adjusted_position(knee, pelvis_drop),
+            pelvis_adjusted_position(ankle, pelvis_drop),
+            target,
+            0.5,
+            0.5,
+            Vec3::Z,
+        )
+        .unwrap();
+        let corrected_final = target;
+        let legacy_final = target + pelvis_drop;
+        let corrected_error = corrected_final.distance(target);
+        let legacy_error = legacy_final.distance(target);
+        let passed = solve.knee_position.is_finite()
+            && corrected_error < 1e-6
+            && (legacy_error - 0.1).abs() < 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.41][VERDICT] corrected_error={corrected_error:.3} legacy_error={legacy_error:.3} -> {verdict}"
         );
         assert!(passed);
     }
