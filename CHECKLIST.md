@@ -9,10 +9,13 @@
 
 目标：以 `bevy_animation_graph` 的 `EventTrack`／`EventQueue` 为实际播放时钟，重建当前范围内 ALS 的动画 Notify、Notify State 与标记触发；不得再以角色状态、输入边沿或全局时间模拟动画事件。所有项目语义、源参数映射和消费者保留在主项目／`als-core`，可复用的事件轨道桥接与生命周期机制优先归属 `als-ext`。
 
-- [ ] **BF103.01 — N01：原版 Notify／Notify State／Marker 事实清点与导出合同（P1）**
+- [x] **BF103.01 — N01：原版 Notify／Notify State／Marker 事实清点与导出合同（P1）**
   - 依赖：BF102.Gate 已通过。
   - 执行前：仅在本项成为当前项后，从本地 ALS-Refactored 的实际动画资产、通知类源码和消费者源码重新提取本项事实；不得复用历史记录作为实现依据。
   - 验收：记录当前已导出动画集合中每个实际 Notify、Notify State 与相关 Marker 的资产路径、类型、名称、时间区间、参数、权重／过滤条件和消费者；定义可复现、无 UE 原始资产的项目侧导出格式，并以解析器验证全部记录的时间与引用。
+  - 当次 ALS 事实（2026-08-30，本地 ALS Content uasset 与 ALS／ALSCamera C++ 源码实时提取）：137 个动画资产=128 个 AnimSequence+9 个 AnimMontage；177 条通知=161 个 point+16 个 state，另有 60 个 AuthoredSyncMarker 和 9 个 Montage segment。point 类为 `AlsAnimNotify_CameraShake`×6、`AlsAnimNotify_FootstepEffects`×154、`AlsAnimNotify_SetGroundedEntryMode`×1；state 类为 `AlsAnimNotifyState_SetLocomotionAction`×9、`AlsAnimNotifyState_EarlyBlendOut`×6、`AlsAnimNotifyState_SetRootMotionScale`×1。128 个已导出序列全部有目标 glTF；15 个 state 位于 9 个 Montage 容器，不能从现有 glTF 直接取得。CameraShake 仅向本地 player camera manager 发 class+scale；SetGroundedEntryMode 写 animation instance tag；LocomotionAction 在 Begin 写入、End 仅在值仍匹配时清除；RootMotionScale Begin 写 scale、End 仅在未被覆盖时复位 1；EarlyBlendOut 在 branching tick 的源条件成立时按 asset BlendOutDuration 停止 montage。AuthoredSyncMarker 是同步组相位数据，UE 只在组内共有 marker 时使用它，不能默认当作 gameplay Notify。
+  - 合同／归属：`docs/bf103-notify-source-audit.{json,md}` 为无 uasset 的事实记录；`docs/bf103-notify-contract.md` 定义 BF103.02 的 JSON sidecar、GraphClip EventTrack 编译和 point 跨越规则。通用桥接／生命周期归属 `als-ext`，ALS 类语义和消费者留在项目；现有 `assets/sync/als_sync_metadata.ron` 继续承载同步 marker，不复制为全局计时器。
+  - 证据：`python tools/import/audit_als_animation_events.py --content-root <ALS Content>` 输出 `animation_count=137`、`event_count=177`、`marker_count=60`、`montage_segment_count=9`、`failure_count=0`，且 event／marker time 与引用验证均为 `true`。
 
 - [ ] **BF103.02 — N02：Notify 资产侧数据生成与完整性校验（P1）**
   - 依赖：BF103.01。
