@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
-use als_core::character::AlsCharacter;
+use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{AlsFootLockState, AlsFootProbe};
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
@@ -10,6 +10,7 @@ use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::{AlsMantleControlSettings, AlsMantleState};
 use als_core::motion::{AlsCrouchTransaction, AlsInputOverride, AlsViewYaw};
 use als_core::movement_direction::{AlsMovementDirection, AlsMovementDirectionState};
+use als_core::params::AlsMovementParams;
 use als_core::roll::AlsRollState;
 use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
@@ -54,7 +55,8 @@ use crate::{
     gait_layer::AlsGaitBlend,
 };
 
-const GATE_TIMEOUT: Duration = Duration::from_secs(100);
+const GATE_TIMEOUT: Duration = Duration::from_secs(180);
+const CROUCH_CLEARANCE_TIMEOUT: f32 = 60.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const DIRECTION_CASE_COUNT: usize = 11;
@@ -106,6 +108,7 @@ enum IntegrationPhase {
     DirectionRegression,
     Locomotion,
     CrouchRecovery,
+    CrouchClearance,
     Turn,
     Mantle,
     Platform,
@@ -115,6 +118,19 @@ enum IntegrationPhase {
     Interface,
     Notify,
     Finish,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum CrouchClearanceStage {
+    #[default]
+    AwaitStanding,
+    Cycling,
+    PrepareCanopyCrouch,
+    ArmCanopy,
+    RequestStanding,
+    AwaitBlocked,
+    MoveAway,
+    AwaitRecovery,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -298,6 +314,12 @@ struct IntegrationCoverage {
     crouch_air_forced_standing: bool,
     crouch_air_landed: bool,
     crouch_graph_recovered: bool,
+    crouch_cycles: bool,
+    crouch_canopy_visible: bool,
+    crouch_canopy_blocked: bool,
+    crouch_canopy_recovered: bool,
+    crouch_canopy_cleaned: bool,
+    crouch_moving: bool,
     crouching: bool,
     sprinting: bool,
     airborne: bool,
@@ -393,6 +415,11 @@ struct ManualIntegrationState {
     crouch_recovery_jump_requested: bool,
     crouch_recovery_air_crouch_requested: bool,
     crouch_recovery_standing_requested: bool,
+    crouch_clearance_stage: CrouchClearanceStage,
+    crouch_clearance_cycles: u16,
+    crouch_clearance_last_actual: Stance,
+    crouch_canopy: Option<Entity>,
+    crouch_canopy_center: Option<Vec3>,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -446,6 +473,11 @@ impl Default for ManualIntegrationState {
             crouch_recovery_jump_requested: false,
             crouch_recovery_air_crouch_requested: false,
             crouch_recovery_standing_requested: false,
+            crouch_clearance_stage: CrouchClearanceStage::default(),
+            crouch_clearance_cycles: 0,
+            crouch_clearance_last_actual: Stance::Standing,
+            crouch_canopy: None,
+            crouch_canopy_center: None,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -639,6 +671,7 @@ fn drive_manual_integration(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut show_debug: ResMut<AlsShowDebugHudState>,
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
+    params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<
         (
             &mut AlsInputOverride,
@@ -658,6 +691,7 @@ fn drive_manual_integration(
         ),
         (With<AlsCharacter>, Without<ManualIntegrationPlatform>),
     >,
+    crouch_state: Query<(&AlsMovementParamsHandle, &AlsCrouchTransaction), With<AlsCharacter>>,
     mut platforms: Query<
         (&mut Transform, Option<&mut Position>, &mut LinearVelocity),
         (With<ManualIntegrationPlatform>, Without<AlsCharacter>),
@@ -671,6 +705,7 @@ fn drive_manual_integration(
         return;
     };
     if Instant::now() >= state.deadline {
+        cleanup_crouch_canopy(&mut commands, &mut state);
         state.timed_out = true;
         virtual_time.set_relative_speed(1.0);
         begin_phase(&mut state, IntegrationPhase::Finish);
@@ -696,6 +731,9 @@ fn drive_manual_integration(
         ground_follow,
     )) = characters.get_mut(character)
     else {
+        return;
+    };
+    let Ok((params_handle, transaction)) = crouch_state.get(character) else {
         return;
     };
     let elapsed = state.phase_started.elapsed().as_secs_f32();
@@ -815,7 +853,13 @@ fn drive_manual_integration(
         }
         IntegrationPhase::CrouchRecovery => {
             if entering {
-                let recovery_start = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                let standing_center = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                let recovery_start = params_assets
+                    .get(params_handle.id())
+                    .map(|params| {
+                        stance_center_from_standing_center(params, standing_center, *stance)
+                    })
+                    .unwrap_or(standing_center);
                 reset_character(
                     &mut transform,
                     &mut position,
@@ -859,12 +903,167 @@ fn drive_manual_integration(
                 commands
                     .entity(character)
                     .remove::<AlsMantleControlSettings>();
-                begin_phase(&mut state, IntegrationPhase::Turn);
+                begin_phase(&mut state, IntegrationPhase::CrouchClearance);
             }
             if elapsed >= 12.0 {
                 commands
                     .entity(character)
                     .remove::<AlsMantleControlSettings>();
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::CrouchClearance => {
+            if entering {
+                cleanup_crouch_canopy(&mut commands, &mut state);
+                let standing_center = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                let clearance_start = params_assets
+                    .get(params_handle.id())
+                    .map(|params| {
+                        stance_center_from_standing_center(params, standing_center, *stance)
+                    })
+                    .unwrap_or(standing_center);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    clearance_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                state.crouch_clearance_stage = CrouchClearanceStage::AwaitStanding;
+                state.crouch_clearance_cycles = 0;
+                state.crouch_clearance_last_actual = Stance::Standing;
+                state.coverage.crouch_cycles = false;
+                state.coverage.crouch_canopy_visible = false;
+                state.coverage.crouch_canopy_blocked = false;
+                state.coverage.crouch_canopy_recovered = false;
+                state.coverage.crouch_canopy_cleaned = false;
+                state.coverage.crouch_moving = false;
+            }
+            match state.crouch_clearance_stage {
+                CrouchClearanceStage::AwaitStanding => {
+                    if *stance == Stance::Standing
+                        && *locomotion == LocomotionState::Grounded
+                        && !transaction.headroom_blocked
+                    {
+                        state.crouch_clearance_last_actual = *stance;
+                        state.crouch_clearance_stage = CrouchClearanceStage::Cycling;
+                        info!(
+                            "[MANUAL-INTEGRATION][CROUCH-CLEARANCE-READY] desired={:?} actual={:?} half={:.3}",
+                            transaction.desired_stance, stance, transaction.collider_half_height,
+                        );
+                    }
+                }
+                CrouchClearanceStage::Cycling => {
+                    if *stance == Stance::Standing {
+                        if state.crouch_clearance_last_actual == Stance::Crouching {
+                            state.crouch_clearance_cycles =
+                                state.crouch_clearance_cycles.saturating_add(1);
+                            if state.crouch_clearance_cycles % 25 == 0
+                                && state.crouch_clearance_cycles < 100
+                            {
+                                info!(
+                                    "[MANUAL-INTEGRATION][CROUCH-CYCLES] pairs={} actual={:?} half={:.3}",
+                                    state.crouch_clearance_cycles,
+                                    stance,
+                                    transaction.collider_half_height,
+                                );
+                            }
+                        }
+                        state.crouch_clearance_last_actual = Stance::Standing;
+                        if state.crouch_clearance_cycles >= 100 {
+                            state.coverage.crouch_cycles = true;
+                            state.crouch_clearance_stage =
+                                CrouchClearanceStage::PrepareCanopyCrouch;
+                            info!(
+                                "[MANUAL-INTEGRATION][CROUCH-CYCLES] pairs={} actual={:?} half={:.3}",
+                                state.crouch_clearance_cycles,
+                                stance,
+                                transaction.collider_half_height,
+                            );
+                        } else {
+                            request.stance = Some(Stance::Crouching);
+                        }
+                    } else {
+                        state.crouch_clearance_last_actual = Stance::Crouching;
+                        request.stance = Some(Stance::Standing);
+                    }
+                }
+                CrouchClearanceStage::PrepareCanopyCrouch => {
+                    if *stance == Stance::Standing {
+                        request.stance = Some(Stance::Crouching);
+                    } else if *stance == Stance::Crouching {
+                        state.crouch_clearance_stage = CrouchClearanceStage::ArmCanopy;
+                    }
+                }
+                CrouchClearanceStage::ArmCanopy => {
+                    if let Some(params) = params_assets.get(params_handle.id()) {
+                        let crouched_half_height = params.crouch.crouched_capsule_half_height;
+                        let base_y = transform.translation.y - crouched_half_height;
+                        let canopy_bottom = base_y + crouched_half_height * 2.0 + 0.08;
+                        let canopy_center = Vec3::new(
+                            transform.translation.x,
+                            canopy_bottom + 0.08,
+                            transform.translation.z,
+                        );
+                        let canopy = commands
+                            .spawn((
+                                Name::new("manual_integration_crouch_canopy"),
+                                RigidBody::Static,
+                                Collider::cuboid(1.2, 0.08, 1.2),
+                                Transform::from_translation(canopy_center)
+                                    .with_scale(Vec3::new(1.5, 0.1, 1.5)),
+                                Mesh3d(fixture.obstacle_mesh.clone()),
+                                MeshMaterial3d(fixture.obstacle_material.clone()),
+                            ))
+                            .id();
+                        state.crouch_canopy = Some(canopy);
+                        state.crouch_canopy_center = Some(canopy_center);
+                        state.coverage.crouch_canopy_visible = true;
+                        state.crouch_clearance_stage = CrouchClearanceStage::RequestStanding;
+                        info!(
+                            "[MANUAL-INTEGRATION][CROUCH-CANOPY] center=({:.3},{:.3},{:.3}) bottom={:.3}",
+                            canopy_center.x, canopy_center.y, canopy_center.z, canopy_bottom,
+                        );
+                    }
+                }
+                CrouchClearanceStage::RequestStanding => {
+                    if *stance == Stance::Crouching {
+                        request.stance = Some(Stance::Standing);
+                        state.crouch_clearance_stage = CrouchClearanceStage::AwaitBlocked;
+                    }
+                }
+                CrouchClearanceStage::AwaitBlocked => {
+                    if state.coverage.crouch_canopy_blocked {
+                        state.crouch_clearance_stage = CrouchClearanceStage::MoveAway;
+                    }
+                }
+                CrouchClearanceStage::MoveAway => {
+                    input.0.move_dir = Vec2::X;
+                    if state.crouch_canopy_center.is_some_and(|canopy_center| {
+                        let offset = transform.translation - canopy_center;
+                        Vec2::new(offset.x, offset.z).length() > 1.65
+                    }) {
+                        state.crouch_clearance_stage = CrouchClearanceStage::AwaitRecovery;
+                    }
+                }
+                CrouchClearanceStage::AwaitRecovery => {
+                    if state.coverage.crouch_canopy_recovered {
+                        cleanup_crouch_canopy(&mut commands, &mut state);
+                        begin_phase(&mut state, IntegrationPhase::Turn);
+                    }
+                }
+            }
+            if elapsed >= CROUCH_CLEARANCE_TIMEOUT {
+                cleanup_crouch_canopy(&mut commands, &mut state);
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -1319,6 +1518,18 @@ fn reset_character_without_rotation(
     view_pitch.0 = 0.0;
 }
 
+fn stance_center_from_standing_center(
+    params: &AlsMovementParams,
+    standing_center: Vec3,
+    stance: Stance,
+) -> Vec3 {
+    let target_half_height = match stance {
+        Stance::Standing => params.crouch.standing_capsule_half_height,
+        Stance::Crouching => params.crouch.crouched_capsule_half_height,
+    };
+    standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height)
+}
+
 fn drive_key_interval(
     keys: &mut ButtonInput<KeyCode>,
     key: KeyCode,
@@ -1338,6 +1549,15 @@ fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
     state.phase_started = Instant::now();
     state.entered = true;
     info!("[MANUAL-INTEGRATION][PHASE] {phase:?}");
+}
+
+fn cleanup_crouch_canopy(commands: &mut Commands, state: &mut ManualIntegrationState) {
+    if let Some(entity) = state.crouch_canopy.take() {
+        commands.entity(entity).despawn();
+        state.coverage.crouch_canopy_cleaned = true;
+        info!("[MANUAL-INTEGRATION][CROUCH-CANOPY] cleaned entity={entity:?}");
+    }
+    state.crouch_canopy_center = None;
 }
 
 fn graph_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
@@ -1626,6 +1846,67 @@ fn observe_manual_integration(
             );
         }
         state.coverage.crouch_graph_recovered = true;
+    }
+    if state.phase == IntegrationPhase::CrouchClearance
+        && *stance == Stance::Crouching
+        && speed > 0.1
+    {
+        if !state.coverage.crouch_moving {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-MOVING] speed={:.3} desired={:?} actual={:?}",
+                speed,
+                crouch_transaction.map(|transaction| transaction.desired_stance),
+                stance,
+            );
+        }
+        state.coverage.crouch_moving = true;
+    }
+    if state.phase == IntegrationPhase::CrouchClearance
+        && state.crouch_canopy.is_some()
+        && let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph)
+        && transaction.desired_stance == Stance::Standing
+        && transaction.actual_stance == Stance::Crouching
+        && transaction.headroom_blocked
+        && transaction.blocked_retry_count >= 2
+        && telemetry.actual_state == Some(2)
+        && telemetry.transition_active == Some(false)
+        && telemetry.pose_ready == Some(true)
+    {
+        if !state.coverage.crouch_canopy_blocked {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-CANOPY-BLOCKED] desired={:?} actual={:?} retries={} half={:.3} state={} controller={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.blocked_retry_count,
+                transaction.collider_half_height,
+                telemetry.actual_state.unwrap_or_default(),
+                transaction.controller_crouch_active,
+            );
+        }
+        state.coverage.crouch_canopy_blocked = true;
+    }
+    if state.phase == IntegrationPhase::CrouchClearance
+        && state.coverage.crouch_canopy_blocked
+        && let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph)
+        && transaction.desired_stance == Stance::Standing
+        && transaction.actual_stance == Stance::Standing
+        && !transaction.headroom_blocked
+        && !transaction.controller_crouch_active
+        && telemetry.actual_state == Some(1)
+        && telemetry.transition_active == Some(false)
+        && telemetry.pose_ready == Some(true)
+    {
+        if !state.coverage.crouch_canopy_recovered {
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-CANOPY-RECOVERED] desired={:?} actual={:?} retries={} half={:.3} state={}",
+                transaction.desired_stance,
+                transaction.actual_stance,
+                transaction.blocked_retry_count,
+                transaction.collider_half_height,
+                telemetry.actual_state.unwrap_or_default(),
+            );
+        }
+        state.coverage.crouch_canopy_recovered = true;
     }
     if state.phase == IntegrationPhase::DirectionRegression
         && state.direction_case_index < DIRECTION_CASE_COUNT
@@ -2078,6 +2359,12 @@ fn observe_manual_integration(
                 ),
                 ("crouch_air_landed", coverage.crouch_air_landed),
                 ("crouch_graph_recovered", coverage.crouch_graph_recovered),
+                ("crouch_cycles_100", coverage.crouch_cycles),
+                ("crouch_canopy_visible", coverage.crouch_canopy_visible),
+                ("crouch_canopy_blocked", coverage.crouch_canopy_blocked),
+                ("crouch_canopy_recovered", coverage.crouch_canopy_recovered),
+                ("crouch_canopy_cleaned", coverage.crouch_canopy_cleaned),
+                ("crouch_moving", coverage.crouch_moving),
                 ("stance_crouching", coverage.crouching),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),

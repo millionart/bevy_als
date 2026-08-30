@@ -1,6 +1,6 @@
 use avian3d::prelude::{
-    Collider, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Rotation, SpatialQuery,
-    SpatialQueryFilter,
+    Collider, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
+    SpatialQuery, SpatialQueryFilter,
 };
 use bevy::asset::Assets;
 use bevy::prelude::*;
@@ -543,6 +543,7 @@ mod rotation_cap_tests {
         phase: AlsCrouchTransactionPhase,
         retry_count: u32,
         transaction_half_height: f32,
+        transaction_center: Vec3,
         transaction_controller_crouch: bool,
         transaction_headroom_blocked: bool,
     }
@@ -620,6 +621,7 @@ mod rotation_cap_tests {
         probe.phase = transaction.phase;
         probe.retry_count = transaction.blocked_retry_count;
         probe.transaction_half_height = transaction.collider_half_height;
+        probe.transaction_center = transaction.collider_center;
         probe.transaction_controller_crouch = transaction.controller_crouch_active;
         probe.transaction_headroom_blocked = transaction.headroom_blocked;
     }
@@ -838,6 +840,7 @@ mod rotation_cap_tests {
             phase: AlsCrouchTransactionPhase::Crouching,
             retry_count: 0,
             transaction_half_height: f32::NAN,
+            transaction_center: Vec3::ZERO,
             transaction_controller_crouch: false,
             transaction_headroom_blocked: false,
         })
@@ -864,7 +867,7 @@ mod rotation_cap_tests {
                 StandingCapsuleBeam,
             ))
             .id();
-        let center = Vec3::new(0.0, params_value.crouch.standing_capsule_half_height, 0.0);
+        let center = Vec3::new(0.0, params_value.crouch.crouched_capsule_half_height, 0.0);
         let mut bundle = AlsCharacterBundle::new(params, config);
         bundle.transform = Transform::from_translation(center);
         bundle.rigid_body = RigidBody::Kinematic;
@@ -911,6 +914,7 @@ mod rotation_cap_tests {
                 probe.phase,
                 probe.retry_count,
                 probe.transaction_half_height,
+                probe.transaction_center,
                 probe.transaction_controller_crouch,
                 probe.transaction_headroom_blocked,
             )
@@ -935,12 +939,13 @@ mod rotation_cap_tests {
                 probe.phase,
                 probe.retry_count,
                 probe.transaction_half_height,
+                probe.transaction_center,
                 probe.transaction_controller_crouch,
                 probe.transaction_headroom_blocked,
             )
         };
         println!(
-            "[BF102.02] blocked_desired={:?} blocked_actual={:?} blocked_crouched={} blocked_headroom={:.6} blocked_overlap={} blocked_sync_error={:.6} blocked_phase={:?} blocked_retries={} blocked_half={:.6} blocked_controller={} blocked_headroom_state={} restored_desired={:?} restored_actual={:?} restored_crouched={} restored_headroom={:.6} restored_overlap={} restored_sync_error={:.6} restored_phase={:?} restored_retries={} restored_half={:.6} restored_controller={} restored_headroom_state={}",
+            "[BF102.02] blocked_desired={:?} blocked_actual={:?} blocked_crouched={} blocked_headroom={:.6} blocked_overlap={} blocked_sync_error={:.6} blocked_phase={:?} blocked_retries={} blocked_half={:.6} blocked_center_y={:.6} blocked_controller={} blocked_headroom_state={} restored_desired={:?} restored_actual={:?} restored_crouched={} restored_headroom={:.6} restored_overlap={} restored_sync_error={:.6} restored_phase={:?} restored_retries={} restored_half={:.6} restored_center_y={:.6} restored_controller={} restored_headroom_state={}",
             blocked_probe.0,
             blocked_probe.1,
             blocked_probe.2,
@@ -950,8 +955,9 @@ mod rotation_cap_tests {
             blocked_probe.6,
             blocked_probe.7,
             blocked_probe.8,
-            blocked_probe.9,
+            blocked_probe.9.y,
             blocked_probe.10,
+            blocked_probe.11,
             restored_probe.0,
             restored_probe.1,
             restored_probe.2,
@@ -961,8 +967,9 @@ mod rotation_cap_tests {
             restored_probe.6,
             restored_probe.7,
             restored_probe.8,
-            restored_probe.9,
+            restored_probe.9.y,
             restored_probe.10,
+            restored_probe.11,
         );
         assert_eq!(blocked_probe.0, Stance::Standing);
         assert_eq!(blocked_probe.1, Stance::Crouching);
@@ -976,8 +983,11 @@ mod rotation_cap_tests {
         );
         assert!(blocked_probe.7 >= 1);
         assert!((blocked_probe.8 - params_value.crouch.crouched_capsule_half_height).abs() < 1e-4);
-        assert!(blocked_probe.9);
+        assert!(
+            (blocked_probe.9.y - params_value.crouch.crouched_capsule_half_height).abs() < 1e-4
+        );
         assert!(blocked_probe.10);
+        assert!(blocked_probe.11);
         assert_eq!(restored_probe.0, Stance::Standing);
         assert_eq!(restored_probe.1, Stance::Standing);
         assert!(!restored_probe.2);
@@ -987,8 +997,11 @@ mod rotation_cap_tests {
         assert_eq!(restored_probe.6, AlsCrouchTransactionPhase::Standing);
         assert_eq!(restored_probe.7, 0);
         assert!((restored_probe.8 - params_value.crouch.standing_capsule_half_height).abs() < 1e-4);
-        assert!(!restored_probe.9);
+        assert!(
+            (restored_probe.9.y - params_value.crouch.standing_capsule_half_height).abs() < 1e-4
+        );
         assert!(!restored_probe.10);
+        assert!(!restored_probe.11);
         println!(
             "[CROUCH-TRANSACTION][PHYSICS] blocked_retries={} restored_phase={:?} -> PASS",
             blocked_probe.7, restored_probe.6,
@@ -1096,6 +1109,29 @@ mod rotation_cap_tests {
             ),
             Stance::Standing
         );
+    }
+
+    #[test]
+    fn stance_capsule_centers_preserve_the_support_base() {
+        let params = AlsMovementParams::default();
+        let standing_center = Vec3::Y * params.crouch.standing_capsule_half_height;
+        let crouching_center = capsule_center_for_stance(
+            &params,
+            standing_center,
+            Stance::Standing,
+            Stance::Crouching,
+        );
+        let restored_center = capsule_center_for_stance(
+            &params,
+            crouching_center,
+            Stance::Crouching,
+            Stance::Standing,
+        );
+        let standing_base = standing_center.y - params.crouch.standing_capsule_half_height;
+        let crouching_base = crouching_center.y - params.crouch.crouched_capsule_half_height;
+        assert!(standing_base.abs() < 1e-6);
+        assert!((standing_base - crouching_base).abs() < 1e-6);
+        assert!(restored_center.distance(standing_center) < 1e-6);
     }
 
     #[test]
@@ -1920,6 +1956,7 @@ fn capsule_reshape_system(
             &mut transaction,
             transform.translation,
             transform.rotation,
+            transform,
             already_deferred,
             &mut transitions,
         );
@@ -1936,9 +1973,11 @@ fn apply_capsule_for_stance(
     transaction: &mut AlsCrouchTransaction,
     center: Vec3,
     rotation: Quat,
+    transform: &Transform,
     already_deferred: bool,
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
+    let target_center = capsule_center_for_stance(params, center, *stance, target);
     match target {
         Stance::Crouching => {
             let (half_height, radius) = capsule_dimensions(params, target);
@@ -1948,13 +1987,14 @@ fn apply_capsule_for_stance(
                 .insert(AlsCapsuleCrouched)
                 .insert(capsule_for(params, target));
             apply_actual_stance(entity, stance, target, transitions);
-            transaction.crouch_applied(half_height, radius, center);
+            apply_capsule_center(commands, entity, transform, target_center);
+            transaction.crouch_applied(half_height, radius, target_center);
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
             let standing_capsule = capsule_for(params, Stance::Standing);
             let blocked = !spatial_query
-                .shape_intersections(&standing_capsule, center, rotation, &filter)
+                .shape_intersections(&standing_capsule, target_center, rotation, &filter)
                 .is_empty();
             if blocked {
                 let (half_height, radius) = capsule_dimensions(params, Stance::Crouching);
@@ -1973,7 +2013,8 @@ fn apply_capsule_for_stance(
                 .insert(standing_capsule);
             apply_actual_stance(entity, stance, target, transitions);
             let (half_height, radius) = capsule_dimensions(params, Stance::Standing);
-            transaction.standing_applied(half_height, radius, center);
+            apply_capsule_center(commands, entity, transform, target_center);
+            transaction.standing_applied(half_height, radius, target_center);
             if was_deferred {
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
             }
@@ -1987,6 +2028,30 @@ fn capsule_dimensions(params: &AlsMovementParams, stance: Stance) -> (f32, f32) 
         Stance::Crouching => params.crouch.crouched_capsule_half_height,
     };
     (half_height, params.crouch.standing_capsule_radius)
+}
+
+fn capsule_center_for_stance(
+    params: &AlsMovementParams,
+    current_center: Vec3,
+    current_stance: Stance,
+    target_stance: Stance,
+) -> Vec3 {
+    let (current_half_height, _) = capsule_dimensions(params, current_stance);
+    let (target_half_height, _) = capsule_dimensions(params, target_stance);
+    current_center + Vec3::Y * (target_half_height - current_half_height)
+}
+
+fn apply_capsule_center(
+    commands: &mut Commands,
+    entity: Entity,
+    transform: &Transform,
+    center: Vec3,
+) {
+    let mut next_transform = transform.clone();
+    next_transform.translation = center;
+    commands
+        .entity(entity)
+        .insert((Position(center), next_transform));
 }
 
 fn capsule_target_for_locomotion(
