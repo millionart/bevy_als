@@ -27,6 +27,7 @@ pub const FOOT_LOCK_FOOT_ANGLE_LIMIT_DEGREES: f32 = 40.0;
 pub const FOOT_LOCK_MOVING_DECREASE_PER_SECOND: f32 = 5.0;
 pub const FOOT_LOCK_NOT_GROUNDED_DECREASE_PER_SECOND: f32 = 0.6;
 pub const FOOT_LOCK_RELEVANCE_THRESHOLD: f32 = 1e-4;
+pub const FOOT_LOCK_TELEPORT_WINDOW_SECONDS: f32 = 0.2;
 
 const PELVIS_INTERP_SPEED: f32 = 12.0;
 const FOOT_INTERP_SPEED: f32 = 18.0;
@@ -53,6 +54,11 @@ impl Default for AlsFootLockSettings {
             not_grounded_decrease_per_second: FOOT_LOCK_NOT_GROUNDED_DECREASE_PER_SECOND,
         }
     }
+}
+
+#[derive(Message, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsFootLockTeleported {
+    pub entity: Entity,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -190,6 +196,22 @@ impl Default for AlsFootLockFootState {
             final_rotation: Quat::IDENTITY,
         }
     }
+}
+
+pub fn reset_foot_lock_to_target(
+    state: &mut AlsFootLockFootState,
+    target_location: Vec3,
+    target_rotation: Quat,
+) {
+    *state = AlsFootLockFootState {
+        target_location,
+        target_rotation,
+        lock_location: target_location,
+        lock_rotation: target_rotation,
+        final_location: target_location,
+        final_rotation: target_rotation,
+        ..Default::default()
+    };
 }
 
 pub fn advance_foot_lock_movement_base(

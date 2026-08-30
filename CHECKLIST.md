@@ -391,9 +391,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`foot_rotation_consumes_slope_normal_and_full_lock_rotation` 输出 `[BF102.42][VERDICT] initialization_alignment=1.000000 slope_alignment=1.000000 lock_alignment=1.000000 legacy_alignment=0.982278 -> PASS`。
   - 回归：`cargo test -p als-core --lib --jobs 2` 通过（212 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（127 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.43 — I05：传送和骨骼恢复重初始化 Foot Lock（P2）**
+- [x] **BF102.43 — I05：传送和骨骼恢复重初始化 Foot Lock（P2）**
   - 依赖：BF102.15、BF102.42。
   - 验收：传送、动画重新有效、组件重装后锁点与插值状态不保留过期数据。
+  - 当次 ALS 事实：实时读取 `UAlsAnimationInstance::RefreshFeetOnGameThread / ProcessFootLockTeleport / ProcessFootLockBaseChange`：`MarkTeleported()` 记录事件时间；在 0.2 秒窗口内，相关锁点由当前 component transform 重新求世界／movement-base-space 变换；feet 从无效恢复时，锁点重置为当前 target transform。实时 Unreal MCP 读取 `/ALS/ALS/Character/CR_Als.rigInput`，确认实际资产带有 `bFootTransformsValid` 与双脚 target transform 输入。
+  - 实现：新增项目内 `AlsFootLockTeleported { entity }` 消息和源同值 0.2 秒窗口；窗口内按角色前后 transform 对完整脚锁 transform 重建，并立即重新捕获 movement-base 局部变换。缺少骨骼、骨骼 entity 失效或恢复时，Foot Lock、IK／法线插值和动态过渡状态全部清空，再从当前 target 重建。
+  - 证据：`foot_lock_lifecycle_rebases_teleports_and_resets_missing_bones` 输出 `[BF102.43][VERDICT] teleport_location_error=0.000001 teleport_rotation_alignment=1.000000 recovery_fresh=true reload_reset=true teleport_message=true -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（212 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（128 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.44 — I06：动态过渡检测水平脚锁漂移（P1）**
   - 依赖：BF102.19、BF102.42。

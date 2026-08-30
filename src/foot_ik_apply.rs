@@ -1,9 +1,10 @@
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{
     AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
-    AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootProbe, FootSideInput,
+    AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
+    AlsFootProbe, FOOT_LOCK_TELEPORT_WINDOW_SECONDS, FootSideInput,
     advance_foot_lock_movement_base, capture_foot_lock_movement_base, constrain_foot_lock_location,
-    foot_target_offset, refresh_foot_lock,
+    foot_target_offset, is_relevant_animation_weight, refresh_foot_lock, reset_foot_lock_to_target,
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transitions::TransitionConfig;
@@ -23,6 +24,12 @@ const FOOT_OFFSET_NORMAL_HALF_LIFE: f32 = 0.1;
 struct FootOffsetRotationState {
     normals: [Vec3; 2],
     initialized: [bool; 2],
+}
+
+#[derive(Component, Debug, Clone, Copy, Default)]
+struct FootLockLifecycleState {
+    previous_character_transform: Option<Transform>,
+    teleport_remaining: f32,
 }
 
 impl Default for FootOffsetRotationState {
@@ -63,12 +70,16 @@ impl Plugin for FootIkApplyPlugin {
             PostUpdate,
             AnimationGraphSet::Final.before(TransformSystems::Propagate),
         );
+        app.add_message::<AlsFootLockTeleported>();
         app.add_systems(
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
                 ensure_foot_lock_components,
                 ensure_foot_offset_rotation_state,
+                ensure_foot_lock_lifecycle_state,
+                invalidate_missing_foot_bones.before(foot_ik_apply_system),
+                record_foot_lock_teleports.before(foot_ik_apply_system),
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
                     .after(TransformSystems::Propagate)
@@ -121,6 +132,122 @@ fn ensure_foot_offset_rotation_state(
     }
 }
 
+fn ensure_foot_lock_lifecycle_state(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<FootLockLifecycleState>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(FootLockLifecycleState::default());
+    }
+}
+
+fn record_foot_lock_teleports(
+    mut commands: Commands,
+    mut teleports: MessageReader<AlsFootLockTeleported>,
+    mut lifecycles: Query<&mut FootLockLifecycleState>,
+) {
+    for teleport in teleports.read() {
+        if let Ok(mut lifecycle) = lifecycles.get_mut(teleport.entity) {
+            lifecycle.teleport_remaining = FOOT_LOCK_TELEPORT_WINDOW_SECONDS;
+        } else {
+            commands
+                .entity(teleport.entity)
+                .insert(FootLockLifecycleState {
+                    previous_character_transform: None,
+                    teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
+                });
+        }
+    }
+}
+
+fn invalidate_missing_foot_bones(
+    mut characters: Query<
+        (
+            Option<&AlsFootBones>,
+            Option<&mut AlsFootLockState>,
+            Option<&mut AlsFootIkRuntime>,
+            Option<&mut FootOffsetRotationState>,
+            Option<&mut AlsDynamicTransitionState>,
+            Option<&mut FootLockLifecycleState>,
+        ),
+        With<als_core::character::AlsCharacter>,
+    >,
+) {
+    for (bones, lock_state, runtime, offset_rotation, dynamic_transition, lifecycle) in
+        &mut characters
+    {
+        if bones.is_some() {
+            continue;
+        }
+        if let Some(mut lock_state) = lock_state {
+            *lock_state = AlsFootLockState::default();
+        }
+        if let Some(mut runtime) = runtime {
+            *runtime = AlsFootIkRuntime::default();
+        }
+        if let Some(mut offset_rotation) = offset_rotation {
+            *offset_rotation = FootOffsetRotationState::default();
+        }
+        if let Some(mut dynamic_transition) = dynamic_transition {
+            *dynamic_transition = AlsDynamicTransitionState::default();
+        }
+        if let Some(mut lifecycle) = lifecycle {
+            *lifecycle = FootLockLifecycleState::default();
+        }
+    }
+}
+
+fn foot_bones_are_valid(
+    bones: &AlsFootBones,
+    transforms: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> bool {
+    [
+        bones.left_thigh,
+        bones.left_calf,
+        bones.left,
+        bones.left_target.unwrap_or(bones.left),
+        bones.right_thigh,
+        bones.right_calf,
+        bones.right,
+        bones.right_target.unwrap_or(bones.right),
+    ]
+    .into_iter()
+    .all(|entity| {
+        transforms.get(entity).is_ok_and(|transform| {
+            transform.translation().is_finite() && transform.rotation().is_finite()
+        })
+    })
+}
+
+fn rebase_foot_lock_after_teleport(
+    state: &mut als_core::foot_ik::AlsFootLockFootState,
+    previous_character_transform: &Transform,
+    current_character_transform: &Transform,
+) {
+    let previous_inverse = previous_character_transform.to_matrix().inverse();
+    let current_matrix = current_character_transform.to_matrix();
+    state.lock_location =
+        current_matrix.transform_point3(previous_inverse.transform_point3(state.lock_location));
+    state.final_location =
+        current_matrix.transform_point3(previous_inverse.transform_point3(state.final_location));
+    let rotation_delta =
+        current_character_transform.rotation * previous_character_transform.rotation.conjugate();
+    state.lock_rotation = (rotation_delta * state.lock_rotation).normalize();
+    state.final_rotation = (rotation_delta * state.final_rotation).normalize();
+}
+
+fn reset_foot_ik_runtime(
+    runtime: &mut AlsFootIkRuntime,
+    offset_rotation: &mut FootOffsetRotationState,
+    dynamic_transition: &mut AlsDynamicTransitionState,
+) {
+    *runtime = AlsFootIkRuntime::default();
+    *offset_rotation = FootOffsetRotationState::default();
+    *dynamic_transition = AlsDynamicTransitionState::default();
+}
+
 #[allow(clippy::type_complexity)]
 fn foot_ik_apply_system(
     time: Res<Time>,
@@ -138,9 +265,9 @@ fn foot_ik_apply_system(
             Option<&AlsMovementBaseDynamicsState>,
             &mut AlsFootIkRuntime,
             &mut FootOffsetRotationState,
+            &mut FootLockLifecycleState,
             &mut AlsFootLockState,
             &mut AlsDynamicTransitionState,
-            Option<&AnimationPlayer>,
         ),
         With<als_core::character::AlsCharacter>,
     >,
@@ -163,11 +290,23 @@ fn foot_ik_apply_system(
         movement_base,
         mut runtime,
         mut foot_offset_rotation,
+        mut lifecycle,
         mut lock_state,
         mut dynamic_transition,
-        _,
     ) in &mut characters
     {
+        let current_character_transform = char_gtf.compute_transform();
+        if !foot_bones_are_valid(bones, &bone_globals) {
+            *lock_state = AlsFootLockState::default();
+            reset_foot_ik_runtime(
+                &mut runtime,
+                &mut foot_offset_rotation,
+                &mut dynamic_transition,
+            );
+            lifecycle.previous_character_transform = Some(current_character_transform);
+            lifecycle.teleport_remaining = 0.0;
+            continue;
+        }
         let char_fwd = char_gtf.forward().as_vec3();
         let pole = Vec3::new(char_fwd.x, 0.0, char_fwd.z).normalize_or_zero();
         let left_ik_amount = animation_curve_amount(entity, "FootLeftIk", &avatars, &players)
@@ -187,11 +326,38 @@ fn foot_ik_apply_system(
         lock_state.foot_planted_amount = lock_input.foot_planted_amount.clamp(-1.0, 1.0);
         lock_state.feet_crossing_amount = lock_input.feet_crossing_amount.clamp(0.0, 1.0);
         let became_valid = lock_state.became_valid;
+        if became_valid {
+            reset_foot_ik_runtime(
+                &mut runtime,
+                &mut foot_offset_rotation,
+                &mut dynamic_transition,
+            );
+        }
         let current_base = movement_base.and_then(|state| {
             state
                 .entity
                 .and_then(|entity| foot_lock_movement_base(entity, &bone_globals))
         });
+        if lifecycle.teleport_remaining > 0.0 && !became_valid {
+            if let Some(previous_character_transform) = lifecycle.previous_character_transform {
+                if is_relevant_animation_weight(left_ik_amount * lock_state.left.lock_amount) {
+                    rebase_foot_lock_after_teleport(
+                        &mut lock_state.left,
+                        &previous_character_transform,
+                        &current_character_transform,
+                    );
+                    capture_foot_lock_movement_base(&mut lock_state.left, current_base);
+                }
+                if is_relevant_animation_weight(right_ik_amount * lock_state.right.lock_amount) {
+                    rebase_foot_lock_after_teleport(
+                        &mut lock_state.right,
+                        &previous_character_transform,
+                        &current_character_transform,
+                    );
+                    capture_foot_lock_movement_base(&mut lock_state.right, current_base);
+                }
+            }
+        }
         let pelvis_world_offset = apply_pelvis_drop(
             bones.left_thigh,
             runtime.pelvis_drop,
@@ -206,6 +372,9 @@ fn foot_ik_apply_system(
                 0 => (&mut lock_state.left, left_ik_amount, left_lock_amount),
                 _ => (&mut lock_state.right, right_ik_amount, right_lock_amount),
             };
+            if became_valid {
+                reset_foot_lock_to_target(foot_state, target.translation(), target.rotation());
+            }
             let latest_base = foot_state
                 .movement_base
                 .and_then(|base| foot_lock_movement_base(base.entity, &bone_globals));
@@ -299,6 +468,8 @@ fn foot_ik_apply_system(
                 &bone_globals,
             );
         }
+        lifecycle.previous_character_transform = Some(current_character_transform);
+        lifecycle.teleport_remaining = (lifecycle.teleport_remaining - dt.max(0.0)).max(0.0);
     }
 }
 
@@ -540,6 +711,148 @@ mod tests {
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.42][VERDICT] initialization_alignment={initialization_alignment:.6} slope_alignment={slope_alignment:.6} lock_alignment={lock_alignment:.6} legacy_alignment={legacy_alignment:.6} -> {verdict}"
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn foot_lock_lifecycle_rebases_teleports_and_resets_missing_bones() {
+        let previous_character_transform = Transform::from_xyz(2.0, 0.5, -1.0)
+            .with_rotation(Quat::from_rotation_y(20.0_f32.to_radians()));
+        let current_character_transform = Transform::from_xyz(-3.0, 1.5, 4.0)
+            .with_rotation(Quat::from_rotation_y(-45.0_f32.to_radians()));
+        let local_location = Vec3::new(0.2, -0.9, 0.3);
+        let local_rotation = Quat::from_euler(
+            EulerRot::YXZ,
+            10.0_f32.to_radians(),
+            -5.0_f32.to_radians(),
+            7.0_f32.to_radians(),
+        );
+        let mut foot_state = als_core::foot_ik::AlsFootLockFootState {
+            lock_amount: 1.0,
+            lock_location: previous_character_transform
+                .to_matrix()
+                .transform_point3(local_location),
+            lock_rotation: previous_character_transform.rotation * local_rotation,
+            final_location: previous_character_transform
+                .to_matrix()
+                .transform_point3(local_location),
+            final_rotation: previous_character_transform.rotation * local_rotation,
+            ..Default::default()
+        };
+        rebase_foot_lock_after_teleport(
+            &mut foot_state,
+            &previous_character_transform,
+            &current_character_transform,
+        );
+        let expected_location = current_character_transform
+            .to_matrix()
+            .transform_point3(local_location);
+        let expected_rotation = current_character_transform.rotation * local_rotation;
+        let teleport_location_error = foot_state.lock_location.distance(expected_location);
+        let teleport_rotation_alignment = foot_state.lock_rotation.dot(expected_rotation).abs();
+
+        let target_location = Vec3::new(8.0, 0.4, -2.0);
+        let target_rotation = Quat::from_rotation_y(60.0_f32.to_radians());
+        reset_foot_lock_to_target(&mut foot_state, target_location, target_rotation);
+        let recovery_fresh = foot_state.lock_amount == 0.0
+            && foot_state.lock_location == target_location
+            && foot_state.final_location == target_location
+            && foot_state.lock_rotation.dot(target_rotation).abs() > 0.999_99
+            && foot_state.movement_base.is_none();
+
+        let mut app = App::new();
+        app.add_message::<AlsFootLockTeleported>().add_systems(
+            Update,
+            (record_foot_lock_teleports, invalidate_missing_foot_bones),
+        );
+        let entity = app
+            .world_mut()
+            .spawn((
+                als_core::character::AlsCharacter,
+                AlsFootLockState {
+                    valid: true,
+                    became_valid: true,
+                    ..Default::default()
+                },
+                AlsFootIkRuntime::default(),
+                FootOffsetRotationState {
+                    normals: [Vec3::X, Vec3::Z],
+                    initialized: [true, true],
+                },
+                AlsDynamicTransitionState {
+                    frames_remaining: 2,
+                    ..Default::default()
+                },
+                FootLockLifecycleState {
+                    previous_character_transform: Some(previous_character_transform),
+                    teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
+                },
+            ))
+            .id();
+        app.update();
+        let lock_state = app.world().get::<AlsFootLockState>(entity).unwrap();
+        let runtime = app.world().get::<AlsFootIkRuntime>(entity).unwrap();
+        let offset_rotation = app.world().get::<FootOffsetRotationState>(entity).unwrap();
+        let dynamic_transition = app
+            .world()
+            .get::<AlsDynamicTransitionState>(entity)
+            .unwrap();
+        let lifecycle = app.world().get::<FootLockLifecycleState>(entity).unwrap();
+        let reload_reset = !lock_state.valid
+            && runtime.side(0) == (0.0, 0.0)
+            && runtime.ik_weights() == (0.0, 0.0)
+            && !offset_rotation.initialized[0]
+            && !offset_rotation.initialized[1]
+            && *dynamic_transition == AlsDynamicTransitionState::default()
+            && lifecycle.teleport_remaining == 0.0
+            && lifecycle.previous_character_transform.is_none();
+        let left_thigh = app.world_mut().spawn_empty().id();
+        let left_calf = app.world_mut().spawn_empty().id();
+        let left_foot = app.world_mut().spawn_empty().id();
+        let left_target = app.world_mut().spawn_empty().id();
+        let right_thigh = app.world_mut().spawn_empty().id();
+        let right_calf = app.world_mut().spawn_empty().id();
+        let right_foot = app.world_mut().spawn_empty().id();
+        let right_target = app.world_mut().spawn_empty().id();
+        let teleport_entity = app
+            .world_mut()
+            .spawn((
+                als_core::character::AlsCharacter,
+                AlsFootBones {
+                    left_thigh,
+                    left_calf,
+                    left: left_foot,
+                    left_target: Some(left_target),
+                    right_thigh,
+                    right_calf,
+                    right: right_foot,
+                    right_target: Some(right_target),
+                },
+                FootLockLifecycleState::default(),
+            ))
+            .id();
+        let _ = app.world_mut().write_message(AlsFootLockTeleported {
+            entity: teleport_entity,
+        });
+        app.update();
+        let teleport_message = (app
+            .world()
+            .get::<FootLockLifecycleState>(teleport_entity)
+            .unwrap()
+            .teleport_remaining
+            - FOOT_LOCK_TELEPORT_WINDOW_SECONDS)
+            .abs()
+            < 1e-6;
+        let passed = (FOOT_LOCK_TELEPORT_WINDOW_SECONDS - 0.2).abs() < 1e-6
+            && teleport_location_error < 1e-5
+            && teleport_rotation_alignment > 0.999_99
+            && recovery_fresh
+            && reload_reset
+            && teleport_message;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.43][VERDICT] teleport_location_error={teleport_location_error:.6} teleport_rotation_alignment={teleport_rotation_alignment:.6} recovery_fresh={recovery_fresh} reload_reset={reload_reset} teleport_message={teleport_message} -> {verdict}"
         );
         assert!(passed);
     }
