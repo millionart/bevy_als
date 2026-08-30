@@ -67,9 +67,13 @@
 
 目标：将 desired stance、控制器执行结果、headroom、collider、actual stance 与动画切换收敛为可重试的双向事务；阻挡起身不得丢失 desired standing。BF105 仅在 BF104.Gate 通过后开始。
 
-- [ ] **BF105.01 — C01：蹲起源事实、当前状态所有权与入口基线（P0）**
+- [x] **BF105.01 — C01：蹲起源事实、当前状态所有权与入口基线（P0）**
   - 依赖：BF104.Gate。
   - 验收：当前项开始时从本地 ALS-Refactored 重新提取 stance、角色移动、胶囊体、动画状态／转场及输入处理事实；记录 desired／actual stance、crouch action、headroom、collider 高度／中心、速度、动作打断和 animation state 的唯一写入者，并以空旷地、低顶棚和动作打断的真实入口日志定位不对称路径。
+  - 当次 ALS／资产事实（2026-08-31，重新读取本地 `AlsCharacter.cpp`、`AlsAnimationInstance.cpp`、`AB_Als_Crouching.uasset`，并以 Unreal MCP AssetTools 重取 Crouching 图依赖）：DesiredStance 是独立目标；`SetDesiredStance()` 持久化目标并调用 `ApplyDesiredStance()`，grounded 且无 locomotion action 时请求 Crouch 或 UnCrouch，InAir 会请求 UnCrouch，Rolling 仅在 source setting 开启时可在开始时 crouch。真实 actual Stance 只在引擎 crouch 成功回调 `OnStartCrouch()`／`OnEndCrouch()` 后经 `SetStance()` 改写，后者同步 movement component；因此受阻 UnCrouch 不得先写 Standing。Crouching 图具有独立 crouch pose、六向 crouch walk、lean 与 crouch rotate 资产，stride 取 crouch curve，play rate 以 speed 除 animated crouch speed 与 stride 后限制到 2.0。
+  - 项目当前所有权：输入 `crouch_pressed` 只创建 stance request；`process_stance_dimension()` 将已接受 request 写入 `AlsDesiredStance`，不直接改变附带 desired component 的 actual `Stance`。`capsule_reshape_system()` 是正常路径的 actual stance、`AlsCapsuleCrouched` 和 Avian capsule 唯一写入者：进入 crouch 同步写 crouched collider，站起先进行 standing capsule overlap，失败保留 desired standing、actual crouching 与 deferred 标记并逐帧重试，成功才恢复 standing collider 并写 actual。`locomotion_drive_system()` 仅在 actual crouching 时喂入 `TnuaBuiltinCrouch`；`tnua_config_sync_system()`、`stance_layer`、`crouching_layer`同样只读 actual `Stance`。组件缺失时 transition fallback 仍可直接写 actual，故 C02 必须将此正常角色路径收敛为显式事务并保留多角色隔离。
+  - 真实入口基线：在原始 Playground 的 PlayerStart、scene physics、可见角色和 grounded spawn 全部通过后运行 Base。空旷开始后进入实际 Crouching，probe 连续记录 `cap_h=0.56`、crouching gait 与 Graph pose；原始场景内的低顶棚路径打印 `stand-up deferred: target capsule blocked`，随后在场景位置变化后打印 `clearance regained: standing capsule restored`，说明当前 collider retry 已实际发生。相同真实序列还记录 crouching 进入 Air 与后续 Roll/action 阶段，且现有 probe 未同帧输出 desired stance、Tnua action、collider 半高／中心及 crouching active graph path；这既是当前不可接受的证据缺口，也暴露了 source InAir UnCrouch 语义与项目动作链之间需要在 C02/C03 验证的差异。未把独立 `stance_gate` 的空白世界截图错误当作入口证据。
+  - 证据：`ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=base RUST_LOG=<motion and probe filter> run_manual.bat`（`CARGO_BUILD_JOBS=2`）返回 0，记录上述 Grounded Crouching、deferred、clearance regained、Air、Roll 和 `Base real_entry_paths -> PASS`；`cargo run --example stance_gate --jobs 2` 返回 0 但其 screenshot 目录缺失，故只作静态辅助检查而不计入真实入口验收。
 
 - [ ] **BF105.02 — C02：可拒绝、可重试的 collider 与控制器蹲起事务（P0）**
   - 依赖：BF105.01。
