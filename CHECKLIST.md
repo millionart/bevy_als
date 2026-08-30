@@ -289,9 +289,13 @@ BF102.58 网络范围 ─► BF102.Gate
 
 ### 空中、落地与动作时间
 
-- [ ] **BF102.31 — L01：重落地使用预碰撞竖直速度（P1）**
+- [x] **BF102.31 — L01：重落地使用预碰撞竖直速度（P1）**
   - 依赖：BF102.05、BF102.02。
   - 验收：高落差着地记录预/后碰撞速度与 heavy landing 权重，动画输入使用预碰撞值。
+  - 当次事实：实时 MCP 从实际 `AB_Als_Locomotion` 读取到 `Land` 与 `Land Movement` 状态；本机插件包不含 C++ 源码，审计所对应的 `RefreshInAir()` 契约为保留最后空中竖直速度供落地使用。修复前 writer 在两个落地状态直接使用碰撞后的 `LinearVelocity.y`，会把 `-10 m/s → 0 m/s` 的落地重度从 `1` 降为 `0`。
+  - 实现：`AlsAirState` 记录最后一个空中帧的原始 world-space y 速度，并在 Air→Grounded 边沿锁存；`LocomotionLayerRuntime` 将该值再锁存整个 Land/LandMovement 段，`write_globals()` 与落地 sync phase 均使用锁存值，其他状态仍使用当前物理速度。
+  - 证据：`landing_animation_velocity_latches_the_pre_collision_value` 输出 `pre_collision=-10.000 post_collision=0.000 land=-10.000 land_movement=-10.000 recovered=-10.000 heavy=1.000 movement_weight=1.000 -> PASS`。
+  - 回归：`cargo test -p als-core --jobs 2` 通过（209 passed、2 ignored；另 1 integration test 通过）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo test -p bevy_als --lib --jobs 2` 通过（118 tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.32 — L02：主路径地面预测使用目标胶囊 sweep（P1）**
   - 依赖：BF102.17、BF102.23。

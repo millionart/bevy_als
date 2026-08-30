@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
 use als_core::foot_ik::AlsFootLockState;
 use als_core::input::AlsInputCommand;
@@ -222,6 +223,8 @@ struct LocomotionLayerRuntime {
     jump_state_elapsed: f32,
     jump_latched: bool,
     previous_locomotion: LocomotionState,
+    last_air_vertical_velocity: f32,
+    landing_vertical_velocity: Option<f32>,
     air_lean: Vec2,
     land_movement_additive_alpha: f32,
     fall_phase: SyncPhaseState,
@@ -243,6 +246,8 @@ impl Default for LocomotionLayerRuntime {
             jump_state_elapsed: 0.0,
             jump_latched: false,
             previous_locomotion: LocomotionState::Grounded,
+            last_air_vertical_velocity: 0.0,
+            landing_vertical_velocity: None,
             air_lean: Vec2::ZERO,
             land_movement_additive_alpha: 1.0,
             fall_phase: default(),
@@ -379,6 +384,40 @@ fn map_range_clamped(
 
 fn is_air(locomotion: LocomotionState) -> bool {
     locomotion == LocomotionState::Air
+}
+
+fn update_landing_velocity_latch(
+    runtime: &mut LocomotionLayerRuntime,
+    locomotion: LocomotionState,
+    vertical_velocity: f32,
+    air_state: Option<&AlsAirState>,
+) {
+    if is_air(locomotion) {
+        runtime.last_air_vertical_velocity = vertical_velocity;
+        runtime.landing_vertical_velocity = None;
+    } else if runtime.previous_locomotion == LocomotionState::Air {
+        runtime.landing_vertical_velocity = Some(runtime.last_air_vertical_velocity);
+    } else if runtime.landing_vertical_velocity.is_none() {
+        runtime.landing_vertical_velocity =
+            air_state.and_then(AlsAirState::landing_vertical_velocity_world_space);
+    }
+}
+
+fn landing_animation_vertical_velocity(
+    runtime: &LocomotionLayerRuntime,
+    air_state: Option<&AlsAirState>,
+    current_vertical_velocity: f32,
+) -> f32 {
+    if matches!(
+        runtime.state,
+        LocomotionLayerState::Land | LocomotionLayerState::LandMovement
+    ) {
+        return runtime
+            .landing_vertical_velocity
+            .or_else(|| air_state.and_then(AlsAirState::landing_vertical_velocity_world_space))
+            .unwrap_or(current_vertical_velocity);
+    }
+    current_vertical_velocity
 }
 
 fn next_outer_transition(
@@ -774,6 +813,7 @@ fn locomotion_layer_writer(
             &Transform,
             &GlobalTransform,
             &LinearVelocity,
+            Option<&AlsAirState>,
             &LocomotionState,
             &Stance,
             &RotationMode,
@@ -806,6 +846,7 @@ fn locomotion_layer_writer(
             transform,
             global_transform,
             velocity,
+            air_state,
             locomotion,
             stance,
             rotation_mode,
@@ -821,6 +862,7 @@ fn locomotion_layer_writer(
             continue;
         };
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
+        update_landing_velocity_latch(&mut runtime, *locomotion, velocity.y, air_state);
         let effective = override_command.map_or(command, |command| &command.0);
         let speed = horizontal_speed(velocity.0);
         let has_input = effective.move_dir.length_squared() > 1e-6;
@@ -907,9 +949,23 @@ fn locomotion_layer_writer(
             additive_target,
             (additive_speed * delta_seconds).clamp(0.0, 1.0),
         );
-        update_locomotion_sync_phases(&mut runtime, speed, velocity.y, delta_seconds);
+        let animation_vertical_velocity =
+            landing_animation_vertical_velocity(&runtime, air_state, velocity.y);
+        update_locomotion_sync_phases(
+            &mut runtime,
+            speed,
+            animation_vertical_velocity,
+            delta_seconds,
+        );
         let curves = state_curve_values(runtime.state);
-        write_globals(&mut player, &runtime, curves, velocity.y, prediction, speed);
+        write_globals(
+            &mut player,
+            &runtime,
+            curves,
+            animation_vertical_velocity,
+            prediction,
+            speed,
+        );
         commands
             .entity(character)
             .insert(AlsGroundPredictionState { amount: prediction });
@@ -976,6 +1032,8 @@ fn acknowledge_locomotion_transition_requests(
 
 #[cfg(test)]
 mod tests {
+    use als_core::air::AirPhase;
+
     use super::*;
 
     fn delivered_transition_count(render_hz: f32, fixed_hz: f32) -> usize {
@@ -1164,6 +1222,44 @@ mod tests {
             ),
             Some(LocomotionTransition::LandToLandMovement)
         );
+    }
+
+    #[test]
+    fn landing_animation_velocity_latches_the_pre_collision_value() {
+        let mut runtime = LocomotionLayerRuntime::default();
+        update_landing_velocity_latch(&mut runtime, LocomotionState::Air, -10.0, None);
+        runtime.previous_locomotion = LocomotionState::Air;
+        update_landing_velocity_latch(&mut runtime, LocomotionState::Grounded, 0.0, None);
+        runtime.state = LocomotionLayerState::Land;
+        let land_velocity = landing_animation_vertical_velocity(&runtime, None, 0.0);
+        runtime.state = LocomotionLayerState::LandMovement;
+        let land_movement_velocity = landing_animation_vertical_velocity(&runtime, None, 0.0);
+        let air_state = AlsAirState {
+            phase: AirPhase::Landing,
+            last_impact_vy: 10.0,
+            ..AlsAirState::default()
+        };
+        let mut recovered_runtime = LocomotionLayerRuntime::default();
+        recovered_runtime.state = LocomotionLayerState::Land;
+        update_landing_velocity_latch(
+            &mut recovered_runtime,
+            LocomotionState::Grounded,
+            0.0,
+            Some(&air_state),
+        );
+        let recovered_velocity = landing_animation_vertical_velocity(&recovered_runtime, None, 0.0);
+        let heavy_alpha = map_range_clamped(land_velocity, -5.0, -10.0, 0.0, 1.0);
+        let movement_weight = map_range_clamped(land_movement_velocity, 0.0, -2.0, 0.25, 1.0);
+        let passed = (land_velocity + 10.0).abs() < 1e-6
+            && (land_movement_velocity + 10.0).abs() < 1e-6
+            && (recovered_velocity + 10.0).abs() < 1e-6
+            && (heavy_alpha - 1.0).abs() < 1e-6
+            && (movement_weight - 1.0).abs() < 1e-6;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.31][VERDICT] pre_collision=-10.000 post_collision=0.000 land={land_velocity:.3} land_movement={land_movement_velocity:.3} recovered={recovered_velocity:.3} heavy={heavy_alpha:.3} movement_weight={movement_weight:.3} -> {verdict}"
+        );
+        assert!(passed);
     }
 
     #[test]

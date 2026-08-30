@@ -52,6 +52,7 @@ pub struct AlsAirState {
     pub land_weight: f32,
     pub land_heavy_weight: f32,
     pub down_vy_smooth: f32,
+    pub last_air_vertical_velocity: f32,
     pub last_impact_vy: f32,
 }
 
@@ -67,6 +68,7 @@ impl Default for AlsAirState {
             land_weight: 0.0,
             land_heavy_weight: 0.0,
             down_vy_smooth: 0.0,
+            last_air_vertical_velocity: 0.0,
             last_impact_vy: 0.0,
         }
     }
@@ -80,15 +82,17 @@ impl AlsAirState {
                 if *loco == LocomotionState::Air {
                     self.phase = AirPhase::Airborne;
                     self.down_vy_smooth = (-vy).max(0.0);
+                    self.last_air_vertical_velocity = vy;
                 }
             }
             AirPhase::Airborne => {
                 if *loco == LocomotionState::Grounded {
-                    self.last_impact_vy = self.down_vy_smooth;
+                    self.last_impact_vy = (-self.last_air_vertical_velocity).max(0.0);
                     self.landing_heavy = self.last_impact_vy >= LAND_HEAVY_IMPACT_VY;
                     self.landing_time = 0.0;
                     self.phase = AirPhase::Landing;
                 } else {
+                    self.last_air_vertical_velocity = vy;
                     let target = (-vy).max(0.0);
                     self.down_vy_smooth += (target - self.down_vy_smooth) * IMPACT_VY_SMOOTH_ALPHA;
                 }
@@ -98,6 +102,7 @@ impl AlsAirState {
                     self.landing_time = 0.0;
                     self.phase = AirPhase::Airborne;
                     self.down_vy_smooth = (-vy).max(0.0);
+                    self.last_air_vertical_velocity = vy;
                 }
             }
         }
@@ -142,6 +147,10 @@ impl AlsAirState {
                 }
             }
         }
+    }
+
+    pub fn landing_vertical_velocity_world_space(&self) -> Option<f32> {
+        (self.phase == AirPhase::Landing).then_some(-self.last_impact_vy)
     }
 }
 
@@ -350,6 +359,7 @@ mod tests {
         s.phase = AirPhase::Airborne;
         s.air_weight = 1.0;
         s.down_vy_smooth = 4.5;
+        s.last_air_vertical_velocity = -4.5;
         s.update(&LocomotionState::Grounded, 0.0, DT);
         assert_eq!(s.phase, AirPhase::Landing);
         assert!(!s.landing_heavy);
@@ -367,6 +377,7 @@ mod tests {
         let mut s = AlsAirState::default();
         s.phase = AirPhase::Airborne;
         s.down_vy_smooth = 11.7;
+        s.last_air_vertical_velocity = -11.7;
         s.update(&LocomotionState::Grounded, 0.0, DT);
         assert!(s.landing_heavy);
         assert!((s.last_impact_vy - 11.7).abs() < 1e-5);
@@ -378,24 +389,15 @@ mod tests {
     }
 
     #[test]
-    fn contact_frame_velocity_spike_is_filtered_by_smoothing() {
+    fn landing_latches_the_last_airborne_vertical_velocity() {
         let mut s = AlsAirState::default();
-        s.update(&LocomotionState::Air, -19.6, DT);
-        assert!((s.down_vy_smooth - 19.6).abs() < 1e-4);
-        for _ in 0..20 {
-            s.update(&LocomotionState::Air, -5.0, DT);
-        }
-        assert!(
-            (s.down_vy_smooth - 5.0).abs() < 1.0,
-            "ema converges toward sustained fall speed"
-        );
-        s.update(&LocomotionState::Air, -8.1, DT);
-        let pre_edge = s.down_vy_smooth;
-        s.update(&LocomotionState::Grounded, 0.06, DT);
-        assert!(
-            !s.landing_heavy && (pre_edge - s.last_impact_vy).abs() < 1e-4,
-            "single-frame spike must not classify as heavy"
-        );
+        s.update(&LocomotionState::Air, -10.0, DT);
+        s.update(&LocomotionState::Grounded, 0.0, DT);
+        assert_eq!(s.phase, AirPhase::Landing);
+        assert!((s.last_air_vertical_velocity + 10.0).abs() < 1e-6);
+        assert!((s.last_impact_vy - 10.0).abs() < 1e-6);
+        assert_eq!(s.landing_vertical_velocity_world_space(), Some(-10.0));
+        assert!(s.landing_heavy);
     }
 
     #[test]
