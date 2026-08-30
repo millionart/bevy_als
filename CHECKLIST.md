@@ -531,9 +531,12 @@ BF102.58 网络范围 ─► BF102.Gate
   - 本地责任未延期：重新运行真实 `character_ownership_gate`，两角色与无关动画实例下仍输出 `character_owned_action_and_root_motion_paths -> PASS`；重新运行真实 `tnua_toggle_gate`，Enabled/Disabled/Enabled/SenseOnly/Enabled 五实体下仍输出 `disabled_entities_do_not_stop_other_motors -> PASS`。这两项均是单机多实体隔离问题，已分别由 BF102.15／.16 处理，不能归因于网络缺失。
   - 回归：依赖静态扫描无网络框架命中；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.Gate — 58 项原子审计总验收**
+- [x] **BF102.Gate — 58 项原子审计总验收**
   - 依赖：BF102.01–BF102.58。
   - 验收：58 个 ID 各有“当前已修复／确认待修复／条件性不适用或待证”三态记录；每个确认缺陷有独立修复提交和真实运行 verdict；未执行项不得宣称完成。
+  - 验收结果：状态扫描确认 58 个顶层 `BF102.01`–`BF102.58` 均为 `[x]`，除本 Gate 本身外无未完成清单项；每个已确认缺陷均已在对应原子条目记录独立实现、归属决定与真实 verdict。Gate.a（`c5513a1`）补齐真实试玩入口覆盖，Gate.b（`7cbdd88`）补齐 workspace feature 合并后的物理测试初始化。
+  - 代码证据：`cargo check --all-targets --jobs 2` 通过。`cargo test --workspace --lib --jobs 2 -- --test-threads=1 --format=terse` 通过：als-camera 11、als-core 217 passed/2 ignored、als-ext 178、bevy_als 133；BF102.32 的完整 feature 定向运行仍输出 capsule sweep PASS。
+  - 运行时证据：`CARGO_BUILD_JOBS=2 RUST_LOG=info run_manual_integration_gate.bat` 返回 0。四个独立 `manual_playground` 进程均在真实 PlayerStart/景观/可见环境 Gate 之后输出 Base、Ragdoll、Camera、Interface 的 `real_entry_paths -> PASS`，并对每个 probe 输出 `[EXECUTED]`；没有以插件注册、静态资产或白色离场测试空间代替行为验证。
   - [x] **BF102.Gate.b — workspace feature 完整测试初始化**
     - 依赖：BF102.32、当前 workspace feature 集。
     - 验收：`ground_prediction_capsule_sweep_hits_an_edge_missed_by_center_ray` 在完整 workspace feature 集下初始化其 Avian mesh-collider cache 所需资源与消息，并随 `cargo test --workspace --lib` 稳定通过。
