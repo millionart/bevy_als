@@ -383,9 +383,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`pelvis_drop_is_applied_before_solving_the_leg_target` 输出 `corrected_error=0.000 legacy_error=0.100 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（126 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.42 — I03：脚旋转完整消费地面法线和三维脚锁旋转（P1）**
+- [x] **BF102.42 — I03：脚旋转完整消费地面法线和三维脚锁旋转（P1）**
   - 依赖：BF102.06、BF102.41。
   - 验收：斜坡和转身锁脚时，脚旋转、地面法线、锁定旋转和最终骨骼均可追踪。
+  - 当次 ALS 事实：实时读取 ALS-Refactored `AlsRigUnit_ApplyFootOffsetRotation`：首次有效时保存 `FootOffsetNormal`，之后以 0.1 秒 half-life 阻尼；用 `FindBetweenVectors(Up, OffsetNormal) * FootTargetRotation` 构造目标，在 calf space 以初始脚旋转为基准约束后写回。实时 Unreal MCP 读取实际 `/ALS/ALS/Character/CR_Als`，确认其包含 `RefreshFootOffset`、`RefreshFootIk`，并暴露左右 `foot*Rotation` 与 `foot*OffsetNormal` 输入。
+  - 实现：项目侧 `FootOffsetRotationState` 按源初始化／阻尼 probe normal，随后将其旋转左乘完整 `AlsFootLockFootState::final_rotation`；应用链直接写入该三维目标。脚锁约束改为围绕世界 up 的 quaternion twist 限制，保留锁定的 pitch/roll，而不再维护独立 yaw 缓存。
+  - 证据：`foot_rotation_consumes_slope_normal_and_full_lock_rotation` 输出 `[BF102.42][VERDICT] initialization_alignment=1.000000 slope_alignment=1.000000 lock_alignment=1.000000 legacy_alignment=0.982278 -> PASS`。
+  - 回归：`cargo test -p als-core --lib --jobs 2` 通过（212 tests，2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（127 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.43 — I05：传送和骨骼恢复重初始化 Foot Lock（P2）**
   - 依赖：BF102.15、BF102.42。

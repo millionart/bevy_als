@@ -17,6 +17,44 @@ use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
 use crate::character_assembly::AlsCharacterAvatar;
 
+const FOOT_OFFSET_NORMAL_HALF_LIFE: f32 = 0.1;
+
+#[derive(Component, Debug, Clone, Copy)]
+struct FootOffsetRotationState {
+    normals: [Vec3; 2],
+    initialized: [bool; 2],
+}
+
+impl Default for FootOffsetRotationState {
+    fn default() -> Self {
+        Self {
+            normals: [Vec3::Y; 2],
+            initialized: [false; 2],
+        }
+    }
+}
+
+impl FootOffsetRotationState {
+    fn update(&mut self, side: usize, target_normal: Vec3, delta_seconds: f32) -> Vec3 {
+        let target_normal = normalized_ground_normal(target_normal);
+        if !self.initialized[side] {
+            self.initialized[side] = true;
+            self.normals[side] = target_normal;
+            return target_normal;
+        }
+        let current_normal = normalized_ground_normal(self.normals[side]);
+        let alpha = 1.0
+            - (-std::f32::consts::LN_2 * delta_seconds.max(0.0) / FOOT_OFFSET_NORMAL_HALF_LIFE)
+                .exp();
+        let normal = current_normal
+            .lerp(target_normal, alpha)
+            .try_normalize()
+            .unwrap_or(target_normal);
+        self.normals[side] = normal;
+        normal
+    }
+}
+
 pub struct FootIkApplyPlugin;
 
 impl Plugin for FootIkApplyPlugin {
@@ -30,6 +68,7 @@ impl Plugin for FootIkApplyPlugin {
             (
                 ensure_foot_ik_runtime,
                 ensure_foot_lock_components,
+                ensure_foot_offset_rotation_state,
                 foot_ik_apply_system
                     .after(apply_animation_to_targets)
                     .after(TransformSystems::Propagate)
@@ -71,6 +110,17 @@ fn ensure_foot_ik_runtime(
     }
 }
 
+fn ensure_foot_offset_rotation_state(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<FootOffsetRotationState>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(FootOffsetRotationState::default());
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn foot_ik_apply_system(
     time: Res<Time>,
@@ -87,6 +137,7 @@ fn foot_ik_apply_system(
             &AlsFootLockSettings,
             Option<&AlsMovementBaseDynamicsState>,
             &mut AlsFootIkRuntime,
+            &mut FootOffsetRotationState,
             &mut AlsFootLockState,
             &mut AlsDynamicTransitionState,
             Option<&AnimationPlayer>,
@@ -111,6 +162,7 @@ fn foot_ik_apply_system(
         settings,
         movement_base,
         mut runtime,
+        mut foot_offset_rotation,
         mut lock_state,
         mut dynamic_transition,
         _,
@@ -165,6 +217,7 @@ fn foot_ik_apply_system(
                 ik_amount,
                 lock_amount,
                 settings.allow_foot_lock,
+                settings.foot_angle_limit_degrees,
                 lock_input.moving_smooth,
                 *locomotion == LocomotionState::Grounded,
                 became_valid,
@@ -206,11 +259,33 @@ fn foot_ik_apply_system(
 
         for side in 0..2usize {
             let (offset, pin_weight) = runtime.side(side);
-            let lock_offset = match side {
-                0 => lock_state.left.final_location - lock_state.left.target_location,
-                _ => lock_state.right.final_location - lock_state.right.target_location,
+            let foot_state = match side {
+                0 => &lock_state.left,
+                _ => &lock_state.right,
             };
-            if offset.abs() < 1e-4 && pin_weight < 1e-3 && lock_offset.length_squared() < 1e-8 {
+            let ik_amount = match side {
+                0 => left_ik_amount,
+                _ => right_ik_amount,
+            };
+            let ground_normal = match side {
+                0 => probe.left,
+                _ => probe.right,
+            }
+            .map(|hit| hit.normal)
+            .unwrap_or(Vec3::Y);
+            let offset_normal = foot_offset_rotation.update(side, ground_normal, dt);
+            let foot_world_rotation =
+                foot_rotation_with_offset(foot_state.final_rotation, offset_normal);
+            let lock_offset = foot_state.final_location - foot_state.target_location;
+            let has_slope_rotation = offset_normal.dot(Vec3::Y) < 1.0 - 1e-4;
+            let has_lock_rotation = foot_state.lock_amount > 1e-3;
+            if ik_amount <= 1e-4
+                || (offset.abs() < 1e-4
+                    && pin_weight < 1e-3
+                    && lock_offset.length_squared() < 1e-8
+                    && !has_slope_rotation
+                    && !has_lock_rotation)
+            {
                 continue;
             }
             apply_chain_offset(
@@ -218,11 +293,7 @@ fn foot_ik_apply_system(
                 Vec3::Y * offset + lock_offset,
                 pole,
                 settings,
-                runtime.constrained_foot_yaw(
-                    side,
-                    target_foot_yaw(&bones.chain(side), &bone_globals),
-                    settings,
-                ),
+                foot_world_rotation,
                 pelvis_world_offset,
                 &mut bone_locals,
                 &bone_globals,
@@ -267,7 +338,7 @@ fn apply_chain_offset(
     offset: Vec3,
     pole: Vec3,
     settings: &AlsFootLockSettings,
-    constrained_foot_yaw: f32,
+    foot_world_rotation: Quat,
     pelvis_world_offset: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
@@ -335,9 +406,6 @@ fn apply_chain_offset(
             .map(|parent| parent.rotation())
             .unwrap_or(Quat::IDENTITY)
     };
-    let (_, foot_pitch, foot_roll) = foot_g.rotation().to_euler(EulerRot::YXZ);
-    let foot_world_rotation =
-        Quat::from_euler(EulerRot::YXZ, constrained_foot_yaw, foot_pitch, foot_roll);
     foot_local.rotation = foot_local_rotation(foot_parent_rotation, foot_world_rotation);
 }
 
@@ -349,14 +417,14 @@ fn pelvis_adjusted_position(position: Vec3, pelvis_world_offset: Vec3) -> Vec3 {
     position + pelvis_world_offset
 }
 
-fn target_foot_yaw(
-    chain: &als_core::foot_ik::FootChain,
-    bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-) -> f32 {
-    bone_globals
-        .get(chain.foot)
-        .map(|transform| transform.rotation().to_euler(EulerRot::YXZ).0)
-        .unwrap_or(0.0)
+fn normalized_ground_normal(normal: Vec3) -> Vec3 {
+    normal.try_normalize().unwrap_or(Vec3::Y)
+}
+
+fn foot_rotation_with_offset(foot_target_rotation: Quat, offset_normal: Vec3) -> Quat {
+    (Quat::from_rotation_arc(Vec3::Y, normalized_ground_normal(offset_normal))
+        * foot_target_rotation)
+        .normalize()
 }
 
 fn apply_pelvis_drop(
@@ -434,6 +502,44 @@ mod tests {
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.41][VERDICT] corrected_error={corrected_error:.3} legacy_error={legacy_error:.3} -> {verdict}"
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn foot_rotation_consumes_slope_normal_and_full_lock_rotation() {
+        let slope_normal = Vec3::new(0.5, 0.866_025_4, 0.0);
+        let mut normal_state = FootOffsetRotationState::default();
+        let initialized_normal = normal_state.update(0, slope_normal, 1.0 / 60.0);
+        let initialization_alignment = initialized_normal.dot(slope_normal);
+        let slope_locked_rotation = Quat::from_rotation_y(35.0_f32.to_radians());
+        let slope_rotation = foot_rotation_with_offset(slope_locked_rotation, slope_normal);
+        let slope_alignment = (slope_rotation * Vec3::Y)
+            .dot(slope_normal)
+            .clamp(-1.0, 1.0);
+
+        let full_lock_rotation = Quat::from_euler(
+            EulerRot::YXZ,
+            35.0_f32.to_radians(),
+            -12.0_f32.to_radians(),
+            18.0_f32.to_radians(),
+        );
+        let parent_rotation = Quat::from_rotation_y(-20.0_f32.to_radians());
+        let foot_local = foot_local_rotation(
+            parent_rotation,
+            foot_rotation_with_offset(full_lock_rotation, Vec3::Y),
+        );
+        let final_bone_rotation = parent_rotation * foot_local;
+        let lock_alignment = final_bone_rotation.dot(full_lock_rotation).abs();
+        let legacy_rotation = Quat::from_rotation_y(35.0_f32.to_radians());
+        let legacy_alignment = legacy_rotation.dot(full_lock_rotation).abs();
+        let passed = initialization_alignment > 0.999_99
+            && slope_alignment > 0.999_99
+            && lock_alignment > 0.999_99
+            && legacy_alignment < 0.99;
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.42][VERDICT] initialization_alignment={initialization_alignment:.6} slope_alignment={slope_alignment:.6} lock_alignment={lock_alignment:.6} legacy_alignment={legacy_alignment:.6} -> {verdict}"
         );
         assert!(passed);
     }

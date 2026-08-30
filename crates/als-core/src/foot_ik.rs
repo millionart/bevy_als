@@ -254,6 +254,7 @@ pub fn refresh_foot_lock(
     ik_amount: f32,
     requested_lock_amount: f32,
     allow_foot_lock: bool,
+    foot_angle_limit_degrees: f32,
     moving_smooth: bool,
     grounded: bool,
     became_valid: bool,
@@ -308,6 +309,12 @@ pub fn refresh_foot_lock(
         state.lock_amount = new_lock_amount;
     }
 
+    state.lock_rotation = constrain_foot_lock_rotation(
+        state.lock_rotation,
+        state.target_rotation,
+        foot_angle_limit_degrees,
+    );
+
     state.final_location = target_location.lerp(state.lock_location, state.lock_amount);
     state.final_rotation = target_rotation
         .lerp(state.lock_rotation, state.lock_amount)
@@ -340,7 +347,6 @@ struct SideRuntime {
     ik_weight: f32,
     pin_weight: f32,
     locked_offset: Option<f32>,
-    locked_yaw: Option<f32>,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
@@ -392,16 +398,21 @@ pub fn constrain_foot_lock_location(
     thigh_origin + constrained
 }
 
-pub fn constrain_foot_lock_yaw(
-    lock_yaw: f32,
-    target_yaw: f32,
+pub fn constrain_foot_lock_rotation(
+    lock_rotation: Quat,
+    target_rotation: Quat,
     foot_angle_limit_degrees: f32,
-) -> f32 {
-    target_yaw
-        + wrap_foot_yaw(lock_yaw - target_yaw).clamp(
-            -foot_angle_limit_degrees.clamp(0.0, 180.0).to_radians(),
-            foot_angle_limit_degrees.clamp(0.0, 180.0).to_radians(),
-        )
+) -> Quat {
+    let delta = (lock_rotation * target_rotation.conjugate()).normalize();
+    let twist_length_squared = delta.y.mul_add(delta.y, delta.w * delta.w);
+    let twist_angle = if twist_length_squared > 1e-8 {
+        wrap_foot_yaw(2.0 * delta.y.atan2(delta.w))
+    } else {
+        0.0
+    };
+    let limit = foot_angle_limit_degrees.clamp(0.0, 180.0).to_radians();
+    let constrained_angle = twist_angle.clamp(-limit, limit);
+    (Quat::from_rotation_y(constrained_angle - twist_angle) * lock_rotation).normalize()
 }
 
 fn move_toward_cap(current: f32, target: f32, max_delta: f32) -> f32 {
@@ -438,7 +449,6 @@ fn step_side(
     } else if !lock_active {
         rt.pin_weight = 0.0;
         rt.locked_offset = None;
-        rt.locked_yaw = None;
     } else {
         let decrease = if moving_smooth {
             settings.moving_decrease_per_second
@@ -449,7 +459,6 @@ fn step_side(
         if rt.pin_weight < 1e-3 {
             rt.pin_weight = 0.0;
             rt.locked_offset = None;
-            rt.locked_yaw = None;
         }
     }
 
@@ -576,27 +585,6 @@ impl AlsFootIkRuntime {
             _ => &self.right,
         };
         runtime.pin_weight > 1e-3 && runtime.locked_offset.is_some()
-    }
-
-    pub fn constrained_foot_yaw(
-        &mut self,
-        side: usize,
-        target_yaw: f32,
-        settings: &AlsFootLockSettings,
-    ) -> f32 {
-        let runtime = match side {
-            0 => &mut self.left,
-            _ => &mut self.right,
-        };
-        if runtime.pin_weight <= 1e-3 {
-            runtime.locked_yaw = None;
-            return target_yaw;
-        }
-        let locked_yaw = *runtime.locked_yaw.get_or_insert(target_yaw);
-        let constrained =
-            constrain_foot_lock_yaw(locked_yaw, target_yaw, settings.foot_angle_limit_degrees);
-        runtime.locked_yaw = Some(constrained);
-        constrained
     }
 }
 
@@ -950,8 +938,10 @@ mod tests {
         let target = Vec3::X;
         let constrained = constrain_foot_lock_location(Vec3::ZERO, Vec3::NEG_Z, target, 90.0);
         assert!((constrained.length() - 1.0).abs() < 1e-6);
-        let foot_yaw = constrain_foot_lock_yaw(100.0_f32.to_radians(), 0.0, 40.0);
-        assert!((foot_yaw - 40.0_f32.to_radians()).abs() < 1e-6);
+        let lock_rotation = Quat::from_rotation_y(100.0_f32.to_radians());
+        let constrained = constrain_foot_lock_rotation(lock_rotation, Quat::IDENTITY, 40.0);
+        let (_, constrained_yaw, _) = constrained.to_euler(EulerRot::XYZ);
+        assert!((constrained_yaw - 40.0_f32.to_radians()).abs() < 1e-6);
     }
 
     #[test]
