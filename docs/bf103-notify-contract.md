@@ -21,7 +21,7 @@ BF103.02 will generate `assets/animation_events/als_notify_manifest.json` with t
       "events": [
         {
           "id": "source-guid",
-          "event_id": "als_notify:source-guid",
+          "event_id": "als_notify:/als/...:source-guid",
           "kind": "point",
           "name": "AlsCameraShake",
           "class": "AlsAnimNotify_CameraShake",
@@ -43,7 +43,7 @@ BF103.02 will generate `assets/animation_events/als_notify_manifest.json` with t
 }
 ```
 
-`parameters` retains the source object fields as JSON values. The source `start_time` and `end_time` remain exact. A point event must not be widened or shifted to compensate for a frame rate.
+`parameters` retains the source object fields as JSON values. The source `start_time` and `end_time` remain exact. A point event must not be widened or shifted to compensate for a frame rate. `event_id` scopes the source GUID by source asset because the source GUID is not globally unique across copied animation records.
 
 ## Runtime Compilation
 

@@ -17,10 +17,13 @@
   - 合同／归属：`docs/bf103-notify-source-audit.{json,md}` 为无 uasset 的事实记录；`docs/bf103-notify-contract.md` 定义 BF103.02 的 JSON sidecar、GraphClip EventTrack 编译和 point 跨越规则。通用桥接／生命周期归属 `als-ext`，ALS 类语义和消费者留在项目；现有 `assets/sync/als_sync_metadata.ron` 继续承载同步 marker，不复制为全局计时器。
   - 证据：`python tools/import/audit_als_animation_events.py --content-root <ALS Content>` 输出 `animation_count=137`、`event_count=177`、`marker_count=60`、`montage_segment_count=9`、`failure_count=0`，且 event／marker time 与引用验证均为 `true`。
 
-- [ ] **BF103.02 — N02：Notify 资产侧数据生成与完整性校验（P1）**
+- [x] **BF103.02 — N02：Notify 资产侧数据生成与完整性校验（P1）**
   - 依赖：BF103.01。
   - 执行前：重新从本地 ALS-Refactored 提取本项所覆盖资产的通知事实与导出边界。
   - 验收：每个已审计且在范围内的动画都有与其真实播放片段对应的项目侧事件数据；批量校验检测缺失、重复、越界时间、非法区间和不匹配片段。数据不得依赖角色全局时间或手写的按状态定时表。
+  - 当次 ALS 事实（2026-08-30，重新运行本地 uasset 审计）：结果仍为 137 个动画资产、177 条通知、60 个 marker、9 个 Montage segment，所有时间和引用有效。源 event GUID 在复制的动画记录间不是全局唯一，故运行时 event ID 必须以 source asset+GUID 共同确定；9 个 Montage segment 均引用当前已导出的序列 GraphClip，slot 与 source segment 时间／rate／loop 均需保留。
+  - 实现：`tools/import/generate_als_notify_manifest.py` 从审计 JSON 确定性生成 `assets/animation_events/als_notify_manifest.json`（v1），保留 point／state 原始区间、class／parameters、weight／filter、同步 marker 和 Montage→GraphClip 映射；生成时验证缺失 GraphClip、未映射 Montage、重复 ID、越界／倒置时间与非法 marker。`assets/docs/export-manifest.md` 已登记此项目侧导出物。
+  - 证据：生成器输出 `clips=137 events=177 markers=60`；复查 event ID 唯一数=177、9 个 Montage 均有存在的 runtime segment GraphClip。`python tools/import/test_generate_als_notify_manifest.py` 7/7 通过，覆盖精确 point 时间、重复 ID、越界、倒置区间、缺失 GraphClip、Montage 映射及虚拟源路径解析；`python tools/import/generate_als_notify_manifest.py --check` 通过。
 
 - [ ] **BF103.03 — N03：`bevy_animation_graph` EventTrack／EventQueue 通用桥接（P1）**
   - 依赖：BF103.02。
