@@ -503,9 +503,14 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：单测 `first_person_profile_uses_the_desired_rotation_mode` 输出 `[BF102.55][VERDICT] first_person=VelocityDirection third_person=ViewDirection fallback=Aiming -> PASS`。真实 `camera_desired_rotation_gate` 记录 `first_person_x=-325.000 third_person_x=-250.000 actual=ViewDirection desired=VelocityDirection -> PASS`。
   - 回归：`camera_curve_dilation_gate` 继续通过；`camera_runtime_gate` 继续输出 `unscaled_time=true ... -> PASS`；`cargo test -p als-camera --lib --jobs 2` 通过（11 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（174 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.56 — C07：相机起点穿透恢复聚合多重 MTD（P2）**
+- [x] **BF102.56 — C07：相机起点穿透恢复聚合多重 MTD（P2）**
   - 依赖：BF102.52。
   - 验收：墙角和多个重叠阻挡物下，起点恢复使用全部相关 MTD 而非首个 sweep 命中。
+  - 当次 ALS 事实：本地 `CalculateCameraTrace()` 遇到 start penetration 后调用 `TryAdjustLocationBlockedByGeometry()`；后者以 `trace radius + 1 cm` 做 overlap-multi，遍历每个 blocking overlap 的 MTD 并累加 `Direction * Distance`，检查调整方向，再以真实 trace radius 复核空闲空间。因此它不以第一个 sweep hit 作为唯一恢复向量。
+  - 归属决定：有限/无效 MTD 向量的通用聚合没有 ALS 常量和相机语义，落入 `crates/als-ext::sum_penetration_adjustments`；`als-camera` 保留 Avian overlap hit 收集、忽略实体过滤、1 cm 相机调整余量、owner-direction guard 与真实半径空闲复核。
+  - 实现：起点 penetration 时 camera adapter 从 `shape_hits_callback()` 收集全部 origin hit 的 MTD，聚合后才调整 trace start。`AlsCameraDebugInfo` 新增 adjustment 向量、数量和 resolved 标记，供 Gate 留存可复查证据。
+  - 证据：`als-ext` 单测输出 `[BF102.56][VERDICT] adjustment=(0.200,0.300,0.000) -> PASS`。真实 `camera_multi_mtd_gate` 在两面墙角记录 `count=2 adjustment=(0.085,0.085,-0.000) start=(0.085,0.085,-0.000) resolved=true blocking=true -> PASS`，证明两个 MTD 均参与起点恢复；后续 trace blocking 属于调整后 sweep 的正常结果。
+  - 回归：`camera_runtime_gate` 继续通过；`cargo test -p als-camera --lib --jobs 2` 通过（11 tests）；`cargo test -p als-core --lib --jobs 2` 通过（217 passed、2 ignored）；`cargo test -p bevy_als --lib --jobs 2` 通过（132 tests）；`cargo test -p als-ext --jobs 2` 通过（175 unit tests、6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.57 — C08：第一人称头部输入使用未缩放 dt（P2）**
   - 依赖：BF102.06、BF102.54。

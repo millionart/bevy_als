@@ -32,6 +32,7 @@ pub mod nodes;
 pub mod normalized_blendspace;
 pub mod overlay;
 pub mod overlay_materials;
+pub mod penetration_recovery;
 pub mod playground;
 pub mod playground_materials;
 pub mod profile_blend;
@@ -109,6 +110,7 @@ pub use overlay::{
     TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask,
     build_branch_filter_bone_mask, build_grouped_bone_mask, mask_coverage,
 };
+pub use penetration_recovery::sum_penetration_adjustments;
 pub use playground::{
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundActor,
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource, PlaygroundComponent,

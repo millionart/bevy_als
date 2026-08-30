@@ -15,6 +15,7 @@ use als_core::motion::AlsViewYaw;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::{Gait, RotationMode};
 use als_core::view::AlsViewPitch;
+use als_ext::sum_penetration_adjustments;
 
 pub const CAMERA_CURVE_NAMES: [&str; 13] = [
     "CameraOffsetX",
@@ -43,6 +44,7 @@ pub const SPRINT_CAMERA_NOTIFY_WEIGHT_THRESHOLD: f32 = 0.5;
 pub const SPRINT_CAMERA_NOTIFY_TIMES: [(f32, f32); 2] = [(0.06666667, 0.5), (0.36666667, 0.5)];
 pub const ROLL_CAMERA_NOTIFY_TIMES: [(f32, f32); 2] = [(0.10000001, 1.0), (0.46666670, 2.0)];
 pub const CAMERA_PROFILE_BLEND_DURATION_SECS: f32 = 0.5;
+pub const TRACE_START_ADJUSTMENT_PADDING_METERS: f32 = 0.01;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlsCameraCurve {
@@ -475,6 +477,9 @@ pub struct AlsCameraDebugInfo {
     pub trace_radius: f32,
     pub trace_blocking_hit: bool,
     pub trace_adjusted_start: bool,
+    pub trace_adjustment: Vec3,
+    pub trace_adjustment_count: u32,
+    pub trace_adjustment_resolved: bool,
     pub trace_distance_ratio: f32,
     pub first_person_override: f32,
     pub unscaled_delta_seconds: f32,
@@ -962,6 +967,9 @@ struct TraceResult {
     end: Vec3,
     blocking_hit: bool,
     adjusted_start: bool,
+    adjustment: Vec3,
+    adjustment_count: u32,
+    adjustment_resolved: bool,
 }
 
 fn is_full_weight(weight: f32) -> bool {
@@ -1078,9 +1086,42 @@ fn has_blocking_overlap(
     overlaps
 }
 
+fn start_penetration_adjustment(
+    spatial: &SpatialQuery,
+    shape: &Collider,
+    start: Vec3,
+    direction: Dir3,
+    config: &ShapeCastConfig,
+    filter: &SpatialQueryFilter,
+    ignored: &Query<(), With<AlsCameraTraceIgnore>>,
+) -> (Vec3, u32) {
+    let mut adjustments = Vec::new();
+    spatial.shape_hits_callback(
+        shape,
+        start,
+        Quat::IDENTITY,
+        direction,
+        config,
+        filter,
+        |hit| {
+            if ignored.get(hit.entity).is_ok() || hit.distance > 1e-5 {
+                return true;
+            }
+            let adjustment = hit.point1 - hit.point2;
+            if adjustment.length_squared() > 1e-8 && adjustment.is_finite() {
+                adjustments.push(adjustment);
+            }
+            true
+        },
+    );
+    let count = adjustments.len() as u32;
+    (sum_penetration_adjustments(adjustments), count)
+}
+
 fn trace_with_start_adjustment(
     spatial: &SpatialQuery,
     shape: &Collider,
+    adjustment_shape: &Collider,
     mut start: Vec3,
     end: Vec3,
     owner_location: Vec3,
@@ -1093,6 +1134,9 @@ fn trace_with_start_adjustment(
         end,
         blocking_hit: false,
         adjusted_start: false,
+        adjustment: Vec3::ZERO,
+        adjustment_count: 0,
+        adjustment_resolved: false,
     };
     let vector = end - start;
     let Ok(direction) = Dir3::new(vector) else {
@@ -1116,14 +1160,25 @@ fn trace_with_start_adjustment(
         result.location = start + direction.as_vec3() * hit.distance;
         return result;
     }
-    let adjustment = hit.point1 - hit.point2;
+    let (adjustment, adjustment_count) = start_penetration_adjustment(
+        spatial,
+        adjustment_shape,
+        start,
+        direction,
+        &config,
+        filter,
+        ignored,
+    );
     let adjustment_direction = adjustment.normalize_or_zero();
     let owner_direction = (owner_location - start).normalize_or_zero();
     if adjustment.length_squared() > 1e-8 && owner_direction.dot(adjustment_direction) >= -1e-5 {
         start += adjustment;
         result.start = start;
         result.adjusted_start = true;
-        if !has_blocking_overlap(spatial, shape, start, filter, ignored) {
+        result.adjustment = adjustment;
+        result.adjustment_count = adjustment_count;
+        result.adjustment_resolved = !has_blocking_overlap(spatial, shape, start, filter, ignored);
+        if result.adjustment_resolved {
             let adjusted_vector = end - start;
             if let Ok(adjusted_direction) = Dir3::new(adjusted_vector) {
                 let adjusted_config = ShapeCastConfig::from_max_distance(adjusted_vector.length());
@@ -1164,8 +1219,17 @@ fn calculate_camera_trace(
     delta_seconds: f32,
 ) -> TraceResult {
     let shape = Collider::sphere(trace_radius);
-    let mut trace =
-        trace_with_start_adjustment(spatial, &shape, start, end, owner_location, filter, ignored);
+    let adjustment_shape = Collider::sphere(trace_radius + TRACE_START_ADJUSTMENT_PADDING_METERS);
+    let mut trace = trace_with_start_adjustment(
+        spatial,
+        &shape,
+        &adjustment_shape,
+        start,
+        end,
+        owner_location,
+        filter,
+        ignored,
+    );
     if !allow_lag || !params.trace_distance_smoothing {
         runtime.trace_distance_ratio = 1.0;
         return trace;
@@ -1511,6 +1575,9 @@ fn camera_rig_system(
                 end: Vec3::ZERO,
                 blocking_hit: false,
                 adjusted_start: false,
+                adjustment: Vec3::ZERO,
+                adjustment_count: 0,
+                adjustment_resolved: false,
             },
             params.trace_radius * sockets.mesh_scale,
             1.0,
@@ -1711,6 +1778,9 @@ fn write_debug(
     debug.trace_radius = trace_radius;
     debug.trace_blocking_hit = trace.blocking_hit;
     debug.trace_adjusted_start = trace.adjusted_start;
+    debug.trace_adjustment = trace.adjustment;
+    debug.trace_adjustment_count = trace.adjustment_count;
+    debug.trace_adjustment_resolved = trace.adjustment_resolved;
     debug.trace_distance_ratio = trace_distance_ratio;
     debug.first_person_override = first_person_override;
     debug.unscaled_delta_seconds = unscaled_delta_seconds;

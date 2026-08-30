@@ -12,3 +12,4 @@ ron = { workspace = true }
 avian3d = { workspace = true }
 
 als-core = { workspace = true }
+als-ext = { workspace = true }

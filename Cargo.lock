@@ -127,6 +127,7 @@ name = "als-camera"
 version = "0.1.0"
 dependencies = [
  "als-core",
+ "als-ext",
  "avian3d",
  "bevy",
  "ron 0.10.1",
