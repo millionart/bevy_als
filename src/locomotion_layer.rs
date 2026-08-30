@@ -26,6 +26,7 @@ use crate::turn_layer::AlsTurnDrive;
 const JUMP_SPEED_REFERENCE: f32 = 6.0;
 const JUMP_PLAY_RATE_MIN: f32 = 1.2;
 const JUMP_PLAY_RATE_MAX: f32 = 1.5;
+const JUMP_SUCCESS_MIN_UPWARD_VELOCITY: f32 = 0.1;
 const JUMP_START_DURATION: f32 = 1.6666665;
 const LAND_DURATION: f32 = 1.1666666;
 const LAND_MOVEMENT_SPEED_THRESHOLD: f32 = 6.5;
@@ -397,6 +398,20 @@ fn jump_play_rate_for_speed(speed: f32) -> f32 {
 
 fn is_air(locomotion: LocomotionState) -> bool {
     locomotion == LocomotionState::Air
+}
+
+fn update_jump_success_latch(
+    runtime: &mut LocomotionLayerRuntime,
+    locomotion: LocomotionState,
+    vertical_velocity: f32,
+) {
+    if runtime.previous_locomotion == LocomotionState::Grounded
+        && locomotion == LocomotionState::Air
+    {
+        runtime.jump_latched = vertical_velocity > JUMP_SUCCESS_MIN_UPWARD_VELOCITY;
+    } else if locomotion != LocomotionState::Air {
+        runtime.jump_latched = false;
+    }
 }
 
 fn update_landing_velocity_latch(
@@ -884,9 +899,7 @@ fn locomotion_layer_writer(
         let has_input = effective.move_dir.length_squared() > 1e-6;
         let rotating = turn.is_some_and(|turn| turn.rotate_active);
         let has_relative_location = movement_base.is_some_and(|state| state.has_relative_location);
-        if effective.jump_pressed && runtime.previous_locomotion == LocomotionState::Grounded {
-            runtime.jump_latched = true;
-        }
+        update_jump_success_latch(&mut runtime, *locomotion, velocity.y);
         runtime.state_elapsed += delta_seconds.max(0.0);
         runtime.transition_elapsed = (runtime.transition_elapsed + delta_seconds.max(0.0))
             .min(runtime.transition_duration.max(0.0));
@@ -1269,6 +1282,49 @@ mod tests {
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.34][VERDICT] integrated_time={sample_time:.3} legacy_time={legacy_time:.3} expected={expected_integrated_time:.3} -> {verdict}"
+        );
+        assert!(passed);
+    }
+
+    #[test]
+    fn jump_latch_requires_an_actual_upward_air_transition() {
+        let mut rejected = LocomotionLayerRuntime {
+            jump_latched: true,
+            ..Default::default()
+        };
+        update_jump_success_latch(&mut rejected, LocomotionState::Air, 0.0);
+        let rejected_transition = next_outer_transition(
+            LocomotionLayerState::Grounded,
+            0.0,
+            LocomotionState::Air,
+            rejected.jump_latched,
+            true,
+            false,
+            false,
+            0.0,
+            false,
+        );
+        let mut succeeded = LocomotionLayerRuntime::default();
+        update_jump_success_latch(&mut succeeded, LocomotionState::Air, 4.2);
+        let succeeded_transition = next_outer_transition(
+            LocomotionLayerState::Grounded,
+            0.0,
+            LocomotionState::Air,
+            succeeded.jump_latched,
+            true,
+            false,
+            false,
+            0.0,
+            false,
+        );
+        let passed = !rejected.jump_latched
+            && rejected_transition == Some(LocomotionTransition::GroundedToFall)
+            && succeeded.jump_latched
+            && succeeded_transition == Some(LocomotionTransition::GroundedToJump);
+        let verdict = if passed { "PASS" } else { "FAIL" };
+        println!(
+            "[BF102.35][VERDICT] rejected_latch={} rejected_transition={rejected_transition:?} successful_latch={} successful_transition={succeeded_transition:?} -> {verdict}",
+            rejected.jump_latched, succeeded.jump_latched,
         );
         assert!(passed);
     }

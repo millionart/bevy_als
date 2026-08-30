@@ -321,9 +321,13 @@ BF102.58 网络范围 ─► BF102.Gate
   - 证据：`jump_curve_time_uses_the_integrated_sync_phase` 输出 `integrated_time=1.350 legacy_time=1.500 expected=1.350 -> PASS`。
   - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（121 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
-- [ ] **BF102.35 — L05：jump_latched 基于成功起跳事件（P2）**
+- [x] **BF102.35 — L05：jump_latched 基于成功起跳事件（P2）**
   - 依赖：BF102.05、BF102.33。
   - 验收：被拒绝起跳后走下边缘不会产生错误的已起跳状态；成功事件可追溯到动画和物理两侧。
+  - 当次事实：实际 AB_Als_Locomotion 含独立 Jump 状态；当前 Tnua 链仅在输入边沿 feed `TnuaBuiltinJump`，没有可由项目读取的 acceptance callback。修复前 writer 在 Grounded 的 `jump_pressed` 时置位并长期保留，即使物理未离地。
+  - 实现：`jump_latched` 改为实际物理事件：上一帧 Grounded、当前 Air 且 world-space y 速度大于 `0.1 m/s`；普通走下边缘或被拒绝起跳会清除锁存。该值直接决定 Grounded→Jump 与 Grounded→Fall 的动画状态选择。
+  - 证据：`jump_latch_requires_an_actual_upward_air_transition` 输出 `rejected_latch=false rejected_transition=Some(GroundedToFall) successful_latch=true successful_transition=Some(GroundedToJump) -> PASS`。
+  - 回归：`cargo test -p bevy_als --lib --jobs 2` 通过（122 tests）；`cargo test -p als-ext --jobs 2` 通过（173 unit tests 与 6 integration tests）；`cargo check --all-targets --jobs 2` 通过。
 
 - [ ] **BF102.36 — L06：落地滚翻使用确定性的撞击速度记录（P2）**
   - 依赖：BF102.31、BF102.04。
