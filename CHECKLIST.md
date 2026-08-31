@@ -44,7 +44,9 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] BF108.05 `BS_Als_WalkRun_Left_Backward`：核对并修复实际 LeftBackward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
   - 当次 ALS 事实（2026-08-31）：Stride Amount／Walk Run Amount 均为 [0,1]，Cubic filter 为 X `.2s`／Y `.4s`；样本为 Walk_Left_Backward(1,0)、Walk_Right_Pose(0,0)、Run_Left_Backward(1,1)、Run_Right_Pose(0,1)，rate scale=1。source player 为 loop=true、rate=1、start=.2、Movement SyncGroup，asset loop=true、marker sync=true。
   - 实际图与资源静态证据：Left Backward node 的四条本地资源、坐标、loop、gltf animation／时长／skeleton、图内 duration／markers、selector=4、Movement phase、start phase、已修正的双轴 Cubic filter、root delta writer 与路由均无差异。`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS> --asset BS_Als_WalkRun_Left_Backward` 输出 pass=true。按本批用户指令，未编译、未运行。
-- [ ] BF108.06 `BS_Als_WalkRun_Left_Forward`：核对并修复实际 LeftForward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [x] BF108.06 `BS_Als_WalkRun_Left_Forward`：核对并修复实际 LeftForward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+  - 当次 ALS 事实（2026-08-31）：Stride Amount／Walk Run Amount 均为 [0,1]，Cubic filter 为 X `.2s`／Y `.4s`；样本为 Walk_Left_Forward(1,0)、Walk_Left_Pose(0,0)、Run_Left_Forward(1,1)、Run_Left_Pose(0,1)，rate scale=1。source player 为 loop=true、rate=1、start=.2、Movement SyncGroup，asset loop=true、marker sync=true。
+  - 实际图与资源静态证据：Left Forward node 的四条本地资源、坐标、loop、gltf animation／时长／skeleton、图内 duration／markers、selector=5、Movement phase、start phase、双轴 Cubic filter、root delta writer 与路由均无差异。`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS> --asset BS_Als_WalkRun_Left_Forward` 输出 pass=true。按本批用户指令，未编译、未运行。
 - [ ] BF108.07 `BS_Als_WalkRun_Right_Backward`：核对并修复实际 RightBackward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
 - [ ] BF108.08 `BS_Als_WalkRun_Right_Forward`：核对并修复实际 RightForward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
 - [ ] BF108.09 `BS_Als_Look`：核对并修复 Head 实际图的 Pitch axis、3 个项目 ClipNode、坐标、evaluator／播放与 Head 输入 writer；验收为静态源对照零差异。

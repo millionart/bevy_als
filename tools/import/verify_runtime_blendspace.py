@@ -223,6 +223,30 @@ SPECS = {
             },
         ],
     },
+    "BS_Als_WalkRun_Left_Forward": {
+        "source": "Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.uasset",
+        "blueprints": ["Character/AnimationInstances/Stances/AB_Als_Standing.uasset"],
+        "graph": "assets/graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
+        "route": "assets/graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron",
+        "label": "Left Forward",
+        "selector": ("left_forward", 5.0),
+        "roles": [
+            ("walk_pose", (0.0, 0.0)),
+            ("walk", (1.0, 0.0)),
+            ("run_pose", (0.0, 1.0)),
+            ("run", (1.0, 1.0)),
+        ],
+        "consumers": [
+            {
+                "kind": "player",
+                "loop": True,
+                "play_rate": 1.0,
+                "start_position": 0.2,
+                "sync_group": "Movement",
+                "sync_method": "EAnimSyncMethod::SyncGroup",
+            },
+        ],
+    },
 }
 
 
