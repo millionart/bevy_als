@@ -380,6 +380,16 @@ def main():
         if source_graph is None:
             report["missing_source_graphs"].append(source_path)
             continue
+        if entry.get("graph_scope_only"):
+            report["files"].append(
+                {
+                    "target": entry["target"],
+                    "source": source_path,
+                    "nodes": [],
+                    "graph_scope_only": True,
+                }
+            )
+            continue
         target_path = args.target_root / entry["target"]
         text = target_path.read_text(encoding="utf-8")
         nodes = target_nodes(text)

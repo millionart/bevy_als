@@ -370,3 +370,11 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 - 审计合同：`assets/control_rigs/cr_als.profile.json`。保留 10 个源 graph、133 个 node 的完整 position/property/pin/connection、1,407 个 pin、160 条 RigVM link、CDO 属性和 source graph layout；该文件只供离线审计，不在运行时解析。
 - 运行时材化数据：`assets/control_rigs/cr_als.runtime.json`。由 `tools/import/coordinate_basis.py` 与 `tools/import/gen_cr_als_profile.py` 离线生成，仅含 target-space 骨骼名、米制长度、目标轴、rotation 和 CR 数值；运行时不执行 source/target basis bridge。
 - 验证：`tools/import/audit_cr_als.py` 使用上述原生输出逐项验证完整图合同及全部 79 个 final skeleton transform/parent 和 11 根 virtual bone 对目标 glTF，报告零差异。
+
+## BF109 AB_Als_Default 原生图合同（2026-09-01）
+
+- 源对象：`/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default`。
+- 原生读取：`tools/ue_graph_source_reader` 直接读取完整 Blueprint graph、node、pin、property、connection 与 asset object；原始输出位于 gitignored `target/bf109/source_native/AB_Als_Default.ue.json`，未提交 uasset。
+- 审计合同：`assets/graphs/ab_als/overlays/default.source.json`。保留当次完整原生 payload（8 graph、34 node、73 pin、100 asset object），并含 canonical source SHA-256。
+- 目标位置合同：`tools/import/default_source_layout_map.json` 将 `Overlay` 的 53 个 Bevy graph node 逐一对齐到 source node / 明确的拆分或 collapse 规则；`AnimGraph` linked-layer consumer 与空 EventGraph 作为 graph-scope boundary 明确登记。
+- 验证：`tools/import/audit_default_overlay.py` 回读 source contract、直接原生输出、目标 RON 和 layout map，验证完整 payload hash、target node coverage、source node coverage、位置、explicit frame、FInterp、Secondary Motion 与 curve node；结果零差异。

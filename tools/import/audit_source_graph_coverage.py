@@ -21,7 +21,7 @@ def source_kind(path):
         "ExecuteUbergraph",
         "EvaluateGraphExposedInputs",
         "_MERGED",
-        "AnimGraph__AnimFunc",
+        "__AnimFunc",
         "AnimNode_CallFunction_EventStub",
         "AnimNotify_",
     )
@@ -61,6 +61,18 @@ def payload(source_payload, target_root, mapping):
         if source_graph is None:
             missing_source_graphs.append(source_graph_path)
             continue
+        if entry.get("graph_scope_only"):
+            graph_rows.append(
+                {
+                    "target": entry["target"],
+                    "source": source_graph_path,
+                    "target_nodes": 0,
+                    "source_nodes": len(source_nodes(source_graph)),
+                    "source_pins": pin_count(source_nodes(source_graph)),
+                    "graph_scope_only": True,
+                }
+            )
+            continue
         target_path = target_root / entry["target"]
         text = target_path.read_text(encoding="utf-8")
         nodes = target_nodes(text)
@@ -93,9 +105,10 @@ def payload(source_payload, target_root, mapping):
         )
     anchors = {}
     for row in target_rows:
-        anchors.setdefault(row["source_node"], []).append(
-            {"target": row["target"], "id": row["id"], "name": row["name"]}
-        )
+        for source_node in row.get("source_nodes", [row["source_node"]]):
+            anchors.setdefault(source_node, []).append(
+                {"target": row["target"], "id": row["id"], "name": row["name"]}
+            )
     source_rows = []
     unexplained_authored_graphs = []
     for graph in source_payload["graphs"]:

@@ -16,7 +16,7 @@ use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
 use als_core::view::AlsViewPitch;
-use als_ext::{RagdollCollisionMember, RagdollPhysicsProfileApplied};
+use als_ext::{ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
@@ -158,6 +158,7 @@ enum IntegrationPhase {
     FootIkWeightRamp,
     FootIkTerrain,
     ControlRig,
+    DefaultOverlay,
     StateMachineGrounded,
     StateMachineAir,
     StateMachineRotate,
@@ -196,6 +197,7 @@ enum IntegrationScenario {
     Base,
     Crouching,
     ControlRig,
+    DefaultOverlay,
     StateMachine,
     FootIk,
     Ragdoll,
@@ -209,6 +211,7 @@ impl IntegrationScenario {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
             Some("crouching") => Self::Crouching,
             Some("control_rig") => Self::ControlRig,
+            Some("default_overlay") => Self::DefaultOverlay,
             Some("state_machine") => Self::StateMachine,
             Some("foot_ik") => Self::FootIk,
             Some("ragdoll") => Self::Ragdoll,
@@ -429,6 +432,11 @@ struct IntegrationCoverage {
     backward: bool,
     sideways: bool,
     standing_graph: bool,
+    default_overlay_idle: bool,
+    default_overlay_moving: bool,
+    default_overlay_crouching: bool,
+    default_overlay_air: bool,
+    default_overlay_curves: bool,
     direction_cases: [bool; DIRECTION_CASE_COUNT],
     crouch_transaction: bool,
     crouch_graph: bool,
@@ -852,6 +860,7 @@ fn initialize_manual_integration(
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
+        IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
@@ -1221,6 +1230,45 @@ fn drive_manual_integration(
             request.rotation_mode = Some(RotationMode::Aiming);
             request.overlay_state = Some(OverlayState::Rifle);
             if elapsed >= 6.0 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::DefaultOverlay => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Walking;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::Aiming;
+            }
+            request.overlay_state = Some(OverlayState::Default);
+            request.rotation_mode = Some(RotationMode::Aiming);
+            request.gait = Some(Gait::Walking);
+            if elapsed < 1.2 {
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+            } else if elapsed < 2.8 {
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                input.0.move_dir = Vec2::Y;
+            } else if elapsed < 4.4 {
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Crouching);
+                input.0.move_dir = Vec2::Y;
+            } else {
+                request.stance = Some(Stance::Standing);
+                input.0.jump_pressed = (4.7..4.9).contains(&elapsed);
+                input.0.jump_held = (4.7..5.4).contains(&elapsed);
+            }
+            if elapsed >= 8.0 {
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -2367,6 +2415,20 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
     }
 }
 
+fn default_overlay_curve_value(name: &str) -> f32 {
+    match name {
+        "HandLeftIk" | "HandRightIk" | "HipsDirectionLock" | "LayerHandLeft" | "LayerHandRight"
+        | "PoseAiming" => 0.0,
+        _ => 1.0,
+    }
+}
+
+fn default_overlay_curves_ready(player: &AnimationGraphPlayer) -> bool {
+    ALS_LAYER_CURVE_NAMES.iter().all(|name| {
+        matches!(player.get_outputs().get(*name), Some(DataValue::F32(value)) if (*value - default_overlay_curve_value(name)).abs() < 1e-4)
+    })
+}
+
 #[allow(clippy::type_complexity)]
 fn observe_manual_integration(
     fixture: Option<Res<ManualIntegrationFixture>>,
@@ -2531,6 +2593,45 @@ fn observe_manual_integration(
         && player.get_error().is_none();
     if !source_ready {
         state.coverage.graph = false;
+    }
+    if state.scenario == IntegrationScenario::DefaultOverlay {
+        let default_active = *overlay == OverlayState::Default
+            && overlay_index.is_some_and(|value| value.abs() < 1e-4)
+            && source_ready;
+        let curves_ready = default_active && default_overlay_curves_ready(player);
+        let ground_prediction = graph_global_f32(player, "als_overlay_ground_prediction_amount");
+        let idle_ready = curves_ready
+            && *stance == Stance::Standing
+            && *locomotion == LocomotionState::Grounded
+            && speed <= 0.1;
+        let moving_ready = curves_ready
+            && *stance == Stance::Standing
+            && *locomotion == LocomotionState::Grounded
+            && speed > 0.5;
+        let crouching_ready = curves_ready && *stance == Stance::Crouching && speed > 0.1;
+        let air_ready = curves_ready
+            && *locomotion == LocomotionState::Air
+            && ground_prediction.is_some_and(f32::is_finite);
+        if idle_ready && !state.coverage.default_overlay_idle {
+            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=grounded_idle curves=true -> PASS");
+        }
+        if moving_ready && !state.coverage.default_overlay_moving {
+            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=grounded_walk curves=true -> PASS");
+        }
+        if crouching_ready && !state.coverage.default_overlay_crouching {
+            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=crouching curves=true -> PASS");
+        }
+        if air_ready && !state.coverage.default_overlay_air {
+            info!(
+                "[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=air ground_prediction={:.6} curves=true -> PASS",
+                ground_prediction.unwrap_or_default(),
+            );
+        }
+        state.coverage.default_overlay_idle |= idle_ready;
+        state.coverage.default_overlay_moving |= moving_ready;
+        state.coverage.default_overlay_crouching |= crouching_ready;
+        state.coverage.default_overlay_air |= air_ready;
+        state.coverage.default_overlay_curves |= curves_ready;
     }
     let standing_graph_live = standing_graph.is_some_and(|telemetry| {
         (telemetry.actual_movement_state.is_some()
@@ -3969,6 +4070,18 @@ fn observe_manual_integration(
                 ),
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),
+            ],
+            IntegrationScenario::DefaultOverlay => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("default_overlay_idle", coverage.default_overlay_idle),
+                ("default_overlay_moving", coverage.default_overlay_moving),
+                (
+                    "default_overlay_crouching",
+                    coverage.default_overlay_crouching,
+                ),
+                ("default_overlay_air", coverage.default_overlay_air),
+                ("default_overlay_curves", coverage.default_overlay_curves),
             ],
             IntegrationScenario::FootIk => vec![
                 ("runtime_assembly", coverage.assembly),
