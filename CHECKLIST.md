@@ -25,18 +25,18 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 ## BF108 BlendSpace 源资产逐项等价修复
 
-> 范围：以本地 ALS-Refactored 的 9 个 BlendSpace 为逐项源事实，修正 `docs/als-ref-animation-asset-map.md` 中对应的导出定义、图消费者与运行时参数映射。每个子项开始时重新提取该资产的源事实；不得以此前报告或记忆代替。每项的 `manual_playground` 覆盖须在可见 Playground 与正常角色相机中实际执行对应图路径，并以日志记录被选中的源序列、输入参数和权重／相位。
+> 范围：以本地 ALS-Refactored 的 9 个 BlendSpace 为逐项源事实，修正实际运行的 `.animgraph.ron` 节点、其项目本地 `ClipNode` 引用、图内轴／样本／播放设置及 Rust 输入 writer。`assets/animations/blendspaces/*.json` 只是导出元数据，不是本段验收对象。每个子项开始时重新提取该资产的源事实；不得以此前报告或记忆代替。本批按用户指令仅做静态验证：不编译、不运行、不执行 `manual_playground`。
 
-- [ ] BF108.01 `BS_Als_Air_Lean`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与消费者输入；验收为源对照零差异及 Fall／Jump 两条真实入口路径日志。
-- [ ] BF108.02 `BS_Als_Lean`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与 Standing／Crouching 消费者输入；验收为源对照零差异及两种 stance 的真实入口日志。
-- [ ] BF108.03 `BS_Als_WalkRun_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 Backward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.04 `BS_Als_WalkRun_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 Forward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.05 `BS_Als_WalkRun_Left_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 LeftBackward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.06 `BS_Als_WalkRun_Left_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 LeftForward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.07 `BS_Als_WalkRun_Right_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 RightBackward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.08 `BS_Als_WalkRun_Right_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 RightForward 消费者输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.09 `BS_Als_Look`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与 Head 输入；验收为源对照零差异及真实入口日志。
-- [ ] BF108.10 Gate：用本次实时源提取生成的可复查清单逐项比较 9 个资产，确认动画引用、样本、轴、插值、播放／同步语义和消费者参数映射均无差异；运行图资产校验及 `manual_playground` 全覆盖场景，日志须明确 9 个资产均实际求值且无断言失败。
+- [ ] BF108.01 `BS_Als_Air_Lean`：核对并修复 Air Fall／Jump 实际图的轴、5 个项目 ClipNode、坐标、loop／播放与 locomotion 输入 writer；验收为静态源对照零差异。
+- [ ] BF108.02 `BS_Als_Lean`：核对并修复 Standing／Crouching 实际图的轴、5 个项目 ClipNode、坐标、evaluator／播放与两侧输入 writer；验收为静态源对照零差异。
+- [ ] BF108.03 `BS_Als_WalkRun_Backward`：核对并修复实际 Backward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.04 `BS_Als_WalkRun_Forward`：核对并修复实际 Forward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.05 `BS_Als_WalkRun_Left_Backward`：核对并修复实际 LeftBackward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.06 `BS_Als_WalkRun_Left_Forward`：核对并修复实际 LeftForward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.07 `BS_Als_WalkRun_Right_Backward`：核对并修复实际 RightBackward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.08 `BS_Als_WalkRun_Right_Forward`：核对并修复实际 RightForward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
+- [ ] BF108.09 `BS_Als_Look`：核对并修复 Head 实际图的 Pitch axis、3 个项目 ClipNode、坐标、evaluator／播放与 Head 输入 writer；验收为静态源对照零差异。
+- [ ] BF108.10 Gate：逐项比较 9 个源资产与实际运行图／writer，确认项目动画引用、样本、轴、插值、播放／同步语义和参数映射均无差异；只运行静态图／源码校验，不编译、不运行。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
