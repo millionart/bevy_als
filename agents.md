@@ -41,6 +41,8 @@
 
 20. **初始化、重建与逐帧执行分相（严格执行）**：移植 Unreal 的任何生命周期链路前，必须从当次本地资产／源码明确标注每个节点或函数属于一次性初始化／Construction、条件性重建／重新初始化、事件驱动，还是每帧 Update／Forwards Solve；禁止因实现方便把 Construction、BeginPlay、首次激活、缓存骨骼／引用姿态、默认变量写入或资源装配放进逐帧系统，也禁止把逐帧状态刷新错误地冻结在初始化阶段。Bevy 实现必须以独立 component／resource 与显式 SystemSet 表示各相位：初始化仅在实体创建或明确定义的 reinitialize 条件下执行一次，逐帧系统只能消费已构造状态；需要重建时必须有可复查的触发条件、先清理旧 transient state 再重新执行一次性链路。验收必须同时记录初始化执行次数、重建次数及连续多帧 runtime stage 顺序，证明 Construction 不会逐帧重复而每帧链路也不会漏跑；静态审计与真实入口 probe 缺任一证据均不得宣称等价。
 
+21. **跨引擎单位与坐标基离线转换（严格执行）**：跨引擎移植的长度、坐标轴、手性、旋转、scale、matrix、parent-relative transform 与任何由其派生的值，必须由仓库内可复跑的离线导入／生成／审计工具完成转换；工具使用中性的 source coordinate basis／runtime coordinate basis 命名，不得以某一引擎名称充当通用 runtime API。转换结果必须物化为提交的项目资产、生成源码常量或明确的 target-space 配置，并由静态审计逐字段复算验证；运行时禁止调用通用 source→target 坐标／单位 bridge，也不得读取源引擎数值后临时换轴或换单位。运行时只可消费已经转换的 target-space 数据，并用 target-space 算法处理动态状态；若确有外部实时流输入的例外，必须在 `CHECKLIST.md` 单列数据边界、转换工具、缓存格式与真实日志证据，未列明不得实现。
+
 ## 工具调用教训（实测，防再犯）
 
 1. **UE MCP：toolset 工具必须经 `call_tool` 元工具分发**。协议层 `tools/call` 只注册 `list_toolsets` / `describe_toolset` / `call_tool` 三个元工具；把 toolset 方法名直接当 `name` 调用必报 `Unknown tool`。正确姿势：`name="call_tool"`，并在其 `arguments` 内传 `toolset_name`、`tool_name`、`arguments`（依据引擎源码 `ModelContextProtocolServer.cpp` 的 FindTool 查找逻辑）。统一走仓库封装 `tools/mcp_probe.py`，不要绕过它手写 HTTP 请求。
