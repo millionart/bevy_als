@@ -77,6 +77,80 @@ SPECS = {
             },
         ],
     },
+    "BS_Als_Lean": {
+        "source": "Animations/Grounded/Lean/BS_Als_Lean.uasset",
+        "blueprints": [
+            "Character/AnimationInstances/Stances/AB_Als_Crouching.uasset",
+            "Character/AnimationInstances/Stances/AB_Als_Standing.uasset",
+        ],
+        "graphs": [
+            {
+                "path": "assets/graphs/ab_als/stances/crouching/lean.animgraph.ron",
+                "prefix": "crouching lean",
+                "inputs": {
+                    "x": "als_crouching_lean_right_amount",
+                    "y": "als_crouching_lean_forward_amount",
+                },
+            },
+            {
+                "path": "assets/graphs/ab_als/stances/standing/lean.animgraph.ron",
+                "prefix": "lean",
+                "inputs": {
+                    "x": "als_standing_lean_right_amount",
+                    "y": "als_standing_lean_forward_amount",
+                },
+            },
+        ],
+        "routes": [
+            "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+            "assets/graphs/ab_als/stances/standing.animgraph.ron",
+        ],
+        "writers": [
+            (
+                "src/crouching_layer.rs",
+                [
+                    "\"als_crouching_lean_right_amount\"",
+                    "\"als_crouching_lean_forward_amount\"",
+                    "lean_right_amount: runtime.lean.y",
+                    "lean_forward_amount: runtime.lean.x",
+                ],
+            ),
+            (
+                "src/standing_layer.rs",
+                [
+                    "(\"als_standing_lean_right_amount\", inputs.lean_right_amount)",
+                    "\"als_standing_lean_forward_amount\"",
+                    "lean_right_amount: runtime.lean.y",
+                    "lean_forward_amount: runtime.lean.x",
+                ],
+            ),
+        ],
+        "roles": [
+            ("center", (0.0, 0.0)),
+            ("forward", (0.0, 1.0)),
+            ("backward", (0.0, -1.0)),
+            ("left", (-1.0, 0.0)),
+            ("right", (1.0, 0.0)),
+        ],
+        "consumers": [
+            {
+                "kind": "evaluator",
+                "loop": True,
+                "play_rate": 1.0,
+                "start_position": 0.0,
+                "sync_group": "None",
+                "sync_method": "DoNotSync",
+            },
+            {
+                "kind": "evaluator",
+                "loop": True,
+                "play_rate": 1.0,
+                "start_position": 0.0,
+                "sync_group": "None",
+                "sync_method": "DoNotSync",
+            },
+        ],
+    },
 }
 
 
@@ -203,6 +277,76 @@ def required_sample_map(properties, roles):
     return result
 
 
+def source_clip_properties(session, reference):
+    value = call(
+        session,
+        "editor_toolset.toolsets.object.ObjectTools",
+        "get_properties",
+        {
+            "instance": reference,
+            "properties": [
+                "sequenceLength",
+                "skeleton",
+                "additiveAnimType",
+                "refPoseType",
+                "refPoseSeq",
+            ],
+        },
+    )
+    return json.loads(value)
+
+
+def local_clip_resource(root, clip):
+    path = root / "assets" / clip
+    text = path.read_text(encoding="utf-8")
+    source = re.search(r'path:\s*"([^"]+)"', text)
+    animation = re.search(r'animation_name:\s*"([^"]+)"', text)
+    skeleton = re.search(r'skeleton:\s*"([^"]+)"', text)
+    if source is None or animation is None or skeleton is None:
+        raise RuntimeError(f"invalid project clip resource: {clip}")
+    return source.group(1), animation.group(1), skeleton.group(1)
+
+
+def gltf_duration(path, animation_name):
+    document = json.loads(path.read_text(encoding="utf-8"))
+    animation = next(
+        (item for item in document.get("animations", []) if item.get("name") == animation_name),
+        None,
+    )
+    if animation is None:
+        raise RuntimeError(f"missing glTF animation: {animation_name}")
+    times = []
+    for sampler in animation.get("samplers", []):
+        accessor = document["accessors"][sampler["input"]]
+        values = accessor.get("max", [])
+        if values:
+            times.append(float(values[0]))
+    if not times:
+        raise RuntimeError(f"missing glTF animation time range: {animation_name}")
+    return max(times)
+
+
+def resource_failures(root, session, properties):
+    failures = []
+    for sample in properties["sampleData"]:
+        clip = local_clip(sample["animation"])
+        try:
+            gltf_path, animation_name, skeleton_path = local_clip_resource(root, clip)
+            local_duration = gltf_duration(root / "assets" / gltf_path, animation_name)
+        except (FileNotFoundError, IndexError, RuntimeError, json.JSONDecodeError) as error:
+            failures.append(str(error))
+            continue
+        source = source_clip_properties(session, sample["animation"])
+        source_duration = float(source["sequenceLength"])
+        if abs(local_duration - source_duration) > 1e-5:
+            failures.append(f"project clip duration differs: {clip}")
+        if not (root / "assets" / skeleton_path).is_file():
+            failures.append(f"project clip skeleton is missing: {clip}")
+        if not isinstance(source.get("skeleton"), dict):
+            failures.append(f"source clip skeleton is missing: {clip}")
+    return failures
+
+
 def graph_failures(root, properties, spec):
     failures = []
     graph = (root / spec["graph"]).read_text(encoding="utf-8")
@@ -246,10 +390,60 @@ def graph_failures(root, properties, spec):
     return failures
 
 
+def lean_graph_failures(root, properties, spec):
+    failures = []
+    samples = required_sample_map(properties, spec["roles"])
+    for graph_spec in spec["graphs"]:
+        graph = (root / graph_spec["path"]).read_text(encoding="utf-8")
+        for role, point in spec["roles"]:
+            clip_line = next(
+                (
+                    line
+                    for line in graph.splitlines()
+                    if f'name: "{graph_spec["prefix"]} {role} clip"' in line
+                ),
+                "",
+            )
+            if samples[role] not in clip_line:
+                failures.append(f"{graph_spec['path']}: clip {role} differs")
+            evaluator_line = next(
+                (
+                    line
+                    for line in graph.splitlines()
+                    if f'name: "{graph_spec["prefix"]} {role} evaluator"' in line
+                ),
+                "",
+            )
+            if "TimePositionNode" not in evaluator_line or "loop_position: false" not in evaluator_line:
+                failures.append(f"{graph_spec['path']}: evaluator {role} differs")
+            point_pattern = rf'id:\s*"{role}"\s*,\s*point:\s*\(\s*{point[0]:g}(?:\.0)?\s*,\s*{point[1]:g}(?:\.0)?\s*\)'
+            if not re.search(point_pattern, graph):
+                failures.append(f"{graph_spec['path']}: point {role} differs")
+        if "BlendSpaceNode" not in graph or "mode: LinearizedInterpolate" not in graph:
+            failures.append(f"{graph_spec['path']}: blend mode differs")
+        if "sync_mode: Absolute" not in graph:
+            failures.append(f"{graph_spec['path']}: sync mode differs")
+        for axis, key in graph_spec["inputs"].items():
+            if key not in graph:
+                failures.append(f"{graph_spec['path']}: input {axis} differs")
+    if any(entry["interpolationTime"] != 0 for entry in properties["interpolationParam"][:2]):
+        failures.append("source axis smoothing is not represented by runtime lean graphs")
+    for route in spec["routes"]:
+        if "lean.animgraph.ron" not in (root / route).read_text(encoding="utf-8"):
+            failures.append(f"runtime route {route} differs")
+    for relative, fragments in spec["writers"]:
+        text = (root / relative).read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                failures.append(f"runtime writer mapping differs: {relative}: {fragment}")
+    return failures
+
+
 def compare(root, source_root, session, name, spec):
     properties = source_properties(session, name, spec)
     consumers = source_consumers(source_root, name, spec)
-    failures = graph_failures(root, properties, spec)
+    failures = graph_failures(root, properties, spec) if name == "BS_Als_Air_Lean" else lean_graph_failures(root, properties, spec)
+    failures.extend(resource_failures(root, session, properties))
     if consumers != spec["consumers"]:
         failures.append("source consumer configuration differs")
     return {

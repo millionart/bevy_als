@@ -439,6 +439,8 @@ struct CrouchingGraphInputs {
     velocity_blend: VelocityBlend,
     stride_amount: f32,
     play_rate: f32,
+    lean_right_amount: f32,
+    lean_forward_amount: f32,
     movement_marker_phase: f32,
     delta_seconds: f32,
     rotate_clip_time: f32,
@@ -1116,6 +1118,8 @@ fn update_crouching_inputs(
         velocity_blend: runtime.velocity_blend,
         stride_amount,
         play_rate,
+        lean_right_amount: runtime.lean.y,
+        lean_forward_amount: runtime.lean.x,
         movement_marker_phase,
         delta_seconds,
         rotate_clip_time: rotating.map_or(0.0, |turn| turn.rotate_clip_time),
@@ -1196,6 +1200,14 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
         ),
         ("als_crouching_stride_amount", inputs.stride_amount),
         ("als_crouching_play_rate", inputs.play_rate),
+        (
+            "als_crouching_lean_right_amount",
+            inputs.lean_right_amount,
+        ),
+        (
+            "als_crouching_lean_forward_amount",
+            inputs.lean_forward_amount,
+        ),
         (
             "als_crouching_movement_marker_phase",
             inputs.movement_marker_phase,

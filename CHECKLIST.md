@@ -30,7 +30,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] BF108.01 `BS_Als_Air_Lean`：核对并修复 Air Fall／Jump 实际图的轴、5 个项目 ClipNode、坐标、loop／播放与 locomotion 输入 writer；验收为静态源对照零差异。
   - 当次 ALS 事实（2026-08-31）：源 X/Y 分别为 Lean Right Amount／Lean Forward Amount，范围 [-1,1]；中心、前、后、左、右五个样本坐标为 (0,0)/(0,1)/(0,-1)/(-1,0)/(1,0)，rate scale=1。资产 loop=false，但 `AB_Als_Locomotion` 在 Fall 与 Jump 的两个 evaluator 均覆盖为 loop=true、rate=1、start=0、DoNotSync；轴 smoothing time=0。
   - 实际图静态证据：`air_lean.animgraph.ron` 的五个 `ClipNode` 均指向项目本地对应 `.anim.ron`，坐标、`LoopNode`、`LinearizedInterpolate` 与 Absolute sync 完整；`state_fall`／`state_jump` 都链接该图；`locomotion_layer.rs` 将 `runtime.air_lean.y` 写入 right、`.x` 写入 forward。`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS> --asset BS_Als_Air_Lean` 输出 pass=true。按本批用户指令，未编译、未运行。
-- [ ] BF108.02 `BS_Als_Lean`：核对并修复 Standing／Crouching 实际图的轴、5 个项目 ClipNode、坐标、evaluator／播放与两侧输入 writer；验收为静态源对照零差异。
+- [x] BF108.02 `BS_Als_Lean`：核对并修复 Standing／Crouching 实际图的轴、5 个项目 ClipNode、坐标、evaluator／播放与两侧输入 writer；验收为静态源对照零差异。
+  - 当次 ALS 事实（2026-08-31）：X/Y 为 Lean Right Amount／Lean Forward Amount，范围 [-1,1]、grid=4；五个样本坐标为 (0,0)/(0,1)/(0,-1)/(-1,0)/(1,0)，rate scale=1。资产 loop=false；Standing 与 Crouching 的 source evaluator 都是 loop=true、rate=1、start=0、DoNotSync；轴 smoothing time=0。
+  - 实现：`crouching/lean.animgraph.ron` 已有 `als_crouching_lean_right_amount`／`forward_amount` 输入，但 `CrouchingGraphInputs` 与 writer 未写入它们，运行时一直以零输入求值。现将 `runtime.lean.y/x` 纳入 inputs 并写到对应全局 key；Standing 的同源映射本已存在。
+  - 实际图与资源静态证据：两张 Lean 图均保留五个项目本地 `ClipNode`、坐标、Absolute BlendSpace、显式 evaluator time；Crouching／Standing 路由和两个 writer 均被检查。每个本地 `.anim.ron` 的 glTF path、animation name、时长与 skeleton 文件也逐样本对照源 `AnimSequence`。`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS> --asset BS_Als_Lean` 输出 pass=true；Air 资源回归也为 pass=true。按本批用户指令，未编译、未运行。
 - [ ] BF108.03 `BS_Als_WalkRun_Backward`：核对并修复实际 Backward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
 - [ ] BF108.04 `BS_Als_WalkRun_Forward`：核对并修复实际 Forward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
 - [ ] BF108.05 `BS_Als_WalkRun_Left_Backward`：核对并修复实际 LeftBackward node 的四个项目 ClipNode、坐标、Cubic axis 语义、loop／Movement sync／start phase 与路由；验收为静态源对照零差异。
