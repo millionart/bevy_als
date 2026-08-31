@@ -48,9 +48,11 @@
   - 证据：真实 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=foot_ik RUST_LOG=<manual integration filter> run_manual.bat` 返回 0。日志先记录可见 props 的 slope/step entities 与中心位置，随后输出 `FOOT-IK-STAGE` 的 slope、step、crouching、jump_air、landed、roll、mantle；每条含左右 target four spaces、hip/knee/ankle、errors、pole、weight。实际 verdict 列出 `foot_ik_slope`、`foot_ik_step`、`foot_ik_crouching`、`foot_ik_jump_air`、`foot_ik_landed`、`foot_ik_roll`、`foot_ik_mantle`、`foot_ik_terrain_cleaned` 全部 `EXECUTED`，并以 `scenario=FootIk real_entry_paths -> PASS` 收尾。
   - 全量回归（2026-08-31）：`cargo test -p als-ext --lib --jobs 2` 为 203 passed；`cargo test -p als-core --lib --jobs 2` 为 226 passed／1 ignored；`cargo test -p bevy_als --lib --jobs 2` 为 143 passed；`cargo check --all-targets --jobs 2` 通过（仅既有 examples warnings）。
 
-- [ ] **BF106.Gate — Foot IK 空间、求解与调度全链路验收（P0）**
+- [x] **BF106.Gate — Foot IK 空间、求解与调度全链路验收（P0）**
   - 依赖：BF106.01–BF106.04。
   - 验收：源事实、空间转换、trace、两骨 solver、权重／门控、系统顺序和真实入口日志构成闭环；四向旋转、坡面、台阶边缘、蹲伏与落地均无翻膝、扭曲、单帧跳变或跨帧发散，关闭 IK 后基础动画正常。
+  - Gate 结果（2026-08-31）：通过。source VM/rig trace 只在 walkable hit 时产生 armature-local offset；project 明确转换 world/armature/parent/bone-local，no-hit 将 raw offset 归零并连续回归。两腿不再共用 forward pole：每条腿保留 mirror reference/last successful plane，父骨旋转后再校正 calf；有效 target 经过 source-style angle/reach clamp 后，post-propagation effector error 在延后四向/rotated-90 样本中不超过 .02m。`FootIkApplySet::Solve→Propagate→Telemetry` 明确在 animation targets 后执行，入口 observer 在 telemetry 后读取，所以 telemetry 证明本帧实际骨骼结果未被后续动画写回。0→1→0 weight ramp 实测连续，off/released 仍保持基础 pose；没有发现翻膝、非有限值、跨角色空间泄漏或跨帧发散。
+  - 可复查证据：`cargo run --example foot_ik_space_gate --jobs 2` 输出 rotation_error=.00000066、normal_error=0、isolation_distance=2.980866、PASS；`cargo run --example foot_ik_solver_gate --jobs 2` 输出 mirror_dot=-.999997、child_alignment=1、blend_angle=.4、PASS。`cargo test -p als-ext --lib --jobs 2` 为 203 passed；`cargo test -p als-core --lib --jobs 2` 为 226 passed／1 ignored；`cargo test -p bevy_als --lib --jobs 2` 为 143 passed；`cargo check --all-targets --jobs 2` 通过（仅既有 examples warnings）。真实 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=foot_ik RUST_LOG=<manual integration filter> run_manual.bat` 返回 0，记录 DirectionRegression、no-hit Air、weight ramp、visible slope/step、crouch、jump/land、roll、mantle、cleanup 和所有 I04 coverage 的 `EXECUTED`，最终 `scenario=FootIk real_entry_paths -> PASS`。
 
 ## BF107 — P1 状态机语义与持续真实入口行为回归（待 BF106.Gate）
 
