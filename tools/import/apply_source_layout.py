@@ -224,46 +224,98 @@ def projection_anchor(nodes, node, rank, max_rank, source):
     )
 
 
-def place_nodes(nodes, edges, source, source_by_path, owner):
+def override_lookup(overrides):
+    result = {}
+    for override in overrides:
+        identifier = override.get("target_id")
+        if not identifier:
+            raise ValueError("node override is missing target_id")
+        if identifier in result:
+            raise ValueError(f"duplicate node override: {identifier}")
+        result[identifier] = override
+    return result
+
+
+def override_sources(override, source):
+    indices = override.get("source_indices")
+    if indices is None:
+        indices = [override.get("source_index")]
+    if not indices or any(index is None for index in indices):
+        raise ValueError("node override is missing source_index or source_indices")
+    by_index = {node.get("index"): node for node in source}
+    result = []
+    for index in indices:
+        node = by_index.get(index)
+        if node is None:
+            raise ValueError(f"node override source index is missing: {index}")
+        result.append(node)
+    return result
+
+
+def place_nodes(nodes, edges, source, source_by_path, owner, overrides):
     rank = ranks(nodes, edges)
     max_rank = max(rank.values(), default=0)
     min_x, max_x, min_y, max_y = source_bounds(source)
     asset_hints = connected_asset_hints(nodes, edges)
+    override_by_id = override_lookup(overrides)
     positions = {}
     report = []
     occupied = set()
     for node in sorted(nodes, key=lambda value: (rank[value["id"]], value["index"], value["id"])):
-        anchor, strategy = source_anchor(
-            node,
-            source,
-            source_by_path,
-            owner,
-            asset_hints.get(node["id"]),
-        )
-        if anchor is None and strategy == "source_graph_projection":
-            anchor = projection_anchor(nodes, node, rank, max_rank, source)
+        override = override_by_id.get(node["id"])
+        override_nodes = []
+        if override is not None:
+            override_nodes = override_sources(override, source)
+            anchor = override_nodes[0]
+            strategy = override.get("strategy", "source_override")
+        else:
+            anchor, strategy = source_anchor(
+                node,
+                source,
+                source_by_path,
+                owner,
+                asset_hints.get(node["id"]),
+            )
+            if anchor is None and strategy == "source_graph_projection":
+                anchor = projection_anchor(nodes, node, rank, max_rank, source)
         if anchor is not None:
-            x, y = anchor_position(node, anchor, strategy)
-            if "ClipNode" in node["entry"] and strategy == "asset":
-                strategy = "asset_split_clip"
-            elif "ClipNode" in node["entry"] and strategy == "connected_asset":
-                strategy = "connected_asset_split_clip"
-            elif "TimePositionNode" in node["entry"] and strategy != "source_owner_expansion":
-                strategy = f"{strategy}_split_time"
-            elif "ConstantF32Node" in node["entry"] and strategy != "source_owner_expansion":
-                strategy = f"{strategy}_split_constant"
-            elif "LoopNode" in node["entry"] and strategy != "source_owner_expansion":
-                strategy = f"{strategy}_split_loop"
+            if override is not None:
+                x = float(anchor.get("position_x", 0.0))
+                y = float(anchor.get("position_y", 0.0))
+                offset = override.get("offset", [0.0, 0.0])
+                if len(offset) != 2:
+                    raise ValueError("node override offset must have two values")
+                x += float(offset[0])
+                y += float(offset[1])
+            else:
+                x, y = anchor_position(node, anchor, strategy)
+                if "ClipNode" in node["entry"] and strategy == "asset":
+                    strategy = "asset_split_clip"
+                elif "ClipNode" in node["entry"] and strategy == "connected_asset":
+                    strategy = "connected_asset_split_clip"
+                elif "TimePositionNode" in node["entry"] and strategy != "source_owner_expansion":
+                    strategy = f"{strategy}_split_time"
+                elif "ConstantF32Node" in node["entry"] and strategy != "source_owner_expansion":
+                    strategy = f"{strategy}_split_constant"
+                elif "LoopNode" in node["entry"] and strategy != "source_owner_expansion":
+                    strategy = f"{strategy}_split_loop"
             source_ref = anchor.get("object_path")
             source_position = (
                 float(anchor.get("position_x", 0.0)),
                 float(anchor.get("position_y", 0.0)),
             )
+            source_refs = [item.get("object_path") for item in override_nodes] or [source_ref]
+            source_positions = [
+                (float(item.get("position_x", 0.0)), float(item.get("position_y", 0.0)))
+                for item in override_nodes
+            ] or [source_position]
         else:
             x = min_x + (max_x - min_x) * (rank[node["id"]] + 1) / (max_rank + 2)
             y = min_y + (max_y - min_y) * (node["index"] + 1) / (len(nodes) + 1)
             source_ref = None
             source_position = None
+            source_refs = []
+            source_positions = []
         candidate = (round(x, 3), round(y, 3))
         while candidate in occupied:
             candidate = (candidate[0], round(candidate[1] + 96.0, 3))
@@ -277,6 +329,8 @@ def place_nodes(nodes, edges, source, source_by_path, owner):
                 "strategy": strategy,
                 "source_node": source_ref,
                 "source_position": source_position,
+                "source_nodes": source_refs,
+                "source_positions": source_positions,
                 "offset": None
                 if source_position is None
                 else (
@@ -335,6 +389,7 @@ def main():
             source_nodes(source_graph),
             source_by_path,
             source_owner(source_graph, source_by_path),
+            entry.get("node_overrides", []),
         )
         missing_anchors = [node["id"] for node in node_report if node["source_node"] is None]
         if missing_anchors:

@@ -70,6 +70,7 @@ def payload(source_payload, target_root, mapping):
             source_nodes(source_graph),
             source_by_path,
             source_owner(source_graph, source_by_path),
+            entry.get("node_overrides", []),
         )
         for row in node_rows:
             target_rows.append(

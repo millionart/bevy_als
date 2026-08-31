@@ -146,5 +146,16 @@
         Data(Passthrough("ragdolling_ViewBlock")): 38,
     }, output_order: { Data("pose"): 0, Data("PoseStanding"): 1, Data("PoseCrouching"): 2, Data("PoseMoving"): 3, Data("RotationYawOffset"): 4, Data("FootLeftLock"): 5, Data("FootRightLock"): 6, Data("AllowTransitions"): 7, Data("RotationYawSpeed"): 8, Data("PoseGrounded"): 9, Data("FootLeftIk"): 10, Data("FootRightIk"): 11, Data("PoseInAir"): 12, Data("LayerHead"): 13, Data("LayerHeadAdditive"): 14, Data("LayerHeadSlot"): 15, Data("LayerArmLeft"): 16, Data("LayerArmLeftAdditive"): 17, Data("LayerArmLeftLocalSpace"): 18, Data("LayerArmLeftSlot"): 19, Data("LayerArmRight"): 20, Data("LayerArmRightAdditive"): 21, Data("LayerArmRightLocalSpace"): 22, Data("LayerArmRightSlot"): 23, Data("LayerHandLeft"): 24, Data("LayerHandRight"): 25, Data("LayerSpine"): 26, Data("LayerSpineAdditive"): 27, Data("LayerSpineSlot"): 28, Data("LayerPelvis"): 29, Data("LayerPelvisSlot"): 30, Data("LayerLegs"): 31, Data("LayerLegsSlot"): 32, Data("HandLeftIk"): 33, Data("HandRightIk"): 34, Data("HipsDirectionLock"): 35, Data("PoseAiming"): 36, Data("ViewBlock"): 37, Data("action_index"): 38, Data("outer_input_weight"): 39, Data("outer_ragdoll_weight"): 40, Data("inner_snapshot_weight"): 41, Data("inner_flail_weight"): 42, Data("flail_play_rate"): 43, Data("ragdoll_dynamic"): 44, Data("ragdoll_readback"): 45, Data("ragdoll_config"): 46, Time: 47 }),
     default_data: {},
-    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: {
+        "1a220000-0000-4000-8000-000000000001": (-1056.000, 192.000),
+        "1a220000-0000-4000-8000-000000000004": (-1056.000, 288.000),
+        "1a220000-0000-4000-8000-000000000005": (-528.000, 0.000),
+        "1a220000-0000-4000-8000-000000000006": (-1024.000, 64.000),
+        "1a220000-0000-4000-8000-000000000008": (-336.000, 192.000),
+        "1a220000-0000-4000-8000-000000000009": (-336.000, 288.000),
+        "1a220000-0000-4000-8000-000000000002": (-864.000, 192.000),
+        "1a220000-0000-4000-8000-000000000010": (-336.000, 384.000),
+        "1a220000-0000-4000-8000-000000000003": (-672.000, 192.000),
+        "1a220000-0000-4000-8000-000000000007": (-336.000, 64.000),
+    }, input_position: (-528.0, 16.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

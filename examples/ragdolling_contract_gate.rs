@@ -20,6 +20,7 @@ use bevy_animation_graph::core::{
     ragdoll::definition::BodyMode,
     skeleton::Skeleton,
 };
+use serde_json::Value;
 
 const RAGDOLLING_PATH: &str = "graphs/ab_als/ragdolling.animgraph.ron";
 const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
@@ -119,10 +120,120 @@ fn main() {
         AlsExtPlugin,
     ))
     .init_resource::<Probe>()
-    .add_systems(Startup, load_assets)
+    .add_systems(Startup, (verify_native_source, load_assets).chain())
     .add_systems(Update, (verify_static, timeout))
     .add_systems(PostUpdate, observe.after(AnimationGraphSet::Final));
     app.run();
+}
+
+fn verify_native_source() {
+    let Ok(path) = std::env::var("RAGDOLLING_SOURCE_PATH") else {
+        return;
+    };
+    let source: Value = serde_json::from_str(
+        &std::fs::read_to_string(&path).expect("native Ragdolling source readable"),
+    )
+    .expect("native Ragdolling source parses");
+    let graph = source["graphs"]
+        .as_array()
+        .and_then(|graphs| graphs.iter().find(|graph| graph["name"] == "AnimGraph"))
+        .expect("native Ragdolling AnimGraph exists");
+    let nodes = graph["nodes"].as_array().expect("native Ragdolling nodes");
+    assert_eq!(nodes.len(), 6, "native Ragdolling authored node count");
+    let root = native_node(nodes, "AnimGraphNode_Root", 0, 0);
+    let input = native_node(nodes, "AnimGraphNode_LinkedInputPose", -528, 16);
+    let outer = native_node(nodes, "AlsAnimGraphNode_GameplayTagsBlend", -336, 64);
+    let inner = native_node(nodes, "AlsAnimGraphNode_GameplayTagsBlend", -672, 128);
+    let flail = native_node(nodes, "AnimGraphNode_SequencePlayer", -1056, 192);
+    let snapshot = native_node(nodes, "AnimGraphNode_PoseSnapshot", -1024, 64);
+    let outer_text = native_property(outer, "Node");
+    let inner_text = native_property(inner, "Node");
+    assert!(outer_text.contains("Als.LocomotionAction.Ragdolling"));
+    assert!(inner_text.contains("Als.LocomotionAction.Ragdolling"));
+    assert_eq!(native_pin_default(outer, "BlendTime_0"), "0.400000");
+    assert_eq!(native_pin_default(outer, "BlendTime_1"), "0.500000");
+    assert_eq!(native_pin_default(inner, "BlendTime_0"), "0.000000");
+    assert_eq!(native_pin_default(inner, "BlendTime_1"), "0.0");
+    assert!(native_property(flail, "Node").contains("A_Als_Flail.A_Als_Flail"));
+    assert!(native_property(flail, "Node").contains("PlayRate=1.000000"));
+    assert!(native_property(flail, "Node").contains("bLoopAnimation=True"));
+    assert!(native_property(snapshot, "Node").contains("Mode=SnapshotPin"));
+    assert!(native_link(outer, "BlendPose_0", input));
+    assert!(native_link(outer, "BlendPose_1", inner));
+    assert!(native_link(inner, "BlendPose_0", snapshot));
+    assert!(native_link(inner, "BlendPose_1", flail));
+    assert!(native_link(root, "Result", outer));
+    let target = std::fs::read_to_string("assets/graphs/ab_als/ragdolling.animgraph.ron")
+        .expect("target Ragdolling graph readable");
+    for position in [
+        "\"1a220000-0000-4000-8000-000000000001\": (-1056.000, 192.000)",
+        "\"1a220000-0000-4000-8000-000000000002\": (-864.000, 192.000)",
+        "\"1a220000-0000-4000-8000-000000000003\": (-672.000, 192.000)",
+        "\"1a220000-0000-4000-8000-000000000004\": (-1056.000, 288.000)",
+        "\"1a220000-0000-4000-8000-000000000005\": (-528.000, 0.000)",
+        "\"1a220000-0000-4000-8000-000000000006\": (-1024.000, 64.000)",
+        "\"1a220000-0000-4000-8000-000000000007\": (-336.000, 64.000)",
+        "\"1a220000-0000-4000-8000-000000000008\": (-336.000, 192.000)",
+        "\"1a220000-0000-4000-8000-000000000009\": (-336.000, 288.000)",
+        "\"1a220000-0000-4000-8000-000000000010\": (-336.000, 384.000)",
+        "input_position: (-528.0, 16.0)",
+        "output_position: (0.0, 0.0)",
+    ] {
+        assert!(
+            target.contains(position),
+            "target source layout position {position}"
+        );
+    }
+    info!(
+        "[RAGDOLLING-SOURCE] authored_nodes=6 pins=18 outer=(0.4,0.5) inner=(0,0) flail=looping snapshot=pin positions=10 -> PASS"
+    );
+}
+
+fn native_node<'a>(nodes: &'a [Value], class: &str, x: i64, y: i64) -> &'a Value {
+    nodes
+        .iter()
+        .find(|node| {
+            node["class_path"]
+                .as_str()
+                .is_some_and(|path| path.contains(class))
+                && node["position_x"].as_i64() == Some(x)
+                && node["position_y"].as_i64() == Some(y)
+        })
+        .expect("native Ragdolling node")
+}
+
+fn native_property<'a>(node: &'a Value, name: &str) -> &'a str {
+    node["properties"]
+        .as_array()
+        .and_then(|properties| {
+            properties
+                .iter()
+                .find(|property| property["name"] == name)
+                .and_then(|property| property["exported_text"].as_str())
+        })
+        .expect("native Ragdolling property")
+}
+
+fn native_pin_default<'a>(node: &'a Value, name: &str) -> &'a str {
+    node["pins"]
+        .as_array()
+        .and_then(|pins| {
+            pins.iter()
+                .find(|pin| pin["name"] == name)
+                .and_then(|pin| pin["default_value"].as_str())
+        })
+        .expect("native Ragdolling pin")
+}
+
+fn native_link(node: &Value, pin_name: &str, expected_node: &Value) -> bool {
+    let Some(expected_guid) = expected_node["node_guid"].as_str() else {
+        return false;
+    };
+    node["pins"]
+        .as_array()
+        .and_then(|pins| pins.iter().find(|pin| pin["name"] == pin_name))
+        .and_then(|pin| pin["linked_to"].as_array())
+        .is_some_and(|links| links.iter().any(|link| link["node_guid"] == expected_guid))
 }
 
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
