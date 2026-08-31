@@ -145,6 +145,55 @@ impl NodeLike for CubicVec2FilterNode {
     }
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+struct CubicVec2AxisFilterState {
+    x: CubicFilterState,
+    y: CubicFilterState,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct CubicVec2AxisFilterNode {
+    pub x_window_seconds: f32,
+    pub y_window_seconds: f32,
+}
+
+impl NodeLike for CubicVec2AxisFilterNode {
+    fn display_name(&self) -> String {
+        "ALS Cubic BlendSpace Axis Filter".into()
+    }
+
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let position = ctx.data_back(IN_POSITION)?.as_vec2()?;
+        let delta_seconds = ctx.data_back(IN_DELTA_SECONDS)?.as_f32()?;
+        let state = ctx.state_mut::<CubicVec2AxisFilterState>()?;
+        let x = cubic_filter_sample(
+            &mut state.x,
+            Vec2::new(position.x, 0.0),
+            delta_seconds,
+            self.x_window_seconds,
+        )
+        .x;
+        let y = cubic_filter_sample(
+            &mut state.y,
+            Vec2::new(0.0, position.y),
+            delta_seconds,
+            self.y_window_seconds,
+        )
+        .y;
+        ctx.set_data_fwd(OUT_VALUE, Vec2::new(x, y));
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data(IN_POSITION, DataSpec::Vec2)
+            .add_input_data(IN_DELTA_SECONDS, DataSpec::F32)
+            .add_output_data(OUT_VALUE, DataSpec::Vec2);
+        Ok(())
+    }
+}
+
 #[derive(Reflect, Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[reflect(Default, Serialize, Deserialize)]
 pub struct NormalizedBlendSpacePoint {
@@ -370,6 +419,24 @@ mod tests {
         let filtered = cubic_filter_sample(&mut state, Vec2::ONE, 0.2, 0.4);
         assert!((filtered.x - (1.0 / 1.875)).abs() < 1e-5);
         assert!((filtered.y - (1.0 / 1.875)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn cubic_axis_filter_uses_independent_windows() {
+        let mut x = CubicFilterState::default();
+        let mut y = CubicFilterState::default();
+        assert_eq!(
+            cubic_filter_sample(&mut x, Vec2::ZERO, 0.0, 0.2),
+            Vec2::ZERO
+        );
+        assert_eq!(
+            cubic_filter_sample(&mut y, Vec2::ZERO, 0.0, 0.4),
+            Vec2::ZERO
+        );
+        let x_value = cubic_filter_sample(&mut x, Vec2::X, 0.2, 0.2).x;
+        let y_value = cubic_filter_sample(&mut y, Vec2::Y, 0.2, 0.4).y;
+        assert!((x_value - 0.5).abs() < 1e-5);
+        assert!((y_value - (1.0 / 1.875)).abs() < 1e-5);
     }
 
     #[test]

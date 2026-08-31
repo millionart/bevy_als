@@ -151,6 +151,30 @@ SPECS = {
             },
         ],
     },
+    "BS_Als_WalkRun_Backward": {
+        "source": "Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.uasset",
+        "blueprints": ["Character/AnimationInstances/Stances/AB_Als_Standing.uasset"],
+        "graph": "assets/graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
+        "route": "assets/graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron",
+        "label": "Backward",
+        "selector": ("backward", 3.0),
+        "roles": [
+            ("walk_pose", (0.0, 0.0)),
+            ("walk", (1.0, 0.0)),
+            ("run_pose", (0.0, 1.0)),
+            ("run", (1.0, 1.0)),
+        ],
+        "consumers": [
+            {
+                "kind": "player",
+                "loop": True,
+                "play_rate": 1.0,
+                "start_position": 0.2,
+                "sync_group": "Movement",
+                "sync_method": "EAnimSyncMethod::SyncGroup",
+            },
+        ],
+    },
 }
 
 
@@ -347,6 +371,43 @@ def resource_failures(root, session, properties):
     return failures
 
 
+def source_sequence_metadata(source_root, animation):
+    matches = list(source_root.rglob(f"{animation}.uasset"))
+    if len(matches) != 1:
+        raise RuntimeError(f"expected one source animation asset for {animation}")
+    asset = UAsset(str(matches[0]))
+    reader = PropReader(asset)
+    for index, export in enumerate(asset.exports):
+        if export.object_name != animation or source_class(asset, export) != "AnimSequence":
+            continue
+        properties, valid, _ = reader.read_export(index)
+        if not valid:
+            break
+        markers = []
+        for marker in properties.get("AuthoredSyncMarkers", []):
+            if not isinstance(marker, dict):
+                continue
+            name = str(marker.get("MarkerName", "None"))
+            if name != "None":
+                markers.append((name, float(marker.get("Time", 0.0))))
+        return float(properties.get("SequenceLength", 0.0)), markers
+    raise RuntimeError(f"cannot read source animation metadata for {animation}")
+
+
+def graph_point_metadata(node_line, role):
+    match = re.search(
+        rf'id:\s*"{re.escape(role)}"\s*,\s*point:\s*\([^)]*\)\s*,\s*duration:\s*([-0-9.]+)\s*,\s*markers:\s*\[(.*?)\]\)',
+        node_line,
+    )
+    if match is None:
+        raise RuntimeError(f"cannot read runtime graph point metadata for {role}")
+    markers = [
+        (name, float(time))
+        for name, time in re.findall(r'name:\s*"([^"]+)"\s*,\s*time:\s*([-0-9.]+)', match.group(2))
+    ]
+    return float(match.group(1)), markers
+
+
 def graph_failures(root, properties, spec):
     failures = []
     graph = (root / spec["graph"]).read_text(encoding="utf-8")
@@ -439,10 +500,118 @@ def lean_graph_failures(root, properties, spec):
     return failures
 
 
+def walkrun_graph_failures(root, source_root, properties, spec):
+    failures = []
+    graph = (root / spec["graph"]).read_text(encoding="utf-8")
+    samples = required_sample_map(properties, spec["roles"])
+    node_line = next(
+        (
+            line
+            for line in graph.splitlines()
+            if f'name: "{spec["label"]} walk run blendspace"' in line
+        ),
+        "",
+    )
+    if "NormalizedBlendSpaceNode" not in node_line or "looped: true" not in node_line:
+        failures.append("runtime normalized blendspace loop mapping differs")
+    for role, point in spec["roles"]:
+        clip_line = next(
+            (
+                line
+                for line in graph.splitlines()
+                if f'name: "{spec["label"]} {role} clip"' in line
+            ),
+            "",
+        )
+        if samples[role] not in clip_line:
+            failures.append(f"runtime graph clip {role} differs")
+        loop_line = next(
+            (
+                line
+                for line in graph.splitlines()
+                if f'name: "{spec["label"]} {role} loop"' in line
+            ),
+            "",
+        )
+        if "LoopNode" not in loop_line:
+            failures.append(f"runtime graph loop {role} differs")
+        point_pattern = rf'id:\s*"{role}"\s*,\s*point:\s*\(\s*{point[0]:g}(?:\.0)?\s*,\s*{point[1]:g}(?:\.0)?\s*\)'
+        if not re.search(point_pattern, node_line):
+            failures.append(f"runtime graph point {role} differs")
+        try:
+            source_duration, source_markers = source_sequence_metadata(
+                source_root,
+                next(
+                    asset_leaf(sample["animation"]["refPath"])
+                    for sample in properties["sampleData"]
+                    if (
+                        float(sample["sampleValue"]["x"]),
+                        float(sample["sampleValue"]["y"]),
+                    )
+                    == point
+                ),
+            )
+            runtime_duration, runtime_markers = graph_point_metadata(node_line, role)
+            if abs(source_duration - runtime_duration) > 1e-5:
+                failures.append(f"runtime graph duration {role} differs")
+            if len(source_markers) != len(runtime_markers) or any(
+                source_name != runtime_name or abs(source_time - runtime_time) > 1e-5
+                for (source_name, source_time), (runtime_name, runtime_time) in zip(
+                    source_markers, runtime_markers
+                )
+            ):
+                failures.append(f"runtime graph markers {role} differ")
+        except RuntimeError as error:
+            failures.append(str(error))
+    if '"als_ext::CubicVec2AxisFilterNode": (x_window_seconds: 0.2, y_window_seconds: 0.4)' not in graph:
+        failures.append("runtime graph cubic axis filter differs")
+    for key in [
+        "als_standing_stride_amount",
+        "als_standing_walk_run_amount",
+        "als_animation_delta_seconds",
+        "als_standing_movement_marker_phase",
+    ]:
+        if key not in graph:
+            failures.append(f"runtime graph input differs: {key}")
+    selector_name, selector_value = spec["selector"]
+    selector = rf'id:\s*"{selector_name}"\s*,\s*value:\s*{selector_value:g}(?:\.0)?'
+    if not re.search(selector, graph):
+        failures.append("runtime selector differs")
+    route = (root / spec["route"]).read_text(encoding="utf-8")
+    if "state_movement_blend.animgraph.ron" not in route or f"value: {selector_value:.1f}" not in route:
+        failures.append("runtime movement route differs")
+    standing = (root / "src/standing_layer.rs").read_text(encoding="utf-8")
+    for fragment in [
+        "const MOVEMENT_BLENDSPACE_START_PHASE: f32 = 0.2;",
+        "(\"als_standing_stride_amount\", inputs.stride_amount)",
+        "(\"als_standing_walk_run_amount\", inputs.walk_run_amount)",
+        "\"als_standing_movement_marker_phase\"",
+    ]:
+        if fragment not in standing:
+            failures.append(f"runtime standing writer differs: {fragment}")
+    root_graph = (root / "src/ab_als_root.rs").read_text(encoding="utf-8")
+    if "(\"als_animation_delta_seconds\", time.delta_secs())" not in root_graph:
+        failures.append("runtime delta writer differs")
+    x_filter, y_filter = properties["interpolationParam"][:2]
+    if (
+        x_filter["interpolationType"],
+        x_filter["interpolationTime"],
+        y_filter["interpolationType"],
+        y_filter["interpolationTime"],
+    ) != ("BSIT_Cubic", 0.20000000298023224, "BSIT_Cubic", 0.4000000059604645):
+        failures.append("source cubic axis settings differ")
+    return failures
+
+
 def compare(root, source_root, session, name, spec):
     properties = source_properties(session, name, spec)
     consumers = source_consumers(source_root, name, spec)
-    failures = graph_failures(root, properties, spec) if name == "BS_Als_Air_Lean" else lean_graph_failures(root, properties, spec)
+    if name == "BS_Als_Air_Lean":
+        failures = graph_failures(root, properties, spec)
+    elif name == "BS_Als_Lean":
+        failures = lean_graph_failures(root, properties, spec)
+    else:
+        failures = walkrun_graph_failures(root, source_root, properties, spec)
     failures.extend(resource_failures(root, session, properties))
     if consumers != spec["consumers"]:
         failures.append("source consumer configuration differs")
