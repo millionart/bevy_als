@@ -237,5 +237,9 @@
         Data(Passthrough("overlay_ViewBlock")): 73,
     }, output_order: { Data("PoseStanding"): 0, Data("PoseCrouching"): 1, Data("PoseMoving"): 2, Data("RotationYawOffset"): 3, Data("FootLeftLock"): 4, Data("FootRightLock"): 5, Data("AllowTransitions"): 6, Data("RotationYawSpeed"): 7, Data("PoseGrounded"): 8, Data("FootLeftIk"): 9, Data("FootRightIk"): 10, Data("PoseInAir"): 11, Data("LayerHead"): 12, Data("LayerHeadAdditive"): 13, Data("LayerHeadSlot"): 14, Data("LayerArmLeft"): 15, Data("LayerArmLeftAdditive"): 16, Data("LayerArmLeftLocalSpace"): 17, Data("LayerArmLeftSlot"): 18, Data("LayerArmRight"): 19, Data("LayerArmRightAdditive"): 20, Data("LayerArmRightLocalSpace"): 21, Data("LayerArmRightSlot"): 22, Data("LayerHandLeft"): 23, Data("LayerHandRight"): 24, Data("LayerSpine"): 25, Data("LayerSpineAdditive"): 26, Data("LayerSpineSlot"): 27, Data("LayerPelvis"): 28, Data("LayerPelvisSlot"): 29, Data("LayerLegs"): 30, Data("LayerLegsSlot"): 31, Data("HandLeftIk"): 32, Data("HandRightIk"): 33, Data("HipsDirectionLock"): 34, Data("PoseAiming"): 35, Data("ViewBlock"): 36 }),
     default_data: {},
-    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: {
+        "19100000-0000-4000-8000-000000000001": (-1920.000, -1856.000),
+        "19100000-0000-4000-8000-000000000002": (-944.000, -1072.000),
+        "19100000-0000-4000-8000-000000000003": (0.000, 0.000),
+    }, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

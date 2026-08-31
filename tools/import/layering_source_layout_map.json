@@ -1,0 +1,16 @@
+{
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering",
+  "graphs": [
+    {"target": "layering.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/base_poses.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/curves.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/make_additive_local.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/make_additive_mesh.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_arm_left.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_arm_right.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_head.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_legs.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_pelvis.animgraph.ron", "source_suffix": "AnimGraph"},
+    {"target": "layering/section_spine.animgraph.ron", "source_suffix": "AnimGraph"}
+  ]
+}

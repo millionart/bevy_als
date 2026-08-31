@@ -21,5 +21,11 @@
         Data(Passthrough("additive_pose")): 5,
     }, output_order: { Data("pose"): 0, Time: 1 }),
     default_data: {},
-    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: {
+        "19090000-0000-4000-8000-000000000001": (-1952.000, -2144.000),
+        "19090000-0000-4000-8000-000000000004": (-1920.000, -608.000),
+        "19090000-0000-4000-8000-000000000005": (-1904.000, -96.000),
+        "19090000-0000-4000-8000-000000000002": (-976.000, -1520.000),
+        "19090000-0000-4000-8000-000000000003": (-288.000, -1184.000),
+    }, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )
