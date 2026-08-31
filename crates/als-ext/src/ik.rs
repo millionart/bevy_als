@@ -27,6 +27,19 @@ pub struct TwoBoneSolve {
     pub knee_position: Vec3,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PoleVector {
+    pub projection: Vec3,
+    pub direction: Vec3,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct StableTwoBonePole {
+    reference_local: Vec3,
+    last_world: Vec3,
+    initialized: bool,
+}
+
 const MIN_DISTANCE: f32 = 1e-4;
 
 fn clamp_reach(distance: f32, upper_len: f32, lower_len: f32) -> f32 {
@@ -42,6 +55,81 @@ fn perpendicular_fallback(axis: Vec3, pole: Vec3) -> Vec3 {
     } else {
         let helper = if axis.x.abs() < 0.9 { Vec3::X } else { Vec3::Y };
         axis.cross(helper).normalize()
+    }
+}
+
+pub fn calculate_pole_vector(hip: Vec3, knee: Vec3, ankle: Vec3) -> Option<PoleVector> {
+    let hip_to_knee = knee - hip;
+    if hip_to_knee.length_squared() <= 1e-8 {
+        return None;
+    }
+    let hip_to_ankle = ankle - hip;
+    let Some(axis) = hip_to_ankle.try_normalize() else {
+        return Some(PoleVector {
+            projection: hip,
+            direction: hip_to_knee.normalize(),
+        });
+    };
+    let projection = hip + axis * hip_to_knee.dot(axis);
+    let direction = (knee - projection).try_normalize()?;
+    Some(PoleVector {
+        projection,
+        direction,
+    })
+}
+
+fn projected_direction(direction: Vec3, axis: Vec3) -> Option<Vec3> {
+    (direction - axis * direction.dot(axis)).try_normalize()
+}
+
+impl StableTwoBonePole {
+    pub fn resolve(
+        &mut self,
+        armature_rotation: Quat,
+        hip: Vec3,
+        knee: Vec3,
+        ankle: Vec3,
+        target: Vec3,
+        fallback_world: Vec3,
+    ) -> Vec3 {
+        let axis = (target - hip)
+            .try_normalize()
+            .or_else(|| (ankle - hip).try_normalize())
+            .unwrap_or(Vec3::Y);
+        let current = calculate_pole_vector(hip, knee, ankle).map(|pole| pole.direction);
+        if !self.initialized {
+            let reference_world = current
+                .and_then(|direction| projected_direction(direction, axis))
+                .or_else(|| projected_direction(fallback_world, axis))
+                .unwrap_or_else(|| perpendicular_fallback(axis, fallback_world));
+            self.reference_local = armature_rotation.inverse() * reference_world;
+            self.last_world = reference_world;
+            self.initialized = true;
+        }
+        let reference_world = projected_direction(armature_rotation * self.reference_local, axis);
+        let last_world = projected_direction(self.last_world, axis);
+        let current_world = current.and_then(|direction| projected_direction(direction, axis));
+        let fallback_world = projected_direction(fallback_world, axis);
+        let mut resolved = reference_world
+            .or(last_world)
+            .or(current_world)
+            .or(fallback_world)
+            .unwrap_or_else(|| perpendicular_fallback(axis, Vec3::Y));
+        if let Some(last_world) = last_world
+            && resolved.dot(last_world) < 0.0
+        {
+            resolved = -resolved;
+        }
+        self.last_world = resolved;
+        resolved
+    }
+
+    pub fn last_direction_world(&self) -> Vec3 {
+        self.last_world
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        self.initialized
     }
 }
 
@@ -97,6 +185,23 @@ pub fn solve_two_bone_ik(
 
 pub fn world_rotation_to_local(parent_world: Quat, world_rotation: Quat) -> Quat {
     parent_world.inverse() * world_rotation
+}
+
+pub fn blend_ik_rotation(current: Quat, target: Quat, weight: f32) -> Quat {
+    current.slerp(target, weight.clamp(0.0, 1.0))
+}
+
+pub fn child_world_rotation_after_parent_rotation(
+    parent_rotation_delta: Quat,
+    child_world_rotation: Quat,
+    current_child_axis_world: Vec3,
+    target_child_axis_world: Vec3,
+) -> Option<Quat> {
+    let current_after_parent =
+        (parent_rotation_delta * current_child_axis_world).try_normalize()?;
+    let target_child_axis_world = target_child_axis_world.try_normalize()?;
+    let correction = Quat::from_rotation_arc(current_after_parent, target_child_axis_world);
+    Some((correction * parent_rotation_delta * child_world_rotation).normalize())
 }
 
 #[cfg(test)]
@@ -174,6 +279,57 @@ mod tests {
         let solve_fwd = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
         assert!(solve_fwd.knee_position.z > 1e-3, "bend toward +Z pole");
         assert!(solve_fwd.knee_position.y > target.y);
+    }
+
+    #[test]
+    fn stable_poles_preserve_mirrored_reference_planes() {
+        let left_hip = Vec3::new(-0.2, 0.0, 0.0);
+        let left_knee = Vec3::new(-0.2, -0.4, 0.16);
+        let left_ankle = Vec3::new(-0.2, -0.8, 0.0);
+        let right_hip = Vec3::new(0.2, 0.0, 0.0);
+        let right_knee = Vec3::new(0.2, -0.4, -0.16);
+        let right_ankle = Vec3::new(0.2, -0.8, 0.0);
+        let mut left = StableTwoBonePole::default();
+        let mut right = StableTwoBonePole::default();
+        let left_direction = left.resolve(
+            Quat::IDENTITY,
+            left_hip,
+            left_knee,
+            left_ankle,
+            left_ankle + Vec3::new(0.04, 0.0, 0.02),
+            Vec3::Z,
+        );
+        let right_direction = right.resolve(
+            Quat::IDENTITY,
+            right_hip,
+            right_knee,
+            right_ankle,
+            right_ankle + Vec3::new(-0.04, 0.0, 0.02),
+            Vec3::Z,
+        );
+
+        assert!(left.is_initialized() && right.is_initialized());
+        assert!(left_direction.dot(right_direction) < -0.8);
+    }
+
+    #[test]
+    fn stable_pole_reuses_the_last_plane_when_the_chain_is_collinear() {
+        let hip = Vec3::ZERO;
+        let knee = Vec3::new(0.0, -0.4, 0.14);
+        let ankle = Vec3::new(0.0, -0.8, 0.0);
+        let mut pole = StableTwoBonePole::default();
+        let first = pole.resolve(Quat::IDENTITY, hip, knee, ankle, ankle, Vec3::Z);
+        let second = pole.resolve(
+            Quat::IDENTITY,
+            hip,
+            Vec3::new(0.0, -0.4, 0.0),
+            ankle,
+            ankle,
+            Vec3::Z,
+        );
+
+        assert!(first.dot(second) > 0.999);
+        assert!(pole.last_direction_world().dot(first) > 0.999);
     }
 
     #[test]
@@ -281,5 +437,37 @@ mod tests {
         let local = world_rotation_to_local(parent, world);
         let rebuilt = parent * local;
         assert!(rebuilt.angle_between(world) < 1e-5);
+    }
+
+    #[test]
+    fn rotation_weight_blends_continuously_between_animation_and_ik() {
+        let animation = Quat::from_rotation_y(-0.4);
+        let ik = Quat::from_rotation_y(0.8);
+        let zero = blend_ik_rotation(animation, ik, 0.0);
+        let half = blend_ik_rotation(animation, ik, 0.5);
+        let full = blend_ik_rotation(animation, ik, 1.0);
+
+        assert!(zero.dot(animation).abs() > 0.999_99);
+        assert!(full.dot(ik).abs() > 0.999_99);
+        assert!(half.angle_between(animation) > 0.1);
+        assert!(half.angle_between(ik) > 0.1);
+    }
+
+    #[test]
+    fn child_rotation_compensates_for_the_parent_solve_before_reaching_target_axis() {
+        let parent_delta = Quat::from_rotation_z(0.35);
+        let child_rotation = Quat::IDENTITY;
+        let local_axis = Vec3::NEG_Y;
+        let target_axis = Vec3::new(0.25, -0.9, 0.35).normalize();
+        let corrected = child_world_rotation_after_parent_rotation(
+            parent_delta,
+            child_rotation,
+            local_axis,
+            target_axis,
+        )
+        .unwrap();
+
+        let actual_axis = corrected * local_axis;
+        assert!(actual_axis.dot(target_axis) > 0.999_99);
     }
 }

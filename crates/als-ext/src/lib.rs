@@ -103,6 +103,10 @@ pub use global_bone_mask_input::GlobalBoneMaskInputNode;
 pub use global_bool_input::GlobalBoolInputNode;
 pub use global_f32_input::{GlobalF32InputNode, ROOT_DEFAULTS_ENABLED_KEY};
 pub use global_pose_input::GlobalPoseInputNode;
+pub use ik::{
+    PoleVector, StableTwoBonePole, blend_ik_rotation, calculate_pole_vector,
+    child_world_rotation_after_parent_rotation,
+};
 pub use ik_space::{
     ArmatureDirection, ArmaturePoint, BoneLocalPoint, ParentPoint, WorldDirection, WorldPoint,
     armature_direction_from_world, armature_point_from_world, bone_local_point_from_world,

@@ -34,7 +34,10 @@ use crate::animation_events::{
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::AlsControlRigState;
 use crate::debug_display::AlsDebugDisplayStats;
-use crate::foot_ik_apply::{AlsFootIkSpaceState, AlsFootIkTelemetry, AlsFootIkTelemetryEnabled};
+use crate::foot_ik_apply::{
+    AlsFootIkApplyTelemetry, AlsFootIkSpaceState, AlsFootIkTelemetry, AlsFootIkTelemetryEnabled,
+    AlsFootIkWeightOverride, FootIkApplySet,
+};
 use crate::game_mode::AlsPlayerAdmissionComplete;
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
@@ -66,6 +69,7 @@ const DIRECTION_BRANCH_BACKWARD: u8 = 1 << 1;
 const DIRECTION_BRANCH_LEFT: u8 = 1 << 2;
 const DIRECTION_BRANCH_RIGHT: u8 = 1 << 3;
 const FOOT_IK_BASELINE_MASK: u8 = 0b1_1111;
+const FOOT_IK_WEIGHT_MASK: u8 = 0b11_1111;
 
 #[derive(Resource, Default)]
 pub struct ManualPlaygroundStartupReady {
@@ -84,7 +88,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                 drive_manual_integration
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
-            .add_systems(PostUpdate, observe_manual_integration.after(AlsCameraSet));
+            .add_systems(
+                PostUpdate,
+                observe_manual_integration
+                    .after(AlsCameraSet)
+                    .after(FootIkApplySet::Telemetry),
+            );
     }
 }
 
@@ -109,6 +118,7 @@ enum IntegrationPhase {
     Await,
     DirectionRegression,
     FootIkNoHit,
+    FootIkWeightRamp,
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
@@ -358,6 +368,7 @@ struct IntegrationCoverage {
     foot_lock: bool,
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
+    foot_ik_weight_ramp: bool,
     roll_started: bool,
     roll_slot: bool,
     ragdoll_entered: bool,
@@ -433,6 +444,7 @@ struct ManualIntegrationState {
     direction_case_index: usize,
     foot_ik_baseline_mask: u8,
     foot_ik_no_hit_logged: bool,
+    foot_ik_weight_mask: u8,
     crouch_recovery_jump_requested: bool,
     crouch_recovery_air_crouch_requested: bool,
     crouch_recovery_standing_requested: bool,
@@ -494,6 +506,7 @@ impl Default for ManualIntegrationState {
             direction_case_index: usize::MAX,
             foot_ik_baseline_mask: 0,
             foot_ik_no_hit_logged: false,
+            foot_ik_weight_mask: 0,
             crouch_recovery_jump_requested: false,
             crouch_recovery_air_crouch_requested: false,
             crouch_recovery_standing_requested: false,
@@ -605,6 +618,7 @@ fn initialize_manual_integration(
     mut commands: Commands,
     mut state: ResMut<ManualIntegrationState>,
     mut foot_ik_telemetry_enabled: ResMut<AlsFootIkTelemetryEnabled>,
+    mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
     startup: Res<ManualPlaygroundStartupReady>,
     admissions: Query<&AlsPlayerAdmissionComplete>,
     assemblies: Query<&AlsCharacterAssembly>,
@@ -673,6 +687,8 @@ fn initialize_manual_integration(
     state.initial_view_pitch = Some(view_pitch.0);
     state.initialized = true;
     foot_ik_telemetry_enabled.0 = state.scenario == IntegrationScenario::FootIk;
+    foot_ik_weight_override.left = None;
+    foot_ik_weight_override.right = None;
     state.coverage.assembly = true;
     state.coverage.graph = true;
     let first_phase = match state.scenario {
@@ -700,6 +716,7 @@ fn drive_manual_integration(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut show_debug: ResMut<AlsShowDebugHudState>,
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
+    mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<
         (
@@ -778,6 +795,8 @@ fn drive_manual_integration(
                 state.foot_ik_baseline_mask = 0;
                 state.coverage.foot_ik_space_baseline = false;
                 state.coverage.foot_ik_no_hit_recovered = false;
+                state.coverage.foot_ik_weight_ramp = false;
+                state.foot_ik_weight_mask = 0;
             }
             let case_index = (elapsed / DIRECTION_CASE_SECONDS) as usize;
             let Some(case) = direction_regression_case(case_index) else {
@@ -863,6 +882,47 @@ fn drive_manual_integration(
                 commands
                     .entity(character)
                     .remove::<AlsMantleControlSettings>();
+                begin_phase(&mut state, IntegrationPhase::FootIkWeightRamp);
+            }
+        }
+        IntegrationPhase::FootIkWeightRamp => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+            }
+            let target_weight = if elapsed < 0.75 {
+                0.0
+            } else if elapsed < 1.5 {
+                0.25
+            } else if elapsed < 2.25 {
+                0.5
+            } else if elapsed < 3.0 {
+                0.75
+            } else if elapsed < 3.75 {
+                1.0
+            } else {
+                0.0
+            };
+            foot_ik_weight_override.left = Some(target_weight);
+            foot_ik_weight_override.right = Some(target_weight);
+            if elapsed >= 4.75 {
+                foot_ik_weight_override.left = None;
+                foot_ik_weight_override.right = None;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -1684,7 +1744,14 @@ fn observe_manual_integration(
     >,
     mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
     motion_probe: MotionProbe,
-    foot_ik_data: Query<(&AlsFootIkTelemetry, &AlsFootIkSpaceState), With<AlsCharacter>>,
+    foot_ik_data: Query<
+        (
+            &AlsFootIkTelemetry,
+            &AlsFootIkSpaceState,
+            &AlsFootIkApplyTelemetry,
+        ),
+        With<AlsCharacter>,
+    >,
     action: Query<
         (
             Option<&AlsMantleState>,
@@ -2222,11 +2289,18 @@ fn observe_manual_integration(
         && state.phase_started.elapsed().as_secs_f32()
             >= state.direction_case_index as f32 * DIRECTION_CASE_SECONDS
                 + DIRECTION_CASE_SETTLE_SECONDS
-        && let Ok((telemetry, space)) = foot_ik_data.get(character)
+                + 0.95
+        && let Ok((telemetry, space, apply)) = foot_ik_data.get(character)
         && telemetry.left.valid
         && telemetry.right.valid
         && space.left.valid
         && space.right.valid
+        && apply.left.valid
+        && apply.right.valid
+        && apply.left.applied_weight >= 0.99
+        && apply.right.applied_weight >= 0.99
+        && apply.left.effector_error <= 0.02
+        && apply.right.effector_error <= 0.02
         && telemetry.left.target_world.is_finite()
         && telemetry.right.target_world.is_finite()
         && telemetry.left.target_armature_local.is_finite()
@@ -2301,6 +2375,24 @@ fn observe_manual_integration(
                 space.right.normal_armature_local.y,
                 space.right.normal_armature_local.z,
             );
+            info!(
+                "[MANUAL-INTEGRATION][FOOT-IK-APPLY] case={} left_error={:.6} left_adjust={:.6} left_pole={:.6} left_weight={:.3} right_error={:.6} right_adjust={:.6} right_pole={:.6} right_weight={:.3}",
+                case.name,
+                apply.left.effector_error,
+                space
+                    .left
+                    .target_world
+                    .distance(space.left.resolved_target_world),
+                apply.left.pole_sign,
+                apply.left.applied_weight,
+                apply.right.effector_error,
+                space
+                    .right
+                    .target_world
+                    .distance(space.right.resolved_target_world),
+                apply.right.pole_sign,
+                apply.right.applied_weight,
+            );
         }
         state.foot_ik_baseline_mask |= bit;
         state.coverage.foot_ik_space_baseline =
@@ -2310,7 +2402,7 @@ fn observe_manual_integration(
         && state.phase == IntegrationPhase::FootIkNoHit
         && !state.foot_ik_no_hit_logged
         && state.phase_started.elapsed().as_secs_f32() >= 0.9
-        && let Ok((_, space)) = foot_ik_data.get(character)
+        && let Ok((_, space, _)) = foot_ik_data.get(character)
     {
         let left_delta = (space.left.target_armature_local
             - space.left.solver_reference_armature_local)
@@ -2332,7 +2424,7 @@ fn observe_manual_integration(
         && state.phase == IntegrationPhase::FootIkNoHit
         && state.phase_started.elapsed().as_secs_f32() >= 0.8
         && *locomotion == LocomotionState::Air
-        && let Ok((_, space)) = foot_ik_data.get(character)
+        && let Ok((_, space, _)) = foot_ik_data.get(character)
         && space.left.valid
         && space.right.valid
         && !space.left.has_ground_hit
@@ -2359,6 +2451,47 @@ fn observe_manual_integration(
                 );
             }
             state.coverage.foot_ik_no_hit_recovered = true;
+        }
+    }
+    if state.scenario == IntegrationScenario::FootIk
+        && state.phase == IntegrationPhase::FootIkWeightRamp
+        && let Ok((_, _, apply)) = foot_ik_data.get(character)
+    {
+        let elapsed = state.phase_started.elapsed().as_secs_f32();
+        let sample = if elapsed >= 0.5 && elapsed < 0.75 {
+            Some((1 << 0, "off"))
+        } else if elapsed >= 1.15 && elapsed < 1.5 {
+            Some((1 << 1, "quarter"))
+        } else if elapsed >= 1.9 && elapsed < 2.25 {
+            Some((1 << 2, "half"))
+        } else if elapsed >= 2.65 && elapsed < 3.0 {
+            Some((1 << 3, "three_quarters"))
+        } else if elapsed >= 3.4 && elapsed < 3.75 {
+            Some((1 << 4, "full"))
+        } else if elapsed >= 4.35 && elapsed < 4.7 {
+            Some((1 << 5, "released"))
+        } else {
+            None
+        };
+        if let Some((bit, label)) = sample {
+            let weights = (apply.left.applied_weight, apply.right.applied_weight);
+            let expected = match bit {
+                1 => weights.0 <= 0.05 && weights.1 <= 0.05,
+                2 => (0.10..=0.40).contains(&weights.0) && (0.10..=0.40).contains(&weights.1),
+                4 => (0.35..=0.65).contains(&weights.0) && (0.35..=0.65).contains(&weights.1),
+                8 => (0.60..=0.90).contains(&weights.0) && (0.60..=0.90).contains(&weights.1),
+                16 => weights.0 >= 0.95 && weights.1 >= 0.95,
+                _ => weights.0 <= 0.05 && weights.1 <= 0.05,
+            };
+            if expected && state.foot_ik_weight_mask & bit == 0 {
+                info!(
+                    "[MANUAL-INTEGRATION][FOOT-IK-WEIGHT] phase={label} left={:.3} right={:.3} left_error={:.6} right_error={:.6}",
+                    weights.0, weights.1, apply.left.effector_error, apply.right.effector_error,
+                );
+                state.foot_ik_weight_mask |= bit;
+                state.coverage.foot_ik_weight_ramp =
+                    state.foot_ik_weight_mask == FOOT_IK_WEIGHT_MASK;
+            }
         }
     }
     if let Some(base) = movement_base {
@@ -2625,6 +2758,7 @@ fn observe_manual_integration(
                     "foot_ik_no_hit_recovered",
                     coverage.foot_ik_no_hit_recovered,
                 ),
+                ("foot_ik_weight_ramp", coverage.foot_ik_weight_ramp),
             ],
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
