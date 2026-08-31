@@ -37,6 +37,8 @@
 
 18. **动画图编辑器完整性（严格执行）**：任何创建或修改 `assets/graphs/**/*.animgraph.ron`、`assets/graphs/**/*.fsm.ron` 的工作，在编辑器启动和提交前必须先运行 `python tools/validate_animgraph_editor_assets.py --root assets/graphs --fix`，再运行不带 `--fix` 的同一命令；后者必须以 exit 0 结束。该验收要求 `input_order` 与 `input_times`／`input_data` 精确覆盖且无陈旧项、重复项或非法序号；每个 FSM state 必须有有限且不重叠的 editor 坐标；每条 transition 必须指向已声明 state。`source == target` 的自环是有效语义，禁止为了规避图形问题删除或改写它；含自环的图在编辑器依赖升级或绘制代码改动时，必须运行 `python tools/verify_animgraph_editor_smoke.py --jobs N`；该命令无窗口地执行 `self_transition_arrow_uses_finite_geometry` 回归测试，作为最终证据。人工打开编辑器只用于视觉布局或交互评审，不是默认 Gate。`als_graph_editor.bat` 的只读预检不得移除或绕过；改动三个图资产修复／验收工具本身时，必须同时运行各自的 `--self-test` 和全量只读验收。
 
+19. **跨引擎 Transform 保真（严格执行）**：从 Unreal 向 Bevy 移植时，任何涉及 transform 的数据或行为都必须先按两引擎的完整三维坐标基、单位、手性与旋转约定推导后再转换；禁止直接抄写或只缩放 XYZ 数值。范围包括但不限于 primitive/collider、骨骼与虚骨、socket、角色与相机、层级局部／世界变换、constraint 两端 local frame 与 axis、IK target 与 pole、root motion、动画姿态读写、实例化偏移、trace/query 起终点及调试 probe。位置、方向、extents/scale、Euler、quaternion、matrix 和每个 parent-relative transform 都必须使用同一已验证的基变换；转换函数须有基向量与旋转不变量测试，静态审计须逐字段比对 source/target，真实入口日志须记录可复查的 source→target transform 证据。出现坐标定义、骨骼导入轴或 parent space 不确定时，必须先从本地 UE 源工程/资产实时提取事实并补 probe，未证实前不得编码或宣称等价。
+
 ## 工具调用教训（实测，防再犯）
 
 1. **UE MCP：toolset 工具必须经 `call_tool` 元工具分发**。协议层 `tools/call` 只注册 `list_toolsets` / `describe_toolset` / `call_tool` 三个元工具；把 toolset 方法名直接当 `name` 调用必报 `Unknown tool`。正确姿势：`name="call_tool"`，并在其 `arguments` 内传 `toolset_name`、`tool_name`、`arguments`（依据引擎源码 `ModelContextProtocolServer.cpp` 的 FindTool 查找逻辑）。统一走仓库封装 `tools/mcp_probe.py`，不要绕过它手写 HTTP 请求。
