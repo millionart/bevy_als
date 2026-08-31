@@ -58,12 +58,25 @@
 
 目标：在三个 P0 闭环通过后，以真实运行日志逐项验证 Idle／Start／Cycle／Stop／Pivot、standing／crouching、walk／run／sprint、grounded／jump／fall／land、turn／rotate、roll／mantle／ragdoll／get-up、overlay、转场中断／惯性化、root motion、sync marker、Notify State 与多角色隔离。
 
-- [ ] **BF107.01 — S01：建立按行为维度的源事实与真实入口回归矩阵（P1）**
+- [x] **BF107.01 — S01：建立按行为维度的源事实与真实入口回归矩阵（P1）**
   - 依赖：BF106.Gate。
   - 验收：当前项开始时重新提取本地 ALS-Refactored 的每个覆盖维度事实；为每个行为登记真实入口触发、可观测参数、预期状态路径、数值断言和日志路径。未覆盖项必须明确列为未通过，不能用图加载、组件存在或单帧截图代替。
+  - 当次 ALS 原生事实与矩阵（2026-08-31）：见 [docs/bf107-behavior-matrix.md](docs/bf107-behavior-matrix.md)。事实只来自本地 `AlsAnimationInstance.cpp`、`AlsCharacter.cpp`、`AlsCharacter_Actions.cpp`、原生 Notify C++、Cooked animation asset metadata 和 Unreal MCP；未使用浏览器对话或外部审计结论。矩阵登记 P1-G01–P1-I01 的真实入口 trigger、telemetry、预期路径、数值断言和 stdout log prefix，所有行初始均为未通过。
+
+- [ ] **BF107.02 — S02：Grounded、stance、gait、air 与 turn 的连续真实入口回归（P1）**
+  - 依赖：BF107.01。
+  - 验收：实现并运行 P1-G01、P1-G02、P1-G03、P1-A01、P1-R01；原始 Playground、可见角色和正常相机中留下每帧状态路径／数值日志，任一未覆盖或非有限值均失败。
+
+- [ ] **BF107.03 — S03：动作、root motion 与恢复的连续真实入口回归（P1）**
+  - 依赖：BF107.02。
+  - 验收：实现并运行 P1-X01、P1-X02、P1-X03、P1-M01；验证 Roll、Mantle、Ragdoll/GetUp 的 action、root-motion owner、恢复与真实物理链，必要 fixture 必须可见、带 collider 且被清理。
+
+- [ ] **BF107.04 — S04：overlay、转场、sync、Notify 与多角色隔离的连续真实入口回归（P1）**
+  - 依赖：BF107.03。
+  - 验收：实现并运行 P1-O01、P1-T01、P1-M02、P1-N01、P1-I01；所有状态／事件／clock／root motion 按 entity 隔离，transition interrupt 后无残留，真实入口完整输出 coverage。
 
 - [ ] **BF107.Gate — P1 行为矩阵与持续回归验收（P1）**
-  - 依赖：BF107.01 及其后续按矩阵展开的条目。
+  - 依赖：BF107.01–BF107.04。
   - 验收：全部登记行为均有真实入口连续运行证据；若矩阵发现新增缺陷，先将其登记为按依赖顺序的 BF 条目并修复、重新过相关 P0／P1 Gate。
 
 ## 背景与基础事实（已核实，持续有效）
