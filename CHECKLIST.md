@@ -56,7 +56,9 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 - [x] BF108.09 `BS_Als_Look`：核对并修复 Head 实际图的 Pitch axis、3 个项目 ClipNode、坐标、evaluator／播放与 Head 输入 writer；验收为静态源对照零差异。
   - 当次 ALS 事实（2026-08-31）：Pitch Angle 为 [-90,90]、grid=4；样本为 Look_Forward(0)、Look_Down(-90)、Look_Up(90)，rate scale=1，轴 smoothing time=0。asset loop=false；source Head evaluator 为 loop=true、rate=1、start=0、DoNotSync。
   - 实际图与资源静态证据：Head 图三条本地资源的 ClipNode、gltf animation／时长／skeleton、Pitch 点、显式不回绕 evaluator、pitch/yaw 输入、Head writer 与根图路由均无差异。`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS> --asset BS_Als_Look` 输出 pass=true。按本批用户指令，未编译、未运行。
-- [ ] BF108.10 Gate：逐项比较 9 个源资产与实际运行图／writer，确认项目动画引用、样本、轴、插值、播放／同步语义和参数映射均无差异；只运行静态图／源码校验，不编译、不运行。
+- [x] BF108.10 Gate：逐项比较 9 个源资产与实际运行图／writer，确认项目动画引用、样本、轴、插值、播放／同步语义和参数映射均无差异；只运行静态图／源码校验，不编译、不运行。
+  - Gate 结果（2026-08-31）：通过。实际运行图集为 Air Lean、Standing/Crouching Lean、`state_detail_cycle` 中六个 WalkRun node 与 Head Look；所有 source BlendSpace 都重新由本地 Unreal MCP 读取，source AnimBP player/evaluator 由本地 uasset 读取。校验器逐样本确认实际 ClipNode 的项目本地 `.anim.ron`、glTF animation、时长、skeleton，WalkRun 还确认图内 duration／markers、selector、Movement sync、`.2` start phase；Air／Lean／Look 确认 evaluator/loop、路由和 writer。新增的通用 `CubicVec2AxisFilterNode` 以 X `.2s`／Y `.4s` 对齐六向 WalkRun 的源 Cubic filter，并由静态检查确认其导出和注册。
+  - 静态证据：`python tools/import/verify_runtime_blendspace.py --source-root <ALS Content/ALS>` 输出 9/9 pass；`python tools/validate_animgraph_editor_assets.py --root assets/graphs --fix` 与无 `--fix` 均为 160 files、0 repairs、0 failures。按本批用户指令，未编译、未运行。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

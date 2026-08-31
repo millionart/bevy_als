@@ -733,6 +733,20 @@ def walkrun_graph_failures(root, source_root, properties, spec):
     root_graph = (root / "src/ab_als_root.rs").read_text(encoding="utf-8")
     if "(\"als_animation_delta_seconds\", time.delta_secs())" not in root_graph:
         failures.append("runtime delta writer differs")
+    extension = (root / "crates/als-ext/src/normalized_blendspace.rs").read_text(
+        encoding="utf-8"
+    )
+    registry = (root / "crates/als-ext/src/lib.rs").read_text(encoding="utf-8")
+    for fragment in [
+        "pub struct CubicVec2AxisFilterNode",
+        "pub x_window_seconds: f32",
+        "pub y_window_seconds: f32",
+        "impl NodeLike for CubicVec2AxisFilterNode",
+    ]:
+        if fragment not in extension:
+            failures.append(f"runtime cubic extension differs: {fragment}")
+    if ".register_type::<CubicVec2AxisFilterNode>()" not in registry:
+        failures.append("runtime cubic extension registration differs")
     x_filter, y_filter = properties["interpolationParam"][:2]
     if (
         x_filter["interpolationType"],
