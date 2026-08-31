@@ -2,22 +2,24 @@ use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{
     AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
     AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
-    AlsFootProbe, AlsGroundHit, FOOT_LOCK_TELEPORT_WINDOW_SECONDS, FootSideInput,
+    AlsFootTargetSelection, FOOT_LOCK_TELEPORT_WINDOW_SECONDS, FootSideInput, SpringFloatState,
     advance_foot_lock_movement_base, capture_foot_lock_movement_base, constrain_foot_lock_location,
-    foot_target_offset_in_armature, is_relevant_animation_weight, refresh_foot_lock,
-    reset_foot_lock_to_target,
+    is_relevant_animation_weight, refresh_foot_lock, reset_foot_lock_to_target,
+    spring_damper_float,
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transitions::TransitionConfig;
 use als_ext::ik::{
-    StableTwoBonePole, blend_ik_rotation, child_world_rotation_after_parent_rotation,
+    blend_ik_rotation, calculate_pole_vector, child_world_rotation_after_parent_rotation,
     solve_two_bone_ik, world_rotation_to_local,
 };
 use als_ext::ik_space::{
-    ArmatureDirection, ArmaturePoint, WorldDirection, WorldPoint, armature_direction_from_world,
-    armature_point_from_world, bone_local_point_from_world, parent_point_from_world,
-    world_direction_from_armature, world_point_from_armature,
+    ArmatureDirection, ArmaturePoint, ArmatureRotation, WorldDirection, WorldPoint, WorldRotation,
+    armature_direction_from_world, armature_point_from_world, armature_rotation_from_world,
+    bone_local_point_from_world, parent_point_from_world, world_direction_from_armature,
+    world_point_from_armature, world_rotation_from_armature,
 };
+use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
 use bevy::animation::AnimationPlayer;
 use bevy::prelude::*;
 use bevy::transform::{TransformSystems, systems as transform_systems};
@@ -26,9 +28,11 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
 use crate::character_assembly::AlsCharacterAvatar;
-
-const FOOT_OFFSET_NORMAL_HALF_LIFE: f32 = 0.1;
-const FOOT_MAX_LEG_STRETCH_RATIO: f32 = 0.99;
+use crate::control_rig_apply::{
+    AlsControlRigConstruction, AlsControlRigInput, AlsControlRigPrePropagationSet,
+    AlsControlRigStageTrace, CrAlsRuntimeProfileTemplate, CrAlsTargetProfile,
+};
+use crate::head_layer::inv_exp_approx;
 
 #[derive(Component, Debug, Clone, Copy)]
 struct FootOffsetRotationState {
@@ -43,9 +47,48 @@ struct FootLockLifecycleState {
 }
 
 #[derive(Component, Debug, Clone, Copy, Default)]
+struct SourcePoleState {
+    current: Vec3,
+    initialized: bool,
+}
+
+impl SourcePoleState {
+    fn update(
+        &mut self,
+        hip: Vec3,
+        knee: Vec3,
+        ankle: Vec3,
+        delta_seconds: f32,
+        profile: &CrAlsTargetProfile,
+    ) -> Vec3 {
+        let target = calculate_pole_vector(hip, knee, ankle)
+            .map(|pole| knee + pole.direction * profile.foot_pole_distance_m);
+        let Some(target) = target else {
+            return self.current;
+        };
+        if !self.initialized {
+            self.initialized = true;
+            self.current = target;
+            return target;
+        }
+        let alpha = 1.0
+            - inv_exp_approx(
+                std::f32::consts::LN_2 * delta_seconds.max(0.0)
+                    / profile.foot_pole_half_life_seconds.max(f32::EPSILON),
+            );
+        self.current = self.current.lerp(target, alpha);
+        self.current
+    }
+
+    fn direction(&self, knee: Vec3) -> Vec3 {
+        (self.current - knee).normalize_or_zero()
+    }
+}
+
+#[derive(Component, Debug, Clone, Copy, Default)]
 struct FootIkPoleState {
-    left: StableTwoBonePole,
-    right: StableTwoBonePole,
+    left: SourcePoleState,
+    right: SourcePoleState,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
@@ -131,6 +174,22 @@ struct FootTraceSample {
     raw_offset: f32,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct CrAlsFootSideState {
+    trace_offset_location_y: f32,
+    location_spring: SpringFloatState,
+    location_offset_y: f32,
+}
+
+#[derive(Component, Debug, Clone, Copy, Default)]
+struct CrAlsFootRigState {
+    left: CrAlsFootSideState,
+    right: CrAlsFootSideState,
+    pelvis_spring: SpringFloatState,
+    pelvis_spring_value: f32,
+    pelvis_offset_y: f32,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ResolvedFootTarget {
     target_world: Vec3,
@@ -147,7 +206,13 @@ impl Default for FootOffsetRotationState {
 }
 
 impl FootOffsetRotationState {
-    fn update(&mut self, side: usize, target_normal: Vec3, delta_seconds: f32) -> Vec3 {
+    fn update(
+        &mut self,
+        side: usize,
+        target_normal: Vec3,
+        delta_seconds: f32,
+        half_life_seconds: f32,
+    ) -> Vec3 {
         let target_normal = normalized_ground_normal(target_normal);
         if !self.initialized[side] {
             self.initialized[side] = true;
@@ -156,8 +221,10 @@ impl FootOffsetRotationState {
         }
         let current_normal = normalized_ground_normal(self.normals[side]);
         let alpha = 1.0
-            - (-std::f32::consts::LN_2 * delta_seconds.max(0.0) / FOOT_OFFSET_NORMAL_HALF_LIFE)
-                .exp();
+            - inv_exp_approx(
+                std::f32::consts::LN_2 * delta_seconds.max(0.0)
+                    / half_life_seconds.max(f32::EPSILON),
+            );
         let normal = current_normal
             .lerp(target_normal, alpha)
             .try_normalize()
@@ -184,6 +251,7 @@ impl Plugin for FootIkApplyPlugin {
         );
         app.init_resource::<AlsFootIkTelemetryEnabled>()
             .init_resource::<AlsFootIkWeightOverride>()
+            .init_resource::<CrAlsRuntimeProfileTemplate>()
             .add_message::<AlsFootLockTeleported>();
         app.configure_sets(
             PostUpdate,
@@ -191,6 +259,7 @@ impl Plugin for FootIkApplyPlugin {
                 FootIkApplySet::Solve
                     .after(apply_animation_to_targets)
                     .after(TransformSystems::Propagate)
+                    .after(AlsControlRigPrePropagationSet)
                     .after(als_core::foot_ik::foot_ground_probe_system)
                     .after(als_core::foot_ik::foot_pin_request_system)
                     .after(als_core::foot_ik::foot_ik_state_system),
@@ -202,6 +271,7 @@ impl Plugin for FootIkApplyPlugin {
             PostUpdate,
             (
                 ensure_foot_ik_runtime,
+                ensure_cr_als_foot_rig_state,
                 ensure_foot_ik_telemetry,
                 ensure_foot_ik_space_state,
                 ensure_foot_ik_apply_telemetry,
@@ -244,6 +314,15 @@ fn ensure_foot_ik_runtime(
 ) {
     for entity in &q {
         commands.entity(entity).insert(AlsFootIkRuntime::default());
+    }
+}
+
+fn ensure_cr_als_foot_rig_state(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<CrAlsFootRigState>)>,
+) {
+    for entity in &q {
+        commands.entity(entity).insert(CrAlsFootRigState::default());
     }
 }
 
@@ -336,6 +415,7 @@ fn invalidate_missing_foot_bones(
             Option<&AlsFootBones>,
             Option<&mut AlsFootLockState>,
             Option<&mut AlsFootIkRuntime>,
+            Option<&mut CrAlsFootRigState>,
             Option<&mut FootOffsetRotationState>,
             Option<&mut AlsDynamicTransitionState>,
             Option<&mut FootLockLifecycleState>,
@@ -351,6 +431,7 @@ fn invalidate_missing_foot_bones(
         bones,
         lock_state,
         runtime,
+        source_rig,
         offset_rotation,
         dynamic_transition,
         lifecycle,
@@ -368,6 +449,9 @@ fn invalidate_missing_foot_bones(
         }
         if let Some(mut runtime) = runtime {
             *runtime = AlsFootIkRuntime::default();
+        }
+        if let Some(mut source_rig) = source_rig {
+            *source_rig = CrAlsFootRigState::default();
         }
         if let Some(mut offset_rotation) = offset_rotation {
             *offset_rotation = FootOffsetRotationState::default();
@@ -395,17 +479,18 @@ fn invalidate_missing_foot_bones(
 
 fn foot_bones_are_valid(
     bones: &AlsFootBones,
+    use_ik_bones: bool,
     transforms: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
 ) -> bool {
     [
         bones.left_thigh,
         bones.left_calf,
         bones.left,
-        bones.left_target.unwrap_or(bones.left),
+        bones.target(0, use_ik_bones),
         bones.right_thigh,
         bones.right_calf,
         bones.right,
-        bones.right_target.unwrap_or(bones.right),
+        bones.target(1, use_ik_bones),
     ]
     .into_iter()
     .all(|entity| {
@@ -442,14 +527,56 @@ fn reset_foot_ik_runtime(
     *dynamic_transition = AlsDynamicTransitionState::default();
 }
 
-fn foot_trace_sample(
+fn source_foot_trace_sample(
+    spatial: &SpatialQuery,
     armature_world: &GlobalTransform,
     trace_target_world: WorldPoint,
-    hit: Option<AlsGroundHit>,
+    character: Entity,
+    foot: Entity,
+    target: Entity,
+    foot_ik_amount: f32,
+    profile: &CrAlsTargetProfile,
+    foot_height_m: f32,
 ) -> FootTraceSample {
     let armature_up_world =
         world_direction_from_armature(armature_world, ArmatureDirection(Vec3::Y));
-    let Some(hit) = hit else {
+    if foot_ik_amount < 1e-4 {
+        return FootTraceSample {
+            trace_target_world,
+            normal_world: armature_up_world,
+            normal_armature: ArmatureDirection(Vec3::Y),
+            ..Default::default()
+        };
+    }
+    let target_armature = armature_point_from_world(armature_world, trace_target_world).0;
+    let trace_start = world_point_from_armature(
+        armature_world,
+        ArmaturePoint(Vec3::new(
+            target_armature.x,
+            profile.trace_distance_up_m,
+            target_armature.z,
+        )),
+    );
+    let trace_end = world_point_from_armature(
+        armature_world,
+        ArmaturePoint(Vec3::new(
+            target_armature.x,
+            -profile.trace_distance_down_m,
+            target_armature.z,
+        )),
+    );
+    let delta = trace_end.0 - trace_start.0;
+    let Some(direction) = Dir3::new(delta).ok() else {
+        return FootTraceSample {
+            trace_target_world,
+            normal_world: armature_up_world,
+            normal_armature: ArmatureDirection(Vec3::Y),
+            ..Default::default()
+        };
+    };
+    let filter = SpatialQueryFilter::from_excluded_entities([character, foot, target]);
+    let Some(hit) = spatial.cast_ray(trace_start.0, direction, delta.length(), true, &filter)
+    else {
         return FootTraceSample {
             trace_target_world,
             normal_world: armature_up_world,
@@ -459,20 +586,18 @@ fn foot_trace_sample(
     };
     let normal_world = WorldDirection(hit.normal.try_normalize().unwrap_or(Vec3::ZERO));
     let normal_armature = armature_direction_from_world(armature_world, normal_world);
-    if normal_armature.0.y <= f32::EPSILON {
+    let hit_world = WorldPoint(trace_start.0 + direction.as_vec3() * hit.distance);
+    let hit_armature = armature_point_from_world(armature_world, hit_world).0;
+    let Some(raw_offset) =
+        source_trace_offset(hit_armature, normal_armature.0, profile, foot_height_m)
+    else {
         return FootTraceSample {
             trace_target_world,
             normal_world: armature_up_world,
             normal_armature: ArmatureDirection(Vec3::Y),
             ..Default::default()
         };
-    }
-    let hit_world = WorldPoint(hit.point);
-    let raw_offset = foot_target_offset_in_armature(
-        armature_point_from_world(armature_world, trace_target_world).0,
-        armature_point_from_world(armature_world, hit_world).0,
-        normal_armature.0,
-    );
+    };
     FootTraceSample {
         has_ground_hit: raw_offset.is_finite(),
         trace_target_world,
@@ -483,17 +608,70 @@ fn foot_trace_sample(
     }
 }
 
+fn source_trace_offset(
+    hit_location_armature: Vec3,
+    hit_normal_armature: Vec3,
+    profile: &CrAlsTargetProfile,
+    foot_height_m: f32,
+) -> Option<f32> {
+    let slope_cos = hit_normal_armature.try_normalize()?.y;
+    if slope_cos < profile.walkable_floor_angle_degrees.to_radians().cos() {
+        return None;
+    }
+    let slope_offset = foot_height_m / slope_cos - foot_height_m;
+    Some(hit_location_armature.y + slope_offset)
+}
+
+fn source_apply_foot_offset_location(
+    side: &mut CrAlsFootSideState,
+    foot_target_armature: Vec3,
+    foot_offset_y: f32,
+    pelvis_offset_y: f32,
+    pelvis_location_y: f32,
+    thigh_location_armature: Vec3,
+    pose_moving: f32,
+    delta_seconds: f32,
+    profile: &CrAlsTargetProfile,
+    leg_length_m: f32,
+) -> Vec3 {
+    let min_pelvis_to_foot = profile.pelvis_min_to_foot_standing_m.lerp(
+        profile.pelvis_min_to_foot_moving_m,
+        pose_moving.clamp(0.0, 1.0),
+    );
+    let max_foot_location_y = pelvis_location_y - min_pelvis_to_foot;
+    let max_offset_y = max_foot_location_y - foot_target_armature.y;
+    let target_offset_y = foot_offset_y.min(max_offset_y).max(pelvis_offset_y);
+    side.location_offset_y = spring_damper_float(
+        &mut side.location_spring,
+        side.location_offset_y,
+        target_offset_y,
+        delta_seconds,
+        profile.foot_offset_frequency_hz,
+        profile.foot_offset_damping_ratio,
+        0.0,
+    );
+    let foot_location = foot_target_armature + Vec3::Y * side.location_offset_y;
+    let leg_vector = foot_location - thigh_location_armature;
+    let max_leg_length = leg_length_m * profile.max_leg_stretch_ratio;
+    if leg_vector.length() > max_leg_length {
+        thigh_location_armature + leg_vector.normalize_or_zero() * max_leg_length
+    } else {
+        foot_location
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn foot_ik_apply_system(
     time: Res<Time>,
+    spatial: SpatialQuery,
     telemetry_enabled: Res<AlsFootIkTelemetryEnabled>,
     weight_override: Res<AlsFootIkWeightOverride>,
+    profile: Res<CrAlsRuntimeProfileTemplate>,
     mut characters: Query<
         (
             Entity,
-            &GlobalTransform,
             &AlsFootBones,
-            &AlsFootProbe,
+            Option<&AlsFootTargetSelection>,
             &AlsFootIkTargets,
             &LocomotionState,
             &AlsFootLockInput,
@@ -501,6 +679,7 @@ fn foot_ik_apply_system(
             &AlsFootLockSettings,
             Option<&AlsMovementBaseDynamicsState>,
             &mut AlsFootIkRuntime,
+            &mut CrAlsFootRigState,
             &mut FootOffsetRotationState,
             &mut FootLockLifecycleState,
             &mut AlsFootLockState,
@@ -515,13 +694,15 @@ fn foot_ik_apply_system(
     mut poles: Query<&mut FootIkPoleState, With<als_core::character::AlsCharacter>>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+    control_rig_constructions: Query<&AlsControlRigConstruction>,
+    control_rig_inputs: Query<&AlsControlRigInput>,
+    mut control_rig_traces: Query<&mut AlsControlRigStageTrace>,
 ) {
     let dt = time.delta_secs();
     for (
         entity,
-        char_gtf,
         bones,
-        probe,
+        selection,
         targets,
         locomotion,
         lock_input,
@@ -529,20 +710,34 @@ fn foot_ik_apply_system(
         settings,
         movement_base,
         mut runtime,
+        mut source_rig,
         mut foot_offset_rotation,
         mut lifecycle,
         mut lock_state,
         mut dynamic_transition,
     ) in &mut characters
     {
-        let current_character_transform = char_gtf.compute_transform();
-        if !foot_bones_are_valid(bones, &bone_globals) {
+        let Some((_, _, armature)) = avatars
+            .iter()
+            .find(|(parent, _, _)| parent.parent() == entity)
+        else {
+            continue;
+        };
+        let construction = control_rig_constructions.get(entity).ok();
+        let foot_height_m =
+            construction.map_or(profile.0.target.foot_height_m, |value| value.foot_height_m);
+        let leg_length_m =
+            construction.map_or(profile.0.target.leg_length_m, |value| value.leg_length_m);
+        let current_character_transform = armature.compute_transform();
+        let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
+        if !foot_bones_are_valid(bones, use_ik_bones, &bone_globals) {
             *lock_state = AlsFootLockState::default();
             reset_foot_ik_runtime(
                 &mut runtime,
                 &mut foot_offset_rotation,
                 &mut dynamic_transition,
             );
+            *source_rig = CrAlsFootRigState::default();
             lifecycle.previous_character_transform = Some(current_character_transform);
             lifecycle.teleport_remaining = 0.0;
             continue;
@@ -553,20 +748,20 @@ fn foot_ik_apply_system(
         let Ok(mut pole_state) = poles.get_mut(entity) else {
             continue;
         };
-        let char_fwd = char_gtf.forward().as_vec3();
+        let char_fwd = armature.forward().as_vec3();
         let fallback_pole = Vec3::new(char_fwd.x, 0.0, char_fwd.z)
             .try_normalize()
             .unwrap_or(Vec3::Z);
-        let left_ik_amount = weight_override
+        let left_ik_curve = weight_override
             .left
             .or_else(|| animation_curve_amount(entity, "FootLeftIk", &avatars, &players))
-            .unwrap_or(lock_input.left_ik_amount)
-            .clamp(0.0, 1.0);
-        let right_ik_amount = weight_override
+            .unwrap_or(lock_input.left_ik_amount);
+        let right_ik_curve = weight_override
             .right
             .or_else(|| animation_curve_amount(entity, "FootRightIk", &avatars, &players))
-            .unwrap_or(lock_input.right_ik_amount)
-            .clamp(0.0, 1.0);
+            .unwrap_or(lock_input.right_ik_amount);
+        let left_ik_amount = left_ik_curve.clamp(0.0, 1.0);
+        let right_ik_amount = right_ik_curve.clamp(0.0, 1.0);
         let left_lock_amount = animation_curve_amount(entity, "FootLeftLock", &avatars, &players)
             .unwrap_or(lock_input.left_lock_amount)
             .clamp(0.0, 1.0);
@@ -584,6 +779,7 @@ fn foot_ik_apply_system(
                 &mut foot_offset_rotation,
                 &mut dynamic_transition,
             );
+            *source_rig = CrAlsFootRigState::default();
         }
         let current_base = movement_base.and_then(|state| {
             state
@@ -611,7 +807,7 @@ fn foot_ik_apply_system(
             }
         }
         for side in 0..2usize {
-            let Ok(target) = bone_globals.get(bones.target(side)) else {
+            let Ok(target) = bone_globals.get(bones.target(side, use_ik_bones)) else {
                 continue;
             };
             let (foot_state, ik_amount, lock_amount) = match side {
@@ -644,15 +840,26 @@ fn foot_ik_apply_system(
         let mut inputs = [FootSideInput::default(), FootSideInput::default()];
         let mut traces = [FootTraceSample::default(), FootTraceSample::default()];
         for side in 0..2usize {
-            let hit = match side {
-                0 => probe.left,
-                _ => probe.right,
-            };
+            let target = bones.target(side, use_ik_bones);
             let trace_target_world = bone_globals
-                .get(bones.target(side))
+                .get(target)
                 .map(|target| WorldPoint(target.translation()))
                 .unwrap_or_default();
-            let trace = foot_trace_sample(char_gtf, trace_target_world, hit);
+            let trace = source_foot_trace_sample(
+                &spatial,
+                armature,
+                trace_target_world,
+                entity,
+                bones.chain(side).foot,
+                target,
+                if side == 0 {
+                    left_ik_curve
+                } else {
+                    right_ik_curve
+                },
+                &profile.0.target,
+                foot_height_m,
+            );
             inputs[side] = FootSideInput {
                 raw_offset: if trace.has_ground_hit {
                     trace.raw_offset
@@ -667,6 +874,43 @@ fn foot_ik_apply_system(
             traces[side] = trace;
         }
 
+        let control_rig_input = control_rig_inputs.get(entity).copied().unwrap_or_default();
+        source_rig.left.trace_offset_location_y = if traces[0].has_ground_hit {
+            traces[0].raw_offset
+        } else {
+            0.0
+        };
+        source_rig.right.trace_offset_location_y = if traces[1].has_ground_hit {
+            traces[1].raw_offset
+        } else {
+            0.0
+        };
+        let pelvis_target = source_rig
+            .left
+            .trace_offset_location_y
+            .min(source_rig.right.trace_offset_location_y)
+            .clamp(
+                profile.0.target.pelvis_offset_min_m,
+                profile.0.target.pelvis_offset_max_m,
+            )
+            * control_rig_input.pelvis_offset_amount;
+        let pelvis_spring_value = source_rig.pelvis_spring_value;
+        source_rig.pelvis_spring_value = spring_damper_float(
+            &mut source_rig.pelvis_spring,
+            pelvis_spring_value,
+            pelvis_target,
+            dt,
+            profile.0.target.pelvis_offset_frequency_hz,
+            profile.0.target.pelvis_offset_damping_ratio,
+            0.0,
+        );
+        source_rig.pelvis_offset_y =
+            source_rig.pelvis_spring_value * control_rig_input.pelvis_offset_amount;
+        if let Ok(mut trace) = control_rig_traces.get_mut(entity) {
+            trace.stage_mask |=
+                AlsControlRigStageTrace::FOOT_OFFSET | AlsControlRigStageTrace::PELVIS_OFFSET;
+        }
+
         runtime.update_with_foot_lock_per_side(
             &inputs[0],
             &inputs[1],
@@ -677,10 +921,9 @@ fn foot_ik_apply_system(
             targets.grounded,
             dt,
         );
-        let (left_ik_weight, right_ik_weight) = runtime.ik_weights();
         let pelvis_world_offset = apply_pelvis_drop(
             bones.left_thigh,
-            runtime.pelvis_drop,
+            source_rig.pelvis_offset_y,
             &mut bone_locals,
             &bone_globals,
         );
@@ -695,28 +938,93 @@ fn foot_ik_apply_system(
         for side in 0..2usize {
             let chain = bones.chain(side);
             let trace = traces[side];
-            let (offset, pin_weight) = runtime.side(side);
+            let (_, pin_weight) = runtime.side(side);
             let foot_state = match side {
                 0 => &lock_state.left,
                 _ => &lock_state.right,
             };
             let applied_ik_weight = match side {
-                0 => left_ik_weight,
-                _ => right_ik_weight,
+                0 => left_ik_amount,
+                _ => right_ik_amount,
             };
-            let ground_normal = trace.normal_world.0;
-            let offset_normal = foot_offset_rotation.update(side, ground_normal, dt);
-            let foot_world_rotation =
-                foot_rotation_with_offset(foot_state.final_rotation, offset_normal);
+            let offset_normal_armature = foot_offset_rotation.update(
+                side,
+                trace.normal_armature.0,
+                dt,
+                profile.0.target.foot_offset_half_life_seconds,
+            );
+            let offset_normal_world =
+                world_direction_from_armature(armature, ArmatureDirection(offset_normal_armature))
+                    .0;
+            let pose_moving =
+                animation_curve_amount(entity, "PoseMoving", &avatars, &players).unwrap_or(0.0);
             let lock_offset = foot_state.final_location - foot_state.target_location;
             let solver_reference_armature =
-                armature_point_from_world(char_gtf, WorldPoint(foot_state.final_location));
-            let target_armature = ArmaturePoint(solver_reference_armature.0 + Vec3::Y * offset);
-            let target_world = world_point_from_armature(char_gtf, target_armature);
+                armature_point_from_world(armature, WorldPoint(foot_state.final_location));
+            let Some(pelvis_location_y) = source_pelvis_location_armature_y(
+                chain.thigh,
+                pelvis_world_offset,
+                armature,
+                &mut bone_locals,
+                &bone_globals,
+            ) else {
+                continue;
+            };
+            let Some(thigh_world) = bone_globals.get(chain.thigh).ok() else {
+                continue;
+            };
+            let thigh_location_armature = armature_point_from_world(
+                armature,
+                WorldPoint(thigh_world.translation() + pelvis_world_offset),
+            )
+            .0;
+            let pelvis_offset_y = source_rig.pelvis_offset_y;
+            let side_state = if side == 0 {
+                &mut source_rig.left
+            } else {
+                &mut source_rig.right
+            };
+            let target_armature = ArmaturePoint(source_apply_foot_offset_location(
+                side_state,
+                solver_reference_armature.0,
+                side_state.trace_offset_location_y,
+                pelvis_offset_y,
+                pelvis_location_y,
+                thigh_location_armature,
+                pose_moving,
+                dt,
+                &profile.0.target,
+                leg_length_m,
+            ));
+            let target_world = world_point_from_armature(armature, target_armature);
             let foot_parent = bone_locals
                 .get(chain.foot)
                 .ok()
                 .map(|(_, foot_global, child)| (foot_global.translation(), child.0));
+            let (Ok(current_foot), Ok(current_calf)) =
+                (bone_globals.get(chain.foot), bone_globals.get(chain.calf))
+            else {
+                continue;
+            };
+            let foot_world_rotation = world_rotation_from_armature(
+                armature,
+                ArmatureRotation(source_foot_rotation(
+                    armature_rotation_from_world(armature, WorldRotation(current_foot.rotation()))
+                        .0,
+                    armature_rotation_from_world(armature, WorldRotation(current_calf.rotation()))
+                        .0,
+                    armature_rotation_from_world(
+                        armature,
+                        WorldRotation(foot_state.final_rotation),
+                    )
+                    .0,
+                    offset_normal_armature,
+                    side,
+                    pose_moving,
+                    &profile.0.target,
+                )),
+            )
+            .0;
             let side_pole_state = match side {
                 0 => &mut pole_state.left,
                 _ => &mut pole_state.right,
@@ -726,14 +1034,12 @@ fn foot_ik_apply_system(
                 bone_globals.get(chain.calf),
                 foot_parent,
             ) {
-                (Ok(thigh), Ok(calf), Some((ankle, _))) => side_pole_state.resolve(
-                    char_gtf.rotation(),
-                    thigh.translation(),
-                    calf.translation(),
-                    ankle,
-                    target_world.0,
-                    fallback_pole,
-                ),
+                (Ok(thigh), Ok(calf), Some((ankle, _))) => {
+                    let hip = thigh.translation() + pelvis_world_offset;
+                    let knee = calf.translation() + pelvis_world_offset;
+                    let ankle = ankle + pelvis_world_offset;
+                    side_pole_state.update(hip, knee, ankle, dt, &profile.0.target) - hip
+                }
                 _ => fallback_pole,
             };
             let (target_parent_local, target_bone_local, parent_ready) = foot_parent
@@ -806,7 +1112,7 @@ fn foot_ik_apply_system(
                     target_armature_local: target_armature.0,
                     target_parent_local,
                     reference_chain_error: (target_world.0.distance(hip)
-                        - (upper_length + lower_length) * FOOT_MAX_LEG_STRETCH_RATIO)
+                        - (upper_length + lower_length) * profile.0.target.max_leg_stretch_ratio)
                         .max(0.0),
                     pole_sign,
                     ik_weight: applied_ik_weight,
@@ -820,11 +1126,16 @@ fn foot_ik_apply_system(
                     }
                 }
             }
-            let armature_up = world_direction_from_armature(char_gtf, ArmatureDirection(Vec3::Y)).0;
-            let has_slope_rotation = offset_normal.dot(armature_up) < 1.0 - 1e-4;
+            let source_offset_y = if side == 0 {
+                source_rig.left.location_offset_y
+            } else {
+                source_rig.right.location_offset_y
+            };
+            let armature_up = world_direction_from_armature(armature, ArmatureDirection(Vec3::Y)).0;
+            let has_slope_rotation = offset_normal_world.dot(armature_up) < 1.0 - 1e-4;
             let has_lock_rotation = foot_state.lock_amount > 1e-3;
             if applied_ik_weight <= 1e-4
-                || (offset.abs() < 1e-4
+                || (source_offset_y.abs() < 1e-4
                     && pin_weight < 1e-3
                     && lock_offset.length_squared() < 1e-8
                     && !has_slope_rotation
@@ -837,6 +1148,7 @@ fn foot_ik_apply_system(
                 target_world.0,
                 pole,
                 settings,
+                profile.0.target.max_leg_stretch_ratio,
                 foot_world_rotation,
                 applied_ik_weight,
                 pelvis_world_offset,
@@ -854,6 +1166,9 @@ fn foot_ik_apply_system(
                     space_state.right.resolved_knee_world = resolved_target.knee_world;
                 }
             }
+        }
+        if let Ok(mut trace) = control_rig_traces.get_mut(entity) {
+            trace.stage_mask |= AlsControlRigStageTrace::FOOT_IK;
         }
         lifecycle.previous_character_transform = Some(current_character_transform);
         lifecycle.teleport_remaining = (lifecycle.teleport_remaining - dt.max(0.0)).max(0.0);
@@ -892,16 +1207,16 @@ fn foot_ik_post_apply_telemetry_system(
                 0 => left_weight,
                 _ => right_weight,
             };
-            let pole = match side {
-                0 => pole_state.left.last_direction_world(),
-                _ => pole_state.right.last_direction_world(),
-            };
             let value = match (
                 bone_globals.get(chain.thigh),
                 bone_globals.get(chain.calf),
                 bone_globals.get(chain.foot),
             ) {
                 (Ok(hip), Ok(knee), Ok(foot)) => {
+                    let pole = match side {
+                        0 => pole_state.left.direction(knee.translation()),
+                        _ => pole_state.right.direction(knee.translation()),
+                    };
                     let target_axis =
                         (space.resolved_target_world - hip.translation()).normalize_or_zero();
                     let pole_sign = target_axis
@@ -984,6 +1299,7 @@ fn apply_chain_target(
     target_world: Vec3,
     pole: Vec3,
     settings: &AlsFootLockSettings,
+    max_leg_stretch_ratio: f32,
     foot_world_rotation: Quat,
     weight: f32,
     pelvis_world_offset: Vec3,
@@ -1023,11 +1339,7 @@ fn apply_chain_target(
         target_world,
         settings.thigh_angle_limit_degrees,
     );
-    let target = limit_leg_stretch(
-        hip,
-        target,
-        (upper_len + lower_len) * FOOT_MAX_LEG_STRETCH_RATIO,
-    );
+    let target = limit_leg_stretch(hip, target, (upper_len + lower_len) * max_leg_stretch_ratio);
 
     let Some(solve) = solve_two_bone_ik(hip, knee, ankle, target, upper_len, lower_len, pole)
     else {
@@ -1105,10 +1417,82 @@ fn normalized_ground_normal(normal: Vec3) -> Vec3 {
     normal.try_normalize().unwrap_or(Vec3::Y)
 }
 
-fn foot_rotation_with_offset(foot_target_rotation: Quat, offset_normal: Vec3) -> Quat {
-    (Quat::from_rotation_arc(Vec3::Y, normalized_ground_normal(offset_normal))
-        * foot_target_rotation)
-        .normalize()
+fn calf_space_angles_degrees(rotation: Quat) -> Vec3 {
+    let rotation = rotation.normalize();
+    let source_x = -rotation.x;
+    let source_y = -rotation.z;
+    let source_z = -rotation.y;
+    let source_w = rotation.w;
+    let sin_pitch = 2.0 * (source_w * source_y - source_z * source_x);
+    let pitch = if sin_pitch.abs() >= 1.0 {
+        std::f32::consts::FRAC_PI_2.copysign(sin_pitch)
+    } else {
+        sin_pitch.asin()
+    };
+    let yaw = (2.0 * (source_w * source_z + source_x * source_y))
+        .atan2(1.0 - 2.0 * (source_y * source_y + source_z * source_z));
+    let roll = (2.0 * (source_w * source_x + source_y * source_z))
+        .atan2(1.0 - 2.0 * (source_x * source_x + source_y * source_y));
+    Vec3::new(-pitch.to_degrees(), yaw.to_degrees(), -roll.to_degrees())
+}
+
+fn calf_space_rotation_from_angles(
+    pitch_degrees: f32,
+    yaw_degrees: f32,
+    roll_degrees: f32,
+) -> Quat {
+    let pitch = pitch_degrees.to_radians();
+    let yaw = yaw_degrees.to_radians();
+    let roll = roll_degrees.to_radians();
+    let source =
+        Quat::from_rotation_z(yaw) * Quat::from_rotation_y(-pitch) * Quat::from_rotation_x(-roll);
+    Quat::from_xyzw(-source.x, -source.z, -source.y, source.w)
+}
+
+fn source_constraint_target_angle(current: f32, target: f32, minimum: f32, maximum: f32) -> f32 {
+    target.clamp(
+        current.min(minimum).min(maximum),
+        current.max(minimum).max(maximum),
+    )
+}
+
+fn source_foot_rotation(
+    current_foot_armature: Quat,
+    calf_armature: Quat,
+    foot_target_armature: Quat,
+    offset_normal_armature: Vec3,
+    side: usize,
+    pose_moving: f32,
+    profile: &CrAlsTargetProfile,
+) -> Quat {
+    let initial_calf_space = Quat::from_array(if side == 0 {
+        profile.foot_left_initial_rotation_calf_space
+    } else {
+        profile.foot_right_initial_rotation_calf_space
+    });
+    let offset_rotation =
+        Quat::from_rotation_arc(Vec3::Y, normalized_ground_normal(offset_normal_armature));
+    let current_calf_space =
+        calf_armature.inverse() * current_foot_armature * initial_calf_space.inverse();
+    let target_calf_space = calf_armature.inverse()
+        * (offset_rotation * foot_target_armature)
+        * initial_calf_space.inverse();
+    let current = calf_space_angles_degrees(current_calf_space);
+    let target = calf_space_angles_degrees(target_calf_space);
+    let moving = pose_moving.clamp(0.0, 1.0);
+    let swing2_min = profile.foot_swing2_min_idle_degrees.lerp(0.0, moving);
+    let swing2_max = profile.foot_swing2_max_idle_degrees.lerp(0.0, moving);
+    let final_rotation = calf_space_rotation_from_angles(
+        source_constraint_target_angle(current.x, target.x, swing2_min, swing2_max),
+        source_constraint_target_angle(
+            current.y,
+            target.y,
+            profile.foot_swing1_min_degrees,
+            profile.foot_swing1_max_degrees,
+        ),
+        source_constraint_target_angle(current.z, target.z, 0.0, 0.0),
+    );
+    (calf_armature * (final_rotation * initial_calf_space)).normalize()
 }
 
 fn apply_pelvis_drop(
@@ -1136,9 +1520,29 @@ fn apply_pelvis_drop(
         .unwrap_or(Vec3::Y * drop)
 }
 
+fn source_pelvis_location_armature_y(
+    thigh: Entity,
+    pelvis_world_offset: Vec3,
+    armature_world: &GlobalTransform,
+    bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
+    bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+) -> Option<f32> {
+    let (_, _, thigh_parent) = bone_locals.get(thigh).ok()?;
+    let pelvis = bone_globals.get(thigh_parent.parent()).ok()?;
+    Some(
+        armature_point_from_world(
+            armature_world,
+            WorldPoint(pelvis.translation() + pelvis_world_offset),
+        )
+        .0
+        .y,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::control_rig_apply::{CR_ALS_RUNTIME_PROFILE, CrAlsRuntimeProfileDocument};
 
     #[test]
     fn foot_local_rotation_uses_the_updated_calf_parent() {
@@ -1191,84 +1595,73 @@ mod tests {
     }
 
     #[test]
-    fn foot_trace_spaces_are_rotation_invariant_and_clear_no_hit() {
-        let first = GlobalTransform::from(
-            Transform::from_xyz(3.0, 1.0, -2.0).with_rotation(Quat::from_euler(
-                EulerRot::YXZ,
-                0.6,
-                -0.2,
-                0.1,
-            )),
+    fn source_trace_uses_component_vertical_coordinate_and_floor_limit() {
+        let profile: CrAlsRuntimeProfileDocument =
+            serde_json::from_str(CR_ALS_RUNTIME_PROFILE).unwrap();
+        let normal = Vec3::new(0.0, 0.94, 0.34).normalize();
+        let first = source_trace_offset(
+            Vec3::new(0.18, -1.0, -0.24),
+            normal,
+            &profile.target,
+            profile.target.foot_height_m,
+        )
+        .unwrap();
+        let second = source_trace_offset(
+            Vec3::new(-4.0, -1.0, 6.0),
+            normal,
+            &profile.target,
+            profile.target.foot_height_m,
+        )
+        .unwrap();
+        let expected =
+            -1.0 + profile.target.foot_height_m / normal.y - profile.target.foot_height_m;
+        assert!((first - expected).abs() < 1e-6);
+        assert!((second - expected).abs() < 1e-6);
+        assert!(
+            source_trace_offset(
+                Vec3::ZERO,
+                Vec3::X,
+                &profile.target,
+                profile.target.foot_height_m,
+            )
+            .is_none()
         );
-        let second = GlobalTransform::from(
-            Transform::from_xyz(-5.0, 0.4, 4.0).with_rotation(Quat::from_euler(
-                EulerRot::YXZ,
-                -0.9,
-                0.3,
-                -0.15,
-            )),
-        );
-        let target_local = ArmaturePoint(Vec3::new(0.18, -0.92, -0.24));
-        let hit_local = ArmaturePoint(Vec3::new(0.18, -1.00, -0.24));
-        let normal_local = ArmatureDirection(Vec3::new(0.0, 0.94, 0.34).normalize());
-        let first_target = world_point_from_armature(&first, target_local);
-        let second_target = world_point_from_armature(&second, target_local);
-        let first_hit = AlsGroundHit {
-            point: world_point_from_armature(&first, hit_local).0,
-            normal: world_direction_from_armature(&first, normal_local).0,
-        };
-        let second_hit = AlsGroundHit {
-            point: world_point_from_armature(&second, hit_local).0,
-            normal: world_direction_from_armature(&second, normal_local).0,
-        };
-        let first_sample = foot_trace_sample(&first, first_target, Some(first_hit));
-        let second_sample = foot_trace_sample(&second, second_target, Some(second_hit));
-        let no_hit = foot_trace_sample(&first, first_target, None);
-
-        assert!(first_sample.has_ground_hit && second_sample.has_ground_hit);
-        assert!((first_sample.raw_offset - second_sample.raw_offset).abs() < 1e-5);
-        assert!(first_sample.normal_armature.0.dot(normal_local.0) > 0.999_99);
-        assert!(second_sample.normal_armature.0.dot(normal_local.0) > 0.999_99);
-        assert!(!no_hit.has_ground_hit);
-        assert_eq!(no_hit.raw_offset, 0.0);
-        assert_eq!(no_hit.hit_world.0, Vec3::ZERO);
-        assert!(no_hit.normal_armature.0.dot(Vec3::Y) > 0.999_99);
     }
 
     #[test]
     fn foot_rotation_consumes_slope_normal_and_full_lock_rotation() {
+        let profile: CrAlsRuntimeProfileDocument =
+            serde_json::from_str(CR_ALS_RUNTIME_PROFILE).unwrap();
         let slope_normal = Vec3::new(0.5, 0.866_025_4, 0.0);
         let mut normal_state = FootOffsetRotationState::default();
-        let initialized_normal = normal_state.update(0, slope_normal, 1.0 / 60.0);
+        let initialized_normal = normal_state.update(0, slope_normal, 1.0 / 60.0, 0.1);
         let initialization_alignment = initialized_normal.dot(slope_normal);
-        let slope_locked_rotation = Quat::from_rotation_y(35.0_f32.to_radians());
-        let slope_rotation = foot_rotation_with_offset(slope_locked_rotation, slope_normal);
-        let slope_alignment = (slope_rotation * Vec3::Y)
-            .dot(slope_normal)
-            .clamp(-1.0, 1.0);
-
-        let full_lock_rotation = Quat::from_euler(
-            EulerRot::YXZ,
-            35.0_f32.to_radians(),
-            -12.0_f32.to_radians(),
-            18.0_f32.to_radians(),
+        let initial = Quat::from_array(profile.target.foot_left_initial_rotation_calf_space);
+        let flat = source_foot_rotation(
+            initial,
+            Quat::IDENTITY,
+            initial,
+            Vec3::Y,
+            0,
+            0.0,
+            &profile.target,
         );
-        let parent_rotation = Quat::from_rotation_y(-20.0_f32.to_radians());
-        let foot_local = foot_local_rotation(
-            parent_rotation,
-            foot_rotation_with_offset(full_lock_rotation, Vec3::Y),
+        let slope = source_foot_rotation(
+            initial,
+            Quat::IDENTITY,
+            initial,
+            slope_normal,
+            0,
+            0.0,
+            &profile.target,
         );
-        let final_bone_rotation = parent_rotation * foot_local;
-        let lock_alignment = final_bone_rotation.dot(full_lock_rotation).abs();
-        let legacy_rotation = Quat::from_rotation_y(35.0_f32.to_radians());
-        let legacy_alignment = legacy_rotation.dot(full_lock_rotation).abs();
-        let passed = initialization_alignment > 0.999_99
-            && slope_alignment > 0.999_99
-            && lock_alignment > 0.999_99
-            && legacy_alignment < 0.99;
+        let flat_alignment = flat.dot(initial).abs();
+        let slope_finite = slope.is_finite();
+        let passed =
+            initialization_alignment > 0.999_99 && flat_alignment > 0.999_99 && slope_finite;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
-            "[BF102.42][VERDICT] initialization_alignment={initialization_alignment:.6} slope_alignment={slope_alignment:.6} lock_alignment={lock_alignment:.6} legacy_alignment={legacy_alignment:.6} -> {verdict}"
+            "[BF102.42][VERDICT] initialization_alignment={initialization_alignment:.6} flat_alignment={flat_alignment:.6} slope_finite={slope_finite} -> {verdict}"
         );
         assert!(passed);
     }
@@ -1382,10 +1775,12 @@ mod tests {
                     left_calf,
                     left: left_foot,
                     left_target: Some(left_target),
+                    left_virtual_target: None,
                     right_thigh,
                     right_calf,
                     right: right_foot,
                     right_target: Some(right_target),
+                    right_virtual_target: None,
                 },
                 FootLockLifecycleState::default(),
             ))

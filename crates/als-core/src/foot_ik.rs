@@ -7,15 +7,17 @@ use crate::character::AlsCharacter;
 use crate::state::{LocomotionState, Stance};
 use crate::transitions::{TransitionConfig, TransitionSelection, select_dynamic_transition};
 
-pub const FOOT_BONE_NAMES: [&str; 8] = [
+pub const FOOT_BONE_NAMES: [&str; 10] = [
     "thigh_l",
     "calf_l",
     "foot_l",
     "ik_foot_l",
+    "VB foot_l",
     "thigh_r",
     "calf_r",
     "foot_r",
     "ik_foot_r",
+    "VB foot_r",
 ];
 pub const PROBE_UP_OFFSET: f32 = 0.50;
 pub const PROBE_DEPTH: f32 = 0.80;
@@ -101,10 +103,23 @@ pub struct AlsFootBones {
     pub left_calf: Entity,
     pub left: Entity,
     pub left_target: Option<Entity>,
+    pub left_virtual_target: Option<Entity>,
     pub right_thigh: Entity,
     pub right_calf: Entity,
     pub right: Entity,
     pub right_target: Option<Entity>,
+    pub right_virtual_target: Option<Entity>,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsFootTargetSelection {
+    pub use_ik_bones: bool,
+}
+
+impl Default for AlsFootTargetSelection {
+    fn default() -> Self {
+        Self { use_ik_bones: true }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -130,10 +145,12 @@ impl AlsFootBones {
         }
     }
 
-    pub fn target(&self, side: usize) -> Entity {
+    pub fn target(&self, side: usize, use_ik_bones: bool) -> Entity {
         match side {
-            0 => self.left_target.unwrap_or(self.left),
-            _ => self.right_target.unwrap_or(self.right),
+            0 if use_ik_bones => self.left_target.unwrap_or(self.left),
+            0 => self.left_virtual_target.unwrap_or(self.left),
+            _ if use_ik_bones => self.right_target.unwrap_or(self.right),
+            _ => self.right_virtual_target.unwrap_or(self.right),
         }
     }
 }
@@ -366,13 +383,13 @@ impl Default for FootSideInput {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-struct SpringFloatState {
+pub struct SpringFloatState {
     velocity: f32,
     previous_target: f32,
     valid: bool,
 }
 
-fn spring_damper_float(
+pub fn spring_damper_float(
     state: &mut SpringFloatState,
     current: f32,
     target: f32,
@@ -881,10 +898,12 @@ pub fn build_foot_bone_map(
         left_calf: find("calf_l")?,
         left: find("foot_l")?,
         left_target: find("ik_foot_l"),
+        left_virtual_target: find("VB foot_l"),
         right_thigh: find("thigh_r")?,
         right_calf: find("calf_r")?,
         right: find("foot_r")?,
         right_target: find("ik_foot_r"),
+        right_virtual_target: find("VB foot_r"),
     })
 }
 
@@ -905,17 +924,28 @@ pub fn foot_bone_map_system(
 pub fn foot_ground_probe_system(
     mut commands: Commands,
     spatial: SpatialQuery,
-    characters: Query<(Entity, &GlobalTransform, &AlsFootBones), With<AlsCharacter>>,
+    characters: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &AlsFootBones,
+            Option<&AlsFootTargetSelection>,
+        ),
+        With<AlsCharacter>,
+    >,
     bones_tf: Query<&GlobalTransform, Without<AlsCharacter>>,
 ) {
-    for (entity, char_tf, feet) in &characters {
+    for (entity, char_tf, feet, selection) in &characters {
         let origin_base = char_tf.translation();
         let up = char_tf.up().as_vec3();
         let down = Dir3::new(-up).unwrap_or(Dir3::NEG_Y);
         let mut probe = AlsFootProbe::default();
         for side in 0..2usize {
             let chain = feet.chain(side);
-            let target = feet.target(side);
+            let target = feet.target(
+                side,
+                selection.map_or(true, |selection| selection.use_ik_bones),
+            );
             let Ok(target_tf) = bones_tf.get(target) else {
                 continue;
             };

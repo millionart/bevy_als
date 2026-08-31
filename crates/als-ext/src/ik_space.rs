@@ -1,7 +1,7 @@
-use bevy::prelude::{GlobalTransform, Vec3};
+use bevy::prelude::{GlobalTransform, Quat, Vec3};
 
 #[cfg(test)]
-use bevy::prelude::{EulerRot, Quat, Transform};
+use bevy::prelude::{EulerRot, Transform};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct WorldPoint(pub Vec3);
@@ -20,6 +20,12 @@ pub struct WorldDirection(pub Vec3);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct ArmatureDirection(pub Vec3);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct WorldRotation(pub Quat);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ArmatureRotation(pub Quat);
 
 fn normalized(direction: Vec3) -> Vec3 {
     direction.try_normalize().unwrap_or(Vec3::ZERO)
@@ -82,6 +88,20 @@ pub fn world_direction_from_armature(
     WorldDirection(normalized(armature_world.rotation() * direction.0))
 }
 
+pub fn armature_rotation_from_world(
+    armature_world: &GlobalTransform,
+    rotation: WorldRotation,
+) -> ArmatureRotation {
+    ArmatureRotation((armature_world.rotation().inverse() * rotation.0).normalize())
+}
+
+pub fn world_rotation_from_armature(
+    armature_world: &GlobalTransform,
+    rotation: ArmatureRotation,
+) -> WorldRotation {
+    WorldRotation((armature_world.rotation() * rotation.0).normalize())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +125,11 @@ mod tests {
 
         assert!(rebuilt_point.0.distance(world_point.0) < 1e-5);
         assert!(rebuilt_direction.0.dot(world_direction.0) > 0.999_99);
+
+        let world_rotation = WorldRotation(Quat::from_euler(EulerRot::YXZ, -0.4, 0.2, 0.7));
+        let armature_rotation = armature_rotation_from_world(&armature, world_rotation);
+        let rebuilt_rotation = world_rotation_from_armature(&armature, armature_rotation);
+        assert!(rebuilt_rotation.0.dot(world_rotation.0).abs() > 0.999_99);
     }
 
     #[test]

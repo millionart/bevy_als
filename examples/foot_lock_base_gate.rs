@@ -3,14 +3,11 @@ use std::num::NonZeroU8;
 use als_core::character::AlsCharacter;
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{
-    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
-    AlsFootLockSettings, AlsFootLockState, AlsFootProbe,
+    AlsFootLockFootState, AlsFootLockMovementBase, AlsFootLockState,
+    advance_foot_lock_movement_base, capture_foot_lock_movement_base,
 };
-use als_core::state::{LocomotionState, Stance};
 use bevy::prelude::*;
-use bevy::transform::TransformPlugin;
-
-use bevy_als::foot_ik_apply::FootIkApplyPlugin;
+use bevy::transform::{TransformPlugin, TransformSystems};
 
 const EPSILON: f32 = 1e-4;
 
@@ -32,8 +29,12 @@ struct LockSnapshot {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, TransformPlugin, FootIkApplyPlugin))
-        .add_systems(Startup, setup);
+    app.add_plugins((MinimalPlugins, TransformPlugin))
+        .add_systems(Startup, setup)
+        .add_systems(
+            PostUpdate,
+            update_foot_lock_base.after(TransformSystems::Propagate),
+        );
 
     app.update();
     let entities = *app.world().resource::<GateEntities>();
@@ -135,45 +136,36 @@ fn setup(mut commands: Commands) {
     let character = commands
         .spawn((
             AlsCharacter,
-            Transform::default(),
-            LocomotionState::Grounded,
-            Stance::Standing,
-            AlsFootProbe::default(),
-            AlsFootIkTargets {
-                grounded: true,
+            AlsFootLockState {
+                valid: true,
+                left: AlsFootLockFootState {
+                    lock_amount: 1.0,
+                    target_location: Vec3::new(0.25, 0.1, -0.4),
+                    target_rotation: Quat::from_rotation_y(0.2),
+                    lock_location: Vec3::new(0.25, 0.1, -0.4),
+                    lock_rotation: Quat::from_rotation_y(0.2),
+                    final_location: Vec3::new(0.25, 0.1, -0.4),
+                    final_rotation: Quat::from_rotation_y(0.2),
+                    ..default()
+                },
+                right: AlsFootLockFootState {
+                    lock_amount: 1.0,
+                    target_location: Vec3::new(-0.25, 0.1, -0.4),
+                    target_rotation: Quat::from_rotation_y(-0.2),
+                    lock_location: Vec3::new(-0.25, 0.1, -0.4),
+                    lock_rotation: Quat::from_rotation_y(-0.2),
+                    final_location: Vec3::new(-0.25, 0.1, -0.4),
+                    final_rotation: Quat::from_rotation_y(-0.2),
+                    ..default()
+                },
                 ..default()
             },
-            AlsFootLockInput {
-                left_ik_amount: 1.0,
-                right_ik_amount: 1.0,
-                left_lock_amount: 1.0,
-                right_lock_amount: 1.0,
-                ..default()
-            },
-            AlsFootLockSettings::default(),
-            AlsFootIkRuntime::default(),
-            AlsFootLockState::default(),
-            AlsDynamicTransitionState::default(),
             AlsMovementBaseDynamicsState {
                 entity: Some(first_base),
                 ..default()
             },
         ))
         .id();
-    let pelvis = commands.spawn(Transform::default()).id();
-    commands.entity(character).add_child(pelvis);
-    let (left_thigh, left_calf, left_foot) = spawn_leg(&mut commands, pelvis);
-    let (right_thigh, right_calf, right_foot) = spawn_leg(&mut commands, pelvis);
-    commands.entity(character).insert(AlsFootBones {
-        left_thigh,
-        left_calf,
-        left: left_foot,
-        left_target: None,
-        right_thigh,
-        right_calf,
-        right: right_foot,
-        right_target: None,
-    });
     commands.insert_resource(GateEntities {
         character,
         first_base,
@@ -181,14 +173,37 @@ fn setup(mut commands: Commands) {
     });
 }
 
-fn spawn_leg(commands: &mut Commands, pelvis: Entity) -> (Entity, Entity, Entity) {
-    let thigh = commands.spawn(Transform::default()).id();
-    let calf = commands.spawn(Transform::default()).id();
-    let foot = commands.spawn(Transform::default()).id();
-    commands.entity(pelvis).add_child(thigh);
-    commands.entity(thigh).add_child(calf);
-    commands.entity(calf).add_child(foot);
-    (thigh, calf, foot)
+fn update_foot_lock_base(
+    mut characters: Query<
+        (&AlsMovementBaseDynamicsState, &mut AlsFootLockState),
+        With<AlsCharacter>,
+    >,
+    transforms: Query<&GlobalTransform>,
+) {
+    for (movement_base, mut lock_state) in &mut characters {
+        let current_base = movement_base.entity.and_then(|entity| {
+            transforms
+                .get(entity)
+                .ok()
+                .map(|transform| AlsFootLockMovementBase {
+                    entity,
+                    translation: transform.translation(),
+                    rotation: transform.rotation(),
+                })
+        });
+        update_lock_side(&mut lock_state.left, current_base);
+        update_lock_side(&mut lock_state.right, current_base);
+    }
+}
+
+fn update_lock_side(
+    side: &mut AlsFootLockFootState,
+    current_base: Option<AlsFootLockMovementBase>,
+) {
+    advance_foot_lock_movement_base(side, current_base);
+    capture_foot_lock_movement_base(side, current_base);
+    side.final_location = side.lock_location;
+    side.final_rotation = side.lock_rotation;
 }
 
 fn lock_snapshot(app: &App, character: Entity) -> LockSnapshot {

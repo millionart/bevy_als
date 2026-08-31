@@ -25,6 +25,7 @@ use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_tnua::TnuaToggle;
 
@@ -33,7 +34,10 @@ use crate::animation_events::{
     AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
 };
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
-use crate::control_rig_apply::AlsControlRigState;
+use crate::control_rig_apply::{
+    AlsControlRigConstruction, AlsControlRigInput, AlsControlRigSet, AlsControlRigStageTrace,
+    AlsControlRigState,
+};
 use crate::crouching_layer::AlsCrouchingGraphTelemetry;
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::foot_ik_apply::{
@@ -95,6 +99,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             )
             .add_systems(
                 PostUpdate,
+                drive_control_rig_view_offset
+                    .after(AnimationGraphSet::Final)
+                    .before(AlsControlRigSet),
+            )
+            .add_systems(
+                PostUpdate,
                 observe_manual_integration
                     .after(AlsCameraSet)
                     .after(FootIkApplySet::Telemetry),
@@ -107,6 +117,25 @@ struct ManualIntegrationPlatform;
 
 #[derive(Component)]
 struct ManualFootIkTerrain;
+
+fn drive_control_rig_view_offset(
+    state: Res<ManualIntegrationState>,
+    mut characters: Query<(&Transform, &mut AlsViewYaw), With<AlsCharacter>>,
+) {
+    if state.scenario != IntegrationScenario::ControlRig
+        || state.phase != IntegrationPhase::ControlRig
+    {
+        return;
+    }
+    let Some(character) = state.character else {
+        return;
+    };
+    let Ok((transform, mut view_yaw)) = characters.get_mut(character) else {
+        return;
+    };
+    let forward = transform.rotation * Vec3::NEG_Z;
+    view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
+}
 
 #[derive(Resource)]
 struct ManualIntegrationFixture {
@@ -128,6 +157,7 @@ enum IntegrationPhase {
     FootIkNoHit,
     FootIkWeightRamp,
     FootIkTerrain,
+    ControlRig,
     StateMachineGrounded,
     StateMachineAir,
     StateMachineRotate,
@@ -165,6 +195,7 @@ enum CrouchClearanceStage {
 enum IntegrationScenario {
     Base,
     Crouching,
+    ControlRig,
     StateMachine,
     FootIk,
     Ragdoll,
@@ -177,6 +208,7 @@ impl IntegrationScenario {
     fn from_environment() -> Self {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
             Some("crouching") => Self::Crouching,
+            Some("control_rig") => Self::ControlRig,
             Some("state_machine") => Self::StateMachine,
             Some("foot_ik") => Self::FootIk,
             Some("ragdoll") => Self::Ragdoll,
@@ -433,6 +465,9 @@ struct IntegrationCoverage {
     start_stop: bool,
     view_head: bool,
     control_rig: bool,
+    control_rig_stages: bool,
+    control_rig_input: bool,
+    control_rig_foot_targets: bool,
     mantle_started: bool,
     mantle_completed: bool,
     movement_base: bool,
@@ -816,6 +851,7 @@ fn initialize_manual_integration(
         IntegrationScenario::Base
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
@@ -1157,6 +1193,35 @@ fn drive_manual_integration(
                     .remove::<AlsMantleControlSettings>();
                 cleanup_foot_ik_terrain(&mut commands, &mut state);
                 begin_phase(&mut state, IntegrationPhase::Mantle);
+            }
+        }
+        IntegrationPhase::ControlRig => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Rifle;
+                *rotation_mode = RotationMode::Aiming;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.rotation_mode = Some(RotationMode::Aiming);
+                request.overlay_state = Some(OverlayState::Rifle);
+            }
+            input.0.move_dir = Vec2::new(0.65, 1.0).normalize();
+            input.0.aim_held = true;
+            view_yaw.0 = fixture.facing_yaw + 35.0_f32.to_radians();
+            request.rotation_mode = Some(RotationMode::Aiming);
+            request.overlay_state = Some(OverlayState::Rifle);
+            if elapsed >= 6.0 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
         IntegrationPhase::StateMachineGrounded => {
@@ -2330,6 +2395,14 @@ fn observe_manual_integration(
         With<AlsCharacter>,
     >,
     mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
+    control_rig_runtime: Query<
+        (
+            &AlsControlRigConstruction,
+            &AlsControlRigInput,
+            &AlsControlRigStageTrace,
+        ),
+        With<AlsCharacter>,
+    >,
     motion_probe: MotionProbe,
     foot_ik_data: Query<
         (
@@ -3131,8 +3204,82 @@ fn observe_manual_integration(
             .initial_view_pitch
             .is_some_and(|initial| (view_pitch.0 - initial).abs() > 0.01)
         && head.is_some_and(|value| value.pitch_angle.abs() > 0.01 || value.yaw_angle.abs() > 0.01);
-    state.coverage.control_rig |= control_rig
-        .is_some_and(|value| value.spine_rotation_allowed && value.spine_amount.abs() > 1e-4);
+    let control_rig_ready = control_rig.is_some_and(|value| {
+        value.spine_rotation_allowed
+            && value.spine_amount.abs() > 1e-4
+            && value.final_yaw_angle.abs() > 1e-4
+    });
+    if control_rig_ready && !state.coverage.control_rig {
+        if let Some(value) = control_rig {
+            info!(
+                "[MANUAL-INTEGRATION][CR-ALS-SPINE] allowed={} amount={:.6} final_yaw_degrees={:.6} -> PASS",
+                value.spine_rotation_allowed, value.spine_amount, value.final_yaw_angle,
+            );
+        }
+    }
+    state.coverage.control_rig |= control_rig_ready;
+    if let Ok((construction, input, trace)) = control_rig_runtime.get(character) {
+        let input_ready = input.use_hand_ik_bones
+            && input.use_foot_ik_bones
+            && input.velocity_blend_forward_amount.is_finite()
+            && input.velocity_blend_backward_amount.is_finite()
+            && input.spine_yaw_angle_degrees.is_finite()
+            && input.pelvis_offset_amount.is_finite()
+            && input.foot_left_location_armature.is_finite()
+            && input.foot_right_location_armature.is_finite()
+            && input.foot_left_rotation_armature.is_finite()
+            && input.foot_right_rotation_armature.is_finite()
+            && (state.scenario != IntegrationScenario::ControlRig
+                || input.velocity_blend_forward_amount.abs() > 1e-3
+                || input.velocity_blend_backward_amount.abs() > 1e-3
+                || input.spine_yaw_angle_degrees.abs() > 1e-3);
+        let stage_ready = trace.construction_complete
+            && trace.initialization_count == 1
+            && trace.stage_mask == AlsControlRigStageTrace::COMPLETE
+            && trace.completed_frames > 0;
+        let foot_targets_ready = foot_ik_data.get(character).is_ok_and(|(_, space, apply)| {
+            construction.foot_height_m.is_finite()
+                && construction.foot_height_m > 0.0
+                && construction.leg_length_m.is_finite()
+                && construction.leg_length_m > 0.0
+                && space.left.target_armature_local.is_finite()
+                && space.right.target_armature_local.is_finite()
+                && space.left.normal_armature_local.is_finite()
+                && space.right.normal_armature_local.is_finite()
+                && apply.left.target_world.is_finite()
+                && apply.right.target_world.is_finite()
+        });
+        if stage_ready && !state.coverage.control_rig_stages {
+            info!(
+                "[MANUAL-INTEGRATION][CR-ALS-STAGES] construction_count={} runtime_mask={:07b} completed_frames={} -> PASS",
+                trace.initialization_count, trace.stage_mask, trace.completed_frames,
+            );
+        }
+        if input_ready && !state.coverage.control_rig_input {
+            info!(
+                "[MANUAL-INTEGRATION][CR-ALS-INPUT] forward={:.3} backward={:.3} spine_yaw={:.3} pelvis={:.3} left=({:.3},{:.3},{:.3}) right=({:.3},{:.3},{:.3}) -> PASS",
+                input.velocity_blend_forward_amount,
+                input.velocity_blend_backward_amount,
+                input.spine_yaw_angle_degrees,
+                input.pelvis_offset_amount,
+                input.foot_left_location_armature.x,
+                input.foot_left_location_armature.y,
+                input.foot_left_location_armature.z,
+                input.foot_right_location_armature.x,
+                input.foot_right_location_armature.y,
+                input.foot_right_location_armature.z,
+            );
+        }
+        if foot_targets_ready && !state.coverage.control_rig_foot_targets {
+            info!(
+                "[MANUAL-INTEGRATION][CR-ALS-TARGET-TRANSFORM] foot_height_m={:.9} leg_length_m={:.9} -> PASS",
+                construction.foot_height_m, construction.leg_length_m,
+            );
+        }
+        state.coverage.control_rig_stages |= stage_ready;
+        state.coverage.control_rig_input |= input_ready;
+        state.coverage.control_rig_foot_targets |= foot_targets_ready;
+    }
 
     if let Some(mantle) = mantle {
         if mantle.active {
@@ -3771,6 +3918,12 @@ fn observe_manual_integration(
                 ("start_stop", coverage.start_stop),
                 ("view_head", coverage.view_head),
                 ("control_rig", coverage.control_rig),
+                ("control_rig_stages", coverage.control_rig_stages),
+                ("control_rig_input", coverage.control_rig_input),
+                (
+                    "control_rig_foot_targets",
+                    coverage.control_rig_foot_targets,
+                ),
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
                 ("movement_base", coverage.movement_base),
@@ -3802,6 +3955,20 @@ fn observe_manual_integration(
                 ("crouch_direction_lean", coverage.crouch_direction_lean),
                 ("crouch_rotate", coverage.crouch_rotate),
                 ("crouch_turn", coverage.crouch_turn),
+            ],
+            IntegrationScenario::ControlRig => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("standing_graph", coverage.standing_graph),
+                ("control_rig", coverage.control_rig),
+                ("control_rig_stages", coverage.control_rig_stages),
+                ("control_rig_input", coverage.control_rig_input),
+                (
+                    "control_rig_foot_targets",
+                    coverage.control_rig_foot_targets,
+                ),
+                ("foot_probe", coverage.foot_probe),
+                ("foot_lock", coverage.foot_lock),
             ],
             IntegrationScenario::FootIk => vec![
                 ("runtime_assembly", coverage.assembly),

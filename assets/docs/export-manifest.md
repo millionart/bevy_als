@@ -362,3 +362,11 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 - 输出：`assets/animation_events/als_notify_manifest.json`（v1）。包含 137 个 source clip、177 条 Notify／Notify State、60 个同步 Marker 和 9 个 Montage→序列 segment 映射；时间、引用、GraphClip 路径和 source event ID 均由生成器验证。
 - 编译：`tools/import/compile_als_event_tracks.py` 将 177 条 source event 确定性写入 65 个 `.anim.ron` GraphClip 的 98 个 EventTrack；point event 保留零长度精确时间，state event 保留原区间，Montage event 映射到其实际 sequence GraphClip。`--check` 验证生成物无漂移。
 - 边界：AuthoredSyncMarker 的同步相位数据继续以 `assets/sync/als_sync_metadata.ron` 为运行时规范，不作为角色全局定时器；Marker crossed event 的运行时生命周期留待 BF103.04。
+
+## BF109 CR_Als 原生审计与运行时材化数据（2026-09-01）
+
+- 源对象：`/ALS/ALS/Character/CR_Als.CR_Als`、`/ALS/ALS/Character/SKM_Als.SKM_Als`。
+- 原生读取：`tools/ue_graph_source_reader` 直接反射 `ControlRigBlueprint`、`UEdGraph`、`UEdGraphNode`、`UEdGraphPin`、RigVM link、Blueprint CDO 与 SkeletalMesh final bone hierarchy；原始输出只保留在 gitignored `target/bf109/source_native/`，不提交 uasset。
+- 审计合同：`assets/control_rigs/cr_als.profile.json`。保留 10 个源 graph、133 个 node 的完整 position/property/pin/connection、1,407 个 pin、160 条 RigVM link、CDO 属性和 source graph layout；该文件只供离线审计，不在运行时解析。
+- 运行时材化数据：`assets/control_rigs/cr_als.runtime.json`。由 `tools/import/coordinate_basis.py` 与 `tools/import/gen_cr_als_profile.py` 离线生成，仅含 target-space 骨骼名、米制长度、目标轴、rotation 和 CR 数值；运行时不执行 source/target basis bridge。
+- 验证：`tools/import/audit_cr_als.py` 使用上述原生输出逐项验证完整图合同及全部 79 个 final skeleton transform/parent 和 11 根 virtual bone 对目标 glTF，报告零差异。

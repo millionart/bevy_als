@@ -1,0 +1,94 @@
+{
+  "construction": {
+    "spine_rotation_bones": [
+      "pelvis",
+      "spine_01",
+      "spine_02",
+      "spine_03"
+    ],
+    "foot_root_if_ik": "ik_foot_root",
+    "foot_root_if_virtual": "VB foot_root",
+    "hand_left_if_ik": "VB ik_hand_l",
+    "hand_left_if_virtual": "VB hand_l",
+    "hand_right_if_ik": "VB ik_hand_r",
+    "hand_right_if_virtual": "VB hand_r"
+  },
+  "target": {
+    "foot_height_m": 0.1346573391997849,
+    "leg_length_m": 0.8276873779296977,
+    "diagonal_scale_delta": [
+      0.4,
+      0.0,
+      0.4
+    ],
+    "hand_left_pole_location_m": [
+      0.0,
+      0.0,
+      -0.3
+    ],
+    "hand_right_pole_location_m": [
+      0.0,
+      0.0,
+      0.3
+    ],
+    "foot_left_primary_axis": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "foot_left_secondary_axis": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "foot_right_primary_axis": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "foot_right_secondary_axis": [
+      0.0,
+      0.0,
+      -1.0
+    ],
+    "foot_left_initial_rotation_calf_space": [
+      0.00588576652,
+      -0.0703547412,
+      0.0319913013,
+      -0.996991464
+    ],
+    "foot_right_initial_rotation_calf_space": [
+      0.00588577027,
+      -0.0703547434,
+      0.0319912841,
+      -0.99699139
+    ],
+    "trace_distance_up_m": 0.5,
+    "trace_distance_down_m": 0.8,
+    "walkable_floor_angle_degrees": 45.0,
+    "max_leg_stretch_ratio": 0.99,
+    "foot_offset_frequency_hz": 12.0,
+    "foot_offset_damping_ratio": 2.0,
+    "foot_offset_half_life_seconds": 0.1,
+    "pelvis_offset_frequency_hz": 2.0,
+    "pelvis_offset_damping_ratio": 1.0,
+    "pelvis_offset_min_m": -0.3,
+    "pelvis_offset_max_m": 0.4,
+    "pelvis_min_to_foot_standing_m": 0.2,
+    "pelvis_min_to_foot_moving_m": 0.5,
+    "foot_swing1_min_degrees": -20.0,
+    "foot_swing1_max_degrees": 40.0,
+    "foot_swing2_min_idle_degrees": -15.0,
+    "foot_swing2_max_idle_degrees": 5.0,
+    "foot_pole_distance_m": 0.4,
+    "foot_pole_half_life_seconds": 0.05
+  },
+  "execution_order": [
+    "RefreshDiagonalScaling",
+    "RefreshSpineRotation",
+    "RefreshFootOffset",
+    "RefreshPelvisOffset",
+    "RefreshFootIk",
+    "RefreshHandIk"
+  ]
+}

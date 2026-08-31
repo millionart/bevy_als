@@ -16,8 +16,10 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use bevy_als::control_rig_apply::{
-    AlsControlRigPropagationSet, AlsControlRigSet, AlsControlRigState,
+    AlsControlRigConstruction, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigSet,
+    AlsControlRigStageTrace, AlsControlRigState,
 };
+use bevy_als::foot_ik_apply::AlsFootIkSpaceState;
 use bevy_als::playable_character::{
     AlsCharacterAvatar, AlsCharacterBlueprint, AlsPlayableCharacterPlugin, spawn_als_character,
 };
@@ -36,6 +38,9 @@ struct GateState {
     complete: bool,
     observations: u32,
     max_spine_yaw: f32,
+    stage_complete: bool,
+    input_ready: bool,
+    foot_targets_ready: bool,
 }
 
 fn main() {
@@ -173,6 +178,10 @@ fn observe(
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     rigs: Query<&AlsControlRigState, With<AlsCharacter>>,
+    constructions: Query<&AlsControlRigConstruction, With<AlsCharacter>>,
+    rig_inputs: Query<&AlsControlRigInput, With<AlsCharacter>>,
+    stage_traces: Query<&AlsControlRigStageTrace, With<AlsCharacter>>,
+    foot_spaces: Query<&AlsFootIkSpaceState, With<AlsCharacter>>,
     children_q: Query<&Children>,
     names: Query<&Name>,
     targets: Query<(), With<AnimationTargetId>>,
@@ -226,6 +235,10 @@ fn observe(
     let Ok(rig) = rigs.get(character) else {
         return;
     };
+    let stage = stage_traces.get(character).ok();
+    let construction = constructions.get(character).ok();
+    let rig_input = rig_inputs.get(character).ok();
+    let foot_space = foot_spaces.get(character).ok();
     let pose_moving = output_f32(player, "PoseMoving");
     let pose_aiming = output_f32(player, "PoseAiming");
     let hand_left_weight = output_f32(player, "LayerArmLeft").clamp(0.0, 1.0)
@@ -239,23 +252,84 @@ fn observe(
     let curves_ready = pose_moving > 0.01 && pose_aiming > 0.01;
     state.max_spine_yaw = state.max_spine_yaw.max(rig.final_yaw_angle.abs());
     let state_ready = rig.spine_rotation_allowed && state.max_spine_yaw > 1.0;
+    state.stage_complete |= stage.is_some_and(|stage| {
+        stage.construction_complete
+            && stage.initialization_count == 1
+            && stage.stage_mask == AlsControlRigStageTrace::COMPLETE
+            && stage.completed_frames > 0
+    });
+    let construction_ready = construction.is_some_and(|construction| {
+        construction.foot_height_m.is_finite()
+            && construction.foot_height_m > 0.0
+            && construction.leg_length_m.is_finite()
+            && construction.leg_length_m > 0.0
+    });
+    state.input_ready |= rig_input.is_some_and(|input| {
+        input.use_hand_ik_bones
+            && input.use_foot_ik_bones
+            && input.velocity_blend_forward_amount.is_finite()
+            && input.velocity_blend_backward_amount.is_finite()
+            && input.spine_yaw_angle_degrees.is_finite()
+            && input.pelvis_offset_amount.is_finite()
+            && input.foot_left_location_armature.is_finite()
+            && input.foot_right_location_armature.is_finite()
+            && input.foot_left_rotation_armature.is_finite()
+            && input.foot_right_rotation_armature.is_finite()
+    });
+    state.foot_targets_ready |= foot_space.is_some_and(|space| {
+        space.left.target_armature_local.is_finite()
+            && space.right.target_armature_local.is_finite()
+            && space.left.normal_armature_local.is_finite()
+            && space.right.normal_armature_local.is_finite()
+    });
     state.observations += 1;
     if state.observations % 60 == 0 {
         info!(
-            "[CONTROL-RIG-CONTRACT][PROBE] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_allowed={} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} foot_scale_x={:.3} hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3}",
-            rig.spine_rotation_allowed, rig.final_yaw_angle, state.max_spine_yaw, foot_root.scale.x,
+            "[CONTROL-RIG-CONTRACT][PROBE] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_allowed={} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} foot_scale=({:.3},{:.3},{:.3}) hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3} construction_complete={} construction_count={} stage_mask={} completed_frames={} construction_ready={} input_ready={} foot_targets_ready={}",
+            rig.spine_rotation_allowed,
+            rig.final_yaw_angle,
+            state.max_spine_yaw,
+            foot_root.scale.x,
+            foot_root.scale.y,
+            foot_root.scale.z,
+            stage.is_some_and(|stage| stage.construction_complete),
+            stage.map_or(0, |stage| stage.initialization_count),
+            stage.map_or(0, |stage| stage.stage_mask),
+            stage.map_or(0, |stage| stage.completed_frames),
+            construction_ready,
+            state.input_ready,
+            state.foot_targets_ready,
         );
     }
-    if !(curves_ready && state_ready && spine_changed && diagonal_scaled) {
+    if !(curves_ready
+        && state_ready
+        && spine_changed
+        && diagonal_scaled
+        && state.stage_complete
+        && construction_ready
+        && state.input_ready
+        && state.foot_targets_ready)
+    {
         return;
     }
     let finite = spine.rotation.is_finite()
         && foot_root.scale.is_finite()
         && rig.final_yaw_angle.is_finite();
-    let pass = finite && hand_left_weight.is_finite() && hand_right_weight.is_finite();
+    let pass = finite
+        && hand_left_weight.is_finite()
+        && hand_right_weight.is_finite()
+        && state.stage_complete
+        && construction_ready
+        && state.input_ready
+        && state.foot_targets_ready;
     info!(
-        "[CONTROL-RIG-CONTRACT] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3} finite={finite}",
-        rig.final_yaw_angle, state.max_spine_yaw,
+        "[CONTROL-RIG-CONTRACT] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3} stage_complete={} construction_ready={} input_ready={} foot_targets_ready={} finite={finite}",
+        rig.final_yaw_angle,
+        state.max_spine_yaw,
+        state.stage_complete,
+        construction_ready,
+        state.input_ready,
+        state.foot_targets_ready,
     );
     info!(
         "[CONTROL-RIG-CONTRACT][VERDICT] linked={} -> {}",

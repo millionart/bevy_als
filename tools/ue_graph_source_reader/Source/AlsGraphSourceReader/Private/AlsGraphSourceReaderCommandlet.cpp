@@ -4,7 +4,10 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "AnimationRuntime.h"
+#include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
+#include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
@@ -47,6 +50,25 @@ TSharedRef<FJsonObject> CaptureRotator(const FRotator& Rotator)
     Value->SetNumberField(TEXT("pitch"), Rotator.Pitch);
     Value->SetNumberField(TEXT("yaw"), Rotator.Yaw);
     Value->SetNumberField(TEXT("roll"), Rotator.Roll);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CaptureQuaternion(const FQuat& Quaternion)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("x"), Quaternion.X);
+    Value->SetNumberField(TEXT("y"), Quaternion.Y);
+    Value->SetNumberField(TEXT("z"), Quaternion.Z);
+    Value->SetNumberField(TEXT("w"), Quaternion.W);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CaptureTransform(const FTransform& Transform)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetObjectField(TEXT("translation"), CaptureVector(Transform.GetTranslation()));
+    Value->SetObjectField(TEXT("rotation"), CaptureQuaternion(Transform.GetRotation()));
+    Value->SetObjectField(TEXT("scale"), CaptureVector(Transform.GetScale3D()));
     return Value;
 }
 
@@ -313,6 +335,47 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
     Value->SetArrayField(TEXT("collision_disabled_pairs"), CollisionDisabledPairs);
     return Value;
 }
+
+TSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)
+{
+    const FReferenceSkeleton& ReferenceSkeleton = Mesh->GetRefSkeleton();
+    const TArray<FTransform>& ReferencePose = ReferenceSkeleton.GetRefBonePose();
+    TArray<FTransform> ComponentSpaceTransforms;
+    FAnimationRuntime::FillUpComponentSpaceTransforms(ReferenceSkeleton, ReferencePose, ComponentSpaceTransforms);
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetStringField(TEXT("skeleton_path"), ObjectPath(Mesh->GetSkeleton()));
+    Value->SetNumberField(TEXT("raw_bone_count"), ReferenceSkeleton.GetRawBoneNum());
+    Value->SetNumberField(TEXT("bone_count"), ReferenceSkeleton.GetNum());
+
+    TArray<TSharedPtr<FJsonValue>> Bones;
+    for (int32 BoneIndex = 0; BoneIndex < ReferenceSkeleton.GetNum(); ++BoneIndex)
+    {
+        TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+        Bone->SetNumberField(TEXT("index"), BoneIndex);
+        Bone->SetStringField(TEXT("name"), ReferenceSkeleton.GetBoneName(BoneIndex).ToString());
+        Bone->SetNumberField(TEXT("parent_index"), ReferenceSkeleton.GetParentIndex(BoneIndex));
+        Bone->SetBoolField(TEXT("virtual"), BoneIndex >= ReferenceSkeleton.GetRawBoneNum());
+        Bone->SetObjectField(TEXT("local_transform"), CaptureTransform(ReferencePose[BoneIndex]));
+        Bone->SetObjectField(TEXT("component_transform"), CaptureTransform(ComponentSpaceTransforms[BoneIndex]));
+        Bones.Add(MakeShared<FJsonValueObject>(Bone));
+    }
+    Value->SetArrayField(TEXT("bones"), Bones);
+
+    TArray<TSharedPtr<FJsonValue>> VirtualBones;
+    if (const USkeleton* Skeleton = Mesh->GetSkeleton())
+    {
+        for (const FVirtualBone& VirtualBone : Skeleton->GetVirtualBones())
+        {
+            TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+            Bone->SetStringField(TEXT("source_bone"), VirtualBone.SourceBoneName.ToString());
+            Bone->SetStringField(TEXT("target_bone"), VirtualBone.TargetBoneName.ToString());
+            Bone->SetStringField(TEXT("virtual_bone"), VirtualBone.VirtualBoneName.ToString());
+            VirtualBones.Add(MakeShared<FJsonValueObject>(Bone));
+        }
+    }
+    Value->SetArrayField(TEXT("virtual_bones"), VirtualBones);
+    return Value;
+}
 }
 
 UAlsGraphSourceReaderCommandlet::UAlsGraphSourceReaderCommandlet()
@@ -380,6 +443,20 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     Root->SetStringField(TEXT("asset_path"), Asset->GetPathName());
     Root->SetStringField(TEXT("asset_class"), Asset->GetClass()->GetPathName());
     Root->SetArrayField(TEXT("asset_properties"), CaptureProperties(Asset->GetClass(), Asset, Asset));
+    Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
+    Root->SetArrayField(TEXT("blueprint_cdo_properties"), {});
+    if (Blueprint != nullptr && Blueprint->GeneratedClass != nullptr)
+    {
+        UObject* DefaultObject = Blueprint->GeneratedClass->GetDefaultObject();
+        if (IsValid(DefaultObject))
+        {
+            Root->SetStringField(TEXT("blueprint_cdo_path"), ObjectPath(DefaultObject));
+            Root->SetArrayField(
+                TEXT("blueprint_cdo_properties"),
+                CaptureProperties(DefaultObject->GetClass(), DefaultObject, DefaultObject)
+            );
+        }
+    }
 
     TArray<TSharedPtr<FJsonValue>> AssetObjectValues;
     for (int32 ObjectIndex = 0; ObjectIndex < AssetObjects.Num(); ++ObjectIndex)
@@ -397,6 +474,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (const UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset))
     {
         Root->SetObjectField(TEXT("physics_asset"), CapturePhysicsAsset(PhysicsAsset));
+    }
+    if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))
+    {
+        Root->SetObjectField(TEXT("skeletal_mesh"), CaptureSkeletalMesh(SkeletalMesh));
     }
 
     FString Json;

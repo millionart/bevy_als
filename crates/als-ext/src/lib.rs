@@ -109,10 +109,11 @@ pub use ik::{
     child_world_rotation_after_parent_rotation,
 };
 pub use ik_space::{
-    ArmatureDirection, ArmaturePoint, BoneLocalPoint, ParentPoint, WorldDirection, WorldPoint,
-    armature_direction_from_world, armature_point_from_world, bone_local_point_from_world,
+    ArmatureDirection, ArmaturePoint, ArmatureRotation, BoneLocalPoint, ParentPoint,
+    WorldDirection, WorldPoint, WorldRotation, armature_direction_from_world,
+    armature_point_from_world, armature_rotation_from_world, bone_local_point_from_world,
     parent_point_from_world, world_direction_from_armature, world_point_from_armature,
-    world_point_from_bone_local, world_point_from_parent,
+    world_point_from_bone_local, world_point_from_parent, world_rotation_from_armature,
 };
 pub use inertialization::{
     InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
