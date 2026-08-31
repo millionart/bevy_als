@@ -15,6 +15,7 @@ use bevy_animation_graph::core::{
     plugin::AnimationGraphSet,
     pose::{Pose, RootMotionDelta},
 };
+use serde_json::Value;
 
 const CONTRACT_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 
@@ -30,13 +31,87 @@ fn main() {
         AlsExtPlugin,
     ))
     .init_resource::<RuntimeProbe>()
-    .add_systems(Startup, load_contract)
+    .add_systems(Startup, (verify_native_source, load_contract).chain())
     .add_systems(Update, (verify_contract, auto_quit))
     .add_systems(
         PostUpdate,
         observe_runtime_probe.after(AnimationGraphSet::Final),
     );
     app.run();
+}
+
+fn verify_native_source() {
+    let Ok(path) = std::env::var("ALI_OVERLAY_SOURCE_PATH") else {
+        return;
+    };
+    let source: Value = serde_json::from_str(
+        &std::fs::read_to_string(&path).expect("native ALI_Overlay source readable"),
+    )
+    .expect("native ALI_Overlay source parses");
+    let properties = source["asset_properties"]
+        .as_array()
+        .expect("native ALI_Overlay properties");
+    assert_eq!(native_property(properties, "TargetSkeleton"), "None");
+    assert_eq!(
+        native_property(properties, "BlueprintType"),
+        "BPTYPE_Interface"
+    );
+    assert_eq!(
+        native_property(properties, "PreviewAnimationBlueprintApplicationMethod"),
+        "LinkedLayers"
+    );
+    assert_eq!(
+        native_property(properties, "bEnableLinkedAnimLayerInstanceSharing"),
+        "False"
+    );
+    assert!(native_property(properties, "ParentClass").contains("AnimLayerInterface"));
+    assert!(native_property(properties, "FunctionGraphs").contains(":Overlay'"));
+    assert!(native_property(properties, "CategorySorting").contains("Default Shared Group"));
+    let graph = source["graphs"]
+        .as_array()
+        .and_then(|graphs| graphs.iter().find(|graph| graph["name"] == "Overlay"))
+        .expect("native Overlay graph exists");
+    let nodes = graph["nodes"].as_array().expect("native Overlay nodes");
+    assert_eq!(nodes.len(), 1, "native Overlay graph has only output");
+    let root = &nodes[0];
+    assert!(
+        root["class_path"]
+            .as_str()
+            .is_some_and(|class| class.contains("AnimGraphNode_Root"))
+    );
+    assert_eq!(root["position_x"].as_i64(), Some(0));
+    assert_eq!(root["position_y"].as_i64(), Some(0));
+    assert!(
+        native_property(
+            root["properties"]
+                .as_array()
+                .expect("native root properties"),
+            "Node"
+        )
+        .contains("LayerGroup=\"Default Shared Group\"")
+    );
+    let target = std::fs::read_to_string(format!("assets/{CONTRACT_PATH}"))
+        .expect("target ALI_Overlay readable");
+    for field in [
+        "nodes: []",
+        "OutputData(\"pose\"): InputData(Passthrough(\"base_pose\"))",
+        "OutputTime: InputTime(Passthrough(\"base_time\"))",
+        "input_position: (-320.0, 0.0)",
+        "output_position: (0.0, 0.0)",
+    ] {
+        assert!(target.contains(field), "target interface field {field}");
+    }
+    info!(
+        "[LINKED-LAYER-SOURCE] interface=ALI_Overlay nodes=1 output=(0,0) linked_layers=true shared_instances=false fallback=base_pose -> PASS"
+    );
+}
+
+fn native_property<'a>(properties: &'a [Value], name: &str) -> &'a str {
+    properties
+        .iter()
+        .find(|property| property["name"] == name)
+        .and_then(|property| property["exported_text"].as_str())
+        .expect("native ALI_Overlay property")
 }
 
 #[derive(Resource)]

@@ -421,6 +421,9 @@ struct IntegrationCoverage {
     airborne: bool,
     landed: bool,
     overlay: bool,
+    overlay_interface_binding: bool,
+    overlay_interface_fallback: bool,
+    overlay_interface_reentry: bool,
     gait_layer: bool,
     stance_layer: bool,
     jump_variant: bool,
@@ -520,6 +523,9 @@ struct ManualIntegrationState {
     interface_slomo_restored_seen: bool,
     interface_menu_open_seen: bool,
     interface_menu_closed_seen: bool,
+    interface_overlay_rifle_seen: bool,
+    interface_overlay_default_after_rifle_seen: bool,
+    interface_overlay_reentry_seen: bool,
     notify_roll_armed: bool,
     notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
@@ -592,6 +598,9 @@ impl Default for ManualIntegrationState {
             interface_slomo_restored_seen: false,
             interface_menu_open_seen: false,
             interface_menu_closed_seen: false,
+            interface_overlay_rifle_seen: false,
+            interface_overlay_default_after_rifle_seen: false,
+            interface_overlay_reentry_seen: false,
             notify_roll_armed: false,
             notify_mantle_armed: false,
             turn_body_yaw: None,
@@ -1989,10 +1998,16 @@ fn drive_manual_integration(
                 state.interface_slomo_restored_seen = false;
                 state.interface_menu_open_seen = false;
                 state.interface_menu_closed_seen = false;
+                state.interface_overlay_rifle_seen = false;
+                state.interface_overlay_default_after_rifle_seen = false;
+                state.interface_overlay_reentry_seen = false;
                 state.coverage.hud_layout = false;
                 state.coverage.hud_toggle = false;
                 state.coverage.hud_slomo = false;
                 state.coverage.overlay_menu = false;
+                state.coverage.overlay_interface_binding = false;
+                state.coverage.overlay_interface_fallback = false;
+                state.coverage.overlay_interface_reentry = false;
                 state.coverage.show_debug = false;
                 state.coverage.debug_draw = false;
                 for category in DebugCategory::ALL {
@@ -2012,6 +2027,8 @@ fn drive_manual_integration(
                     );
                 }
                 state.interface_debug_armed = true;
+                *overlay = OverlayState::Default;
+                request.overlay_state = Some(OverlayState::Default);
                 info!(
                     "[MANUAL-INTEGRATION][INTERFACE] HUD, overlay menu, and show-debug probes armed"
                 );
@@ -2021,6 +2038,13 @@ fn drive_manual_integration(
             drive_key_interval(&mut keys, KeyCode::KeyZ, elapsed, 1.65, 1.95);
             drive_key_interval(&mut keys, KeyCode::KeyZ, elapsed, 2.25, 2.55);
             drive_key_interval(&mut keys, KeyCode::KeyQ, elapsed, 2.9, 3.9);
+            request.overlay_state = Some(
+                if (0.6..1.4).contains(&elapsed) || (2.6..3.4).contains(&elapsed) {
+                    OverlayState::Rifle
+                } else {
+                    OverlayState::Default
+                },
+            );
             if elapsed >= 5.0 {
                 keys.release(KeyCode::Tab);
                 keys.release(KeyCode::KeyZ);
@@ -3560,6 +3584,44 @@ fn observe_manual_integration(
         state.coverage.overlay_menu =
             state.interface_menu_open_seen && state.interface_menu_closed_seen;
 
+        let selector = graph_global_f32(player, "als_root_overlay_index");
+        let rifle_bound = *overlay == OverlayState::Rifle
+            && selector.is_some_and(|value| (value - 5.0).abs() <= 1e-4)
+            && overlay_object.is_some_and(|value| {
+                value.visible && value.applied_overlay == Some(OverlayState::Rifle)
+            });
+        let default_bound = *overlay == OverlayState::Default
+            && selector.is_some_and(|value| value.abs() <= 1e-4)
+            && overlay_object.is_none_or(|value| !value.visible);
+        if rifle_bound && !state.interface_overlay_rifle_seen {
+            info!(
+                "[MANUAL-INTEGRATION][ALI] selector=5 state=Rifle object_visible=true binding=PASS"
+            );
+        }
+        if state.interface_overlay_rifle_seen
+            && default_bound
+            && !state.interface_overlay_default_after_rifle_seen
+        {
+            info!(
+                "[MANUAL-INTEGRATION][ALI] selector=0 state=Default object_visible=false fallback=PASS"
+            );
+        }
+        if state.interface_overlay_default_after_rifle_seen
+            && rifle_bound
+            && !state.interface_overlay_reentry_seen
+        {
+            info!("[MANUAL-INTEGRATION][ALI] selector=5 state=Rifle reentry=PASS");
+        }
+        state.interface_overlay_rifle_seen |= rifle_bound;
+        state.interface_overlay_default_after_rifle_seen |=
+            state.interface_overlay_rifle_seen && default_bound;
+        state.interface_overlay_reentry_seen |=
+            state.interface_overlay_default_after_rifle_seen && rifle_bound;
+        state.coverage.overlay_interface_binding = state.interface_overlay_rifle_seen;
+        state.coverage.overlay_interface_fallback =
+            state.interface_overlay_default_after_rifle_seen;
+        state.coverage.overlay_interface_reentry = state.interface_overlay_reentry_seen;
+
         let all_debug_categories_active = DebugCategory::ALL
             .into_iter()
             .all(|category| interface.show_debug.is_active(category));
@@ -3790,6 +3852,18 @@ fn observe_manual_integration(
                 ("hud_toggle", coverage.hud_toggle),
                 ("hud_slomo", coverage.hud_slomo),
                 ("overlay_menu", coverage.overlay_menu),
+                (
+                    "overlay_interface_binding",
+                    coverage.overlay_interface_binding,
+                ),
+                (
+                    "overlay_interface_fallback",
+                    coverage.overlay_interface_fallback,
+                ),
+                (
+                    "overlay_interface_reentry",
+                    coverage.overlay_interface_reentry,
+                ),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
             ],
