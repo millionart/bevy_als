@@ -512,6 +512,87 @@ def resource_failures(root, session, properties):
     return failures
 
 
+def source_property_failures(name, properties):
+    failures = []
+    axis_contracts = {
+        "BS_Als_Air_Lean": [
+            ("Lean Right Amount", -1, 1, 2),
+            ("Lean Forward Amount", -1, 1, 2),
+            ("None", 0, 100, 4),
+        ],
+        "BS_Als_Lean": [
+            ("Lean Right Amount", -1, 1, 4),
+            ("Lean Forward Amount", -1, 1, 4),
+            ("None", 0, 100, 4),
+        ],
+        "BS_Als_Look": [
+            ("Pitch Angle", -90, 90, 4),
+            ("None", 0, 100, 4),
+            ("None", 0, 100, 4),
+        ],
+    }
+    walkrun_contract = [
+        ("Stride Amount", 0, 1, 1),
+        ("Walk Run Amount", 0, 1, 1),
+        ("None", 0, 100, 4),
+    ]
+    expected_axes = axis_contracts.get(name, walkrun_contract)
+    actual_axes = [
+        (axis["displayName"], axis["min"], axis["max"], axis["gridNum"])
+        for axis in properties["blendParameters"]
+    ]
+    if actual_axes != expected_axes:
+        failures.append("source axis contract differs")
+    expected_loop = name not in {"BS_Als_Air_Lean", "BS_Als_Lean", "BS_Als_Look"}
+    if properties["bLoop"] != expected_loop:
+        failures.append("source asset loop contract differs")
+    for key, expected in [
+        ("targetWeightInterpolationSpeedPerSec", 0),
+        ("bTargetWeightInterpolationEaseInOut", True),
+        ("bAllowMeshSpaceBlending", False),
+        ("bAllowMarkerBasedSync", True),
+        ("bShouldMatchSyncPhases", False),
+        ("bUseLegacySamplePointAnimationLengthCalculations", False),
+        ("notifyTriggerMode", "HighestWeightedAnimation"),
+        ("bInterpolateUsingGrid", False),
+        ("preferredTriangulationDirection", "Tangential"),
+        ("axisToScaleAnimation", "BSA_None"),
+    ]:
+        if properties[key] != expected:
+            failures.append(f"source asset property differs: {key}")
+    for sample in properties["sampleData"]:
+        if (
+            sample["rateScale"] != 1
+            or sample["bMirror"]
+            or sample["bUseSingleFrameForBlending"]
+            or sample["frameIndexToSample"] != 0
+            or not sample["bIncludeInAnalyseAll"]
+        ):
+            failures.append("source sample flags require an unsupported runtime mapping")
+    return failures
+
+
+def additive_failures(root, session, properties, graph_text):
+    failures = []
+    expected_nodes = {
+        "AAT_LocalSpaceBase": "ReferenceLocalDifferenceNode",
+        "AAT_RotationOffsetMeshSpace": "ReferenceMeshDifferenceNode",
+    }
+    for sample in properties["sampleData"]:
+        source = source_clip_properties(session, sample["animation"])
+        additive_type = source["additiveAnimType"]
+        if additive_type == "AAT_None":
+            continue
+        node = expected_nodes.get(additive_type)
+        reference = source.get("refPoseSeq")
+        if node is None or not isinstance(reference, dict):
+            failures.append(f"source additive mapping is unsupported: {additive_type}")
+            continue
+        if node not in graph_text or local_clip(reference) not in graph_text:
+            failures.append(f"runtime additive reference differs: {local_clip(sample['animation'])}")
+    return failures
+
+
 def source_sequence_metadata(source_root, animation):
     matches = list(source_root.rglob(f"{animation}.uasset"))
     if len(matches) != 1:
@@ -813,6 +894,16 @@ def compare(root, source_root, session, name, spec):
     else:
         failures = walkrun_graph_failures(root, source_root, properties, spec)
     failures.extend(resource_failures(root, session, properties))
+    failures.extend(source_property_failures(name, properties))
+    graph_paths = [spec["graph"]] if "graph" in spec else [entry["path"] for entry in spec["graphs"]]
+    failures.extend(
+        additive_failures(
+            root,
+            session,
+            properties,
+            "\n".join((root / path).read_text(encoding="utf-8") for path in graph_paths),
+        )
+    )
     if consumers != spec["consumers"]:
         failures.append("source consumer configuration differs")
     return {
