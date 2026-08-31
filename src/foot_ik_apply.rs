@@ -76,6 +76,7 @@ pub struct AlsFootIkSpaceSide {
     pub solver_reference_armature_local: Vec3,
     pub target_world: Vec3,
     pub resolved_target_world: Vec3,
+    pub resolved_knee_world: Vec3,
     pub target_armature_local: Vec3,
     pub target_parent_local: Vec3,
     pub target_bone_local: Vec3,
@@ -95,6 +96,11 @@ pub struct AlsFootIkApplyTelemetrySide {
     pub valid: bool,
     pub target_world: Vec3,
     pub effector_world: Vec3,
+    pub hip_world: Vec3,
+    pub knee_world: Vec3,
+    pub ankle_world: Vec3,
+    pub hip_error: f32,
+    pub knee_error: f32,
     pub effector_error: f32,
     pub pole_sign: f32,
     pub applied_weight: f32,
@@ -123,6 +129,12 @@ struct FootTraceSample {
     normal_world: WorldDirection,
     normal_armature: ArmatureDirection,
     raw_offset: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ResolvedFootTarget {
+    target_world: Vec3,
+    knee_world: Vec3,
 }
 
 impl Default for FootOffsetRotationState {
@@ -753,6 +765,7 @@ fn foot_ik_apply_system(
                 solver_reference_armature_local: solver_reference_armature.0,
                 target_world: target_world.0,
                 resolved_target_world: target_world.0,
+                resolved_knee_world: Vec3::ZERO,
                 target_armature_local: target_armature.0,
                 target_parent_local,
                 target_bone_local,
@@ -834,9 +847,11 @@ fn foot_ik_apply_system(
                 && let Ok(mut space_state) = space_states.get_mut(entity)
             {
                 if side == 0 {
-                    space_state.left.resolved_target_world = resolved_target;
+                    space_state.left.resolved_target_world = resolved_target.target_world;
+                    space_state.left.resolved_knee_world = resolved_target.knee_world;
                 } else {
-                    space_state.right.resolved_target_world = resolved_target;
+                    space_state.right.resolved_target_world = resolved_target.target_world;
+                    space_state.right.resolved_knee_world = resolved_target.knee_world;
                 }
             }
         }
@@ -900,6 +915,11 @@ fn foot_ik_post_apply_telemetry_system(
                             && pole.length_squared() > 1e-8,
                         target_world: space.resolved_target_world,
                         effector_world: foot.translation(),
+                        hip_world: hip.translation(),
+                        knee_world: knee.translation(),
+                        ankle_world: foot.translation(),
+                        hip_error: 0.0,
+                        knee_error: knee.translation().distance(space.resolved_knee_world),
                         effector_error: foot.translation().distance(space.resolved_target_world),
                         pole_sign,
                         applied_weight,
@@ -969,7 +989,7 @@ fn apply_chain_target(
     pelvis_world_offset: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-) -> Option<Vec3> {
+) -> Option<ResolvedFootTarget> {
     let weight = weight.clamp(0.0, 1.0);
     if weight <= 1e-4 {
         return None;
@@ -1057,7 +1077,10 @@ fn apply_chain_target(
     };
     let foot_target_local = foot_local_rotation(foot_parent_rotation, foot_world_rotation);
     foot_local.rotation = blend_ik_rotation(foot_local.rotation, foot_target_local, weight);
-    Some(target)
+    Some(ResolvedFootTarget {
+        target_world: target,
+        knee_world: solve.knee_position,
+    })
 }
 
 fn foot_local_rotation(parent_world_rotation: Quat, foot_world_rotation: Quat) -> Quat {

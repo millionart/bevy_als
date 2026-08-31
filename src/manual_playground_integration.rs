@@ -100,6 +100,9 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
 #[derive(Component)]
 struct ManualIntegrationPlatform;
 
+#[derive(Component)]
+struct ManualFootIkTerrain;
+
 #[derive(Resource)]
 struct ManualIntegrationFixture {
     platform: Entity,
@@ -119,6 +122,7 @@ enum IntegrationPhase {
     DirectionRegression,
     FootIkNoHit,
     FootIkWeightRamp,
+    FootIkTerrain,
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
@@ -369,6 +373,14 @@ struct IntegrationCoverage {
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
     foot_ik_weight_ramp: bool,
+    foot_ik_slope: bool,
+    foot_ik_step: bool,
+    foot_ik_crouching: bool,
+    foot_ik_jump_air: bool,
+    foot_ik_landed: bool,
+    foot_ik_roll: bool,
+    foot_ik_mantle: bool,
+    foot_ik_terrain_cleaned: bool,
     roll_started: bool,
     roll_slot: bool,
     ragdoll_entered: bool,
@@ -445,6 +457,7 @@ struct ManualIntegrationState {
     foot_ik_baseline_mask: u8,
     foot_ik_no_hit_logged: bool,
     foot_ik_weight_mask: u8,
+    foot_ik_terrain_air_seen: bool,
     crouch_recovery_jump_requested: bool,
     crouch_recovery_air_crouch_requested: bool,
     crouch_recovery_standing_requested: bool,
@@ -454,6 +467,8 @@ struct ManualIntegrationState {
     crouch_canopy: Option<Entity>,
     crouch_canopy_center: Option<Vec3>,
     crouch_canopy_armed_at: Option<Instant>,
+    foot_ik_slope: Option<Entity>,
+    foot_ik_step: Option<Entity>,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -507,6 +522,7 @@ impl Default for ManualIntegrationState {
             foot_ik_baseline_mask: 0,
             foot_ik_no_hit_logged: false,
             foot_ik_weight_mask: 0,
+            foot_ik_terrain_air_seen: false,
             crouch_recovery_jump_requested: false,
             crouch_recovery_air_crouch_requested: false,
             crouch_recovery_standing_requested: false,
@@ -516,6 +532,8 @@ impl Default for ManualIntegrationState {
             crouch_canopy: None,
             crouch_canopy_center: None,
             crouch_canopy_armed_at: None,
+            foot_ik_slope: None,
+            foot_ik_step: None,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -752,6 +770,7 @@ fn drive_manual_integration(
     };
     if Instant::now() >= state.deadline {
         cleanup_crouch_canopy(&mut commands, &mut state);
+        cleanup_foot_ik_terrain(&mut commands, &mut state);
         state.timed_out = true;
         virtual_time.set_relative_speed(1.0);
         begin_phase(&mut state, IntegrationPhase::Finish);
@@ -923,7 +942,101 @@ fn drive_manual_integration(
             if elapsed >= 4.75 {
                 foot_ik_weight_override.left = None;
                 foot_ik_weight_override.right = None;
-                begin_phase(&mut state, IntegrationPhase::Finish);
+                begin_phase(&mut state, IntegrationPhase::FootIkTerrain);
+            }
+        }
+        IntegrationPhase::FootIkTerrain => {
+            if entering {
+                cleanup_foot_ik_terrain(&mut commands, &mut state);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Walking;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Walking);
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                state.foot_ik_terrain_air_seen = false;
+                state.coverage.foot_ik_slope = false;
+                state.coverage.foot_ik_step = false;
+                state.coverage.foot_ik_crouching = false;
+                state.coverage.foot_ik_jump_air = false;
+                state.coverage.foot_ik_landed = false;
+                state.coverage.foot_ik_roll = false;
+                state.coverage.foot_ik_terrain_cleaned = false;
+                let forward = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::NEG_Z;
+                let ground_y = fixture.locomotion_start.y - 0.92;
+                let slope = commands
+                    .spawn((
+                        Name::new("manual_foot_ik_slope"),
+                        ManualFootIkTerrain,
+                        RigidBody::Static,
+                        Collider::cuboid(3.0, 0.12, 2.5),
+                        Transform::from_translation(
+                            fixture.locomotion_start
+                                + forward * 0.8
+                                + Vec3::Y * (ground_y + 0.20 - fixture.locomotion_start.y),
+                        )
+                        .with_rotation(Quat::from_rotation_x(-18.0_f32.to_radians()))
+                        .with_scale(Vec3::new(3.75, 0.18, 3.125)),
+                        Mesh3d(fixture.obstacle_mesh.clone()),
+                        MeshMaterial3d(fixture.obstacle_material.clone()),
+                    ))
+                    .id();
+                let step = commands
+                    .spawn((
+                        Name::new("manual_foot_ik_step"),
+                        ManualFootIkTerrain,
+                        RigidBody::Static,
+                        Collider::cuboid(1.6, 0.20, 1.5),
+                        Transform::from_translation(
+                            fixture.locomotion_start
+                                + forward * 3.5
+                                + Vec3::Y * (ground_y + 0.20 - fixture.locomotion_start.y),
+                        )
+                        .with_scale(Vec3::new(2.0, 0.25, 1.875)),
+                        Mesh3d(fixture.obstacle_mesh.clone()),
+                        MeshMaterial3d(fixture.obstacle_material.clone()),
+                    ))
+                    .id();
+                state.foot_ik_slope = Some(slope);
+                state.foot_ik_step = Some(step);
+                commands.entity(character).insert(AlsMantleControlSettings {
+                    allow_mantling: false,
+                    auto_start_in_air: false,
+                });
+                info!(
+                    "[MANUAL-INTEGRATION][FOOT-IK-TERRAIN] slope={slope:?} step={step:?} slope_center=({:.3},{:.3},{:.3}) step_center=({:.3},{:.3},{:.3})",
+                    fixture.locomotion_start.x + forward.x * 0.8,
+                    ground_y + 0.20,
+                    fixture.locomotion_start.z + forward.z * 0.8,
+                    fixture.locomotion_start.x + forward.x * 3.5,
+                    ground_y + 0.20,
+                    fixture.locomotion_start.z + forward.z * 3.5,
+                );
+            }
+            if (1.0..3.0).contains(&elapsed) || (3.2..4.2).contains(&elapsed) {
+                input.0.move_dir = Vec2::Y;
+            }
+            input.0.crouch_pressed = (3.0..3.2).contains(&elapsed) || (4.2..4.4).contains(&elapsed);
+            input.0.jump_pressed = (5.0..5.2).contains(&elapsed);
+            input.0.jump_held = (5.0..5.6).contains(&elapsed);
+            input.0.roll_pressed = (8.0..8.2).contains(&elapsed);
+            if elapsed >= 10.0 {
+                commands
+                    .entity(character)
+                    .remove::<AlsMantleControlSettings>();
+                cleanup_foot_ik_terrain(&mut commands, &mut state);
+                begin_phase(&mut state, IntegrationPhase::Mantle);
             }
         }
         IntegrationPhase::Locomotion => {
@@ -1260,7 +1373,11 @@ fn drive_manual_integration(
             input.0.move_dir = Vec2::Y;
             input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 7.0;
             if elapsed >= 10.0 {
-                begin_phase(&mut state, IntegrationPhase::Platform);
+                if state.scenario == IntegrationScenario::FootIk {
+                    begin_phase(&mut state, IntegrationPhase::Roll);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Platform);
+                }
             }
         }
         IntegrationPhase::Platform => {
@@ -1698,6 +1815,80 @@ fn cleanup_crouch_canopy(commands: &mut Commands, state: &mut ManualIntegrationS
     }
     state.crouch_canopy_center = None;
     state.crouch_canopy_armed_at = None;
+}
+
+fn cleanup_foot_ik_terrain(commands: &mut Commands, state: &mut ManualIntegrationState) {
+    let mut cleaned = false;
+    if let Some(entity) = state.foot_ik_slope.take() {
+        commands.entity(entity).despawn();
+        cleaned = true;
+    }
+    if let Some(entity) = state.foot_ik_step.take() {
+        commands.entity(entity).despawn();
+        cleaned = true;
+    }
+    if cleaned {
+        state.coverage.foot_ik_terrain_cleaned = true;
+        info!("[MANUAL-INTEGRATION][FOOT-IK-TERRAIN] cleaned");
+    }
+}
+
+fn log_foot_ik_stage(stage: &str, spaces: &AlsFootIkSpaceState, apply: &AlsFootIkApplyTelemetry) {
+    info!(
+        "[MANUAL-INTEGRATION][FOOT-IK-STAGE] stage={stage} left_target=({:.3},{:.3},{:.3}) left_armature=({:.3},{:.3},{:.3}) left_parent=({:.3},{:.3},{:.3}) left_bone=({:.3},{:.3},{:.3}) left_hip=({:.3},{:.3},{:.3}) left_knee=({:.3},{:.3},{:.3}) left_ankle=({:.3},{:.3},{:.3}) left_errors=({:.6},{:.6},{:.6}) left_pole={:.6} left_weight={:.3} right_target=({:.3},{:.3},{:.3}) right_armature=({:.3},{:.3},{:.3}) right_parent=({:.3},{:.3},{:.3}) right_bone=({:.3},{:.3},{:.3}) right_hip=({:.3},{:.3},{:.3}) right_knee=({:.3},{:.3},{:.3}) right_ankle=({:.3},{:.3},{:.3}) right_errors=({:.6},{:.6},{:.6}) right_pole={:.6} right_weight={:.3}",
+        spaces.left.resolved_target_world.x,
+        spaces.left.resolved_target_world.y,
+        spaces.left.resolved_target_world.z,
+        spaces.left.target_armature_local.x,
+        spaces.left.target_armature_local.y,
+        spaces.left.target_armature_local.z,
+        spaces.left.target_parent_local.x,
+        spaces.left.target_parent_local.y,
+        spaces.left.target_parent_local.z,
+        spaces.left.target_bone_local.x,
+        spaces.left.target_bone_local.y,
+        spaces.left.target_bone_local.z,
+        apply.left.hip_world.x,
+        apply.left.hip_world.y,
+        apply.left.hip_world.z,
+        apply.left.knee_world.x,
+        apply.left.knee_world.y,
+        apply.left.knee_world.z,
+        apply.left.ankle_world.x,
+        apply.left.ankle_world.y,
+        apply.left.ankle_world.z,
+        apply.left.hip_error,
+        apply.left.knee_error,
+        apply.left.effector_error,
+        apply.left.pole_sign,
+        apply.left.applied_weight,
+        spaces.right.resolved_target_world.x,
+        spaces.right.resolved_target_world.y,
+        spaces.right.resolved_target_world.z,
+        spaces.right.target_armature_local.x,
+        spaces.right.target_armature_local.y,
+        spaces.right.target_armature_local.z,
+        spaces.right.target_parent_local.x,
+        spaces.right.target_parent_local.y,
+        spaces.right.target_parent_local.z,
+        spaces.right.target_bone_local.x,
+        spaces.right.target_bone_local.y,
+        spaces.right.target_bone_local.z,
+        apply.right.hip_world.x,
+        apply.right.hip_world.y,
+        apply.right.hip_world.z,
+        apply.right.knee_world.x,
+        apply.right.knee_world.y,
+        apply.right.knee_world.z,
+        apply.right.ankle_world.x,
+        apply.right.ankle_world.y,
+        apply.right.ankle_world.z,
+        apply.right.hip_error,
+        apply.right.knee_error,
+        apply.right.effector_error,
+        apply.right.pole_sign,
+        apply.right.applied_weight,
+    );
 }
 
 fn graph_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
@@ -2297,10 +2488,6 @@ fn observe_manual_integration(
         && space.right.valid
         && apply.left.valid
         && apply.right.valid
-        && apply.left.applied_weight >= 0.99
-        && apply.right.applied_weight >= 0.99
-        && apply.left.effector_error <= 0.02
-        && apply.right.effector_error <= 0.02
         && telemetry.left.target_world.is_finite()
         && telemetry.right.target_world.is_finite()
         && telemetry.left.target_armature_local.is_finite()
@@ -2492,6 +2679,84 @@ fn observe_manual_integration(
                 state.coverage.foot_ik_weight_ramp =
                     state.foot_ik_weight_mask == FOOT_IK_WEIGHT_MASK;
             }
+        }
+    }
+    if state.scenario == IntegrationScenario::FootIk
+        && let Ok((_, spaces, apply)) = foot_ik_data.get(character)
+        && spaces.left.valid
+        && spaces.right.valid
+        && apply.left.valid
+        && apply.right.valid
+    {
+        if state.phase == IntegrationPhase::FootIkTerrain {
+            let stable = apply.left.applied_weight >= 0.99
+                && apply.right.applied_weight >= 0.99
+                && apply.left.effector_error <= 0.02
+                && apply.right.effector_error <= 0.02;
+            if stable
+                && (spaces.left.has_ground_hit || spaces.right.has_ground_hit)
+                && (spaces.left.normal_world.y < 0.995 || spaces.right.normal_world.y < 0.995)
+                && !state.coverage.foot_ik_slope
+            {
+                log_foot_ik_stage("slope", spaces, apply);
+                state.coverage.foot_ik_slope = true;
+            }
+            if stable
+                && state.phase_started.elapsed().as_secs_f32() >= 3.2
+                && ((spaces.left.has_ground_hit
+                    && spaces.left.hit_world.y > fixture.locomotion_start.y - 0.82)
+                    || (spaces.right.has_ground_hit
+                        && spaces.right.hit_world.y > fixture.locomotion_start.y - 0.82))
+                && !state.coverage.foot_ik_step
+            {
+                log_foot_ik_stage("step", spaces, apply);
+                state.coverage.foot_ik_step = true;
+            }
+            if stable && *stance == Stance::Crouching && !state.coverage.foot_ik_crouching {
+                log_foot_ik_stage("crouching", spaces, apply);
+                state.coverage.foot_ik_crouching = true;
+            }
+            if *locomotion == LocomotionState::Air {
+                state.foot_ik_terrain_air_seen = true;
+                if stable && !state.coverage.foot_ik_jump_air {
+                    log_foot_ik_stage("jump_air", spaces, apply);
+                    state.coverage.foot_ik_jump_air = true;
+                }
+            }
+            if state.foot_ik_terrain_air_seen
+                && *locomotion == LocomotionState::Grounded
+                && stable
+                && !state.coverage.foot_ik_landed
+            {
+                log_foot_ik_stage("landed", spaces, apply);
+                state.coverage.foot_ik_landed = true;
+            }
+            if roll.is_some_and(|roll| roll.active) && stable && !state.coverage.foot_ik_roll {
+                log_foot_ik_stage("roll", spaces, apply);
+                state.coverage.foot_ik_roll = true;
+            }
+        }
+        if state.phase == IntegrationPhase::Mantle
+            && mantle.is_some_and(|mantle| mantle.active)
+            && apply.left.applied_weight >= 0.99
+            && apply.right.applied_weight >= 0.99
+            && apply.left.effector_error <= 0.02
+            && apply.right.effector_error <= 0.02
+            && !state.coverage.foot_ik_mantle
+        {
+            log_foot_ik_stage("mantle", spaces, apply);
+            state.coverage.foot_ik_mantle = true;
+        }
+        if state.phase == IntegrationPhase::Roll
+            && roll.is_some_and(|roll| roll.active)
+            && apply.left.applied_weight >= 0.99
+            && apply.right.applied_weight >= 0.99
+            && apply.left.effector_error <= 0.02
+            && apply.right.effector_error <= 0.02
+            && !state.coverage.foot_ik_roll
+        {
+            log_foot_ik_stage("roll", spaces, apply);
+            state.coverage.foot_ik_roll = true;
         }
     }
     if let Some(base) = movement_base {
@@ -2759,6 +3024,14 @@ fn observe_manual_integration(
                     coverage.foot_ik_no_hit_recovered,
                 ),
                 ("foot_ik_weight_ramp", coverage.foot_ik_weight_ramp),
+                ("foot_ik_slope", coverage.foot_ik_slope),
+                ("foot_ik_step", coverage.foot_ik_step),
+                ("foot_ik_crouching", coverage.foot_ik_crouching),
+                ("foot_ik_jump_air", coverage.foot_ik_jump_air),
+                ("foot_ik_landed", coverage.foot_ik_landed),
+                ("foot_ik_roll", coverage.foot_ik_roll),
+                ("foot_ik_mantle", coverage.foot_ik_mantle),
+                ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
             ],
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
