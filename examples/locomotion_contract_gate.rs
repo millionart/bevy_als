@@ -222,6 +222,17 @@ fn labels(machine: &StateMachine) -> Vec<&str> {
     labels
 }
 
+fn state_positions_match(machine: &StateMachine, expected: &[(&str, (f32, f32))]) -> bool {
+    expected.iter().all(|(label, (x, y))| {
+        machine
+            .states
+            .values()
+            .find(|state| state.label == *label)
+            .and_then(|state| machine.editor_metadata.states.get(&state.id))
+            .is_some_and(|position| close(position.x, *x) && close(position.y, *y))
+    })
+}
+
 fn transition_count(
     machine: &StateMachine,
     source: &str,
@@ -494,6 +505,17 @@ fn verify_static(
             "Land Conduct",
             "Land Movement",
         ]
+        && state_positions_match(
+            fsm,
+            &[
+                ("Grounded", (176.0, 0.0)),
+                ("Fall", (768.0, -288.0)),
+                ("Jump", (576.0, -288.0)),
+                ("Land", (448.0, -64.0)),
+                ("Land Movement", (400.0, 64.0)),
+                ("Land Conduct", (656.0, 0.0)),
+            ],
+        )
         && fsm.transitions.len() == 16
         && transition_count(fsm, "Grounded", "Jump", Some(0.1)) == 1
         && transition_count(fsm, "Grounded", "Fall", Some(0.6)) == 1
@@ -515,6 +537,16 @@ fn verify_static(
         && node::<DirectTransitionEventNode>(jump, "jump transition driver")
             .is_some_and(|node| node.transitions.len() == 5)
         && labels(jump_fsm) == vec!["Entry Conduit", "Flail", "Left Foot", "Loop", "Right Foot"]
+        && state_positions_match(
+            jump_fsm,
+            &[
+                ("Entry Conduit", (176.0, 0.0)),
+                ("Left Foot", (416.0, -64.0)),
+                ("Right Foot", (416.0, 64.0)),
+                ("Loop", (640.0, 0.0)),
+                ("Flail", (816.0, 0.0)),
+            ],
+        )
         && jump_fsm.transitions.len() == 5
         && transition_count(jump_fsm, "Entry Conduit", "Right Foot", Some(0.2)) == 1
         && transition_count(jump_fsm, "Entry Conduit", "Left Foot", Some(0.2)) == 1
