@@ -57,6 +57,11 @@ pub fn angle_err(a: f32, b: f32) -> f32 {
     if d > 180.0 { 360.0 - d } else { d }
 }
 
+fn facing_tracks_velocity(rotation_mode: RotationMode, gait: Gait) -> bool {
+    rotation_mode == RotationMode::VelocityDirection
+        || (rotation_mode == RotationMode::ViewDirection && gait == Gait::Sprinting)
+}
+
 fn standing_movement_state_label(value: Option<u8>) -> &'static str {
     match value {
         Some(0) => "Forward",
@@ -290,7 +295,10 @@ fn anim_probe_logger(
         state.last_error_text = Some(err_text.clone());
         warn!("[PROBE][GRAPH_ERROR] {err_text}");
     }
-    if hspeed > 1.0 && angle_err(face, velyaw) > config.facing_mismatch_warn_deg {
+    if facing_tracks_velocity(*rot, *gait)
+        && hspeed > 1.0
+        && angle_err(face, velyaw) > config.facing_mismatch_warn_deg
+    {
         if !state.mismatch_warned {
             state.mismatch_warned = true;
             warn!(
@@ -298,7 +306,32 @@ fn anim_probe_logger(
                 angle_err(face, velyaw)
             );
         }
-    } else if hspeed <= 1.0 {
+    } else if hspeed <= 1.0 || !facing_tracks_velocity(*rot, *gait) {
         state.mismatch_warned = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn facing_probe_only_tracks_source_velocity_facing_modes() {
+        assert!(facing_tracks_velocity(
+            RotationMode::VelocityDirection,
+            Gait::Running,
+        ));
+        assert!(facing_tracks_velocity(
+            RotationMode::ViewDirection,
+            Gait::Sprinting,
+        ));
+        assert!(!facing_tracks_velocity(
+            RotationMode::ViewDirection,
+            Gait::Running,
+        ));
+        assert!(!facing_tracks_velocity(
+            RotationMode::Aiming,
+            Gait::Sprinting
+        ));
     }
 }

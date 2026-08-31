@@ -4,11 +4,11 @@ use std::{
 };
 
 use als_ext::{
-    AlsExtPlugin, ConstantF32Node, CubicVec2FilterNode, DirectTransitionEventNode, F32ToVec2Node,
-    GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode, InterruptibleFsmNode,
-    InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode, MultiWayBlendNode,
-    NormalizedBlendSpaceNode, ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode,
-    TimePositionNode, build_branch_bone_mask,
+    AlsExtPlugin, ConstantF32Node, CubicVec2AxisFilterNode, DirectTransitionEventNode,
+    F32ToVec2Node, GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode,
+    InterruptibleFsmNode, InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode,
+    MultiWayBlendNode, NormalizedBlendSpaceNode, ProfiledBlendNode, ResetOnActivationNode,
+    SyncGroupSampleNode, TimePositionNode, build_branch_bone_mask,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -304,6 +304,17 @@ fn labels_match(machine: &StateMachine, expected: &[&str]) -> bool {
     let mut expected = expected.to_vec();
     expected.sort_unstable();
     actual == expected
+}
+
+fn state_positions_match(machine: &StateMachine, expected: &[(&str, (f32, f32))]) -> bool {
+    expected.iter().all(|(label, (x, y))| {
+        machine
+            .states
+            .values()
+            .find(|state| state.label == *label)
+            .and_then(|state| machine.editor_metadata.states.get(&state.id))
+            .is_some_and(|position| close(position.x, *x) && close(position.y, *y))
+    })
 }
 
 fn state_uses_graph(machine: &StateMachine, label: &str, graph: &Handle<AnimationGraph>) -> bool {
@@ -900,6 +911,44 @@ fn verify_static_contract(
             "Run Start",
             "First Pivot",
         ],
+    ) && state_positions_match(
+        outer,
+        &[
+            ("Idle", (176.0, 0.0)),
+            ("Move", (-16.0, -128.0)),
+            ("Stop", (352.0, -128.0)),
+            ("Rotate Right", (352.0, 128.0)),
+            ("Rotate Left", (-48.0, 128.0)),
+        ],
+    ) && state_positions_match(
+        movement,
+        &[
+            ("Move Forward", (-48.0, 128.0)),
+            ("Move Backward", (-48.0, 592.0)),
+            ("Move Right Forward", (208.0, 256.0)),
+            ("Move Right Backward", (208.0, 464.0)),
+            ("Move Left Forward", (-336.0, 256.0)),
+            ("Move Left Backward", (-352.0, 464.0)),
+        ],
+    ) && state_positions_match(
+        details,
+        &[
+            ("Walk", (176.0, 0.0)),
+            ("Run", (672.0, 0.0)),
+            ("Second Pivot", (848.0, 128.0)),
+            ("Run Start From Walk", (368.0, 128.0)),
+            ("Run Start", (416.0, -128.0)),
+            ("First Pivot", (848.0, 0.0)),
+        ],
+    ) && state_positions_match(
+        stop,
+        &[
+            ("Entry", (176.0, 0.0)),
+            ("Lock Right Foot", (368.0, -64.0)),
+            ("Plant Right Foot", (368.0, 144.0)),
+            ("Lock Left Foot", (368.0, -144.0)),
+            ("Plant Left Foot", (368.0, 64.0)),
+        ],
     ) && has_outer_transition_contract(outer)
         && has_detail_transition_contract(details)
         && has_movement_transition_contract(movement)
@@ -960,8 +1009,9 @@ fn verify_static_contract(
             .count()
             == 26
         && has_node::<F32ToVec2Node>(cycle, "walk run blendspace position")
-        && node::<CubicVec2FilterNode>(cycle, "walk run cubic filter")
-            .is_some_and(|node| close(node.window_seconds, 0.4))
+        && node::<CubicVec2AxisFilterNode>(cycle, "walk run cubic axis filter").is_some_and(
+            |node| close(node.x_window_seconds, 0.2) && close(node.y_window_seconds, 0.4),
+        )
         && cycle
             .nodes
             .values()

@@ -30,7 +30,10 @@
         Passthrough("direction_index"): F32(0.0),
     },
     editor_metadata: (
-        node_positions: {},
+        node_positions: {
+            "150b0000-0000-4000-8000-000000000002": (-202.000, 388.000),
+            "150b0000-0000-4000-8000-000000000001": (149.000, 216.000),
+        },
         input_position: (0.0, 0.0),
         output_position: (320.0, 0.0),
         input_param_order: {},
