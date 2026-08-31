@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = ROOT / "target" / "bf109" / "source_native" / "AB_Als_Default.ue.json"
-DEFAULT_OUTPUT = ROOT / "assets" / "graphs" / "ab_als" / "overlays" / "default.source.json"
+DEFAULT_OUTPUT = ROOT / "docs" / "bf109" / "source_contracts" / "AB_Als_Default.source.json"
 
 
 def canonical_hash(value):

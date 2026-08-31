@@ -375,6 +375,14 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 
 - 源对象：`/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default`。
 - 原生读取：`tools/ue_graph_source_reader` 直接读取完整 Blueprint graph、node、pin、property、connection 与 asset object；原始输出位于 gitignored `target/bf109/source_native/AB_Als_Default.ue.json`，未提交 uasset。
-- 审计合同：`assets/graphs/ab_als/overlays/default.source.json`。保留当次完整原生 payload（8 graph、34 node、73 pin、100 asset object），并含 canonical source SHA-256。
+- 审计合同：`docs/bf109/source_contracts/AB_Als_Default.source.json`。保留当次完整原生 payload（8 graph、34 node、73 pin、100 asset object），并含 canonical source SHA-256；该审计文档不进入 AssetServer 扫描目录。
 - 目标位置合同：`tools/import/default_source_layout_map.json` 将 `Overlay` 的 53 个 Bevy graph node 逐一对齐到 source node / 明确的拆分或 collapse 规则；`AnimGraph` linked-layer consumer 与空 EventGraph 作为 graph-scope boundary 明确登记。
 - 验证：`tools/import/audit_default_overlay.py` 回读 source contract、直接原生输出、目标 RON 和 layout map，验证完整 payload hash、target node coverage、source node coverage、位置、explicit frame、FInterp、Secondary Motion 与 curve node；结果零差异。
+
+## BF109 AB_Als 根图原生合同（2026-09-01）
+
+- 源对象：`/ALS/ALS/Character/AB_Als.AB_Als`。
+- 原生读取：`tools/ue_graph_source_reader` 直接读取 root AnimBlueprint 的完整 graph、node、pin、property、connection 和 asset object；原始输出位于 gitignored `target/bf109/source_native/AB_Als.ue.json`，未提交 uasset。
+- 审计合同：`docs/bf109/source_contracts/AB_Als.source.json`。保留本次完整原生 payload（8 graph、43 node、44 pin、105 asset object）及 canonical source SHA-256，不进入 AssetServer 扫描目录。
+- 目标位置合同：`tools/import/ab_als_source_layout_map.json` 将 13 个 root runtime node 分别锚定到 source linked graph、slot、overlay/inertialization、ControlRig 或 Ragdolling node，明确记录 Grounded/Locomotion 的 source collapse 和 Overlay/EventGraph graph-scope boundary。
+- 验证：`tools/import/audit_ab_als_root.py` 回读 source contract、直接原生输出、目标 RON 和 layout map，验证完整 payload hash、source/target node coverage、position、slots、overlay inertialization、ControlRig boundary、linked graph 路由与输出；结果零差异。

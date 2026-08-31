@@ -17,7 +17,7 @@ from capture_animgraph_ron_topology import parse_positions
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = ROOT / "target" / "bf109" / "source_native" / "AB_Als_Default.ue.json"
-DEFAULT_CONTRACT = ROOT / "assets" / "graphs" / "ab_als" / "overlays" / "default.source.json"
+DEFAULT_CONTRACT = ROOT / "docs" / "bf109" / "source_contracts" / "AB_Als_Default.source.json"
 DEFAULT_TARGET = ROOT / "assets" / "graphs" / "ab_als" / "overlays" / "default.animgraph.ron"
 DEFAULT_MAPPING = ROOT / "tools" / "import" / "default_source_layout_map.json"
 DEFAULT_REPORT = ROOT / "target" / "bf109" / "audits" / "AB_Als_Default.audit.json"
