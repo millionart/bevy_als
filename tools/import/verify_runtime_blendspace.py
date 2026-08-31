@@ -295,6 +295,27 @@ SPECS = {
             },
         ],
     },
+    "BS_Als_Look": {
+        "source": "Animations/View/BS_Als_Look.uasset",
+        "blueprints": ["Character/AnimationInstances/AB_Als_Head.uasset"],
+        "graph": "assets/graphs/ab_als/head.animgraph.ron",
+        "route": "assets/graphs/ab_als/ab_als.animgraph.ron",
+        "roles": [
+            ("down", (-90.0, 0.0)),
+            ("forward", (0.0, 0.0)),
+            ("up", (90.0, 0.0)),
+        ],
+        "consumers": [
+            {
+                "kind": "evaluator",
+                "loop": True,
+                "play_rate": 1.0,
+                "start_position": 0.0,
+                "sync_group": "None",
+                "sync_method": "DoNotSync",
+            },
+        ],
+    },
 }
 
 
@@ -723,6 +744,49 @@ def walkrun_graph_failures(root, source_root, properties, spec):
     return failures
 
 
+def look_graph_failures(root, properties, spec):
+    failures = []
+    graph = (root / spec["graph"]).read_text(encoding="utf-8")
+    samples = required_sample_map(properties, spec["roles"])
+    for role, point in spec["roles"]:
+        clip_line = next(
+            (line for line in graph.splitlines() if f'name: "look {role} clip"' in line),
+            "",
+        )
+        if samples[role] not in clip_line:
+            failures.append(f"runtime graph clip {role} differs")
+        evaluator_line = next(
+            (line for line in graph.splitlines() if f'name: "look {role} evaluator"' in line),
+            "",
+        )
+        if "TimePositionNode" not in evaluator_line or "loop_position: false" not in evaluator_line:
+            failures.append(f"runtime graph evaluator {role} differs")
+        point_pattern = rf'id:\s*"{role}"\s*,\s*position:\s*{point[0]:g}(?:\.0)?'
+        if not re.search(point_pattern, graph):
+            failures.append(f"runtime graph point {role} differs")
+    if "BlendSpace1DNode" not in graph:
+        failures.append("runtime graph blendspace node differs")
+    for key in ["als_head_pitch_angle", "als_head_yaw_amount"]:
+        if key not in graph:
+            failures.append(f"runtime graph input differs: {key}")
+    root_graph = (root / spec["route"]).read_text(encoding="utf-8")
+    if "head.animgraph.ron" not in root_graph:
+        failures.append("runtime head route differs")
+    writer = (root / "src/head_layer.rs").read_text(encoding="utf-8")
+    for fragment in [
+        "(\"als_head_pitch_angle\", state.pitch_angle)",
+        "(\"als_head_yaw_amount\", state.yaw_amount)",
+    ]:
+        if fragment not in writer:
+            failures.append(f"runtime head writer differs: {fragment}")
+    axis = properties["blendParameters"][0]
+    if (axis["displayName"], axis["min"], axis["max"]) != ("Pitch Angle", -90, 90):
+        failures.append("source pitch axis differs")
+    if any(entry["interpolationTime"] != 0 for entry in properties["interpolationParam"][:1]):
+        failures.append("source pitch smoothing is not represented by runtime head graph")
+    return failures
+
+
 def compare(root, source_root, session, name, spec):
     properties = source_properties(session, name, spec)
     consumers = source_consumers(source_root, name, spec)
@@ -730,6 +794,8 @@ def compare(root, source_root, session, name, spec):
         failures = graph_failures(root, properties, spec)
     elif name == "BS_Als_Lean":
         failures = lean_graph_failures(root, properties, spec)
+    elif name == "BS_Als_Look":
+        failures = look_graph_failures(root, properties, spec)
     else:
         failures = walkrun_graph_failures(root, source_root, properties, spec)
     failures.extend(resource_failures(root, session, properties))
