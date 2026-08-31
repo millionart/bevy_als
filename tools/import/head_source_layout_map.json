@@ -1,0 +1,6 @@
+{
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head",
+  "graphs": [
+    {"target": "head.animgraph.ron", "source_suffix": "AnimGraph"}
+  ]
+}
