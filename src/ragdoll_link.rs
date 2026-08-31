@@ -9,6 +9,7 @@ use als_core::state::{LocomotionState, Stance};
 use als_ext::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
+use als_ext::{RagdollActiveMode, RagdollPhysicsProfileSet};
 use avian3d::prelude::{
     AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
     RigidBody, Rotation, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
@@ -21,7 +22,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, SpawnedRagdoll};
 use bevy_animation_graph::core::ragdoll::{
-    definition::BodyLabel,
+    definition::{BodyLabel, BodyMode},
     relative_kinematic_body::{RelativeKinematicBody, RelativeKinematicBodyPositionBased},
 };
 use bevy_tnua::TnuaToggle;
@@ -30,7 +31,8 @@ use crate::character_assembly::AlsCharacterAvatar;
 
 const PELVIS_LABEL: &str = "pelvis";
 pub const RAGDOLL_REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
-pub const RAGDOLL_ANGULAR_STIFFNESS: f32 = 25_000.0;
+pub const RAGDOLL_ANGULAR_STIFFNESS: f32 = 50.0;
+pub const RAGDOLL_ANGULAR_DAMPING: f32 = 1.0;
 const RAGDOLL_UE_STIFFNESS_TO_AVIAN_TORQUE: f32 = 0.0001;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
@@ -73,8 +75,8 @@ pub fn ragdoll_joint_drive_for_speed(speed_meters_per_second: f32) -> AlsRagdoll
         (speed_meters_per_second / RAGDOLL_REFERENCE_SPEED_METERS_PER_SECOND).clamp(0.0, 1.0);
     AlsRagdollJointDrive {
         speed_amount,
-        angular_stiffness: speed_amount * RAGDOLL_ANGULAR_STIFFNESS,
-        angular_damping: 0.0,
+        angular_stiffness: RAGDOLL_ANGULAR_STIFFNESS,
+        angular_damping: RAGDOLL_ANGULAR_DAMPING,
         angular_force_limit: 0.0,
         target_joint_count: 0,
         driven_joint_count: 0,
@@ -83,6 +85,10 @@ pub fn ragdoll_joint_drive_for_speed(speed_meters_per_second: f32) -> AlsRagdoll
 
 pub fn ragdoll_torque_stiffness(angular_stiffness: f32) -> f32 {
     angular_stiffness.max(0.0) * RAGDOLL_UE_STIFFNESS_TO_AVIAN_TORQUE
+}
+
+pub fn ragdoll_torque_damping(angular_damping: f32) -> f32 {
+    angular_damping.max(0.0) * RAGDOLL_UE_STIFFNESS_TO_AVIAN_TORQUE
 }
 
 pub fn ragdoll_exit_route(grounded: bool, ragdoll_velocity: Vec3) -> (LocomotionState, Vec3) {
@@ -114,7 +120,9 @@ impl Plugin for AlsRagdollLinkPlugin {
         .add_systems(
             FixedPostUpdate,
             (
-                sync_ragdoll_body_modes.after(AnimationGraphSet::PrePhysics),
+                sync_ragdoll_body_modes
+                    .after(AnimationGraphSet::PrePhysics)
+                    .after(RagdollPhysicsProfileSet),
                 ragdoll_joint_drive_adapter_system,
                 ApplyDeferred,
             )
@@ -187,6 +195,7 @@ fn sync_ragdoll_body_modes(
     mut bodies: Query<(
         Entity,
         &RigidBody,
+        Option<&RagdollActiveMode>,
         &mut Position,
         &mut Rotation,
         &mut LinearVelocity,
@@ -218,6 +227,7 @@ fn sync_ragdoll_body_modes(
             let Ok((
                 entity,
                 mode,
+                active_mode,
                 mut position,
                 mut rotation,
                 mut linear_velocity,
@@ -254,8 +264,12 @@ fn sync_ragdoll_body_modes(
                     angular_velocity.0 = Vec3::ZERO;
                     commands.entity(entity).insert(AlsRagdollPhysicsActive);
                 }
-                if *mode != RigidBody::Dynamic {
-                    commands.entity(entity).insert(RigidBody::Dynamic);
+                let target_mode = match active_mode.map(|mode| mode.0) {
+                    Some(BodyMode::Kinematic) => RigidBody::Kinematic,
+                    Some(BodyMode::Dynamic) | None => RigidBody::Dynamic,
+                };
+                if *mode != target_mode {
+                    commands.entity(entity).insert(target_mode);
                 }
                 continue;
             }
@@ -318,11 +332,16 @@ fn ragdoll_joint_drive_adapter_system(
                 }
             }
             let torque_stiffness = ragdoll_torque_stiffness(drive.angular_stiffness);
+            let torque_damping = ragdoll_torque_damping(drive.angular_damping);
             if let Ok(mut angular_drive) = angular_drives.get_mut(player_entity) {
                 angular_drive.torque_stiffness = torque_stiffness;
+                angular_drive.torque_damping = torque_damping;
             } else {
                 commands.entity(player_entity).insert((
-                    RagdollAngularDrive { torque_stiffness },
+                    RagdollAngularDrive {
+                        torque_stiffness,
+                        torque_damping,
+                    },
                     RagdollAngularDriveMetrics::default(),
                 ));
             }
@@ -775,20 +794,22 @@ mod tests {
     }
 
     #[test]
-    fn joint_drive_scales_source_stiffness_with_pelvis_speed() {
+    fn joint_drive_uses_source_constraint_drive_values() {
         let idle = ragdoll_joint_drive_for_speed(0.0);
         let half = ragdoll_joint_drive_for_speed(5.0);
         let full = ragdoll_joint_drive_for_speed(10.0);
         let torque_stiffness = ragdoll_torque_stiffness(full.angular_stiffness);
+        let torque_damping = ragdoll_torque_damping(full.angular_damping);
         let passed = idle.speed_amount <= 1e-6
-            && idle.angular_stiffness <= 1e-6
             && (half.speed_amount - 0.5).abs() <= 1e-6
-            && (half.angular_stiffness - 12_500.0).abs() <= 1e-3
             && (full.speed_amount - 1.0).abs() <= 1e-6
-            && (full.angular_stiffness - RAGDOLL_ANGULAR_STIFFNESS).abs() <= 1e-3
-            && full.angular_damping <= 1e-6
+            && (idle.angular_stiffness - 50.0).abs() <= 1e-6
+            && (half.angular_stiffness - 50.0).abs() <= 1e-6
+            && (full.angular_stiffness - 50.0).abs() <= 1e-6
+            && (full.angular_damping - 1.0).abs() <= 1e-6
             && full.angular_force_limit <= 1e-6
-            && (torque_stiffness - 2.5).abs() <= 1e-3;
+            && (torque_stiffness - 0.005).abs() <= 1e-6
+            && (torque_damping - 0.0001).abs() <= 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.51][VERDICT] idle={:.3} half={:.3}/{:.1} full={:.3}/{:.1} torque_stiffness={torque_stiffness:.3} -> {verdict}",

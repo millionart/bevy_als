@@ -25,6 +25,7 @@ pub mod motion_graph_link;
 pub mod overlay_layer;
 pub mod overlay_mode_menu;
 pub mod overlay_object;
+pub mod pa_als;
 pub mod playable_character;
 pub mod player_start;
 pub mod playground_collision;

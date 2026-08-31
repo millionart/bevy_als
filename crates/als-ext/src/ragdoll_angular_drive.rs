@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use avian3d::prelude::{
-    Forces, PhysicsSystems, RevoluteJoint, RigidBody, Rotation, SphericalJoint,
+    AngularVelocity, Forces, PhysicsSystems, RevoluteJoint, RigidBody, Rotation, SphericalJoint,
     WriteRigidBodyForces,
 };
 use bevy::prelude::*;
@@ -8,9 +10,12 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::relative_kinematic_body::RelativeKinematicBodyPositionBased;
 use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 
+use crate::ragdoll_physics_profile::RagdollPhysicsProfileSet;
+
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct RagdollAngularDrive {
     pub torque_stiffness: f32,
+    pub torque_damping: f32,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -30,6 +35,7 @@ impl Plugin for RagdollAngularDrivePlugin {
             FixedPostUpdate,
             RagdollAngularDriveSet
                 .after(AnimationGraphSet::PrePhysics)
+                .after(RagdollPhysicsProfileSet)
                 .before(PhysicsSystems::First),
         )
         .add_systems(
@@ -42,11 +48,16 @@ impl Plugin for RagdollAngularDrivePlugin {
 pub fn angular_drive_torque(
     parent_rotation: Quat,
     child_rotation: Quat,
+    parent_angular_velocity: Vec3,
+    child_angular_velocity: Vec3,
     target_parent_rotation: Quat,
     target_child_rotation: Quat,
     torque_stiffness: f32,
+    torque_damping: f32,
 ) -> Vec3 {
-    if torque_stiffness <= 0.0 || !torque_stiffness.is_finite() {
+    if (!torque_stiffness.is_finite() || torque_stiffness <= 0.0)
+        && (!torque_damping.is_finite() || torque_damping <= 0.0)
+    {
         return Vec3::ZERO;
     }
     let current_relative = (parent_rotation.conjugate() * child_rotation).normalize();
@@ -56,7 +67,17 @@ pub fn angular_drive_torque(
     if !axis.is_finite() || !angle.is_finite() {
         return Vec3::ZERO;
     }
-    parent_rotation * axis * (angle * torque_stiffness)
+    let spring = if torque_stiffness > 0.0 {
+        parent_rotation * axis * (angle * torque_stiffness)
+    } else {
+        Vec3::ZERO
+    };
+    let damping = if torque_damping > 0.0 {
+        -(child_angular_velocity - parent_angular_velocity) * torque_damping
+    } else {
+        Vec3::ZERO
+    };
+    spring + damping
 }
 
 fn target_world_rotation(
@@ -91,22 +112,36 @@ pub fn apply_ragdoll_angular_drive(
         Option<&mut RagdollAngularDriveMetrics>,
     )>,
     joints: Query<(Option<&SphericalJoint>, Option<&RevoluteJoint>)>,
-    mut bodies: Query<(
-        &Rotation,
-        &RelativeKinematicBodyPositionBased,
-        &RigidBody,
-        Forces,
+    mut physics: ParamSet<(
+        Query<(
+            &Rotation,
+            &RelativeKinematicBodyPositionBased,
+            &RigidBody,
+            Forces,
+        )>,
+        Query<&AngularVelocity>,
     )>,
     rotations: Query<&Rotation>,
 ) {
     for (player_entity, player, drive, metrics) in &mut players {
         let mut next_metrics = RagdollAngularDriveMetrics::default();
         if let Some(spawned) = player.get_spawned_ragdoll() {
+            let angular_velocities = {
+                let query = physics.p1();
+                spawned
+                    .bodies
+                    .values()
+                    .filter_map(|entity| query.get(*entity).ok().map(|value| (*entity, value.0)))
+                    .collect::<HashMap<_, _>>()
+            };
+            let mut bodies = physics.p0();
             apply_drive_to_spawned_ragdoll(
                 spawned,
                 drive.torque_stiffness,
+                drive.torque_damping,
                 &joints,
                 &mut bodies,
+                &angular_velocities,
                 &rotations,
                 &mut next_metrics,
             );
@@ -122,6 +157,7 @@ pub fn apply_ragdoll_angular_drive(
 fn apply_drive_to_spawned_ragdoll(
     spawned: &SpawnedRagdoll,
     torque_stiffness: f32,
+    torque_damping: f32,
     joints: &Query<(Option<&SphericalJoint>, Option<&RevoluteJoint>)>,
     bodies: &mut Query<(
         &Rotation,
@@ -129,6 +165,7 @@ fn apply_drive_to_spawned_ragdoll(
         &RigidBody,
         Forces,
     )>,
+    angular_velocities: &HashMap<Entity, Vec3>,
     rotations: &Query<&Rotation>,
     metrics: &mut RagdollAngularDriveMetrics,
 ) {
@@ -137,6 +174,12 @@ fn apply_drive_to_spawned_ragdoll(
             continue;
         };
         let Some((body1, body2)) = joint_bodies(spherical, revolute) else {
+            continue;
+        };
+        let (Some(angular_velocity1), Some(angular_velocity2)) = (
+            angular_velocities.get(&body1),
+            angular_velocities.get(&body2),
+        ) else {
             continue;
         };
         let Ok(
@@ -161,9 +204,12 @@ fn apply_drive_to_spawned_ragdoll(
         let torque = angular_drive_torque(
             rotation1.0,
             rotation2.0,
+            *angular_velocity1,
+            *angular_velocity2,
             target_rotation1,
             target_rotation2,
             torque_stiffness,
+            torque_damping,
         );
         if torque.length_squared() <= 1e-8 {
             continue;
@@ -183,9 +229,12 @@ mod tests {
         let torque = angular_drive_torque(
             Quat::IDENTITY,
             Quat::IDENTITY,
+            Vec3::ZERO,
+            Vec3::ZERO,
             Quat::IDENTITY,
             Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
             2.0,
+            0.0,
         );
         let expected = std::f32::consts::FRAC_PI_2 * 2.0;
         assert!((torque.y - expected).abs() <= 1e-3);

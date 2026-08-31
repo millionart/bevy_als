@@ -9,12 +9,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
+                        uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.695389, 0.000080, -0.718634, -0.000030),
-                        translation: (-0.1045, 0.0008016, 0.1658),
+                        rotation: (8.01185608e-05, -0.718633787, -2.96101677e-05, 0.695388721),
+                        translation: (-0.104538383, 0.000801579932, 0.165778525),
                     ),
                     override_offset: false,
                 ),
@@ -30,12 +30,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+                        uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.695389, 0.000080, -0.718634, -0.000030),
-                        translation: (0.1045, -0.0008016, -0.1658),
+                        rotation: (8.00001772e-05, -0.718633709, -2.95002743e-05, 0.695388801),
+                        translation: (0.104538081, -0.000801628776, -0.165777849),
                     ),
                     override_offset: false,
                 ),
@@ -51,12 +51,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "921b76d3-4d4f-472a-bdd6-37bf50aa0a1a",
+                        uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-4.944e-17, 4.77e-18, -3.469e-18),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-4.94396191e-17, 4.77048956e-18, -3.46944695e-18),
                     ),
                     override_offset: false,
                 ),
@@ -72,12 +72,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "10235ac1-ab0b-497a-8df3-d0d2b27d8b30",
+                        uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-1.865e-17, -1.323e-17, 0.0),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-1.86482774e-17, -1.32272665e-17, 0),
                     ),
                     override_offset: false,
                 ),
@@ -93,12 +93,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                        uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.639660, 0.208917, 0.123044, -0.729416),
-                        translation: (0.1188, -0.03782, 0.02732),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-3.46944695e-18, 1.30104261e-17, 1.16043514e-19),
                     ),
                     override_offset: false,
                 ),
@@ -114,12 +114,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                        uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.123044, 0.729417, -0.639660, 0.208918),
-                        translation: (0.1188, 0.03782, 0.02732),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-1.21430643e-17, 7.19910243e-17, -2.38228016e-19),
                     ),
                     override_offset: false,
                 ),
@@ -135,12 +135,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
+                        uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (3.686e-18, -1.691e-17, -6.288e-18),
+                        rotation: (0, 0, 0, 1),
+                        translation: (3.68628739e-18, 1.08420217e-17, -6.2883726e-18),
                     ),
                     override_offset: false,
                 ),
@@ -156,12 +156,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+                        uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (2.602e-18, 4.77e-18, -1.301e-18),
+                        rotation: (0, 0, 0, 1),
+                        translation: (2.60208521e-18, 4.77048956e-18, -1.30104261e-18),
                     ),
                     override_offset: false,
                 ),
@@ -177,12 +177,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "f83b7f81-bfa2-48f0-b680-16e5fbe8ba0a",
+                        uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-6.072e-18, 1.301e-18, 1.064e-16),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-6.07153217e-18, 1.30104261e-18, 1.06387338e-16),
                     ),
                     override_offset: false,
                 ),
@@ -198,12 +198,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0f622314-ed7b-48df-a3a9-8feb594d37d6",
+                        uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (3.036e-18, -1.301e-18, 1.516e-16),
+                        rotation: (0, 0, 0, 1),
+                        translation: (3.03576608e-18, -1.30104261e-18, -7.04189311e-17),
                     ),
                     override_offset: false,
                 ),
@@ -219,12 +219,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
+                        uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-3.94e-17, 0.0, 0.0),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-3.94035581e-17, 0, 0),
                     ),
                     override_offset: false,
                 ),
@@ -240,12 +240,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0b37ee7c-0135-456e-adf7-074bf9bb7fc7",
+                        uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (0.0, 6.939e-18, 2.776e-17),
+                        rotation: (0, 0, 0, 1),
+                        translation: (0, 6.9388939e-18, -2.77555756e-17),
                     ),
                     override_offset: false,
                 ),
@@ -261,12 +261,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "aeebe729-5020-46ee-9181-9801351a9598",
+                        uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (0.0, 1.284e-16, -1.388e-17),
+                        rotation: (0, 0, 0, 1),
+                        translation: (0, -9.36750677e-17, -1.38777878e-17),
                     ),
                     override_offset: false,
                 ),
@@ -282,12 +282,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
+                        uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.991043, 0.000000, -0.133542, 0.000000),
-                        translation: (-0.09049, 1.61e-07, -0.02106),
+                        rotation: (0, 0, 0, 1),
+                        translation: (7.1091112e-17, 6.6174449e-24, -2.08166817e-17),
                     ),
                     override_offset: false,
                 ),
@@ -303,12 +303,33 @@
             bodies: [
                 (
                     body: (
-                        uuid: "bffeec10-9ae0-4466-961a-4a66b31fbae8",
+                        uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (5.056e-17, 3.309e-24, -4.337e-19),
+                        rotation: (0, 0, 0, 1),
+                        translation: (5.05624981e-17, 3.30872245e-24, -4.33680869e-19),
+                    ),
+                    override_offset: false,
+                ),
+            ],
+            created_from: None,
+        ),
+        [
+            "GltfNode0", "root",
+        ]: (
+            bone_id: [
+                "GltfNode0", "root",
+            ],
+            bodies: [
+                (
+                    body: (
+                        uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+                    ),
+                    weight: 1.0,
+                    offset: (
+                        rotation: (0, 0, 0, 1),
+                        translation: (0, 0, 0),
                     ),
                     override_offset: false,
                 ),
@@ -324,12 +345,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "8bc2b745-cacb-4e97-8b09-8a8253a36cf3",
+                        uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (1.965e-16, 0.0, -1.149e-17),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-2.55759542e-17, 0, -1.1492543e-17),
                     ),
                     override_offset: false,
                 ),
@@ -345,12 +366,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                        uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (0.999706, -0.000000, -0.024253, 0.000000),
-                        translation: (-0.1341, 4.524e-08, -0.002302),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-8.30682904e-17, 0, 1.04083409e-17),
                     ),
                     override_offset: false,
                 ),
@@ -366,12 +387,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
+                        uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (1.174e-16, 0.0, -6.939e-18),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-1.04601837e-16, 0, -6.9388939e-18),
                     ),
                     override_offset: false,
                 ),
@@ -387,12 +408,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "8e596cd1-17a4-497a-9804-6c09f160bf5d",
+                        uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-4.274e-17, -1.453e-17, 0.0),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-4.27446707e-17, 1.32272665e-17, 0),
                     ),
                     override_offset: false,
                 ),
@@ -408,12 +429,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "c01e72a9-0495-4ef4-bfc9-b31a4558d233",
+                        uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-3.188e-17, 1.29e-17, 0.0),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-3.18755439e-17, 1.29020059e-17, 0),
                     ),
                     override_offset: false,
                 ),
@@ -429,12 +450,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "b3be27f6-f4ed-4522-940f-5bdf74694917",
+                        uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (7.893e-17, -9.541e-18, -1.214e-17),
+                        rotation: (0, 0, 0, 1),
+                        translation: (7.89299182e-17, -9.54097912e-18, -1.21430643e-17),
                     ),
                     override_offset: false,
                 ),
@@ -450,12 +471,12 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0ce0cf1f-fc73-4e2b-8a9d-409490c00960",
+                        uuid: "367842ee-4385-5275-b427-77fe8145715c",
                     ),
                     weight: 1.0,
                     offset: (
-                        rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                        translation: (-6.939e-18, 6.809e-17, -1.041e-17),
+                        rotation: (0, 0, 0, 1),
+                        translation: (-6.9388939e-18, 6.80878964e-17, -1.04083409e-17),
                     ),
                     override_offset: false,
                 ),
@@ -465,288 +486,378 @@
     },
     bodies_from_bones: {
         (
-            uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
+            uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
         ): (
             body_id: (
-                uuid: "0e67efb2-7c0a-4a3e-8dcc-d966ed9116fa",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "head",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (3.94e-17, -2.499e-27, -2.166e-25),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
-        ): (
-            body_id: (
-                uuid: "b1a3b358-bfae-42f4-93cb-d787a2249df0",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-1.174e-16, 4.912e-25, 6.939e-18),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "8bc2b745-cacb-4e97-8b09-8a8253a36cf3",
-        ): (
-            body_id: (
-                uuid: "8bc2b745-cacb-4e97-8b09-8a8253a36cf3",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-1.965e-16, 2.629e-26, 1.149e-17),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "bffeec10-9ae0-4466-961a-4a66b31fbae8",
-        ): (
-            body_id: (
-                uuid: "bffeec10-9ae0-4466-961a-4a66b31fbae8",
+                uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
             ),
             bone: (
                 bone: [
                     "GltfNode0", "root", "pelvis",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-5.056e-17, -3.309e-24, 4.337e-19),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "b3be27f6-f4ed-4522-940f-5bdf74694917",
+            uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
         ): (
             body_id: (
-                uuid: "b3be27f6-f4ed-4522-940f-5bdf74694917",
+                uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
             ),
             bone: (
                 bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l",
+                    "GltfNode0", "root", "pelvis", "spine_01",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-7.893e-17, 9.541e-18, 1.214e-17),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "0b37ee7c-0135-456e-adf7-074bf9bb7fc7",
+            uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
         ): (
             body_id: (
-                uuid: "0b37ee7c-0135-456e-adf7-074bf9bb7fc7",
+                uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
             ),
             bone: (
                 bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l", "lowerarm_l",
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-9.185e-24, -6.939e-18, -2.776e-17),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "f83b7f81-bfa2-48f0-b680-16e5fbe8ba0a",
+            uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
         ): (
             body_id: (
-                uuid: "f83b7f81-bfa2-48f0-b680-16e5fbe8ba0a",
+                uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
             ),
             bone: (
                 bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (6.071e-18, -1.301e-18, -1.064e-16),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "0ce0cf1f-fc73-4e2b-8a9d-409490c00960",
+            uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
         ): (
             body_id: (
-                uuid: "0ce0cf1f-fc73-4e2b-8a9d-409490c00960",
+                uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
             ),
             bone: (
                 bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r",
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "neck_01",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (6.939e-18, -6.809e-17, 1.041e-17),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "aeebe729-5020-46ee-9181-9801351a9598",
+            uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
         ): (
             body_id: (
-                uuid: "aeebe729-5020-46ee-9181-9801351a9598",
+                uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
             ),
             bone: (
                 bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r", "lowerarm_r",
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "head",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-4.107e-23, -1.284e-16, 1.388e-17),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "0f622314-ed7b-48df-a3a9-8feb594d37d6",
+            uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
         ): (
             body_id: (
-                uuid: "0f622314-ed7b-48df-a3a9-8feb594d37d6",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-3.036e-18, 1.301e-18, -1.516e-16),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "8e596cd1-17a4-497a-9804-6c09f160bf5d",
-        ): (
-            body_id: (
-                uuid: "8e596cd1-17a4-497a-9804-6c09f160bf5d",
+                uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
             ),
             bone: (
                 bone: [
                     "GltfNode0", "root", "pelvis", "thigh_l",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (4.274e-17, 1.453e-17, 2.362e-24),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "921b76d3-4d4f-472a-bdd6-37bf50aa0a1a",
+            uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
         ): (
             body_id: (
-                uuid: "921b76d3-4d4f-472a-bdd6-37bf50aa0a1a",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "thigh_l", "calf_l",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (4.944e-17, -4.77e-18, 3.469e-18),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
-        ): (
-            body_id: (
-                uuid: "cea101aa-2e44-45a9-b46f-738469bda6f9",
-            ),
-            bone: (
-                bone: [
-                    "GltfNode0", "root", "pelvis", "thigh_l", "calf_l", "foot_l",
-                ],
-                offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-3.686e-18, 1.691e-17, 6.288e-18),
-                ),
-                override_offset: false,
-            ),
-            created_from: None,
-        ),
-        (
-            uuid: "c01e72a9-0495-4ef4-bfc9-b31a4558d233",
-        ): (
-            body_id: (
-                uuid: "c01e72a9-0495-4ef4-bfc9-b31a4558d233",
+                uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
             ),
             bone: (
                 bone: [
                     "GltfNode0", "root", "pelvis", "thigh_r",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (3.188e-17, -1.29e-17, 6.44e-25),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "10235ac1-ab0b-497a-8df3-d0d2b27d8b30",
+            uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
         ): (
             body_id: (
-                uuid: "10235ac1-ab0b-497a-8df3-d0d2b27d8b30",
+                uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "thigh_l", "calf_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+        ): (
+            body_id: (
+                uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
             ),
             bone: (
                 bone: [
                     "GltfNode0", "root", "pelvis", "thigh_r", "calf_r",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (1.865e-17, 1.323e-17, -4.245e-26),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),
             created_from: None,
         ),
         (
-            uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+            uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
         ): (
             body_id: (
-                uuid: "4a46a9f2-e42b-447b-9227-1abb88bf8de3",
+                uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+        ): (
+            body_id: (
+                uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+        ): (
+            body_id: (
+                uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "367842ee-4385-5275-b427-77fe8145715c",
+        ): (
+            body_id: (
+                uuid: "367842ee-4385-5275-b427-77fe8145715c",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+        ): (
+            body_id: (
+                uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l", "lowerarm_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+        ): (
+            body_id: (
+                uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r", "lowerarm_r",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+        ): (
+            body_id: (
+                uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+        ): (
+            body_id: (
+                uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "spine_01", "spine_02", "spine_03", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+        ): (
+            body_id: (
+                uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+        ): (
+            body_id: (
+                uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+            ),
+            bone: (
+                bone: [
+                    "GltfNode0", "root", "pelvis", "thigh_l", "calf_l", "foot_l",
+                ],
+                offset: (
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
+                ),
+                override_offset: false,
+            ),
+            created_from: None,
+        ),
+        (
+            uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+        ): (
+            body_id: (
+                uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
             ),
             bone: (
                 bone: [
                     "GltfNode0", "root", "pelvis", "thigh_r", "calf_r", "foot_r",
                 ],
                 offset: (
-                    rotation: (1.000000, 0.000000, 0.000000, 0.000000),
-                    translation: (-2.602e-18, -4.77e-18, 1.301e-18),
+                    rotation: (0.0, 0.0, 0.0, 1.0),
+                    translation: (0.0, 0.0, 0.0),
                 ),
                 override_offset: false,
             ),

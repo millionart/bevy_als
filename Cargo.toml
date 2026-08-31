@@ -73,6 +73,7 @@ bevy-tnua = { workspace = true }
 bevy-tnua-avian3d = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+ron = { workspace = true }
 
 [dev-dependencies]
 bevy-tnua-avian3d = { workspace = true }

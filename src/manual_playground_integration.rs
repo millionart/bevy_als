@@ -16,6 +16,7 @@ use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
 use als_core::view::AlsViewPitch;
+use als_ext::{RagdollCollisionMember, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
@@ -448,6 +449,7 @@ struct IntegrationCoverage {
     roll_started: bool,
     roll_slot: bool,
     ragdoll_entered: bool,
+    ragdoll_pa_profile: bool,
     ragdoll_follow: bool,
     ragdoll_joint_drive: bool,
     ragdoll_recovered: bool,
@@ -505,7 +507,6 @@ struct ManualIntegrationState {
     ragdoll_seen: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
-    ragdoll_pelvis_boosted: bool,
     ragdoll_grounded_at: Option<Instant>,
     ragdoll_recovered_at: Option<Instant>,
     camera_scenario_armed: bool,
@@ -578,7 +579,6 @@ impl Default for ManualIntegrationState {
             ragdoll_seen: false,
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
-            ragdoll_pelvis_boosted: false,
             ragdoll_grounded_at: None,
             ragdoll_recovered_at: None,
             camera_scenario_armed: false,
@@ -648,6 +648,14 @@ struct MotionProbe<'w, 's> {
     crouch: Query<'w, 's, &'static AlsCrouchTransaction, With<AlsCharacter>>,
     actual: Query<'w, 's, &'static AlsActualMotion, With<AlsCharacter>>,
     gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
+}
+
+#[derive(SystemParam)]
+struct RagdollPaProbe<'w, 's> {
+    labels: Query<'w, 's, &'static BodyLabel>,
+    profiles: Query<'w, 's, &'static RagdollPhysicsProfileApplied>,
+    collision_members: Query<'w, 's, &'static RagdollCollisionMember>,
+    body_modes: Query<'w, 's, &'static RigidBody>,
 }
 
 fn spawn_manual_integration_fixture(
@@ -1803,10 +1811,10 @@ fn drive_manual_integration(
                 state.ragdoll_seen = false;
                 state.ragdoll_exit_requested = false;
                 state.ragdoll_frames = 0;
-                state.ragdoll_pelvis_boosted = false;
                 state.ragdoll_grounded_at = None;
                 state.ragdoll_recovered_at = None;
                 state.coverage.ragdoll_entered = false;
+                state.coverage.ragdoll_pa_profile = false;
                 state.coverage.ragdoll_follow = false;
                 state.coverage.ragdoll_joint_drive = false;
                 state.coverage.ragdoll_recovered = false;
@@ -2272,7 +2280,6 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
 
 #[allow(clippy::type_complexity)]
 fn observe_manual_integration(
-    mut commands: Commands,
     fixture: Option<Res<ManualIntegrationFixture>>,
     mut state: ResMut<ManualIntegrationState>,
     real_time: Res<Time<Real>>,
@@ -2335,7 +2342,7 @@ fn observe_manual_integration(
         Option<&AlsMovementDirectionState>,
     )>,
     players: Query<&AnimationGraphPlayer>,
-    labels: Query<&BodyLabel>,
+    ragdoll_probe: RagdollPaProbe,
     cameras: Query<(&Transform, &AlsCameraDebugInfo), With<AlsCameraRig>>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -3423,28 +3430,52 @@ fn observe_manual_integration(
             && slot.weight > 0.2
             && slot.root_motion_delta.length() > 1e-5;
     }
+    if let Some(spawned) = player.get_spawned_ragdoll() {
+        let profile_valid = ragdoll_probe
+            .profiles
+            .get(instance.player_entity())
+            .is_ok_and(|profile| {
+                profile.body_count == 21
+                    && profile.collider_count == 22
+                    && profile.joint_count == 20
+                    && profile.collision_disabled_pair_count == 49
+                    && profile.max_calibrated_anchor_error_m <= 1e-4
+            })
+            && spawned.colliders.values().all(|collider| {
+                ragdoll_probe
+                    .collision_members
+                    .get(*collider)
+                    .is_ok_and(|member| {
+                        member.group == spawned.root && member.disabled_pairs.len() == 49
+                    })
+            });
+        let mut dynamic = 0usize;
+        let mut root_kinematic = false;
+        for body in spawned.bodies.values() {
+            if ragdoll_probe
+                .labels
+                .get(*body)
+                .is_ok_and(|label| label.0 == "root")
+            {
+                root_kinematic = ragdoll_probe
+                    .body_modes
+                    .get(*body)
+                    .is_ok_and(|mode| *mode == RigidBody::Kinematic);
+            } else if ragdoll_probe
+                .body_modes
+                .get(*body)
+                .is_ok_and(|mode| *mode == RigidBody::Dynamic)
+            {
+                dynamic += 1;
+            }
+        }
+        state.coverage.ragdoll_pa_profile |= profile_valid
+            && (*locomotion != LocomotionState::Ragdolling || (dynamic == 20 && root_kinematic));
+    }
     if *locomotion == LocomotionState::Ragdolling {
         state.coverage.ragdoll_entered = true;
         state.ragdoll_seen = true;
         state.ragdoll_frames = state.ragdoll_frames.saturating_add(1);
-        if state
-            .ragdoll_grounded_at
-            .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(0.75))
-            && !state.ragdoll_pelvis_boosted
-        {
-            if let Some(spawned) = player.get_spawned_ragdoll()
-                && let Some(pelvis) = spawned
-                    .bodies
-                    .values()
-                    .find(|body| labels.get(**body).is_ok_and(|label| label.0 == "pelvis"))
-            {
-                commands
-                    .entity(*pelvis)
-                    .insert(LinearVelocity(Vec3::X * 0.1));
-                state.ragdoll_pelvis_boosted = true;
-                info!("[MANUAL-INTEGRATION] ragdoll pelvis drive injected speed=0.100");
-            }
-        }
     }
     if let Some(follow) = ragdoll_follow {
         if state.ragdoll_seen && follow.grounded {
@@ -3459,9 +3490,9 @@ fn observe_manual_integration(
     }
     if let Some(drive) = joint_drive {
         state.coverage.ragdoll_joint_drive |= state.ragdoll_seen
-            && drive.target_joint_count > 0
-            && drive.driven_joint_count > 0
-            && drive.angular_stiffness > 0.0;
+            && drive.target_joint_count == 19
+            && drive.angular_stiffness >= 49.999
+            && drive.angular_damping >= 0.999;
     }
     let ragdoll_recovered = state.ragdoll_seen
         && state.ragdoll_exit_requested
@@ -3736,6 +3767,7 @@ fn observe_manual_integration(
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
                 ("ragdoll_enter", coverage.ragdoll_entered),
+                ("ragdoll_pa_profile", coverage.ragdoll_pa_profile),
                 ("ragdoll_follow", coverage.ragdoll_follow),
                 ("ragdoll_joint_drive", coverage.ragdoll_joint_drive),
                 ("ragdoll_recover", coverage.ragdoll_recovered),

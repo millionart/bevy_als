@@ -13,7 +13,7 @@ use als_core::input::AlsInputPlugin;
 use als_core::input_request::AlsInputRequestPlugin;
 use als_core::motion::AlsMotionPlugin;
 use als_core::transition::AlsStateTransitionPlugin;
-use als_ext::AlsExtPlugin;
+use als_ext::{AlsExtPlugin, RagdollCollisionHooks};
 
 use crate::character_runtime::AlsCharacterRuntimePlugin;
 
@@ -27,7 +27,7 @@ pub struct AlsPlayableCharacterPlugin;
 impl Plugin for AlsPlayableCharacterPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            PhysicsPlugins::new(FixedPostUpdate),
+            PhysicsPlugins::new(FixedPostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
             TnuaAvian3dPlugin::new(FixedUpdate),
             TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
             EnhancedInputPlugin,

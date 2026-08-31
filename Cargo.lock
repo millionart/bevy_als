@@ -656,6 +656,7 @@ dependencies = [
  "bevy_animation_graph",
  "bevy_animation_graph_editor",
  "bevy_enhanced_input",
+ "ron 0.10.1",
  "serde",
  "serde_json",
 ]

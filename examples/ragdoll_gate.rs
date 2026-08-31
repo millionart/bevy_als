@@ -18,9 +18,12 @@ use als_core::motion::{AlsInputOverride, AlsMotionPlugin, AlsViewYaw};
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, Stance};
 use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
-use als_ext::AlsExtPlugin;
+use als_ext::{
+    AlsExtPlugin, RagdollCollisionHooks, RagdollCollisionMember, RagdollPhysicsProfileApplied,
+};
 
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
+use bevy_als::pa_als::PaAlsPhysicsPlugin;
 use bevy_als::ragdoll_link::{
     AlsRagdollGroundFollow, AlsRagdollJointDrive, AlsRagdollLinkPlugin, ragdoll_exit_route_system,
 };
@@ -33,7 +36,7 @@ fn main() {
             file_path: "assets".into(),
             ..default()
         }),
-        PhysicsPlugins::new(FixedPostUpdate),
+        PhysicsPlugins::new(FixedPostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
         TnuaAvian3dPlugin::new(FixedUpdate),
         TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
         EnhancedInputPlugin,
@@ -42,9 +45,10 @@ fn main() {
         AlsCharacterPlugin,
         AlsMotionPlugin,
         AlsStopLinkPlugin,
-        AlsRagdollLinkPlugin,
         AnimationGraphPlugin::default(),
         AlsExtPlugin,
+        PaAlsPhysicsPlugin,
+        AlsRagdollLinkPlugin,
     ))
     .init_resource::<SpawnOnce>()
     .init_resource::<DemoDriver>()
@@ -88,6 +92,9 @@ struct DemoDriver {
 struct RagdollWatch {
     kinematic_logged: bool,
     kinematic_valid: bool,
+    profile_valid: bool,
+    profile_logged: bool,
+    profile_probe_logged: bool,
     initial_physics_captured: bool,
     initial_layers: Option<CollisionLayers>,
     initial_body_mode: Option<RigidBody>,
@@ -101,8 +108,6 @@ struct RagdollWatch {
     recovered: bool,
     recovery_physics_valid: bool,
     ground_exit_velocity: Option<f32>,
-    joint_drive_delay_frames: u8,
-    joint_drive_injected: bool,
     joint_drive_startup: Option<(f32, f32)>,
     joint_drive_full: bool,
     joint_drive_expected_targets: u32,
@@ -286,7 +291,6 @@ fn auto_demo(
 #[allow(clippy::type_complexity)]
 fn ragdoll_watcher(
     mut watch: ResMut<RagdollWatch>,
-    mut commands: Commands,
     mut q: Query<
         (
             &Transform,
@@ -304,6 +308,10 @@ fn ragdoll_watcher(
     instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
+    profiles: Query<&RagdollPhysicsProfileApplied>,
+    collision_members: Query<&RagdollCollisionMember>,
+    joints: Query<&SphericalJoint>,
+    body_transforms: Query<(&Position, &Rotation)>,
     positions: Query<(&Position, &LinearVelocity)>,
     modes: Query<&RigidBody>,
     layers: Query<&CollisionLayers>,
@@ -357,12 +365,46 @@ fn ragdoll_watcher(
                         _ => {}
                     }
                 }
-                if spawned.bodies.len() == 16 {
+                let profile_counts_valid =
+                    profiles.get(instance.player_entity()).is_ok_and(|profile| {
+                        profile.body_count == 21
+                            && profile.collider_count == 22
+                            && profile.joint_count == 20
+                            && profile.collision_disabled_pair_count == 49
+                    }) && spawned.colliders.values().all(|collider| {
+                        collision_members.get(*collider).is_ok_and(|member| {
+                            member.group == spawned.root && member.disabled_pairs.len() == 49
+                        })
+                    });
+                let anchor_error = spawned_joint_anchor_error(spawned, &joints, &body_transforms)
+                    .unwrap_or(f32::INFINITY);
+                let profile_valid = profile_counts_valid && anchor_error <= 1e-4;
+                if !watch.profile_probe_logged
+                    && let Ok(profile) = profiles.get(instance.player_entity())
+                {
+                    info!(
+                        "[RGATE][PROFILE-PROBE] bodies={} colliders={} joints={} collision_disabled_pairs={} applied_anchor_error={:.6} current_anchor_error={anchor_error:.6}",
+                        profile.body_count,
+                        profile.collider_count,
+                        profile.joint_count,
+                        profile.collision_disabled_pair_count,
+                        profile.max_anchor_error_m
+                    );
+                    watch.profile_probe_logged = true;
+                }
+                if !watch.profile_logged && profile_valid {
+                    info!(
+                        "[RGATE][PROFILE] bodies=21 colliders=22 joints=20 collision_disabled_pairs=49 max_anchor_error_m={anchor_error:.6} -> PASS"
+                    );
+                    watch.profile_logged = true;
+                }
+                watch.profile_valid |= profile_valid;
+                if spawned.bodies.len() == 21 && profile_valid {
                     watch.initial_physics_captured = true;
                     watch.initial_layers = character_layers.copied();
                     watch.initial_body_mode = Some(*character_mode);
                     watch.initial_tnua_toggle = tnua_toggle.copied();
-                    watch.kinematic_valid = kinematic == 16
+                    watch.kinematic_valid = kinematic == 21
                         && dynamic == 0
                         && lowest.is_finite()
                         && highest.is_finite()
@@ -370,12 +412,13 @@ fn ragdoll_watcher(
                         && highest < 2.1
                         && pelvis_y.is_some_and(|y| (0.7..1.2).contains(&y));
                     info!(
-                        "[RGATE][KINEMATIC] bodies={} kinematic={} dynamic={} lowest={lowest:.3} highest={highest:.3} pelvis={:.3} valid={} capsule_layers={:?} capsule_body={:?} capsule_tnua={:?}",
+                        "[RGATE][KINEMATIC] bodies={} kinematic={} dynamic={} lowest={lowest:.3} highest={highest:.3} pelvis={:.3} valid={} profile_valid={} anchor_error={anchor_error:.6} capsule_layers={:?} capsule_body={:?} capsule_tnua={:?}",
                         spawned.bodies.len(),
                         kinematic,
                         dynamic,
                         pelvis_y.unwrap_or(f32::NAN),
                         watch.kinematic_valid,
+                        profile_valid,
                         watch.initial_layers,
                         watch.initial_body_mode,
                         watch.initial_tnua_toggle
@@ -391,11 +434,22 @@ fn ragdoll_watcher(
             if let Ok(player) = players.get(instance.player_entity())
                 && let Some(spawned) = player.get_spawned_ragdoll()
             {
-                let bodies_dynamic = spawned.bodies.values().all(|body| {
-                    modes
+                let mut dynamic = 0usize;
+                let mut root_kinematic = false;
+                for body in spawned.bodies.values() {
+                    let is_root = labels.get(*body).is_ok_and(|label| label.0 == "root");
+                    if is_root {
+                        root_kinematic = modes
+                            .get(*body)
+                            .is_ok_and(|mode| *mode == RigidBody::Kinematic);
+                    } else if modes
                         .get(*body)
                         .is_ok_and(|mode| *mode == RigidBody::Dynamic)
-                });
+                    {
+                        dynamic += 1;
+                    }
+                }
+                let bodies_dynamic = dynamic == 20 && root_kinematic;
                 let colliders_active = spawned.colliders.values().all(|collider| {
                     layers
                         .get(*collider)
@@ -405,35 +459,17 @@ fn ragdoll_watcher(
                     .is_some_and(|layer| *layer == CollisionLayers::NONE)
                     && *character_mode == RigidBody::Kinematic
                     && tnua_toggle.is_some_and(|toggle| *toggle == TnuaToggle::Disabled);
-                watch.handoff_valid |= bodies_dynamic && colliders_active && capsule_disabled;
-                watch.joint_drive_expected_targets = watch
-                    .joint_drive_expected_targets
-                    .max(spawned.joints.len() as u32);
-                if watch.handoff_valid && !watch.joint_drive_injected {
-                    watch.joint_drive_delay_frames =
-                        watch.joint_drive_delay_frames.saturating_add(1);
-                    if watch.joint_drive_delay_frames >= 3 {
-                        if let Some(pelvis) = spawned
-                            .bodies
-                            .values()
-                            .find(|body| labels.get(**body).is_ok_and(|label| label.0 == "pelvis"))
-                        {
-                            commands
-                                .entity(*pelvis)
-                                .insert(LinearVelocity(Vec3::X * 10.0));
-                            watch.joint_drive_injected = true;
-                            info!("[RGATE][DRIVE] injected_pelvis_speed=10.000");
-                        }
-                    }
-                }
+                watch.handoff_valid |=
+                    bodies_dynamic && colliders_active && capsule_disabled && watch.profile_valid;
+                watch.joint_drive_expected_targets = watch.joint_drive_expected_targets.max(19);
                 if let Some(follow) = ground_follow {
                     let error = tf.translation.distance(follow.target);
                     watch.max_follow_error = watch.max_follow_error.max(error);
                     watch.follow_valid |= follow.grounded && error <= 0.002;
                     if !watch.handoff_logged && watch.handoff_valid && watch.follow_valid {
                         info!(
-                            "[RGATE][HANDOFF] bodies_dynamic={bodies_dynamic} colliders_active={colliders_active} capsule_disabled={capsule_disabled} grounded={} target_y={:.3} error={error:.6} -> PASS",
-                            follow.grounded, follow.target.y
+                            "[RGATE][HANDOFF] dynamic_bodies={dynamic} root_kinematic={root_kinematic} colliders_active={colliders_active} capsule_disabled={capsule_disabled} profile_valid={} grounded={} target_y={:.3} error={error:.6} -> PASS",
+                            watch.profile_valid, follow.grounded, follow.target.y
                         );
                         watch.handoff_logged = true;
                     }
@@ -459,9 +495,8 @@ fn ragdoll_watcher(
                 .joint_drive_peak_stiffness
                 .max(drive.angular_stiffness);
             if !watch.joint_drive_full
-                && watch.joint_drive_injected
-                && drive.speed_amount >= 0.95
-                && drive.angular_stiffness >= 24_999.0
+                && drive.angular_stiffness >= 49.999
+                && drive.angular_damping >= 0.999
                 && drive.target_joint_count >= watch.joint_drive_expected_targets
             {
                 watch.joint_drive_full = true;
@@ -543,6 +578,7 @@ fn ragdoll_watcher(
 
     if watch.recovered && !watch.verdict_done {
         let ok_kinematic = watch.kinematic_valid;
+        let ok_profile = watch.profile_valid;
         let ok_handoff = watch.handoff_valid;
         let ok_follow = watch.follow_valid;
         let ok_settle = watch.settle_seen;
@@ -552,13 +588,12 @@ fn ragdoll_watcher(
             .ground_exit_velocity
             .is_some_and(|velocity| velocity <= 0.1);
         let ok_joint_drive = watch.joint_drive_startup.is_some()
-            && watch.joint_drive_injected
             && watch.joint_drive_full
             && watch.joint_drive_expected_targets > 0
             && watch.joint_drive_peak_targets >= watch.joint_drive_expected_targets;
         let ok_no_nan = watch.nan_bodies == 0;
         info!(
-            "[RGATE][VERDICT] kinematic={ok_kinematic} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} ground_exit_velocity={:?} drive_startup={:?} drive_full={} drive_targets={}/{} drive_peak=({:.3},{:.1}) nan_bodies={} max_follow_error={:.6} -> {}",
+            "[RGATE][VERDICT] kinematic={ok_kinematic} profile={ok_profile} handoff={ok_handoff} follow={ok_follow} settle={ok_settle} recover={ok_recover} recovery_physics={ok_recovery_physics} ground_exit_velocity={:?} drive_startup={:?} drive_full={} drive_targets={}/{} drive_peak=({:.3},{:.1}) nan_bodies={} max_follow_error={:.6} -> {}",
             watch.ground_exit_velocity,
             watch.joint_drive_startup,
             watch.joint_drive_full,
@@ -569,6 +604,7 @@ fn ragdoll_watcher(
             watch.nan_bodies,
             watch.max_follow_error,
             if ok_kinematic
+                && ok_profile
                 && ok_handoff
                 && ok_follow
                 && ok_settle
@@ -585,6 +621,7 @@ fn ragdoll_watcher(
         );
         watch.verdict_done = true;
         if !(ok_kinematic
+            && ok_profile
             && ok_handoff
             && ok_follow
             && ok_settle
@@ -600,6 +637,24 @@ fn ragdoll_watcher(
             exit.write(AppExit::Success);
         }
     }
+}
+
+fn spawned_joint_anchor_error(
+    spawned: &bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll,
+    joints: &Query<&SphericalJoint>,
+    body_transforms: &Query<(&Position, &Rotation)>,
+) -> Option<f32> {
+    let mut maximum = 0.0_f32;
+    for joint_entity in spawned.joints.values() {
+        let joint = joints.get(*joint_entity).ok()?;
+        let (frame_1, frame_2) = (joint.local_frame1()?, joint.local_frame2()?);
+        let [(position_1, rotation_1), (position_2, rotation_2)] =
+            body_transforms.get_many([joint.body1, joint.body2]).ok()?;
+        let anchor_1 = position_1.0 + rotation_1.0 * Vec3::from(frame_1.translation);
+        let anchor_2 = position_2.0 + rotation_2.0 * Vec3::from(frame_2.translation);
+        maximum = maximum.max(anchor_1.distance(anchor_2));
+    }
+    Some(maximum)
 }
 
 fn graph_router(

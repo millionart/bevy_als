@@ -44,6 +44,7 @@ pub mod playground_materials;
 pub mod profile_blend;
 pub mod ragdoll_angular_drive;
 pub mod ragdoll_config_node;
+pub mod ragdoll_physics_profile;
 pub mod ragdolling_tag_blend;
 pub mod reference_local_difference;
 pub mod reference_mesh_difference;
@@ -136,8 +137,7 @@ pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use normalized_blendspace::{
     CubicVec2AxisFilterNode, CubicVec2FilterNode, NormalizedBlendSpaceNode,
-    NormalizedBlendSpacePoint,
-    blend_normalized_root_motion,
+    NormalizedBlendSpacePoint, blend_normalized_root_motion,
 };
 pub use overlay::{
     BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
@@ -169,6 +169,12 @@ pub use ragdoll_angular_drive::{
     RagdollAngularDriveSet, angular_drive_torque,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
+pub use ragdoll_physics_profile::{
+    RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
+    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
+    RagdollPhysicsProfile, RagdollPhysicsProfileApplied, RagdollPhysicsProfilePlugin,
+    RagdollPhysicsProfileSet,
+};
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};
 pub use reference_mesh_difference::ReferenceMeshDifferenceNode;
@@ -272,6 +278,7 @@ impl Plugin for AlsExtPlugin {
         AlsCurvesHandler::register(app);
         app.add_plugins((
             root_motion_defaults::RootMotionDefaultsPlugin,
+            RagdollPhysicsProfilePlugin,
             RagdollAngularDrivePlugin,
         ));
     }

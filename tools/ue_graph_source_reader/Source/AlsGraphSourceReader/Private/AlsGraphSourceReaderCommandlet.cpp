@@ -5,6 +5,10 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/PhysicsConstraintTemplate.h"
+#include "PhysicsEngine/SkeletalBodySetup.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -26,6 +30,24 @@ FString ObjectPath(const UObject* Object)
 FString GuidText(const FGuid& Guid)
 {
     return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("None");
+}
+
+TSharedRef<FJsonObject> CaptureVector(const FVector& Vector)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("x"), Vector.X);
+    Value->SetNumberField(TEXT("y"), Vector.Y);
+    Value->SetNumberField(TEXT("z"), Vector.Z);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CaptureRotator(const FRotator& Rotator)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("pitch"), Rotator.Pitch);
+    Value->SetNumberField(TEXT("yaw"), Rotator.Yaw);
+    Value->SetNumberField(TEXT("roll"), Rotator.Roll);
+    return Value;
 }
 
 TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const void* Data, UObject* Parent)
@@ -175,6 +197,122 @@ TSharedRef<FJsonObject> CaptureGraph(const UEdGraph* Graph, int32 Index)
     Value->SetArrayField(TEXT("nodes"), Nodes);
     return Value;
 }
+
+TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32 Index)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("index"), Index);
+    Value->SetStringField(TEXT("bone_name"), Body->BoneName.ToString());
+    Value->SetNumberField(TEXT("physics_type"), static_cast<int32>(Body->PhysicsType.GetValue()));
+    Value->SetNumberField(TEXT("collision_response"), static_cast<int32>(Body->CollisionReponse.GetValue()));
+    Value->SetNumberField(TEXT("calculated_mass"), Body->CalculateMass());
+    Value->SetArrayField(
+        TEXT("default_instance_properties"),
+        CaptureProperties(FBodyInstance::StaticStruct(), &Body->DefaultInstance, const_cast<USkeletalBodySetup*>(Body))
+    );
+
+    TArray<TSharedPtr<FJsonValue>> Shapes;
+    for (int32 ShapeIndex = 0; ShapeIndex < Body->AggGeom.SphereElems.Num(); ++ShapeIndex)
+    {
+        const FKSphereElem& Shape = Body->AggGeom.SphereElems[ShapeIndex];
+        TSharedRef<FJsonObject> ShapeValue = MakeShared<FJsonObject>();
+        ShapeValue->SetNumberField(TEXT("index"), ShapeIndex);
+        ShapeValue->SetStringField(TEXT("kind"), TEXT("sphere"));
+        ShapeValue->SetObjectField(TEXT("center"), CaptureVector(Shape.Center));
+        ShapeValue->SetNumberField(TEXT("radius"), Shape.Radius);
+        Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
+    }
+    for (int32 ShapeIndex = 0; ShapeIndex < Body->AggGeom.BoxElems.Num(); ++ShapeIndex)
+    {
+        const FKBoxElem& Shape = Body->AggGeom.BoxElems[ShapeIndex];
+        TSharedRef<FJsonObject> ShapeValue = MakeShared<FJsonObject>();
+        ShapeValue->SetNumberField(TEXT("index"), ShapeIndex);
+        ShapeValue->SetStringField(TEXT("kind"), TEXT("box"));
+        ShapeValue->SetObjectField(TEXT("center"), CaptureVector(Shape.Center));
+        ShapeValue->SetObjectField(TEXT("rotation"), CaptureRotator(Shape.Rotation));
+        ShapeValue->SetNumberField(TEXT("x"), Shape.X);
+        ShapeValue->SetNumberField(TEXT("y"), Shape.Y);
+        ShapeValue->SetNumberField(TEXT("z"), Shape.Z);
+        Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
+    }
+    for (int32 ShapeIndex = 0; ShapeIndex < Body->AggGeom.SphylElems.Num(); ++ShapeIndex)
+    {
+        const FKSphylElem& Shape = Body->AggGeom.SphylElems[ShapeIndex];
+        TSharedRef<FJsonObject> ShapeValue = MakeShared<FJsonObject>();
+        ShapeValue->SetNumberField(TEXT("index"), ShapeIndex);
+        ShapeValue->SetStringField(TEXT("kind"), TEXT("capsule"));
+        ShapeValue->SetObjectField(TEXT("center"), CaptureVector(Shape.Center));
+        ShapeValue->SetObjectField(TEXT("rotation"), CaptureRotator(Shape.Rotation));
+        ShapeValue->SetNumberField(TEXT("radius"), Shape.Radius);
+        ShapeValue->SetNumberField(TEXT("length"), Shape.Length);
+        Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
+    }
+    Value->SetArrayField(TEXT("shapes"), Shapes);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CapturePhysicsConstraint(const UPhysicsConstraintTemplate* Constraint, int32 Index)
+{
+    const FConstraintInstance& Instance = Constraint->DefaultInstance;
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("index"), Index);
+    Value->SetStringField(TEXT("joint_name"), Instance.JointName.ToString());
+    Value->SetStringField(TEXT("constraint_bone_1"), Instance.ConstraintBone1.ToString());
+    Value->SetStringField(TEXT("constraint_bone_2"), Instance.ConstraintBone2.ToString());
+    Value->SetObjectField(TEXT("position_1"), CaptureVector(Instance.Pos1));
+    Value->SetObjectField(TEXT("primary_axis_1"), CaptureVector(Instance.PriAxis1));
+    Value->SetObjectField(TEXT("secondary_axis_1"), CaptureVector(Instance.SecAxis1));
+    Value->SetObjectField(TEXT("position_2"), CaptureVector(Instance.Pos2));
+    Value->SetObjectField(TEXT("primary_axis_2"), CaptureVector(Instance.PriAxis2));
+    Value->SetObjectField(TEXT("secondary_axis_2"), CaptureVector(Instance.SecAxis2));
+    Value->SetObjectField(TEXT("angular_rotation_offset"), CaptureRotator(Instance.AngularRotationOffset));
+    Value->SetArrayField(
+        TEXT("instance_properties"),
+        CaptureProperties(FConstraintInstance::StaticStruct(), &Instance, const_cast<UPhysicsConstraintTemplate*>(Constraint))
+    );
+    return Value;
+}
+
+TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetArrayField(
+        TEXT("solver_settings_properties"),
+        CaptureProperties(FPhysicsAssetSolverSettings::StaticStruct(), &Asset->SolverSettings, const_cast<UPhysicsAsset*>(Asset))
+    );
+
+    TArray<TSharedPtr<FJsonValue>> Bodies;
+    for (int32 BodyIndex = 0; BodyIndex < Asset->SkeletalBodySetups.Num(); ++BodyIndex)
+    {
+        if (const USkeletalBodySetup* Body = Asset->SkeletalBodySetups[BodyIndex])
+        {
+            Bodies.Add(MakeShared<FJsonValueObject>(CapturePhysicsBody(Body, BodyIndex)));
+        }
+    }
+    Value->SetArrayField(TEXT("bodies"), Bodies);
+
+    TArray<TSharedPtr<FJsonValue>> Constraints;
+    for (int32 ConstraintIndex = 0; ConstraintIndex < Asset->ConstraintSetup.Num(); ++ConstraintIndex)
+    {
+        if (const UPhysicsConstraintTemplate* Constraint = Asset->ConstraintSetup[ConstraintIndex])
+        {
+            Constraints.Add(MakeShared<FJsonValueObject>(CapturePhysicsConstraint(Constraint, ConstraintIndex)));
+        }
+    }
+    Value->SetArrayField(TEXT("constraints"), Constraints);
+
+    TArray<TSharedPtr<FJsonValue>> CollisionDisabledPairs;
+    for (const TPair<FRigidBodyIndexPair, bool>& Pair : Asset->CollisionDisableTable)
+    {
+        TSharedRef<FJsonObject> PairValue = MakeShared<FJsonObject>();
+        PairValue->SetNumberField(TEXT("body_index_1"), Pair.Key.Indices[0]);
+        PairValue->SetNumberField(TEXT("body_index_2"), Pair.Key.Indices[1]);
+        PairValue->SetBoolField(TEXT("disabled"), Pair.Value);
+        CollisionDisabledPairs.Add(MakeShared<FJsonValueObject>(PairValue));
+    }
+    Value->SetArrayField(TEXT("collision_disabled_pairs"), CollisionDisabledPairs);
+    return Value;
+}
 }
 
 UAlsGraphSourceReaderCommandlet::UAlsGraphSourceReaderCommandlet()
@@ -256,6 +394,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         GraphValues.Add(MakeShared<FJsonValueObject>(CaptureGraph(Graphs[GraphIndex], GraphIndex)));
     }
     Root->SetArrayField(TEXT("graphs"), GraphValues);
+    if (const UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset))
+    {
+        Root->SetObjectField(TEXT("physics_asset"), CapturePhysicsAsset(PhysicsAsset));
+    }
 
     FString Json;
     const TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&Json);

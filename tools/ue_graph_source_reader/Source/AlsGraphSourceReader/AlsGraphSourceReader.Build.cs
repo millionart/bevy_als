@@ -10,7 +10,8 @@ public class AlsGraphSourceReader : ModuleRules
         {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "PhysicsCore"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]

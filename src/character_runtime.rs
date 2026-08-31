@@ -16,6 +16,7 @@ use crate::head_layer::HeadLayerPlugin;
 use crate::layering_layer::LayeringLayerPlugin;
 use crate::locomotion_layer::LocomotionLayerPlugin;
 use crate::mantle_drive::AlsMantleDrivePlugin;
+use crate::pa_als::PaAlsPhysicsPlugin;
 use crate::ragdoll_link::AlsRagdollLinkPlugin;
 use crate::ragdolling_layer::RagdollingLayerPlugin;
 use crate::roll_drive::AlsRollDrivePlugin;
@@ -54,6 +55,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
                 RagdollingLayerPlugin,
                 AlsRootGraphPlugin,
                 AlsMantleDrivePlugin,
+                PaAlsPhysicsPlugin,
                 AlsRagdollLinkPlugin,
             ))
             .add_systems(
