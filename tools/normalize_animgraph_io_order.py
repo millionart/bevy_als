@@ -123,62 +123,165 @@ def input_keys(text):
     ]
 
 
-def normalize_input_order(text):
-    keys = input_keys(text)
+def unique_keys(keys):
+    result = []
+    duplicates = []
+    seen = set()
+    for key in keys:
+        normalized = compact(key)
+        if normalized in seen:
+            duplicates.append(key)
+            continue
+        seen.add(normalized)
+        result.append(key)
+    return result, duplicates
+
+
+def parse_input_order(text):
     field_start, order_start, order_end = field_span(text, "input_order")
     entries = split_top_level(text[order_start + 1 : order_end], ",")
-    existing = {}
-    max_index = -1
-    for entry in entries:
-        key, value = top_level_colon(entry)
-        existing[compact(key)] = entry
+    parsed = []
+    malformed = []
+    for position, entry in enumerate(entries):
         try:
-            max_index = max(max_index, int(value))
+            key, value = top_level_colon(entry)
         except ValueError:
-            pass
-    additions = []
-    next_index = max_index + 1
-    for key in keys:
-        if compact(key) not in existing:
-            additions.append(f"{key}: {next_index}")
-            next_index += 1
-    if not additions:
-        return text, []
+            malformed.append(entry)
+            continue
+        try:
+            order = int(value)
+        except ValueError:
+            order = None
+        parsed.append(
+            {
+                "key": key,
+                "normalized": compact(key),
+                "order": order,
+                "position": position,
+                "entry": entry,
+            }
+        )
+    return field_start, order_start, order_end, parsed, malformed
+
+
+def input_order_issues(text):
+    expected, duplicate_declared_inputs = unique_keys(input_keys(text))
+    _, _, _, parsed, malformed = parse_input_order(text)
+    expected_normalized = {compact(key) for key in expected}
+    observed = {}
+    duplicate_order_keys = []
+    invalid_order_indices = []
+    for entry in parsed:
+        if entry["normalized"] in observed:
+            duplicate_order_keys.append(entry["key"])
+        else:
+            observed[entry["normalized"]] = entry
+        if entry["order"] is None:
+            invalid_order_indices.append(entry["entry"])
+    missing = [key for key in expected if compact(key) not in observed]
+    extra = [
+        entry["key"] for entry in parsed if entry["normalized"] not in expected_normalized
+    ]
+    orders = [entry["order"] for entry in parsed if entry["order"] is not None]
+    duplicate_order_indices = sorted(
+        {
+            order
+            for order in orders
+            if orders.count(order) > 1
+        }
+    )
+    return {
+        "duplicate_declared_inputs": duplicate_declared_inputs,
+        "malformed_order_entries": malformed,
+        "missing_order_entries": missing,
+        "extra_order_entries": extra,
+        "duplicate_order_keys": duplicate_order_keys,
+        "invalid_order_indices": invalid_order_indices,
+        "duplicate_order_indices": duplicate_order_indices,
+    }
+
+
+def has_issues(issues):
+    return any(value for value in issues.values())
+
+
+def normalize_input_order(text):
+    issues = input_order_issues(text)
+    if not has_issues(issues):
+        return text, {}
+    expected, duplicate_declared_inputs = unique_keys(input_keys(text))
+    if duplicate_declared_inputs:
+        return text, issues
+    field_start, order_start, order_end, parsed, _ = parse_input_order(text)
+    expected_by_normalized = {compact(key): key for key in expected}
+    usable = []
+    seen = set()
+    for entry in parsed:
+        normalized = entry["normalized"]
+        if (
+            normalized in expected_by_normalized
+            and normalized not in seen
+            and entry["order"] is not None
+        ):
+            usable.append(entry)
+            seen.add(normalized)
+    usable.sort(key=lambda entry: (entry["order"], entry["position"]))
+    ordered = [expected_by_normalized[entry["normalized"]] for entry in usable]
+    ordered.extend(key for key in expected if compact(key) not in seen)
     line_start = text.rfind("\n", 0, field_start) + 1
     base_indent = re.match(r"[ \t]*", text[line_start:]).group(0)
     inner_indent = f"{base_indent}    "
     newline = "\r\n" if "\r\n" in text else "\n"
-    rendered = [entry.strip() for entry in entries] + additions
     replacement = "{" + newline
-    replacement += "".join(f"{inner_indent}{entry},{newline}" for entry in rendered)
+    replacement += "".join(
+        f"{inner_indent}{key}: {index},{newline}"
+        for index, key in enumerate(ordered)
+    )
     replacement += f"{base_indent}}}"
-    return text[:order_start] + replacement + text[order_end + 1 :], additions
+    return text[:order_start] + replacement + text[order_end + 1 :], issues
 
 
 def process(path, write):
     with path.open("r", encoding="utf-8", newline="") as file:
         text = file.read()
-    updated, additions = normalize_input_order(text)
-    if additions and write:
+    updated, repairs = normalize_input_order(text)
+    if repairs and write and updated != text:
         with path.open("w", encoding="utf-8", newline="") as file:
             file.write(updated)
-    return additions
+    return repairs
+
+
+def run_self_test():
+    fixture = (
+        '(input_times: ["tick"], input_data: { "pose": Pose }, '
+        'input_order: { Time("tick"): 4, Data("stale"): 0, },)'
+    )
+    normalized, repairs = normalize_input_order(fixture)
+    assert repairs
+    assert not has_issues(input_order_issues(normalized))
+    assert 'Time("tick"): 0' in normalized
+    assert 'Data("pose"): 1' in normalized
+    return {"input_order_normalization": "PASS"}
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("assets/graphs"))
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    if args.self_test:
+        print(json.dumps(run_self_test(), indent=2))
+        return 0
     changes = {}
     paths = sorted(
         list(args.root.rglob("*.animgraph.ron"))
         + list(args.root.rglob("*.fsm.ron"))
     )
     for path in paths:
-        additions = process(path, args.write)
-        if additions:
-            changes[path.as_posix()] = additions
+        repairs = process(path, args.write)
+        if repairs:
+            changes[path.as_posix()] = repairs
     print(json.dumps({"write": args.write, "changes": changes}, indent=2))
     return 0 if args.write or not changes else 1
 
