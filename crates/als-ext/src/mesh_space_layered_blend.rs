@@ -147,6 +147,13 @@ pub fn apply_mesh_space_layered_blend(
     }
 }
 
+fn apply_local_layered_blend(base: &mut Pose, overlay: &Pose, alpha: f32, bone_mask: &BoneMask) {
+    LinearInterpolator {
+        bone_mask: bone_mask.clone(),
+    }
+    .interpolate_pose(base, overlay, alpha.clamp(0.0, 1.0));
+}
+
 impl NodeLike for MeshSpaceLayeredBlendNode {
     fn display_name(&self) -> String {
         "ALS Mesh Space Layered Blend".into()
@@ -164,23 +171,18 @@ impl NodeLike for MeshSpaceLayeredBlendNode {
         let alpha = ctx.data_back(Self::FACTOR)?.as_f32()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(base.timestamp));
         let overlay = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
-        if ctx
-            .graph_context
-            .resources
-            .skeleton_assets
-            .get(&base.skeleton)
-            .is_none()
-        {
+        let bone_mask = ctx.data_back(Self::IN_BONE_MASK)?.into_bone_mask()?;
+        let skeletons = &ctx.graph_context.resources.skeleton_assets;
+        let base_skeleton = skeletons.get(&base.skeleton);
+        let overlay_skeleton = skeletons.get(&overlay.skeleton);
+        if base_skeleton.is_none() {
             base.skeleton = overlay.skeleton.clone();
         }
-        let bone_mask = ctx.data_back(Self::IN_BONE_MASK)?.into_bone_mask()?;
-        let skeleton = ctx
-            .graph_context
-            .resources
-            .skeleton_assets
-            .get(&base.skeleton)
-            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        apply_mesh_space_layered_blend(&mut base, &overlay, alpha, &bone_mask, skeleton);
+        if let Some(skeleton) = base_skeleton.or(overlay_skeleton) {
+            apply_mesh_space_layered_blend(&mut base, &overlay, alpha, &bone_mask, skeleton);
+        } else {
+            apply_local_layered_blend(&mut base, &overlay, alpha, &bone_mask);
+        }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd(Self::OUT_POSE, base);
         Ok(())
@@ -285,5 +287,36 @@ mod tests {
 
         let output = base.get_bone(child).and_then(|bone| bone.rotation).unwrap();
         assert!(close_rotation(output, source));
+    }
+
+    #[test]
+    fn local_fallback_interpolates_selected_rotation() {
+        let (_, root, child) = skeleton();
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::IDENTITY),
+                ..default()
+            },
+            root,
+        );
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::IDENTITY),
+                ..default()
+            },
+            child,
+        );
+        let mut overlay = base.clone();
+        let child_index = overlay.paths[&child];
+        let target = Quat::from_rotation_y(0.7);
+        overlay.bones[child_index].rotation = Some(target);
+        let mut mask = BoneMask::none();
+        mask.add_bone_weight(child, EntityPath::default().child("child"), 1.0);
+
+        apply_local_layered_blend(&mut base, &overlay, 1.0, &mask);
+
+        let output = base.get_bone(child).and_then(|bone| bone.rotation).unwrap();
+        assert!(close_rotation(output, target));
     }
 }

@@ -51,7 +51,7 @@ use crate::show_debug_hud::{
     AlsShowDebugHudRoot, AlsShowDebugHudState, DebugCategory, apply_show_debug_key,
 };
 use crate::stance_layer::AlsStanceBlend;
-use crate::standing_layer::AlsStandingGraphTelemetry;
+use crate::standing_layer::{AlsPivotNotify, AlsStandingGraphTelemetry};
 use crate::turn_layer::AlsTurnDrive;
 use crate::{
     air_jump_layer::AlsJumpVariantState,
@@ -123,6 +123,9 @@ enum IntegrationPhase {
     FootIkNoHit,
     FootIkWeightRamp,
     FootIkTerrain,
+    StateMachineGrounded,
+    StateMachineAir,
+    StateMachineRotate,
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
@@ -154,6 +157,7 @@ enum CrouchClearanceStage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IntegrationScenario {
     Base,
+    StateMachine,
     FootIk,
     Ragdoll,
     Camera,
@@ -164,6 +168,7 @@ enum IntegrationScenario {
 impl IntegrationScenario {
     fn from_environment() -> Self {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
+            Some("state_machine") => Self::StateMachine,
             Some("foot_ik") => Self::FootIk,
             Some("ragdoll") => Self::Ragdoll,
             Some("camera") => Self::Camera,
@@ -409,6 +414,11 @@ struct IntegrationCoverage {
     notify_rolling_action: bool,
     notify_mantling_action: bool,
     notify_early_blend_out: bool,
+    p1_ground: bool,
+    p1_stance: bool,
+    p1_gait: bool,
+    p1_air: bool,
+    p1_turn: bool,
 }
 
 #[derive(Resource)]
@@ -469,6 +479,12 @@ struct ManualIntegrationState {
     crouch_canopy_armed_at: Option<Instant>,
     foot_ik_slope: Option<Entity>,
     foot_ik_step: Option<Entity>,
+    p1_pivot_sent: bool,
+    p1_ground_mask: u8,
+    p1_gait_mask: u8,
+    p1_air_mask: u8,
+    p1_turn_mask: u8,
+    p1_stance_mask: u8,
     timed_out: bool,
     final_logged: bool,
     coverage: IntegrationCoverage,
@@ -534,6 +550,12 @@ impl Default for ManualIntegrationState {
             crouch_canopy_armed_at: None,
             foot_ik_slope: None,
             foot_ik_step: None,
+            p1_pivot_sent: false,
+            p1_ground_mask: 0,
+            p1_gait_mask: 0,
+            p1_air_mask: 0,
+            p1_turn_mask: 0,
+            p1_stance_mask: 0,
             timed_out: false,
             final_logged: false,
             coverage: IntegrationCoverage::default(),
@@ -710,9 +732,9 @@ fn initialize_manual_integration(
     state.coverage.assembly = true;
     state.coverage.graph = true;
     let first_phase = match state.scenario {
-        IntegrationScenario::Base | IntegrationScenario::FootIk => {
-            IntegrationPhase::DirectionRegression
-        }
+        IntegrationScenario::Base
+        | IntegrationScenario::StateMachine
+        | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
@@ -734,6 +756,7 @@ fn drive_manual_integration(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut show_debug: ResMut<AlsShowDebugHudState>,
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
+    mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<
@@ -816,12 +839,27 @@ fn drive_manual_integration(
                 state.coverage.foot_ik_no_hit_recovered = false;
                 state.coverage.foot_ik_weight_ramp = false;
                 state.foot_ik_weight_mask = 0;
+                if state.scenario == IntegrationScenario::StateMachine {
+                    state.coverage.p1_ground = false;
+                    state.coverage.p1_stance = false;
+                    state.coverage.p1_gait = false;
+                    state.coverage.p1_air = false;
+                    state.coverage.p1_turn = false;
+                    state.p1_pivot_sent = false;
+                    state.p1_ground_mask = 0;
+                    state.p1_gait_mask = 0;
+                    state.p1_air_mask = 0;
+                    state.p1_turn_mask = 0;
+                    state.p1_stance_mask = 0;
+                }
             }
             let case_index = (elapsed / DIRECTION_CASE_SECONDS) as usize;
             let Some(case) = direction_regression_case(case_index) else {
                 commands.entity(character).remove::<AlsFirstPersonView>();
                 if state.scenario == IntegrationScenario::FootIk {
                     begin_phase(&mut state, IntegrationPhase::FootIkNoHit);
+                } else if state.scenario == IntegrationScenario::StateMachine {
+                    begin_phase(&mut state, IntegrationPhase::StateMachineGrounded);
                 } else {
                     begin_phase(&mut state, IntegrationPhase::Locomotion);
                 }
@@ -1039,6 +1077,87 @@ fn drive_manual_integration(
                 begin_phase(&mut state, IntegrationPhase::Mantle);
             }
         }
+        IntegrationPhase::StateMachineGrounded => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::Aiming;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::Aiming);
+                info!("[MANUAL-INTEGRATION][P1][GROUND] sequence=idle_move_stop_pivot start");
+            }
+            let requested_gait = if (3.2..3.6).contains(&elapsed) {
+                Gait::Walking
+            } else {
+                Gait::Running
+            };
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(requested_gait);
+            request.rotation_mode = Some(RotationMode::Aiming);
+            if (0.75..2.4).contains(&elapsed) {
+                input.0.move_dir = Vec2::Y;
+            } else if elapsed >= 3.2 {
+                input.0.move_dir = Vec2::NEG_Y;
+                let horizontal_speed = Vec2::new(velocity.0.x, velocity.0.z).length();
+                if !state.p1_pivot_sent && (0.1..2.0).contains(&horizontal_speed) {
+                    pivot_notices.write(AlsPivotNotify { character });
+                    state.p1_pivot_sent = true;
+                    info!(
+                        "[MANUAL-INTEGRATION][P1][GROUND] pivot_notice speed={horizontal_speed:.3}"
+                    );
+                }
+            }
+            if elapsed >= 5.8 {
+                begin_phase(&mut state, IntegrationPhase::StateMachineAir);
+            }
+        }
+        IntegrationPhase::StateMachineAir => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                commands.entity(character).insert(AlsMantleControlSettings {
+                    allow_mantling: false,
+                    auto_start_in_air: false,
+                });
+                info!("[MANUAL-INTEGRATION][P1][AIR] standing_jump start");
+            }
+            input.0.jump_pressed = (0.5..0.7).contains(&elapsed);
+            input.0.jump_held = (0.5..1.0).contains(&elapsed);
+            if elapsed >= 5.0 {
+                commands
+                    .entity(character)
+                    .remove::<AlsMantleControlSettings>();
+                begin_phase(&mut state, IntegrationPhase::CrouchRecovery);
+            }
+        }
         IntegrationPhase::Locomotion => {
             if entering {
                 reset_character(
@@ -1146,7 +1265,11 @@ fn drive_manual_integration(
                 commands
                     .entity(character)
                     .remove::<AlsMantleControlSettings>();
-                begin_phase(&mut state, IntegrationPhase::CrouchClearance);
+                if state.scenario == IntegrationScenario::StateMachine {
+                    begin_phase(&mut state, IntegrationPhase::Turn);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::CrouchClearance);
+                }
             }
             if elapsed >= 12.0 {
                 commands
@@ -1341,13 +1464,74 @@ fn drive_manual_integration(
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
-            if elapsed >= 0.5 {
-                let body_yaw = state.turn_body_yaw.unwrap_or(fixture.facing_yaw);
-                transform.rotation = Quat::from_rotation_y(body_yaw);
-                view_yaw.0 = body_yaw + 90.0f32.to_radians();
+            let body_yaw = state.turn_body_yaw.unwrap_or(fixture.facing_yaw);
+            transform.rotation = Quat::from_rotation_y(body_yaw);
+            if state.scenario == IntegrationScenario::StateMachine {
+                if (0.5..2.25).contains(&elapsed) {
+                    view_yaw.0 = body_yaw + 90.0f32.to_radians();
+                } else if elapsed >= 2.5 {
+                    view_yaw.0 = body_yaw - 90.0f32.to_radians();
+                }
+                if elapsed >= 5.0 {
+                    begin_phase(&mut state, IntegrationPhase::StateMachineRotate);
+                }
+            } else {
+                if elapsed >= 0.5 {
+                    view_yaw.0 = body_yaw + 90.0f32.to_radians();
+                }
+                if elapsed >= 2.5 {
+                    begin_phase(&mut state, IntegrationPhase::Mantle);
+                }
             }
-            if elapsed >= 2.5 {
-                begin_phase(&mut state, IntegrationPhase::Mantle);
+        }
+        IntegrationPhase::StateMachineRotate => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Walking;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::Aiming;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Walking);
+                info!("[MANUAL-INTEGRATION][P1][TURN] rotate_modes start");
+            }
+            let body_yaw = fixture.facing_yaw;
+            transform.rotation = Quat::from_rotation_y(body_yaw);
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Walking);
+            if elapsed < 1.3 {
+                commands.entity(character).remove::<AlsFirstPersonView>();
+                *rotation_mode = RotationMode::Aiming;
+                request.rotation_mode = Some(RotationMode::Aiming);
+                view_yaw.0 = body_yaw - 90.0f32.to_radians();
+            } else if elapsed < 2.6 {
+                commands.entity(character).remove::<AlsFirstPersonView>();
+                *rotation_mode = RotationMode::Aiming;
+                request.rotation_mode = Some(RotationMode::Aiming);
+                view_yaw.0 = body_yaw + 90.0f32.to_radians();
+            } else if elapsed < 3.9 {
+                commands.entity(character).insert(AlsFirstPersonView);
+                *rotation_mode = RotationMode::ViewDirection;
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                view_yaw.0 = body_yaw - 90.0f32.to_radians();
+            } else if elapsed < 5.2 {
+                commands.entity(character).insert(AlsFirstPersonView);
+                *rotation_mode = RotationMode::ViewDirection;
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                view_yaw.0 = body_yaw + 90.0f32.to_radians();
+            } else {
+                commands.entity(character).remove::<AlsFirstPersonView>();
+                begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
         IntegrationPhase::Mantle => {
@@ -2006,8 +2190,10 @@ fn observe_manual_integration(
     let standing_graph = motion_probe.standing.get(character).ok();
     let grounded_graph = motion_probe.grounded.get(character).ok();
     let crouch_transaction = motion_probe.crouch.get(character).ok();
-    if state.scenario == IntegrationScenario::Base
-        && state.phase == IntegrationPhase::CrouchRecovery
+    if matches!(
+        state.scenario,
+        IntegrationScenario::Base | IntegrationScenario::StateMachine
+    ) && state.phase == IntegrationPhase::CrouchRecovery
         && state.phase_started.elapsed().as_secs_f32() >= 1.0
         && state.crouch_recovery_jump_requested
         && !state.crouch_recovery_air_crouch_requested
@@ -2443,6 +2629,162 @@ fn observe_manual_integration(
             StartStopPhase::Started(_) | StartStopPhase::Stopping(_)
         )
     });
+    if state.scenario == IntegrationScenario::StateMachine {
+        if let Some(telemetry) = standing_graph {
+            let previous_mask = state.p1_ground_mask;
+            if source_ready && telemetry.outer_state == Some(0) {
+                state.p1_ground_mask |= 1 << 0;
+            }
+            if source_ready
+                && telemetry.outer_state == Some(1)
+                && telemetry.actual_movement_state.is_some()
+                && speed > 0.5
+            {
+                state.p1_ground_mask |= 1 << 1;
+            }
+            if source_ready && telemetry.outer_state == Some(2) {
+                state.p1_ground_mask |= 1 << 2;
+            }
+            if source_ready
+                && telemetry.outer_state == Some(1)
+                && matches!(telemetry.detail_state, Some(2) | Some(5))
+            {
+                state.p1_ground_mask |= 1 << 3;
+            }
+            if state.p1_ground_mask != previous_mask {
+                info!(
+                    "[MANUAL-INTEGRATION][P1][GROUND] mask={:04b} outer={:?} outer_transition={:?} detail={:?} detail_transition={:?} movement={:?} weight={:.3} speed={speed:.3}",
+                    state.p1_ground_mask,
+                    telemetry.outer_state,
+                    telemetry.outer_transition_active,
+                    telemetry.detail_state,
+                    telemetry.detail_transition_active,
+                    telemetry.actual_movement_state,
+                    telemetry.dominant_detail_weight.unwrap_or_default(),
+                );
+            }
+        }
+        state.coverage.p1_ground = state.p1_ground_mask == 0b1111;
+
+        if let Some((desired, allowed)) = gait_state {
+            let previous_mask = state.p1_gait_mask;
+            if desired.0 == Gait::Walking && allowed.0 == Gait::Walking && *gait == Gait::Walking {
+                state.p1_gait_mask |= 1 << 0;
+            }
+            if desired.0 == Gait::Running && allowed.0 == Gait::Running && *gait == Gait::Running {
+                state.p1_gait_mask |= 1 << 1;
+            }
+            if desired.0 == Gait::Sprinting
+                && allowed.0 == Gait::Sprinting
+                && *gait == Gait::Sprinting
+            {
+                state.p1_gait_mask |= 1 << 2;
+            }
+            if desired.0 == Gait::Sprinting && allowed.0 == Gait::Running && *gait == Gait::Running
+            {
+                state.p1_gait_mask |= 1 << 3;
+            }
+            if state.p1_gait_mask != previous_mask {
+                let (local_x, local_y) = actual_motion
+                    .map(|motion| (motion.local_velocity.x, motion.local_velocity.y))
+                    .unwrap_or_default();
+                info!(
+                    "[MANUAL-INTEGRATION][P1][GAIT] mask={:04b} desired={:?} allowed={:?} actual={:?} local=({local_x:.3},{local_y:.3}) speed={speed:.3}",
+                    state.p1_gait_mask, desired.0, allowed.0, gait,
+                );
+            }
+        }
+        state.coverage.p1_gait = state.p1_gait_mask == 0b1111;
+
+        if let (Some(transaction), Some(telemetry)) = (crouch_transaction, grounded_graph) {
+            let previous_mask = state.p1_stance_mask;
+            if transaction.actual_stance == Stance::Crouching
+                && telemetry.actual_state == Some(2)
+                && telemetry.pose_ready == Some(true)
+            {
+                state.p1_stance_mask |= 1 << 0;
+            }
+            if state.p1_stance_mask & 1 != 0
+                && transaction.actual_stance == Stance::Standing
+                && telemetry.actual_state == Some(1)
+                && telemetry.pose_ready == Some(true)
+            {
+                state.p1_stance_mask |= 1 << 1;
+            }
+            if state.p1_stance_mask != previous_mask {
+                info!(
+                    "[MANUAL-INTEGRATION][P1][STANCE] mask={:02b} desired={:?} actual={:?} phase={:?} collider={:.3} grounded={:?}",
+                    state.p1_stance_mask,
+                    transaction.desired_stance,
+                    transaction.actual_stance,
+                    transaction.phase,
+                    transaction.collider_half_height,
+                    telemetry.actual_state,
+                );
+            }
+        }
+        state.coverage.p1_stance = state.p1_stance_mask == 0b11;
+
+        let previous_air_mask = state.p1_air_mask;
+        if *locomotion == LocomotionState::Air
+            && jump_variant.is_some_and(|variant| variant.airborne)
+        {
+            state.p1_air_mask |= 1 << 0;
+        }
+        if *locomotion == LocomotionState::Air && velocity.0.y < -0.05 {
+            state.p1_air_mask |= 1 << 1;
+        }
+        if state.p1_air_mask & 0b11 == 0b11
+            && *locomotion == LocomotionState::Grounded
+            && land_phase.is_some_and(|value| value > 1e-4)
+        {
+            state.p1_air_mask |= 1 << 2;
+        }
+        if state.p1_air_mask != previous_air_mask {
+            info!(
+                "[MANUAL-INTEGRATION][P1][AIR] mask={:03b} locomotion={:?} vertical={:.3} jump={:?} land={:?}",
+                state.p1_air_mask,
+                locomotion,
+                velocity.0.y,
+                jump_variant.map(|variant| variant.airborne),
+                land_phase,
+            );
+        }
+        state.coverage.p1_air = state.p1_air_mask == 0b111;
+
+        if let Some(drive) = turn_drive {
+            let previous_mask = state.p1_turn_mask;
+            if drive.playing && drive.weight > 1e-4 {
+                if drive.lr <= 0.5 {
+                    state.p1_turn_mask |= 1 << 0;
+                } else {
+                    state.p1_turn_mask |= 1 << 1;
+                }
+            }
+            if drive.rotate_active && drive.rotate_weight > 1e-4 {
+                if drive.rotate_lr <= 0.5 {
+                    state.p1_turn_mask |= 1 << 2;
+                } else {
+                    state.p1_turn_mask |= 1 << 3;
+                }
+            }
+            if state.p1_turn_mask != previous_mask {
+                info!(
+                    "[MANUAL-INTEGRATION][P1][TURN] mask={:04b} turn=(playing={},lr={:.1},weight={:.3}) rotate=(active={},lr={:.1},weight={:.3},rate={:.3}) first_person={}",
+                    state.p1_turn_mask,
+                    drive.playing,
+                    drive.lr,
+                    drive.weight,
+                    drive.rotate_active,
+                    drive.rotate_lr,
+                    drive.rotate_weight,
+                    drive.rotate_rate,
+                    first_person,
+                );
+            }
+        }
+        state.coverage.p1_turn = state.p1_turn_mask == 0b1111;
+    }
     state.coverage.view_head |= state
         .initial_view_yaw
         .is_some_and(|initial| (view_yaw.0 - initial).abs() > 0.01)
@@ -3010,6 +3352,15 @@ fn observe_manual_integration(
                 ("foot_lock", coverage.foot_lock),
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
+            ],
+            IntegrationScenario::StateMachine => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("p1_ground_idle_start_cycle_stop_pivot", coverage.p1_ground),
+                ("p1_stance_crouch_and_recover", coverage.p1_stance),
+                ("p1_gait_walk_run_sprint_guard", coverage.p1_gait),
+                ("p1_air_jump_fall_land", coverage.p1_air),
+                ("p1_turn_and_rotate_both_sides", coverage.p1_turn),
             ],
             IntegrationScenario::FootIk => vec![
                 ("runtime_assembly", coverage.assembly),

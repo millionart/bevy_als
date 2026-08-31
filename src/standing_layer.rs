@@ -527,6 +527,7 @@ struct StandingLayerRuntime {
     detail_remaining: f32,
     detail_transition_request: Option<f32>,
     detail_transition_request_remaining: f32,
+    pivot_pending: bool,
     movement_curve_time: f32,
     velocity_blend: VelocityBlend,
     lean: Vec2,
@@ -594,6 +595,10 @@ struct StandingGraphInputs {
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsStandingGraphTelemetry {
+    pub outer_state: Option<u8>,
+    pub outer_transition_active: Option<bool>,
+    pub detail_state: Option<u8>,
+    pub detail_transition_active: Option<bool>,
     pub actual_movement_state: Option<u8>,
     pub actual_movement_transition_active: Option<bool>,
     pub actual_movement_pose_ready: Option<bool>,
@@ -1379,7 +1384,10 @@ fn update_standing_inputs(
     } else {
         view_yaw
     };
-    let pivot = source_pivot_activates(pivot_requested, horizontal_speed);
+    if source_pivot_activates(pivot_requested, horizontal_speed) {
+        runtime.pivot_pending = true;
+    }
+    let pivot = runtime.pivot_pending;
     if moving_smooth {
         runtime.movement_curve_time += play_rate * delta_seconds.max(0.0);
     }
@@ -1444,6 +1452,9 @@ fn update_standing_inputs(
         pivot,
         delta_seconds,
     );
+    if detail == StandingDetail::FirstPivot {
+        runtime.pivot_pending = false;
+    }
     let new_detail_transition = if state_index == 1.0 && detail != detail_before {
         match detail_before.transition_index(detail) {
             Some(index) => Some(index),
@@ -1838,14 +1849,21 @@ fn standing_dominant_branch(player: &AnimationGraphPlayer) -> (Option<u8>, Optio
 
 fn capture_standing_graph_telemetry(
     mut commands: Commands,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<
+        (
+            &ChildOf,
+            &AnimatedSceneInstance,
+            Option<&StandingLayerRuntime>,
+        ),
+        With<AlsCharacterAvatar>,
+    >,
     players: Query<&AnimationGraphPlayer>,
     graph_assets: Res<Assets<AnimationGraph>>,
     state_machines: Res<Assets<StateMachine>>,
     curve_handles: Res<StandingCurveHandles>,
     mut characters: Query<Option<&mut AlsStandingGraphTelemetry>, With<AlsCharacter>>,
 ) {
-    for (parent, instance) in &avatars {
+    for (parent, instance, runtime) in &avatars {
         let Ok(player) = players.get(instance.player_entity()) else {
             continue;
         };
@@ -1861,6 +1879,14 @@ fn capture_standing_graph_telemetry(
             });
         let (dominant_detail_index, dominant_detail_weight) = standing_dominant_branch(player);
         let telemetry = AlsStandingGraphTelemetry {
+            outer_state: runtime.map(|value| value.outer_state.index() as u8),
+            outer_transition_active: runtime
+                .map(|value| value.outer_transition_remaining > f32::EPSILON),
+            detail_state: runtime.map(|value| value.detail.index() as u8),
+            detail_transition_active: runtime.map(|value| {
+                value.detail_remaining > f32::EPSILON
+                    || value.detail_transition_request_remaining > f32::EPSILON
+            }),
             actual_movement_state: actual.and_then(|value| value.0),
             actual_movement_transition_active: actual.map(|value| value.1),
             actual_movement_pose_ready: actual.map(|value| value.2),
@@ -2700,5 +2726,36 @@ mod tests {
         assert!(!source_pivot_activates(true, 2.0));
         assert!(!source_pivot_activates(false, 0.0));
         assert!(!source_pivot_activates(true, f32::NAN));
+    }
+
+    #[test]
+    fn pivot_request_survives_the_run_start_window() {
+        let mut runtime = StandingLayerRuntime {
+            detail: StandingDetail::RunStart,
+            pivot_pending: true,
+            ..default()
+        };
+        let first_pivot = runtime.pivot_pending;
+        let first = detail_for(
+            &mut runtime,
+            Gait::Running,
+            1.0,
+            true,
+            true,
+            first_pivot,
+            RUN_START_DURATION,
+        );
+        assert_eq!(first, StandingDetail::Run);
+        let second_pivot = runtime.pivot_pending;
+        let second = detail_for(
+            &mut runtime,
+            Gait::Running,
+            1.0,
+            true,
+            true,
+            second_pivot,
+            0.0,
+        );
+        assert_eq!(second, StandingDetail::FirstPivot);
     }
 }

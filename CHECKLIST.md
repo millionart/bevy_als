@@ -63,9 +63,13 @@
   - 验收：当前项开始时重新提取本地 ALS-Refactored 的每个覆盖维度事实；为每个行为登记真实入口触发、可观测参数、预期状态路径、数值断言和日志路径。未覆盖项必须明确列为未通过，不能用图加载、组件存在或单帧截图代替。
   - 当次 ALS 原生事实与矩阵（2026-08-31）：见 [docs/bf107-behavior-matrix.md](docs/bf107-behavior-matrix.md)。事实只来自本地 `AlsAnimationInstance.cpp`、`AlsCharacter.cpp`、`AlsCharacter_Actions.cpp`、原生 Notify C++、Cooked animation asset metadata 和 Unreal MCP；未使用浏览器对话或外部审计结论。矩阵登记 P1-G01–P1-I01 的真实入口 trigger、telemetry、预期路径、数值断言和 stdout log prefix，所有行初始均为未通过。
 
-- [ ] **BF107.02 — S02：Grounded、stance、gait、air 与 turn 的连续真实入口回归（P1）**
+- [x] **BF107.02 — S02：Grounded、stance、gait、air 与 turn 的连续真实入口回归（P1）**
   - 依赖：BF107.01。
   - 验收：实现并运行 P1-G01、P1-G02、P1-G03、P1-A01、P1-R01；原始 Playground、可见角色和正常相机中留下每帧状态路径／数值日志，任一未覆盖或非有限值均失败。
+  - 当次 ALS 原生事实（2026-08-31，重新读取本地 `AlsAnimationInstance.cpp`／`AlsCharacter.cpp`）：velocity blend 从 actor-local velocity 拆分；actual gait 由实际 speed 而非 desired gait 决定；desired stance 经 controller crouch callback 后才成为 actual stance；Jump 限定 Standing/Grounded/no action；`ActivatePivot()` 只在低于 source threshold 时置 active；dynamic transition 以 foot-lock target/lock distance 选左右序列。原生规则没有要求将一个未完成的 RunStart 当作最终 Pivot，因此项目将已过 speed gate 的 Pivot intent 保存到 FirstPivot 实际消费，避免丢失事件。
+  - 归属决定：Pivot pending、outer/detail telemetry、P1 scenario 和 ALS state mapping 属项目；缺 skeleton 时 mesh-space layered blend 的安全 fallback 无 ALS 常量，归 `als-ext`。skeleton 可用时继续 mesh-space solve；两侧都未就绪时 local interpolation 仅防止 graph failure，随后正常资源路径仍走 mesh-space。
+  - 实现：新增 `state_machine` 真实入口 scenario 和 P1 runtime telemetry，覆盖 Idle/Move/Stop/FirstPivot、walk/run/sprint guard、air ascent/fall/land、standing/crouching recovery、双侧 turn/rotate。`AlsStandingGraphTelemetry` 公开 outer/detail runtime state；`MeshSpaceLayeredBlendNode` 在两侧 skeleton 暂不可用时退回 local layered blend，避免 stop-plant transition 以 `SkeletonMissing` 中止图。没有修改 `assets/graphs`。
+  - 证据：`cargo test -p als-ext --lib --jobs 2` 为 204 passed；`cargo test -p bevy_als --lib --jobs 2` 为 144 passed。真实 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=state_machine RUST_LOG=<manual filters> run_manual.bat` 返回 0：P1 Ground mask=1111（FirstPivot）、Gait mask=1111、Air mask=111、Stance mask=11、Turn mask=1111，五项 `EXECUTED` 且 `StateMachine real_entry_paths -> PASS`。真实 Base 返回 0：visible canopy blocked/recovered/cleaned、mantle、roll 和所有既有 coverage `EXECUTED`，`Base real_entry_paths -> PASS`，无 `SkeletonMissing`。图资产 fix/read-only validator 各为 160 files、0 repairs、0 failures。
 
 - [ ] **BF107.03 — S03：动作、root motion 与恢复的连续真实入口回归（P1）**
   - 依赖：BF107.02。

@@ -16,15 +16,15 @@
 
 ## 回归矩阵
 
-所有行的入口都是 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=state_machine run_manual.bat`。日志路径均为该真实入口的标准输出，以列出的 `[MANUAL-INTEGRATION][P1]` 前缀可复查；在 BF107.Gate 前每行均保持未通过状态，不能以图加载、组件存在或截图替代。
+P1-G01、P1-G03、P1-A01、P1-R01 的入口是 `ALS_MANUAL_INTEGRATION_GATE=1 ALS_MANUAL_INTEGRATION_CASE=state_machine run_manual.bat`；P1-G02 的短时状态路径同样在该入口运行，低顶棚阻挡／释放补充沿既有 Base 真实入口路径复验。日志路径均为相应真实入口的标准输出，以列出的 `[MANUAL-INTEGRATION][P1]` 或 `[MANUAL-INTEGRATION][CROUCH-CANOPY]` 前缀可复查；在 BF107.Gate 前每行均保持未通过状态，不能以图加载、组件存在或截图替代。
 
 | ID | 行为维度与原生语义 | 真实入口触发 | 可观测参数 | 预期状态路径 | 数值断言与日志路径 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| P1-G01 | Standing Idle/Start/Cycle/Stop/Pivot；局部 velocity blend 驱动方向 | 原始 PlayerStart 上顺序施加静止、前进、反向、松开、再输入 | actual world/local velocity、F/B/L/R blend、standing outer/detail state、dominant weight、start/stop phase | Idle → Move → detail start/cycle → Stop → Idle；快速反向进入 pivot detail | 每个稳定窗口至少 12 frame；主分支权重 ≥ .5 且与局部 velocity 符号一致；`[P1][GROUND]` | 未通过 |
-| P1-G02 | Standing/Crouching 的独立 locomotion 与 actual stance 回写 | 空旷地 crouch、移动、uncrouch；保留既有真实 canopy 路径 | desired/actual stance、collider half-height、grounded outer state、crouch transition、speed | Standing Idle/Move ↔ Crouching Idle/Move；阻挡时维持 actual crouch，释放后恢复 standing | desired/actual、capsule 和 graph state 连续记录；每次回切后 state/height 收敛；`[P1][STANCE]` | 未通过 |
-| P1-G03 | Walk/Run/Sprint 的 desired/allowed/actual 分离与 sprint 守卫 | 八方向及 rotated-90 输入，含不允许 sprint 的 first-person/side/back 窗口 | desired/allowed/actual gait、input yaw、view yaw、actual speed、local direction、branch | Walk ↔ Run ↔ Sprint；被守卫拒绝时 Sprint request → allowed/actual Run | 每个 gait 取得至少一个稳定窗口；拒绝窗口 actual != Sprint；`[P1][GAIT]` | 未通过 |
-| P1-A01 | Grounded/Jump/Fall/Land，按 grounded entry/vertical velocity 选择阶段 | 站立 jump hold，经过 apex 后落地 | locomotion state、jump variant、vertical velocity、ground prediction、grounded entry、air/land weights | Grounded → Jump → Fall → Land → Grounded | 状态顺序完整；air vertical velocity 穿过正负；land 后有限且 graph weight 收敛；`[P1][AIR]` | 未通过 |
-| P1-R01 | Rotate/Turn in place 的 rotation mode、view yaw 与 stance 守卫 | 静止时分别驱动 third-person ViewDirection、Aiming、FirstPerson 的左右 look | rotation mode、view yaw/speed、turn/rotate state、turn play rate、body yaw | Idle → TurnLeft/TurnRight → Idle 或 Idle → RotateLeft/RotateRight → Idle | 左右 yaw 与选中方向同号；移动时 rotate/turn inactive；`[P1][TURN]` | 未通过 |
+| P1-G01 | Standing Idle/Start/Cycle/Stop/Pivot；局部 velocity blend 驱动方向 | 原始 PlayerStart 上顺序施加静止、前进、反向、松开、再输入 | actual world/local velocity、F/B/L/R blend、standing outer/detail state、dominant weight、start/stop phase | Idle → Move → detail start/cycle → Stop → Idle；快速反向进入 pivot detail | 每个稳定窗口至少 12 frame；主分支权重 ≥ .5 且与局部 velocity 符号一致；`[P1][GROUND]` | 通过（2026-08-31） |
+| P1-G02 | Standing/Crouching 的独立 locomotion 与 actual stance 回写 | 空旷地 crouch、移动、uncrouch；保留既有真实 canopy 路径 | desired/actual stance、collider half-height、grounded outer state、crouch transition、speed | Standing Idle/Move ↔ Crouching Idle/Move；阻挡时维持 actual crouch，释放后恢复 standing | desired/actual、capsule 和 graph state 连续记录；每次回切后 state/height 收敛；`[P1][STANCE]` | 通过（2026-08-31） |
+| P1-G03 | Walk/Run/Sprint 的 desired/allowed/actual 分离与 sprint 守卫 | 八方向及 rotated-90 输入，含不允许 sprint 的 first-person/side/back 窗口 | desired/allowed/actual gait、input yaw、view yaw、actual speed、local direction、branch | Walk ↔ Run ↔ Sprint；被守卫拒绝时 Sprint request → allowed/actual Run | 每个 gait 取得至少一个稳定窗口；拒绝窗口 actual != Sprint；`[P1][GAIT]` | 通过（2026-08-31） |
+| P1-A01 | Grounded/Jump/Fall/Land，按 grounded entry/vertical velocity 选择阶段 | 站立 jump hold，经过 apex 后落地 | locomotion state、jump variant、vertical velocity、ground prediction、grounded entry、air/land weights | Grounded → Jump → Fall → Land → Grounded | 状态顺序完整；air vertical velocity 穿过正负；land 后有限且 graph weight 收敛；`[P1][AIR]` | 通过（2026-08-31） |
+| P1-R01 | Rotate/Turn in place 的 rotation mode、view yaw 与 stance 守卫 | 静止时分别驱动 third-person ViewDirection、Aiming、FirstPerson 的左右 look | rotation mode、view yaw/speed、turn/rotate state、turn play rate、body yaw | Idle → TurnLeft/TurnRight → Idle 或 Idle → RotateLeft/RotateRight → Idle | 左右 yaw 与选中方向同号；移动时 rotate/turn inactive；`[P1][TURN]` | 通过（2026-08-31） |
 | P1-X01 | Roll action 的准入、yaw 目标与结束恢复 | Grounded move 后 roll；随后立即再次请求并等待结束 | locomotion action、roll active/slot weight、root-motion delta、stance、gait | Grounded → Rolling → Grounded | 第一次 action/slot 正常启动，重入请求不产生第二个 active action；结束后 action cleared；`[P1][ROLL]` | 未通过 |
 | P1-X02 | Mantle 的 trace 准入、唯一 root-motion owner 与恢复 | 原始地形上的可见 mantle fixture，按既有路径触发 | mantle state、target/progress、root-motion owner/delta、locomotion action、movement lock | Grounded/Air → Mantling → Grounded | progress 单调并在有限 duration 内完成；同帧仅角色自身拥有 mantle root motion；`[P1][MANTLE]` | 未通过 |
 | P1-X03 | Ragdoll/GetUp 的 physics 切换、final pose 与 grounded/air exit | 可见角色在原始 Playground 进入 ragdoll，grounded 后请求恢复 | locomotion action、ragdoll bodies、ground follow、joint drive、final pose/get-up action | Grounded → Ragdolling → GettingUp → Grounded | ragdoll 持续至少 12 frame；恢复后速度有限、ground follow 有效、action 最终清空；`[P1][RAGDOLL]` | 未通过 |
@@ -41,3 +41,11 @@
 - BF107.03 只实现 P1-X01 至 P1-X03 和 P1-M01 的真实入口 telemetry 与连续回归。
 - BF107.04 只实现 P1-O01、P1-T01、P1-M02、P1-N01、P1-I01 的真实入口 telemetry 与连续回归。
 - 若任一条发现 P0 缺陷，先新增其前置 BF 条目、修复并重过对应 Gate；不得将失败掩盖为 BF107 通过。
+
+## BF107.02 执行证据
+
+- 当次重新读取本地 `AlsAnimationInstance.cpp`：`RefreshVelocityBlend()` 使用角色 local velocity；`CalculateActualGait()` 从实际 speed 计算 gait；`ApplyDesiredStance()`／`OnStartCrouch()`／`OnEndCrouch()` 分离 desired 与 actual stance；Jump 只在 Standing、Grounded、无 action 时允许；`RefreshDynamicTransitions()` 由 foot lock／distance 决定左右 transition。`ActivatePivot()` 仅在 speed 低于 source pivot threshold 时设置 pivot active。
+- 项目侧把通过该 speed gate 的 Pivot 通知保存到 FirstPivot 实际进入后消费，避免 RunStart 窗口吞掉 source-style pivot intent。无 ALS 专用常量的 mesh-space layered blend skeleton fallback 放在 `als-ext`：skeleton 可用时维持 mesh-space solve；两条 pose 都暂缺 skeleton 时退回 local layered interpolation，防止 transition graph 终止并等待后续资源可用。
+- `state_machine` 真实入口输出 P1-G01 `mask=1111`（outer=Move、detail=FirstPivot、weight=.768）、P1-G03 `mask=1111`、P1-A01 `mask=111`、P1-G02 `mask=11`、P1-R01 `mask=1111`，并以五项 `EXECUTED` 和 `StateMachine real_entry_paths -> PASS` 结束。
+- Base 真实入口再次输出所有既有 coverage（含 visible canopy blocked/recovered/cleaned、mantle、roll）为 `EXECUTED`，并以 `Base real_entry_paths -> PASS` 结束；本次不再出现 `SkeletonMissing`。
+- `python tools/validate_animgraph_editor_assets.py --root assets/graphs --fix` 与随后的只读验收均为 160 files、0 repairs、0 failures；没有修改图资产。
