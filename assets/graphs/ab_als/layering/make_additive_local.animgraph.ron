@@ -10,7 +10,10 @@
         NodeData("19020000-0000-4000-8000-000000000002", "pose_b"): InputData(Passthrough("locomotion_pose")), NodeTime("19020000-0000-4000-8000-000000000002", "time_b"): InputTime(Passthrough("locomotion_time")),
         OutputData("pose"): NodeData("19020000-0000-4000-8000-000000000002", "pose"), OutputTime: NodeTime("19020000-0000-4000-8000-000000000002"),
     },
-    io_spec: (input_times: [Passthrough("locomotion_time")], input_data: { Passthrough("locomotion_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }),
+    io_spec: (input_times: [Passthrough("locomotion_time")], input_data: { Passthrough("locomotion_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: {
+        Time(Passthrough("locomotion_time")): 0,
+        Data(Passthrough("locomotion_pose")): 1,
+    }, output_order: { Data("pose"): 0, Time: 1 }),
     default_data: {},
     editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

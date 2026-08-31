@@ -253,6 +253,7 @@
             Data(Passthrough("view_pitch_norm")): 4,
             Data(Passthrough("look_weight")): 5,
             Data(Passthrough("look_mask")): 6,
+            Time(Passthrough("prev_time")): 7,
         },
         output_order: {
             Data("pose"): 0,

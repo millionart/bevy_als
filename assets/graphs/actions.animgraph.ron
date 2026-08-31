@@ -556,6 +556,7 @@
             Data(Passthrough("rotate_weight")): 28,
             Data(Passthrough("rotate_lr")): 29,
             Data(Passthrough("rotate_play_rate")): 30,
+            Time(Passthrough("prev_time")): 31,
         },
         output_order: {
             Data("pose"): 0,

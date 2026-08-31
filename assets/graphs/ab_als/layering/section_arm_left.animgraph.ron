@@ -12,7 +12,14 @@
         NodeData("19080000-0000-4000-8000-000000000003", "pose_a"): InputData(Passthrough("locomotion_pose")), NodeTime("19080000-0000-4000-8000-000000000003", "time_a"): InputTime(Passthrough("locomotion_time")), NodeData("19080000-0000-4000-8000-000000000003", "pose_b"): NodeData("19080000-0000-4000-8000-000000000002", "pose"), NodeTime("19080000-0000-4000-8000-000000000003", "time_b"): NodeTime("19080000-0000-4000-8000-000000000002"), NodeData("19080000-0000-4000-8000-000000000003", "factor"): NodeData("19080000-0000-4000-8000-000000000004", "als_layering_arm_left"),
         OutputData("pose"): NodeData("19080000-0000-4000-8000-000000000003", "pose"), OutputTime: NodeTime("19080000-0000-4000-8000-000000000003"),
     },
-    io_spec: (input_times: [Passthrough("locomotion_time"), Passthrough("overlay_time"), Passthrough("additive_time")], input_data: { Passthrough("locomotion_pose"): Pose, Passthrough("overlay_pose"): Pose, Passthrough("additive_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0, Time: 1 }),
+    io_spec: (input_times: [Passthrough("locomotion_time"), Passthrough("overlay_time"), Passthrough("additive_time")], input_data: { Passthrough("locomotion_pose"): Pose, Passthrough("overlay_pose"): Pose, Passthrough("additive_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: {
+        Time(Passthrough("locomotion_time")): 0,
+        Time(Passthrough("overlay_time")): 1,
+        Time(Passthrough("additive_time")): 2,
+        Data(Passthrough("locomotion_pose")): 3,
+        Data(Passthrough("overlay_pose")): 4,
+        Data(Passthrough("additive_pose")): 5,
+    }, output_order: { Data("pose"): 0, Time: 1 }),
     default_data: {},
     editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

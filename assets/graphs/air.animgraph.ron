@@ -294,6 +294,7 @@
             Data(Passthrough("flail_weight")): 12,
             Data(Passthrough("jump_left_weight")): 5,
             Data(Passthrough("jump_run_weight")): 6,
+            Time(Passthrough("base_time")): 13,
         },
         output_order: {
             Data("pose"): 0,
