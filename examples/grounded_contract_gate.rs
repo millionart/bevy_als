@@ -129,6 +129,17 @@ fn labels(machine: &StateMachine) -> Vec<&str> {
     labels
 }
 
+fn state_positions_match(machine: &StateMachine, expected: &[(&str, (f32, f32))]) -> bool {
+    expected.iter().all(|(label, (x, y))| {
+        machine
+            .states
+            .values()
+            .find(|state| state.label == *label)
+            .and_then(|state| machine.editor_metadata.states.get(&state.id))
+            .is_some_and(|position| close(position.x, *x) && close(position.y, *y))
+    })
+}
+
 fn transition_count(
     machine: &StateMachine,
     source: &str,
@@ -288,6 +299,17 @@ fn verify_static(
             "Standing",
             "Standing To Crouching",
         ]
+        && state_positions_match(
+            fsm,
+            &[
+                ("Entry Conduit", (176.0, 0.0)),
+                ("Standing", (416.0, -128.0)),
+                ("Crouching", (416.0, 128.0)),
+                ("Standing To Crouching", (416.0, 256.0)),
+                ("Crouching To Standing", (416.0, -256.0)),
+                ("Roll", (416.0, 0.0)),
+            ],
+        )
         && fsm.transitions.len() == 20
         && transition_count(fsm, "Entry Conduit", "Roll", Some(0.2)) == 1
         && transition_count(fsm, "Entry Conduit", "Crouching", Some(0.2)) == 1

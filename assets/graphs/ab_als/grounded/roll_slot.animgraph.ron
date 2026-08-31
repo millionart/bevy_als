@@ -10,5 +10,9 @@
     },
     io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose, "events": EventQueue }, input_order: {}, output_order: { Data("pose"): 0, Data("events"): 1, Time: 2 }),
     default_data: {},
-    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: {
+        "17150000-0000-4000-8000-000000000001": (0.000, -128.000),
+        "17150000-0000-4000-8000-000000000002": (-416.000, 48.000),
+        "17150000-0000-4000-8000-000000000003": (-256.000, 0.000),
+    }, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

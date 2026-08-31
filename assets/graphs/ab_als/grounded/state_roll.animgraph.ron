@@ -12,5 +12,10 @@
     },
     io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose, "events": EventQueue, "PoseStanding": F32, "PoseCrouching": F32, "PoseMoving": F32, "RotationYawOffset": F32, "FootLeftLock": F32, "FootRightLock": F32, "AllowTransitions": F32, "RotationYawSpeed": F32 }, input_order: {}, output_order: { Data("pose"): 0, Data("events"): 1, Data("PoseStanding"): 2, Data("PoseCrouching"): 3, Data("PoseMoving"): 4, Data("RotationYawOffset"): 5, Data("FootLeftLock"): 6, Data("FootRightLock"): 7, Data("AllowTransitions"): 8, Data("RotationYawSpeed"): 9, Time: 10 }),
     default_data: {},
-    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: {
+        "17070000-0000-4000-8000-000000000001": (-816.000, -16.000),
+        "17070000-0000-4000-8000-000000000002": (-1072.000, 80.000),
+        "17070000-0000-4000-8000-000000000004": (-528.000, 0.000),
+        "17070000-0000-4000-8000-000000000003": (-1072.000, -16.000),
+    }, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )
