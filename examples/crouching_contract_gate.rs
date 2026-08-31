@@ -204,6 +204,17 @@ fn labels_match(machine: &StateMachine, expected: &[&str]) -> bool {
     actual == expected
 }
 
+fn state_positions_match(machine: &StateMachine, expected: &[(&str, (f32, f32))]) -> bool {
+    expected.iter().all(|(label, (x, y))| {
+        machine
+            .states
+            .values()
+            .find(|state| state.label == *label)
+            .and_then(|state| machine.editor_metadata.states.get(&state.id))
+            .is_some_and(|position| close(position.x, *x) && close(position.y, *y))
+    })
+}
+
 fn has_transition(
     machine: &StateMachine,
     source: &str,
@@ -458,6 +469,15 @@ fn verify_static(
     let outer_contract = labels_match(
         outer,
         &["Idle", "Move", "Rotate Left", "Rotate Right", "Stop"],
+    ) && state_positions_match(
+        outer,
+        &[
+            ("Idle", (176.0, 0.0)),
+            ("Move", (-16.0, -128.0)),
+            ("Stop", (352.0, -128.0)),
+            ("Rotate Right", (352.0, 128.0)),
+            ("Rotate Left", (-48.0, 128.0)),
+        ],
     ) && outer.transitions.len() == 12
         && [
             ("Idle", "Move", Some(0.2)),
@@ -476,6 +496,17 @@ fn verify_static(
         .into_iter()
         .all(|(source, target, duration)| has_transition(outer, source, target, duration));
     let movement_contract = labels_match(movement, &["Move Forward", "Move Backward", "Move Right Forward", "Move Right Backward", "Move Left Forward", "Move Left Backward"])
+        && state_positions_match(
+            movement,
+            &[
+                ("Move Forward", (-48.0, 128.0)),
+                ("Move Backward", (-48.0, 592.0)),
+                ("Move Right Forward", (208.0, 256.0)),
+                ("Move Right Backward", (208.0, 464.0)),
+                ("Move Left Forward", (-336.0, 256.0)),
+                ("Move Left Backward", (-352.0, 464.0)),
+            ],
+        )
         && movement.transitions.len() == 24
         && movement.transitions.values().all(|transition| matches!(transition.data.kind, TransitionKind::Graph { timed: Some(value), .. } if close(value, 0.7)));
     let direction_contract = direction

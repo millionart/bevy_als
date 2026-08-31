@@ -462,6 +462,19 @@ struct CrouchingGraphInputs {
     dynamic_transition_index: Option<f32>,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsCrouchingGraphTelemetry {
+    pub outer_state: Option<u8>,
+    pub outer_transition_active: Option<bool>,
+    pub runtime_movement_state: Option<u8>,
+    pub runtime_movement_transition_active: Option<bool>,
+    pub graph_movement_state_input: Option<f32>,
+    pub dominant_velocity_index: Option<u8>,
+    pub dominant_velocity_weight: Option<f32>,
+    pub lean_right_amount: Option<f32>,
+    pub lean_forward_amount: Option<f32>,
+}
+
 pub struct CrouchingLayerPlugin;
 
 impl Plugin for CrouchingLayerPlugin {
@@ -476,6 +489,10 @@ impl Plugin for CrouchingLayerPlugin {
         .add_systems(
             PostUpdate,
             crouching_layer_writer.in_set(AlsCrouchingLayerSet),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            capture_crouching_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }
 }
@@ -1200,10 +1217,7 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
         ),
         ("als_crouching_stride_amount", inputs.stride_amount),
         ("als_crouching_play_rate", inputs.play_rate),
-        (
-            "als_crouching_lean_right_amount",
-            inputs.lean_right_amount,
-        ),
+        ("als_crouching_lean_right_amount", inputs.lean_right_amount),
         (
             "als_crouching_lean_forward_amount",
             inputs.lean_forward_amount,
@@ -1263,6 +1277,84 @@ fn write_leg_masks(player: &mut AnimationGraphPlayer, handles: &CrouchingCurveHa
                 .unwrap_or_else(BoneMask::none),
         ),
     );
+}
+
+fn crouching_dominant_velocity(player: &AnimationGraphPlayer) -> (Option<u8>, Option<f32>) {
+    let keys = [
+        "als_crouching_velocity_forward_amount",
+        "als_crouching_velocity_backward_amount",
+        "als_crouching_velocity_left_amount",
+        "als_crouching_velocity_right_amount",
+    ];
+    let mut total = 0.0;
+    let mut dominant_index = None;
+    let mut dominant_weight = 0.0;
+    for (index, key) in keys.into_iter().enumerate() {
+        let weight = player
+            .get_global_input_data(key)
+            .and_then(|value| value.as_f32().ok())
+            .filter(|weight| weight.is_finite() && *weight > 0.0)
+            .unwrap_or(0.0);
+        total += weight;
+        if weight > dominant_weight {
+            dominant_index = Some(index as u8);
+            dominant_weight = weight;
+        }
+    }
+    if total <= f32::EPSILON {
+        (None, None)
+    } else {
+        (dominant_index, Some(dominant_weight / total))
+    }
+}
+
+fn capture_crouching_graph_telemetry(
+    mut commands: Commands,
+    avatars: Query<
+        (
+            &ChildOf,
+            &AnimatedSceneInstance,
+            Option<&CrouchingLayerRuntime>,
+        ),
+        With<AlsCharacterAvatar>,
+    >,
+    players: Query<&AnimationGraphPlayer>,
+    mut characters: Query<Option<&mut AlsCrouchingGraphTelemetry>, With<AlsCharacter>>,
+) {
+    for (parent, instance, runtime) in &avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
+            continue;
+        };
+        let (dominant_velocity_index, dominant_velocity_weight) =
+            crouching_dominant_velocity(player);
+        let telemetry = AlsCrouchingGraphTelemetry {
+            outer_state: runtime.map(|value| value.outer_state.index() as u8),
+            outer_transition_active: runtime
+                .map(|value| value.outer_transition_remaining > f32::EPSILON),
+            runtime_movement_state: runtime.map(|value| value.movement_state.index() as u8),
+            runtime_movement_transition_active: runtime
+                .map(|value| value.movement_transition_remaining > f32::EPSILON),
+            graph_movement_state_input: player
+                .get_global_input_data("als_crouching_movement_state_index")
+                .and_then(|value| value.as_f32().ok()),
+            dominant_velocity_index,
+            dominant_velocity_weight,
+            lean_right_amount: player
+                .get_global_input_data("als_crouching_lean_right_amount")
+                .and_then(|value| value.as_f32().ok()),
+            lean_forward_amount: player
+                .get_global_input_data("als_crouching_lean_forward_amount")
+                .and_then(|value| value.as_f32().ok()),
+        };
+        let Ok(current) = characters.get_mut(parent.parent()) else {
+            continue;
+        };
+        if let Some(mut current) = current {
+            *current = telemetry;
+        } else {
+            commands.entity(parent.parent()).insert(telemetry);
+        }
+    }
 }
 
 #[allow(clippy::type_complexity)]

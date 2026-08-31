@@ -33,6 +33,7 @@ use crate::animation_events::{
 };
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::AlsControlRigState;
+use crate::crouching_layer::AlsCrouchingGraphTelemetry;
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::foot_ik_apply::{
     AlsFootIkApplyTelemetry, AlsFootIkSpaceState, AlsFootIkTelemetry, AlsFootIkTelemetryEnabled,
@@ -64,6 +65,9 @@ const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const DIRECTION_CASE_COUNT: usize = 11;
+const CROUCH_DIRECTION_CASE_SECONDS: f32 = 3.0;
+const CROUCH_DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
+const CROUCH_DIRECTION_CASE_COUNT: usize = 8;
 const DIRECTION_BRANCH_FORWARD: u8 = 1 << 0;
 const DIRECTION_BRANCH_BACKWARD: u8 = 1 << 1;
 const DIRECTION_BRANCH_LEFT: u8 = 1 << 2;
@@ -129,6 +133,7 @@ enum IntegrationPhase {
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
+    CrouchDirectionRegression,
     Turn,
     Mantle,
     Platform,
@@ -146,6 +151,7 @@ enum CrouchClearanceStage {
     AwaitStanding,
     Cycling,
     PrepareCanopyCrouch,
+    StabilizeCanopyCrouch,
     ArmCanopy,
     AwaitCanopyReady,
     RequestStanding,
@@ -157,6 +163,7 @@ enum CrouchClearanceStage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IntegrationScenario {
     Base,
+    Crouching,
     StateMachine,
     FootIk,
     Ragdoll,
@@ -168,6 +175,7 @@ enum IntegrationScenario {
 impl IntegrationScenario {
     fn from_environment() -> Self {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
+            Some("crouching") => Self::Crouching,
             Some("state_machine") => Self::StateMachine,
             Some("foot_ik") => Self::FootIk,
             Some("ragdoll") => Self::Ragdoll,
@@ -192,6 +200,12 @@ struct DirectionRegressionCase {
     yaw_offset: f32,
     branch_mask: u8,
     branch_from_actual_local: bool,
+}
+
+#[derive(Clone, Copy)]
+struct CrouchDirectionRegressionCase {
+    name: &'static str,
+    move_dir: Vec2,
 }
 
 fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
@@ -292,6 +306,44 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
     }
 }
 
+fn crouch_direction_regression_case(index: usize) -> Option<CrouchDirectionRegressionCase> {
+    match index {
+        0 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_forward",
+            move_dir: Vec2::Y,
+        }),
+        1 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_backward",
+            move_dir: Vec2::NEG_Y,
+        }),
+        2 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_right_forward",
+            move_dir: Vec2::new(1.0, 1.0).normalize(),
+        }),
+        3 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_right_backward",
+            move_dir: Vec2::new(1.0, -1.0).normalize(),
+        }),
+        4 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_left_forward",
+            move_dir: Vec2::new(-1.0, 1.0).normalize(),
+        }),
+        5 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_left_backward",
+            move_dir: Vec2::new(-1.0, -1.0).normalize(),
+        }),
+        6 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_right_cardinal",
+            move_dir: Vec2::X,
+        }),
+        7 => Some(CrouchDirectionRegressionCase {
+            name: "crouch_left_cardinal",
+            move_dir: Vec2::NEG_X,
+        }),
+        _ => None,
+    }
+}
+
 fn movement_direction_fsm_index(direction: AlsMovementDirection) -> u8 {
     match direction {
         AlsMovementDirection::Forward => 0,
@@ -357,6 +409,13 @@ struct IntegrationCoverage {
     crouch_canopy_cleaned: bool,
     crouch_moving: bool,
     crouching: bool,
+    crouch_direction_cases: [bool; CROUCH_DIRECTION_CASE_COUNT],
+    crouch_direction_diagnostics: [bool; CROUCH_DIRECTION_CASE_COUNT],
+    crouch_direction_state_mask: u8,
+    crouch_direction_lean: bool,
+    crouch_rotate: bool,
+    crouch_turn: bool,
+    crouch_turn_diagnostic: bool,
     sprinting: bool,
     airborne: bool,
     landed: bool,
@@ -464,6 +523,7 @@ struct ManualIntegrationState {
     notify_mantle_armed: bool,
     turn_body_yaw: Option<f32>,
     direction_case_index: usize,
+    crouch_direction_case_index: usize,
     foot_ik_baseline_mask: u8,
     foot_ik_no_hit_logged: bool,
     foot_ik_weight_mask: u8,
@@ -476,6 +536,7 @@ struct ManualIntegrationState {
     crouch_clearance_last_actual: Stance,
     crouch_canopy: Option<Entity>,
     crouch_canopy_center: Option<Vec3>,
+    crouch_canopy_prepare_at: Option<Instant>,
     crouch_canopy_armed_at: Option<Instant>,
     foot_ik_slope: Option<Entity>,
     foot_ik_step: Option<Entity>,
@@ -535,6 +596,7 @@ impl Default for ManualIntegrationState {
             notify_mantle_armed: false,
             turn_body_yaw: None,
             direction_case_index: usize::MAX,
+            crouch_direction_case_index: usize::MAX,
             foot_ik_baseline_mask: 0,
             foot_ik_no_hit_logged: false,
             foot_ik_weight_mask: 0,
@@ -547,6 +609,7 @@ impl Default for ManualIntegrationState {
             crouch_clearance_last_actual: Stance::Standing,
             crouch_canopy: None,
             crouch_canopy_center: None,
+            crouch_canopy_prepare_at: None,
             crouch_canopy_armed_at: None,
             foot_ik_slope: None,
             foot_ik_step: None,
@@ -580,6 +643,7 @@ struct InterfaceProbe<'w, 's> {
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
     standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
+    crouching_graph: Query<'w, 's, &'static AlsCrouchingGraphTelemetry, With<AlsCharacter>>,
     grounded: Query<'w, 's, &'static AlsGroundedGraphTelemetry, With<AlsCharacter>>,
     crouch: Query<'w, 's, &'static AlsCrouchTransaction, With<AlsCharacter>>,
     actual: Query<'w, 's, &'static AlsActualMotion, With<AlsCharacter>>,
@@ -735,6 +799,7 @@ fn initialize_manual_integration(
         IntegrationScenario::Base
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
@@ -1307,6 +1372,8 @@ fn drive_manual_integration(
                 state.crouch_clearance_stage = CrouchClearanceStage::AwaitStanding;
                 state.crouch_clearance_cycles = 0;
                 state.crouch_clearance_last_actual = Stance::Standing;
+                state.crouch_canopy_prepare_at = None;
+                state.crouch_canopy_armed_at = None;
                 state.coverage.crouch_cycles = false;
                 state.coverage.crouch_canopy_visible = false;
                 state.coverage.crouch_canopy_blocked = false;
@@ -1364,9 +1431,48 @@ fn drive_manual_integration(
                     }
                 }
                 CrouchClearanceStage::PrepareCanopyCrouch => {
-                    if *stance == Stance::Standing {
-                        request.stance = Some(Stance::Crouching);
-                    } else if *stance == Stance::Crouching {
+                    let standing_center =
+                        state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                    let canopy_start = params_assets
+                        .get(params_handle.id())
+                        .map(|params| {
+                            stance_center_from_standing_center(params, standing_center, *stance)
+                        })
+                        .unwrap_or(standing_center);
+                    reset_character_without_rotation(
+                        &mut transform,
+                        &mut position,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        canopy_start,
+                        fixture.facing_yaw,
+                    );
+                    *gait = Gait::Walking;
+                    *rotation_mode = RotationMode::ViewDirection;
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.stance = Some(Stance::Crouching);
+                    request.gait = Some(Gait::Walking);
+                    request.rotation_mode = Some(RotationMode::ViewDirection);
+                    state.crouch_canopy_prepare_at = Some(Instant::now());
+                    state.crouch_clearance_stage = CrouchClearanceStage::StabilizeCanopyCrouch;
+                    info!(
+                        "[MANUAL-INTEGRATION][CROUCH-CANOPY-STABILIZE] reset=({:.3},{:.3},{:.3})",
+                        canopy_start.x, canopy_start.y, canopy_start.z,
+                    );
+                }
+                CrouchClearanceStage::StabilizeCanopyCrouch => {
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.stance = Some(Stance::Crouching);
+                    request.gait = Some(Gait::Walking);
+                    request.rotation_mode = Some(RotationMode::ViewDirection);
+                    if *stance == Stance::Crouching
+                        && *locomotion == LocomotionState::Grounded
+                        && !transaction.headroom_blocked
+                        && state
+                            .crouch_canopy_prepare_at
+                            .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(0.5))
+                    {
                         state.crouch_clearance_stage = CrouchClearanceStage::ArmCanopy;
                     }
                 }
@@ -1433,12 +1539,87 @@ fn drive_manual_integration(
                 CrouchClearanceStage::AwaitRecovery => {
                     if state.coverage.crouch_canopy_recovered {
                         cleanup_crouch_canopy(&mut commands, &mut state);
-                        begin_phase(&mut state, IntegrationPhase::Turn);
+                        begin_phase(&mut state, IntegrationPhase::CrouchDirectionRegression);
                     }
                 }
             }
             if elapsed >= CROUCH_CLEARANCE_TIMEOUT {
                 cleanup_crouch_canopy(&mut commands, &mut state);
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::CrouchDirectionRegression => {
+            if entering {
+                let crouch_start = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    crouch_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::Aiming;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Crouching);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::Aiming);
+                state.crouch_direction_case_index = usize::MAX;
+                state.coverage.crouch_direction_cases = [false; CROUCH_DIRECTION_CASE_COUNT];
+                state.coverage.crouch_direction_diagnostics = [false; CROUCH_DIRECTION_CASE_COUNT];
+                state.coverage.crouch_direction_state_mask = 0;
+                state.coverage.crouch_direction_lean = false;
+                state.coverage.crouch_rotate = false;
+                state.coverage.crouch_turn = false;
+                state.coverage.crouch_turn_diagnostic = false;
+                info!("[MANUAL-INTEGRATION][CROUCH-DIRECTION] start");
+            }
+            let direction_duration =
+                CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Crouching);
+            request.gait = Some(Gait::Running);
+            if elapsed < direction_duration {
+                let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
+                let Some(case) = crouch_direction_regression_case(case_index) else {
+                    return;
+                };
+                if state.crouch_direction_case_index != case_index {
+                    state.crouch_direction_case_index = case_index;
+                    info!(
+                        "[MANUAL-INTEGRATION][CROUCH-DIRECTION][START] case={} input=({:.3},{:.3})",
+                        case.name, case.move_dir.x, case.move_dir.y,
+                    );
+                }
+                input.0.move_dir = case.move_dir;
+                *rotation_mode = RotationMode::Aiming;
+                request.rotation_mode = Some(RotationMode::Aiming);
+                view_yaw.0 =
+                    als_core::orientation::world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
+            } else if elapsed < direction_duration + 3.0 {
+                *rotation_mode = RotationMode::Aiming;
+                request.rotation_mode = Some(RotationMode::Aiming);
+                view_yaw.0 = fixture.facing_yaw + 90.0_f32.to_radians();
+            } else if elapsed < direction_duration + 6.5 {
+                *rotation_mode = RotationMode::ViewDirection;
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                let body_forward = transform.rotation * Vec3::NEG_Z;
+                view_yaw.0 = als_core::orientation::world_forward_to_yaw(body_forward)
+                    + 180.0_f32.to_radians();
+            } else {
+                request.stance = Some(Stance::Standing);
+                if state.scenario == IntegrationScenario::Crouching {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Turn);
+                }
+            }
+            if elapsed >= direction_duration + 12.0 {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -2188,6 +2369,7 @@ fn observe_manual_integration(
         return;
     };
     let standing_graph = motion_probe.standing.get(character).ok();
+    let crouching_graph = motion_probe.crouching_graph.get(character).ok();
     let grounded_graph = motion_probe.grounded.get(character).ok();
     let crouch_transaction = motion_probe.crouch.get(character).ok();
     if matches!(
@@ -2269,6 +2451,132 @@ fn observe_manual_integration(
             );
         }
         state.coverage.standing_graph = true;
+    }
+    if state.phase == IntegrationPhase::CrouchDirectionRegression {
+        let elapsed = state.phase_started.elapsed().as_secs_f32();
+        let direction_duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
+        let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
+        if case_index < CROUCH_DIRECTION_CASE_COUNT
+            && !state.coverage.crouch_direction_cases[case_index]
+            && !state.coverage.crouch_direction_diagnostics[case_index]
+            && elapsed
+                >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
+                    + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
+            && let Some(case) = crouch_direction_regression_case(case_index)
+        {
+            state.coverage.crouch_direction_diagnostics[case_index] = true;
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-DIRECTION][OBSERVE] case={} stance={:?} speed={:.3} source={} runtime={:?} movement_direction={:?} velocity={:?}",
+                case.name,
+                stance,
+                speed,
+                source_ready,
+                crouching_graph,
+                movement_direction.map(|value| value.direction),
+                actual_motion.map(|value| value.local_velocity),
+            );
+        }
+        if case_index < CROUCH_DIRECTION_CASE_COUNT
+            && !state.coverage.crouch_direction_cases[case_index]
+            && elapsed
+                >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
+                    + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
+            && let Some(case) = crouch_direction_regression_case(case_index)
+            && let (Some(motion), Some(telemetry)) = (actual_motion, crouching_graph)
+            && let Some(state_index) = telemetry.runtime_movement_state
+            && state_index < 6
+        {
+            let expected_world =
+                als_core::motion::view_relative_move_direction(case.move_dir, view_yaw.0);
+            let expected_local = Vec2::new(
+                expected_world.dot(transform.rotation * Vec3::NEG_Z),
+                expected_world.dot(transform.rotation * Vec3::X),
+            )
+            .normalize_or_zero();
+            let world_alignment = motion
+                .world_velocity
+                .normalize_or_zero()
+                .dot(expected_world);
+            let local_alignment = motion
+                .local_velocity
+                .normalize_or_zero()
+                .dot(expected_local);
+            let graph_matches = telemetry.outer_state == Some(1)
+                && telemetry.runtime_movement_transition_active == Some(false)
+                && telemetry
+                    .graph_movement_state_input
+                    .is_some_and(|value| (value - state_index as f32).abs() < 1e-4);
+            if source_ready
+                && motion.horizontal_speed > 0.45
+                && world_alignment >= 0.75
+                && local_alignment >= 0.75
+                && graph_matches
+            {
+                state.coverage.crouch_direction_cases[case_index] = true;
+                state.coverage.crouch_direction_state_mask |= 1 << state_index;
+                info!(
+                    "[MANUAL-INTEGRATION][CROUCH-DIRECTION] case={} state={:?} graph_input={:?} branch={:?} velocity=({:.3},{:.3}) world_align={:.3} local_align={:.3}",
+                    case.name,
+                    telemetry.runtime_movement_state,
+                    telemetry.graph_movement_state_input,
+                    movement_direction.map(|value| value.direction),
+                    motion.local_velocity.x,
+                    motion.local_velocity.y,
+                    world_alignment,
+                    local_alignment,
+                );
+            }
+        }
+        if let Some(telemetry) = crouching_graph {
+            state.coverage.crouch_direction_lean |= telemetry
+                .lean_right_amount
+                .zip(telemetry.lean_forward_amount)
+                .is_some_and(|(right, forward)| {
+                    right.is_finite()
+                        && forward.is_finite()
+                        && right.abs().max(forward.abs()) > 1e-4
+                });
+        }
+        if elapsed >= direction_duration
+            && elapsed < direction_duration + 3.0
+            && let (Some(telemetry), Some(drive)) = (crouching_graph, turn_drive)
+            && matches!(telemetry.outer_state, Some(2) | Some(3))
+            && drive.rotate_active
+            && drive.rotate_weight > 1e-4
+        {
+            if !state.coverage.crouch_rotate {
+                info!(
+                    "[MANUAL-INTEGRATION][CROUCH-ROTATE] outer={:?} side={:.1} weight={:.3} rate={:.3}",
+                    telemetry.outer_state, drive.rotate_lr, drive.rotate_weight, drive.rotate_rate,
+                );
+            }
+            state.coverage.crouch_rotate = true;
+        }
+        if elapsed >= direction_duration + 3.0
+            && elapsed < direction_duration + 6.5
+            && let (Some(telemetry), Some(drive)) = (crouching_graph, turn_drive)
+            && telemetry.outer_state == Some(0)
+            && drive.playing
+            && drive.weight > 1e-4
+        {
+            if !state.coverage.crouch_turn {
+                info!(
+                    "[MANUAL-INTEGRATION][CROUCH-TURN] outer={:?} side={:.1} weight={:.3} duration={:.6}",
+                    telemetry.outer_state, drive.lr, drive.weight, drive.duration,
+                );
+            }
+            state.coverage.crouch_turn = true;
+        }
+        if elapsed >= direction_duration + 3.0
+            && elapsed < direction_duration + 6.5
+            && !state.coverage.crouch_turn_diagnostic
+        {
+            state.coverage.crouch_turn_diagnostic = true;
+            info!(
+                "[MANUAL-INTEGRATION][CROUCH-TURN][OBSERVE] runtime={:?} drive={:?}",
+                crouching_graph, turn_drive,
+            );
+        }
     }
     if state.phase == IntegrationPhase::CrouchRecovery
         && let Some(transaction) = crouch_transaction
@@ -3296,13 +3604,27 @@ fn observe_manual_integration(
         state.final_logged = true;
         let coverage = &state.coverage;
         let direction_regression = coverage.direction_cases.iter().all(|covered| *covered);
-        if state.scenario == IntegrationScenario::Base {
+        if matches!(
+            state.scenario,
+            IntegrationScenario::Base | IntegrationScenario::Crouching
+        ) {
             for index in 0..DIRECTION_CASE_COUNT {
-                if !coverage.direction_cases[index]
+                if state.scenario == IntegrationScenario::Base
+                    && !coverage.direction_cases[index]
                     && let Some(case) = direction_regression_case(index)
                 {
                     error!(
                         "[MANUAL-INTEGRATION][DIRECTION][NOT_COVERED] case={}",
+                        case.name
+                    );
+                }
+            }
+            for index in 0..CROUCH_DIRECTION_CASE_COUNT {
+                if !coverage.crouch_direction_cases[index]
+                    && let Some(case) = crouch_direction_regression_case(index)
+                {
+                    error!(
+                        "[MANUAL-INTEGRATION][CROUCH-DIRECTION][NOT_COVERED] case={}",
                         case.name
                     );
                 }
@@ -3332,6 +3654,17 @@ fn observe_manual_integration(
                 ("crouch_canopy_cleaned", coverage.crouch_canopy_cleaned),
                 ("crouch_moving", coverage.crouch_moving),
                 ("stance_crouching", coverage.crouching),
+                (
+                    "crouch_direction_six_way",
+                    coverage
+                        .crouch_direction_cases
+                        .iter()
+                        .all(|covered| *covered)
+                        && coverage.crouch_direction_state_mask == 0b11_1111,
+                ),
+                ("crouch_direction_lean", coverage.crouch_direction_lean),
+                ("crouch_rotate", coverage.crouch_rotate),
+                ("crouch_turn", coverage.crouch_turn),
                 ("gait_sprinting", coverage.sprinting),
                 ("jump_air", coverage.airborne),
                 ("jump_land", coverage.landed),
@@ -3361,6 +3694,21 @@ fn observe_manual_integration(
                 ("p1_gait_walk_run_sprint_guard", coverage.p1_gait),
                 ("p1_air_jump_fall_land", coverage.p1_air),
                 ("p1_turn_and_rotate_both_sides", coverage.p1_turn),
+            ],
+            IntegrationScenario::Crouching => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                (
+                    "crouch_direction_six_way",
+                    coverage
+                        .crouch_direction_cases
+                        .iter()
+                        .all(|covered| *covered)
+                        && coverage.crouch_direction_state_mask == 0b11_1111,
+                ),
+                ("crouch_direction_lean", coverage.crouch_direction_lean),
+                ("crouch_rotate", coverage.crouch_rotate),
+                ("crouch_turn", coverage.crouch_turn),
             ],
             IntegrationScenario::FootIk => vec![
                 ("runtime_assembly", coverage.assembly),
