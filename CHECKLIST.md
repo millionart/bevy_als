@@ -23,6 +23,21 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 ─► BF106 Foot IK 闭环（已归档） ─► BF107 状态机语义与持续回归（按用户指令归档，未完成）
 ```
 
+## BF108 BlendSpace 源资产逐项等价修复
+
+> 范围：以本地 ALS-Refactored 的 9 个 BlendSpace 为逐项源事实，修正 `docs/als-ref-animation-asset-map.md` 中对应的导出定义、图消费者与运行时参数映射。每个子项开始时重新提取该资产的源事实；不得以此前报告或记忆代替。每项的 `manual_playground` 覆盖须在可见 Playground 与正常角色相机中实际执行对应图路径，并以日志记录被选中的源序列、输入参数和权重／相位。
+
+- [ ] BF108.01 `BS_Als_Air_Lean`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与消费者输入；验收为源对照零差异及 Fall／Jump 两条真实入口路径日志。
+- [ ] BF108.02 `BS_Als_Lean`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与 Standing／Crouching 消费者输入；验收为源对照零差异及两种 stance 的真实入口日志。
+- [ ] BF108.03 `BS_Als_WalkRun_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 Backward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.04 `BS_Als_WalkRun_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 Forward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.05 `BS_Als_WalkRun_Left_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 LeftBackward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.06 `BS_Als_WalkRun_Left_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 LeftForward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.07 `BS_Als_WalkRun_Right_Backward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 RightBackward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.08 `BS_Als_WalkRun_Right_Forward`：核对并修复轴、四个样本动画引用、坐标／rate scale、循环／同步和 RightForward 消费者输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.09 `BS_Als_Look`：核对并修复轴、样本动画引用、样本坐标／rate scale、插值与 Head 输入；验收为源对照零差异及真实入口日志。
+- [ ] BF108.10 Gate：用本次实时源提取生成的可复查清单逐项比较 9 个资产，确认动画引用、样本、轴、插值、播放／同步语义和消费者参数映射均无差异；运行图资产校验及 `manual_playground` 全覆盖场景，日志须明确 9 个资产均实际求值且无断言失败。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
