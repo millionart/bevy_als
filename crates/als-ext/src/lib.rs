@@ -57,6 +57,7 @@ pub mod root_motion_clip;
 pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
+pub mod source_pose_passthrough;
 pub mod state_label_event;
 pub mod sync_group_phase;
 pub mod time_dilation;
@@ -132,7 +133,7 @@ pub use inertialized_linked_anim_layer::{
     inertialized_linked_layer_activation,
 };
 pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
-pub use layered_graph::LayeredGraphNode;
+pub use layered_graph::{GlobalF32InputPin, LayeredGraphNode};
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
 pub use local_ref_pose::LocalRefPoseNode;
@@ -197,6 +198,7 @@ pub use root_motion_clip::RootMotionClipNode;
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
+pub use source_pose_passthrough::SourcePosePassthroughNode;
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
     GlobalSyncGroupSampleNode, SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode,
@@ -261,6 +263,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CubicVec2FilterNode>()
             .register_type::<NormalizedBlendSpaceNode>()
             .register_type::<AnimationContextInputAlias>()
+            .register_type::<GlobalF32InputPin>()
             .register_type::<RagdollConfigNode>()
             .register_type::<RagdollingTagBlendNode>()
             .register_type::<RichCurveInterpolation>()
@@ -282,6 +285,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<LayeredGraphNode>()
             .register_type::<SkeletonAwareLayeredGraphNode>()
             .register_type::<RootMotionClipNode>()
+            .register_type::<SourcePosePassthroughNode>()
             .register_type::<ControlRigBoundaryNode>()
             .register_type::<ReferenceMeshDifferenceNode>()
             .register_type::<ReferenceLocalDifferenceNode>()

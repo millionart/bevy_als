@@ -16,6 +16,14 @@ use crate::animation_context::{
     AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
     resolve_context_curves,
 };
+use crate::global_f32_input::global_f32_or_root_default;
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct GlobalF32InputPin {
+    pub pin: String,
+    pub key: String,
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
@@ -24,6 +32,7 @@ pub struct LayeredGraphNode {
     pub graph: Handle<AnimationGraph>,
     pub context_inputs: Vec<AnimationContextInput>,
     pub input_aliases: Vec<AnimationContextInputAlias>,
+    pub global_input_pins: Vec<GlobalF32InputPin>,
     pub capture_context: bool,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
@@ -37,6 +46,7 @@ impl LayeredGraphNode {
             graph,
             context_inputs: default(),
             input_aliases: default(),
+            global_input_pins: default(),
             capture_context: false,
             expose_context_curves: false,
             exposed_output_data: default(),
@@ -74,6 +84,13 @@ impl LayeredGraphNode {
             .iter()
             .map(|alias| (alias.child_input.clone(), alias.outer_input.clone()))
             .collect()
+    }
+
+    fn validate_global_inputs(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+        for input in &self.global_input_pins {
+            global_f32_or_root_default(ctx, &input.key)?;
+        }
+        Ok(())
     }
 
     fn time_update(
@@ -132,6 +149,7 @@ impl NodeLike for LayeredGraphNode {
         };
 
         let time_update = self.time_update(&ctx);
+        self.validate_global_inputs(&ctx)?;
         if !self.internalize_time
             && let Some(time_update) = &time_update
         {
@@ -205,6 +223,9 @@ impl NodeLike for LayeredGraphNode {
                 }
                 _ => {}
             }
+        }
+        for input in &self.global_input_pins {
+            ctx.add_input_data(input.pin.clone(), DataSpec::F32);
         }
 
         for output in graph.io_spec.sorted_outputs() {
