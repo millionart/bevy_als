@@ -24,9 +24,14 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 ─► BF108 BlendSpace 运行图等价（已归档）
 ```
 
-## 已归档完成批次
+## BF110 结构化动画上下文图资产（当前执行批次）
 
-- [BF109 Character Base 动画图全量等价（2026-09-01）](docs/archive/2026-09-01/BF109-2026-09-01.md)
+范围限定为本项目的动画图作者资产、离线展开／审计工具和 `manual_playground` 集成验证。目标是把同一动画分支的 pose 与已声明曲线 ABI 作为一个结构化作者连接表达，离线确定性展开为现有 `bevy_animation_graph` 可读取的 RON edge；运行时继续消费生成后的普通图资产。不得修改 `bevy_animation_graph`、`bevy_animation_graph_editor`、Cargo dependency revision 或 `docs/als-ref-animation-asset-map.md`；`NodeTime`、事件和独立控制输入不得被错误并入上下文。每次迁移必须逐字段证明结构化源与展开图的 pose、曲线、time 和控制 edge 等价，生成器必须可重复运行且不产生未追踪运行时变换 bridge。
+
+- [ ] BF110.01 动画上下文作者合同：建立项目内结构化连接 schema、curve ABI 清单与静态解析／自测，明确 pose-context、time、event、控制输入的边界。验收：合同拒绝未声明曲线、重复字段、跨上下文混接和非法 time/event 打包；对当前 `AB_Als` 根图建立完整基线清单，且不修改生成图。
+- [ ] BF110.02 离线展开器与审计：实现结构化源图到标准 `.animgraph.ron` 的确定性展开、只读等价审计和幂等性检查；生成物保持 editor 元数据、node position、input order 和现有 runtime ABI。验收：最小 fixture 与 malformed fixture 全部自测通过，展开图可通过既有 editor asset validator，审计逐字段报告零差异。
+- [ ] BF110.03 `AB_Als` 根图试迁移：把 Standing、Crouching、Grounded、两个 Slot、Overlay/Inertialization 等同一分支的 pose/curve edge 迁入结构化作者源，生成正式根图；保留所有独立 pose 分支、`NodeTime`、event 与控制 edge。验收：展开结果与迁移前基线的 node、position、edge、pin、curve/time/control ABI 精确等价，根图静态合同与运行时 contract gate 通过。
+- [ ] BF110.04 总 Gate：全量运行结构化展开／审计、graph asset fix/read-only validator、相关 Rust／Python 自测、`AB_Als` contract gate 和真实 `run_manual.bat` Playground 路径。验收：生成物干净、无依赖仓库改动、无未解释 ABI 差异，真实入口记录结构化来源已执行且最终 pose 链 PASS。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
