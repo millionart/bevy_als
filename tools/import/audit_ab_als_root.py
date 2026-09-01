@@ -232,7 +232,7 @@ def runtime_context_root_chain(text):
         node_data_edge(text, control_rig, "Source", head, "pose"),
         node_data_edge(text, ragdolling, "Ragdolling Input", control_rig, "pose"),
         runtime_context_input(
-            text, grounded, "Standing Input", "standing_time", "standing_", None
+            text, grounded, "Standing Input", "standing_time", "standing_", 0.0
         ),
         runtime_context_input(text, grounded, "Crouching Input", "crouching_time", "crouching_", None),
         runtime_context_input(text, transition, "Source", "source_time", "source_", 0.0),

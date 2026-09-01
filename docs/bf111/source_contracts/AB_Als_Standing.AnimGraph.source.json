@@ -1,5 +1,5 @@
 {
-  "format": "als_ue_visible_graph_contract_v1",
+  "format": "als_ue_visible_graph_contract_v2",
   "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
   "source_graph_suffix": "AnimGraph",
   "source_graph": {
@@ -524,7 +524,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_Root_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 1,
@@ -968,7 +983,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 2,
@@ -1412,7 +1442,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_1.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 3,
@@ -1856,7 +1901,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 4,
@@ -2583,7 +2643,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_ModifyCurve_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 5,
@@ -3027,7 +3102,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 6,
@@ -3612,7 +3702,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_Inertialization_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 7,
@@ -4197,7 +4302,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_Inertialization_1.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 8,
@@ -5358,7 +5478,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_ApplyAdditive_1.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"Alpha\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Alpha\",PathAsText=\"GetParent.PoseState.UnweightedGaitRunningAmount\",PropertyPath=(\"GetParent\",\"PoseState\",\"UnweightedGaitRunningAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 9,
@@ -5624,7 +5759,8 @@
             "exported_text": "FDDBF0E94183AA5FBC5B4E806EDF5FFC"
           }
         ],
-        "pins": []
+        "pins": [],
+        "binding": null
       },
       {
         "index": 10,
@@ -6351,7 +6487,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_ModifyCurve_1.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 11,
@@ -7212,7 +7363,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 12,
@@ -8073,7 +8239,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_3.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 13,
@@ -8934,7 +9115,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_4.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 14,
@@ -9795,7 +9991,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_5.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 15,
@@ -10656,7 +10867,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_11.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 16,
@@ -11517,7 +11743,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpacePlayer_10.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.StandingState.StrideBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"StrideBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.StandingState.WalkRunBlendAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"WalkRunBlendAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 17,
@@ -12094,7 +12335,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SequencePlayer_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 18,
@@ -12671,7 +12927,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SequencePlayer_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"PlayRate\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"PlayRate\",PathAsText=\"GetParent.StandingState.PlayRate\",PropertyPath=(\"GetParent\",\"StandingState\",\"PlayRate\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 19,
@@ -13832,7 +14103,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_TwoWayBlend_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"Alpha\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Alpha\",PathAsText=\"GetParent.StandingState.SprintAccelerationAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"SprintAccelerationAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 20,
@@ -14276,7 +14562,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_11.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 21,
@@ -14720,7 +15021,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_12.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 22,
@@ -15164,7 +15480,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_3.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 23,
@@ -15608,7 +15939,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_4.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 24,
@@ -16052,7 +16398,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_5.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 25,
@@ -16496,7 +16857,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 26,
@@ -16940,7 +17316,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_SaveCachedPose_10.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 27,
@@ -18101,7 +18492,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_TwoWayBlend_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"Alpha\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Alpha\",PathAsText=\"GetParent.StandingState.SprintBlockAmount\",PropertyPath=(\"GetParent\",\"StandingState\",\"SprintBlockAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 28,
@@ -18554,7 +18960,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_UseCachedPose_3.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 29,
@@ -19007,7 +19428,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_UseCachedPose_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 30,
@@ -19273,7 +19709,8 @@
             "exported_text": "B1DC7C694F9D5DC1F9972692D3AA5C53"
           }
         ],
-        "pins": []
+        "pins": [],
+        "binding": null
       },
       {
         "index": 31,
@@ -19539,7 +19976,8 @@
             "exported_text": "C26DB8474A23546489B57DA0511077DF"
           }
         ],
-        "pins": []
+        "pins": [],
+        "binding": null
       },
       {
         "index": 32,
@@ -20700,7 +21138,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AlsAnimGraphNode_GameplayTagsBlend_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"ActiveTag\", (PinType=(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\"),PromotedPinType=(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\"),PropertyName=\"ActiveTag\",PathAsText=\"GetParent.Gait\",PropertyPath=(\"GetParent\",\"Gait\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 33,
@@ -21144,7 +21597,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 34,
@@ -21648,7 +22116,8 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": null
       },
       {
         "index": 35,
@@ -22152,7 +22621,8 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": null
       },
       {
         "index": 36,
@@ -22871,7 +23341,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_BlendSpaceEvaluator_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "((\"X\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"X\",PathAsText=\"GetParent.LeanState.RightAmount\",PropertyPath=(\"GetParent\",\"LeanState\",\"RightAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)),(\"Y\", (PinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PromotedPinType=(PinCategory=\"real\",PinSubCategory=\"float\"),PropertyName=\"Y\",PathAsText=\"GetParent.LeanState.ForwardAmount\",PropertyPath=(\"GetParent\",\"LeanState\",\"ForwardAmount\"),CompiledContext=NSLOCTEXT(\"UObjectDisplayNames\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Thread Safe\"),CompiledContextDesc=NSLOCTEXT(\"UObjectToolTips\", \"EAnimPropertyAccessCallSite.WorkerThread_Unbatched\", \"Access is made on a worker thread in the anim graph or in a BP function\"),bIsBound=True)))"
+            }
+          ]
+        }
       },
       {
         "index": 37,
@@ -23474,7 +23959,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_CallFunction_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 38,
@@ -24077,7 +24577,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_CallFunction_3.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 39,
@@ -24680,7 +25195,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_CallFunction_2.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 40,
@@ -25283,7 +25813,22 @@
               "direction": "None"
             }
           }
-        ]
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_CallFunction_1.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
       },
       {
         "index": 41,
@@ -25549,7 +26094,8 @@
             "exported_text": "FADA209B49929242EAFC1486A3DE1B5D"
           }
         ],
-        "pins": []
+        "pins": [],
+        "binding": null
       },
       {
         "index": 42,
@@ -25815,7 +26361,8 @@
             "exported_text": "11A872B4482B617DFFB2A5B179D83E49"
           }
         ],
-        "pins": []
+        "pins": [],
+        "binding": null
       }
     ]
   },
@@ -26269,5 +26816,5 @@
       }
     }
   ],
-  "source_graph_sha256": "8bce2cda75798bbc15e6992989aa67f4113ccca4eaf6c33732c05a669d25e9b3"
+  "source_graph_sha256": "060bdeb71521a384bfd648db7b5913197ef11ac4b1e33975b9ba9a6b7bfe0009"
 }

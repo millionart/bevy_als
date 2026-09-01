@@ -4,10 +4,10 @@ use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
         graph_context::QueryOutputTime,
-        new_context::NodeContext,
+        new_context::{GraphContext, NodeContext},
         spec_context::{NodeInput, NodeOutput, SpecContext},
     },
-    edge_data::DataSpec,
+    edge_data::{DataSpec, DataValue},
     errors::GraphError,
 };
 
@@ -17,12 +17,49 @@ use crate::animation_context::{
     resolve_context_curves,
 };
 use crate::global_f32_input::global_f32_or_root_default;
+use crate::source_cached_pose::resolve_cached_pose;
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
 pub struct GlobalF32InputPin {
     pub pin: String,
     pub key: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct FixedF32Input {
+    pub input: String,
+    pub value: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct FixedGlobalF32Input {
+    pub input: String,
+    pub key: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct CachedPoseInput {
+    pub input: String,
+    pub cache_node: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct OutputDataAlias {
+    pub child_output: String,
+    pub outer_output: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct NamedPoseOutput {
+    pub node_name: String,
+    pub output: String,
+    pub outer_output: String,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -33,7 +70,13 @@ pub struct LayeredGraphNode {
     pub context_inputs: Vec<AnimationContextInput>,
     pub input_aliases: Vec<AnimationContextInputAlias>,
     pub global_input_pins: Vec<GlobalF32InputPin>,
+    pub fixed_f32_inputs: Vec<FixedF32Input>,
+    pub fixed_global_f32_inputs: Vec<FixedGlobalF32Input>,
+    pub cached_pose_inputs: Vec<CachedPoseInput>,
+    pub output_aliases: Vec<OutputDataAlias>,
+    pub named_pose_output: Option<NamedPoseOutput>,
     pub capture_context: bool,
+    pub global_curve_prefixes: Vec<String>,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
     pub hide_context_auxiliary_outputs: bool,
@@ -47,7 +90,13 @@ impl LayeredGraphNode {
             context_inputs: default(),
             input_aliases: default(),
             global_input_pins: default(),
+            fixed_f32_inputs: default(),
+            fixed_global_f32_inputs: default(),
+            cached_pose_inputs: default(),
+            output_aliases: default(),
+            named_pose_output: None,
             capture_context: false,
+            global_curve_prefixes: default(),
             expose_context_curves: false,
             exposed_output_data: default(),
             hide_context_auxiliary_outputs: false,
@@ -79,6 +128,14 @@ impl LayeredGraphNode {
             .unwrap_or_else(|| child_input.to_owned())
     }
 
+    fn outer_output(&self, child_output: &str) -> String {
+        self.output_aliases
+            .iter()
+            .find(|alias| alias.child_output == child_output)
+            .map(|alias| alias.outer_output.clone())
+            .unwrap_or_else(|| child_output.to_owned())
+    }
+
     fn io_input_aliases(&self) -> bevy::platform::collections::HashMap<String, String> {
         self.input_aliases
             .iter()
@@ -86,11 +143,57 @@ impl LayeredGraphNode {
             .collect()
     }
 
-    fn validate_global_inputs(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+    fn child_data_values(
+        &self,
+        ctx: &NodeContext,
+    ) -> Result<bevy::platform::collections::HashMap<String, DataValue>, GraphError> {
+        let mut values = self
+            .fixed_f32_inputs
+            .iter()
+            .map(|input| (input.input.clone(), DataValue::F32(input.value)))
+            .collect::<bevy::platform::collections::HashMap<_, _>>();
         for input in &self.global_input_pins {
-            global_f32_or_root_default(ctx, &input.key)?;
+            values.insert(
+                input.pin.clone(),
+                DataValue::F32(global_f32_or_root_default(ctx, &input.key)?),
+            );
         }
-        Ok(())
+        for input in &self.fixed_global_f32_inputs {
+            values.insert(
+                input.input.clone(),
+                DataValue::F32(global_f32_or_root_default(ctx, &input.key)?),
+            );
+        }
+        for input in &self.cached_pose_inputs {
+            let mut parent_ctx = ctx.clone();
+            values.insert(
+                input.input.clone(),
+                DataValue::Pose(resolve_cached_pose(&mut parent_ctx, &input.cache_node)?),
+            );
+        }
+        Ok(values)
+    }
+
+    fn has_fixed_input(&self, input: &str) -> bool {
+        self.fixed_f32_inputs
+            .iter()
+            .any(|value| value.input == input)
+    }
+
+    fn has_global_input(&self, input: &str) -> bool {
+        self.global_input_pins
+            .iter()
+            .any(|value| value.pin == input)
+    }
+
+    fn has_hidden_input(&self, input: &str) -> bool {
+        self.fixed_global_f32_inputs
+            .iter()
+            .any(|value| value.input == input)
+            || self
+                .cached_pose_inputs
+                .iter()
+                .any(|value| value.input == input)
     }
 
     fn time_update(
@@ -102,6 +205,57 @@ impl LayeredGraphNode {
         } else {
             ctx.time_update_fwd().ok()
         }
+    }
+
+    fn named_pose(
+        &self,
+        graph: &AnimationGraph,
+        ctx: &mut GraphContext<'_>,
+        output: &NamedPoseOutput,
+    ) -> Result<bevy_animation_graph::core::pose::Pose, GraphError> {
+        let node = graph
+            .nodes
+            .values()
+            .find(|node| node.name == output.node_name)
+            .ok_or_else(|| GraphError::UnknownErrorNode {
+                graph: ctx.context_id,
+                node: default(),
+                error: format!("named pose source is missing: {}", output.node_name),
+            })?;
+        let node_id = node.id;
+        let key = ctx.state_key;
+        if !ctx.node_caches().is_update_started(node_id, key) {
+            ctx.node_caches_mut().mark_update_started(node_id, key);
+            node.update(
+                ctx.create_node_context(node_id)
+                    .with_debugging(node.should_debug),
+            )?;
+            ctx.node_caches_mut().mark_updated(node_id, key);
+        }
+        ctx.node_caches()
+            .get_output_data(node_id, key, output.output.clone())
+            .ok_or_else(|| GraphError::UnknownErrorNode {
+                graph: ctx.context_id,
+                node: node_id,
+                error: format!("named pose output is missing: {}", output.output),
+            })?
+            .into_pose()
+    }
+
+    fn capture_global_curves(
+        &self,
+        ctx: &NodeContext,
+        state: &mut AnimationContextState,
+    ) -> Result<(), GraphError> {
+        for prefix in &self.global_curve_prefixes {
+            for (key, value) in ctx.graph_context.global_input_data {
+                let Some(curve) = key.strip_prefix(prefix) else {
+                    continue;
+                };
+                state.curves.insert(curve.to_owned(), value.as_f32()?);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -118,7 +272,7 @@ impl NodeLike for LayeredGraphNode {
 
         let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
-            data_values: default(),
+            data_values: self.child_data_values(&ctx)?,
             curve_values: default(),
             input_aliases: self.io_input_aliases(),
             time_update: None,
@@ -128,7 +282,9 @@ impl NodeLike for LayeredGraphNode {
             .create_child_context(self.graph.id(), graph, None)
             .with_io(&sub_ctx_io);
 
-        if graph.io_spec.has_output_time() {
+        if self.named_pose_output.is_some() {
+            ctx.set_duration_fwd(None);
+        } else if graph.io_spec.has_output_time() {
             let duration = graph.get_duration(TargetPin::OutputTime, sub_ctx)?;
             ctx.set_duration_fwd(duration);
         } else {
@@ -149,7 +305,6 @@ impl NodeLike for LayeredGraphNode {
         };
 
         let time_update = self.time_update(&ctx);
-        self.validate_global_inputs(&ctx)?;
         if !self.internalize_time
             && let Some(time_update) = &time_update
         {
@@ -168,7 +323,7 @@ impl NodeLike for LayeredGraphNode {
 
         let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
-            data_values: default(),
+            data_values: self.child_data_values(&ctx)?,
             curve_values,
             input_aliases: self.io_input_aliases(),
             time_update: self.internalize_time.then(|| time_update.clone()).flatten(),
@@ -177,6 +332,13 @@ impl NodeLike for LayeredGraphNode {
         let mut sub_ctx = ctx
             .create_child_context(self.graph.id(), graph, None)
             .with_io(&sub_ctx_io);
+
+        if let Some(output) = &self.named_pose_output {
+            let pose = self.named_pose(graph, &mut sub_ctx, output)?;
+            ctx.set_time(pose.timestamp);
+            ctx.set_data_fwd(output.outer_output.clone(), pose);
+            return Ok(());
+        }
 
         if graph.io_spec.has_output_time()
             && let Some(time_update) = time_update
@@ -192,10 +354,11 @@ impl NodeLike for LayeredGraphNode {
                 capture_context_curve(&mut context_state, id, &value)?;
             }
             if self.expose_output(id, data_spec) {
-                ctx.set_data_fwd(id, value);
+                ctx.set_data_fwd(self.outer_output(id), value);
             }
         }
         if self.capture_context {
+            self.capture_global_curves(&ctx, &mut context_state)?;
             *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
         }
 
@@ -217,7 +380,11 @@ impl NodeLike for LayeredGraphNode {
                     }
                 }
                 NodeInput::Data(GraphInputPin::Passthrough(pin_id), data_spec) => {
-                    if !is_context_curve_input(&pin_id, &data_spec, &self.context_inputs) {
+                    if !self.has_fixed_input(&pin_id)
+                        && !self.has_global_input(&pin_id)
+                        && !self.has_hidden_input(&pin_id)
+                        && !is_context_curve_input(&pin_id, &data_spec, &self.context_inputs)
+                    {
                         ctx.add_input_data(self.outer_input(&pin_id), data_spec);
                     }
                 }
@@ -226,6 +393,11 @@ impl NodeLike for LayeredGraphNode {
         }
         for input in &self.global_input_pins {
             ctx.add_input_data(input.pin.clone(), DataSpec::F32);
+        }
+
+        if let Some(output) = &self.named_pose_output {
+            ctx.add_output_data(output.outer_output.clone(), DataSpec::Pose);
+            return Ok(());
         }
 
         for output in graph.io_spec.sorted_outputs() {
@@ -237,7 +409,7 @@ impl NodeLike for LayeredGraphNode {
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
                     if self.expose_output(&pin_id, &data_spec) {
-                        ctx.add_output_data(pin_id, data_spec);
+                        ctx.add_output_data(self.outer_output(&pin_id), data_spec);
                     }
                 }
             }

@@ -21,5 +21,6 @@ if (-not (Test-Path -LiteralPath $scriptPath)) {
     throw "ue_open_asset.py does not exist"
 }
 
-$argument = '-ExecutePythonScript="' + $scriptPath + ' ' + $Asset + '"'
+$ueScriptPath = (Resolve-Path -LiteralPath $scriptPath).Path.Replace('\', '/')
+$argument = '-ExecutePythonScript="' + $ueScriptPath + ' ' + $Asset + '"'
 Start-Process -FilePath $config.ue_cmd -ArgumentList @($config.ue_project, $argument)

@@ -22,6 +22,7 @@ pub struct InertializationPassthroughNode {
     pub exposed_output_data: Vec<String>,
     pub missing_curve_value: Option<f32>,
     pub internalize_time: bool,
+    pub output: String,
 }
 
 impl Default for InertializationPassthroughNode {
@@ -35,6 +36,7 @@ impl Default for InertializationPassthroughNode {
             exposed_output_data: Vec::new(),
             missing_curve_value: None,
             internalize_time: false,
+            output: "pose".to_owned(),
         }
     }
 }
@@ -72,7 +74,7 @@ impl NodeLike for InertializationPassthroughNode {
         }
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
-        ctx.set_data_fwd("pose", pose);
+        ctx.set_data_fwd(self.output.clone(), pose);
         let context_curves = if self.capture_context {
             resolve_named_context_curves(
                 &ctx,
@@ -105,7 +107,7 @@ impl NodeLike for InertializationPassthroughNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data("Source", DataSpec::Pose)
-            .add_output_data("pose", DataSpec::Pose);
+            .add_output_data(self.output.clone(), DataSpec::Pose);
         if !self.internalize_time {
             ctx.add_input_time("source_time").add_output_time();
         }

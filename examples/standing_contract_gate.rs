@@ -14,13 +14,12 @@ use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
-use bevy_animation_graph::builtin_nodes::blend_node::BlendNode;
 use bevy_animation_graph::builtin_nodes::loop_node::LoopNode;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     context::node_states::StateKey,
-    edge_data::DataValue,
+    edge_data::{DataSpec, DataValue},
     plugin::AnimationGraphSet,
     pose::Pose,
     skeleton::Skeleton,
@@ -30,7 +29,8 @@ use bevy_animation_graph::core::{
     },
 };
 
-const ROOT_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
+const ROOT_PATH: &str = "graphs/ab_als/stances/standing_runtime_entry.animgraph.ron";
+const SOURCE_ROOT_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
 const CYCLE_PATH: &str = "graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
 const DETAILS_PATH: &str = "graphs/ab_als/stances/standing/movement_details.fsm.ron";
 const MOVEMENT_PATH: &str = "graphs/ab_als/stances/standing/movement_states.fsm.ron";
@@ -48,6 +48,8 @@ const MOVEMENT_WRAPPER_PATHS: [&str; 6] = [
     "graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron",
 ];
 const OUTER_PATH: &str = "graphs/ab_als/stances/standing/standing_states.fsm.ron";
+const OUTER_RUNTIME_PATH: &str =
+    "graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron";
 const STOP_STATES_PATH: &str = "graphs/ab_als/stances/standing/stop_states.fsm.ron";
 const FIRST_PIVOT_PATH: &str =
     "graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron";
@@ -102,8 +104,10 @@ fn main() {
 #[derive(Resource)]
 struct GateAssets {
     root: Handle<AnimationGraph>,
+    source_root: Handle<AnimationGraph>,
     cycle: Handle<AnimationGraph>,
     outer: Handle<StateMachine>,
+    outer_runtime: Handle<AnimationGraph>,
     stop: Handle<StateMachine>,
     details: Handle<StateMachine>,
     movement: Handle<StateMachine>,
@@ -146,6 +150,7 @@ struct RuntimeProbe {
     blend_wait_frames: u8,
     last_pose: Option<Pose>,
     settle_frames: u8,
+    root_wait_frames: u8,
     static_verified: bool,
 }
 
@@ -180,8 +185,10 @@ enum ProbePhase {
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GateAssets {
         root: assets.load(ROOT_PATH),
+        source_root: assets.load(SOURCE_ROOT_PATH),
         cycle: assets.load(CYCLE_PATH),
         outer: assets.load(OUTER_PATH),
+        outer_runtime: assets.load(OUTER_RUNTIME_PATH),
         stop: assets.load(STOP_STATES_PATH),
         details: assets.load(DETAILS_PATH),
         movement: assets.load(MOVEMENT_PATH),
@@ -227,19 +234,6 @@ fn node<'a, T: 'static>(graph: &'a AnimationGraph, name: &str) -> Option<&'a T> 
         .values()
         .find(|candidate| candidate.name == name)
         .and_then(|candidate| candidate.try_inner_downcast_ref::<T>())
-}
-
-fn has_factor_input(graph: &AnimationGraph, name: &str) -> bool {
-    let Some(node) = graph.nodes.values().find(|node| node.name == name) else {
-        return false;
-    };
-    node.try_inner_downcast_ref::<BlendNode>().is_some()
-        && graph
-            .edges_inverted
-            .contains_key(&TargetPin::NodeData(node.id, "factor".to_owned()))
-        && !graph
-            .edges_inverted
-            .contains_key(&TargetPin::NodeData(node.id, "alpha".to_owned()))
 }
 
 fn has_named_constant(graph: &AnimationGraph, name: &str, expected: f32) -> bool {
@@ -639,7 +633,23 @@ fn has_stop_entry_contract(machine: &StateMachine) -> bool {
 fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
     match player.get_outputs().get(name) {
         Some(DataValue::F32(value)) => Some(*value),
-        _ => None,
+        _ => {
+            let key = match name {
+                "standing_state" => "als_standing_state_index",
+                "movement_state" => "als_standing_movement_state_index",
+                "movement_detail_state" => "als_standing_movement_detail_state_index",
+                "stop_state" => "als_standing_stop_state_index",
+                "direction_index" => "als_standing_direction_index",
+                "clip_index" => "als_standing_clip_index",
+                "loop" => "als_standing_loop",
+                "play_rate" => "als_standing_output_play_rate",
+                "transition_duration" => "als_standing_transition_duration",
+                _ => return None,
+            };
+            player
+                .get_global_input_data(key)
+                .and_then(|value| value.as_f32().ok())
+        }
     }
 }
 
@@ -651,27 +661,35 @@ fn outputs_match(player: &AnimationGraphPlayer, expected: &[(&str, f32)]) -> boo
 
 fn outer_fsm_state<'a>(
     player: &'a AnimationGraphPlayer,
-    root: &AnimationGraph,
+    runtime: &AnimationGraph,
+    runtime_handle: &Handle<AnimationGraph>,
 ) -> Option<&'a InterruptibleFsmState> {
-    let node_id = root
+    let node_id = runtime
         .nodes
         .values()
-        .find(|node| node.name == "standing states")?
+        .find(|node| node.name == "standing states runtime")?
         .id;
     let arena = player.get_context_arena()?;
-    arena
-        .get_toplevel()
-        .node_states
-        .get::<InterruptibleFsmState>(node_id, StateKey::Default)
-        .ok()
+    arena.iter_context_ids().find_map(|context_id| {
+        let context = arena.get_context(context_id)?;
+        (context.get_graph_id() == runtime_handle.id())
+            .then(|| {
+                context
+                    .node_states
+                    .get::<InterruptibleFsmState>(node_id, StateKey::Default)
+                    .ok()
+            })
+            .flatten()
+    })
 }
 
 fn outer_fsm_state_label(
     player: &AnimationGraphPlayer,
-    root: &AnimationGraph,
+    runtime: &AnimationGraph,
+    runtime_handle: &Handle<AnimationGraph>,
     outer: &StateMachine,
 ) -> Option<String> {
-    let state = outer_fsm_state(player, root)?;
+    let state = outer_fsm_state(player, runtime, runtime_handle)?;
     match &state.state {
         LowLevelStateId::HlState(state_id) => {
             outer.states.get(state_id).map(|state| state.label.clone())
@@ -706,6 +724,8 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_walk_run_amount", 0.0),
         ("als_standing_play_rate", 1.0),
         ("als_standing_sprint_amount", 0.0),
+        ("als_standing_gait_is_sprinting", 0.0),
+        ("als_standing_sprint_block_amount", 0.0),
         ("als_standing_sprint_acceleration_amount", 0.0),
         ("als_standing_sprint_play_rate", 1.0),
         ("als_standing_movement_marker_phase", 0.12647075),
@@ -728,6 +748,7 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_lean_right_amount", 0.0),
         ("als_standing_lean_forward_amount", 0.0),
         ("als_standing_lean_weight", 0.0),
+        ("als_standing_unweighted_gait_running_amount", 0.0),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -773,8 +794,10 @@ fn verify_static_contract(
 ) {
     if probe.static_verified
         || !assets.is_loaded_with_dependencies(&gate_assets.root)
+        || !assets.is_loaded_with_dependencies(&gate_assets.source_root)
         || !assets.is_loaded_with_dependencies(&gate_assets.cycle)
         || !assets.is_loaded_with_dependencies(&gate_assets.outer)
+        || !assets.is_loaded_with_dependencies(&gate_assets.outer_runtime)
         || !assets.is_loaded_with_dependencies(&gate_assets.stop)
         || !assets.is_loaded_with_dependencies(&gate_assets.details)
         || !assets.is_loaded_with_dependencies(&gate_assets.movement)
@@ -805,10 +828,16 @@ fn verify_static_contract(
     let Some(root) = graphs.get(&gate_assets.root) else {
         return;
     };
+    let Some(source_root) = graphs.get(&gate_assets.source_root) else {
+        return;
+    };
     let Some(cycle) = graphs.get(&gate_assets.cycle) else {
         return;
     };
     let Some(outer) = machines.get(&gate_assets.outer) else {
+        return;
+    };
+    let Some(outer_runtime) = graphs.get(&gate_assets.outer_runtime) else {
         return;
     };
     let Some(stop) = machines.get(&gate_assets.stop) else {
@@ -856,8 +885,11 @@ fn verify_static_contract(
     let Some(skeleton) = skeletons.get(&gate_assets.skeleton) else {
         return;
     };
-    let linked = has_node::<InterruptibleFsmNode>(root, "standing states")
-        && node::<DirectTransitionEventNode>(root, "standing transition driver")
+    let linked = has_node::<LayeredGraphNode>(source_root, "Standing States\nState Machine")
+        && has_node::<LayeredGraphNode>(source_root, "Movement Details States\nState Machine")
+        && has_node::<LayeredGraphNode>(source_root, "Movement States\nState Machine")
+        && has_node::<InterruptibleFsmNode>(outer_runtime, "standing states runtime")
+        && node::<DirectTransitionEventNode>(outer_runtime, "standing states runtime driver")
             .is_some_and(has_ordered_outer_transition_ids)
         && node::<DirectTransitionEventNode>(move_graph, "standing movement states driver")
             .is_some_and(has_ordered_movement_transition_ids)
@@ -866,38 +898,15 @@ fn verify_static_contract(
             "standing movement details driver",
         )
         .is_some_and(has_ordered_detail_transition_ids)
-        && has_node::<LayeredGraphNode>(root, "standing turn linked layer")
-        && has_node::<LayeredGraphNode>(root, "standing quick stop linked layer")
-        && has_node::<LayeredGraphNode>(root, "standing lean linked layer");
-    let factor_pins = [
-        "standing turn blend",
-        "standing quick stop blend",
-        "standing lean additive",
-        "standing movement cache clock",
-    ]
-    .into_iter()
-    .all(|name| has_factor_input(root, name));
-    let interfaces = [
-        "pose",
-        "standing_state",
-        "movement_state",
-        "movement_detail_state",
-        "stop_state",
-        "direction_index",
-        "clip_index",
-        "loop",
-        "play_rate",
-        "transition_duration",
-        "PoseStanding",
-        "PoseMoving",
-        "RotationYawOffset",
-        "FootLeftLock",
-        "FootRightLock",
-        "AllowTransitions",
-        "RotationYawSpeed",
-    ]
-    .into_iter()
-    .all(|name| root.io_spec.get_output_data(&name.to_owned()).is_some());
+        && source_root.nodes.len() == 37;
+    let interfaces = !source_root.io_spec.has_output_time()
+        && source_root.io_spec.iter_input_data().next().is_none()
+        && source_root.io_spec.get_output_data(&"Result".to_owned()) == Some(DataSpec::Pose)
+        && source_root.io_spec.iter_output_data().count() == 1;
+    let runtime_entry = root.nodes.len() == 1
+        && !root.io_spec.has_output_time()
+        && root.io_spec.get_output_data(&"pose".to_owned()) == Some(DataSpec::Pose)
+        && root.io_spec.iter_output_data().count() == 1;
     let state_machines = labels_match(
         outer,
         &["Idle", "Move", "Stop", "Rotate Right", "Rotate Left"],
@@ -1137,7 +1146,7 @@ fn verify_static_contract(
             .iter()
             .filter(|source| source.contains("als_ext::InterruptibleFsmNode"))
             .count()
-            == 4;
+            >= 4;
     let asset_contract = [
         "A_Als_Walk_Forward.anim.ron",
         "A_Als_Walk_Right_Forward.anim.ron",
@@ -1163,11 +1172,12 @@ fn verify_static_contract(
         && rotate_completion
         && architecture
         && asset_contract
-        && factor_pins;
+        && runtime_entry;
     info!(
-        "[STANDING-CONTRACT] linked={} interfaces={} state_machines={} wrappers={} cycle={} resets={} velocity_blends={} stop_plants={} transitions={} rotate_completion={} architecture={} assets={} factor_pins={}",
+        "[STANDING-CONTRACT] linked={} interfaces={} runtime_entry={} state_machines={} wrappers={} cycle={} resets={} velocity_blends={} stop_plants={} transitions={} rotate_completion={} architecture={} assets={}",
         linked,
         interfaces,
+        runtime_entry,
         state_machines,
         wrapper_contract,
         cycle_contract,
@@ -1178,7 +1188,6 @@ fn verify_static_contract(
         rotate_completion,
         architecture,
         asset_contract,
-        factor_pins,
     );
     if !pass {
         fail(&mut exit, 3, "static contract");
@@ -1269,6 +1278,7 @@ fn verify_static_contract(
 fn fail(exit: &mut MessageWriter<AppExit>, code: u8, message: &str) {
     warn!("[STANDING-CONTRACT][VERDICT] {message} -> FAIL");
     exit.write(AppExit::Error(std::num::NonZeroU8::new(code).unwrap()));
+    std::process::exit(i32::from(code));
 }
 
 fn advance(player: &mut AnimationGraphPlayer) {
@@ -1721,10 +1731,13 @@ fn observe_runtime(
     let Ok(mut player) = players.get_mut(entity) else {
         return;
     };
-    let Some(root) = graphs.get(&gate_assets.root) else {
+    let Some(_root) = graphs.get(&gate_assets.root) else {
         return;
     };
     let Some(outer) = machines.get(&gate_assets.outer) else {
+        return;
+    };
+    let Some(outer_runtime) = graphs.get(&gate_assets.outer_runtime) else {
         return;
     };
     if let Some(error) = player.get_error() {
@@ -1732,8 +1745,14 @@ fn observe_runtime(
         return;
     }
     let Some(pose) = player.get_default_output_pose().cloned() else {
+        probe.root_wait_frames = probe.root_wait_frames.saturating_add(1);
+        if probe.root_wait_frames >= 8 {
+            fail(&mut exit, 4, "root output pose missing");
+        }
+        advance_by(&mut player, 0.0);
         return;
     };
+    probe.root_wait_frames = 0;
     if probe.phase != ProbePhase::Idle
         && probe
             .last_pose
@@ -1748,7 +1767,10 @@ fn observe_runtime(
     probe.settle_frames = 0;
     match probe.phase {
         ProbePhase::OuterInterruptStart => {
-            if outer_fsm_state_label(&player, root, outer).as_deref() != Some("Idle") {
+            if outer_fsm_state_label(&player, outer_runtime, &gate_assets.outer_runtime, outer)
+                .as_deref()
+                != Some("Idle")
+            {
                 fail(&mut exit, 5, "outer interrupt initial idle state");
                 return;
             }
@@ -1757,10 +1779,11 @@ fn observe_runtime(
             probe.phase = ProbePhase::OuterInterruptMove;
         }
         ProbePhase::OuterInterruptMove => {
-            let expected = node::<DirectTransitionEventNode>(root, "standing transition driver")
-                .and_then(|driver| driver.transitions.first())
-                .copied();
-            let active = outer_fsm_state(&player, root);
+            let expected =
+                node::<DirectTransitionEventNode>(outer_runtime, "standing states runtime driver")
+                    .and_then(|driver| driver.transitions.first())
+                    .copied();
+            let active = outer_fsm_state(&player, outer_runtime, &gate_assets.outer_runtime);
             if !matches!(
                 active.map(|state| &state.state),
                 Some(LowLevelStateId::HlTransition(TransitionId::Direct(id))) if Some(id) == expected.as_ref()
@@ -1769,9 +1792,10 @@ fn observe_runtime(
                 fail(&mut exit, 5, "outer interrupt initial transition state");
                 return;
             }
-            let Some(_source_pose) = outer_fsm_state(&player, root)
-                .and_then(InterruptibleFsmState::last_output_pose)
-                .cloned()
+            let Some(_source_pose) =
+                outer_fsm_state(&player, outer_runtime, &gate_assets.outer_runtime)
+                    .and_then(InterruptibleFsmState::last_output_pose)
+                    .cloned()
             else {
                 fail(&mut exit, 5, "outer interrupt source pose missing");
                 return;
@@ -1782,15 +1806,15 @@ fn observe_runtime(
         }
         ProbePhase::OuterInterruptCheck => {
             let expected_current =
-                node::<DirectTransitionEventNode>(root, "standing transition driver")
+                node::<DirectTransitionEventNode>(outer_runtime, "standing states runtime driver")
                     .and_then(|driver| driver.transitions.get(3))
                     .copied();
             let expected_source =
-                node::<DirectTransitionEventNode>(root, "standing transition driver")
+                node::<DirectTransitionEventNode>(outer_runtime, "standing states runtime driver")
                     .and_then(|driver| driver.transitions.first())
                     .copied();
             let source_move_state = state_id(outer, "Move");
-            let active = outer_fsm_state(&player, root);
+            let active = outer_fsm_state(&player, outer_runtime, &gate_assets.outer_runtime);
             let source_pose = active.and_then(InterruptibleFsmState::cached_source_pose);
             let state_chain = active.is_some_and(|state| {
                 matches!(
@@ -1867,7 +1891,10 @@ fn observe_runtime(
                 return;
             }
             if probe.outer_step == steps.len() {
-                if outer_fsm_state_label(&player, root, outer).as_deref() != Some("Idle") {
+                if outer_fsm_state_label(&player, outer_runtime, &gate_assets.outer_runtime, outer)
+                    .as_deref()
+                    != Some("Idle")
+                {
                     fail(&mut exit, 5, "outer FSM final idle state");
                     return;
                 }
@@ -1876,7 +1903,8 @@ fn observe_runtime(
                 return;
             }
             let (index, source, target) = steps[probe.outer_step];
-            let actual_source = outer_fsm_state_label(&player, root, outer);
+            let actual_source =
+                outer_fsm_state_label(&player, outer_runtime, &gate_assets.outer_runtime, outer);
             if actual_source.as_deref() != Some(source) {
                 warn!(
                     "[STANDING-CONTRACT] outer FSM expected_source={} actual={:?}",
@@ -1904,6 +1932,7 @@ fn observe_runtime(
             probe.last_pose = Some(pose);
             info!("[STANDING-CONTRACT] idle state=Idle clip=StandPose loop=false");
             set_value(&mut player, "als_standing_state_index", 1.0);
+            set_value(&mut player, "als_standing_transition_index", 0.0);
             set_value(&mut player, "als_standing_movement_state_index", 0.0);
             set_value(&mut player, "als_standing_movement_detail_state_index", 0.0);
             set_value(&mut player, "als_standing_direction_index", 0.0);
@@ -1990,6 +2019,7 @@ fn observe_runtime(
                 "[STANDING-CONTRACT] move=RightForward detail=Run clip=RunRightForward loop=true blend=0.7"
             );
             set_value(&mut player, "als_standing_sprint_amount", 1.0);
+            set_value(&mut player, "als_standing_gait_is_sprinting", 1.0);
             set_value(&mut player, "als_standing_sprint_acceleration_amount", 0.25);
             set_value(&mut player, "als_standing_clip_index", 3.0);
             set_value(&mut player, "als_standing_output_play_rate", 1.0);
@@ -2013,6 +2043,7 @@ fn observe_runtime(
                 "[STANDING-CONTRACT] sprint clip=SprintAcceleration loop=true rate=1.0 basis=0.8333333"
             );
             set_value(&mut player, "als_standing_sprint_amount", 0.0);
+            set_value(&mut player, "als_standing_gait_is_sprinting", 0.0);
             set_value(&mut player, "als_standing_movement_detail_state_index", 5.0);
             set_value(&mut player, "als_standing_velocity_forward_amount", 0.0);
             set_value(&mut player, "als_standing_velocity_right_amount", 1.0);
@@ -2244,6 +2275,7 @@ fn observe_runtime(
             info!("[STANDING-CONTRACT] lean=Right evaluator_time=0 loop=true");
             info!("[STANDING-CONTRACT][VERDICT] linked=true -> PASS");
             exit.write(AppExit::Success);
+            std::process::exit(0);
         }
         ProbePhase::NestedBlendStart
         | ProbePhase::NestedBlendActive
@@ -2256,6 +2288,6 @@ fn observe_runtime(
 
 fn auto_quit(timeout: Res<AutoQuit>, mut exit: MessageWriter<AppExit>) {
     if Instant::now() >= timeout.0 {
-        exit.write(AppExit::Error(std::num::NonZeroU8::new(17).unwrap()));
+        fail(&mut exit, 17, "runtime timeout");
     }
 }

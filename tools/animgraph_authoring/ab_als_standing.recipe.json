@@ -1,0 +1,60 @@
+{
+  "format": "als_animgraph_authoring_recipe_v1",
+  "id": "ab_als_standing_source_root",
+  "source_evidence": [
+    {
+      "path": "docs/bf111/source_contracts/AB_Als_Standing.AnimGraph.source.json",
+      "hash_kind": "canonical_json"
+    }
+  ],
+  "includes": [
+    "assets/graphs/ab_als/stances/standing.animgraph.ron",
+    "assets/graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron",
+    "assets/graphs/ab_als/stances/standing_runtime_entry.animgraph.ron"
+  ],
+  "root_output_evidence": "docs/bf111/source_contracts/AB_Als_Standing.AnimGraph.source.json",
+  "verification_commands": [
+    {
+      "label": "standing_source_visible",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/run_ue_visible_animgraph_audit.py",
+        "--root",
+        ".",
+        "--map",
+        "tools/animgraph_authoring/ab_als_standing.visible.json",
+        "--jobs",
+        "2",
+        "--check",
+        "--summary"
+      ]
+    },
+    {
+      "label": "standing_source_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/graphs",
+        "--include",
+        "ab_als/stances/standing.animgraph.ron"
+      ]
+    },
+    {
+      "label": "standing_editor_metadata",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/graphs"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "standing_contract_gate",
+    "manual_case": "standing"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "format": "als_source_function_contract_v1",
+  "source_asset": "AB_Als_Standing",
+  "source_call": "RefreshStandingMovement",
+  "local_asset_evidence": "docs/bf111/source_contracts/AB_Als_Standing.AnimGraph.source.json",
+  "local_source_status": "The local project copy did not contain the implementation source after native uasset and source-tree checks.",
+  "fallback_source": "https://raw.githubusercontent.com/Sixze/ALS-Refactored/main/Source/ALS/Private/AlsAnimationInstance.cpp",
+  "facts": {
+    "sprint_block_amount": "Clamp01(current_animation_curve(SprintBlock))",
+    "unweighted_gait_amount": "PoseGait divided by PoseGrounded when PoseGrounded is positive, otherwise PoseGait",
+    "unweighted_gait_running_amount": "Clamp01(UnweightedGaitAmount - 1)",
+    "unweighted_gait_sprinting_amount": "Clamp01(UnweightedGaitAmount - 2)",
+    "sprint_acceleration_window_seconds": 0.5
+  }
+}

@@ -123,6 +123,7 @@ def parse_nodes(text):
             "id": node_id,
             "name": json.loads(f'"{name_match.group(1)}"'),
             "index": index,
+            "entry": entry,
             "graph": graph_handle(entry),
             "curve_names": parse_string_array(entry, "curve_names"),
         }
@@ -147,6 +148,15 @@ def parse_pin(value):
             "node": json.loads(f'"{time_match.group(1)}"'),
             "pin": None if time_match.group(2) is None else json.loads(f'"{time_match.group(2)}"'),
         }
+    output_data_match = re.fullmatch(r'OutputData\("([^"\\]*(?:\\.[^"\\]*)*)"\)', text)
+    if output_data_match is not None:
+        return {
+            "kind": "output_data",
+            "node": None,
+            "pin": json.loads(f'"{output_data_match.group(1)}"'),
+        }
+    if text == "OutputTime":
+        return {"kind": "output_time", "node": None, "pin": None}
     return {"kind": "other", "raw": compact(text)}
 
 
@@ -161,6 +171,10 @@ def pin_text(pin):
         return pin["raw"]
     if pin["kind"] == "node_data":
         return f'NodeData("{pin["node"]}", "{pin["pin"]}")'
+    if pin["kind"] == "output_data":
+        return f'OutputData("{pin["pin"]}")'
+    if pin["kind"] == "output_time":
+        return "OutputTime"
     if pin["pin"] is None:
         return f'NodeTime("{pin["node"]}")'
     return f'NodeTime("{pin["node"]}", "{pin["pin"]}")'

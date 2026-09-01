@@ -1,11 +1,12 @@
 import argparse
 import hashlib
 import json
+import re
 import tempfile
 from pathlib import Path
 
 
-FORMAT = "als_ue_visible_graph_contract_v1"
+FORMAT = "als_ue_visible_graph_contract_v2"
 
 
 def canonical_hash(value):
@@ -77,6 +78,48 @@ def links(graph):
     return sorted(result, key=canonical_hash)
 
 
+def binding_reference(node):
+    for prop in node.get("properties", []):
+        if prop.get("name") != "Binding":
+            continue
+        exported = prop.get("exported_text")
+        if not isinstance(exported, str) or exported in {"", "None"}:
+            return None
+        matches = re.findall(r"'(/[^']+)'", exported)
+        if len(matches) != 1:
+            raise ValueError(f"node binding reference is invalid: {node.get('object_path')}")
+        return matches[0]
+    return None
+
+
+def node_binding(node, objects_by_path):
+    reference = binding_reference(node)
+    if reference is None:
+        return None
+    binding = objects_by_path.get(reference)
+    if binding is None:
+        raise ValueError(f"node binding object is missing: {reference}")
+    return {
+        "object_path": binding.get("object_path"),
+        "class_path": binding.get("class_path"),
+        "properties": binding.get("properties", []),
+    }
+
+
+def graph_nodes(source, graph):
+    objects_by_path = {
+        value.get("object_path"): value
+        for value in source.get("asset_objects", [])
+        if isinstance(value.get("object_path"), str)
+    }
+    result = []
+    for node in graph.get("nodes", []):
+        value = dict(node)
+        value["binding"] = node_binding(node, objects_by_path)
+        result.append(value)
+    return result
+
+
 def contract(source, suffix):
     graph = source_graph(source, suffix)
     graph_payload = {
@@ -85,7 +128,7 @@ def contract(source, suffix):
         "class_path": graph.get("class_path"),
         "name": graph.get("name"),
         "properties": graph.get("properties"),
-        "nodes": graph.get("nodes"),
+        "nodes": graph_nodes(source, graph),
     }
     return {
         "format": FORMAT,
@@ -100,6 +143,13 @@ def contract(source, suffix):
 def run_self_test():
     source = {
         "asset_path": "/Asset",
+        "asset_objects": [
+            {
+                "object_path": "/Asset:AnimGraph.Source.Binding",
+                "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+                "properties": [{"name": "PropertyBindings", "exported_text": "()"}],
+            }
+        ],
         "graphs": [
             {
                 "index": 0,
@@ -111,6 +161,12 @@ def run_self_test():
                     {
                         "object_path": "/Asset:AnimGraph.Source",
                         "node_guid": "source",
+                        "properties": [
+                            {
+                                "name": "Binding",
+                                "exported_text": "'/Asset:AnimGraph.Source.Binding'",
+                            }
+                        ],
                         "pins": [
                             {
                                 "pin_id": "source-pin",
@@ -138,7 +194,7 @@ def run_self_test():
         ],
     }
     value = contract(source, "AnimGraph")
-    assert value["source_graph"]["nodes"] == source["graphs"][0]["nodes"]
+    assert value["source_graph"]["nodes"][0]["binding"]["object_path"].endswith("Binding")
     assert len(value["links"]) == 1
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "contract.json"

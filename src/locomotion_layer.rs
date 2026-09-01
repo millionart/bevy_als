@@ -43,6 +43,12 @@ const JUMP_WALK_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Left.gl
 const JUMP_RUN_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Run_Left.gltf#AlsCurves";
 const JUMP_WALK_RIGHT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Right.gltf#AlsCurves";
 const JUMP_RUN_RIGHT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Run_Right.gltf#AlsCurves";
+const LAND_LIGHT_CURVES: &str = "animations/Air/Land/A_Als_Land_Light.gltf#AlsCurves";
+const LAND_HEAVY_CURVES: &str = "animations/Air/Land/A_Als_Land_Heavy.gltf#AlsCurves";
+const LAND_LIGHT_ADDITIVE_CURVES: &str =
+    "animations/Air/Land/A_Als_Land_Light_Additive.gltf#AlsCurves";
+const LAND_HEAVY_ADDITIVE_CURVES: &str =
+    "animations/Air/Land/A_Als_Land_Heavy_Additive.gltf#AlsCurves";
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct AlsMovementBaseAnimationState {
@@ -279,6 +285,10 @@ struct LocomotionCurveHandles {
     jump_run_left: Handle<AlsAnimCurves>,
     jump_walk_right: Handle<AlsAnimCurves>,
     jump_run_right: Handle<AlsAnimCurves>,
+    land_light: Handle<AlsAnimCurves>,
+    land_heavy: Handle<AlsAnimCurves>,
+    land_light_additive: Handle<AlsAnimCurves>,
+    land_heavy_additive: Handle<AlsAnimCurves>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -351,6 +361,10 @@ fn load_locomotion_curve_assets(mut commands: Commands, assets: Res<AssetServer>
         jump_run_left: assets.load(JUMP_RUN_LEFT_CURVES),
         jump_walk_right: assets.load(JUMP_WALK_RIGHT_CURVES),
         jump_run_right: assets.load(JUMP_RUN_RIGHT_CURVES),
+        land_light: assets.load(LAND_LIGHT_CURVES),
+        land_heavy: assets.load(LAND_HEAVY_CURVES),
+        land_light_additive: assets.load(LAND_LIGHT_ADDITIVE_CURVES),
+        land_heavy_additive: assets.load(LAND_HEAVY_ADDITIVE_CURVES),
     });
 }
 
@@ -589,6 +603,38 @@ fn animation_curve_sample(
         .unwrap_or(0.0)
 }
 
+fn sprint_block_amount(
+    runtime: &LocomotionLayerRuntime,
+    assets: &Assets<AlsAnimCurves>,
+    handles: &LocomotionCurveHandles,
+    landing_heavy_alpha: f32,
+    land_movement_heavy_alpha: f32,
+) -> f32 {
+    let (light, heavy, alpha) = match runtime.state {
+        LocomotionLayerState::Land => (
+            &handles.land_light,
+            &handles.land_heavy,
+            landing_heavy_alpha,
+        ),
+        LocomotionLayerState::LandMovement => (
+            &handles.land_light_additive,
+            &handles.land_heavy_additive,
+            land_movement_heavy_alpha,
+        ),
+        _ => return 0.0,
+    };
+    let time = (runtime.land_phase.phase * LAND_DURATION).clamp(0.0, LAND_DURATION);
+    blend_sprint_block_curve(
+        animation_curve_sample(assets, light, "SprintBlock", time),
+        animation_curve_sample(assets, heavy, "SprintBlock", time),
+        alpha,
+    )
+}
+
+fn blend_sprint_block_curve(light: f32, heavy: f32, alpha: f32) -> f32 {
+    light.lerp(heavy, alpha.clamp(0.0, 1.0)).clamp(0.0, 1.0)
+}
+
 fn jump_curve_sample_time(runtime: &LocomotionLayerRuntime) -> f32 {
     (runtime.jump_phase.phase * JUMP_DURATION).clamp(0.0, JUMP_DURATION)
 }
@@ -748,6 +794,7 @@ fn write_globals(
     vertical_velocity: f32,
     ground_prediction: f32,
     speed: f32,
+    sprint_block: f32,
 ) {
     let jump_play_rate = if runtime.state == LocomotionLayerState::Jump {
         runtime.jump_play_rate
@@ -825,6 +872,7 @@ fn write_globals(
         ("als_locomotion_curve_FootLeftIk", curves.foot_left_ik),
         ("als_locomotion_curve_FootRightIk", curves.foot_right_ik),
         ("als_locomotion_curve_PoseInAir", curves.pose_in_air),
+        ("als_locomotion_curve_SprintBlock", sprint_block),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -987,6 +1035,17 @@ fn locomotion_layer_writer(
             animation_vertical_velocity,
             delta_seconds,
         );
+        let landing_heavy_alpha =
+            map_range_clamped(animation_vertical_velocity, -5.0, -10.0, 0.0, 1.0);
+        let land_movement_heavy_alpha =
+            map_range(animation_vertical_velocity, -7.5, -15.0, 0.0, 0.75);
+        let sprint_block = sprint_block_amount(
+            &runtime,
+            &animation_curves,
+            &handles,
+            landing_heavy_alpha,
+            land_movement_heavy_alpha,
+        );
         let curves = state_curve_values(runtime.state);
         write_globals(
             &mut player,
@@ -995,6 +1054,7 @@ fn locomotion_layer_writer(
             animation_vertical_velocity,
             prediction,
             speed,
+            sprint_block,
         );
         commands
             .entity(character)
@@ -1397,6 +1457,13 @@ mod tests {
             "[BF102.31][VERDICT] pre_collision=-10.000 post_collision=0.000 land={land_velocity:.3} land_movement={land_movement_velocity:.3} recovered={recovered_velocity:.3} heavy={heavy_alpha:.3} movement_weight={movement_weight:.3} -> {verdict}"
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn sprint_block_curve_blends_and_clamps_the_landing_samples() {
+        assert_eq!(blend_sprint_block_curve(0.0, 1.0, 0.25), 0.25);
+        assert_eq!(blend_sprint_block_curve(-1.0, 2.0, 0.5), 0.5);
+        assert_eq!(blend_sprint_block_curve(0.2, 0.8, 2.0), 0.8);
     }
 
     #[test]

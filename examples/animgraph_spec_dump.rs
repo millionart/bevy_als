@@ -18,6 +18,8 @@ use serde::Serialize;
 #[derive(Resource)]
 struct DumpAsset {
     graph: Handle<AnimationGraph>,
+    graph_path: String,
+    graph_source: String,
 }
 
 #[derive(Resource)]
@@ -49,8 +51,10 @@ struct EdgeRecord {
 #[derive(Serialize)]
 struct Dump {
     graph: String,
+    graph_source: String,
     nodes: Vec<NodeRecord>,
     edges: Vec<EdgeRecord>,
+    graph_outputs: Vec<PinRecord>,
     input_position: [f32; 2],
     output_position: [f32; 2],
 }
@@ -78,23 +82,41 @@ fn main() {
 }
 
 fn load(mut commands: Commands, assets: Res<AssetServer>) {
-    let graph = env::var("ALS_GRAPH_SPEC_PATH")
+    let graph_path = env::var("ALS_GRAPH_SPEC_PATH")
         .unwrap_or_else(|_| "graphs/ab_als/stances/standing.animgraph.ron".to_owned());
+    let graph_source =
+        fs::read_to_string(format!("assets/{graph_path}")).expect("graph source must be readable");
     commands.insert_resource(DumpAsset {
-        graph: assets.load(graph),
+        graph: assets.load(graph_path.clone()),
+        graph_path,
+        graph_source,
     });
+}
+
+fn debug_text(value: impl std::fmt::Debug) -> String {
+    let encoded = format!("{value:?}");
+    serde_json::from_str(&encoded).unwrap_or(encoded)
+}
+
+fn node_id_text(value: impl std::fmt::Debug) -> String {
+    let encoded = format!("{value:?}");
+    encoded
+        .strip_prefix("NodeId(")
+        .and_then(|value| value.strip_suffix(')'))
+        .unwrap_or(&encoded)
+        .to_owned()
 }
 
 fn input_record(input: NodeInput<impl std::fmt::Debug>) -> PinRecord {
     match input {
         NodeInput::Time(pin) => PinRecord {
             direction: "input".to_owned(),
-            name: format!("{pin:?}"),
+            name: debug_text(pin),
             data_type: Some("Time".to_owned()),
         },
         NodeInput::Data(pin, data_type) => PinRecord {
             direction: "input".to_owned(),
-            name: format!("{pin:?}"),
+            name: debug_text(pin),
             data_type: Some(format!("{data_type:?}")),
         },
     }
@@ -109,7 +131,7 @@ fn output_record(output: NodeOutput) -> PinRecord {
         },
         NodeOutput::Data(pin, data_type) => PinRecord {
             direction: "output".to_owned(),
-            name: format!("{pin:?}"),
+            name: debug_text(pin),
             data_type: Some(format!("{data_type:?}")),
         },
     }
@@ -138,7 +160,7 @@ fn dump(
         .map(|node| {
             let spec = node.new_spec(resources).expect("node spec must resolve");
             NodeRecord {
-                id: format!("{:?}", node.id),
+                id: node_id_text(node.id),
                 name: node.name.clone(),
                 display_name: node.display_name(),
                 position: graph
@@ -168,10 +190,16 @@ fn dump(
         .collect::<Vec<_>>();
     edges.sort_by(|left, right| left.target.cmp(&right.target));
     let output = Dump {
-        graph: env::var("ALS_GRAPH_SPEC_PATH")
-            .unwrap_or_else(|_| "graphs/ab_als/stances/standing.animgraph.ron".to_owned()),
+        graph: dump_asset.graph_path.clone(),
+        graph_source: dump_asset.graph_source.clone(),
         nodes,
         edges,
+        graph_outputs: graph
+            .io_spec
+            .sorted_outputs()
+            .into_iter()
+            .map(output_record)
+            .collect(),
         input_position: graph.editor_metadata.input_position.to_array(),
         output_position: graph.editor_metadata.output_position.to_array(),
     };

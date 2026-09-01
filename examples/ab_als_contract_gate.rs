@@ -470,7 +470,7 @@ fn verify_static(
                 "Standing Input",
                 "standing_time",
                 "standing_",
-                None,
+                Some(0.0),
             ) && context_input(
                 &node.context_inputs,
                 "Crouching Input",

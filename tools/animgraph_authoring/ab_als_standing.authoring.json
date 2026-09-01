@@ -1,0 +1,560 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "ab_als_standing_source_root",
+  "source_evidence": [
+    {
+      "path": "docs/bf111/source_contracts/AB_Als_Standing.AnimGraph.source.json",
+      "sha256": "ddb06b3eed63cec0ad9779dd40c5836a1ec127e92ce377101ece269721342090",
+      "hash_kind": "canonical_json"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "15400000-0000-4000-8000-000000000001",
+          "name": "standing states runtime",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15400000-0000-4000-8000-000000000002",
+          "name": "standing states runtime driver",
+          "position": [
+            -320.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"15400000-0000-4000-8000-000000000001\", \"driver_events\")",
+          "source": "NodeData(\"15400000-0000-4000-8000-000000000002\", \"event\")"
+        },
+        {
+          "target": "NodeData(\"15400000-0000-4000-8000-000000000001\", \"movement_pose\")",
+          "source": "InputData(Passthrough(\"movement_pose\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"15400000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"15400000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "movement_pose": "Pose"
+        },
+        "input_times": [],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/standing.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "15500000-0000-4000-8000-000000000001",
+          "name": "Standing States\nState Machine",
+          "position": [
+            -864.0,
+            48.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000002",
+          "name": "Save cached pose 'Movement Details'",
+          "position": [
+            0.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000003",
+          "name": "Save cached pose 'Movement'",
+          "position": [
+            0.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000004",
+          "name": "Modify Curve",
+          "position": [
+            -480.0,
+            64.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000005",
+          "name": "Movement Details States\nState Machine",
+          "position": [
+            -1248.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000006",
+          "name": "Inertialization",
+          "position": [
+            -672.0,
+            64.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000007",
+          "name": "Inertialization",
+          "position": [
+            -1008.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000008",
+          "name": "Apply Additive",
+          "position": [
+            -592.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000009",
+          "name": "Modify Curve",
+          "position": [
+            -256.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000010",
+          "name": "BS_Als_WalkRun_Right_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000011",
+          "name": "BS_Als_WalkRun_Right_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000012",
+          "name": "BS_Als_WalkRun_Left_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000013",
+          "name": "BS_Als_WalkRun_Left_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000014",
+          "name": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -1600.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000015",
+          "name": "BS_Als_WalkRun_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -1600.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000016",
+          "name": "A_Als_Sprint\nSequence Player\nSync group Movement",
+          "position": [
+            -1440.0,
+            -976.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000017",
+          "name": "A_Als_Sprint_Acceleration\nSequence Player\nSync group Movement",
+          "position": [
+            -1440.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000018",
+          "name": "Two Way Blend",
+          "position": [
+            -1056.0,
+            -880.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000019",
+          "name": "Save cached pose 'Move Backward'",
+          "position": [
+            -1216.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000020",
+          "name": "Save cached pose 'Move Left Forward'",
+          "position": [
+            -608.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000021",
+          "name": "Save cached pose 'Move Left Backward'",
+          "position": [
+            -608.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000022",
+          "name": "Save cached pose 'Move Right Forward'",
+          "position": [
+            0.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000023",
+          "name": "Save cached pose 'Move Right Backward'",
+          "position": [
+            0.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000024",
+          "name": "Save cached pose 'Move Forward Base'",
+          "position": [
+            -1216.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000025",
+          "name": "Save cached pose 'Move Forward'",
+          "position": [
+            0.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000026",
+          "name": "Two Way Blend",
+          "position": [
+            -336.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000027",
+          "name": "Use cached pose 'Move Forward Base'",
+          "position": [
+            -672.0,
+            -672.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000028",
+          "name": "Use cached pose 'Move Forward Base'",
+          "position": [
+            -960.0,
+            -976.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000029",
+          "name": "Blend Poses by Gameplay Tag",
+          "position": [
+            -624.0,
+            -944.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000030",
+          "name": "Movement States\nState Machine",
+          "position": [
+            -1168.0,
+            -512.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000031",
+          "name": "Reroute Node",
+          "position": [
+            -688.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000032",
+          "name": "Reroute Node",
+          "position": [
+            -976.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000033",
+          "name": "BS_Als_Lean\nBlendspace Evaluator",
+          "position": [
+            -976.0,
+            -416.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000034",
+          "name": "RefreshRotateInPlace\nOn Update",
+          "position": [
+            -224.0,
+            48.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000035",
+          "name": "RefreshStandingMovement\nOn Update",
+          "position": [
+            -816.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000036",
+          "name": "InitializeStandingMovement\nOn Become Relevant",
+          "position": [
+            -544.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15500000-0000-4000-8000-000000000037",
+          "name": "RefreshGroundedMovement\nOn Update",
+          "position": [
+            -272.0,
+            -112.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000035\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000007\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000009\", \"Source Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000008\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000024\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000014\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000031\", \"InputPin\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000032\", \"OutputPin\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000021\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000013\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000022\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000010\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000026\", \"B\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000027\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000029\", \"Default Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000028\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000018\", \"A\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000016\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000026\", \"A\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000029\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000034\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000019\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000015\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000029\", \"Sprinting Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000018\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000018\", \"B\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000017\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000008\", \"Base\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000031\", \"OutputPin\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000002\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000037\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000008\", \"Additive\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000033\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000037\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000036\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000020\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000012\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000036\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000035\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000003\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000009\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000004\", \"Source Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000006\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000034\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000006\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000032\", \"InputPin\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000030\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000007\", \"Source\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000023\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000011\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15500000-0000-4000-8000-000000000025\", \"Pose\")",
+          "source": "NodeData(\"15500000-0000-4000-8000-000000000026\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/standing_runtime_entry.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "15510000-0000-4000-8000-000000000001",
+          "name": "standing source graph runtime entry",
+          "position": [
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"15510000-0000-4000-8000-000000000001\", \"pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "fsms": [],
+  "verification_commands": [
+    {
+      "label": "standing_source_visible",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/run_ue_visible_animgraph_audit.py",
+        "--root",
+        ".",
+        "--map",
+        "tools/animgraph_authoring/ab_als_standing.visible.json",
+        "--jobs",
+        "2",
+        "--check",
+        "--summary"
+      ]
+    },
+    {
+      "label": "standing_source_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/graphs",
+        "--include",
+        "ab_als/stances/standing.animgraph.ron"
+      ]
+    },
+    {
+      "label": "standing_editor_metadata",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/graphs"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "standing_contract_gate",
+    "manual_case": "standing"
+  }
+}

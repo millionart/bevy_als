@@ -566,6 +566,8 @@ struct StandingGraphInputs {
     walk_run_amount: f32,
     play_rate: f32,
     sprint_amount: f32,
+    gait_is_sprinting: f32,
+    sprint_block_amount: f32,
     sprint_acceleration_amount: f32,
     sprint_play_rate: f32,
     movement_marker_phase: f32,
@@ -580,6 +582,8 @@ struct StandingGraphInputs {
     lean_right_amount: f32,
     lean_forward_amount: f32,
     lean_weight: f32,
+    unweighted_gait_running_amount: f32,
+    unweighted_gait_sprinting_amount: f32,
     foot_left_lock: f32,
     foot_right_lock: f32,
     allow_transitions: f32,
@@ -702,6 +706,18 @@ fn animation_world_scale(transform: &GlobalTransform) -> f32 {
         .z
         .abs()
         .max(f32::EPSILON)
+}
+
+fn unweighted_gait_amounts(gait_amount: f32, pose_grounded_amount: f32) -> (f32, f32) {
+    let unweighted = if pose_grounded_amount > f32::EPSILON {
+        gait_amount / pose_grounded_amount
+    } else {
+        gait_amount
+    };
+    (
+        (unweighted - 1.0).clamp(0.0, 1.0),
+        (unweighted - 2.0).clamp(0.0, 1.0),
+    )
 }
 
 fn damp_velocity_blend(current: VelocityBlend, target: VelocityBlend, alpha: f32) -> VelocityBlend {
@@ -1294,6 +1310,10 @@ fn update_standing_inputs(
     gait: Gait,
     gait_running_amount: f32,
     gait_sprinting_amount: f32,
+    unweighted_gait_running_amount: f32,
+    unweighted_gait_sprinting_amount: f32,
+    gait_is_sprinting: f32,
+    sprint_block_amount: f32,
     pivot_requested: bool,
     rotation_mode: RotationMode,
     view_yaw: f32,
@@ -1352,15 +1372,16 @@ fn update_standing_inputs(
     }
 
     let walk_run_amount = if gait == Gait::Walking { 0.0 } else { 1.0 };
-    let sprinting = if gait == Gait::Sprinting { 1.0 } else { 0.0 };
+    let sprinting = gait_is_sprinting;
     let animation_speed = horizontal_speed / animation_world_scale;
-    let stride_amount = stride_blend_amount_for_speed(gait_running_amount, animation_speed);
+    let stride_amount =
+        stride_blend_amount_for_speed(unweighted_gait_running_amount, animation_speed);
     let play_rate = standing_play_rate(
         params,
         animation_speed,
         stride_amount,
-        gait_running_amount,
-        gait_sprinting_amount,
+        unweighted_gait_running_amount,
+        unweighted_gait_sprinting_amount,
     );
     if sprinting > 0.0 {
         runtime.sprint_time = if runtime.initialized {
@@ -1637,6 +1658,8 @@ fn update_standing_inputs(
         walk_run_amount,
         play_rate,
         sprint_amount: gait_sprinting_amount,
+        gait_is_sprinting,
+        sprint_block_amount,
         sprint_acceleration_amount,
         sprint_play_rate: play_rate,
         movement_marker_phase,
@@ -1651,6 +1674,8 @@ fn update_standing_inputs(
         lean_right_amount: runtime.lean.y,
         lean_forward_amount: runtime.lean.x,
         lean_weight: 1.0,
+        unweighted_gait_running_amount,
+        unweighted_gait_sprinting_amount,
         foot_left_lock: sequence_curves.foot_left_lock,
         foot_right_lock: sequence_curves.foot_right_lock,
         allow_transitions: sequence_curves.allow_transitions,
@@ -1738,6 +1763,11 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         ("als_standing_walk_run_amount", inputs.walk_run_amount),
         ("als_standing_play_rate", inputs.play_rate),
         ("als_standing_sprint_amount", inputs.sprint_amount),
+        ("als_standing_gait_is_sprinting", inputs.gait_is_sprinting),
+        (
+            "als_standing_sprint_block_amount",
+            inputs.sprint_block_amount,
+        ),
         (
             "als_standing_sprint_acceleration_amount",
             inputs.sprint_acceleration_amount,
@@ -1765,6 +1795,10 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
             inputs.lean_forward_amount,
         ),
         ("als_standing_lean_weight", inputs.lean_weight),
+        (
+            "als_standing_unweighted_gait_running_amount",
+            inputs.unweighted_gait_running_amount,
+        ),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -2014,6 +2048,25 @@ fn standing_layer_writer(
         let gait_sprinting_amount = gait_blend
             .map(|blend| blend.weights.sprint_w)
             .unwrap_or((gait == &Gait::Sprinting) as u8 as f32);
+        let gait_amount = gait_blend
+            .map(|blend| blend.weights.move_w + blend.weights.run_w + blend.weights.sprint_w)
+            .unwrap_or(match *gait {
+                Gait::Walking => 1.0,
+                Gait::Running => 2.0,
+                Gait::Sprinting => 3.0,
+            });
+        let pose_grounded_amount = player
+            .get_global_input_data("als_locomotion_curve_PoseGrounded")
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(0.0);
+        let (unweighted_gait_running_amount, unweighted_gait_sprinting_amount) =
+            unweighted_gait_amounts(gait_amount, pose_grounded_amount);
+        let gait_is_sprinting = (*gait == Gait::Sprinting) as u8 as f32;
+        let sprint_block_amount = player
+            .get_global_input_data("als_locomotion_curve_SprintBlock")
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
         let input = override_command.map_or(command, |value| &value.0);
         let inputs = update_standing_inputs(
@@ -2029,6 +2082,10 @@ fn standing_layer_writer(
             *gait,
             gait_running_amount,
             gait_sprinting_amount,
+            unweighted_gait_running_amount,
+            unweighted_gait_sprinting_amount,
+            gait_is_sprinting,
+            sprint_block_amount,
             pivot_request.is_some(),
             *rotation_mode,
             view_yaw.0,
@@ -2480,6 +2537,12 @@ mod tests {
         assert_eq!(standing_state_curve_overrides(2, 2).foot_right_lock, 1.0);
         assert_eq!(standing_state_curve_overrides(2, 3).foot_left_lock, 1.0);
         assert_eq!(standing_state_curve_overrides(2, 4).foot_left_lock, 1.0);
+    }
+
+    #[test]
+    fn unweighted_gait_amounts_follow_the_source_grounded_division() {
+        assert_eq!(unweighted_gait_amounts(1.5, 0.0), (0.5, 0.0));
+        assert_eq!(unweighted_gait_amounts(1.5, 0.5), (1.0, 1.0));
     }
 
     #[test]
