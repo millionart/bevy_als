@@ -42,6 +42,8 @@ Create or update a manifest under tools/animgraph_authoring/. It must declare th
 
 For each top-level UE graph, also create a source-visible map that is checked by audit_ue_visible_animgraph.py. It must cover every source-visible non-comment node exactly once, match title and position, account for every source comment group, and reject missing source links, target nodes, source pins, or root output position differences. Splitting, collapsing, or hiding a source-visible node is a failure unless the current checklist item explicitly records a source-backed exception and its editor-visible replacement.
 
+Comment groups use comment_policy: require by default. Use comment_policy: ignore only after a user-approved active-checklist exception; preserve the source comments in the source contract and record the reason in comment_exception. Ignoring comments never relaxes node, pin, edge, state-machine, cache, or position requirements.
+
 Run the read-only authoring gate:
 
 ~~~powershell

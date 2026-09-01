@@ -18,6 +18,7 @@ from capture_animgraph_ron_topology import parse_positions
 
 
 FORMAT = "als_ue_visible_animgraph_map_v1"
+COMMENT_POLICIES = {"require", "ignore"}
 
 
 def read_json(path):
@@ -108,6 +109,14 @@ def map_shape_issues(mapping):
     comments = mapping.get("comment_groups")
     if not isinstance(comments, list):
         issues.append("comment_groups must be an array")
+    policy = mapping.get("comment_policy", "require")
+    if policy not in COMMENT_POLICIES:
+        issues.append("comment_policy is invalid")
+    if policy == "ignore" and (
+        not isinstance(mapping.get("comment_exception"), str)
+        or not mapping["comment_exception"]
+    ):
+        issues.append("comment_exception is required when comment_policy is ignore")
     return issues
 
 
@@ -206,7 +215,7 @@ def audit(root, mapping):
                 }
             }
         )
-    if source_comments:
+    if source_comments and mapping.get("comment_policy", "require") == "require":
         differences.append(
             {
                 "missing_comment_groups": [
@@ -227,6 +236,10 @@ def audit(root, mapping):
             "target_nodes": len(target_ordered),
             "source_comments": len(source_comments),
             "target_comments": 0,
+            "comment_policy": mapping.get("comment_policy", "require"),
+            "ignored_source_comments": source_comments
+            if mapping.get("comment_policy", "require") == "ignore"
+            else [],
             "source_links": source_links,
             "target_edges": len(target_edges),
             "mapped_nodes": mapped_nodes,
@@ -280,6 +293,7 @@ def run_self_test():
             }
         ],
         "comment_groups": [],
+        "comment_policy": "require",
     }
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
