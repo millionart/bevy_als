@@ -1,0 +1,185 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "ab_als_root",
+  "source_evidence": [
+    {
+      "path": "docs/bf109/source_contracts/AB_Als.source.json",
+      "sha256": "7e488fdce577b8cb41fb068db44783ea1fd3a0eb80384cee832dc3007a882393"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/graphs/ab_als/ab_als.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "1a230000-0000-4000-8000-000000000017",
+          "name": "AB_Als_Standing",
+          "position": [-2240.0, -144.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000018",
+          "name": "AB_Als_Crouching",
+          "position": [-2240.0, 64.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000001",
+          "name": "AB_Als_Grounded",
+          "position": [-2000.0, -48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000019",
+          "name": "Slot 'Transition'",
+          "position": [-1776.0, -48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000003",
+          "name": "AB_Als_Locomotion",
+          "position": [-1552.0, -48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000020",
+          "name": "Slot 'PostLocomotion'",
+          "position": [-1328.0, -48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000006",
+          "name": "ALI_Overlay - Overlay",
+          "position": [-1520.0, 160.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000021",
+          "name": "Inertialization",
+          "position": [-1296.0, 176.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000009",
+          "name": "AB_Als_Layering",
+          "position": [-1072.0, 48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000010",
+          "name": "AB_Als_Head",
+          "position": [-800.0, 48.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000011",
+          "name": "ControlRig CR_Als",
+          "position": [-560.0, 64.0]
+        },
+        {
+          "id": "1a230000-0000-4000-8000-000000000012",
+          "name": "AB_Als_Ragdolling",
+          "position": [-240.0, 48.0]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000001\", \"Standing Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000017\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000001\", \"Crouching Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000018\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000019\", \"Source\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000003\", \"Grounded Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000019\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000020\", \"Source\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000003\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000021\", \"Source\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000006\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000009\", \"Locomotion Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000020\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000009\", \"Overlay Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000021\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000010\", \"View Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000009\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000011\", \"Source\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000010\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"1a230000-0000-4000-8000-000000000012\", \"Ragdolling Input\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000011\", \"pose\")"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000012\", \"pose\")"
+        },
+        {
+          "target": "OutputData(\"ragdoll_config\")",
+          "source": "NodeData(\"1a230000-0000-4000-8000-000000000012\", \"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "Avian physics reads this fixed root output after graph evaluation.",
+          "evidence": "crates/bevy_animation_graph_core/src/physics_systems_avian.rs"
+        }
+      ],
+      "runtime_context_manifest": "tools/animgraph_contexts/ab_als.animcontext.json"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "ab_als_source_contract",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/audit_ab_als_root.py",
+        "--check"
+      ]
+    },
+    {
+      "label": "ab_als_node_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/graphs",
+        "--include",
+        "ab_als/ab_als.animgraph.ron"
+      ]
+    },
+    {
+      "label": "ab_als_editor_metadata",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/graphs"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "ab_als_contract_gate",
+    "manual_case": "base"
+  }
+}
