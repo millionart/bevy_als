@@ -227,6 +227,9 @@ def context_shape_issues(manifest):
         issues.append("asset_root is missing")
     if not isinstance(manifest.get("graph"), str):
         issues.append("graph is missing")
+    for field_name in ("template", "baseline"):
+        if field_name in manifest and not isinstance(manifest[field_name], str):
+            issues.append(f"{field_name} is invalid")
     if manifest.get("attributes", "reject") != "reject":
         issues.append("attributes must be reject")
     if manifest.get("events", "reject") != "reject":

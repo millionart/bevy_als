@@ -29,6 +29,12 @@ def newline_for(text):
     return "\r\n" if "\r\n" in text else "\n"
 
 
+def write_text(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as file:
+        file.write(value)
+
+
 def edge_text(target, source):
     return f"{pin_text(target)}: {pin_text(source)}"
 
@@ -350,6 +356,7 @@ def main():
     parser.add_argument("--template", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--check-output", action="store_true")
     parser.add_argument("--make-template", action="store_true")
     parser.add_argument("--expand", action="store_true")
     parser.add_argument("--audit", action="store_true")
@@ -381,7 +388,7 @@ def main():
         expected = context_edges(manifest, source_text, asset_root)
         template_text = make_template(source_text, expected)
         template_path = repo_path(root, args.template)
-        template_path.write_text(template_text, encoding="utf-8")
+        write_text(template_path, template_text)
         print(json.dumps({"template": relative_path(template_path, root), "contexts": len(manifest["contexts"]), "managed_edges": len(expected)}, ensure_ascii=False, indent=2))
         return 0
     if args.expand:
@@ -395,7 +402,19 @@ def main():
         if args.baseline is not None:
             baseline = read_json(repo_path(root, args.baseline))
         expanded = expand_template(template_text, expected, baseline)
-        output_path.write_text(expanded, encoding="utf-8")
+        if args.check_output:
+            if not output_path.is_file():
+                report = {
+                    "output": relative_path(output_path, root),
+                    "differences": ["missing_output"],
+                }
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+                return 1
+            report = audit_graphs(expanded, read_text(output_path))
+            report["output"] = relative_path(output_path, root)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0 if not report["differences"] else 1
+        write_text(output_path, expanded)
         print(json.dumps({"output": relative_path(output_path, root), "contexts": len(manifest["contexts"]), "managed_edges": len(expected)}, ensure_ascii=False, indent=2))
         return 0
     raise ValueError("select make-template, expand, audit, or self-test")

@@ -1,6 +1,6 @@
 # BF110 结构化动画上下文作者合同
 
-`assets/graphs/ab_als/ab_als.animcontext.json` 是 `AB_Als` 根图的结构化连接合同。它不是运行时资产；运行时继续加载标准 `.animgraph.ron`。
+`tools/animgraph_contexts/ab_als.animcontext.json` 是 `AB_Als` 根图的结构化连接合同。它位于非运行时资源目录；运行时继续加载标准 `.animgraph.ron`。
 
 每个 context 只声明两个固定边界和一个开放集合：
 
@@ -18,5 +18,5 @@
 
 ```text
 python tools/animgraph_context_contract.py --self-test
-python tools/animgraph_context_contract.py --manifest assets/graphs/ab_als/ab_als.animcontext.json --baseline docs/bf110/ab_als.context-baseline.json --check
+python tools/animgraph_context_contract.py --manifest tools/animgraph_contexts/ab_als.animcontext.json --baseline docs/bf110/ab_als.context-baseline.json --check
 ```

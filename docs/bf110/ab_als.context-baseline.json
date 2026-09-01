@@ -1,10 +1,10 @@
 {
   "format": "als_animgraph_context_baseline_v1",
-  "manifest": "assets/graphs/ab_als/ab_als.animcontext.json",
-  "manifest_sha256": "da3852788626730e9e6d15a339dccad7f9d34467b55bb47a729e69ccf1759b69",
+  "manifest": "tools/animgraph_contexts/ab_als.animcontext.json",
+  "manifest_sha256": "0275e19a08dc2944c018205d99d7c43d73b5c08c34958460e156790b77eee836",
   "asset_root": "assets",
   "graph": "graphs/ab_als/ab_als.animgraph.ron",
-  "graph_sha256": "3a1ded8326fcf5d772ef4a513d6420f8ebd7fa5ded15bdde8d108bcad564ea3a",
+  "graph_sha256": "bbcae2d568687da3ff8b7482372a1c751f5a2decb0bca43647a305d07c20753c",
   "nodes": [
     {
       "id": "1a230000-0000-4000-8000-000000000017",
