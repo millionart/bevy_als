@@ -6,6 +6,10 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::animation_context::{
+    AnimationContextState, resolve_named_context_curves,
+};
+
 const SOURCE_POSE: &str = "source_pose";
 const SOURCE_TIME: &str = "source_time";
 const OUT_POSE: &str = "pose";
@@ -28,6 +32,10 @@ pub struct ControlRigBoundaryNode {
     pub transfer_input_curves: bool,
     pub transfer_pose_in_global_space: bool,
     pub curve_names: Vec<String>,
+    pub capture_context: bool,
+    pub expose_context_curves: bool,
+    pub exposed_output_data: Vec<String>,
+    pub missing_curve_value: Option<f32>,
 }
 
 impl Default for ControlRigBoundaryNode {
@@ -39,7 +47,19 @@ impl Default for ControlRigBoundaryNode {
             transfer_input_curves: true,
             transfer_pose_in_global_space: false,
             curve_names: default(),
+            capture_context: false,
+            expose_context_curves: false,
+            exposed_output_data: default(),
+            missing_curve_value: None,
         }
+    }
+}
+
+impl ControlRigBoundaryNode {
+    fn expose_output(&self, curve: &str) -> bool {
+        !self.capture_context
+            || self.expose_context_curves
+            || self.exposed_output_data.iter().any(|value| value == curve)
     }
 }
 
@@ -59,17 +79,44 @@ impl NodeLike for ControlRigBoundaryNode {
         let pose = ctx.data_back(SOURCE_POSE)?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(OUT_POSE, pose);
+        let context_curves = if self.capture_context {
+            resolve_named_context_curves(
+                &ctx,
+                SOURCE_POSE,
+                &self.curve_names,
+                self.missing_curve_value,
+            )?
+        } else {
+            default()
+        };
+        let mut state = AnimationContextState::default();
         for curve in &self.curve_names {
-            let value = ctx.data_back(curve.clone())?.as_f32()?;
-            ctx.set_data_fwd(curve.clone(), value);
+            let value = if self.capture_context {
+                *context_curves
+                    .get(curve)
+                    .ok_or(GraphError::MissingStateValue)?
+            } else {
+                ctx.data_back(curve.clone())?.as_f32()?
+            };
+            state.curves.insert(curve.clone(), value);
+            if self.expose_output(curve) {
+                ctx.set_data_fwd(curve.clone(), value);
+            }
+        }
+        if self.capture_context {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = state;
         }
         Ok(())
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         for curve in &self.curve_names {
-            ctx.add_input_data(curve.clone(), DataSpec::F32)
-                .add_output_data(curve.clone(), DataSpec::F32);
+            if !self.capture_context {
+                ctx.add_input_data(curve.clone(), DataSpec::F32);
+            }
+            if self.expose_output(curve) {
+                ctx.add_output_data(curve.clone(), DataSpec::F32);
+            }
         }
         pose_spec(ctx)
     }

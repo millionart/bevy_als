@@ -195,6 +195,76 @@ def explicit_overlay_chain(text):
     return all(base + curve_links) and output_pattern.search(text) is not None
 
 
+def runtime_context_input(text, node_id, pose_input, time_input, curve_prefix, missing_value):
+    value = "None" if missing_value is None else f"Some({missing_value:.1f})"
+    fragment = (
+        f'(pose_input: "{pose_input}", time_input: "{time_input}", '
+        f'curve_prefix: "{curve_prefix}", missing_curve_value: {value})'
+    )
+    return fragment in text and f'"{node_id}"' in text
+
+
+def runtime_context_root_chain(text):
+    standing = "1a230000-0000-4000-8000-000000000017"
+    crouching = "1a230000-0000-4000-8000-000000000018"
+    grounded = "1a230000-0000-4000-8000-000000000001"
+    transition = "1a230000-0000-4000-8000-000000000019"
+    locomotion = "1a230000-0000-4000-8000-000000000003"
+    post_locomotion = "1a230000-0000-4000-8000-000000000020"
+    layering = "1a230000-0000-4000-8000-000000000009"
+    base = [
+        node_data_edge(text, grounded, "Standing Input", standing, "pose"),
+        node_time_edge(text, grounded, "standing_time", standing),
+        node_data_edge(text, grounded, "Crouching Input", crouching, "pose"),
+        node_time_edge(text, grounded, "crouching_time", crouching),
+        node_data_edge(text, transition, "Source", grounded, "pose"),
+        node_time_edge(text, transition, "source_time", grounded),
+        node_data_edge(text, locomotion, "grounded_pose", transition, "pose"),
+        node_time_edge(text, locomotion, "grounded_time", transition),
+        node_data_edge(text, post_locomotion, "Source", locomotion, "pose"),
+        node_time_edge(text, post_locomotion, "source_time", locomotion),
+        node_data_edge(text, layering, "locomotion_pose", post_locomotion, "pose"),
+        node_time_edge(text, layering, "locomotion_time_local_left_mesh", post_locomotion),
+        runtime_context_input(text, grounded, "Standing Input", "standing_time", "standing_", None),
+        runtime_context_input(text, grounded, "Crouching Input", "crouching_time", "crouching_", None),
+        runtime_context_input(text, transition, "Source", "source_time", "source_", 0.0),
+        runtime_context_input(text, locomotion, "grounded_pose", "grounded_time", "grounded_", None),
+        runtime_context_input(text, post_locomotion, "Source", "source_time", "source_", None),
+        runtime_context_input(
+            text,
+            layering,
+            "locomotion_pose",
+            "locomotion_time_local_left_mesh",
+            "locomotion_",
+            0.0,
+        ),
+    ]
+    return all(base) and 'name: "root zero curve"' not in text
+
+
+def runtime_context_overlay_chain(text):
+    reference = "1a230000-0000-4000-8000-000000000005"
+    overlay = "1a230000-0000-4000-8000-000000000006"
+    selector = "1a230000-0000-4000-8000-000000000007"
+    inertialization = "1a230000-0000-4000-8000-000000000021"
+    layering = "1a230000-0000-4000-8000-000000000009"
+    base = [
+        node_data_edge(text, overlay, "layer_index", selector, "als_root_overlay_index"),
+        node_data_edge(text, overlay, "base_pose", reference, "pose"),
+        node_time_edge(text, overlay, "base_time", reference),
+        node_data_edge(text, inertialization, "Source", overlay, "pose"),
+        node_time_edge(text, inertialization, "source_time", overlay),
+        node_data_edge(text, layering, "overlay_pose", inertialization, "pose"),
+        node_time_edge(text, layering, "overlay_time_legs", inertialization),
+        runtime_context_input(text, layering, "overlay_pose", "overlay_time_legs", "overlay_", 0.0),
+    ]
+    output_pattern = re.compile(
+        rf'OutputData\("transition_left_request"\):\s*'
+        rf'NodeData\("{re.escape(inertialization)}",\s*"transition_left_request"\)'
+    )
+    return all(base) and output_pattern.search(text) is not None
+
+
 def audit(source, contract, target_text, mapping):
     differences = []
     if contract.get("source_asset") != source.get("asset_path"):
@@ -225,7 +295,9 @@ def audit(source, contract, target_text, mapping):
     override_ids = {entry["target_id"] for entry in overrides}
     if node_ids != override_ids:
         differences.append("layout target node coverage")
-    source_index_set = {node["index"] for node in source_nodes(anim_graph)}
+    source_index_set = {
+        node["index"] for node in source_nodes(anim_graph) if node["index"] != 0
+    }
     mapped_indices = {index for entry in overrides for index in source_indices(entry)}
     if not source_index_set.issubset(mapped_indices):
         differences.append("layout source node coverage")
@@ -270,6 +342,7 @@ def audit(source, contract, target_text, mapping):
         'selector: "layer_index"',
         "reset_on_becoming_relevant: true",
         "forward_requests_through_skipped_cached_poses: true",
+        "capture_context: true",
         'name: "ControlRig CR_Als"',
         'rig_class: "CR_Als"',
         "alpha_enabled: true",
@@ -285,12 +358,21 @@ def audit(source, contract, target_text, mapping):
     for fragment in required_fragments:
         if fragment not in target_text:
             differences.append(f"target fragment {fragment}")
-    root_chain = explicit_root_chain(target_text)
+    runtime_context = "capture_context: true" in target_text
+    root_chain = (
+        runtime_context_root_chain(target_text)
+        if runtime_context
+        else explicit_root_chain(target_text)
+    )
     if not root_chain:
-        differences.append("explicit root stance-slot chain")
-    overlay_chain = explicit_overlay_chain(target_text)
+        differences.append("runtime root context chain")
+    overlay_chain = (
+        runtime_context_overlay_chain(target_text)
+        if runtime_context
+        else explicit_overlay_chain(target_text)
+    )
     if not overlay_chain:
-        differences.append("explicit overlay inertialization chain")
+        differences.append("runtime overlay context chain")
     report = {
         "source_asset": source["asset_path"],
         "source_sha256": canonical_hash(source),
@@ -302,6 +384,7 @@ def audit(source, contract, target_text, mapping):
         "anim_graph_source_pins": sum(len(node["pins"]) for node in anim_graph["nodes"]),
         "target_nodes": len(nodes),
         "layout_nodes": node_rows,
+        "runtime_context": runtime_context,
         "explicit_root_chain": root_chain,
         "explicit_overlay_chain": overlay_chain,
         "differences": differences,

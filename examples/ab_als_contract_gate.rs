@@ -1,9 +1,10 @@
 use std::time::{Duration, Instant};
 
 use als_ext::{
-    AlsExtPlugin, ControlRigBoundaryNode, GlobalBoneMaskInputNode, GlobalBoolInputNode,
-    GlobalF32InputNode, InertializationPassthroughNode, InertializedLinkedAnimLayerNode,
-    InterruptibleFsmNode, LayeredGraphNode, LocalRefPoseNode, SkeletonAwareLayeredGraphNode,
+    AlsExtPlugin, AnimationContextInput, ControlRigBoundaryNode, GlobalBoneMaskInputNode,
+    GlobalBoolInputNode, GlobalF32InputNode, InertializationPassthroughNode,
+    InertializedLinkedAnimLayerNode, InterruptibleFsmNode, LayeredGraphNode, LocalRefPoseNode,
+    SkeletonAwareLayeredGraphNode,
 };
 use bevy::asset::LoadedFolder;
 use bevy::ecs::message::MessageWriter;
@@ -310,6 +311,21 @@ fn output_data_edge(
     )
 }
 
+fn context_input(
+    inputs: &[AnimationContextInput],
+    pose_input: &str,
+    time_input: &str,
+    curve_prefix: &str,
+    missing_curve_value: Option<f32>,
+) -> bool {
+    inputs.iter().any(|input| {
+        input.pose_input == pose_input
+            && input.time_input == time_input
+            && input.curve_prefix == curve_prefix
+            && input.missing_curve_value == missing_curve_value
+    })
+}
+
 fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
     match player.get_outputs().get(name) {
         Some(DataValue::F32(value)) => Some(*value),
@@ -428,15 +444,22 @@ fn verify_static(
     };
     let linked = ["AB_Als_Layering", "AB_Als_Head", "AB_Als_Ragdolling"]
         .into_iter()
-        .all(|name| node::<LayeredGraphNode>(root, name).is_some())
+        .all(|name| {
+            node::<LayeredGraphNode>(root, name).is_some_and(|node| {
+                node.capture_context
+                    && (name != "AB_Als_Ragdolling" || node.expose_context_curves)
+            })
+        })
         && ["AB_Als_Standing", "AB_Als_Crouching"]
             .into_iter()
-            .all(|name| node::<LayeredGraphNode>(root, name).is_some())
+            .all(|name| node::<LayeredGraphNode>(root, name).is_some_and(|node| node.capture_context))
         && ["AB_Als_Grounded", "AB_Als_Locomotion"]
             .into_iter()
             .all(|name| {
                 node::<SkeletonAwareLayeredGraphNode>(root, name).is_some_and(|node| {
-                    node.fallback_pose_key == "als_root_reference_pose" && node.slot_name.is_none()
+                    node.fallback_pose_key == "als_root_reference_pose"
+                        && node.slot_name.is_none()
+                        && node.capture_context
                 })
             });
     let grounded_stance_inputs = grounded
@@ -460,43 +483,22 @@ fn verify_static(
             .io_spec
             .get_input_data(&GraphInputPin::Passthrough("grounded_pose".to_owned()))
             .is_some();
-    let stance_curve_links = [
-        "PoseStanding",
-        "PoseMoving",
-        "RotationYawOffset",
-        "FootLeftLock",
-        "FootRightLock",
-        "AllowTransitions",
-        "RotationYawSpeed",
-    ]
-    .into_iter()
-    .all(|curve| {
-        node_data_edge(
-            root,
-            "AB_Als_Grounded",
-            &format!("standing_{curve}"),
-            "AB_Als_Standing",
-            curve,
-        )
-    }) && [
-        "PoseCrouching",
-        "PoseMoving",
-        "RotationYawOffset",
-        "FootLeftLock",
-        "FootRightLock",
-        "AllowTransitions",
-        "RotationYawSpeed",
-    ]
-    .into_iter()
-    .all(|curve| {
-        node_data_edge(
-            root,
-            "AB_Als_Grounded",
-            &format!("crouching_{curve}"),
-            "AB_Als_Crouching",
-            curve,
-        )
-    });
+    let stance_contexts = node::<SkeletonAwareLayeredGraphNode>(root, "AB_Als_Grounded")
+        .is_some_and(|node| {
+            context_input(
+                &node.context_inputs,
+                "Standing Input",
+                "standing_time",
+                "standing_",
+                None,
+            ) && context_input(
+                &node.context_inputs,
+                "Crouching Input",
+                "crouching_time",
+                "crouching_",
+                None,
+            )
+        });
     let root_chain = node_data_edge(
         root,
         "AB_Als_Grounded",
@@ -563,64 +565,49 @@ fn verify_static(
         "AB_Als_Layering",
         "locomotion_time_local_left_mesh",
         "Slot 'PostLocomotion'",
-    ) && SLOT_CURVES
-        .iter()
-        .filter(|curve| **curve != "PoseInAir")
-        .all(|curve| {
-            node_data_edge(
-                root,
-                "Slot 'Transition'",
-                &format!("source_{curve}"),
-                "AB_Als_Grounded",
-                curve,
-            ) && node_data_edge(
-                root,
-                "AB_Als_Locomotion",
-                &format!("grounded_{curve}"),
-                "Slot 'Transition'",
-                curve,
-            ) && node_data_edge(
-                root,
-                "Slot 'PostLocomotion'",
-                &format!("source_{curve}"),
-                "AB_Als_Locomotion",
-                curve,
-            ) && node_data_edge(
-                root,
-                "AB_Als_Layering",
-                &format!("locomotion_{curve}"),
-                "Slot 'PostLocomotion'",
-                curve,
+    ) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'Transition'").is_some_and(
+        |node| {
+            node.capture_context
+                && context_input(
+                    &node.context_inputs,
+                    "Source",
+                    "source_time",
+                    "source_",
+                    Some(0.0),
+                )
+        },
+    ) && node::<SkeletonAwareLayeredGraphNode>(root, "AB_Als_Locomotion").is_some_and(
+        |node| {
+            node.capture_context
+                && context_input(
+                    &node.context_inputs,
+                    "grounded_pose",
+                    "grounded_time",
+                    "grounded_",
+                    None,
+                )
+        },
+    ) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'PostLocomotion'").is_some_and(
+        |node| {
+            node.capture_context
+                && context_input(
+                    &node.context_inputs,
+                    "Source",
+                    "source_time",
+                    "source_",
+                    None,
+                )
+        },
+    ) && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
+        node.capture_context
+            && context_input(
+                &node.context_inputs,
+                "locomotion_pose",
+                "locomotion_time_local_left_mesh",
+                "locomotion_",
+                Some(0.0),
             )
-        })
-        && node_data_edge(
-            root,
-            "Slot 'Transition'",
-            "source_PoseInAir",
-            "root zero curve",
-            "value",
-        )
-        && node_data_edge(
-            root,
-            "AB_Als_Locomotion",
-            "grounded_PoseInAir",
-            "Slot 'Transition'",
-            "PoseInAir",
-        )
-        && node_data_edge(
-            root,
-            "Slot 'PostLocomotion'",
-            "source_PoseInAir",
-            "AB_Als_Locomotion",
-            "PoseInAir",
-        )
-        && node_data_edge(
-            root,
-            "AB_Als_Layering",
-            "locomotion_PoseInAir",
-            "Slot 'PostLocomotion'",
-            "PoseInAir",
-        );
+    }) && !root.nodes.values().any(|node| node.name == "root zero curve");
     let overlay = node::<InertializedLinkedAnimLayerNode>(root, "ALI_Overlay - Overlay")
         .is_some_and(|node| {
             node.selector == "layer_index"
@@ -633,6 +620,12 @@ fn verify_static(
         .is_some_and(|node| {
             node.reset_on_becoming_relevant
                 && node.forward_requests_through_skipped_cached_poses
+                && node.capture_context
+                && node
+                    .exposed_output_data
+                    .iter()
+                    .map(String::as_str)
+                    .eq(std::iter::once("transition_left_request"))
                 && node
                     .curve_names
                     .iter()
@@ -681,27 +674,15 @@ fn verify_static(
         "AB_Als_Layering",
         "overlay_time_legs",
         "Inertialization",
-    ) && OVERLAY_CURVES.iter().all(|curve| {
-        node_data_edge(
-            root,
-            "Inertialization",
-            &format!("source_{curve}"),
-            "ALI_Overlay - Overlay",
-            curve,
-        ) && node_data_edge(
-            root,
-            "AB_Als_Layering",
-            &format!("overlay_{curve}"),
-            "Inertialization",
-            curve,
+    ) && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
+        context_input(
+            &node.context_inputs,
+            "overlay_pose",
+            "overlay_time_legs",
+            "overlay_",
+            Some(0.0),
         )
-    }) && node_data_edge(
-        root,
-        "Inertialization",
-        "source_transition_left_request",
-        "ALI_Overlay - Overlay",
-        "transition_left_request",
-    ) && output_data_edge(
+    }) && output_data_edge(
         root,
         "transition_left_request",
         "Inertialization",
@@ -719,6 +700,7 @@ fn verify_static(
                     .map(String::as_str)
                     .eq(SLOT_CURVES.iter().copied())
                 && !node.always_update_source_pose
+                && node.capture_context
         }) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'PostLocomotion'").is_some_and(
             |node| {
                 node.slot_name.as_deref() == Some("PostLocomotion")
@@ -730,8 +712,9 @@ fn verify_static(
                         .slot_curve_names
                         .iter()
                         .map(String::as_str)
-                        .eq(SLOT_CURVES.iter().copied())
+                    .eq(SLOT_CURVES.iter().copied())
                     && !node.always_update_source_pose
+                    && node.capture_context
             },
         );
     let view_redirect = view.nodes.is_empty()
@@ -739,7 +722,16 @@ fn verify_static(
             .io_spec
             .get_input_data(&GraphInputPin::Passthrough("view_pose".to_owned()))
             .is_some()
-        && view.io_spec.get_output_data(&"pose".to_owned()).is_some();
+        && view.io_spec.get_output_data(&"pose".to_owned()).is_some()
+        && node::<LayeredGraphNode>(root, "AB_Als_Head").is_some_and(|node| {
+            context_input(
+                &node.context_inputs,
+                "view_pose",
+                "view_time",
+                "view_",
+                None,
+            )
+        });
     let control_rig =
         node::<ControlRigBoundaryNode>(root, "ControlRig CR_Als").is_some_and(|node| {
             node.rig_class == "CR_Als"
@@ -747,6 +739,7 @@ fn verify_static(
                 && node.transfer_input_pose
                 && node.transfer_input_curves
                 && !node.transfer_pose_in_global_space
+                && node.capture_context
                 && node
                     .curve_names
                     .iter()
@@ -770,10 +763,10 @@ fn verify_static(
         && !source.contains("locomotion_overlay");
     let scenes = scenes_use_canonical_root();
     info!(
-        "[AB-ALS-CONTRACT] linked={} grounded_stance_inputs={} stance_curve_links={} root_chain={} overlay={} overlay_chain={} slots={} inertialization={} view_redirect={} control_rig={} io={} scenes={} architecture={}",
+        "[AB-ALS-CONTRACT] linked={} grounded_stance_inputs={} stance_contexts={} root_chain={} overlay={} overlay_chain={} slots={} inertialization={} view_redirect={} control_rig={} io={} scenes={} architecture={}",
         linked,
         grounded_stance_inputs,
-        stance_curve_links,
+        stance_contexts,
         root_chain,
         overlay,
         overlay_chain,
@@ -787,7 +780,7 @@ fn verify_static(
     );
     if !(linked
         && grounded_stance_inputs
-        && stance_curve_links
+        && stance_contexts
         && root_chain
         && overlay
         && overlay_chain

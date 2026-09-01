@@ -59,7 +59,8 @@
       "curves": {
         "mode": "inherit",
         "target_prefix": "source_"
-      }
+      },
+      "missing_curve_value": 0.0
     },
     {
       "id": "transition_slot_to_locomotion",
@@ -131,7 +132,8 @@
       "curves": {
         "mode": "inherit",
         "target_prefix": "locomotion_"
-      }
+      },
+      "missing_curve_value": 0.0
     },
     {
       "id": "inertialization_to_layering",
@@ -149,7 +151,8 @@
       "curves": {
         "mode": "inherit",
         "target_prefix": "overlay_"
-      }
+      },
+      "missing_curve_value": 0.0
     },
     {
       "id": "layering_to_head",
@@ -205,5 +208,88 @@
         "target_prefix": "ragdolling_"
       }
     }
+  ],
+  "runtime_nodes": [
+    {
+      "node": "1a230000-0000-4000-8000-000000000017",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000018",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000001",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000019",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000003",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000020",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000021",
+      "mode": "named",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": ["transition_left_request"]
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000009",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000010",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000011",
+      "mode": "named",
+      "capture_context": true,
+      "expose_context_curves": false,
+      "exposed_output_data": []
+    },
+    {
+      "node": "1a230000-0000-4000-8000-000000000012",
+      "mode": "child",
+      "capture_context": true,
+      "expose_context_curves": true,
+      "exposed_output_data": []
+    }
+  ],
+  "remove_nodes": [
+    "1a230000-0000-4000-8000-000000000013",
+    "1a230000-0000-4000-8000-000000000016"
   ]
 }

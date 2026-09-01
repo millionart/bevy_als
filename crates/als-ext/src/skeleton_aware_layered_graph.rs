@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_animation_graph::builtin_nodes::graph_node::NestedGraphIoEnv;
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, TargetPin},
     animation_node::{NodeLike, ReflectNodeLike},
@@ -8,9 +7,14 @@ use bevy_animation_graph::core::{
         new_context::NodeContext,
         spec_context::{NodeInput, NodeOutput, SpecContext},
     },
-    edge_data::{DataValue, bone_mask::BoneMask},
+    edge_data::{DataSpec, DataValue, bone_mask::BoneMask},
     errors::GraphError,
     interpolation::linear::LinearInterpolator,
+};
+
+use crate::animation_context::{
+    AnimationContextInput, AnimationContextIoEnv, AnimationContextState, capture_context_curve,
+    is_context_curve_input, resolve_context_curves,
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -25,9 +29,20 @@ pub struct SkeletonAwareLayeredGraphNode {
     pub slot_curve_prefix: Option<String>,
     pub slot_curve_names: Vec<String>,
     pub always_update_source_pose: bool,
+    pub context_inputs: Vec<AnimationContextInput>,
+    pub capture_context: bool,
+    pub expose_context_curves: bool,
+    pub exposed_output_data: Vec<String>,
 }
 
 impl SkeletonAwareLayeredGraphNode {
+    fn expose_output(&self, id: &str, data_spec: &DataSpec) -> bool {
+        !self.capture_context
+            || *data_spec != DataSpec::F32
+            || self.expose_context_curves
+            || self.exposed_output_data.iter().any(|value| value == id)
+    }
+
     fn slot_weight(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
         if self.slot_name.is_none() {
             return Ok(0.0);
@@ -133,8 +148,9 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
         else {
             return Ok(());
         };
-        let sub_ctx_io = NestedGraphIoEnv {
+        let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
+            curve_values: default(),
         };
         let sub_ctx = ctx
             .create_child_context(self.graph.id(), graph, None)
@@ -156,28 +172,45 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
         else {
             return Ok(());
         };
-        let sub_ctx_io = NestedGraphIoEnv {
-            parent_ctx: ctx.clone(),
-        };
-        let mut sub_ctx = ctx
-            .create_child_context(self.graph.id(), graph, None)
-            .with_io(&sub_ctx_io);
-        if graph.io_spec.has_output_time()
-            && let Ok(time_update) = ctx.time_update_fwd()
-        {
-            let key = sub_ctx.state_key;
-            sub_ctx.context_mut().query_output_time = QueryOutputTime::from_key(key, time_update);
-        }
-        if let Ok(time_update) = ctx.time_update_fwd() {
+        let time_update = ctx.time_update_fwd().ok();
+        if let Some(time_update) = &time_update {
             for pin in graph.io_spec.iter_input_times() {
                 if let GraphInputPin::Passthrough(pin_id) = pin {
                     ctx.set_time_update_back(pin_id.clone(), time_update.clone());
                 }
             }
         }
-        for (id, _) in graph.io_spec.iter_output_data() {
+        let curve_values = if self.capture_context {
+            resolve_context_curves(&ctx, graph, &self.context_inputs)?
+        } else {
+            default()
+        };
+        let sub_ctx_io = AnimationContextIoEnv {
+            parent_ctx: ctx.clone(),
+            curve_values,
+        };
+        let mut sub_ctx = ctx
+            .create_child_context(self.graph.id(), graph, None)
+            .with_io(&sub_ctx_io);
+        if graph.io_spec.has_output_time()
+            && let Some(time_update) = time_update
+        {
+            let key = sub_ctx.state_key;
+            sub_ctx.context_mut().query_output_time = QueryOutputTime::from_key(key, time_update);
+        }
+        let mut context_state = AnimationContextState::default();
+        for (id, data_spec) in graph.io_spec.iter_output_data() {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
-            ctx.set_data_fwd(id.clone(), self.apply_fallback(id.as_str(), value, &ctx)?);
+            let value = self.apply_fallback(id.as_str(), value, &ctx)?;
+            if self.capture_context {
+                capture_context_curve(&mut context_state, id, &value)?;
+            }
+            if self.expose_output(id, data_spec) {
+                ctx.set_data_fwd(id.clone(), value);
+            }
+        }
+        if self.capture_context {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
         }
         Ok(())
     }
@@ -194,7 +227,9 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
                     ctx.add_input_time(pin_id);
                 }
                 NodeInput::Data(GraphInputPin::Passthrough(pin_id), data_spec) => {
-                    ctx.add_input_data(pin_id, data_spec);
+                    if !is_context_curve_input(&pin_id, &data_spec, &self.context_inputs) {
+                        ctx.add_input_data(pin_id, data_spec);
+                    }
                 }
                 _ => {}
             }
@@ -205,7 +240,9 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
                     ctx.add_output_time();
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
-                    ctx.add_output_data(pin_id, data_spec);
+                    if self.expose_output(&pin_id, &data_spec) {
+                        ctx.add_output_data(pin_id, data_spec);
+                    }
                 }
             }
         }

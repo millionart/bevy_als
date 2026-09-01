@@ -6,6 +6,10 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::animation_context::{
+    AnimationContextState, resolve_named_context_curves,
+};
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -13,6 +17,10 @@ pub struct InertializationPassthroughNode {
     pub reset_on_becoming_relevant: bool,
     pub forward_requests_through_skipped_cached_poses: bool,
     pub curve_names: Vec<String>,
+    pub capture_context: bool,
+    pub expose_context_curves: bool,
+    pub exposed_output_data: Vec<String>,
+    pub missing_curve_value: Option<f32>,
 }
 
 impl Default for InertializationPassthroughNode {
@@ -21,7 +29,19 @@ impl Default for InertializationPassthroughNode {
             reset_on_becoming_relevant: true,
             forward_requests_through_skipped_cached_poses: true,
             curve_names: Vec::new(),
+            capture_context: false,
+            expose_context_curves: false,
+            exposed_output_data: Vec::new(),
+            missing_curve_value: None,
         }
+    }
+}
+
+impl InertializationPassthroughNode {
+    fn expose_output(&self, curve: &str) -> bool {
+        !self.capture_context
+            || self.expose_context_curves
+            || self.exposed_output_data.iter().any(|value| value == curve)
     }
 }
 
@@ -41,9 +61,32 @@ impl NodeLike for InertializationPassthroughNode {
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("pose", pose);
+        let context_curves = if self.capture_context {
+            resolve_named_context_curves(
+                &ctx,
+                "Source",
+                &self.curve_names,
+                self.missing_curve_value,
+            )?
+        } else {
+            default()
+        };
+        let mut state = AnimationContextState::default();
         for curve in &self.curve_names {
-            let value = ctx.data_back(format!("source_{curve}"))?;
-            ctx.set_data_fwd(curve.clone(), value);
+            let value = if self.capture_context {
+                *context_curves
+                    .get(curve)
+                    .ok_or(GraphError::MissingStateValue)?
+            } else {
+                ctx.data_back(format!("source_{curve}"))?.as_f32()?
+            };
+            state.curves.insert(curve.clone(), value);
+            if self.expose_output(curve) {
+                ctx.set_data_fwd(curve.clone(), value);
+            }
+        }
+        if self.capture_context {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = state;
         }
         Ok(())
     }
@@ -54,8 +97,12 @@ impl NodeLike for InertializationPassthroughNode {
             .add_output_data("pose", DataSpec::Pose)
             .add_output_time();
         for curve in &self.curve_names {
-            ctx.add_input_data(format!("source_{curve}"), DataSpec::F32)
-                .add_output_data(curve.clone(), DataSpec::F32);
+            if !self.capture_context {
+                ctx.add_input_data(format!("source_{curve}"), DataSpec::F32);
+            }
+            if self.expose_output(curve) {
+                ctx.add_output_data(curve.clone(), DataSpec::F32);
+            }
         }
         Ok(())
     }

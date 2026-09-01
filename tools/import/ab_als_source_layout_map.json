@@ -23,10 +23,8 @@
         {"target_id": "1a230000-0000-4000-8000-000000000010", "source_index": 7, "offset": [0.0, 0.0], "strategy": "source_head_linked_graph"},
         {"target_id": "1a230000-0000-4000-8000-000000000011", "source_index": 10, "offset": [0.0, 0.0], "strategy": "source_control_rig_boundary"},
         {"target_id": "1a230000-0000-4000-8000-000000000012", "source_index": 6, "offset": [0.0, 0.0], "strategy": "source_ragdolling_linked_graph"},
-        {"target_id": "1a230000-0000-4000-8000-000000000013", "source_index": 31, "offset": [-256.0, 192.0], "strategy": "source_layer_curve_zero_bridge"},
         {"target_id": "1a230000-0000-4000-8000-000000000014", "source_index": 18, "offset": [0.0, -96.0], "strategy": "source_transition_slot_weight_telemetry"},
-        {"target_id": "1a230000-0000-4000-8000-000000000015", "source_index": 17, "offset": [0.0, -96.0], "strategy": "source_post_locomotion_slot_weight_telemetry"},
-        {"target_id": "1a230000-0000-4000-8000-000000000016", "source_index": 0, "offset": [-256.0, 96.0], "strategy": "source_root_reference_pose_bridge"}
+        {"target_id": "1a230000-0000-4000-8000-000000000015", "source_index": 17, "offset": [0.0, -96.0], "strategy": "source_post_locomotion_slot_weight_telemetry"}
       ]
     },
     {

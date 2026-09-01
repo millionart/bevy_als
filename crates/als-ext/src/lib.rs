@@ -1,6 +1,7 @@
 //! Extension layer over bevy_animation_graph / bevy-tnua: curve assets and nodes, analytic IK, ragdoll config node, ALS float-curve import.
 
 pub mod als_curves;
+pub mod animation_context;
 pub mod blend_space_1d;
 pub mod crouch_transaction;
 pub mod curve;
@@ -64,6 +65,10 @@ pub mod time_position;
 pub use als_curves::{
     ALS_CURVES_EXTENSION, ALS_CURVES_LABEL, AlsAnimCurves, AlsCurvesHandler, AlsCurvesParseError,
     AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, parse_curves,
+};
+pub use animation_context::{
+    AnimationContextInput, AnimationContextState, capture_context_curve,
+    is_context_curve_input, resolve_context_curves, resolve_named_context_curves,
 };
 pub use blend_space_1d::{
     BlendSpace1DNode, BlendSpace1DPoint, blend_weights as blend_space_1d_weights,
@@ -214,6 +219,8 @@ impl Plugin for AlsExtPlugin {
             .init_asset::<CurveAsset>()
             .init_asset::<als_curves::AlsAnimCurves>()
             .init_resource::<SyncGroupPhaseRegistry>()
+            .register_type::<AnimationContextInput>()
+            .register_type::<AnimationContextState>()
             .register_type::<BlendSpace1DPoint>()
             .register_type::<BlendSpace1DNode>()
             .register_type::<CurveSampleNode>()
