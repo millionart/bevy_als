@@ -4,11 +4,11 @@ use std::{
 };
 
 use als_ext::{
-    AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, F32ToVec2Node,
-    GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode, InterruptibleFsmNode,
-    InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode, MultiWayBlendNode,
-    ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode, TimePositionNode,
-    build_branch_bone_mask,
+    AlsExtPlugin, DirectTransitionEventNode, F32ToVec2Node, GlobalBoneMaskInputNode,
+    GlobalF32InputNode, InertializationNode, InterruptibleFsmState, LayeredGraphNode,
+    MeshSpaceLayeredBlendNode, MultiWayBlendNode, ProfiledBlendNode, ResetOnActivationNode,
+    SourceApplyAdditiveNode, SourceCachedPoseSaveNode, SourcePosePassthroughNode,
+    SourceTwoWayBlendNode, SyncGroupSampleNode, TimePositionNode, build_branch_bone_mask,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -16,7 +16,7 @@ use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::{blend_space_node::BlendSpaceNode, loop_node::LoopNode};
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     context::node_states::StateKey,
     edge_data::DataValue,
@@ -29,7 +29,12 @@ use bevy_animation_graph::core::{
     },
 };
 
-const ROOT_PATH: &str = "graphs/ab_als/stances/crouching.animgraph.ron";
+const ROOT_PATH: &str = "graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron";
+const SOURCE_ROOT_PATH: &str = "graphs/ab_als/stances/crouching.animgraph.ron";
+const OUTER_RUNTIME_PATH: &str =
+    "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron";
+const MOVEMENT_RUNTIME_PATH: &str =
+    "graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron";
 const OUTER_PATH: &str = "graphs/ab_als/stances/crouching/crouching_states.fsm.ron";
 const MOVEMENT_PATH: &str = "graphs/ab_als/stances/crouching/movement_states.fsm.ron";
 const MOVE_PATH: &str = "graphs/ab_als/stances/crouching/state_move.animgraph.ron";
@@ -84,6 +89,9 @@ fn main() {
 #[derive(Resource)]
 struct GateAssets {
     root: Handle<AnimationGraph>,
+    source_root: Handle<AnimationGraph>,
+    outer_runtime: Handle<AnimationGraph>,
+    movement_runtime: Handle<AnimationGraph>,
     outer: Handle<StateMachine>,
     movement: Handle<StateMachine>,
     move_graph: Handle<AnimationGraph>,
@@ -137,6 +145,9 @@ enum RuntimePhase {
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GateAssets {
         root: assets.load(ROOT_PATH),
+        source_root: assets.load(SOURCE_ROOT_PATH),
+        outer_runtime: assets.load(OUTER_RUNTIME_PATH),
+        movement_runtime: assets.load(MOVEMENT_RUNTIME_PATH),
         outer: assets.load(OUTER_PATH),
         movement: assets.load(MOVEMENT_PATH),
         move_graph: assets.load(MOVE_PATH),
@@ -171,6 +182,7 @@ fn close(actual: f32, expected: f32) -> bool {
 fn fail(exit: &mut MessageWriter<AppExit>, code: u8, message: &str) {
     warn!("[CROUCHING-CONTRACT][VERDICT] {message} -> FAIL");
     exit.write(AppExit::Error(std::num::NonZeroU8::new(code).unwrap()));
+    std::process::exit(i32::from(code));
 }
 
 fn node<'a, T: 'static>(graph: &'a AnimationGraph, name: &str) -> Option<&'a T> {
@@ -285,6 +297,7 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_crouching_velocity_left_amount", 0.0),
         ("als_crouching_stride_amount", 1.0),
         ("als_crouching_play_rate", 1.0),
+        ("als_crouching_source_pose_frame", 0.0),
         ("als_crouching_movement_marker_phase", 0.0),
         ("als_crouching_delta_seconds", 0.1),
         ("als_crouching_rotate_clip_time", 0.0),
@@ -352,6 +365,9 @@ fn verify_static(
     }
     let loaded = [
         server.is_loaded_with_dependencies(&assets.root),
+        server.is_loaded_with_dependencies(&assets.source_root),
+        server.is_loaded_with_dependencies(&assets.outer_runtime),
+        server.is_loaded_with_dependencies(&assets.movement_runtime),
         server.is_loaded_with_dependencies(&assets.outer),
         server.is_loaded_with_dependencies(&assets.movement),
         server.is_loaded_with_dependencies(&assets.move_graph),
@@ -381,6 +397,9 @@ fn verify_static(
     }
     let (
         Some(root),
+        Some(source_root),
+        Some(outer_runtime),
+        Some(movement_runtime),
         Some(outer),
         Some(movement),
         Some(move_graph),
@@ -400,6 +419,9 @@ fn verify_static(
         Some(skeleton),
     ) = (
         graphs.get(&assets.root),
+        graphs.get(&assets.source_root),
+        graphs.get(&assets.outer_runtime),
+        graphs.get(&assets.movement_runtime),
         machines.get(&assets.outer),
         machines.get(&assets.movement),
         graphs.get(&assets.move_graph),
@@ -421,51 +443,103 @@ fn verify_static(
     else {
         return;
     };
-    let root_contract = node::<InterruptibleFsmNode>(root, "crouching states").is_some()
-        && node::<DirectTransitionEventNode>(root, "crouching transition driver")
-            .is_some_and(|node| node.transitions.len() == 12)
-        && node::<LayeredGraphNode>(root, "crouching movement cache").is_some()
-        && node::<LayeredGraphNode>(root, "crouching turn slot layer").is_some();
+    let movement_cache_inputs = [
+        ("forward_pose", "Save cached pose 'Move Forward'"),
+        ("backward_pose", "Save cached pose 'Move Backward'"),
+        (
+            "right_forward_pose",
+            "Save cached pose 'Move Right Forward'",
+        ),
+        (
+            "right_backward_pose",
+            "Save cached pose 'Move Right Backward'",
+        ),
+        ("left_forward_pose", "Save cached pose 'Move Left Forward'"),
+        (
+            "left_backward_pose",
+            "Save cached pose 'Move Left Backward'",
+        ),
+    ];
+    let root_contract = root.io_spec.get_output_data(&"pose".to_owned()).is_some()
+        && root.io_spec.iter_output_data().count() == 1
+        && !root.io_spec.has_output_time()
+        && node::<LayeredGraphNode>(root, "crouching source graph runtime entry").is_some_and(
+            |node| node.graph.id() == assets.source_root.id() && node.internalize_time,
+        )
+        && source_root.nodes.len() == 27
+        && source_root
+            .io_spec
+            .get_output_data(&"Result".to_owned())
+            .is_some()
+        && source_root.io_spec.iter_output_data().count() == 1
+        && !source_root.io_spec.has_output_time()
+        && source_root
+            .nodes
+            .values()
+            .filter(|node| {
+                node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                    .is_some()
+            })
+            .count()
+            == 7
+        && node::<SourceTwoWayBlendNode>(source_root, "Two Way Blend").is_some_and(|node| {
+            node.alpha_key == "als_crouching_stride_amount"
+                && node.alpha_pin == "FInterp(Alpha, (10:10))"
+                && close(node.increasing_speed, 10.0)
+                && close(node.decreasing_speed, 10.0)
+        })
+        && node::<SourceApplyAdditiveNode>(source_root, "Apply Additive").is_some_and(|node| {
+            !node.expose_alpha_pin && node.use_constant_alpha && close(node.constant_alpha, 1.0)
+        })
+        && node::<LayeredGraphNode>(source_root, "Crouching States\nState Machine").is_some_and(
+            |node| {
+                node.graph.id() == assets.outer_runtime.id()
+                    && node.internalize_time
+                    && node.cached_pose_inputs.iter().any(|input| {
+                        input.input == "movement_pose"
+                            && input.cache_node == "Save cached pose 'Movement'"
+                    })
+            },
+        )
+        && node::<LayeredGraphNode>(source_root, "Movement States\nState Machine").is_some_and(
+            |node| {
+                node.graph.id() == assets.movement_runtime.id()
+                    && node.internalize_time
+                    && movement_cache_inputs.iter().all(|(input, cache_node)| {
+                        node.cached_pose_inputs
+                            .iter()
+                            .any(|value| value.input == *input && value.cache_node == *cache_node)
+                    })
+            },
+        );
     let time_contract = outer.node_spec.has_input_time(&"movement_time".into())
+        && movement.node_spec.has_input_time(&"movement_time".into())
         && stop
             .io_spec
             .has_input_time(&GraphInputPin::Passthrough("movement_time".into()))
-        && root
+        && outer_runtime
             .nodes
             .values()
-            .any(|node| node.name == "crouching movement clock loop")
-        && root
-            .nodes
-            .values()
-            .find(|node| node.name == "crouching states")
+            .find(|node| node.name == "crouching states runtime")
             .is_some_and(|node| {
-                root.edges_inverted
+                outer_runtime
+                    .edges_inverted
+                    .contains_key(&TargetPin::NodeTime(node.id, "movement_time".into()))
+            })
+        && movement_runtime
+            .nodes
+            .values()
+            .find(|node| node.name == "crouching movement states runtime")
+            .is_some_and(|node| {
+                movement_runtime
+                    .edges_inverted
                     .contains_key(&TargetPin::NodeTime(node.id, "movement_time".into()))
             });
-    let outputs = [
-        "pose",
-        "crouching_state",
-        "movement_state",
-        "direction_index",
-        "clip_index",
-        "loop",
-        "play_rate",
-        "transition_duration",
-        "PoseCrouching",
-        "PoseMoving",
-        "RotationYawOffset",
-        "FootLeftLock",
-        "FootRightLock",
-        "AllowTransitions",
-        "RotationYawSpeed",
-        "transition_kind",
-        "transition_index",
-        "transition_weight",
-        "transition_play_rate",
-        "transition_start_time",
-    ]
-    .into_iter()
-    .all(|name| root.io_spec.get_output_data(&name.to_owned()).is_some());
+    let outputs = root.io_spec.get_output_data(&"pose".to_owned()).is_some()
+        && source_root
+            .io_spec
+            .get_output_data(&"Result".to_owned())
+            .is_some();
     let outer_contract = labels_match(
         outer,
         &["Idle", "Move", "Rotate Left", "Rotate Right", "Stop"],
@@ -550,66 +624,41 @@ fn verify_static(
             node.try_inner_downcast_ref::<MultiWayBlendNode>()
                 .is_some_and(|node| node.pose_count == 4 && node.normalize_alpha)
         });
-    let wrapper_contract = [
-        [0.0, 3.0, 5.0, 1.0],
-        [0.0, 3.0, 4.0, 2.0],
-        [0.0, 3.0, 4.0, 1.0],
-        [0.0, 3.0, 5.0, 2.0],
-        [0.0, 3.0, 5.0, 2.0],
-        [0.0, 3.0, 4.0, 1.0],
-    ]
-    .into_iter()
-    .zip(assets.wrappers.iter())
-    .all(|(expected, handle)| {
+    let wrapper_contract = assets.wrappers.iter().all(|handle| {
         graphs.get(handle).is_some_and(|graph| {
-            let Some(layer) = graph.nodes.values().find_map(|node| {
-                node.try_inner_downcast_ref::<LayeredGraphNode>()
-                    .filter(|node| node.graph.id() == assets.blend.id())
-                    .map(|_| node.id)
-            }) else {
-                return false;
-            };
-            [
-                "forward_direction_index",
-                "backward_direction_index",
-                "left_direction_index",
-                "right_direction_index",
-            ]
-            .into_iter()
-            .zip(expected)
-            .all(|(pin, expected)| {
-                graph
-                    .edges_inverted
-                    .get(&TargetPin::NodeData(layer, pin.into()))
-                    .and_then(|source| match source {
-                        SourcePin::NodeData(node, value) if value == "value" => graph
-                            .nodes
-                            .get(node)
-                            .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
-                            .map(|node| node.value),
-                        _ => None,
-                    })
-                    .is_some_and(|actual| close(actual, expected))
-            })
+            graph
+                .io_spec
+                .has_input_time(&GraphInputPin::Passthrough("movement_time".into()))
+                && graph.io_spec.has_output_time()
+                && graph.io_spec.get_output_data(&"pose".to_owned()).is_some()
+                && graph.nodes.values().any(|node| {
+                    node.try_inner_downcast_ref::<SourcePosePassthroughNode>()
+                        .is_some_and(|node| {
+                            node.input == "movement_pose"
+                                && node.output == "pose"
+                                && node.input_time == "movement_time"
+                                && node.output_time
+                        })
+                })
         })
     });
-    let move_contract = node::<InterruptibleFsmNode>(move_graph, "crouching movement states")
+    let move_contract = move_graph
+        .io_spec
+        .get_input_data(&GraphInputPin::Passthrough("movement_pose".into()))
         .is_some()
-        && node::<DirectTransitionEventNode>(move_graph, "crouching movement transition driver")
-            .is_some_and(|node| node.transitions.len() == 24)
-        && move_graph.nodes.values().any(|node| {
-            node.try_inner_downcast_ref::<TimePositionNode>()
-                .is_some_and(|node| !node.loop_position)
-        })
-        && move_graph.nodes.values().any(|node| {
-            node.try_inner_downcast_ref::<ResetOnActivationNode>()
-                .is_none()
-        })
         && move_graph
-            .nodes
-            .values()
-            .filter_map(|node| node.try_inner_downcast_ref::<als_ext::FInterpNode>())
-            .any(|node| close(node.increasing_speed, 10.0) && close(node.decreasing_speed, 10.0));
+            .io_spec
+            .has_input_time(&GraphInputPin::Passthrough("movement_time".into()))
+        && move_graph.io_spec.has_output_time()
+        && move_graph.nodes.values().any(|node| {
+            node.try_inner_downcast_ref::<SourcePosePassthroughNode>()
+                .is_some_and(|node| {
+                    node.input == "movement_pose"
+                        && node.output == "pose"
+                        && node.input_time == "movement_time"
+                        && node.output_time
+                })
+        });
     let stop_contract = stop
         .nodes
         .values()
@@ -732,9 +781,10 @@ fn verify_static(
             .id(),
     );
     let mut movement_player =
-        AnimationGraphPlayer::new(assets.skeleton.clone()).with_graph(assets.move_graph.clone());
+        AnimationGraphPlayer::new(assets.skeleton.clone()).with_graph(assets.root.clone());
     set_globals(&mut movement_player);
     set_masks(&mut movement_player, skeleton);
+    movement_player.set_global_input_data("als_crouching_transition_index", 0.0);
     movement_player.queue_time_update(TimeUpdate::Delta(0.0));
     probe.movement_player = Some(
         commands
@@ -774,12 +824,14 @@ fn fsm_state<'a>(
     name: &str,
 ) -> Option<&'a InterruptibleFsmState> {
     let id = graph.nodes.values().find(|node| node.name == name)?.id;
-    player
-        .get_context_arena()?
-        .get_toplevel()
-        .node_states
-        .get::<InterruptibleFsmState>(id, StateKey::Default)
-        .ok()
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().find_map(|context_id| {
+        arena
+            .get_context(context_id)?
+            .node_states
+            .get::<InterruptibleFsmState>(id, StateKey::Default)
+            .ok()
+    })
 }
 
 fn fsm_label(
@@ -863,7 +915,33 @@ fn drive_fsm(
 fn output(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
     match player.get_outputs().get(name) {
         Some(DataValue::F32(value)) => Some(*value),
-        _ => None,
+        _ => {
+            let key = match name {
+                "crouching_state" => "als_crouching_state_index",
+                "movement_state" => "als_crouching_movement_state_index",
+                "direction_index" => "als_crouching_direction_index",
+                "clip_index" => "als_crouching_clip_index",
+                "loop" => "als_crouching_loop",
+                "play_rate" => "als_crouching_output_play_rate",
+                "transition_duration" => "als_crouching_transition_duration",
+                "PoseCrouching" => "als_crouching_curve_pose_crouching",
+                "PoseMoving" => "als_crouching_curve_pose_moving",
+                "RotationYawOffset" => "als_crouching_curve_rotation_yaw_offset",
+                "FootLeftLock" => "als_crouching_curve_foot_left_lock",
+                "FootRightLock" => "als_crouching_curve_foot_right_lock",
+                "AllowTransitions" => "als_crouching_curve_allow_transitions",
+                "RotationYawSpeed" => "als_crouching_curve_rotation_yaw_speed",
+                "transition_kind" => "als_crouching_transition_kind",
+                "transition_index" => "als_crouching_transition_slot_index",
+                "transition_weight" => "als_crouching_transition_slot_weight",
+                "transition_play_rate" => "als_crouching_transition_slot_play_rate",
+                "transition_start_time" => "als_crouching_transition_slot_start_time",
+                _ => return None,
+            };
+            player
+                .get_global_input_data(key)
+                .and_then(|value| value.as_f32().ok())
+        }
     }
 }
 
@@ -878,10 +956,10 @@ fn observe(
     if !probe.static_verified {
         return;
     }
-    let (Some(root), Some(outer), Some(move_graph), Some(movement)) = (
-        graphs.get(&assets.root),
+    let (Some(outer_runtime), Some(movement_runtime), Some(outer), Some(movement)) = (
+        graphs.get(&assets.outer_runtime),
+        graphs.get(&assets.movement_runtime),
         machines.get(&assets.outer),
-        graphs.get(&assets.move_graph),
         machines.get(&assets.movement),
     ) else {
         return;
@@ -915,9 +993,9 @@ fn observe(
             let mut pending = probe.outer_pending;
             let done = drive_fsm(
                 &mut player,
-                root,
+                outer_runtime,
                 outer,
-                "crouching states",
+                "crouching states runtime",
                 "crouching transition driver",
                 "als_crouching_transition_index",
                 &steps,
@@ -973,9 +1051,9 @@ fn observe(
             let mut pending = probe.movement_pending;
             let done = drive_fsm(
                 &mut player,
-                move_graph,
+                movement_runtime,
                 movement,
-                "crouching movement states",
+                "crouching movement states runtime",
                 "crouching movement transition driver",
                 "als_crouching_movement_transition_index",
                 &steps,

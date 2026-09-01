@@ -155,6 +155,23 @@ def pin_map_shape_issues(value, label):
     return issues
 
 
+def property_assertion_issues(value, label):
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return [f"{label} must be an array"]
+    issues = []
+    for index, assertion in enumerate(value):
+        item_label = f"{label}[{index}]"
+        if not isinstance(assertion, dict) or set(assertion) != {"source_contains", "target_contains"}:
+            issues.append(f"{item_label} is invalid")
+            continue
+        for key in ("source_contains", "target_contains"):
+            if not isinstance(assertion.get(key), str) or not assertion[key]:
+                issues.append(f"{item_label} {key} is invalid")
+    return issues
+
+
 def map_shape_issues(mapping):
     issues = []
     if mapping.get("format") != FORMAT:
@@ -168,10 +185,11 @@ def map_shape_issues(mapping):
     else:
         sources = set()
         targets = set()
-        allowed = {"source_node", "target_node", "input_pins", "output_pins"}
+        required = {"source_node", "target_node", "input_pins", "output_pins"}
+        allowed = required | {"property_assertions"}
         for index, value in enumerate(nodes):
             label = f"node_map[{index}]"
-            if not isinstance(value, dict) or set(value) != allowed:
+            if not isinstance(value, dict) or not required.issubset(value) or not set(value).issubset(allowed):
                 issues.append(f"{label} is invalid")
                 continue
             source = value["source_node"]
@@ -190,6 +208,7 @@ def map_shape_issues(mapping):
                 targets.add(target)
             issues.extend(pin_map_shape_issues(value["input_pins"], f"{label}.input_pins"))
             issues.extend(pin_map_shape_issues(value["output_pins"], f"{label}.output_pins"))
+            issues.extend(property_assertion_issues(value.get("property_assertions"), f"{label}.property_assertions"))
     issues.extend(pin_map_shape_issues(mapping.get("root_output_pins"), "root_output_pins"))
     if not isinstance(mapping.get("comment_groups"), list):
         issues.append("comment_groups must be an array")
@@ -292,6 +311,28 @@ def audit_pins(source, target_node, target_spec_node, pin_maps, direction, diffe
             target_binding = value.get("target_binding")
             if target_binding is None or target_binding not in target_node["entry"]:
                 differences.append({f"{prefix}_pin_binding": {**row, "source_binding": source_binding}})
+        rows.append(row)
+    return rows
+
+
+def audit_properties(source, target_node, assertions, differences):
+    source_text = "\n".join(
+        property_value.get("exported_text", "")
+        for property_value in source.get("properties", [])
+        if isinstance(property_value, dict)
+    )
+    target_text = target_node["entry"]
+    rows = []
+    for assertion in assertions or []:
+        row = {
+            "source_node": source["object_path"],
+            "target_node": target_node["id"],
+            **assertion,
+        }
+        if assertion["source_contains"] not in source_text:
+            differences.append({"source_property_assertion_missing": row})
+        if assertion["target_contains"] not in target_text:
+            differences.append({"target_property_assertion_missing": row})
         rows.append(row)
     return rows
 
@@ -447,6 +488,12 @@ def audit(root, mapping):
             differences.append({"node_position": row})
         row["input_pins"] = audit_pins(source, target, target_spec_node, node_mapping["input_pins"], "Input", differences)
         row["output_pins"] = audit_pins(source, target, target_spec_node, node_mapping["output_pins"], "Output", differences)
+        row["property_assertions"] = audit_properties(
+            source,
+            target,
+            node_mapping.get("property_assertions"),
+            differences,
+        )
         mapped_nodes.append(row)
     source_root_node = source_root(contract)
     source_output = [float(source_root_node["position_x"]), float(source_root_node["position_y"])]
@@ -513,7 +560,7 @@ def run_self_test():
         "source_graph": {
             "nodes": [
                 {"object_path": "/Asset:AnimGraph.Root", "class_path": "/Script/AnimGraph.AnimGraphNode_Root", "position_x": 0, "position_y": 0, "title": "Output Pose\nAnimGraph", "pins": [{"name": "Result", "direction": "Input", "hidden": False, "pin_type_properties": pose_type}]},
-                {"object_path": "/Asset:AnimGraph.Source", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -128, "position_y": 0, "title": "Source", "binding": None, "pins": [{"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
+                {"object_path": "/Asset:AnimGraph.Source", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -128, "position_y": 0, "title": "Source", "binding": None, "properties": [{"exported_text": "source_scalar=0"}], "pins": [{"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
                 {"object_path": "/Asset:AnimGraph.Target", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -64, "position_y": 0, "title": "Target", "binding": None, "pins": [{"name": "Source", "direction": "Input", "hidden": False, "pin_type_properties": pose_type}, {"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
             ]
         },
@@ -546,7 +593,7 @@ def run_self_test():
         "target_graph": "graph.animgraph.ron",
         "target_spec": "spec.json",
         "node_map": [
-            {"source_node": "/Asset:AnimGraph.Source", "target_node": "source", "input_pins": [], "output_pins": [{"source": "Pose", "target": "Pose"}]},
+            {"source_node": "/Asset:AnimGraph.Source", "target_node": "source", "input_pins": [], "output_pins": [{"source": "Pose", "target": "Pose"}], "property_assertions": [{"source_contains": "source_scalar=0", "target_contains": "graph: \"graphs/source.animgraph.ron\""}]},
             {"source_node": "/Asset:AnimGraph.Target", "target_node": "target", "input_pins": [{"source": "Source", "target": "Source"}], "output_pins": [{"source": "Pose", "target": "Pose"}]},
         ],
         "root_output_pins": [{"source": "Result", "target": "Result"}],
@@ -562,12 +609,16 @@ def run_self_test():
         broken = dict(mapping)
         broken["node_map"] = mapping["node_map"][:-1]
         assert not audit(root, broken)["pass"]
+        broken_property = json.loads(json.dumps(mapping))
+        broken_property["node_map"][0]["property_assertions"][0]["target_contains"] = "missing"
+        assert not audit(root, broken_property)["pass"]
         stale = dict(spec)
         stale["graph_source"] = "stale"
         (root / "spec.json").write_text(json.dumps(stale), encoding="utf-8")
         assert not audit(root, mapping)["pass"]
     return {
         "exact_visible_node_pin_link_contract": "PASS",
+        "source_property_assertion_rejected": "PASS",
         "unmapped_source_node_rejected": "PASS",
         "stale_target_spec_rejected": "PASS",
     }

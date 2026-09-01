@@ -35,11 +35,11 @@
     ],
     start_state: "16200000-0000-4000-8000-000000000001",
     node_spec: (
-        input_times: [],
-        input_data: {},
+        input_times: ["movement_time"],
+        input_data: { "forward_pose": Pose, "backward_pose": Pose, "right_forward_pose": Pose, "right_backward_pose": Pose, "left_forward_pose": Pose, "left_backward_pose": Pose },
         output_time: true,
         output_data: { "pose": Pose },
-        input_order: {},
+        input_order: { Data("forward_pose"): 0, Data("backward_pose"): 1, Data("right_forward_pose"): 2, Data("right_backward_pose"): 3, Data("left_forward_pose"): 4, Data("left_backward_pose"): 5, Time("movement_time"): 6 },
         output_order: { Data("pose"): 0, Time: 1 },
     ),
     editor_metadata: (states: {

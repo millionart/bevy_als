@@ -1217,6 +1217,7 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
         ),
         ("als_crouching_stride_amount", inputs.stride_amount),
         ("als_crouching_play_rate", inputs.play_rate),
+        ("als_crouching_source_pose_frame", 0.0),
         ("als_crouching_lean_right_amount", inputs.lean_right_amount),
         (
             "als_crouching_lean_forward_amount",

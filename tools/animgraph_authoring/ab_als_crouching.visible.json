@@ -1,0 +1,451 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs\\bf111\\source_contracts\\AB_Als_Crouching.AnimGraph.source.json",
+  "target_graph": "assets\\graphs\\ab_als\\stances\\crouching.animgraph.ron",
+  "target_spec": "target\\bf111\\crouching.rebuilt.spec.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_9",
+      "target_node": "15600000-0000-4000-8000-000000000001",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_ModifyCurve_2",
+      "target_node": "15600000-0000-4000-8000-000000000002",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "PoseCrouching"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveValues=(0.000000),CurveNames=(\"PoseCrouching\")",
+          "target_contains": "curve_name: \"PoseCrouching\", value: 0.0"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2",
+      "target_node": "15600000-0000-4000-8000-000000000003",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_Inertialization_1",
+      "target_node": "15600000-0000-4000-8000-000000000004",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_ModifyCurve_1",
+      "target_node": "15600000-0000-4000-8000-000000000005",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "PoseMoving"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveValues=(0.000000),CurveNames=(\"PoseMoving\")",
+          "target_contains": "curve_name: \"PoseMoving\", value: 0.0"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_0",
+      "target_node": "15600000-0000-4000-8000-000000000006",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_1",
+      "target_node": "15600000-0000-4000-8000-000000000007",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_2",
+      "target_node": "15600000-0000-4000-8000-000000000008",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_3",
+      "target_node": "15600000-0000-4000-8000-000000000009",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_4",
+      "target_node": "15600000-0000-4000-8000-000000000010",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequencePlayer_7",
+      "target_node": "15600000-0000-4000-8000-000000000011",
+      "input_pins": [
+        {
+          "source": "PlayRate",
+          "target": "Play Rate",
+          "target_binding": "als_crouching_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_ApplyAdditive_0",
+      "target_node": "15600000-0000-4000-8000-000000000012",
+      "input_pins": [
+        {
+          "source": "Base",
+          "target": "Base"
+        },
+        {
+          "source": "Additive",
+          "target": "Additive"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_TwoWayBlend_0",
+      "target_node": "15600000-0000-4000-8000-000000000013",
+      "input_pins": [
+        {
+          "source": "A",
+          "target": "A"
+        },
+        {
+          "source": "B",
+          "target": "B"
+        },
+        {
+          "source": "Alpha",
+          "target": "FInterp(Alpha, (10:10))",
+          "target_binding": "als_crouching_stride_amount"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.K2Node_Knot_0",
+      "target_node": "15600000-0000-4000-8000-000000000014",
+      "input_pins": [
+        {
+          "source": "InputPin",
+          "target": "InputPin"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "OutputPin",
+          "target": "OutputPin"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.K2Node_Knot_2",
+      "target_node": "15600000-0000-4000-8000-000000000015",
+      "input_pins": [
+        {
+          "source": "InputPin",
+          "target": "InputPin"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "OutputPin",
+          "target": "OutputPin"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SequenceEvaluator_0",
+      "target_node": "15600000-0000-4000-8000-000000000016",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "target_binding": "als_crouching_source_pose_frame",
+          "type_exception": "The target graph ABI has no integer scalar DataSpec; the source explicit frame is fixed at zero and is represented by the exact F32 value 0.0."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_0",
+      "target_node": "15600000-0000-4000-8000-000000000017",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_2",
+      "target_node": "15600000-0000-4000-8000-000000000018",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_4",
+      "target_node": "15600000-0000-4000-8000-000000000019",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_1",
+      "target_node": "15600000-0000-4000-8000-000000000020",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_3",
+      "target_node": "15600000-0000-4000-8000-000000000021",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_SaveCachedPose_5",
+      "target_node": "15600000-0000-4000-8000-000000000022",
+      "input_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "output_pins": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1",
+      "target_node": "15600000-0000-4000-8000-000000000023",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_BlendSpaceEvaluator_0",
+      "target_node": "15600000-0000-4000-8000-000000000024",
+      "input_pins": [
+        {
+          "source": "X",
+          "target": "Lean Right Amount",
+          "target_binding": "als_crouching_lean_right_amount"
+        },
+        {
+          "source": "Y",
+          "target": "Lean Forward Amount",
+          "target_binding": "als_crouching_lean_forward_amount"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_0",
+      "target_node": "15600000-0000-4000-8000-000000000025",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_2",
+      "target_node": "15600000-0000-4000-8000-000000000026",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_1",
+      "target_node": "15600000-0000-4000-8000-000000000027",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User approved ignoring UE comment groups for the BF111 source-visible graph review."
+}

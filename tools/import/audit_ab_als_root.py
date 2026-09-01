@@ -234,7 +234,7 @@ def runtime_context_root_chain(text):
         runtime_context_input(
             text, grounded, "Standing Input", "standing_time", "standing_", 0.0
         ),
-        runtime_context_input(text, grounded, "Crouching Input", "crouching_time", "crouching_", None),
+        runtime_context_input(text, grounded, "Crouching Input", "crouching_time", "crouching_", 0.0),
         runtime_context_input(text, transition, "Source", "source_time", "source_", 0.0),
         runtime_context_input(text, locomotion, "Grounded Input", "grounded_time", "grounded_", None),
         runtime_context_input(text, post_locomotion, "Source", "source_time", "source_", None),

@@ -71,6 +71,18 @@ def retained_pin_metadata(existing, source_node, direction, source_pin):
     return {}
 
 
+def retained_property_assertions(existing, source_node):
+    if not isinstance(existing, dict):
+        return []
+    for node in existing.get("node_map", []):
+        if node.get("source_node") != source_node:
+            continue
+        assertions = node.get("property_assertions")
+        if isinstance(assertions, list):
+            return assertions
+    return []
+
+
 def pin_maps(source_node, target_node, spec_node, direction, existing):
     names = target_pin_names(spec_node, direction)
     values = []
@@ -114,14 +126,16 @@ def build_map(root, source_contract, target_graph, target_spec, comment_policy, 
         spec_node = spec_by_id.get(target["id"])
         if spec_node is None:
             raise ValueError(f"target spec node is missing: {target['id']}")
-        node_map.append(
-            {
-                "source_node": source["object_path"],
-                "target_node": target["id"],
-                "input_pins": pin_maps(source, target, spec_node, "Input", existing),
-                "output_pins": pin_maps(source, target, spec_node, "Output", existing),
-            }
-        )
+        entry = {
+            "source_node": source["object_path"],
+            "target_node": target["id"],
+            "input_pins": pin_maps(source, target, spec_node, "Input", existing),
+            "output_pins": pin_maps(source, target, spec_node, "Output", existing),
+        }
+        assertions = retained_property_assertions(existing, source["object_path"])
+        if assertions:
+            entry["property_assertions"] = assertions
+        node_map.append(entry)
     root_node = source_root(contract)
     root_names = {pin["name"] for pin in spec.get("graph_outputs", [])}
     root_output_pins = []
@@ -210,15 +224,23 @@ def run_self_test():
                                 "type_exception": "Retained exception.",
                             }
                         ],
+                        "property_assertions": [
+                            {
+                                "source_contains": "source",
+                                "target_contains": "target",
+                            }
+                        ],
                     }
                 ]
             },
         )
         assert retained["node_map"][0]["input_pins"][0]["type_exception"] == "Retained exception."
+        assert retained["node_map"][0]["property_assertions"][0]["target_contains"] == "target"
     return {
         "source_position_title_matching": "PASS",
         "visible_pin_mapping": "PASS",
         "exception_retention": "PASS",
+        "property_assertion_retention": "PASS",
     }
 
 

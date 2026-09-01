@@ -476,7 +476,7 @@ fn verify_static(
                 "Crouching Input",
                 "crouching_time",
                 "crouching_",
-                None,
+                Some(0.0),
             )
         });
     let root_chain =

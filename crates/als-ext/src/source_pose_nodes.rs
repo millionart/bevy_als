@@ -121,6 +121,9 @@ impl NodeLike for SourceTwoWayBlendNode {
 pub struct SourceApplyAdditiveNode {
     pub alpha_key: String,
     pub alpha_pin: String,
+    pub expose_alpha_pin: bool,
+    pub use_constant_alpha: bool,
+    pub constant_alpha: f32,
     pub minimum_alpha: f32,
     pub maximum_alpha: f32,
     pub increasing_speed: f32,
@@ -132,6 +135,9 @@ impl Default for SourceApplyAdditiveNode {
         Self {
             alpha_key: default(),
             alpha_pin: "Alpha".to_owned(),
+            expose_alpha_pin: true,
+            use_constant_alpha: false,
+            constant_alpha: 0.0,
             minimum_alpha: 0.0,
             maximum_alpha: 1.0,
             increasing_speed: 0.0,
@@ -142,7 +148,11 @@ impl Default for SourceApplyAdditiveNode {
 
 impl NodeLike for SourceApplyAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let raw = global_f32_or_root_default(&ctx, &self.alpha_key)?;
+        let raw = if self.use_constant_alpha {
+            self.constant_alpha
+        } else {
+            global_f32_or_root_default(&ctx, &self.alpha_key)?
+        };
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
             ctx.state_mut::<SourceBlendState>()?,
@@ -167,9 +177,11 @@ impl NodeLike for SourceApplyAdditiveNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data("Base", DataSpec::Pose)
-            .add_input_data("Additive", DataSpec::Pose)
-            .add_input_data(self.alpha_pin.clone(), DataSpec::F32)
-            .add_output_data("Pose", DataSpec::Pose);
+            .add_input_data("Additive", DataSpec::Pose);
+        if self.expose_alpha_pin {
+            ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
     }
 
@@ -332,5 +344,23 @@ mod tests {
         assert_eq!(source_tag_weight(&mut state, false, 0.3, 0.2, 0.0), 0.0);
         assert!((source_tag_weight(&mut state, true, 0.3, 0.2, 0.1) - 0.5).abs() < 1e-6);
         assert_eq!(source_tag_weight(&mut state, true, 0.3, 0.2, 0.1), 1.0);
+    }
+
+    #[test]
+    fn source_apply_additive_supports_a_hidden_constant_alpha() {
+        let node = SourceApplyAdditiveNode {
+            alpha_key: String::new(),
+            alpha_pin: "Alpha".to_owned(),
+            expose_alpha_pin: false,
+            use_constant_alpha: true,
+            constant_alpha: 1.0,
+            minimum_alpha: 0.0,
+            maximum_alpha: 1.0,
+            increasing_speed: 0.0,
+            decreasing_speed: 0.0,
+        };
+        assert!(!node.expose_alpha_pin);
+        assert!(node.use_constant_alpha);
+        assert_eq!(node.constant_alpha, 1.0);
     }
 }

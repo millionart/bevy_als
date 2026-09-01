@@ -55,6 +55,12 @@
           "source": "Pose",
           "target": "Pose"
         }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveValues=(0.000000),CurveNames=(\"PoseStanding\")",
+          "target_contains": "curve_name: \"PoseStanding\", value: 0.0"
+        }
       ]
     },
     {
@@ -142,6 +148,12 @@
         {
           "source": "Pose",
           "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveValues=(0.000000),CurveNames=(\"PoseMoving\")",
+          "target_contains": "curve_name: \"PoseMoving\", value: 0.0"
         }
       ]
     },
