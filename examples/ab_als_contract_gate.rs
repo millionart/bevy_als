@@ -414,7 +414,16 @@ fn verify_static(
         .into_iter()
         .all(|name| {
             node::<LayeredGraphNode>(root, name).is_some_and(|node| {
-                node.capture_context && node.internalize_time && !node.expose_context_curves
+                node.capture_context
+                    && node.internalize_time
+                    && !node.expose_context_curves
+                    && (name != "AB_Als_Ragdolling"
+                        || (node.hide_context_auxiliary_outputs
+                            && node
+                                .exposed_output_data
+                                .iter()
+                                .map(String::as_str)
+                                .eq(std::iter::once("ragdoll_config"))))
             })
         })
         && ["AB_Als_Standing", "AB_Als_Crouching"]

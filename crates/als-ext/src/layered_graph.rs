@@ -27,6 +27,7 @@ pub struct LayeredGraphNode {
     pub capture_context: bool,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
+    pub hide_context_auxiliary_outputs: bool,
     pub internalize_time: bool,
 }
 
@@ -39,15 +40,25 @@ impl LayeredGraphNode {
             capture_context: false,
             expose_context_curves: false,
             exposed_output_data: default(),
+            hide_context_auxiliary_outputs: false,
             internalize_time: false,
         }
     }
 
     fn expose_output(&self, id: &str, data_spec: &DataSpec) -> bool {
-        !self.capture_context
-            || *data_spec != DataSpec::F32
-            || self.expose_context_curves
-            || self.exposed_output_data.iter().any(|value| value == id)
+        if !self.capture_context {
+            return true;
+        }
+        if id == "pose" {
+            return true;
+        }
+        if self.exposed_output_data.iter().any(|value| value == id) {
+            return true;
+        }
+        if *data_spec == DataSpec::F32 {
+            return self.expose_context_curves;
+        }
+        !self.hide_context_auxiliary_outputs
     }
 
     fn outer_input(&self, child_input: &str) -> String {
@@ -216,5 +227,24 @@ impl NodeLike for LayeredGraphNode {
 
     fn display_name(&self) -> String {
         "ALS Layered Graph".into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auxiliary_outputs_can_be_hidden_without_hiding_pose_or_explicit_data() {
+        let node = LayeredGraphNode {
+            capture_context: true,
+            hide_context_auxiliary_outputs: true,
+            exposed_output_data: vec!["ragdoll_config".to_owned()],
+            ..LayeredGraphNode::new(default())
+        };
+        assert!(node.expose_output("pose", &DataSpec::Pose));
+        assert!(node.expose_output("ragdoll_config", &DataSpec::RagdollConfig));
+        assert!(!node.expose_output("ragdoll_dynamic", &DataSpec::Bool));
+        assert!(!node.expose_output("PoseMoving", &DataSpec::F32));
     }
 }

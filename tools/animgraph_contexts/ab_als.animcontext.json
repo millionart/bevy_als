@@ -337,7 +337,8 @@
       ],
       "capture_context": true,
       "expose_context_curves": false,
-      "exposed_output_data": [],
+      "exposed_output_data": ["ragdoll_config"],
+      "hide_context_auxiliary_outputs": true,
       "internalize_time": true
     }
   ],

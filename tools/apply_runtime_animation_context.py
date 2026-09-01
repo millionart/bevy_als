@@ -116,6 +116,11 @@ def runtime_fields(config, inputs):
         )
         outputs = ", ".join(json.dumps(value) for value in config["exposed_output_data"])
         values.append(f"exposed_output_data: [{outputs}]")
+        if "hide_context_auxiliary_outputs" in config:
+            values.append(
+                "hide_context_auxiliary_outputs: "
+                + ("true" if config["hide_context_auxiliary_outputs"] else "false")
+            )
     if config["mode"] == "named" and config.get("pose_input") is not None:
         values.append(f"pose_input: {json.dumps(config['pose_input'])}")
     values.append(f"internalize_time: {'true' if config['internalize_time'] else 'false'}")
@@ -168,6 +173,13 @@ def upsert_runtime_fields(entry, config, inputs):
                 ),
             ]
         )
+        if "hide_context_auxiliary_outputs" in config:
+            fields.append(
+                (
+                    "hide_context_auxiliary_outputs",
+                    "true" if config["hide_context_auxiliary_outputs"] else "false",
+                )
+            )
     fields.append(("internalize_time", "true" if config["internalize_time"] else "false"))
     missing = []
     for field_name, value in fields:
@@ -425,6 +437,7 @@ def run_self_test():
                 "capture_context": True,
                 "expose_context_curves": False,
                 "exposed_output_data": [],
+                "hide_context_auxiliary_outputs": True,
                 "internalize_time": True,
             },
             {
@@ -465,6 +478,7 @@ def run_self_test():
     assert 'NodeData("target", "Outer Input")' in transformed
     assert "capture_context: true" in transformed
     assert "internalize_time: true" in transformed
+    assert "hide_context_auxiliary_outputs: true" in transformed
     assert '"als_ext::LocalRefPoseNode": (internalize_time: true)' in transformed
     assert "OutputData(\"Curve\")" not in transformed
     assert "input_times: []" in transformed

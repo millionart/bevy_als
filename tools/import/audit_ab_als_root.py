@@ -253,6 +253,8 @@ def runtime_context_root_chain(text):
         and "NodeTime(" not in text
         and "input_times: []" in text
         and "output_time: false" in text
+        and "hide_context_auxiliary_outputs: true" in text
+        and 'exposed_output_data: ["ragdoll_config"]' in text
     )
 
 
