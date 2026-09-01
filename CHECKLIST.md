@@ -22,7 +22,28 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 ─► BF103 Notify 事件管线（已归档） ─► BF104 方向／步态闭环（已归档） ─► BF105 蹲起事务（已归档）
 ─► BF106 Foot IK 闭环（已归档） ─► BF107 状态机语义与持续回归（按用户指令归档，未完成）
 ─► BF108 BlendSpace 运行图等价（已归档）
+─► BF109 Character Base 动画图全量等价（已归档） ─► BF110 结构化动画上下文图资产（已归档）
+─► BF111 Character Base 图作者性规范化（当前执行批次）
 ```
+
+## BF111 Character Base 图作者性规范化（当前执行批次）
+
+将 BF110 的动画图作者性方法固化为项目内 skill 和通用离线验收工具，并对已归档 BF109 的 .01–.11 项重新按该规范取证、修订和验收。每个图类项必须以实际 `.animgraph.ron`、完整 source fact、source-matched position、可见 pose/control 边界和真实入口执行链为依据；仅当同一 pose 分支的曲线／时间 relay 经运行时合同证明可安全内聚时才使用 animation context，不得为了减少连线删除独立 time、event、控制或物理 ABI。`PA_Als`、`CR_Als` 不伪造为图资产，但必须登记其 source/runtime 边界、坐标／生命周期证据和真实入口 Gate。不得修改 `docs/als-ref-animation-asset-map.md`、`bevy_animation_graph`、`bevy_animation_graph_editor` 或 Cargo dependency revision；本轮保留 `ragdoll_config → Outputs`，其 Avian root-output ABI 不在范围内。空 `Inputs` UI 壳不是 asset input，不得以虚假 input 或依赖改动掩盖它。
+
+- [ ] BF111.01 项目内动画图对标 skill 与通用作者性验收工具：创建项目内 skill，提供 source fact、可见链路／position、context 边界、root ABI 例外、完整 RON／FSM 元数据与 runtime Gate 的统一工作流；新增声明式、可复跑的通用审计工具和自测。验收：skill 结构校验、工具自测和现有 `AB_Als` manifest smoke 全部 PASS。
+- [ ] BF111.02 规则接入：更新 `agents.md`，强制今后任何 `.animgraph.ron`／`.fsm.ron` 创建或修改使用项目内 skill、声明式作者性审计和已有 editor asset validator；明确 source fact、position、ABI exception、runtime/real-entry evidence 的最低要求。验收：规则链接、工具命令和例外登记路径均可静态核查。
+- [ ] BF111.03 / BF109.01 `AB_Als_Standing`：按作者性规范重新提取本地 UE source fact，逐链路检查 Standing 根图、状态机、Movement/Stop、六向 BlendSpace 和 Lean，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Standing 真实入口路径 PASS。
+- [ ] BF111.04 / BF109.02 `AB_Als_Crouching`：按作者性规范重新提取 source fact，逐链路检查 Crouching 根图、Movement、六向播放链与 Lean，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Crouching 真实入口路径 PASS。
+- [ ] BF111.05 / BF109.03 `AB_Als_Grounded`：按作者性规范重新提取 source fact，逐链路检查 Standing/Crouching 路由、stance、roll、transition 与状态机，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Grounded 真实入口路径 PASS。
+- [ ] BF111.06 / BF109.04 `AB_Als_Locomotion`：按作者性规范重新提取 source fact，逐链路检查 Grounded/Air/Jump、Air Lean、Jump/Fall/Land 与状态机，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Locomotion 真实入口路径 PASS。
+- [ ] BF111.07 / BF109.05 `AB_Als_Layering`：按作者性规范重新提取 source fact，逐链路检查 Base Poses、Additive、Slot、mask、curve layer 与可见输入边界，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Layering 真实入口路径 PASS。
+- [ ] BF111.08 / BF109.06 `AB_Als_Head`：按作者性规范重新提取 source fact，逐链路检查 Look BlendSpace、head/neck 混合、曲线与输入边界，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Head 真实入口路径 PASS。
+- [ ] BF111.09 / BF109.07 `PA_Als`：按作者性规范重新提取 source fact，逐项复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：声明式资产审计、source/runtime transform audit 与 ragdoll 真实入口路径 PASS。
+- [ ] BF111.10 / BF109.08 `AB_Als_Ragdolling`：按作者性规范重新提取 source fact，逐链路检查 pose input、混合、退出、PA consumer boundary 与 position。验收：声明式审计、source/layout audit、editor validator 与 ragdoll 真实入口路径 PASS；保持 `ragdoll_config → Outputs` 不变。
+- [ ] BF111.11 / BF109.09 `ALI_Overlay`：按作者性规范重新提取 source fact，逐链路检查 interface pin、linked layer、fallback 与实例生命周期边界。验收：声明式审计、source/layout audit、editor validator 与 overlay 真实入口路径 PASS。
+- [ ] BF111.12 / BF109.10 `CR_Als`：按作者性规范重新提取 source fact，逐项复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：声明式资产审计、source/runtime transform/lifecycle audit 与 ControlRig 真实入口路径 PASS。
+- [ ] BF111.13 / BF109.11 `AB_Als_Default`：按作者性规范重新提取 source fact，逐链路检查 linked layer、状态、基础/secondary motion、曲线、mask 与消费边界。验收：声明式审计、source/layout audit、editor validator 与 Default Overlay 真实入口路径 PASS。
+- [ ] BF111.14 Character Base 作者性总 Gate：逐项重跑 .01–.11 的 source/static/layout/editor/runtime/real-entry 证据，确认所有 graph 有声明式合同、所有例外均有依据、所有实际 RON/FSM 通过编辑器校验，且未引入依赖改动或 `ragdoll_config` ABI 改动。验收：全量通用审计、目标图校验、相关 Rust Gate 和真实 Playground 场景全部 PASS。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
