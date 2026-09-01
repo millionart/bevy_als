@@ -1,0 +1,207 @@
+{
+  "format": "als_animgraph_context_manifest_v1",
+  "asset_root": "assets",
+  "graph": "graphs/ab_als/ab_als.animgraph.ron",
+  "attributes": "reject",
+  "events": "reject",
+  "contexts": [
+    {
+      "id": "standing_to_grounded",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000017",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000001",
+        "pose": "Standing Input"
+      },
+      "time": {
+        "target": "standing_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "standing_"
+      }
+    },
+    {
+      "id": "crouching_to_grounded",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000018",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000001",
+        "pose": "Crouching Input"
+      },
+      "time": {
+        "target": "crouching_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "crouching_"
+      }
+    },
+    {
+      "id": "grounded_to_transition_slot",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000001",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000019",
+        "pose": "Source"
+      },
+      "time": {
+        "target": "source_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "source_"
+      }
+    },
+    {
+      "id": "transition_slot_to_locomotion",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000019",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000003",
+        "pose": "grounded_pose"
+      },
+      "time": {
+        "target": "grounded_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "grounded_"
+      }
+    },
+    {
+      "id": "locomotion_to_post_locomotion_slot",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000003",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000020",
+        "pose": "Source"
+      },
+      "time": {
+        "target": "source_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "source_"
+      }
+    },
+    {
+      "id": "overlay_to_inertialization",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000006",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000021",
+        "pose": "Source"
+      },
+      "time": {
+        "target": "source_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "source_"
+      }
+    },
+    {
+      "id": "post_locomotion_slot_to_layering",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000020",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000009",
+        "pose": "locomotion_pose"
+      },
+      "time": {
+        "target": "locomotion_time_local_left_mesh"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "locomotion_"
+      }
+    },
+    {
+      "id": "inertialization_to_layering",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000021",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000009",
+        "pose": "overlay_pose"
+      },
+      "time": {
+        "target": "overlay_time_legs"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "overlay_"
+      }
+    },
+    {
+      "id": "layering_to_head",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000009",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000010",
+        "pose": "view_pose"
+      },
+      "time": {
+        "target": "view_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "view_"
+      }
+    },
+    {
+      "id": "head_to_control_rig",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000010",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000011",
+        "pose": "source_pose"
+      },
+      "time": {
+        "target": "source_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": ""
+      }
+    },
+    {
+      "id": "control_rig_to_ragdolling",
+      "source": {
+        "node": "1a230000-0000-4000-8000-000000000011",
+        "pose": "pose"
+      },
+      "target": {
+        "node": "1a230000-0000-4000-8000-000000000012",
+        "pose": "ragdolling_pose"
+      },
+      "time": {
+        "target": "ragdolling_time"
+      },
+      "curves": {
+        "mode": "inherit",
+        "target_prefix": "ragdolling_"
+      }
+    }
+  ]
+}
