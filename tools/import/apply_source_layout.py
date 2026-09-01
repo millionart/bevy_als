@@ -360,10 +360,12 @@ def main():
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--target-root", required=True, type=Path)
     parser.add_argument("--mapping", required=True, type=Path)
-    parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument("--report", type=Path)
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
+    if args.report is None and not args.check:
+        raise ValueError("report or --check is required")
     source_payload = json.loads(args.source.read_text(encoding="utf-8"))
     mapping = json.loads(args.mapping.read_text(encoding="utf-8"))
     source_graphs = {entry["object_path"]: entry for entry in source_payload["graphs"]}
@@ -429,8 +431,9 @@ def main():
                 "nodes": node_report,
             }
         )
-    args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.report is not None:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(
         json.dumps(
             {

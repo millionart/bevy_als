@@ -406,6 +406,7 @@ fn advance_phase(
 fn fail(exit: &mut MessageWriter<AppExit>, message: &str) {
     warn!("[STANDING-SYNC][VERDICT] {message} -> FAIL");
     exit.write(AppExit::Error(std::num::NonZeroU8::new(7).unwrap()));
+    std::process::exit(7);
 }
 
 fn observe(
@@ -470,7 +471,7 @@ fn observe(
                 fail(&mut exit, "forward run marker phase");
                 return;
             };
-            if node_vec2(&player, graph, "walk run cubic filter")
+            if node_vec2(&player, graph, "walk run cubic axis filter")
                 .is_none_or(|value| !close(value.x, 1.0) || !close(value.y, 1.0))
             {
                 fail(&mut exit, "standing cubic filter");

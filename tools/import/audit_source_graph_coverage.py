@@ -177,13 +177,19 @@ def main():
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--target-root", required=True, type=Path)
     parser.add_argument("--mapping", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
+    if args.output is None and not args.check:
+        raise ValueError("output or --check is required")
+    if args.output is not None and args.check:
+        raise ValueError("output and --check are mutually exclusive")
     source_payload = json.loads(args.source.read_text(encoding="utf-8"))
     mapping = json.loads(args.mapping.read_text(encoding="utf-8"))
     report = payload(source_payload, args.target_root, mapping)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     result = {
         "mapped_graphs": len(report["mapped_graphs"]),
         "target_nodes": len(report["target_nodes"]),

@@ -1,0 +1,22 @@
+{
+  "format": "als_fsm_source_position_map_v1",
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+  "fsms": [
+    {
+      "target": "stances/standing/standing_states.fsm.ron",
+      "source_suffix": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States"
+    },
+    {
+      "target": "stances/standing/movement_states.fsm.ron",
+      "source_suffix": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States"
+    },
+    {
+      "target": "stances/standing/movement_details.fsm.ron",
+      "source_suffix": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States"
+    },
+    {
+      "target": "stances/standing/stop_states.fsm.ron",
+      "source_suffix": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States"
+    }
+  ]
+}

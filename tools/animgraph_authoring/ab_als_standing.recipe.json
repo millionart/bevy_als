@@ -1,0 +1,76 @@
+{
+  "format": "als_animgraph_authoring_recipe_v1",
+  "id": "ab_als_standing",
+  "source_evidence": [
+    {
+      "path": "target/bf111/source_native/AB_Als_Standing.ue.json",
+      "hash_kind": "canonical_json"
+    }
+  ],
+  "includes": [
+    "assets/graphs/ab_als/stances/standing.animgraph.ron",
+    "assets/graphs/ab_als/stances/standing"
+  ],
+  "root_output_evidence": "tools/import/standing_source_layout_map.json",
+  "verification_commands": [
+    {
+      "label": "standing_source_coverage",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/audit_source_graph_coverage.py",
+        "--source",
+        "target/bf111/source_native/AB_Als_Standing.ue.json",
+        "--target-root",
+        "assets/graphs/ab_als",
+        "--mapping",
+        "tools/import/standing_source_layout_map.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "standing_source_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/import/apply_source_layout.py",
+        "--source",
+        "target/bf111/source_native/AB_Als_Standing.ue.json",
+        "--target-root",
+        "assets/graphs/ab_als",
+        "--mapping",
+        "tools/import/standing_source_layout_map.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "standing_fsm_source_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/import/audit_fsm_source_positions.py",
+        "--source",
+        "target/bf111/source_native/AB_Als_Standing.ue.json",
+        "--target-root",
+        "assets/graphs/ab_als",
+        "--mapping",
+        "tools/import/standing_fsm_source_layout_map.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "standing_editor_metadata",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/graphs"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "standing_contract_gate",
+    "manual_case": "base"
+  }
+}

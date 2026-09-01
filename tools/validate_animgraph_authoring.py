@@ -13,15 +13,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "tools" / "import"))
 
-from animgraph_context_contract import parse_edges, parse_io_spec, parse_nodes
+from animgraph_context_contract import parse_edges, parse_nodes
 from apply_runtime_animation_context import audit as runtime_context_audit
 from capture_animgraph_ron_topology import capture_fsm, parse_positions
-from normalize_animgraph_io_order import compact, field_span, split_top_level
+from normalize_animgraph_io_order import compact, field_span, split_top_level, top_level_colon
 
 
 FORMAT = "als_animgraph_authoring_gate_v1"
 READ_ONLY_SCOPES = {"source", "layout", "editor"}
 FORBIDDEN_COMMAND_ARGUMENTS = {"--fix", "--write", "--write-baseline"}
+SOURCE_HASH_KINDS = {"bytes", "canonical_json"}
 
 
 def read_text(path):
@@ -34,6 +35,21 @@ def read_json(path):
 
 def sha256_file(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def source_digest(path, kind):
+    if kind == "bytes":
+        return sha256_file(path)
+    if kind == "canonical_json":
+        value = read_json(path)
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+    raise ValueError(f"source hash kind is invalid: {kind}")
 
 
 def repo_path(root, value):
@@ -59,13 +75,35 @@ def output_time(text):
     return match.group(1) == "true"
 
 
+def data_key(value):
+    text = value.strip()
+    quoted = re.fullmatch(r'"([^"\\]*(?:\\.[^"\\]*)*)"', text)
+    if quoted is not None:
+        return json.loads(quoted.group(0))
+    passthrough = re.fullmatch(r'Passthrough\("([^"\\]*(?:\\.[^"\\]*)*)"\)', text)
+    if passthrough is not None:
+        return json.loads(f'"{passthrough.group(1)}"')
+    return compact(text)
+
+
+def data_map(text, field_name):
+    _, start, end = field_span(text, field_name)
+    values = {}
+    for entry in split_top_level(text[start + 1 : end], ","):
+        key, value = top_level_colon(entry)
+        name = data_key(key)
+        if name in values:
+            raise ValueError(f"duplicate data key {name}")
+        values[name] = value.strip()
+    return values
+
+
 def io_payload(path, text):
-    values = parse_io_spec(path)
     return {
-        "input_data": values["input_data"],
+        "input_data": data_map(text, "input_data"),
         "input_times": input_times(text),
         "output_time": output_time(text),
-        "output_data": values["output_data"],
+        "output_data": data_map(text, "output_data"),
     }
 
 
@@ -146,6 +184,9 @@ def manifest_shape_issues(manifest):
                 names.add(path)
             if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
                 issues.append(f"{label} sha256 is invalid")
+            kind = item.get("hash_kind", "bytes")
+            if kind not in SOURCE_HASH_KINDS:
+                issues.append(f"{label} hash_kind is invalid")
     graphs = manifest.get("graphs", [])
     if not isinstance(graphs, list):
         issues.append("graphs must be an array")
@@ -376,12 +417,13 @@ def validate_source_evidence(root, values):
             "path": item["path"],
             "exists": path.is_file(),
             "expected_sha256": item["sha256"],
+            "hash_kind": item.get("hash_kind", "bytes"),
         }
         if not path.is_file():
             failures.append(f"source evidence is missing: {item['path']}")
             report.append(result)
             continue
-        digest = sha256_file(path)
+        digest = source_digest(path, result["hash_kind"])
         result["sha256"] = digest
         result["matches"] = digest == item["sha256"]
         if not result["matches"]:
@@ -712,7 +754,7 @@ def fixture_fsm():
         "(\n"
         'states: [(id: "entry", label: "Entry", graph: "graphs/entry.animgraph.ron"), (id: "run", label: "Run", graph: "graphs/run.animgraph.ron")],\n'
         'transitions: [(id: "entry_to_run", source: "entry", target: "run")],\n'
-        "node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { \"pose\": Pose }, input_order: {}, output_order: { Data(\"pose\"): 0 }),\n"
+        "node_spec: (input_times: [], input_data: { \"movement_pose\": Pose }, output_time: false, output_data: { \"pose\": Pose }, input_order: { Data(\"movement_pose\"): 0 }, output_order: { Data(\"pose\"): 0 }),\n"
         "default_data: {},\n"
         'editor_metadata: (states: { "entry": (0.0, 0.0), "run": (128.0, 0.0) }, input_position: (-64.0, 0.0), output_position: (256.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),\n'
         ")\n"
@@ -768,7 +810,7 @@ def run_self_test():
                     }
                 ],
                 "expected_io": {
-                    "input_data": {},
+                    "input_data": {"movement_pose": "Pose"},
                     "input_times": [],
                     "output_time": False,
                     "output_data": {"pose": "Pose"},
@@ -794,12 +836,45 @@ def run_self_test():
     }
 
 
+def summary(report):
+    return {
+        "id": report.get("id"),
+        "pass": report.get("pass", False),
+        "failures": report.get("failures", []),
+        "graphs": len(report.get("graphs", [])),
+        "graph_nodes": sum(item.get("nodes", 0) for item in report.get("graphs", [])),
+        "graph_edges": sum(item.get("edges", 0) for item in report.get("graphs", [])),
+        "fsms": len(report.get("fsms", [])),
+        "fsm_states": sum(item.get("states", 0) for item in report.get("fsms", [])),
+        "fsm_transitions": sum(
+            item.get("transitions", 0) for item in report.get("fsms", [])
+        ),
+        "commands": [
+            {
+                "label": item.get("label"),
+                "scope": item.get("scope"),
+                "exit_code": item.get("exit_code"),
+            }
+            for item in report.get("commands", [])
+        ],
+        "source_evidence": [
+            {
+                "path": item.get("path"),
+                "hash_kind": item.get("hash_kind"),
+                "matches": item.get("matches"),
+            }
+            for item in report.get("source_evidence", [])
+        ],
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         print(json.dumps(run_self_test(), ensure_ascii=False, indent=2))
@@ -809,7 +884,7 @@ def main():
     root = args.root.resolve()
     manifest_path = repo_path(root, args.manifest.as_posix())
     report = run(root, read_json(manifest_path))
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps(summary(report) if args.summary else report, ensure_ascii=False, indent=2))
     return 0 if report["pass"] else 1
 
 
