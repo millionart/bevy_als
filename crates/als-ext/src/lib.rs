@@ -23,6 +23,7 @@ pub mod global_pose_input;
 pub mod ik;
 pub mod ik_space;
 pub mod inertialization;
+pub mod inertialization_passthrough;
 pub mod inertialized_linked_anim_layer;
 pub mod interruptible_fsm;
 pub mod layered_graph;
@@ -119,6 +120,7 @@ pub use inertialization::{
     InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
     inertial_residual_weight,
 };
+pub use inertialization_passthrough::InertializationPassthroughNode;
 pub use inertialized_linked_anim_layer::{
     InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,
     inertialized_linked_layer_activation,
@@ -261,6 +263,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<BoneBlendScale>()
             .register_type::<ProfiledBlendNode>()
             .register_type::<InertializationNode>()
+            .register_type::<InertializationPassthroughNode>()
             .register_type::<InertializedLinkedAnimLayerNode>()
             .register_type::<InterruptibleFsmNode>()
             .register_type::<TimePositionNode>()

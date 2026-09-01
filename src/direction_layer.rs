@@ -32,6 +32,13 @@ pub fn view_space_direction_angle(velocity_yaw: f32, view_yaw: f32) -> f32 {
     a
 }
 
+pub fn view_space_direction_angle_from_radians(
+    velocity_yaw_degrees: f32,
+    view_yaw_radians: f32,
+) -> f32 {
+    view_space_direction_angle(velocity_yaw_degrees, view_yaw_radians.to_degrees())
+}
+
 fn graph_direction_angle(raw: f32) -> f32 {
     normalize_angle180(raw)
 }
@@ -71,7 +78,10 @@ fn direction_angle_driver(
                 if *gait == Gait::Sprinting {
                     0.0
                 } else {
-                    view_space_direction_angle(velocity_yaw_deg(motion.world_velocity), view_yaw.0)
+                    view_space_direction_angle_from_radians(
+                        velocity_yaw_deg(motion.world_velocity),
+                        view_yaw.0,
+                    )
                 }
             }
         };
@@ -99,6 +109,7 @@ fn direction_angle_driver(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use als_core::movement_direction::AlsMovementDirection;
 
     #[test]
     fn velocity_yaw_matches_body_convention() {
@@ -112,6 +123,20 @@ mod tests {
         assert!((view_space_direction_angle(180.0, 0.0) - 180.0).abs() < 1e-4);
         assert!((view_space_direction_angle(45.0, 45.0) - 0.0).abs() < 1e-4);
         assert!((view_space_direction_angle(-90.0, 45.0) + 135.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn view_space_angle_converts_character_view_radians() {
+        assert!(
+            view_space_direction_angle_from_radians(-45.0, (-45.0_f32).to_radians()).abs() < 1e-4
+        );
+        assert_eq!(
+            update_direction(
+                None,
+                view_space_direction_angle_from_radians(45.0, (-45.0_f32).to_radians())
+            ),
+            AlsMovementDirection::RightForward
+        );
     }
 
     #[test]

@@ -9,10 +9,15 @@
         "output_position": [0.0, 0.0]
       },
       "node_overrides": [
-        {"target_id": "1a230000-0000-4000-8000-000000000001", "source_indices": [22, 23, 24, 18], "offset": [0.0, 0.0], "strategy": "source_grounded_stance_transition_slot_collapse"},
-        {"target_id": "1a230000-0000-4000-8000-000000000003", "source_indices": [21, 17], "offset": [0.0, 0.0], "strategy": "source_locomotion_post_locomotion_slot_collapse"},
+        {"target_id": "1a230000-0000-4000-8000-000000000017", "source_index": 23, "offset": [0.0, 0.0], "strategy": "source_standing_linked_graph"},
+        {"target_id": "1a230000-0000-4000-8000-000000000018", "source_index": 24, "offset": [0.0, 0.0], "strategy": "source_crouching_linked_graph"},
+        {"target_id": "1a230000-0000-4000-8000-000000000001", "source_index": 22, "offset": [0.0, 0.0], "strategy": "source_grounded_linked_graph"},
+        {"target_id": "1a230000-0000-4000-8000-000000000019", "source_index": 18, "offset": [0.0, 0.0], "strategy": "source_transition_slot"},
+        {"target_id": "1a230000-0000-4000-8000-000000000003", "source_index": 21, "offset": [0.0, 0.0], "strategy": "source_locomotion_linked_graph"},
+        {"target_id": "1a230000-0000-4000-8000-000000000020", "source_index": 17, "offset": [0.0, 0.0], "strategy": "source_post_locomotion_slot"},
         {"target_id": "1a230000-0000-4000-8000-000000000005", "source_index": 8, "offset": [-256.0, 0.0], "strategy": "source_overlay_local_reference_bridge"},
-        {"target_id": "1a230000-0000-4000-8000-000000000006", "source_indices": [8, 9], "offset": [0.0, 0.0], "strategy": "source_overlay_inertialization_collapse"},
+        {"target_id": "1a230000-0000-4000-8000-000000000006", "source_index": 8, "offset": [0.0, 0.0], "strategy": "source_overlay_linked_layer"},
+        {"target_id": "1a230000-0000-4000-8000-000000000021", "source_index": 9, "offset": [0.0, 0.0], "strategy": "source_inertialization"},
         {"target_id": "1a230000-0000-4000-8000-000000000007", "source_index": 8, "offset": [-256.0, 0.0], "strategy": "source_overlay_selector_bridge"},
         {"target_id": "1a230000-0000-4000-8000-000000000009", "source_index": 31, "offset": [0.0, 0.0], "strategy": "source_layering_linked_graph"},
         {"target_id": "1a230000-0000-4000-8000-000000000010", "source_index": 7, "offset": [0.0, 0.0], "strategy": "source_head_linked_graph"},

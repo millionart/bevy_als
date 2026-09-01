@@ -33,7 +33,7 @@ use bevy_animation_graph::core::state_machine::{
 use crate::actual_motion::AlsActualMotion;
 use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle};
+use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
 use crate::gait_layer::AlsGaitBlend;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::AlsTurnDrive;
@@ -1093,7 +1093,7 @@ fn direction_for(
     } else if let Some(current) = current {
         current.direction
     } else {
-        let angle = view_space_direction_angle(velocity_yaw_deg(velocity), view_yaw);
+        let angle = view_space_direction_angle_from_radians(velocity_yaw_deg(velocity), view_yaw);
         update_direction(None, angle)
     }
 }
@@ -1382,7 +1382,7 @@ fn update_standing_inputs(
     let velocity_yaw = if horizontal_speed >= VELOCITY_EPSILON {
         velocity_yaw_deg(velocity)
     } else {
-        view_yaw
+        view_yaw.to_degrees()
     };
     if source_pivot_activates(pivot_requested, horizontal_speed) {
         runtime.pivot_pending = true;
@@ -1503,7 +1503,7 @@ fn update_standing_inputs(
         runtime.movement_transition_request = None;
     }
     let movement_transition_index = runtime.movement_transition_request.unwrap_or(-1.0);
-    let yaw_angle = view_space_direction_angle(velocity_yaw, view_yaw);
+    let yaw_angle = view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
     let target_yaw_offset = curves
         .get(yaw_offset_curve(
             runtime.movement_state.direction(),
@@ -2102,6 +2102,20 @@ fn standing_layer_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standing_direction_uses_radian_view_yaw() {
+        assert_eq!(
+            direction_for(
+                Vec3::NEG_X,
+                (-45.0_f32).to_radians(),
+                RotationMode::Aiming,
+                Gait::Running,
+                None,
+            ),
+            AlsMovementDirection::RightBackward
+        );
+    }
 
     #[test]
     fn diagonal_velocity_blend_matches_source_normalization() {

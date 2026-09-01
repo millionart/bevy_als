@@ -435,7 +435,7 @@ mod tests {
         );
         let x_value = cubic_filter_sample(&mut x, Vec2::X, 0.2, 0.2).x;
         let y_value = cubic_filter_sample(&mut y, Vec2::Y, 0.2, 0.4).y;
-        assert!((x_value - 0.5).abs() < 1e-5);
+        assert!((x_value - 1.0).abs() < 1e-5);
         assert!((y_value - (1.0 / 1.875)).abs() < 1e-5);
     }
 

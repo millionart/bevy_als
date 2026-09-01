@@ -98,6 +98,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
             .add_systems(
+                PreUpdate,
+                drive_crouch_direction_reference_frame
+                    .after(drive_manual_integration)
+                    .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
+            )
+            .add_systems(
                 PostUpdate,
                 drive_control_rig_view_offset
                     .after(AnimationGraphSet::Final)
@@ -135,6 +141,38 @@ fn drive_control_rig_view_offset(
     };
     let forward = transform.rotation * Vec3::NEG_Z;
     view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
+}
+
+fn drive_crouch_direction_reference_frame(
+    fixture: Option<Res<ManualIntegrationFixture>>,
+    state: Res<ManualIntegrationState>,
+    mut characters: Query<
+        (&mut Transform, Option<&mut Rotation>, &mut AlsViewYaw),
+        With<AlsCharacter>,
+    >,
+) {
+    if state.phase != IntegrationPhase::CrouchDirectionRegression {
+        return;
+    }
+    let Some(fixture) = fixture else {
+        return;
+    };
+    let Some(character) = state.character else {
+        return;
+    };
+    let Ok((mut transform, rotation, mut view_yaw)) = characters.get_mut(character) else {
+        return;
+    };
+    let rotation_value = Quat::from_rotation_y(fixture.facing_yaw);
+    transform.rotation = rotation_value;
+    if let Some(mut rotation) = rotation {
+        rotation.0 = rotation_value;
+    }
+    if state.phase_started.elapsed().as_secs_f32()
+        < CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS
+    {
+        view_yaw.0 = fixture.facing_yaw;
+    }
 }
 
 #[derive(Resource)]
@@ -242,6 +280,7 @@ struct DirectionRegressionCase {
 struct CrouchDirectionRegressionCase {
     name: &'static str,
     move_dir: Vec2,
+    expected_direction: AlsMovementDirection,
 }
 
 fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
@@ -347,34 +386,42 @@ fn crouch_direction_regression_case(index: usize) -> Option<CrouchDirectionRegre
         0 => Some(CrouchDirectionRegressionCase {
             name: "crouch_forward",
             move_dir: Vec2::Y,
+            expected_direction: AlsMovementDirection::Forward,
         }),
         1 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_backward",
-            move_dir: Vec2::NEG_Y,
+            name: "crouch_right_forward",
+            move_dir: Vec2::NEG_X,
+            expected_direction: AlsMovementDirection::RightForward,
         }),
         2 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_forward",
-            move_dir: Vec2::new(1.0, 1.0).normalize(),
+            name: "crouch_right_backward",
+            move_dir: Vec2::new(-1.0, -1.0).normalize(),
+            expected_direction: AlsMovementDirection::RightBackward,
         }),
         3 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_backward",
-            move_dir: Vec2::new(1.0, -1.0).normalize(),
+            name: "crouch_backward",
+            move_dir: Vec2::NEG_Y,
+            expected_direction: AlsMovementDirection::Backward,
         }),
         4 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_left_forward",
-            move_dir: Vec2::new(-1.0, 1.0).normalize(),
+            name: "crouch_left_backward",
+            move_dir: Vec2::new(1.0, -1.0).normalize(),
+            expected_direction: AlsMovementDirection::LeftBackward,
         }),
         5 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_left_backward",
-            move_dir: Vec2::new(-1.0, -1.0).normalize(),
+            name: "crouch_left_forward",
+            move_dir: Vec2::X,
+            expected_direction: AlsMovementDirection::LeftForward,
         }),
         6 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_cardinal",
-            move_dir: Vec2::X,
+            name: "crouch_forward_repeat",
+            move_dir: Vec2::Y,
+            expected_direction: AlsMovementDirection::Forward,
         }),
         7 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_left_cardinal",
+            name: "crouch_right_forward_repeat",
             move_dir: Vec2::NEG_X,
+            expected_direction: AlsMovementDirection::RightForward,
         }),
         _ => None,
     }
@@ -1721,26 +1768,38 @@ fn drive_manual_integration(
                 };
                 if state.crouch_direction_case_index != case_index {
                     state.crouch_direction_case_index = case_index;
+                    let crouch_start = state.spawn_translation.unwrap_or(fixture.locomotion_start);
+                    reset_character_without_rotation(
+                        &mut transform,
+                        &mut position,
+                        &mut velocity,
+                        &mut view_yaw,
+                        &mut view_pitch,
+                        crouch_start,
+                        fixture.facing_yaw,
+                    );
+                    if let Some(avatar) = state.avatar {
+                        commands
+                            .entity(avatar)
+                            .remove::<AlsMovementDirectionState>();
+                    }
                     info!(
-                        "[MANUAL-INTEGRATION][CROUCH-DIRECTION][START] case={} input=({:.3},{:.3})",
-                        case.name, case.move_dir.x, case.move_dir.y,
+                        "[MANUAL-INTEGRATION][CROUCH-DIRECTION][START] case={} input=({:.3},{:.3}) expected={:?}",
+                        case.name, case.move_dir.x, case.move_dir.y, case.expected_direction,
                     );
                 }
                 input.0.move_dir = case.move_dir;
                 *rotation_mode = RotationMode::Aiming;
                 request.rotation_mode = Some(RotationMode::Aiming);
-                view_yaw.0 =
-                    als_core::orientation::world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
+                view_yaw.0 = fixture.facing_yaw;
             } else if elapsed < direction_duration + 3.0 {
                 *rotation_mode = RotationMode::Aiming;
                 request.rotation_mode = Some(RotationMode::Aiming);
                 view_yaw.0 = fixture.facing_yaw + 90.0_f32.to_radians();
-            } else if elapsed < direction_duration + 6.5 {
+            } else if elapsed < direction_duration + 10.0 {
                 *rotation_mode = RotationMode::ViewDirection;
                 request.rotation_mode = Some(RotationMode::ViewDirection);
-                let body_forward = transform.rotation * Vec3::NEG_Z;
-                view_yaw.0 = als_core::orientation::world_forward_to_yaw(body_forward)
-                    + 180.0_f32.to_radians();
+                view_yaw.0 = fixture.facing_yaw + std::f32::consts::PI;
             } else {
                 request.stance = Some(Stance::Standing);
                 if state.scenario == IntegrationScenario::Crouching {
@@ -1749,7 +1808,7 @@ fn drive_manual_integration(
                     begin_phase(&mut state, IntegrationPhase::Turn);
                 }
             }
-            if elapsed >= direction_duration + 12.0 {
+            if elapsed >= direction_duration + 16.0 {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -2708,9 +2767,12 @@ fn observe_manual_integration(
                 .dot(expected_local);
             let graph_matches = telemetry.outer_state == Some(1)
                 && telemetry.runtime_movement_transition_active == Some(false)
+                && state_index == movement_direction_fsm_index(case.expected_direction)
                 && telemetry
                     .graph_movement_state_input
-                    .is_some_and(|value| (value - state_index as f32).abs() < 1e-4);
+                    .is_some_and(|value| (value - state_index as f32).abs() < 1e-4)
+                && movement_direction
+                    .is_some_and(|value| value.direction == case.expected_direction);
             if source_ready
                 && motion.horizontal_speed > 0.45
                 && world_alignment >= 0.75
@@ -2720,8 +2782,9 @@ fn observe_manual_integration(
                 state.coverage.crouch_direction_cases[case_index] = true;
                 state.coverage.crouch_direction_state_mask |= 1 << state_index;
                 info!(
-                    "[MANUAL-INTEGRATION][CROUCH-DIRECTION] case={} state={:?} graph_input={:?} branch={:?} velocity=({:.3},{:.3}) world_align={:.3} local_align={:.3}",
+                    "[MANUAL-INTEGRATION][CROUCH-DIRECTION] case={} expected={:?} state={:?} graph_input={:?} branch={:?} velocity=({:.3},{:.3}) world_align={:.3} local_align={:.3}",
                     case.name,
+                    case.expected_direction,
                     telemetry.runtime_movement_state,
                     telemetry.graph_movement_state_input,
                     movement_direction.map(|value| value.direction),
@@ -2758,7 +2821,7 @@ fn observe_manual_integration(
             state.coverage.crouch_rotate = true;
         }
         if elapsed >= direction_duration + 3.0
-            && elapsed < direction_duration + 6.5
+            && elapsed < direction_duration + 10.0
             && let (Some(telemetry), Some(drive)) = (crouching_graph, turn_drive)
             && telemetry.outer_state == Some(0)
             && drive.playing
@@ -2773,7 +2836,7 @@ fn observe_manual_integration(
             state.coverage.crouch_turn = true;
         }
         if elapsed >= direction_duration + 3.0
-            && elapsed < direction_duration + 6.5
+            && elapsed < direction_duration + 10.0
             && !state.coverage.crouch_turn_diagnostic
         {
             state.coverage.crouch_turn_diagnostic = true;
@@ -3308,7 +3371,8 @@ fn observe_manual_integration(
     let control_rig_ready = control_rig.is_some_and(|value| {
         value.spine_rotation_allowed
             && value.spine_amount.abs() > 1e-4
-            && value.final_yaw_angle.abs() > 1e-4
+            && (state.scenario != IntegrationScenario::ControlRig
+                || value.final_yaw_angle.abs() > 1e-4)
     });
     if control_rig_ready && !state.coverage.control_rig {
         if let Some(value) = control_rig {

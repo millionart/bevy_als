@@ -26,7 +26,7 @@ use bevy_animation_graph::core::skeleton::Skeleton;
 
 use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle};
+use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
 use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, ROTATE_DUR};
 
@@ -641,7 +641,7 @@ fn direction_for(
     } else {
         update_direction(
             None,
-            view_space_direction_angle(velocity_yaw_deg(velocity), view_yaw),
+            view_space_direction_angle_from_radians(velocity_yaw_deg(velocity), view_yaw),
         )
     }
 }
@@ -979,9 +979,9 @@ fn update_crouching_inputs(
     let velocity_yaw = if horizontal_speed >= VELOCITY_EPSILON {
         velocity_yaw_deg(velocity)
     } else {
-        view_yaw
+        view_yaw.to_degrees()
     };
-    let yaw_angle = view_space_direction_angle(velocity_yaw, view_yaw);
+    let yaw_angle = view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
     let target_yaw_offset = curves
         .get(yaw_offset_curve(
             runtime.movement_state.direction(),
@@ -1481,6 +1481,19 @@ fn crouching_layer_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn crouching_direction_uses_radian_view_yaw() {
+        assert_eq!(
+            direction_for(
+                Vec3::NEG_X,
+                (-45.0_f32).to_radians(),
+                RotationMode::Aiming,
+                None,
+            ),
+            AlsMovementDirection::RightBackward
+        );
+    }
 
     #[test]
     fn source_crouching_state_indices_match_baked_state_machine() {
