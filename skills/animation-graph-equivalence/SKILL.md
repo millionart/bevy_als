@@ -13,6 +13,17 @@ Before changing a graph, re-extract the relevant local ALS-Refactored asset fact
 
 docs/als-ref-animation-asset-map.md is read-only. Do not alter it.
 
+## Source visual evidence
+
+For every UE authored graph, collect two independent source facts before changing the target:
+
+- First use a command-line or Unreal Python asset-open path to locate the asset. Do not use MCP or Computer Use merely to search for or open an asset when a command-line path can do it.
+- Re-extract the local source asset and use extract_ue_visible_graph_contract.py to preserve the complete visible source graph, including node properties, pins, links, comments, and positions.
+- Once the asset is already open, use MCP Slate Inspector screenshot capture to save the real Editor graph view under the current target evidence directory.
+- If MCP screenshot capture is unavailable, record the tool failure and render the native source contract with render_ue_visible_graph.py. Computer Use is the final fallback and must follow its own skill instructions.
+
+A target-derived manifest is only a target integrity record. It can never serve as source layout evidence or close a visual-equivalence Gate.
+
 ## Authoring boundary
 
 Keep the source-visible Pose chain, graph split, node order, node positions, and independent control edges visible in the real .animgraph.ron.
@@ -28,6 +39,8 @@ For non-graph Character Base assets such as PA_Als and CR_Als, use the same sour
 ## Required authoring contract
 
 Create or update a manifest under tools/animgraph_authoring/. It must declare the exact graph node sequence, positions, visible edges, root IO, source-evidence hash, non-Pose root-output exceptions, static source/layout/editor checks, and the named runtime/manual Gate.
+
+For each top-level UE graph, also create a source-visible map that is checked by audit_ue_visible_animgraph.py. It must cover every source-visible non-comment node exactly once, match title and position, account for every source comment group, and reject missing source links, target nodes, source pins, or root output position differences. Splitting, collapsing, or hiding a source-visible node is a failure unless the current checklist item explicitly records a source-backed exception and its editor-visible replacement.
 
 Run the read-only authoring gate:
 
