@@ -1,4 +1,6 @@
-# BF110 结构化图离线展开
+# BF110 结构化图离线展开（已被 runtime context 替代）
+
+> 此文档记录早期外部预览实验，不是当前作者路径。实际 `AB_Als` 图使用 `tools/animgraph_contexts/ab_als.animcontext.json` 与 `als-ext` runtime context node，直接消除 `.animgraph.ron` 的曲线 edge。
 
 展开器只处理作者资产，不参与运行时。它从结构模板中读取节点、未托管 edge、`io_spec` 与 editor metadata，再从 context 合同生成 pose、独立 time 和自动发现的曲线 edge。合同放在 `tools/animgraph_contexts/`，避免 AssetServer 把它作为未知运行时资产加载。
 

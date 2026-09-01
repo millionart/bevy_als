@@ -118,6 +118,7 @@ fn build_root_graph(inner: Handle<AnimationGraph>) -> AnimationGraph {
             slot_curve_prefix: Some(SLOT_PREFIX.to_owned()),
             slot_curve_names: vec![FOOT_LOCK.to_owned(), VIEW_BLOCK.to_owned()],
             always_update_source_pose: false,
+            ..default()
         },
     );
     let id = node.id;

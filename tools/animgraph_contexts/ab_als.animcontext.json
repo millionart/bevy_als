@@ -2,8 +2,6 @@
   "format": "als_animgraph_context_manifest_v1",
   "asset_root": "assets",
   "graph": "graphs/ab_als/ab_als.animgraph.ron",
-  "template": "graph_sources/ab_als.animgraph.structure.ron",
-  "baseline": "docs/bf110/ab_als.context-baseline.json",
   "attributes": "reject",
   "events": "reject",
   "contexts": [

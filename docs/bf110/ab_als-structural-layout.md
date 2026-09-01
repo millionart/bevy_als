@@ -1,4 +1,6 @@
-# AB_Als 结构化作者布局
+# AB_Als 结构化作者布局（已被实际图替代）
+
+> 当前实际图已使用 runtime context node；本文件与 SVG 仅保留为早期预览记录。应直接打开 `assets/graphs/ab_als/ab_als.animgraph.ron` 检视实际布局。
 
 结构作者源由以下三部分组成：
 
