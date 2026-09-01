@@ -24,6 +24,12 @@ For every UE authored graph, collect two independent source facts before changin
 
 A target-derived manifest is only a target integrity record. It can never serve as source layout evidence or close a visual-equivalence Gate.
 
+Use the project command-line wrapper for Editor asset opening:
+
+~~~powershell
+pwsh tools/open_ue_asset_editor.ps1 -Asset <virtual-asset-path>
+~~~
+
 ## Authoring boundary
 
 Keep the source-visible Pose chain, graph split, node order, node positions, and independent control edges visible in the real .animgraph.ron.
