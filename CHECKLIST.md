@@ -48,6 +48,11 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 实际图／编辑器证据（2026-09-01）：`apply_runtime_animation_context.py --check` 输出 16 node、94 edge、`residual_context_curve_edges=0`；原 348 edge 中 254 条 context curve／zero bridge edge 已移除。`audit_ab_als_root.py --check` 对本地 UE source contract 输出 zero difference，定向 node-position verifier 与 editor asset validator fix/read-only（161 文件、0 repair/0 failure）均 PASS。当前源码构建的 `als_graph_editor` 已启动并加载该实际图；主 Pose/Time 链、Overlay 下支与 source position 可直接在其中检查，不依赖历史 SVG。
   - 运行时／真实入口证据（2026-09-01）：`cargo test --lib --jobs 2` 为 149/149，`cargo test -p als-ext --lib --jobs 2` 为 208/208，`cargo check --all-targets --jobs 2` 通过（仅既有 warnings）。`RUST_LOG=info cargo run --example ab_als_contract_gate --jobs 2` 通过所有 context、slot、overlay、ControlRig、Ragdolling/restore phase；`ALS_MANUAL_INTEGRATION_GATE=1`、`ALS_MANUAL_INTEGRATION_CASE=base` 的 `run_manual.bat` 以 exit code=0 完成全部 EXECUTED 项并输出 `scenario=Base real_entry_paths -> PASS`，日志为 `target/bf110/logs/BF110.06.manual-base.stderr.log`。
 
+> BF110.06 的早期闭环只清除了逐曲线 edge；用户复查确认根 `Outputs`、`ALI_Overlay` 与 `AB_Als_Layering` 仍暴露曲线／`NodeTime` pin，故不能作为本批次最终布局验收。以下两项重新收口该缺口。
+
+- [ ] BF110.07 根图曲线输出与时间通道内聚：将 `ALI_Overlay`、Inertialization、Layering、Head、ControlRig、Ragdolling 及其根图消费者改为按 graph context/state key 读取结构化曲线；根 `AB_Als` 不再把曲线、telemetry 或逐分支 `NodeTime` 暴露为 `Outputs`／`Inputs` pin。保留 Pose 主链及由底层 Avian ragdoll runtime 强制要求的 `ragdoll_config` root ABI；所有时间更新必须在项目侧边界节点内部以当前 graph context 的同一请求注入子图，不能冻结、伪造或删除动画同步。验收：实际根图没有 `Inputs` 节点、Overlay 无 F32 输出 pin、Layering 无曲线／`NodeTime` 输入 pin、Ragdolling 到 `Outputs` 只保留 Pose 与必要 `ragdoll_config`；曲线、slot、ControlRig、Foot IK、Head、ragdoll 路径和 overlay transition signal 均从 context state 取得等价运行值。
+- [ ] BF110.08 实际 `AB_Als` 布局重新 Gate：在 BF110.07 后重新运行 runtime context 静态审计、editor asset fix/read-only validator、node position 对标、相关 Rust/Python 自测、`AB_Als` contract gate 与真实 `run_manual.bat` Playground。验收：直接打开 `assets/graphs/ab_als/ab_als.animgraph.ron` 的布局、节点顺序、position 和可见连接与 ALS-Refactored `AB_Als` 图示等价；无 root `Inputs`、无同一上下文 F32／time 噪声、无依赖仓库改动，真实入口连续运行日志 PASS。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
