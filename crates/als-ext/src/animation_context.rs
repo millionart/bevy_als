@@ -1,7 +1,12 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, NodeId, SourcePin, TargetPin, TimeUpdate},
-    context::{io_env::GraphIoEnv, new_context::{GraphContext, NodeContext}},
+    animation_graph_player::AnimationGraphPlayer,
+    context::node_states::StateKey,
+    context::{
+        io_env::GraphIoEnv,
+        new_context::{GraphContext, NodeContext},
+    },
     duration_data::DurationData,
     edge_data::{DataSpec, DataValue},
     errors::GraphError,
@@ -18,13 +23,23 @@ pub struct AnimationContextInput {
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
+pub struct AnimationContextInputAlias {
+    pub child_input: String,
+    pub outer_input: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
 pub struct AnimationContextState {
     pub curves: HashMap<String, f32>,
 }
 
 pub struct AnimationContextIoEnv<'a> {
     pub parent_ctx: NodeContext<'a>,
+    pub data_values: HashMap<String, DataValue>,
     pub curve_values: HashMap<String, f32>,
+    pub input_aliases: HashMap<String, String>,
+    pub time_update: Option<TimeUpdate>,
 }
 
 impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
@@ -34,18 +49,27 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
         ctx: GraphContext,
     ) -> Result<DataValue, GraphError> {
         match pin_id {
-            GraphInputPin::Passthrough(pin_id) => self
-                .curve_values
-                .get(&pin_id)
-                .copied()
-                .map(DataValue::F32)
-                .ok_or_else(|| GraphError::MissingGraphInputData(GraphInputPin::Passthrough(pin_id.clone())))
-                .or_else(|_| {
-                    self.parent_ctx
-                        .clone()
-                        .with_state_key(ctx.state_key)
-                        .data_back(pin_id)
-                }),
+            GraphInputPin::Passthrough(pin_id) => {
+                if let Some(value) = self.data_values.get(&pin_id) {
+                    return Ok(value.clone());
+                }
+                self.curve_values
+                    .get(&pin_id)
+                    .copied()
+                    .map(DataValue::F32)
+                    .ok_or_else(|| {
+                        GraphError::MissingGraphInputData(GraphInputPin::Passthrough(
+                            pin_id.clone(),
+                        ))
+                    })
+                    .or_else(|_| {
+                        let parent_pin = self.input_aliases.get(&pin_id).cloned().unwrap_or(pin_id);
+                        self.parent_ctx
+                            .clone()
+                            .with_state_key(ctx.state_key)
+                            .data_back(parent_pin)
+                    })
+            }
             other => Err(GraphError::InvalidGraphInputPinType(other)),
         }
     }
@@ -56,21 +80,50 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
         ctx: GraphContext,
     ) -> Result<DurationData, GraphError> {
         match pin_id {
-            GraphInputPin::Passthrough(pin_id) => self
-                .parent_ctx
-                .clone()
-                .with_state_key(ctx.state_key)
-                .duration_back(pin_id),
+            GraphInputPin::Passthrough(pin_id) => {
+                let parent_pin = self.input_aliases.get(&pin_id).cloned().unwrap_or(pin_id);
+                self.parent_ctx
+                    .clone()
+                    .with_state_key(ctx.state_key)
+                    .duration_back(parent_pin)
+            }
             other => Err(GraphError::InvalidGraphInputPinType(other)),
         }
     }
 
     fn get_time_fwd(&self, ctx: GraphContext) -> Result<TimeUpdate, GraphError> {
+        if let Some(time_update) = &self.time_update {
+            return Ok(time_update.clone());
+        }
         self.parent_ctx
             .clone()
             .with_state_key(ctx.state_key)
             .time_update_fwd()
     }
+}
+
+pub fn context_time_update(ctx: &NodeContext) -> Result<TimeUpdate, GraphError> {
+    if let Some(time_update) = ctx
+        .graph_context
+        .context()
+        .query_output_time
+        .get(ctx.graph_context.state_key)
+    {
+        return Ok(time_update);
+    }
+    ctx.graph_context.io.get_time_fwd(ctx.graph_context.clone())
+}
+
+pub fn player_animation_context_state<'a>(
+    player: &'a AnimationGraphPlayer,
+    node_id: NodeId,
+) -> Option<&'a AnimationContextState> {
+    player
+        .get_context_arena()?
+        .get_toplevel()
+        .node_states
+        .get::<AnimationContextState>(node_id, StateKey::Default)
+        .ok()
 }
 
 pub fn is_context_curve_input(
@@ -202,9 +255,21 @@ mod tests {
             curve_prefix: "source_".to_owned(),
             ..default()
         }];
-        assert!(is_context_curve_input("source_PoseMoving", &DataSpec::F32, &inputs));
-        assert!(!is_context_curve_input("source_PoseMoving", &DataSpec::Pose, &inputs));
-        assert!(!is_context_curve_input("layer_index", &DataSpec::F32, &inputs));
+        assert!(is_context_curve_input(
+            "source_PoseMoving",
+            &DataSpec::F32,
+            &inputs
+        ));
+        assert!(!is_context_curve_input(
+            "source_PoseMoving",
+            &DataSpec::Pose,
+            &inputs
+        ));
+        assert!(!is_context_curve_input(
+            "layer_index",
+            &DataSpec::F32,
+            &inputs
+        ));
     }
 
     #[test]

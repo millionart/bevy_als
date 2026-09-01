@@ -12,9 +12,9 @@ use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
+use bevy_als::animation_context_projection::AlsRootAnimationContext;
 use bevy_als::control_rig_apply::{
     AlsControlRigConstruction, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigSet,
     AlsControlRigStageTrace, AlsControlRigState,
@@ -138,11 +138,10 @@ fn drive_canonical_character(
     state.driven = true;
 }
 
-fn output_f32(player: &AnimationGraphPlayer, name: &str) -> f32 {
-    match player.get_outputs().get(name) {
-        Some(DataValue::F32(value)) => *value,
-        _ => 0.0,
-    }
+fn output_f32(context: Option<&AlsRootAnimationContext>, name: &str) -> f32 {
+    context
+        .and_then(|context| context.f32(name))
+        .unwrap_or_default()
 }
 
 fn named_bone_transform(
@@ -176,7 +175,7 @@ fn named_bone_transform(
 fn observe(
     mut state: ResMut<GateState>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     rigs: Query<&AlsControlRigState, With<AlsCharacter>>,
     constructions: Query<&AlsControlRigConstruction, With<AlsCharacter>>,
     rig_inputs: Query<&AlsControlRigInput, With<AlsCharacter>>,
@@ -200,7 +199,7 @@ fn observe(
     else {
         return;
     };
-    let Ok(player) = players.get(instance.player_entity()) else {
+    let Ok((_, context)) = players.get(instance.player_entity()) else {
         return;
     };
     let Some(spine) = named_bone_transform(
@@ -239,12 +238,12 @@ fn observe(
     let construction = constructions.get(character).ok();
     let rig_input = rig_inputs.get(character).ok();
     let foot_space = foot_spaces.get(character).ok();
-    let pose_moving = output_f32(player, "PoseMoving");
-    let pose_aiming = output_f32(player, "PoseAiming");
-    let hand_left_weight = output_f32(player, "LayerArmLeft").clamp(0.0, 1.0)
-        * output_f32(player, "HandLeftIk").clamp(0.0, 1.0);
-    let hand_right_weight = output_f32(player, "LayerArmRight").clamp(0.0, 1.0)
-        * output_f32(player, "HandRightIk").clamp(0.0, 1.0);
+    let pose_moving = output_f32(context, "PoseMoving");
+    let pose_aiming = output_f32(context, "PoseAiming");
+    let hand_left_weight = output_f32(context, "LayerArmLeft").clamp(0.0, 1.0)
+        * output_f32(context, "HandLeftIk").clamp(0.0, 1.0);
+    let hand_right_weight = output_f32(context, "LayerArmRight").clamp(0.0, 1.0)
+        * output_f32(context, "HandRightIk").clamp(0.0, 1.0);
     let baseline_spine = state.baseline_spine.unwrap_or(Quat::IDENTITY);
     let baseline_foot_scale = state.baseline_foot_scale.unwrap_or(Vec3::ONE);
     let spine_changed = baseline_spine.angle_between(spine.rotation) > 0.01;

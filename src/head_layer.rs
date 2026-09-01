@@ -14,6 +14,7 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
+use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::layering_layer::AlsLayeringLayerSet;
 
@@ -215,25 +216,19 @@ fn head_curve_state_from_values(
 fn bridge_head_curve_states(
     mut commands: Commands,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     mut characters: Query<Option<&mut AlsHeadCurveState>, With<AlsCharacter>>,
 ) {
     for (parent, instance) in &avatars {
-        let Ok(player) = players.get(instance.player_entity()) else {
+        let Ok((_, context)) = players.get(instance.player_entity()) else {
             continue;
         };
         let Ok(current) = characters.get_mut(parent.parent()) else {
             continue;
         };
         let curves = head_curve_state_from_values(
-            player
-                .get_outputs()
-                .get("ViewBlock")
-                .and_then(|value| value.as_f32().ok()),
-            player
-                .get_outputs()
-                .get("PoseAiming")
-                .and_then(|value| value.as_f32().ok()),
+            context.and_then(|context| context.f32("ViewBlock")),
+            context.and_then(|context| context.f32("PoseAiming")),
         );
         if let Some(mut current) = current {
             *current = curves;

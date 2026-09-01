@@ -5,12 +5,14 @@
 每个 context 只声明两个固定边界和一个开放集合：
 
 - pose：source pose pin 到 target pose pin；
-- time：独立的 source `NodeTime` 到 target time pin；
+- time：声明 consumer child graph 的时间通道；runtime boundary 从当前 `GraphContext` 的同一时间请求内部注入，不在根图暴露 `NodeTime` pin；
 - curves：`inherit`，从 source 的已声明 F32 output 与 target 的已声明 F32 input 的命名交集自动发现。
 
 `target_prefix` 说明 target 侧怎样命名继承通道。例如 source 的 `FootLeftLock` 与 target 的 `standing_FootLeftLock` 会自动构成一个继承项。合同不允许列出单独曲线字段；也不允许把 event、attribute 或控制输入塞入 context。
 
 新增曲线时，只需在 source 图声明 F32 output，并在 consumer 图声明同名或带该 context prefix 的 F32 input。运行时 context node 会从 child graph ABI 自动枚举并注入该通道；不需要逐条手接 root edge。没有 consumer input 的 source output 不会被错误传播。
+
+若 child graph 的技术性 pose input 名与 ALS 图中的可见 pin 名不同，`runtime_nodes[].input_aliases` 以 `child_input`→`outer_input` 显式映射它。该映射只改变根图作者界面和外层 IO，child graph ABI 不变。`linked` 节点的 `global_data_inputs` 则将已存在的项目 global data 显式注入其 child interface，用于例如 Overlay 的内部 reference pose；它不建立跨角色共享的 pose bridge。
 
 当前 Bevy 图运行时不支持通用 attribute payload，因此 `attributes` 和 `events` 在 BF110 中显式拒绝。它们保留为普通、独立的图语义，不能被伪装为曲线通道。
 

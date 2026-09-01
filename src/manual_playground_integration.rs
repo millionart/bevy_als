@@ -30,6 +30,7 @@ use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_tnua::TnuaToggle;
 
 use crate::actual_motion::AlsActualMotion;
+use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::animation_events::{
     AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
 };
@@ -2482,9 +2483,11 @@ fn default_overlay_curve_value(name: &str) -> f32 {
     }
 }
 
-fn default_overlay_curves_ready(player: &AnimationGraphPlayer) -> bool {
+fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bool {
     ALS_LAYER_CURVE_NAMES.iter().all(|name| {
-        matches!(player.get_outputs().get(*name), Some(DataValue::F32(value)) if (*value - default_overlay_curve_value(name)).abs() < 1e-4)
+        context
+            .and_then(|context| context.f32(name))
+            .is_some_and(|value| (value - default_overlay_curve_value(name)).abs() < 1e-4)
     })
 }
 
@@ -2559,7 +2562,7 @@ fn observe_manual_integration(
         Option<&AlsTurnDrive>,
         Option<&AlsMovementDirectionState>,
     )>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     ragdoll_probe: RagdollPaProbe,
     cameras: Query<(&Transform, &AlsCameraDebugInfo), With<AlsCameraRig>>,
     mut exit: MessageWriter<AppExit>,
@@ -2638,7 +2641,7 @@ fn observe_manual_integration(
     else {
         return;
     };
-    let Ok(player) = players.get(instance.player_entity()) else {
+    let Ok((player, context)) = players.get(instance.player_entity()) else {
         return;
     };
     let speed = Vec2::new(velocity.0.x, velocity.0.z).length();
@@ -2657,7 +2660,7 @@ fn observe_manual_integration(
         let default_active = *overlay == OverlayState::Default
             && overlay_index.is_some_and(|value| value.abs() < 1e-4)
             && source_ready;
-        let curves_ready = default_active && default_overlay_curves_ready(player);
+        let curves_ready = default_active && default_overlay_curves_ready(context);
         let ground_prediction = graph_global_f32(player, "als_overlay_ground_prediction_amount");
         let idle_ready = curves_ready
             && *stance == Stance::Standing

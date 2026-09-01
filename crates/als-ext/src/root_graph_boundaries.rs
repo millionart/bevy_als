@@ -7,18 +7,22 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{
-    AnimationContextState, resolve_named_context_curves,
+    AnimationContextState, context_time_update, resolve_named_context_curves,
 };
 
-const SOURCE_POSE: &str = "source_pose";
 const SOURCE_TIME: &str = "source_time";
 const OUT_POSE: &str = "pose";
 
-fn pose_spec(mut ctx: SpecContext) -> Result<(), GraphError> {
-    ctx.add_input_data(SOURCE_POSE, DataSpec::Pose)
-        .add_input_time(SOURCE_TIME)
-        .add_output_data(OUT_POSE, DataSpec::Pose)
-        .add_output_time();
+fn pose_spec(
+    mut ctx: SpecContext,
+    pose_input: &str,
+    internalize_time: bool,
+) -> Result<(), GraphError> {
+    ctx.add_input_data(pose_input, DataSpec::Pose)
+        .add_output_data(OUT_POSE, DataSpec::Pose);
+    if !internalize_time {
+        ctx.add_input_time(SOURCE_TIME).add_output_time();
+    }
     Ok(())
 }
 
@@ -31,11 +35,13 @@ pub struct ControlRigBoundaryNode {
     pub transfer_input_pose: bool,
     pub transfer_input_curves: bool,
     pub transfer_pose_in_global_space: bool,
+    pub pose_input: String,
     pub curve_names: Vec<String>,
     pub capture_context: bool,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
     pub missing_curve_value: Option<f32>,
+    pub internalize_time: bool,
 }
 
 impl Default for ControlRigBoundaryNode {
@@ -46,11 +52,13 @@ impl Default for ControlRigBoundaryNode {
             transfer_input_pose: true,
             transfer_input_curves: true,
             transfer_pose_in_global_space: false,
+            pose_input: "source_pose".to_owned(),
             curve_names: default(),
             capture_context: false,
             expose_context_curves: false,
             exposed_output_data: default(),
             missing_curve_value: None,
+            internalize_time: false,
         }
     }
 }
@@ -69,20 +77,30 @@ impl NodeLike for ControlRigBoundaryNode {
     }
 
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        ctx.set_duration_fwd(ctx.duration_back(SOURCE_TIME)?);
+        if self.internalize_time {
+            ctx.set_duration_fwd(None);
+        } else {
+            ctx.set_duration_fwd(ctx.duration_back(SOURCE_TIME)?);
+        }
         Ok(())
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let update = ctx.time_update_fwd()?;
-        ctx.set_time_update_back(SOURCE_TIME, update);
-        let pose = ctx.data_back(SOURCE_POSE)?.into_pose()?;
+        let update = if self.internalize_time {
+            context_time_update(&ctx)?
+        } else {
+            ctx.time_update_fwd()?
+        };
+        if !self.internalize_time {
+            ctx.set_time_update_back(SOURCE_TIME, update);
+        }
+        let pose = ctx.data_back(self.pose_input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(OUT_POSE, pose);
         let context_curves = if self.capture_context {
             resolve_named_context_curves(
                 &ctx,
-                SOURCE_POSE,
+                &self.pose_input,
                 &self.curve_names,
                 self.missing_curve_value,
             )?
@@ -118,7 +136,7 @@ impl NodeLike for ControlRigBoundaryNode {
                 ctx.add_output_data(curve.clone(), DataSpec::F32);
             }
         }
-        pose_spec(ctx)
+        pose_spec(ctx, &self.pose_input, self.internalize_time)
     }
 }
 

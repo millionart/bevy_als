@@ -9,6 +9,7 @@ use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
+use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::locomotion_layer::AlsLocomotionLayerSet;
 use crate::stance_layer::AlsStanceBlend;
@@ -249,41 +250,36 @@ fn arm_mesh_space_blend_amount(local_space_blend_amount: f32) -> f32 {
     }
 }
 
-fn curve_value(player: &AnimationGraphPlayer, name: &str) -> f32 {
-    player
-        .get_outputs()
-        .get(name)
-        .and_then(|value| match value {
-            DataValue::F32(value) if value.is_finite() => Some(*value),
-            _ => None,
-        })
+fn curve_value(context: Option<&AlsRootAnimationContext>, name: &str) -> f32 {
+    context
+        .and_then(|context| context.f32(name))
         .unwrap_or_default()
 }
 
 fn refresh_state_from_curves(
     mut state: AlsLayeringState,
-    player: &AnimationGraphPlayer,
+    context: Option<&AlsRootAnimationContext>,
 ) -> AlsLayeringState {
-    state.head_blend_amount = curve_value(player, "LayerHead");
-    state.head_additive_blend_amount = curve_value(player, "LayerHeadAdditive");
-    state.head_slot_blend_amount = curve_value(player, "LayerHeadSlot");
-    state.arm_left_blend_amount = curve_value(player, "LayerArmLeft");
-    state.arm_left_additive_blend_amount = curve_value(player, "LayerArmLeftAdditive");
-    state.arm_left_slot_blend_amount = curve_value(player, "LayerArmLeftSlot");
-    state.arm_left_local_space_blend_amount = curve_value(player, "LayerArmLeftLocalSpace");
-    state.arm_right_blend_amount = curve_value(player, "LayerArmRight");
-    state.arm_right_additive_blend_amount = curve_value(player, "LayerArmRightAdditive");
-    state.arm_right_slot_blend_amount = curve_value(player, "LayerArmRightSlot");
-    state.arm_right_local_space_blend_amount = curve_value(player, "LayerArmRightLocalSpace");
-    state.hand_left_blend_amount = curve_value(player, "LayerHandLeft");
-    state.hand_right_blend_amount = curve_value(player, "LayerHandRight");
-    state.spine_blend_amount = curve_value(player, "LayerSpine");
-    state.spine_additive_blend_amount = curve_value(player, "LayerSpineAdditive");
-    state.spine_slot_blend_amount = curve_value(player, "LayerSpineSlot");
-    state.pelvis_blend_amount = curve_value(player, "LayerPelvis");
-    state.pelvis_slot_blend_amount = curve_value(player, "LayerPelvisSlot");
-    state.legs_blend_amount = curve_value(player, "LayerLegs");
-    state.legs_slot_blend_amount = curve_value(player, "LayerLegsSlot");
+    state.head_blend_amount = curve_value(context, "LayerHead");
+    state.head_additive_blend_amount = curve_value(context, "LayerHeadAdditive");
+    state.head_slot_blend_amount = curve_value(context, "LayerHeadSlot");
+    state.arm_left_blend_amount = curve_value(context, "LayerArmLeft");
+    state.arm_left_additive_blend_amount = curve_value(context, "LayerArmLeftAdditive");
+    state.arm_left_slot_blend_amount = curve_value(context, "LayerArmLeftSlot");
+    state.arm_left_local_space_blend_amount = curve_value(context, "LayerArmLeftLocalSpace");
+    state.arm_right_blend_amount = curve_value(context, "LayerArmRight");
+    state.arm_right_additive_blend_amount = curve_value(context, "LayerArmRightAdditive");
+    state.arm_right_slot_blend_amount = curve_value(context, "LayerArmRightSlot");
+    state.arm_right_local_space_blend_amount = curve_value(context, "LayerArmRightLocalSpace");
+    state.hand_left_blend_amount = curve_value(context, "LayerHandLeft");
+    state.hand_right_blend_amount = curve_value(context, "LayerHandRight");
+    state.spine_blend_amount = curve_value(context, "LayerSpine");
+    state.spine_additive_blend_amount = curve_value(context, "LayerSpineAdditive");
+    state.spine_slot_blend_amount = curve_value(context, "LayerSpineSlot");
+    state.pelvis_blend_amount = curve_value(context, "LayerPelvis");
+    state.pelvis_slot_blend_amount = curve_value(context, "LayerPelvisSlot");
+    state.legs_blend_amount = curve_value(context, "LayerLegs");
+    state.legs_slot_blend_amount = curve_value(context, "LayerLegsSlot");
     state.arm_left_mesh_space_blend_amount =
         arm_mesh_space_blend_amount(state.arm_left_local_space_blend_amount);
     state.arm_right_mesh_space_blend_amount =
@@ -382,7 +378,7 @@ fn layering_layer_writer(
         (&ChildOf, &AnimatedSceneInstance, Option<&AlsStanceBlend>),
         With<AlsCharacterAvatar>,
     >,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     update_masks(&mut masks, &skeletons);
     for (parent, instance, stance_blend) in &avatars {
@@ -400,10 +396,10 @@ fn layering_layer_writer(
             },
             |blend| blend.weight,
         );
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
-        let state = refresh_state_from_curves(state, &player);
+        let state = refresh_state_from_curves(state, context);
         if let Some(mut current_state) = current_state {
             *current_state = state;
         } else {

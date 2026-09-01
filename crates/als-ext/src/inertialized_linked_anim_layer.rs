@@ -1,5 +1,4 @@
-use bevy::prelude::*;
-use bevy_animation_graph::builtin_nodes::graph_node::NestedGraphIoEnv;
+use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, TargetPin},
     animation_node::{NodeLike, ReflectNodeLike},
@@ -8,14 +7,23 @@ use bevy_animation_graph::core::{
         new_context::NodeContext,
         spec_context::{NodeInput, NodeOutput, SpecContext},
     },
-    edge_data::DataSpec,
+    edge_data::{DataSpec, DataValue},
     errors::GraphError,
 };
+
+use crate::animation_context::{AnimationContextIoEnv, context_time_update};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InertializedLinkedLayerActivation {
     pub reset_child: bool,
     pub forward_request: bool,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct GlobalDataInput {
+    pub input: String,
+    pub global_key: String,
 }
 
 pub fn inertialized_linked_layer_activation(
@@ -52,8 +60,14 @@ pub struct InertializedLinkedAnimLayerNode {
     pub interface: Handle<AnimationGraph>,
     pub implementations: Vec<Handle<AnimationGraph>>,
     pub selector: String,
+    pub selector_global_key: Option<String>,
+    pub global_data_inputs: Vec<GlobalDataInput>,
     pub reset_on_becoming_relevant: bool,
     pub forward_requests_through_skipped_cached_poses: bool,
+    pub capture_context: bool,
+    pub expose_context_curves: bool,
+    pub exposed_output_data: Vec<String>,
+    pub internalize_time: bool,
 }
 
 impl Default for InertializedLinkedAnimLayerNode {
@@ -62,8 +76,14 @@ impl Default for InertializedLinkedAnimLayerNode {
             interface: default(),
             implementations: default(),
             selector: "layer_index".to_owned(),
+            selector_global_key: None,
+            global_data_inputs: default(),
             reset_on_becoming_relevant: true,
             forward_requests_through_skipped_cached_poses: true,
+            capture_context: false,
+            expose_context_curves: false,
+            exposed_output_data: default(),
+            internalize_time: false,
         }
     }
 }
@@ -73,7 +93,15 @@ impl InertializedLinkedAnimLayerNode {
         let Some(_) = self.implementations.first() else {
             return Err(GraphError::GraphAssetMissing);
         };
-        let value = ctx.data_back(self.selector.clone())?.as_f32()?;
+        let value = match &self.selector_global_key {
+            Some(key) => ctx
+                .graph_context
+                .global_input_data
+                .get(key)
+                .ok_or_else(|| GraphError::GlobalInputDataMissing(key.clone()))?
+                .as_f32()?,
+            None => ctx.data_back(self.selector.clone())?.as_f32()?,
+        };
         let index = if value.is_finite() {
             value
                 .round()
@@ -90,6 +118,52 @@ impl InertializedLinkedAnimLayerNode {
     ) -> Result<(usize, Handle<AnimationGraph>), GraphError> {
         let index = self.selected_implementation_index(ctx)?;
         Ok((index, self.implementations[index].clone()))
+    }
+
+    fn expose_output(&self, id: &str, data_spec: &DataSpec) -> bool {
+        !self.capture_context
+            || *data_spec != DataSpec::F32
+            || self.expose_context_curves
+            || self.exposed_output_data.iter().any(|value| value == id)
+    }
+
+    fn uses_global_data_input(&self, input: &str) -> bool {
+        self.global_data_inputs
+            .iter()
+            .any(|binding| binding.input == input)
+    }
+
+    fn global_data_values(
+        &self,
+        ctx: &NodeContext,
+    ) -> Result<HashMap<String, DataValue>, GraphError> {
+        let mut values = HashMap::default();
+        for binding in &self.global_data_inputs {
+            let value = ctx
+                .graph_context
+                .global_input_data
+                .get(&binding.global_key)
+                .cloned()
+                .ok_or_else(|| GraphError::GlobalInputDataMissing(binding.global_key.clone()))?;
+            if values.insert(binding.input.clone(), value).is_some() {
+                return Err(GraphError::MismatchedDataType(
+                    "unique global data input".to_owned(),
+                    binding.input.clone(),
+                ));
+            }
+        }
+        Ok(values)
+    }
+
+    fn time_update(
+        &self,
+        ctx: &NodeContext,
+    ) -> Option<bevy_animation_graph::core::animation_graph::TimeUpdate> {
+        if self.internalize_time {
+            context_time_update(ctx).ok()
+        } else {
+            ctx.time_update_fwd().ok()
+        }
     }
 }
 
@@ -114,8 +188,13 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
             .animation_graph_assets
             .get(&implementation)
             .ok_or(GraphError::GraphAssetMissing)?;
-        let sub_ctx_io = NestedGraphIoEnv {
+        let data_values = self.global_data_values(&ctx)?;
+        let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
+            data_values,
+            curve_values: default(),
+            input_aliases: default(),
+            time_update: None,
         };
         let sub_ctx = ctx
             .create_child_context(implementation.id(), graph, None)
@@ -146,7 +225,7 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
                 interface
                     .io_spec
                     .iter_output_data()
-                    .map(|(id, _)| id.clone())
+                    .map(|(id, data_spec)| (id.clone(), *data_spec))
                     .collect::<Vec<_>>(),
             )
         };
@@ -157,8 +236,14 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
             .animation_graph_assets
             .get(&implementation)
             .ok_or(GraphError::GraphAssetMissing)?;
-        let sub_ctx_io = NestedGraphIoEnv {
+        let time_update = self.time_update(&ctx);
+        let data_values = self.global_data_values(&ctx)?;
+        let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
+            data_values,
+            curve_values: default(),
+            input_aliases: default(),
+            time_update: self.internalize_time.then(|| time_update.clone()).flatten(),
         };
         let frame = ctx.graph_context.frame_index();
         let activation = {
@@ -198,22 +283,29 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
             .create_child_context(implementation.id(), graph, None)
             .with_io(&sub_ctx_io);
         if has_output_time {
-            if let Ok(time_update) = ctx.time_update_fwd() {
+            if let Some(time_update) = time_update.clone() {
                 let key = sub_ctx.state_key;
                 sub_ctx.context_mut().query_output_time =
                     QueryOutputTime::from_key(key, time_update);
             }
         }
-        if let Ok(time_update) = ctx.time_update_fwd() {
+        if !self.internalize_time
+            && let Some(time_update) = time_update
+        {
             for pin in input_times {
                 if let GraphInputPin::Passthrough(pin_id) = pin {
                     ctx.set_time_update_back(pin_id, time_update.clone());
                 }
             }
         }
-        for id in output_data {
+        for (id, data_spec) in output_data {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
-            ctx.set_data_fwd(id, value);
+            if self.capture_context && data_spec == DataSpec::F32 {
+                ctx.set_data_fwd(id.clone(), value.clone());
+            }
+            if self.expose_output(&id, &data_spec) {
+                ctx.set_data_fwd(id, value);
+            }
         }
         Ok(())
     }
@@ -224,14 +316,20 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
             .graph_assets
             .get(&self.interface)
             .ok_or(GraphError::GraphAssetMissing)?;
-        ctx.add_input_data(self.selector.clone(), DataSpec::F32);
+        if self.selector_global_key.is_none() {
+            ctx.add_input_data(self.selector.clone(), DataSpec::F32);
+        }
         for input in interface.io_spec.sorted_inputs() {
             match input {
                 NodeInput::Time(GraphInputPin::Passthrough(pin_id)) => {
-                    ctx.add_input_time(pin_id);
+                    if !self.internalize_time {
+                        ctx.add_input_time(pin_id);
+                    }
                 }
                 NodeInput::Data(GraphInputPin::Passthrough(pin_id), data_spec) => {
-                    ctx.add_input_data(pin_id, data_spec);
+                    if !self.uses_global_data_input(&pin_id) {
+                        ctx.add_input_data(pin_id, data_spec);
+                    }
                 }
                 _ => {}
             }
@@ -239,10 +337,14 @@ impl NodeLike for InertializedLinkedAnimLayerNode {
         for output in interface.io_spec.sorted_outputs() {
             match output {
                 NodeOutput::Time => {
-                    ctx.add_output_time();
+                    if !self.internalize_time {
+                        ctx.add_output_time();
+                    }
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
-                    ctx.add_output_data(pin_id, data_spec);
+                    if self.expose_output(&pin_id, &data_spec) {
+                        ctx.add_output_data(pin_id, data_spec);
+                    }
                 }
             }
         }

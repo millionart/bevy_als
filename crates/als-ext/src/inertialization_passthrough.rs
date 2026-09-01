@@ -7,7 +7,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{
-    AnimationContextState, resolve_named_context_curves,
+    AnimationContextState, context_time_update, resolve_named_context_curves,
 };
 
 #[derive(Reflect, Clone, Debug)]
@@ -21,6 +21,7 @@ pub struct InertializationPassthroughNode {
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
     pub missing_curve_value: Option<f32>,
+    pub internalize_time: bool,
 }
 
 impl Default for InertializationPassthroughNode {
@@ -33,6 +34,7 @@ impl Default for InertializationPassthroughNode {
             expose_context_curves: false,
             exposed_output_data: Vec::new(),
             missing_curve_value: None,
+            internalize_time: false,
         }
     }
 }
@@ -51,13 +53,23 @@ impl NodeLike for InertializationPassthroughNode {
     }
 
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        ctx.set_duration_fwd(ctx.duration_back("source_time")?);
+        if self.internalize_time {
+            ctx.set_duration_fwd(None);
+        } else {
+            ctx.set_duration_fwd(ctx.duration_back("source_time")?);
+        }
         Ok(())
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let time_update = ctx.time_update_fwd()?;
-        ctx.set_time_update_back("source_time", time_update);
+        let time_update = if self.internalize_time {
+            context_time_update(&ctx)?
+        } else {
+            ctx.time_update_fwd()?
+        };
+        if !self.internalize_time {
+            ctx.set_time_update_back("source_time", time_update);
+        }
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("pose", pose);
@@ -93,9 +105,10 @@ impl NodeLike for InertializationPassthroughNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data("Source", DataSpec::Pose)
-            .add_input_time("source_time")
-            .add_output_data("pose", DataSpec::Pose)
-            .add_output_time();
+            .add_output_data("pose", DataSpec::Pose);
+        if !self.internalize_time {
+            ctx.add_input_time("source_time").add_output_time();
+        }
         for curve in &self.curve_names {
             if !self.capture_context {
                 ctx.add_input_data(format!("source_{curve}"), DataSpec::F32);

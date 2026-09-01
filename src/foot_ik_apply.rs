@@ -27,6 +27,7 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::apply_animation_to_targets;
 
+use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::control_rig_apply::{
     AlsControlRigConstruction, AlsControlRigInput, AlsControlRigPrePropagationSet,
@@ -258,6 +259,7 @@ impl Plugin for FootIkApplyPlugin {
             (
                 FootIkApplySet::Solve
                     .after(apply_animation_to_targets)
+                    .after(AlsRootAnimationContextSet)
                     .after(TransformSystems::Propagate)
                     .after(AlsControlRigPrePropagationSet)
                     .after(als_core::foot_ik::foot_ground_probe_system)
@@ -693,7 +695,10 @@ fn foot_ik_apply_system(
     mut space_states: Query<&mut AlsFootIkSpaceState, With<als_core::character::AlsCharacter>>,
     mut poles: Query<&mut FootIkPoleState, With<als_core::character::AlsCharacter>>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
-    players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+    players: Query<(
+        &bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+        Option<&AlsRootAnimationContext>,
+    )>,
     control_rig_constructions: Query<&AlsControlRigConstruction>,
     control_rig_inputs: Query<&AlsControlRigInput>,
     mut control_rig_traces: Query<&mut AlsControlRigStageTrace>,
@@ -1267,19 +1272,28 @@ fn animation_curve_amount(
     character: Entity,
     name: &str,
     avatars: &Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
-    players: &Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+    players: &Query<(
+        &bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+        Option<&AlsRootAnimationContext>,
+    )>,
 ) -> Option<f32> {
     let (_, instance, _) = avatars
         .iter()
         .find(|(parent, _, _)| parent.parent() == character)?;
-    let player = players.get(instance.player_entity()).ok()?;
-    player
-        .get_outputs()
-        .get(name)
-        .and_then(|value| match value {
-            bevy_animation_graph::core::edge_data::DataValue::F32(value) => Some(*value),
-            _ => None,
-        })
+    let (player, context) = players.get(instance.player_entity()).ok()?;
+    context.and_then(|context| context.f32(name)).or_else(|| {
+        player
+            .get_outputs()
+            .get(name)
+            .and_then(|value| match value {
+                bevy_animation_graph::core::edge_data::DataValue::F32(value)
+                    if value.is_finite() =>
+                {
+                    Some(*value)
+                }
+                _ => None,
+            })
+    })
 }
 
 fn animation_world_scale(

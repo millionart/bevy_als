@@ -67,8 +67,9 @@ pub use als_curves::{
     AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, parse_curves,
 };
 pub use animation_context::{
-    AnimationContextInput, AnimationContextState, capture_context_curve,
-    is_context_curve_input, resolve_context_curves, resolve_named_context_curves,
+    AnimationContextInput, AnimationContextInputAlias, AnimationContextState,
+    capture_context_curve, context_time_update, is_context_curve_input,
+    player_animation_context_state, resolve_context_curves, resolve_named_context_curves,
 };
 pub use blend_space_1d::{
     BlendSpace1DNode, BlendSpace1DPoint, blend_weights as blend_space_1d_weights,
@@ -127,7 +128,7 @@ pub use inertialization::{
 };
 pub use inertialization_passthrough::InertializationPassthroughNode;
 pub use inertialized_linked_anim_layer::{
-    InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,
+    GlobalDataInput, InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,
     inertialized_linked_layer_activation,
 };
 pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
@@ -259,6 +260,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CubicVec2AxisFilterNode>()
             .register_type::<CubicVec2FilterNode>()
             .register_type::<NormalizedBlendSpaceNode>()
+            .register_type::<AnimationContextInputAlias>()
             .register_type::<RagdollConfigNode>()
             .register_type::<RagdollingTagBlendNode>()
             .register_type::<RichCurveInterpolation>()
@@ -272,6 +274,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<InertializationNode>()
             .register_type::<InertializationPassthroughNode>()
             .register_type::<InertializedLinkedAnimLayerNode>()
+            .register_type::<GlobalDataInput>()
             .register_type::<InterruptibleFsmNode>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()

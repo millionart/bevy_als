@@ -12,8 +12,9 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{
-    AnimationContextInput, AnimationContextIoEnv, AnimationContextState, capture_context_curve,
-    is_context_curve_input, resolve_context_curves,
+    AnimationContextInput, AnimationContextInputAlias, AnimationContextIoEnv,
+    AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
+    resolve_context_curves,
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -22,9 +23,11 @@ use crate::animation_context::{
 pub struct LayeredGraphNode {
     pub graph: Handle<AnimationGraph>,
     pub context_inputs: Vec<AnimationContextInput>,
+    pub input_aliases: Vec<AnimationContextInputAlias>,
     pub capture_context: bool,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
+    pub internalize_time: bool,
 }
 
 impl LayeredGraphNode {
@@ -32,9 +35,11 @@ impl LayeredGraphNode {
         Self {
             graph,
             context_inputs: default(),
+            input_aliases: default(),
             capture_context: false,
             expose_context_curves: false,
             exposed_output_data: default(),
+            internalize_time: false,
         }
     }
 
@@ -43,6 +48,32 @@ impl LayeredGraphNode {
             || *data_spec != DataSpec::F32
             || self.expose_context_curves
             || self.exposed_output_data.iter().any(|value| value == id)
+    }
+
+    fn outer_input(&self, child_input: &str) -> String {
+        self.input_aliases
+            .iter()
+            .find(|alias| alias.child_input == child_input)
+            .map(|alias| alias.outer_input.clone())
+            .unwrap_or_else(|| child_input.to_owned())
+    }
+
+    fn io_input_aliases(&self) -> bevy::platform::collections::HashMap<String, String> {
+        self.input_aliases
+            .iter()
+            .map(|alias| (alias.child_input.clone(), alias.outer_input.clone()))
+            .collect()
+    }
+
+    fn time_update(
+        &self,
+        ctx: &NodeContext,
+    ) -> Option<bevy_animation_graph::core::animation_graph::TimeUpdate> {
+        if self.internalize_time {
+            context_time_update(ctx).ok()
+        } else {
+            ctx.time_update_fwd().ok()
+        }
     }
 }
 
@@ -59,7 +90,10 @@ impl NodeLike for LayeredGraphNode {
 
         let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
+            data_values: default(),
             curve_values: default(),
+            input_aliases: self.io_input_aliases(),
+            time_update: None,
         };
 
         let sub_ctx = ctx
@@ -86,8 +120,10 @@ impl NodeLike for LayeredGraphNode {
             return Ok(());
         };
 
-        let time_update = ctx.time_update_fwd().ok();
-        if let Some(time_update) = &time_update {
+        let time_update = self.time_update(&ctx);
+        if !self.internalize_time
+            && let Some(time_update) = &time_update
+        {
             for pin in graph.io_spec.iter_input_times() {
                 if let GraphInputPin::Passthrough(pin_id) = pin {
                     ctx.set_time_update_back(pin_id.clone(), time_update.clone());
@@ -103,7 +139,10 @@ impl NodeLike for LayeredGraphNode {
 
         let sub_ctx_io = AnimationContextIoEnv {
             parent_ctx: ctx.clone(),
+            data_values: default(),
             curve_values,
+            input_aliases: self.io_input_aliases(),
+            time_update: self.internalize_time.then(|| time_update.clone()).flatten(),
         };
 
         let mut sub_ctx = ctx
@@ -144,11 +183,13 @@ impl NodeLike for LayeredGraphNode {
         for input in graph.io_spec.sorted_inputs() {
             match input {
                 NodeInput::Time(GraphInputPin::Passthrough(pin_id)) => {
-                    ctx.add_input_time(pin_id);
+                    if !self.internalize_time {
+                        ctx.add_input_time(pin_id);
+                    }
                 }
                 NodeInput::Data(GraphInputPin::Passthrough(pin_id), data_spec) => {
                     if !is_context_curve_input(&pin_id, &data_spec, &self.context_inputs) {
-                        ctx.add_input_data(pin_id, data_spec);
+                        ctx.add_input_data(self.outer_input(&pin_id), data_spec);
                     }
                 }
                 _ => {}
@@ -158,7 +199,9 @@ impl NodeLike for LayeredGraphNode {
         for output in graph.io_spec.sorted_outputs() {
             match output {
                 NodeOutput::Time => {
-                    ctx.add_output_time();
+                    if !self.internalize_time {
+                        ctx.add_output_time();
+                    }
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
                     if self.expose_output(&pin_id, &data_spec) {

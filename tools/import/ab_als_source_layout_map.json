@@ -15,16 +15,12 @@
         {"target_id": "1a230000-0000-4000-8000-000000000019", "source_index": 18, "offset": [0.0, 0.0], "strategy": "source_transition_slot"},
         {"target_id": "1a230000-0000-4000-8000-000000000003", "source_index": 21, "offset": [0.0, 0.0], "strategy": "source_locomotion_linked_graph"},
         {"target_id": "1a230000-0000-4000-8000-000000000020", "source_index": 17, "offset": [0.0, 0.0], "strategy": "source_post_locomotion_slot"},
-        {"target_id": "1a230000-0000-4000-8000-000000000005", "source_index": 8, "offset": [-256.0, 0.0], "strategy": "source_overlay_local_reference_bridge"},
         {"target_id": "1a230000-0000-4000-8000-000000000006", "source_index": 8, "offset": [0.0, 0.0], "strategy": "source_overlay_linked_layer"},
         {"target_id": "1a230000-0000-4000-8000-000000000021", "source_index": 9, "offset": [0.0, 0.0], "strategy": "source_inertialization"},
-        {"target_id": "1a230000-0000-4000-8000-000000000007", "source_index": 8, "offset": [-256.0, 0.0], "strategy": "source_overlay_selector_bridge"},
         {"target_id": "1a230000-0000-4000-8000-000000000009", "source_index": 31, "offset": [0.0, 0.0], "strategy": "source_layering_linked_graph"},
         {"target_id": "1a230000-0000-4000-8000-000000000010", "source_index": 7, "offset": [0.0, 0.0], "strategy": "source_head_linked_graph"},
         {"target_id": "1a230000-0000-4000-8000-000000000011", "source_index": 10, "offset": [0.0, 0.0], "strategy": "source_control_rig_boundary"},
-        {"target_id": "1a230000-0000-4000-8000-000000000012", "source_index": 6, "offset": [0.0, 0.0], "strategy": "source_ragdolling_linked_graph"},
-        {"target_id": "1a230000-0000-4000-8000-000000000014", "source_index": 18, "offset": [0.0, -96.0], "strategy": "source_transition_slot_weight_telemetry"},
-        {"target_id": "1a230000-0000-4000-8000-000000000015", "source_index": 17, "offset": [0.0, -96.0], "strategy": "source_post_locomotion_slot_weight_telemetry"}
+        {"target_id": "1a230000-0000-4000-8000-000000000012", "source_index": 6, "offset": [0.0, 0.0], "strategy": "source_ragdolling_linked_graph"}
       ]
     },
     {

@@ -7,10 +7,14 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
+use crate::animation_context::context_time_update;
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
-pub struct LocalRefPoseNode;
+pub struct LocalRefPoseNode {
+    pub internalize_time: bool,
+}
 
 impl NodeLike for LocalRefPoseNode {
     fn display_name(&self) -> String {
@@ -23,7 +27,11 @@ impl NodeLike for LocalRefPoseNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let time_update = ctx.time_update_fwd()?;
+        let time_update = if self.internalize_time {
+            context_time_update(&ctx)?
+        } else {
+            ctx.time_update_fwd()?
+        };
         let time = time_update
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
@@ -37,8 +45,10 @@ impl NodeLike for LocalRefPoseNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_output_data("pose", DataSpec::Pose)
-            .add_output_time();
+        ctx.add_output_data("pose", DataSpec::Pose);
+        if !self.internalize_time {
+            ctx.add_output_time();
+        }
         Ok(())
     }
 }

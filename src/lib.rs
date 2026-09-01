@@ -5,6 +5,7 @@ pub mod actual_motion;
 pub mod air_jump_layer;
 pub mod als_hud;
 pub mod anim_probe;
+pub mod animation_context_projection;
 pub mod animation_events;
 pub mod character_assembly;
 pub mod character_runtime;

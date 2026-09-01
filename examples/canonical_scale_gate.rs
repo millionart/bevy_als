@@ -18,6 +18,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::{BoneId, Pose};
 use bevy_animation_graph::core::ragdoll::definition::BodyMode;
 
+use bevy_als::animation_context_projection::AlsRootAnimationContext;
 use bevy_als::control_rig_apply::AlsControlRigPropagationSet;
 use bevy_als::head_layer::AlsHeadState;
 use bevy_als::layering_layer::AlsLayeringState;
@@ -358,6 +359,7 @@ fn observe(
     mut probe: ResMut<Probe>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
+    contexts: Query<&AlsRootAnimationContext>,
     layering: Query<&AlsLayeringState>,
     heads: Query<&AlsHeadState>,
     targets: Query<&GlobalTransform, With<AnimationTargetId>>,
@@ -390,6 +392,7 @@ fn observe(
     let Ok(player) = players.get(instance.player_entity()) else {
         return;
     };
+    let context = contexts.get(instance.player_entity()).ok();
     probe.attempts += 1;
     let target_count = targets.iter().count();
     let Some(DataValue::Pose(pose)) = player.get_outputs().get("pose") else {
@@ -527,9 +530,10 @@ fn observe(
         .filter_map(|bone| bone.rotation)
         .map(Quat::length)
         .fold(0.0_f32, f32::max);
-    let curve = |name| match player.get_outputs().get(name) {
-        Some(DataValue::F32(value)) if value.is_finite() => *value,
-        _ => 0.0,
+    let curve = |name| {
+        context
+            .and_then(|context| context.f32(name))
+            .unwrap_or_default()
     };
     let layering_feedback = [
         (layering.head_blend_amount, curve("LayerHead")),
@@ -603,7 +607,6 @@ fn observe(
         for name in [
             "AB_Als_Grounded Slot Transition",
             "AB_Als_Locomotion Slot PostLocomotion",
-            "AB_Als Overlay local reference pose",
             "ALI_Overlay Overlay Inertialization",
             "AB_Als_Layering",
             "AB_Als_Head",

@@ -14,11 +14,11 @@ use bevy::prelude::*;
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
 
 use crate::actual_motion::AlsActualMotion;
+use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{inv_exp_approx, unwind_degrees};
@@ -166,6 +166,7 @@ impl Plugin for ControlRigApplyPlugin {
             (
                 AlsControlRigDiscoverySet
                     .after(AnimationGraphSet::Final)
+                    .after(AlsRootAnimationContextSet)
                     .after(TransformSystems::Propagate),
                 AlsControlRigConstructionSet.after(AlsControlRigDiscoverySet),
                 AlsControlRigInputSet.after(AlsControlRigConstructionSet),
@@ -490,11 +491,10 @@ fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
     state.initialized = true;
 }
 
-fn output_f32(player: &AnimationGraphPlayer, name: &str) -> f32 {
-    match player.get_outputs().get(name) {
-        Some(DataValue::F32(value)) => *value,
-        _ => 0.0,
-    }
+fn output_f32(context: Option<&AlsRootAnimationContext>, name: &str) -> f32 {
+    context
+        .and_then(|context| context.f32(name))
+        .unwrap_or_default()
 }
 
 fn collect_bones(
@@ -798,7 +798,7 @@ fn refresh_control_rig_input(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     for (
         entity,
@@ -818,9 +818,15 @@ fn refresh_control_rig_input(
         else {
             continue;
         };
-        let player = players.get(instance.player_entity()).ok();
-        let pose_grounded = player.map_or(0.0, |player| output_f32(player, "PoseGrounded"));
-        let pose_in_air = player.map_or(0.0, |player| output_f32(player, "PoseInAir"));
+        let (pose_grounded, pose_in_air) =
+            players
+                .get(instance.player_entity())
+                .map_or((0.0, 0.0), |(_, context)| {
+                    (
+                        output_f32(context, "PoseGrounded"),
+                        output_f32(context, "PoseInAir"),
+                    )
+                });
         let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
         let (
             foot_transforms_valid,
@@ -894,7 +900,7 @@ fn control_rig_pre_apply_system(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
     bone_globals: Query<&GlobalTransform, Without<AlsCharacter>>,
@@ -915,7 +921,7 @@ fn control_rig_pre_apply_system(
         if *locomotion == LocomotionState::Ragdolling {
             continue;
         }
-        let Some(player) = avatars
+        let Some((_, context)) = avatars
             .iter()
             .find(|(parent, _, _)| parent.parent() == entity)
             .and_then(|(_, instance, _)| players.get(instance.player_entity()).ok())
@@ -926,8 +932,8 @@ fn control_rig_pre_apply_system(
         let body_yaw = body_yaw_degrees(transform);
         let view_yaw_world = view_yaw.0.to_degrees();
         let view_yaw_angle = unwind_degrees(view_yaw_world - body_yaw);
-        let view_amount = 1.0 - output_f32(player, "ViewBlock").clamp(0.0, 1.0);
-        let pose_aiming = output_f32(player, "PoseAiming").clamp(0.0, 1.0);
+        let view_amount = 1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0);
+        let pose_aiming = output_f32(context, "PoseAiming").clamp(0.0, 1.0);
         update_spine_state(
             &mut state,
             SpineInput {
@@ -952,7 +958,7 @@ fn control_rig_pre_apply_system(
             bones.foot_root(input.use_foot_ik_bones),
             input.velocity_blend_forward_amount,
             input.velocity_blend_backward_amount,
-            output_f32(player, "PoseMoving"),
+            output_f32(context, "PoseMoving"),
             Vec3::from(profile.0.target.diagonal_scale_delta),
             &mut bone_locals,
         );
@@ -986,7 +992,7 @@ fn control_rig_hand_apply_system(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
     bone_globals: Query<&GlobalTransform, Without<AlsCharacter>>,
@@ -996,7 +1002,7 @@ fn control_rig_hand_apply_system(
         if *locomotion == LocomotionState::Ragdolling {
             continue;
         }
-        let Some(player) = avatars
+        let Some((_, context)) = avatars
             .iter()
             .find(|(parent, _)| parent.parent() == entity)
             .and_then(|(_, instance)| players.get(instance.player_entity()).ok())
@@ -1012,8 +1018,8 @@ fn control_rig_hand_apply_system(
                     chain,
                     target,
                     Vec3::from(profile.0.target.hand_left_pole_location_m),
-                    output_f32(player, "LayerArmLeft").clamp(0.0, 1.0)
-                        * output_f32(player, "HandLeftIk").clamp(0.0, 1.0),
+                    output_f32(context, "LayerArmLeft").clamp(0.0, 1.0)
+                        * output_f32(context, "HandLeftIk").clamp(0.0, 1.0),
                     &mut bone_locals,
                     &bone_globals,
                 );
@@ -1025,8 +1031,8 @@ fn control_rig_hand_apply_system(
                     chain,
                     target,
                     Vec3::from(profile.0.target.hand_right_pole_location_m),
-                    output_f32(player, "LayerArmRight").clamp(0.0, 1.0)
-                        * output_f32(player, "HandRightIk").clamp(0.0, 1.0),
+                    output_f32(context, "LayerArmRight").clamp(0.0, 1.0)
+                        * output_f32(context, "HandRightIk").clamp(0.0, 1.0),
                     &mut bone_locals,
                     &bone_globals,
                 );

@@ -3,8 +3,8 @@ use std::time::{Duration, Instant};
 use als_ext::{
     AlsExtPlugin, AnimationContextInput, ControlRigBoundaryNode, GlobalBoneMaskInputNode,
     GlobalBoolInputNode, GlobalF32InputNode, InertializationPassthroughNode,
-    InertializedLinkedAnimLayerNode, InterruptibleFsmNode, LayeredGraphNode, LocalRefPoseNode,
-    SkeletonAwareLayeredGraphNode,
+    InertializedLinkedAnimLayerNode, InterruptibleFsmNode, LayeredGraphNode,
+    SkeletonAwareLayeredGraphNode, player_animation_context_state,
 };
 use bevy::asset::LoadedFolder;
 use bevy::ecs::message::MessageWriter;
@@ -261,56 +261,6 @@ fn node_data_edge(
     )
 }
 
-fn node_time_edge(
-    graph: &AnimationGraph,
-    target_node_name: &str,
-    target_pin: &str,
-    source_node_name: &str,
-) -> bool {
-    let Some((target_id, _)) = graph
-        .nodes
-        .iter()
-        .find(|(_, node)| node.name == target_node_name)
-    else {
-        return false;
-    };
-    let Some((source_id, _)) = graph
-        .nodes
-        .iter()
-        .find(|(_, node)| node.name == source_node_name)
-    else {
-        return false;
-    };
-    matches!(
-        graph
-            .edges_inverted
-            .get(&TargetPin::NodeTime(*target_id, target_pin.to_owned())),
-        Some(SourcePin::NodeTime(actual_id)) if actual_id == source_id
-    )
-}
-
-fn output_data_edge(
-    graph: &AnimationGraph,
-    output_pin: &str,
-    source_node_name: &str,
-    source_pin: &str,
-) -> bool {
-    let Some((source_id, _)) = graph
-        .nodes
-        .iter()
-        .find(|(_, node)| node.name == source_node_name)
-    else {
-        return false;
-    };
-    matches!(
-        graph
-            .edges_inverted
-            .get(&TargetPin::OutputData(output_pin.to_owned())),
-        Some(SourcePin::NodeData(actual_id, actual_pin))
-            if actual_id == source_id && actual_pin == source_pin
-    )
-}
-
 fn context_input(
     inputs: &[AnimationContextInput],
     pose_input: &str,
@@ -326,11 +276,29 @@ fn context_input(
     })
 }
 
-fn output_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
-    match player.get_outputs().get(name) {
-        Some(DataValue::F32(value)) => Some(*value),
-        _ => None,
-    }
+fn context_f32(
+    player: &AnimationGraphPlayer,
+    graph: &AnimationGraph,
+    node_name: &str,
+    name: &str,
+) -> Option<f32> {
+    let node = graph.nodes.values().find(|node| node.name == node_name)?;
+    player_animation_context_state(player, node.id)?
+        .curves
+        .get(name)
+        .copied()
+        .filter(|value| value.is_finite())
+}
+
+fn root_f32(player: &AnimationGraphPlayer, graph: &AnimationGraph, name: &str) -> Option<f32> {
+    context_f32(player, graph, "AB_Als_Ragdolling", name)
+}
+
+fn global_f32(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
+    player
+        .get_global_input_data(name)
+        .and_then(|value| value.as_f32().ok())
+        .filter(|value| value.is_finite())
 }
 
 fn output_pose(player: &AnimationGraphPlayer) -> Option<&Pose> {
@@ -446,13 +414,15 @@ fn verify_static(
         .into_iter()
         .all(|name| {
             node::<LayeredGraphNode>(root, name).is_some_and(|node| {
-                node.capture_context
-                    && (name != "AB_Als_Ragdolling" || node.expose_context_curves)
+                node.capture_context && node.internalize_time && !node.expose_context_curves
             })
         })
         && ["AB_Als_Standing", "AB_Als_Crouching"]
             .into_iter()
-            .all(|name| node::<LayeredGraphNode>(root, name).is_some_and(|node| node.capture_context))
+            .all(|name| {
+                node::<LayeredGraphNode>(root, name)
+                    .is_some_and(|node| node.capture_context && node.internalize_time)
+            })
         && ["AB_Als_Grounded", "AB_Als_Locomotion"]
             .into_iter()
             .all(|name| {
@@ -460,6 +430,7 @@ fn verify_static(
                     node.fallback_pose_key == "als_root_reference_pose"
                         && node.slot_name.is_none()
                         && node.capture_context
+                        && node.internalize_time
                 })
             });
     let grounded_stance_inputs = grounded
@@ -499,133 +470,132 @@ fn verify_static(
                 None,
             )
         });
-    let root_chain = node_data_edge(
-        root,
-        "AB_Als_Grounded",
-        "Standing Input",
-        "AB_Als_Standing",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "AB_Als_Grounded",
-        "standing_time",
-        "AB_Als_Standing",
-    ) && node_data_edge(
-        root,
-        "AB_Als_Grounded",
-        "Crouching Input",
-        "AB_Als_Crouching",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "AB_Als_Grounded",
-        "crouching_time",
-        "AB_Als_Crouching",
-    ) && node_data_edge(
-        root,
-        "Slot 'Transition'",
-        "Source",
-        "AB_Als_Grounded",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "Slot 'Transition'",
-        "source_time",
-        "AB_Als_Grounded",
-    ) && node_data_edge(
-        root,
-        "AB_Als_Locomotion",
-        "grounded_pose",
-        "Slot 'Transition'",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "AB_Als_Locomotion",
-        "grounded_time",
-        "Slot 'Transition'",
-    ) && node_data_edge(
-        root,
-        "Slot 'PostLocomotion'",
-        "Source",
-        "AB_Als_Locomotion",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "Slot 'PostLocomotion'",
-        "source_time",
-        "AB_Als_Locomotion",
-    ) && node_data_edge(
-        root,
-        "AB_Als_Layering",
-        "locomotion_pose",
-        "Slot 'PostLocomotion'",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "AB_Als_Layering",
-        "locomotion_time_local_left_mesh",
-        "Slot 'PostLocomotion'",
-    ) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'Transition'").is_some_and(
-        |node| {
-            node.capture_context
-                && context_input(
-                    &node.context_inputs,
-                    "Source",
-                    "source_time",
-                    "source_",
-                    Some(0.0),
-                )
-        },
-    ) && node::<SkeletonAwareLayeredGraphNode>(root, "AB_Als_Locomotion").is_some_and(
-        |node| {
-            node.capture_context
-                && context_input(
-                    &node.context_inputs,
-                    "grounded_pose",
-                    "grounded_time",
-                    "grounded_",
-                    None,
-                )
-        },
-    ) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'PostLocomotion'").is_some_and(
-        |node| {
-            node.capture_context
-                && context_input(
-                    &node.context_inputs,
-                    "Source",
-                    "source_time",
-                    "source_",
-                    None,
-                )
-        },
-    ) && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
-        node.capture_context
-            && context_input(
-                &node.context_inputs,
-                "locomotion_pose",
-                "locomotion_time_local_left_mesh",
-                "locomotion_",
-                Some(0.0),
+    let root_chain =
+        node_data_edge(
+            root,
+            "AB_Als_Grounded",
+            "Standing Input",
+            "AB_Als_Standing",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "AB_Als_Grounded",
+            "Crouching Input",
+            "AB_Als_Crouching",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "Slot 'Transition'",
+            "Source",
+            "AB_Als_Grounded",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "AB_Als_Locomotion",
+            "Grounded Input",
+            "Slot 'Transition'",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "Slot 'PostLocomotion'",
+            "Source",
+            "AB_Als_Locomotion",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "AB_Als_Layering",
+            "Locomotion Input",
+            "Slot 'PostLocomotion'",
+            "pose",
+        ) && node_data_edge(root, "AB_Als_Head", "View Input", "AB_Als_Layering", "pose")
+            && node_data_edge(root, "ControlRig CR_Als", "Source", "AB_Als_Head", "pose")
+            && node_data_edge(
+                root,
+                "AB_Als_Ragdolling",
+                "Ragdolling Input",
+                "ControlRig CR_Als",
+                "pose",
             )
-    }) && !root.nodes.values().any(|node| node.name == "root zero curve");
+            && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'Transition'").is_some_and(
+                |node| {
+                    node.capture_context
+                        && node.internalize_time
+                        && context_input(
+                            &node.context_inputs,
+                            "Source",
+                            "source_time",
+                            "source_",
+                            Some(0.0),
+                        )
+                },
+            )
+            && node::<SkeletonAwareLayeredGraphNode>(root, "AB_Als_Locomotion").is_some_and(
+                |node| {
+                    node.capture_context
+                        && node.internalize_time
+                        && context_input(
+                            &node.context_inputs,
+                            "Grounded Input",
+                            "grounded_time",
+                            "grounded_",
+                            None,
+                        )
+                },
+            )
+            && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'PostLocomotion'").is_some_and(
+                |node| {
+                    node.capture_context
+                        && node.internalize_time
+                        && context_input(
+                            &node.context_inputs,
+                            "Source",
+                            "source_time",
+                            "source_",
+                            None,
+                        )
+                },
+            )
+            && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
+                node.capture_context
+                    && node.internalize_time
+                    && context_input(
+                        &node.context_inputs,
+                        "Locomotion Input",
+                        "locomotion_time_local_left_mesh",
+                        "locomotion_",
+                        Some(0.0),
+                    )
+            })
+            && !root
+                .nodes
+                .values()
+                .any(|node| node.name == "root zero curve");
     let overlay = node::<InertializedLinkedAnimLayerNode>(root, "ALI_Overlay - Overlay")
         .is_some_and(|node| {
             node.selector == "layer_index"
+                && node.selector_global_key.as_deref() == Some("als_root_overlay_index")
                 && node.implementations.len() == 13
                 && node.reset_on_becoming_relevant
                 && node.forward_requests_through_skipped_cached_poses
+                && node.capture_context
+                && !node.expose_context_curves
+                && node.exposed_output_data.is_empty()
+                && node.internalize_time
+                && node.global_data_inputs.len() == 1
+                && node.global_data_inputs[0].input == "base_pose"
+                && node.global_data_inputs[0].global_key == "als_root_reference_pose"
         })
-        && node::<LocalRefPoseNode>(root, "AB_Als Overlay local reference pose").is_some();
+        && !root
+            .nodes
+            .values()
+            .any(|node| node.name == "AB_Als Overlay local reference pose");
     let inertialization = node::<InertializationPassthroughNode>(root, "Inertialization")
         .is_some_and(|node| {
             node.reset_on_becoming_relevant
                 && node.forward_requests_through_skipped_cached_poses
                 && node.capture_context
-                && node
-                    .exposed_output_data
-                    .iter()
-                    .map(String::as_str)
-                    .eq(std::iter::once("transition_left_request"))
+                && node.exposed_output_data.is_empty()
+                && node.internalize_time
                 && node
                     .curve_names
                     .iter()
@@ -635,59 +605,28 @@ fn verify_static(
                         .copied()
                         .chain(std::iter::once("transition_left_request")))
         });
-    let overlay_chain = node_data_edge(
-        root,
-        "ALI_Overlay - Overlay",
-        "layer_index",
-        "Overlay implementation selector",
-        "als_root_overlay_index",
-    ) && node_data_edge(
-        root,
-        "ALI_Overlay - Overlay",
-        "base_pose",
-        "AB_Als Overlay local reference pose",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "ALI_Overlay - Overlay",
-        "base_time",
-        "AB_Als Overlay local reference pose",
-    ) && node_data_edge(
-        root,
-        "Inertialization",
-        "Source",
-        "ALI_Overlay - Overlay",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "Inertialization",
-        "source_time",
-        "ALI_Overlay - Overlay",
-    ) && node_data_edge(
-        root,
-        "AB_Als_Layering",
-        "overlay_pose",
-        "Inertialization",
-        "pose",
-    ) && node_time_edge(
-        root,
-        "AB_Als_Layering",
-        "overlay_time_legs",
-        "Inertialization",
-    ) && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
-        context_input(
-            &node.context_inputs,
-            "overlay_pose",
-            "overlay_time_legs",
-            "overlay_",
-            Some(0.0),
-        )
-    }) && output_data_edge(
-        root,
-        "transition_left_request",
-        "Inertialization",
-        "transition_left_request",
-    );
+    let overlay_chain =
+        node_data_edge(
+            root,
+            "Inertialization",
+            "Source",
+            "ALI_Overlay - Overlay",
+            "pose",
+        ) && node_data_edge(
+            root,
+            "AB_Als_Layering",
+            "Overlay Input",
+            "Inertialization",
+            "pose",
+        ) && node::<LayeredGraphNode>(root, "AB_Als_Layering").is_some_and(|node| {
+            context_input(
+                &node.context_inputs,
+                "Overlay Input",
+                "overlay_time_legs",
+                "overlay_",
+                Some(0.0),
+            )
+        });
     let slots =
         node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'Transition'").is_some_and(|node| {
             node.slot_name.as_deref() == Some("Transition")
@@ -701,6 +640,7 @@ fn verify_static(
                     .eq(SLOT_CURVES.iter().copied())
                 && !node.always_update_source_pose
                 && node.capture_context
+                && node.internalize_time
         }) && node::<SkeletonAwareLayeredGraphNode>(root, "Slot 'PostLocomotion'").is_some_and(
             |node| {
                 node.slot_name.as_deref() == Some("PostLocomotion")
@@ -712,9 +652,10 @@ fn verify_static(
                         .slot_curve_names
                         .iter()
                         .map(String::as_str)
-                    .eq(SLOT_CURVES.iter().copied())
+                        .eq(SLOT_CURVES.iter().copied())
                     && !node.always_update_source_pose
                     && node.capture_context
+                    && node.internalize_time
             },
         );
     let view_redirect = view.nodes.is_empty()
@@ -724,13 +665,14 @@ fn verify_static(
             .is_some()
         && view.io_spec.get_output_data(&"pose".to_owned()).is_some()
         && node::<LayeredGraphNode>(root, "AB_Als_Head").is_some_and(|node| {
-            context_input(
-                &node.context_inputs,
-                "view_pose",
-                "view_time",
-                "view_",
-                None,
-            )
+            node.internalize_time
+                && context_input(
+                    &node.context_inputs,
+                    "View Input",
+                    "view_time",
+                    "view_",
+                    None,
+                )
         });
     let control_rig =
         node::<ControlRigBoundaryNode>(root, "ControlRig CR_Als").is_some_and(|node| {
@@ -739,22 +681,32 @@ fn verify_static(
                 && node.transfer_input_pose
                 && node.transfer_input_curves
                 && !node.transfer_pose_in_global_space
+                && node.pose_input == "Source"
                 && node.capture_context
+                && node.internalize_time
                 && node
                     .curve_names
                     .iter()
                     .map(String::as_str)
                     .eq(CURVES.iter().copied())
         });
-    let io = root.io_spec.has_output_time()
+    let ragdoll_context = node::<LayeredGraphNode>(root, "AB_Als_Ragdolling").is_some_and(|node| {
+        context_input(
+            &node.context_inputs,
+            "Ragdolling Input",
+            "ragdolling_time",
+            "ragdolling_",
+            None,
+        )
+    });
+    let io = !root.io_spec.has_output_time()
+        && root.io_spec.iter_input_times().next().is_none()
         && root.io_spec.get_output_data(&"pose".to_owned()).is_some()
         && root
             .io_spec
             .get_output_data(&"ragdoll_config".to_owned())
             .is_some()
-        && CURVES
-            .iter()
-            .all(|curve| root.io_spec.get_output_data(&curve.to_string()).is_some());
+        && root.io_spec.iter_output_data().count() == 2;
     let source =
         std::fs::read_to_string("assets/graphs/ab_als/ab_als.animgraph.ron").unwrap_or_default();
     let architecture = !source.contains("AB_Als_Monolithic")
@@ -788,6 +740,7 @@ fn verify_static(
         && inertialization
         && view_redirect
         && control_rig
+        && ragdoll_context
         && io
         && scenes
         && architecture)
@@ -827,6 +780,8 @@ fn verify_static(
 
 fn observe(
     mut probe: ResMut<Probe>,
+    assets: Res<GateAssets>,
+    graphs: Res<Assets<AnimationGraph>>,
     mut players: Query<&mut AnimationGraphPlayer>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -834,6 +789,9 @@ fn observe(
         return;
     };
     let Ok(mut player) = players.get_mut(entity) else {
+        return;
+    };
+    let Some(root) = graphs.get(&assets.root) else {
         return;
     };
     if let Some(error) = player.get_error() {
@@ -856,12 +814,12 @@ fn observe(
             };
             let valid = pose_is_finite(&pose)
                 && config_matches(&player, false)
-                && output_f32(&player, "overlay_index").is_some_and(|value| close(value, 0.0))
-                && output_f32(&player, "ragdolling_action_index")
+                && global_f32(&player, "als_root_overlay_index")
                     .is_some_and(|value| close(value, 0.0))
+                && root_f32(&player, root, "action_index").is_some_and(|value| close(value, 0.0))
                 && CURVES
                     .iter()
-                    .all(|curve| output_f32(&player, curve).is_some());
+                    .all(|curve| root_f32(&player, root, curve).is_some());
             if !valid {
                 fail(&mut exit, "idle root phase");
                 return;
@@ -881,7 +839,7 @@ fn observe(
         }
         Phase::TransitionSlot => {
             let valid = output_pose(&player).is_some_and(pose_is_finite)
-                && output_f32(&player, "transition_slot_weight")
+                && global_f32(&player, "als_root_transition_slot_weight")
                     .is_some_and(|value| close(value, 0.5));
             if !valid {
                 fail(&mut exit, "transition slot phase");
@@ -902,7 +860,7 @@ fn observe(
         }
         Phase::PostLocomotionSlot => {
             let valid = output_pose(&player).is_some_and(pose_is_finite)
-                && output_f32(&player, "post_locomotion_slot_weight")
+                && global_f32(&player, "als_root_post_locomotion_slot_weight")
                     .is_some_and(|value| close(value, 0.5));
             if !valid {
                 fail(&mut exit, "post locomotion slot phase");
@@ -916,9 +874,12 @@ fn observe(
         }
         Phase::Overlay => {
             let valid = output_pose(&player).is_some_and(pose_is_finite)
-                && output_f32(&player, "overlay_index").is_some_and(|value| close(value, 9.0))
-                && output_f32(&player, "PoseStanding").is_some()
-                && output_f32(&player, "LayerHead").is_some()
+                && global_f32(&player, "als_root_overlay_index")
+                    .is_some_and(|value| close(value, 9.0))
+                && root_f32(&player, root, "PoseStanding").is_some()
+                && root_f32(&player, root, "LayerHead").is_some()
+                && context_f32(&player, root, "Inertialization", "transition_left_request")
+                    .is_some()
                 && config_matches(&player, false);
             if !valid {
                 fail(&mut exit, "overlay linked layer phase");
@@ -934,8 +895,7 @@ fn observe(
         }
         Phase::Ragdoll => {
             let valid = output_pose(&player).is_some_and(pose_is_finite)
-                && output_f32(&player, "ragdolling_action_index")
-                    .is_some_and(|value| close(value, 1.0))
+                && root_f32(&player, root, "action_index").is_some_and(|value| close(value, 1.0))
                 && config_matches(&player, true);
             if !valid {
                 fail(&mut exit, "ragdoll root phase");
@@ -953,11 +913,11 @@ fn observe(
             info!("[AB-ALS-CONTRACT] Ragdolling is final root branch with dynamic/readback config");
         }
         Phase::Restore => {
-            let valid = output_f32(&player, "ragdolling_action_index")
+            let valid = root_f32(&player, root, "action_index")
                 .is_some_and(|value| close(value, 0.0))
                 && config_matches(&player, false)
-                && output_f32(&player, "transition_slot_weight").is_some()
-                && output_f32(&player, "post_locomotion_slot_weight").is_some();
+                && global_f32(&player, "als_root_transition_slot_weight").is_some()
+                && global_f32(&player, "als_root_post_locomotion_slot_weight").is_some();
             if !valid {
                 fail(&mut exit, "root recovery phase");
                 return;
