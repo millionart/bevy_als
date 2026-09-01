@@ -48,6 +48,8 @@ Create or update a manifest under tools/animgraph_authoring/. It must declare th
 
 For each top-level UE graph, also create a source-visible map that is checked through run_ue_visible_animgraph_audit.py. The wrapper regenerates the target's current Rust NodeSpec before it invokes audit_ue_visible_animgraph.py; never use a committed or earlier spec JSON as Gate evidence. The map must cover every source-visible non-comment node exactly once, match title, order and position, account for every source comment group, and reject missing source links, target nodes, source pins, root output position differences, or source static property/value differences that control the target implementation. Each such property/value must use an explicit source/target assertion in the map. Splitting, collapsing, or hiding a source-visible node is a failure unless the current checklist item explicitly records a source-backed exception and its editor-visible replacement.
 
+Build a recursive authored-subgraph inventory before implementation. It must enumerate the top graph, every reachable State Machine, every state graph, every visible transition graph, and every other reachable authored graph. For every enumerated graph, record the native source graph path, target RON or FSM path, source contract/map, and the Gate command. A top-level pass, runtime pass, or target-only manifest cannot cover an omitted subgraph.
+
 Comment groups use comment_policy: require by default. Use comment_policy: ignore only after a user-approved active-checklist exception; preserve the source comments in the source contract and record the reason in comment_exception. Ignoring comments never relaxes node, pin, edge, state-machine, cache, or position requirements.
 
 Run the read-only authoring gate:
