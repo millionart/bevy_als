@@ -5,7 +5,8 @@ use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsRotationAnimationState, AlsViewYaw};
 use als_core::movement_direction::{
-    AlsMovementDirection, AlsMovementDirectionState, update_direction,
+    AlsMovementDirection, AlsMovementDirectionState, advance_standing_movement_state,
+    classify_grounded_movement_intent,
 };
 use als_core::params::AlsMovementParams;
 use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -1430,15 +1431,13 @@ fn direction_for(
     view_yaw: f32,
     rotation_mode: RotationMode,
     gait: Gait,
-    current: Option<&AlsMovementDirectionState>,
+    current_state: AlsMovementDirection,
 ) -> AlsMovementDirection {
     if rotation_mode == RotationMode::VelocityDirection || gait == Gait::Sprinting {
         AlsMovementDirection::Forward
-    } else if let Some(current) = current {
-        current.direction
     } else {
         let angle = view_space_direction_angle_from_radians(velocity_yaw_deg(velocity), view_yaw);
-        update_direction(None, angle)
+        advance_standing_movement_state(current_state, classify_grounded_movement_intent(angle))
     }
 }
 
@@ -1646,7 +1645,7 @@ fn update_standing_inputs(
     rotation_mode: RotationMode,
     view_yaw: f32,
     input: &AlsInputCommand,
-    direction_state: Option<&AlsMovementDirectionState>,
+    _direction_state: Option<&AlsMovementDirectionState>,
     transition: Option<&AlsTransitionPlayback>,
     turn: Option<&AlsTurnDrive>,
     turn_stack: Option<&AlsTurnMontageStack>,
@@ -1726,7 +1725,13 @@ fn update_standing_inputs(
     } else {
         0.0
     };
-    let direction = direction_for(velocity, view_yaw, rotation_mode, gait, direction_state);
+    let direction = direction_for(
+        velocity,
+        view_yaw,
+        rotation_mode,
+        gait,
+        runtime.movement_state.direction(),
+    );
     let direction_index = direction_index(direction);
     let movement_state_index = movement_state_index(direction);
     let velocity_yaw = if horizontal_speed >= VELOCITY_EPSILON {
@@ -2515,16 +2520,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn standing_direction_uses_radian_view_yaw() {
+    fn standing_direction_converts_target_yaw_to_source_sign() {
         assert_eq!(
             direction_for(
-                Vec3::NEG_X,
-                (-45.0_f32).to_radians(),
+                Vec3::X,
+                0.0,
                 RotationMode::Aiming,
                 Gait::Running,
-                None,
+                AlsMovementDirection::Forward,
             ),
-            AlsMovementDirection::RightBackward
+            AlsMovementDirection::RightForward
         );
     }
 

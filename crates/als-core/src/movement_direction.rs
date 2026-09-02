@@ -11,6 +11,17 @@ pub enum AlsMovementDirection {
     LeftForward,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlsGroundedMovementIntent {
+    Forward,
+    Right,
+    Left,
+    Backward,
+}
+
+pub const GROUNDED_MOVEMENT_FORWARD_HALF_ANGLE: f32 = 70.0;
+pub const GROUNDED_MOVEMENT_ANGLE_THRESHOLD: f32 = 5.0;
+
 pub const SECTOR_BOUNDARY_FORWARD_SIDE: f32 = 60.0;
 pub const SECTOR_BOUNDARY_SIDE_DIAG: f32 = 120.0;
 pub const SECTOR_BOUNDARY_DIAG_BACK: f32 = 150.0;
@@ -25,6 +36,81 @@ pub fn normalize_angle180(angle: f32) -> f32 {
         a += 360.0;
     }
     a
+}
+
+pub fn classify_grounded_movement_intent(angle: f32) -> AlsGroundedMovementIntent {
+    let angle = normalize_angle180(angle);
+    let forward_limit = GROUNDED_MOVEMENT_FORWARD_HALF_ANGLE + GROUNDED_MOVEMENT_ANGLE_THRESHOLD;
+    let side_start = GROUNDED_MOVEMENT_FORWARD_HALF_ANGLE - GROUNDED_MOVEMENT_ANGLE_THRESHOLD;
+    let side_end = 180.0 - GROUNDED_MOVEMENT_FORWARD_HALF_ANGLE + GROUNDED_MOVEMENT_ANGLE_THRESHOLD;
+    if (-forward_limit..=forward_limit).contains(&angle) {
+        AlsGroundedMovementIntent::Forward
+    } else if (side_start..=side_end).contains(&angle) {
+        AlsGroundedMovementIntent::Right
+    } else if (-side_end..=-side_start).contains(&angle) {
+        AlsGroundedMovementIntent::Left
+    } else {
+        AlsGroundedMovementIntent::Backward
+    }
+}
+
+pub fn advance_standing_movement_state(
+    current: AlsMovementDirection,
+    intent: AlsGroundedMovementIntent,
+) -> AlsMovementDirection {
+    match (current, intent) {
+        (
+            AlsMovementDirection::Forward
+            | AlsMovementDirection::Backward
+            | AlsMovementDirection::RightForward
+            | AlsMovementDirection::LeftForward,
+            AlsGroundedMovementIntent::Forward,
+        ) => AlsMovementDirection::Forward,
+        (AlsMovementDirection::RightBackward, AlsGroundedMovementIntent::Forward) => {
+            AlsMovementDirection::RightForward
+        }
+        (AlsMovementDirection::LeftBackward, AlsGroundedMovementIntent::Forward) => {
+            AlsMovementDirection::LeftForward
+        }
+        (
+            AlsMovementDirection::Forward | AlsMovementDirection::Backward,
+            AlsGroundedMovementIntent::Backward,
+        ) => AlsMovementDirection::Backward,
+        (
+            AlsMovementDirection::RightForward | AlsMovementDirection::RightBackward,
+            AlsGroundedMovementIntent::Backward,
+        ) => AlsMovementDirection::RightBackward,
+        (
+            AlsMovementDirection::LeftForward | AlsMovementDirection::LeftBackward,
+            AlsGroundedMovementIntent::Backward,
+        ) => AlsMovementDirection::LeftBackward,
+        (
+            AlsMovementDirection::Forward
+            | AlsMovementDirection::RightForward
+            | AlsMovementDirection::LeftBackward,
+            AlsGroundedMovementIntent::Right,
+        ) => AlsMovementDirection::RightForward,
+        (
+            AlsMovementDirection::Backward | AlsMovementDirection::LeftForward,
+            AlsGroundedMovementIntent::Right,
+        ) => AlsMovementDirection::RightBackward,
+        (AlsMovementDirection::RightBackward, AlsGroundedMovementIntent::Right) => {
+            AlsMovementDirection::RightBackward
+        }
+        (
+            AlsMovementDirection::Forward
+            | AlsMovementDirection::LeftForward
+            | AlsMovementDirection::RightBackward,
+            AlsGroundedMovementIntent::Left,
+        ) => AlsMovementDirection::LeftForward,
+        (
+            AlsMovementDirection::Backward | AlsMovementDirection::RightForward,
+            AlsGroundedMovementIntent::Left,
+        ) => AlsMovementDirection::LeftBackward,
+        (AlsMovementDirection::LeftBackward, AlsGroundedMovementIntent::Left) => {
+            AlsMovementDirection::LeftBackward
+        }
+    }
 }
 
 pub fn classify_direction(angle: f32) -> AlsMovementDirection {
@@ -173,5 +259,67 @@ mod tests {
         assert!((normalize_angle180(270.0) + 90.0).abs() < 1e-4);
         assert!((normalize_angle180(-270.0) - 90.0).abs() < 1e-4);
         assert!((normalize_angle180(180.0) - 180.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn grounded_intent_uses_the_source_forward_half_angle_and_threshold() {
+        assert_eq!(
+            classify_grounded_movement_intent(75.0),
+            AlsGroundedMovementIntent::Forward
+        );
+        assert_eq!(
+            classify_grounded_movement_intent(76.0),
+            AlsGroundedMovementIntent::Right
+        );
+        assert_eq!(
+            classify_grounded_movement_intent(115.0),
+            AlsGroundedMovementIntent::Right
+        );
+        assert_eq!(
+            classify_grounded_movement_intent(116.0),
+            AlsGroundedMovementIntent::Backward
+        );
+        assert_eq!(
+            classify_grounded_movement_intent(-90.0),
+            AlsGroundedMovementIntent::Left
+        );
+    }
+
+    #[test]
+    fn standing_state_sequence_follows_source_transition_endpoints() {
+        let mut state = AlsMovementDirection::Forward;
+        for (intent, expected) in [
+            (
+                AlsGroundedMovementIntent::Backward,
+                AlsMovementDirection::Backward,
+            ),
+            (
+                AlsGroundedMovementIntent::Right,
+                AlsMovementDirection::RightBackward,
+            ),
+            (
+                AlsGroundedMovementIntent::Left,
+                AlsMovementDirection::LeftForward,
+            ),
+            (
+                AlsGroundedMovementIntent::Forward,
+                AlsMovementDirection::Forward,
+            ),
+            (
+                AlsGroundedMovementIntent::Left,
+                AlsMovementDirection::LeftForward,
+            ),
+            (
+                AlsGroundedMovementIntent::Backward,
+                AlsMovementDirection::LeftBackward,
+            ),
+            (
+                AlsGroundedMovementIntent::Right,
+                AlsMovementDirection::RightForward,
+            ),
+        ] {
+            state = advance_standing_movement_state(state, intent);
+            assert_eq!(state, expected);
+        }
     }
 }

@@ -2092,7 +2092,7 @@
           },
           {
             "index": 3,
-            "pin_id": "bcf3a71a-4830-3360-cb86-e4880152378b",
+            "pin_id": "7604185f-44ad-080b-85ee-1f9df48a5456",
             "persistent_guid": "None",
             "name": "ErrorTolerance",
             "source_index": -1,
@@ -2935,7 +2935,7 @@
           },
           {
             "index": 3,
-            "pin_id": "4e40ef1e-43d5-3fea-850e-b0be2a6d300d",
+            "pin_id": "33fe8cd8-4cc8-1fc9-94c4-da912029bcb2",
             "persistent_guid": "None",
             "name": "ErrorTolerance",
             "source_index": -1,

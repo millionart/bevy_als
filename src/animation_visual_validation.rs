@@ -15,7 +15,9 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
     animation_graph::AnimationGraph,
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
+    edge_data::DataValue,
     plugin::AnimationGraphSet,
+    pose::{BonePose, Pose},
 };
 use serde::Serialize;
 
@@ -30,7 +32,9 @@ use crate::{
         AlsFootIkApplyTelemetry, AlsFootIkApplyTelemetrySide, AlsFootIkSpaceSide,
         AlsFootIkSpaceState, AlsFootLockTeleportTelemetry, FootIkApplySet,
     },
-    manual_playground_integration::{ManualDirectionEvidence, ManualRuntimePhaseEvidence},
+    manual_playground_integration::{
+        ManualAnimationWindowEvidence, ManualIntegrationObservationSet, ManualRuntimePhaseEvidence,
+    },
 };
 
 const REQUIRED_BONES: &[&str] = &[
@@ -71,6 +75,8 @@ const SEGMENTS: &[(&str, &str)] = &[
     ("thigh_r", "calf_r"),
     ("calf_r", "foot_r"),
 ];
+
+const MOTION_BONES: &[&str] = &["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"];
 
 #[derive(Resource)]
 struct AnimationVisualValidationConfig {
@@ -135,6 +141,7 @@ struct AnimationVisualValidationState {
     previous_relative: BTreeMap<String, Vec3>,
     previous_segments: BTreeMap<String, f32>,
     captured_direction_cases: BTreeSet<String>,
+    motion_windows: BTreeMap<String, MotionWindowTracker>,
     last_teleport_count: u32,
     teleport_captures: usize,
     observed_bones: usize,
@@ -150,6 +157,115 @@ struct AnimationVisualStageTiming {
     samples: BTreeMap<String, Vec<f64>>,
     physics_steps_since_render: usize,
     physics_steps_per_render: Vec<f64>,
+}
+
+#[derive(Clone, Default)]
+struct LocalBonePose {
+    translation: Vec3,
+    rotation: Quat,
+}
+
+#[derive(Clone, Copy, Default)]
+struct RootPoseActivity {
+    output_present: bool,
+    bone_count: usize,
+    active_channel_count: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct RootPoseSample {
+    output_present: bool,
+    bone_count: usize,
+    active_channel_count: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct LocalMotionBoneSample {
+    translation: [f32; 3],
+    rotation: [f32; 4],
+}
+
+#[derive(Resource, Default)]
+struct AnimationVisualPreRigPose {
+    bones: BTreeMap<String, LocalBonePose>,
+}
+
+#[derive(Default)]
+struct MotionWindowTracker {
+    source_node: String,
+    source_state: String,
+    expected_direction: String,
+    observed_directions: BTreeSet<String>,
+    expected_runtime_state: Option<u8>,
+    observed_runtime_states: BTreeSet<u8>,
+    sample_count: usize,
+    requires_pre_rig_motion: bool,
+    requires_final_pose_motion: bool,
+    requires_non_reference_root_pose: bool,
+    minimum_pre_rig_translation_span: f32,
+    minimum_pre_rig_rotation_span_radians: f32,
+    minimum_final_translation_span: f32,
+    minimum_final_rotation_span_radians: f32,
+    minimum_observation_seconds: f32,
+    observation_seconds: f32,
+    first_sample_elapsed_seconds: Option<f64>,
+    max_pre_rig_translation_span: f32,
+    max_pre_rig_rotation_span_radians: f32,
+    max_final_translation_span: f32,
+    max_final_rotation_span_radians: f32,
+    pre_rig_reference: BTreeMap<String, LocalBonePose>,
+    final_reference: BTreeMap<String, LocalBonePose>,
+    root_pose_sample_count: usize,
+    root_pose_active_samples: usize,
+    root_pose_reference_samples: usize,
+    root_pose_max_active_channels: usize,
+    source_sync_group: String,
+    sync_phase_global: String,
+    canonical_sync_phase: Option<f32>,
+    maximum_sync_phase_distance: f32,
+    canonical_sync_phase_distance: Option<f32>,
+    direction_signature_group: String,
+    required_direction_signature_members: usize,
+    minimum_direction_signature_rotation_radians: f32,
+    canonical_pre_rig_pose: BTreeMap<String, LocalBonePose>,
+}
+
+#[derive(Serialize, Clone)]
+struct MotionWindowSample {
+    label: String,
+    source_node: String,
+    source_state: String,
+    expected_direction: String,
+    observed_directions: Vec<String>,
+    expected_runtime_state: Option<u8>,
+    observed_runtime_states: Vec<u8>,
+    sample_count: usize,
+    requires_pre_rig_motion: bool,
+    requires_final_pose_motion: bool,
+    requires_non_reference_root_pose: bool,
+    minimum_pre_rig_translation_span: f32,
+    minimum_pre_rig_rotation_span_radians: f32,
+    minimum_final_translation_span: f32,
+    minimum_final_rotation_span_radians: f32,
+    minimum_observation_seconds: f32,
+    observation_seconds: f32,
+    max_pre_rig_translation_span: f32,
+    max_pre_rig_rotation_span_radians: f32,
+    max_final_translation_span: f32,
+    max_final_rotation_span_radians: f32,
+    root_pose_sample_count: usize,
+    root_pose_active_samples: usize,
+    root_pose_reference_samples: usize,
+    root_pose_max_active_channels: usize,
+    source_sync_group: String,
+    sync_phase_global: String,
+    canonical_sync_phase: Option<f32>,
+    maximum_sync_phase_distance: f32,
+    canonical_sync_phase_distance: Option<f32>,
+    direction_signature_group: String,
+    required_direction_signature_members: usize,
+    minimum_direction_signature_rotation_radians: f32,
+    canonical_pre_rig_pose: BTreeMap<String, LocalMotionBoneSample>,
 }
 
 #[derive(Serialize, Clone)]
@@ -189,6 +305,7 @@ struct PoseSample {
     bones: BTreeMap<String, BoneSample>,
     segments: BTreeMap<String, f32>,
     foot_ik: Option<FootIkSample>,
+    root_pose: RootPoseSample,
 }
 
 #[derive(Serialize, Clone)]
@@ -274,6 +391,7 @@ struct AnimationVisualReport {
     excluded_frame_samples: usize,
     pose_samples: Vec<PoseSample>,
     screenshots: Vec<ScreenshotSample>,
+    motion_windows: Vec<MotionWindowSample>,
     faults: Vec<String>,
     graph_errors: Vec<String>,
     thresholds: BTreeMap<String, f64>,
@@ -289,6 +407,7 @@ impl Plugin for AnimationVisualValidationPlugin {
         app.insert_resource(config)
             .init_resource::<AnimationVisualValidationState>()
             .init_resource::<AnimationVisualStageTiming>()
+            .init_resource::<AnimationVisualPreRigPose>()
             .add_systems(First, animation_cpu_frame_start)
             .add_systems(
                 PostUpdate,
@@ -302,9 +421,16 @@ impl Plugin for AnimationVisualValidationPlugin {
             )
             .add_systems(
                 PostUpdate,
+                capture_animation_visual_pre_rig_pose
+                    .after(AnimationGraphSet::Final)
+                    .before(AlsControlRigSet),
+            )
+            .add_systems(
+                PostUpdate,
                 collect_animation_visual_evidence
                     .after(FootIkApplySet::Telemetry)
-                    .after(AlsCameraSet),
+                    .after(AlsCameraSet)
+                    .after(ManualIntegrationObservationSet),
             )
             .add_systems(
                 PostUpdate,
@@ -528,6 +654,278 @@ fn collect_bones(
     result
 }
 
+fn collect_local_motion_bones(
+    root: Entity,
+    children: &Query<&Children>,
+    named_transforms: &Query<(&Name, &GlobalTransform, &Transform)>,
+) -> BTreeMap<String, LocalBonePose> {
+    let mut result = BTreeMap::new();
+    let mut stack = vec![root];
+    while let Some(entity) = stack.pop() {
+        if let Ok((name, _, local)) = named_transforms.get(entity) {
+            let label = name.as_str();
+            if MOTION_BONES.iter().any(|motion_bone| *motion_bone == label) {
+                result.entry(label.to_owned()).or_insert(LocalBonePose {
+                    translation: local.translation,
+                    rotation: local.rotation,
+                });
+            }
+        }
+        if let Ok(child_entities) = children.get(entity) {
+            stack.extend(child_entities.iter());
+        }
+    }
+    result
+}
+
+fn capture_animation_visual_pre_rig_pose(
+    mut pre_rig: ResMut<AnimationVisualPreRigPose>,
+    avatars: Query<Entity, With<AlsCharacterAvatar>>,
+    children: Query<&Children>,
+    named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
+) {
+    let Ok(avatar) = avatars.single() else {
+        return;
+    };
+    pre_rig.bones = collect_local_motion_bones(avatar, &children, &named_transforms);
+}
+
+fn rotation_delta_radians(previous: Quat, current: Quat) -> f32 {
+    (2.0 * previous.dot(current).abs().clamp(0.0, 1.0).acos()).max(0.0)
+}
+
+fn root_pose_activity_from_pose(pose: &Pose) -> RootPoseActivity {
+    let mut activity = RootPoseActivity {
+        output_present: true,
+        bone_count: pose.bones.len(),
+        ..default()
+    };
+    for BonePose {
+        translation,
+        rotation,
+        scale,
+        weights,
+    } in &pose.bones
+    {
+        activity.active_channel_count += translation.is_some() as usize;
+        activity.active_channel_count += rotation.is_some() as usize;
+        activity.active_channel_count += scale.is_some() as usize;
+        activity.active_channel_count += weights.is_some() as usize;
+    }
+    activity
+}
+
+fn root_pose_activity(player: &AnimationGraphPlayer) -> RootPoseActivity {
+    match player.get_outputs().get("pose") {
+        Some(DataValue::Pose(pose)) => root_pose_activity_from_pose(pose),
+        _ => RootPoseActivity::default(),
+    }
+}
+
+fn graph_dependency_state(asset_server: &AssetServer, player: &AnimationGraphPlayer) -> String {
+    match player.get_animation_source() {
+        AnimationSource::Graph(handle) => asset_server
+            .get_recursive_dependency_load_state(handle.id())
+            .map(|state| format!("{state:?}"))
+            .unwrap_or_else(|| "Unknown".to_owned()),
+        _ => "NotGraph".to_owned(),
+    }
+}
+
+fn root_pose_sample(activity: RootPoseActivity) -> RootPoseSample {
+    RootPoseSample {
+        output_present: activity.output_present,
+        bone_count: activity.bone_count,
+        active_channel_count: activity.active_channel_count,
+    }
+}
+
+fn local_motion_pose_sample(
+    bones: &BTreeMap<String, LocalBonePose>,
+) -> BTreeMap<String, LocalMotionBoneSample> {
+    MOTION_BONES
+        .iter()
+        .filter_map(|name| {
+            let pose = bones.get(*name)?;
+            Some((
+                (*name).to_owned(),
+                LocalMotionBoneSample {
+                    translation: [
+                        safe(pose.translation.x),
+                        safe(pose.translation.y),
+                        safe(pose.translation.z),
+                    ],
+                    rotation: [
+                        safe(pose.rotation.x),
+                        safe(pose.rotation.y),
+                        safe(pose.rotation.z),
+                        safe(pose.rotation.w),
+                    ],
+                },
+            ))
+        })
+        .collect()
+}
+
+fn local_motion_span(
+    reference: &BTreeMap<String, LocalBonePose>,
+    current: &BTreeMap<String, LocalBonePose>,
+) -> (f32, f32) {
+    let mut translation_span = 0.0_f32;
+    let mut rotation_span = 0.0_f32;
+    for bone in MOTION_BONES {
+        let Some(reference) = reference.get(*bone) else {
+            continue;
+        };
+        let Some(value) = current.get(*bone) else {
+            continue;
+        };
+        translation_span = translation_span.max(reference.translation.distance(value.translation));
+        rotation_span =
+            rotation_span.max(rotation_delta_radians(reference.rotation, value.rotation));
+    }
+    (translation_span, rotation_span)
+}
+
+fn wrapped_phase_distance(left: f32, right: f32) -> f32 {
+    if !left.is_finite() || !right.is_finite() {
+        return f32::INFINITY;
+    }
+    let difference = (left.rem_euclid(1.0) - right.rem_euclid(1.0)).abs();
+    difference.min((1.0 - difference).abs())
+}
+
+fn record_motion_window(
+    state: &mut AnimationVisualValidationState,
+    evidence: &ManualAnimationWindowEvidence,
+    pre_rig: &AnimationVisualPreRigPose,
+    final_pose: &BTreeMap<String, LocalBonePose>,
+    root_pose: RootPoseActivity,
+    player: &AnimationGraphPlayer,
+    elapsed_seconds: f64,
+) -> bool {
+    if !evidence.settled
+        || !(evidence.requires_pre_rig_motion
+            || evidence.requires_final_pose_motion
+            || evidence.requires_non_reference_root_pose)
+    {
+        return false;
+    }
+    let Some(label) = evidence.label else {
+        return false;
+    };
+    let tracker = state.motion_windows.entry(label.to_owned()).or_default();
+    if tracker.source_node.is_empty() {
+        tracker.source_node = evidence.source_node.unwrap_or_default().to_owned();
+    }
+    if tracker.source_state.is_empty() {
+        tracker.source_state = evidence.source_state.unwrap_or_default().to_owned();
+    }
+    if tracker.expected_direction.is_empty() {
+        tracker.expected_direction = evidence.expected_direction.unwrap_or_default().to_owned();
+    }
+    if tracker.expected_runtime_state.is_none() {
+        tracker.expected_runtime_state = evidence.expected_runtime_state;
+    }
+    if let Some(direction) = evidence.observed_direction {
+        tracker.observed_directions.insert(direction.to_owned());
+    }
+    if let Some(runtime_state) = evidence.observed_runtime_state {
+        tracker.observed_runtime_states.insert(runtime_state);
+    }
+    tracker.requires_pre_rig_motion = evidence.requires_pre_rig_motion;
+    tracker.requires_final_pose_motion = evidence.requires_final_pose_motion;
+    tracker.requires_non_reference_root_pose = evidence.requires_non_reference_root_pose;
+    tracker.minimum_pre_rig_translation_span = evidence.minimum_pre_rig_translation_span.max(0.0);
+    tracker.minimum_pre_rig_rotation_span_radians =
+        evidence.minimum_pre_rig_rotation_span_radians.max(0.0);
+    tracker.minimum_final_translation_span = evidence.minimum_final_translation_span.max(0.0);
+    tracker.minimum_final_rotation_span_radians =
+        evidence.minimum_final_rotation_span_radians.max(0.0);
+    tracker.minimum_observation_seconds = evidence.minimum_observation_seconds.max(0.0);
+    if tracker.source_sync_group.is_empty() {
+        tracker.source_sync_group = evidence.source_sync_group.unwrap_or_default().to_owned();
+    }
+    if tracker.sync_phase_global.is_empty() {
+        tracker.sync_phase_global = evidence.sync_phase_global.unwrap_or_default().to_owned();
+    }
+    tracker.canonical_sync_phase = evidence
+        .canonical_sync_phase
+        .filter(|value| value.is_finite());
+    tracker.maximum_sync_phase_distance = evidence.maximum_sync_phase_distance.max(0.0);
+    if tracker.direction_signature_group.is_empty() {
+        tracker.direction_signature_group = evidence
+            .direction_signature_group
+            .unwrap_or_default()
+            .to_owned();
+    }
+    tracker.required_direction_signature_members = evidence.required_direction_signature_members;
+    tracker.minimum_direction_signature_rotation_radians = evidence
+        .minimum_direction_signature_rotation_radians
+        .max(0.0);
+    let pre_rig_current = pre_rig.bones.clone();
+    if tracker.pre_rig_reference.is_empty() {
+        tracker.pre_rig_reference = pre_rig_current.clone();
+    }
+    if tracker.final_reference.is_empty() {
+        tracker.final_reference = final_pose.clone();
+    }
+    let first_sample_elapsed_seconds = tracker
+        .first_sample_elapsed_seconds
+        .get_or_insert(elapsed_seconds);
+    tracker.observation_seconds = (elapsed_seconds - *first_sample_elapsed_seconds).max(0.0) as f32;
+    let (pre_rig_translation_span, pre_rig_rotation_span) =
+        local_motion_span(&tracker.pre_rig_reference, &pre_rig_current);
+    tracker.max_pre_rig_translation_span = tracker
+        .max_pre_rig_translation_span
+        .max(pre_rig_translation_span);
+    tracker.max_pre_rig_rotation_span_radians = tracker
+        .max_pre_rig_rotation_span_radians
+        .max(pre_rig_rotation_span);
+    let (final_translation_span, final_rotation_span) =
+        local_motion_span(&tracker.final_reference, final_pose);
+    tracker.max_final_translation_span = tracker
+        .max_final_translation_span
+        .max(final_translation_span);
+    tracker.max_final_rotation_span_radians = tracker
+        .max_final_rotation_span_radians
+        .max(final_rotation_span);
+    tracker.root_pose_sample_count += 1;
+    tracker.root_pose_max_active_channels = tracker
+        .root_pose_max_active_channels
+        .max(root_pose.active_channel_count);
+    if root_pose.output_present && root_pose.active_channel_count > 0 {
+        tracker.root_pose_active_samples += 1;
+    } else {
+        tracker.root_pose_reference_samples += 1;
+    }
+    if !tracker.direction_signature_group.is_empty()
+        && let (Some(target_phase), Some(sync_phase)) = (
+            tracker.canonical_sync_phase,
+            evidence.sync_phase_global.and_then(|key| {
+                player
+                    .get_global_input_data(key)
+                    .and_then(|value| value.as_f32().ok())
+                    .filter(|value| value.is_finite())
+            }),
+        )
+    {
+        let distance = wrapped_phase_distance(sync_phase, target_phase);
+        if distance <= tracker.maximum_sync_phase_distance
+            && tracker
+                .canonical_sync_phase_distance
+                .is_none_or(|current| distance < current)
+        {
+            tracker.canonical_sync_phase_distance = Some(distance);
+            tracker.canonical_pre_rig_pose = pre_rig_current;
+        }
+    }
+    tracker.sample_count += 1;
+    tracker.requires_non_reference_root_pose
+        && tracker.root_pose_reference_samples >= 2
+        && tracker.root_pose_active_samples == 0
+}
+
 fn stats(values: &[f64]) -> TimeStats {
     if values.is_empty() {
         return TimeStats {
@@ -563,6 +961,14 @@ fn count_stats(values: &[f64]) -> CountStats {
 
 fn safe(value: f32) -> f32 {
     value.is_finite().then_some(value).unwrap_or(0.0)
+}
+
+fn scheduled_capture_allowed(direction_settled: bool, teleport_detected: bool) -> bool {
+    !direction_settled && !teleport_detected
+}
+
+fn direction_capture_allowed(direction_settled: bool, teleport_detected: bool) -> bool {
+    direction_settled && !teleport_detected
 }
 
 fn sample_vec3(value: Vec3) -> [f32; 3] {
@@ -679,6 +1085,7 @@ fn snapshot(
     stance: Option<&str>,
     rotation_mode: Option<&str>,
     foot_ik: Option<&FootIkSample>,
+    root_pose: RootPoseActivity,
 ) -> PoseSample {
     let bones = bones
         .iter()
@@ -733,6 +1140,7 @@ fn snapshot(
         bones,
         segments,
         foot_ik: foot_ik.cloned(),
+        root_pose: root_pose_sample(root_pose),
     }
 }
 
@@ -783,7 +1191,7 @@ fn write_report(
         ),
     ]);
     let report = AnimationVisualReport {
-        format: "als_animation_visual_evidence_v2",
+        format: "als_animation_visual_evidence_v4",
         case: config.case.clone(),
         ready,
         pass,
@@ -801,6 +1209,48 @@ fn write_report(
         excluded_frame_samples: state.excluded_frame_samples,
         pose_samples: state.pose_samples.clone(),
         screenshots: state.screenshots.clone(),
+        motion_windows: state
+            .motion_windows
+            .iter()
+            .map(|(label, tracker)| MotionWindowSample {
+                label: label.clone(),
+                source_node: tracker.source_node.clone(),
+                source_state: tracker.source_state.clone(),
+                expected_direction: tracker.expected_direction.clone(),
+                observed_directions: tracker.observed_directions.iter().cloned().collect(),
+                expected_runtime_state: tracker.expected_runtime_state,
+                observed_runtime_states: tracker.observed_runtime_states.iter().copied().collect(),
+                sample_count: tracker.sample_count,
+                requires_pre_rig_motion: tracker.requires_pre_rig_motion,
+                requires_final_pose_motion: tracker.requires_final_pose_motion,
+                requires_non_reference_root_pose: tracker.requires_non_reference_root_pose,
+                minimum_pre_rig_translation_span: tracker.minimum_pre_rig_translation_span,
+                minimum_pre_rig_rotation_span_radians: tracker
+                    .minimum_pre_rig_rotation_span_radians,
+                minimum_final_translation_span: tracker.minimum_final_translation_span,
+                minimum_final_rotation_span_radians: tracker.minimum_final_rotation_span_radians,
+                minimum_observation_seconds: tracker.minimum_observation_seconds,
+                observation_seconds: tracker.observation_seconds,
+                max_pre_rig_translation_span: tracker.max_pre_rig_translation_span,
+                max_pre_rig_rotation_span_radians: tracker.max_pre_rig_rotation_span_radians,
+                max_final_translation_span: tracker.max_final_translation_span,
+                max_final_rotation_span_radians: tracker.max_final_rotation_span_radians,
+                root_pose_sample_count: tracker.root_pose_sample_count,
+                root_pose_active_samples: tracker.root_pose_active_samples,
+                root_pose_reference_samples: tracker.root_pose_reference_samples,
+                root_pose_max_active_channels: tracker.root_pose_max_active_channels,
+                source_sync_group: tracker.source_sync_group.clone(),
+                sync_phase_global: tracker.sync_phase_global.clone(),
+                canonical_sync_phase: tracker.canonical_sync_phase,
+                maximum_sync_phase_distance: tracker.maximum_sync_phase_distance,
+                canonical_sync_phase_distance: tracker.canonical_sync_phase_distance,
+                direction_signature_group: tracker.direction_signature_group.clone(),
+                required_direction_signature_members: tracker.required_direction_signature_members,
+                minimum_direction_signature_rotation_radians: tracker
+                    .minimum_direction_signature_rotation_radians,
+                canonical_pre_rig_pose: local_motion_pose_sample(&tracker.canonical_pre_rig_pose),
+            })
+            .collect(),
         faults: state.faults.clone(),
         graph_errors: state.graph_errors.clone(),
         thresholds,
@@ -816,8 +1266,10 @@ fn collect_animation_visual_evidence(
     config: Res<AnimationVisualValidationConfig>,
     mut state: ResMut<AnimationVisualValidationState>,
     mut stages: ResMut<AnimationVisualStageTiming>,
-    direction_evidence: Option<Res<ManualDirectionEvidence>>,
+    animation_window: Option<Res<ManualAnimationWindowEvidence>>,
     phase_evidence: Option<Res<ManualRuntimePhaseEvidence>>,
+    pre_rig: Res<AnimationVisualPreRigPose>,
+    asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
     avatars: Query<(Entity, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
@@ -846,11 +1298,21 @@ fn collect_animation_visual_evidence(
     };
     let graph_ready = graph_asset.is_some();
     let graph_error = player.get_error().map(|error| format!("{error:?}"));
-    let direction_case = direction_evidence
+    if let Some(error) = graph_error.as_ref() {
+        append_unique(
+            &mut state.graph_errors,
+            format!(
+                "{error}; root_graph_recursive_dependencies={}",
+                graph_dependency_state(&asset_server, player)
+            ),
+        );
+    }
+    let root_pose = root_pose_activity(player);
+    let direction_case = animation_window
         .as_deref()
-        .and_then(|evidence| evidence.case)
+        .and_then(|evidence| evidence.label)
         .map(str::to_owned);
-    let direction_settled = direction_evidence
+    let direction_settled = animation_window
         .as_deref()
         .is_some_and(|evidence| evidence.settled);
     let phase = phase_evidence
@@ -951,6 +1413,7 @@ fn collect_animation_visual_evidence(
         fault_detected |= append_unique(&mut state.graph_errors, error);
     }
     let bones = collect_bones(avatar, &children, &named_transforms);
+    let final_pose = collect_local_motion_bones(avatar, &children, &named_transforms);
     state.observed_bones = state.observed_bones.max(bones.len());
     if elapsed >= Duration::from_secs(2) {
         for required in REQUIRED_BONES {
@@ -1038,9 +1501,26 @@ fn collect_animation_visual_evidence(
                 stance,
                 rotation_mode,
                 foot_ik_sample.as_ref(),
+                root_pose,
             );
             sample.segments = segments.clone();
             state.pose_samples.push(sample);
+            if let Some(evidence) = animation_window.as_deref() {
+                if record_motion_window(
+                    &mut state,
+                    evidence,
+                    &pre_rig,
+                    &final_pose,
+                    root_pose,
+                    player,
+                    elapsed.as_secs_f64(),
+                ) {
+                    fault_detected |= append_unique(
+                        &mut state.faults,
+                        format!("reference_root_pose:{}", evidence.label.unwrap_or_default()),
+                    );
+                }
+            }
             state.next_pose_sample = Some(now + Duration::from_millis(100));
             sampled = true;
         }
@@ -1058,11 +1538,28 @@ fn collect_animation_visual_evidence(
             stance,
             rotation_mode,
             foot_ik_sample.as_ref(),
+            root_pose,
         );
         sample.segments = segments.clone();
         state.pose_samples.push(sample);
+        if let Some(evidence) = animation_window.as_deref() {
+            if record_motion_window(
+                &mut state,
+                evidence,
+                &pre_rig,
+                &final_pose,
+                root_pose,
+                player,
+                elapsed.as_secs_f64(),
+            ) {
+                fault_detected |= append_unique(
+                    &mut state.faults,
+                    format!("reference_root_pose:{}", evidence.label.unwrap_or_default()),
+                );
+            }
+        }
     }
-    if !direction_settled
+    if scheduled_capture_allowed(direction_settled, teleport_detected)
         && state.capture_index < config.capture_count
         && state
             .next_capture
@@ -1093,7 +1590,7 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if direction_settled
+    if direction_capture_allowed(direction_settled, teleport_detected)
         && let Some(direction_case) = direction_case.as_ref()
         && state
             .captured_direction_cases
@@ -1228,5 +1725,38 @@ mod tests {
             Some(Instant::now()),
         );
         assert_eq!(stages.samples["physics_step"].len(), 1);
+    }
+
+    #[test]
+    fn teleport_capture_excludes_competing_window_captures() {
+        assert!(!scheduled_capture_allowed(false, true));
+        assert!(!direction_capture_allowed(true, true));
+        assert!(scheduled_capture_allowed(false, false));
+        assert!(direction_capture_allowed(true, false));
+    }
+
+    #[test]
+    fn root_pose_activity_distinguishes_reference_and_animated_channels() {
+        let reference = root_pose_activity_from_pose(&Pose::default());
+        assert!(reference.output_present);
+        assert_eq!(reference.bone_count, 0);
+        assert_eq!(reference.active_channel_count, 0);
+        let animated = Pose {
+            bones: vec![BonePose {
+                rotation: Some(Quat::IDENTITY),
+                ..default()
+            }],
+            ..default()
+        };
+        let activity = root_pose_activity_from_pose(&animated);
+        assert!(activity.output_present);
+        assert_eq!(activity.bone_count, 1);
+        assert_eq!(activity.active_channel_count, 1);
+    }
+
+    #[test]
+    fn sync_phase_distance_wraps_at_cycle_boundary() {
+        assert!(wrapped_phase_distance(0.98, 0.02) < 0.05);
+        assert!((wrapped_phase_distance(0.25, 0.5) - 0.25).abs() < 1e-6);
     }
 }

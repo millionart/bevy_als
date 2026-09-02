@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import math
 import tempfile
@@ -7,14 +8,23 @@ from pathlib import Path
 from PIL import Image, ImageStat
 
 
-FORMAT = "als_animation_visual_evidence_v2"
+FORMAT = "als_animation_visual_evidence_v4"
+MOTION_EPSILON = 1e-5
+MOTION_BONES = (
+    "thigh_l",
+    "calf_l",
+    "foot_l",
+    "thigh_r",
+    "calf_r",
+    "foot_r",
+)
 STATE_MACHINE_DIRECTION_CASES = {
     "walk_forward",
     "run_backward",
-    "run_forward_right",
-    "run_backward_right",
-    "run_backward_left",
-    "run_forward_left",
+    "run_right_from_backward",
+    "run_left_from_right_backward",
+    "run_backward_from_left_forward",
+    "run_right_from_left_backward",
 }
 
 
@@ -92,6 +102,16 @@ def issues_for_sample(sample, required_bones):
         value = sample.get(key)
         if value is not None and (not isinstance(value, str) or not value):
             issues.append(f"pose sample runtime state is invalid: {key}")
+    root_pose = sample.get("root_pose")
+    if not isinstance(root_pose, dict):
+        issues.append("pose sample root pose is invalid")
+    else:
+        if not isinstance(root_pose.get("output_present"), bool):
+            issues.append("pose sample root pose output flag is invalid")
+        for key in ("bone_count", "active_channel_count"):
+            value = root_pose.get(key)
+            if not isinstance(value, int) or value < 0:
+                issues.append(f"pose sample root pose metric is invalid: {key}")
     foot_ik = sample.get("foot_ik")
     if foot_ik is not None:
         if not isinstance(foot_ik, dict):
@@ -143,6 +163,298 @@ def issues_for_sample(sample, required_bones):
                 for key in ("last_translation_delta_m", "remaining_seconds"):
                     if not finite(teleport.get(key)):
                         issues.append(f"foot lock teleport scalar is invalid: {key}")
+    return issues
+
+
+def local_motion_pose_issues(pose, label):
+    issues = []
+    if not isinstance(pose, dict):
+        return [f"motion window canonical pose is invalid: {label}"]
+    missing = sorted(set(MOTION_BONES) - set(pose))
+    if missing:
+        issues.append(f"motion window canonical pose is missing bones: {label}: " + ", ".join(missing))
+    for name in MOTION_BONES:
+        value = pose.get(name)
+        if not isinstance(value, dict):
+            continue
+        translation = value.get("translation")
+        rotation = value.get("rotation")
+        if not isinstance(translation, list) or len(translation) != 3 or not all(finite(item) for item in translation):
+            issues.append(f"motion window canonical translation is invalid: {label}.{name}")
+        if not isinstance(rotation, list) or len(rotation) != 4 or not all(finite(item) for item in rotation):
+            issues.append(f"motion window canonical rotation is invalid: {label}.{name}")
+        elif sum(item * item for item in rotation) < 0.25:
+            issues.append(f"motion window canonical rotation is degenerate: {label}.{name}")
+    return issues
+
+
+def quaternion_distance(left, right):
+    if not isinstance(left, list) or not isinstance(right, list) or len(left) != 4 or len(right) != 4:
+        return None
+    if not all(finite(value) for value in left + right):
+        return None
+    left_length = math.sqrt(sum(value * value for value in left))
+    right_length = math.sqrt(sum(value * value for value in right))
+    if left_length <= MOTION_EPSILON or right_length <= MOTION_EPSILON:
+        return None
+    dot = abs(sum(a * b for a, b in zip(left, right)) / (left_length * right_length))
+    return 2.0 * math.acos(min(1.0, max(0.0, dot)))
+
+
+def canonical_rotation_distance(left, right):
+    maximum = 0.0
+    compared = 0
+    for name in MOTION_BONES:
+        left_rotation = left.get(name, {}).get("rotation") if isinstance(left, dict) else None
+        right_rotation = right.get(name, {}).get("rotation") if isinstance(right, dict) else None
+        distance = quaternion_distance(left_rotation, right_rotation)
+        if distance is None:
+            continue
+        maximum = max(maximum, distance)
+        compared += 1
+    return maximum if compared == len(MOTION_BONES) else None
+
+
+def direction_signature_issues(windows):
+    issues = []
+    groups = {}
+    for window in windows:
+        if not isinstance(window, dict):
+            continue
+        group = window.get("direction_signature_group")
+        if group in (None, ""):
+            continue
+        label = window.get("label")
+        if not isinstance(group, str) or not group or not isinstance(label, str) or not label:
+            issues.append("direction signature group is invalid")
+            continue
+        source_state = window.get("source_state")
+        expected_direction = window.get("expected_direction")
+        observed_directions = window.get("observed_directions")
+        expected_runtime_state = window.get("expected_runtime_state")
+        observed_runtime_states = window.get("observed_runtime_states")
+        source_sync_group = window.get("source_sync_group")
+        sync_phase_global = window.get("sync_phase_global")
+        canonical_phase = window.get("canonical_sync_phase")
+        maximum_phase_distance = window.get("maximum_sync_phase_distance")
+        canonical_phase_distance = window.get("canonical_sync_phase_distance")
+        required_members = window.get("required_direction_signature_members")
+        minimum_rotation = window.get("minimum_direction_signature_rotation_radians")
+        if not isinstance(source_state, str) or not source_state:
+            issues.append(f"direction signature source state is missing: {label}")
+        if not isinstance(expected_direction, str) or not expected_direction:
+            issues.append(f"direction signature expected direction is missing: {label}")
+        if not isinstance(observed_directions, list) or observed_directions != [expected_direction]:
+            issues.append(f"direction signature observed direction does not match: {label}")
+        if not isinstance(expected_runtime_state, int) or expected_runtime_state < 0:
+            issues.append(f"direction signature expected runtime state is invalid: {label}")
+        if not isinstance(observed_runtime_states, list) or observed_runtime_states != [expected_runtime_state]:
+            issues.append(f"direction signature observed runtime state does not match: {label}")
+        if not isinstance(source_sync_group, str) or not source_sync_group:
+            issues.append(f"direction signature source sync group is missing: {label}")
+        if not isinstance(sync_phase_global, str) or not sync_phase_global:
+            issues.append(f"direction signature sync phase input is missing: {label}")
+        if not finite(canonical_phase) or not 0.0 <= canonical_phase < 1.0:
+            issues.append(f"direction signature canonical phase is invalid: {label}")
+        if not finite(maximum_phase_distance) or maximum_phase_distance <= MOTION_EPSILON:
+            issues.append(f"direction signature phase tolerance is invalid: {label}")
+        if not finite(canonical_phase_distance) or canonical_phase_distance < 0.0:
+            issues.append(f"direction signature canonical sample is missing: {label}")
+        elif finite(maximum_phase_distance) and canonical_phase_distance > maximum_phase_distance:
+            issues.append(f"direction signature canonical sample is outside tolerance: {label}")
+        if not isinstance(required_members, int) or required_members < 2:
+            issues.append(f"direction signature member count is invalid: {label}")
+        if not finite(minimum_rotation) or minimum_rotation <= MOTION_EPSILON:
+            issues.append(f"direction signature rotation floor is invalid: {label}")
+        issues.extend(local_motion_pose_issues(window.get("canonical_pre_rig_pose"), label))
+        groups.setdefault(group, []).append(window)
+    for group, members in groups.items():
+        expected_counts = {member.get("required_direction_signature_members") for member in members}
+        expected_count = next(iter(expected_counts)) if len(expected_counts) == 1 else None
+        if expected_count is None:
+            issues.append(f"direction signature group has inconsistent member counts: {group}")
+            continue
+        if len(members) != expected_count:
+            issues.append(
+                f"direction signature group has incomplete source coverage: {group}: {len(members)}/{expected_count}"
+            )
+        labels = [member.get("label") for member in members]
+        if len(set(labels)) != len(labels):
+            issues.append(f"direction signature group has duplicate labels: {group}")
+        floors = {member.get("minimum_direction_signature_rotation_radians") for member in members}
+        if len(floors) != 1:
+            issues.append(f"direction signature group has inconsistent rotation floors: {group}")
+            continue
+        floor = next(iter(floors))
+        if not finite(floor) or floor <= MOTION_EPSILON:
+            continue
+        for index, left in enumerate(members):
+            for right in members[index + 1 :]:
+                distance = canonical_rotation_distance(
+                    left.get("canonical_pre_rig_pose"), right.get("canonical_pre_rig_pose")
+                )
+                if distance is None:
+                    continue
+                if distance < floor:
+                    issues.append(
+                        "direction signature is not distinct: "
+                        + f"{group}: {left.get('label')} vs {right.get('label')}"
+                    )
+    return issues
+
+
+def motion_window_issues(report, screenshots, pose_samples):
+    issues = []
+    windows = report.get("motion_windows")
+    if not isinstance(windows, list):
+        return ["motion windows are invalid"]
+    for window in windows:
+        if not isinstance(window, dict):
+            issues.append("motion window is invalid")
+            continue
+        label = window.get("label")
+        source_node = window.get("source_node")
+        sample_count = window.get("sample_count")
+        requires_pre_rig_motion = window.get("requires_pre_rig_motion")
+        requires_final_pose_motion = window.get("requires_final_pose_motion")
+        requires_non_reference_root_pose = window.get("requires_non_reference_root_pose")
+        pre_translation_floor = window.get("minimum_pre_rig_translation_span")
+        pre_rotation_floor = window.get("minimum_pre_rig_rotation_span_radians")
+        final_translation_floor = window.get("minimum_final_translation_span")
+        final_rotation_floor = window.get("minimum_final_rotation_span_radians")
+        minimum_observation_seconds = window.get("minimum_observation_seconds")
+        observation_seconds = window.get("observation_seconds")
+        pre_translation_delta = window.get("max_pre_rig_translation_span")
+        pre_rotation_delta = window.get("max_pre_rig_rotation_span_radians")
+        final_translation_delta = window.get("max_final_translation_span")
+        final_rotation_delta = window.get("max_final_rotation_span_radians")
+        if not isinstance(label, str) or not label:
+            issues.append("motion window label is invalid")
+            continue
+        if not isinstance(source_node, str) or not source_node:
+            issues.append(f"motion window source is missing: {label}")
+        if not isinstance(sample_count, int) or sample_count < 2:
+            issues.append(f"motion window has insufficient pose samples: {label}")
+        for name, value in (
+            ("requires_pre_rig_motion", requires_pre_rig_motion),
+            ("requires_final_pose_motion", requires_final_pose_motion),
+            ("requires_non_reference_root_pose", requires_non_reference_root_pose),
+        ):
+            if not isinstance(value, bool):
+                issues.append(f"motion window requirement is invalid: {label}.{name}")
+        for name, value in (
+            ("pre-rig translation floor", pre_translation_floor),
+            ("pre-rig rotation floor", pre_rotation_floor),
+            ("final translation floor", final_translation_floor),
+            ("final rotation floor", final_rotation_floor),
+            ("observation floor", minimum_observation_seconds),
+            ("observation span", observation_seconds),
+            ("pre-rig translation delta", pre_translation_delta),
+            ("pre-rig rotation delta", pre_rotation_delta),
+            ("final translation delta", final_translation_delta),
+            ("final rotation delta", final_rotation_delta),
+        ):
+            if not finite(value) or value < 0.0:
+                issues.append(f"motion window {name} is invalid: {label}")
+        if requires_pre_rig_motion is True:
+            if finite(pre_translation_delta) and finite(pre_rotation_delta) and (
+                pre_translation_delta <= MOTION_EPSILON and pre_rotation_delta <= MOTION_EPSILON
+            ):
+                issues.append(f"motion window is static before rig application: {label}")
+            if (
+                finite(pre_translation_floor)
+                and finite(pre_rotation_floor)
+                and finite(pre_translation_delta)
+                and finite(pre_rotation_delta)
+                and (pre_translation_floor > MOTION_EPSILON or pre_rotation_floor > MOTION_EPSILON)
+                and (pre_translation_floor <= MOTION_EPSILON or pre_translation_delta < pre_translation_floor)
+                and (pre_rotation_floor <= MOTION_EPSILON or pre_rotation_delta < pre_rotation_floor)
+            ):
+                issues.append(f"motion window is below its source-derived pre-rig floor: {label}")
+        if requires_final_pose_motion is True:
+            if finite(final_translation_delta) and finite(final_rotation_delta) and (
+                final_translation_delta <= MOTION_EPSILON and final_rotation_delta <= MOTION_EPSILON
+            ):
+                issues.append(f"motion window is static after rig application: {label}")
+            if (
+                finite(final_translation_floor)
+                and finite(final_rotation_floor)
+                and finite(final_translation_delta)
+                and finite(final_rotation_delta)
+                and (final_translation_floor > MOTION_EPSILON or final_rotation_floor > MOTION_EPSILON)
+                and (final_translation_floor <= MOTION_EPSILON or final_translation_delta < final_translation_floor)
+                and (final_rotation_floor <= MOTION_EPSILON or final_rotation_delta < final_rotation_floor)
+            ):
+                issues.append(f"motion window is below its source-derived final floor: {label}")
+        if (
+            finite(minimum_observation_seconds)
+            and finite(observation_seconds)
+            and observation_seconds < minimum_observation_seconds
+        ):
+            issues.append(f"motion window observation is too short: {label}")
+        root_sample_count = window.get("root_pose_sample_count")
+        root_active_samples = window.get("root_pose_active_samples")
+        root_reference_samples = window.get("root_pose_reference_samples")
+        root_max_channels = window.get("root_pose_max_active_channels")
+        for name, value in (
+            ("sample count", root_sample_count),
+            ("active samples", root_active_samples),
+            ("reference samples", root_reference_samples),
+            ("maximum channels", root_max_channels),
+        ):
+            if not isinstance(value, int) or value < 0:
+                issues.append(f"motion window root pose {name} is invalid: {label}")
+        if requires_non_reference_root_pose is True and (
+            not isinstance(root_sample_count, int)
+            or not isinstance(root_active_samples, int)
+            or not isinstance(root_reference_samples, int)
+            or not isinstance(root_max_channels, int)
+            or root_sample_count < 2
+            or root_sample_count != sample_count
+            or root_active_samples != root_sample_count
+            or root_reference_samples != 0
+            or root_max_channels <= 0
+        ):
+            issues.append(f"motion window resolved to a reference root pose: {label}")
+        expected_direction = window.get("expected_direction")
+        observed_directions = window.get("observed_directions")
+        if not isinstance(expected_direction, str):
+            issues.append(f"motion window expected direction is invalid: {label}")
+        if not isinstance(observed_directions, list) or not all(
+            isinstance(value, str) and value for value in observed_directions
+        ):
+            issues.append(f"motion window observed directions are invalid: {label}")
+        elif expected_direction and observed_directions != [expected_direction]:
+            issues.append(f"motion window selected the wrong direction: {label}")
+        expected_runtime_state = window.get("expected_runtime_state")
+        observed_runtime_states = window.get("observed_runtime_states")
+        if expected_runtime_state is not None and (
+            not isinstance(expected_runtime_state, int) or expected_runtime_state < 0
+        ):
+            issues.append(f"motion window expected runtime state is invalid: {label}")
+        if not isinstance(observed_runtime_states, list) or not all(
+            isinstance(value, int) and value >= 0 for value in observed_runtime_states
+        ):
+            issues.append(f"motion window observed runtime states are invalid: {label}")
+        elif expected_runtime_state is not None and observed_runtime_states != [expected_runtime_state]:
+            issues.append(f"motion window selected the wrong runtime state: {label}")
+        matching_screenshots = [
+            value
+            for value in screenshots
+            if isinstance(value, dict)
+            and value.get("kind") == "direction"
+            and value.get("direction_case") == label
+        ]
+        if not matching_screenshots:
+            issues.append(f"motion window screenshot is missing: {label}")
+        matching_samples = [
+            value
+            for value in pose_samples
+            if isinstance(value, dict) and value.get("direction_case") == label
+        ]
+        if len(matching_samples) < 2:
+            issues.append(f"motion window pose samples are missing: {label}")
+    issues.extend(direction_signature_issues(windows))
     return issues
 
 
@@ -349,6 +661,7 @@ def audit(report, min_screenshots):
             for sample in sprint_samples
         ):
             issues.append("sprint source curve relay is missing")
+    issues.extend(motion_window_issues(report, screenshots, pose_samples))
     issues = list(dict.fromkeys(issues))
     return {"pass": not issues, "issues": issues, "images": images}
 
@@ -378,6 +691,7 @@ def fixture_report(paths):
                     "head": {"translation": [0.0, 1.0, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0], "scale": [1.0, 1.0, 1.0], "local_scale": [1.0, 1.0, 1.0]},
                 },
                 "segments": {"pelvis->head": 1.0},
+                "root_pose": {"output_present": True, "bone_count": 2, "active_channel_count": 6},
                 "foot_ik": {
                     "source_curves_available": True,
                     "pose_moving": 1.0,
@@ -434,10 +748,88 @@ def fixture_report(paths):
             }
         ],
         "screenshots": [{"path": str(path), "elapsed_secs": 1.0, "kind": "fixture", "faults": []} for path in paths],
+        "motion_windows": [],
         "faults": [],
         "graph_errors": [],
         "thresholds": {"max_frame_p95_ms": 25.0, "max_frame_ms": 75.0, "max_eval_p95_ms": 4.0, "max_physics_steps_per_render": 3.0},
     }
+
+
+def fixture_canonical_pose(rotation_radians=0.0):
+    half_angle = rotation_radians * 0.5
+    return {
+        name: {
+            "translation": [0.0, 0.0, 0.0],
+            "rotation": [math.sin(half_angle), 0.0, 0.0, math.cos(half_angle)],
+        }
+        for name in MOTION_BONES
+    }
+
+
+def fixture_motion_window(label="dynamic", rotation_radians=0.0, group=None):
+    is_group_member = group is not None
+    group_state = {
+        "forward": 0,
+        "backward": 1,
+        "right_forward": 2,
+        "right_backward": 3,
+        "left_forward": 4,
+        "left_backward": 5,
+    }.get(label, 0)
+    group_direction = f"Direction {label}"
+    return {
+        "label": label,
+        "source_node": "Source/Sequence Player",
+        "source_state": f"State {label}" if is_group_member else "",
+        "expected_direction": group_direction if is_group_member else "",
+        "observed_directions": [group_direction] if is_group_member else [],
+        "expected_runtime_state": group_state if is_group_member else None,
+        "observed_runtime_states": [group_state] if is_group_member else [],
+        "sample_count": 2,
+        "requires_pre_rig_motion": True,
+        "requires_final_pose_motion": True,
+        "requires_non_reference_root_pose": True,
+        "minimum_pre_rig_translation_span": 0.0,
+        "minimum_pre_rig_rotation_span_radians": 0.0,
+        "minimum_final_translation_span": 0.0,
+        "minimum_final_rotation_span_radians": 0.0,
+        "minimum_observation_seconds": 0.0,
+        "observation_seconds": 1.0,
+        "max_pre_rig_translation_span": 0.01,
+        "max_pre_rig_rotation_span_radians": 0.01,
+        "max_final_translation_span": 0.01,
+        "max_final_rotation_span_radians": 0.01,
+        "root_pose_sample_count": 2,
+        "root_pose_active_samples": 2,
+        "root_pose_reference_samples": 0,
+        "root_pose_max_active_channels": 6,
+        "source_sync_group": "Movement" if is_group_member else "",
+        "sync_phase_global": "marker_phase" if is_group_member else "",
+        "canonical_sync_phase": 0.5 if is_group_member else None,
+        "maximum_sync_phase_distance": 0.1 if is_group_member else 0.0,
+        "canonical_sync_phase_distance": 0.01 if is_group_member else None,
+        "direction_signature_group": group or "",
+        "required_direction_signature_members": 6 if is_group_member else 0,
+        "minimum_direction_signature_rotation_radians": 0.01 if is_group_member else 0.0,
+        "canonical_pre_rig_pose": fixture_canonical_pose(rotation_radians) if is_group_member else {},
+    }
+
+
+def add_dynamic_window_samples(report, labels):
+    for label in labels:
+        sample = copy.deepcopy(report["pose_samples"][0])
+        sample["direction_case"] = label
+        report["pose_samples"].append(sample)
+        report["pose_samples"].append(copy.deepcopy(sample))
+        report["screenshots"].append(
+            {
+                "path": report["screenshots"][0]["path"],
+                "elapsed_secs": 1.0,
+                "kind": "direction",
+                "direction_case": label,
+                "faults": [],
+            }
+        )
 
 
 def run_self_test():
@@ -468,6 +860,9 @@ def run_self_test():
         report["faults"] = ["fault"]
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
+        report["graph_errors"] = ["ClipMissing"]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
         report["stage_time"].pop("physics_step")
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
@@ -488,15 +883,92 @@ def run_self_test():
         assert audit(report, 2)["pass"]
         report["pose_samples"][0]["foot_ik"]["standing_pose_moving_global"] = 0.0
         assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["max_pre_rig_translation_span"] = 0.0
+        report["motion_windows"][0]["max_pre_rig_rotation_span_radians"] = 0.0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["screenshots"] = [
+            value
+            for value in report["screenshots"]
+            if value.get("direction_case") != "dynamic"
+        ]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["minimum_observation_seconds"] = 2.0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["minimum_pre_rig_rotation_span_radians"] = 0.1
+        report["motion_windows"][0]["max_pre_rig_translation_span"] = 0.0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["root_pose_active_samples"] = 0
+        report["motion_windows"][0]["root_pose_reference_samples"] = 2
+        report["motion_windows"][0]["root_pose_max_active_channels"] = 0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["max_final_translation_span"] = 0.0
+        report["motion_windows"][0]["max_final_rotation_span_radians"] = 0.0
+        assert not audit(report, 2)["pass"]
+        labels = [
+            "forward",
+            "backward",
+            "right_forward",
+            "right_backward",
+            "left_backward",
+            "left_forward",
+        ]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, labels)
+        report["motion_windows"] = [
+            fixture_motion_window(label, rotation_radians=index * 0.1, group="movement")
+            for index, label in enumerate(labels)
+        ]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"] = [
+            fixture_motion_window(label, rotation_radians=0.0, group="movement")
+            for label in labels
+        ]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, labels)
+        report["motion_windows"] = [
+            fixture_motion_window(label, rotation_radians=index * 0.1, group="movement")
+            for index, label in enumerate(labels)
+        ]
+        report["motion_windows"][0]["observed_runtime_states"] = [5]
+        assert not audit(report, 2)["pass"]
     return {
         "runtime_report_and_png_checked": "PASS",
         "fault_rejected": "PASS",
+        "startup_graph_error_rejected": "PASS",
         "foot_lock_teleport_evidence_required": "PASS",
         "foot_ik_teleport_case_required": "PASS",
         "runtime_phase_evidence_required": "PASS",
         "physics_step_stage_required": "PASS",
         "state_machine_direction_evidence_required": "PASS",
         "sprint_source_curve_relay_required": "PASS",
+        "shared_pre_rig_motion_window_required": "PASS",
+        "static_dynamic_window_rejected": "PASS",
+        "source_motion_floor_required": "PASS",
+        "motion_window_span_required": "PASS",
+        "reference_root_pose_rejected": "PASS",
+        "static_final_pose_rejected": "PASS",
+        "collapsed_direction_signatures_rejected": "PASS",
+        "wrong_direction_state_rejected": "PASS",
     }
 
 

@@ -17,6 +17,9 @@ from capture_animgraph_ron_topology import parse_positions
 FORMAT = "als_ue_visible_animgraph_map_v2"
 SOURCE_FORMAT = "als_ue_visible_graph_contract_v2"
 COMMENT_POLICIES = {"require", "ignore"}
+EXPERIMENTAL_NODE_MAINTENANCE_NOTE = (
+    "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+)
 
 
 def read_json(path):
@@ -62,6 +65,20 @@ def source_property_text(node):
         for property_value in values
         if isinstance(property_value, dict)
     )
+
+
+def source_experimental_warning(node):
+    values = sorted(
+        {
+            property_value["exported_text"]
+            for property_value in node.get("properties", [])
+            if isinstance(property_value, dict)
+            and property_value.get("name") == "ErrorMsg"
+            and isinstance(property_value.get("exported_text"), str)
+            and "experimental" in property_value["exported_text"].lower()
+        }
+    )
+    return "\n".join(values)
 
 
 def root_behavior_function_names(node):
@@ -276,6 +293,37 @@ def property_assertion_issues(value, label):
     return issues
 
 
+def experimental_note_shape_issues(value, label):
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return [f"{label} must be an array"]
+    issues = []
+    source_nodes = set()
+    required = {
+        "source_node",
+        "target_node",
+        "source_warning",
+        "maintenance_note",
+    }
+    for index, note in enumerate(value):
+        item_label = f"{label}[{index}]"
+        if not isinstance(note, dict) or set(note) != required:
+            issues.append(f"{item_label} is invalid")
+            continue
+        for key in ("source_node", "target_node", "source_warning", "maintenance_note"):
+            if not isinstance(note[key], str) or not note[key]:
+                issues.append(f"{item_label} {key} is invalid")
+        if note.get("maintenance_note") != EXPERIMENTAL_NODE_MAINTENANCE_NOTE:
+            issues.append(f"{item_label} maintenance_note is invalid")
+        source_node = note.get("source_node")
+        if isinstance(source_node, str) and source_node:
+            if source_node in source_nodes:
+                issues.append(f"duplicate {label} source node {source_node}")
+            source_nodes.add(source_node)
+    return issues
+
+
 def map_shape_issues(mapping):
     issues = []
     if mapping.get("format") != FORMAT:
@@ -337,6 +385,11 @@ def map_shape_issues(mapping):
         not isinstance(mapping.get("comment_exception"), str) or not mapping["comment_exception"]
     ):
         issues.append("comment_exception is required when comment_policy is ignore")
+    issues.extend(
+        experimental_note_shape_issues(
+            mapping.get("experimental_node_notes"), "experimental_node_notes"
+        )
+    )
     return issues
 
 
@@ -647,6 +700,7 @@ def audit(root, mapping):
     target_spec_by_id = {node["id"]: node for node in spec["nodes"]}
     source_visible = source_visible_nodes(contract)
     source_comments = [node for node in source_nodes(contract) if is_comment(node)]
+    source_root_node = source_root(contract)
     source_by_path = {node["object_path"]: node for node in source_visible}
     node_map = {value["source_node"]: value for value in mapping["node_map"]}
     target_ids = {node["id"] for node in target_ordered}
@@ -665,6 +719,55 @@ def audit(root, mapping):
         differences.append({"unmapped_target_nodes": missing_target})
     if unknown_target:
         differences.append({"unknown_target_nodes": unknown_target})
+    experimental_targets = {
+        node["object_path"]: node_map[node["object_path"]]["target_node"]
+        for node in source_visible
+        if node["object_path"] in node_map
+    }
+    experimental_targets[source_root_node["object_path"]] = "Output"
+    experimental_warnings = {
+        node["object_path"]: source_experimental_warning(node)
+        for node in [*source_visible, source_root_node]
+        if source_experimental_warning(node)
+    }
+    experimental_notes = {
+        note["source_node"]: note
+        for note in mapping.get("experimental_node_notes", [])
+    }
+    for source_node, source_warning in experimental_warnings.items():
+        note = experimental_notes.get(source_node)
+        if note is None:
+            differences.append(
+                {
+                    "experimental_node_note_missing": {
+                        "source_node": source_node,
+                        "source_warning": source_warning,
+                    }
+                }
+            )
+            continue
+        target_node = experimental_targets[source_node]
+        if note["target_node"] != target_node or note["source_warning"] != source_warning:
+            differences.append(
+                {
+                    "experimental_node_note_mismatch": {
+                        "source_node": source_node,
+                        "source_warning": source_warning,
+                        "target_node": target_node,
+                        "note": note,
+                    }
+                }
+            )
+    for source_node, note in experimental_notes.items():
+        if source_node not in experimental_warnings:
+            differences.append(
+                {
+                    "experimental_node_note_stale": {
+                        "source_node": source_node,
+                        "note": note,
+                    }
+                }
+            )
     expected_node_order = [
         node_map[node["object_path"]]["target_node"]
         for node in source_visible
@@ -716,7 +819,6 @@ def audit(root, mapping):
             differences,
         )
         mapped_nodes.append(row)
-    source_root_node = source_root(contract)
     source_output = [float(source_root_node["position_x"]), float(source_root_node["position_y"])]
     target_output = target_output_position(target_text)
     if source_output != target_output:
@@ -792,6 +894,8 @@ def audit(root, mapping):
             "mapped_nodes": mapped_nodes,
             "root_output_pins": root_rows,
             "root_property_assertions": root_property_rows,
+            "experimental_node_notes": list(experimental_notes.values()),
+            "experimental_source_warnings": experimental_warnings,
             "differences": differences,
             "pass": not differences,
         }
@@ -810,7 +914,7 @@ def run_self_test():
         "source_graph": {
             "nodes": [
                 {"object_path": "/Asset:AnimGraph.Root", "class_path": "/Script/AnimGraph.AnimGraphNode_Root", "position_x": 0, "position_y": 0, "title": "Output Pose\nAnimGraph", "properties": [{"name": "StateExitFunction", "exported_text": "(MemberName=\"source_state_exit\")"}], "binding": {"properties": [{"name": "PropertyBindings", "exported_text": "((\"Result\", (PathAsText=\"source_binding\")))"}]}, "pins": [{"name": "Result", "direction": "Input", "hidden": False, "default_value": "False", "linked_to": [], "pin_type_properties": pose_type}]},
-                {"object_path": "/Asset:AnimGraph.Source", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -128, "position_y": 0, "title": "Source", "binding": None, "properties": [{"exported_text": "source_scalar=0"}], "pins": [{"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
+                {"object_path": "/Asset:AnimGraph.Source", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -128, "position_y": 0, "title": "Source", "binding": None, "properties": [{"exported_text": "source_scalar=0"}, {"name": "ErrorMsg", "exported_text": "Source - Node is experimental"}], "pins": [{"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
                 {"object_path": "/Asset:AnimGraph.Target", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -64, "position_y": 0, "title": "Target", "binding": None, "pins": [{"name": "Source", "direction": "Input", "hidden": False, "pin_type_properties": pose_type}, {"name": "Alpha", "direction": "Input", "hidden": False, "default_value": "0.0", "linked_to": [], "pin_type_properties": float_type}, {"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
             ]
         },
@@ -849,6 +953,14 @@ def run_self_test():
         "root_output_pins": [{"source": "Result", "target": "Result", "target_binding": "runtime_binding", "source_default": "False", "target_default_contains": "runtime_default_false", "target_runtime_path": "runtime.rs"}],
         "root_property_assertions": [{"source_contains": "MemberName=\"source_state_exit\"", "target_contains": "source_state_exit", "target_runtime_path": "runtime.rs"}],
         "require_root_property_assertions": True,
+        "experimental_node_notes": [
+            {
+                "source_node": "/Asset:AnimGraph.Source",
+                "target_node": "source",
+                "source_warning": "Source - Node is experimental",
+                "maintenance_note": EXPERIMENTAL_NODE_MAINTENANCE_NOTE,
+            }
+        ],
         "comment_groups": [],
         "comment_policy": "require",
     }
@@ -859,6 +971,34 @@ def run_self_test():
         (root / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
         (root / "runtime.rs").write_text("runtime_binding runtime_default_false source_state_exit", encoding="utf-8")
         assert audit(root, mapping)["pass"]
+        missing_experimental_note = json.loads(json.dumps(mapping))
+        missing_experimental_note.pop("experimental_node_notes")
+        missing_experimental_report = audit(root, missing_experimental_note)
+        assert not missing_experimental_report["pass"]
+        assert any(
+            "experimental_node_note_missing" in difference
+            for difference in missing_experimental_report["differences"]
+        )
+        redundant_experimental_flag = json.loads(json.dumps(mapping))
+        redundant_experimental_flag["experimental_node_notes"][0][
+            "recheck_when_warning_clears"
+        ] = True
+        assert not audit(root, redundant_experimental_flag)["pass"]
+        stale_experimental_note = json.loads(json.dumps(mapping))
+        contract_without_experimental_warning = json.loads(json.dumps(contract))
+        contract_without_experimental_warning["source_graph"]["nodes"][1]["properties"] = [
+            {"exported_text": "source_scalar=0"}
+        ]
+        (root / "contract.json").write_text(
+            json.dumps(contract_without_experimental_warning), encoding="utf-8"
+        )
+        stale_experimental_report = audit(root, stale_experimental_note)
+        assert not stale_experimental_report["pass"]
+        assert any(
+            "experimental_node_note_stale" in difference
+            for difference in stale_experimental_report["differences"]
+        )
+        (root / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
         missing_root_lifecycle = json.loads(json.dumps(mapping))
         missing_root_lifecycle["root_property_assertions"] = []
         assert not audit(root, missing_root_lifecycle)["pass"]
@@ -951,6 +1091,9 @@ def run_self_test():
         "property_runtime_path_and_exception_supported": "PASS",
         "root_lifecycle_property_assertion_required": "PASS",
         "bound_transition_result_root_edge_accepted": "PASS",
+        "experimental_source_warning_note_required": "PASS",
+        "stale_experimental_note_rejected": "PASS",
+        "redundant_experimental_flag_rejected": "PASS",
     }
 
 

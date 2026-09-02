@@ -495,6 +495,10 @@ pub struct AlsCrouchingGraphTelemetry {
     pub runtime_movement_state: Option<u8>,
     pub runtime_movement_transition_active: Option<bool>,
     pub graph_movement_state_input: Option<f32>,
+    pub graph_stride_amount: Option<f32>,
+    pub graph_play_rate: Option<f32>,
+    pub graph_marker_phase: Option<f32>,
+    pub graph_pose_moving: Option<f32>,
     pub dominant_velocity_index: Option<u8>,
     pub dominant_velocity_weight: Option<f32>,
     pub lean_right_amount: Option<f32>,
@@ -1380,6 +1384,18 @@ fn capture_crouching_graph_telemetry(
             graph_movement_state_input: player
                 .get_global_input_data("als_crouching_movement_state_index")
                 .and_then(|value| value.as_f32().ok()),
+            graph_stride_amount: player
+                .get_global_input_data("als_crouching_stride_amount")
+                .and_then(|value| value.as_f32().ok()),
+            graph_play_rate: player
+                .get_global_input_data("als_crouching_play_rate")
+                .and_then(|value| value.as_f32().ok()),
+            graph_marker_phase: player
+                .get_global_input_data("als_crouching_movement_marker_phase")
+                .and_then(|value| value.as_f32().ok()),
+            graph_pose_moving: player
+                .get_global_input_data("als_crouching_curve_pose_moving")
+                .and_then(|value| value.as_f32().ok()),
             dominant_velocity_index,
             dominant_velocity_weight,
             lean_right_amount: player
@@ -1541,7 +1557,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn crouching_direction_uses_radian_view_yaw() {
+    fn crouching_direction_uses_the_source_view_yaw_sign() {
         assert_eq!(
             direction_for(
                 Vec3::NEG_X,
@@ -1549,7 +1565,7 @@ mod tests {
                 RotationMode::Aiming,
                 None,
             ),
-            AlsMovementDirection::RightBackward
+            AlsMovementDirection::LeftBackward
         );
     }
 

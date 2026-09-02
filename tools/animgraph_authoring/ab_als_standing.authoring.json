@@ -7524,13 +7524,26 @@
   ],
   "verification_commands": [
     {
+      "label": "standing_experimental_node_annotations",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/annotate_ue_experimental_nodes.py",
+        "--root",
+        ".",
+        "--glob",
+        "tools/animgraph_authoring/ab_als_standing*.visible.json",
+        "--check"
+      ]
+    },
+    {
       "label": "standing_recursive_source_inventory",
       "scope": "source",
       "argv": [
         "python",
         "tools/import/extract_ue_authored_graph_inventory.py",
         "--source",
-        "target/bf111/source_native/AB_Als_Standing.inertial.reaudit.ue.json",
+        "target/bf111/source_native/AB_Als_Standing.detector_reopen.ue.json",
         "--root-graph-suffix",
         "AnimGraph",
         "--output",
@@ -7545,7 +7558,7 @@
         "python",
         "tools/import/extract_ue_visible_graph_contracts.py",
         "--source",
-        "target/bf111/source_native/AB_Als_Standing.inertial.reaudit.ue.json",
+        "target/bf111/source_native/AB_Als_Standing.detector_reopen.ue.json",
         "--root-graph-suffix",
         "AnimGraph",
         "--output-dir",
@@ -7582,7 +7595,7 @@
         "--index",
         "tools/animgraph_authoring/ab_als_standing.recursive_audit.index.json",
         "--source",
-        "target/bf111/source_native/AB_Als_Standing.inertial.reaudit.ue.json",
+        "target/bf111/source_native/AB_Als_Standing.detector_reopen.ue.json",
         "--jobs",
         "2",
         "--check",

@@ -594,5 +594,25 @@
   ],
   "comment_groups": [],
   "comment_policy": "ignore",
-  "comment_exception": "User approved comment groups ignored for BF111 character base graph parity."
+  "comment_exception": "User approved comment groups ignored for BF111 character base graph parity.",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_0",
+      "target_node": "15600000-0000-4000-8000-000000000025",
+      "source_warning": "RefreshRotateInPlace  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_2",
+      "target_node": "15600000-0000-4000-8000-000000000026",
+      "source_warning": "RefreshCrouchingMovement  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_CallFunction_1",
+      "target_node": "15600000-0000-4000-8000-000000000027",
+      "source_warning": "RefreshGroundedMovement  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
 }

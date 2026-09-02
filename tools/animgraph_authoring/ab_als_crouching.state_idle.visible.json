@@ -248,5 +248,25 @@
   "require_root_property_assertions": true,
   "comment_groups": [],
   "comment_policy": "ignore",
-  "comment_exception": "User-approved BF111.04 exception: comment groups are ALS extension documentation, not target parity scope."
+  "comment_exception": "User-approved BF111.04 exception: comment groups are ALS extension documentation, not target parity scope.",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_0",
+      "target_node": "16490000-0000-4000-8000-000000000005",
+      "source_warning": "InitializeTurnInPlace  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_1",
+      "target_node": "16490000-0000-4000-8000-000000000006",
+      "source_warning": "RefreshTurnInPlace  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_2",
+      "target_node": "16490000-0000-4000-8000-000000000007",
+      "source_warning": "RefreshDynamicTransitions  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
 }

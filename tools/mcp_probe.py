@@ -10,6 +10,11 @@ import sys
 import urllib.request
 import urllib.error
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 URL = "http://127.0.0.1:8000/mcp"
 SID_FILE = ".mcp-session-id"
 

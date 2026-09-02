@@ -317,5 +317,13 @@
     }
   ],
   "comment_groups": [],
-  "comment_policy": "require"
+  "comment_policy": "require",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_6.First Pivot.AnimGraphNode_CallFunction_0",
+      "target_node": "15360000-0000-4000-8000-000000000007",
+      "source_warning": "ResetPivot  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
 }

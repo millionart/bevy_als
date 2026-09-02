@@ -3326,6 +3326,19 @@
   ],
   "verification_commands": [
     {
+      "label": "crouching_experimental_node_annotations",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/annotate_ue_experimental_nodes.py",
+        "--root",
+        ".",
+        "--glob",
+        "tools/animgraph_authoring/ab_als_crouching*.visible.json",
+        "--check"
+      ]
+    },
+    {
       "label": "crouching_recursive_source_inventory",
       "scope": "source",
       "argv": [

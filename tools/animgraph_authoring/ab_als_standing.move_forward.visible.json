@@ -225,5 +225,13 @@
   ],
   "comment_groups": [],
   "comment_policy": "ignore",
-  "comment_exception": "User-approved nonfunctional editor comment omission."
+  "comment_exception": "User-approved nonfunctional editor comment omission.",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_0.Move Forward.AnimGraphNode_CallFunction_0",
+      "target_node": "150c0000-0000-4000-8000-000000000006",
+      "source_warning": "SetHipsDirection  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
 }

@@ -229,5 +229,13 @@
   ],
   "comment_groups": [],
   "comment_policy": "ignore",
-  "comment_exception": "User approved comment groups ignored for BF111 character base graph parity."
+  "comment_exception": "User approved comment groups ignored for BF111 character base graph parity.",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_CallFunction_2",
+      "target_node": "15654000-0000-4000-8000-000000000006",
+      "source_warning": "SetHipsDirection  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
 }

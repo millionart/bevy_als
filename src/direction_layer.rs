@@ -21,7 +21,7 @@ pub fn velocity_yaw_deg(vel: Vec3) -> f32 {
 }
 
 pub fn view_space_direction_angle(velocity_yaw: f32, view_yaw: f32) -> f32 {
-    let d = velocity_yaw - view_yaw;
+    let d = view_yaw - velocity_yaw;
     let mut a = d;
     while a > 180.0 {
         a -= 360.0;
@@ -120,9 +120,9 @@ mod tests {
 
     #[test]
     fn view_space_angle_subtracts_view() {
-        assert!((view_space_direction_angle(180.0, 0.0) - 180.0).abs() < 1e-4);
+        assert!((view_space_direction_angle(180.0, 0.0) + 180.0).abs() < 1e-4);
         assert!((view_space_direction_angle(45.0, 45.0) - 0.0).abs() < 1e-4);
-        assert!((view_space_direction_angle(-90.0, 45.0) + 135.0).abs() < 1e-4);
+        assert!((view_space_direction_angle(-90.0, 45.0) - 135.0).abs() < 1e-4);
     }
 
     #[test]
@@ -135,7 +135,7 @@ mod tests {
                 None,
                 view_space_direction_angle_from_radians(45.0, (-45.0_f32).to_radians())
             ),
-            AlsMovementDirection::RightForward
+            AlsMovementDirection::LeftForward
         );
     }
 

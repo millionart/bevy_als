@@ -7,6 +7,10 @@ description: Use when creating or modifying this repository's .animgraph.ron or 
 
 Use this skill for every animation graph asset change in this repository. Its purpose is to retain ALS-Refactored behavior while making the actual Bevy graph readable and auditable.
 
+## Design ablation
+
+After every graph-equivalence design or implementation, run a focused ablation against each newly introduced adapter, field, map schema member, tool stage, or runtime branch. Remove or merge the candidate in a temporary fixture or controlled equivalent path and rerun the source/static/runtime Gate that it exists to protect. Delete it when the required evidence remains unchanged; otherwise retain only the smallest form whose removal produces a concrete failed boundary. Do not preserve an abstraction merely because it might be useful later or appears more general.
+
 ## Establish source facts first
 
 Before changing a graph, re-extract the relevant local ALS-Refactored asset facts. Preserve the complete source graph, pins, links, properties, state transitions, clip values, and node positions in the applicable contract or extraction output. Do not use an old summary, a preview SVG, or a public web copy as the implementation source when local data is available.
@@ -17,14 +21,16 @@ docs/als-ref-animation-asset-map.md is read-only. Do not alter it.
 
 For every UE authored graph, collect two independent source facts before changing the target:
 
-- First use a command-line or Unreal Python asset-open path to locate the asset. Do not use MCP or Computer Use merely to search for or open an asset when a command-line path can do it.
-- Re-extract the local source asset and use extract_ue_visible_graph_contract.py to preserve the complete visible source graph, including node properties, pins, links, comments, and positions.
-- Once the asset is already open, use MCP Slate Inspector screenshot capture to save the real Editor graph view under the current target evidence directory.
-- If MCP screenshot capture is unavailable, record the tool failure and render the native source contract with render_ue_visible_graph.py. Computer Use is the final fallback and must follow its own skill instructions.
+- First enumerate existing UnrealEditor instances and probe MCP. When the required persistent Editor is already running and MCP responds, open the exact asset directly with `EditorToolset.EditorAppToolset.OpenEditorForAsset`; do not launch a second Editor or use a command-line asset-open script. Use the command-line or non-terminating Unreal Python startup path only when no usable Editor exists or MCP recovery requires it.
+- Use MCP as a graph reader before visual fallback: `AssetTools.load_asset`, `BlueprintTools.list_graphs`, `BlueprintTools.get_graph`, and `BlueprintTools.read_graph_dsl`. Record each graph ref and returned read-only DSL in the current evidence directory. Do not call a Blueprint write tool during source inspection.
+- An empty `read_graph_dsl`, `find_nodes`, or Slate screenshot is ambiguous. First verify the existing UnrealEditor process, `list_toolsets`, `load_asset`, `list_graphs`/`get_graph`, and Slate `Observe`/`Snapshot`. Restart only when that health check fails. If the Editor is healthy and only one API is empty, record a capability limitation and use the other MCP read-only APIs, including `find_nodes`, `get_node_infos`, and connected-subgraph reads, before completing the missing coverage from the same native extraction. Never treat a healthy empty DSL as evidence that a graph is empty.
+- Re-extract the local source asset and use extract_ue_visible_graph_contract.py to preserve the complete visible source graph, including node properties, pins, links, comments, and positions. Native extraction is authoritative for the full contract; the MCP read is an independent live-Editor fact, not a replacement for it.
+- Once the graph is open, use Slate Inspector `Observe` and `Snapshot` to find the graph canvas subtree, then call `Screenshot` on that canvas ref. Only a single full-canvas capture or a provably complete, non-overlapping stitched capture may serve as graph-layout evidence. A partial canvas or whole-editor/window screenshot may prove that an asset is open or healthy but is never graph-layout evidence; prioritize MCP content reads when a full capture is unavailable.
+- If the direct graph read or canvas capture is unavailable, record the exact MCP tool failure and render the native source contract with render_ue_visible_graph.py. Computer Use is the final fallback and must follow its own skill instructions.
 
 A target-derived manifest is only a target integrity record. It can never serve as source layout evidence or close a visual-equivalence Gate.
 
-Use command-line extraction or a non-terminating Unreal Python entrypoint to locate an asset before any MCP use. Do not launch a temporary Editor process whose script requests Editor exit merely to open a graph: that path can tear down `AnimationBlueprintEditor` while it is active. Capture with MCP only from the already-running persistent Editor session. If its Slate tree cannot expose a child graph, retain the failure evidence and use the freshly extracted contract SVG rather than repeatedly restarting the Editor.
+Run command-line native extraction alongside the MCP inspection; it must not be used to replace a responsive persistent Editor asset-open path. Do not launch a temporary Editor process whose script requests Editor exit merely to open a graph: that path can tear down `AnimationBlueprintEditor` while it is active. If Slate cannot expose the graph canvas after the direct Blueprint read succeeds, retain the failed canvas-query evidence and use the freshly extracted contract SVG rather than repeatedly restarting the Editor.
 
 ## Toolchain
 
@@ -88,6 +94,15 @@ Create or update a manifest under tools/animgraph_authoring/. It must declare th
 
 For every UE-authored graph in the recursive inventory, create a source-visible map checked through run_ue_visible_animgraph_audit.py. The wrapper regenerates the target's current Rust NodeSpec before it invokes audit_ue_visible_animgraph.py; never use a committed or earlier spec JSON as Gate evidence. When the current native extraction is available, every command must pass it with `--source`; the wrapper then rejects a committed contract that differs from the live native graph. The map must cover every source-visible non-comment node exactly once, match title, node order, position, input-pin order, output-pin order, and root IO, account for every source comment group, and reject missing source links, target nodes, source pins, root output position differences, or source static property/value differences that control the target implementation. Every unconnected nonempty source pin default must have an exact `source_default` and `target_default_contains` assertion; every node configuration value that controls the target implementation must have an explicit source/target property assertion. Splitting, collapsing, or hiding a source-visible node is a failure unless the current checklist item explicitly records a source-backed exception and its editor-visible replacement.
 
+When a fresh source node has an `ErrorMsg` containing an experimental warning, its source-visible AnimGraph map must carry the generated `experimental_node_notes` entry that names the exact source node, target node, source warning, and mandatory future recheck action. Before the source-visible Gate, run:
+
+~~~powershell
+python tools/annotate_ue_experimental_nodes.py --root . --glob 'tools/animgraph_authoring/*.visible.json' --write
+python tools/annotate_ue_experimental_nodes.py --root . --glob 'tools/animgraph_authoring/*.visible.json' --check
+~~~
+
+The visible-graph audit rejects a missing, mismatched, or stale note. A stale note means a fresh source extraction no longer reports the warning: re-extract the node and replace the target behavior from the then-current source before removing the note. The note is maintenance tracking, not an exception to source parity.
+
 ## Recursive subgraph closure
 
 Build a recursive authored-subgraph inventory before implementation. It must enumerate the top graph, every reachable State Machine, every state graph, every visible transition graph, and every other reachable authored graph. For every entry record the native source graph path, target RON or FSM path, source contract/map, and the Gate command.
@@ -131,6 +146,20 @@ python tools/verify_animgraph_node_positions.py --root assets/graphs --include <
 ~~~
 
 Then run the scope's source audit, focused Rust/contract Gate, and the declared run_manual.bat Playground case. Record source extraction time, static output, runtime values, and real-entry outcome in the current checklist item and commit.
+
+## Reopened work and shared animation semantics
+
+When a previously accepted graph item is reopened, stop implementation and first identify the exact false-positive path: source behavior, target symptom, the previously passing assertion, and the unobserved final-pose boundary. Mark the checklist item incomplete. Do not restore the check until a focused regression makes that original false positive fail.
+
+Use the repository's shared animation-semantic evidence path for every graph behavior that can change a character pose. A scenario declares each source-backed animation window through the common runtime evidence API: a stable label, source node or clip identity, and whether pre-rig local-pose motion is required or source-proven static. The common collector records the window label, source identity, pre-rig local-bone motion across multiple samples, final screenshot, and runtime-state labels; the common validator rejects missing or static dynamic windows.
+
+State/FSM selection, graph input pins, cache resolution, clip identifiers, world translation, final IK movement, image validity, and no graph error are only supporting facts. They cannot prove that a dynamic source sequence reaches the final pre-rig pose. A cached-pose producer/consumer that crosses an authored graph boundary requires an explicit source-to-runtime cache contract and a real-entry motion window for its final consumer.
+
+For every source-backed dynamic window, record the root graph Pose output presence, bone count, active channel count, and reference-like samples. A settled dynamic window must reject a reference/A-pose root output, static pre-rig local pose, or static final local pose after Control Rig and IK. Root/world translation, rig-only movement, camera movement, finite transforms, or a nonempty screenshot cannot substitute for those three boundaries.
+
+When a source State Machine has mutually exclusive direction/state branches or independent clips/BlendSpaces, declare each selected source state, the expected target direction and FSM state, the source sync group, and a canonical synchronized phase. Derive each fixture from the same fresh source transition endpoints, predecessor state, property/branch conditions, and numeric thresholds; state labels, graph position, or an intuitive diagonal input do not establish a source trigger. The runtime report must retain the observed direction/FSM state from the same frame and a canonical pre-rig local-pose signature. The validator must require exact source selection and pairwise-distinct signatures for every required member of the group. Target self-consistency, such as a target-computed direction agreeing with a target-selected state, is insufficient.
+
+When extending the shared validator, add self-tests where a state, input, and clip identifier are all correct while the final pre-rig pose remains static; a reference root pose; a static final pose; a wrong source state; and multiple source direction branches collapse to one canonical pose. Each must fail before the affected graph can be reaccepted. Keep the mechanism declarative and reusable: future ALS features add source-backed windows to the common path rather than a separate ad hoc validator.
 
 ## Runtime visual and performance evidence
 
