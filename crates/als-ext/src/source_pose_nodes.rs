@@ -128,6 +128,9 @@ pub struct SourceApplyAdditiveNode {
     pub maximum_alpha: f32,
     pub increasing_speed: f32,
     pub decreasing_speed: f32,
+    pub expose_source_alpha_controls: bool,
+    pub alpha_curve_name: String,
+    pub alpha_bool_enabled: bool,
 }
 
 impl Default for SourceApplyAdditiveNode {
@@ -142,6 +145,9 @@ impl Default for SourceApplyAdditiveNode {
             maximum_alpha: 1.0,
             increasing_speed: 0.0,
             decreasing_speed: 0.0,
+            expose_source_alpha_controls: false,
+            alpha_curve_name: "None".to_owned(),
+            alpha_bool_enabled: true,
         }
     }
 }
@@ -180,6 +186,10 @@ impl NodeLike for SourceApplyAdditiveNode {
             .add_input_data("Additive", DataSpec::Pose);
         if self.expose_alpha_pin {
             ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
+        }
+        if self.expose_source_alpha_controls {
+            ctx.add_input_data("AlphaCurveName", DataSpec::F32)
+                .add_input_data("bAlphaBoolEnabled", DataSpec::F32);
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -298,11 +308,43 @@ impl NodeLike for SourceGameplayTagBlendNode {
 #[type_path = "als_ext"]
 pub struct SourceCurveModifyNode {
     pub curve_name: String,
+    pub curve_names: Vec<String>,
     pub value: f32,
+    pub pin_default: f32,
+    pub pin_defaults: Vec<f32>,
+    pub value_key: String,
+    pub value_keys: Vec<String>,
+    pub source_value_path: String,
+    pub source_value_paths: Vec<String>,
+    pub alpha: f32,
+    pub apply_mode: String,
+}
+
+impl SourceCurveModifyNode {
+    fn curve_pin_names(&self) -> Vec<String> {
+        if self.curve_names.is_empty() {
+            vec![self.curve_name.clone()]
+        } else {
+            self.curve_names.clone()
+        }
+    }
+
+    fn value_keys(&self) -> Vec<String> {
+        if self.value_keys.is_empty() {
+            vec![self.value_key.clone()]
+        } else {
+            self.value_keys.clone()
+        }
+    }
 }
 
 impl NodeLike for SourceCurveModifyNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        for key in self.value_keys() {
+            if !key.is_empty() {
+                global_f32_or_root_default(&ctx, &key)?;
+            }
+        }
         let pose = ctx.data_back("Source Pose")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
@@ -310,9 +352,11 @@ impl NodeLike for SourceCurveModifyNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data("Source Pose", DataSpec::Pose)
-            .add_input_data(self.curve_name.clone(), DataSpec::F32)
-            .add_output_data("Pose", DataSpec::Pose);
+        ctx.add_input_data("Source Pose", DataSpec::Pose);
+        for curve_name in self.curve_pin_names() {
+            ctx.add_input_data(curve_name, DataSpec::F32);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
     }
 
@@ -358,9 +402,36 @@ mod tests {
             maximum_alpha: 1.0,
             increasing_speed: 0.0,
             decreasing_speed: 0.0,
+            expose_source_alpha_controls: false,
+            alpha_curve_name: "None".to_owned(),
+            alpha_bool_enabled: true,
         };
         assert!(!node.expose_alpha_pin);
         assert!(node.use_constant_alpha);
         assert_eq!(node.constant_alpha, 1.0);
+    }
+
+    #[test]
+    fn source_curve_modify_retains_multiple_source_curve_pins() {
+        let node = SourceCurveModifyNode {
+            curve_name: String::new(),
+            curve_names: vec![
+                "FootLeftLock".to_owned(),
+                "FootRightLock".to_owned(),
+                "AllowTransitions".to_owned(),
+            ],
+            pin_defaults: vec![1.0, 1.0, 1.0],
+            value_keys: vec![String::new(), String::new(), String::new()],
+            source_value_paths: vec![String::new(), String::new(), String::new()],
+            ..default()
+        };
+        assert_eq!(
+            node.curve_pin_names(),
+            vec![
+                "FootLeftLock".to_owned(),
+                "FootRightLock".to_owned(),
+                "AllowTransitions".to_owned(),
+            ]
+        );
     }
 }

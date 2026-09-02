@@ -36,6 +36,7 @@ CONTEXT_SPEC.loader.exec_module(CONTEXT)
 
 
 RECIPE_FORMAT = "als_animgraph_authoring_recipe_v1"
+RECURSIVE_AUDIT_INDEX_FORMAT = "als_ue_visible_recursive_audit_index_v1"
 
 
 def read_json(path):
@@ -187,6 +188,48 @@ def source_evidence(root, values):
     return result
 
 
+def recursive_inventory_from_audit_index(root, recipe):
+    index_path_value = recipe.get("recursive_audit_index")
+    if index_path_value is None:
+        return recipe.get("recursive_inventory")
+    if recipe.get("recursive_inventory") is not None:
+        raise ValueError("recursive audit index and recursive inventory cannot both be declared")
+    if not isinstance(index_path_value, str) or not index_path_value:
+        raise ValueError("recursive audit index is invalid")
+    gate_label = recipe.get("recursive_audit_gate_label")
+    if not isinstance(gate_label, str) or not gate_label:
+        raise ValueError("recursive audit gate label is invalid")
+    path = VALIDATOR.repo_path(root, index_path_value)
+    if not path.is_file():
+        raise ValueError("recursive audit index is missing")
+    index = read_json(path)
+    entries = index.get("entries")
+    if index.get("format") != RECURSIVE_AUDIT_INDEX_FORMAT or not isinstance(entries, list):
+        raise ValueError("recursive audit index format is invalid")
+    result = []
+    required = {"kind", "source_graph", "source_contract", "map", "target_path"}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != required:
+            raise ValueError("recursive audit index entry is invalid")
+        result.append(
+            {
+                "kind": entry["kind"],
+                "source_graph": entry["source_graph"],
+                "source_contract": entry["source_contract"],
+                "source_map": entry["map"],
+                "target_path": entry["target_path"],
+                "gate_label": gate_label,
+            }
+        )
+    return result
+
+
+def normalized_recipe(root, recipe):
+    value = json.loads(json.dumps(recipe))
+    value["recursive_inventory"] = recursive_inventory_from_audit_index(root, value)
+    return value
+
+
 def validate_recipe(recipe):
     if not isinstance(recipe, dict) or recipe.get("format") != RECIPE_FORMAT:
         raise ValueError("recipe format is invalid")
@@ -202,6 +245,21 @@ def validate_recipe(recipe):
         raise ValueError("recipe verification_commands are invalid")
     if not isinstance(recipe.get("runtime_gate"), dict):
         raise ValueError("recipe runtime_gate is invalid")
+    recursive_source_inventory = recipe.get("recursive_source_inventory")
+    inventory_issues = VALIDATOR.recursive_source_inventory_issues(
+        recursive_source_inventory,
+        require_digest=False,
+    )
+    if inventory_issues:
+        raise ValueError("; ".join(inventory_issues))
+    if recursive_source_inventory is None and recipe.get("recursive_inventory") is not None:
+        raise ValueError("recursive_source_inventory is required with recursive_inventory")
+    recursive_issues = VALIDATOR.recursive_inventory_issues(
+        recipe.get("recursive_inventory"),
+        recursive_source_inventory,
+    )
+    if recursive_issues:
+        raise ValueError("; ".join(recursive_issues))
     contexts = recipe.get("runtime_context_manifests", {})
     if not isinstance(contexts, dict) or any(
         not isinstance(key, str) or not isinstance(value, str)
@@ -211,6 +269,7 @@ def validate_recipe(recipe):
 
 
 def generate(root, recipe):
+    recipe = normalized_recipe(root, recipe)
     validate_recipe(recipe)
     graphs = []
     fsms = []
@@ -228,6 +287,13 @@ def generate(root, recipe):
         "verification_commands": recipe["verification_commands"],
         "runtime_gate": recipe["runtime_gate"],
     }
+    if "recursive_source_inventory" in recipe:
+        manifest["recursive_source_inventory"] = source_evidence(
+            root,
+            [recipe["recursive_source_inventory"]],
+        )[0]
+    if "recursive_inventory" in recipe:
+        manifest["recursive_inventory"] = recipe["recursive_inventory"]
     issues = VALIDATOR.manifest_shape_issues(manifest)
     if issues:
         raise ValueError("; ".join(issues))
@@ -242,6 +308,27 @@ def run_self_test():
         for name in ("source.py", "layout.py", "editor.py"):
             (tools / name).write_text("", encoding="utf-8")
         (root / "source.json").write_text('{"source": true}\n', encoding="utf-8")
+        (root / "inventory.json").write_text(
+            json.dumps(
+                {
+                    "format": "als_ue_authored_graph_inventory_v1",
+                    "source_asset": "/Asset",
+                    "root_source_graph": "AnimGraph",
+                    "entries": [
+                        {
+                            "source_graph": "AnimGraph",
+                            "kind": "graph",
+                            "class_path": "/Script/AnimGraph.AnimationGraph",
+                            "name": "AnimGraph",
+                            "index": 0,
+                            "parent_source_graph": None,
+                        }
+                    ],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         graph = (
             "(\n"
             'nodes: [(id: "node", name: "Source", inner: { "als_ext::LayeredGraphNode": (graph: "graphs/source.animgraph.ron") }, should_debug: false)],\n'
@@ -296,10 +383,52 @@ def run_self_test():
         assert len(manifest["graphs"]) == 1
         assert len(manifest["fsms"]) == 1
         assert manifest["source_evidence"][0]["hash_kind"] == "canonical_json"
+        recipe["recursive_source_inventory"] = {
+            "path": "inventory.json",
+            "hash_kind": "canonical_json",
+        }
+        recipe["recursive_inventory"] = [
+            {
+                "kind": "graph",
+                "source_graph": "AnimGraph",
+                "source_contract": "source.json",
+                "source_map": "map.json",
+                "target_path": "graph.animgraph.ron",
+                "gate_label": "source",
+            }
+        ]
+        recursive_manifest = generate(root, recipe)
+        assert recursive_manifest["recursive_source_inventory"]["path"] == "inventory.json"
+        assert len(recursive_manifest["recursive_inventory"]) == 1
+        audit_index_path = root / "audit-index.json"
+        write_json(
+            audit_index_path,
+            {
+                "format": RECURSIVE_AUDIT_INDEX_FORMAT,
+                "source_contract_index": "contracts/index.json",
+                "entries": [
+                    {
+                        "kind": "graph",
+                        "source_graph": "AnimGraph",
+                        "source_contract": "source.json",
+                        "map": "map.json",
+                        "target_path": "graph.animgraph.ron",
+                    }
+                ],
+            },
+        )
+        indexed_recipe = json.loads(json.dumps(recipe))
+        indexed_recipe.pop("recursive_inventory")
+        indexed_recipe["recursive_audit_index"] = "audit-index.json"
+        indexed_recipe["recursive_audit_gate_label"] = "source"
+        indexed_manifest = generate(root, indexed_recipe)
+        assert len(indexed_manifest["recursive_inventory"]) == 1
     return {
         "animgraph_contract_generation": "PASS",
         "fsm_contract_generation": "PASS",
         "canonical_source_evidence": "PASS",
+        "recursive_inventory_generation": "PASS",
+        "recursive_audit_index_generation": "PASS",
     }
 
 

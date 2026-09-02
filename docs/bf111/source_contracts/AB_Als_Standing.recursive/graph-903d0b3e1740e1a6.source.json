@@ -1,0 +1,4277 @@
+{
+  "format": "als_ue_visible_graph_contract_v2",
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+  "source_graph_suffix": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition",
+  "source_graph": {
+    "index": 71,
+    "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition",
+    "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+    "name": "Transition",
+    "properties": [
+      {
+        "name": "MyResultNode",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "ObjectProperty",
+        "cpp_type": "TObjectPtr<UAnimGraphNode_TransitionResult>",
+        "flags": "0x11C001000000200",
+        "exported_text": "/Script/AnimGraph.AnimGraphNode_TransitionResult'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0'"
+      },
+      {
+        "name": "BlendOptions",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "StructProperty",
+        "cpp_type": "FAnimGraphBlendOptions",
+        "flags": "0x10001000000001",
+        "exported_text": "(BlendInTime=-1.000000,BlendOutTime=-1.000000)"
+      },
+      {
+        "name": "Schema",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "ClassProperty",
+        "cpp_type": "TSubclassOf<UEdGraphSchema>",
+        "flags": "0x1C001000000200",
+        "exported_text": "/Script/CoreUObject.Class'/Script/AnimGraph.AnimationTransitionSchema'"
+      },
+      {
+        "name": "Nodes",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "ArrayProperty",
+        "cpp_type": "TArray",
+        "flags": "0x114000000000200",
+        "exported_text": "(\"/Script/AnimGraph.AnimGraphNode_TransitionResult'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0'\",\"/Script/BlueprintGraph.K2Node_CallFunction'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0'\",\"/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0'\",\"/Script/AnimGraph.K2Node_AnimGetter'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_AnimGetter_0'\",\"/Script/BlueprintGraph.K2Node_PromotableOperator'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0'\",\"/Script/PropertyAccessNode.K2Node_PropertyAccess'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PropertyAccess_0'\")"
+      },
+      {
+        "name": "bEditable",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "BoolProperty",
+        "cpp_type": "uint8",
+        "flags": "0x18001000000000",
+        "exported_text": "True"
+      },
+      {
+        "name": "bAllowDeletion",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "BoolProperty",
+        "cpp_type": "uint8",
+        "flags": "0x18001000000000",
+        "exported_text": "True"
+      },
+      {
+        "name": "bAllowRenaming",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "BoolProperty",
+        "cpp_type": "uint8",
+        "flags": "0x18001000000000",
+        "exported_text": "False"
+      },
+      {
+        "name": "SubGraphs",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "ArrayProperty",
+        "cpp_type": "TArray",
+        "flags": "0x114000800000200",
+        "exported_text": ""
+      },
+      {
+        "name": "GraphGuid",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "StructProperty",
+        "cpp_type": "FGuid",
+        "flags": "0x18001840000200",
+        "exported_text": "EC28238F4C35FB6CBEE583B344F995EF"
+      },
+      {
+        "name": "InterfaceGuid",
+        "array_index": 0,
+        "array_dim": 1,
+        "property_class": "StructProperty",
+        "cpp_type": "FGuid",
+        "flags": "0x18001840000200",
+        "exported_text": "00000000000000000000000000000000"
+      }
+    ],
+    "nodes": [
+      {
+        "index": 0,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0",
+        "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+        "node_guid": "71012ece-48c2-d4d3-cf9a-f494ce699677",
+        "title": "Result",
+        "position_x": 0,
+        "position_y": 0,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "Node",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FAnimNode_TransitionResult",
+            "flags": "0x10000000000001",
+            "exported_text": "(InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())"
+          },
+          {
+            "name": "ShowPinForProperties",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x10000000000241",
+            "exported_text": "((PropertyName=\"bCanEnterTransition\",PropertyFriendlyName=\"Can Enter Transition\",CategoryName=\"Result\",bShowPin=True,bCanToggleVisibility=True))"
+          },
+          {
+            "name": "AlwaysDynamicProperties",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "SetProperty",
+            "cpp_type": "TSet",
+            "flags": "0x10000000000200",
+            "exported_text": "()"
+          },
+          {
+            "name": "BlueprintUsage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "EBlueprintUsage",
+            "flags": "0x18001040002200",
+            "exported_text": "UsesBlueprint"
+          },
+          {
+            "name": "InitialUpdateFunction",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000001",
+            "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "BecomeRelevantFunction",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000001",
+            "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "UpdateFunction",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000001",
+            "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "Binding",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ObjectProperty",
+            "cpp_type": "TObjectPtr<UAnimGraphNodeBinding>",
+            "flags": "0x14E001000080209",
+            "exported_text": "/Script/AnimGraph.AnimGraphNodeBinding_Base'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0.AnimGraphNodeBinding_Base_0'"
+          },
+          {
+            "name": "Tag",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "NameProperty",
+            "cpp_type": "FName",
+            "flags": "0x48001040000201",
+            "exported_text": "None"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "3"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "71012ECE48C2D4D3CF9AF494CE699677"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "72f13357-4dd7-bd99-0b3a-b39947c04196",
+            "persistent_guid": "None",
+            "name": "bCanEnterTransition",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "Can Enter Transition",
+            "deprecation_message": "",
+            "tooltip": "Can Enter Transition\nBoolean",
+            "default_value": "False",
+            "autogenerated_default_value": "False",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+                "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+                "pin_id": "acc8f233-41be-e5d0-640e-e9b7bb04cc82",
+                "pin_name": "ReturnValue",
+                "direction": "Output"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": {
+          "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0.AnimGraphNodeBinding_Base_0",
+          "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+          "properties": [
+            {
+              "name": "PropertyBindings",
+              "array_index": 0,
+              "array_dim": 1,
+              "property_class": "MapProperty",
+              "cpp_type": "TMap",
+              "flags": "0x40000000000000",
+              "exported_text": "()"
+            }
+          ]
+        }
+      },
+      {
+        "index": 1,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0",
+        "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+        "node_guid": "00495f3c-49ed-e4dc-edd2-f89f41f488b7",
+        "title": "NOT Boolean",
+        "position_x": -416,
+        "position_y": -32,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "bDefaultsToPureFunc",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "True"
+          },
+          {
+            "name": "bWantsEnumToExecExpansion",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "FunctionReference",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000000",
+            "exported_text": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Not_PreBool\",MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "NodePurityOverride",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodePurityOverride",
+            "flags": "0x48001040000200",
+            "exported_text": "Unset"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-416"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-32"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "00495F3C49EDE4DCEDD2F89F41F488B7"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "e3f70bb4-4d2a-8be1-9c03-31a595290a72",
+            "persistent_guid": "None",
+            "name": "self",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "Target",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "/Script/Engine.Default__KismetMathLibrary",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "object"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 1,
+            "pin_id": "c24ab74d-4005-46ab-2328-2588a06a9870",
+            "persistent_guid": "None",
+            "name": "A",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "false",
+            "autogenerated_default_value": "false",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PropertyAccess_0",
+                "node_guid": "39b8c6c9-4ae5-769b-b59e-55a2632f3890",
+                "pin_id": "311fa6dd-4d44-b7d6-2c80-3ca65333378f",
+                "pin_name": "Value",
+                "direction": "Output"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 2,
+            "pin_id": "2e8eff6a-40fc-5026-a76c-489ab5bd3269",
+            "persistent_guid": "None",
+            "name": "ReturnValue",
+            "source_index": -1,
+            "direction": "Output",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "false",
+            "autogenerated_default_value": "false",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+                "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+                "pin_id": "ad94b7d6-494e-403c-eab4-8ea7446e0b09",
+                "pin_name": "A",
+                "direction": "Input"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": null
+      },
+      {
+        "index": 2,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+        "class_path": "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator",
+        "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+        "title": "AND Boolean",
+        "position_x": -208,
+        "position_y": 0,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "NumAdditionalInputs",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "bDefaultsToPureFunc",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "True"
+          },
+          {
+            "name": "bWantsEnumToExecExpansion",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "FunctionReference",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000000",
+            "exported_text": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanAND\",MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "NodePurityOverride",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodePurityOverride",
+            "flags": "0x48001040000200",
+            "exported_text": "Unset"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-208"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "6863E40A4587CA0C2EB261BEA33103E8"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "a6f5e0bb-4eae-95c5-f0f6-e7b38a57f705",
+            "persistent_guid": "None",
+            "name": "self",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "Target",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "/Script/Engine.Default__KismetMathLibrary",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "object"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 1,
+            "pin_id": "ad94b7d6-494e-403c-eab4-8ea7446e0b09",
+            "persistent_guid": "None",
+            "name": "A",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "false",
+            "autogenerated_default_value": "false",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0",
+                "node_guid": "00495f3c-49ed-e4dc-edd2-f89f41f488b7",
+                "pin_id": "2e8eff6a-40fc-5026-a76c-489ab5bd3269",
+                "pin_name": "ReturnValue",
+                "direction": "Output"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 2,
+            "pin_id": "ad4e1979-4486-69fc-cafc-898c001c8f97",
+            "persistent_guid": "None",
+            "name": "B",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "false",
+            "autogenerated_default_value": "false",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0",
+                "node_guid": "b44e6080-4f61-5767-214c-b5b56a9e7e95",
+                "pin_id": "445377e2-45d1-af22-4649-eca65f4b49b6",
+                "pin_name": "ReturnValue",
+                "direction": "Output"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 3,
+            "pin_id": "acc8f233-41be-e5d0-640e-e9b7bb04cc82",
+            "persistent_guid": "None",
+            "name": "ReturnValue",
+            "source_index": -1,
+            "direction": "Output",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "false",
+            "autogenerated_default_value": "false",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0",
+                "node_guid": "71012ece-48c2-d4d3-cf9a-f494ce699677",
+                "pin_id": "72f13357-4dd7-bd99-0b3a-b39947c04196",
+                "pin_name": "bCanEnterTransition",
+                "direction": "Input"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": null
+      },
+      {
+        "index": 3,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_AnimGetter_0",
+        "class_path": "/Script/AnimGraph.K2Node_AnimGetter",
+        "node_guid": "0fc4023d-41e3-9f05-0af7-d294ceb67753",
+        "title": "State Weight (Move)",
+        "position_x": -672,
+        "position_y": 32,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "SourceNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ObjectProperty",
+            "cpp_type": "TObjectPtr<UAnimGraphNode_Base>",
+            "flags": "0x11C001000000200",
+            "exported_text": "/Script/AnimGraph.AnimGraphNode_StateMachine'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6'"
+          },
+          {
+            "name": "SourceStateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ObjectProperty",
+            "cpp_type": "TObjectPtr<UAnimStateNodeBase>",
+            "flags": "0x11C001000000200",
+            "exported_text": "/Script/AnimGraph.AnimStateNode'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1'"
+          },
+          {
+            "name": "GetterClass",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ClassProperty",
+            "cpp_type": "TObjectPtr<UClass>",
+            "flags": "0x11C001000000200",
+            "exported_text": "/Script/CoreUObject.Class'/Script/ALS.AlsLinkedAnimationInstance'"
+          },
+          {
+            "name": "SourceAnimBlueprint",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ObjectProperty",
+            "cpp_type": "TObjectPtr<UAnimBlueprint>",
+            "flags": "0x11C001000000200",
+            "exported_text": "/Script/Engine.AnimBlueprint'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing'"
+          },
+          {
+            "name": "CachedTitle",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000000000000",
+            "exported_text": "LOCGEN_FORMAT_ORDERED(NSLOCTEXT(\"AnimGetter\", \"NodeTitle\", \"{0} ({1})\"), NSLOCTEXT(\"UObjectDisplayNames\", \"AnimInstance:GetInstanceStateWeight\", \"State Weight\"), NSLOCTEXT(\"\", \"030E464C4C9AB9E80C762EA87BE38668\", \"Move\"))"
+          },
+          {
+            "name": "Contexts",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x10000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "bDefaultsToPureFunc",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "True"
+          },
+          {
+            "name": "bWantsEnumToExecExpansion",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "FunctionReference",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000000",
+            "exported_text": "(MemberName=\"GetInstanceStateWeight\",MemberGuid=00000000000000000000000000000000,bSelfContext=True)"
+          },
+          {
+            "name": "NodePurityOverride",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodePurityOverride",
+            "flags": "0x48001040000200",
+            "exported_text": "Unset"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-672"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "32"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "0FC4023D41E39F050AF7D294CEB67753"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "9a0767bb-4fca-7fcc-3a4c-8eb4495589a7",
+            "persistent_guid": "None",
+            "name": "self",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "Target",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "object"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "/Script/CoreUObject.Class'/Script/Engine.AnimInstance'"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 1,
+            "pin_id": "b93f011f-41c0-77f6-8da6-81af303ef44d",
+            "persistent_guid": "None",
+            "name": "MachineIndex",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "0",
+            "autogenerated_default_value": "0",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "int"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 2,
+            "pin_id": "d9a0e1d8-4047-78ec-9c73-c3a7df806e9c",
+            "persistent_guid": "None",
+            "name": "StateIndex",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "0",
+            "autogenerated_default_value": "0",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "int"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 3,
+            "pin_id": "d82b1d31-4792-4100-ce3f-40bb2254be63",
+            "persistent_guid": "None",
+            "name": "ReturnValue",
+            "source_index": -1,
+            "direction": "Output",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "0.0",
+            "autogenerated_default_value": "0.0",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "real"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "float"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0",
+                "node_guid": "b44e6080-4f61-5767-214c-b5b56a9e7e95",
+                "pin_id": "001b8a2c-4c2c-9e71-66e8-5f9c0de5e4f6",
+                "pin_name": "A",
+                "direction": "Input"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": null
+      },
+      {
+        "index": 4,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0",
+        "class_path": "/Script/BlueprintGraph.K2Node_PromotableOperator",
+        "node_guid": "b44e6080-4f61-5767-214c-b5b56a9e7e95",
+        "title": "float >= float",
+        "position_x": -432,
+        "position_y": 32,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "OperationName",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "NameProperty",
+            "cpp_type": "FName",
+            "flags": "0x48001040000200",
+            "exported_text": "GreaterEqual"
+          },
+          {
+            "name": "NumAdditionalInputs",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x48001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "bDefaultsToPureFunc",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "True"
+          },
+          {
+            "name": "bWantsEnumToExecExpansion",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "FunctionReference",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FMemberReference",
+            "flags": "0x10000000000000",
+            "exported_text": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"GreaterEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)"
+          },
+          {
+            "name": "NodePurityOverride",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodePurityOverride",
+            "flags": "0x48001040000200",
+            "exported_text": "Unset"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-432"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "32"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "B44E60804F615767214CB5B56A9E7E95"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "001b8a2c-4c2c-9e71-66e8-5f9c0de5e4f6",
+            "persistent_guid": "None",
+            "name": "A",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "real"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "double"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_AnimGetter_0",
+                "node_guid": "0fc4023d-41e3-9f05-0af7-d294ceb67753",
+                "pin_id": "d82b1d31-4792-4100-ce3f-40bb2254be63",
+                "pin_name": "ReturnValue",
+                "direction": "Output"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 1,
+            "pin_id": "369275dc-41e8-e940-1906-7dbed21f7ba4",
+            "persistent_guid": "None",
+            "name": "B",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "1.000000",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "real"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "double"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 2,
+            "pin_id": "445377e2-45d1-af22-4649-eca65f4b49b6",
+            "persistent_guid": "None",
+            "name": "ReturnValue",
+            "source_index": -1,
+            "direction": "Output",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+                "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+                "pin_id": "ad4e1979-4486-69fc-cafc-898c001c8f97",
+                "pin_name": "B",
+                "direction": "Input"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          },
+          {
+            "index": 3,
+            "pin_id": "979edb39-46df-10bb-5027-c89bcc6a8c6d",
+            "persistent_guid": "None",
+            "name": "ErrorTolerance",
+            "source_index": -1,
+            "direction": "Input",
+            "hidden": true,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": null
+      },
+      {
+        "index": 5,
+        "object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PropertyAccess_0",
+        "class_path": "/Script/PropertyAccessNode.K2Node_PropertyAccess",
+        "node_guid": "39b8c6c9-4ae5-769b-b59e-55a2632f3890",
+        "title": "Property Access",
+        "position_x": -800,
+        "position_y": -48,
+        "comment": "",
+        "enabled": true,
+        "properties": [
+          {
+            "name": "Path",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x40000000000200",
+            "exported_text": "(\"GetParent\",\"LocomotionState\",\"bMovingSmooth\")"
+          },
+          {
+            "name": "TextPath",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x40000000000000",
+            "exported_text": "GetParent.LocomotionState.bMovingSmooth"
+          },
+          {
+            "name": "ResolvedPinType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FEdGraphPinType",
+            "flags": "0x40001000000000",
+            "exported_text": "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())"
+          },
+          {
+            "name": "GeneratedPropertyName",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "NameProperty",
+            "cpp_type": "FName",
+            "flags": "0x48001040000200",
+            "exported_text": "None"
+          },
+          {
+            "name": "ContextId",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "NameProperty",
+            "cpp_type": "FName",
+            "flags": "0x48001040000200",
+            "exported_text": "None"
+          },
+          {
+            "name": "DeprecatedPins",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ArrayProperty",
+            "cpp_type": "TArray",
+            "flags": "0x114000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "NodePosX",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-800"
+          },
+          {
+            "name": "NodePosY",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "-48"
+          },
+          {
+            "name": "NodeWidth",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "NodeHeight",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "0"
+          },
+          {
+            "name": "AdvancedPinDisplay",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "ByteProperty",
+            "cpp_type": "TEnumAsByte<ENodeAdvancedPins::Type>",
+            "flags": "0x18001040000200",
+            "exported_text": "NoPins"
+          },
+          {
+            "name": "EnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "EnumProperty",
+            "cpp_type": "ENodeEnabledState",
+            "flags": "0x48001040000200",
+            "exported_text": "Enabled"
+          },
+          {
+            "name": "bDisplayAsDisabled",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bUserSetEnabledState",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanResizeNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bIsIntermediateNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x48001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bHasCompilerMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001000000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubblePinned",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCommentBubbleMakeVisible",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800002000",
+            "exported_text": "False"
+          },
+          {
+            "name": "bCanRenameNode",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "BoolProperty",
+            "cpp_type": "uint8",
+            "flags": "0x18001800000000",
+            "exported_text": "False"
+          },
+          {
+            "name": "NodeUpgradeMessage",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "TextProperty",
+            "cpp_type": "FText",
+            "flags": "0x10000800002000",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeComment",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000200",
+            "exported_text": ""
+          },
+          {
+            "name": "ErrorType",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "IntProperty",
+            "cpp_type": "int32",
+            "flags": "0x18001040000200",
+            "exported_text": "1"
+          },
+          {
+            "name": "ErrorMsg",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StrProperty",
+            "cpp_type": "FString",
+            "flags": "0x18000000000214",
+            "exported_text": ""
+          },
+          {
+            "name": "NodeGuid",
+            "array_index": 0,
+            "array_dim": 1,
+            "property_class": "StructProperty",
+            "cpp_type": "FGuid",
+            "flags": "0x18001040000200",
+            "exported_text": "39B8C6C94AE5769BB59E55A2632F3890"
+          }
+        ],
+        "pins": [
+          {
+            "index": 0,
+            "pin_id": "311fa6dd-4d44-b7d6-2c80-3ca65333378f",
+            "persistent_guid": "None",
+            "name": "Value",
+            "source_index": -1,
+            "direction": "Output",
+            "hidden": false,
+            "not_connectable": false,
+            "default_value_read_only": false,
+            "default_value_ignored": false,
+            "advanced_view": false,
+            "deprecated": false,
+            "display_as_mutable_ref": false,
+            "allow_friendly_name": true,
+            "orphaned": false,
+            "backwards_compat_empty_default": false,
+            "friendly_name": "",
+            "deprecation_message": "",
+            "tooltip": "",
+            "default_value": "",
+            "autogenerated_default_value": "",
+            "default_object": "None",
+            "default_text_value": "",
+            "pin_type_properties": [
+              {
+                "name": "PinCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "bool"
+              },
+              {
+                "name": "PinSubCategory",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "NameProperty",
+                "cpp_type": "FName",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryObject",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "WeakObjectProperty",
+                "cpp_type": "TWeakObjectPtr<UObject>",
+                "flags": "0x1C001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "PinSubCategoryMemberReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FSimpleMemberReference",
+                "flags": "0x10001000000000",
+                "exported_text": "(MemberGuid=00000000000000000000000000000000)"
+              },
+              {
+                "name": "PinValueType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "StructProperty",
+                "cpp_type": "FEdGraphTerminalType",
+                "flags": "0x10001000000000",
+                "exported_text": "()"
+              },
+              {
+                "name": "ContainerType",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "EnumProperty",
+                "cpp_type": "EPinContainerType",
+                "flags": "0x18001040000200",
+                "exported_text": "None"
+              },
+              {
+                "name": "bIsReference",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsConst",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsWeakPointer",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bIsUObjectWrapper",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              },
+              {
+                "name": "bSerializeAsSinglePrecisionFloat",
+                "array_index": 0,
+                "array_dim": 1,
+                "property_class": "BoolProperty",
+                "cpp_type": "uint8",
+                "flags": "0x18001000000000",
+                "exported_text": "False"
+              }
+            ],
+            "linked_to": [
+              {
+                "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0",
+                "node_guid": "00495f3c-49ed-e4dc-edd2-f89f41f488b7",
+                "pin_id": "c24ab74d-4005-46ab-2328-2588a06a9870",
+                "pin_name": "A",
+                "direction": "Input"
+              }
+            ],
+            "sub_pins": [],
+            "parent_pin": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            },
+            "reference_pass_through_connection": {
+              "node_object_path": "None",
+              "node_guid": "None",
+              "pin_id": "None",
+              "pin_name": "None",
+              "direction": "None"
+            }
+          }
+        ],
+        "binding": null
+      }
+    ]
+  },
+  "links": [
+    {
+      "source": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+        "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+        "pin_id": "acc8f233-41be-e5d0-640e-e9b7bb04cc82",
+        "pin_name": "ReturnValue",
+        "direction": "Output"
+      },
+      "target": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.AnimGraphNode_TransitionResult_0",
+        "node_guid": "71012ece-48c2-d4d3-cf9a-f494ce699677",
+        "pin_id": "72f13357-4dd7-bd99-0b3a-b39947c04196",
+        "pin_name": "bCanEnterTransition",
+        "direction": "Input"
+      }
+    },
+    {
+      "source": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PropertyAccess_0",
+        "node_guid": "39b8c6c9-4ae5-769b-b59e-55a2632f3890",
+        "pin_id": "311fa6dd-4d44-b7d6-2c80-3ca65333378f",
+        "pin_name": "Value",
+        "direction": "Output"
+      },
+      "target": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0",
+        "node_guid": "00495f3c-49ed-e4dc-edd2-f89f41f488b7",
+        "pin_id": "c24ab74d-4005-46ab-2328-2588a06a9870",
+        "pin_name": "A",
+        "direction": "Input"
+      }
+    },
+    {
+      "source": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_AnimGetter_0",
+        "node_guid": "0fc4023d-41e3-9f05-0af7-d294ceb67753",
+        "pin_id": "d82b1d31-4792-4100-ce3f-40bb2254be63",
+        "pin_name": "ReturnValue",
+        "direction": "Output"
+      },
+      "target": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0",
+        "node_guid": "b44e6080-4f61-5767-214c-b5b56a9e7e95",
+        "pin_id": "001b8a2c-4c2c-9e71-66e8-5f9c0de5e4f6",
+        "pin_name": "A",
+        "direction": "Input"
+      }
+    },
+    {
+      "source": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CallFunction_0",
+        "node_guid": "00495f3c-49ed-e4dc-edd2-f89f41f488b7",
+        "pin_id": "2e8eff6a-40fc-5026-a76c-489ab5bd3269",
+        "pin_name": "ReturnValue",
+        "direction": "Output"
+      },
+      "target": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+        "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+        "pin_id": "ad94b7d6-494e-403c-eab4-8ea7446e0b09",
+        "pin_name": "A",
+        "direction": "Input"
+      }
+    },
+    {
+      "source": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_PromotableOperator_0",
+        "node_guid": "b44e6080-4f61-5767-214c-b5b56a9e7e95",
+        "pin_id": "445377e2-45d1-af22-4649-eca65f4b49b6",
+        "pin_name": "ReturnValue",
+        "direction": "Output"
+      },
+      "target": {
+        "node_object_path": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition.K2Node_CommutativeAssociativeBinaryOperator_0",
+        "node_guid": "6863e40a-4587-ca0c-2eb2-61bea33103e8",
+        "pin_id": "ad4e1979-4486-69fc-cafc-898c001c8f97",
+        "pin_name": "B",
+        "direction": "Input"
+      }
+    }
+  ],
+  "source_graph_sha256": "5e5991e7ed791f42322ee3f750dd2beb7dbe3b38c48206fc7983450f9d5ef515"
+}

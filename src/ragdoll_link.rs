@@ -118,7 +118,7 @@ impl Plugin for AlsRagdollLinkPlugin {
             ),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             (
                 sync_ragdoll_body_modes
                     .after(AnimationGraphSet::PrePhysics)
@@ -130,7 +130,7 @@ impl Plugin for AlsRagdollLinkPlugin {
                 .before(RagdollAngularDriveSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             (
                 release_ragdoll_air_exit_on_ground.after(PhysicsSystems::Last),
                 ragdoll_ground_follow.after(PhysicsSystems::Last),

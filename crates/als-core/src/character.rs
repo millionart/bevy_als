@@ -140,7 +140,7 @@ impl Default for AlsEffectiveGravity {
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsCmcAdapterRuntime {
     pub support_radius: f32,
-    pub fixed_delta_seconds: f32,
+    pub simulation_delta_seconds: f32,
     pub simulation_substeps: u32,
     pub min_analog_speed_applied: bool,
 }
@@ -149,7 +149,7 @@ impl Default for AlsCmcAdapterRuntime {
     fn default() -> Self {
         Self {
             support_radius: ALS_CHARACTER_CAPSULE_RADIUS - 0.15,
-            fixed_delta_seconds: 0.0,
+            simulation_delta_seconds: 0.0,
             simulation_substeps: 0,
             min_analog_speed_applied: false,
         }
@@ -189,7 +189,7 @@ impl Plugin for AlsCharacterPlugin {
         app.init_asset::<AlsMovementParams>()
             .init_asset::<AlsControlSchemeConfig>()
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),
             )
             .add_systems(Update, character_sensor_shape_sync_system);

@@ -186282,6 +186282,32 @@
       ]
     }
   ],
+  "source_foot_ik_call_axes": {
+    "thigh_r": {
+      "primary": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "secondary": [
+        0.0,
+        -1.0,
+        0.0
+      ]
+    },
+    "thigh_l": {
+      "primary": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "secondary": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    }
+  },
   "source_graph_summary": {
     "ApplyFootIk": {
       "node_count": 18,
@@ -187803,7 +187829,17 @@
     "hand_right_if_ik": "VB ik_hand_r",
     "hand_right_if_virtual": "VB hand_r",
     "foot_height_cm": 13.46573391997849,
-    "leg_length_cm": 82.76873779296977
+    "leg_length_cm": 82.76873779296977,
+    "foot_left_thigh_axis_pelvis_space_source": [
+      -0.15856590731414025,
+      0.058161233913387816,
+      -0.985633869095069
+    ],
+    "foot_right_thigh_axis_pelvis_space_source": [
+      -0.1585463923006498,
+      0.05816190353484904,
+      0.9856369689016599
+    ]
   },
   "runtime_asset": "assets/control_rigs/cr_als.runtime.json"
 }

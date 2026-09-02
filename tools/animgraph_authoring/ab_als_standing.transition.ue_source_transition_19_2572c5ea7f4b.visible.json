@@ -1,0 +1,236 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-2572c5ea7f4b3b04.source.json",
+  "target_graph": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_19_2572c5ea7f4b.animgraph.ron",
+  "target_spec": "target/bf111/source_specs/ab_als_standing.transition.ue_source_transition_19_2572c5ea7f4b.visible.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_20.Transition.K2Node_PromotableOperator_1",
+      "target_node": "f4399202-49cd-4506-880a-eb9e39ff1346",
+      "input_pins": [
+        {
+          "source": "A",
+          "target": "A",
+          "type_exception": "Source real pin is encoded as F32."
+        },
+        {
+          "source": "B",
+          "target": "B",
+          "type_exception": "Source real pin is encoded as F32.",
+          "source_default": "0.500000",
+          "target_default_contains": "source_default: \"0.500000\""
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "ReturnValue",
+          "target": "ReturnValue"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Greater",
+          "target_contains": "\"Greater\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "True",
+          "target_contains": "\"True\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Greater_DoubleDouble\",MemberGuid=00000000000000000000000000000000)",
+          "target_contains": "\"(MemberParent=\\\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\\\",MemberName=\\\"Greater_DoubleDouble\\\",MemberGuid=00000000000000000000000000000000)\""
+        },
+        {
+          "source_contains": "Unset",
+          "target_contains": "\"Unset\""
+        },
+        {
+          "source_contains": "-208",
+          "target_contains": "\"-208\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "56B2AB9B4D971FA3DC3A26AD316A4156",
+          "target_contains": "\"56B2AB9B4D971FA3DC3A26AD316A4156\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_20.Transition.K2Node_PropertyAccess_0",
+      "target_node": "d17149b6-3cb9-43cd-863e-05ef0e4cbb1f",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Value",
+          "target": "Value"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "(\"GetParent\",\"FeetState\",\"FootPlantedAmount\")",
+          "target_contains": "\"(\\\"GetParent\\\",\\\"FeetState\\\",\\\"FootPlantedAmount\\\")\""
+        },
+        {
+          "source_contains": "GetParent.FeetState.FootPlantedAmount",
+          "target_contains": "\"GetParent.FeetState.FootPlantedAmount\""
+        },
+        {
+          "source_contains": "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())",
+          "target_contains": "\"(PinCategory=\\\"real\\\",PinSubCategory=\\\"float\\\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "-576",
+          "target_contains": "\"-576\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "1",
+          "target_contains": "\"1\""
+        },
+        {
+          "source_contains": "5BB7634E4775422A2F4579A5D3B123D3",
+          "target_contains": "\"5BB7634E4775422A2F4579A5D3B123D3\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "bCanEnterTransition",
+      "target": "Can Enter Transition"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved nonfunctional editor comment omission."
+}

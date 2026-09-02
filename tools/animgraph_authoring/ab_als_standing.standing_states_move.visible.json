@@ -1,0 +1,34 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ecd66d87b17e5a52.source.json",
+  "target_graph": "assets/graphs/ab_als/stances/standing/state_outer_move.animgraph.ron",
+  "target_spec": "target/bf111/standing_states_move.spec.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1.Move.AnimGraphNode_UseCachedPose_0",
+      "target_node": "15120000-0000-4000-8000-000000000002",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Movement Details",
+          "target_contains": "cache_node: \"Save cached pose 'Movement Details'\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved nonfunctional editor comment omission."
+}

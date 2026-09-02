@@ -3,6 +3,8 @@ use als_core::motion::{AlsActualVelocity, AlsActualVelocitySet, AlsRotationRespo
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
 use bevy::prelude::*;
 
+pub const GROUNDED_VELOCITY_BLEND_HALF_LIFE_SECONDS: f32 = 0.1;
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualMotion {
     pub world_velocity: Vec3,
@@ -10,6 +12,12 @@ pub struct AlsActualMotion {
     pub horizontal_speed: f32,
     pub signed_direction_radians: f32,
     pub velocity_blend: HorizontalVelocityBlend,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsGroundedVelocityBlend {
+    pub value: HorizontalVelocityBlend,
+    initialized: bool,
 }
 
 impl AlsActualMotion {
@@ -28,20 +36,80 @@ impl AlsActualMotion {
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsActualMotionSet;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsGroundedVelocityBlendSet;
+
 pub struct AlsActualMotionPlugin;
 
 impl Plugin for AlsActualMotionPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            FixedPostUpdate,
+            PostUpdate,
             AlsActualMotionSet
                 .after(AlsActualVelocitySet)
                 .after(AlsRotationResponseSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             snapshot_actual_motion_system.in_set(AlsActualMotionSet),
+        )
+        .configure_sets(PostUpdate, AlsGroundedVelocityBlendSet)
+        .add_systems(
+            PostUpdate,
+            refresh_grounded_velocity_blend_system.in_set(AlsGroundedVelocityBlendSet),
         );
+    }
+}
+
+fn grounded_velocity_blend_alpha(delta_seconds: f32) -> f32 {
+    1.0 - 2.0_f32
+        .powf(-delta_seconds.max(0.0) / GROUNDED_VELOCITY_BLEND_HALF_LIFE_SECONDS.max(f32::EPSILON))
+}
+
+fn damp_grounded_velocity_blend(
+    current: HorizontalVelocityBlend,
+    target: HorizontalVelocityBlend,
+    alpha: f32,
+) -> HorizontalVelocityBlend {
+    HorizontalVelocityBlend {
+        forward: current.forward.lerp(target.forward, alpha),
+        backward: current.backward.lerp(target.backward, alpha),
+        left: current.left.lerp(target.left, alpha),
+        right: current.right.lerp(target.right, alpha),
+    }
+}
+
+fn refresh_grounded_velocity_blend_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut characters: Query<
+        (
+            Entity,
+            &AlsActualMotion,
+            Option<&mut AlsGroundedVelocityBlend>,
+        ),
+        With<AlsCharacter>,
+    >,
+) {
+    for (entity, motion, current) in &mut characters {
+        let target = motion.velocity_blend;
+        if let Some(mut current) = current {
+            current.value = if current.initialized {
+                damp_grounded_velocity_blend(
+                    current.value,
+                    target,
+                    grounded_velocity_blend_alpha(time.delta_secs()),
+                )
+            } else {
+                current.initialized = true;
+                target
+            };
+        } else {
+            commands.entity(entity).insert(AlsGroundedVelocityBlend {
+                value: target,
+                initialized: true,
+            });
+        }
     }
 }
 
@@ -122,5 +190,29 @@ mod tests {
             HorizontalVelocityBlend::default()
         );
         assert!(second_motion.horizontal_speed > 0.0);
+    }
+
+    #[test]
+    fn grounded_velocity_blend_uses_source_initialization_and_half_life() {
+        let target = HorizontalVelocityBlend {
+            forward: 1.0,
+            ..Default::default()
+        };
+        let initial = AlsGroundedVelocityBlend {
+            value: HorizontalVelocityBlend::default(),
+            initialized: false,
+        };
+        let initialized = if initial.initialized {
+            damp_grounded_velocity_blend(initial.value, target, grounded_velocity_blend_alpha(0.1))
+        } else {
+            target
+        };
+        assert_eq!(initialized, target);
+        let next = damp_grounded_velocity_blend(
+            HorizontalVelocityBlend::default(),
+            target,
+            grounded_velocity_blend_alpha(0.1),
+        );
+        assert!((next.forward - 0.5).abs() < 1e-6);
     }
 }

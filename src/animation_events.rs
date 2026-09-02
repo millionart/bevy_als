@@ -256,7 +256,7 @@ impl Plugin for AlsAnimationEventPlugin {
             .init_resource::<AlsNotifyGraphClipHandles>()
             .add_systems(Startup, load_notify_manifest)
             .configure_sets(
-                FixedPostUpdate,
+                PostUpdate,
                 (
                     AlsAnimationEventSet::Refresh,
                     AlsAnimationEventSet::Dispatch,
@@ -267,15 +267,15 @@ impl Plugin for AlsAnimationEventPlugin {
                     .before(AlsMantleDriveSet),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 ensure_animation_event_components.before(AlsAnimationEventSet::Refresh),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 refresh_animation_event_playbacks.in_set(AlsAnimationEventSet::Refresh),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 dispatch_animation_events.in_set(AlsAnimationEventSet::Dispatch),
             );
     }

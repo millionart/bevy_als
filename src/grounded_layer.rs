@@ -268,7 +268,7 @@ impl Plugin for GroundedLayerPlugin {
             PostUpdate,
             AlsGroundedLayerSet
                 .after(AlsCrouchingLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(Startup, load_grounded_curve_assets)
         .add_systems(
@@ -276,7 +276,7 @@ impl Plugin for GroundedLayerPlugin {
             grounded_layer_writer.in_set(AlsGroundedLayerSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             capture_grounded_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }

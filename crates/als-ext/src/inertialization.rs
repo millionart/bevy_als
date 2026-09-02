@@ -12,6 +12,69 @@ pub fn inertial_alpha(factor: f32, transition_duration: f32, half_life: f32) -> 
     1.0 - inertial_residual_weight(factor, transition_duration, half_life)
 }
 
+pub fn source_inertial_float(
+    mut value: f32,
+    mut velocity: f32,
+    mut elapsed: f32,
+    mut duration: f32,
+) -> f32 {
+    const TIME_EPSILON: f32 = 1e-7;
+    const VELOCITY_EPSILON: f32 = 1e-4;
+
+    if !value.is_finite() || !velocity.is_finite() || !elapsed.is_finite() || !duration.is_finite()
+    {
+        return 0.0;
+    }
+    elapsed = elapsed.max(0.0);
+    duration = duration.max(0.0);
+    if elapsed >= duration - TIME_EPSILON {
+        return 0.0;
+    }
+
+    let sign = if value < 0.0 {
+        value = -value;
+        velocity = -velocity;
+        -1.0
+    } else {
+        1.0
+    };
+    velocity = velocity.min(0.0);
+    if velocity < -VELOCITY_EPSILON {
+        duration = duration.min(-5.0 * value / velocity);
+    }
+    if duration <= TIME_EPSILON || elapsed >= duration - TIME_EPSILON {
+        return 0.0;
+    }
+
+    let duration_squared = duration * duration;
+    let duration_cubed = duration * duration_squared;
+    let duration_fourth = duration * duration_cubed;
+    let duration_fifth = duration * duration_fourth;
+    let acceleration = ((-8.0 * duration * velocity - 20.0 * value) / duration_squared).max(0.0);
+    let coefficient_a = -0.5
+        * (acceleration * duration_squared + 6.0 * duration * velocity + 12.0 * value)
+        / duration_fifth;
+    let coefficient_b = 0.5
+        * (3.0 * acceleration * duration_squared + 16.0 * duration * velocity + 30.0 * value)
+        / duration_fourth;
+    let coefficient_c = -0.5
+        * (3.0 * acceleration * duration_squared + 12.0 * duration * velocity + 20.0 * value)
+        / duration_cubed;
+    let coefficient_d = 0.5 * acceleration;
+    let result = (((((coefficient_a * elapsed) + coefficient_b) * elapsed + coefficient_c)
+        * elapsed
+        + coefficient_d)
+        * elapsed
+        + velocity)
+        * elapsed
+        + value;
+    if result.is_finite() {
+        result * sign
+    } else {
+        0.0
+    }
+}
+
 pub fn inertial_residual_weight(factor: f32, transition_duration: f32, half_life: f32) -> f32 {
     let factor = factor.clamp(0.0, 1.0);
     if factor >= 1.0 || transition_duration <= f32::EPSILON {
@@ -140,6 +203,19 @@ mod tests {
         assert!((inertial_residual_weight(0.0, 0.1, 0.05) - 1.0).abs() < 1e-6);
         assert!((inertial_residual_weight(1.0, 0.1, 0.05)).abs() < 1e-6);
         assert!((inertial_alpha(1.0, 0.1, 0.05) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn source_inertial_float_reaches_zero_without_overshoot() {
+        let mut previous = source_inertial_float(1.0, 0.0, 0.0, 0.2);
+        assert!((previous - 1.0).abs() < 1e-6);
+        for step in 1..=20 {
+            let current = source_inertial_float(1.0, 0.0, step as f32 * 0.01, 0.2);
+            assert!(current >= -1e-6);
+            assert!(current <= previous + 1e-6);
+            previous = current;
+        }
+        assert_eq!(source_inertial_float(1.0, 0.0, 0.2, 0.2), 0.0);
     }
 
     #[test]

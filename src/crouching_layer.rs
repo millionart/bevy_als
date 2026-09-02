@@ -483,7 +483,7 @@ impl Plugin for CrouchingLayerPlugin {
             PostUpdate,
             AlsCrouchingLayerSet
                 .after(crate::standing_layer::AlsStandingLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(Startup, load_crouching_curve_assets)
         .add_systems(
@@ -491,7 +491,7 @@ impl Plugin for CrouchingLayerPlugin {
             crouching_layer_writer.in_set(AlsCrouchingLayerSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             capture_crouching_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }

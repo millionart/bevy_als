@@ -1,74 +1,44 @@
 (
     states: [
-        (
-            id: "15300000-0000-4000-8000-000000000001",
-            label: "Walk",
-            graph: "graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
-            state_transition: None,
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000002",
-            label: "Run",
-            graph: "graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
-            state_transition: None,
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000003",
-            label: "Second Pivot",
-            graph: "graphs/ab_als/stances/standing/state_detail_second_pivot.animgraph.ron",
-            state_transition: None,
-        ),
-        (
+(
             id: "15300000-0000-4000-8000-000000000004",
             label: "Run Start From Walk",
-            graph: "graphs/ab_als/stances/standing/state_detail_run_start_from_walk.animgraph.ron",
+            graph: "graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron",
             state_transition: None,
         ),
-        (
-            id: "15300000-0000-4000-8000-000000000005",
-            label: "Run Start",
-            graph: "graphs/ab_als/stances/standing/state_detail_run_start.animgraph.ron",
+(
+            id: "15300000-0000-4000-8000-000000000001",
+            label: "Walk",
+            graph: "graphs/ab_als/stances/standing/state_detail_walk.animgraph.ron",
             state_transition: None,
         ),
-        (
+(
+            id: "15300000-0000-4000-8000-000000000002",
+            label: "Run",
+            graph: "graphs/ab_als/stances/standing/state_detail_run.animgraph.ron",
+            state_transition: None,
+        ),
+(
             id: "15300000-0000-4000-8000-000000000006",
             label: "First Pivot",
-            graph: "graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron",
+            graph: "graphs/ab_als/stances/standing/state_detail_first_pivot_visible.animgraph.ron",
             state_transition: None,
         ),
-    ],
+(
+            id: "15300000-0000-4000-8000-000000000003",
+            label: "Second Pivot",
+            graph: "graphs/ab_als/stances/standing/state_detail_second_pivot_visible.animgraph.ron",
+            state_transition: None,
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000005",
+            label: "Run Start",
+            graph: "graphs/ab_als/stances/standing/state_detail_run_start_visible.animgraph.ron",
+            state_transition: None,
+        )
+],
     transitions: [
-        (
-            id: "15300000-0000-4000-8000-000000000101",
-            source: "15300000-0000-4000-8000-000000000001",
-            target: "15300000-0000-4000-8000-000000000002",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000103",
-            source: "15300000-0000-4000-8000-000000000001",
-            target: "15300000-0000-4000-8000-000000000004",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000104",
-            source: "15300000-0000-4000-8000-000000000001",
-            target: "15300000-0000-4000-8000-000000000005",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
+(
             id: "15300000-0000-4000-8000-000000000106",
             source: "15300000-0000-4000-8000-000000000002",
             target: "15300000-0000-4000-8000-000000000001",
@@ -78,37 +48,7 @@
                 reset_target_state: true,
             ),
         ),
-        (
-            id: "15300000-0000-4000-8000-000000000110",
-            source: "15300000-0000-4000-8000-000000000002",
-            target: "15300000-0000-4000-8000-000000000006",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000112",
-            source: "15300000-0000-4000-8000-000000000003",
-            target: "15300000-0000-4000-8000-000000000002",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
-            id: "15300000-0000-4000-8000-000000000115",
-            source: "15300000-0000-4000-8000-000000000003",
-            target: "15300000-0000-4000-8000-000000000006",
-            data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
-                ignore_external_events: false,
-                reset_target_state: true,
-            ),
-        ),
-        (
+(
             id: "15300000-0000-4000-8000-000000000117",
             source: "15300000-0000-4000-8000-000000000004",
             target: "15300000-0000-4000-8000-000000000002",
@@ -118,17 +58,17 @@
                 reset_target_state: true,
             ),
         ),
-        (
-            id: "15300000-0000-4000-8000-000000000122",
-            source: "15300000-0000-4000-8000-000000000005",
-            target: "15300000-0000-4000-8000-000000000002",
+(
+            id: "15300000-0000-4000-8000-000000000110",
+            source: "15300000-0000-4000-8000-000000000002",
+            target: "15300000-0000-4000-8000-000000000006",
             data: (
-                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
                 ignore_external_events: false,
                 reset_target_state: true,
             ),
         ),
-        (
+(
             id: "15300000-0000-4000-8000-000000000127",
             source: "15300000-0000-4000-8000-000000000006",
             target: "15300000-0000-4000-8000-000000000002",
@@ -138,7 +78,7 @@
                 reset_target_state: true,
             ),
         ),
-        (
+(
             id: "15300000-0000-4000-8000-000000000128",
             source: "15300000-0000-4000-8000-000000000006",
             target: "15300000-0000-4000-8000-000000000003",
@@ -148,7 +88,67 @@
                 reset_target_state: true,
             ),
         ),
-    ],
+(
+            id: "15300000-0000-4000-8000-000000000115",
+            source: "15300000-0000-4000-8000-000000000003",
+            target: "15300000-0000-4000-8000-000000000006",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000112",
+            source: "15300000-0000-4000-8000-000000000003",
+            target: "15300000-0000-4000-8000-000000000002",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000122",
+            source: "15300000-0000-4000-8000-000000000005",
+            target: "15300000-0000-4000-8000-000000000002",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000101",
+            source: "15300000-0000-4000-8000-000000000001",
+            target: "15300000-0000-4000-8000-000000000002",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron", timed: Some(0.2)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000104",
+            source: "15300000-0000-4000-8000-000000000001",
+            target: "15300000-0000-4000-8000-000000000005",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        ),
+(
+            id: "15300000-0000-4000-8000-000000000103",
+            source: "15300000-0000-4000-8000-000000000001",
+            target: "15300000-0000-4000-8000-000000000004",
+            data: (
+                kind: Graph(graph: "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron", timed: Some(0.1)),
+                ignore_external_events: false,
+                reset_target_state: true,
+            ),
+        )
+],
     start_state: "15300000-0000-4000-8000-000000000001",
     node_spec: (
         input_times: [],

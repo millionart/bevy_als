@@ -46,7 +46,7 @@ impl Plugin for PlaygroundPlugin {
                 )
                     .chain(),
             )
-            .add_systems(FixedUpdate, playground_moving_object_system)
+            .add_systems(Update, playground_moving_object_system)
             .add_systems(
                 Update,
                 (

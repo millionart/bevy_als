@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "15190000-0000-4000-8000-000000000001", name: "standing foot lock transition", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: Linear, custom_curve: []) }, should_debug: false),
+        (id: "15190000-0000-4000-8000-000000000001", name: "standing foot lock transition", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("15190000-0000-4000-8000-000000000001", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

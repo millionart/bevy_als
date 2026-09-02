@@ -1,0 +1,70 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-12137b45a82fe316.source.json",
+  "target_graph": "assets/graphs/ab_als/stances/standing/state_stop_lock_right.animgraph.ron",
+  "target_spec": "target/bf111/stop_lock_right.current.spec.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_2.Lock Right Foot.AnimGraphNode_UseCachedPose_0",
+      "target_node": "15061000-0000-4000-8000-000000000001",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Movement Details",
+          "target_contains": "cache_node: \"Save cached pose 'Movement Details'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_2.Lock Right Foot.AnimGraphNode_ModifyCurve_0",
+      "target_node": "15061000-0000-4000-8000-000000000002",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "FootRightLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0]"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"FootRightLock\")",
+          "target_contains": "curve_names: [\"FootRightLock\"]"
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Blend",
+          "target_contains": "apply_mode: \"Blend\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved BF111.03 comment group exclusion."
+}

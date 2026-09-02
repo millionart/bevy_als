@@ -160,7 +160,7 @@ def decode_anim_data_model(asset):
                 tr = {
                     "pos": [struct.unpack_from("<3f", buf, d_p + 12 * i) for i in range(n_p)],
                     "rot": [struct.unpack_from("<4f", buf, d_r + 16 * i) for i in range(n_r)],
-                    "scale_n": n_s,
+                    "scale": [struct.unpack_from("<3f", buf, d_s + 12 * i) for i in range(n_s)],
                 }
             elif t["name"] == "Name":
                 info["name"] = fname_at(asset.buf, pps, asset.names)

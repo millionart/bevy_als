@@ -124,11 +124,11 @@ impl Plugin for HeadLayerPlugin {
             PostUpdate,
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             bridge_head_curve_states.after(AnimationGraphSet::PrePhysics),
         );
     }

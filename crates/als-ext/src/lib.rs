@@ -43,6 +43,7 @@ pub mod overlay_materials;
 pub mod penetration_recovery;
 pub mod playground;
 pub mod playground_materials;
+pub mod pose_timestamp;
 pub mod profile_blend;
 pub mod ragdoll_angular_drive;
 pub mod ragdoll_config_node;
@@ -58,8 +59,14 @@ pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
 pub mod source_cached_pose;
+pub mod source_movement_nodes;
 pub mod source_pose_nodes;
 pub mod source_pose_passthrough;
+pub mod source_scalar_expression;
+pub mod source_sequence_evaluator;
+pub mod source_sequence_player;
+pub mod source_slot;
+pub mod source_stop_nodes;
 pub mod state_label_event;
 pub mod sync_group_phase;
 pub mod time_dilation;
@@ -134,7 +141,9 @@ pub use inertialized_linked_anim_layer::{
     GlobalDataInput, InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,
     inertialized_linked_layer_activation,
 };
-pub use interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState};
+pub use interruptible_fsm::{
+    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, StatePoseOutput,
+};
 pub use layered_graph::{
     CachedPoseInput, FixedF32Input, FixedGlobalF32Input, GlobalF32InputPin, LayeredGraphNode,
     NamedPoseOutput, OutputDataAlias,
@@ -175,6 +184,7 @@ pub use playground::{
     ue_directional_light_ray_to_bevy, ue_extents_to_bevy, ue_point_to_bevy, ue_quat_to_bevy,
     ue_rotator_to_bevy_quat, ue_scale_to_bevy, ue_yaw_to_bevy_quat,
 };
+pub use pose_timestamp::PoseTimestampNode;
 pub use profile_blend::{
     AlphaBlendMode, BoneBlendScale, ProfiledBlendNode, curve_a_input, curve_b_input,
     profile_target_weight, transition_alpha,
@@ -204,13 +214,22 @@ pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_anima
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
 pub use source_cached_pose::{
-    SourceCachedPoseSaveNode, SourceCachedPoseUseNode, resolve_cached_pose,
+    SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceScopedCachedPoseUseNode,
+    resolve_cached_pose, resolve_scoped_cached_pose,
 };
+pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_pose_nodes::{
     SourceApplyAdditiveNode, SourceCurveModifyNode, SourceGameplayTagBlendNode,
     SourceTwoWayBlendNode,
 };
 pub use source_pose_passthrough::SourcePosePassthroughNode;
+pub use source_scalar_expression::{
+    SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin,
+};
+pub use source_sequence_evaluator::SourceSequenceEvaluatorNode;
+pub use source_sequence_player::SourceSequencePlayerNode;
+pub use source_slot::SourceSlotNode;
+pub use source_stop_nodes::{SourceEnumPoseBlendNode, SourceLayeredBoneBlendNode};
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
     GlobalSyncGroupSampleNode, SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode,
@@ -281,6 +300,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CachedPoseInput>()
             .register_type::<NamedPoseOutput>()
             .register_type::<OutputDataAlias>()
+            .register_type::<PoseTimestampNode>()
             .register_type::<RagdollConfigNode>()
             .register_type::<RagdollingTagBlendNode>()
             .register_type::<RichCurveInterpolation>()
@@ -296,6 +316,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<InertializedLinkedAnimLayerNode>()
             .register_type::<GlobalDataInput>()
             .register_type::<InterruptibleFsmNode>()
+            .register_type::<StatePoseOutput>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()
             .register_type::<LocalRefPoseNode>()
@@ -304,10 +325,21 @@ impl Plugin for AlsExtPlugin {
             .register_type::<RootMotionClipNode>()
             .register_type::<SourceCachedPoseSaveNode>()
             .register_type::<SourceCachedPoseUseNode>()
+            .register_type::<SourceScopedCachedPoseUseNode>()
             .register_type::<SourceApplyAdditiveNode>()
             .register_type::<SourceCurveModifyNode>()
             .register_type::<SourceGameplayTagBlendNode>()
+            .register_type::<SourceMultiWayBlendNode>()
+            .register_type::<SourceSetHipsDirectionNode>()
             .register_type::<SourcePosePassthroughNode>()
+            .register_type::<SourceScalarDataType>()
+            .register_type::<SourceScalarExpressionNode>()
+            .register_type::<SourceScalarPin>()
+            .register_type::<SourceSequenceEvaluatorNode>()
+            .register_type::<SourceSequencePlayerNode>()
+            .register_type::<SourceSlotNode>()
+            .register_type::<SourceEnumPoseBlendNode>()
+            .register_type::<SourceLayeredBoneBlendNode>()
             .register_type::<SourceTwoWayBlendNode>()
             .register_type::<ControlRigBoundaryNode>()
             .register_type::<ReferenceMeshDifferenceNode>()

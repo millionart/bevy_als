@@ -27,9 +27,9 @@ pub struct AlsPlayableCharacterPlugin;
 impl Plugin for AlsPlayableCharacterPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            PhysicsPlugins::new(FixedPostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
-            TnuaAvian3dPlugin::new(FixedUpdate),
-            TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+            PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),
+            TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
             EnhancedInputPlugin,
             AlsInputPlugin,
             AlsInputRequestPlugin,
@@ -38,7 +38,7 @@ impl Plugin for AlsPlayableCharacterPlugin {
             AlsCharacterPlugin,
             AlsMotionPlugin,
             als_core::air::AlsAirPlugin,
-            AnimationGraphPlugin::default(),
+            AnimationGraphPlugin::from_physics_schedule(PostUpdate),
             AlsExtPlugin,
             AlsCharacterRuntimePlugin,
             AlsCameraPlugin,

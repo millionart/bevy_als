@@ -1,0 +1,34 @@
+(
+    nodes: [
+        (id: "7048fb41-023e-443c-89e0-c26909d8d96e", name: "NOT Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "not", source_class: "/Script/BlueprintGraph.K2Node_CallFunction", source_properties: ["True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Not_PreBool\",MemberGuid=00000000000000000000000000000000)", "Unset", "-416", "-32", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "00495F3C49EDE4DCEDD2F89F41F488B7"]) }, should_debug: false),
+        (id: "1c365920-492e-4bbb-8e23-f4367434ccd9", name: "AND Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "and", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanAND\",MemberGuid=00000000000000000000000000000000)", "Unset", "-208", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "6863E40A4587CA0C2EB261BEA33103E8"]) }, should_debug: false),
+        (id: "eda472af-453f-407b-8590-85a63f141275", name: "State Weight (Move)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "ReturnValue", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "0.0", global_key: "")], operation: "global", source_class: "/Script/AnimGraph.K2Node_AnimGetter", source_properties: ["/Script/AnimGraph.AnimGraphNode_StateMachine'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6'", "/Script/AnimGraph.AnimStateNode'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1'", "/Script/CoreUObject.Class'/Script/ALS.AlsLinkedAnimationInstance'", "/Script/Engine.AnimBlueprint'/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing'", "LOCGEN_FORMAT_ORDERED(NSLOCTEXT(\"AnimGetter\", \"NodeTitle\", \"{0} ({1})\"), NSLOCTEXT(\"UObjectDisplayNames\", \"AnimInstance:GetInstanceStateWeight\", \"State Weight\"), NSLOCTEXT(\"\", \"030E464C4C9AB9E80C762EA87BE38668\", \"Move\"))", "True", "False", "(MemberName=\"GetInstanceStateWeight\",MemberGuid=00000000000000000000000000000000,bSelfContext=True)", "Unset", "-672", "32", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "0FC4023D41E39F050AF7D294CEB67753"]) }, should_debug: false),
+        (id: "21b24c29-3502-4cab-862f-35ffa207a0e1", name: "float >= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 1.0, bool_default: false, source_default: "1.000000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "greater_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["GreaterEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"GreaterEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-432", "32", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "B44E60804F615767214CB5B56A9E7E95"]) }, should_debug: false),
+        (id: "ecddc91d-89c2-4ae3-85cf-85590284978a", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"LocomotionState\",\"bMovingSmooth\")", "GetParent.LocomotionState.bMovingSmooth", "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-800", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "39B8C6C94AE5769BB59E55A2632F3890"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("Can Enter Transition"): NodeData("1c365920-492e-4bbb-8e23-f4367434ccd9", "ReturnValue"),
+        NodeData("1c365920-492e-4bbb-8e23-f4367434ccd9", "B"): NodeData("21b24c29-3502-4cab-862f-35ffa207a0e1", "ReturnValue"),
+        NodeData("21b24c29-3502-4cab-862f-35ffa207a0e1", "A"): NodeData("eda472af-453f-407b-8590-85a63f141275", "ReturnValue"),
+        NodeData("1c365920-492e-4bbb-8e23-f4367434ccd9", "A"): NodeData("7048fb41-023e-443c-89e0-c26909d8d96e", "ReturnValue"),
+        NodeData("7048fb41-023e-443c-89e0-c26909d8d96e", "A"): NodeData("ecddc91d-89c2-4ae3-85cf-85590284978a", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "Can Enter Transition": Bool },
+        input_order: {},
+        output_order: { Data("Can Enter Transition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "7048fb41-023e-443c-89e0-c26909d8d96e": (-416.000, -32.000), "1c365920-492e-4bbb-8e23-f4367434ccd9": (-208.000, 0.000), "eda472af-453f-407b-8590-85a63f141275": (-672.000, 32.000), "21b24c29-3502-4cab-862f-35ffa207a0e1": (-432.000, 32.000), "ecddc91d-89c2-4ae3-85cf-85590284978a": (-800.000, -48.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

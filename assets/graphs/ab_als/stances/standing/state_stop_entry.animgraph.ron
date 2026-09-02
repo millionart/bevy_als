@@ -1,42 +1,30 @@
 (
     nodes: [
-        (id: "15040000-0000-4000-8000-000000000001", name: "standing stop entry time clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Base/A_Als_Stand_Pose.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
-        (id: "15040000-0000-4000-8000-000000000002", name: "standing stop entry time position", inner: { "als_ext::TimePositionNode": (duration_fallback: 0.033333335, loop_position: false) }, should_debug: false),
-        (id: "15040000-0000-4000-8000-000000000003", name: "standing stop entry time frame", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+        (
+            id: "15040000-0000-4000-8000-000000000001",
+            name: "Use cached pose 'Movement Details'",
+            inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Movement Details'") },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
-        OutputData("pose"): InputData(Passthrough("movement_pose")),
-        NodeData("15040000-0000-4000-8000-000000000002", "position"): NodeData("15040000-0000-4000-8000-000000000003", "value"),
-        NodeData("15040000-0000-4000-8000-000000000002", "pose"): NodeData("15040000-0000-4000-8000-000000000001", "pose"),
-        NodeTime("15040000-0000-4000-8000-000000000002", "time"): NodeTime("15040000-0000-4000-8000-000000000001"),
-        OutputTime: NodeTime("15040000-0000-4000-8000-000000000002"),
+        OutputData("Result"): NodeData("15040000-0000-4000-8000-000000000001", "Pose"),
     },
     io_spec: (
         input_times: [],
-        input_data: {
-            Passthrough("movement_pose"): Pose,
-        },
-        output_time: true,
-        output_data: {
-            "pose": Pose,
-        },
-        input_order: {
-            Data(Passthrough("movement_pose")): 0,
-        },
-        output_order: {
-            Data("pose"): 1,
-            Time: 2,
-        },
+        input_data: {},
+        output_time: false,
+        output_data: { "Result": Pose },
+        input_order: {},
+        output_order: { Data("Result"): 0 },
     ),
     default_data: {},
     editor_metadata: (
         node_positions: {
-            "15040000-0000-4000-8000-000000000001": (-320.000, 0.000),
-            "15040000-0000-4000-8000-000000000003": (-576.000, 96.000),
-            "15040000-0000-4000-8000-000000000002": (-256.000, 0.000),
+            "15040000-0000-4000-8000-000000000001": (-320.0, 0.0),
         },
         input_position: (0.0, 0.0),
-        output_position: (320.0, 0.0),
+        output_position: (0.0, 0.0),
         input_param_order: {},
         input_time_order: {},
         output_data_order: {},

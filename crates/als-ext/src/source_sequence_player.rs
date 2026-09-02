@@ -1,0 +1,269 @@
+use std::any::TypeId;
+
+use bevy::{
+    animation::animation_curves::WeightsCurveSample,
+    asset::Handle,
+    platform::hash::Hashed,
+    prelude::{EvaluatorId, Transform, VariableCurve},
+    reflect::prelude::*,
+};
+use bevy_animation_graph::core::{
+    animation_clip::GraphClip,
+    animation_graph::TimeUpdate,
+    animation_node::{NodeLike, ReflectNodeLike},
+    context::{new_context::NodeContext, spec_context::SpecContext},
+    edge_data::{DataSpec, DataValue},
+    errors::GraphError,
+    id::BoneId,
+    pose::{BonePose, Pose},
+};
+
+use crate::global_f32_input::root_defaults_enabled;
+use crate::{context_time_update, make_local_difference};
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct SourceSequencePlayerState {
+    initialized: bool,
+    position: f32,
+}
+
+enum CurveSample {
+    Translation(bevy::math::Vec3),
+    Rotation(bevy::math::Quat),
+    Scale(bevy::math::Vec3),
+    BoneWeights(Vec<f32>),
+}
+
+fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSample> {
+    let evaluator_id = curve.0.evaluator_id();
+    let translation_id = Hashed::new((TypeId::of::<Transform>(), 0));
+    let rotation_id = Hashed::new((TypeId::of::<Transform>(), 1));
+    let scale_id = Hashed::new((TypeId::of::<Transform>(), 2));
+    match evaluator_id {
+        EvaluatorId::ComponentField(id) => {
+            if id == &translation_id {
+                Some(CurveSample::Translation(
+                    *curve.0.sample_clamped(time).downcast_ref()?,
+                ))
+            } else if id == &rotation_id {
+                Some(CurveSample::Rotation(
+                    *curve.0.sample_clamped(time).downcast_ref()?,
+                ))
+            } else if id == &scale_id {
+                Some(CurveSample::Scale(
+                    *curve.0.sample_clamped(time).downcast_ref()?,
+                ))
+            } else {
+                None
+            }
+        }
+        EvaluatorId::Type(_) => Some(CurveSample::BoneWeights(
+            (*curve
+                .0
+                .sample_clamped(time)
+                .downcast::<WeightsCurveSample>()
+                .ok()?)
+            .0,
+        )),
+    }
+}
+
+pub(crate) fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
+    let mut pose = Pose {
+        timestamp: time,
+        skeleton: clip.skeleton.clone(),
+        ..Pose::default()
+    };
+    for (bone_id, curves) in &clip.curves {
+        let mut bone_pose = BonePose::default();
+        for curve in curves {
+            match sample_curve(curve, time) {
+                Some(CurveSample::Translation(value)) => bone_pose.translation = Some(value),
+                Some(CurveSample::Rotation(value)) => bone_pose.rotation = Some(value),
+                Some(CurveSample::Scale(value)) => bone_pose.scale = Some(value),
+                Some(CurveSample::BoneWeights(value)) => bone_pose.weights = Some(value),
+                None => {}
+            }
+        }
+        pose.add_bone(bone_pose, BoneId::from(*bone_id));
+    }
+    pose
+}
+
+fn next_position(
+    state: &mut SourceSequencePlayerState,
+    update: TimeUpdate,
+    duration: f32,
+    start_position: f32,
+    play_rate: f32,
+    loop_animation: bool,
+) -> f32 {
+    let duration = duration.max(1e-4);
+    if !state.initialized {
+        state.initialized = true;
+        state.position = start_position;
+    }
+    match update {
+        TimeUpdate::Delta(value) => state.position += value.max(0.0) * play_rate,
+        TimeUpdate::Absolute(value) => state.position = start_position + value * play_rate,
+        TimeUpdate::PercentOfEvent { .. } => {}
+    }
+    state.position = if loop_animation {
+        state.position.rem_euclid(duration)
+    } else {
+        state.position.clamp(0.0, duration)
+    };
+    state.position
+}
+
+fn global_f32_or_field(ctx: &NodeContext, key: &str, fallback: f32) -> Result<f32, GraphError> {
+    if key.is_empty() {
+        return Ok(fallback);
+    }
+    match ctx.graph_context.global_input_data.get(key) {
+        Some(value) => value.as_f32(),
+        None if root_defaults_enabled(ctx) => Ok(fallback),
+        None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
+    }
+}
+
+fn global_bool_or_field(ctx: &NodeContext, key: &str, fallback: bool) -> Result<bool, GraphError> {
+    if key.is_empty() {
+        return Ok(fallback);
+    }
+    match ctx.graph_context.global_input_data.get(key) {
+        Some(value) => value.as_bool(),
+        None if root_defaults_enabled(ctx) => Ok(fallback),
+        None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct SourceSequencePlayerNode {
+    pub clip: Handle<GraphClip>,
+    pub additive_reference: Option<Handle<GraphClip>>,
+    pub additive_reference_position: f32,
+    pub play_rate: f32,
+    pub play_rate_key: String,
+    pub start_position: f32,
+    pub expose_start_position_pin: bool,
+    pub loop_animation: bool,
+    pub loop_animation_key: String,
+    pub expose_loop_animation_pin: bool,
+    pub sync_group: String,
+}
+
+impl Default for SourceSequencePlayerNode {
+    fn default() -> Self {
+        Self {
+            clip: Default::default(),
+            additive_reference: None,
+            additive_reference_position: 0.0,
+            play_rate: 1.0,
+            play_rate_key: Default::default(),
+            start_position: 0.0,
+            expose_start_position_pin: true,
+            loop_animation: true,
+            loop_animation_key: Default::default(),
+            expose_loop_animation_pin: false,
+            sync_group: Default::default(),
+        }
+    }
+}
+
+impl NodeLike for SourceSequencePlayerNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let Some(clip) = ctx
+            .graph_context
+            .resources
+            .graph_clip_assets
+            .get(&self.clip)
+        else {
+            ctx.set_data_fwd("Pose", DataValue::Pose(Pose::default()));
+            return Ok(());
+        };
+        let update = context_time_update(&ctx)?;
+        let play_rate = global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate)?;
+        let loop_animation =
+            global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)?;
+        let position = next_position(
+            ctx.state_mut_or_else(SourceSequencePlayerState::default)?,
+            update,
+            clip.duration(),
+            self.start_position,
+            play_rate,
+            loop_animation,
+        );
+        let target = sample_pose(clip, position);
+        let pose = if let Some(reference_handle) = &self.additive_reference {
+            let reference_clip = ctx
+                .graph_context
+                .resources
+                .graph_clip_assets
+                .get(reference_handle)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            let reference = sample_pose(reference_clip, self.additive_reference_position.max(0.0));
+            let skeleton = ctx
+                .graph_context
+                .resources
+                .skeleton_assets
+                .get(&reference.skeleton)
+                .or_else(|| {
+                    ctx.graph_context
+                        .resources
+                        .skeleton_assets
+                        .get(&target.skeleton)
+                })
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            make_local_difference(&reference, &target, skeleton)
+        } else {
+            target
+        };
+        ctx.set_time(position);
+        ctx.set_data_fwd("Pose", pose);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data("Play Rate", DataSpec::F32);
+        if self.expose_start_position_pin {
+            ctx.add_input_data("Start Position", DataSpec::F32);
+        }
+        if self.expose_loop_animation_pin {
+            ctx.add_input_data("Loop Animation", DataSpec::Bool);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
+        Ok(())
+    }
+
+    fn display_name(&self) -> String {
+        "ALS Source Sequence Player".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_sequence_player_applies_start_position_and_rate() {
+        let mut state = SourceSequencePlayerState::default();
+        assert!(
+            (next_position(&mut state, TimeUpdate::Delta(0.1), 1.0, 0.25, 1.25, false) - 0.375)
+                .abs()
+                < 1e-6
+        );
+    }
+
+    #[test]
+    fn source_sequence_player_wraps_looping_playback() {
+        let mut state = SourceSequencePlayerState::default();
+        assert!(
+            (next_position(&mut state, TimeUpdate::Absolute(1.0), 1.0, 0.25, 1.0, true) - 0.25)
+                .abs()
+                < 1e-6
+        );
+    }
+}

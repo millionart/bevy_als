@@ -1,0 +1,405 @@
+{
+  "format": "als_ue_visible_recursive_audit_index_v1",
+  "source_contract_index": "docs/bf111/source_contracts/AB_Als_Standing.recursive/index.json",
+  "entries": [
+    {
+      "source_graph": "AnimGraph",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-f1fb79396ffa8063.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States",
+      "kind": "fsm",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-862726fd59945e17.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/movement_details.fsm.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_0.Walk",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-7afda4edb324c513.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_walk.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_walk.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_1.Run",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-48ecbc8c65334a07.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_3.Second Pivot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-80a58d2ce75a5935.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_second_pivot.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_second_pivot_visible.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_4.Run Start From Walk",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b7b2a09c2374f92b.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run_start_from_walk.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_5.Run Start",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-bb37a6cc1b8c3222.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run_start.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run_start_visible.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_6.First Pivot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-52cb89786a41504d.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_details_first_pivot.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_first_pivot_visible.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_0.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-65b98df2d8b0699a.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_00_65b98df2d8b0.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_00_65b98df2d8b0.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_1.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-008ab3011cb9e9fd.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_01_008ab3011cb9.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_01_008ab3011cb9.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_15.AnimationTransitionGraph_0",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-aac68c25e4ef1216.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_02_aac68c25e4ef.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_02_aac68c25e4ef.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_16.AnimationTransitionGraph_0",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-6c639f06d7081f3c.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_03_6c639f06d708.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_03_6c639f06d708.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_3.Transition_1",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ca276e75b79257ca.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_04_ca276e75b792.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_04_ca276e75b792.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_32.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-8cee1d96deb7bfe8.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_05_8cee1d96deb7.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_05_8cee1d96deb7.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_33.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-324eb58437ae7835.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_06_324eb58437ae.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_06_324eb58437ae.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_7.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-e1474b04329d5572.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_07_e1474b04329d.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_07_e1474b04329d.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_8.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b387df812c4df767.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_08_b387df812c4d.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_08_b387df812c4d.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_9.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-91fcc393dfe06313.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_09_91fcc393dfe0.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_09_91fcc393dfe0.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States",
+      "kind": "fsm",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-685c5ffea3905918.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.movement_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/movement_states.fsm.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_0.Move Forward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-828b190a7eb4f082.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_1.Move Backward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-538c2b81d31c8f17.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_2.Move Right Forward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-27c10fe46286d1cd.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_right_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_3.Move Right Backward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-c54e52d335d2fc63.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_right_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_4.Move Left Forward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-594debb7fd0f31d2.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_left_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_5.Move Left Backward",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b3ed1b28661f39fb.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.move_left_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_14.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-6a3dbd8ec8e3ffd3.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_10_6a3dbd8ec8e3.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_10_6a3dbd8ec8e3.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_15.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-861d0768f355727e.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_11_861d0768f355.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_11_861d0768f355.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_16.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-0fd21be7035b4865.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_12_0fd21be7035b.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_12_0fd21be7035b.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_19.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-e12f0708c352028b.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_13_e12f0708c352.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_13_e12f0708c352.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_2.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-780cdeb57b32fa15.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_14_780cdeb57b32.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_14_780cdeb57b32.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_28.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ccf636347dcd1efb.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_15_ccf636347dcd.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_15_ccf636347dcd.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_3.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-8500411f731e9a31.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_16_8500411f731e.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_16_8500411f731e.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_7.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-c1af68469999f8b2.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_17_c1af68469999.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_17_c1af68469999.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States",
+      "kind": "fsm",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-5dae6352b11e48fa.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.standing_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/standing_states.fsm.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_0.Idle",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-d3a0999a56c3ce96.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.standing_states_idle.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_idle.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1.Move",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ecd66d87b17e5a52.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.standing_states_move.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_outer_move.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-d9844a7c5bb59059.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States",
+      "kind": "fsm",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-89f525bad3938b15.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/stop_states.fsm.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_0.Entry",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-2763111d7e1d98d2.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_entry.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_entry.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_2.Lock Right Foot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-12137b45a82fe316.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_lock_right.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_lock_right.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-691b2da0ec9c8305.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_plant_right.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_4.Lock Left Foot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-c2cf1980c4350a9c.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_lock_left.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_lock_left.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_5.Plant Left Foot",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-1d154f587699c733.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.stop_plant_left.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_19.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-42a17a81a557b349.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_18_42a17a81a557.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_18_42a17a81a557.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_20.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-2572c5ea7f4b3b04.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_19_2572c5ea7f4b.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_19_2572c5ea7f4b.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_21.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-dcdc3a8b82d7f155.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_20_dcdc3a8b82d7.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_20_dcdc3a8b82d7.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_22.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ca95fb05456ce96e.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_21_ca95fb05456c.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_21_ca95fb05456c.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_5.Rotate Right",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-7ac5745c972db11f.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.standing_states_rotate_right.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_6.Rotate Left",
+      "kind": "graph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-48008881c4026c28.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.standing_states_rotate_left.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_0.Transition_1",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-081db0d3bf581923.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_22_081db0d3bf58.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_22_081db0d3bf58.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_10.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-1ab8d30e98cbab2c.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_23_1ab8d30e98cb.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_23_1ab8d30e98cb.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_18.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-a68c6782b51f6a7a.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_24_a68c6782b51f.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_24_a68c6782b51f.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_19.Transition_1",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-36c6c3fb1b6501e5.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_25_36c6c3fb1b65.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_25_36c6c3fb1b65.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_21.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ba564f654e7e7a31.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_26_ba564f654e7e.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_26_ba564f654e7e.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_22.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-3e9389329b62131d.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_27_3e9389329b62.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_27_3e9389329b62.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_23.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-1b1b4d1082e62500.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_28_1b1b4d1082e6.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_28_1b1b4d1082e6.animgraph.ron"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition",
+      "kind": "transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-903d0b3e1740e1a6.source.json",
+      "map": "tools/animgraph_authoring/ab_als_standing.transition.ue_source_transition_29_903d0b3e1740.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_29_903d0b3e1740.animgraph.ron"
+    }
+  ]
+}

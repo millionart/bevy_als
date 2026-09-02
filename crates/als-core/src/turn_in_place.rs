@@ -52,7 +52,7 @@ pub fn wrap_angle_degrees(angle: f32) -> f32 {
 fn mapped_activation_delay(angle_abs: f32, threshold: f32, max_delay: f32) -> f32 {
     let span = 180.0 - threshold;
     let t = ((angle_abs - threshold) / span.max(f32::EPSILON)).clamp(0.0, 1.0);
-    max_delay * (1.0 - t)
+    max_delay * t
 }
 
 impl TurnInPlaceDetector {
@@ -89,7 +89,6 @@ impl TurnInPlaceDetector {
             return None;
         }
 
-        self.activation_delay = 0.0;
         let left = view_yaw_angle <= 0.0;
         let variant = if angle_abs < config.turn_180_angle_threshold_degrees {
             if left {
@@ -197,5 +196,53 @@ mod tests {
     #[test]
     fn source_activation_delay_upper_bound_is_preserved() {
         assert!((TurnInPlaceConfig::default().max_activation_delay_seconds - 0.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn source_activation_delay_increases_from_yaw_threshold_to_one_eighty() {
+        let config = TurnInPlaceConfig::default();
+        assert!(
+            mapped_activation_delay(
+                config.view_yaw_angle_threshold_degrees,
+                config.view_yaw_angle_threshold_degrees,
+                config.max_activation_delay_seconds,
+            )
+            .abs()
+                < 1e-6
+        );
+        assert!(
+            (mapped_activation_delay(
+                180.0,
+                config.view_yaw_angle_threshold_degrees,
+                config.max_activation_delay_seconds,
+            ) - config.max_activation_delay_seconds)
+                .abs()
+                < 1e-6
+        );
+        assert!(
+            (mapped_activation_delay(
+                90.0,
+                config.view_yaw_angle_threshold_degrees,
+                config.max_activation_delay_seconds,
+            ) - 0.25)
+                .abs()
+                < 1e-6
+        );
+    }
+
+    #[test]
+    fn source_turn_request_remains_active_while_the_yaw_condition_persists() {
+        let mut detector = TurnInPlaceDetector::default();
+        let config = TurnInPlaceConfig::default();
+        let mut events = 0;
+        for _ in 0..4 {
+            if detector
+                .update(90.0, 0.0, 0.3, true, false, &config)
+                .is_some()
+            {
+                events += 1;
+            }
+        }
+        assert_eq!(events, 4);
     }
 }

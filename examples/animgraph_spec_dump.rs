@@ -23,6 +23,9 @@ struct DumpAsset {
 }
 
 #[derive(Resource)]
+struct DumpAssetRoot(String);
+
+#[derive(Resource)]
 struct Deadline(Instant);
 
 #[derive(Serialize)]
@@ -60,11 +63,12 @@ struct Dump {
 }
 
 fn main() {
+    let asset_root = env::var("ALS_GRAPH_SPEC_ASSET_ROOT").unwrap_or_else(|_| "assets".to_owned());
     App::new()
         .add_plugins((
             DefaultPlugins
                 .set(AssetPlugin {
-                    file_path: "assets".into(),
+                    file_path: asset_root.clone().into(),
                     ..default()
                 })
                 .set(WindowPlugin {
@@ -75,17 +79,18 @@ fn main() {
             AnimationGraphPlugin::from_physics_schedule(Update),
             AlsExtPlugin,
         ))
+        .insert_resource(DumpAssetRoot(asset_root))
         .insert_resource(Deadline(Instant::now() + Duration::from_secs(30)))
         .add_systems(Startup, load)
         .add_systems(Update, (dump, timeout))
         .run();
 }
 
-fn load(mut commands: Commands, assets: Res<AssetServer>) {
+fn load(mut commands: Commands, assets: Res<AssetServer>, root: Res<DumpAssetRoot>) {
     let graph_path = env::var("ALS_GRAPH_SPEC_PATH")
         .unwrap_or_else(|_| "graphs/ab_als/stances/standing.animgraph.ron".to_owned());
-    let graph_source =
-        fs::read_to_string(format!("assets/{graph_path}")).expect("graph source must be readable");
+    let graph_source = fs::read_to_string(format!("{}/{graph_path}", root.0))
+        .expect("graph source must be readable");
     commands.insert_resource(DumpAsset {
         graph: assets.load(graph_path.clone()),
         graph_path,

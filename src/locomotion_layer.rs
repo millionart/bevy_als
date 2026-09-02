@@ -339,7 +339,7 @@ impl Plugin for LocomotionLayerPlugin {
             PostUpdate,
             AlsLocomotionLayerSet
                 .after(AlsGroundedLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(Startup, load_locomotion_curve_assets)
         .add_systems(
@@ -347,7 +347,7 @@ impl Plugin for LocomotionLayerPlugin {
             locomotion_layer_writer.in_set(AlsLocomotionLayerSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             acknowledge_locomotion_transition_requests.after(AnimationGraphSet::PrePhysics),
         );
     }

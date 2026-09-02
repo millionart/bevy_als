@@ -46,12 +46,12 @@ impl Plugin for AlsRootGraphPlugin {
                     .after(AlsGaitLayerSet)
                     .after(AlsStandingLayerSet)
                     .before(AlsLocomotionLayerSet)
-                    .before(AnimationGraphSet::Final),
+                    .before(AnimationGraphSet::PrePhysics),
             )
             .init_resource::<SecondaryMotionPhases>()
             .add_systems(PostUpdate, root_graph_writer.in_set(AlsRootGraphSet))
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 root_pose_invariant.after(AnimationGraphSet::Final),
             );
     }

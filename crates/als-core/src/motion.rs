@@ -318,9 +318,18 @@ fn target_yaw_speed(params: &AlsMovementParams, rotation_mode: RotationMode) -> 
     }
 }
 
+fn stationary_view_direction_holds_rotation(
+    moving: bool,
+    has_input: bool,
+    blocked: bool,
+    rotation_mode: RotationMode,
+) -> bool {
+    !moving && !has_input && blocked && rotation_mode == RotationMode::ViewDirection
+}
+
 #[allow(clippy::type_complexity)]
 fn rotation_response_system(
-    fixed_time: Res<Time<Fixed>>,
+    time: Res<Time>,
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut q: Query<
@@ -344,7 +353,7 @@ fn rotation_response_system(
         With<AlsCharacter>,
     >,
 ) {
-    let delta_seconds = fixed_time.delta_secs();
+    let delta_seconds = time.delta_secs();
     for (
         entity,
         mut transform,
@@ -377,6 +386,7 @@ fn rotation_response_system(
             0.0
         };
         let effective = effective_input(input, input_override);
+        let has_input = effective.move_dir.length_squared() > f32::EPSILON;
         let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
             world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
         });
@@ -384,10 +394,32 @@ fn rotation_response_system(
         let moving = horizontal_speed > 0.05;
         let velocity_yaw = moving.then(|| world_forward_to_yaw(velocity.0));
         let animation = animation.copied().unwrap_or_default();
+        if runtime.initialized
+            && (runtime.previous_locomotion == LocomotionState::Air
+                && *locomotion == LocomotionState::Grounded
+                || runtime
+                    .previous_rotation_mode
+                    .is_some_and(|previous| previous != *rotation_mode))
+        {
+            runtime.rotation_towards_last_input_direction_blocked = true;
+        }
+        if moving || has_input {
+            runtime.rotation_towards_last_input_direction_blocked = false;
+        }
         let mut target_yaw = match *rotation_mode {
             RotationMode::VelocityDirection if moving => velocity_yaw.unwrap_or(current_yaw),
             RotationMode::ViewDirection if moving && *gait == Gait::Sprinting => {
                 velocity_yaw.unwrap_or(current_yaw)
+            }
+            RotationMode::ViewDirection
+                if stationary_view_direction_holds_rotation(
+                    moving,
+                    has_input,
+                    runtime.rotation_towards_last_input_direction_blocked,
+                    *rotation_mode,
+                ) =>
+            {
+                current_yaw
             }
             RotationMode::ViewDirection => {
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
@@ -457,6 +489,8 @@ fn rotation_response_system(
         }
         runtime.initialized = true;
         runtime.previous_view_yaw = view_yaw.0;
+        runtime.previous_locomotion = *locomotion;
+        runtime.previous_rotation_mode = Some(*rotation_mode);
         runtime.input_yaw = input_yaw;
         runtime.velocity_yaw = velocity_yaw;
         runtime.target_yaw = target_yaw;
@@ -475,12 +509,34 @@ mod rotation_cap_tests {
     };
     use crate::transition::AlsStateTransitionPlugin;
     use avian3d::prelude::{GravityScale, PhysicsPlugins, Position, RigidBody};
-    use bevy::asset::AssetPlugin;
+    use bevy::asset::{AssetEvent, AssetPlugin};
     use bevy::transform::TransformPlugin;
     use bevy_tnua::{TnuaController, TnuaControllerPlugin};
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
+
+    #[test]
+    fn stationary_view_direction_holds_actor_yaw_until_animation_curve_drives_it() {
+        assert!(stationary_view_direction_holds_rotation(
+            false,
+            false,
+            true,
+            RotationMode::ViewDirection,
+        ));
+        assert!(!stationary_view_direction_holds_rotation(
+            false,
+            true,
+            true,
+            RotationMode::ViewDirection,
+        ));
+        assert!(!stationary_view_direction_holds_rotation(
+            false,
+            false,
+            false,
+            RotationMode::ViewDirection,
+        ));
+    }
 
     #[test]
     fn actual_velocity_snapshot_uses_horizontal_physics_velocity() {
@@ -736,6 +792,8 @@ mod rotation_cap_tests {
                 TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
                 AlsMotionPlugin,
             ))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<AssetEvent<Mesh>>()
             .insert_resource(Assets::<AlsMovementParams>::default())
             .insert_resource(StepAssistPhysicsProbe {
                 ground_distance: f32::NAN,
@@ -830,6 +888,8 @@ mod rotation_cap_tests {
             AlsCharacterPlugin,
             AlsMotionPlugin,
         ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<AssetEvent<Mesh>>()
         .insert_resource(StandingCapsulePhysicsProbe {
             beam_overlap: false,
             desired_stance: Stance::Crouching,
@@ -1145,6 +1205,8 @@ mod rotation_cap_tests {
             AlsStateTransitionPlugin,
             AlsCharacterPlugin,
         ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<AssetEvent<Mesh>>()
         .add_systems(Update, capsule_reshape_system);
         app.finish();
 
@@ -1213,6 +1275,8 @@ mod rotation_cap_tests {
             AlsStateTransitionPlugin,
             AlsCharacterPlugin,
         ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<AssetEvent<Mesh>>()
         .insert_resource(Assets::<AlsMovementParams>::default())
         .insert_resource(Assets::<AlsControlSchemeConfig>::default())
         .add_systems(Update, capsule_reshape_system);
@@ -1346,7 +1410,7 @@ pub struct AlsRotationAnimationState {
     pub yaw_speed_degrees: f32,
 }
 
-#[derive(Component, Debug, Default, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct AlsRotationResponseState {
     pub initialized: bool,
     pub smooth_target_yaw: f32,
@@ -1354,6 +1418,25 @@ pub struct AlsRotationResponseState {
     pub input_yaw: Option<f32>,
     pub velocity_yaw: Option<f32>,
     pub target_yaw: f32,
+    pub rotation_towards_last_input_direction_blocked: bool,
+    pub previous_locomotion: LocomotionState,
+    pub previous_rotation_mode: Option<RotationMode>,
+}
+
+impl Default for AlsRotationResponseState {
+    fn default() -> Self {
+        Self {
+            initialized: false,
+            smooth_target_yaw: 0.0,
+            previous_view_yaw: 0.0,
+            input_yaw: None,
+            velocity_yaw: None,
+            target_yaw: 0.0,
+            rotation_towards_last_input_direction_blocked: true,
+            previous_locomotion: LocomotionState::Grounded,
+            previous_rotation_mode: None,
+        }
+    }
 }
 
 #[derive(Component, Debug, Default, Clone)]
@@ -1578,30 +1661,24 @@ impl Plugin for AlsMotionPlugin {
                 ),
             )
             .add_systems(
-                FixedUpdate,
-                sync_effective_gravity_system
-                    .after(TnuaPipelineSystems::Sensors)
-                    .before(TnuaPipelineSystems::Logic),
-            )
-            .add_systems(
-                FixedPostUpdate,
+                Update,
                 sync_effective_gravity_system
                     .after(TnuaPipelineSystems::Sensors)
                     .before(TnuaPipelineSystems::Logic),
             )
             .configure_sets(
-                FixedPostUpdate,
+                PostUpdate,
                 (
                     AlsActualVelocitySet.after(PhysicsSystems::Last),
                     AlsRotationResponseSet.after(AlsActualVelocitySet),
                 ),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 snapshot_actual_velocity_system.in_set(AlsActualVelocitySet),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 rotation_response_system.in_set(AlsRotationResponseSet),
             );
     }

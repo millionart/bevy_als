@@ -37,15 +37,15 @@ impl Plugin for AlsMantleDrivePlugin {
             ),
         );
         app.configure_sets(
-            FixedPostUpdate,
+            PostUpdate,
             AlsMantleDriveSet.after(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             prepare_mantle_root_samples.before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             mantle_drive_system
                 .after(AnimationGraphSet::PrePhysics)
                 .after(prepare_mantle_root_samples)

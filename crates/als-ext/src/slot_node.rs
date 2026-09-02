@@ -8,14 +8,14 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
-fn slot_blend_weight(value: Option<f32>) -> f32 {
+pub(crate) fn slot_blend_weight(value: Option<f32>) -> f32 {
     value
         .filter(|value| value.is_finite())
         .unwrap_or_default()
         .clamp(0.0, 1.0)
 }
 
-fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f32>) -> Pose {
+pub(crate) fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f32>) -> Pose {
     let timestamp = base.timestamp;
     let weight = slot_blend_weight(weight);
     if weight > 0.0 {

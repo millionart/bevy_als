@@ -9,6 +9,7 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
 use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
+use bevy::window::{PresentMode, WindowPlugin};
 use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
 use als_camera::AlsCameraRig;
@@ -37,6 +38,7 @@ use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshCo
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
 use bevy_als::{
     anim_probe::AnimProbePlugin,
+    animation_visual_validation::AnimationVisualValidationPlugin,
     manual_playground_integration::{
         ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
     },
@@ -48,10 +50,18 @@ const SPAWN_SENSOR_STABLE_STEPS: u32 = 20;
 fn main() {
     let mut app = App::new();
     app.add_plugins((
-        DefaultPlugins.set(AssetPlugin {
-            file_path: "assets".into(),
-            ..default()
-        }),
+        DefaultPlugins
+            .set(AssetPlugin {
+                file_path: "assets".into(),
+                ..default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    present_mode: PresentMode::AutoNoVsync,
+                    ..default()
+                }),
+                ..default()
+            }),
         AlsPlayableCharacterPlugin,
         AlsGameModePlugin,
     ));
@@ -59,6 +69,7 @@ fn main() {
         OverlayObjectPlugin,
         AlsDebugDisplayPlugin,
         AlsShowDebugHudPlugin,
+        AnimationVisualValidationPlugin,
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
@@ -98,20 +109,17 @@ fn main() {
             ambient_occlusion_probe,
             temporal_anti_aliasing_probe,
             character_material_probe,
-            platform_physics_probe,
+            platform_physics_probe.after(playground_kinematic_velocity_bridge),
             collision_parity_probe,
             auto_quit,
             screenshot_runner,
         ),
     )
     .add_systems(
-        FixedUpdate,
+        Update,
         playground_kinematic_velocity_bridge.after(playground_moving_object_system),
     )
-    .add_systems(
-        FixedPostUpdate,
-        grounded_spawn_probe.after(PhysicsSystems::Last),
-    );
+    .add_systems(PostUpdate, grounded_spawn_probe.after(PhysicsSystems::Last));
 
     if let AppExit::Error(code) = app.run() {
         std::process::exit(i32::from(code.get()));

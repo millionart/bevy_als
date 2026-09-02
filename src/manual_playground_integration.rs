@@ -10,6 +10,7 @@ use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::{AlsMantleControlSettings, AlsMantleState};
 use als_core::motion::{AlsCrouchTransaction, AlsInputOverride, AlsViewYaw};
 use als_core::movement_direction::{AlsMovementDirection, AlsMovementDirectionState};
+use als_core::orientation::world_forward_to_yaw;
 use als_core::params::AlsMovementParams;
 use als_core::roll::AlsRollState;
 use als_core::start_stop::{StartStopPhase, StartStopState};
@@ -43,7 +44,7 @@ use crate::crouching_layer::AlsCrouchingGraphTelemetry;
 use crate::debug_display::AlsDebugDisplayStats;
 use crate::foot_ik_apply::{
     AlsFootIkApplyTelemetry, AlsFootIkSpaceState, AlsFootIkTelemetry, AlsFootIkTelemetryEnabled,
-    AlsFootIkWeightOverride, FootIkApplySet,
+    AlsFootIkWeightOverride, AlsFootLockTeleportTelemetry, FootIkApplySet,
 };
 use crate::game_mode::AlsPlayerAdmissionComplete;
 use crate::grounded_layer::AlsGroundedEntryMode;
@@ -59,7 +60,7 @@ use crate::show_debug_hud::{
 };
 use crate::stance_layer::AlsStanceBlend;
 use crate::standing_layer::{AlsPivotNotify, AlsStandingGraphTelemetry};
-use crate::turn_layer::AlsTurnDrive;
+use crate::turn_layer::{AlsStandingTurnSlotRuntime, AlsTurnDrive, TURN_DUR_90};
 use crate::{
     air_jump_layer::AlsJumpVariantState,
     als_hud::{AlsHudDebugSection, AlsHudInputSection, AlsHudRoot, AlsHudState},
@@ -70,6 +71,11 @@ const GATE_TIMEOUT: Duration = Duration::from_secs(180);
 const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
+const STATE_MACHINE_TURN_FIRST_START: f32 = 0.5;
+const STATE_MACHINE_TURN_FIRST_END: f32 = 1.75;
+const STATE_MACHINE_TURN_SECOND_START: f32 = 4.0;
+const STATE_MACHINE_TURN_SECOND_END: f32 = 5.25;
+const STATE_MACHINE_TURN_END: f32 = STATE_MACHINE_TURN_SECOND_END + TURN_DUR_90 + 1.0;
 const DIRECTION_CASE_COUNT: usize = 11;
 const CROUCH_DIRECTION_CASE_SECONDS: f32 = 3.0;
 const CROUCH_DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
@@ -86,12 +92,32 @@ pub struct ManualPlaygroundStartupReady {
     pub passed: bool,
 }
 
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ManualDirectionEvidence {
+    pub case: Option<&'static str>,
+    pub index: Option<usize>,
+    pub settled: bool,
+}
+
+#[derive(Resource, Clone, Debug, Default)]
+pub struct ManualRuntimePhaseEvidence {
+    pub scenario: String,
+    pub phase: String,
+    pub elapsed_seconds: f32,
+    pub locomotion: String,
+    pub gait: String,
+    pub stance: String,
+    pub rotation_mode: String,
+}
+
 pub struct ManualPlaygroundIntegrationPlugin;
 
 impl Plugin for ManualPlaygroundIntegrationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ManualPlaygroundStartupReady>()
             .init_resource::<ManualIntegrationState>()
+            .init_resource::<ManualDirectionEvidence>()
+            .init_resource::<ManualRuntimePhaseEvidence>()
             .add_systems(Update, initialize_manual_integration)
             .add_systems(
                 PreUpdate,
@@ -169,9 +195,7 @@ fn drive_crouch_direction_reference_frame(
     if let Some(mut rotation) = rotation {
         rotation.0 = rotation_value;
     }
-    if state.phase_started.elapsed().as_secs_f32()
-        < CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS
-    {
+    if state.phase_elapsed() < CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS {
         view_yaw.0 = fixture.facing_yaw;
     }
 }
@@ -193,8 +217,10 @@ enum IntegrationPhase {
     #[default]
     Await,
     DirectionRegression,
+    Sprint,
     FootIkNoHit,
     FootIkWeightRamp,
+    FootIkTeleport,
     FootIkTerrain,
     ControlRig,
     DefaultOverlay,
@@ -239,6 +265,7 @@ enum IntegrationScenario {
     DefaultOverlay,
     StateMachine,
     FootIk,
+    Sprint,
     Ragdoll,
     Camera,
     Interface,
@@ -253,6 +280,7 @@ impl IntegrationScenario {
             Some("default_overlay") => Self::DefaultOverlay,
             Some("state_machine") => Self::StateMachine,
             Some("foot_ik") => Self::FootIk,
+            Some("sprint") => Self::Sprint,
             Some("ragdoll") => Self::Ragdoll,
             Some("camera") => Self::Camera,
             Some("interface") => Self::Interface,
@@ -532,6 +560,7 @@ struct IntegrationCoverage {
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
     foot_ik_weight_ramp: bool,
+    foot_ik_teleport: bool,
     foot_ik_slope: bool,
     foot_ik_step: bool,
     foot_ik_crouching: bool,
@@ -540,6 +569,7 @@ struct IntegrationCoverage {
     foot_ik_roll: bool,
     foot_ik_mantle: bool,
     foot_ik_terrain_cleaned: bool,
+    sprint_curve_relay: bool,
     roll_started: bool,
     roll_slot: bool,
     ragdoll_entered: bool,
@@ -574,6 +604,8 @@ struct IntegrationCoverage {
     p1_gait: bool,
     p1_air: bool,
     p1_turn: bool,
+    turn_slot: bool,
+    turn_inertialization: bool,
 }
 
 #[derive(Resource)]
@@ -585,7 +617,8 @@ struct ManualIntegrationState {
     spawn_yaw: Option<f32>,
     scenario: IntegrationScenario,
     phase: IntegrationPhase,
-    phase_started: Instant,
+    phase_started_seconds: f64,
+    game_time_seconds: f64,
     deadline: Instant,
     entered: bool,
     initialized: bool,
@@ -601,8 +634,8 @@ struct ManualIntegrationState {
     ragdoll_seen: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
-    ragdoll_grounded_at: Option<Instant>,
-    ragdoll_recovered_at: Option<Instant>,
+    ragdoll_grounded_at: Option<f64>,
+    ragdoll_recovered_at: Option<f64>,
     camera_scenario_armed: bool,
     camera_last_probe_secs: f32,
     camera_view_mode_requested: bool,
@@ -619,12 +652,13 @@ struct ManualIntegrationState {
     interface_overlay_reentry_seen: bool,
     notify_roll_armed: bool,
     notify_mantle_armed: bool,
-    turn_body_yaw: Option<f32>,
     direction_case_index: usize,
     crouch_direction_case_index: usize,
     foot_ik_baseline_mask: u8,
     foot_ik_no_hit_logged: bool,
     foot_ik_weight_mask: u8,
+    foot_ik_teleport_requested: bool,
+    foot_ik_teleport_baseline: Option<(u32, u32, u32)>,
     foot_ik_terrain_air_seen: bool,
     crouch_recovery_jump_requested: bool,
     crouch_recovery_air_crouch_requested: bool,
@@ -634,8 +668,8 @@ struct ManualIntegrationState {
     crouch_clearance_last_actual: Stance,
     crouch_canopy: Option<Entity>,
     crouch_canopy_center: Option<Vec3>,
-    crouch_canopy_prepare_at: Option<Instant>,
-    crouch_canopy_armed_at: Option<Instant>,
+    crouch_canopy_prepare_at: Option<f64>,
+    crouch_canopy_armed_at: Option<f64>,
     foot_ik_slope: Option<Entity>,
     foot_ik_step: Option<Entity>,
     p1_pivot_sent: bool,
@@ -660,7 +694,8 @@ impl Default for ManualIntegrationState {
             spawn_yaw: None,
             scenario: IntegrationScenario::from_environment(),
             phase: IntegrationPhase::Await,
-            phase_started: now,
+            phase_started_seconds: 0.0,
+            game_time_seconds: 0.0,
             deadline: now + GATE_TIMEOUT,
             entered: false,
             initialized: false,
@@ -694,12 +729,13 @@ impl Default for ManualIntegrationState {
             interface_overlay_reentry_seen: false,
             notify_roll_armed: false,
             notify_mantle_armed: false,
-            turn_body_yaw: None,
             direction_case_index: usize::MAX,
             crouch_direction_case_index: usize::MAX,
             foot_ik_baseline_mask: 0,
             foot_ik_no_hit_logged: false,
             foot_ik_weight_mask: 0,
+            foot_ik_teleport_requested: false,
+            foot_ik_teleport_baseline: None,
             foot_ik_terrain_air_seen: false,
             crouch_recovery_jump_requested: false,
             crouch_recovery_air_crouch_requested: false,
@@ -723,6 +759,12 @@ impl Default for ManualIntegrationState {
             final_logged: false,
             coverage: IntegrationCoverage::default(),
         }
+    }
+}
+
+impl ManualIntegrationState {
+    fn phase_elapsed(&self) -> f32 {
+        (self.game_time_seconds - self.phase_started_seconds).max(0.0) as f32
     }
 }
 
@@ -829,6 +871,7 @@ fn spawn_manual_integration_fixture(
 fn initialize_manual_integration(
     mut commands: Commands,
     mut state: ResMut<ManualIntegrationState>,
+    virtual_time: Res<Time<Virtual>>,
     mut foot_ik_telemetry_enabled: ResMut<AlsFootIkTelemetryEnabled>,
     mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
     startup: Res<ManualPlaygroundStartupReady>,
@@ -846,6 +889,7 @@ fn initialize_manual_integration(
     if state.initialized || !startup.passed {
         return;
     }
+    state.game_time_seconds = virtual_time.elapsed_secs_f64();
     let Ok(admission) = admissions.single() else {
         return;
     };
@@ -907,6 +951,7 @@ fn initialize_manual_integration(
         IntegrationScenario::Base
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::Sprint => IntegrationPhase::Sprint,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
@@ -927,6 +972,8 @@ fn drive_manual_integration(
     mut commands: Commands,
     fixture: Option<Res<ManualIntegrationFixture>>,
     mut state: ResMut<ManualIntegrationState>,
+    mut direction_evidence: ResMut<ManualDirectionEvidence>,
+    mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
     mut virtual_time: ResMut<Time<Virtual>>,
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut show_debug: ResMut<AlsShowDebugHudState>,
@@ -963,6 +1010,10 @@ fn drive_manual_integration(
     if !state.initialized || state.final_logged {
         return;
     }
+    state.game_time_seconds = virtual_time.elapsed_secs_f64();
+    phase_evidence.scenario = format!("{:?}", state.scenario);
+    phase_evidence.phase = format!("{:?}", state.phase);
+    phase_evidence.elapsed_seconds = state.phase_elapsed();
     let Some(fixture) = fixture else {
         return;
     };
@@ -999,9 +1050,16 @@ fn drive_manual_integration(
     let Ok((params_handle, transaction)) = crouch_state.get(character) else {
         return;
     };
-    let elapsed = state.phase_started.elapsed().as_secs_f32();
+    let elapsed = state.phase_elapsed();
     let entering = std::mem::take(&mut state.entered);
+    phase_evidence.locomotion = format!("{:?}", locomotion);
+    phase_evidence.gait = format!("{:?}", gait);
+    phase_evidence.stance = format!("{:?}", stance);
+    phase_evidence.rotation_mode = format!("{:?}", rotation_mode);
     input.0.reset();
+    if state.phase != IntegrationPhase::DirectionRegression {
+        *direction_evidence = ManualDirectionEvidence::default();
+    }
 
     match state.phase {
         IntegrationPhase::Await => {}
@@ -1020,6 +1078,8 @@ fn drive_manual_integration(
                     state.coverage.p1_gait = false;
                     state.coverage.p1_air = false;
                     state.coverage.p1_turn = false;
+                    state.coverage.turn_slot = false;
+                    state.coverage.turn_inertialization = false;
                     state.p1_pivot_sent = false;
                     state.p1_ground_mask = 0;
                     state.p1_gait_mask = 0;
@@ -1030,6 +1090,7 @@ fn drive_manual_integration(
             }
             let case_index = (elapsed / DIRECTION_CASE_SECONDS) as usize;
             let Some(case) = direction_regression_case(case_index) else {
+                *direction_evidence = ManualDirectionEvidence::default();
                 commands.entity(character).remove::<AlsFirstPersonView>();
                 if state.scenario == IntegrationScenario::FootIk {
                     begin_phase(&mut state, IntegrationPhase::FootIkNoHit);
@@ -1039,6 +1100,12 @@ fn drive_manual_integration(
                     begin_phase(&mut state, IntegrationPhase::Locomotion);
                 }
                 return;
+            };
+            *direction_evidence = ManualDirectionEvidence {
+                case: Some(case.name),
+                index: Some(case_index),
+                settled: elapsed
+                    >= case_index as f32 * DIRECTION_CASE_SECONDS + DIRECTION_CASE_SETTLE_SECONDS,
             };
             if state.direction_case_index != case_index {
                 let yaw = fixture.facing_yaw + case.yaw_offset;
@@ -1083,13 +1150,44 @@ fn drive_manual_integration(
             request.gait = Some(case.desired_gait);
             request.rotation_mode = Some(case.rotation_mode);
         }
-        IntegrationPhase::FootIkNoHit => {
+        IntegrationPhase::Sprint => {
             if entering {
-                state.foot_ik_no_hit_logged = false;
                 reset_character(
                     &mut transform,
                     &mut position,
                     rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Sprinting;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::VelocityDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Sprinting);
+                request.rotation_mode = Some(RotationMode::VelocityDirection);
+                state.coverage.sprint_curve_relay = false;
+                info!("[MANUAL-INTEGRATION][SPRINT] source-curve relay probe started");
+            }
+            input.0.move_dir = Vec2::Y;
+            input.0.sprint_held = true;
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Sprinting);
+            request.rotation_mode = Some(RotationMode::VelocityDirection);
+            if elapsed >= 10.0 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::FootIkNoHit => {
+            if entering {
+                state.foot_ik_no_hit_logged = false;
+                reset_character_without_rotation(
+                    &mut transform,
+                    &mut position,
                     &mut velocity,
                     &mut view_yaw,
                     &mut view_pitch,
@@ -1155,6 +1253,52 @@ fn drive_manual_integration(
             if elapsed >= 4.75 {
                 foot_ik_weight_override.left = None;
                 foot_ik_weight_override.right = None;
+                begin_phase(&mut state, IntegrationPhase::FootIkTeleport);
+            }
+        }
+        IntegrationPhase::FootIkTeleport => {
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+                state.foot_ik_teleport_requested = false;
+                state.foot_ik_teleport_baseline = None;
+                state.coverage.foot_ik_teleport = false;
+            }
+            input.0.move_dir = Vec2::Y;
+            if elapsed >= 1.0 && !state.foot_ik_teleport_requested {
+                let right = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::X;
+                let destination = transform.translation + right * 0.6;
+                reset_character_without_rotation(
+                    &mut transform,
+                    &mut position,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    destination,
+                    fixture.facing_yaw,
+                );
+                state.foot_ik_teleport_requested = true;
+                info!(
+                    "[MANUAL-INTEGRATION][FOOT-IK-TELEPORT][REQUEST] distance_m=0.600 destination=({:.3},{:.3},{:.3})",
+                    destination.x, destination.y, destination.z,
+                );
+            }
+            if elapsed >= 3.0 {
                 begin_phase(&mut state, IntegrationPhase::FootIkTerrain);
             }
         }
@@ -1632,7 +1776,7 @@ fn drive_manual_integration(
                     request.stance = Some(Stance::Crouching);
                     request.gait = Some(Gait::Walking);
                     request.rotation_mode = Some(RotationMode::ViewDirection);
-                    state.crouch_canopy_prepare_at = Some(Instant::now());
+                    state.crouch_canopy_prepare_at = Some(state.game_time_seconds);
                     state.crouch_clearance_stage = CrouchClearanceStage::StabilizeCanopyCrouch;
                     info!(
                         "[MANUAL-INTEGRATION][CROUCH-CANOPY-STABILIZE] reset=({:.3},{:.3},{:.3})",
@@ -1649,7 +1793,7 @@ fn drive_manual_integration(
                         && !transaction.headroom_blocked
                         && state
                             .crouch_canopy_prepare_at
-                            .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(0.5))
+                            .is_some_and(|at| state.game_time_seconds - at >= 0.5)
                     {
                         state.crouch_clearance_stage = CrouchClearanceStage::ArmCanopy;
                     }
@@ -1677,7 +1821,7 @@ fn drive_manual_integration(
                             .id();
                         state.crouch_canopy = Some(canopy);
                         state.crouch_canopy_center = Some(canopy_center);
-                        state.crouch_canopy_armed_at = Some(Instant::now());
+                        state.crouch_canopy_armed_at = Some(state.game_time_seconds);
                         state.coverage.crouch_canopy_visible = true;
                         state.crouch_clearance_stage = CrouchClearanceStage::AwaitCanopyReady;
                         info!(
@@ -1689,7 +1833,7 @@ fn drive_manual_integration(
                 CrouchClearanceStage::AwaitCanopyReady => {
                     if state
                         .crouch_canopy_armed_at
-                        .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(0.5))
+                        .is_some_and(|at| state.game_time_seconds - at >= 0.5)
                     {
                         state.crouch_clearance_stage = CrouchClearanceStage::RequestStanding;
                     }
@@ -1828,22 +1972,18 @@ fn drive_manual_integration(
                     turn_start,
                     turn_yaw,
                 );
-                state.turn_body_yaw = Some(turn_yaw);
                 *gait = Gait::Walking;
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
-            let body_yaw = state.turn_body_yaw.unwrap_or(fixture.facing_yaw);
-            transform.rotation = Quat::from_rotation_y(body_yaw);
+            let body_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
             if state.scenario == IntegrationScenario::StateMachine {
-                if (0.5..2.25).contains(&elapsed) {
-                    view_yaw.0 = body_yaw + 90.0f32.to_radians();
-                } else if elapsed >= 2.5 {
-                    view_yaw.0 = body_yaw - 90.0f32.to_radians();
+                if let Some(target_yaw) = state_machine_turn_target_yaw(elapsed, body_yaw) {
+                    view_yaw.0 = target_yaw;
                 }
-                if elapsed >= 5.0 {
+                if state_machine_turn_phase_complete(elapsed) {
                     begin_phase(&mut state, IntegrationPhase::StateMachineRotate);
                 }
             } else {
@@ -2032,7 +2172,7 @@ fn drive_manual_integration(
             }
             if state
                 .ragdoll_recovered_at
-                .is_some_and(|at| at.elapsed() >= Duration::from_secs_f32(1.5))
+                .is_some_and(|at| state.game_time_seconds - at >= 1.5)
                 && elapsed >= 3.0
             {
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -2372,9 +2512,23 @@ fn drive_key_interval(
 
 fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
     state.phase = phase;
-    state.phase_started = Instant::now();
+    state.phase_started_seconds = state.game_time_seconds;
     state.entered = true;
     info!("[MANUAL-INTEGRATION][PHASE] {phase:?}");
+}
+
+fn state_machine_turn_target_yaw(elapsed: f32, body_yaw: f32) -> Option<f32> {
+    if (STATE_MACHINE_TURN_FIRST_START..STATE_MACHINE_TURN_FIRST_END).contains(&elapsed) {
+        Some(body_yaw + 90.0f32.to_radians())
+    } else if (STATE_MACHINE_TURN_SECOND_START..STATE_MACHINE_TURN_SECOND_END).contains(&elapsed) {
+        Some(body_yaw - 90.0f32.to_radians())
+    } else {
+        Some(body_yaw)
+    }
+}
+
+fn state_machine_turn_phase_complete(elapsed: f32) -> bool {
+    elapsed >= STATE_MACHINE_TURN_END
 }
 
 fn cleanup_crouch_canopy(commands: &mut Commands, state: &mut ManualIntegrationState) {
@@ -2533,6 +2687,7 @@ fn observe_manual_integration(
             &AlsFootIkTelemetry,
             &AlsFootIkSpaceState,
             &AlsFootIkApplyTelemetry,
+            Option<&AlsFootLockTeleportTelemetry>,
         ),
         With<AlsCharacter>,
     >,
@@ -2560,6 +2715,7 @@ fn observe_manual_integration(
         Option<&AlsStanceBlend>,
         Option<&AlsJumpVariantState>,
         Option<&AlsTurnDrive>,
+        Option<&AlsStandingTurnSlotRuntime>,
         Option<&AlsMovementDirectionState>,
     )>,
     players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
@@ -2570,6 +2726,7 @@ fn observe_manual_integration(
     if !state.initialized {
         return;
     }
+    state.game_time_seconds = interface.virtual_time.elapsed_secs_f64();
     let Some(fixture) = fixture else {
         return;
     };
@@ -2604,7 +2761,7 @@ fn observe_manual_integration(
         state.scenario,
         IntegrationScenario::Base | IntegrationScenario::StateMachine
     ) && state.phase == IntegrationPhase::CrouchRecovery
-        && state.phase_started.elapsed().as_secs_f32() >= 1.0
+        && state.phase_elapsed() >= 1.0
         && state.crouch_recovery_jump_requested
         && !state.crouch_recovery_air_crouch_requested
         && *locomotion == LocomotionState::Air
@@ -2634,10 +2791,18 @@ fn observe_manual_integration(
     else {
         return;
     };
-    let Some((_, instance, gait_blend, stance_blend, jump_variant, turn_drive, movement_direction)) =
-        avatars
-            .iter()
-            .find(|(avatar, _, _, _, _, _, _)| avatar.character == character)
+    let Some((
+        _,
+        instance,
+        gait_blend,
+        stance_blend,
+        jump_variant,
+        turn_drive,
+        turn_slot,
+        movement_direction,
+    )) = avatars
+        .iter()
+        .find(|(avatar, _, _, _, _, _, _, _)| avatar.character == character)
     else {
         return;
     };
@@ -2720,7 +2885,7 @@ fn observe_manual_integration(
         state.coverage.standing_graph = true;
     }
     if state.phase == IntegrationPhase::CrouchDirectionRegression {
-        let elapsed = state.phase_started.elapsed().as_secs_f32();
+        let elapsed = state.phase_elapsed();
         let direction_duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
         let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
         if case_index < CROUCH_DIRECTION_CASE_COUNT
@@ -3015,7 +3180,7 @@ fn observe_manual_integration(
     if state.phase == IntegrationPhase::DirectionRegression
         && state.direction_case_index < DIRECTION_CASE_COUNT
         && !state.coverage.direction_cases[state.direction_case_index]
-        && state.phase_started.elapsed().as_secs_f32()
+        && state.phase_elapsed()
             >= state.direction_case_index as f32 * DIRECTION_CASE_SECONDS
                 + DIRECTION_CASE_SETTLE_SECONDS
         && let Some(case) = direction_regression_case(state.direction_case_index)
@@ -3161,6 +3326,36 @@ fn observe_manual_integration(
             .is_some_and(|state| state.active && state.blend_out_duration > 0.0);
         state.coverage.notify_grounded_entry |=
             grounded_entry.is_some_and(|mode| *mode == AlsGroundedEntryMode::FromRoll);
+    }
+    if state.scenario == IntegrationScenario::Sprint && state.phase == IntegrationPhase::Sprint {
+        let standing_global = graph_global_f32(player, "als_standing_curve_pose_moving");
+        let final_pose_moving = context.and_then(|value| value.f32("PoseMoving"));
+        let final_left_ik = context.and_then(|value| value.f32("FootLeftIk"));
+        let final_right_ik = context.and_then(|value| value.f32("FootRightIk"));
+        let applied = foot_ik_data
+            .get(character)
+            .ok()
+            .map(|(_, _, apply, _)| (apply.left.applied_weight, apply.right.applied_weight));
+        let relay = source_ready
+            && *gait == Gait::Sprinting
+            && speed > 0.1
+            && standing_global.is_some_and(|value| value >= 0.999)
+            && final_pose_moving.is_some_and(|value| value >= 0.999)
+            && final_left_ik.is_some_and(|value| value >= 0.999)
+            && final_right_ik.is_some_and(|value| value >= 0.999)
+            && applied.is_some_and(|(left, right)| left >= 0.999 && right >= 0.999);
+        if relay && !state.coverage.sprint_curve_relay {
+            info!(
+                "[MANUAL-INTEGRATION][SPRINT-CURVE-RELAY] global={:.3} final={:.3} left_ik={:.3} right_ik={:.3} applied=({:.3},{:.3}) -> PASS",
+                standing_global.unwrap_or_default(),
+                final_pose_moving.unwrap_or_default(),
+                final_left_ik.unwrap_or_default(),
+                final_right_ik.unwrap_or_default(),
+                applied.map_or(0.0, |value| value.0),
+                applied.map_or(0.0, |value| value.1),
+            );
+        }
+        state.coverage.sprint_curve_relay |= relay;
     }
     state.coverage.locomotion |= speed > 0.25 && direction.is_some();
     if speed > 0.5 && direction.is_some_and(|value| value.abs() > 150.0) {
@@ -3349,11 +3544,15 @@ fn observe_manual_integration(
             }
             if state.p1_turn_mask != previous_mask {
                 info!(
-                    "[MANUAL-INTEGRATION][P1][TURN] mask={:04b} turn=(playing={},lr={:.1},weight={:.3}) rotate=(active={},lr={:.1},weight={:.3},rate={:.3}) first_person={}",
+                    "[MANUAL-INTEGRATION][P1][TURN] mask={:04b} turn=(playing={},lr={:.1},weight={:.3}) slot=(active={},ready={},weight={:.3},inertia_epoch={:.0}) rotate=(active={},lr={:.1},weight={:.3},rate={:.3}) first_person={}",
                     state.p1_turn_mask,
                     drive.playing,
                     drive.lr,
                     drive.weight,
+                    turn_slot.is_some_and(|slot| slot.active),
+                    turn_slot.is_some_and(|slot| slot.pose_ready),
+                    turn_slot.map_or(0.0, |slot| slot.weight),
+                    turn_slot.map_or(0.0, |slot| slot.inertialization_request_epoch),
                     drive.rotate_active,
                     drive.rotate_lr,
                     drive.rotate_weight,
@@ -3363,6 +3562,24 @@ fn observe_manual_integration(
             }
         }
         state.coverage.p1_turn = state.p1_turn_mask == 0b1111;
+        let turn_slot_ready =
+            turn_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
+        if turn_slot_ready && !state.coverage.turn_slot {
+            warn!(
+                "[MANUAL-INTEGRATION][P1][TURN-SLOT] active=true pose_ready=true weight={:.3} -> PASS",
+                turn_slot.map_or(0.0, |slot| slot.weight)
+            );
+        }
+        state.coverage.turn_slot |= turn_slot_ready;
+        let turn_inertialized =
+            turn_slot.is_some_and(|slot| slot.inertialization_request_epoch >= 1.0);
+        if turn_inertialized && !state.coverage.turn_inertialization {
+            warn!(
+                "[MANUAL-INTEGRATION][P1][TURN-INERTIALIZATION] epoch={:.0} -> PASS",
+                turn_slot.map_or(0.0, |slot| slot.inertialization_request_epoch)
+            );
+        }
+        state.coverage.turn_inertialization |= turn_inertialized;
     }
     state.coverage.view_head |= state
         .initial_view_yaw
@@ -3405,18 +3622,20 @@ fn observe_manual_integration(
             && trace.initialization_count == 1
             && trace.stage_mask == AlsControlRigStageTrace::COMPLETE
             && trace.completed_frames > 0;
-        let foot_targets_ready = foot_ik_data.get(character).is_ok_and(|(_, space, apply)| {
-            construction.foot_height_m.is_finite()
-                && construction.foot_height_m > 0.0
-                && construction.leg_length_m.is_finite()
-                && construction.leg_length_m > 0.0
-                && space.left.target_armature_local.is_finite()
-                && space.right.target_armature_local.is_finite()
-                && space.left.normal_armature_local.is_finite()
-                && space.right.normal_armature_local.is_finite()
-                && apply.left.target_world.is_finite()
-                && apply.right.target_world.is_finite()
-        });
+        let foot_targets_ready = foot_ik_data
+            .get(character)
+            .is_ok_and(|(_, space, apply, _)| {
+                construction.foot_height_m.is_finite()
+                    && construction.foot_height_m > 0.0
+                    && construction.leg_length_m.is_finite()
+                    && construction.leg_length_m > 0.0
+                    && space.left.target_armature_local.is_finite()
+                    && space.right.target_armature_local.is_finite()
+                    && space.left.normal_armature_local.is_finite()
+                    && space.right.normal_armature_local.is_finite()
+                    && apply.left.target_world.is_finite()
+                    && apply.right.target_world.is_finite()
+            });
         if stage_ready && !state.coverage.control_rig_stages {
             info!(
                 "[MANUAL-INTEGRATION][CR-ALS-STAGES] construction_count={} runtime_mask={:07b} completed_frames={} -> PASS",
@@ -3473,11 +3692,11 @@ fn observe_manual_integration(
     if state.scenario == IntegrationScenario::FootIk
         && state.phase == IntegrationPhase::DirectionRegression
         && let Some(bit) = foot_ik_baseline_bit(state.direction_case_index)
-        && state.phase_started.elapsed().as_secs_f32()
+        && state.phase_elapsed()
             >= state.direction_case_index as f32 * DIRECTION_CASE_SECONDS
                 + DIRECTION_CASE_SETTLE_SECONDS
                 + 0.95
-        && let Ok((telemetry, space, apply)) = foot_ik_data.get(character)
+        && let Ok((telemetry, space, apply, _)) = foot_ik_data.get(character)
         && telemetry.left.valid
         && telemetry.right.valid
         && space.left.valid
@@ -3584,8 +3803,8 @@ fn observe_manual_integration(
     if state.scenario == IntegrationScenario::FootIk
         && state.phase == IntegrationPhase::FootIkNoHit
         && !state.foot_ik_no_hit_logged
-        && state.phase_started.elapsed().as_secs_f32() >= 0.9
-        && let Ok((_, space, _)) = foot_ik_data.get(character)
+        && state.phase_elapsed() >= 0.9
+        && let Ok((_, space, _, _)) = foot_ik_data.get(character)
     {
         let left_delta = (space.left.target_armature_local
             - space.left.solver_reference_armature_local)
@@ -3605,9 +3824,9 @@ fn observe_manual_integration(
     }
     if state.scenario == IntegrationScenario::FootIk
         && state.phase == IntegrationPhase::FootIkNoHit
-        && state.phase_started.elapsed().as_secs_f32() >= 0.8
+        && state.phase_elapsed() >= 0.8
         && *locomotion == LocomotionState::Air
-        && let Ok((_, space, _)) = foot_ik_data.get(character)
+        && let Ok((_, space, _, _)) = foot_ik_data.get(character)
         && space.left.valid
         && space.right.valid
         && !space.left.has_ground_hit
@@ -3638,9 +3857,9 @@ fn observe_manual_integration(
     }
     if state.scenario == IntegrationScenario::FootIk
         && state.phase == IntegrationPhase::FootIkWeightRamp
-        && let Ok((_, _, apply)) = foot_ik_data.get(character)
+        && let Ok((_, _, apply, _)) = foot_ik_data.get(character)
     {
-        let elapsed = state.phase_started.elapsed().as_secs_f32();
+        let elapsed = state.phase_elapsed();
         let sample = if elapsed >= 0.5 && elapsed < 0.75 {
             Some((1 << 0, "off"))
         } else if elapsed >= 1.15 && elapsed < 1.5 {
@@ -3678,7 +3897,48 @@ fn observe_manual_integration(
         }
     }
     if state.scenario == IntegrationScenario::FootIk
-        && let Ok((_, spaces, apply)) = foot_ik_data.get(character)
+        && state.phase == IntegrationPhase::FootIkTeleport
+        && let Ok((_, spaces, apply, Some(teleport))) = foot_ik_data.get(character)
+    {
+        if !state.foot_ik_teleport_requested {
+            state.foot_ik_teleport_baseline = Some((
+                teleport.detected_count,
+                teleport.left_rebase_count,
+                teleport.right_rebase_count,
+            ));
+        }
+        if state.foot_ik_teleport_requested
+            && let Some((detected_before, left_before, right_before)) =
+                state.foot_ik_teleport_baseline
+            && teleport.detected_count > detected_before
+            && teleport.left_rebase_count > left_before
+            && teleport.right_rebase_count > right_before
+            && spaces.left.valid
+            && spaces.right.valid
+            && apply.left.valid
+            && apply.right.valid
+            && !state.coverage.foot_ik_teleport
+        {
+            info!(
+                "[MANUAL-INTEGRATION][FOOT-IK-TELEPORT] delta_m={:.6} detected={} left_rebases={} right_rebases={} left_knee=({:.3},{:.3},{:.3}) right_knee=({:.3},{:.3},{:.3}) left_error={:.6} right_error={:.6}",
+                teleport.last_translation_delta_m,
+                teleport.detected_count,
+                teleport.left_rebase_count,
+                teleport.right_rebase_count,
+                apply.left.knee_world.x,
+                apply.left.knee_world.y,
+                apply.left.knee_world.z,
+                apply.right.knee_world.x,
+                apply.right.knee_world.y,
+                apply.right.knee_world.z,
+                apply.left.effector_error,
+                apply.right.effector_error,
+            );
+            state.coverage.foot_ik_teleport = true;
+        }
+    }
+    if state.scenario == IntegrationScenario::FootIk
+        && let Ok((_, spaces, apply, _)) = foot_ik_data.get(character)
         && spaces.left.valid
         && spaces.right.valid
         && apply.left.valid
@@ -3698,7 +3958,7 @@ fn observe_manual_integration(
                 state.coverage.foot_ik_slope = true;
             }
             if stable
-                && state.phase_started.elapsed().as_secs_f32() >= 3.2
+                && state.phase_elapsed() >= 3.2
                 && ((spaces.left.has_ground_hit
                     && spaces.left.hit_world.y > fixture.locomotion_start.y - 0.82)
                     || (spaces.right.has_ground_hit
@@ -3820,7 +4080,7 @@ fn observe_manual_integration(
         if state.ragdoll_seen && follow.grounded {
             state.coverage.ragdoll_follow = true;
             if state.ragdoll_grounded_at.is_none() {
-                state.ragdoll_grounded_at = Some(Instant::now());
+                state.ragdoll_grounded_at = Some(state.game_time_seconds);
                 info!("[MANUAL-INTEGRATION] ragdoll ground follow stabilized");
             }
         } else if state.ragdoll_seen {
@@ -3840,7 +4100,7 @@ fn observe_manual_integration(
     if ragdoll_recovered {
         state.coverage.ragdoll_recovered = true;
         if state.ragdoll_recovered_at.is_none() {
-            state.ragdoll_recovered_at = Some(Instant::now());
+            state.ragdoll_recovered_at = Some(state.game_time_seconds);
             info!(
                 "[MANUAL-INTEGRATION] ragdoll recovered position=({:.3},{:.3},{:.3}) velocity={:.3}",
                 transform.translation.x,
@@ -3975,7 +4235,7 @@ fn observe_manual_integration(
             && state.camera_scenario_armed
             && state.camera_obstacles.iter().any(Option::is_some)
         {
-            let elapsed = state.phase_started.elapsed().as_secs_f32();
+            let elapsed = state.phase_elapsed();
             if elapsed - state.camera_last_probe_secs >= 0.5 {
                 state.camera_last_probe_secs = elapsed;
                 info!(
@@ -4108,6 +4368,11 @@ fn observe_manual_integration(
                 ("p1_gait_walk_run_sprint_guard", coverage.p1_gait),
                 ("p1_air_jump_fall_land", coverage.p1_air),
                 ("p1_turn_and_rotate_both_sides", coverage.p1_turn),
+                ("p1_turn_slot_pose", coverage.turn_slot),
+                (
+                    "p1_turn_slot_inertialization",
+                    coverage.turn_inertialization,
+                ),
             ],
             IntegrationScenario::Crouching => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -4123,6 +4388,14 @@ fn observe_manual_integration(
                 ("crouch_direction_lean", coverage.crouch_direction_lean),
                 ("crouch_rotate", coverage.crouch_rotate),
                 ("crouch_turn", coverage.crouch_turn),
+            ],
+            IntegrationScenario::Sprint => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("standing_graph", coverage.standing_graph),
+                ("locomotion", coverage.locomotion),
+                ("gait_sprinting", coverage.sprinting),
+                ("sprint_curve_relay", coverage.sprint_curve_relay),
             ],
             IntegrationScenario::ControlRig => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -4163,6 +4436,7 @@ fn observe_manual_integration(
                     coverage.foot_ik_no_hit_recovered,
                 ),
                 ("foot_ik_weight_ramp", coverage.foot_ik_weight_ramp),
+                ("foot_ik_teleport", coverage.foot_ik_teleport),
                 ("foot_ik_slope", coverage.foot_ik_slope),
                 ("foot_ik_step", coverage.foot_ik_step),
                 ("foot_ik_crouching", coverage.foot_ik_crouching),
@@ -4337,5 +4611,18 @@ mod tests {
             actual_velocity_branch_mask(&diagonal),
             DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
         );
+    }
+
+    #[test]
+    fn state_machine_turn_fixture_allows_both_source_montages_to_finish() {
+        assert!(STATE_MACHINE_TURN_FIRST_END - STATE_MACHINE_TURN_FIRST_START >= 1.0);
+        assert!(STATE_MACHINE_TURN_SECOND_END - STATE_MACHINE_TURN_SECOND_START >= 1.0);
+        assert!(state_machine_turn_target_yaw(0.5, 0.0).is_some());
+        assert_eq!(state_machine_turn_target_yaw(2.0, 0.0), Some(0.0));
+        assert!(state_machine_turn_target_yaw(4.0, 0.0).is_some());
+        assert!(!state_machine_turn_phase_complete(
+            STATE_MACHINE_TURN_END - 0.01
+        ));
+        assert!(state_machine_turn_phase_complete(STATE_MACHINE_TURN_END));
     }
 }

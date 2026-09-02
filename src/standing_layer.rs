@@ -36,7 +36,7 @@ use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
 use crate::gait_layer::AlsGaitBlend;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
-use crate::turn_layer::AlsTurnDrive;
+use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const VELOCITY_EPSILON: f32 = 0.01;
 const MOVING_SMOOTH_SPEED_THRESHOLD: f32 = 1.5;
@@ -46,8 +46,6 @@ const MIN_PLAY_RATE: f32 = 1e-4;
 const RUN_START_DURATION: f32 = 0.72;
 const RUN_START_FROM_WALK_DURATION: f32 = 0.68;
 const PIVOT_DURATION: f32 = 0.6;
-const OUTER_DEFAULT_TRANSITION_DURATION: f32 = 0.2;
-const OUTER_STOP_TRANSITION_DURATION: f32 = 0.3;
 const ROTATE_COMPLETION_EPSILON: f32 = 1e-4;
 const MOVEMENT_BLENDSPACE_START_PHASE: f32 = 0.2;
 const SPRINT_START_TIME: f32 = 0.166667;
@@ -179,6 +177,59 @@ enum StandingDetail {
     FirstPivot,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct StandingTransitionStaticProfile {
+    source_static_contract: &'static str,
+    duration: f32,
+}
+
+const STANDING_DETAIL_TRANSITION_PROFILES: [StandingTransitionStaticProfile; 11] = [
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_0|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_1|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_2|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_3|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=0.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_7|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=0.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_8|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_9|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_15|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_16|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=0.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_32|PriorityOrder=1|CrossfadeDuration=0.100000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.1,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_33|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=0.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+];
+
 impl StandingDetail {
     fn index(self) -> f32 {
         match self {
@@ -209,10 +260,15 @@ impl StandingDetail {
     }
 
     fn transition_duration(index: f32) -> f32 {
-        match index as u8 {
-            1 | 2 | 5 | 6 | 7 | 8 | 9 => 0.1,
-            _ => 0.2,
-        }
+        let profile = STANDING_DETAIL_TRANSITION_PROFILES
+            .get(index as usize)
+            .copied()
+            .unwrap_or(StandingTransitionStaticProfile {
+                source_static_contract: "",
+                duration: 0.2,
+            });
+        debug_assert!(!profile.source_static_contract.is_empty() || index < 0.0);
+        profile.duration
     }
 }
 
@@ -226,6 +282,136 @@ enum StandingMovementState {
     LeftForward,
     LeftBackward,
 }
+
+#[derive(Clone, Copy, Debug)]
+struct StandingMovementTransitionProfile {
+    source_static_contract: &'static str,
+    duration: f32,
+    blend_mode: AlphaBlendMode,
+}
+
+const STANDING_MOVEMENT_TRANSITION_PROFILES: [StandingMovementTransitionProfile; 24] = [
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_0|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_1|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_2|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_3|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_4|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_5|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_6|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_7|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_8|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_9|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_10|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_11|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_12|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_13|PriorityOrder=1|bSharedRules=True",
+        duration: 0.5,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_14|PriorityOrder=1|bSharedRules=False",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_15|PriorityOrder=1|bSharedRules=False",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_16|PriorityOrder=2|bSharedRules=True",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_17|PriorityOrder=2|bSharedRules=True",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_18|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_19|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_20|PriorityOrder=1|bSharedRules=True",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_21|PriorityOrder=1|bSharedRules=True",
+        duration: 0.7,
+        blend_mode: AlphaBlendMode::Cubic,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_23|PriorityOrder=2|bSharedRules=True",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+    StandingMovementTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_28|PriorityOrder=2|bSharedRules=True",
+        duration: 0.75,
+        blend_mode: AlphaBlendMode::QuadraticInOut,
+    },
+];
 
 impl StandingMovementState {
     const ALL: [Self; 6] = [
@@ -400,18 +586,23 @@ impl StandingMovementState {
     }
 
     fn transition_duration(index: f32) -> f32 {
-        match index as u8 {
-            0 | 1 | 10 | 11 | 12 | 13 => 0.5,
-            14 | 15 | 16 | 17 | 20 | 22 | 23 => 0.75,
-            _ => 0.7,
-        }
+        let profile = STANDING_MOVEMENT_TRANSITION_PROFILES
+            .get(index as usize)
+            .copied()
+            .unwrap_or(StandingMovementTransitionProfile {
+                source_static_contract: "",
+                duration: 0.7,
+                blend_mode: AlphaBlendMode::Cubic,
+            });
+        debug_assert!(!profile.source_static_contract.is_empty() || index < 0.0);
+        profile.duration
     }
 
     fn transition_alpha(index: f32, progress: f32) -> f32 {
-        let mode = match index as u8 {
-            14 | 15 | 16 | 17 | 20 | 22 | 23 => AlphaBlendMode::QuadraticInOut,
-            _ => AlphaBlendMode::Cubic,
-        };
+        let mode = STANDING_MOVEMENT_TRANSITION_PROFILES
+            .get(index as usize)
+            .map(|profile| profile.blend_mode)
+            .unwrap_or(AlphaBlendMode::Cubic);
         transition_alpha(progress, mode, &[])
     }
 }
@@ -422,8 +613,8 @@ enum StandingOuterState {
     Idle,
     Move,
     Stop,
-    RotateRight,
     RotateLeft,
+    RotateRight,
 }
 
 impl StandingOuterState {
@@ -432,8 +623,8 @@ impl StandingOuterState {
             Self::Idle => 0.0,
             Self::Move => 1.0,
             Self::Stop => 2.0,
-            Self::RotateRight => 3.0,
-            Self::RotateLeft => 4.0,
+            Self::RotateLeft => 3.0,
+            Self::RotateRight => 4.0,
         }
     }
 
@@ -457,6 +648,57 @@ enum StandingOuterTransition {
     RotateLeftToIdleMoving,
     RotateRightToIdleMoving,
 }
+
+const STANDING_OUTER_TRANSITION_PROFILES: [StandingTransitionStaticProfile; 12] = [
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_0|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_8|PriorityOrder=1|CrossfadeDuration=0.000000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.0,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_10|PriorityOrder=1|CrossfadeDuration=0.300000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.3,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_18|PriorityOrder=2|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_19|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_20|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_21|PriorityOrder=1|CrossfadeDuration=0.000000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.0,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_22|PriorityOrder=1|CrossfadeDuration=0.000000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.0,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_23|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_24|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_25|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    StandingTransitionStaticProfile {
+        source_static_contract: "AnimStateTransitionNode_26|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=True|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+];
 
 impl StandingOuterTransition {
     fn index(self) -> f32 {
@@ -496,20 +738,9 @@ impl StandingOuterTransition {
     }
 
     fn duration(self) -> f32 {
-        match self {
-            Self::MoveToStop | Self::RotateLeftToIdleFinished | Self::RotateRightToIdleFinished => {
-                0.0
-            }
-            Self::StopToIdle => OUTER_STOP_TRANSITION_DURATION,
-            Self::IdleToMove
-            | Self::MoveToIdleQuickStop
-            | Self::IdleToRotateLeft
-            | Self::IdleToRotateRight
-            | Self::RotateLeftToRotateRight
-            | Self::RotateRightToRotateLeft
-            | Self::RotateLeftToIdleMoving
-            | Self::RotateRightToIdleMoving => OUTER_DEFAULT_TRANSITION_DURATION,
-        }
+        let profile = STANDING_OUTER_TRANSITION_PROFILES[self.index() as usize];
+        debug_assert!(!profile.source_static_contract.is_empty());
+        profile.duration
     }
 
     fn starts_quick_stop(self) -> bool {
@@ -554,6 +785,7 @@ struct StandingGraphInputs {
     movement_detail_transition_index: f32,
     stop_state_index: f32,
     direction_index: f32,
+    hips_direction: f32,
     clip_index: f32,
     looped: f32,
     output_play_rate: f32,
@@ -572,6 +804,8 @@ struct StandingGraphInputs {
     sprint_play_rate: f32,
     movement_marker_phase: f32,
     rotation_play_rate: f32,
+    rotate_left_loop: bool,
+    rotate_right_loop: bool,
     rotate_clip_time: f32,
     turn_index: f32,
     turn_weight: f32,
@@ -618,7 +852,7 @@ impl Plugin for StandingLayerPlugin {
             PostUpdate,
             AlsStandingLayerSet
                 .after(crate::gait_layer::AlsGaitLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_message::<AlsPivotNotify>()
         .add_systems(Startup, load_standing_curve_assets)
@@ -629,7 +863,7 @@ impl Plugin for StandingLayerPlugin {
                 .in_set(AlsStandingLayerSet),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             capture_standing_graph_telemetry.after(AnimationGraphSet::Final),
         );
     }
@@ -914,6 +1148,17 @@ fn stop_backward_weights(hips_direction: AlsMovementDirection) -> (f32, f32) {
     )
 }
 
+fn source_hips_direction_index(direction: AlsMovementDirection) -> f32 {
+    match direction {
+        AlsMovementDirection::Forward => 0.0,
+        AlsMovementDirection::Backward => 1.0,
+        AlsMovementDirection::LeftForward => 2.0,
+        AlsMovementDirection::LeftBackward => 3.0,
+        AlsMovementDirection::RightForward => 4.0,
+        AlsMovementDirection::RightBackward => 5.0,
+    }
+}
+
 fn movement_curve_index(gait: Gait, direction: AlsMovementDirection) -> usize {
     let gait_offset = if gait == Gait::Walking { 0 } else { 6 };
     gait_offset + direction_index(direction) as usize
@@ -986,14 +1231,16 @@ fn sample_feet_crossing_amount(
 }
 
 fn stop_state_index_for_foot_planted_amount(foot_planted_amount: f32) -> f32 {
-    if foot_planted_amount > 0.5 {
+    if foot_planted_amount <= -0.5 {
         1.0
-    } else if foot_planted_amount > 0.0 {
+    } else if foot_planted_amount > 0.5 {
         2.0
-    } else if foot_planted_amount <= -0.5 {
+    } else if foot_planted_amount <= 0.0 {
         3.0
-    } else {
+    } else if foot_planted_amount > 0.0 {
         4.0
+    } else {
+        3.0
     }
 }
 
@@ -1033,11 +1280,11 @@ fn standing_state_curve_overrides(state_index: u8, stop_state_index: u8) -> Stan
             rotation_yaw_speed: 0.0,
         },
         2 => match stop_state_index {
-            1 | 2 => StandingSequenceCurves {
+            2 | 4 => StandingSequenceCurves {
                 foot_right_lock: 1.0,
                 ..Default::default()
             },
-            3 | 4 => StandingSequenceCurves {
+            1 | 3 => StandingSequenceCurves {
                 foot_left_lock: 1.0,
                 ..Default::default()
             },
@@ -1089,12 +1336,93 @@ fn turn_curve_handle<'a>(
     handles: &'a StandingCurveHandles,
     drive: &AlsTurnDrive,
 ) -> &'a Handle<AlsAnimCurves> {
-    match (drive.is_180, drive.lr <= 0.5) {
+    turn_curve_handle_for(handles, drive.is_180, drive.lr)
+}
+
+fn turn_curve_handle_for<'a>(
+    handles: &'a StandingCurveHandles,
+    is_180: bool,
+    lr: f32,
+) -> &'a Handle<AlsAnimCurves> {
+    match (is_180, lr <= 0.5) {
         (false, true) => &handles.turn_left_90,
         (false, false) => &handles.turn_right_90,
         (true, true) => &handles.turn_left_180,
         (true, false) => &handles.turn_right_180,
     }
+}
+
+fn blend_turn_sequence_curves(
+    base: StandingSequenceCurves,
+    samples: Vec<(StandingSequenceCurves, f32)>,
+) -> StandingSequenceCurves {
+    let total_weight = samples.iter().map(|(_, weight)| *weight).sum::<f32>();
+    if total_weight <= f32::EPSILON {
+        return base;
+    }
+    let mut samples = samples.into_iter();
+    let base_weight = (1.0 - total_weight).max(0.0);
+    let (mut output, mut accumulated) = if base_weight > f32::EPSILON {
+        (base, base_weight)
+    } else {
+        let Some((first, weight)) = samples.next() else {
+            return base;
+        };
+        (first, weight)
+    };
+    for (curve, weight) in samples {
+        let next = accumulated + weight;
+        output = output.blend(curve, weight / next.max(f32::EPSILON));
+        accumulated = next;
+    }
+    output
+}
+
+fn turn_montage_sequence_curves(
+    base: StandingSequenceCurves,
+    stack: Option<&AlsTurnMontageStack>,
+    fallback: Option<&AlsTurnDrive>,
+    animation_curves: &Assets<AlsAnimCurves>,
+    handles: &StandingCurveHandles,
+) -> StandingSequenceCurves {
+    let samples = stack
+        .map(|stack| {
+            stack
+                .entries
+                .iter()
+                .filter_map(|entry| {
+                    let weight = entry.weight();
+                    (weight > f32::EPSILON).then(|| {
+                        (
+                            sample_sequence_curves(
+                                animation_curves,
+                                turn_curve_handle_for(handles, entry.is_180, entry.lr),
+                                entry.elapsed.min(entry.duration),
+                            )
+                            .with_rotation_yaw_speed_scale(entry.play_rate),
+                            weight,
+                        )
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            fallback
+                .filter(|drive| !drive.rotate_active && drive.weight > f32::EPSILON)
+                .map(|drive| {
+                    vec![(
+                        sample_sequence_curves(
+                            animation_curves,
+                            turn_curve_handle(handles, drive),
+                            drive.clip_time,
+                        )
+                        .with_rotation_yaw_speed_scale(drive.play_rate),
+                        drive.weight,
+                    )]
+                })
+                .unwrap_or_default()
+        });
+    blend_turn_sequence_curves(base, samples)
 }
 
 fn direction_for(
@@ -1227,8 +1555,8 @@ fn transition_curve_handle<'a>(
 
 fn stop_transition_side(previous: Option<u8>, current: Option<u8>) -> Option<f32> {
     match current {
-        Some(2) if previous != current => Some(1.0),
-        Some(4) if previous != current => Some(0.0),
+        Some(4) if previous != current => Some(1.0),
+        Some(3) if previous != current => Some(0.0),
         _ => None,
     }
 }
@@ -1321,6 +1649,7 @@ fn update_standing_inputs(
     direction_state: Option<&AlsMovementDirectionState>,
     transition: Option<&AlsTransitionPlayback>,
     turn: Option<&AlsTurnDrive>,
+    turn_stack: Option<&AlsTurnMontageStack>,
     hips_direction_lock_amount: f32,
     curves: &Assets<CurveAsset>,
     animation_curves: &Assets<AlsAnimCurves>,
@@ -1578,11 +1907,26 @@ fn update_standing_inputs(
             1.0
         }
     });
-    let turn_weight = turn
-        .filter(|drive| !drive.rotate_active)
-        .map_or(0.0, |drive| drive.weight);
+    let turn_weight = turn_stack
+        .filter(|_| !turn.is_some_and(|drive| drive.rotate_active))
+        .map_or_else(
+            || {
+                turn.filter(|drive| !drive.rotate_active)
+                    .map_or(0.0, |drive| drive.weight)
+            },
+            |stack| {
+                stack
+                    .entries
+                    .iter()
+                    .map(|entry| entry.weight())
+                    .sum::<f32>()
+                    .min(1.0)
+            },
+        );
     let turn_play_rate = turn.map_or(1.2, |drive| drive.play_rate.max(0.0));
     let rotation_play_rate = rotating.map_or(1.15, |drive| drive.rotate_rate.max(0.0));
+    let rotate_left_loop = turn.is_some_and(|drive| drive.rotate_active && drive.rotate_lr <= 0.5);
+    let rotate_right_loop = turn.is_some_and(|drive| drive.rotate_active && drive.rotate_lr > 0.5);
     let mut sequence_curves =
         standing_state_curve_overrides(state_index as u8, stop_state_index as u8);
     if let Some(rotate) = rotating {
@@ -1593,14 +1937,14 @@ fn update_standing_inputs(
         )
         .with_rotation_yaw_speed_scale(rotate.rotate_rate);
     }
-    if let Some(drive) = turn.filter(|drive| !drive.rotate_active && drive.weight > f32::EPSILON) {
-        let turn_curves = sample_sequence_curves(
+    if !turn.is_some_and(|drive| drive.rotate_active) {
+        sequence_curves = turn_montage_sequence_curves(
+            sequence_curves,
+            turn_stack,
+            turn,
             animation_curves,
-            turn_curve_handle(curve_handles, drive),
-            drive.clip_time,
-        )
-        .with_rotation_yaw_speed_scale(drive.play_rate);
-        sequence_curves = sequence_curves.blend(turn_curves, drive.weight);
+            curve_handles,
+        );
     }
     if let Some(playback) = transition.filter(|state| state.active && state.weight > f32::EPSILON) {
         let transition_curves = sample_sequence_curves(
@@ -1646,6 +1990,7 @@ fn update_standing_inputs(
         movement_detail_transition_index,
         stop_state_index,
         direction_index,
+        hips_direction: source_hips_direction_index(runtime.hips_direction),
         clip_index,
         looped,
         output_play_rate,
@@ -1664,6 +2009,8 @@ fn update_standing_inputs(
         sprint_play_rate: play_rate,
         movement_marker_phase,
         rotation_play_rate,
+        rotate_left_loop,
+        rotate_right_loop,
         rotate_clip_time: rotating.map_or(0.0, |drive| drive.rotate_clip_time),
         turn_index,
         turn_weight,
@@ -1712,6 +2059,7 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         ),
         ("als_standing_stop_state_index", inputs.stop_state_index),
         ("als_standing_direction_index", inputs.direction_index),
+        ("als_standing_hips_direction", inputs.hips_direction),
         ("als_standing_clip_index", inputs.clip_index),
         ("als_standing_loop", inputs.looped),
         ("als_standing_output_play_rate", inputs.output_play_rate),
@@ -1802,6 +2150,8 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
     ] {
         player.set_global_input_data(key, value);
     }
+    player.set_global_input_data("als_standing_rotate_left_loop", inputs.rotate_left_loop);
+    player.set_global_input_data("als_standing_rotate_right_loop", inputs.rotate_right_loop);
 }
 
 fn actual_movement_fsm_telemetry(
@@ -1986,6 +2336,7 @@ fn standing_layer_writer(
             &AnimatedSceneInstance,
             Option<&mut StandingLayerRuntime>,
             Option<&AlsTurnDrive>,
+            Option<&AlsTurnMontageStack>,
         ),
         With<AlsCharacterAvatar>,
     >,
@@ -2000,7 +2351,9 @@ fn standing_layer_writer(
 ) {
     let delta_seconds = time.delta_secs();
     update_stop_leg_masks(&mut curve_handles, &skeletons);
-    for (entity, parent, avatar_transform, instance, current_runtime, turn) in &mut avatars {
+    for (entity, parent, avatar_transform, instance, current_runtime, turn, turn_stack) in
+        &mut avatars
+    {
         let Ok((
             transform,
             actual_motion,
@@ -2093,6 +2446,7 @@ fn standing_layer_writer(
             direction,
             transition,
             turn,
+            turn_stack,
             hips_direction_lock_amount,
             &curves,
             &animation_curves,
@@ -2269,6 +2623,34 @@ mod tests {
 
         update_hips_direction(&mut runtime, true, AlsMovementDirection::RightBackward, 3);
         assert_eq!(stop_backward_weights(runtime.hips_direction), (0.0, 1.0));
+    }
+
+    #[test]
+    fn source_hips_direction_indices_match_the_authored_enum_order() {
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::Forward),
+            0.0
+        );
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::Backward),
+            1.0
+        );
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::LeftForward),
+            2.0
+        );
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::LeftBackward),
+            3.0
+        );
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::RightForward),
+            4.0
+        );
+        assert_eq!(
+            source_hips_direction_index(AlsMovementDirection::RightBackward),
+            5.0
+        );
     }
 
     #[test]
@@ -2507,19 +2889,19 @@ mod tests {
 
     #[test]
     fn stop_substates_match_source_foot_planted_thresholds() {
-        assert_eq!(stop_state_index_for_foot_planted_amount(0.6), 1.0);
-        assert_eq!(stop_state_index_for_foot_planted_amount(0.1), 2.0);
-        assert_eq!(stop_state_index_for_foot_planted_amount(0.0), 4.0);
-        assert_eq!(stop_state_index_for_foot_planted_amount(-0.5), 3.0);
-        assert_eq!(stop_state_index_for_foot_planted_amount(-0.1), 4.0);
+        assert_eq!(stop_state_index_for_foot_planted_amount(0.6), 2.0);
+        assert_eq!(stop_state_index_for_foot_planted_amount(0.1), 4.0);
+        assert_eq!(stop_state_index_for_foot_planted_amount(0.0), 3.0);
+        assert_eq!(stop_state_index_for_foot_planted_amount(-0.5), 1.0);
+        assert_eq!(stop_state_index_for_foot_planted_amount(-0.1), 3.0);
     }
 
     #[test]
     fn plant_state_entry_requests_the_matching_source_transition_side() {
-        assert_eq!(stop_transition_side(None, Some(2)), Some(1.0));
-        assert_eq!(stop_transition_side(None, Some(4)), Some(0.0));
-        assert_eq!(stop_transition_side(Some(2), Some(2)), None);
-        assert_eq!(stop_transition_side(Some(4), None), None);
+        assert_eq!(stop_transition_side(None, Some(4)), Some(1.0));
+        assert_eq!(stop_transition_side(None, Some(3)), Some(0.0));
+        assert_eq!(stop_transition_side(Some(4), Some(4)), None);
+        assert_eq!(stop_transition_side(Some(3), None), None);
     }
 
     #[test]
@@ -2533,10 +2915,10 @@ mod tests {
                 rotation_yaw_speed: 0.0,
             }
         );
-        assert_eq!(standing_state_curve_overrides(2, 1).foot_right_lock, 1.0);
         assert_eq!(standing_state_curve_overrides(2, 2).foot_right_lock, 1.0);
+        assert_eq!(standing_state_curve_overrides(2, 4).foot_right_lock, 1.0);
+        assert_eq!(standing_state_curve_overrides(2, 1).foot_left_lock, 1.0);
         assert_eq!(standing_state_curve_overrides(2, 3).foot_left_lock, 1.0);
-        assert_eq!(standing_state_curve_overrides(2, 4).foot_left_lock, 1.0);
     }
 
     #[test]

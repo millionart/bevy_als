@@ -17,7 +17,9 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
 
-use crate::actual_motion::AlsActualMotion;
+use crate::actual_motion::{
+    AlsActualMotion, AlsGroundedVelocityBlend, AlsGroundedVelocityBlendSet,
+};
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::foot_ik_apply::FootIkApplySet;
@@ -60,6 +62,8 @@ pub(crate) struct CrAlsTargetProfile {
     pub(crate) foot_left_secondary_axis: [f32; 3],
     pub(crate) foot_right_primary_axis: [f32; 3],
     pub(crate) foot_right_secondary_axis: [f32; 3],
+    pub(crate) foot_left_thigh_axis_pelvis_space: [f32; 3],
+    pub(crate) foot_right_thigh_axis_pelvis_space: [f32; 3],
     pub(crate) foot_left_initial_rotation_calf_space: [f32; 4],
     pub(crate) foot_right_initial_rotation_calf_space: [f32; 4],
     pub(crate) trace_distance_up_m: f32,
@@ -125,6 +129,14 @@ fn validate_cr_als_runtime_profile(profile: &CrAlsRuntimeProfileDocument) {
     assert_profile_vec3(profile.target.foot_left_secondary_axis, Vec3::Z);
     assert_profile_vec3(profile.target.foot_right_primary_axis, Vec3::X);
     assert_profile_vec3(profile.target.foot_right_secondary_axis, Vec3::NEG_Z);
+    assert_profile_vec3(
+        profile.target.foot_left_thigh_axis_pelvis_space,
+        Vec3::new(-0.158_565_91, -0.985_633_85, 0.058_161_234),
+    );
+    assert_profile_vec3(
+        profile.target.foot_right_thigh_axis_pelvis_space,
+        Vec3::new(-0.158_546_39, 0.985_636_95, 0.058_161_905),
+    );
 }
 
 impl FromWorld for CrAlsRuntimeProfileTemplate {
@@ -169,7 +181,9 @@ impl Plugin for ControlRigApplyPlugin {
                     .after(AlsRootAnimationContextSet)
                     .after(TransformSystems::Propagate),
                 AlsControlRigConstructionSet.after(AlsControlRigDiscoverySet),
-                AlsControlRigInputSet.after(AlsControlRigConstructionSet),
+                AlsControlRigInputSet
+                    .after(AlsControlRigConstructionSet)
+                    .after(AlsGroundedVelocityBlendSet),
                 AlsControlRigSet.after(AlsControlRigInputSet),
                 AlsControlRigPrePropagationSet.after(AlsControlRigSet),
                 AlsControlRigHandSet.after(FootIkApplySet::Propagate),
@@ -291,6 +305,11 @@ pub struct AlsControlRigConstruction {
     pub use_foot_ik_bones: bool,
     pub foot_height_m: f32,
     pub leg_length_m: f32,
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+struct AlsControlRigDiagonalScaleReference {
+    scale: Vec3,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -619,6 +638,7 @@ fn initialize_control_rig(
         (With<AlsCharacter>, Added<AlsControlRigBones>),
     >,
     profile: Res<CrAlsRuntimeProfileTemplate>,
+    bone_transforms: Query<&Transform, Without<AlsCharacter>>,
 ) {
     for (entity, bones, configured_settings, existing) in &characters {
         if existing.is_some() || !bones.ready() {
@@ -656,6 +676,15 @@ fn initialize_control_rig(
                 completed_frames: 0,
             },
         ));
+        if let Some(foot_root) = bones.foot_root(settings.use_foot_ik_bones)
+            && let Ok(transform) = bone_transforms.get(foot_root)
+        {
+            commands
+                .entity(foot_root)
+                .insert(AlsControlRigDiagonalScaleReference {
+                    scale: transform.scale,
+                });
+        }
     }
 }
 
@@ -670,6 +699,7 @@ fn apply_diagonal_scaling(
     pose_moving: f32,
     scale_delta: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
+    scale_references: &Query<&AlsControlRigDiagonalScaleReference>,
 ) {
     let Some(foot_root) = foot_root else {
         return;
@@ -677,9 +707,16 @@ fn apply_diagonal_scaling(
     let Ok((mut local, _, _)) = bone_locals.get_mut(foot_root) else {
         return;
     };
+    let Ok(reference) = scale_references.get(foot_root) else {
+        return;
+    };
     let amount =
         diagonal_scale_factor(forward_amount, backward_amount) * pose_moving.clamp(0.0, 1.0);
-    local.scale += scale_delta * amount;
+    local.scale = diagonal_scale(reference.scale, scale_delta, amount);
+}
+
+fn diagonal_scale(reference: Vec3, delta: Vec3, amount: f32) -> Vec3 {
+    reference + delta * amount.clamp(0.0, 1.0)
 }
 
 fn apply_arm_ik(
@@ -789,6 +826,7 @@ fn refresh_control_rig_input(
             Entity,
             &AlsControlRigConstruction,
             Option<&AlsActualMotion>,
+            Option<&AlsGroundedVelocityBlend>,
             Option<&AlsFootLockState>,
             Option<&AlsGroundPredictionState>,
             Option<&AlsControlRigState>,
@@ -804,6 +842,7 @@ fn refresh_control_rig_input(
         entity,
         construction,
         motion,
+        grounded_velocity_blend,
         foot_lock,
         ground_prediction,
         state,
@@ -828,6 +867,10 @@ fn refresh_control_rig_input(
                     )
                 });
         let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
+        let velocity_blend = grounded_velocity_blend
+            .map(|blend| blend.value)
+            .or_else(|| motion.map(|motion| motion.velocity_blend))
+            .unwrap_or_default();
         let (
             foot_transforms_valid,
             foot_left_location_armature,
@@ -866,10 +909,8 @@ fn refresh_control_rig_input(
             use_hand_ik_bones: construction.use_hand_ik_bones,
             use_foot_ik_bones: construction.use_foot_ik_bones,
             foot_transforms_valid,
-            velocity_blend_forward_amount: motion
-                .map_or(0.0, |motion| motion.velocity_blend.forward),
-            velocity_blend_backward_amount: motion
-                .map_or(0.0, |motion| motion.velocity_blend.backward),
+            velocity_blend_forward_amount: velocity_blend.forward,
+            velocity_blend_backward_amount: velocity_blend.backward,
             spine_yaw_angle_degrees: state.map_or(0.0, |state| state.final_yaw_angle),
             pelvis_offset_amount: (pose_grounded + pose_in_air * ground_prediction).clamp(0.0, 1.0),
             foot_left_location_armature,
@@ -904,6 +945,7 @@ fn control_rig_pre_apply_system(
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
     bone_globals: Query<&GlobalTransform, Without<AlsCharacter>>,
+    scale_references: Query<&AlsControlRigDiagonalScaleReference>,
     mut traces: Query<&mut AlsControlRigStageTrace>,
 ) {
     for (
@@ -961,6 +1003,7 @@ fn control_rig_pre_apply_system(
             output_f32(context, "PoseMoving"),
             Vec3::from(profile.0.target.diagonal_scale_delta),
             &mut bone_locals,
+            &scale_references,
         );
         apply_spine_rotation(
             bones.spine,
@@ -1056,6 +1099,15 @@ mod tests {
         assert!((diagonal_scale_factor(1.0, 0.0) - 0.0).abs() < 1e-6);
         assert!((diagonal_scale_factor(0.5, 0.0) - 1.0).abs() < 1e-6);
         assert!((diagonal_scale_factor(0.0, 0.0) - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn diagonal_scaling_is_relative_to_construction_scale() {
+        let reference = Vec3::splat(1.0);
+        let first = diagonal_scale(reference, Vec3::splat(0.25), 1.0);
+        let second = diagonal_scale(reference, Vec3::splat(0.25), 1.0);
+        assert_eq!(first, second);
+        assert_eq!(first, Vec3::splat(1.25));
     }
 
     #[test]

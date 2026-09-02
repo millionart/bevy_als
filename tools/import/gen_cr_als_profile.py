@@ -107,6 +107,46 @@ def chain_length_cm(bones, ancestor, descendant):
     return length
 
 
+def normalized_vector(values):
+    length = math.sqrt(sum(component * component for component in values))
+    if length <= 1e-12:
+        raise ValueError("source thigh axis is zero")
+    return [component / length for component in values]
+
+
+def pin_default(node, suffix):
+    values = [pin["default_value"] for pin in node["pins"] if pin["name"].endswith(suffix)]
+    if len(values) != 1:
+        raise ValueError(f"missing source pin {suffix}")
+    return values[0]
+
+
+def foot_ik_call_axes(source):
+    graph = next((graph for graph in source["graphs"] if graph["name"] == "RefreshFootIk"), None)
+    if graph is None:
+        raise ValueError("missing RefreshFootIk source graph")
+    result = {}
+    for node in graph["nodes"]:
+        if "ApplyFootIk" not in node["title"]:
+            continue
+        thigh = pin_default(node, "ThighItem.Name")
+        if thigh not in {"thigh_l", "thigh_r"}:
+            continue
+        result[thigh] = {
+            "primary": [
+                float(pin_default(node, f"PrimaryAxis.{axis}"))
+                for axis in ("X", "Y", "Z")
+            ],
+            "secondary": [
+                float(pin_default(node, f"SecondaryAxis.{axis}"))
+                for axis in ("X", "Y", "Z")
+            ],
+        }
+    if set(result) != {"thigh_l", "thigh_r"}:
+        raise ValueError("source ApplyFootIk side call axes are incomplete")
+    return result
+
+
 def construction(source, mesh):
     cdo = props(source["blueprint_cdo_properties"])
     bones = bone_map(mesh)
@@ -120,11 +160,18 @@ def construction(source, mesh):
         "hand_right_if_virtual": "VB hand_r",
         "foot_height_cm": bones["foot_l"]["component_transform"]["translation"]["z"],
         "leg_length_cm": chain_length_cm(bones, "thigh_l", "foot_l"),
+        "foot_left_thigh_axis_pelvis_space_source": normalized_vector(
+            vector_from_fields(bones["thigh_l"]["local_transform"]["translation"])
+        ),
+        "foot_right_thigh_axis_pelvis_space_source": normalized_vector(
+            vector_from_fields(bones["thigh_r"]["local_transform"]["translation"])
+        ),
     }
 
 
 def build(source, mesh):
     source_construction = construction(source, mesh)
+    source_foot_ik_axes = foot_ik_call_axes(source)
     source_bones = bone_map(mesh)
     left_initial_calf_space = quat_multiply(
         quat_conjugate(quat_from_fields(source_bones["calf_l"]["component_transform"]["rotation"])),
@@ -140,10 +187,24 @@ def build(source, mesh):
         "diagonal_scale_delta": target_vector(source_direction_to_runtime([0.4, 0.4, 0.0])),
         "hand_left_pole_location_m": target_vector(source_point_to_runtime([0.0, -30.0, 0.0])),
         "hand_right_pole_location_m": target_vector(source_point_to_runtime([0.0, 30.0, 0.0])),
-        "foot_left_primary_axis": target_vector(source_direction_to_runtime([-1.0, 0.0, 0.0])),
-        "foot_left_secondary_axis": target_vector(source_direction_to_runtime([0.0, 1.0, 0.0])),
-        "foot_right_primary_axis": target_vector(source_direction_to_runtime([1.0, 0.0, 0.0])),
-        "foot_right_secondary_axis": target_vector(source_direction_to_runtime([0.0, -1.0, 0.0])),
+        "foot_left_primary_axis": target_vector(
+            source_direction_to_runtime(source_foot_ik_axes["thigh_l"]["primary"])
+        ),
+        "foot_left_secondary_axis": target_vector(
+            source_direction_to_runtime(source_foot_ik_axes["thigh_l"]["secondary"])
+        ),
+        "foot_right_primary_axis": target_vector(
+            source_direction_to_runtime(source_foot_ik_axes["thigh_r"]["primary"])
+        ),
+        "foot_right_secondary_axis": target_vector(
+            source_direction_to_runtime(source_foot_ik_axes["thigh_r"]["secondary"])
+        ),
+        "foot_left_thigh_axis_pelvis_space": target_vector(
+            source_direction_to_runtime(source_construction["foot_left_thigh_axis_pelvis_space_source"])
+        ),
+        "foot_right_thigh_axis_pelvis_space": target_vector(
+            source_direction_to_runtime(source_construction["foot_right_thigh_axis_pelvis_space_source"])
+        ),
         "foot_left_initial_rotation_calf_space": target_vector(source_rotation_to_runtime(left_initial_calf_space)),
         "foot_right_initial_rotation_calf_space": target_vector(source_rotation_to_runtime(right_initial_calf_space)),
         "trace_distance_up_m": 50.0 * SOURCE_LENGTH_TO_RUNTIME_SCALE,
@@ -178,7 +239,13 @@ def build(source, mesh):
         "construction": {
             key: value
             for key, value in source_construction.items()
-            if key not in {"foot_height_cm", "leg_length_cm"}
+            if key
+            not in {
+                "foot_height_cm",
+                "leg_length_cm",
+                "foot_left_thigh_axis_pelvis_space_source",
+                "foot_right_thigh_axis_pelvis_space_source",
+            }
         },
         "target": target,
         "execution_order": execution_order,
@@ -195,6 +262,7 @@ def build(source, mesh):
         "source_blueprint_cdo_properties": source["blueprint_cdo_properties"],
         "source_graphs": source["graphs"],
         "source_rig_vm_links": rig_vm_links(source),
+        "source_foot_ik_call_axes": source_foot_ik_axes,
         "source_graph_summary": graph_summary(source),
         "source_node_layout": graph_node_layout(source),
         "source_construction": source_construction,
@@ -208,6 +276,46 @@ def self_test():
         raise AssertionError("point conversion")
     if source_direction_to_runtime([1.0, 2.0, 3.0]) != [1.0, 3.0, 2.0]:
         raise AssertionError("direction conversion")
+    if normalized_vector([0.0, 3.0, 4.0]) != [0.0, 0.6, 0.8]:
+        raise AssertionError("axis normalization")
+    source = {
+        "graphs": [
+            {
+                "name": "RefreshFootIk",
+                "nodes": [
+                    {
+                        "title": "ApplyFootIk",
+                        "pins": [
+                            {"name": "ApplyFootIk.ThighItem.Name", "default_value": "thigh_l"},
+                            {"name": "ApplyFootIk.PrimaryAxis.X", "default_value": "-1.000000"},
+                            {"name": "ApplyFootIk.PrimaryAxis.Y", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk.PrimaryAxis.Z", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk.SecondaryAxis.X", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk.SecondaryAxis.Y", "default_value": "1.000000"},
+                            {"name": "ApplyFootIk.SecondaryAxis.Z", "default_value": "0.000000"},
+                        ],
+                    },
+                    {
+                        "title": "ApplyFootIk",
+                        "pins": [
+                            {"name": "ApplyFootIk_1.ThighItem.Name", "default_value": "thigh_r"},
+                            {"name": "ApplyFootIk_1.PrimaryAxis.X", "default_value": "1.000000"},
+                            {"name": "ApplyFootIk_1.PrimaryAxis.Y", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk_1.PrimaryAxis.Z", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk_1.SecondaryAxis.X", "default_value": "0.000000"},
+                            {"name": "ApplyFootIk_1.SecondaryAxis.Y", "default_value": "-1.000000"},
+                            {"name": "ApplyFootIk_1.SecondaryAxis.Z", "default_value": "0.000000"},
+                        ],
+                    },
+                ],
+            }
+        ]
+    }
+    axes = foot_ik_call_axes(source)
+    if axes["thigh_l"]["primary"] != [-1.0, 0.0, 0.0]:
+        raise AssertionError("left call primary axis")
+    if axes["thigh_r"]["secondary"] != [0.0, -1.0, 0.0]:
+        raise AssertionError("right call secondary axis")
 
 
 def main():

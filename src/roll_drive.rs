@@ -64,11 +64,11 @@ impl Plugin for AlsRollDrivePlugin {
         app.add_systems(Startup, load_roll_slot_curve_asset)
             .add_systems(Update, ensure_roll_slot_samplers)
             .configure_sets(
-                FixedPostUpdate,
+                PostUpdate,
                 AlsRollDriveSet.after(AnimationGraphSet::PrePhysics),
             )
             .add_systems(
-                FixedPostUpdate,
+                PostUpdate,
                 (
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,

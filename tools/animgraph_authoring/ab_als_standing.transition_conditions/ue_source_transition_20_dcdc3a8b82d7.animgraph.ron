@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "3bbf0782-c0af-4b53-805a-008c2d3abda1", name: "float <= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "less_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["LessEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"LessEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-224", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "8905A99845547F8B4818C0850F9B60AD"]) }, should_debug: false),
+        (id: "9b54b6ff-9229-409a-8b80-45c33a7776d4", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"FeetState\",\"FootPlantedAmount\")", "GetParent.FeetState.FootPlantedAmount", "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-592", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "A1D623014C8F22499286E7A75F9ED444"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("Can Enter Transition"): NodeData("3bbf0782-c0af-4b53-805a-008c2d3abda1", "ReturnValue"),
+        NodeData("3bbf0782-c0af-4b53-805a-008c2d3abda1", "A"): NodeData("9b54b6ff-9229-409a-8b80-45c33a7776d4", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "Can Enter Transition": Bool },
+        input_order: {},
+        output_order: { Data("Can Enter Transition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "3bbf0782-c0af-4b53-805a-008c2d3abda1": (-224.000, 0.000), "9b54b6ff-9229-409a-8b80-45c33a7776d4": (-592.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

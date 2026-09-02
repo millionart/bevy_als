@@ -73,6 +73,7 @@ pub struct LayeredGraphNode {
     pub fixed_f32_inputs: Vec<FixedF32Input>,
     pub fixed_global_f32_inputs: Vec<FixedGlobalF32Input>,
     pub cached_pose_inputs: Vec<CachedPoseInput>,
+    pub prewarm_cached_pose_nodes: Vec<String>,
     pub output_aliases: Vec<OutputDataAlias>,
     pub named_pose_output: Option<NamedPoseOutput>,
     pub capture_context: bool,
@@ -93,6 +94,7 @@ impl LayeredGraphNode {
             fixed_f32_inputs: default(),
             fixed_global_f32_inputs: default(),
             cached_pose_inputs: default(),
+            prewarm_cached_pose_nodes: default(),
             output_aliases: default(),
             named_pose_output: None,
             capture_context: false,
@@ -174,6 +176,14 @@ impl LayeredGraphNode {
         Ok(values)
     }
 
+    fn prewarm_cached_poses(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+        for cache_node in &self.prewarm_cached_pose_nodes {
+            let mut parent_ctx = ctx.clone();
+            resolve_cached_pose(&mut parent_ctx, cache_node)?;
+        }
+        Ok(())
+    }
+
     fn has_fixed_input(&self, input: &str) -> bool {
         self.fixed_f32_inputs
             .iter()
@@ -224,6 +234,13 @@ impl LayeredGraphNode {
             })?;
         let node_id = node.id;
         let key = ctx.state_key;
+        if !ctx.node_caches().is_updated(node_id, key)
+            && graph.io_spec.get_output_data(&"pose".to_owned()).is_some()
+        {
+            let update = context_time_update(&ctx.create_node_context(node_id))?;
+            ctx.context_mut().query_output_time = QueryOutputTime::from_key(key, update);
+            graph.get_data(TargetPin::OutputData("pose".to_owned()), ctx.clone())?;
+        }
         if !ctx.node_caches().is_update_started(node_id, key) {
             ctx.node_caches_mut().mark_update_started(node_id, key);
             node.update(
@@ -231,6 +248,12 @@ impl LayeredGraphNode {
                     .with_debugging(node.should_debug),
             )?;
             ctx.node_caches_mut().mark_updated(node_id, key);
+        } else if !ctx.node_caches().is_updated(node_id, key) {
+            return Err(GraphError::UnknownErrorNode {
+                graph: ctx.context_id,
+                node: node_id,
+                error: format!("named pose update is reentrant: {}", output.node_name),
+            });
         }
         ctx.node_caches()
             .get_output_data(node_id, key, output.output.clone())
@@ -252,11 +275,29 @@ impl LayeredGraphNode {
                 let Some(curve) = key.strip_prefix(prefix) else {
                     continue;
                 };
-                state.curves.insert(curve.to_owned(), value.as_f32()?);
+                let value = value.as_f32()?;
+                state.curves.insert(curve.to_owned(), value);
+                state.curves.insert(source_curve_name(curve), value);
             }
         }
         Ok(())
     }
+}
+
+fn source_curve_name(value: &str) -> String {
+    value
+        .split('_')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut characters = part.chars();
+            let Some(first) = characters.next() else {
+                return String::new();
+            };
+            let mut result = first.to_uppercase().collect::<String>();
+            result.push_str(characters.as_str());
+            result
+        })
+        .collect()
 }
 
 impl NodeLike for LayeredGraphNode {
@@ -303,6 +344,8 @@ impl NodeLike for LayeredGraphNode {
         else {
             return Ok(());
         };
+
+        self.prewarm_cached_poses(&ctx)?;
 
         let time_update = self.time_update(&ctx);
         if !self.internalize_time
@@ -439,5 +482,12 @@ mod tests {
         assert!(node.expose_output("ragdoll_config", &DataSpec::RagdollConfig));
         assert!(!node.expose_output("ragdoll_dynamic", &DataSpec::Bool));
         assert!(!node.expose_output("PoseMoving", &DataSpec::F32));
+    }
+
+    #[test]
+    fn global_curve_suffixes_retain_source_curve_pin_casing() {
+        assert_eq!(source_curve_name("pose_moving"), "PoseMoving");
+        assert_eq!(source_curve_name("foot_left_ik"), "FootLeftIk");
+        assert_eq!(source_curve_name("rotation_yaw_speed"), "RotationYawSpeed");
     }
 }

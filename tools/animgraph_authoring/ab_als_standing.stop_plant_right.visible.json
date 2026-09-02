@@ -1,0 +1,518 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-691b2da0ec9c8305.source.json",
+  "target_graph": "assets\\graphs\\ab_als\\stances\\standing\\state_stop_plant_right.animgraph.ron",
+  "target_spec": "target\\bf111\\stop_plant_right.spec.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_ModifyCurve_1",
+      "target_node": "15050001-0000-4000-8000-000000000001",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "FootRightLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0]"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"FootRightLock\")",
+          "target_contains": "curve_names: [\"FootRightLock\"]"
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Blend",
+          "target_contains": "apply_mode: \"Blend\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_LayeredBoneBlend_1",
+      "target_node": "15050001-0000-4000-8000-000000000002",
+      "input_pins": [
+        {
+          "source": "BasePose",
+          "target": "Base Pose"
+        },
+        {
+          "source": "BlendPoses_0",
+          "target": "Blend Poses 0"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_5",
+      "target_node": "15050001-0000-4000-8000-000000000003",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "21",
+          "target_default_contains": "explicit_frame: 21.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Forward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_6",
+      "target_node": "15050001-0000-4000-8000-000000000004",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "21",
+          "target_default_contains": "explicit_frame: 21.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Backward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_0",
+      "target_node": "15050001-0000-4000-8000-000000000005",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "24",
+          "target_default_contains": "explicit_frame: 24.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Left_Forward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_1",
+      "target_node": "15050001-0000-4000-8000-000000000006",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "24",
+          "target_default_contains": "explicit_frame: 24.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Left_Backward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_8",
+      "target_node": "15050001-0000-4000-8000-000000000007",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "23",
+          "target_default_contains": "explicit_frame: 23.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Right_Forward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_SequenceEvaluator_9",
+      "target_node": "15050001-0000-4000-8000-000000000008",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "21",
+          "target_default_contains": "explicit_frame: 21.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Walk_Right_Backward",
+          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_UseCachedPose_0",
+      "target_node": "15050001-0000-4000-8000-000000000009",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Movement Details",
+          "target_contains": "cache_node: \"Save cached pose 'Movement Details'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_BlendListByEnum_3",
+      "target_node": "15050001-0000-4000-8000-000000000010",
+      "input_pins": [
+        {
+          "source": "BlendPose_0",
+          "target": "Default Pose"
+        },
+        {
+          "source": "BlendPose_1",
+          "target": "Left Backward Pose"
+        },
+        {
+          "source": "BlendTime_0",
+          "target": "Default Blend Time",
+          "source_default": "0.000000",
+          "target_default_contains": "default_blend_time: 0.1"
+        },
+        {
+          "source": "BlendTime_1",
+          "target": "Left Backward Blend Time",
+          "source_default": "0.0",
+          "target_default_contains": "selected_blend_time: 0.1"
+        },
+        {
+          "source": "ActiveEnumValue",
+          "target": "Active Enum Value",
+          "source_default": "0",
+          "target_default_contains": "active_enum_default: 0.0",
+          "type_exception": "UE byte enum is represented as target F32 scalar.",
+          "target_binding": "als_standing_hips_direction"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "GetParent.GroundedState.HipsDirection",
+          "target_contains": "active_key: \"als_standing_hips_direction\""
+        },
+        {
+          "source_contains": "BlendTime=(0.100000,0.100000)",
+          "target_contains": "default_blend_time: 0.1"
+        },
+        {
+          "source_contains": "BlendTime=(0.100000,0.100000)",
+          "target_contains": "selected_blend_time: 0.1"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_BlendListByEnum_2",
+      "target_node": "15050001-0000-4000-8000-000000000011",
+      "input_pins": [
+        {
+          "source": "BlendPose_0",
+          "target": "Default Pose"
+        },
+        {
+          "source": "BlendPose_1",
+          "target": "Right Backward Pose"
+        },
+        {
+          "source": "BlendTime_0",
+          "target": "Default Blend Time",
+          "source_default": "0.000000",
+          "target_default_contains": "default_blend_time: 0.1"
+        },
+        {
+          "source": "BlendTime_1",
+          "target": "Right Backward Blend Time",
+          "source_default": "0.100000",
+          "target_default_contains": "selected_blend_time: 0.1"
+        },
+        {
+          "source": "ActiveEnumValue",
+          "target": "Active Enum Value",
+          "source_default": "0",
+          "target_default_contains": "active_enum_default: 0.0",
+          "type_exception": "UE byte enum is represented as target F32 scalar.",
+          "target_binding": "als_standing_hips_direction"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "GetParent.GroundedState.HipsDirection",
+          "target_contains": "active_key: \"als_standing_hips_direction\""
+        },
+        {
+          "source_contains": "BlendTime=(0.100000,0.100000)",
+          "target_contains": "default_blend_time: 0.1"
+        },
+        {
+          "source_contains": "BlendTime=(0.100000,0.100000)",
+          "target_contains": "selected_blend_time: 0.1"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot.AnimGraphNode_MultiWayBlend_4",
+      "target_node": "15050001-0000-4000-8000-000000000012",
+      "input_pins": [
+        {
+          "source": "Poses_0",
+          "target": "Poses 0"
+        },
+        {
+          "source": "Poses_1",
+          "target": "Poses 1"
+        },
+        {
+          "source": "Poses_2",
+          "target": "Poses 2"
+        },
+        {
+          "source": "Poses_3",
+          "target": "Poses 3"
+        },
+        {
+          "source": "DesiredAlphas_0",
+          "target": "Desired Alphas 0",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_standing_velocity_forward_amount"
+        },
+        {
+          "source": "DesiredAlphas_1",
+          "target": "Desired Alphas 1",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_standing_velocity_backward_amount"
+        },
+        {
+          "source": "DesiredAlphas_2",
+          "target": "Desired Alphas 2",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_standing_velocity_left_amount"
+        },
+        {
+          "source": "DesiredAlphas_3",
+          "target": "Desired Alphas 3",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_standing_velocity_right_amount"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.ForwardAmount",
+          "target_contains": "als_standing_velocity_forward_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.BackwardAmount",
+          "target_contains": "als_standing_velocity_backward_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.LeftAmount",
+          "target_contains": "als_standing_velocity_left_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.RightAmount",
+          "target_contains": "als_standing_velocity_right_amount"
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved BF111.03 comment group exclusion."
+}

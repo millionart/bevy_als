@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "150b0000-0000-4000-8000-000000000001", name: "standing movement details", inner: { "als_ext::InterruptibleFsmNode": (fsm: "graphs/ab_als/stances/standing/movement_details.fsm.ron") }, should_debug: false),
+        (id: "150b0000-0000-4000-8000-000000000001", name: "standing movement details", inner: { "als_ext::InterruptibleFsmNode": (fsm: "graphs/ab_als/stances/standing/movement_details.fsm.ron", state_pose_output: "Result") }, should_debug: false),
         (id: "150b0000-0000-4000-8000-000000000002", name: "standing movement details driver", inner: { "als_ext::DirectTransitionEventNode": (key: "als_standing_movement_detail_transition_index", transitions: [("15300000-0000-4000-8000-000000000101"), ("15300000-0000-4000-8000-000000000128"), ("15300000-0000-4000-8000-000000000115"), ("15300000-0000-4000-8000-000000000112"), ("15300000-0000-4000-8000-000000000122"), ("15300000-0000-4000-8000-000000000104"), ("15300000-0000-4000-8000-000000000103"), ("15300000-0000-4000-8000-000000000106"), ("15300000-0000-4000-8000-000000000117"), ("15300000-0000-4000-8000-000000000110"), ("15300000-0000-4000-8000-000000000127")]) }, should_debug: false),
     ],
     edges_inverted: {

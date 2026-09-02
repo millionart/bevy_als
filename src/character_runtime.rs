@@ -20,6 +20,7 @@ use crate::pa_als::PaAlsPhysicsPlugin;
 use crate::ragdoll_link::AlsRagdollLinkPlugin;
 use crate::ragdolling_layer::RagdollingLayerPlugin;
 use crate::roll_drive::AlsRollDrivePlugin;
+use crate::source_physics_timing::SourcePhysicsTimingPlugin;
 use crate::stance_layer::StanceLayerPlugin;
 use crate::standing_layer::StandingLayerPlugin;
 use crate::stop_link::AlsStopLinkPlugin;
@@ -31,6 +32,7 @@ pub struct AlsCharacterRuntimePlugin;
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(AlsActualMotionPlugin)
+            .add_plugins(SourcePhysicsTimingPlugin)
             .add_plugins((
                 als_core::foot_ik::AlsFootProbePlugin,
                 ControlRigApplyPlugin,

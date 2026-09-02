@@ -23,6 +23,8 @@ FORMAT = "als_animgraph_authoring_gate_v1"
 READ_ONLY_SCOPES = {"source", "layout", "editor"}
 FORBIDDEN_COMMAND_ARGUMENTS = {"--fix", "--write", "--write-baseline"}
 SOURCE_HASH_KINDS = {"bytes", "canonical_json"}
+RECURSIVE_INVENTORY_FORMAT = "als_ue_authored_graph_inventory_v1"
+FSM_MAP_FORMAT = "als_ue_visible_fsm_map_v1"
 
 
 def read_text(path):
@@ -31,6 +33,11 @@ def read_text(path):
 
 def read_json(path):
     return json.loads(read_text(path))
+
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def sha256_file(path):
@@ -153,6 +160,63 @@ def command_shape_issues(command):
         issues.append("verification command script must be under tools")
     if any(value in FORBIDDEN_COMMAND_ARGUMENTS for value in argv):
         issues.append("verification command is not read-only")
+    timeout = command.get("timeout_seconds", 120)
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 600:
+        issues.append("verification command timeout_seconds is invalid")
+    return issues
+
+
+def recursive_source_inventory_issues(value, require_digest=True):
+    if value is None:
+        return []
+    allowed = {"path", "hash_kind"}
+    if require_digest:
+        allowed.add("sha256")
+    if not isinstance(value, dict) or set(value) != allowed:
+        return ["recursive_source_inventory is invalid"]
+    path = value.get("path")
+    if not isinstance(path, str) or not path:
+        return ["recursive_source_inventory path is invalid"]
+    if value.get("hash_kind", "bytes") not in SOURCE_HASH_KINDS:
+        return ["recursive_source_inventory hash_kind is invalid"]
+    if require_digest and (
+        not isinstance(value.get("sha256"), str)
+        or re.fullmatch(r"[0-9a-f]{64}", value["sha256"]) is None
+    ):
+        return ["recursive_source_inventory sha256 is invalid"]
+    return []
+
+
+def recursive_inventory_issues(value, source_inventory):
+    if value is None:
+        return ["recursive_inventory is required with recursive_source_inventory"] if source_inventory is not None else []
+    if not isinstance(value, list) or not value:
+        return ["recursive_inventory must be a non-empty array"]
+    issues = []
+    source_graphs = set()
+    targets = set()
+    allowed = {"kind", "source_graph", "source_contract", "source_map", "target_path", "gate_label"}
+    for index, entry in enumerate(value):
+        label = f"recursive_inventory[{index}]"
+        if not isinstance(entry, dict) or set(entry) != allowed:
+            issues.append(f"{label} is invalid")
+            continue
+        if entry.get("kind") not in {"graph", "fsm", "transition"}:
+            issues.append(f"{label} kind is invalid")
+        for key in ("source_graph", "source_contract", "source_map", "target_path", "gate_label"):
+            if not isinstance(entry.get(key), str) or not entry[key]:
+                issues.append(f"{label} {key} is invalid")
+        source_graph = entry.get("source_graph")
+        target = entry.get("target_path")
+        if isinstance(source_graph, str) and source_graph:
+            if source_graph in source_graphs:
+                issues.append(f"duplicate recursive source graph {source_graph}")
+            source_graphs.add(source_graph)
+        if isinstance(target, str) and target:
+            if target in targets and entry.get("kind") != "transition":
+                issues.append(f"duplicate recursive target path {target}")
+            if entry.get("kind") != "transition":
+                targets.add(target)
     return issues
 
 
@@ -377,6 +441,16 @@ def manifest_shape_issues(manifest):
                             issues.append(f"{exception_label} {key} is invalid")
     if isinstance(graphs, list) and isinstance(fsms, list) and not graphs and not fsms:
         issues.append("graphs or fsms must be declared")
+    recursive_source_inventory = manifest.get("recursive_source_inventory")
+    issues.extend(recursive_source_inventory_issues(recursive_source_inventory))
+    if recursive_source_inventory is None and manifest.get("recursive_inventory") is not None:
+        issues.append("recursive_source_inventory is required with recursive_inventory")
+    issues.extend(
+        recursive_inventory_issues(
+            manifest.get("recursive_inventory"),
+            recursive_source_inventory,
+        )
+    )
     commands = manifest.get("verification_commands")
     if not isinstance(commands, list):
         issues.append("verification_commands must be an array")
@@ -406,6 +480,220 @@ def manifest_shape_issues(manifest):
     elif any(not isinstance(runtime_gate[key], str) or not runtime_gate[key] for key in runtime_gate):
         issues.append("runtime_gate values are invalid")
     return issues
+
+
+def inventory_entries(value):
+    if not isinstance(value, dict) or value.get("format") != RECURSIVE_INVENTORY_FORMAT:
+        raise ValueError("recursive source inventory format is invalid")
+    root_source_graph = value.get("root_source_graph")
+    entries = value.get("entries")
+    if not isinstance(root_source_graph, str) or not root_source_graph:
+        raise ValueError("recursive source inventory root graph is invalid")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("recursive source inventory entries are invalid")
+    result = {}
+    allowed = {
+        "source_graph",
+        "kind",
+        "class_path",
+        "name",
+        "index",
+        "parent_source_graph",
+    }
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict) or set(entry) != allowed:
+            raise ValueError(f"recursive source inventory entry {index} is invalid")
+        source_graph = entry.get("source_graph")
+        if not isinstance(source_graph, str) or not source_graph:
+            raise ValueError(f"recursive source inventory entry {index} graph is invalid")
+        if source_graph in result:
+            raise ValueError(f"recursive source inventory graph is duplicated: {source_graph}")
+        if entry.get("kind") not in {"graph", "fsm", "transition"}:
+            raise ValueError(f"recursive source inventory entry {index} kind is invalid")
+        if not isinstance(entry.get("class_path"), str) or not entry["class_path"]:
+            raise ValueError(f"recursive source inventory entry {index} class is invalid")
+        if not isinstance(entry.get("name"), str) or not entry["name"]:
+            raise ValueError(f"recursive source inventory entry {index} name is invalid")
+        if not isinstance(entry.get("index"), int) or entry["index"] < 0:
+            raise ValueError(f"recursive source inventory entry {index} index is invalid")
+        parent = entry.get("parent_source_graph")
+        if parent is not None and (not isinstance(parent, str) or not parent):
+            raise ValueError(f"recursive source inventory entry {index} parent is invalid")
+        result[source_graph] = entry
+    if root_source_graph not in result:
+        raise ValueError("recursive source inventory root is missing")
+    return result
+
+
+def validate_recursive_source_inventory(root, value):
+    if value is None:
+        return {}, None, {}, []
+    report = {
+        "path": value["path"],
+        "expected_sha256": value["sha256"],
+        "hash_kind": value.get("hash_kind", "bytes"),
+    }
+    path = repo_path(root, value["path"])
+    report["exists"] = path.is_file()
+    if not path.is_file():
+        return {}, None, report, [f"recursive source inventory is missing: {value['path']}"]
+    digest = source_digest(path, report["hash_kind"])
+    report["sha256"] = digest
+    report["matches"] = digest == value["sha256"]
+    failures = []
+    if not report["matches"]:
+        failures.append(f"recursive source inventory hash differs: {value['path']}")
+    try:
+        inventory = read_json(path)
+        entries = inventory_entries(inventory)
+        source_asset = inventory.get("source_asset")
+        if not isinstance(source_asset, str) or not source_asset:
+            raise ValueError("recursive source inventory asset is invalid")
+    except (ValueError, json.JSONDecodeError) as error:
+        failures.append(str(error))
+        entries = {}
+        source_asset = None
+    report["entries"] = len(entries)
+    report["source_asset"] = source_asset
+    return entries, source_asset, report, failures
+
+
+def map_values(path):
+    try:
+        return read_json(path), None
+    except (OSError, json.JSONDecodeError) as error:
+        return {}, str(error)
+
+
+def command_references_map(root, command, map_path):
+    if map_path in command["argv"]:
+        return True
+    argv = command["argv"]
+    for index, value in enumerate(argv[:-1]):
+        if value != "--index":
+            continue
+        index_path = repo_path(root, argv[index + 1])
+        if not index_path.is_file():
+            continue
+        index_value, error = map_values(index_path)
+        if error is not None or not isinstance(index_value.get("entries"), list):
+            continue
+        if any(
+            isinstance(entry, dict) and entry.get("map") == map_path
+            for entry in index_value["entries"]
+        ):
+            return True
+    return False
+
+
+def validate_recursive_inventory(
+    root,
+    entries,
+    graphs,
+    fsms,
+    commands,
+    expected_source_entries,
+    expected_source_asset,
+):
+    if entries is None:
+        return [], []
+    graph_paths = {entry["path"] for entry in graphs}
+    fsm_paths = {entry["path"] for entry in fsms}
+    command_by_label = {entry["label"]: entry for entry in commands}
+    failures = []
+    report = []
+    declared_sources = set()
+    for entry in entries:
+        row = dict(entry)
+        declared_sources.add(entry["source_graph"])
+        source_contract = repo_path(root, entry["source_contract"])
+        source_map = repo_path(root, entry["source_map"])
+        row["source_contract_exists"] = source_contract.is_file()
+        row["source_map_exists"] = source_map.is_file()
+        expected = expected_source_entries.get(entry["source_graph"])
+        row["source_discovered"] = expected is not None
+        row["source_kind_matches"] = expected is not None and expected["kind"] == entry["kind"]
+        if entry["kind"] == "graph":
+            row["target_declared"] = entry["target_path"] in graph_paths
+        elif entry["kind"] == "fsm":
+            row["target_declared"] = entry["target_path"] in fsm_paths
+        else:
+            target_path = repo_path(root, entry["target_path"])
+            row["target_declared"] = (
+                target_path.is_file()
+                and entry["target_path"].replace("\\", "/").startswith("tools/")
+            )
+        command = command_by_label.get(entry["gate_label"])
+        row["gate_declared"] = command is not None
+        row["gate_references_map"] = (
+            command is not None and command_references_map(root, command, entry["source_map"])
+        )
+        row["gate_references_native_source"] = (
+            command is not None and "--source" in command["argv"]
+        )
+        row["contract_source_graph_matches"] = False
+        row["contract_source_asset_matches"] = False
+        if source_contract.is_file():
+            contract, contract_error = map_values(source_contract)
+            if contract_error is not None:
+                row["contract_error"] = contract_error
+            else:
+                row["contract_source_graph_matches"] = (
+                    contract.get("source_graph_suffix") == entry["source_graph"]
+                )
+                row["contract_source_asset_matches"] = (
+                    expected_source_asset is not None
+                    and contract.get("source_asset") == expected_source_asset
+                )
+        row["map_source_contract_matches"] = False
+        row["map_target_matches"] = False
+        row["map_format_matches"] = False
+        if source_map.is_file():
+            mapping, mapping_error = map_values(source_map)
+            if mapping_error is not None:
+                row["map_error"] = mapping_error
+            else:
+                row["map_source_contract_matches"] = (
+                    mapping.get("source_contract") == entry["source_contract"]
+                )
+                target_key = "target_fsm" if entry["kind"] == "fsm" else "target_graph"
+                map_target = mapping.get(target_key)
+                row["map_target_matches"] = (
+                    isinstance(map_target, str)
+                    and map_target.replace("\\", "/")
+                    == entry["target_path"].replace("\\", "/")
+                )
+                row["map_format_matches"] = (
+                    mapping.get("format") == "als_ue_visible_animgraph_map_v2"
+                    if entry["kind"] in {"graph", "transition"}
+                    else mapping.get("format") == FSM_MAP_FORMAT
+                )
+        for key in (
+            "source_contract_exists",
+            "source_map_exists",
+            "source_discovered",
+            "source_kind_matches",
+            "target_declared",
+            "gate_declared",
+            "gate_references_map",
+            "gate_references_native_source",
+            "contract_source_graph_matches",
+            "contract_source_asset_matches",
+            "map_source_contract_matches",
+            "map_target_matches",
+            "map_format_matches",
+        ):
+            if not row[key]:
+                failures.append(f"recursive inventory {entry['target_path']} {key} failed")
+        report.append(row)
+    if expected_source_entries:
+        missing = sorted(set(expected_source_entries) - declared_sources)
+        unexpected = sorted(declared_sources - set(expected_source_entries))
+        if missing:
+            failures.append("recursive inventory missing source graphs: " + ", ".join(missing))
+        if unexpected:
+            failures.append("recursive inventory has unknown source graphs: " + ", ".join(unexpected))
+    return report, failures
 
 
 def validate_source_evidence(root, values):
@@ -639,14 +927,29 @@ def run_command(root, value):
     }
     if not script_path.is_file():
         return result, [f"verification script is missing: {argv[1]}"]
-    completed = subprocess.run(
-        [sys.executable, *argv[1:]],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        timeout=120,
-        check=False,
-    )
+    timeout = value.get("timeout_seconds", 120)
+    result["timeout_seconds"] = timeout
+    try:
+        completed = subprocess.run(
+            [sys.executable, *argv[1:]],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        stdout = error.stdout or ""
+        stderr = error.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        result["exit_code"] = None
+        result["timed_out"] = True
+        result["stdout_tail"] = stdout[-2000:]
+        result["stderr_tail"] = stderr[-2000:]
+        return result, [f"verification command timed out: {value['label']}"]
     result["exit_code"] = completed.returncode
     result["stdout_tail"] = completed.stdout[-2000:]
     result["stderr_tail"] = completed.stderr[-2000:]
@@ -663,6 +966,8 @@ def run(root, manifest, execute_commands=True):
         "graphs": [],
         "fsms": [],
         "commands": [],
+        "recursive_source_inventory": {},
+        "recursive_inventory": [],
     }
     if failures:
         return report
@@ -677,6 +982,25 @@ def run(root, manifest, execute_commands=True):
         fsm_report, fsm_failures = validate_fsm(root, fsm)
         report["fsms"].append(fsm_report)
         failures.extend(f"{fsm['path']}: {failure}" for failure in fsm_failures)
+    source_entries, source_asset, source_inventory, source_inventory_failures = (
+        validate_recursive_source_inventory(
+            root,
+            manifest.get("recursive_source_inventory"),
+        )
+    )
+    report["recursive_source_inventory"] = source_inventory
+    failures.extend(source_inventory_failures)
+    inventory, inventory_failures = validate_recursive_inventory(
+        root,
+        manifest.get("recursive_inventory"),
+        manifest.get("graphs", []),
+        manifest.get("fsms", []),
+        manifest.get("verification_commands", []),
+        source_entries,
+        source_asset,
+    )
+    report["recursive_inventory"] = inventory
+    failures.extend(inventory_failures)
     if execute_commands:
         for command in manifest["verification_commands"]:
             command_report, command_failures = run_command(root, command)
@@ -770,6 +1094,29 @@ def run_self_test():
         manifest = fixture_manifest(sha256_file(root / "source.json"))
         valid = run(root, manifest, execute_commands=False)
         assert valid["pass"]
+        report_path = root / "report.json"
+        write_json(report_path, valid)
+        assert read_json(report_path) == valid
+        (root / "tools").mkdir(exist_ok=True)
+        (root / "tools" / "source.py").write_text("", encoding="utf-8")
+        timeout_command = {
+            "label": "source",
+            "scope": "source",
+            "argv": ["python", "tools/source.py", "--check"],
+            "timeout_seconds": 1,
+        }
+        original_run = subprocess.run
+        def timeout_run(*args, **kwargs):
+            raise subprocess.TimeoutExpired(args[0], kwargs["timeout"], output="partial", stderr="timeout")
+        subprocess.run = timeout_run
+        try:
+            timeout_report, timeout_failures = run_command(root, timeout_command)
+        finally:
+            subprocess.run = original_run
+        assert timeout_report["timed_out"]
+        assert timeout_report["stdout_tail"] == "partial"
+        assert timeout_report["stderr_tail"] == "timeout"
+        assert timeout_failures == ["verification command timed out: source"]
         graph_path.write_text(
             fixture_graph(output_data='"pose": Pose, "curve": F32'),
             encoding="utf-8",
@@ -827,12 +1174,186 @@ def run_self_test():
             "--fix",
         ]
         assert manifest_shape_issues(invalid_command)
+        inventory_path = root / "inventory.json"
+        inventory_path.write_text(
+            json.dumps(
+                {
+                    "format": RECURSIVE_INVENTORY_FORMAT,
+                    "source_asset": "/Asset",
+                    "root_source_graph": "AnimGraph",
+                    "entries": [
+                        {
+                            "source_graph": "AnimGraph",
+                            "kind": "graph",
+                            "class_path": "/Script/AnimGraph.AnimationGraph",
+                            "name": "AnimGraph",
+                            "index": 0,
+                            "parent_source_graph": None,
+                        }
+                    ],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        contract_path = root / "contract.json"
+        contract_path.write_text(
+            json.dumps(
+                {
+                    "source_asset": "/Asset",
+                    "source_graph_suffix": "AnimGraph",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        map_path = root / "map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "format": "als_ue_visible_animgraph_map_v2",
+                    "source_contract": "contract.json",
+                    "target_graph": "graph.animgraph.ron",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        recursive_manifest = fixture_manifest(sha256_file(root / "source.json"))
+        recursive_manifest["recursive_source_inventory"] = {
+            "path": "inventory.json",
+            "sha256": source_digest(inventory_path, "canonical_json"),
+            "hash_kind": "canonical_json",
+        }
+        recursive_manifest["recursive_inventory"] = [
+            {
+                "kind": "graph",
+                "source_graph": "AnimGraph",
+                "source_contract": "contract.json",
+                "source_map": "map.json",
+                "target_path": "graph.animgraph.ron",
+                "gate_label": "source",
+            }
+        ]
+        audit_index_path = root / "audit-index.json"
+        audit_index_path.write_text(
+            json.dumps({"entries": [{"map": "map.json"}]}) + "\n",
+            encoding="utf-8",
+        )
+        recursive_manifest["verification_commands"][0]["argv"].extend(
+            ["--index", "audit-index.json", "--source", "raw.json"]
+        )
+        recursive_valid = run(root, recursive_manifest, execute_commands=False)
+        assert recursive_valid["pass"]
+        transition_contract_path = root / "transition-contract.json"
+        transition_contract_path.write_text(
+            json.dumps(
+                {
+                    "source_asset": "/Asset",
+                    "source_graph_suffix": "AnimGraph.Transition",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        transition_map_path = root / "transition-map.json"
+        transition_map_path.write_text(
+            json.dumps(
+                {
+                    "format": "als_ue_visible_animgraph_map_v2",
+                    "source_contract": "transition-contract.json",
+                    "target_graph": "tools/transition.animgraph.ron",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (root / "tools").mkdir(exist_ok=True)
+        (root / "tools" / "transition.animgraph.ron").write_text("()\n", encoding="utf-8")
+        recursive_source = read_json(inventory_path)
+        recursive_source["entries"].append(
+            {
+                "source_graph": "AnimGraph.Transition",
+                "kind": "transition",
+                "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+                "name": "Transition",
+                "index": 1,
+                "parent_source_graph": "AnimGraph",
+            }
+        )
+        inventory_path.write_text(json.dumps(recursive_source) + "\n", encoding="utf-8")
+        recursive_manifest["recursive_source_inventory"]["sha256"] = source_digest(
+            inventory_path,
+            "canonical_json",
+        )
+        recursive_manifest["recursive_inventory"].append(
+            {
+                "kind": "transition",
+                "source_graph": "AnimGraph.Transition",
+                "source_contract": "transition-contract.json",
+                "source_map": "transition-map.json",
+                "target_path": "tools/transition.animgraph.ron",
+                "gate_label": "source",
+            }
+        )
+        audit_index_path.write_text(
+            json.dumps(
+                {"entries": [{"map": "map.json"}, {"map": "transition-map.json"}]}
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        recursive_transition_valid = run(root, recursive_manifest, execute_commands=False)
+        assert recursive_transition_valid["pass"]
+        recursive_manifest["verification_commands"][0]["argv"] = [
+            "python",
+            "tools/source.py",
+            "--check",
+            "--index",
+            "audit-index.json",
+        ]
+        recursive_missing_source = run(root, recursive_manifest, execute_commands=False)
+        assert not recursive_missing_source["pass"]
+        assert any(
+            "gate_references_native_source failed" in failure
+            for failure in recursive_missing_source["failures"]
+        )
+        recursive_source = read_json(inventory_path)
+        recursive_source["entries"].append(
+            {
+                "source_graph": "AnimGraph.State",
+                "kind": "graph",
+                "class_path": "/Script/AnimGraph.AnimationStateGraph",
+                "name": "State",
+                "index": 1,
+                "parent_source_graph": "AnimGraph",
+            }
+        )
+        inventory_path.write_text(
+            json.dumps(recursive_source) + "\n",
+            encoding="utf-8",
+        )
+        recursive_manifest["recursive_source_inventory"]["sha256"] = source_digest(
+            inventory_path,
+            "canonical_json",
+        )
+        recursive_missing = run(root, recursive_manifest, execute_commands=False)
+        assert not recursive_missing["pass"]
+        assert any(
+            "recursive inventory missing source graphs" in failure
+            for failure in recursive_missing["failures"]
+        )
     return {
         "exact_graph_contract": "PASS",
         "unregistered_output_rejected": "PASS",
         "position_mismatch_rejected": "PASS",
         "exact_fsm_contract": "PASS",
         "mutating_command_rejected": "PASS",
+        "recursive_inventory_closure_rejected": "PASS",
+        "recursive_inventory_live_source_required": "PASS",
+        "indexed_recursive_gate_and_tool_transition_supported": "PASS",
+        "machine_readable_report_round_trip": "PASS",
+        "command_timeout_reported_without_crash": "PASS",
     }
 
 
@@ -875,6 +1396,8 @@ def main():
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--summary", action="store_true")
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--no-execute", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         print(json.dumps(run_self_test(), ensure_ascii=False, indent=2))
@@ -883,7 +1406,9 @@ def main():
         raise ValueError("manifest and --check are required")
     root = args.root.resolve()
     manifest_path = repo_path(root, args.manifest.as_posix())
-    report = run(root, read_json(manifest_path))
+    report = run(root, read_json(manifest_path), execute_commands=not args.no_execute)
+    if args.output is not None:
+        write_json(repo_path(root, args.output.as_posix()), report)
     print(json.dumps(summary(report) if args.summary else report, ensure_ascii=False, indent=2))
     return 0 if report["pass"] else 1
 

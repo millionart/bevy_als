@@ -1,0 +1,33 @@
+{
+  "format": "als_ue_asset_property_contract_v1",
+  "source_asset": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.A_Als_Acceleration_Backward",
+  "asset_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.A_Als_Acceleration_Backward",
+  "class_path": "/Script/Engine.AnimSequence",
+  "properties": [
+    {
+      "name": "AdditiveAnimType",
+      "exported_text": "AAT_LocalSpaceBase"
+    },
+    {
+      "name": "RefPoseType",
+      "exported_text": "ABPT_AnimFrame"
+    },
+    {
+      "name": "RefFrameIndex",
+      "exported_text": "0"
+    },
+    {
+      "name": "RefPoseSeq",
+      "exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose'"
+    },
+    {
+      "name": "SequenceLength",
+      "exported_text": "1.000000"
+    },
+    {
+      "name": "Skeleton",
+      "exported_text": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'"
+    }
+  ],
+  "sha256": "157c1b778fe6e96dbfa5b32abf30ba574cb8f452d7d616fa432f81f11ba4e1da"
+}

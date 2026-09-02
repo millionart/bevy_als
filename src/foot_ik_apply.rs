@@ -1,17 +1,19 @@
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::{
-    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets, AlsFootLockInput,
-    AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
-    AlsFootTargetSelection, FOOT_LOCK_TELEPORT_WINDOW_SECONDS, FootSideInput, SpringFloatState,
-    advance_foot_lock_movement_base, capture_foot_lock_movement_base, constrain_foot_lock_location,
+    AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootIkTargets,
+    AlsFootLockFootState, AlsFootLockInput, AlsFootLockMovementBase, AlsFootLockSettings,
+    AlsFootLockState, AlsFootLockTeleported, AlsFootTargetSelection,
+    FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, FOOT_LOCK_TELEPORT_WINDOW_SECONDS, FootSideInput,
+    SpringFloatState, advance_foot_lock_movement_base, capture_foot_lock_movement_base,
+    constrain_foot_lock_rotation, foot_lock_location_constraint_rotation,
     is_relevant_animation_weight, refresh_foot_lock, reset_foot_lock_to_target,
     spring_damper_float,
 };
 use als_core::state::{LocomotionState, Stance};
 use als_core::transitions::TransitionConfig;
 use als_ext::ik::{
-    blend_ik_rotation, calculate_pole_vector, child_world_rotation_after_parent_rotation,
-    solve_two_bone_ik, world_rotation_to_local,
+    BasicTwoBoneSolve, blend_ik_rotation, calculate_pole_vector, solve_basic_two_bone_ik,
+    world_rotation_to_local,
 };
 use als_ext::ik_space::{
     ArmatureDirection, ArmaturePoint, ArmatureRotation, WorldDirection, WorldPoint, WorldRotation,
@@ -45,6 +47,15 @@ struct FootOffsetRotationState {
 struct FootLockLifecycleState {
     previous_character_transform: Option<Transform>,
     teleport_remaining: f32,
+}
+
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+pub struct AlsFootLockTeleportTelemetry {
+    pub detected_count: u32,
+    pub left_rebase_count: u32,
+    pub right_rebase_count: u32,
+    pub last_translation_delta_m: f32,
+    pub remaining_seconds: f32,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default)]
@@ -121,6 +132,7 @@ pub struct AlsFootIkSpaceSide {
     pub target_world: Vec3,
     pub resolved_target_world: Vec3,
     pub resolved_knee_world: Vec3,
+    pub pole_location_world: Vec3,
     pub target_armature_local: Vec3,
     pub target_parent_local: Vec3,
     pub target_bone_local: Vec3,
@@ -197,6 +209,146 @@ struct ResolvedFootTarget {
     knee_world: Vec3,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SourceBasicIkWriteback {
+    thigh: Transform,
+    calf: Transform,
+    foot: Transform,
+}
+
+const FOOT_IK_POSE_BONE_COUNT: usize = 7;
+
+#[derive(Component, Debug, Clone, Copy)]
+struct FootIkPoseBaseState {
+    entities: [Option<Entity>; FOOT_IK_POSE_BONE_COUNT],
+    animation_base: [Transform; FOOT_IK_POSE_BONE_COUNT],
+    previous_applied: [Transform; FOOT_IK_POSE_BONE_COUNT],
+    initialized: [bool; FOOT_IK_POSE_BONE_COUNT],
+}
+
+impl Default for FootIkPoseBaseState {
+    fn default() -> Self {
+        Self {
+            entities: [None; FOOT_IK_POSE_BONE_COUNT],
+            animation_base: [Transform::IDENTITY; FOOT_IK_POSE_BONE_COUNT],
+            previous_applied: [Transform::IDENTITY; FOOT_IK_POSE_BONE_COUNT],
+            initialized: [false; FOOT_IK_POSE_BONE_COUNT],
+        }
+    }
+}
+
+fn transforms_approximately_equal(left: Transform, right: Transform) -> bool {
+    left.translation.distance_squared(right.translation) <= 1e-10
+        && left.rotation.dot(right.rotation).abs() >= 1.0 - 1e-6
+        && left.scale.distance_squared(right.scale) <= 1e-10
+}
+
+fn restore_foot_ik_animation_transform(
+    state: &mut FootIkPoseBaseState,
+    index: usize,
+    entity: Entity,
+    current: Transform,
+) -> Transform {
+    if !state.initialized[index] || state.entities[index] != Some(entity) {
+        state.entities[index] = Some(entity);
+        state.animation_base[index] = current;
+        state.previous_applied[index] = current;
+        state.initialized[index] = true;
+        return current;
+    }
+    if transforms_approximately_equal(current, state.previous_applied[index]) {
+        return state.animation_base[index];
+    }
+    state.animation_base[index] = current;
+    current
+}
+
+fn foot_ik_pose_entities(
+    bones: &AlsFootBones,
+    bone_locals: &mut Query<(&mut Transform, &ChildOf), Without<AnimationPlayer>>,
+) -> Option<[Entity; FOOT_IK_POSE_BONE_COUNT]> {
+    let pelvis = bone_locals.get(bones.left_thigh).ok()?.1.0;
+    Some([
+        pelvis,
+        bones.left_thigh,
+        bones.left_calf,
+        bones.left,
+        bones.right_thigh,
+        bones.right_calf,
+        bones.right,
+    ])
+}
+
+fn source_transform_point(transform: &Transform, point: Vec3) -> Vec3 {
+    transform.to_matrix().transform_point3(point)
+}
+
+fn source_inverse_transform_point(transform: &Transform, point: Vec3) -> Option<Vec3> {
+    if transform.scale.abs().min_element() <= f32::EPSILON {
+        return None;
+    }
+    let value = transform.to_matrix().inverse().transform_point3(point);
+    value.is_finite().then_some(value)
+}
+
+fn source_local_transform(parent: &Transform, global: &Transform) -> Option<Transform> {
+    let translation = source_inverse_transform_point(parent, global.translation)?;
+    if parent.scale.abs().min_element() <= f32::EPSILON {
+        return None;
+    }
+    let scale = global.scale / parent.scale;
+    (translation.is_finite() && scale.is_finite() && global.rotation.is_finite()).then_some(
+        Transform {
+            translation,
+            rotation: source_local_rotation(parent.rotation, global.rotation),
+            scale,
+        },
+    )
+}
+
+fn source_basic_ik_writeback(
+    current_thigh: Transform,
+    current_calf: Transform,
+    current_foot: Transform,
+    solve: BasicTwoBoneSolve,
+    foot_target_rotation: Quat,
+    weight: f32,
+) -> Option<SourceBasicIkWriteback> {
+    let solved_thigh = Transform {
+        translation: current_thigh.translation,
+        rotation: solve.hip_rotation_world,
+        scale: current_thigh.scale,
+    };
+    let solved_calf = Transform {
+        translation: solve.knee_position,
+        rotation: solve.knee_rotation_world,
+        scale: current_thigh.scale,
+    };
+    let solved_foot = Transform {
+        translation: solve.effector_position,
+        rotation: foot_target_rotation,
+        scale: Vec3::ONE,
+    };
+    let calf_local = source_inverse_transform_point(&solved_thigh, solved_calf.translation)?;
+    let foot_local = source_inverse_transform_point(&solved_calf, solved_foot.translation)?;
+    let thigh = Transform {
+        translation: current_thigh.translation,
+        rotation: blend_ik_rotation(current_thigh.rotation, solved_thigh.rotation, weight),
+        scale: solved_thigh.scale,
+    };
+    let calf = Transform {
+        translation: source_transform_point(&thigh, calf_local),
+        rotation: blend_ik_rotation(current_calf.rotation, solved_calf.rotation, weight),
+        scale: solved_calf.scale,
+    };
+    let foot = Transform {
+        translation: source_transform_point(&calf, foot_local),
+        rotation: blend_ik_rotation(current_foot.rotation, solved_foot.rotation, weight),
+        scale: solved_foot.scale,
+    };
+    Some(SourceBasicIkWriteback { thigh, calf, foot })
+}
+
 impl Default for FootOffsetRotationState {
     fn default() -> Self {
         Self {
@@ -239,6 +391,7 @@ pub struct FootIkApplyPlugin;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FootIkApplySet {
+    Restore,
     Solve,
     Propagate,
     Telemetry,
@@ -257,7 +410,12 @@ impl Plugin for FootIkApplyPlugin {
         app.configure_sets(
             PostUpdate,
             (
+                FootIkApplySet::Restore
+                    .after(apply_animation_to_targets)
+                    .after(AlsRootAnimationContextSet)
+                    .after(TransformSystems::Propagate),
                 FootIkApplySet::Solve
+                    .after(FootIkApplySet::Restore)
                     .after(apply_animation_to_targets)
                     .after(AlsRootAnimationContextSet)
                     .after(TransformSystems::Propagate)
@@ -278,12 +436,31 @@ impl Plugin for FootIkApplyPlugin {
                 ensure_foot_ik_space_state,
                 ensure_foot_ik_apply_telemetry,
                 ensure_foot_ik_pole_state,
+                ensure_foot_ik_pose_base_state,
                 ensure_foot_lock_components,
                 ensure_foot_offset_rotation_state,
                 ensure_foot_lock_lifecycle_state,
+                ensure_foot_lock_teleport_telemetry,
                 invalidate_missing_foot_bones.before(FootIkApplySet::Solve),
-                record_foot_lock_teleports.before(FootIkApplySet::Solve),
+                detect_foot_lock_teleports
+                    .after(TransformSystems::Propagate)
+                    .before(record_foot_lock_teleports),
+                record_foot_lock_teleports
+                    .after(detect_foot_lock_teleports)
+                    .before(FootIkApplySet::Solve),
+                restore_foot_ik_animation_pose_base.in_set(FootIkApplySet::Restore),
+                (
+                    transform_systems::mark_dirty_trees,
+                    transform_systems::propagate_parent_transforms,
+                    transform_systems::sync_simple_transforms,
+                )
+                    .chain()
+                    .after(FootIkApplySet::Restore)
+                    .before(FootIkApplySet::Solve),
                 foot_ik_apply_system.in_set(FootIkApplySet::Solve),
+                capture_foot_ik_applied_pose_base
+                    .after(FootIkApplySet::Solve)
+                    .before(FootIkApplySet::Propagate),
                 (
                     transform_systems::mark_dirty_trees,
                     transform_systems::propagate_parent_transforms,
@@ -370,6 +547,61 @@ fn ensure_foot_ik_pole_state(
     }
 }
 
+fn ensure_foot_ik_pose_base_state(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<FootIkPoseBaseState>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(FootIkPoseBaseState::default());
+    }
+}
+
+fn restore_foot_ik_animation_pose_base(
+    mut characters: Query<
+        (&AlsFootBones, &mut FootIkPoseBaseState),
+        With<als_core::character::AlsCharacter>,
+    >,
+    mut bone_locals: Query<(&mut Transform, &ChildOf), Without<AnimationPlayer>>,
+) {
+    for (bones, mut state) in &mut characters {
+        let Some(entities) = foot_ik_pose_entities(bones, &mut bone_locals) else {
+            *state = FootIkPoseBaseState::default();
+            continue;
+        };
+        for (index, entity) in entities.into_iter().enumerate() {
+            let Ok((mut transform, _)) = bone_locals.get_mut(entity) else {
+                *state = FootIkPoseBaseState::default();
+                break;
+            };
+            *transform = restore_foot_ik_animation_transform(&mut state, index, entity, *transform);
+        }
+    }
+}
+
+fn capture_foot_ik_applied_pose_base(
+    mut characters: Query<
+        (&AlsFootBones, &mut FootIkPoseBaseState),
+        With<als_core::character::AlsCharacter>,
+    >,
+    mut bone_locals: Query<(&mut Transform, &ChildOf), Without<AnimationPlayer>>,
+) {
+    for (bones, mut state) in &mut characters {
+        let Some(entities) = foot_ik_pose_entities(bones, &mut bone_locals) else {
+            *state = FootIkPoseBaseState::default();
+            continue;
+        };
+        for (index, entity) in entities.into_iter().enumerate() {
+            let Ok((transform, _)) = bone_locals.get_mut(entity) else {
+                *state = FootIkPoseBaseState::default();
+                break;
+            };
+            state.previous_applied[index] = *transform;
+        }
+    }
+}
+
 fn ensure_foot_offset_rotation_state(
     mut commands: Commands,
     q: Query<Entity, (With<AlsFootBones>, Without<FootOffsetRotationState>)>,
@@ -392,10 +624,52 @@ fn ensure_foot_lock_lifecycle_state(
     }
 }
 
+fn ensure_foot_lock_teleport_telemetry(
+    mut commands: Commands,
+    q: Query<Entity, (With<AlsFootBones>, Without<AlsFootLockTeleportTelemetry>)>,
+) {
+    for entity in &q {
+        commands
+            .entity(entity)
+            .insert(AlsFootLockTeleportTelemetry::default());
+    }
+}
+
+fn detect_foot_lock_teleports(
+    mut teleports: MessageWriter<AlsFootLockTeleported>,
+    mut lifecycles: Query<
+        (Entity, &mut FootLockLifecycleState),
+        (With<als_core::character::AlsCharacter>, With<AlsFootBones>),
+    >,
+    avatars: Query<(&ChildOf, &GlobalTransform), With<AlsCharacterAvatar>>,
+    mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
+) {
+    for (entity, lifecycle) in &mut lifecycles {
+        let Some((_, armature)) = avatars.iter().find(|(parent, _)| parent.parent() == entity)
+        else {
+            continue;
+        };
+        let current = armature.compute_transform();
+        let Some(previous) = lifecycle.previous_character_transform else {
+            continue;
+        };
+        let translation_delta_m = previous.translation.distance(current.translation);
+        if translation_delta_m <= FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M {
+            continue;
+        }
+        teleports.write(AlsFootLockTeleported { entity });
+        if let Ok(mut value) = telemetry.get_mut(entity) {
+            value.detected_count = value.detected_count.saturating_add(1);
+            value.last_translation_delta_m = translation_delta_m;
+        }
+    }
+}
+
 fn record_foot_lock_teleports(
     mut commands: Commands,
     mut teleports: MessageReader<AlsFootLockTeleported>,
     mut lifecycles: Query<&mut FootLockLifecycleState>,
+    mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
 ) {
     for teleport in teleports.read() {
         if let Ok(mut lifecycle) = lifecycles.get_mut(teleport.entity) {
@@ -407,6 +681,9 @@ fn record_foot_lock_teleports(
                     previous_character_transform: None,
                     teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
                 });
+        }
+        if let Ok(mut value) = telemetry.get_mut(teleport.entity) {
+            value.remaining_seconds = FOOT_LOCK_TELEPORT_WINDOW_SECONDS;
         }
     }
 }
@@ -425,6 +702,8 @@ fn invalidate_missing_foot_bones(
             Option<&mut AlsFootIkSpaceState>,
             Option<&mut AlsFootIkApplyTelemetry>,
             Option<&mut FootIkPoleState>,
+            Option<&mut AlsFootLockTeleportTelemetry>,
+            Option<&mut FootIkPoseBaseState>,
         ),
         With<als_core::character::AlsCharacter>,
     >,
@@ -441,6 +720,8 @@ fn invalidate_missing_foot_bones(
         space_state,
         apply_telemetry,
         pole_state,
+        teleport_telemetry,
+        pose_base,
     ) in &mut characters
     {
         if bones.is_some() {
@@ -475,6 +756,12 @@ fn invalidate_missing_foot_bones(
         }
         if let Some(mut pole_state) = pole_state {
             *pole_state = FootIkPoleState::default();
+        }
+        if let Some(mut teleport_telemetry) = teleport_telemetry {
+            *teleport_telemetry = AlsFootLockTeleportTelemetry::default();
+        }
+        if let Some(mut pose_base) = pose_base {
+            *pose_base = FootIkPoseBaseState::default();
         }
     }
 }
@@ -527,6 +814,51 @@ fn reset_foot_ik_runtime(
     *runtime = AlsFootIkRuntime::default();
     *offset_rotation = FootOffsetRotationState::default();
     *dynamic_transition = AlsDynamicTransitionState::default();
+}
+
+fn source_constrain_foot_lock(
+    state: &mut AlsFootLockFootState,
+    armature: &GlobalTransform,
+    pelvis_world: &GlobalTransform,
+    thigh_axis_pelvis_space: Vec3,
+    settings: &AlsFootLockSettings,
+) {
+    if !is_relevant_animation_weight(state.lock_amount) {
+        return;
+    }
+    let pelvis_rotation_armature =
+        armature_rotation_from_world(armature, WorldRotation(pelvis_world.rotation())).0;
+    let thigh_axis_armature = pelvis_rotation_armature * thigh_axis_pelvis_space;
+    let mut lock_location_armature =
+        armature_point_from_world(armature, WorldPoint(state.lock_location)).0;
+    let mut lock_rotation_armature =
+        armature_rotation_from_world(armature, WorldRotation(state.lock_rotation)).0;
+    let target_rotation_armature =
+        armature_rotation_from_world(armature, WorldRotation(state.target_rotation)).0;
+    if let Some(offset_rotation) = foot_lock_location_constraint_rotation(
+        thigh_axis_armature,
+        lock_location_armature,
+        settings.thigh_angle_limit_degrees,
+    ) {
+        lock_location_armature = offset_rotation * lock_location_armature;
+        lock_rotation_armature = (offset_rotation * lock_rotation_armature).normalize();
+    }
+    lock_rotation_armature = constrain_foot_lock_rotation(
+        lock_rotation_armature,
+        target_rotation_armature,
+        settings.foot_angle_limit_degrees,
+    );
+    state.lock_location =
+        world_point_from_armature(armature, ArmaturePoint(lock_location_armature)).0;
+    state.lock_rotation =
+        world_rotation_from_armature(armature, ArmatureRotation(lock_rotation_armature)).0;
+    state.final_location = state
+        .target_location
+        .lerp(state.lock_location, state.lock_amount);
+    state.final_rotation = state
+        .target_rotation
+        .lerp(state.lock_rotation, state.lock_amount)
+        .normalize();
 }
 
 fn source_foot_trace_sample(
@@ -691,7 +1023,10 @@ fn foot_ik_apply_system(
     >,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-    mut telemetry: Query<&mut AlsFootIkTelemetry, With<als_core::character::AlsCharacter>>,
+    mut telemetry: ParamSet<(
+        Query<&mut AlsFootIkTelemetry, With<als_core::character::AlsCharacter>>,
+        Query<&mut AlsFootLockTeleportTelemetry, With<als_core::character::AlsCharacter>>,
+    )>,
     mut space_states: Query<&mut AlsFootIkSpaceState, With<als_core::character::AlsCharacter>>,
     mut poles: Query<&mut FootIkPoleState, With<als_core::character::AlsCharacter>>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
@@ -745,6 +1080,9 @@ fn foot_ik_apply_system(
             *source_rig = CrAlsFootRigState::default();
             lifecycle.previous_character_transform = Some(current_character_transform);
             lifecycle.teleport_remaining = 0.0;
+            if let Ok(mut value) = telemetry.p1().get_mut(entity) {
+                value.remaining_seconds = 0.0;
+            }
             continue;
         }
         if let Ok(mut space_state) = space_states.get_mut(entity) {
@@ -800,6 +1138,9 @@ fn foot_ik_apply_system(
                         &current_character_transform,
                     );
                     capture_foot_lock_movement_base(&mut lock_state.left, current_base);
+                    if let Ok(mut value) = telemetry.p1().get_mut(entity) {
+                        value.left_rebase_count = value.left_rebase_count.saturating_add(1);
+                    }
                 }
                 if is_relevant_animation_weight(right_ik_amount * lock_state.right.lock_amount) {
                     rebase_foot_lock_after_teleport(
@@ -808,6 +1149,9 @@ fn foot_ik_apply_system(
                         &current_character_transform,
                     );
                     capture_foot_lock_movement_base(&mut lock_state.right, current_base);
+                    if let Ok(mut value) = telemetry.p1().get_mut(entity) {
+                        value.right_rebase_count = value.right_rebase_count.saturating_add(1);
+                    }
                 }
             }
         }
@@ -833,12 +1177,28 @@ fn foot_ik_apply_system(
                 ik_amount,
                 lock_amount,
                 settings.allow_foot_lock,
-                settings.foot_angle_limit_degrees,
                 lock_input.moving_smooth,
                 *locomotion == LocomotionState::Grounded,
                 became_valid,
                 dt,
             );
+            let chain = bones.chain(side);
+            let thigh_axis_pelvis_space = Vec3::from(if side == 0 {
+                profile.0.target.foot_left_thigh_axis_pelvis_space
+            } else {
+                profile.0.target.foot_right_thigh_axis_pelvis_space
+            });
+            if let Ok((_, _, thigh_parent)) = bone_locals.get(chain.thigh)
+                && let Ok(pelvis_world) = bone_globals.get(thigh_parent.0)
+            {
+                source_constrain_foot_lock(
+                    foot_state,
+                    armature,
+                    pelvis_world,
+                    thigh_axis_pelvis_space,
+                    settings,
+                );
+            }
             capture_foot_lock_movement_base(foot_state, current_base);
         }
 
@@ -1034,7 +1394,7 @@ fn foot_ik_apply_system(
                 0 => &mut pole_state.left,
                 _ => &mut pole_state.right,
             };
-            let pole = match (
+            let (pole_location, pole_direction) = match (
                 bone_globals.get(chain.thigh),
                 bone_globals.get(chain.calf),
                 foot_parent,
@@ -1043,9 +1403,13 @@ fn foot_ik_apply_system(
                     let hip = thigh.translation() + pelvis_world_offset;
                     let knee = calf.translation() + pelvis_world_offset;
                     let ankle = ankle + pelvis_world_offset;
-                    side_pole_state.update(hip, knee, ankle, dt, &profile.0.target) - hip
+                    let location = side_pole_state.update(hip, knee, ankle, dt, &profile.0.target);
+                    (location, location - hip)
                 }
-                _ => fallback_pole,
+                _ => (
+                    fallback_pole * profile.0.target.foot_pole_distance_m,
+                    fallback_pole,
+                ),
             };
             let (target_parent_local, target_bone_local, parent_ready) = foot_parent
                 .and_then(|(_, parent)| {
@@ -1077,6 +1441,7 @@ fn foot_ik_apply_system(
                 target_world: target_world.0,
                 resolved_target_world: target_world.0,
                 resolved_knee_world: Vec3::ZERO,
+                pole_location_world: pole_location,
                 target_armature_local: target_armature.0,
                 target_parent_local,
                 target_bone_local,
@@ -1107,7 +1472,7 @@ fn foot_ik_apply_system(
                 let upper_length = knee.distance(hip);
                 let lower_length = ankle.distance(knee);
                 let target_axis = (target_world.0 - hip).normalize_or_zero();
-                let pole_sign = target_axis.cross(knee - hip).dot(pole);
+                let pole_sign = target_axis.cross(knee - hip).dot(pole_direction);
                 let entry = AlsFootIkTelemetrySide {
                     valid: space_side.valid
                         && upper_length.is_finite()
@@ -1123,7 +1488,7 @@ fn foot_ik_apply_system(
                     ik_weight: applied_ik_weight,
                     pin_weight,
                 };
-                if let Ok(mut telemetry) = telemetry.get_mut(entity) {
+                if let Ok(mut telemetry) = telemetry.p0().get_mut(entity) {
                     if side == 0 {
                         telemetry.left = entry;
                     } else {
@@ -1136,6 +1501,7 @@ fn foot_ik_apply_system(
             } else {
                 source_rig.right.location_offset_y
             };
+            let (primary_axis, secondary_axis) = source_foot_ik_axes(side, &profile.0.target);
             let armature_up = world_direction_from_armature(armature, ArmatureDirection(Vec3::Y)).0;
             let has_slope_rotation = offset_normal_world.dot(armature_up) < 1.0 - 1e-4;
             let has_lock_rotation = foot_state.lock_amount > 1e-3;
@@ -1151,12 +1517,12 @@ fn foot_ik_apply_system(
             let resolved_target = apply_chain_target(
                 &chain,
                 target_world.0,
-                pole,
-                settings,
-                profile.0.target.max_leg_stretch_ratio,
+                pole_location,
                 foot_world_rotation,
                 applied_ik_weight,
                 pelvis_world_offset,
+                primary_axis,
+                secondary_axis,
                 &mut bone_locals,
                 &bone_globals,
             );
@@ -1177,6 +1543,9 @@ fn foot_ik_apply_system(
         }
         lifecycle.previous_character_transform = Some(current_character_transform);
         lifecycle.teleport_remaining = (lifecycle.teleport_remaining - dt.max(0.0)).max(0.0);
+        if let Ok(mut value) = telemetry.p1().get_mut(entity) {
+            value.remaining_seconds = lifecycle.teleport_remaining;
+        }
     }
 }
 
@@ -1311,12 +1680,12 @@ fn animation_world_scale(
 fn apply_chain_target(
     chain: &als_core::foot_ik::FootChain,
     target_world: Vec3,
-    pole: Vec3,
-    settings: &AlsFootLockSettings,
-    max_leg_stretch_ratio: f32,
+    pole_location: Vec3,
     foot_world_rotation: Quat,
     weight: f32,
     pelvis_world_offset: Vec3,
+    primary_axis: Vec3,
+    secondary_axis: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
 ) -> Option<ResolvedFootTarget> {
@@ -1347,80 +1716,99 @@ fn apply_chain_target(
     let upper_len = (knee - hip).length();
     let lower_len = (ankle - knee).length();
 
-    let target = constrain_foot_lock_location(
+    let target = target_world;
+
+    let Some(solve) = solve_basic_two_bone_ik(
         hip,
-        thigh_g.forward().as_vec3(),
-        target_world,
-        settings.thigh_angle_limit_degrees,
-    );
-    let target = limit_leg_stretch(hip, target, (upper_len + lower_len) * max_leg_stretch_ratio);
-
-    let Some(solve) = solve_two_bone_ik(hip, knee, ankle, target, upper_len, lower_len, pole)
-    else {
-        return None;
-    };
-
-    let thigh_world_new = solve.hip_rotation_world * thigh_g.rotation();
-    let current_lower_axis = (ankle - knee).normalize_or_zero();
-    let target_lower_axis = (target - solve.knee_position).normalize_or_zero();
-    let Some(calf_world_new) = child_world_rotation_after_parent_rotation(
-        solve.hip_rotation_world,
-        calf_g.rotation(),
-        current_lower_axis,
-        target_lower_axis,
+        thigh_g.rotation(),
+        knee,
+        target,
+        pole_location,
+        upper_len,
+        lower_len,
+        primary_axis,
+        secondary_axis,
+        1.0,
     ) else {
         return None;
     };
-
-    let Ok((mut thigh_local, _, thigh_child)) = bone_locals.get_mut(chain.thigh) else {
+    let (thigh_scale, _, _) = thigh_g.to_scale_rotation_translation();
+    let (calf_scale, _, _) = calf_g.to_scale_rotation_translation();
+    let (foot_scale, _, _) = foot_g.to_scale_rotation_translation();
+    let current_thigh = Transform {
+        translation: hip,
+        rotation: thigh_g.rotation(),
+        scale: thigh_scale,
+    };
+    let current_calf = Transform {
+        translation: knee,
+        rotation: calf_g.rotation(),
+        scale: calf_scale,
+    };
+    let current_foot = Transform {
+        translation: ankle,
+        rotation: foot_g.rotation(),
+        scale: foot_scale,
+    };
+    let writeback = source_basic_ik_writeback(
+        current_thigh,
+        current_calf,
+        current_foot,
+        solve,
+        foot_world_rotation,
+        weight,
+    )?;
+    let thigh_parent = bone_locals.get(chain.thigh).ok()?.2.0;
+    let calf_parent = bone_locals.get(chain.calf).ok()?.2.0;
+    let foot_parent = bone_locals.get(chain.foot).ok()?.2.0;
+    if calf_parent != chain.thigh || foot_parent != chain.calf {
+        return None;
+    }
+    let pelvis_global = bone_globals.get(thigh_parent).ok()?;
+    let (pelvis_scale, pelvis_rotation, pelvis_translation) =
+        pelvis_global.to_scale_rotation_translation();
+    let pelvis = Transform {
+        translation: pelvis_translation + pelvis_world_offset,
+        rotation: pelvis_rotation,
+        scale: pelvis_scale,
+    };
+    let thigh_local_target = source_local_transform(&pelvis, &writeback.thigh)?;
+    let calf_local_target = source_local_transform(&writeback.thigh, &writeback.calf)?;
+    let foot_local_target = source_local_transform(&writeback.calf, &writeback.foot)?;
+    let Ok((mut thigh_local, _, _)) = bone_locals.get_mut(chain.thigh) else {
         return None;
     };
-    let pelvis_rot = bone_globals
-        .get(thigh_child.0)
-        .map(|p| p.rotation())
-        .unwrap_or(Quat::IDENTITY);
-    let thigh_target_local = world_rotation_to_local(pelvis_rot, thigh_world_new);
-    thigh_local.rotation = blend_ik_rotation(thigh_local.rotation, thigh_target_local, weight);
-    let thigh_world_applied = pelvis_rot * thigh_local.rotation;
-
+    *thigh_local = thigh_local_target;
     let Ok((mut calf_local, _, _)) = bone_locals.get_mut(chain.calf) else {
         return None;
     };
-    let calf_target_local = world_rotation_to_local(thigh_world_new, calf_world_new);
-    calf_local.rotation = blend_ik_rotation(calf_local.rotation, calf_target_local, weight);
-    let calf_world_applied = thigh_world_applied * calf_local.rotation;
-
-    let Ok((mut foot_local, _, foot_child)) = bone_locals.get_mut(chain.foot) else {
+    *calf_local = calf_local_target;
+    let Ok((mut foot_local, _, _)) = bone_locals.get_mut(chain.foot) else {
         return None;
     };
-    let foot_parent_rotation = if foot_child.0 == chain.calf {
-        calf_world_applied
-    } else {
-        bone_globals
-            .get(foot_child.0)
-            .map(|parent| parent.rotation())
-            .unwrap_or(Quat::IDENTITY)
-    };
-    let foot_target_local = foot_local_rotation(foot_parent_rotation, foot_world_rotation);
-    foot_local.rotation = blend_ik_rotation(foot_local.rotation, foot_target_local, weight);
+    *foot_local = foot_local_target;
     Some(ResolvedFootTarget {
-        target_world: target,
-        knee_world: solve.knee_position,
+        target_world: writeback.foot.translation,
+        knee_world: writeback.calf.translation,
     })
 }
 
-fn foot_local_rotation(parent_world_rotation: Quat, foot_world_rotation: Quat) -> Quat {
-    world_rotation_to_local(parent_world_rotation, foot_world_rotation)
+fn source_foot_ik_axes(side: usize, profile: &CrAlsTargetProfile) -> (Vec3, Vec3) {
+    if side == 0 {
+        (
+            Vec3::from(profile.foot_left_primary_axis),
+            Vec3::from(profile.foot_left_secondary_axis),
+        )
+    } else {
+        (
+            Vec3::from(profile.foot_right_primary_axis),
+            Vec3::from(profile.foot_right_secondary_axis),
+        )
+    }
 }
 
-fn limit_leg_stretch(hip: Vec3, target: Vec3, max_length: f32) -> Vec3 {
-    let offset = target - hip;
-    let length = offset.length();
-    if length > max_length && length > f32::EPSILON {
-        hip + offset * (max_length / length)
-    } else {
-        target
-    }
+fn source_local_rotation(parent_world_rotation: Quat, world_rotation: Quat) -> Quat {
+    world_rotation_to_local(parent_world_rotation, world_rotation)
 }
 
 fn pelvis_adjusted_position(position: Vec3, pelvis_world_offset: Vec3) -> Vec3 {
@@ -1559,12 +1947,12 @@ mod tests {
     use crate::control_rig_apply::{CR_ALS_RUNTIME_PROFILE, CrAlsRuntimeProfileDocument};
 
     #[test]
-    fn foot_local_rotation_uses_the_updated_calf_parent() {
+    fn source_local_rotation_uses_the_updated_parent() {
         let calf_old = Quat::from_rotation_y(30.0_f32.to_radians());
         let calf_new = Quat::from_rotation_y(50.0_f32.to_radians());
         let foot_target = Quat::IDENTITY;
-        let corrected_local = foot_local_rotation(calf_new, foot_target);
-        let legacy_local = foot_local_rotation(calf_old, foot_target);
+        let corrected_local = source_local_rotation(calf_new, foot_target);
+        let legacy_local = source_local_rotation(calf_old, foot_target);
         let corrected_world = calf_new * corrected_local;
         let legacy_world = calf_new * legacy_local;
         let corrected_alignment = corrected_world.dot(foot_target).abs();
@@ -1584,7 +1972,7 @@ mod tests {
         let ankle = Vec3::new(0.0, -1.0, 0.0);
         let target = ankle;
         let pelvis_drop = Vec3::new(0.0, -0.1, 0.0);
-        let solve = solve_two_bone_ik(
+        let solve = als_ext::ik::solve_two_bone_ik(
             pelvis_adjusted_position(hip, pelvis_drop),
             pelvis_adjusted_position(knee, pelvis_drop),
             pelvis_adjusted_position(ankle, pelvis_drop),
@@ -1640,6 +2028,85 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn source_basic_ik_uses_per_side_axes() {
+        let profile: CrAlsRuntimeProfileDocument =
+            serde_json::from_str(CR_ALS_RUNTIME_PROFILE).unwrap();
+        let (left_primary, left_secondary) = source_foot_ik_axes(0, &profile.target);
+        let (right_primary, right_secondary) = source_foot_ik_axes(1, &profile.target);
+        assert!(left_primary.dot(Vec3::NEG_X) > 0.999_99);
+        assert!(left_secondary.dot(Vec3::Z) > 0.999_99);
+        assert!(right_primary.dot(Vec3::X) > 0.999_99);
+        assert!(right_secondary.dot(Vec3::NEG_Z) > 0.999_99);
+    }
+
+    #[test]
+    fn source_basic_ik_writeback_updates_global_child_positions_after_blending() {
+        let current_thigh = Transform::IDENTITY;
+        let current_calf = Transform::from_translation(Vec3::X * 0.45);
+        let current_foot = Transform::from_translation(Vec3::X * 0.90);
+        let solve = BasicTwoBoneSolve {
+            hip_rotation_world: Quat::from_rotation_z(0.35),
+            knee_rotation_world: Quat::from_rotation_z(-0.20),
+            knee_position: Vec3::new(0.31, -0.29, 0.16),
+            effector_position: Vec3::new(0.67, -0.52, 0.05),
+        };
+        let full = source_basic_ik_writeback(
+            current_thigh,
+            current_calf,
+            current_foot,
+            solve,
+            Quat::from_rotation_y(0.24),
+            1.0,
+        )
+        .unwrap();
+        let half = source_basic_ik_writeback(
+            current_thigh,
+            current_calf,
+            current_foot,
+            solve,
+            Quat::from_rotation_y(0.24),
+            0.5,
+        )
+        .unwrap();
+        assert!(full.calf.translation.distance(solve.knee_position) < 1e-6);
+        assert!(full.foot.translation.distance(solve.effector_position) < 1e-6);
+        assert!(half.calf.translation.distance(current_calf.translation) > 1e-3);
+        assert!(half.foot.translation.distance(current_foot.translation) > 1e-3);
+        let calf_local = source_local_transform(&half.thigh, &half.calf).unwrap();
+        let foot_local = source_local_transform(&half.calf, &half.foot).unwrap();
+        assert!(
+            source_transform_point(&half.thigh, calf_local.translation)
+                .distance(half.calf.translation)
+                < 1e-6
+        );
+        assert!(
+            source_transform_point(&half.calf, foot_local.translation)
+                .distance(half.foot.translation)
+                < 1e-6
+        );
+    }
+
+    #[test]
+    fn pose_base_restores_unwritten_animation_transforms_before_ik() {
+        let entity = Entity::from_raw_u32(17).unwrap();
+        let base = Transform::from_xyz(-0.03, 0.92, 0.01);
+        let mut state = FootIkPoseBaseState::default();
+        let captured = restore_foot_ik_animation_transform(&mut state, 0, entity, base);
+        let applied = Transform::from_xyz(-0.03, 0.72, 0.01);
+        state.previous_applied[0] = applied;
+        let restored = restore_foot_ik_animation_transform(&mut state, 0, entity, applied);
+        let animated = Transform::from_xyz(-0.03, 0.88, 0.01);
+        let accepted = restore_foot_ik_animation_transform(&mut state, 0, entity, animated);
+        assert!(transforms_approximately_equal(captured, base));
+        assert!(transforms_approximately_equal(restored, base));
+        assert!(transforms_approximately_equal(accepted, animated));
+        assert!(transforms_approximately_equal(
+            state.animation_base[0],
+            animated
+        ));
     }
 
     #[test]
@@ -1822,5 +2289,81 @@ mod tests {
             "[BF102.43][VERDICT] teleport_location_error={teleport_location_error:.6} teleport_rotation_alignment={teleport_rotation_alignment:.6} recovery_fresh={recovery_fresh} reload_reset={reload_reset} teleport_message={teleport_message} -> {verdict}"
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn source_teleport_threshold_marks_only_distance_above_half_meter() {
+        let mut app = App::new();
+        app.add_message::<AlsFootLockTeleported>().add_systems(
+            Update,
+            (detect_foot_lock_teleports, record_foot_lock_teleports).chain(),
+        );
+        let fake_bones = (0..10)
+            .map(|_| app.world_mut().spawn_empty().id())
+            .collect::<Vec<_>>();
+        let character = app
+            .world_mut()
+            .spawn((
+                als_core::character::AlsCharacter,
+                AlsFootBones {
+                    left_thigh: fake_bones[0],
+                    left_calf: fake_bones[1],
+                    left: fake_bones[2],
+                    left_target: Some(fake_bones[3]),
+                    left_virtual_target: Some(fake_bones[4]),
+                    right_thigh: fake_bones[5],
+                    right_calf: fake_bones[6],
+                    right: fake_bones[7],
+                    right_target: Some(fake_bones[8]),
+                    right_virtual_target: Some(fake_bones[9]),
+                },
+                FootLockLifecycleState {
+                    previous_character_transform: Some(Transform::IDENTITY),
+                    teleport_remaining: 0.0,
+                },
+                AlsFootLockTeleportTelemetry::default(),
+            ))
+            .id();
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                GlobalTransform::from(Transform::from_xyz(
+                    FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M,
+                    0.0,
+                    0.0,
+                )),
+            ))
+            .id();
+        app.update();
+        let at_threshold = *app
+            .world()
+            .get::<AlsFootLockTeleportTelemetry>(character)
+            .unwrap();
+        *app.world_mut().get_mut::<GlobalTransform>(avatar).unwrap() = GlobalTransform::from(
+            Transform::from_xyz(FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M + 0.001, 0.0, 0.0),
+        );
+        app.update();
+        let above_threshold = *app
+            .world()
+            .get::<AlsFootLockTeleportTelemetry>(character)
+            .unwrap();
+        let lifecycle = app
+            .world()
+            .get::<FootLockLifecycleState>(character)
+            .unwrap();
+        assert_eq!(at_threshold.detected_count, 0);
+        assert_eq!(above_threshold.detected_count, 1);
+        assert!(
+            (above_threshold.last_translation_delta_m
+                - (FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M + 0.001))
+                .abs()
+                < 1e-6
+        );
+        assert!(
+            (above_threshold.remaining_seconds - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6
+        );
+        assert!((lifecycle.teleport_remaining - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6);
     }
 }

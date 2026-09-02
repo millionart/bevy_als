@@ -31,6 +31,7 @@ pub const FOOT_LOCK_MOVING_DECREASE_PER_SECOND: f32 = 5.0;
 pub const FOOT_LOCK_NOT_GROUNDED_DECREASE_PER_SECOND: f32 = 0.6;
 pub const FOOT_LOCK_RELEVANCE_THRESHOLD: f32 = 1e-4;
 pub const FOOT_LOCK_TELEPORT_WINDOW_SECONDS: f32 = 0.2;
+pub const FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M: f32 = 0.5;
 
 const WEIGHT_BLEND_SPEED: f32 = 10.0;
 const FOOT_OFFSET_SPRING_FREQUENCY_HZ: f32 = 12.0;
@@ -296,7 +297,6 @@ pub fn refresh_foot_lock(
     ik_amount: f32,
     requested_lock_amount: f32,
     allow_foot_lock: bool,
-    foot_angle_limit_degrees: f32,
     moving_smooth: bool,
     grounded: bool,
     became_valid: bool,
@@ -350,12 +350,6 @@ pub fn refresh_foot_lock(
     } else if !greater_than_previous {
         state.lock_amount = new_lock_amount;
     }
-
-    state.lock_rotation = constrain_foot_lock_rotation(
-        state.lock_rotation,
-        state.target_rotation,
-        foot_angle_limit_degrees,
-    );
 
     state.final_location = target_location.lerp(state.lock_location, state.lock_amount);
     state.final_rotation = target_rotation
@@ -521,28 +515,35 @@ pub fn wrap_foot_yaw(yaw: f32) -> f32 {
     (yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
-pub fn constrain_foot_lock_location(
-    thigh_origin: Vec3,
+pub fn foot_lock_location_constraint_rotation(
     thigh_axis: Vec3,
     lock_location: Vec3,
     thigh_angle_limit_degrees: f32,
-) -> Vec3 {
-    let relative = lock_location - thigh_origin;
-    let horizontal_relative = Vec3::new(relative.x, 0.0, relative.z);
+) -> Option<Quat> {
+    let horizontal_relative = Vec3::new(lock_location.x, 0.0, lock_location.z);
     let horizontal_axis = Vec3::new(thigh_axis.x, 0.0, thigh_axis.z).normalize_or_zero();
     if horizontal_relative.length_squared() <= 1e-6 || horizontal_axis.length_squared() <= 1e-6 {
-        return lock_location;
+        return None;
     }
     let angle = f32::atan2(
         horizontal_axis.z * horizontal_relative.x - horizontal_axis.x * horizontal_relative.z,
         horizontal_axis.dot(horizontal_relative),
     );
     let limit = thigh_angle_limit_degrees.clamp(0.0, 180.0).to_radians();
-    if angle.abs() <= limit {
-        return lock_location;
+    if angle.abs() <= limit + 1e-4 {
+        return None;
     }
-    let constrained = Quat::from_rotation_y(limit.copysign(angle) - angle).mul_vec3(relative);
-    thigh_origin + constrained
+    Some(Quat::from_rotation_y(limit.copysign(angle) - angle))
+}
+
+pub fn constrain_foot_lock_location(
+    thigh_axis: Vec3,
+    lock_location: Vec3,
+    thigh_angle_limit_degrees: f32,
+) -> Vec3 {
+    foot_lock_location_constraint_rotation(thigh_axis, lock_location, thigh_angle_limit_degrees)
+        .map(|rotation| rotation * lock_location)
+        .unwrap_or(lock_location)
 }
 
 pub fn constrain_foot_lock_rotation(
@@ -1130,7 +1131,7 @@ mod tests {
         assert_eq!(settings.moving_decrease_per_second, 5.0);
         assert_eq!(settings.not_grounded_decrease_per_second, 0.6);
         let target = Vec3::X;
-        let constrained = constrain_foot_lock_location(Vec3::ZERO, Vec3::NEG_Z, target, 90.0);
+        let constrained = constrain_foot_lock_location(Vec3::NEG_Z, target, 90.0);
         assert!((constrained.length() - 1.0).abs() < 1e-6);
         let lock_rotation = Quat::from_rotation_y(100.0_f32.to_radians());
         let constrained = constrain_foot_lock_rotation(lock_rotation, Quat::IDENTITY, 40.0);

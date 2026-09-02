@@ -192,7 +192,7 @@ impl Plugin for LayeringLayerPlugin {
             PostUpdate,
             AlsLayeringLayerSet
                 .after(AlsLocomotionLayerSet)
-                .before(AnimationGraphSet::Final),
+                .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(Startup, load_layering_masks)
         .add_systems(

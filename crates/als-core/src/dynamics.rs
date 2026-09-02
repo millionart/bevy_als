@@ -334,7 +334,7 @@ pub fn refresh_grounded_dynamics_system(
 }
 
 fn landing_braking_friction_system(
-    fixed_time: Res<Time<Fixed>>,
+    time: Res<Time>,
     mut q: Query<
         (
             &LocomotionState,
@@ -354,7 +354,7 @@ fn landing_braking_friction_system(
             *locomotion,
             effective_input.move_dir.length_squared() > 1e-6,
             roll.is_some_and(|state| state.active) || mantle.is_some_and(|state| state.active),
-            fixed_time.delta_secs(),
+            time.delta_secs(),
         );
     }
 }
@@ -391,7 +391,7 @@ fn update_landing_braking_friction(
 }
 
 pub fn grounded_dynamics_motor_system(
-    fixed_time: Res<Time<Fixed>>,
+    time: Res<Time>,
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut q: Query<
@@ -482,9 +482,9 @@ pub fn grounded_dynamics_motor_system(
             dynamics.0,
             &params.cmc,
             braking_friction_factor,
-            fixed_time.delta_secs(),
+            time.delta_secs(),
         );
-        cmc_runtime.fixed_delta_seconds = fixed_time.delta_secs();
+        cmc_runtime.simulation_delta_seconds = time.delta_secs();
         cmc_runtime.simulation_substeps = simulation_substeps;
         cmc_runtime.min_analog_speed_applied = desired_motion.length_squared() > 1e-6
             && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
@@ -511,25 +511,15 @@ impl Plugin for AlsGroundedDynamicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            refresh_grounded_dynamics_system.after(crate::gait::refresh_gait_system),
-        )
-        .add_systems(
-            FixedUpdate,
             (
-                refresh_grounded_dynamics_system.before(TnuaPipelineSystems::Logic),
-                grounded_dynamics_motor_system
-                    .after(TnuaPipelineSystems::Logic)
-                    .before(TnuaPipelineSystems::Motors),
-            ),
-        )
-        .add_systems(
-            FixedPostUpdate,
-            (
-                refresh_grounded_dynamics_system.before(TnuaPipelineSystems::Logic),
+                refresh_grounded_dynamics_system
+                    .after(crate::gait::refresh_gait_system)
+                    .before(TnuaPipelineSystems::Logic),
                 landing_braking_friction_system
                     .after(TnuaPipelineSystems::Logic)
                     .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
+                    .after(refresh_grounded_dynamics_system)
                     .after(TnuaPipelineSystems::Logic)
                     .before(TnuaPipelineSystems::Motors),
             ),

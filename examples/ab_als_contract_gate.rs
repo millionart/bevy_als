@@ -119,6 +119,7 @@ struct Deadline(Instant);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
     Idle,
+    CurveRelay,
     TransitionSlot,
     PostLocomotionSlot,
     Overlay,
@@ -641,6 +642,7 @@ fn verify_static(
             node.slot_name.as_deref() == Some("Transition")
                 && node.slot_pose_key == "als_root_transition_slot_pose"
                 && node.slot_weight_key == "als_root_transition_slot_weight"
+                && node.slot_is_additive
                 && node.slot_curve_prefix.as_deref() == Some("als_root_transition_slot_curve_")
                 && node
                     .slot_curve_names
@@ -840,11 +842,26 @@ fn observe(
             player
                 .set_global_input_data("als_root_transition_slot_pose", DataValue::Pose(slot_pose));
             player.set_global_input_data("als_root_transition_slot_weight", 0.5_f32);
+            player.set_global_input_data("als_standing_curve_pose_moving", 1.0_f32);
             player.queue_time_update(TimeUpdate::Delta(0.0));
-            probe.phase = Phase::TransitionSlot;
+            probe.phase = Phase::CurveRelay;
             info!(
                 "[AB-ALS-CONTRACT] idle grounded/locomotion/layering/head/ragdoll chain is active"
             );
+        }
+        Phase::CurveRelay => {
+            let valid = context_f32(&player, root, "AB_Als_Standing", "PoseMoving")
+                .is_some_and(|value| close(value, 1.0))
+                && context_f32(&player, root, "AB_Als_Grounded", "PoseMoving")
+                    .is_some_and(|value| close(value, 1.0))
+                && root_f32(&player, root, "PoseMoving").is_some_and(|value| close(value, 1.0));
+            if !valid {
+                fail(&mut exit, "standing pose moving curve relay");
+                return;
+            }
+            player.queue_time_update(TimeUpdate::Delta(0.0));
+            probe.phase = Phase::TransitionSlot;
+            info!("[AB-ALS-CONTRACT] standing PoseMoving relays to the final root context");
         }
         Phase::TransitionSlot => {
             let valid = output_pose(&player).is_some_and(pose_is_finite)

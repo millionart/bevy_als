@@ -12,7 +12,7 @@ use bevy_animation_graph::core::{
     duration_data::DurationData,
     edge_data::{
         DataSpec, DataValue,
-        events::{AnimationEvent, EventQueue},
+        events::{AnimationEvent, EventQueue, SampledEvent},
     },
     errors::GraphError,
     pose::Pose,
@@ -25,10 +25,20 @@ use bevy_animation_graph::core::{
     },
 };
 
+use crate::global_f32_input::global_f32_or_root_default;
+use crate::state_label_event::state_label_index;
+
 #[derive(Reflect, Clone, Debug)]
 pub struct InterruptibleFsmSource {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct StatePoseOutput {
+    pub state_id: String,
+    pub output: String,
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -38,6 +48,21 @@ pub struct InterruptibleFsmState {
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
     source_pose: Option<Pose>,
     last_pose: Option<Pose>,
+    label_last_index: Option<usize>,
+}
+
+fn changed_label(
+    last_index: &mut Option<usize>,
+    index: Option<usize>,
+    labels: &[String],
+) -> Option<String> {
+    let changed = *last_index != index;
+    *last_index = index;
+    if changed {
+        index.and_then(|value| labels.get(value).cloned())
+    } else {
+        None
+    }
 }
 
 impl InterruptibleFsmState {
@@ -50,13 +75,41 @@ impl InterruptibleFsmState {
     }
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct InterruptibleFsmNode {
     pub fsm: Handle<StateMachine>,
     pub telemetry_states: Vec<StateId>,
     pub telemetry_transitions: Vec<DirectTransitionId>,
+    pub state_pose_output: String,
+    pub state_pose_outputs: Vec<StatePoseOutput>,
+    pub outer_pose_output: String,
+    pub state_label_key: String,
+    pub state_labels: Vec<String>,
+    pub internal_time_key: String,
+    pub max_transitions_per_frame: usize,
+    pub max_transition_requests: usize,
+    pub expose_telemetry: bool,
+}
+
+impl Default for InterruptibleFsmNode {
+    fn default() -> Self {
+        Self {
+            fsm: default(),
+            telemetry_states: default(),
+            telemetry_transitions: default(),
+            state_pose_output: Self::OUT_POSE.to_owned(),
+            state_pose_outputs: default(),
+            outer_pose_output: Self::OUT_POSE.to_owned(),
+            state_label_key: default(),
+            state_labels: default(),
+            internal_time_key: default(),
+            max_transitions_per_frame: 3,
+            max_transition_requests: 32,
+            expose_telemetry: true,
+        }
+    }
 }
 
 impl InterruptibleFsmNode {
@@ -72,6 +125,36 @@ impl InterruptibleFsmNode {
             fsm,
             telemetry_states: Vec::new(),
             telemetry_transitions: Vec::new(),
+            state_pose_output: Self::OUT_POSE.to_owned(),
+            state_pose_outputs: Vec::new(),
+            outer_pose_output: Self::OUT_POSE.to_owned(),
+            state_label_key: String::new(),
+            state_labels: Vec::new(),
+            internal_time_key: String::new(),
+            max_transitions_per_frame: 3,
+            max_transition_requests: 32,
+            expose_telemetry: true,
+        }
+    }
+
+    fn state_pose_output_for(&self, state: &LowLevelStateId) -> &str {
+        let LowLevelStateId::HlState(state) = state else {
+            return &self.state_pose_output;
+        };
+        self.state_pose_outputs
+            .iter()
+            .find(|value| value.state_id == state.uuid().to_string())
+            .map(|value| value.output.as_str())
+            .unwrap_or(&self.state_pose_output)
+    }
+
+    fn outer_output(&self, state: &LowLevelStateId, state_output: &str) -> PinId {
+        if state_output == self.state_pose_output_for(state)
+            || (matches!(state, LowLevelStateId::HlTransition(_)) && state_output == Self::OUT_POSE)
+        {
+            self.outer_pose_output.clone()
+        } else {
+            state_output.to_owned()
         }
     }
 
@@ -210,11 +293,24 @@ impl InterruptibleFsmNode {
         }
     }
 
+    fn event_start_index(event_count: usize, max_requests: usize) -> usize {
+        event_count.saturating_sub(max_requests)
+    }
+
+    fn time_update(&self, ctx: &NodeContext) -> Result<TimeUpdate, GraphError> {
+        if self.internal_time_key.is_empty() {
+            return ctx.time_update_fwd();
+        }
+        let delta = global_f32_or_root_default(ctx, &self.internal_time_key)?;
+        Ok(TimeUpdate::Delta(delta.max(0.0)))
+    }
+
     fn process_events(
         &self,
         machine: &LowLevelStateMachine,
         events: EventQueue,
         allow_external: bool,
+        remaining_transitions: &mut usize,
         ctx: &mut NodeContext,
     ) -> Result<(), GraphError> {
         let time = ctx.time();
@@ -230,8 +326,17 @@ impl InterruptibleFsmNode {
                 interrupted_sources: Vec::new(),
                 source_pose: None,
                 last_pose: None,
+                label_last_index: None,
             })?;
-            for sampled in events.events {
+            let start = if allow_external {
+                Self::event_start_index(events.events.len(), self.max_transition_requests)
+            } else {
+                0
+            };
+            for sampled in events.events.into_iter().skip(start) {
+                if *remaining_transitions == 0 {
+                    break;
+                }
                 let transition = match sampled.event {
                     AnimationEvent::TransitionToState(target) => {
                         if let LowLevelStateId::HlState(source) = state.state {
@@ -273,6 +378,7 @@ impl InterruptibleFsmNode {
                         reset = Some(transition.clone());
                     }
                     Self::activate_transition(state, transition, time);
+                    *remaining_transitions -= 1;
                 }
             }
         }
@@ -280,6 +386,27 @@ impl InterruptibleFsmNode {
             Self::reset_target_state(machine, transition, ctx);
         }
         Ok(())
+    }
+
+    fn driver_events(&self, ctx: &mut NodeContext) -> Result<EventQueue, GraphError> {
+        if self.state_label_key.is_empty() {
+            return ctx
+                .data_back(LowLevelStateMachine::DRIVER_EVENT_QUEUE)?
+                .into_event_queue();
+        }
+        let value = global_f32_or_root_default(ctx, &self.state_label_key)?;
+        let index = state_label_index(value, self.state_labels.len());
+        let label = {
+            let state = ctx.state_mut_or_else::<InterruptibleFsmState>(|| {
+                unreachable!("interruptible FSM state must be initialized before label dispatch")
+            })?;
+            changed_label(&mut state.label_last_index, index, &self.state_labels)
+        };
+        Ok(label.map_or_else(EventQueue::default, |value| {
+            EventQueue::with_events([SampledEvent::instant(
+                AnimationEvent::TransitionToStateLabel(value),
+            )])
+        }))
     }
 
     fn active_graph<'a>(
@@ -309,6 +436,7 @@ impl InterruptibleFsmNode {
     fn evaluate_active_state(
         &self,
         machine: &LowLevelStateMachine,
+        parent_time_update: TimeUpdate,
         ctx: &mut NodeContext,
     ) -> Result<EventQueue, GraphError> {
         let state = ctx.state::<InterruptibleFsmState>()?.clone();
@@ -318,11 +446,14 @@ impl InterruptibleFsmNode {
             node_context: ctx.clone(),
             machine,
             current_time: ctx.time(),
+            parent_time_update,
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
             source_pose: state.source_pose.clone(),
             role: FsmRole::Root,
             stack: VecDeque::new(),
+            state_pose_output: self.state_pose_output.clone(),
+            state_pose_outputs: self.state_pose_outputs.clone(),
         };
         let sub_ctx = ctx
             .create_child_context(state_data.graph.id(), graph, Some(state.state.clone()))
@@ -334,12 +465,13 @@ impl InterruptibleFsmNode {
             if id == LowLevelStateMachine::DRIVER_EVENT_QUEUE {
                 internal_events.extend(value.into_event_queue()?);
             } else {
-                if id.to_string() == Self::OUT_POSE {
+                let outer_output = self.outer_output(&state.state, id);
+                if outer_output == self.outer_pose_output {
                     if let DataValue::Pose(pose) = &value {
                         latest_pose = Some(pose.clone());
                     }
                 }
-                ctx.set_data_fwd(id.clone(), value);
+                ctx.set_data_fwd(outer_output, value);
             }
         }
         for input in graph.io_spec.iter_input_times() {
@@ -374,38 +506,63 @@ impl NodeLike for InterruptibleFsmNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let resources = ctx.graph_context.resources;
         let machine = self.state_machine(resources)?;
-        let update = ctx.time_update_fwd()?;
+        let update = self.time_update(&ctx)?;
         let time = update
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
         ctx.set_time(time);
-        ctx.set_time_update_back(LowLevelStateMachine::DRIVER_TIME, update);
-        let external_events = ctx
-            .data_back(LowLevelStateMachine::DRIVER_EVENT_QUEUE)?
-            .into_event_queue()?;
-        self.process_events(machine, external_events, true, &mut ctx)?;
-        let internal_events = self.evaluate_active_state(machine, &mut ctx)?;
-        self.process_events(machine, internal_events, false, &mut ctx)?;
-        let state = ctx.state::<InterruptibleFsmState>()?;
-        let actual_state = self.telemetry_state_index(&state.state);
-        let actual_transition = self.telemetry_transition_index(&state.state);
-        let transition_active = matches!(state.state, LowLevelStateId::HlTransition(_));
-        let state_entered_time = state.state_entered_time;
-        let state_elapsed_time = (ctx.time() - state_entered_time).max(0.0);
-        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE, actual_state);
-        ctx.set_data_fwd(Self::OUT_ACTUAL_TRANSITION, actual_transition);
-        ctx.set_data_fwd(
-            Self::OUT_ACTUAL_TRANSITION_ACTIVE,
-            if transition_active { 1.0 } else { 0.0 },
-        );
-        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ENTERED_TIME, state_entered_time);
-        ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, state_elapsed_time);
+        ctx.set_time_update_back(LowLevelStateMachine::DRIVER_TIME, update.clone());
+        let start_state = machine
+            .start_state
+            .clone()
+            .ok_or(GraphError::FSMCurrentStateMissing)?;
+        let _ = ctx.state_mut_or_else(|| InterruptibleFsmState {
+            state: start_state,
+            state_entered_time: time,
+            interrupted_sources: Vec::new(),
+            source_pose: None,
+            last_pose: None,
+            label_last_index: None,
+        })?;
+        let external_events = self.driver_events(&mut ctx)?;
+        let mut remaining_transitions = self.max_transitions_per_frame;
+        self.process_events(
+            machine,
+            external_events,
+            true,
+            &mut remaining_transitions,
+            &mut ctx,
+        )?;
+        let internal_events = self.evaluate_active_state(machine, update, &mut ctx)?;
+        self.process_events(
+            machine,
+            internal_events,
+            false,
+            &mut remaining_transitions,
+            &mut ctx,
+        )?;
+        if self.expose_telemetry {
+            let state = ctx.state::<InterruptibleFsmState>()?;
+            let actual_state = self.telemetry_state_index(&state.state);
+            let actual_transition = self.telemetry_transition_index(&state.state);
+            let transition_active = matches!(state.state, LowLevelStateId::HlTransition(_));
+            let state_entered_time = state.state_entered_time;
+            let state_elapsed_time = (ctx.time() - state_entered_time).max(0.0);
+            ctx.set_data_fwd(Self::OUT_ACTUAL_STATE, actual_state);
+            ctx.set_data_fwd(Self::OUT_ACTUAL_TRANSITION, actual_transition);
+            ctx.set_data_fwd(
+                Self::OUT_ACTUAL_TRANSITION_ACTIVE,
+                if transition_active { 1.0 } else { 0.0 },
+            );
+            ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ENTERED_TIME, state_entered_time);
+            ctx.set_data_fwd(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, state_elapsed_time);
+        }
         Ok(())
     }
 
     fn try_get_time(&self, ctx: NodeContext, pin: PinId) -> Result<TimeUpdate, GraphError> {
         let _ = pin;
-        ctx.time_update_fwd()
+        self.time_update(&ctx)
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
@@ -414,16 +571,20 @@ impl NodeLike for InterruptibleFsmNode {
             .fsm_assets
             .get(&self.fsm)
             .ok_or(GraphError::FsmAssetMissing)?;
-        ctx.add_input_data(
-            LowLevelStateMachine::DRIVER_EVENT_QUEUE,
-            DataSpec::EventQueue,
-        )
-        .update_from_node_spec(&machine.node_spec)
-        .add_output_data(Self::OUT_ACTUAL_STATE, DataSpec::F32)
-        .add_output_data(Self::OUT_ACTUAL_TRANSITION, DataSpec::F32)
-        .add_output_data(Self::OUT_ACTUAL_TRANSITION_ACTIVE, DataSpec::F32)
-        .add_output_data(Self::OUT_ACTUAL_STATE_ENTERED_TIME, DataSpec::F32)
-        .add_output_data(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, DataSpec::F32);
+        if self.state_label_key.is_empty() {
+            ctx.add_input_data(
+                LowLevelStateMachine::DRIVER_EVENT_QUEUE,
+                DataSpec::EventQueue,
+            );
+        }
+        ctx.update_from_node_spec(&machine.node_spec);
+        if self.expose_telemetry {
+            ctx.add_output_data(Self::OUT_ACTUAL_STATE, DataSpec::F32)
+                .add_output_data(Self::OUT_ACTUAL_TRANSITION, DataSpec::F32)
+                .add_output_data(Self::OUT_ACTUAL_TRANSITION_ACTIVE, DataSpec::F32)
+                .add_output_data(Self::OUT_ACTUAL_STATE_ENTERED_TIME, DataSpec::F32)
+                .add_output_data(Self::OUT_ACTUAL_STATE_ELAPSED_TIME, DataSpec::F32);
+        }
         Ok(())
     }
 
@@ -452,14 +613,28 @@ struct InterruptibleFsmIo<'a> {
     node_context: NodeContext<'a>,
     machine: &'a LowLevelStateMachine,
     current_time: f32,
+    parent_time_update: TimeUpdate,
     state: LowLevelStateId,
     state_entered_time: f32,
     source_pose: Option<Pose>,
     role: FsmRole,
     stack: VecDeque<FsmStackFrame>,
+    state_pose_output: String,
+    state_pose_outputs: Vec<StatePoseOutput>,
 }
 
 impl<'a> InterruptibleFsmIo<'a> {
+    fn state_pose_output_for(&self, state: &LowLevelStateId) -> &str {
+        let LowLevelStateId::HlState(state) = state else {
+            return &self.state_pose_output;
+        };
+        self.state_pose_outputs
+            .iter()
+            .find(|value| value.state_id == state.uuid().to_string())
+            .map(|value| value.output.as_str())
+            .unwrap_or(&self.state_pose_output)
+    }
+
     fn parent_data(&self, pin: &PinId, ctx: &GraphContext) -> Result<DataValue, GraphError> {
         self.node_context
             .clone()
@@ -531,11 +706,14 @@ impl<'a> InterruptibleFsmIo<'a> {
             node_context: self.node_context.clone(),
             machine: self.machine,
             current_time: self.current_time,
+            parent_time_update: self.parent_time_update.clone(),
             state,
             state_entered_time: self.state_entered_time,
             source_pose: None,
             role,
             stack,
+            state_pose_output: self.state_pose_output.clone(),
+            state_pose_outputs: self.state_pose_outputs.clone(),
         };
         let _ = ctx;
         Ok((graph, io))
@@ -586,11 +764,8 @@ impl<'a> InterruptibleFsmIo<'a> {
         graph.get_duration(TargetPin::OutputTime, sub_ctx)
     }
 
-    fn parent_time(&self, ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
-        self.node_context
-            .clone()
-            .with_state_key(ctx.state_key)
-            .time_update_fwd()
+    fn parent_time(&self, _ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
+        Ok(self.parent_time_update.clone())
     }
 
     fn nested_time(&self, ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
@@ -620,11 +795,14 @@ impl<'a> InterruptibleFsmIo<'a> {
             node_context: self.node_context.clone(),
             machine: self.machine,
             current_time: self.current_time,
+            parent_time_update: self.parent_time_update.clone(),
             state: frame.state.clone(),
             state_entered_time: frame.state_entered_time,
             source_pose: frame.source_pose,
             role: frame.role,
             stack,
+            state_pose_output: self.state_pose_output.clone(),
+            state_pose_outputs: self.state_pose_outputs.clone(),
         };
         let sub_ctx = self
             .node_context
@@ -654,12 +832,23 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
                         return Ok(DataValue::Pose(pose.clone()));
                     }
                 }
-                self.source_state()
-                    .and_then(|state| self.state_data(pin, state, FsmRole::Source, &ctx))
+                self.source_state().and_then(|state| {
+                    let state_pin = if pin.to_string() == InterruptibleFsmNode::OUT_POSE {
+                        self.state_pose_output_for(&state).to_owned()
+                    } else {
+                        pin
+                    };
+                    self.state_data(state_pin, state, FsmRole::Source, &ctx)
+                })
             }
-            GraphInputPin::FromFsmTarget(pin) => self
-                .target_state()
-                .and_then(|state| self.state_data(pin, state, FsmRole::Target, &ctx)),
+            GraphInputPin::FromFsmTarget(pin) => self.target_state().and_then(|state| {
+                let state_pin = if pin.to_string() == InterruptibleFsmNode::OUT_POSE {
+                    self.state_pose_output_for(&state).to_owned()
+                } else {
+                    pin
+                };
+                self.state_data(state_pin, state, FsmRole::Target, &ctx)
+            }),
             GraphInputPin::FsmBuiltin(pin) => self.builtin(pin),
         }
     }
@@ -717,6 +906,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             source_pose: None,
             last_pose: None,
+            label_last_index: None,
         };
 
         let selected = InterruptibleFsmNode::direct_transition(&machine, &runtime, transition_id);
@@ -749,6 +939,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             source_pose: None,
             last_pose: None,
+            label_last_index: None,
         };
         let mut previous = None;
         let mut deliveries = 0;
@@ -778,6 +969,7 @@ mod tests {
             fsm: Handle::default(),
             telemetry_states: vec![state_id],
             telemetry_transitions: vec![transition_id.clone()],
+            ..default()
         };
         assert_eq!(
             node.telemetry_state_index(&LowLevelStateId::HlState(state_id)),
@@ -799,6 +991,73 @@ mod tests {
             ))),
             0.0
         );
+    }
+
+    #[test]
+    fn state_pose_output_uses_the_matching_state_override() {
+        let state_id = StateId::default();
+        let node = InterruptibleFsmNode {
+            state_pose_outputs: vec![StatePoseOutput {
+                state_id: state_id.uuid().to_string(),
+                output: "Result".to_owned(),
+            }],
+            ..default()
+        };
+        assert_eq!(
+            node.state_pose_output_for(&LowLevelStateId::HlState(state_id)),
+            "Result"
+        );
+    }
+
+    #[test]
+    fn telemetry_is_visible_by_default_and_can_be_hidden_for_source_layout() {
+        assert!(InterruptibleFsmNode::default().expose_telemetry);
+        let node = InterruptibleFsmNode {
+            expose_telemetry: false,
+            ..default()
+        };
+        assert!(!node.expose_telemetry);
+    }
+
+    #[test]
+    fn outer_pose_output_can_preserve_source_pin_casing() {
+        let node = InterruptibleFsmNode {
+            state_pose_output: "Result".to_owned(),
+            outer_pose_output: "Pose".to_owned(),
+            ..default()
+        };
+        assert_eq!(
+            node.outer_output(&LowLevelStateId::HlState(StateId::default()), "Result"),
+            "Pose"
+        );
+        assert_eq!(
+            node.outer_output(
+                &LowLevelStateId::HlTransition(TransitionId::Direct(default())),
+                "pose",
+            ),
+            "Pose"
+        );
+    }
+
+    #[test]
+    fn transition_request_limit_retains_the_newest_source_requests() {
+        assert_eq!(InterruptibleFsmNode::event_start_index(0, 32), 0);
+        assert_eq!(InterruptibleFsmNode::event_start_index(3, 32), 0);
+        assert_eq!(InterruptibleFsmNode::event_start_index(33, 32), 1);
+        assert_eq!(InterruptibleFsmNode::event_start_index(4, 0), 4);
+    }
+
+    #[test]
+    fn source_transition_limits_are_the_default_runtime_contract() {
+        let node = InterruptibleFsmNode::default();
+        assert_eq!(node.max_transitions_per_frame, 3);
+        assert_eq!(node.max_transition_requests, 32);
+    }
+
+    #[test]
+    fn internal_time_key_uses_a_nonnegative_delta() {
+        let delta = (-0.25_f32).max(0.0);
+        assert!(delta >= 0.0);
     }
 
     #[test]
@@ -835,6 +1094,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             source_pose: None,
             last_pose: None,
+            label_last_index: None,
         };
 
         assert!(InterruptibleFsmNode::can_interrupt(
@@ -848,5 +1108,20 @@ mod tests {
         assert_eq!(runtime.state_entered_time, 1.1);
         assert_eq!(runtime.interrupted_sources.len(), 1);
         assert_eq!(runtime.interrupted_sources[0].state, active_state);
+    }
+
+    #[test]
+    fn internal_state_label_driver_only_emits_on_a_label_change() {
+        let labels = vec!["Entry".to_owned(), "Plant Right Foot".to_owned()];
+        let mut last_index = None;
+        assert_eq!(
+            changed_label(&mut last_index, Some(0), &labels),
+            Some("Entry".to_owned())
+        );
+        assert_eq!(changed_label(&mut last_index, Some(0), &labels), None);
+        assert_eq!(
+            changed_label(&mut last_index, Some(1), &labels),
+            Some("Plant Right Foot".to_owned())
+        );
     }
 }

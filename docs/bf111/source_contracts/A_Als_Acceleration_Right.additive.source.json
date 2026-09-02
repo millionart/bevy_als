@@ -1,0 +1,33 @@
+{
+  "format": "als_ue_asset_property_contract_v1",
+  "source_asset": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.A_Als_Acceleration_Right",
+  "asset_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.A_Als_Acceleration_Right",
+  "class_path": "/Script/Engine.AnimSequence",
+  "properties": [
+    {
+      "name": "AdditiveAnimType",
+      "exported_text": "AAT_LocalSpaceBase"
+    },
+    {
+      "name": "RefPoseType",
+      "exported_text": "ABPT_AnimFrame"
+    },
+    {
+      "name": "RefFrameIndex",
+      "exported_text": "0"
+    },
+    {
+      "name": "RefPoseSeq",
+      "exported_text": "/Script/Engine.AnimSequence'/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose'"
+    },
+    {
+      "name": "SequenceLength",
+      "exported_text": "1.000000"
+    },
+    {
+      "name": "Skeleton",
+      "exported_text": "/Script/Engine.Skeleton'/ALS/ALS/Character/SK_Als.SK_Als'"
+    }
+  ],
+  "sha256": "c5e8b45eca7d5dc59f95e9d52f2c1ca979da1c2c61ff0be9330594f3fa8233aa"
+}

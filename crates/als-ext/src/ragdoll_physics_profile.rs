@@ -120,13 +120,13 @@ pub struct RagdollPhysicsProfilePlugin;
 impl Plugin for RagdollPhysicsProfilePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            FixedPostUpdate,
+            PostUpdate,
             RagdollPhysicsProfileSet
                 .after(AnimationGraphSet::PrePhysics)
                 .before(PhysicsSystems::First),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             (apply_ragdoll_physics_profiles, ApplyDeferred)
                 .chain()
                 .in_set(RagdollPhysicsProfileSet),

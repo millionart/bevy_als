@@ -14,6 +14,8 @@ pub struct SourcePosePassthroughNode {
     pub output: String,
     pub input_time: String,
     pub output_time: bool,
+    pub source_function: String,
+    pub call_site: String,
 }
 
 impl Default for SourcePosePassthroughNode {
@@ -23,6 +25,8 @@ impl Default for SourcePosePassthroughNode {
             output: "Pose".to_owned(),
             input_time: "source_time".to_owned(),
             output_time: true,
+            source_function: default(),
+            call_site: default(),
         }
     }
 }
@@ -75,5 +79,6 @@ mod tests {
         assert_eq!(node.output, "Pose");
         assert_eq!(node.input_time, "source_time");
         assert!(node.output_time);
+        assert!(node.source_function.is_empty());
     }
 }

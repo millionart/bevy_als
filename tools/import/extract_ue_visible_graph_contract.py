@@ -1,4 +1,5 @@
 import argparse
+import copy
 import hashlib
 import json
 import re
@@ -7,11 +8,33 @@ from pathlib import Path
 
 
 FORMAT = "als_ue_visible_graph_contract_v2"
+VOLATILE_CANONICAL_KEYS = {"pin_id", "source_graph_sha256"}
+
+
+def canonical_value(value):
+    if isinstance(value, dict):
+        result = {
+            key: canonical_value(item)
+            for key, item in value.items()
+            if key not in VOLATILE_CANONICAL_KEYS
+        }
+        links = result.get("links")
+        if isinstance(links, list):
+            result["links"] = sorted(
+                links,
+                key=lambda item: json.dumps(
+                    item, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+                ),
+            )
+        return result
+    if isinstance(value, list):
+        return [canonical_value(item) for item in value]
+    return value
 
 
 def canonical_hash(value):
     encoded = json.dumps(
-        value,
+        canonical_value(value),
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
@@ -200,9 +223,22 @@ def run_self_test():
         output = Path(directory) / "contract.json"
         write_json(output, value)
         assert read_json(output) == value
+    regenerated = copy.deepcopy(source)
+    regenerated["graphs"][0]["nodes"][0]["pins"][0]["pin_id"] = "regenerated-source-pin"
+    regenerated["graphs"][0]["nodes"][0]["pins"][0]["linked_to"][0]["pin_id"] = "regenerated-target-pin"
+    assert canonical_hash(value) == canonical_hash(contract(regenerated, "AnimGraph"))
+    reordered = copy.deepcopy(value)
+    alternate = copy.deepcopy(reordered["links"][0])
+    alternate["target"]["pin_name"] = "Alternate"
+    reordered["links"].append(alternate)
+    permuted = copy.deepcopy(reordered)
+    permuted["links"] = list(reversed(permuted["links"]))
+    assert canonical_hash(reordered) == canonical_hash(permuted)
     return {
         "complete_source_graph_preserved": "PASS",
         "pin_links_preserved": "PASS",
+        "volatile_pin_ids_ignored_for_freshness": "PASS",
+        "link_order_ignored_for_freshness": "PASS",
         "round_trip": "PASS",
     }
 
@@ -244,11 +280,7 @@ def main():
     if not args.output.is_file():
         raise ValueError("source graph contract is missing")
     current = read_json(args.output)
-    differences = [
-        key
-        for key in sorted(set(generated) | set(current))
-        if generated.get(key) != current.get(key)
-    ]
+    differences = [] if canonical_hash(generated) == canonical_hash(current) else ["semantic"]
     print(
         json.dumps(
             {

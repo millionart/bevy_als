@@ -21,8 +21,11 @@ pub struct AlsGaitLayerSet;
 
 impl Plugin for GaitLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(PostUpdate, AlsGaitLayerSet.before(AnimationGraphSet::Final))
-            .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
+        app.configure_sets(
+            PostUpdate,
+            AlsGaitLayerSet.before(AnimationGraphSet::PrePhysics),
+        )
+        .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
     }
 }
 

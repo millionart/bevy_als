@@ -1,0 +1,20 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-008ab3011cb9e9fd.source.json",
+  "target_graph": "tools/animgraph_authoring/ab_als_standing.transition_conditions/ue_source_transition_01_008ab3011cb9.animgraph.ron",
+  "target_spec": "target/bf111/source_specs/ab_als_standing.transition.ue_source_transition_01_008ab3011cb9.visible.json",
+  "node_map": [],
+  "root_output_pins": [
+    {
+      "source": "bCanEnterTransition",
+      "target": "Can Enter Transition",
+      "target_binding": "GetParent.StandingState.bPivotActive",
+      "target_root_input": "Passthrough(\"GetParent.StandingState.bPivotActive\")",
+      "source_default": "False",
+      "target_default_contains": "Passthrough(\"GetParent.StandingState.bPivotActive\"): Bool(false)"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved nonfunctional editor comment omission."
+}

@@ -28,6 +28,14 @@ pub struct TwoBoneSolve {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BasicTwoBoneSolve {
+    pub hip_rotation_world: Quat,
+    pub knee_rotation_world: Quat,
+    pub knee_position: Vec3,
+    pub effector_position: Vec3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PoleVector {
     pub projection: Vec3,
     pub direction: Vec3,
@@ -56,6 +64,147 @@ fn perpendicular_fallback(axis: Vec3, pole: Vec3) -> Vec3 {
         let helper = if axis.x.abs() < 0.9 { Vec3::X } else { Vec3::Y };
         axis.cross(helper).normalize()
     }
+}
+
+fn source_fallback_bend_direction(axis: Vec3) -> Vec3 {
+    let reference = if axis.y.abs() > axis.x.abs() && axis.y.abs() > axis.z.abs() {
+        Vec3::X
+    } else {
+        Vec3::Y
+    };
+    let first = (reference - axis * reference.dot(axis)).normalize_or_zero();
+    axis.cross(first).normalize_or_zero()
+}
+
+fn rotation_between_normals(from: Vec3, to: Vec3) -> Option<Quat> {
+    let from = from.try_normalize()?;
+    let to = to.try_normalize()?;
+    Some(Quat::from_rotation_arc(from, to).normalize())
+}
+
+fn weighted_rotation(rotation: Quat, weight: f32) -> Quat {
+    Quat::IDENTITY.slerp(rotation, weight.clamp(0.0, 1.0))
+}
+
+fn align_secondary_axis(
+    rotation: Quat,
+    secondary_axis: Vec3,
+    target_axis: Vec3,
+    target: Vec3,
+    weight: f32,
+) -> Quat {
+    if weight <= MIN_DISTANCE {
+        return rotation;
+    }
+    let axis = rotation * secondary_axis;
+    let target = target - target_axis * target.dot(target_axis);
+    let Some(rotation_delta) = rotation_between_normals(axis, target) else {
+        return rotation;
+    };
+    (weighted_rotation(rotation_delta, weight) * rotation).normalize()
+}
+
+pub fn solve_basic_two_bone_ik(
+    hip: Vec3,
+    hip_rotation: Quat,
+    _knee: Vec3,
+    target: Vec3,
+    pole: Vec3,
+    upper_len: f32,
+    lower_len: f32,
+    primary_axis: Vec3,
+    secondary_axis: Vec3,
+    secondary_axis_weight: f32,
+) -> Option<BasicTwoBoneSolve> {
+    if upper_len <= MIN_DISTANCE || lower_len <= MIN_DISTANCE {
+        return None;
+    }
+    let desired_delta = target - hip;
+    let desired_length = desired_delta.length();
+    let desired_dir = if desired_length <= MIN_DISTANCE {
+        Vec3::X
+    } else {
+        desired_delta / desired_length
+    };
+    let pole_delta = pole - hip;
+    let bend_dir = if pole_delta.length_squared() <= MIN_DISTANCE * MIN_DISTANCE {
+        Vec3::Z
+    } else {
+        let projected = pole_delta - desired_dir * pole_delta.dot(desired_dir);
+        projected
+            .try_normalize()
+            .unwrap_or_else(|| source_fallback_bend_direction(desired_dir))
+    };
+    let max_length = upper_len + lower_len;
+    let (knee_position, effector_position) = if desired_length >= max_length {
+        (
+            hip + desired_dir * upper_len,
+            hip + desired_dir * max_length,
+        )
+    } else {
+        let denominator = 2.0 * upper_len * desired_length.max(MIN_DISTANCE);
+        let cosine = (upper_len * upper_len + desired_length * desired_length
+            - lower_len * lower_len)
+            / denominator;
+        let reverse_upper = cosine < 0.0;
+        let angle = cosine.clamp(-1.0, 1.0).acos();
+        let joint_line_distance = upper_len * angle.sin();
+        let mut projected_distance = (upper_len * upper_len
+            - joint_line_distance * joint_line_distance)
+            .max(0.0)
+            .sqrt();
+        if reverse_upper {
+            projected_distance = -projected_distance;
+        }
+        (
+            hip + desired_dir * projected_distance + bend_dir * joint_line_distance,
+            target,
+        )
+    };
+
+    let upper_target_axis = (knee_position - hip).try_normalize()?;
+    let fully_extended = (effector_position - hip)
+        .try_normalize()
+        .is_some_and(|axis| (axis.dot(upper_target_axis) - 1.0).abs() < 1e-4);
+    let upper_primary_axis = hip_rotation * primary_axis;
+    let upper_primary_rotation = rotation_between_normals(upper_primary_axis, upper_target_axis)?;
+    let mut solved_hip_rotation = (upper_primary_rotation * hip_rotation).normalize();
+    let upper_secondary_target = if fully_extended {
+        pole - hip
+    } else {
+        knee_position - (effector_position + hip) * 0.5
+    };
+    solved_hip_rotation = align_secondary_axis(
+        solved_hip_rotation,
+        secondary_axis,
+        upper_target_axis,
+        upper_secondary_target,
+        secondary_axis_weight,
+    );
+
+    let lower_target_axis = (effector_position - knee_position).try_normalize()?;
+    let lower_primary_axis = hip_rotation * primary_axis;
+    let lower_primary_rotation = rotation_between_normals(lower_primary_axis, lower_target_axis)?;
+    let mut solved_knee_rotation = (lower_primary_rotation * hip_rotation).normalize();
+    let lower_secondary_target = if fully_extended {
+        pole - knee_position
+    } else {
+        knee_position - (effector_position + hip) * 0.5
+    };
+    solved_knee_rotation = align_secondary_axis(
+        solved_knee_rotation,
+        secondary_axis,
+        lower_target_axis,
+        lower_secondary_target,
+        secondary_axis_weight,
+    );
+
+    Some(BasicTwoBoneSolve {
+        hip_rotation_world: solved_hip_rotation,
+        knee_rotation_world: solved_knee_rotation,
+        knee_position,
+        effector_position,
+    })
 }
 
 pub fn calculate_pole_vector(hip: Vec3, knee: Vec3, ankle: Vec3) -> Option<PoleVector> {
@@ -279,6 +428,130 @@ mod tests {
         let solve_fwd = solve_two_bone_ik(HIP, knee, ankle, target, UPPER, LOWER, Vec3::Z).unwrap();
         assert!(solve_fwd.knee_position.z > 1e-3, "bend toward +Z pole");
         assert!(solve_fwd.knee_position.y > target.y);
+    }
+
+    #[test]
+    fn basic_two_bone_solver_aligns_primary_and_secondary_axes() {
+        let hip = Vec3::ZERO;
+        let knee = Vec3::X * UPPER;
+        let target = Vec3::new(0.66, 0.08, 0.26);
+        let pole = Vec3::new(0.15, 0.35, 0.65);
+        let solve = solve_basic_two_bone_ik(
+            hip,
+            Quat::IDENTITY,
+            knee,
+            target,
+            pole,
+            UPPER,
+            LOWER,
+            Vec3::X,
+            Vec3::Z,
+            1.0,
+        )
+        .unwrap();
+        let upper_axis = (solve.knee_position - hip).normalize();
+        let upper_secondary = (solve.knee_position - (solve.effector_position + hip) * 0.5)
+            .reject_from_normalized(upper_axis)
+            .normalize();
+        let lower_axis = (solve.effector_position - solve.knee_position).normalize();
+        let lower_secondary = (solve.knee_position - (solve.effector_position + hip) * 0.5)
+            .reject_from_normalized(lower_axis)
+            .normalize();
+        assert!((solve.hip_rotation_world * Vec3::X).dot(upper_axis) > 0.9999);
+        assert!((solve.hip_rotation_world * Vec3::Z).dot(upper_secondary) > 0.9999);
+        assert!((solve.knee_rotation_world * Vec3::X).dot(lower_axis) > 0.9999);
+        assert!((solve.knee_rotation_world * Vec3::Z).dot(lower_secondary) > 0.9999);
+    }
+
+    #[test]
+    fn basic_two_bone_solver_uses_pole_for_fully_extended_secondary_axes() {
+        let hip = Vec3::ZERO;
+        let knee = Vec3::X * UPPER;
+        let target = Vec3::X * 3.0;
+        let pole = Vec3::new(0.0, 0.3, 1.0);
+        let solve = solve_basic_two_bone_ik(
+            hip,
+            Quat::IDENTITY,
+            knee,
+            target,
+            pole,
+            UPPER,
+            LOWER,
+            Vec3::X,
+            Vec3::Z,
+            1.0,
+        )
+        .unwrap();
+        let upper_pole = pole.reject_from_normalized(Vec3::X).normalize();
+        let lower_pole = (pole - solve.knee_position)
+            .reject_from_normalized(Vec3::X)
+            .normalize();
+        assert!((solve.hip_rotation_world * Vec3::X).dot(Vec3::X) > 0.9999);
+        assert!((solve.knee_rotation_world * Vec3::X).dot(Vec3::X) > 0.9999);
+        assert!((solve.hip_rotation_world * Vec3::Z).dot(upper_pole) > 0.9999);
+        assert!((solve.knee_rotation_world * Vec3::Z).dot(lower_pole) > 0.9999);
+        assert!((solve.effector_position.x - (UPPER + LOWER)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn basic_two_bone_solver_preserves_a_translated_pole_location() {
+        let local_hip = Vec3::ZERO;
+        let local_knee = Vec3::X * UPPER;
+        let local_target = Vec3::new(0.64, 0.12, 0.22);
+        let local_pole = Vec3::new(0.08, 0.36, 0.58);
+        let local = solve_basic_two_bone_ik(
+            local_hip,
+            Quat::IDENTITY,
+            local_knee,
+            local_target,
+            local_pole,
+            UPPER,
+            LOWER,
+            Vec3::X,
+            Vec3::Z,
+            1.0,
+        )
+        .unwrap();
+        let translation = Vec3::new(6.0, -1.5, 9.0);
+        let translated = solve_basic_two_bone_ik(
+            local_hip + translation,
+            Quat::IDENTITY,
+            local_knee + translation,
+            local_target + translation,
+            local_pole + translation,
+            UPPER,
+            LOWER,
+            Vec3::X,
+            Vec3::Z,
+            1.0,
+        )
+        .unwrap();
+        assert!(
+            translated
+                .knee_position
+                .distance(local.knee_position + translation)
+                < 1e-5
+        );
+        assert!(
+            translated
+                .effector_position
+                .distance(local.effector_position + translation)
+                < 1e-5
+        );
+        assert!(
+            translated
+                .hip_rotation_world
+                .dot(local.hip_rotation_world)
+                .abs()
+                > 0.999_99
+        );
+        assert!(
+            translated
+                .knee_rotation_world
+                .dot(local.knee_rotation_world)
+                .abs()
+                > 0.999_99
+        );
     }
 
     #[test]

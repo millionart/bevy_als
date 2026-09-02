@@ -32,14 +32,14 @@ pub struct RagdollAngularDrivePlugin;
 impl Plugin for RagdollAngularDrivePlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            FixedPostUpdate,
+            PostUpdate,
             RagdollAngularDriveSet
                 .after(AnimationGraphSet::PrePhysics)
                 .after(RagdollPhysicsProfileSet)
                 .before(PhysicsSystems::First),
         )
         .add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             apply_ragdoll_angular_drive.in_set(RagdollAngularDriveSet),
         );
     }

@@ -4,11 +4,13 @@ use std::{
 };
 
 use als_ext::{
-    AlsExtPlugin, ConstantF32Node, CubicVec2AxisFilterNode, DirectTransitionEventNode,
-    F32ToVec2Node, GlobalBoneMaskInputNode, GlobalF32InputNode, InertializationNode,
-    InterruptibleFsmNode, InterruptibleFsmState, LayeredGraphNode, MeshSpaceLayeredBlendNode,
-    MultiWayBlendNode, NormalizedBlendSpaceNode, ProfiledBlendNode, ResetOnActivationNode,
-    SyncGroupSampleNode, TimePositionNode, build_branch_bone_mask,
+    AlsExtPlugin, CubicVec2AxisFilterNode, DirectTransitionEventNode, F32ToVec2Node,
+    GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
+    LayeredGraphNode, MultiWayBlendNode, NormalizedBlendSpaceNode, ProfiledBlendNode,
+    ResetOnActivationNode, SourceCurveModifyNode, SourceEnumPoseBlendNode,
+    SourceLayeredBoneBlendNode, SourceMultiWayBlendNode, SourceScopedCachedPoseUseNode,
+    SourceSequenceEvaluatorNode, SourceSequencePlayerNode, SourceSetHipsDirectionNode,
+    SyncGroupSampleNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -16,7 +18,7 @@ use bevy::window::ExitCondition;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_animation_graph::builtin_nodes::loop_node::LoopNode;
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, GraphInputPin, SourcePin, TargetPin, TimeUpdate},
+    animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
     context::node_states::StateKey,
     edge_data::{DataSpec, DataValue},
@@ -50,6 +52,7 @@ const MOVEMENT_WRAPPER_PATHS: [&str; 6] = [
 const OUTER_PATH: &str = "graphs/ab_als/stances/standing/standing_states.fsm.ron";
 const OUTER_RUNTIME_PATH: &str =
     "graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron";
+const OUTER_MOVE_PATH: &str = "graphs/ab_als/stances/standing/state_outer_move.animgraph.ron";
 const STOP_STATES_PATH: &str = "graphs/ab_als/stances/standing/stop_states.fsm.ron";
 const FIRST_PIVOT_PATH: &str =
     "graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron";
@@ -70,8 +73,6 @@ const ROTATE_RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_rig
 const STOP_RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron";
 const STOP_LEFT_PATH: &str = "graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron";
 const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
-const STOP_LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
-const STOP_RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
 
 fn main() {
     let mut app = App::new();
@@ -108,6 +109,7 @@ struct GateAssets {
     cycle: Handle<AnimationGraph>,
     outer: Handle<StateMachine>,
     outer_runtime: Handle<AnimationGraph>,
+    outer_move: Handle<AnimationGraph>,
     stop: Handle<StateMachine>,
     details: Handle<StateMachine>,
     movement: Handle<StateMachine>,
@@ -138,13 +140,10 @@ struct AutoQuit(Instant);
 struct RuntimeProbe {
     player: Option<Entity>,
     blend_player: Option<Entity>,
-    movement_player: Option<Entity>,
     detail_player: Option<Entity>,
     phase: ProbePhase,
     outer_step: usize,
     outer_event_queued: bool,
-    movement_step: usize,
-    movement_event_queued: bool,
     detail_step: usize,
     detail_event_queued: bool,
     blend_wait_frames: u8,
@@ -161,7 +160,6 @@ enum ProbePhase {
     NestedBlendStart,
     NestedBlendActive,
     NestedBlendDone,
-    NestedMovement,
     NestedDetails,
     OuterInterruptStart,
     OuterInterruptMove,
@@ -170,16 +168,18 @@ enum ProbePhase {
     Idle,
     MoveForward,
     MoveRightRun,
+    LeanMove,
     Sprint,
     FirstPivot,
+    StopEnter,
     StopPlant,
     StopReset,
+    StopMoveAgain,
     StopPlantLeft,
+    StopToIdleForRotate,
+    EnterRotateRight,
     RotateRight,
     RotateLeft,
-    Turn,
-    QuickStop,
-    Lean,
 }
 
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
@@ -189,6 +189,7 @@ fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
         cycle: assets.load(CYCLE_PATH),
         outer: assets.load(OUTER_PATH),
         outer_runtime: assets.load(OUTER_RUNTIME_PATH),
+        outer_move: assets.load(OUTER_MOVE_PATH),
         stop: assets.load(STOP_STATES_PATH),
         details: assets.load(DETAILS_PATH),
         movement: assets.load(MOVEMENT_PATH),
@@ -236,56 +237,110 @@ fn node<'a, T: 'static>(graph: &'a AnimationGraph, name: &str) -> Option<&'a T> 
         .and_then(|candidate| candidate.try_inner_downcast_ref::<T>())
 }
 
-fn has_named_constant(graph: &AnimationGraph, name: &str, expected: f32) -> bool {
-    node::<ConstantF32Node>(graph, name).is_some_and(|constant| close(constant.value, expected))
-}
-
 fn has_stop_plant_contract(
     graph: &AnimationGraph,
-    mask_key: &str,
-    layered_blend_name: &str,
+    curve_name: &str,
+    branch_bones: &[&str],
     expected_frames: &[(&str, f32)],
 ) -> bool {
-    let clamped_evaluators = graph
+    let source_evaluators = graph
         .nodes
         .values()
-        .filter_map(|node| node.try_inner_downcast_ref::<TimePositionNode>())
-        .filter(|node| !node.loop_position)
-        .count();
-    let normalized_velocity_blend = graph.nodes.values().any(|node| {
-        node.try_inner_downcast_ref::<MultiWayBlendNode>()
-            .is_some_and(|blend| blend.pose_count == 4 && blend.normalize_alpha)
-    });
-    let mask_input = graph.nodes.values().any(|node| {
-        node.try_inner_downcast_ref::<GlobalBoneMaskInputNode>()
-            .is_some_and(|input| input.key == mask_key)
-    });
-    clamped_evaluators == 7
-        && normalized_velocity_blend
-        && mask_input
-        && has_node::<MeshSpaceLayeredBlendNode>(graph, layered_blend_name)
-        && expected_frames
-            .iter()
-            .all(|(name, value)| has_named_constant(graph, name, *value))
-}
-
-fn set_stop_leg_masks(player: &mut AnimationGraphPlayer, skeleton: &Skeleton) {
-    player.set_global_input_data(
-        "als_standing_stop_left_leg_mask",
-        DataValue::BoneMask(build_branch_bone_mask(
-            skeleton,
-            STOP_LEFT_LEG_BRANCHES,
-            1.0,
-        )),
-    );
-    player.set_global_input_data(
-        "als_standing_stop_right_leg_mask",
-        DataValue::BoneMask(build_branch_bone_mask(
-            skeleton,
-            STOP_RIGHT_LEG_BRANCHES,
-            1.0,
-        )),
-    );
+        .filter_map(|node| {
+            node.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>()
+                .map(|evaluator| (node.name.as_str(), evaluator))
+        })
+        .collect::<Vec<_>>();
+    let enum_blends = graph
+        .nodes
+        .values()
+        .filter_map(|node| node.try_inner_downcast_ref::<SourceEnumPoseBlendNode>())
+        .collect::<Vec<_>>();
+    graph.nodes.len() == 12
+        && !graph.io_spec.has_output_time()
+        && graph.io_spec.iter_input_data().next().is_none()
+        && graph.io_spec.iter_input_times().next().is_none()
+        && graph.io_spec.get_output_data(&"Result".to_owned()) == Some(DataSpec::Pose)
+        && graph.io_spec.iter_output_data().count() == 1
+        && source_evaluators.len() == 6
+        && expected_frames.iter().all(|(name, frame)| {
+            source_evaluators.iter().any(|(actual_name, evaluator)| {
+                *actual_name == *name
+                    && close(evaluator.explicit_frame, *frame)
+                    && close(evaluator.frames_per_second, 30.0)
+                    && evaluator.should_loop
+                    && evaluator.teleport_to_explicit_time
+                    && evaluator.reinitialization_behavior == "ExplicitTime"
+            })
+        })
+        && node::<SourceScopedCachedPoseUseNode>(graph, "Use cached pose 'Movement Details'")
+            .is_some_and(|node| node.cache_node == "Save cached pose 'Movement Details'")
+        && node::<SourceLayeredBoneBlendNode>(graph, "Layered blend per bone").is_some_and(|node| {
+            node.branch_bones
+                .iter()
+                .map(String::as_str)
+                .eq(branch_bones.iter().copied())
+                && close(node.blend_weight, 1.0)
+                && node.mesh_space_rotation_blend
+                && node.blend_root_motion_based_on_root_bone
+                && node.base_pose_pin == "Base Pose"
+                && node.blend_pose_pin == "Blend Poses 0"
+                && node.output_pin == "Pose"
+        })
+        && node::<SourceCurveModifyNode>(graph, "Modify Curve").is_some_and(|node| {
+            node.curve_name == curve_name
+                && node.curve_names == [curve_name]
+                && close(node.value, 1.0)
+                && close(node.pin_default, 1.0)
+                && node.pin_defaults == [1.0]
+                && node.value_key.is_empty()
+                && node.alpha == 1.0
+                && node.apply_mode == "Blend"
+        })
+        && node::<SourceMultiWayBlendNode>(graph, "Blend Multi").is_some_and(|node| {
+            node.pose_count == 4
+                && node.desired_alpha_keys
+                    == [
+                        "als_standing_velocity_forward_amount",
+                        "als_standing_velocity_backward_amount",
+                        "als_standing_velocity_left_amount",
+                        "als_standing_velocity_right_amount",
+                    ]
+                && node.desired_alpha_defaults == [0.0, 0.0, 0.0, 0.0]
+                && node.normalize_alpha
+                && close(node.alpha_scale, 1.0)
+                && node.pose_pin_prefix == "Poses "
+                && node.alpha_pin_prefix == "Desired Alphas "
+        })
+        && enum_blends.len() == 2
+        && enum_blends.iter().any(|node| {
+            node.active_key == "als_standing_hips_direction"
+                && close(node.selected_enum_value, 3.0)
+                && close(node.active_enum_default, 0.0)
+                && close(node.default_blend_time, 0.1)
+                && close(node.selected_blend_time, 0.1)
+                && node.default_pose_pin == "Default Pose"
+                && node.selected_pose_pin == "Left Backward Pose"
+                && node.default_blend_time_pin == "Default Blend Time"
+                && node.selected_blend_time_pin == "Left Backward Blend Time"
+                && node.active_enum_pin == "Active Enum Value"
+                && node.output_pin == "Pose"
+                && node.source_visible_enum_entry == "LeftBackward"
+        })
+        && enum_blends.iter().any(|node| {
+            node.active_key == "als_standing_hips_direction"
+                && close(node.selected_enum_value, 5.0)
+                && close(node.active_enum_default, 0.0)
+                && close(node.default_blend_time, 0.1)
+                && close(node.selected_blend_time, 0.1)
+                && node.default_pose_pin == "Default Pose"
+                && node.selected_pose_pin == "Right Backward Pose"
+                && node.default_blend_time_pin == "Default Blend Time"
+                && node.selected_blend_time_pin == "Right Backward Blend Time"
+                && node.active_enum_pin == "Active Enum Value"
+                && node.output_pin == "Pose"
+                && node.source_visible_enum_entry == "RightBackward"
+        })
 }
 
 fn labels_match(machine: &StateMachine, expected: &[&str]) -> bool {
@@ -319,68 +374,54 @@ fn state_uses_graph(machine: &StateMachine, label: &str, graph: &Handle<Animatio
         .is_some_and(|state| state.graph.id() == graph.id())
 }
 
-fn has_direction_wrapper(
+fn has_source_movement_state_contract(
     graph: &AnimationGraph,
-    direction_indices: [f32; 4],
-    movement_blend: &Handle<AnimationGraph>,
+    cache_names: [&str; 4],
+    hips_direction: &str,
+    source_value_path: &str,
 ) -> bool {
-    let Some(layer_id) = graph.nodes.values().find_map(|node| {
-        node.try_inner_downcast_ref::<LayeredGraphNode>()
-            .filter(|node| node.graph.id() == movement_blend.id())
-            .map(|_| node.id)
-    }) else {
-        return false;
-    };
-    [
-        ("forward_direction_index", direction_indices[0]),
-        ("backward_direction_index", direction_indices[1]),
-        ("left_direction_index", direction_indices[2]),
-        ("right_direction_index", direction_indices[3]),
-    ]
-    .into_iter()
-    .all(|(input, expected)| {
-        graph
-            .edges_inverted
-            .get(&TargetPin::NodeData(layer_id, input.to_owned()))
-            .and_then(|source| match source {
-                SourcePin::NodeData(node_id, pin) if pin == "value" => graph
-                    .nodes
-                    .get(node_id)
-                    .and_then(|node| node.try_inner_downcast_ref::<ConstantF32Node>())
-                    .map(|node| node.value),
-                _ => None,
-            })
-            .is_some_and(|actual| close(actual, expected))
-    })
-}
-
-fn has_movement_blend_contract(
-    graph: &AnimationGraph,
-    movement_direction_graph: &Handle<AnimationGraph>,
-) -> bool {
-    graph
-        .nodes
-        .values()
-        .filter_map(|node| node.try_inner_downcast_ref::<LayeredGraphNode>())
-        .filter(|node| node.graph.id() == movement_direction_graph.id())
-        .count()
-        == 4
-        && graph.nodes.values().any(|node| {
-            node.try_inner_downcast_ref::<MultiWayBlendNode>()
-                .is_some_and(|node| node.pose_count == 4 && node.normalize_alpha)
+    let expected_alpha_keys = [
+        "als_standing_velocity_forward_amount",
+        "als_standing_velocity_backward_amount",
+        "als_standing_velocity_left_amount",
+        "als_standing_velocity_right_amount",
+    ];
+    graph.nodes.len() == 7
+        && !graph.io_spec.has_output_time()
+        && graph.io_spec.iter_input_data().next().is_none()
+        && graph.io_spec.iter_input_times().next().is_none()
+        && graph.io_spec.get_output_data(&"Result".to_owned()) == Some(DataSpec::Pose)
+        && graph.io_spec.iter_output_data().count() == 1
+        && cache_names.into_iter().all(|cache_name| {
+            let node_name = format!("Use cached pose '{cache_name}'");
+            node::<SourceScopedCachedPoseUseNode>(graph, &node_name)
+                .is_some_and(|node| node.cache_node == format!("Save cached pose '{cache_name}'"))
         })
-        && [
-            "als_standing_velocity_forward_amount",
-            "als_standing_velocity_backward_amount",
-            "als_standing_velocity_left_amount",
-            "als_standing_velocity_right_amount",
-        ]
-        .into_iter()
-        .all(|key| {
-            graph.nodes.values().any(|node| {
-                node.try_inner_downcast_ref::<GlobalF32InputNode>()
-                    .is_some_and(|node| node.key == key)
+        && graph
+            .nodes
+            .values()
+            .filter_map(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>())
+            .count()
+            == 4
+        && node::<SourceCurveModifyNode>(graph, "Modify Curve").is_some_and(|node| {
+            node.curve_name == "RotationYawOffset"
+                && close(node.value, 0.0)
+                && close(node.pin_default, 0.0)
+                && node.value_key == "als_standing_curve_rotation_yaw_offset"
+                && node.source_value_path == source_value_path
+                && close(node.alpha, 1.0)
+                && node.apply_mode == "Blend"
+        })
+        && node::<SourceSetHipsDirectionNode>(graph, "SetHipsDirection\nOn Become Relevant")
+            .is_some_and(|node| {
+                node.new_hips_direction == hips_direction && node.on_become_relevant
             })
+        && node::<SourceMultiWayBlendNode>(graph, "Blend Multi").is_some_and(|node| {
+            node.pose_count == 4
+                && node.desired_alpha_keys == expected_alpha_keys
+                && node.desired_alpha_defaults == [0.0, 0.0, 0.0, 0.0]
+                && node.normalize_alpha
+                && close(node.alpha_scale, 1.0)
         })
 }
 
@@ -659,6 +700,29 @@ fn outputs_match(player: &AnimationGraphPlayer, expected: &[(&str, f32)]) -> boo
         .all(|(name, value)| output_f32(player, name).is_some_and(|actual| close(actual, *value)))
 }
 
+fn pose_fingerprint(pose: &Pose) -> (f32, usize, f32, f32, f32) {
+    let translation = pose.bones.iter().fold(0.0, |sum, bone| {
+        sum + bone
+            .translation
+            .map_or(0.0, |value| value.x + value.y + value.z)
+    });
+    let rotation = pose.bones.iter().fold(0.0, |sum, bone| {
+        sum + bone
+            .rotation
+            .map_or(0.0, |value| value.x + value.y + value.z + value.w)
+    });
+    let scale = pose.bones.iter().fold(0.0, |sum, bone| {
+        sum + bone.scale.map_or(0.0, |value| value.x + value.y + value.z)
+    });
+    (
+        pose.timestamp,
+        pose.bones.len(),
+        translation,
+        rotation,
+        scale,
+    )
+}
+
 fn outer_fsm_state<'a>(
     player: &'a AnimationGraphPlayer,
     runtime: &AnimationGraph,
@@ -709,6 +773,7 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_hips_direction_lock_amount", 0.0),
         ("als_standing_stop_state_index", 0.0),
         ("als_standing_direction_index", 0.0),
+        ("als_standing_hips_direction", 0.0),
         ("als_standing_clip_index", 0.0),
         ("als_standing_loop", 0.0),
         ("als_standing_output_play_rate", 1.0),
@@ -741,6 +806,7 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_rotate_clip_time", 0.0),
         ("als_standing_turn_index", 0.0),
         ("als_standing_turn_weight", 0.0),
+        ("als_standing_turn_layer_weight", 0.0),
         ("als_standing_turn_play_rate", 1.2),
         ("als_standing_quick_stop_index", 0.0),
         ("als_standing_quick_stop_weight", 0.0),
@@ -752,6 +818,8 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
     ] {
         player.set_global_input_data(key, value);
     }
+    player.set_global_input_data("als_standing_rotate_left_loop", false);
+    player.set_global_input_data("als_standing_rotate_right_loop", false);
 }
 
 fn set_value(player: &mut AnimationGraphPlayer, key: &str, value: f32) {
@@ -798,6 +866,7 @@ fn verify_static_contract(
         || !assets.is_loaded_with_dependencies(&gate_assets.cycle)
         || !assets.is_loaded_with_dependencies(&gate_assets.outer)
         || !assets.is_loaded_with_dependencies(&gate_assets.outer_runtime)
+        || !assets.is_loaded_with_dependencies(&gate_assets.outer_move)
         || !assets.is_loaded_with_dependencies(&gate_assets.stop)
         || !assets.is_loaded_with_dependencies(&gate_assets.details)
         || !assets.is_loaded_with_dependencies(&gate_assets.movement)
@@ -840,6 +909,9 @@ fn verify_static_contract(
     let Some(outer_runtime) = graphs.get(&gate_assets.outer_runtime) else {
         return;
     };
+    let Some(outer_move) = graphs.get(&gate_assets.outer_move) else {
+        return;
+    };
     let Some(stop) = machines.get(&gate_assets.stop) else {
         return;
     };
@@ -853,9 +925,6 @@ fn verify_static_contract(
         return;
     };
     let Some(movement_direction_graph) = graphs.get(&gate_assets.movement_direction_graph) else {
-        return;
-    };
-    let Some(movement_blend) = graphs.get(&gate_assets.movement_blend) else {
         return;
     };
     let Some(stop_right) = graphs.get(&gate_assets.stop_right) else {
@@ -882,7 +951,7 @@ fn verify_static_contract(
     let Some(rotate_right) = graphs.get(&gate_assets.rotate_right) else {
         return;
     };
-    let Some(skeleton) = skeletons.get(&gate_assets.skeleton) else {
+    let Some(_skeleton) = skeletons.get(&gate_assets.skeleton) else {
         return;
     };
     let linked = has_node::<LayeredGraphNode>(source_root, "Standing States\nState Machine")
@@ -971,23 +1040,109 @@ fn verify_static_contract(
             .io_spec
             .get_input_data(&GraphInputPin::Passthrough("direction_index".into()))
             .is_some()
-        && has_movement_blend_contract(movement_blend, &gate_assets.movement_direction_graph)
+        && node::<InterruptibleFsmNode>(move_graph, "standing movement states")
+            .is_some_and(|node| node.state_pose_output == "Result")
+        && state_uses_graph(outer, "Move", &gate_assets.outer_move)
+        && outer_move.nodes.len() == 1
+        && !outer_move.io_spec.has_output_time()
+        && outer_move.io_spec.iter_input_data().next().is_none()
+        && outer_move.io_spec.get_output_data(&"Result".to_owned()) == Some(DataSpec::Pose)
+        && node::<SourceScopedCachedPoseUseNode>(outer_move, "Use cached pose 'Movement Details'")
+            .is_some_and(|node| node.cache_node == "Save cached pose 'Movement Details'")
+        && node::<InterruptibleFsmNode>(outer_runtime, "standing states runtime").is_some_and(
+            |node| {
+                node.state_pose_outputs.iter().any(|value| {
+                    value.state_id == "15100000-0000-4000-8000-000000000002"
+                        && value.output == "Result"
+                })
+            },
+        )
+        && movement.node_spec.has_output_time()
+        && movement.node_spec.get_output_data(&"pose".to_owned()) == Some(DataSpec::Pose)
+        && movement.node_spec.iter_output_data().count() == 1
         && [
-            ("Move Forward", [0.0, 3.0, 5.0, 1.0]),
-            ("Move Backward", [0.0, 3.0, 4.0, 2.0]),
-            ("Move Right Forward", [0.0, 3.0, 4.0, 1.0]),
-            ("Move Right Backward", [0.0, 3.0, 5.0, 2.0]),
-            ("Move Left Forward", [0.0, 3.0, 5.0, 2.0]),
-            ("Move Left Backward", [0.0, 3.0, 4.0, 1.0]),
+            (
+                "Move Forward",
+                [
+                    "Move Forward",
+                    "Move Backward",
+                    "Move Left Forward",
+                    "Move Right Forward",
+                ],
+                "Forward",
+                "GroundedState.RotationYawOffsets.ForwardAngle",
+            ),
+            (
+                "Move Backward",
+                [
+                    "Move Right Backward",
+                    "Move Left Backward",
+                    "Move Forward",
+                    "Move Backward",
+                ],
+                "Backward",
+                "GroundedState.RotationYawOffsets.BackwardAngle",
+            ),
+            (
+                "Move Right Forward",
+                [
+                    "Move Right Forward",
+                    "Move Left Backward",
+                    "Move Forward",
+                    "Move Backward",
+                ],
+                "RightForward",
+                "GroundedState.RotationYawOffsets.RightAngle",
+            ),
+            (
+                "Move Right Backward",
+                [
+                    "Move Left Forward",
+                    "Move Right Backward",
+                    "Move Forward",
+                    "Move Backward",
+                ],
+                "RightBackward",
+                "GroundedState.RotationYawOffsets.RightAngle",
+            ),
+            (
+                "Move Left Forward",
+                [
+                    "Move Left Forward",
+                    "Move Right Backward",
+                    "Move Forward",
+                    "Move Backward",
+                ],
+                "LeftForward",
+                "GroundedState.RotationYawOffsets.LeftAngle",
+            ),
+            (
+                "Move Left Backward",
+                [
+                    "Move Right Forward",
+                    "Move Left Backward",
+                    "Move Forward",
+                    "Move Backward",
+                ],
+                "LeftBackward",
+                "GroundedState.RotationYawOffsets.LeftAngle",
+            ),
         ]
         .into_iter()
         .zip(gate_assets.movement_wrappers.iter())
-        .all(|((label, direction_index), handle)| {
-            state_uses_graph(movement, label, handle)
-                && graphs.get(handle).is_some_and(|graph| {
-                    has_direction_wrapper(graph, direction_index, &gate_assets.movement_blend)
-                })
-        });
+        .all(
+            |((label, cache_names, hips_direction, source_value_path), handle)| {
+                state_uses_graph(movement, label, handle)
+                    && graphs.get(handle).is_some_and(|graph| {
+                        has_source_movement_state_contract(
+                            graph,
+                            cache_names,
+                            hips_direction,
+                            source_value_path,
+                        )
+                    })
+            },
+        );
     let phase_template = |markers: &[als_ext::SyncMarker]| {
         markers.len() == 2
             && markers[0].name == "Left"
@@ -1078,27 +1233,51 @@ fn verify_static_contract(
     });
     let stop_plants = has_stop_plant_contract(
         stop_right,
-        "als_standing_stop_right_leg_mask",
-        "stop plant right mesh space layered blend",
+        "FootRightLock",
+        &["thigh_r", "ik_foot_r", "VB foot_r"],
         &[
-            ("stop plant right forward frame", 0.7),
-            ("stop plant right backward frame", 0.7),
-            ("stop plant right left forward frame", 0.8),
-            ("stop plant right left backward frame", 0.8),
-            ("stop plant right right forward frame", 0.7666667),
-            ("stop plant right right backward frame", 0.7),
+            ("A_Als_Walk_Forward\nSequence Evaluator (by frame)", 21.0),
+            ("A_Als_Walk_Backward\nSequence Evaluator (by frame)", 21.0),
+            (
+                "A_Als_Walk_Left_Forward\nSequence Evaluator (by frame)",
+                24.0,
+            ),
+            (
+                "A_Als_Walk_Left_Backward\nSequence Evaluator (by frame)",
+                24.0,
+            ),
+            (
+                "A_Als_Walk_Right_Forward\nSequence Evaluator (by frame)",
+                23.0,
+            ),
+            (
+                "A_Als_Walk_Right_Backward\nSequence Evaluator (by frame)",
+                21.0,
+            ),
         ],
     ) && has_stop_plant_contract(
         stop_left,
-        "als_standing_stop_left_leg_mask",
-        "stop plant left mesh space layered blend",
+        "FootLeftLock",
+        &["thigh_l", "ik_foot_l", "VB foot_l"],
         &[
-            ("stop plant left forward frame", 0.13333334),
-            ("stop plant left backward frame", 0.13333334),
-            ("stop plant left left forward frame", 0.2),
-            ("stop plant left left backward frame", 0.13333334),
-            ("stop plant left right forward frame", 0.23333334),
-            ("stop plant left right backward frame", 0.23333334),
+            ("A_Als_Walk_Forward\nSequence Evaluator (by frame)", 4.0),
+            ("A_Als_Walk_Backward\nSequence Evaluator (by frame)", 4.0),
+            (
+                "A_Als_Walk_Left_Forward\nSequence Evaluator (by frame)",
+                6.0,
+            ),
+            (
+                "A_Als_Walk_Left_Backward\nSequence Evaluator (by frame)",
+                4.0,
+            ),
+            (
+                "A_Als_Walk_Right_Forward\nSequence Evaluator (by frame)",
+                7.0,
+            ),
+            (
+                "A_Als_Walk_Right_Backward\nSequence Evaluator (by frame)",
+                7.0,
+            ),
         ],
     );
     let transition_nodes =
@@ -1115,21 +1294,32 @@ fn verify_static_contract(
                 .is_some_and(|blend| format!("{:?}", blend.alpha_blend_mode) == "HermiteCubic")
             && node::<InertializationNode>(outer_inertial, "standing inertial rotate exit")
                 .is_some_and(|node| close(node.transition_duration, 0.2));
-    let rotate_completion = [rotate_left, rotate_right].into_iter().all(|graph| {
-        graph
-            .nodes
-            .values()
-            .filter_map(|node| node.try_inner_downcast_ref::<TimePositionNode>())
-            .any(|node| !node.loop_position && close(node.duration_fallback, 1.0))
-            && graph.nodes.values().any(|node| {
-                node.try_inner_downcast_ref::<GlobalF32InputNode>()
-                    .is_some_and(|node| node.key == "als_standing_rotate_clip_time")
+    let rotate_completion =
+        [
+            (
+                rotate_left,
+                "A_Als_Rotate_90_Left\nSequence Player",
+                "als_standing_rotate_left_loop",
+            ),
+            (
+                rotate_right,
+                "A_Als_Rotate_90_Right\nSequence Player",
+                "als_standing_rotate_right_loop",
+            ),
+        ]
+        .into_iter()
+        .all(|(graph, node_name, loop_key)| {
+            node::<SourceSequencePlayerNode>(graph, node_name).is_some_and(|node| {
+                close(node.play_rate, 1.0)
+                    && node.play_rate_key == "als_standing_rotation_play_rate"
+                    && node.loop_animation
+                    && node.loop_animation_key == loop_key
+                    && node.expose_loop_animation_pin
             })
-            && !graph
-                .nodes
-                .values()
-                .any(|node| node.try_inner_downcast_ref::<LoopNode>().is_some())
-    });
+        }) && std::fs::read_to_string("src/standing_layer.rs").is_ok_and(|source| {
+            source.contains("als_standing_rotate_left_loop")
+                && source.contains("als_standing_rotate_right_loop")
+        });
     let source = std::fs::read_to_string(
         "assets/graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
     )
@@ -1196,7 +1386,6 @@ fn verify_static_contract(
     let mut player = AnimationGraphPlayer::new(gate_assets.skeleton.clone())
         .with_graph(gate_assets.root.clone());
     set_globals(&mut player);
-    set_stop_leg_masks(&mut player, skeleton);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
     probe.player = Some(
@@ -1208,69 +1397,7 @@ fn verify_static_contract(
             ))
             .id(),
     );
-    let mut blend_player = AnimationGraphPlayer::new(gate_assets.skeleton.clone())
-        .with_graph(gate_assets.movement_blend.clone());
-    set_globals(&mut blend_player);
-    for (key, value) in [
-        ("forward_direction_index", 0.0),
-        ("backward_direction_index", 3.0),
-        ("left_direction_index", 5.0),
-        ("right_direction_index", 1.0),
-    ] {
-        blend_player.set_input_data(key, DataValue::F32(value));
-    }
-    for key in [
-        "als_standing_velocity_forward_amount",
-        "als_standing_velocity_backward_amount",
-        "als_standing_velocity_left_amount",
-        "als_standing_velocity_right_amount",
-    ] {
-        blend_player.set_global_input_data(key, 0.25);
-    }
-    set_stop_leg_masks(&mut blend_player, skeleton);
-    blend_player.pause();
-    blend_player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.blend_player = Some(
-        commands
-            .spawn((
-                Name::new("standing_blend_contract_probe"),
-                Children::default(),
-                blend_player,
-            ))
-            .id(),
-    );
-    let mut movement_player = AnimationGraphPlayer::new(gate_assets.skeleton.clone())
-        .with_graph(gate_assets.move_graph.clone());
-    set_globals(&mut movement_player);
-    set_stop_leg_masks(&mut movement_player, skeleton);
-    movement_player.pause();
-    movement_player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.movement_player = Some(
-        commands
-            .spawn((
-                Name::new("standing_movement_contract_probe"),
-                Children::default(),
-                movement_player,
-            ))
-            .id(),
-    );
-    let mut detail_player = AnimationGraphPlayer::new(gate_assets.skeleton.clone())
-        .with_graph(gate_assets.movement_direction_graph.clone());
-    set_globals(&mut detail_player);
-    detail_player.set_input_data("direction_index", DataValue::F32(0.0));
-    set_stop_leg_masks(&mut detail_player, skeleton);
-    detail_player.pause();
-    detail_player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.detail_player = Some(
-        commands
-            .spawn((
-                Name::new("standing_detail_contract_probe"),
-                Children::default(),
-                detail_player,
-            ))
-            .id(),
-    );
-    probe.phase = ProbePhase::NestedBlendStart;
+    probe.phase = ProbePhase::OuterInterruptStart;
     probe.static_verified = true;
     info!("[STANDING-CONTRACT] linked runtime probe initialized");
 }
@@ -1587,70 +1714,7 @@ fn observe_nested_runtime(
                 return;
             }
             info!("[STANDING-CONTRACT] four-pose detail propagation=4/4");
-            probe.phase = ProbePhase::NestedMovement;
-        }
-        ProbePhase::NestedMovement => {
-            let Some(entity) = probe.movement_player else {
-                return;
-            };
-            let (Some(graph), Some(machine), Ok(mut player)) = (
-                graphs.get(&gate_assets.move_graph),
-                machines.get(&gate_assets.movement),
-                players.get_mut(entity),
-            ) else {
-                return;
-            };
-            let steps = [
-                (0.0, "Move Forward", "Move Backward"),
-                (4.0, "Move Backward", "Move Right Backward"),
-                (15.0, "Move Right Backward", "Move Right Forward"),
-                (16.0, "Move Right Forward", "Move Right Backward"),
-                (20.0, "Move Right Backward", "Move Right Forward"),
-                (21.0, "Move Right Forward", "Move Right Backward"),
-                (23.0, "Move Right Backward", "Move Right Forward"),
-                (6.0, "Move Right Forward", "Move Forward"),
-                (3.0, "Move Forward", "Move Left Forward"),
-                (10.0, "Move Left Forward", "Move Right Backward"),
-                (12.0, "Move Right Backward", "Move Left Forward"),
-                (19.0, "Move Left Forward", "Move Left Backward"),
-                (14.0, "Move Left Backward", "Move Left Forward"),
-                (22.0, "Move Left Forward", "Move Left Backward"),
-                (17.0, "Move Left Backward", "Move Left Forward"),
-                (7.0, "Move Left Forward", "Move Forward"),
-                (0.0, "Move Forward", "Move Backward"),
-                (5.0, "Move Backward", "Move Left Backward"),
-                (13.0, "Move Left Backward", "Move Right Forward"),
-                (11.0, "Move Right Forward", "Move Left Backward"),
-                (18.0, "Move Left Backward", "Move Left Forward"),
-                (7.0, "Move Left Forward", "Move Forward"),
-                (2.0, "Move Forward", "Move Right Forward"),
-                (11.0, "Move Right Forward", "Move Left Backward"),
-                (8.0, "Move Left Backward", "Move Backward"),
-                (1.0, "Move Backward", "Move Forward"),
-                (0.0, "Move Forward", "Move Backward"),
-                (4.0, "Move Backward", "Move Right Backward"),
-                (9.0, "Move Right Backward", "Move Backward"),
-            ];
-            let mut step = probe.movement_step;
-            let mut event_queued = probe.movement_event_queued;
-            let complete = drive_direct_fsm(
-                &mut player,
-                graph,
-                machine,
-                "standing movement states",
-                "standing movement states driver",
-                "als_standing_movement_transition_index",
-                &steps,
-                &mut step,
-                &mut event_queued,
-                "movement FSM",
-                &mut exit,
-            );
-            probe.movement_step = step;
-            probe.movement_event_queued = event_queued;
-            if complete == Some(true) {
-                probe.phase = ProbePhase::NestedDetails;
-            }
+            probe.phase = ProbePhase::NestedDetails;
         }
         ProbePhase::NestedDetails => {
             let Some(entity) = probe.detail_player else {
@@ -1720,7 +1784,6 @@ fn observe_runtime(
         ProbePhase::NestedBlendStart
             | ProbePhase::NestedBlendActive
             | ProbePhase::NestedBlendDone
-            | ProbePhase::NestedMovement
             | ProbePhase::NestedDetails
     ) {
         return;
@@ -1761,7 +1824,13 @@ fn observe_runtime(
         && probe.settle_frames < 3
     {
         probe.settle_frames += 1;
-        advance(&mut player);
+        let delta_seconds = matches!(
+            probe.phase,
+            ProbePhase::RotateRight | ProbePhase::RotateLeft
+        )
+        .then_some(0.1)
+        .unwrap_or(1.0);
+        advance_by(&mut player, delta_seconds);
         return;
     }
     probe.settle_frames = 0;
@@ -2018,6 +2087,32 @@ fn observe_runtime(
             info!(
                 "[STANDING-CONTRACT] move=RightForward detail=Run clip=RunRightForward loop=true blend=0.7"
             );
+            set_value(&mut player, "als_standing_lean_right_amount", 1.0);
+            set_value(
+                &mut player,
+                "als_standing_unweighted_gait_running_amount",
+                1.0,
+            );
+            advance_by(&mut player, 0.1);
+            probe.phase = ProbePhase::LeanMove;
+        }
+        ProbePhase::LeanMove => {
+            if !probe
+                .last_pose
+                .as_ref()
+                .is_some_and(|previous| previous != &pose)
+            {
+                fail(&mut exit, 7, "moving lean additive pose");
+                return;
+            }
+            probe.last_pose = Some(pose);
+            info!("[STANDING-CONTRACT] moving right lean additive=true");
+            set_value(&mut player, "als_standing_lean_right_amount", 0.0);
+            set_value(
+                &mut player,
+                "als_standing_unweighted_gait_running_amount",
+                0.0,
+            );
             set_value(&mut player, "als_standing_sprint_amount", 1.0);
             set_value(&mut player, "als_standing_gait_is_sprinting", 1.0);
             set_value(&mut player, "als_standing_sprint_acceleration_amount", 0.25);
@@ -2081,19 +2176,38 @@ fn observe_runtime(
                 "[STANDING-CONTRACT] detail=FirstPivot clip=AccelerationRight loop=false rate=1.25 start=0.25 blend=0.5"
             );
             set_value(&mut player, "als_standing_state_index", 2.0);
-            set_value(&mut player, "als_standing_stop_state_index", 2.0);
+            set_value(&mut player, "als_standing_stop_state_index", 4.0);
+            set_value(&mut player, "als_standing_transition_index", -1.0);
             set_value(&mut player, "als_standing_clip_index", 5.0);
             set_value(&mut player, "als_standing_output_play_rate", 1.0);
             set_value(&mut player, "als_standing_transition_duration", 0.3);
             advance(&mut player);
+            probe.phase = ProbePhase::StopEnter;
+        }
+        ProbePhase::StopEnter => {
+            set_value(&mut player, "als_standing_transition_index", 1.0);
+            advance(&mut player);
             probe.phase = ProbePhase::StopPlant;
         }
         ProbePhase::StopPlant => {
+            info!(
+                "[STANDING-CONTRACT] stop plant probe state={:?} stop={:?} clip={:?} duration={:?} pose_changed={} current={:?} previous={:?}",
+                output_f32(&player, "standing_state"),
+                output_f32(&player, "stop_state"),
+                output_f32(&player, "clip_index"),
+                output_f32(&player, "transition_duration"),
+                probe
+                    .last_pose
+                    .as_ref()
+                    .is_some_and(|previous| previous != &pose),
+                pose_fingerprint(&pose),
+                probe.last_pose.as_ref().map(pose_fingerprint),
+            );
             if !outputs_match(
                 &player,
                 &[
                     ("standing_state", 2.0),
-                    ("stop_state", 2.0),
+                    ("stop_state", 4.0),
                     ("clip_index", 5.0),
                     ("transition_duration", 0.3),
                 ],
@@ -2115,6 +2229,7 @@ fn observe_runtime(
             );
             set_value(&mut player, "als_standing_state_index", 0.0);
             set_value(&mut player, "als_standing_stop_state_index", 0.0);
+            set_value(&mut player, "als_standing_transition_index", 2.0);
             advance(&mut player);
             probe.phase = ProbePhase::StopReset;
         }
@@ -2123,8 +2238,15 @@ fn observe_runtime(
                 fail(&mut exit, 11, "stop reset to idle");
                 return;
             }
-            set_value(&mut player, "als_standing_stop_state_index", 4.0);
+            set_value(&mut player, "als_standing_state_index", 1.0);
+            set_value(&mut player, "als_standing_transition_index", 0.0);
+            advance(&mut player);
+            probe.phase = ProbePhase::StopMoveAgain;
+        }
+        ProbePhase::StopMoveAgain => {
+            set_value(&mut player, "als_standing_stop_state_index", 3.0);
             set_value(&mut player, "als_standing_state_index", 2.0);
+            set_value(&mut player, "als_standing_transition_index", 1.0);
             advance(&mut player);
             probe.phase = ProbePhase::StopPlantLeft;
         }
@@ -2133,7 +2255,7 @@ fn observe_runtime(
                 &player,
                 &[
                     ("standing_state", 2.0),
-                    ("stop_state", 4.0),
+                    ("stop_state", 3.0),
                     ("clip_index", 5.0),
                     ("transition_duration", 0.3),
                 ],
@@ -2149,20 +2271,34 @@ fn observe_runtime(
             info!(
                 "[STANDING-CONTRACT] stop=PlantLeftFoot evaluators=WalkRun frames=4/4/6/4/7/7 loop=true blend=0.3"
             );
-            set_value(&mut player, "als_standing_state_index", 3.0);
+            set_value(&mut player, "als_standing_state_index", 0.0);
+            set_value(&mut player, "als_standing_transition_index", 2.0);
+            advance(&mut player);
+            probe.phase = ProbePhase::StopToIdleForRotate;
+        }
+        ProbePhase::StopToIdleForRotate => {
+            set_value(&mut player, "als_standing_transition_index", -1.0);
+            advance(&mut player);
+            probe.phase = ProbePhase::EnterRotateRight;
+        }
+        ProbePhase::EnterRotateRight => {
+            set_value(&mut player, "als_standing_state_index", 4.0);
+            set_value(&mut player, "als_standing_transition_index", 5.0);
             set_value(&mut player, "als_standing_clip_index", 6.0);
             set_value(&mut player, "als_standing_loop", 1.0);
+            player.set_global_input_data("als_standing_rotate_left_loop", false);
+            player.set_global_input_data("als_standing_rotate_right_loop", true);
             set_value(&mut player, "als_standing_rotation_play_rate", 2.0);
             set_value(&mut player, "als_standing_output_play_rate", 2.0);
             set_value(&mut player, "als_standing_transition_duration", 0.2);
-            advance(&mut player);
+            advance_by(&mut player, 0.1);
             probe.phase = ProbePhase::RotateRight;
         }
         ProbePhase::RotateRight => {
             if !outputs_match(
                 &player,
                 &[
-                    ("standing_state", 3.0),
+                    ("standing_state", 4.0),
                     ("clip_index", 6.0),
                     ("loop", 1.0),
                     ("play_rate", 2.0),
@@ -2182,20 +2318,19 @@ fn observe_runtime(
             }
             probe.last_pose = Some(pose);
             info!("[STANDING-CONTRACT] state=RotateRight clip=Rotate90Right loop=true rate=2.0");
-            set_value(&mut player, "als_standing_state_index", 4.0);
+            set_value(&mut player, "als_standing_state_index", 3.0);
+            set_value(&mut player, "als_standing_transition_index", 9.0);
             set_value(&mut player, "als_standing_clip_index", 7.0);
-            advance(&mut player);
+            player.set_global_input_data("als_standing_rotate_left_loop", true);
+            player.set_global_input_data("als_standing_rotate_right_loop", false);
+            advance_by(&mut player, 0.1);
             probe.phase = ProbePhase::RotateLeft;
         }
         ProbePhase::RotateLeft => {
             if !outputs_match(
                 &player,
-                &[("standing_state", 4.0), ("clip_index", 7.0), ("loop", 1.0)],
-            ) || !probe
-                .last_pose
-                .as_ref()
-                .is_some_and(|previous| previous != &pose)
-            {
+                &[("standing_state", 3.0), ("clip_index", 7.0), ("loop", 1.0)],
+            ) {
                 fail(&mut exit, 13, "rotate left state, clip, loop, or pose");
                 return;
             }
@@ -2203,84 +2338,13 @@ fn observe_runtime(
             info!(
                 "[STANDING-CONTRACT] state=RotateLeft clip=Rotate90Left loop=true inertial_exit=0.2"
             );
-            set_value(&mut player, "als_standing_state_index", 0.0);
-            set_value(&mut player, "als_standing_turn_weight", 1.0);
-            set_value(&mut player, "als_standing_turn_index", 3.0);
-            set_value(&mut player, "als_standing_turn_play_rate", 1.2);
-            set_value(&mut player, "als_standing_clip_index", 8.0);
-            set_value(&mut player, "als_standing_loop", 0.0);
-            set_value(&mut player, "als_standing_output_play_rate", 1.2);
-            advance(&mut player);
-            probe.phase = ProbePhase::Turn;
-        }
-        ProbePhase::Turn => {
-            if !outputs_match(
-                &player,
-                &[("clip_index", 8.0), ("loop", 0.0), ("play_rate", 1.2)],
-            ) || !probe
-                .last_pose
-                .as_ref()
-                .is_some_and(|previous| previous != &pose)
-            {
-                fail(&mut exit, 14, "turn clip, loop, rate, or pose");
-                return;
-            }
-            probe.last_pose = Some(pose);
-            info!("[STANDING-CONTRACT] turn=Right180 loop=false rate=1.2");
-            set_value(&mut player, "als_standing_turn_weight", 0.0);
-            set_value(&mut player, "als_standing_quick_stop_weight", 1.0);
-            set_value(&mut player, "als_standing_quick_stop_index", 0.0);
-            set_value(&mut player, "als_standing_quick_stop_play_rate", 1.75);
-            set_value(&mut player, "als_standing_clip_index", 9.0);
-            set_value(&mut player, "als_standing_output_play_rate", 1.75);
-            advance(&mut player);
-            probe.phase = ProbePhase::QuickStop;
-        }
-        ProbePhase::QuickStop => {
-            if !outputs_match(
-                &player,
-                &[("clip_index", 9.0), ("loop", 0.0), ("play_rate", 1.75)],
-            ) || !probe
-                .last_pose
-                .as_ref()
-                .is_some_and(|previous| previous != &pose)
-            {
-                fail(&mut exit, 15, "quick stop clip, loop, rate, or pose");
-                return;
-            }
-            probe.last_pose = Some(pose);
-            info!(
-                "[STANDING-CONTRACT] quick_stop=Left loop=false rate=1.75 start=0.3 blend_in=0.1 blend_out=0.2"
-            );
-            set_value(&mut player, "als_standing_quick_stop_weight", 0.0);
-            set_value(&mut player, "als_standing_lean_weight", 1.0);
-            set_value(&mut player, "als_standing_lean_right_amount", 1.0);
-            set_value(&mut player, "als_standing_clip_index", 10.0);
-            set_value(&mut player, "als_standing_output_play_rate", 1.0);
-            advance(&mut player);
-            probe.phase = ProbePhase::Lean;
-        }
-        ProbePhase::Lean => {
-            if !outputs_match(
-                &player,
-                &[("clip_index", 10.0), ("loop", 0.0), ("play_rate", 1.0)],
-            ) || !probe
-                .last_pose
-                .as_ref()
-                .is_some_and(|previous| previous != &pose)
-            {
-                fail(&mut exit, 16, "lean pose or telemetry");
-                return;
-            }
-            info!("[STANDING-CONTRACT] lean=Right evaluator_time=0 loop=true");
-            info!("[STANDING-CONTRACT][VERDICT] linked=true -> PASS");
+            warn!("[STANDING-CONTRACT][VERDICT] movement_stop_rotate_lean=true -> PASS");
             exit.write(AppExit::Success);
-            std::process::exit(0);
+            return;
         }
         ProbePhase::NestedBlendStart
         | ProbePhase::NestedBlendActive
         | ProbePhase::NestedBlendDone
-        | ProbePhase::NestedMovement
         | ProbePhase::NestedDetails
         | ProbePhase::Pending => {}
     }

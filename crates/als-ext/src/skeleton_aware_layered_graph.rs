@@ -17,6 +17,7 @@ use crate::animation_context::{
     AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
     resolve_context_curves,
 };
+use crate::mesh_space_additive::apply_mesh_space_additive;
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
@@ -27,6 +28,7 @@ pub struct SkeletonAwareLayeredGraphNode {
     pub slot_name: Option<String>,
     pub slot_pose_key: String,
     pub slot_weight_key: String,
+    pub slot_is_additive: bool,
     pub slot_curve_prefix: Option<String>,
     pub slot_curve_names: Vec<String>,
     pub always_update_source_pose: bool,
@@ -36,6 +38,25 @@ pub struct SkeletonAwareLayeredGraphNode {
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
     pub internalize_time: bool,
+}
+
+fn apply_slot_pose(
+    base: &mut bevy_animation_graph::core::pose::Pose,
+    slot: &bevy_animation_graph::core::pose::Pose,
+    weight: f32,
+    slot_is_additive: bool,
+    skeleton: &bevy_animation_graph::core::skeleton::Skeleton,
+) {
+    let timestamp = base.timestamp;
+    if slot_is_additive {
+        apply_mesh_space_additive(base, slot, weight, skeleton);
+    } else {
+        LinearInterpolator {
+            bone_mask: BoneMask::all(),
+        }
+        .interpolate_pose(base, slot, weight);
+    }
+    base.timestamp = timestamp;
 }
 
 impl SkeletonAwareLayeredGraphNode {
@@ -147,12 +168,19 @@ impl SkeletonAwareLayeredGraphNode {
                     .map(|value| value.into_pose())
                     .transpose()?
                 {
-                    let timestamp = pose.timestamp;
-                    LinearInterpolator {
-                        bone_mask: BoneMask::all(),
-                    }
-                    .interpolate_pose(&mut pose, &slot_pose, weight);
-                    pose.timestamp = timestamp;
+                    let skeleton = ctx
+                        .graph_context
+                        .resources
+                        .skeleton_assets
+                        .get(&pose.skeleton)
+                        .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+                    apply_slot_pose(
+                        &mut pose,
+                        &slot_pose,
+                        weight,
+                        self.slot_is_additive,
+                        skeleton,
+                    );
                 }
             }
         }
@@ -298,6 +326,11 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_animation_graph::core::{
+        animation_clip::EntityPath,
+        pose::{BonePose, Pose},
+        skeleton::Skeleton,
+    };
 
     #[test]
     fn node_registers_node_like_dispatch_key() {
@@ -320,5 +353,35 @@ mod tests {
         assert_eq!(blend_slot_curve(0.0, Some(1.0), 0.5), 0.5);
         assert_eq!(blend_slot_curve(0.3, None, 1.0), 0.3);
         assert_eq!(blend_slot_curve(0.3, Some(f32::NAN), 1.0), 0.3);
+    }
+
+    #[test]
+    fn additive_slot_applies_a_delta_instead_of_interpolating_it_as_an_absolute_pose() {
+        let root_path = EntityPath::default().child("root");
+        let root = root_path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                translation: Some(Vec3::new(1.0, 0.0, 0.0)),
+                ..default()
+            },
+            root,
+        );
+        let mut delta = Pose::default();
+        delta.add_bone(
+            BonePose {
+                translation: Some(Vec3::new(2.0, 0.0, 0.0)),
+                ..default()
+            },
+            root,
+        );
+        apply_slot_pose(&mut base, &delta, 0.5, true, &skeleton);
+        assert_eq!(
+            base.get_bone(root).and_then(|bone| bone.translation),
+            Some(Vec3::new(2.0, 0.0, 0.0))
+        );
     }
 }

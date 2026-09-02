@@ -51,6 +51,16 @@
       0.0,
       -1.0
     ],
+    "foot_left_thigh_axis_pelvis_space": [
+      -0.158565907,
+      -0.985633869,
+      0.0581612339
+    ],
+    "foot_right_thigh_axis_pelvis_space": [
+      -0.158546392,
+      0.985636969,
+      0.0581619035
+    ],
     "foot_left_initial_rotation_calf_space": [
       0.00588576652,
       -0.0703547412,

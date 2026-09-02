@@ -322,7 +322,7 @@ impl Plugin for AlsAirPlugin {
             (ensure_air_state, air_state_system.after(ensure_air_state)),
         )
         .add_systems(
-            FixedUpdate,
+            Update,
             record_pre_impact_velocity_system.before(TnuaPipelineSystems::Sensors),
         );
     }
