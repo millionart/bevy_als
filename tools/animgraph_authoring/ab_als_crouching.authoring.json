@@ -3,13 +3,8 @@
   "id": "ab_als_crouching_source_root",
   "source_evidence": [
     {
-      "path": "docs/bf111/source_contracts/AB_Als_Crouching.AnimGraph.source.json",
-      "sha256": "d7d54aee5ef2cdc519500e6385ed21a36c5787f26cdb9f8febf061de1614b234",
-      "hash_kind": "canonical_json"
-    },
-    {
-      "path": "docs/bf111/source_contracts/AB_Als_Crouching.Refresh.source.json",
-      "sha256": "0143591e0867de8e985aa0f4f7ec933312353569483fe1bd0c4ed8fe5429727f",
+      "path": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-f1fb79396ffa8063.source.json",
+      "sha256": "b943306e517ffa05c50274e0c9819db4d0036f974eb7b40cf6c0548e03e55f55",
       "hash_kind": "canonical_json"
     }
   ],
@@ -40,14 +35,6 @@
           "source": "NodeData(\"15620000-0000-4000-8000-000000000002\", \"event\")"
         },
         {
-          "target": "NodeData(\"15620000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"movement_pose\"))"
-        },
-        {
-          "target": "NodeTime(\"15620000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
-        },
-        {
           "target": "OutputData(\"pose\")",
           "source": "NodeData(\"15620000-0000-4000-8000-000000000001\", \"pose\")"
         },
@@ -57,12 +44,564 @@
         }
       ],
       "expected_io": {
-        "input_data": {
-          "movement_pose": "Pose"
+        "input_data": {},
+        "input_times": [],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/lean.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "164d0000-0000-4000-8000-000000000001",
+          "name": "crouching lean explicit time",
+          "position": [
+            -1824.0,
+            -640.0
+          ]
         },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
+        {
+          "id": "164d0000-0000-4000-8000-000000000002",
+          "name": "crouching lean center clip",
+          "position": [
+            -1568.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000003",
+          "name": "crouching lean center evaluator",
+          "position": [
+            -864.0,
+            -704.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000004",
+          "name": "crouching lean forward clip",
+          "position": [
+            -1568.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000005",
+          "name": "crouching lean forward evaluator",
+          "position": [
+            -864.0,
+            -608.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000006",
+          "name": "crouching lean backward clip",
+          "position": [
+            -1568.0,
+            -480.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000007",
+          "name": "crouching lean backward evaluator",
+          "position": [
+            -864.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000008",
+          "name": "crouching lean left clip",
+          "position": [
+            -1568.0,
+            -384.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000009",
+          "name": "crouching lean left evaluator",
+          "position": [
+            -864.0,
+            -448.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000010",
+          "name": "crouching lean right clip",
+          "position": [
+            -1568.0,
+            -288.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000011",
+          "name": "crouching lean right evaluator",
+          "position": [
+            -864.0,
+            -352.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000012",
+          "name": "crouching lean position",
+          "position": [
+            -1184.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000013",
+          "name": "crouching lean right amount",
+          "position": [
+            -1712.0,
+            -336.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000014",
+          "name": "crouching lean forward amount",
+          "position": [
+            -1712.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "164d0000-0000-4000-8000-000000000015",
+          "name": "crouching lean blendspace",
+          "position": [
+            -1376.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "1b1adaac-a4b0-5b01-a882-70056576b3a8",
+          "name": "additive difference crouching lean center clip",
+          "position": [
+            -992.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "09c183ff-07da-592f-a32d-5ff0198e06da",
+          "name": "additive difference crouching lean forward clip",
+          "position": [
+            -992.0,
+            -208.0
+          ]
+        },
+        {
+          "id": "dc42e37f-9934-5ef1-8429-55e56b2f370d",
+          "name": "additive difference crouching lean backward clip",
+          "position": [
+            -992.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "6628506e-5e9c-54a0-b46f-8bed298df21a",
+          "name": "additive difference crouching lean left clip",
+          "position": [
+            -992.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "c8436f5d-5342-55be-8255-553f66134b2c",
+          "name": "additive difference crouching lean right clip",
+          "position": [
+            -992.0,
+            80.0
+          ]
+        },
+        {
+          "id": "568373ec-59a4-58fe-bc1d-a5f78ef2566f",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 clip",
+          "position": [
+            -1712.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "0aee4d09-4d0f-5529-b4cb-782daeb9f147",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 evaluator",
+          "position": [
+            -1632.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "1dcb1f0b-24fa-5047-9e78-b42c68faca8f",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 frame",
+          "position": [
+            -2160.0,
+            -176.0
+          ]
+        },
+        {
+          "id": "dff5c89c-80c1-5063-849c-a8f357f8f9d6",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 clip",
+          "position": [
+            -1904.0,
+            -272.0
+          ]
+        },
+        {
+          "id": "6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 evaluator",
+          "position": [
+            -1632.0,
+            32.0
+          ]
+        },
+        {
+          "id": "112dbcf5-7a3f-5caa-90fd-240353869c13",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 frame",
+          "position": [
+            -2160.0,
+            -80.0
+          ]
+        },
+        {
+          "id": "40fde63e-05c0-5e94-a818-05c86addde09",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 clip",
+          "position": [
+            -1904.0,
+            -176.0
+          ]
+        },
+        {
+          "id": "c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 evaluator",
+          "position": [
+            -1632.0,
+            128.0
+          ]
+        },
+        {
+          "id": "37105db7-611a-521a-b8c5-3863be5c2331",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 frame",
+          "position": [
+            -1632.0,
+            -160.0
+          ]
+        },
+        {
+          "id": "3250a7d7-ace0-5697-8fda-192b9c2755b1",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 clip",
+          "position": [
+            -1376.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "229ae3ad-b5b3-57b2-8092-582f63e82a73",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 evaluator",
+          "position": [
+            -1136.0,
+            48.0
+          ]
+        },
+        {
+          "id": "c14ee186-cc73-5172-b3b9-645feb2a70a7",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 frame",
+          "position": [
+            -1632.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "f36fffdd-ba75-5c8c-9a0a-7cfc7ddc1fb9",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 clip",
+          "position": [
+            -1376.0,
+            -160.0
+          ]
+        },
+        {
+          "id": "b4efdc02-dee2-555c-949d-3922eb612cb1",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 evaluator",
+          "position": [
+            -1136.0,
+            240.0
+          ]
+        },
+        {
+          "id": "8f27369a-49a8-5acf-b098-e793039768d0",
+          "name": "additive reference A_Als_Lean_Pose 164d0000 frame",
+          "position": [
+            -1136.0,
+            144.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000003\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000001\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000003\", \"pose\")",
+          "source": "NodeData(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000003\", \"time\")",
+          "source": "NodeTime(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000005\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000001\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000005\", \"pose\")",
+          "source": "NodeData(\"09c183ff-07da-592f-a32d-5ff0198e06da\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000005\", \"time\")",
+          "source": "NodeTime(\"09c183ff-07da-592f-a32d-5ff0198e06da\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000007\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000001\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000007\", \"pose\")",
+          "source": "NodeData(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000007\", \"time\")",
+          "source": "NodeTime(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000009\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000001\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000009\", \"pose\")",
+          "source": "NodeData(\"6628506e-5e9c-54a0-b46f-8bed298df21a\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000009\", \"time\")",
+          "source": "NodeTime(\"6628506e-5e9c-54a0-b46f-8bed298df21a\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000011\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000001\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000011\", \"pose\")",
+          "source": "NodeData(\"c8436f5d-5342-55be-8255-553f66134b2c\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000011\", \"time\")",
+          "source": "NodeTime(\"c8436f5d-5342-55be-8255-553f66134b2c\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000012\", \"x\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000013\", \"als_crouching_lean_right_amount\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000012\", \"y\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000014\", \"als_crouching_lean_forward_amount\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"position\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000012\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose center\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000003\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000015\", \"time center\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000003\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose forward\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000005\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000015\", \"time forward\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000005\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose backward\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000007\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000015\", \"time backward\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000007\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose left\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000009\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000015\", \"time left\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000009\")"
+        },
+        {
+          "target": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose right\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000011\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164d0000-0000-4000-8000-000000000015\", \"time right\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000011\")"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000015\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000015\")"
+        },
+        {
+          "target": "NodeData(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\", \"reference_pose\")",
+          "source": "NodeData(\"0aee4d09-4d0f-5529-b4cb-782daeb9f147\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\", \"reference_time\")",
+          "source": "NodeTime(\"0aee4d09-4d0f-5529-b4cb-782daeb9f147\")"
+        },
+        {
+          "target": "NodeData(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\", \"target_pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000002\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"1b1adaac-a4b0-5b01-a882-70056576b3a8\", \"target_time\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000002\")"
+        },
+        {
+          "target": "NodeData(\"09c183ff-07da-592f-a32d-5ff0198e06da\", \"reference_pose\")",
+          "source": "NodeData(\"6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"09c183ff-07da-592f-a32d-5ff0198e06da\", \"reference_time\")",
+          "source": "NodeTime(\"6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f\")"
+        },
+        {
+          "target": "NodeData(\"09c183ff-07da-592f-a32d-5ff0198e06da\", \"target_pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000004\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"09c183ff-07da-592f-a32d-5ff0198e06da\", \"target_time\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000004\")"
+        },
+        {
+          "target": "NodeData(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\", \"reference_pose\")",
+          "source": "NodeData(\"c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\", \"reference_time\")",
+          "source": "NodeTime(\"c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a\")"
+        },
+        {
+          "target": "NodeData(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\", \"target_pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000006\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"dc42e37f-9934-5ef1-8429-55e56b2f370d\", \"target_time\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000006\")"
+        },
+        {
+          "target": "NodeData(\"6628506e-5e9c-54a0-b46f-8bed298df21a\", \"reference_pose\")",
+          "source": "NodeData(\"229ae3ad-b5b3-57b2-8092-582f63e82a73\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6628506e-5e9c-54a0-b46f-8bed298df21a\", \"reference_time\")",
+          "source": "NodeTime(\"229ae3ad-b5b3-57b2-8092-582f63e82a73\")"
+        },
+        {
+          "target": "NodeData(\"6628506e-5e9c-54a0-b46f-8bed298df21a\", \"target_pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000008\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6628506e-5e9c-54a0-b46f-8bed298df21a\", \"target_time\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000008\")"
+        },
+        {
+          "target": "NodeData(\"c8436f5d-5342-55be-8255-553f66134b2c\", \"reference_pose\")",
+          "source": "NodeData(\"b4efdc02-dee2-555c-949d-3922eb612cb1\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"c8436f5d-5342-55be-8255-553f66134b2c\", \"reference_time\")",
+          "source": "NodeTime(\"b4efdc02-dee2-555c-949d-3922eb612cb1\")"
+        },
+        {
+          "target": "NodeData(\"c8436f5d-5342-55be-8255-553f66134b2c\", \"target_pose\")",
+          "source": "NodeData(\"164d0000-0000-4000-8000-000000000010\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"c8436f5d-5342-55be-8255-553f66134b2c\", \"target_time\")",
+          "source": "NodeTime(\"164d0000-0000-4000-8000-000000000010\")"
+        },
+        {
+          "target": "NodeData(\"0aee4d09-4d0f-5529-b4cb-782daeb9f147\", \"position\")",
+          "source": "NodeData(\"1dcb1f0b-24fa-5047-9e78-b42c68faca8f\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"0aee4d09-4d0f-5529-b4cb-782daeb9f147\", \"pose\")",
+          "source": "NodeData(\"568373ec-59a4-58fe-bc1d-a5f78ef2566f\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"0aee4d09-4d0f-5529-b4cb-782daeb9f147\", \"time\")",
+          "source": "NodeTime(\"568373ec-59a4-58fe-bc1d-a5f78ef2566f\")"
+        },
+        {
+          "target": "NodeData(\"6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f\", \"position\")",
+          "source": "NodeData(\"112dbcf5-7a3f-5caa-90fd-240353869c13\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f\", \"pose\")",
+          "source": "NodeData(\"dff5c89c-80c1-5063-849c-a8f357f8f9d6\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6f50dc14-7bfb-5fa2-bc6f-d62b1c38303f\", \"time\")",
+          "source": "NodeTime(\"dff5c89c-80c1-5063-849c-a8f357f8f9d6\")"
+        },
+        {
+          "target": "NodeData(\"c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a\", \"position\")",
+          "source": "NodeData(\"37105db7-611a-521a-b8c5-3863be5c2331\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a\", \"pose\")",
+          "source": "NodeData(\"40fde63e-05c0-5e94-a818-05c86addde09\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"c7b1a6b2-cc4a-56ee-a94f-7fa9c337b17a\", \"time\")",
+          "source": "NodeTime(\"40fde63e-05c0-5e94-a818-05c86addde09\")"
+        },
+        {
+          "target": "NodeData(\"229ae3ad-b5b3-57b2-8092-582f63e82a73\", \"position\")",
+          "source": "NodeData(\"c14ee186-cc73-5172-b3b9-645feb2a70a7\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"229ae3ad-b5b3-57b2-8092-582f63e82a73\", \"pose\")",
+          "source": "NodeData(\"3250a7d7-ace0-5697-8fda-192b9c2755b1\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"229ae3ad-b5b3-57b2-8092-582f63e82a73\", \"time\")",
+          "source": "NodeTime(\"3250a7d7-ace0-5697-8fda-192b9c2755b1\")"
+        },
+        {
+          "target": "NodeData(\"b4efdc02-dee2-555c-949d-3922eb612cb1\", \"position\")",
+          "source": "NodeData(\"8f27369a-49a8-5acf-b098-e793039768d0\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"b4efdc02-dee2-555c-949d-3922eb612cb1\", \"pose\")",
+          "source": "NodeData(\"f36fffdd-ba75-5c8c-9a0a-7cfc7ddc1fb9\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"b4efdc02-dee2-555c-949d-3922eb612cb1\", \"time\")",
+          "source": "NodeTime(\"f36fffdd-ba75-5c8c-9a0a-7cfc7ddc1fb9\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
         "output_time": true,
         "output_data": {
           "pose": "Pose"
@@ -156,14 +695,6 @@
       "expected_nodes": [
         {
           "id": "15610000-0000-4000-8000-000000000001",
-          "name": "crouching source pose clip",
-          "position": [
-            -256.0,
-            0.0
-          ]
-        },
-        {
-          "id": "15610000-0000-4000-8000-000000000002",
           "name": "crouching source pose evaluator",
           "position": [
             0.0,
@@ -173,29 +704,410 @@
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15610000-0000-4000-8000-000000000002\", \"position\")",
+          "target": "NodeData(\"15610000-0000-4000-8000-000000000001\", \"Explicit Frame\")",
           "source": "InputData(Passthrough(\"Explicit Frame\"))"
         },
         {
-          "target": "NodeData(\"15610000-0000-4000-8000-000000000002\", \"pose\")",
-          "source": "NodeData(\"15610000-0000-4000-8000-000000000001\", \"pose\")"
-        },
-        {
-          "target": "NodeTime(\"15610000-0000-4000-8000-000000000002\", \"time\")",
-          "source": "NodeTime(\"15610000-0000-4000-8000-000000000001\")"
-        },
-        {
           "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15610000-0000-4000-8000-000000000002\", \"pose\")"
-        },
-        {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15610000-0000-4000-8000-000000000002\")"
+          "source": "NodeData(\"15610000-0000-4000-8000-000000000001\", \"Pose\")"
         }
       ],
       "expected_io": {
         "input_data": {
           "Explicit Frame": "F32"
+        },
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16490000-0000-4000-8000-000000000001",
+          "name": "A_Als_Crouch_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -1888.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000002",
+          "name": "Modify Curve",
+          "position": [
+            -1600.0,
+            0.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000003",
+          "name": "Modify Curve",
+          "position": [
+            -1056.0,
+            0.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000004",
+          "name": "Slot 'TurnInPlaceCrouching'\nGroup 'Grounded'",
+          "position": [
+            -1328.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000005",
+          "name": "InitializeTurnInPlace\nOn Become Relevant",
+          "position": [
+            -496.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000006",
+          "name": "RefreshTurnInPlace\nOn Update",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "16490000-0000-4000-8000-000000000007",
+          "name": "RefreshDynamicTransitions\nOn Update",
+          "position": [
+            -272.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000002\", \"Source Pose\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000004\", \"Source\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000003\", \"Source Pose\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000006\", \"Source\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000003\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000005\", \"Source\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000006\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"16490000-0000-4000-8000-000000000007\", \"Source\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"16490000-0000-4000-8000-000000000007\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "15657000-0000-4000-8000-000000000001",
+          "name": "Use cached pose 'Movement'",
+          "position": [
+            -272.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15657000-0000-4000-8000-000000000001\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "15652000-0000-4000-8000-000000000001",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000005",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000006",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15652000-0000-4000-8000-000000000007",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000005\", \"Source Pose\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000006\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000006\", \"Poses 0\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000003\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000006\", \"Poses 1\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000006\", \"Poses 2\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000006\", \"Poses 3\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15652000-0000-4000-8000-000000000007\", \"Source\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15652000-0000-4000-8000-000000000007\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_movement_blend.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16420000-0000-4000-8000-000000000001",
+          "name": "crouching forward state-local direction",
+          "position": [
+            -1184.0,
+            -704.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000002",
+          "name": "crouching backward state-local direction",
+          "position": [
+            -1184.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000003",
+          "name": "crouching left state-local direction",
+          "position": [
+            -1184.0,
+            -448.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000004",
+          "name": "crouching right state-local direction",
+          "position": [
+            -1376.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000005",
+          "name": "crouching velocity multiway blend",
+          "position": [
+            -544.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000006",
+          "name": "crouching velocity forward",
+          "position": [
+            -1376.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000007",
+          "name": "crouching velocity backward",
+          "position": [
+            -1376.0,
+            -160.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000008",
+          "name": "crouching velocity left",
+          "position": [
+            -1376.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "16420000-0000-4000-8000-000000000009",
+          "name": "crouching velocity right",
+          "position": [
+            -880.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000001\", \"direction_index\")",
+          "source": "InputData(Passthrough(\"forward_direction_index\"))"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000002\", \"direction_index\")",
+          "source": "InputData(Passthrough(\"backward_direction_index\"))"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000003\", \"direction_index\")",
+          "source": "InputData(Passthrough(\"left_direction_index\"))"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000004\", \"direction_index\")",
+          "source": "InputData(Passthrough(\"right_direction_index\"))"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"pose_0\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16420000-0000-4000-8000-000000000005\", \"time_0\")",
+          "source": "NodeTime(\"16420000-0000-4000-8000-000000000001\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"weight_0\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000006\", \"als_crouching_velocity_forward_amount\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"pose_1\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000002\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16420000-0000-4000-8000-000000000005\", \"time_1\")",
+          "source": "NodeTime(\"16420000-0000-4000-8000-000000000002\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"weight_1\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000007\", \"als_crouching_velocity_backward_amount\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"pose_2\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000003\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16420000-0000-4000-8000-000000000005\", \"time_2\")",
+          "source": "NodeTime(\"16420000-0000-4000-8000-000000000003\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"weight_2\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000008\", \"als_crouching_velocity_left_amount\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"pose_3\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000004\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16420000-0000-4000-8000-000000000005\", \"time_3\")",
+          "source": "NodeTime(\"16420000-0000-4000-8000-000000000004\")"
+        },
+        {
+          "target": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"weight_3\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000009\", \"als_crouching_velocity_right_amount\")"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16420000-0000-4000-8000-000000000005\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16420000-0000-4000-8000-000000000005\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "forward_direction_index": "F32",
+          "backward_direction_index": "F32",
+          "left_direction_index": "F32",
+          "right_direction_index": "F32"
         },
         "input_times": [],
         "output_time": true,
@@ -206,86 +1118,364 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+      "path": "assets/graphs/ab_als/stances/crouching/state_movement_direction.animgraph.ron",
       "expected_nodes": [
         {
-          "id": "15657000-0000-4000-8000-000000000001",
-          "name": "crouching cached movement pose",
+          "id": "16410000-0000-4000-8000-000000000001",
+          "name": "crouching direction index",
           "position": [
-            0.0,
-            0.0
+            -1568.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000003",
+          "name": "crouching movement marker phase",
+          "position": [
+            -1568.0,
+            -640.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000010",
+          "name": "crouching forward clip",
+          "position": [
+            -1568.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000011",
+          "name": "crouching forward loop",
+          "position": [
+            -1312.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000020",
+          "name": "crouching right forward clip",
+          "position": [
+            -384.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000021",
+          "name": "crouching right forward loop",
+          "position": [
+            -128.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000030",
+          "name": "crouching right backward clip",
+          "position": [
+            -384.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000031",
+          "name": "crouching right backward loop",
+          "position": [
+            -128.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000040",
+          "name": "crouching backward clip",
+          "position": [
+            -1568.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000041",
+          "name": "crouching backward loop",
+          "position": [
+            -1312.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000050",
+          "name": "crouching left backward clip",
+          "position": [
+            -992.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000051",
+          "name": "crouching left backward loop",
+          "position": [
+            -736.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000060",
+          "name": "crouching left forward clip",
+          "position": [
+            -992.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000061",
+          "name": "crouching left forward loop",
+          "position": [
+            -736.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000070",
+          "name": "crouching six direction selector",
+          "position": [
+            -1568.0,
+            -352.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000071",
+          "name": "crouching forward marker player",
+          "position": [
+            -1568.0,
+            -448.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000072",
+          "name": "crouching right forward marker player",
+          "position": [
+            -384.0,
+            -640.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000073",
+          "name": "crouching right backward marker player",
+          "position": [
+            -384.0,
+            -480.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000074",
+          "name": "crouching backward marker player",
+          "position": [
+            -1568.0,
+            -480.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000075",
+          "name": "crouching left backward marker player",
+          "position": [
+            -992.0,
+            -480.0
+          ]
+        },
+        {
+          "id": "16410000-0000-4000-8000-000000000076",
+          "name": "crouching left forward marker player",
+          "position": [
+            -992.0,
+            -640.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15657000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"movement_pose\"))"
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000011\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000010\", \"pose\")"
         },
         {
-          "target": "NodeTime(\"15657000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000011\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000010\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000071\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000071\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000011\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000071\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000011\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000021\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000020\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000021\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000020\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000072\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000072\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000021\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000072\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000021\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000031\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000030\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000031\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000030\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000073\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000073\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000031\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000073\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000031\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000041\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000040\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000041\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000040\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000074\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000074\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000041\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000074\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000041\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000051\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000050\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000051\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000050\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000075\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000075\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000051\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000075\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000051\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000061\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000060\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000061\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000060\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000076\", \"phase\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000003\", \"als_crouching_movement_marker_phase\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000076\", \"pose\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000061\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000076\", \"time\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000061\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"parameter\")",
+          "source": "InputData(Passthrough(\"direction_index\"))"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_forward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000071\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_forward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000071\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_right_forward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000072\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_right_forward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000072\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_right_backward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000073\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_right_backward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000073\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_backward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000074\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_backward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000074\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_left_backward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000075\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_left_backward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000075\")"
+        },
+        {
+          "target": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose_left_forward\")",
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000076\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"16410000-0000-4000-8000-000000000070\", \"time_left_forward\")",
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000076\")"
         },
         {
           "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15657000-0000-4000-8000-000000000001\", \"pose\")"
+          "source": "NodeData(\"16410000-0000-4000-8000-000000000070\", \"pose\")"
         },
         {
           "target": "OutputTime",
-          "source": "NodeTime(\"15657000-0000-4000-8000-000000000001\")"
+          "source": "NodeTime(\"16410000-0000-4000-8000-000000000070\")"
         }
       ],
       "expected_io": {
         "input_data": {
-          "movement_pose": "Pose"
+          "direction_index": "F32"
         },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
-        "output_time": true,
-        "output_data": {
-          "pose": "Pose"
-        }
-      },
-      "root_output_exceptions": []
-    },
-    {
-      "path": "assets/graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron",
-      "expected_nodes": [
-        {
-          "id": "15652000-0000-4000-8000-000000000001",
-          "name": "crouching backward cached movement pose",
-          "position": [
-            0.0,
-            0.0
-          ]
-        }
-      ],
-      "expected_edges": [
-        {
-          "target": "NodeData(\"15652000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"backward_pose\"))"
-        },
-        {
-          "target": "NodeTime(\"15652000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
-        },
-        {
-          "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15652000-0000-4000-8000-000000000001\", \"pose\")"
-        },
-        {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15652000-0000-4000-8000-000000000001\")"
-        }
-      ],
-      "expected_io": {
-        "input_data": {
-          "backward_pose": "Pose"
-        },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
+        "input_times": [],
         "output_time": true,
         "output_data": {
           "pose": "Pose"
@@ -298,41 +1488,97 @@
       "expected_nodes": [
         {
           "id": "15651000-0000-4000-8000-000000000001",
-          "name": "crouching forward cached movement pose",
+          "name": "Modify Curve",
           "position": [
-            0.0,
+            -672.0,
             0.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Left Forward'",
+          "position": [
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000005",
+          "name": "Use cached pose 'Move Right Forward'",
+          "position": [
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000006",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15651000-0000-4000-8000-000000000007",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15651000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"forward_pose\"))"
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000001\", \"Source Pose\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000006\", \"Pose\")"
         },
         {
-          "target": "NodeTime(\"15651000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000006\", \"Poses 0\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000002\", \"Pose\")"
         },
         {
-          "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15651000-0000-4000-8000-000000000001\", \"pose\")"
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000006\", \"Poses 1\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000003\", \"Pose\")"
         },
         {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15651000-0000-4000-8000-000000000001\")"
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000006\", \"Poses 2\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000006\", \"Poses 3\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15651000-0000-4000-8000-000000000007\", \"Source\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15651000-0000-4000-8000-000000000007\", \"Pose\")"
         }
       ],
       "expected_io": {
-        "input_data": {
-          "forward_pose": "Pose"
-        },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
-        "output_time": true,
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
         "output_data": {
-          "pose": "Pose"
+          "Result": "Pose"
         }
       },
       "root_output_exceptions": []
@@ -342,41 +1588,97 @@
       "expected_nodes": [
         {
           "id": "15656000-0000-4000-8000-000000000001",
-          "name": "crouching left backward cached movement pose",
+          "name": "Use cached pose 'Move Right Forward'",
           "position": [
-            0.0,
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000005",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000006",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15656000-0000-4000-8000-000000000007",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
             0.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15656000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"left_backward_pose\"))"
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000005\", \"Source Pose\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000007\", \"Pose\")"
         },
         {
-          "target": "NodeTime(\"15656000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000006\", \"Source\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000005\", \"Pose\")"
         },
         {
-          "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15656000-0000-4000-8000-000000000001\", \"pose\")"
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000007\", \"Poses 0\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000003\", \"Pose\")"
         },
         {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15656000-0000-4000-8000-000000000001\")"
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000007\", \"Poses 1\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000007\", \"Poses 2\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15656000-0000-4000-8000-000000000007\", \"Poses 3\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15656000-0000-4000-8000-000000000006\", \"Pose\")"
         }
       ],
       "expected_io": {
-        "input_data": {
-          "left_backward_pose": "Pose"
-        },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
-        "output_time": true,
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
         "output_data": {
-          "pose": "Pose"
+          "Result": "Pose"
         }
       },
       "root_output_exceptions": []
@@ -386,41 +1688,97 @@
       "expected_nodes": [
         {
           "id": "15655000-0000-4000-8000-000000000001",
-          "name": "crouching left forward cached movement pose",
+          "name": "Use cached pose 'Move Left Forward'",
           "position": [
-            0.0,
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000005",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000006",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15655000-0000-4000-8000-000000000007",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
             0.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15655000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"left_forward_pose\"))"
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000005\", \"Source Pose\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000007\", \"Pose\")"
         },
         {
-          "target": "NodeTime(\"15655000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000006\", \"Source\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000005\", \"Pose\")"
         },
         {
-          "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15655000-0000-4000-8000-000000000001\", \"pose\")"
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000007\", \"Poses 0\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000003\", \"Pose\")"
         },
         {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15655000-0000-4000-8000-000000000001\")"
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000007\", \"Poses 1\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000007\", \"Poses 2\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15655000-0000-4000-8000-000000000007\", \"Poses 3\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15655000-0000-4000-8000-000000000006\", \"Pose\")"
         }
       ],
       "expected_io": {
-        "input_data": {
-          "left_forward_pose": "Pose"
-        },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
-        "output_time": true,
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
         "output_data": {
-          "pose": "Pose"
+          "Result": "Pose"
         }
       },
       "root_output_exceptions": []
@@ -430,41 +1788,97 @@
       "expected_nodes": [
         {
           "id": "15654000-0000-4000-8000-000000000001",
-          "name": "crouching right backward cached movement pose",
+          "name": "Use cached pose 'Move Left Forward'",
           "position": [
-            0.0,
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000005",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000006",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15654000-0000-4000-8000-000000000007",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
             0.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15654000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"right_backward_pose\"))"
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000005\", \"Source Pose\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000007\", \"Pose\")"
         },
         {
-          "target": "NodeTime(\"15654000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000006\", \"Source\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000005\", \"Pose\")"
         },
         {
-          "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15654000-0000-4000-8000-000000000001\", \"pose\")"
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000007\", \"Poses 0\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000003\", \"Pose\")"
         },
         {
-          "target": "OutputTime",
-          "source": "NodeTime(\"15654000-0000-4000-8000-000000000001\")"
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000007\", \"Poses 1\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000007\", \"Poses 2\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15654000-0000-4000-8000-000000000007\", \"Poses 3\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15654000-0000-4000-8000-000000000006\", \"Pose\")"
         }
       ],
       "expected_io": {
-        "input_data": {
-          "right_backward_pose": "Pose"
-        },
-        "input_times": [
-          "Passthrough(\"movement_time\")"
-        ],
-        "output_time": true,
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
         "output_data": {
-          "pose": "Pose"
+          "Result": "Pose"
         }
       },
       "root_output_exceptions": []
@@ -474,38 +1888,768 @@
       "expected_nodes": [
         {
           "id": "15653000-0000-4000-8000-000000000001",
-          "name": "crouching right forward cached movement pose",
+          "name": "Use cached pose 'Move Right Forward'",
           "position": [
-            0.0,
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000002",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000003",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000004",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000005",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000006",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "15653000-0000-4000-8000-000000000007",
+          "name": "SetHipsDirection\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000005\", \"Source Pose\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000006\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000006\", \"Poses 0\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000003\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000006\", \"Poses 1\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000004\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000006\", \"Poses 2\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000006\", \"Poses 3\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"15653000-0000-4000-8000-000000000007\", \"Source\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"15653000-0000-4000-8000-000000000007\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "164a0000-0000-4000-8000-000000000001",
+          "name": "Modify Curve",
+          "position": [
+            -336.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164a0000-0000-4000-8000-000000000002",
+          "name": "A_Als_Crouch_Rotate_90_Left\nSequence Player",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"164a0000-0000-4000-8000-000000000001\", \"Source Pose\")",
+          "source": "NodeData(\"164a0000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"164a0000-0000-4000-8000-000000000001\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_rotate_right.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "164b0000-0000-4000-8000-000000000001",
+          "name": "Modify Curve",
+          "position": [
+            -336.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164b0000-0000-4000-8000-000000000002",
+          "name": "A_Als_Crouch_Rotate_90_Right\nSequence Player",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"164b0000-0000-4000-8000-000000000001\", \"Source Pose\")",
+          "source": "NodeData(\"164b0000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"164b0000-0000-4000-8000-000000000001\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/state_stop.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "164c0000-0000-4000-8000-000000000001",
+          "name": "Layered blend per bone",
+          "position": [
+            -512.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164c0000-0000-4000-8000-000000000002",
+          "name": "A_Als_Crouch_Walk_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -800.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164c0000-0000-4000-8000-000000000003",
+          "name": "A_Als_Crouch_Walk_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -800.0,
+            128.0
+          ]
+        },
+        {
+          "id": "164c0000-0000-4000-8000-000000000004",
+          "name": "Modify Curve",
+          "position": [
+            -272.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164c0000-0000-4000-8000-000000000005",
+          "name": "Use cached pose 'Movement'",
+          "position": [
+            -784.0,
+            -96.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"164c0000-0000-4000-8000-000000000001\", \"Base Pose\")",
+          "source": "NodeData(\"164c0000-0000-4000-8000-000000000005\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"164c0000-0000-4000-8000-000000000001\", \"Blend Poses 0\")",
+          "source": "NodeData(\"164c0000-0000-4000-8000-000000000002\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"164c0000-0000-4000-8000-000000000001\", \"Blend Poses 1\")",
+          "source": "NodeData(\"164c0000-0000-4000-8000-000000000003\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"164c0000-0000-4000-8000-000000000004\", \"Source Pose\")",
+          "source": "NodeData(\"164c0000-0000-4000-8000-000000000001\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"164c0000-0000-4000-8000-000000000004\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_direction_07.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16360000-0000-4000-8000-000000000001",
+          "name": "crouching move direction profile",
+          "position": [
+            11.0,
+            349.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16360000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"16360000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16360000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16360000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16360000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16360000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16360000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_inertial_02.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16350000-0000-4000-8000-000000000001",
+          "name": "crouching inertial transition",
+          "position": [
+            176.0,
             0.0
           ]
         }
       ],
       "expected_edges": [
         {
-          "target": "NodeData(\"15653000-0000-4000-8000-000000000001\", \"movement_pose\")",
-          "source": "InputData(Passthrough(\"right_forward_pose\"))"
+          "target": "NodeData(\"16350000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
         },
         {
-          "target": "NodeTime(\"15653000-0000-4000-8000-000000000001\", \"movement_time\")",
-          "source": "InputTime(Passthrough(\"movement_time\"))"
+          "target": "NodeData(\"16350000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16350000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16350000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16350000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
         },
         {
           "target": "OutputData(\"pose\")",
-          "source": "NodeData(\"15653000-0000-4000-8000-000000000001\", \"pose\")"
+          "source": "NodeData(\"16350000-0000-4000-8000-000000000001\", \"pose\")"
         },
         {
           "target": "OutputTime",
-          "source": "NodeTime(\"15653000-0000-4000-8000-000000000001\")"
+          "source": "NodeTime(\"16350000-0000-4000-8000-000000000001\")"
         }
       ],
       "expected_io": {
         "input_data": {
-          "right_forward_pose": "Pose"
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
         },
         "input_times": [
-          "Passthrough(\"movement_time\")"
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
         ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_outer_02.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16310000-0000-4000-8000-000000000001",
+          "name": "crouching outer transition",
+          "position": [
+            176.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16310000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"16310000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16310000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16310000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16310000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16310000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16310000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_outer_04.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16320000-0000-4000-8000-000000000001",
+          "name": "crouching rotate movement transition",
+          "position": [
+            176.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16320000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"16320000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16320000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16320000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16320000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16320000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16320000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_quickfeet_05.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16340000-0000-4000-8000-000000000001",
+          "name": "crouching quick feet transition",
+          "position": [
+            176.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16340000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"16340000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16340000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16340000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16340000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16340000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16340000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/transition_stop_01.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "16330000-0000-4000-8000-000000000001",
+          "name": "crouching move stop transition",
+          "position": [
+            176.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"16330000-0000-4000-8000-000000000001\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"16330000-0000-4000-8000-000000000001\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16330000-0000-4000-8000-000000000001\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"16330000-0000-4000-8000-000000000001\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"16330000-0000-4000-8000-000000000001\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"16330000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"16330000-0000-4000-8000-000000000001\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/ab_als/stances/crouching/turn.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "164f0000-0000-4000-8000-000000000001",
+          "name": "crouching turn left ninety clip",
+          "position": [
+            -1600.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000002",
+          "name": "crouching turn right ninety clip",
+          "position": [
+            -1600.0,
+            96.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000003",
+          "name": "crouching turn left one eighty clip",
+          "position": [
+            -1600.0,
+            192.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000004",
+          "name": "crouching turn right one eighty clip",
+          "position": [
+            -1600.0,
+            288.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000005",
+          "name": "crouching turn selector",
+          "position": [
+            -1056.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000006",
+          "name": "crouching turn index",
+          "position": [
+            -1600.0,
+            384.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000007",
+          "name": "crouching turn reset",
+          "position": [
+            -1056.0,
+            96.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000008",
+          "name": "crouching turn active",
+          "position": [
+            -1600.0,
+            480.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000009",
+          "name": "crouching turn rate",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "164f0000-0000-4000-8000-000000000010",
+          "name": "crouching turn rate input",
+          "position": [
+            -1600.0,
+            576.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"parameter\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000006\", \"als_crouching_turn_index\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"pose_left_ninety\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000001\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000005\", \"time_left_ninety\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000001\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"pose_right_ninety\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000002\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000005\", \"time_right_ninety\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000002\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"pose_left_one_eighty\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000003\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000005\", \"time_left_one_eighty\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000003\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"pose_right_one_eighty\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000004\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000005\", \"time_right_one_eighty\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000004\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000007\", \"active\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000008\", \"als_crouching_turn_weight\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000007\", \"pose\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000005\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000007\", \"time\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000005\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000009\", \"speed\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000010\", \"als_crouching_turn_play_rate\")"
+        },
+        {
+          "target": "NodeData(\"164f0000-0000-4000-8000-000000000009\", \"pose\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000007\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"164f0000-0000-4000-8000-000000000009\", \"time\")",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000007\")"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"164f0000-0000-4000-8000-000000000009\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"164f0000-0000-4000-8000-000000000009\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
         "output_time": true,
         "output_data": {
           "pose": "Pose"
@@ -856,6 +3000,131 @@
   ],
   "fsms": [
     {
+      "path": "assets/graphs/ab_als/stances/crouching/crouching_states.fsm.ron",
+      "expected_states": [
+        {
+          "id": "16100000-0000-4000-8000-000000000001",
+          "label": "Idle",
+          "graph": "graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
+          "position": [
+            176.0,
+            0.0
+          ]
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000002",
+          "label": "Move",
+          "graph": "graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+          "position": [
+            -16.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000003",
+          "label": "Rotate Left",
+          "graph": "graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron",
+          "position": [
+            -48.0,
+            128.0
+          ]
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000004",
+          "label": "Rotate Right",
+          "graph": "graphs/ab_als/stances/crouching/state_rotate_right.animgraph.ron",
+          "position": [
+            352.0,
+            128.0
+          ]
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000005",
+          "label": "Stop",
+          "graph": "graphs/ab_als/stances/crouching/state_stop.animgraph.ron",
+          "position": [
+            352.0,
+            -128.0
+          ]
+        }
+      ],
+      "expected_transitions": [
+        {
+          "id": "16100000-0000-4000-8000-000000000103",
+          "source": "16100000-0000-4000-8000-000000000001",
+          "target": "16100000-0000-4000-8000-000000000003"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000106",
+          "source": "16100000-0000-4000-8000-000000000003",
+          "target": "16100000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000107",
+          "source": "16100000-0000-4000-8000-000000000003",
+          "target": "16100000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000102",
+          "source": "16100000-0000-4000-8000-000000000001",
+          "target": "16100000-0000-4000-8000-000000000004"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000109",
+          "source": "16100000-0000-4000-8000-000000000004",
+          "target": "16100000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000110",
+          "source": "16100000-0000-4000-8000-000000000004",
+          "target": "16100000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000108",
+          "source": "16100000-0000-4000-8000-000000000003",
+          "target": "16100000-0000-4000-8000-000000000004"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000111",
+          "source": "16100000-0000-4000-8000-000000000004",
+          "target": "16100000-0000-4000-8000-000000000003"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000101",
+          "source": "16100000-0000-4000-8000-000000000001",
+          "target": "16100000-0000-4000-8000-000000000002"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000105",
+          "source": "16100000-0000-4000-8000-000000000002",
+          "target": "16100000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000104",
+          "source": "16100000-0000-4000-8000-000000000002",
+          "target": "16100000-0000-4000-8000-000000000005"
+        },
+        {
+          "id": "16100000-0000-4000-8000-000000000112",
+          "source": "16100000-0000-4000-8000-000000000005",
+          "target": "16100000-0000-4000-8000-000000000001"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "movement_pose": "Pose"
+        },
+        "input_times": [
+          "\"movement_time\""
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
       "path": "assets/graphs/ab_als/stances/crouching/movement_states.fsm.ron",
       "expected_states": [
         {
@@ -915,6 +3184,16 @@
       ],
       "expected_transitions": [
         {
+          "id": "16200000-0000-4000-8000-000000000103",
+          "source": "16200000-0000-4000-8000-000000000001",
+          "target": "16200000-0000-4000-8000-000000000002"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000106",
+          "source": "16200000-0000-4000-8000-000000000002",
+          "target": "16200000-0000-4000-8000-000000000001"
+        },
+        {
           "id": "16200000-0000-4000-8000-000000000101",
           "source": "16200000-0000-4000-8000-000000000001",
           "target": "16200000-0000-4000-8000-000000000003"
@@ -923,11 +3202,6 @@
           "id": "16200000-0000-4000-8000-000000000102",
           "source": "16200000-0000-4000-8000-000000000001",
           "target": "16200000-0000-4000-8000-000000000005"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000103",
-          "source": "16200000-0000-4000-8000-000000000001",
-          "target": "16200000-0000-4000-8000-000000000002"
         },
         {
           "id": "16200000-0000-4000-8000-000000000104",
@@ -940,64 +3214,9 @@
           "target": "16200000-0000-4000-8000-000000000006"
         },
         {
-          "id": "16200000-0000-4000-8000-000000000106",
-          "source": "16200000-0000-4000-8000-000000000002",
-          "target": "16200000-0000-4000-8000-000000000001"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000107",
-          "source": "16200000-0000-4000-8000-000000000003",
-          "target": "16200000-0000-4000-8000-000000000006"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000108",
-          "source": "16200000-0000-4000-8000-000000000003",
-          "target": "16200000-0000-4000-8000-000000000004"
-        },
-        {
           "id": "16200000-0000-4000-8000-000000000109",
           "source": "16200000-0000-4000-8000-000000000003",
           "target": "16200000-0000-4000-8000-000000000001"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000110",
-          "source": "16200000-0000-4000-8000-000000000003",
-          "target": "16200000-0000-4000-8000-000000000004"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000111",
-          "source": "16200000-0000-4000-8000-000000000004",
-          "target": "16200000-0000-4000-8000-000000000005"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000112",
-          "source": "16200000-0000-4000-8000-000000000004",
-          "target": "16200000-0000-4000-8000-000000000003"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000113",
-          "source": "16200000-0000-4000-8000-000000000004",
-          "target": "16200000-0000-4000-8000-000000000003"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000114",
-          "source": "16200000-0000-4000-8000-000000000004",
-          "target": "16200000-0000-4000-8000-000000000002"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000115",
-          "source": "16200000-0000-4000-8000-000000000004",
-          "target": "16200000-0000-4000-8000-000000000003"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000116",
-          "source": "16200000-0000-4000-8000-000000000005",
-          "target": "16200000-0000-4000-8000-000000000004"
-        },
-        {
-          "id": "16200000-0000-4000-8000-000000000117",
-          "source": "16200000-0000-4000-8000-000000000005",
-          "target": "16200000-0000-4000-8000-000000000006"
         },
         {
           "id": "16200000-0000-4000-8000-000000000118",
@@ -1005,9 +3224,29 @@
           "target": "16200000-0000-4000-8000-000000000001"
         },
         {
-          "id": "16200000-0000-4000-8000-000000000119",
+          "id": "16200000-0000-4000-8000-000000000123",
+          "source": "16200000-0000-4000-8000-000000000006",
+          "target": "16200000-0000-4000-8000-000000000002"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000114",
+          "source": "16200000-0000-4000-8000-000000000004",
+          "target": "16200000-0000-4000-8000-000000000002"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000116",
           "source": "16200000-0000-4000-8000-000000000005",
+          "target": "16200000-0000-4000-8000-000000000004"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000107",
+          "source": "16200000-0000-4000-8000-000000000003",
           "target": "16200000-0000-4000-8000-000000000006"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000111",
+          "source": "16200000-0000-4000-8000-000000000004",
+          "target": "16200000-0000-4000-8000-000000000005"
         },
         {
           "id": "16200000-0000-4000-8000-000000000120",
@@ -1020,14 +3259,44 @@
           "target": "16200000-0000-4000-8000-000000000005"
         },
         {
+          "id": "16200000-0000-4000-8000-000000000117",
+          "source": "16200000-0000-4000-8000-000000000005",
+          "target": "16200000-0000-4000-8000-000000000006"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000112",
+          "source": "16200000-0000-4000-8000-000000000004",
+          "target": "16200000-0000-4000-8000-000000000003"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000108",
+          "source": "16200000-0000-4000-8000-000000000003",
+          "target": "16200000-0000-4000-8000-000000000004"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000110",
+          "source": "16200000-0000-4000-8000-000000000003",
+          "target": "16200000-0000-4000-8000-000000000004"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000119",
+          "source": "16200000-0000-4000-8000-000000000005",
+          "target": "16200000-0000-4000-8000-000000000006"
+        },
+        {
           "id": "16200000-0000-4000-8000-000000000122",
           "source": "16200000-0000-4000-8000-000000000006",
           "target": "16200000-0000-4000-8000-000000000005"
         },
         {
-          "id": "16200000-0000-4000-8000-000000000123",
-          "source": "16200000-0000-4000-8000-000000000006",
-          "target": "16200000-0000-4000-8000-000000000002"
+          "id": "16200000-0000-4000-8000-000000000113",
+          "source": "16200000-0000-4000-8000-000000000004",
+          "target": "16200000-0000-4000-8000-000000000003"
+        },
+        {
+          "id": "16200000-0000-4000-8000-000000000115",
+          "source": "16200000-0000-4000-8000-000000000004",
+          "target": "16200000-0000-4000-8000-000000000003"
         },
         {
           "id": "16200000-0000-4000-8000-000000000124",
@@ -1057,15 +3326,65 @@
   ],
   "verification_commands": [
     {
-      "label": "crouching_source_visible",
+      "label": "crouching_recursive_source_inventory",
       "scope": "source",
       "argv": [
         "python",
-        "tools/import/run_ue_visible_animgraph_audit.py",
+        "tools/import/extract_ue_authored_graph_inventory.py",
+        "--source",
+        "target/bf111/source_native/AB_Als_Crouching.bf11104.ue.json",
+        "--root-graph-suffix",
+        "AnimGraph",
+        "--output",
+        "docs/bf111/source_contracts/AB_Als_Crouching.recursive.source.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "crouching_recursive_source_contracts",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/extract_ue_visible_graph_contracts.py",
+        "--source",
+        "target/bf111/source_native/AB_Als_Crouching.bf11104.ue.json",
+        "--root-graph-suffix",
+        "AnimGraph",
+        "--output-dir",
+        "docs/bf111/source_contracts/AB_Als_Crouching.recursive",
+        "--check"
+      ]
+    },
+    {
+      "label": "crouching_recursive_audit_index",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/generate_ue_visible_recursive_audit_index.py",
         "--root",
         ".",
-        "--map",
-        "tools/animgraph_authoring/ab_als_crouching.visible.json",
+        "--source-index",
+        "docs/bf111/source_contracts/AB_Als_Crouching.recursive/index.json",
+        "--map-glob",
+        "tools/animgraph_authoring/ab_als_crouching*.visible.json",
+        "--output",
+        "tools/animgraph_authoring/ab_als_crouching.recursive_audit.index.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "crouching_recursive_source_visible",
+      "scope": "source",
+      "timeout_seconds": 360,
+      "argv": [
+        "python",
+        "tools/import/run_ue_visible_animgraph_audits.py",
+        "--root",
+        ".",
+        "--index",
+        "tools/animgraph_authoring/ab_als_crouching.recursive_audit.index.json",
+        "--source",
+        "target/bf111/source_native/AB_Als_Crouching.bf11104.ue.json",
         "--jobs",
         "2",
         "--check",
@@ -1081,22 +3400,7 @@
         "--root",
         "assets/graphs",
         "--include",
-        "ab_als/stances/crouching.animgraph.ron"
-      ]
-    },
-    {
-      "label": "crouching_fsm_source_positions",
-      "scope": "source",
-      "argv": [
-        "python",
-        "tools/import/audit_fsm_source_positions.py",
-        "--source",
-        "target/bf111/source_native/AB_Als_Crouching.ue.json",
-        "--target-root",
-        "assets/graphs/ab_als",
-        "--mapping",
-        "tools/animgraph_authoring/ab_als_crouching.fsm_positions.json",
-        "--check"
+        "ab_als/stances/crouching"
       ]
     },
     {
@@ -1108,10 +3412,268 @@
         "--root",
         "assets/graphs"
       ]
+    },
+    {
+      "label": "crouching_runtime_asset_boundary",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
     }
   ],
   "runtime_gate": {
     "contract_gate": "crouching_contract_gate",
     "manual_case": "crouching"
-  }
+  },
+  "recursive_source_inventory": {
+    "path": "docs/bf111/source_contracts/AB_Als_Crouching.recursive.source.json",
+    "sha256": "c1a2afc80a9385efc04badce5f1fdc6af4aed9ad7c3d2315df40d39f41350a29",
+    "hash_kind": "canonical_json"
+  },
+  "recursive_inventory": [
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-f1fb79396ffa8063.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "fsm",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-4aa3bc1f1aac6700.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.movement_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/movement_states.fsm.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_0.Move Forward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-f6dfefd032ddaf73.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_forward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_1.Move Backward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-69e91a5fa994e931.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_2.Move Right Forward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-9a0d11806d4fe736.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_right_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_right_forward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-b443151003240c39.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_right_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_right_backward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_4.Move Left Forward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-21c4f697ee5770f2.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_left_forward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_left_forward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_5.Move Left Backward",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-07786950a3f7c96d.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.move_left_backward.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_movement_left_backward.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_14.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-f4418386c6b2819a.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_00_f4418386c6b2.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_00_f4418386c6b2.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_15.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-914143911ecc1cae.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_01_914143911ecc.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_01_914143911ecc.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_16.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-fffb77facfe7dd55.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_02_fffb77facfe7.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_02_fffb77facfe7.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_19.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-6219d1373d735973.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_03_6219d1373d73.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_03_6219d1373d73.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_2.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-c22b0dd6791d3145.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_04_c22b0dd6791d.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_04_c22b0dd6791d.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_28.Transition_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-cd66cea5d1088a74.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_05_cd66cea5d108.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_05_cd66cea5d108.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_3.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-75fc293c445c47e9.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_06_75fc293c445c.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_06_75fc293c445c.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_7.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-106f1ae51fef9171.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_07_106f1ae51fef.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_07_106f1ae51fef.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "fsm",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-acc3554f502c9ac4.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.crouching_states.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/crouching_states.fsm.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_0.Stop",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-6d38d7236a9d399d.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.state_stop.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_stop.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_3.Rotate Left",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-98cf0beb9339bf0e.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.state_rotate_left.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_6.Move",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-7c5d09ec686509c3.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.state_move.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_7.Rotate Right",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-2909353c1ac959f1.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.state_rotate_right.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_rotate_right.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "graph",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-436979b0540fa694.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.state_idle.visible.json",
+      "target_path": "assets/graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_0.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-b12977efe6852050.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_08_b12977efe685.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_08_b12977efe685.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_1.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-bdd48d909f3ff255.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_09_bdd48d909f3f.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_09_bdd48d909f3f.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_2.Transition_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-ac1c85b4dff8bdc8.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_10_ac1c85b4dff8.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_10_ac1c85b4dff8.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_3.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-c142d6ad0269e530.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_11_c142d6ad0269.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_11_c142d6ad0269.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_43.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-2c94b1a58e586090.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_12_2c94b1a58e58.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_12_2c94b1a58e58.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_45.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-b369ac9eed78be6a.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_13_b369ac9eed78.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_13_b369ac9eed78.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_6.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-6918ca473e70c443.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_14_6918ca473e70.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_14_6918ca473e70.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    },
+    {
+      "kind": "transition",
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_8.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-1b1924937af11b1d.source.json",
+      "source_map": "tools/animgraph_authoring/ab_als_crouching.transition.ue_source_transition_15_1b1924937af1.visible.json",
+      "target_path": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_15_1b1924937af1.animgraph.ron",
+      "gate_label": "crouching_recursive_source_visible"
+    }
+  ]
 }

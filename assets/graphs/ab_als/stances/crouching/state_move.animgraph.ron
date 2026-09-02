@@ -1,14 +1,37 @@
 (
     nodes: [
-        (id: "15657000-0000-4000-8000-000000000001", name: "crouching cached movement pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "movement_pose", output: "pose", input_time: "movement_time", output_time: true) }, should_debug: false),
+        (
+            id: "15657000-0000-4000-8000-000000000001",
+            name: "Use cached pose 'Movement'",
+            inner: {
+                "als_ext::SourceScopedCachedPoseUseNode": (
+                    cache_node: "Save cached pose 'Movement'",
+                ),
+            },
+            should_debug: false,
+        ),
     ],
     edges_inverted: {
-        NodeData("15657000-0000-4000-8000-000000000001", "movement_pose"): InputData(Passthrough("movement_pose")),
-        NodeTime("15657000-0000-4000-8000-000000000001", "movement_time"): InputTime(Passthrough("movement_time")),
-        OutputData("pose"): NodeData("15657000-0000-4000-8000-000000000001", "pose"),
-        OutputTime: NodeTime("15657000-0000-4000-8000-000000000001"),
+        OutputData("Result"): NodeData("15657000-0000-4000-8000-000000000001", "Pose"),
     },
-    io_spec: (input_times: [Passthrough("movement_time")], input_data: { Passthrough("movement_pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Data(Passthrough("movement_pose")): 0, Time(Passthrough("movement_time")): 1 }, output_order: { Data("pose"): 0, Time: 1 }),
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "Result": Pose },
+        input_order: {},
+        output_order: { Data("Result"): 0 },
+    ),
     default_data: {},
-    editor_metadata: (node_positions: { "15657000-0000-4000-8000-000000000001": (0.0, 0.0) }, input_position: (-320.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (
+        node_positions: {
+            "15657000-0000-4000-8000-000000000001": (-272.0, 0.0),
+        },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
 )

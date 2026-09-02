@@ -1,0 +1,233 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-b443151003240c39.source.json",
+  "target_graph": "assets/graphs/ab_als/stances/crouching/state_movement_right_backward.animgraph.ron",
+  "target_spec": "target/bf111/crouching.state_movement_right_backward.spec.bf11104.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_UseCachedPose_2",
+      "target_node": "15654000-0000-4000-8000-000000000001",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Move Left Forward",
+          "target_contains": "cache_node: \"Save cached pose 'Move Left Forward'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_UseCachedPose_7",
+      "target_node": "15654000-0000-4000-8000-000000000002",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Move Right Backward",
+          "target_contains": "cache_node: \"Save cached pose 'Move Right Backward'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_UseCachedPose_6",
+      "target_node": "15654000-0000-4000-8000-000000000003",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Move Forward",
+          "target_contains": "cache_node: \"Save cached pose 'Move Forward'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_UseCachedPose_4",
+      "target_node": "15654000-0000-4000-8000-000000000004",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "Move Backward",
+          "target_contains": "cache_node: \"Save cached pose 'Move Backward'\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_ModifyCurve_1",
+      "target_node": "15654000-0000-4000-8000-000000000005",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "RotationYawOffset",
+          "source_default": "0.0",
+          "target_default_contains": "pin_default: 0.0",
+          "target_binding": "als_crouching_curve_rotation_yaw_offset"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"RotationYawOffset\")",
+          "target_contains": "curve_name: \"RotationYawOffset\""
+        },
+        {
+          "source_contains": "GetParent.GroundedState.RotationYawOffsets.RightAngle",
+          "target_contains": "value_key: \"als_crouching_curve_rotation_yaw_offset\""
+        },
+        {
+          "source_contains": "GetParent.GroundedState.RotationYawOffsets.RightAngle",
+          "target_contains": "source_value_path: \"GroundedState.RotationYawOffsets.RightAngle\""
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Blend",
+          "target_contains": "apply_mode: \"Blend\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_CallFunction_2",
+      "target_node": "15654000-0000-4000-8000-000000000006",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        },
+        {
+          "source": "NewHipsDirection",
+          "target": "NewHipsDirection",
+          "source_default": "RightBackward",
+          "target_default_contains": "new_hips_direction: \"RightBackward\"",
+          "type_exception": "UE hips direction enum is represented as target F32 scalar."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CallSite=OnBecomeRelevant",
+          "target_contains": "call_site: \"OnBecomeRelevant\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward.AnimGraphNode_MultiWayBlend_4",
+      "target_node": "15654000-0000-4000-8000-000000000007",
+      "input_pins": [
+        {
+          "source": "Poses_0",
+          "target": "Poses 0"
+        },
+        {
+          "source": "Poses_1",
+          "target": "Poses 1"
+        },
+        {
+          "source": "Poses_2",
+          "target": "Poses 2"
+        },
+        {
+          "source": "Poses_3",
+          "target": "Poses 3"
+        },
+        {
+          "source": "DesiredAlphas_0",
+          "target": "Desired Alphas 0",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_crouching_velocity_forward_amount"
+        },
+        {
+          "source": "DesiredAlphas_1",
+          "target": "Desired Alphas 1",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_crouching_velocity_backward_amount"
+        },
+        {
+          "source": "DesiredAlphas_2",
+          "target": "Desired Alphas 2",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_crouching_velocity_left_amount"
+        },
+        {
+          "source": "DesiredAlphas_3",
+          "target": "Desired Alphas 3",
+          "source_default": "0.0",
+          "target_default_contains": "desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0]",
+          "target_binding": "als_crouching_velocity_right_amount"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.ForwardAmount",
+          "target_contains": "als_crouching_velocity_forward_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.BackwardAmount",
+          "target_contains": "als_crouching_velocity_backward_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.LeftAmount",
+          "target_contains": "als_crouching_velocity_left_amount"
+        },
+        {
+          "source_contains": "GetParent.GroundedState.VelocityBlend.RightAmount",
+          "target_contains": "als_crouching_velocity_right_amount"
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User approved comment groups ignored for BF111 character base graph parity."
+}

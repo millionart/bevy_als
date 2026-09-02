@@ -52,6 +52,58 @@ def source_root(contract):
     return values[0]
 
 
+def source_property_text(node):
+    values = list(node.get("properties", []))
+    binding = node.get("binding")
+    if isinstance(binding, dict):
+        values.extend(binding.get("properties", []))
+    return "\n".join(
+        property_value.get("exported_text", "")
+        for property_value in values
+        if isinstance(property_value, dict)
+    )
+
+
+def root_behavior_function_names(node):
+    lifecycle_properties = [
+        property_value
+        for property_value in node.get("properties", [])
+        if isinstance(property_value, dict)
+        and property_value.get("name")
+        in {
+            "StateEntryFunction",
+            "StateFullyBlendedInFunction",
+            "StateExitFunction",
+            "StateFullyBlendedOutFunction",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        }
+    ]
+    member_names = sorted(
+        {
+            function_name
+            for property_value in lifecycle_properties
+            for function_name in re.findall(
+                r'MemberName="([^"]+)"', property_value.get("exported_text", "")
+            )
+            if function_name
+        }
+    )
+    if member_names:
+        return member_names
+    return sorted(
+        {
+            function_name
+            for property_value in lifecycle_properties
+            for function_name in re.findall(
+                r'FunctionName="([^"]+)"', property_value.get("exported_text", "")
+            )
+            if function_name
+        }
+    )
+
+
 def visible_pins(node, direction):
     return [
         pin
@@ -262,6 +314,20 @@ def map_shape_issues(mapping):
             issues.extend(pin_map_shape_issues(value["output_pins"], f"{label}.output_pins"))
             issues.extend(property_assertion_issues(value.get("property_assertions"), f"{label}.property_assertions"))
     issues.extend(pin_map_shape_issues(mapping.get("root_output_pins"), "root_output_pins"))
+    root_property_assertions = mapping.get("root_property_assertions")
+    if root_property_assertions is not None:
+        issues.extend(
+            property_assertion_issues(
+                root_property_assertions, "root_property_assertions"
+            )
+        )
+    require_root_property_assertions = mapping.get(
+        "require_root_property_assertions", False
+    )
+    if not isinstance(require_root_property_assertions, bool):
+        issues.append("require_root_property_assertions is invalid")
+    elif require_root_property_assertions and root_property_assertions is None:
+        issues.append("root_property_assertions is required")
     if not isinstance(mapping.get("comment_groups"), list):
         issues.append("comment_groups must be an array")
     policy = mapping.get("comment_policy", "require")
@@ -444,15 +510,7 @@ def audit_pins(
 
 
 def audit_properties(root, source, target_node, assertions, differences):
-    source_values = list(source.get("properties", []))
-    binding = source.get("binding")
-    if isinstance(binding, dict):
-        source_values.extend(binding.get("properties", []))
-    source_text = "\n".join(
-        property_value.get("exported_text", "")
-        for property_value in source_values
-        if isinstance(property_value, dict)
-    )
+    source_text = source_property_text(source)
     target_text = target_node["entry"]
     rows = []
     for assertion in assertions or []:
@@ -673,6 +731,28 @@ def audit(root, mapping):
         differences,
         allow_runtime_evidence=True,
     )
+    root_property_assertions = mapping.get("root_property_assertions", [])
+    root_property_rows = audit_properties(
+        root,
+        source_root_node,
+        {"id": "Output", "entry": target_text},
+        root_property_assertions,
+        differences,
+    )
+    if mapping.get("require_root_property_assertions", False):
+        for function_name in root_behavior_function_names(source_root_node):
+            if not any(
+                function_name in assertion.get("source_contains", "")
+                for assertion in root_property_assertions
+            ):
+                differences.append(
+                    {
+                        "root_lifecycle_property_assertion_missing": {
+                            "source_root": source_root_node["object_path"],
+                            "function_name": function_name,
+                        }
+                    }
+                )
     try:
         expected = expected_edges(contract, node_map, mapping["root_output_pins"])
     except ValueError as error:
@@ -711,6 +791,7 @@ def audit(root, mapping):
             "target_edges": len(actual),
             "mapped_nodes": mapped_nodes,
             "root_output_pins": root_rows,
+            "root_property_assertions": root_property_rows,
             "differences": differences,
             "pass": not differences,
         }
@@ -728,7 +809,7 @@ def run_self_test():
         "format": SOURCE_FORMAT,
         "source_graph": {
             "nodes": [
-                {"object_path": "/Asset:AnimGraph.Root", "class_path": "/Script/AnimGraph.AnimGraphNode_Root", "position_x": 0, "position_y": 0, "title": "Output Pose\nAnimGraph", "binding": {"properties": [{"name": "PropertyBindings", "exported_text": "((\"Result\", (PathAsText=\"source_binding\")))"}]}, "pins": [{"name": "Result", "direction": "Input", "hidden": False, "default_value": "False", "linked_to": [], "pin_type_properties": pose_type}]},
+                {"object_path": "/Asset:AnimGraph.Root", "class_path": "/Script/AnimGraph.AnimGraphNode_Root", "position_x": 0, "position_y": 0, "title": "Output Pose\nAnimGraph", "properties": [{"name": "StateExitFunction", "exported_text": "(MemberName=\"source_state_exit\")"}], "binding": {"properties": [{"name": "PropertyBindings", "exported_text": "((\"Result\", (PathAsText=\"source_binding\")))"}]}, "pins": [{"name": "Result", "direction": "Input", "hidden": False, "default_value": "False", "linked_to": [], "pin_type_properties": pose_type}]},
                 {"object_path": "/Asset:AnimGraph.Source", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -128, "position_y": 0, "title": "Source", "binding": None, "properties": [{"exported_text": "source_scalar=0"}], "pins": [{"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
                 {"object_path": "/Asset:AnimGraph.Target", "class_path": "/Script/AnimGraph.AnimGraphNode_Test", "position_x": -64, "position_y": 0, "title": "Target", "binding": None, "pins": [{"name": "Source", "direction": "Input", "hidden": False, "pin_type_properties": pose_type}, {"name": "Alpha", "direction": "Input", "hidden": False, "default_value": "0.0", "linked_to": [], "pin_type_properties": float_type}, {"name": "Pose", "direction": "Output", "hidden": False, "pin_type_properties": pose_type}]},
             ]
@@ -766,6 +847,8 @@ def run_self_test():
             {"source_node": "/Asset:AnimGraph.Target", "target_node": "target", "input_pins": [{"source": "Source", "target": "Source"}, {"source": "Alpha", "target": "Alpha", "source_default": "0.0", "target_default_contains": "graph: \"graphs/target.animgraph.ron\""}], "output_pins": [{"source": "Pose", "target": "Pose"}]},
         ],
         "root_output_pins": [{"source": "Result", "target": "Result", "target_binding": "runtime_binding", "source_default": "False", "target_default_contains": "runtime_default_false", "target_runtime_path": "runtime.rs"}],
+        "root_property_assertions": [{"source_contains": "MemberName=\"source_state_exit\"", "target_contains": "source_state_exit", "target_runtime_path": "runtime.rs"}],
+        "require_root_property_assertions": True,
         "comment_groups": [],
         "comment_policy": "require",
     }
@@ -774,11 +857,14 @@ def run_self_test():
         (root / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
         (root / "graph.animgraph.ron").write_text(graph, encoding="utf-8")
         (root / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
-        (root / "runtime.rs").write_text("runtime_binding runtime_default_false", encoding="utf-8")
+        (root / "runtime.rs").write_text("runtime_binding runtime_default_false source_state_exit", encoding="utf-8")
         assert audit(root, mapping)["pass"]
+        missing_root_lifecycle = json.loads(json.dumps(mapping))
+        missing_root_lifecycle["root_property_assertions"] = []
+        assert not audit(root, missing_root_lifecycle)["pass"]
         (root / "runtime.rs").unlink()
         assert not audit(root, mapping)["pass"]
-        (root / "runtime.rs").write_text("runtime_binding runtime_default_false", encoding="utf-8")
+        (root / "runtime.rs").write_text("runtime_binding runtime_default_false source_state_exit", encoding="utf-8")
         broken = dict(mapping)
         broken["node_map"] = mapping["node_map"][:-1]
         assert not audit(root, broken)["pass"]
@@ -863,6 +949,7 @@ def run_self_test():
         "transition_result_root_recognized": "PASS",
         "root_runtime_binding_and_default_evidence_required": "PASS",
         "property_runtime_path_and_exception_supported": "PASS",
+        "root_lifecycle_property_assertion_required": "PASS",
         "bound_transition_result_root_edge_accepted": "PASS",
     }
 

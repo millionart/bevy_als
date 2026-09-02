@@ -138,6 +138,7 @@ impl NodeLike for SourceMultiWayBlendNode {
 pub struct SourceSetHipsDirectionNode {
     pub new_hips_direction: String,
     pub on_become_relevant: bool,
+    pub call_site: String,
 }
 
 impl Default for SourceSetHipsDirectionNode {
@@ -145,6 +146,7 @@ impl Default for SourceSetHipsDirectionNode {
         Self {
             new_hips_direction: "Forward".to_owned(),
             on_become_relevant: true,
+            call_site: "OnBecomeRelevant".to_owned(),
         }
     }
 }
@@ -185,5 +187,6 @@ mod tests {
         let node = SourceSetHipsDirectionNode::default();
         assert_eq!(node.new_hips_direction, "Forward");
         assert!(node.on_become_relevant);
+        assert_eq!(node.call_site, "OnBecomeRelevant");
     }
 }

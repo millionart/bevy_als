@@ -8,6 +8,7 @@ from audit_ue_visible_animgraph import (
     FORMAT,
     SOURCE_FORMAT,
     source_root,
+    root_behavior_function_names,
     source_title,
     source_visible_nodes,
     target_positions,
@@ -41,7 +42,7 @@ def target_pin_names(spec_node, direction):
 
 def target_binding(target_node, pin):
     entry = target_node["entry"]
-    for target_pin, key in re.findall(r'\(pin:\s*"([^"]+)",\s*key:\s*"([^"]+)"\)', entry):
+    for target_pin, key in re.findall(r'\(pin:\s*"([^"]+)",\s*key:\s*"([^"]+)"(?:,[^\)]*)?\)', entry):
         if target_pin == pin:
             return key
     alpha = re.search(r'alpha_key:\s*"([^"]+)".*?alpha_pin:\s*"([^"]+)"', entry)
@@ -81,6 +82,13 @@ def retained_property_assertions(existing, source_node):
         if isinstance(assertions, list):
             return assertions
     return []
+
+
+def retained_root_property_assertions(existing):
+    if not isinstance(existing, dict):
+        return []
+    assertions = existing.get("root_property_assertions")
+    return assertions if isinstance(assertions, list) else []
 
 
 def pin_maps(source_node, target_node, spec_node, direction, existing):
@@ -151,6 +159,10 @@ def build_map(root, source_contract, target_graph, target_spec, comment_policy, 
         "target_spec": target_spec,
         "node_map": node_map,
         "root_output_pins": root_output_pins,
+        "root_property_assertions": retained_root_property_assertions(existing),
+        "require_root_property_assertions": bool(
+            root_behavior_function_names(root_node)
+        ),
         "comment_groups": [],
         "comment_policy": comment_policy,
     }

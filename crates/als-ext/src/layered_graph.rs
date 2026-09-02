@@ -16,7 +16,7 @@ use crate::animation_context::{
     AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
     resolve_context_curves,
 };
-use crate::global_f32_input::global_f32_or_root_default;
+use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::source_cached_pose::resolve_cached_pose;
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -24,6 +24,7 @@ use crate::source_cached_pose::resolve_cached_pose;
 pub struct GlobalF32InputPin {
     pub pin: String,
     pub key: String,
+    pub default_value: f32,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -157,7 +158,11 @@ impl LayeredGraphNode {
         for input in &self.global_input_pins {
             values.insert(
                 input.pin.clone(),
-                DataValue::F32(global_f32_or_root_default(ctx, &input.key)?),
+                DataValue::F32(global_f32_or_root_default_value(
+                    ctx,
+                    &input.key,
+                    input.default_value,
+                )?),
             );
         }
         for input in &self.fixed_global_f32_inputs {

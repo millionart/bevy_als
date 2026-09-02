@@ -1,0 +1,247 @@
+{
+  "format": "als_ue_authored_graph_inventory_v1",
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching",
+  "root_source_graph": "AnimGraph",
+  "entries": [
+    {
+      "source_graph": "AnimGraph",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationGraph",
+      "name": "AnimGraph",
+      "index": 0,
+      "parent_source_graph": null
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States",
+      "kind": "fsm",
+      "class_path": "/Script/AnimGraph.AnimationStateMachineGraph",
+      "name": "Movement States",
+      "index": 4,
+      "parent_source_graph": "AnimGraph"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_0.Move Forward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Forward",
+      "index": 5,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_1.Move Backward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Backward",
+      "index": 7,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_2.Move Right Forward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Right Forward",
+      "index": 9,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Right Backward",
+      "index": 11,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_4.Move Left Forward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Left Forward",
+      "index": 13,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_5.Move Left Backward",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move Left Backward",
+      "index": 15,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_14.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 17,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_15.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 18,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_16.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 19,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_19.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 20,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_2.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 21,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_28.Transition_1",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition_1",
+      "index": 22,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_3.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 23,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_7.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 24,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States",
+      "kind": "fsm",
+      "class_path": "/Script/AnimGraph.AnimationStateMachineGraph",
+      "name": "Crouching States",
+      "index": 25,
+      "parent_source_graph": "AnimGraph"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_0.Stop",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Stop",
+      "index": 26,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_3.Rotate Left",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Rotate Left",
+      "index": 27,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_6.Move",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Move",
+      "index": 28,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_7.Rotate Right",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Rotate Right",
+      "index": 29,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle",
+      "kind": "graph",
+      "class_path": "/Script/AnimGraph.AnimationStateGraph",
+      "name": "Idle",
+      "index": 30,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_0.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 34,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_1.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 35,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_2.Transition_1",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition_1",
+      "index": 36,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_3.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 37,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_43.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 38,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_45.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 39,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_6.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 40,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_8.Transition",
+      "kind": "transition",
+      "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+      "name": "Transition",
+      "index": 41,
+      "parent_source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States"
+    }
+  ]
+}

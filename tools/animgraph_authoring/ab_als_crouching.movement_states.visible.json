@@ -1,0 +1,167 @@
+{
+  "format": "als_ue_visible_fsm_map_v1",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-4aa3bc1f1aac6700.source.json",
+  "target_fsm": "assets/graphs/ab_als/stances/crouching/movement_states.fsm.ron",
+  "transition_static_contract_runtime_path": "src/crouching_transition_profiles.rs",
+  "state_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_0",
+      "target_state": "16200000-0000-4000-8000-000000000001",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_forward.animgraph.ron"
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_1",
+      "target_state": "16200000-0000-4000-8000-000000000002",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron"
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_2",
+      "target_state": "16200000-0000-4000-8000-000000000003",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_right_forward.animgraph.ron"
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3",
+      "target_state": "16200000-0000-4000-8000-000000000004",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_right_backward.animgraph.ron"
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_4",
+      "target_state": "16200000-0000-4000-8000-000000000005",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_left_forward.animgraph.ron"
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_5",
+      "target_state": "16200000-0000-4000-8000-000000000006",
+      "target_graph": "graphs/ab_als/stances/crouching/state_movement_left_backward.animgraph.ron"
+    }
+  ],
+  "transition_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_0",
+      "target_transition": "16200000-0000-4000-8000-000000000103",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_1",
+      "target_transition": "16200000-0000-4000-8000-000000000106",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_2",
+      "target_transition": "16200000-0000-4000-8000-000000000101",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_3",
+      "target_transition": "16200000-0000-4000-8000-000000000102",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_4",
+      "target_transition": "16200000-0000-4000-8000-000000000104",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_5",
+      "target_transition": "16200000-0000-4000-8000-000000000105",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_6",
+      "target_transition": "16200000-0000-4000-8000-000000000109",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_7",
+      "target_transition": "16200000-0000-4000-8000-000000000118",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_8",
+      "target_transition": "16200000-0000-4000-8000-000000000123",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_9",
+      "target_transition": "16200000-0000-4000-8000-000000000114",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_10",
+      "target_transition": "16200000-0000-4000-8000-000000000116",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_11",
+      "target_transition": "16200000-0000-4000-8000-000000000107",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_12",
+      "target_transition": "16200000-0000-4000-8000-000000000111",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_13",
+      "target_transition": "16200000-0000-4000-8000-000000000120",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_18",
+      "target_transition": "16200000-0000-4000-8000-000000000121",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_19",
+      "target_transition": "16200000-0000-4000-8000-000000000117",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_20",
+      "target_transition": "16200000-0000-4000-8000-000000000112",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_21",
+      "target_transition": "16200000-0000-4000-8000-000000000108",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_16",
+      "target_transition": "16200000-0000-4000-8000-000000000110",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_23",
+      "target_transition": "16200000-0000-4000-8000-000000000119",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_17",
+      "target_transition": "16200000-0000-4000-8000-000000000122",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_28",
+      "target_transition": "16200000-0000-4000-8000-000000000113",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_15",
+      "target_transition": "16200000-0000-4000-8000-000000000115",
+      "property_assertions": []
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_14",
+      "target_transition": "16200000-0000-4000-8000-000000000124",
+      "property_assertions": []
+    }
+  ],
+  "entry": {
+    "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateEntryNode_0",
+    "target_state": "16200000-0000-4000-8000-000000000001"
+  },
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved BF111.04 exception: comment groups are ALS extension documentation, not target parity scope."
+}

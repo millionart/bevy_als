@@ -60,6 +60,7 @@ fn source_blend_alpha(
 pub struct SourceTwoWayBlendNode {
     pub alpha_key: String,
     pub alpha_pin: String,
+    pub pin_default: f32,
     pub mapping_max: f32,
     pub increasing_speed: f32,
     pub decreasing_speed: f32,
@@ -70,6 +71,7 @@ impl Default for SourceTwoWayBlendNode {
         Self {
             alpha_key: default(),
             alpha_pin: "Alpha".to_owned(),
+            pin_default: 0.0,
             mapping_max: 0.0,
             increasing_speed: 0.0,
             decreasing_speed: 0.0,
@@ -79,7 +81,11 @@ impl Default for SourceTwoWayBlendNode {
 
 impl NodeLike for SourceTwoWayBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let raw = global_f32_or_root_default(&ctx, &self.alpha_key)?;
+        let raw = crate::global_f32_input::global_f32_or_root_default_value(
+            &ctx,
+            &self.alpha_key,
+            self.pin_default,
+        )?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
             ctx.state_mut::<SourceBlendState>()?,

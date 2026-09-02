@@ -79,6 +79,8 @@ pub struct AlsTransitionPlayback {
     pub start_time: f32,
     pub duration: f32,
     pub weight: f32,
+    pub stop_elapsed: Option<f32>,
+    pub stop_start_weight: f32,
 }
 
 impl AlsTransitionPlayback {
@@ -103,6 +105,8 @@ impl AlsTransitionPlayback {
             start_time,
             duration,
             weight: 0.0,
+            stop_elapsed: None,
+            stop_start_weight: 0.0,
         }
     }
 
@@ -175,8 +179,34 @@ impl AlsTransitionPlayback {
         )
     }
 
+    pub fn request_stop(&mut self) {
+        if !self.active || self.stop_elapsed.is_some() {
+            return;
+        }
+        self.stop_start_weight = transition_weight(
+            self.elapsed,
+            self.duration,
+            self.start_time,
+            self.play_rate,
+            self.blend_in,
+            self.blend_out,
+        )
+        .max(self.weight);
+        self.stop_elapsed = Some(0.0);
+    }
+
     pub fn advance(&mut self, delta_seconds: f32) {
         if !self.active {
+            return;
+        }
+        if let Some(stop_elapsed) = &mut self.stop_elapsed {
+            *stop_elapsed += delta_seconds.max(0.0);
+            let duration = self.blend_out.max(f32::EPSILON);
+            self.weight = self.stop_start_weight * (1.0 - *stop_elapsed / duration).clamp(0.0, 1.0);
+            if *stop_elapsed >= duration {
+                self.active = false;
+                self.weight = 0.0;
+            }
             return;
         }
         self.elapsed += delta_seconds.max(0.0);
@@ -691,5 +721,18 @@ mod tests {
         let mut inactive = AlsTransitionPlayback::quick_stop(0.0, 1.75);
         inactive.active = false;
         assert!(!standing_transition_slot_active(&inactive));
+    }
+
+    #[test]
+    fn source_stop_request_fades_the_active_transition_with_its_source_blend_out() {
+        let mut playback = AlsTransitionPlayback::crouching_stop_right();
+        playback.advance(STOP_TRANSITION_BLEND_IN);
+        assert_eq!(playback.weight, 1.0);
+        playback.request_stop();
+        playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
+        assert!((playback.weight - 0.5).abs() < 1e-6);
+        playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
+        assert!(!playback.active);
+        assert_eq!(playback.weight, 0.0);
     }
 }

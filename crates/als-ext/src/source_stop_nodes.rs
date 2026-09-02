@@ -143,11 +143,14 @@ impl NodeLike for SourceEnumPoseBlendNode {
 #[type_path = "als_ext"]
 pub struct SourceLayeredBoneBlendNode {
     pub branch_bones: Vec<String>,
+    pub branch_bone_layers: Vec<Vec<String>>,
     pub blend_weight: f32,
+    pub blend_weights: Vec<f32>,
     pub mesh_space_rotation_blend: bool,
     pub blend_root_motion_based_on_root_bone: bool,
     pub base_pose_pin: String,
     pub blend_pose_pin: String,
+    pub blend_pose_pins: Vec<String>,
     pub output_pin: String,
 }
 
@@ -155,48 +158,82 @@ impl Default for SourceLayeredBoneBlendNode {
     fn default() -> Self {
         Self {
             branch_bones: default(),
+            branch_bone_layers: default(),
             blend_weight: 1.0,
+            blend_weights: default(),
             mesh_space_rotation_blend: true,
             blend_root_motion_based_on_root_bone: true,
             base_pose_pin: "Base Pose".to_owned(),
             blend_pose_pin: "Blend Poses 0".to_owned(),
+            blend_pose_pins: default(),
             output_pin: "Pose".to_owned(),
         }
+    }
+}
+
+impl SourceLayeredBoneBlendNode {
+    fn layer_pin(&self, index: usize) -> &str {
+        self.blend_pose_pins
+            .get(index)
+            .map(String::as_str)
+            .unwrap_or(&self.blend_pose_pin)
+    }
+
+    fn layer_bones(&self, index: usize) -> &[String] {
+        self.branch_bone_layers
+            .get(index)
+            .map(Vec::as_slice)
+            .unwrap_or(&self.branch_bones)
+    }
+
+    fn layer_weight(&self, index: usize) -> f32 {
+        self.blend_weights
+            .get(index)
+            .copied()
+            .unwrap_or(self.blend_weight)
+    }
+
+    fn layer_count(&self) -> usize {
+        self.blend_pose_pins.len().max(1)
     }
 }
 
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
-        let overlay = ctx.data_back(self.blend_pose_pin.clone())?.into_pose()?;
-        let skeletons = &ctx.graph_context.resources.skeleton_assets;
-        let skeleton = skeletons
-            .get(&base.skeleton)
-            .or_else(|| skeletons.get(&overlay.skeleton));
-        if let Some(skeleton) = skeleton {
-            if base.skeleton != overlay.skeleton && skeletons.get(&base.skeleton).is_none() {
-                base.skeleton = overlay.skeleton.clone();
-            }
-            let names = self
-                .branch_bones
-                .iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>();
-            let mask = build_branch_bone_mask(skeleton, &names, 1.0);
-            if self.mesh_space_rotation_blend {
-                apply_mesh_space_layered_blend(
-                    &mut base,
-                    &overlay,
-                    self.blend_weight,
-                    &mask,
-                    skeleton,
-                );
-            } else {
-                LinearInterpolator { bone_mask: mask }.interpolate_pose(
-                    &mut base,
-                    &overlay,
-                    self.blend_weight.clamp(0.0, 1.0),
-                );
+        for index in 0..self.layer_count() {
+            let overlay = ctx
+                .data_back(self.layer_pin(index).to_owned())?
+                .into_pose()?;
+            let skeletons = &ctx.graph_context.resources.skeleton_assets;
+            let skeleton = skeletons
+                .get(&base.skeleton)
+                .or_else(|| skeletons.get(&overlay.skeleton));
+            if let Some(skeleton) = skeleton {
+                if base.skeleton != overlay.skeleton && skeletons.get(&base.skeleton).is_none() {
+                    base.skeleton = overlay.skeleton.clone();
+                }
+                let names = self
+                    .layer_bones(index)
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>();
+                let mask = build_branch_bone_mask(skeleton, &names, 1.0);
+                if self.mesh_space_rotation_blend {
+                    apply_mesh_space_layered_blend(
+                        &mut base,
+                        &overlay,
+                        self.layer_weight(index),
+                        &mask,
+                        skeleton,
+                    );
+                } else {
+                    LinearInterpolator { bone_mask: mask }.interpolate_pose(
+                        &mut base,
+                        &overlay,
+                        self.layer_weight(index).clamp(0.0, 1.0),
+                    );
+                }
             }
         }
         ctx.set_time(base.timestamp);
@@ -205,9 +242,11 @@ impl NodeLike for SourceLayeredBoneBlendNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(self.base_pose_pin.clone(), DataSpec::Pose)
-            .add_input_data(self.blend_pose_pin.clone(), DataSpec::Pose)
-            .add_output_data(self.output_pin.clone(), DataSpec::Pose);
+        ctx.add_input_data(self.base_pose_pin.clone(), DataSpec::Pose);
+        for index in 0..self.layer_count() {
+            ctx.add_input_data(self.layer_pin(index).to_owned(), DataSpec::Pose);
+        }
+        ctx.add_output_data(self.output_pin.clone(), DataSpec::Pose);
         Ok(())
     }
 
@@ -234,5 +273,22 @@ mod tests {
         assert_eq!(node.base_pose_pin, "Base Pose");
         assert_eq!(node.blend_pose_pin, "Blend Poses 0");
         assert!(node.mesh_space_rotation_blend);
+    }
+
+    #[test]
+    fn source_layered_bone_blend_keeps_each_source_layer_pin_and_mask() {
+        let node = SourceLayeredBoneBlendNode {
+            branch_bone_layers: vec![vec!["thigh_l".to_owned()], vec!["thigh_r".to_owned()]],
+            blend_weights: vec![1.0, 0.5],
+            blend_pose_pins: vec!["Blend Poses 0".to_owned(), "Blend Poses 1".to_owned()],
+            ..default()
+        };
+        assert_eq!(node.layer_count(), 2);
+        assert_eq!(node.layer_pin(0), "Blend Poses 0");
+        assert_eq!(node.layer_pin(1), "Blend Poses 1");
+        assert_eq!(node.layer_bones(0), ["thigh_l"]);
+        assert_eq!(node.layer_bones(1), ["thigh_r"]);
+        assert_eq!(node.layer_weight(0), 1.0);
+        assert_eq!(node.layer_weight(1), 0.5);
     }
 }

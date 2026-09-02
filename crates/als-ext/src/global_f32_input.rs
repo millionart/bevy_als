@@ -17,9 +17,17 @@ pub fn root_defaults_enabled(ctx: &NodeContext) -> bool {
 }
 
 pub fn global_f32_or_root_default(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
+    global_f32_or_root_default_value(ctx, key, 0.0)
+}
+
+pub fn global_f32_or_root_default_value(
+    ctx: &NodeContext,
+    key: &str,
+    default_value: f32,
+) -> Result<f32, GraphError> {
     match ctx.graph_context.global_input_data.get(key) {
         Some(value) => value.as_f32(),
-        None if root_defaults_enabled(ctx) => Ok(0.0),
+        None if root_defaults_enabled(ctx) => Ok(default_value),
         None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
     }
 }

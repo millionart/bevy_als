@@ -456,6 +456,17 @@ fn crouch_direction_regression_case(index: usize) -> Option<CrouchDirectionRegre
     }
 }
 
+fn crouch_direction_regression_requires_stationary_turn_phase(
+    elapsed: f32,
+    direction_duration: f32,
+) -> bool {
+    elapsed >= direction_duration
+}
+
+fn crouch_direction_regression_holds_aim(elapsed: f32, direction_duration: f32) -> bool {
+    elapsed < direction_duration + 3.0
+}
+
 fn movement_direction_fsm_index(direction: AlsMovementDirection) -> u8 {
     match direction {
         AlsMovementDirection::Forward => 0,
@@ -531,6 +542,7 @@ struct IntegrationCoverage {
     crouch_direction_state_mask: u8,
     crouch_direction_lean: bool,
     crouch_rotate: bool,
+    crouch_rotate_diagnostic: bool,
     crouch_turn: bool,
     crouch_turn_diagnostic: bool,
     sprinting: bool,
@@ -790,6 +802,7 @@ struct MotionProbe<'w, 's> {
     crouch: Query<'w, 's, &'static AlsCrouchTransaction, With<AlsCharacter>>,
     actual: Query<'w, 's, &'static AlsActualMotion, With<AlsCharacter>>,
     gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
+    rotation_modes: Query<'w, 's, &'static RotationMode, With<AlsCharacter>>,
 }
 
 #[derive(SystemParam)]
@@ -1897,6 +1910,7 @@ fn drive_manual_integration(
                 state.coverage.crouch_direction_state_mask = 0;
                 state.coverage.crouch_direction_lean = false;
                 state.coverage.crouch_rotate = false;
+                state.coverage.crouch_rotate_diagnostic = false;
                 state.coverage.crouch_turn = false;
                 state.coverage.crouch_turn_diagnostic = false;
                 info!("[MANUAL-INTEGRATION][CROUCH-DIRECTION] start");
@@ -1906,6 +1920,14 @@ fn drive_manual_integration(
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Crouching);
             request.gait = Some(Gait::Running);
+            if crouch_direction_regression_requires_stationary_turn_phase(
+                elapsed,
+                direction_duration,
+            ) {
+                input.0.move_dir = Vec2::ZERO;
+                velocity.0 = Vec3::ZERO;
+            }
+            input.0.aim_held = crouch_direction_regression_holds_aim(elapsed, direction_duration);
             if elapsed < direction_duration {
                 let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
                 let Some(case) = crouch_direction_regression_case(case_index) else {
@@ -2972,6 +2994,24 @@ fn observe_manual_integration(
                         && forward.is_finite()
                         && right.abs().max(forward.abs()) > 1e-4
                 });
+        }
+        if elapsed >= direction_duration + 1.0
+            && elapsed < direction_duration + 3.0
+            && !state.coverage.crouch_rotate_diagnostic
+        {
+            state.coverage.crouch_rotate_diagnostic = true;
+            warn!(
+                "[MANUAL-INTEGRATION][CROUCH-ROTATE][OBSERVE] stance={:?} gait={:?} rotation_mode={:?} locomotion={:?} velocity=({:.3},{:.3},{:.3}) runtime={:?} drive={:?}",
+                stance,
+                gait,
+                motion_probe.rotation_modes.get(character).ok(),
+                locomotion,
+                velocity.x,
+                velocity.y,
+                velocity.z,
+                crouching_graph,
+                turn_drive,
+            );
         }
         if elapsed >= direction_duration
             && elapsed < direction_duration + 3.0
@@ -4584,6 +4624,31 @@ mod tests {
             DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
         ));
         assert!(!direction_branch_matches(None, DIRECTION_BRANCH_FORWARD));
+    }
+
+    #[test]
+    fn crouch_direction_fixture_clears_motion_before_rotate_and_turn_coverage() {
+        let duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
+        assert!(!crouch_direction_regression_requires_stationary_turn_phase(
+            duration - 0.01,
+            duration
+        ));
+        assert!(crouch_direction_regression_requires_stationary_turn_phase(
+            duration, duration
+        ));
+    }
+
+    #[test]
+    fn crouch_direction_fixture_holds_aim_only_for_the_source_rotate_window() {
+        let duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
+        assert!(crouch_direction_regression_holds_aim(
+            duration + 2.99,
+            duration
+        ));
+        assert!(!crouch_direction_regression_holds_aim(
+            duration + 3.0,
+            duration
+        ));
     }
 
     #[test]

@@ -1,0 +1,20 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-106f1ae51fef9171.source.json",
+  "target_graph": "tools/animgraph_authoring/ab_als_crouching.transition_conditions/ue_source_transition_07_106f1ae51fef.animgraph.ron",
+  "target_spec": "target/bf111/source_specs/ab_als_crouching.transition.ue_source_transition_07_106f1ae51fef.visible.json",
+  "node_map": [],
+  "root_output_pins": [
+    {
+      "source": "bCanEnterTransition",
+      "target": "Can Enter Transition",
+      "target_binding": "GetParent.GroundedState.MovementDirection.bForward",
+      "target_root_input": "Passthrough(\"GetParent.GroundedState.MovementDirection.bForward\")",
+      "source_default": "False",
+      "target_default_contains": "Passthrough(\"GetParent.GroundedState.MovementDirection.bForward\"): Bool(false)"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved nonfunctional editor comment omission."
+}

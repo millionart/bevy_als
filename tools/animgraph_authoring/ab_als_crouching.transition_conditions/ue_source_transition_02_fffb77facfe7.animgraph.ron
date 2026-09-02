@@ -1,0 +1,34 @@
+(
+    nodes: [
+        (id: "1da6363e-e463-4543-8b4a-4988f90e0185", name: "AND Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "and", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanAND\",MemberGuid=00000000000000000000000000000000)", "Unset", "-208", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "C7DC414C47494531CE9B4F8AC0B54996"]) }, should_debug: false),
+        (id: "c1b3f484-5e62-4801-8d45-e3e995c19e45", name: "float <= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: -0.5, bool_default: false, source_default: "-0.500000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "less_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["LessEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"LessEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-432", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "BC83F9954EC7C029CB236FB44CC479B9"]) }, should_debug: false),
+        (id: "3d35ed88-ab30-4531-85c7-308fb0b2dcb2", name: "float <= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "less_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["LessEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"LessEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-432", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "172C7DC04223969B3F53BFBCA8ADE349"]) }, should_debug: false),
+        (id: "92d0b996-4e04-4c60-801b-c443f4b18df9", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"GroundedState\",\"HipsDirectionLockAmount\")", "GetParent.GroundedState.HipsDirectionLockAmount", "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-848", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "458597FD4C336765ACFAEB9E85A036F4"]) }, should_debug: false),
+        (id: "9886aa13-5ca3-4a51-87bb-565d7d7c14b6", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"FeetState\",\"FeetCrossingAmount\")", "GetParent.FeetState.FeetCrossingAmount", "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-800", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "829892684996DBE85D5F82A8449B98BB"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("3d35ed88-ab30-4531-85c7-308fb0b2dcb2", "A"): NodeData("9886aa13-5ca3-4a51-87bb-565d7d7c14b6", "Value"),
+        NodeData("1da6363e-e463-4543-8b4a-4988f90e0185", "B"): NodeData("3d35ed88-ab30-4531-85c7-308fb0b2dcb2", "ReturnValue"),
+        NodeData("c1b3f484-5e62-4801-8d45-e3e995c19e45", "A"): NodeData("92d0b996-4e04-4c60-801b-c443f4b18df9", "Value"),
+        NodeData("1da6363e-e463-4543-8b4a-4988f90e0185", "A"): NodeData("c1b3f484-5e62-4801-8d45-e3e995c19e45", "ReturnValue"),
+        OutputData("Can Enter Transition"): NodeData("1da6363e-e463-4543-8b4a-4988f90e0185", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "Can Enter Transition": Bool },
+        input_order: {},
+        output_order: { Data("Can Enter Transition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "1da6363e-e463-4543-8b4a-4988f90e0185": (-208.000, 0.000), "c1b3f484-5e62-4801-8d45-e3e995c19e45": (-432.000, -48.000), "3d35ed88-ab30-4531-85c7-308fb0b2dcb2": (-432.000, 48.000), "92d0b996-4e04-4c60-801b-c443f4b18df9": (-848.000, -48.000), "9886aa13-5ca3-4a51-87bb-565d7d7c14b6": (-800.000, 48.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

@@ -1,0 +1,188 @@
+{
+  "format": "als_ue_visible_graph_contract_batch_v1",
+  "source_asset": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching",
+  "root_source_graph": "AnimGraph",
+  "inventory_sha256": "c1a2afc80a9385efc04badce5f1fdc6af4aed9ad7c3d2315df40d39f41350a29",
+  "entries": [
+    {
+      "source_graph": "AnimGraph",
+      "kind": "graph",
+      "contract": "graph-f1fb79396ffa8063.source.json",
+      "source_graph_sha256": "3ecbcfdd58370d8befd46bd000a4f0638974ef69523ab1f7de591f55464d6e70"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States",
+      "kind": "fsm",
+      "contract": "graph-4aa3bc1f1aac6700.source.json",
+      "source_graph_sha256": "31812e8ec0ee391c47dafff59ba351e2980a2364c523ce42d13f3c5f8f87ba52"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_0.Move Forward",
+      "kind": "graph",
+      "contract": "graph-f6dfefd032ddaf73.source.json",
+      "source_graph_sha256": "5f7ae16c4d61cb482557e48c1fbc2674d5ac1b74d810c2c65ef9e9923ae3e729"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_1.Move Backward",
+      "kind": "graph",
+      "contract": "graph-69e91a5fa994e931.source.json",
+      "source_graph_sha256": "1569422c2c228c2eeb26314ee5bab72be4d8dff594af9300ce1c040546a74a4d"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_2.Move Right Forward",
+      "kind": "graph",
+      "contract": "graph-9a0d11806d4fe736.source.json",
+      "source_graph_sha256": "f6af32d5fbe0a1a6c48a06e02bf5ceccdaf31c73f3de01d21396c449640bb694"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_3.Move Right Backward",
+      "kind": "graph",
+      "contract": "graph-b443151003240c39.source.json",
+      "source_graph_sha256": "0c4f40834040d36d175f312ff28d794a03135281225de458bb54e180a5d35265"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_4.Move Left Forward",
+      "kind": "graph",
+      "contract": "graph-21c4f697ee5770f2.source.json",
+      "source_graph_sha256": "1f64056ade20c2ee8ae4d8c7c9e41a73d2dc1b93fb8bba677f5129320c66aa74"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_5.Move Left Backward",
+      "kind": "graph",
+      "contract": "graph-07786950a3f7c96d.source.json",
+      "source_graph_sha256": "51b9a0aa2269c2bd3ffd37e21fb05ed8f26472e76063a73b9e47d55f8c9ef863"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_14.Transition",
+      "kind": "transition",
+      "contract": "graph-f4418386c6b2819a.source.json",
+      "source_graph_sha256": "5668120d0b4c43b235aa75ffc010698e67c0b48478420b0622f27dc83b717266"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_15.Transition",
+      "kind": "transition",
+      "contract": "graph-914143911ecc1cae.source.json",
+      "source_graph_sha256": "21038d7717996c34e4b2055240fc296ca0e59639732503188b36355a69e9828f"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_16.Transition",
+      "kind": "transition",
+      "contract": "graph-fffb77facfe7dd55.source.json",
+      "source_graph_sha256": "c06e4e65fbc56bc22aab97ad18cf7e125ad9a7bd9ccabfdefece7fabc0ee2182"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_19.Transition",
+      "kind": "transition",
+      "contract": "graph-6219d1373d735973.source.json",
+      "source_graph_sha256": "8f8c50d0c4ee27683fb60bade9e655451e0d3c8b076c7743b836dedbe55f8da2"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_2.Transition",
+      "kind": "transition",
+      "contract": "graph-c22b0dd6791d3145.source.json",
+      "source_graph_sha256": "9aadc945ca040c667afbadcd4e99f0d7aa8dacd46ff9dbdc256d221b82be5efe"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_28.Transition_1",
+      "kind": "transition",
+      "contract": "graph-cd66cea5d1088a74.source.json",
+      "source_graph_sha256": "1ca7bc5fb4b37ea0b119a3402ac98748d284ace6f5875566278fcae9a73ef320"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_3.Transition",
+      "kind": "transition",
+      "contract": "graph-75fc293c445c47e9.source.json",
+      "source_graph_sha256": "db1427fc4ef8256a11556690c254f0a7635f3596800c4020ffafaa670aa0cf8c"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateTransitionNode_7.Transition",
+      "kind": "transition",
+      "contract": "graph-106f1ae51fef9171.source.json",
+      "source_graph_sha256": "f0d8301d1d1cc5a911898c04185880842fd5fe9b589985edcb81f8d06b59f9ee"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States",
+      "kind": "fsm",
+      "contract": "graph-acc3554f502c9ac4.source.json",
+      "source_graph_sha256": "fcea3c9b0c53cbafb45cc9fa010b05856b2cd9d206e5e3eba7ab8214ac5a3392"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_0.Stop",
+      "kind": "graph",
+      "contract": "graph-6d38d7236a9d399d.source.json",
+      "source_graph_sha256": "170d387aaf330d3de4ccb9c9d0a6200aad34f477e98c63724bf1f1cf6cfadfb3"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_3.Rotate Left",
+      "kind": "graph",
+      "contract": "graph-98cf0beb9339bf0e.source.json",
+      "source_graph_sha256": "13af0e14561c71bb546c05bfd0a6ee4f0512bcab922a37a6ce2f2ec7f5bab803"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_6.Move",
+      "kind": "graph",
+      "contract": "graph-7c5d09ec686509c3.source.json",
+      "source_graph_sha256": "a8c0f71f496916a6e056fd4617d0b04e796c4e45056ee3f3be5178cd111a0710"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_7.Rotate Right",
+      "kind": "graph",
+      "contract": "graph-2909353c1ac959f1.source.json",
+      "source_graph_sha256": "bc417da501602cd78682bda04c1ef1b5d9b893ac8e836194e22db54df941c267"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle",
+      "kind": "graph",
+      "contract": "graph-436979b0540fa694.source.json",
+      "source_graph_sha256": "d86540b46765dd630f6367d328b1882bb843161aa714b70081668f57b2a6c3c6"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_0.Transition",
+      "kind": "transition",
+      "contract": "graph-b12977efe6852050.source.json",
+      "source_graph_sha256": "3aeec7772d85fe3b02dc36826f3157f7983771b0d44ebfe59e4ae111770fce60"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_1.Transition",
+      "kind": "transition",
+      "contract": "graph-bdd48d909f3ff255.source.json",
+      "source_graph_sha256": "d44a0b0377b648387520e0c378b02b90b0197da47d85b50354e479b8a0318a49"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_2.Transition_1",
+      "kind": "transition",
+      "contract": "graph-ac1c85b4dff8bdc8.source.json",
+      "source_graph_sha256": "a7cea6e55da15d3fd8081ee894afdeaf348d23bd382075c78a4fc30823953012"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_3.Transition",
+      "kind": "transition",
+      "contract": "graph-c142d6ad0269e530.source.json",
+      "source_graph_sha256": "582d5d74a3fdbd98fbe9599941b9d35fe5527ca57997c9cdf34b6bd9cfdd8ae9"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_43.Transition",
+      "kind": "transition",
+      "contract": "graph-2c94b1a58e586090.source.json",
+      "source_graph_sha256": "9b7d35b7acd34ccdb8bda99ab6ee83064b595f161d3569f49e9899cafa09ddb7"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_45.Transition",
+      "kind": "transition",
+      "contract": "graph-b369ac9eed78be6a.source.json",
+      "source_graph_sha256": "89d908ec54ecc6713f18b1f2a6b1de9fdce7b501e17c2d14c249aff40a9645fb"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_6.Transition",
+      "kind": "transition",
+      "contract": "graph-6918ca473e70c443.source.json",
+      "source_graph_sha256": "b6d6411e612700b973c88ad268d456cfdf539b02e727fd53305c35c2b29c93d5"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateTransitionNode_8.Transition",
+      "kind": "transition",
+      "contract": "graph-1b1924937af11b1d.source.json",
+      "source_graph_sha256": "e8b0b420807253a7d4774235a87c6bbd0c34ef1de6f3e65444723d1dc78d1c75"
+    }
+  ]
+}

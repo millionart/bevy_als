@@ -1,0 +1,252 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-436979b0540fa694.source.json",
+  "target_graph": "assets/graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
+  "target_spec": "target/bf111/crouching.state_idle.spec.bf11104.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_SequenceEvaluator_1",
+      "target_node": "16490000-0000-4000-8000-000000000001",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "source_default": "0",
+          "target_default_contains": "explicit_frame: 0.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Crouch_Pose",
+          "target_contains": "clip: \"animations/Base/A_Als_Crouch_Pose.anim.ron\""
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\""
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_ModifyCurve_1",
+      "target_node": "16490000-0000-4000-8000-000000000002",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "FootLeftLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0, 1.0, 1.0]"
+        },
+        {
+          "source": "CurveValues_1",
+          "target": "FootRightLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0, 1.0, 1.0]"
+        },
+        {
+          "source": "CurveValues_2",
+          "target": "AllowTransitions",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0, 1.0, 1.0]"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"FootLeftLock\",\"FootRightLock\",\"AllowTransitions\")",
+          "target_contains": "curve_names: [\"FootLeftLock\", \"FootRightLock\", \"AllowTransitions\"]"
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Blend",
+          "target_contains": "apply_mode: \"Blend\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_ModifyCurve_2",
+      "target_node": "16490000-0000-4000-8000-000000000003",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "RotationYawSpeed",
+          "source_default": "0.0",
+          "target_default_contains": "pin_defaults: [0.0]",
+          "target_binding": "als_crouching_turn_play_rate"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"RotationYawSpeed\")",
+          "target_contains": "curve_names: [\"RotationYawSpeed\"]"
+        },
+        {
+          "source_contains": "GetParent.TurnInPlaceState.PlayRate",
+          "target_contains": "value_keys: [\"als_crouching_turn_play_rate\"]"
+        },
+        {
+          "source_contains": "GetParent.TurnInPlaceState.PlayRate",
+          "target_contains": "source_value_paths: [\"TurnInPlaceState.PlayRate\"]"
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Scale",
+          "target_contains": "apply_mode: \"Scale\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_Slot_4",
+      "target_node": "16490000-0000-4000-8000-000000000004",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "SlotName=\"TurnInPlaceCrouching\"",
+          "target_contains": "slot_name: \"TurnInPlaceCrouching\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_0",
+      "target_node": "16490000-0000-4000-8000-000000000005",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CallSite=OnBecomeRelevant",
+          "target_contains": "call_site: \"OnBecomeRelevant\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_1",
+      "target_node": "16490000-0000-4000-8000-000000000006",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CallSite=OnUpdate",
+          "target_contains": "call_site: \"OnUpdate\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_2.Crouching States.AnimStateNode_8.Idle.AnimGraphNode_CallFunction_2",
+      "target_node": "16490000-0000-4000-8000-000000000007",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CallSite=OnUpdate",
+          "target_contains": "call_site: \"OnUpdate\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "root_property_assertions": [
+    {
+      "source_contains": "MemberName=\"StopTransitionAndTurnInPlaceAnimations\"",
+      "target_contains": "SOURCE_CROUCHING_TURN_STOP_FUNCTION",
+      "target_runtime_path": "src/crouching_layer.rs"
+    },
+    {
+      "source_contains": "StateExitFunction=(FunctionName=\"StopTransitionAndTurnInPlaceAnimations\")",
+      "target_contains": "source_crouching_state_lifecycle_action",
+      "target_runtime_path": "src/crouching_layer.rs"
+    }
+  ],
+  "require_root_property_assertions": true,
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved BF111.04 exception: comment groups are ALS extension documentation, not target parity scope."
+}
