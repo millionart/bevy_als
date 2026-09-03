@@ -1,131 +1,49 @@
 # bevy_als — agents.md（执行规则）
 
-用 Bevy ECS 复刻 [ALS-Refactored](https://github.com/Sixze/ALS-Refactored)（v4.18，UE 5.8）的高级运动系统：
-以 `bevy_animation_graph`（替代 UE AnimBP）+ `bevy-tnua`（替代 UE CharacterMovement/KCC）为基座，
-按需扩展这两个插件，用 Bevy/ECS 思路重建，不背负 UE 技术债。暂不包含网络同步。
+用 Bevy ECS 复刻 ALS-Refactored（UE 5.8）的高级运动系统。以 `bevy_animation_graph` 与 `bevy-tnua` 为基座；不做网络同步。
 
-**执行内容一律以 [`CHECKLIST.md`](CHECKLIST.md) 为准**（模块清单 + 各模块 Gate）；本文件只规定执行纪律。
+**当前工作范围只由 [`CHECKLIST.md`](CHECKLIST.md) 决定。** 本文件规定跨任务纪律；动画图专属流程见 [`skills/animation-graph-equivalence/SKILL.md`](skills/animation-graph-equivalence/SKILL.md)。
 
-## 设计消融（严格执行）
+## 规则归属
 
-每次设计或实现后，必须针对本次新增的抽象、适配层、状态、字段、工具步骤或运行时分支做一次可复查的消融实验：在临时 fixture、focused test 或等价受控路径中移除／合并候选项，重新运行其实际 source/static/runtime Gate。若完整验收信号不变，必须删除该多余设计；若失败，须保留最小必要实现，并记录被消融项与具体失败边界。不得仅凭代码阅读、未来可能用途或“更通用”推断保留抽象；消融不得放松 source 对标、真实入口或安全约束。
-
-## 文档索引
-
-| 文件 | 内容 |
+| 范围 | 归属 |
 |---|---|
-| `agents.md` | 执行规则（本文件） |
-| `CHECKLIST.md` | 当前执行项与持续基础事实；完成批次见归档索引 |
-| `goal.md` | goal 执行入口说明 |
-| `docs/env.md` | 本地隐私环境（gitignore）：路径、引擎版本、Unreal MCP 连接步骤 |
+| 清单、提交、安全、source-first、真实入口、跨引擎语义 | 本文件 |
+| UE 图取证、RON/FSM 对标、图编辑器、动画运行时 Gate | animation-graph-equivalence skill |
+| 可重复的静态审计、导入、视觉报告与自测 | `tools/` 对应工具 |
 
-## 执行规则
+## 执行纪律
 
-1. **自上而下**：严格按 `CHECKLIST.md` 模块顺序执行，不做跨模块跳跃；模块内按清单自上而下推进，其中无数据依赖的清单项可按规则 6 并行。
-2. **每项一提交**：实现一个清单项 → 自测通过 → 在 `CHECKLIST.md` 勾选该项 → 连同勾选一次提交（`M<编号>: <条目摘要>`），保持工作区无未提交残留。
-3. **Gate 约束**：每个模块最后一个清单项是本模块验收 Gate。Gate 验证必须留可复查证据（命令输出摘要/截图路径，写入该次提交说明）；Gate 未通过不得开始下一模块；后续发现前序模块缺陷时回退修补并重新过 Gate。
-4. **依赖修复与插件扩展边界**：任何依赖缺陷或能力缺口一律优先在本仓库内解决，先使用公开扩展点，并在 `crates/als-ext`、适配器或项目侧调度中实现（如 curve、ControlRig 等价 IK、底座 guard）；禁止默认修改、提交或推送依赖项目/fork。仅当项目内方案经实证确实无法满足验收时，允许先自行修改依赖 fork，并在报告中记录技术阻塞、替代方案与维护影响；fork 改动必须独立小步提交、可回馈上游。任何时候禁止 vendor 拷贝插件源码。
-5. **资产占位**：动画/模型/曲线资产通过 Unreal MCP 从 ALS-Refactored 工程导出（配置步骤见 `docs/env.md`），在 M0.5 一次性批量完成，此后不得零散补导——确需补充须先在 `CHECKLIST.md` 增补明确条目再执行。导出物放 `assets/` 并登记 `assets/docs/export-manifest.md`；禁止把 ALS 商店原始 uasset 提交进仓库。
-6. **并行开发（按需优先）**：同一模块内无数据依赖的清单项，优先拆分给多个 subagents 并行执行（如资产导出与代码实现、相互独立的系统/测试）；不同 subagent 不得修改同一文件，存在写入交集时退回串行。跨模块仍受规则 1 约束不得并行。每个 subagent 只负责单一明确产出，代码合并、提交、勾选与 Gate 验证由主代理统一串行收口。仅当存在多个可并行的独立任务时才派发 subagents；单任务一律由主线程独立完成，不为串行工作调用 subagent。
-7. **隐私红线（严格执行）**：仓库内任何被提交的文件（脚本、配置、文档）一律禁止硬编码本地绝对路径、引擎安装位置、本机工程位置、账号等隐私内容。此类值只能通过以下途径注入：gitignored 本地配置（如 `tools/env.local.json`，模板见 `tools/env.example.json`）、环境变量、命令行参数；依赖仓库用公开 git 地址而非 path 依赖。提交前必须自检：`git grep -n -E "D:[/\\\\]|C:[/\\\\]Program Files|User[s]/"` 无命中（注释性占位符 `<...>` 除外）。违反时立即回退修补。
-8. **代码语言纪律（严格执行）**：一切可执行内容（Rust/Python/Shell/PowerShell 源码及其中字符串字面量、日志与断言消息、RON/JSON 资产中的语义字段）只允许英文；同时禁止写注释（含 Rust doc comment 与各语言 # / // 注释；shebang 与格式声明除外）。ALS 对照依据、来源标注等原本要写进注释的信息，一律移入提交说明或 CHECKLIST/Gate 记录。文档类 Markdown（本文件、CHECKLIST.md 等）不受此限。
-9. **资源限流（严格执行）**：运行 `cargo build/test/check/clippy` 等重编译任务前，必须确认编译并行度已按当前机器规格限制——依据逻辑核数与可用内存选取 jobs ≈ min(逻辑核数/4, 可用内存GB/3)，钳制到 [2,8]，写入用户级 Cargo 配置（`~/.cargo/config.toml` 的 `[build] jobs`，机器本地、不入仓库）或以 `--jobs N` / 环境变量注入；禁止在未限流的机器上依赖 cargo 默认全核并行跑大型 workspace（多进程 rustc/link 同时满载会耗尽内存导致系统卡死）。长测试运行期间留意系统响应；因未限流造成系统假死视同执行事故，须先修复限流再继续。
-10. **多 worktree 构建隔离（严格执行）**：每个 worktree 一律使用自身 `target/`，禁止以 `CARGO_TARGET_DIR` 指向其他 checkout 的 target 目录（跨树共享缓存 = 共享目录锁：cargo 对 target 整目录独占加锁，任一侧构建期间另一侧所有 cargo 命令排队数分钟，`--examples` 级全量构建可达十几分钟）。**创建 worktree 必须用 `pwsh tools\new-worktree.ps1 -Name <名> [-Branch <分支>]`**——脚本自动完成 worktree add + 追踪文件 mtime 同步 + 构建缓存拷贝（新 worktree 首建 16 分钟→实测 7.8 秒）；禁止裸 `git worktree add`（新树无 target，裸建要么 16 分钟全量重编、要么诱发跨树共享指入）。调试/试玩/门禁一律在自身 worktree 的 target 内进行；根仓库 `run_manual.bat` 已固定隔离目录 `target_game` 即为此设计，勿改回共享。遇到 "Blocking waiting for file lock on artifact directory" 先排查跨 worktree 指入与残留构建进程，勿盲目等待。
-11. **禁止**：引入 UE 式继承树/反射式蓝图思维；在无 Gate 记录时宣称模块完成。
-12. **实时对标与实证验收（严格执行）**：任何对标 ALS-Refactored 的行为实现/修改，动手前必须从 ALS-Refactored 工程实时提取当次相关的事实（uasset 二进制解析 / Unreal MCP / 插件 C++ 源码，路径见 gitignored `docs/env.md`）；`docs/env.md` 指定的本地源码或工程可用时必须优先以其为准，禁止用网页／GitHub 版本替代或覆盖本地事实。仅当该本地路径不可用或确实不含所需事实时，才可使用公开源码作为后备，并在 CHECKLIST 条目或提交说明记录原因。禁止凭记忆、印象或"经典 ALS 印象"推断行为；提取到的事实（状态机结构/转换条件/参数数值/函数语义）登记进 CHECKLIST 条目或提交说明后方可编码。验收一律以**真实运行日志结论**为标准：gate 断言必须落在探针/pin/数值等可复查证据上，禁止以截图目测、"应当正确"的推断或单帧姿态猜测代替；证据不足时补插桩取证，不得宣布通过。
-13. **待执行条目隔离（严格执行）**：创建或补充 `CHECKLIST.md` 条目本身不授权调研、源码提取、uasset/MCP 查询、实现或验收。若该条目不在当前依赖顺序中立即执行，必须只登记其目标、依赖和验收条件；待其成为当前执行项后，才可从 ALS-Refactored 实时提取该项事实并开始工作。此前为待执行项取得的事实不得作为实施依据，开始执行时必须重新提取。
-14. **清单归档（严格执行）**：只可归档**明确命名且已完成／已废止的清单段落**，以其 Markdown 起止标题为精确边界；不得因为根清单暂时没有未勾选项就归档整个 `CHECKLIST.md`。基础事实、模块依赖顺序、附录、未来任务入口、仍有效的规范性说明以及任何未被该段落标题包围的内容必须保留在根清单。归档前必须在工作说明中列出“将移动的标题”和“将保留的标题”，并在 `git diff` 中核对范围；归档文件只能承载被移动的段落及简短来源说明。`docs/archive/archivedchecklist.md` 必须只作按日期链接的索引，不承载清单正文。归档后同步更新所有路径引用与静态验收读取路径，并单独提交。**创建新的未完成清单模块前，必须先检查根清单中的完整已完成段落；存在时先完成该段归档、更新索引并单独提交，之后才可登记新模块。归档提交不得与新任务登记或实现混合。**
-15. **通用能力与项目语义归属（严格执行）**：涉及依赖、物理、动画图或控制器能力缺口时，实施前必须评估通用机制与项目语义的边界。可复用的底层桥接／扩展优先实现于 `crates/als-ext`；ALS 专用规则、源参数映射、资产选择和角色生命周期保留在主项目或 `als-core`。在 `CHECKLIST.md` 条目或提交说明记录归属决定与理由；不得以项目专用常量污染通用扩展，也不得把通用能力留在单一 ALS 调度层。
-16. **真实入口集成（严格执行）**：任何已实现的运行时功能、缺陷修复、系统、资产选择和动画图，最终都必须接入 `run_manual.bat` 启动的 `manual_playground` 真实入口，不能只存在于独立 Gate、示例或静态测试中。实现完成前，必须在真实入口添加或更新可重复触发的自动场景、HUD 或 probe，覆盖该功能的实际行为并留下真实运行日志；完整运行时装配及每个功能／图的“已执行”状态必须可复查。仅记录插件注册、组件存在或静态图文件不得作为集成验收。未覆盖项必须明确记录为未覆盖并使入口集成 Gate 不通过，直至补齐实际行为验证；新增功能的 `CHECKLIST.md` 条目必须同时登记其 `manual_playground` 覆盖路径。
-17. **真实试玩场景保真（严格执行）**：`manual_playground` 的自动集成验收必须在已加载、可见的原始 Playground 地形、环境和正常角色相机中执行。禁止为求稳定而将角色传送到场外坐标、纯白／空白空间、独立测试世界，或只含 collider 的隐形地板；这类路径不得计入真实入口覆盖。确需加入 Mantle 台、移动基座、相机障碍等辅助物时，只能作为当前 Playground 内、落在其真实地面上的短时可见摆件，必须同时有可渲染 mesh/material、物理 collider、明确日志位置和清理／生命周期；辅助物不能替代 Playground 原有地面、环境碰撞或角色出生／相机链。驱动接管前必须先通过入口既有的场景物理、PlayerStart、角色可见性和 grounded spawn Gate；验收日志与必要截图须证明角色始终处于用户可实际试玩的 Playground 画面，而非脱离入口的隔离环境。
+1. **清单顺序与提交**：按 `CHECKLIST.md` 的模块和依赖顺序执行；每项通过自身 Gate 后勾选并单独提交。Gate 未通过不得开始依赖项。
+2. **待执行与已完成项隔离**：登记未来条目不授权调研或实现。已完成或已归档条目只有在症状、fresh source fact 和 source-target 链路共同证明它是根因时才能复开；先取消勾选、复盘旧 Gate 的漏检边界，再改代码。不得因相邻模块、同名资产或猜测而回头修改。
+3. **归档**：只移动明确命名且已完成/废止的完整清单段落。归档前说明移动与保留边界，核对 diff；`docs/archive/archivedchecklist.md` 只作日期索引，归档单独提交。
+4. **设计消融**：每次新增抽象、适配层、状态、工具步骤或运行时分支都要在 focused fixture、测试或受控路径中移除/合并并重跑适用 Gate；信号不变即删除，只保留有明确失败边界的最小实现。
+5. **通用与项目边界**：可复用底层能力优先放 `crates/als-ext`；ALS 规则、资产选择和角色生命周期留在项目/als-core。先用项目公开扩展点，不默认改依赖、fork 或 vendor 源码；确实无法满足时单独记录阻塞和维护代价。
 
-18. **动画图编辑器完整性（严格执行）**：任何创建或修改 `assets/graphs/**/*.animgraph.ron`、`assets/graphs/**/*.fsm.ron` 的工作，在编辑器启动和提交前必须先运行 `python tools/validate_animgraph_editor_assets.py --root assets/graphs --fix`，再运行不带 `--fix` 的同一命令；后者必须以 exit 0 结束。该验收要求 `input_order` 与 `input_times`／`input_data` 精确覆盖且无陈旧项、重复项或非法序号；每个 FSM state 必须有有限且不重叠的 editor 坐标；每条 transition 必须指向已声明 state。`source == target` 的自环是有效语义，禁止为了规避图形问题删除或改写它；含自环的图在编辑器依赖升级或绘制代码改动时，必须运行 `python tools/verify_animgraph_editor_smoke.py --jobs N`；该命令无窗口地执行 `self_transition_arrow_uses_finite_geometry` 回归测试，作为最终证据。人工打开编辑器只用于视觉布局或交互评审，不是默认 Gate。`als_graph_editor.bat` 的只读预检不得移除或绕过；改动三个图资产修复／验收工具本身时，必须同时运行各自的 `--self-test` 和全量只读验收。
+## Source、资产与移植
 
-19. **跨引擎 Transform 保真（严格执行）**：从 Unreal 向 Bevy 移植时，任何涉及 transform 的数据或行为都必须先按两引擎的完整三维坐标基、单位、手性与旋转约定推导后再转换；禁止直接抄写或只缩放 XYZ 数值。范围包括但不限于 primitive/collider、骨骼与虚骨、socket、角色与相机、层级局部／世界变换、constraint 两端 local frame 与 axis、IK target 与 pole、root motion、动画姿态读写、实例化偏移、trace/query 起终点及调试 probe。位置、方向、extents/scale、Euler、quaternion、matrix 和每个 parent-relative transform 都必须使用同一已验证的基变换；转换函数须有基向量与旋转不变量测试，静态审计须逐字段比对 source/target，真实入口日志须记录可复查的 source→target transform 证据。出现坐标定义、骨骼导入轴或 parent space 不确定时，必须先从本地 UE 源工程/资产实时提取事实并补 probe，未证实前不得编码或宣称等价。
+1. **source-first**：对标修改前必须从本地 ALS-Refactored 工程重新提取当次事实；本地路径可用时不得用网页版本替代。事实和 Gate 结论写入当前条目或提交说明，禁止凭记忆实现。
+2. **只复刻已证实差异**：观察、截图和性能样本只用于定位。先逐项比较 source/target 的算法、输入、值、生命周期和坐标空间；source 未证实差异或 source 自身相同则不做优化、补偿、平滑或阈值放宽。
+3. **原始导出不可变**：UE 导出的原始资产是 source record，不追加、重写或手工修补。单位、坐标基和算法标量的 target 数据必须由可复跑离线工具生成到独立 target 资产/配置；运行时只消费 target 数据。迁移已完成条目的原始资产边界必须先显式复开该条目。
+4. **Transform 与单位**：位置、旋转、scale、轴、手性、parent space、骨骼/IK/root motion/trace 等均先推导完整坐标基和单位语义，再转换；不能只抄 XYZ 或套通用 Rotator。转换工具使用中性 source/runtime 命名，并以基向量、旋转和字段复算验证。
+5. **生命周期**：明确一次性初始化、条件重建、事件和逐帧阶段。逐帧 pose/IK 写回从当帧动画输入开始，禁止回读上一帧 post-rig Transform 形成累积；重建须有触发、清理和执行次数证据。
+6. **物理时钟**：按 source 与 target 的实际执行语义映射 Delta clamp、fixed accumulator、substep 和异步路径；不得凭配置名或 `1/30` 把物理限制改成全局固定帧率。
 
-20. **初始化、重建与逐帧执行分相（严格执行）**：移植 Unreal 的任何生命周期链路前，必须从当次本地资产／源码明确标注每个节点或函数属于一次性初始化／Construction、条件性重建／重新初始化、事件驱动，还是每帧 Update／Forwards Solve；禁止因实现方便把 Construction、BeginPlay、首次激活、缓存骨骼／引用姿态、默认变量写入或资源装配放进逐帧系统，也禁止把逐帧状态刷新错误地冻结在初始化阶段。Bevy 实现必须以独立 component／resource 与显式 SystemSet 表示各相位：初始化仅在实体创建或明确定义的 reinitialize 条件下执行一次，逐帧系统只能消费已构造状态；需要重建时必须有可复查的触发条件、先清理旧 transient state 再重新执行一次性链路。**对于源端每帧在动画／Control Rig pose 上 `SetTransform`、`SetTranslation` 或 IK writeback 的链路，目标必须先取得当帧新鲜的动画输入 pose，再写入最终 pose；禁止将上一帧 post-rig 实体 Transform 当作下一帧输入并进行 `+=`、重复 local/global 转换或持久累积。若目标动画运行时不重写某骨骼通道，必须有明确的输入 pose base 捕获／恢复机制，并以多帧不变量证明局部平移、scale、肢段长度不会累积漂移。**验收必须同时记录初始化执行次数、重建次数及连续多帧 runtime stage 顺序，证明 Construction 不会逐帧重复而每帧链路也不会漏跑；静态审计与真实入口 probe 缺任一证据均不得宣称等价。
+## 验收与真实入口
 
-21. **跨引擎单位与坐标基离线转换（严格执行）**：跨引擎移植的长度、坐标轴、手性、旋转、scale、matrix、parent-relative transform 与任何由其派生的值，必须由仓库内可复跑的离线导入／生成／审计工具完成转换；工具使用中性的 source coordinate basis／runtime coordinate basis 命名，不得以某一引擎名称充当通用 runtime API。转换结果必须物化为提交的项目资产、生成源码常量或明确的 target-space 配置，并由静态审计逐字段复算验证；运行时禁止调用通用 source→target 坐标／单位 bridge，也不得读取源引擎数值后临时换轴或换单位。运行时只可消费已经转换的 target-space 数据，并用 target-space 算法处理动态状态；若确有外部实时流输入的例外，必须在 `CHECKLIST.md` 单列数据边界、转换工具、缓存格式与真实日志证据，未列明不得实现。**名称或载体看似 transform 的曲线／参数若在 source 端表达 actor yaw、速度、权重或其它算法语义标量，禁止套用通用轴／Rotator 变换；必须在当次本地 source 的实际 action 下取得其单位、正负与累积方向，再由离线生成器物化为 target 数据。对应 Gate 必须同时验证 source-derived signed direction 与绝对幅度，不能只验转动量。**
+1. **静态闭环优先**：source fact → source/target 静态合同 → focused test/self-test → 编译与声明式 Gate → 一次真实 Playground runtime Gate。真实运行是静态闭环后的兜底，不是逐笔探索工具。
+2. **真实场景**：运行时功能必须接入 `run_manual.bat` 的可见 `manual_playground`；自动场景保持原 Playground 地形、环境、角色和相机，不能用场外、空白或隔离世界替代。
+3. **动画图与角色姿态**：修改图、状态机、曲线、IK、Control Rig、root motion 或资产选择时，必须使用 animation-graph-equivalence skill 的公共视觉 Gate。图求值错误必须在首帧生成可读报告并退出：报告至少包含原始错误、pin/node、候选图路径、root-pose/A-pose 分类、场景标签和截图尝试；runner 即使进程非零退出也必须审计该报告。没有 `primary_failure` 的 graph-error 报告视为无效。
+4. **经验固化**：修复后优先把漏检边界落实为 source-first 断言、真实入口场景、工具 self-test 或适用 skill；跨任务纪律写本文件，领域流程写 skill。经验是经证实的默认，不是死规则；source、工具或运行时事实变化时用新证据调整。
 
-    **带插值的跨坐标标量曲线必须作为完整函数转换，而非只转换 key value：对会改变值轴符号／单位的映射，离线生成器必须同步转换每个 value-space tangent／derivative、任何 value-space offset，并只在 source 语义确认为时间不变时保留 key time、time tangent weight 与 interpolation mode。source/target contract 必须逐字段登记全部 curve authoring data；除 key value 与积分外，还必须在每个相邻 key 之间的非 key sample 点复算 `target(t)` 与转换后的 `source(t)` 一致。不得因 key 值或积分相同就假定 cubic/weighted interpolation 等价。**
+## 工程安全
 
-22. **动画图作者性 skill 与声明式 Gate（严格执行）**：任何创建或修改 `assets/graphs/**/*.animgraph.ron`、`assets/graphs/**/*.fsm.ron` 的工作，动手前必须完整读取项目内 `skills/animation-graph-equivalence/SKILL.md` 并按规则 12 重新提取当次本地 source fact。每个变更 scope 必须创建或更新 `tools/animgraph_authoring/` 下的 manifest，完整登记实际 RON/FSM 的 node/state 顺序、每个 position、edge/transition、root IO、source-evidence SHA-256、非 Pose root output ABI exception、source/layout/editor 只读检查及 contract/manual Gate；一个 manifest 覆盖多个拆分图时不得遗漏任一被改图。每个非 Pose root output 必须有具体 reason 和 source/runtime evidence；不得把曲线、time、event、控制或物理 ABI 为了减少连线而删除，空 `Inputs` editor decoration 也不得伪造为 asset input。**`assets/` 及其 `graphs/` 子树只允许真实运行时会显式加载或作为运行时依赖发现的资产；source contract、source-visible map、审计生成物、对标用 RON、测试 fixture、导入中间物及任何不应由 AssetServer／`load_folder`／编辑器／打包流程发现的文件，必须置于 `tools/`、`docs/` 或 `target/` 的专用目录。生成器、manifest 和 audit 必须使用该工具目录路径，禁止借用 runtime asset 路径作为临时 target graph。**提交前必须执行 `python tools/validate_animgraph_authoring.py --manifest <manifest> --check`，并按规则 18 先运行 editor validator `--fix`、再只读复验、再运行 position verifier；随后必须执行 manifest 声明的 source audit、focused runtime Gate 和 `run_manual.bat` 真实 Playground case。修改本 skill、该 gate 或其 manifest schema 时，必须运行 skill quick validator、gate `--self-test`、全量 graph editor 只读验收及关联 manifest smoke。非图资产仅在不伪造图表示的前提下使用 skill 的 source/target-space/lifecycle/real-entry 纪律。
+1. **隐私**：提交内容不得含本地绝对路径、账户或引擎位置；用 gitignored 配置、环境变量或参数注入。提交前检查暂存 diff 的路径泄露。
+2. **代码纪律**：可执行源码、字符串、日志、断言和资产语义字段只用英文且不写注释；Markdown 可使用中文。
+3. **构建**：大型 cargo 命令必须限流（本机通常 `--jobs 2`）；每个 worktree 使用自己的 target，并用 `pwsh tools/new-worktree.ps1 -Name <name>` 创建。排查锁前先确认进程和 target 归属，不能误杀其他 worktree 或 rust-analyzer。
+4. **UE/MCP**：优先复用健康的持久 Editor，通过 `OpenEditorForAsset` 和只读 MCP 读取；无可用实例才按 `docs/env.md` 恢复项目。空 DSL/截图先做健康检查，不等于图为空；MCP 失败后才用同次 native contract，Computer Use 最后使用。
+5. **工具调用**：UE toolset 经仓库 MCP 封装调用。复杂长命令改为短命令加脚本；超时或错误时先读取报告、改变诊断路径，不盲目重复同一调用。
 
-23. **UE 图可见结构取证与截图（严格执行）**：任何以 UE AnimGraph、State Machine、Control Rig graph 或其可见子图为对标来源的工作，必须同时取得本地 native uasset 完整事实、MCP 的只读 live-Editor graph fact 和 source-visible 图像事实。若相关持久 Editor 已运行且 MCP 可响应，资产打开必须直接使用 `EditorToolset.EditorAppToolset.OpenEditorForAsset`，随后依次使用 `AssetTools.load_asset`、`BlueprintTools.list_graphs`、`BlueprintTools.get_graph`、`BlueprintTools.read_graph_dsl` 读取图对象与 DSL；禁止为此重复启动 Editor、调用临时 asset-open 脚本，或调用任何 Blueprint 写工具。native uasset extraction 仍是完整 source contract 的权威依据，MCP DSL 是独立的 live-Editor 交叉事实。截图前必须用 Slate Inspector `Observe`／`Snapshot` 定位实际 graph canvas subtree，并对该 ref 调用 `Screenshot`；整窗 Editor 截图只可证明资产已打开，不得作为 graph 节点、pin、连线或 layout 证据。禁止为打开单一资产启动一个会 `RequestExit` 的临时 Editor 进程；该做法可能在 Animation Blueprint 编辑器活跃时触发 teardown crash。**若 MCP 探测不到服务、连接失败、无法读取 graph 或 Slate 无法定位 canvas，禁止立即把这视为永久不可用或直接降级为 contract SVG：必须先从 gitignored `docs/env.md` 取得本地项目入口，以非终止式持久 Editor 方式自行启动／恢复该 UE 项目，重新执行仓库 `tools/mcp_probe.py` 探测；只有该恢复尝试已完成且对应 MCP 能力仍不可用，才记录具体失败工具／参数／结果并从同次 native graph contract 渲染 source layout。**Computer Use 仅为 MCP 后的最后手段，使用前必须读取其 skill。验收范围必须递归闭包：顶层 AnimGraph、每个可达 State Machine、每个 state 的 AnimGraph、每个可见 transition graph 与其它从该图可达的 authored subgraph 均须逐一登记 source path、target RON/FSM、source contract/map 和 Gate；不得以顶层通过、运行时行为、拆分图数量或“内部实现”理由跳过任何子图。每张 source 图均须用 `extract_ue_visible_graph_contract.py` 保存完整 source node/property/pin/link/comment/position 合同，并以 `run_ue_visible_animgraph_audit.py --source <fresh-native-extraction>` 在每次 Gate 中先确认提交的 contract 与当次 native extraction 相同、再重新生成当前 RON 的实际 Rust `NodeSpec`、再调用 `audit_ue_visible_animgraph.py` 对实际 target 根图做逐可见节点顺序、pin 顺序、link、position、output position 及所有会控制目标实现的 source static property/value 审计；每个未连线且非空的 source pin default 与每个这类 property/value 必须在 source-visible map 中以 source/target assertion 显式登记，禁止只凭 target 字段或运行结果推断。State Machine 必须另以 `audit_ue_visible_fsm.py --source <fresh-native-extraction>` 审计 entry、state/transition order、label、graph、endpoint 和 state position；source transition-node position 仍保留在 source contract，但根据用户明确决定不属于 target 对标范围，禁止为此增加 sidecar 或修改 `bevy_animation_graph`。此豁免仅限 transition-node position，不放松 transition 节点／数量／顺序／端点、transition graph、条件、pin、static property/value、state position 或其它可见结构。禁止以陈旧／提交的 spec JSON 直接过 Gate。comment group 默认必须审计；只有用户在当前 `CHECKLIST.md` 明确批准时，才可设 `comment_policy: ignore` 并记录 `comment_exception`，且该豁免绝不放松 node、pin、edge、状态机、cache、property/value 或 position 对标。target 自己生成的 manifest、node 数汇总、拆分子图覆盖、SVG 预览、静态编译或 runtime PASS 都只能证明 target 自身，不得作为 source-visible 等价依据；未通过此 Gate 时，相关 BF 条目必须保持未勾选且后续图不得开始。
+## 文档与历史
 
-24. **可记录动画视觉／性能 Gate（严格执行）**：任何改动会影响角色最终姿态、additive、BlendSpace、state transition、IK、Control Rig、ragdoll、root motion、动画资产选择或动画图调度时，除逻辑／pin Gate 外，必须在 `run_manual.bat` 启动的真实可见 Playground 中运行 `tools/run_animation_visual_validation.ps1`，再以 `tools/validate_animation_visual_evidence.py --check` 审核其输出；不得以进程退出为零、`graph_err=none`、单个静态 pose 或截图目测替代。每次证据必须包含：同一自动场景中多个关键运行帧的实际渲染 PNG；动画最终写入、后传播后的关键骨骼 global transform、scale、肢段长度／连续性、非有限值与 graph error 记录；**每个 pose 与截图的自动 scenario、phase、phase elapsed、locomotion、gait、stance、rotation mode 等可复现状态标签**；wall-frame 与动画求值 CPU 时间的 sample count、p50/p95/max、阈值和失败帧；以及机器可读 JSON report。截图必须由运行时相机产生，不能用 mock、编辑器预览或 target-derived SVG 替代；Python validator 必须验证图像存在、尺寸／内容有效、全部所需样本、状态标签、骨骼不变量和性能门槛。任何塌缩、异常 scale、肢段长度突变、非有限 pose、连续帧关节跳变、additive 后骨骼异常、截图无有效场景内容或超过性能阈值都必须使 Gate 失败，并保留故障时的数值和图像。**公共 Gate 还必须对每一 render frame 的最终 local／global skeleton 独立运行时序异常守卫，不能依赖当前模块、IK 实现或项目算法来判断：至少拒绝非有限／缩放异常、局部 translation／rotation 尖峰、链长比例突变、非退化肢体平面翻转及相对角色骨骼位置尖峰；每个命中必须记录骨骼／链、前后量值、阈值、帧、场景标签并触发故障截图，机器可读 `temporal_anomalies` 非空或缺失均使 validator 失败。source-specific IK／Control Rig 对标断言只能补充这层通用守卫，不能替代它。**阈值／baseline 只能由独立的已验证 run 建立并提交为项目配置，禁止在被测改动的同一次 run 中自动接受或覆盖 baseline。**source 端声明动态的窗口还必须逐帧记录根 graph Pose output 是否存在、活跃 bone/channel 数与 reference-like 次数，并同时记录 animation Final 后／Control Rig 前和 Control Rig／IK 后的局部骨骼运动；任何 settled dynamic window 出现 reference root Pose、pre-rig 静止或 final pose 静止均须失败。source 端存在多个互斥方向／状态或独立 clip／BlendSpace branch 时，scenario 必须逐项声明 source state、期望 target direction/FSM state、source sync group 与 canonical phase；每一个 state 预期还必须由同次 source 的实际 transition endpoint、前置 state、branch/property 条件、角度／阈值或其它输入区间推导，禁止仅根据 state 名称或手写“对角输入”猜测。报告必须记录同帧实际 direction/FSM state，并在 canonical phase 对各分支 pre-rig pose signature 做 pairwise 区分。**任何 source action 若应改变 actor yaw 或经历 slot／inertialization／恢复生命周期，公共 window 必须声明最小 actor-yaw delta 和完整 lifecycle stages；未真正生成对应 window、未见 yaw 变化、任一 stage 缺失或仅 driver 预测成功均须失败。**仅证明 target 自己计算出的 direction 与自己选择的 state 一致，或六个输入都有运动，均不得代替 source state 的精确选择与 distinct pose 证据。新增该 Gate 边界时，工具 self-test 必须分别构造 reference/A-pose、final pose 静止、错误 source state 和多个方向签名坍缩为同一 pose 的坏报告，均须失败。**每个未来 checklist 的动画／角色运行时条目必须列出具体 scenario、覆盖动作、evidence 目录和该 Gate；该 Gate 未通过不得宣称视觉等价或开始依赖模块。
-
-24a. **通用瞬态姿态异常守卫（严格执行）**：对每个 render frame，公共 Gate 必须独立对 animation Final／Control Rig 前与最终 Control Rig／IK 后的 skeleton 执行同一套几何时序检测；不得以 Foot IK、当前状态机、曲线、已知算法或项目专用 probe 推断是否异常。首个异常必须使 Gate 失败，并记录 stage、骨骼／链、前后量、阈值、帧、场景标签和优先故障截图；正常报告必须显式含空的 `temporal_anomalies`。history 只能在声明的 phase／direction／stance 边界或动态窗口首次 settled 时重建，不能按实际状态、权重、曲线或异常结果清空。守卫的 unit/fixture/self-test 必须分别证明单帧局部平移、扭转、scale、骨段长度、相对角色位置和非退化肢体平面翻转都会被拒绝；移除用于该检测的历史数据时必须有消融测试证明同一异常会漏检。
-
-25. **ALS-Ref 差异修复边界（严格执行）**：运行时 probe、截图、性能样本或人工观察只用于发现潜在差异，绝不授权独立于 ALS-Refactored 的“优化”、补偿、平滑、阈值放宽或算法重写。发现异常后必须先从当次本地 ALS-Refactored 对应资产、可见图、Control Rig 或 C++ 源码重新提取事实，逐项比较 source 与 target 的算法、输入、静态值、生命周期和坐标空间；只有已证实 target 与 source 不一致时才可修改 target，且修改必须以复刻 source 行为为唯一目标。若 source 本身具有同一表现或无法证明差异，必须保留现状并记录证据，不得以主观视觉或性能偏好继续修复；不得借 Gate 调整 baseline、阈值或验收规则掩盖未对标差异。
-
-26. **故障经验的可复用化（严格执行）**：已修复内容保留证据的意义有限，首要目标是从故障原因、source-target 差异和漏检边界中总结可复用经验，并将其落实到之后测试与修复所必经的 source-first 回归断言、真实入口场景、静态审计规则或工具 self-test。经验归属必须按适用范围固化：跨任务、执行纪律、验收边界或安全约束写入 `agents.md`；仅适用于特定领域、资产类型、工具链或工作流的规则写入对应 project skill；两者都适用时分别在全局规则与 skill 中保留各自层级的要求。**一项 source-proven 差异修复通过其 focused regression 后，在开始下一项实现、诊断或恢复更广清单前，必须立即完成此归类、更新对应 agents/skill、补齐静态／运行时／工具 self-test 并运行验证；不得把经验整理拖延到模块收尾或下一个发现后。**为恢复可运行状态而进行的临时回退不受此时序阻断，但在重新接入已证实修复前仍须完成上述固化。经验是经验证的默认约束，不是脱离当时事实的死规则；遇到技术阻塞、source 事实变化或工具能力边界时，必须根据当次 source、运行时、资产和工具实证调整实施或验收路径，并将验证后的调整更新到适当的 `agents.md` 或 project skill。不得以堆积旧截图、完整失败日志或叙述性证据替代这种经验固化；仅保留当前 Gate 所必需的最小 source fact 与最终结果。诊断临时文件在不再服务于未解决问题后不得作为长期验收依据。新增或修正验收工具时，必须为本次曾漏检的边界加入独立 self-test，后续 checklist 必须复用该测试而非重新依赖人工观察。
-
-
-27. **跨引擎物理时钟语义（严格执行）**：移植物理、角色移动、动画驱动或性能 Gate 时，禁止按配置名或数值把 source 物理 Delta 上限、substep 限制、异步开关直接映射为 target 固定更新频率。必须从 source 实际执行路径和 target 调度器同时提取语义，逐项区分“每个 render/game frame 的同步单步与 Delta clamp”“固定 accumulator 的零／多步”“真实 substep”及异步模拟；再以每 render 的 step count、每步 Delta、游戏状态推进和真实 frame-time 证据验证映射。特别是 source Chaos 在 `bSubstepping=false` 时对 `MaxPhysicsDeltaTime` 执行的是单帧 Delta 的 `min(frame_delta, max_delta)`，不是固定 Hz；不得仅因 source 值为 `1/30` 就设置 target `Time<Fixed>` 为 30Hz，也不得为只限制物理而全局截断 target 的游戏／动画 virtual clock。source 的物理专用 Delta 语义须由有明确恢复边界的 project-side adapter 仅包住 target physics 段，恢复后再运行非物理链路。语义尚无等价 target 调度路径时必须先记录阻塞并补 project-side adapter／probe，不得保留会改变状态机时间线或真实入口覆盖的近似映射。
-
-28. **动画验收静态闭环优先（严格执行）**：对 ALS-Refactored 动画、状态机、缓存、曲线、IK、Control Rig 或根图链路的实现／修复，执行顺序必须是：当次本地 source fact → source/target 静态链路合同（节点、pin、edge、default/static value、cache scope、FSM state/output、生命周期与 root handoff）→ target 静态审计与 focused unit/fixture/self-test → 编译与 manifest/editor Gate → 一次真实 Playground runtime Gate。真实运行是静态逻辑已闭环后的端到端兜底，不得用于逐笔改动的探索、猜测根因或替代 source/static 对标；不得因刚新增报告字段、probe 或临时断言就反复启动 `run_manual.bat`。runtime 失败后先回到 source 事实与静态链路，修正并完成该轮静态 Gate 后才可再次运行；除用户明确要求的独立复现外，同一 coherent change batch 只允许在静态闭环后进行一次重型真实运行。检测器本身的探索只能使用离线 fixture、focused test 或工具 self-test，不能消耗真实 Playground 来解释未完成的静态模型。
-
-    **source 的动态 Slot、通知、curve 或行为函数若位于某个 State 的 authored graph 内，则该 State 的稳定 active/非 transition 边界同时约束其触发、时钟推进和曲线 relay；不得只因 target driver 存在就提前积累触发延迟或启动 clip。目标必须以实际 state telemetry 在此边界前 reset／抑制 detector，并以 focused fixture 覆盖 owner 缺失、非 owner、transition 中和稳定 owner 四种状态。运行时动态窗口还必须逐 sample 记录预期 target animation variant 与实际选择 variant；active clip 不一致必须独立失败，不能被正确的姿态或 yaw 幅度掩盖。**
-
-    **任何跨层 telemetry 的 ECS owner 必须在 source/target 链路合同中明确：图 player/动画 avatar 与角色实体常为 parent-child 关系，telemetry 可能挂在角色而 driver 挂在 avatar。读取前必须沿确定的 hierarchy resolve owner，禁止按当前 driver entity 猜测 component 所在实体；focused test 必须证明 character owner 可读取而 avatar lookup 不会被误当作有效 source 状态。**
-
-    **状态机行为的 runtime evidence 必须同时记录 target dispatcher 所请求的 state／transition 和图实际解析出的 state／transition。两者任何一侧偏离 source 都是失败：requested 正确而 actual 错误指向 graph/event handoff，requested 错误指向调度／输入链；不得只记录最终实际 state 后猜测根因。公共 validator 的 self-test 必须分别拒绝 actual wrong 与 requested wrong。**
-
-    **任何由 Rust runtime 写出、再由 Python/PowerShell validator 消费的 evidence schema version／format identifier 必须来自同一提交的共享 contract 文件；Rust 以编译期 include 使用它，validator 直接读取它。禁止分别硬编码版本字符串。每次 schema 改动必须运行 Rust shared-contract test 与 validator self-test，任一侧仍使用旧版本即为 Gate 失败，不得把格式不匹配误报为动画行为失败。**
-
-    **动态 Slot／montage 的曲线验收 trace 必须逐 sample 列出全部相关 stack entry 的实际 target variant、clip elapsed、weight、play rate 与 sampler ready 状态；仅记录 latest drive 或总权重不足以发现旧 entry 混入、时间不同步或曲线前缀丢失。对每种 source 资产需有 focused test：直接以实际导入的 target asset 与单一 active entry 验证其 sample/组合结果；若该 test 通过而真实 trace 错误，必须沿 stack 生命周期、owner state 与调度时序排查，不得重写曲线数值。**
-
-    **当 stack entry、clip time 与权重都符合预期而组合 curve 仍不符时，trace 还必须并列记录“从运行时实际 loaded asset handle 以同一 clip time 直接 sample”的值与最终 relay 值。direct 值错误说明 loader/asset identity 边界，direct 正确而 relay 错误说明组合／状态 scope／写入时序边界；两者不得混为资产数值问题。**
-
-    **动态动作窗口的 actor-yaw baseline、state 集合、curve trace、pose span 与生命周期只能从 source action 已真正满足 owner state、branch、clip/slot active 条件的第一帧开始采集；precondition、上一动作清理、target view 尚未设置或 driver 尚未起播的帧只能登记“required window”，不得混入同一窗口的数值。否则会伪造错误 state、零初始 yaw error 或虚假的收敛失败。循环 Rotate 的 fixture completion 还必须同时观察到 source loop boundary，或 source 停止 loop 后当前 sequence 自然结束所发出的 completion event，并返回 stable stationary owner state；仅见第一帧 active 不得推进下一动作。**
-
-    **Slot／sequence 的 natural completion、inertialization、settled 等生命周期信号可能只存在一个 render frame。公共 Gate 必须在 producer bridge 之后、每个 render frame 独立登记已激活 source window 的 lifecycle metadata；昂贵的 skeleton／pose／截图 sample 可以降采样，但不得承担该事件的唯一采集职责。focused regression 必须构造“完成 pulse 落在两个 pose sample 之间”的路径并仍保留 lifecycle；未满足 source action precondition 的帧不得写入 observed lifecycle、actor-yaw baseline 或其它窗口观测值。**
-
-    **若 source completion／settled pulse 发生在下一次降采样 pose 前，而同一帧可能触发 scenario 退出，公共 Gate 必须强制在该帧采集完整 pose/trace 并同步落盘 report；仅把 metadata 写入内存或等待定时 report 都不合格。focused regression 必须证明 terminal pulse 会触发 sample 与 flush。wall-clock 的最短观察时间只有 source 明确给出该语义时才可作为 Gate；clip/Slot 动作的完成以 source lifecycle、active clip time、curve 与 final state 为准，禁止用任意秒数把已完成的 source action 误判为失败。**
-
-    **自动 fixture 若在通用 telemetry 已写入后重建／替换 animation window，必须通过同一 trace 填充路径立即重新写入 actor yaw、view yaw、curve、clip time、weight、play rate、stack 与实际 variant，并同时重新挂接 source/actual state。不得只回填少数字段；否则动态窗口会看似存在而缺少用于验证 source action 的关键 trace。每个重建的 Rotate、Turn 或 Slot window 必须有 focused construction regression，证明其最终 evidence 含完整 trace；公共 validator 继续把缺 trace 视为失败。**
-
-    **source action 的 active FSM state 与 completion 后的 terminal FSM state 可能不同，且都属于对标事实。动态窗口必须按 source transition endpoint 分别声明并记录 active 的 requested/actual state 与 settled terminal 的 requested/actual state；不得把 terminal Idle／Move 混进 active Rotate／Turn 集合后误判，也不得丢弃 terminal state 以规避验证。公共 validator 与 self-test 必须分别拒绝 active state 错误、requested state 错误和 terminal state 错误。**
-
-    **terminal 的 requested transition-active 也必须由 source transition property 推导，不能默认要求 `false`：例如 source 的 sequence-player automatic rule 可在已解析到 terminal state 的同帧仍发出 transition request。Gate 必须分别断言 terminal actual transition-active 与 terminal requested transition-active 的 source 期望；将二者混同会把正确的 automatic transition 判错或掩盖丢失的 request。**
-
-## 测试场景显式时序 rebase（严格执行）
-
-自动 scenario 若为建立 source 明确要求的独立前置条件而主动重置角色 transform／physics rotation，必须在重置前递增可记录的 rebase epoch，并由公共 temporal guard 仅据该 epoch 在同一 render frame 前重建历史；该 epoch 不得由状态、动画权重、曲线、IK、异常或任意运行时启发式自动推进。没有该显式记录的骨骼突变一律按异常处理；rebase 仅免除 fixture 自身的离散重置，绝不免除随后连续帧的姿态、链长、scale 或关节时序检查。
-
-## 已通过条目复开与公共动画语义 Gate（严格执行）
-
-1. 已勾选的 checklist 条目因用户观察、运行时日志、截图、性能样本或新 Gate 被复开时，必须立即取消勾选并暂停后续条目。恢复实现前，先完成可复查的复盘：当次 source fact、实际症状、此前 Gate 的错误通过路径、漏掉的最终行为边界，以及能拒绝该症状的新增回归条件；不得只叙述“重新检查”或把旧 PASS 继续作为依据。
-2. 动画行为验收必须使用仓库公共的声明式动画语义 Gate。每个动态窗口必须由 source node／clip／state fact 明确声明其标签、稳定条件、source state、预期 direction/FSM state，以及“pre-rig 和 final pose 必须运动”或“source 明确允许静止”的预期；多分支 source 还必须声明 source sync group、canonical phase 和分支 signature group。source state 的输入 fixture 必须附带同次 source transition endpoint、前置 state 与 property/阈值依据，不能由名称、图上方位或人眼直觉推断。公共采集器必须同时记录窗口标签、source 标识、根 Pose 的 active channel/reference 计数、至少两帧 pre-rig 与 final 局部骨骼样本、最终可见截图、期望／实际 direction/FSM state 和运行时状态。仅有 FSM state、输入 pin、clip index、缓存命中、角色世界位移、无 graph error、骨骼有限值或图像存在均不得证明动画实际在播放。
-3. 公共 validator 必须对每个声明动态的窗口拒绝缺标签、缺截图、缺样本、缺 source 标识、reference/A-pose 根输出、pre-rig 或 final 局部骨骼运动为零、错误 source state，或仅由 root／角色平移、Control Rig、IK、相机造成的伪运动；source 多分支在同一 canonical phase 的 signature 相同也必须失败。静止窗口必须有 source 依据，不能为了让 Gate 通过而默认静止。新增或修正此 Gate 时，必须加入“状态／输入均正确而最终姿态静止”、reference root pose、错误 state 和坍缩方向签名的独立 self-test，并以该 Gate 复跑导致复开的真实入口 case。
-4. 经验固化的完成条件是公共工具或适用 skill/规则已使同类漏检自动失败，而非保存更多失败截图。若当次事实表明既有经验不适用，按规则 26 用 source/runtime 实证调整；不得以放宽阈值、跳过 scenario 或改写标签掩盖失败。
-5. 最终 skeleton pose 的异常、关闭 IK／层／后处理后错误数量减少，或任一 downstream ablation 的结果，只能证明该层对症状敏感，不能证明它是根因。修改下游 runtime 算法前，必须先在同一真实输入下按 source authored 顺序记录并断言 Sequence Player／Evaluator、cache producer、cache consumer、State Machine state output、parent graph output 与 final pose 的独立动态 pose/time/state；首个未达到 source 动态不变量的边界才是当前修复候选。若中间图或 contract Gate 因陈旧 architecture assertion 失败，先将其重写为当前 source contract 的最小链路 Gate，禁止把该失败、最终截图或 downstream ablation 解释为某一算法已被定位。
-6. 动画 driver 的请求状态、预测状态、目标 transition index 或本项目调度器的内部状态，均不得命名、记录或验收为图的“actual state”。每个 source State Machine 动态窗口必须从实际 `AnimationGraphPlayer` context 的对应 FSM node state 读取 actual state、transition-active 与 pose-ready，并与 source 预期 state 分别记录；driver 与 actual 不一致、actual 缺失、transition 未稳定或仅 driver 正确而 actual/output 静止时都必须失败。runtime telemetry 的字段必须明确区分 `requested_*` 与 `actual_*`，manual coverage、visual report 与 Gate 只能用 `actual_*` 证明 source graph 已选择对应分支。
-7. 公共最终骨架时序异常 guard 必须分别记录 animation Final 后／Control Rig 前的 `pre_rig` 与最终传播后的 `final` stage；任何只在 final 出现的异常首先指向后续 Rig／IK 链，而不是重写 clip 或状态机。guard 只可在明确声明的 phase、direction case、stance 边界，或动态 window 从未稳定变为稳定时 rebase 一次；不得因实际 state、曲线、骨骼、IK 权重或异常本身任意重置历史。rebase 后首帧只建立 baseline，随后每帧仍须检测；故障截图必须优先于同帧 scheduled/direction/teleport 截图，不能因 render target 重复而丢失。任何 source turn/rotate window 除 actor yaw 幅度外，还必须声明 source-derived expected signed yaw direction，并验证 target 的同符号累积 yaw 与 actor 到 source-equivalent view yaw 的角差收敛；反向旋转、只播放 pose 不推进 actor、或 lifecycle 不完成均须失败。
-
-## 显式测试重置的 transient state（严格执行）
-
-自动 Playground fixture 为隔离 source action 而显式重置角色／相机／物理 transform 时，除声明 temporal rebase epoch 外，必须在同一边界清理或重建所有会把上一窗口 target、速度、滤波 history、constraint limit、缓存 pose 或生命周期带入下一窗口的 transient runtime state。只重置实体 Transform、velocity 或 temporal guard history 不足以建立新的行为基线；例如 rotation response 的 smooth target 必须以重置后的当帧 pose 重新初始化，不能继续驱动上一段动作的 heading。每种 reset 边界必须有 focused regression：预植入非零旧 transient state 后，验证首个新 source action 从当前 reset pose／source input 开始，且不会产生额外 yaw、pose 或状态机推进。fixture 的 reset 仅服务于已声明的独立 source window，不得用于掩盖生产运行时差异。
-
-同一 fixture 中存在有先后依赖的 source 动作时，禁止以预设 wall-clock 槽位把上一动作截断后强制推进下一动作。下一窗口只能由实际 source-equivalent FSM state、clip/Slot active→natural completion→inertialization→settled、或 source 明确的结束条件推进；固定时长仅可作为失败 timeout，不能作为完成证据。调度器与 focused regression 必须证明“仅 active 未 completion”时仍停留当前窗口，完成后才进入下一个窗口。
-
-若 source 动作的触发定义为相对 actor 的 view yaw／方向／距离区间，fixture 必须在已验证的实际 source precondition 成立时读取当前 target actor state，再由该值生成输入；不得在经过物理、旋转或生命周期系统后继续使用固定出生朝向／位置。否则测试改变了 source input 却把偏差误记为算法失败。该类 fixture 必须有故意注入 actor drift 的回归测试。
-
-任何当帧动画图输出会被同帧移动、rotation、IK、Rig 或其它行为 consumer 消费时，writer 必须在取得当帧输入后直接更新已存在的 target component／state，并在调度上先于 consumer；禁止以 deferred `Commands` 更新把上一帧 curve、time 或 pose 当作当前行为输入。deferred 仅可用于首次创建，后续帧必须 direct write；运行时 Gate 必须记录 producer clip time、value 和 consumer 结果，以证明未跳过曲线前缀或重复消费旧值。为取得“更新鲜”的数据不得建立跨 physics／animation stage 的循环依赖；若 source 确有跨阶段事实，必须拆分为兼容调度的显式 snapshot／consumer 边界，并以 schedule smoke 与真实入口证明无 cycle。
-
-## UE MCP 实例恢复纪律（严格执行）
-
-1. 在为 UE 对标工作启动、重启或恢复 Editor 前，必须先枚举现有 UnrealEditor 进程并运行 `python tools/mcp_probe.py list_toolsets`。若相关持久 Editor 已运行且 MCP 可响应，必须复用该会话，并直接通过 `EditorToolset.EditorAppToolset.OpenEditorForAsset` 打开目标资产；禁止调用 `open_ue_asset_editor.ps1` 或并行启动第二个 Editor。
-2. 仅当不存在可用实例，或已验证当前实例的 MCP 连接无法恢复时，才可从 gitignored `docs/env.md` 使用非终止式持久 Editor 入口启动／重启项目。重启必须先核对精确 PID、命令行和项目归属；不得关闭或影响用户已有的无关 Editor。启动／重启后必须重新探测 MCP，再决定是否使用 native-contract SVG 后备路径。
-3. 已打开资产的 graph 取证必须优先走 MCP read-only Blueprint API：load asset、list graph、get graph、read graph DSL。随后只对 Slate Inspector 确认的 graph canvas ref 截图；不得把 `CaptureEditorImage`、空 ref 的 Slate Screenshot 或传统整窗截图伪作 graph layout 证据。只有逐项记录相应 MCP read/canvas API 的失败后，才可降级到同次 native contract SVG；Computer Use 为最后手段。
-4. `read_graph_dsl` 返回空字符串、`find_nodes` 返回空数组或 Slate canvas 截图为空时，均不得直接推定图为空或 UE 假死。必须先复核对应 UnrealEditor 进程、`list_toolsets`、`load_asset`、`list_graphs`／`get_graph` 与 Slate `Observe`／`Snapshot`；健康检查失败才按第 2 条恢复／重启后重试。若健康检查通过而单一 API 仍为空，必须将其记录为该 API 的能力限制，继续优先用 MCP `find_nodes`／`get_node_infos`／连通子图等只读接口取得内容，再以同次 native contract 补足无法暴露的部分；不得把健康 MCP 的空 DSL 当作重启理由或图为空的结论。
-5. Slate Screenshot 只有覆盖整个 graph canvas 的完整节点、pin、link 与 position 范围，或有可复查的无遗漏拼接证明时，才可作为 source layout 证据。局部 canvas、整窗或裁切截图最多只能证明资产已打开／Editor 健康，不能代替 MCP 内容读取或 native complete contract；无法完整截图时应优先读取 MCP 内容并使用同次 native contract 的完整结构对标。
-6. 当同次 native contract 的任一 source node `ErrorMsg` 含 experimental warning 时，适用的 source-visible AnimGraph map 必须有一对一 `experimental_node_notes` 注记，明确 source node、target node、原始 warning、warning 消失后的重提取／替换动作。每次相关 Gate 前须运行 `python tools/annotate_ue_experimental_nodes.py --root . --glob 'tools/animgraph_authoring/*.visible.json' --write` 后再运行同命令 `--check`；`audit_ue_visible_animgraph.py` 必须拒绝缺失、错配或 source warning 已消失后的陈旧注记。不得把此项当作允许忽略当前行为对标的豁免。
-
-## 工具调用教训（实测，防再犯）
-
-1. **UE MCP：toolset 工具必须经 `call_tool` 元工具分发**。协议层 `tools/call` 只注册 `list_toolsets` / `describe_toolset` / `call_tool` 三个元工具；把 toolset 方法名直接当 `name` 调用必报 `Unknown tool`。正确姿势：`name="call_tool"`，并在其 `arguments` 内传 `toolset_name`、`tool_name`、`arguments`（依据引擎源码 `ModelContextProtocolServer.cpp` 的 FindTool 查找逻辑）。统一走仓库封装 `tools/mcp_probe.py`，不要绕过它手写 HTTP 请求。
-2. **shell 长命令可能间歇性整块丢参**（报 `command is required`，参数为空）。含大量引号/JSON 转义的长命令风险最高。对策：复杂逻辑先写入脚本文件（如 `tools/*.sh` 或 Python 脚本）再用短命令执行；同一失败调用不得原样反复重试——一次失败即改道脚本化。
-3. **清构建残留进程前先验归属**。超时/中断的 cargo 会留下孤儿 rustc/link 持锁；但其他 worktree 可能以 `CARGO_TARGET_DIR` 指入本仓库 target（见规则 10）。杀 `cargo/rustc/link.exe` 前必须经 `Win32_Process` 核对该进程命令行与 CWD 归属——曾误杀用户另一 worktree 的合法构建。另：VS Code 的 rust-analyzer 后台 check 也会长时间持锁，属正常现象，用 `rust-analyzer.cargo.targetDir: true`（.vscode/settings.json 已配）隔离而非杀进程。
-4. **feature-unified Avian 物理 fixture 必须显式装配 collider cache 的 Mesh 资源与消息**。当 workspace 解析出的 Avian feature 集启用 collider cache 时，含 `PhysicsPlugins` 的测试 world 必须在任何 Update／Fixed/PostUpdate 前初始化 `Assets<Mesh>` 并注册 `AssetEvent<Mesh>`；`AssetPlugin`、单包 test 成功或较小 feature 集不保证任一项已存在。遇到 `init_collider_constructor*` 的 `Assets<Mesh>` 或 `clear_unused_colliders` 的 `MessageReader<AssetEvent<Mesh>>` 未初始化 panic，先按错误补齐完整 fixture 前置条件，再以 workspace feature-unified 测试二进制复现和验证；禁止用 `--test-threads=1`、App guard 或测试 schedule 改写掩盖缺失资源。
+`CHECKLIST.md` 保留当前目标、依赖和最小 Gate 摘要；归档保留完成证据；skill 保留可复用方法；工具与 self-test 保留可执行细节。不要把整段历史、失败截图路径或一次性数字重复复制到所有位置。

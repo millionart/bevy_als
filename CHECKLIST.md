@@ -32,6 +32,8 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 **BF111 通用视觉运行时 Gate（适用于 .03–.14）**：每项影响可见角色姿态、additive、BlendSpace、状态机、IK、Control Rig、ragdoll、root motion 或动画资产选择的工作，必须在真实 `manual_playground` 场景运行 `tools/run_animation_visual_validation.ps1`，并用 `tools/validate_animation_visual_evidence.py --check` 验收。证据目录必须含自动场景关键帧 PNG、最终 post-propagation key-bone transform／scale／肢段连续性、graph error、wall-frame 与动画求值 p50/p95/max 和机器可读 report。不得把进程能运行、`graph_err=none`、单一静态截图或人工临时目测作为通过；塌缩、扭曲、additive 异常、非有限 transform、关节跳变、空／无效截图或性能超阈值必须失败并保留故障帧。发现异常后，必须先重新提取当次本地 ALS-Refactored 的对应资产／可见图／Control Rig／C++ 算法并逐项比较；视觉报告只定位症状，不能授权独立优化、补偿、平滑、阈值放宽或算法重写，只有 source 已证实差异才可改 target。baseline 只能来自独立已验证 run，不得在当前改动中自我接受。各条目的 Gate 记录须列出 scenario、动作覆盖、evidence 目录与 verdict。
 
+**BF111 共用前置（.05–.14）**：本文件只列模块特有 scope 与 Gate；source fact、递归 source-visible 合同、manifest、editor/layout 验证、source-first 修复边界和首错报告一律由 `agents.md` 与 animation-graph-equivalence skill 强制执行。
+
 - [x] BF111.01 项目内动画图对标 skill 与通用作者性验收工具：创建项目内 skill，提供 source fact、可见链路／position、context 边界、root ABI 例外、完整 RON／FSM 元数据与 runtime Gate 的统一工作流；新增声明式、可复跑的通用审计工具和自测。验收：skill 结构校验、工具自测和现有 `AB_Als` manifest smoke 全部 PASS。
   - 已实现（2026-09-01）：项目内 skill 为 `skills/animation-graph-equivalence/SKILL.md`；`tools/validate_animgraph_authoring.py` 以声明式 manifest 精确校验 `.animgraph.ron` 的 node 顺序、position、edge、root IO、source-evidence SHA-256、非 Pose root-output 例外和 runtime-context residual，并同样覆盖 `.fsm.ron` 的 state、transition、position 与 IO。验证命令只能运行项目内 Python 只读脚本，拒绝 `--fix`／`--write`。
   - AB_Als smoke（2026-09-01）：`tools/animgraph_authoring/ab_als.authoring.json` 登记实际 12 node／13 edge、无 root input/time、Pose 与唯一 `ragdoll_config` output，以及此 ABI 的 Avian evidence；通用工具同时运行 root source audit、node-position 与只读 editor metadata check，结果为 zero failure。`ragdoll_config → Outputs` 未改动。
@@ -40,18 +42,18 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已实现（2026-09-01）：`agents.md` 规则 22 强制在 graph/FSM 改动前完整读取 `skills/animation-graph-equivalence/SKILL.md`，在 `tools/animgraph_authoring/` 更新覆盖全部变更图的 manifest，并依次运行 authoring gate、规则 18 的 fix/read-only editor validator、position verifier、source audit、runtime Gate 和真实 Playground case。规则明确每个非 Pose root output 的 ABI exception、curve/time/event/control/physics 边界、空 `Inputs` editor decoration 及 tool/skill 自身变更的自测要求。
   - Gate 证据（2026-09-01）：静态检索确认 skill、manifest、gate、`ragdoll_config` 和 `run_manual.bat` 路径均在规则 22 中；skill quick validator、authoring gate self-test 与 AB_Als manifest smoke 全部 PASS。
 - 已归档完成条目见 [归档索引](docs/archive/archivedchecklist.md)（2026-09-03：BF111.03、BF111.04）。
-- [ ] BF111.05 / BF109.03 `AB_Als_Grounded`：按作者性规范重新提取 source fact，逐链路检查 Standing/Crouching 路由、stance、roll、transition 与状态机，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Grounded 真实入口路径 PASS。
-- [ ] BF111.06 / BF109.04 `AB_Als_Locomotion`：按作者性规范重新提取 source fact，逐链路检查 Grounded/Air/Jump、Air Lean、Jump/Fall/Land 与状态机，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Locomotion 真实入口路径 PASS。
+- [ ] BF111.05 / BF109.03 `AB_Als_Grounded`：检查 Standing/Crouching 路由、stance、roll、transition 与状态机，并修订实际图／合同／位置与 context 边界。验收：Grounded 静态链路与真实入口路径 PASS。
+- [ ] BF111.06 / BF109.04 `AB_Als_Locomotion`：检查 Grounded/Air/Jump、Air Lean、Jump/Fall/Land 与状态机，并修订实际图／合同／位置与 context 边界。验收：Locomotion 静态链路与真实入口路径 PASS。
   - 待执行运行时触发证据（2026-09-02）：当前 `foot_ik` 真实 Playground 在 `FootIkTerrain` phase elapsed `7.39s`、`Grounded`／`Walking`／`Standing`／`ViewDirection` 的 Jump/Land 后首次记录骨架肢段长度塌缩；同帧左右 Foot IK effector/knee residual 约为零，故不得归因于未证明的 IK 补偿。执行本条时必须重新提取本地 `AB_Als_Locomotion`、Land state/clip/additive source fact，比较当前 pose/scale/translation 写入链，再以同一状态标签重跑视觉 Gate；此记录本身不授权在 BF111.03 阶段修改 Locomotion 图或资产。
   - 待执行 Transition Slot consumer 边界（2026-09-02）：本地 ALS `AB_Als_Standing` C++ 已证明 Quick Stop 通过 `Transition` Slot 播放 additive dynamic montage。当前目标 focused gate 已证明 sampled quick-stop delta 非零，`AB_Als` 的 `Slot 'Transition'` 输出也变化；但其后的最终 root pose 未变化，故丢失点位于 Slot 后的 Locomotion/root consumer。本条执行时必须重新提取本地 `AB_Als_Locomotion` 及其 Grounded Input/状态图 source fact，逐链比较 Slot 输入 pose、additive/curve context、Locomotion 输出与最终 root pose；不得以 BF111.03 的中间 Slot 成功宣称 end-to-end 等价，也不得在本条开始前修改该 consumer。
-- [ ] BF111.07 / BF109.05 `AB_Als_Layering`：按作者性规范重新提取 source fact，逐链路检查 Base Poses、Additive、Slot、mask、curve layer 与可见输入边界，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Layering 真实入口路径 PASS。
-- [ ] BF111.08 / BF109.06 `AB_Als_Head`：按作者性规范重新提取 source fact，逐链路检查 Look BlendSpace、head/neck 混合、曲线与输入边界，并修订实际图／合同／位置与 context 边界。验收：声明式审计、source/layout audit、editor validator 与 Head 真实入口路径 PASS。
-- [ ] BF111.09 / BF109.07 `PA_Als`：按作者性规范重新提取 source fact，逐项复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：声明式资产审计、source/runtime transform audit 与 ragdoll 真实入口路径 PASS。
-- [ ] BF111.10 / BF109.08 `AB_Als_Ragdolling`：按作者性规范重新提取 source fact，逐链路检查 pose input、混合、退出、PA consumer boundary 与 position。验收：声明式审计、source/layout audit、editor validator 与 ragdoll 真实入口路径 PASS；保持 `ragdoll_config → Outputs` 不变。
-- [ ] BF111.11 / BF109.09 `ALI_Overlay`：按作者性规范重新提取 source fact，逐链路检查 interface pin、linked layer、fallback 与实例生命周期边界。验收：声明式审计、source/layout audit、editor validator 与 overlay 真实入口路径 PASS。
-- [ ] BF111.12 / BF109.10 `CR_Als`：按作者性规范重新提取 source fact，逐项复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：声明式资产审计、source/runtime transform/lifecycle audit 与 ControlRig 真实入口路径 PASS。
+- [ ] BF111.07 / BF109.05 `AB_Als_Layering`：检查 Base Poses、Additive、Slot、mask、curve layer 与可见输入边界，并修订实际图／合同／位置与 context 边界。验收：Layering 静态链路与真实入口路径 PASS。
+- [ ] BF111.08 / BF109.06 `AB_Als_Head`：检查 Look BlendSpace、head/neck 混合、曲线与输入边界，并修订实际图／合同／位置与 context 边界。验收：Head 静态链路与真实入口路径 PASS。
+- [ ] BF111.09 / BF109.07 `PA_Als`：复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：资产/transform 静态链路与 ragdoll 真实入口路径 PASS。
+- [ ] BF111.10 / BF109.08 `AB_Als_Ragdolling`：检查 pose input、混合、退出、PA consumer boundary 与 position。验收：Ragdolling 静态链路与真实入口路径 PASS；保持 `ragdoll_config → Outputs` 不变。
+- [ ] BF111.11 / BF109.09 `ALI_Overlay`：检查 interface pin、linked layer、fallback 与实例生命周期边界。验收：Overlay 静态链路与真实入口路径 PASS。
+- [ ] BF111.12 / BF109.10 `CR_Als`：复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：资产/transform/lifecycle 静态链路与 ControlRig 真实入口路径 PASS。
   - 待执行冲刺膝盖回归（2026-09-02）：按住 Shift 前向冲刺时，左右膝盖分别向各自外侧偏移。该症状在修复 `PoseMoving` 曲线 relay 后仍不得默认视为已解决；执行本项时必须重新提取本地 `CR_Als`、`RefreshFootOffset`、`RefreshFootIk`、`ApplyFootIk` 及引擎 Basic IK 源码，以同一前向冲刺输入比较双侧 foot offset rotation、pole location、primary/secondary axis、writeback 与膝盖相对腿平面数值。只有 source 已证实 target 差异才可修改；需新增可复跑的 source-first 双侧膝盖回归 probe，视觉截图仅作最终回归记录，不能替代链路定位。
-- [ ] BF111.13 / BF109.11 `AB_Als_Default`：按作者性规范重新提取 source fact，逐链路检查 linked layer、状态、基础/secondary motion、曲线、mask 与消费边界。验收：声明式审计、source/layout audit、editor validator 与 Default Overlay 真实入口路径 PASS。
+- [ ] BF111.13 / BF109.11 `AB_Als_Default`：检查 linked layer、状态、基础/secondary motion、曲线、mask 与消费边界。验收：Default Overlay 静态链路与真实入口路径 PASS。
 - [ ] BF111.14 Character Base 作者性总 Gate：逐项重跑 .01–.11 的 source/static/layout/editor/runtime/real-entry 证据，确认所有 graph 有声明式合同、所有例外均有依据、所有实际 RON/FSM 通过编辑器校验，且未引入依赖改动或 `ragdoll_config` ABI 改动。验收：全量通用审计、目标图校验、相关 Rust Gate 和真实 Playground 场景全部 PASS。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
