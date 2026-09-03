@@ -82,6 +82,7 @@
             inner: {
                 "als_ext::SourceScopedCachedPoseUseNode": (
                     cache_node: "Save cached pose 'Movement'",
+                    cache_key: "ab_als_crouching:movement",
                 ),
             },
             should_debug: false,

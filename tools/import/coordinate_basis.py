@@ -29,6 +29,14 @@ def runtime_direction_to_source(values):
     return [values[0], values[2], values[1]]
 
 
+def source_heading_yaw_degrees_to_runtime(value):
+    return -float(value)
+
+
+def runtime_heading_yaw_degrees_to_source(value):
+    return -float(value)
+
+
 def source_rotation_to_runtime(values):
     return [-values[0], -values[2], -values[1], values[3]]
 
@@ -67,6 +75,10 @@ def self_test():
         raise AssertionError("inverse point conversion")
     if source_direction_to_runtime([1.0, 2.0, 3.0]) != [1.0, 3.0, 2.0]:
         raise AssertionError("direction conversion")
+    if source_heading_yaw_degrees_to_runtime(90.0) != -90.0:
+        raise AssertionError("heading yaw conversion")
+    if runtime_heading_yaw_degrees_to_source(-90.0) != 90.0:
+        raise AssertionError("inverse heading yaw conversion")
     if source_rotation_to_runtime([0.2, -0.3, 0.4, 0.5]) != [-0.2, -0.4, 0.3, 0.5]:
         raise AssertionError("rotation conversion")
 

@@ -22,6 +22,7 @@ const GRAPH_PATH: &str = "graphs/ab_als/stances/crouching/state_movement_directi
 const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
 const DURATION: f32 = 1.133333;
 const EPSILON: f32 = 1e-4;
+const SOURCE_CROUCH_MARKER_ROTATION_FLOOR: f32 = 0.05;
 
 #[derive(Resource)]
 struct GateAssets {
@@ -35,6 +36,8 @@ struct Probe {
     step: usize,
     phase: f32,
     state: SyncPhaseState,
+    marker_pose: Option<Pose>,
+    marker_motion_checked: bool,
 }
 
 impl Default for Probe {
@@ -44,6 +47,8 @@ impl Default for Probe {
             step: 0,
             phase: 0.0,
             state: default(),
+            marker_pose: None,
+            marker_motion_checked: false,
         }
     }
 }
@@ -247,7 +252,7 @@ fn verify(
     graph: &AnimationGraph,
     phase: f32,
     direction: &Direction,
-) -> Result<(f32, usize), String> {
+) -> Result<(f32, Pose), String> {
     let pose = node_pose(player, graph, direction.node_name)
         .ok_or_else(|| format!("{} pose missing", direction.label))?;
     let sample_time = node_sample_time(player, graph, direction.node_name)
@@ -264,7 +269,17 @@ fn verify(
             pose.bones.len(),
         ));
     }
-    Ok((sample_time, pose.bones.len()))
+    Ok((sample_time, pose))
+}
+
+fn max_pose_rotation_delta(previous: &Pose, current: &Pose) -> f32 {
+    previous
+        .bones
+        .iter()
+        .zip(&current.bones)
+        .filter_map(|(left, right)| left.rotation.zip(right.rotation))
+        .map(|(left, right)| 2.0 * left.dot(right).abs().clamp(0.0, 1.0).acos())
+        .fold(0.0_f32, f32::max)
 }
 
 fn advance_phase(
@@ -321,20 +336,42 @@ fn observe(
     let index = probe.step.min(directions.len() - 1);
     let direction = &directions[index];
     let phase = probe.phase;
-    let (sample_time, bones) = match verify(&player, graph, phase, direction) {
+    let (sample_time, pose) = match verify(&player, graph, phase, direction) {
         Ok(result) => result,
         Err(message) => {
             fail(&mut exit, &message);
             return;
         }
     };
-    if probe.step == 0 && !close(sample_time, 0.0) {
+    if probe.step == 0 && probe.marker_pose.is_none() && !close(sample_time, 0.0) {
         fail(&mut exit, "source crouching start time");
         return;
+    }
+    if probe.step == 0 && !probe.marker_motion_checked {
+        if let Some(previous) = probe.marker_pose.take() {
+            let rotation_delta = max_pose_rotation_delta(&previous, &pose);
+            if rotation_delta < SOURCE_CROUCH_MARKER_ROTATION_FLOOR {
+                fail(
+                    &mut exit,
+                    "source crouching marker pose is below the expected motion floor",
+                );
+                return;
+            }
+            probe.marker_motion_checked = true;
+            info!(
+                "[CROUCHING-SYNC] source_marker_motion rotation_delta={rotation_delta:.6} -> PASS"
+            );
+        } else {
+            probe.marker_pose = Some(pose);
+            probe.phase = advance_phase(&mut probe.state, direction, true, 0.0, 1.0, 0.4);
+            set_frame(&mut player, probe.phase, direction.index);
+            return;
+        }
     }
     info!(
         "[CROUCHING-SYNC] direction={} phase={phase:.6} sample_time={sample_time:.6} bones={bones}",
         direction.label,
+        bones = pose.bones.len(),
     );
     if probe.step + 1 == directions.len() {
         info!("[CROUCHING-SYNC][VERDICT] directions/rate/markers/poses -> PASS");

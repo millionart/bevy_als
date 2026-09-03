@@ -219,6 +219,8 @@ pub fn constrained_aiming_yaw(
     minimum_limit_degrees: f32,
     active_limit_degrees: f32,
     reset: bool,
+    delta_seconds: f32,
+    apply_secondary_constraint: bool,
 ) -> (f32, f32) {
     let minimum_limit = minimum_limit_degrees.clamp(0.0, 180.0).to_radians();
     let mut limit = if reset {
@@ -228,10 +230,22 @@ pub fn constrained_aiming_yaw(
             .clamp(minimum_limit_degrees, 180.0)
             .to_radians()
     };
-    let view_space_yaw = wrap_yaw_radians(view_yaw - actor_yaw);
+    let mut view_space_yaw = wrap_yaw_radians(view_yaw - actor_yaw);
     if view_space_yaw.abs() <= minimum_limit {
         limit = minimum_limit;
-    } else if !reset && view_space_yaw.abs() <= limit {
+        return (actor_yaw, limit.to_degrees());
+    }
+    if apply_secondary_constraint {
+        let target = view_space_yaw.clamp(-minimum_limit, minimum_limit);
+        let delta = wrap_yaw_radians(target - view_space_yaw);
+        if delta.abs() <= f32::EPSILON {
+            view_space_yaw = target;
+        } else {
+            let alpha = 1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / 0.1);
+            view_space_yaw = wrap_yaw_radians(view_space_yaw + delta * alpha);
+        }
+    }
+    if view_space_yaw.abs() <= limit {
         limit = view_space_yaw.abs().max(minimum_limit);
     }
     let constrained = view_space_yaw.clamp(-limit, limit);
@@ -428,13 +442,23 @@ fn rotation_response_system(
             _ => current_yaw,
         };
         let aiming = *rotation_mode == RotationMode::Aiming;
+        let aiming_stationary = aiming && !moving && !has_input;
+        let curve_advanced_yaw = (!moving && animation.yaw_speed_degrees.abs() > f32::EPSILON)
+            .then(|| {
+                wrap_yaw_radians(
+                    current_yaw + animation.yaw_speed_degrees.to_radians() * delta_seconds,
+                )
+            })
+            .unwrap_or(current_yaw);
         if aiming {
             let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
                 view_yaw.0,
-                current_yaw,
+                curve_advanced_yaw,
                 params.cmc.aiming_yaw_angle_limit_degrees,
                 constraint.active_limit_degrees,
                 !constraint.applied_last_frame,
+                delta_seconds,
+                aiming_stationary,
             );
             target_yaw = constrained_yaw;
             constraint.active_limit_degrees = active_limit_degrees;
@@ -444,7 +468,9 @@ fn rotation_response_system(
             constraint.applied_last_frame = false;
         }
         let curve_driven = !moving && !aiming && animation.yaw_speed_degrees.abs() > f32::EPSILON;
-        if curve_driven {
+        if aiming_stationary {
+            runtime.smooth_target_yaw = target_yaw;
+        } else if curve_driven {
             if !runtime.initialized {
                 runtime.smooth_target_yaw = current_yaw;
             }
@@ -472,7 +498,7 @@ fn rotation_response_system(
         } else {
             moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed)
         };
-        let next_yaw = if curve_driven {
+        let next_yaw = if aiming_stationary || curve_driven {
             runtime.smooth_target_yaw
         } else {
             damper_yaw(
@@ -696,19 +722,27 @@ mod rotation_cap_tests {
     #[test]
     fn aiming_yaw_constraint_matches_source_reset_and_primary_limit() {
         let (first_yaw, first_limit) =
-            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, true);
+            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, true, 0.0, false);
         assert!(wrap_yaw_radians(first_yaw).abs() < 1e-6);
         assert!((first_limit - 180.0).abs() < 1e-6);
 
         let (limited_yaw, limited_limit) =
-            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, false);
+            constrained_aiming_yaw(180.0_f32.to_radians(), 0.0, 70.0, 70.0, false, 0.0, false);
         assert!((limited_yaw.abs() - 110.0_f32.to_radians()).abs() < 1e-6);
         assert!((limited_limit - 70.0).abs() < 1e-6);
 
         let (near_yaw, near_limit) =
-            constrained_aiming_yaw(20.0_f32.to_radians(), 0.0, 70.0, 180.0, false);
+            constrained_aiming_yaw(20.0_f32.to_radians(), 0.0, 70.0, 180.0, false, 0.0, false);
         assert!((near_yaw - 0.0).abs() < 1e-6);
         assert!((near_limit - 70.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn stationary_aiming_secondary_constraint_matches_the_source_half_life() {
+        let (yaw, limit) =
+            constrained_aiming_yaw(100.0_f32.to_radians(), 0.0, 70.0, 70.0, true, 0.1, true);
+        assert!((yaw - 15.0_f32.to_radians()).abs() < 1e-5);
+        assert!((limit - 85.0).abs() < 1e-5);
     }
 
     #[test]

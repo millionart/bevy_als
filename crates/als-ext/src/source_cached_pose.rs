@@ -13,6 +13,14 @@ use bevy_animation_graph::core::{
 
 pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
 
+fn saved_cache_key<'a>(cache: &'a SourceCachedPoseSaveNode, node_name: &'a str) -> &'a str {
+    if cache.cache_key.is_empty() {
+        node_name
+    } else {
+        cache.cache_key.as_str()
+    }
+}
+
 fn cache_error(ctx: &NodeContext, message: String) -> GraphError {
     GraphError::UnknownErrorNode {
         graph: ctx.graph_context.context_id,
@@ -57,7 +65,13 @@ pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Po
 pub fn resolve_scoped_cached_pose(
     ctx: &mut NodeContext,
     cache_node: &str,
+    cache_key: &str,
 ) -> Result<Pose, GraphError> {
+    let requested_key = if cache_key.is_empty() {
+        cache_node
+    } else {
+        cache_key
+    };
     let contexts = ctx
         .graph_context
         .context_arena
@@ -71,26 +85,26 @@ pub fn resolve_scoped_cached_pose(
                 .map(|state| (context_id, state.get_graph_id()))
         })
         .collect::<Vec<_>>();
-    let (context_id, graph) = contexts
+    let (context_id, graph, cache) = contexts
         .into_iter()
         .find_map(|(context_id, graph_id)| {
             ctx.graph_context
                 .resources
                 .animation_graph_assets
                 .get(graph_id)
-                .filter(|graph| graph.nodes.values().any(|node| node.name == cache_node))
-                .map(|graph| (context_id, graph))
+                .and_then(|graph| {
+                    graph
+                        .nodes
+                        .values()
+                        .find(|node| {
+                            node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                                .is_some_and(|cache| {
+                                    saved_cache_key(cache, &node.name) == requested_key
+                                })
+                        })
+                        .map(|cache| (context_id, graph, cache))
+                })
         })
-        .ok_or_else(|| {
-            cache_error(
-                ctx,
-                format!("scoped cached pose node is missing: {cache_node}"),
-            )
-        })?;
-    let cache = graph
-        .nodes
-        .values()
-        .find(|node| node.name == cache_node)
         .ok_or_else(|| {
             cache_error(
                 ctx,
@@ -123,7 +137,9 @@ pub fn resolve_scoped_cached_pose(
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
-pub struct SourceCachedPoseSaveNode;
+pub struct SourceCachedPoseSaveNode {
+    pub cache_key: String,
+}
 
 impl NodeLike for SourceCachedPoseSaveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
@@ -155,11 +171,12 @@ pub struct SourceCachedPoseUseNode {
 #[type_path = "als_ext"]
 pub struct SourceScopedCachedPoseUseNode {
     pub cache_node: String,
+    pub cache_key: String,
 }
 
 impl NodeLike for SourceScopedCachedPoseUseNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let pose = resolve_scoped_cached_pose(&mut ctx, &self.cache_node)?;
+        let pose = resolve_scoped_cached_pose(&mut ctx, &self.cache_node, &self.cache_key)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
         Ok(())
@@ -214,6 +231,24 @@ mod tests {
             SourceScopedCachedPoseUseNode::default()
                 .display_name()
                 .contains("Use")
+        );
+    }
+
+    #[test]
+    fn scoped_cache_key_overrides_only_the_internal_lookup_identity() {
+        let cache = SourceCachedPoseSaveNode {
+            cache_key: "ab_als_crouching:movement".to_owned(),
+        };
+        assert_eq!(
+            saved_cache_key(&cache, "Save cached pose 'Movement'"),
+            "ab_als_crouching:movement"
+        );
+        assert_eq!(
+            saved_cache_key(
+                &SourceCachedPoseSaveNode::default(),
+                "Save cached pose 'Movement'"
+            ),
+            "Save cached pose 'Movement'"
         );
     }
 }

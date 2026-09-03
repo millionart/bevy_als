@@ -929,31 +929,40 @@ def run_command(root, value):
         return result, [f"verification script is missing: {argv[1]}"]
     timeout = value.get("timeout_seconds", 120)
     result["timeout_seconds"] = timeout
+    process = subprocess.Popen(
+        [sys.executable, *argv[1:]],
+        cwd=root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     try:
-        completed = subprocess.run(
-            [sys.executable, *argv[1:]],
-            cwd=root,
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        stdout = error.stdout or ""
-        stderr = error.stderr or ""
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if sys.platform == "win32":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        else:
+            process.kill()
+        stdout, stderr = process.communicate()
         if isinstance(stdout, bytes):
             stdout = stdout.decode("utf-8", errors="replace")
         if isinstance(stderr, bytes):
             stderr = stderr.decode("utf-8", errors="replace")
         result["exit_code"] = None
         result["timed_out"] = True
+        result["process_tree_terminated"] = True
         result["stdout_tail"] = stdout[-2000:]
         result["stderr_tail"] = stderr[-2000:]
         return result, [f"verification command timed out: {value['label']}"]
-    result["exit_code"] = completed.returncode
-    result["stdout_tail"] = completed.stdout[-2000:]
-    result["stderr_tail"] = completed.stderr[-2000:]
-    if completed.returncode:
+    result["exit_code"] = process.returncode
+    result["stdout_tail"] = stdout[-2000:]
+    result["stderr_tail"] = stderr[-2000:]
+    if process.returncode:
         return result, [f"verification command failed: {value['label']}"]
     return result, []
 
@@ -1098,24 +1107,18 @@ def run_self_test():
         write_json(report_path, valid)
         assert read_json(report_path) == valid
         (root / "tools").mkdir(exist_ok=True)
-        (root / "tools" / "source.py").write_text("", encoding="utf-8")
+        (root / "tools" / "source.py").write_text(
+            "import time\ntime.sleep(60)\n", encoding="utf-8"
+        )
         timeout_command = {
             "label": "source",
             "scope": "source",
             "argv": ["python", "tools/source.py", "--check"],
             "timeout_seconds": 1,
         }
-        original_run = subprocess.run
-        def timeout_run(*args, **kwargs):
-            raise subprocess.TimeoutExpired(args[0], kwargs["timeout"], output="partial", stderr="timeout")
-        subprocess.run = timeout_run
-        try:
-            timeout_report, timeout_failures = run_command(root, timeout_command)
-        finally:
-            subprocess.run = original_run
+        timeout_report, timeout_failures = run_command(root, timeout_command)
         assert timeout_report["timed_out"]
-        assert timeout_report["stdout_tail"] == "partial"
-        assert timeout_report["stderr_tail"] == "timeout"
+        assert timeout_report["process_tree_terminated"]
         assert timeout_failures == ["verification command timed out: source"]
         graph_path.write_text(
             fixture_graph(output_data='"pose": Pose, "curve": F32'),

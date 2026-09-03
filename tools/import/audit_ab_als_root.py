@@ -28,6 +28,39 @@ def canonical_hash(value):
     return hashlib.sha256(encoded).hexdigest()
 
 
+def canonical_source_payload(value):
+    def normalize(current, path):
+        if isinstance(current, dict):
+            if current.get("name") == "GraphGuid" and "exported_text" in current:
+                return None
+            output = {}
+            for key, child in current.items():
+                if key == "pin_id":
+                    continue
+                if path == "" and key in {"blueprint_cdo_path", "blueprint_cdo_properties"}:
+                    continue
+                normalized = normalize(child, f"{path}/{key}")
+                if normalized is not None:
+                    output[key] = normalized
+            return output
+        if isinstance(current, list):
+            output = [
+                normalized
+                for index, child in enumerate(current)
+                if (normalized := normalize(child, f"{path}/{index}")) is not None
+            ]
+            if path.endswith("/linked_to") or path.endswith("/links"):
+                output.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+            return output
+        return current
+
+    return normalize(value, "")
+
+
+def canonical_source_hash(value):
+    return canonical_hash(canonical_source_payload(value))
+
+
 def find_graph(source, name):
     for graph in source["graphs"]:
         if graph["name"] == name:
@@ -282,9 +315,12 @@ def audit(source, contract, target_text, mapping):
         differences.append("contract source asset")
     if contract.get("source_class") != source.get("asset_class"):
         differences.append("contract source class")
-    if contract.get("source_payload") != source:
+    if canonical_source_payload(contract.get("source_payload")) != canonical_source_payload(source):
         differences.append("contract source payload")
-    if contract.get("source_sha256") != canonical_hash(source):
+    expected_source_hash = contract.get("source_semantic_sha256")
+    if expected_source_hash is None:
+        expected_source_hash = canonical_source_hash(contract.get("source_payload"))
+    if expected_source_hash != canonical_source_hash(source):
         differences.append("contract source hash")
     anim_graph = find_graph(source, "AnimGraph")
     source_graphs = {graph["object_path"]: graph for graph in source["graphs"]}
@@ -387,7 +423,7 @@ def audit(source, contract, target_text, mapping):
         differences.append("runtime overlay context chain")
     report = {
         "source_asset": source["asset_path"],
-        "source_sha256": canonical_hash(source),
+        "source_semantic_sha256": canonical_source_hash(source),
         "source_graphs": len(source["graphs"]),
         "source_nodes": sum(len(graph["nodes"]) for graph in source["graphs"]),
         "source_pins": sum(len(node["pins"]) for graph in source["graphs"] for node in graph["nodes"]),
@@ -411,6 +447,47 @@ def self_test():
         raise AssertionError("canonical hash")
     if editor_position("output_position: (0.0, 0.0)", "output_position") != [0.0, 0.0]:
         raise AssertionError("editor position")
+    source = {
+        "blueprint_cdo_path": "legacy",
+        "graphs": [
+            {
+                "properties": [{"name": "GraphGuid", "exported_text": "old"}],
+                "nodes": [
+                    {
+                        "pins": [
+                            {
+                                "pin_id": "old",
+                                "linked_to": [{"pin_id": "peer", "pin_name": "Pose"}],
+                            }
+                        ]
+                    }
+                ],
+            }
+        ],
+    }
+    volatile = {
+        "graphs": [
+            {
+                "properties": [{"name": "GraphGuid", "exported_text": "new"}],
+                "nodes": [
+                    {
+                        "pins": [
+                            {
+                                "pin_id": "new",
+                                "linked_to": [{"pin_id": "other", "pin_name": "Pose"}],
+                            }
+                        ]
+                    }
+                ],
+            }
+        ],
+    }
+    if canonical_source_hash(source) != canonical_source_hash(volatile):
+        raise AssertionError("volatile source fields")
+    semantic = json.loads(json.dumps(volatile))
+    semantic["graphs"][0]["nodes"][0]["pins"][0]["linked_to"][0]["pin_name"] = "Other"
+    if canonical_source_hash(source) == canonical_source_hash(semantic):
+        raise AssertionError("semantic source fields")
 
 
 def main():

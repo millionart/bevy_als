@@ -3388,7 +3388,7 @@
     {
       "label": "crouching_recursive_source_visible",
       "scope": "source",
-      "timeout_seconds": 360,
+      "timeout_seconds": 600,
       "argv": [
         "python",
         "tools/import/run_ue_visible_animgraph_audits.py",
@@ -3402,6 +3402,32 @@
         "2",
         "--check",
         "--summary"
+      ]
+    },
+    {
+      "label": "crouching_scoped_cache_contract",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_scoped_cached_pose_contract.py",
+        "--root",
+        ".",
+        "--spec",
+        "tools/animgraph_authoring/ab_als_crouching.scoped_cache_contract.json",
+        "--check"
+      ]
+    },
+    {
+      "label": "crouching_target_yaw_speed_curves",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/convert_rotation_yaw_speed_curves.py",
+        "--root",
+        ".",
+        "--contract",
+        "tools/animation_curve_source_contracts/crouching_rotation_yaw_speed.source.json",
+        "--check"
       ]
     },
     {

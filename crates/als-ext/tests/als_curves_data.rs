@@ -3,6 +3,18 @@ use std::collections::BTreeMap;
 use std::fs;
 
 const ROTATE_90_LEFT: &str = "../../assets/animations/RotateInPlace/A_Als_Rotate_90_Left.gltf";
+const CROUCH_ROTATE_90_LEFT: &str =
+    "../../assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf";
+const CROUCH_ROTATE_90_RIGHT: &str =
+    "../../assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf";
+const CROUCH_TURN_90_LEFT: &str =
+    "../../assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf";
+const CROUCH_TURN_90_RIGHT: &str =
+    "../../assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf";
+const CROUCH_TURN_180_LEFT: &str =
+    "../../assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf";
+const CROUCH_TURN_180_RIGHT: &str =
+    "../../assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf";
 const TORCH_POSES: &str = "../../assets/animations/Overlays/Torch/A_Als_Torch_Poses.gltf";
 const WALK_FORWARD: &str = "../../assets/animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf";
 
@@ -49,6 +61,87 @@ fn rotate_90_left_yaw_speed_integrates_to_minus_90_degrees() {
         (integral - (-90.0)).abs() <= 5.0,
         "yaw speed integral {integral} deviates from -90 deg"
     );
+}
+
+fn curve_integral(path: &str, name: &str) -> f32 {
+    let ext = read_extension(path);
+    let (_, value) = ext.iter().next().expect("one animation entry");
+    let curves = parse_curves(value).expect("parses");
+    let curve = curves
+        .0
+        .get(name)
+        .unwrap_or_else(|| panic!("{name} is missing"));
+    curve
+        .times
+        .windows(2)
+        .zip(curve.values.windows(2))
+        .map(|(times, values)| (values[0] + values[1]) * 0.5 * (times[1] - times[0]))
+        .sum()
+}
+
+fn rotation_yaw_speed_integral(path: &str) -> f32 {
+    curve_integral(path, "RotationYawSpeed")
+}
+
+#[test]
+fn crouch_rotate_yaw_speed_curves_preserve_source_turn_directions() {
+    let left = rotation_yaw_speed_integral(CROUCH_ROTATE_90_LEFT);
+    let right = rotation_yaw_speed_integral(CROUCH_ROTATE_90_RIGHT);
+    assert!((left - (-90.0)).abs() <= 5.0, "left yaw integral is {left}");
+    assert!((right - 90.0).abs() <= 5.0, "right yaw integral is {right}");
+}
+
+#[test]
+fn crouch_turn_target_yaw_speed_curves_preserve_source_turn_side_after_basis_conversion() {
+    for (path, side) in [
+        (CROUCH_ROTATE_90_LEFT, -1.0),
+        (CROUCH_ROTATE_90_RIGHT, 1.0),
+        (CROUCH_TURN_90_LEFT, -1.0),
+        (CROUCH_TURN_90_RIGHT, 1.0),
+        (CROUCH_TURN_180_LEFT, -1.0),
+        (CROUCH_TURN_180_RIGHT, 1.0),
+    ] {
+        let source = curve_integral(path, "RotationYawSpeed");
+        let target = curve_integral(path, "RotationYawSpeedTarget");
+        assert!(
+            source * side > 20.0,
+            "source yaw side is wrong for {path}: {source}"
+        );
+        assert!(
+            target * -side > 20.0 && (target + source).abs() <= 0.01,
+            "target yaw basis conversion differs for {path}: source={source} target={target}"
+        );
+    }
+}
+
+#[test]
+fn crouch_target_yaw_speed_curves_preserve_the_source_cubic_shape_between_keys() {
+    for path in [
+        CROUCH_ROTATE_90_LEFT,
+        CROUCH_ROTATE_90_RIGHT,
+        CROUCH_TURN_90_LEFT,
+        CROUCH_TURN_90_RIGHT,
+        CROUCH_TURN_180_LEFT,
+        CROUCH_TURN_180_RIGHT,
+    ] {
+        let ext = read_extension(path);
+        let (_, value) = ext.iter().next().expect("one animation entry");
+        let curves = parse_curves(value).expect("parses");
+        let source = curves.0.get("RotationYawSpeed").expect("source curve");
+        let target = curves
+            .0
+            .get("RotationYawSpeedTarget")
+            .expect("target curve");
+        for times in source.times.windows(2) {
+            let time = (times[0] + times[1]) * 0.5;
+            let expected = -source.sample(time);
+            let actual = target.sample(time);
+            assert!(
+                (actual - expected).abs() <= 1e-3,
+                "target cubic sample differs for {path} at {time}: source={expected} target={actual}"
+            );
+        }
+    }
 }
 
 #[test]

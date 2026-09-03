@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from extract_ue_visible_graph_contract import canonical_hash, contract
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SPEC_DUMP_TIMEOUT_SECONDS = 90
 
 
 def target_asset_path(root, target_graph):
@@ -23,20 +25,57 @@ def target_asset_path(root, target_graph):
     raise ValueError("target graph must be inside assets or tools")
 
 
+def terminate_process_tree(process):
+    if process.poll() is not None:
+        return False
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    else:
+        process.kill()
+    return True
+
+
+def run_with_timeout(command, root, environment, timeout_seconds):
+    process = subprocess.Popen(
+        command,
+        cwd=root,
+        env=environment,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        process_tree_terminated = terminate_process_tree(process)
+        stdout, stderr = process.communicate()
+        raise RuntimeError(
+            "command timed out after "
+            + str(timeout_seconds)
+            + " seconds; process_tree_terminated="
+            + str(process_tree_terminated)
+            + "; output="
+            + (stderr or stdout)[-4000:]
+        )
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
 def run_spec_dump(root, target_graph, output, jobs):
     environment = os.environ.copy()
     asset_root, graph_path = target_asset_path(root, target_graph)
     environment["ALS_GRAPH_SPEC_ASSET_ROOT"] = asset_root
     environment["ALS_GRAPH_SPEC_PATH"] = graph_path
     environment["ALS_GRAPH_SPEC_OUTPUT"] = str(output)
-    result = subprocess.run(
+    result = run_with_timeout(
         ["cargo", "run", "--example", "animgraph_spec_dump", "--jobs", str(jobs)],
-        cwd=root,
-        env=environment,
-        text=True,
-        capture_output=True,
-        timeout=300,
-        check=False,
+        root,
+        environment,
+        SPEC_DUMP_TIMEOUT_SECONDS,
     )
     if result.returncode:
         raise RuntimeError(
@@ -145,11 +184,30 @@ def run_self_test():
             pass
         else:
             raise AssertionError("stale source contract was accepted")
+        child = root / "child.py"
+        child.write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
+        parent = root / "parent.py"
+        parent.write_text(
+            "import subprocess, sys, time\nsubprocess.Popen([sys.executable, sys.argv[1]])\ntime.sleep(60)\n",
+            encoding="utf-8",
+        )
+        try:
+            run_with_timeout(
+                [sys.executable, str(parent), str(child)],
+                root,
+                os.environ.copy(),
+                0.01,
+            )
+        except RuntimeError as error:
+            assert "process_tree_terminated=True" in str(error)
+        else:
+            raise AssertionError("timed-out command was accepted")
     return {
         "asset_relative_path": "PASS",
         "tool_asset_root_supported": "PASS",
         "outside_graph_rejected": "PASS",
         "native_source_contract_rechecked": "PASS",
+        "timed_out_spec_dump_process_tree_terminated": "PASS",
     }
 
 

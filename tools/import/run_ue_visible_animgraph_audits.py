@@ -1,7 +1,10 @@
 import argparse
 import importlib.util
 import json
+import os
+import subprocess
 import tempfile
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -52,6 +55,88 @@ def map_paths(index):
     return values
 
 
+def graph_batch_groups(root, index):
+    groups = defaultdict(list)
+    for map_path in map_paths(index):
+        mapping = read_json(root / map_path)
+        if mapping.get("format") != GRAPH_MAP_FORMAT:
+            continue
+        target_graph = mapping.get("target_graph")
+        if not isinstance(target_graph, str) or not target_graph:
+            raise ValueError("graph map target_graph is invalid")
+        asset_root, graph_path = AUDIT.target_asset_path(root, target_graph)
+        groups[asset_root].append(
+            {"map": map_path, "mapping": mapping, "graph_path": graph_path}
+        )
+    return dict(groups)
+
+
+def run_graph_batch(root, asset_root, entries, jobs):
+    target_dir = root / "target"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        suffix=".json",
+        prefix="ue_visible_animgraph_batch_",
+        dir=target_dir,
+        delete=False,
+    ) as file:
+        output = Path(file.name)
+    try:
+        environment = os.environ.copy()
+        environment["ALS_GRAPH_SPEC_ASSET_ROOT"] = asset_root
+        environment["ALS_GRAPH_SPEC_PATHS"] = json.dumps(
+            [entry["graph_path"] for entry in entries]
+        )
+        environment["ALS_GRAPH_SPEC_OUTPUT"] = str(output)
+        result = AUDIT.run_with_timeout(
+            ["cargo", "run", "--example", "animgraph_spec_dump", "--jobs", str(jobs)],
+            root,
+            environment,
+            AUDIT.SPEC_DUMP_TIMEOUT_SECONDS,
+        )
+        if result.returncode:
+            raise RuntimeError(
+                "animgraph batch spec dump failed: "
+                + (result.stderr or result.stdout)[-4000:]
+            )
+        values = read_json(output)
+        if not isinstance(values, dict):
+            raise ValueError("animgraph batch spec output is invalid")
+        expected = {entry["graph_path"] for entry in entries}
+        if set(values) != expected:
+            raise ValueError("animgraph batch spec output does not cover its request set")
+        return values
+    finally:
+        output.unlink(missing_ok=True)
+
+
+def audit_graph_batch_entry(root, entry, spec, source_path):
+    target_dir = root / "target"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        suffix=".json",
+        prefix="ue_visible_animgraph_spec_",
+        dir=target_dir,
+        delete=False,
+    ) as file:
+        output = Path(file.name)
+    try:
+        write_json(output, spec)
+        mapping = dict(entry["mapping"])
+        mapping["target_spec"] = output.relative_to(root).as_posix()
+        report = AUDIT.audit(root, mapping)
+        if source_path is not None:
+            AUDIT.verify_source_contract(root, mapping, source_path)
+            report["source_contract_fresh"] = True
+        return report
+    finally:
+        output.unlink(missing_ok=True)
+
+
 def audit_map(root, map_path, source_path, jobs):
     mapping = read_json(root / map_path)
     map_format = mapping.get("format")
@@ -64,10 +149,44 @@ def audit_map(root, map_path, source_path, jobs):
 
 def run(root, index_path, source_path, jobs):
     index = read_json(root / index_path)
-    values = []
-    for map_path in map_paths(index):
+    paths = map_paths(index)
+    graph_entries = graph_batch_groups(root, index)
+    graph_specs = {}
+    graph_errors = {}
+    for asset_root, entries in graph_entries.items():
         try:
-            kind, report = audit_map(root, map_path, source_path, jobs)
+            values = run_graph_batch(root, asset_root, entries, jobs)
+            for entry in entries:
+                graph_specs[entry["map"]] = values[entry["graph_path"]]
+        except Exception as error:
+            for entry in entries:
+                graph_errors[entry["map"]] = str(error)
+    values = []
+    for map_path in paths:
+        try:
+            mapping = read_json(root / map_path)
+            map_format = mapping.get("format")
+            if map_format == GRAPH_MAP_FORMAT:
+                if map_path in graph_errors:
+                    raise RuntimeError(graph_errors[map_path])
+                kind = "graph"
+                report = audit_graph_batch_entry(
+                    root,
+                    {
+                        "map": map_path,
+                        "mapping": mapping,
+                        "graph_path": AUDIT.target_asset_path(
+                            root, mapping["target_graph"]
+                        )[1],
+                    },
+                    graph_specs[map_path],
+                    source_path,
+                )
+            elif map_format == FSM_MAP_FORMAT:
+                kind = "fsm"
+                report = FSM_AUDIT.audit(root, mapping, source_path)
+            else:
+                raise ValueError("audit map format is invalid")
             values.append(
                 {
                     "map": map_path,
@@ -113,6 +232,27 @@ def run_self_test():
             encoding="utf-8",
         )
         assert map_paths(read_json(path)) == ["one.json", "two.json"]
+        assets = Path(directory) / "assets" / "graphs"
+        tools = Path(directory) / "tools" / "graphs"
+        assets.mkdir(parents=True)
+        tools.mkdir(parents=True)
+        (assets / "graph.animgraph.ron").write_text("()\n", encoding="utf-8")
+        (tools / "graph.animgraph.ron").write_text("()\n", encoding="utf-8")
+        write_json(
+            Path(directory) / "asset.json",
+            {"format": GRAPH_MAP_FORMAT, "target_graph": "assets/graphs/graph.animgraph.ron"},
+        )
+        write_json(
+            Path(directory) / "tool.json",
+            {"format": GRAPH_MAP_FORMAT, "target_graph": "tools/graphs/graph.animgraph.ron"},
+        )
+        grouped = graph_batch_groups(
+            Path(directory),
+            {"entries": [{"map": "asset.json"}, {"map": "tool.json"}]},
+        )
+        assert set(grouped) == {"assets", "tools"}
+        assert grouped["assets"][0]["graph_path"] == "graphs/graph.animgraph.ron"
+        assert grouped["tools"][0]["graph_path"] == "graphs/graph.animgraph.ron"
         fsm_map = Path(directory) / "fsm.json"
         write_json(fsm_map, {"format": FSM_MAP_FORMAT})
         kind, report = audit_map(Path(directory), "fsm.json", fsm_map, 2)
@@ -132,6 +272,7 @@ def run_self_test():
         "duplicate_map_rejected": "PASS",
         "machine_readable_report_round_trip": "PASS",
         "graph_and_fsm_dispatch_available": "PASS",
+        "asset_root_batch_partitioning": "PASS",
     }
 
 

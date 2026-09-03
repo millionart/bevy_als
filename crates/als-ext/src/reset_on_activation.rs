@@ -23,12 +23,20 @@ pub fn activation_reset_required(previous: &mut bool, active: bool) -> bool {
     reset
 }
 
+fn resolved_reset_time(global: Option<f32>, fallback: f32) -> f32 {
+    global
+        .filter(|value| value.is_finite())
+        .unwrap_or(fallback)
+        .max(0.0)
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct ResetOnActivationNode {
     pub threshold: f32,
     pub reset_time: f32,
+    pub reset_time_global_key: Option<String>,
 }
 
 impl Default for ResetOnActivationNode {
@@ -36,6 +44,7 @@ impl Default for ResetOnActivationNode {
         Self {
             threshold: 1e-6,
             reset_time: 0.0,
+            reset_time_global_key: None,
         }
     }
 }
@@ -53,12 +62,25 @@ impl NodeLike for ResetOnActivationNode {
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let active = ctx.data_back(IN_ACTIVE)?.as_f32()? > self.threshold;
+        let global_reset_time = self
+            .reset_time_global_key
+            .as_deref()
+            .map(|key| {
+                ctx.graph_context
+                    .global_input_data
+                    .get(key)
+                    .map(|value| value.as_f32())
+                    .transpose()
+            })
+            .transpose()?
+            .flatten();
+        let reset_time = resolved_reset_time(global_reset_time, self.reset_time);
         let reset = {
             let state = ctx.state_mut::<ResetOnActivationState>()?;
             activation_reset_required(&mut state.active, active)
         };
         let update = if reset {
-            TimeUpdate::Absolute(self.reset_time.max(0.0))
+            TimeUpdate::Absolute(reset_time)
         } else {
             ctx.time_update_fwd()?
         };
@@ -98,8 +120,16 @@ mod tests {
         let node = ResetOnActivationNode {
             threshold: 1e-6,
             reset_time: 0.25,
+            reset_time_global_key: None,
         };
         assert!((node.reset_time - 0.25).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn global_reset_time_overrides_the_static_start_without_accepting_invalid_values() {
+        assert!((resolved_reset_time(Some(0.4), 0.25) - 0.4).abs() < f32::EPSILON);
+        assert!((resolved_reset_time(Some(f32::NAN), 0.25) - 0.25).abs() < f32::EPSILON);
+        assert_eq!(resolved_reset_time(Some(-0.4), 0.25), 0.0);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -15,9 +15,11 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
     animation_graph::AnimationGraph,
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
+    context::node_states::StateKey,
     edge_data::DataValue,
     plugin::AnimationGraphSet,
     pose::{BonePose, Pose},
+    systems::apply_animation_to_targets,
 };
 use serde::Serialize;
 
@@ -33,7 +35,8 @@ use crate::{
         AlsFootIkSpaceState, AlsFootLockTeleportTelemetry, FootIkApplySet,
     },
     manual_playground_integration::{
-        ManualAnimationWindowEvidence, ManualIntegrationObservationSet, ManualRuntimePhaseEvidence,
+        ManualAnimationPoseBoundary, ManualAnimationWindowEvidence,
+        ManualIntegrationObservationSet, ManualRuntimePhaseEvidence, ManualTurnStackEntryEvidence,
     },
 };
 
@@ -77,6 +80,34 @@ const SEGMENTS: &[(&str, &str)] = &[
 ];
 
 const MOTION_BONES: &[&str] = &["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"];
+
+const LIMB_CHAINS: &[(&str, &str, &str, &str)] = &[
+    ("left_leg", "thigh_l", "calf_l", "foot_l"),
+    ("right_leg", "thigh_r", "calf_r", "foot_r"),
+    ("left_arm", "upperarm_l", "lowerarm_l", "hand_l"),
+    ("right_arm", "upperarm_r", "lowerarm_r", "hand_r"),
+];
+
+const TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND: f32 = 24.0;
+const TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS: f32 = 0.35;
+const TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND: f32 = 14.0;
+const TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS: f32 = 2.2;
+const TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND: f32 = 40.0;
+const TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS: f32 = 0.75;
+const TEMPORAL_SCALE_RATIO: f32 = 1.5;
+const TEMPORAL_SEGMENT_RATIO: f32 = 0.35;
+const TEMPORAL_SEGMENT_MIN_DELTA_METERS: f32 = 0.05;
+const TEMPORAL_LIMB_PLANE_FLIP_DOT: f32 = -0.5;
+const ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE: &str =
+    include_str!("../tools/animation_visual_evidence_format.txt");
+
+fn animation_visual_evidence_format() -> &'static str {
+    ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE.trim()
+}
+const TEMPORAL_LIMB_BEND_SINE: f32 = 0.08;
+const MAX_TEMPORAL_ANOMALIES: usize = 64;
+
+type FinalBone = (Vec3, Quat, Vec3, Vec3);
 
 #[derive(Resource)]
 struct AnimationVisualValidationConfig {
@@ -138,10 +169,15 @@ struct AnimationVisualValidationState {
     screenshots: Vec<ScreenshotSample>,
     faults: Vec<String>,
     graph_errors: Vec<String>,
-    previous_relative: BTreeMap<String, Vec3>,
-    previous_segments: BTreeMap<String, f32>,
+    temporal_pre_rig_guard: TemporalSkeletonGuard,
+    temporal_final_guard: TemporalSkeletonGuard,
+    temporal_anomalies: Vec<TemporalSkeletonAnomaly>,
+    temporal_context: Option<String>,
+    temporal_window_settled: bool,
+    temporal_rebase_epoch: Option<u64>,
     captured_direction_cases: BTreeSet<String>,
     motion_windows: BTreeMap<String, MotionWindowTracker>,
+    required_motion_windows: BTreeSet<String>,
     last_teleport_count: u32,
     teleport_captures: usize,
     observed_bones: usize,
@@ -159,10 +195,51 @@ struct AnimationVisualStageTiming {
     physics_steps_per_render: Vec<f64>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Default)]
 struct LocalBonePose {
     translation: Vec3,
     rotation: Quat,
+    scale: Vec3,
+}
+
+#[derive(Clone, Copy)]
+struct LimbPlane {
+    normal: Vec3,
+}
+
+#[derive(Default)]
+struct TemporalSkeletonGuard {
+    previous_relative: BTreeMap<String, Vec3>,
+    previous_local: BTreeMap<String, LocalBonePose>,
+    previous_segments: BTreeMap<String, f32>,
+    previous_limb_planes: BTreeMap<String, LimbPlane>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct TemporalSkeletonMetric {
+    kind: &'static str,
+    subject: String,
+    previous: f32,
+    current: f32,
+    threshold: f32,
+}
+
+struct TemporalSkeletonObservation {
+    metrics: Vec<TemporalSkeletonMetric>,
+}
+
+#[derive(Serialize, Clone)]
+struct TemporalSkeletonAnomaly {
+    stage: String,
+    kind: String,
+    subject: String,
+    previous: f32,
+    current: f32,
+    threshold: f32,
+    elapsed_secs: f64,
+    frame_ms: f64,
+    direction_case: Option<String>,
+    phase: Option<String>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -190,6 +267,23 @@ struct AnimationVisualPreRigPose {
     bones: BTreeMap<String, LocalBonePose>,
 }
 
+#[derive(Serialize, Clone)]
+struct ActorYawTraceSample {
+    elapsed_secs: f64,
+    actor_yaw_radians: f32,
+    view_yaw_radians: Option<f32>,
+    animation_yaw_speed_degrees: Option<f32>,
+    animation_curve_direct_yaw_speed_degrees: Option<f32>,
+    animation_clip_time: Option<f32>,
+    animation_weight: Option<f32>,
+    animation_play_rate: Option<f32>,
+    animation_curve_stack_weight: Option<f32>,
+    animation_curve_stack_entries: Vec<ManualTurnStackEntryEvidence>,
+    animation_variant: Option<&'static str>,
+    requested_parent_runtime_state: Option<u8>,
+    requested_parent_transition_active: Option<bool>,
+}
+
 #[derive(Default)]
 struct MotionWindowTracker {
     source_node: String,
@@ -198,14 +292,34 @@ struct MotionWindowTracker {
     observed_directions: BTreeSet<String>,
     expected_runtime_state: Option<u8>,
     observed_runtime_states: BTreeSet<u8>,
+    expected_parent_runtime_state: Option<u8>,
+    expected_terminal_parent_runtime_state: Option<u8>,
+    expected_terminal_parent_transition_active: Option<bool>,
+    expected_terminal_requested_parent_transition_active: Option<bool>,
+    observed_parent_runtime_states: BTreeSet<u8>,
+    observed_parent_transition_active: BTreeSet<bool>,
+    observed_requested_parent_runtime_states: BTreeSet<u8>,
+    observed_requested_parent_transition_active: BTreeSet<bool>,
+    observed_terminal_parent_runtime_states: BTreeSet<u8>,
+    observed_terminal_parent_transition_active: BTreeSet<bool>,
+    observed_terminal_requested_parent_runtime_states: BTreeSet<u8>,
+    observed_terminal_requested_parent_transition_active: BTreeSet<bool>,
     sample_count: usize,
     requires_pre_rig_motion: bool,
     requires_final_pose_motion: bool,
     requires_non_reference_root_pose: bool,
+    requires_source_pose_chain: bool,
+    requires_actor_yaw_motion: bool,
+    requires_actor_yaw_convergence: bool,
+    expected_actor_yaw_delta_sign: Option<i8>,
+    expected_actor_yaw_baseline: Option<f32>,
+    expected_animation_variant: Option<&'static str>,
     minimum_pre_rig_translation_span: f32,
     minimum_pre_rig_rotation_span_radians: f32,
     minimum_final_translation_span: f32,
     minimum_final_rotation_span_radians: f32,
+    minimum_actor_yaw_delta_radians: f32,
+    minimum_actor_yaw_convergence_radians: f32,
     minimum_observation_seconds: f32,
     observation_seconds: f32,
     first_sample_elapsed_seconds: Option<f64>,
@@ -219,6 +333,17 @@ struct MotionWindowTracker {
     root_pose_active_samples: usize,
     root_pose_reference_samples: usize,
     root_pose_max_active_channels: usize,
+    root_pose_max_translation_span: f32,
+    root_pose_max_rotation_span_radians: f32,
+    root_pose_reference: Option<Pose>,
+    actor_yaw_sample_count: usize,
+    actor_yaw_reference: Option<f32>,
+    actor_yaw_error_reference: Option<f32>,
+    actor_yaw_trace: Vec<ActorYawTraceSample>,
+    max_actor_yaw_delta_radians: f32,
+    max_actor_yaw_signed_delta_radians: f32,
+    max_actor_yaw_opposite_delta_radians: f32,
+    max_actor_yaw_convergence_radians: f32,
     source_sync_group: String,
     sync_phase_global: String,
     canonical_sync_phase: Option<f32>,
@@ -228,6 +353,25 @@ struct MotionWindowTracker {
     required_direction_signature_members: usize,
     minimum_direction_signature_rotation_radians: f32,
     canonical_pre_rig_pose: BTreeMap<String, LocalBonePose>,
+    source_pose_chain: Vec<SourcePoseBoundaryTracker>,
+    expected_lifecycle_stages: BTreeSet<String>,
+    observed_lifecycle_stages: BTreeSet<String>,
+}
+
+#[derive(Default)]
+struct SourcePoseBoundaryTracker {
+    label: String,
+    graph: String,
+    node: String,
+    output: String,
+    minimum_translation_span: f32,
+    minimum_rotation_span_radians: f32,
+    sample_count: usize,
+    available_samples: usize,
+    unavailable_samples: usize,
+    max_translation_span: f32,
+    max_rotation_span_radians: f32,
+    reference: Option<Pose>,
 }
 
 #[derive(Serialize, Clone)]
@@ -239,14 +383,34 @@ struct MotionWindowSample {
     observed_directions: Vec<String>,
     expected_runtime_state: Option<u8>,
     observed_runtime_states: Vec<u8>,
+    expected_parent_runtime_state: Option<u8>,
+    expected_terminal_parent_runtime_state: Option<u8>,
+    expected_terminal_parent_transition_active: Option<bool>,
+    expected_terminal_requested_parent_transition_active: Option<bool>,
+    observed_parent_runtime_states: Vec<u8>,
+    observed_parent_transition_active: Vec<bool>,
+    observed_requested_parent_runtime_states: Vec<u8>,
+    observed_requested_parent_transition_active: Vec<bool>,
+    observed_terminal_parent_runtime_states: Vec<u8>,
+    observed_terminal_parent_transition_active: Vec<bool>,
+    observed_terminal_requested_parent_runtime_states: Vec<u8>,
+    observed_terminal_requested_parent_transition_active: Vec<bool>,
     sample_count: usize,
     requires_pre_rig_motion: bool,
     requires_final_pose_motion: bool,
     requires_non_reference_root_pose: bool,
+    requires_source_pose_chain: bool,
+    requires_actor_yaw_motion: bool,
+    requires_actor_yaw_convergence: bool,
+    expected_actor_yaw_delta_sign: Option<i8>,
+    expected_actor_yaw_baseline: Option<f32>,
+    expected_animation_variant: Option<&'static str>,
     minimum_pre_rig_translation_span: f32,
     minimum_pre_rig_rotation_span_radians: f32,
     minimum_final_translation_span: f32,
     minimum_final_rotation_span_radians: f32,
+    minimum_actor_yaw_delta_radians: f32,
+    minimum_actor_yaw_convergence_radians: f32,
     minimum_observation_seconds: f32,
     observation_seconds: f32,
     max_pre_rig_translation_span: f32,
@@ -257,6 +421,14 @@ struct MotionWindowSample {
     root_pose_active_samples: usize,
     root_pose_reference_samples: usize,
     root_pose_max_active_channels: usize,
+    root_pose_max_translation_span: f32,
+    root_pose_max_rotation_span_radians: f32,
+    actor_yaw_sample_count: usize,
+    actor_yaw_trace: Vec<ActorYawTraceSample>,
+    max_actor_yaw_delta_radians: f32,
+    max_actor_yaw_signed_delta_radians: f32,
+    max_actor_yaw_opposite_delta_radians: f32,
+    max_actor_yaw_convergence_radians: f32,
     source_sync_group: String,
     sync_phase_global: String,
     canonical_sync_phase: Option<f32>,
@@ -266,6 +438,25 @@ struct MotionWindowSample {
     required_direction_signature_members: usize,
     minimum_direction_signature_rotation_radians: f32,
     canonical_pre_rig_pose: BTreeMap<String, LocalMotionBoneSample>,
+    source_pose_chain: Vec<SourcePoseBoundarySample>,
+    expected_lifecycle_stages: Vec<String>,
+    observed_lifecycle_stages: Vec<String>,
+    first_failed_source_pose_boundary: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct SourcePoseBoundarySample {
+    label: String,
+    graph: String,
+    node: String,
+    output: String,
+    minimum_translation_span: f32,
+    minimum_rotation_span_radians: f32,
+    sample_count: usize,
+    available_samples: usize,
+    unavailable_samples: usize,
+    max_translation_span: f32,
+    max_rotation_span_radians: f32,
 }
 
 #[derive(Serialize, Clone)]
@@ -345,6 +536,8 @@ struct FootIkSample {
     pose_moving: f32,
     foot_left_ik_curve: f32,
     foot_right_ik_curve: f32,
+    foot_left_lock_curve: f32,
+    foot_right_lock_curve: f32,
     standing_pose_moving_global: f32,
     pose_moving_lineage: Vec<ContextCurveSample>,
     velocity_blend_forward_amount: f32,
@@ -392,6 +585,8 @@ struct AnimationVisualReport {
     pose_samples: Vec<PoseSample>,
     screenshots: Vec<ScreenshotSample>,
     motion_windows: Vec<MotionWindowSample>,
+    required_motion_windows: Vec<String>,
+    temporal_anomalies: Vec<TemporalSkeletonAnomaly>,
     faults: Vec<String>,
     graph_errors: Vec<String>,
     thresholds: BTreeMap<String, f64>,
@@ -423,12 +618,14 @@ impl Plugin for AnimationVisualValidationPlugin {
                 PostUpdate,
                 capture_animation_visual_pre_rig_pose
                     .after(AnimationGraphSet::Final)
+                    .after(apply_animation_to_targets)
                     .before(AlsControlRigSet),
             )
             .add_systems(
                 PostUpdate,
                 collect_animation_visual_evidence
                     .after(FootIkApplySet::Telemetry)
+                    .after(AlsControlRigPropagationSet)
                     .after(AlsCameraSet)
                     .after(ManualIntegrationObservationSet),
             )
@@ -456,6 +653,7 @@ impl Plugin for AnimationVisualValidationPlugin {
                 PostUpdate,
                 animation_visual_control_rig_start
                     .after(AnimationGraphSet::Final)
+                    .after(apply_animation_to_targets)
                     .before(AlsControlRigSet),
             )
             .add_systems(
@@ -512,6 +710,224 @@ fn append_unique(values: &mut Vec<String>, value: String) -> bool {
         return true;
     }
     false
+}
+
+fn temporal_scale_ratio(previous: Vec3, current: Vec3) -> f32 {
+    let mut ratio = 1.0_f32;
+    for (previous, current) in [
+        (previous.x.abs(), current.x.abs()),
+        (previous.y.abs(), current.y.abs()),
+        (previous.z.abs(), current.z.abs()),
+    ] {
+        if previous <= f32::EPSILON || current <= f32::EPSILON {
+            return f32::INFINITY;
+        }
+        ratio = ratio.max((previous / current).max(current / previous));
+    }
+    ratio
+}
+
+fn limb_plane(
+    bones: &BTreeMap<String, FinalBone>,
+    first: &str,
+    second: &str,
+    third: &str,
+) -> Option<LimbPlane> {
+    let first = bones.get(first)?.0;
+    let second = bones.get(second)?.0;
+    let third = bones.get(third)?.0;
+    let upper = second - first;
+    let lower = third - second;
+    let lengths = upper.length() * lower.length();
+    if !lengths.is_finite() || lengths <= f32::EPSILON {
+        return None;
+    }
+    let normal = upper.cross(lower);
+    let bend_sine = normal.length() / lengths;
+    if !bend_sine.is_finite() || bend_sine < TEMPORAL_LIMB_BEND_SINE {
+        return None;
+    }
+    Some(LimbPlane {
+        normal: normal.normalize(),
+    })
+}
+
+fn segment_lengths(bones: &BTreeMap<String, FinalBone>) -> BTreeMap<String, f32> {
+    SEGMENTS
+        .iter()
+        .filter_map(|(first, second)| {
+            let first_position = bones.get(*first)?.0;
+            let second_position = bones.get(*second)?.0;
+            Some((
+                segment_name(first, second),
+                first_position.distance(second_position),
+            ))
+        })
+        .collect()
+}
+
+impl TemporalSkeletonGuard {
+    fn reset(&mut self) {
+        self.previous_relative.clear();
+        self.previous_local.clear();
+        self.previous_segments.clear();
+        self.previous_limb_planes.clear();
+    }
+
+    fn observe(
+        &mut self,
+        local: &BTreeMap<String, LocalBonePose>,
+        bones: &BTreeMap<String, FinalBone>,
+        avatar_position: Vec3,
+        frame_seconds: f32,
+    ) -> TemporalSkeletonObservation {
+        let mut metrics = Vec::new();
+        for (name, (translation, _, _, _)) in bones {
+            let relative = *translation - avatar_position;
+            if let Some(previous) = self.previous_relative.get(name) {
+                let speed = previous.distance(relative) / frame_seconds;
+                if speed > TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "global_position_speed",
+                        subject: name.clone(),
+                        previous: 0.0,
+                        current: speed,
+                        threshold: TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND,
+                    });
+                }
+            }
+            self.previous_relative.insert(name.clone(), relative);
+        }
+        for (name, current) in local {
+            if let Some(previous) = self.previous_local.get(name).copied() {
+                let translation_delta = previous.translation.distance(current.translation);
+                let translation_speed = translation_delta / frame_seconds;
+                if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS
+                    || (translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS * 0.35
+                        && translation_speed > TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND)
+                {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "local_translation_spike",
+                        subject: name.clone(),
+                        previous: 0.0,
+                        current: translation_delta,
+                        threshold: TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS,
+                    });
+                }
+                let rotation_delta = rotation_delta_radians(previous.rotation, current.rotation);
+                let rotation_speed = rotation_delta / frame_seconds;
+                if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS
+                    || (rotation_delta > TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS
+                        && rotation_speed > TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND)
+                {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "local_rotation_spike",
+                        subject: name.clone(),
+                        previous: 0.0,
+                        current: rotation_delta,
+                        threshold: TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS,
+                    });
+                }
+                let scale_ratio = temporal_scale_ratio(previous.scale, current.scale);
+                if scale_ratio > TEMPORAL_SCALE_RATIO {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "local_scale_spike",
+                        subject: name.clone(),
+                        previous: 1.0,
+                        current: scale_ratio,
+                        threshold: TEMPORAL_SCALE_RATIO,
+                    });
+                }
+            }
+            self.previous_local.insert(name.clone(), *current);
+        }
+        let segments = segment_lengths(bones);
+        for (name, length) in &segments {
+            if let Some(previous) = self.previous_segments.get(name) {
+                let delta = (*length - previous).abs();
+                let ratio = delta / previous.abs().max(0.01);
+                if delta > TEMPORAL_SEGMENT_MIN_DELTA_METERS && ratio > TEMPORAL_SEGMENT_RATIO {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "segment_length_spike",
+                        subject: name.clone(),
+                        previous: *previous,
+                        current: *length,
+                        threshold: TEMPORAL_SEGMENT_RATIO,
+                    });
+                }
+            }
+            self.previous_segments.insert(name.clone(), *length);
+        }
+        let mut limb_planes = BTreeMap::new();
+        for (name, first, second, third) in LIMB_CHAINS {
+            let Some(current) = limb_plane(bones, first, second, third) else {
+                continue;
+            };
+            if let Some(previous) = self.previous_limb_planes.get(*name) {
+                let dot = previous.normal.dot(current.normal);
+                if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT {
+                    metrics.push(TemporalSkeletonMetric {
+                        kind: "limb_plane_flip",
+                        subject: (*name).to_owned(),
+                        previous: 1.0,
+                        current: dot,
+                        threshold: TEMPORAL_LIMB_PLANE_FLIP_DOT,
+                    });
+                }
+            }
+            limb_planes.insert((*name).to_owned(), current);
+        }
+        self.previous_limb_planes = limb_planes;
+        TemporalSkeletonObservation { metrics }
+    }
+}
+
+fn record_temporal_metrics(
+    state: &mut AnimationVisualValidationState,
+    metrics: Vec<TemporalSkeletonMetric>,
+    stage: &str,
+    elapsed_secs: f64,
+    frame_ms: f64,
+    direction_case: Option<&str>,
+    phase: Option<&str>,
+) -> bool {
+    let mut detected = false;
+    for metric in metrics {
+        let duplicate = state
+            .temporal_anomalies
+            .iter()
+            .any(|value| value.kind == metric.kind && value.subject == metric.subject);
+        if !duplicate && state.temporal_anomalies.len() < MAX_TEMPORAL_ANOMALIES {
+            warn!(
+                "[ANIMATION-VISUAL][TEMPORAL] stage={} kind={} subject={} previous={:.6} current={:.6} threshold={:.6} elapsed={:.6} frame_ms={:.3}",
+                stage,
+                metric.kind,
+                metric.subject,
+                metric.previous,
+                metric.current,
+                metric.threshold,
+                elapsed_secs,
+                frame_ms,
+            );
+            state.temporal_anomalies.push(TemporalSkeletonAnomaly {
+                stage: stage.to_owned(),
+                kind: metric.kind.to_owned(),
+                subject: metric.subject.clone(),
+                previous: metric.previous,
+                current: metric.current,
+                threshold: metric.threshold,
+                elapsed_secs,
+                frame_ms,
+                direction_case: direction_case.map(str::to_owned),
+                phase: phase.map(str::to_owned),
+            });
+        }
+        detected |= append_unique(
+            &mut state.faults,
+            format!("temporal_{stage}_{}:{}", metric.kind, metric.subject),
+        );
+    }
+    detected
 }
 
 fn animation_eval_start(mut state: ResMut<AnimationVisualValidationState>) {
@@ -631,7 +1047,7 @@ fn collect_bones(
     root: Entity,
     children: &Query<&Children>,
     named_transforms: &Query<(&Name, &GlobalTransform, &Transform)>,
-) -> BTreeMap<String, (Vec3, Quat, Vec3, Vec3)> {
+) -> BTreeMap<String, FinalBone> {
     let mut result = BTreeMap::new();
     let mut stack = vec![root];
     while let Some(entity) = stack.pop() {
@@ -664,10 +1080,11 @@ fn collect_local_motion_bones(
     while let Some(entity) = stack.pop() {
         if let Ok((name, _, local)) = named_transforms.get(entity) {
             let label = name.as_str();
-            if MOTION_BONES.iter().any(|motion_bone| *motion_bone == label) {
+            if REQUIRED_BONES.iter().any(|required| *required == label) {
                 result.entry(label.to_owned()).or_insert(LocalBonePose {
                     translation: local.translation,
                     rotation: local.rotation,
+                    scale: local.scale,
                 });
             }
         }
@@ -691,7 +1108,20 @@ fn capture_animation_visual_pre_rig_pose(
 }
 
 fn rotation_delta_radians(previous: Quat, current: Quat) -> f32 {
-    (2.0 * previous.dot(current).abs().clamp(0.0, 1.0).acos()).max(0.0)
+    if !previous.is_finite()
+        || !current.is_finite()
+        || previous.length_squared() <= f32::EPSILON
+        || current.length_squared() <= f32::EPSILON
+    {
+        return f32::INFINITY;
+    }
+    (2.0 * previous
+        .normalize()
+        .dot(current.normalize())
+        .abs()
+        .clamp(0.0, 1.0)
+        .acos())
+    .max(0.0)
 }
 
 fn root_pose_activity_from_pose(pose: &Pose) -> RootPoseActivity {
@@ -738,6 +1168,131 @@ fn root_pose_sample(activity: RootPoseActivity) -> RootPoseSample {
         bone_count: activity.bone_count,
         active_channel_count: activity.active_channel_count,
     }
+}
+
+fn source_pose_motion_span(reference: &Pose, current: &Pose) -> (f32, f32) {
+    let mut translation_span = 0.0_f32;
+    let mut rotation_span = 0.0_f32;
+    for (reference_bone, current_bone) in reference.bones.iter().zip(&current.bones) {
+        if let (Some(reference), Some(current)) =
+            (reference_bone.translation, current_bone.translation)
+        {
+            translation_span = translation_span.max(reference.distance(current));
+        }
+        if let (Some(reference), Some(current)) = (reference_bone.rotation, current_bone.rotation) {
+            rotation_span = rotation_span.max(rotation_delta_radians(reference, current));
+        }
+    }
+    (translation_span, rotation_span)
+}
+
+fn source_pose_boundary_output(
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+    boundary: &ManualAnimationPoseBoundary,
+) -> Option<Pose> {
+    let arena = player.get_context_arena()?;
+    for context_id in arena.iter_context_ids() {
+        let context = arena.get_context(context_id)?;
+        let Some(path) = asset_server.get_path(context.get_graph_id()) else {
+            continue;
+        };
+        if path.path() != Path::new(boundary.graph) {
+            continue;
+        }
+        let Some(graph) = graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        let Some(node) = graph.nodes.values().find(|node| node.name == boundary.node) else {
+            continue;
+        };
+        if let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(
+            node.id,
+            StateKey::Default,
+            boundary.output.to_owned(),
+        ) {
+            return Some(pose);
+        }
+    }
+    None
+}
+
+fn source_pose_boundary_tracker(
+    boundary: &ManualAnimationPoseBoundary,
+) -> SourcePoseBoundaryTracker {
+    SourcePoseBoundaryTracker {
+        label: boundary.label.to_owned(),
+        graph: boundary.graph.to_owned(),
+        node: boundary.node.to_owned(),
+        output: boundary.output.to_owned(),
+        minimum_translation_span: boundary.minimum_translation_span.max(0.0),
+        minimum_rotation_span_radians: boundary.minimum_rotation_span_radians.max(0.0),
+        ..default()
+    }
+}
+
+fn record_source_pose_chain(
+    tracker: &mut MotionWindowTracker,
+    evidence: &ManualAnimationWindowEvidence,
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+) {
+    if tracker.source_pose_chain.is_empty() {
+        tracker.source_pose_chain = evidence
+            .source_pose_chain
+            .iter()
+            .map(source_pose_boundary_tracker)
+            .collect();
+    }
+    for (definition, boundary) in evidence
+        .source_pose_chain
+        .iter()
+        .zip(&mut tracker.source_pose_chain)
+    {
+        boundary.sample_count += 1;
+        let Some(pose) = source_pose_boundary_output(player, asset_server, graphs, definition)
+        else {
+            boundary.unavailable_samples += 1;
+            continue;
+        };
+        boundary.available_samples += 1;
+        if let Some(reference) = boundary.reference.as_ref() {
+            let (translation_span, rotation_span) = source_pose_motion_span(reference, &pose);
+            boundary.max_translation_span = boundary.max_translation_span.max(translation_span);
+            boundary.max_rotation_span_radians =
+                boundary.max_rotation_span_radians.max(rotation_span);
+        } else {
+            boundary.reference = Some(pose.clone());
+        }
+    }
+}
+
+fn first_source_pose_boundary_failure(boundaries: &[SourcePoseBoundaryTracker]) -> Option<String> {
+    for boundary in boundaries {
+        if boundary.sample_count < 2 || boundary.available_samples < 2 {
+            return Some(format!("{}: unavailable", boundary.label));
+        }
+        if boundary.unavailable_samples > 0 {
+            return Some(format!("{}: intermittently unavailable", boundary.label));
+        }
+        if boundary.max_translation_span <= f32::EPSILON
+            && boundary.max_rotation_span_radians <= f32::EPSILON
+        {
+            return Some(format!("{}: static", boundary.label));
+        }
+        if (boundary.minimum_translation_span > f32::EPSILON
+            || boundary.minimum_rotation_span_radians > f32::EPSILON)
+            && (boundary.minimum_translation_span <= f32::EPSILON
+                || boundary.max_translation_span < boundary.minimum_translation_span)
+            && (boundary.minimum_rotation_span_radians <= f32::EPSILON
+                || boundary.max_rotation_span_radians < boundary.minimum_rotation_span_radians)
+        {
+            return Some(format!("{}: below source floor", boundary.label));
+        }
+    }
+    None
 }
 
 fn local_motion_pose_sample(
@@ -795,25 +1350,68 @@ fn wrapped_phase_distance(left: f32, right: f32) -> f32 {
     difference.min((1.0 - difference).abs())
 }
 
-fn record_motion_window(
+fn wrapped_yaw_distance(left: f32, right: f32) -> f32 {
+    if !left.is_finite() || !right.is_finite() {
+        return f32::INFINITY;
+    }
+    wrapped_yaw_delta(left, right).abs()
+}
+
+fn wrapped_yaw_delta(reference: f32, current: f32) -> f32 {
+    if !reference.is_finite() || !current.is_finite() {
+        return f32::INFINITY;
+    }
+    (current - reference + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI
+}
+
+fn append_actor_yaw_trace(
+    tracker: &mut MotionWindowTracker,
+    evidence: &ManualAnimationWindowEvidence,
+    actor_yaw: Option<f32>,
+    view_yaw: Option<f32>,
+    elapsed_seconds: f64,
+) {
+    let Some(actor_yaw) = actor_yaw.filter(|value| value.is_finite()) else {
+        return;
+    };
+    if tracker.expected_actor_yaw_delta_sign.is_none() || tracker.actor_yaw_trace.len() >= 512 {
+        return;
+    }
+    tracker.actor_yaw_trace.push(ActorYawTraceSample {
+        elapsed_secs: elapsed_seconds,
+        actor_yaw_radians: actor_yaw,
+        view_yaw_radians: view_yaw.filter(|value| value.is_finite()),
+        animation_yaw_speed_degrees: evidence
+            .observed_animation_yaw_speed_degrees
+            .filter(|value| value.is_finite()),
+        animation_curve_direct_yaw_speed_degrees: evidence
+            .observed_animation_curve_direct_yaw_speed_degrees
+            .filter(|value| value.is_finite()),
+        animation_clip_time: evidence
+            .observed_animation_clip_time
+            .filter(|value| value.is_finite()),
+        animation_weight: evidence
+            .observed_animation_weight
+            .filter(|value| value.is_finite()),
+        animation_play_rate: evidence
+            .observed_animation_play_rate
+            .filter(|value| value.is_finite()),
+        animation_curve_stack_weight: evidence
+            .observed_animation_curve_stack_weight
+            .filter(|value| value.is_finite()),
+        animation_curve_stack_entries: evidence.observed_animation_curve_stack_entries.clone(),
+        animation_variant: evidence.observed_animation_variant,
+        requested_parent_runtime_state: evidence.observed_requested_parent_runtime_state,
+        requested_parent_transition_active: evidence.observed_requested_parent_transition_active,
+    });
+}
+
+fn record_motion_window_metadata(
     state: &mut AnimationVisualValidationState,
     evidence: &ManualAnimationWindowEvidence,
-    pre_rig: &AnimationVisualPreRigPose,
-    final_pose: &BTreeMap<String, LocalBonePose>,
-    root_pose: RootPoseActivity,
-    player: &AnimationGraphPlayer,
-    elapsed_seconds: f64,
-) -> bool {
-    if !evidence.settled
-        || !(evidence.requires_pre_rig_motion
-            || evidence.requires_final_pose_motion
-            || evidence.requires_non_reference_root_pose)
-    {
-        return false;
-    }
-    let Some(label) = evidence.label else {
-        return false;
-    };
+) -> Option<String> {
+    let label = evidence.label?;
     let tracker = state.motion_windows.entry(label.to_owned()).or_default();
     if tracker.source_node.is_empty() {
         tracker.source_node = evidence.source_node.unwrap_or_default().to_owned();
@@ -821,6 +1419,96 @@ fn record_motion_window(
     if tracker.source_state.is_empty() {
         tracker.source_state = evidence.source_state.unwrap_or_default().to_owned();
     }
+    if tracker.expected_actor_yaw_delta_sign.is_none() {
+        tracker.expected_actor_yaw_delta_sign = evidence.expected_actor_yaw_delta_sign;
+    }
+    if tracker.expected_animation_variant.is_none() {
+        tracker.expected_animation_variant = evidence.expected_animation_variant;
+    }
+    if tracker.expected_terminal_parent_runtime_state.is_none() {
+        tracker.expected_terminal_parent_runtime_state =
+            evidence.expected_terminal_parent_runtime_state;
+    }
+    if tracker.expected_terminal_parent_transition_active.is_none() {
+        tracker.expected_terminal_parent_transition_active =
+            evidence.expected_terminal_parent_transition_active;
+    }
+    if tracker
+        .expected_terminal_requested_parent_transition_active
+        .is_none()
+    {
+        tracker.expected_terminal_requested_parent_transition_active =
+            evidence.expected_terminal_requested_parent_transition_active;
+    }
+    tracker.expected_lifecycle_stages.extend(
+        evidence
+            .expected_lifecycle_stages
+            .iter()
+            .map(|value| (*value).to_owned()),
+    );
+    if !evidence.capture_source_window {
+        return None;
+    }
+    tracker.observed_lifecycle_stages.extend(
+        evidence
+            .observed_lifecycle_stages
+            .iter()
+            .map(|value| (*value).to_owned()),
+    );
+    Some(label.to_owned())
+}
+
+fn record_motion_window(
+    state: &mut AnimationVisualValidationState,
+    evidence: &ManualAnimationWindowEvidence,
+    pre_rig: &AnimationVisualPreRigPose,
+    final_pose: &BTreeMap<String, LocalBonePose>,
+    actor_yaw: Option<f32>,
+    view_yaw: Option<f32>,
+    root_pose: RootPoseActivity,
+    root_pose_value: Option<&Pose>,
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+    elapsed_seconds: f64,
+) -> bool {
+    let Some(label) = record_motion_window_metadata(state, evidence) else {
+        return false;
+    };
+    {
+        let tracker = state.motion_windows.entry(label.clone()).or_default();
+        if tracker.expected_actor_yaw_baseline.is_none() {
+            tracker.expected_actor_yaw_baseline = evidence
+                .expected_actor_yaw_baseline
+                .filter(|value| value.is_finite());
+        }
+        if evidence.expected_actor_yaw_delta_sign.is_some() {
+            if let Some(baseline) = tracker.expected_actor_yaw_baseline {
+                tracker.actor_yaw_reference.get_or_insert(baseline);
+                if let Some(view_yaw) = view_yaw.filter(|value| value.is_finite()) {
+                    tracker
+                        .actor_yaw_error_reference
+                        .get_or_insert(wrapped_yaw_distance(baseline, view_yaw));
+                }
+                tracker
+                    .first_sample_elapsed_seconds
+                    .get_or_insert(elapsed_seconds);
+            }
+            append_actor_yaw_trace(tracker, evidence, actor_yaw, view_yaw, elapsed_seconds);
+        }
+    }
+    if !evidence.settled
+        || !(evidence.requires_pre_rig_motion
+            || evidence.requires_final_pose_motion
+            || evidence.requires_non_reference_root_pose
+            || evidence.requires_source_pose_chain
+            || evidence.requires_actor_yaw_motion
+            || evidence.requires_actor_yaw_convergence
+            || !evidence.expected_lifecycle_stages.is_empty())
+    {
+        return false;
+    }
+    let tracker = state.motion_windows.entry(label).or_default();
     if tracker.expected_direction.is_empty() {
         tracker.expected_direction = evidence.expected_direction.unwrap_or_default().to_owned();
     }
@@ -833,16 +1521,75 @@ fn record_motion_window(
     if let Some(runtime_state) = evidence.observed_runtime_state {
         tracker.observed_runtime_states.insert(runtime_state);
     }
-    tracker.requires_pre_rig_motion = evidence.requires_pre_rig_motion;
-    tracker.requires_final_pose_motion = evidence.requires_final_pose_motion;
-    tracker.requires_non_reference_root_pose = evidence.requires_non_reference_root_pose;
-    tracker.minimum_pre_rig_translation_span = evidence.minimum_pre_rig_translation_span.max(0.0);
-    tracker.minimum_pre_rig_rotation_span_radians =
-        evidence.minimum_pre_rig_rotation_span_radians.max(0.0);
-    tracker.minimum_final_translation_span = evidence.minimum_final_translation_span.max(0.0);
-    tracker.minimum_final_rotation_span_radians =
-        evidence.minimum_final_rotation_span_radians.max(0.0);
-    tracker.minimum_observation_seconds = evidence.minimum_observation_seconds.max(0.0);
+    if tracker.expected_parent_runtime_state.is_none() {
+        tracker.expected_parent_runtime_state = evidence.expected_parent_runtime_state;
+    }
+    if terminal_parent_state_sample(evidence) {
+        if let Some(runtime_state) = evidence.observed_parent_runtime_state {
+            tracker
+                .observed_terminal_parent_runtime_states
+                .insert(runtime_state);
+        }
+        if let Some(active) = evidence.observed_parent_transition_active {
+            tracker
+                .observed_terminal_parent_transition_active
+                .insert(active);
+        }
+        if let Some(runtime_state) = evidence.observed_requested_parent_runtime_state {
+            tracker
+                .observed_terminal_requested_parent_runtime_states
+                .insert(runtime_state);
+        }
+        if let Some(active) = evidence.observed_requested_parent_transition_active {
+            tracker
+                .observed_terminal_requested_parent_transition_active
+                .insert(active);
+        }
+    } else {
+        if let Some(runtime_state) = evidence.observed_parent_runtime_state {
+            tracker.observed_parent_runtime_states.insert(runtime_state);
+        }
+        if let Some(active) = evidence.observed_parent_transition_active {
+            tracker.observed_parent_transition_active.insert(active);
+        }
+        if let Some(runtime_state) = evidence.observed_requested_parent_runtime_state {
+            tracker
+                .observed_requested_parent_runtime_states
+                .insert(runtime_state);
+        }
+        if let Some(active) = evidence.observed_requested_parent_transition_active {
+            tracker
+                .observed_requested_parent_transition_active
+                .insert(active);
+        }
+    }
+    tracker.requires_pre_rig_motion |= evidence.requires_pre_rig_motion;
+    tracker.requires_final_pose_motion |= evidence.requires_final_pose_motion;
+    tracker.requires_non_reference_root_pose |= evidence.requires_non_reference_root_pose;
+    tracker.requires_source_pose_chain |= evidence.requires_source_pose_chain;
+    tracker.requires_actor_yaw_motion |= evidence.requires_actor_yaw_motion;
+    tracker.requires_actor_yaw_convergence |= evidence.requires_actor_yaw_convergence;
+    tracker.minimum_pre_rig_translation_span = tracker
+        .minimum_pre_rig_translation_span
+        .max(evidence.minimum_pre_rig_translation_span.max(0.0));
+    tracker.minimum_pre_rig_rotation_span_radians = tracker
+        .minimum_pre_rig_rotation_span_radians
+        .max(evidence.minimum_pre_rig_rotation_span_radians.max(0.0));
+    tracker.minimum_final_translation_span = tracker
+        .minimum_final_translation_span
+        .max(evidence.minimum_final_translation_span.max(0.0));
+    tracker.minimum_final_rotation_span_radians = tracker
+        .minimum_final_rotation_span_radians
+        .max(evidence.minimum_final_rotation_span_radians.max(0.0));
+    tracker.minimum_actor_yaw_delta_radians = tracker
+        .minimum_actor_yaw_delta_radians
+        .max(evidence.minimum_actor_yaw_delta_radians.max(0.0));
+    tracker.minimum_actor_yaw_convergence_radians = tracker
+        .minimum_actor_yaw_convergence_radians
+        .max(evidence.minimum_actor_yaw_convergence_radians.max(0.0));
+    tracker.minimum_observation_seconds = tracker
+        .minimum_observation_seconds
+        .max(evidence.minimum_observation_seconds.max(0.0));
     if tracker.source_sync_group.is_empty() {
         tracker.source_sync_group = evidence.source_sync_group.unwrap_or_default().to_owned();
     }
@@ -890,6 +1637,35 @@ fn record_motion_window(
     tracker.max_final_rotation_span_radians = tracker
         .max_final_rotation_span_radians
         .max(final_rotation_span);
+    if let Some(actor_yaw) = actor_yaw.filter(|value| value.is_finite()) {
+        tracker.actor_yaw_sample_count += 1;
+        if let Some(reference) = tracker.actor_yaw_reference {
+            let delta = wrapped_yaw_delta(reference, actor_yaw);
+            tracker.max_actor_yaw_delta_radians =
+                tracker.max_actor_yaw_delta_radians.max(delta.abs());
+            if let Some(expected_sign) = tracker.expected_actor_yaw_delta_sign {
+                let signed_delta = delta * f32::from(expected_sign);
+                tracker.max_actor_yaw_signed_delta_radians = tracker
+                    .max_actor_yaw_signed_delta_radians
+                    .max(signed_delta.max(0.0));
+                tracker.max_actor_yaw_opposite_delta_radians = tracker
+                    .max_actor_yaw_opposite_delta_radians
+                    .max((-signed_delta).max(0.0));
+            }
+        } else {
+            tracker.actor_yaw_reference = Some(actor_yaw);
+        }
+        if let Some(view_yaw) = view_yaw.filter(|value| value.is_finite()) {
+            let error = wrapped_yaw_distance(actor_yaw, view_yaw);
+            if let Some(reference) = tracker.actor_yaw_error_reference {
+                tracker.max_actor_yaw_convergence_radians = tracker
+                    .max_actor_yaw_convergence_radians
+                    .max((reference - error).max(0.0));
+            } else {
+                tracker.actor_yaw_error_reference = Some(error);
+            }
+        }
+    }
     tracker.root_pose_sample_count += 1;
     tracker.root_pose_max_active_channels = tracker
         .root_pose_max_active_channels
@@ -898,6 +1674,19 @@ fn record_motion_window(
         tracker.root_pose_active_samples += 1;
     } else {
         tracker.root_pose_reference_samples += 1;
+    }
+    if let Some(root_pose_value) = root_pose_value {
+        if let Some(reference) = tracker.root_pose_reference.as_ref() {
+            let (translation_span, rotation_span) =
+                source_pose_motion_span(reference, root_pose_value);
+            tracker.root_pose_max_translation_span =
+                tracker.root_pose_max_translation_span.max(translation_span);
+            tracker.root_pose_max_rotation_span_radians = tracker
+                .root_pose_max_rotation_span_radians
+                .max(rotation_span);
+        } else {
+            tracker.root_pose_reference = Some(root_pose_value.clone());
+        }
     }
     if !tracker.direction_signature_group.is_empty()
         && let (Some(target_phase), Some(sync_phase)) = (
@@ -919,6 +1708,9 @@ fn record_motion_window(
             tracker.canonical_sync_phase_distance = Some(distance);
             tracker.canonical_pre_rig_pose = pre_rig_current;
         }
+    }
+    if evidence.requires_source_pose_chain {
+        record_source_pose_chain(tracker, evidence, player, asset_server, graphs);
     }
     tracker.sample_count += 1;
     tracker.requires_non_reference_root_pose
@@ -971,6 +1763,41 @@ fn direction_capture_allowed(direction_settled: bool, teleport_detected: bool) -
     direction_settled && !teleport_detected
 }
 
+fn nonfault_capture_allowed(fault_detected: bool, capture_allowed: bool) -> bool {
+    !fault_detected && capture_allowed
+}
+
+fn terminal_lifecycle_sample_required(evidence: &ManualAnimationWindowEvidence) -> bool {
+    evidence.capture_source_window
+        && evidence.observed_lifecycle_stages.iter().any(|stage| {
+            matches!(
+                *stage,
+                "sequence_completed" | "natural_completion" | "inertialization" | "settled"
+            )
+        })
+}
+
+fn terminal_parent_state_sample(evidence: &ManualAnimationWindowEvidence) -> bool {
+    evidence.capture_source_window
+        && evidence
+            .observed_lifecycle_stages
+            .iter()
+            .any(|stage| *stage == "settled")
+}
+
+fn temporal_guard_should_rebase(
+    previous_context: Option<&str>,
+    context: &str,
+    previous_window_settled: bool,
+    window_settled: bool,
+    previous_rebase_epoch: Option<u64>,
+    rebase_epoch: u64,
+) -> bool {
+    previous_rebase_epoch != Some(rebase_epoch)
+        || previous_context != Some(context)
+        || (window_settled && !previous_window_settled)
+}
+
 fn sample_vec3(value: Vec3) -> [f32; 3] {
     [safe(value.x), safe(value.y), safe(value.z)]
 }
@@ -1012,15 +1839,21 @@ fn foot_ik_sample(
     let pose_moving = context.and_then(|value| value.f32("PoseMoving"));
     let foot_left_ik_curve = context.and_then(|value| value.f32("FootLeftIk"));
     let foot_right_ik_curve = context.and_then(|value| value.f32("FootRightIk"));
+    let foot_left_lock_curve = context.and_then(|value| value.f32("FootLeftLock"));
+    let foot_right_lock_curve = context.and_then(|value| value.f32("FootRightLock"));
     FootIkSample {
         left: foot_ik_side_sample(&spaces.left, &apply.left),
         right: foot_ik_side_sample(&spaces.right, &apply.right),
         source_curves_available: pose_moving.is_some()
             && foot_left_ik_curve.is_some()
-            && foot_right_ik_curve.is_some(),
+            && foot_right_ik_curve.is_some()
+            && foot_left_lock_curve.is_some()
+            && foot_right_lock_curve.is_some(),
         pose_moving: safe(pose_moving.unwrap_or_default()),
         foot_left_ik_curve: safe(foot_left_ik_curve.unwrap_or_default()),
         foot_right_ik_curve: safe(foot_right_ik_curve.unwrap_or_default()),
+        foot_left_lock_curve: safe(foot_left_lock_curve.unwrap_or_default()),
+        foot_right_lock_curve: safe(foot_right_lock_curve.unwrap_or_default()),
         standing_pose_moving_global: safe(standing_pose_moving_global),
         pose_moving_lineage,
         velocity_blend_forward_amount: safe(input.velocity_blend_forward_amount),
@@ -1176,6 +2009,7 @@ fn write_report(
     let pass = ready
         && missing_bones.is_empty()
         && state.faults.is_empty()
+        && state.temporal_anomalies.is_empty()
         && state.graph_errors.is_empty()
         && frame_time.p95_ms <= config.max_frame_p95_ms
         && frame_time.max_ms <= config.max_frame_ms
@@ -1189,9 +2023,33 @@ fn write_report(
             "max_physics_steps_per_render".to_owned(),
             config.max_physics_steps_per_render,
         ),
+        (
+            "temporal_global_position_speed_mps".to_owned(),
+            TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND as f64,
+        ),
+        (
+            "temporal_local_translation_jump_m".to_owned(),
+            TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS as f64,
+        ),
+        (
+            "temporal_local_rotation_jump_radians".to_owned(),
+            TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS as f64,
+        ),
+        (
+            "temporal_scale_ratio".to_owned(),
+            TEMPORAL_SCALE_RATIO as f64,
+        ),
+        (
+            "temporal_segment_ratio".to_owned(),
+            TEMPORAL_SEGMENT_RATIO as f64,
+        ),
+        (
+            "temporal_limb_plane_flip_dot".to_owned(),
+            TEMPORAL_LIMB_PLANE_FLIP_DOT as f64,
+        ),
     ]);
     let report = AnimationVisualReport {
-        format: "als_animation_visual_evidence_v4",
+        format: animation_visual_evidence_format(),
         case: config.case.clone(),
         ready,
         pass,
@@ -1220,15 +2078,71 @@ fn write_report(
                 observed_directions: tracker.observed_directions.iter().cloned().collect(),
                 expected_runtime_state: tracker.expected_runtime_state,
                 observed_runtime_states: tracker.observed_runtime_states.iter().copied().collect(),
+                expected_parent_runtime_state: tracker.expected_parent_runtime_state,
+                expected_terminal_parent_runtime_state: tracker
+                    .expected_terminal_parent_runtime_state,
+                expected_terminal_parent_transition_active: tracker
+                    .expected_terminal_parent_transition_active,
+                expected_terminal_requested_parent_transition_active: tracker
+                    .expected_terminal_requested_parent_transition_active,
+                observed_parent_runtime_states: tracker
+                    .observed_parent_runtime_states
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_parent_transition_active: tracker
+                    .observed_parent_transition_active
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_requested_parent_runtime_states: tracker
+                    .observed_requested_parent_runtime_states
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_requested_parent_transition_active: tracker
+                    .observed_requested_parent_transition_active
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_terminal_parent_runtime_states: tracker
+                    .observed_terminal_parent_runtime_states
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_terminal_parent_transition_active: tracker
+                    .observed_terminal_parent_transition_active
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_terminal_requested_parent_runtime_states: tracker
+                    .observed_terminal_requested_parent_runtime_states
+                    .iter()
+                    .copied()
+                    .collect(),
+                observed_terminal_requested_parent_transition_active: tracker
+                    .observed_terminal_requested_parent_transition_active
+                    .iter()
+                    .copied()
+                    .collect(),
                 sample_count: tracker.sample_count,
                 requires_pre_rig_motion: tracker.requires_pre_rig_motion,
                 requires_final_pose_motion: tracker.requires_final_pose_motion,
                 requires_non_reference_root_pose: tracker.requires_non_reference_root_pose,
+                requires_source_pose_chain: tracker.requires_source_pose_chain,
+                requires_actor_yaw_motion: tracker.requires_actor_yaw_motion,
+                requires_actor_yaw_convergence: tracker.requires_actor_yaw_convergence,
+                expected_actor_yaw_delta_sign: tracker.expected_actor_yaw_delta_sign,
+                expected_actor_yaw_baseline: tracker.expected_actor_yaw_baseline,
+                expected_animation_variant: tracker.expected_animation_variant,
                 minimum_pre_rig_translation_span: tracker.minimum_pre_rig_translation_span,
                 minimum_pre_rig_rotation_span_radians: tracker
                     .minimum_pre_rig_rotation_span_radians,
                 minimum_final_translation_span: tracker.minimum_final_translation_span,
                 minimum_final_rotation_span_radians: tracker.minimum_final_rotation_span_radians,
+                minimum_actor_yaw_delta_radians: tracker.minimum_actor_yaw_delta_radians,
+                minimum_actor_yaw_convergence_radians: tracker
+                    .minimum_actor_yaw_convergence_radians,
                 minimum_observation_seconds: tracker.minimum_observation_seconds,
                 observation_seconds: tracker.observation_seconds,
                 max_pre_rig_translation_span: tracker.max_pre_rig_translation_span,
@@ -1239,6 +2153,14 @@ fn write_report(
                 root_pose_active_samples: tracker.root_pose_active_samples,
                 root_pose_reference_samples: tracker.root_pose_reference_samples,
                 root_pose_max_active_channels: tracker.root_pose_max_active_channels,
+                root_pose_max_translation_span: tracker.root_pose_max_translation_span,
+                root_pose_max_rotation_span_radians: tracker.root_pose_max_rotation_span_radians,
+                actor_yaw_sample_count: tracker.actor_yaw_sample_count,
+                actor_yaw_trace: tracker.actor_yaw_trace.clone(),
+                max_actor_yaw_delta_radians: tracker.max_actor_yaw_delta_radians,
+                max_actor_yaw_signed_delta_radians: tracker.max_actor_yaw_signed_delta_radians,
+                max_actor_yaw_opposite_delta_radians: tracker.max_actor_yaw_opposite_delta_radians,
+                max_actor_yaw_convergence_radians: tracker.max_actor_yaw_convergence_radians,
                 source_sync_group: tracker.source_sync_group.clone(),
                 sync_phase_global: tracker.sync_phase_global.clone(),
                 canonical_sync_phase: tracker.canonical_sync_phase,
@@ -1249,8 +2171,41 @@ fn write_report(
                 minimum_direction_signature_rotation_radians: tracker
                     .minimum_direction_signature_rotation_radians,
                 canonical_pre_rig_pose: local_motion_pose_sample(&tracker.canonical_pre_rig_pose),
+                source_pose_chain: tracker
+                    .source_pose_chain
+                    .iter()
+                    .map(|boundary| SourcePoseBoundarySample {
+                        label: boundary.label.clone(),
+                        graph: boundary.graph.clone(),
+                        node: boundary.node.clone(),
+                        output: boundary.output.clone(),
+                        minimum_translation_span: boundary.minimum_translation_span,
+                        minimum_rotation_span_radians: boundary.minimum_rotation_span_radians,
+                        sample_count: boundary.sample_count,
+                        available_samples: boundary.available_samples,
+                        unavailable_samples: boundary.unavailable_samples,
+                        max_translation_span: boundary.max_translation_span,
+                        max_rotation_span_radians: boundary.max_rotation_span_radians,
+                    })
+                    .collect(),
+                expected_lifecycle_stages: tracker
+                    .expected_lifecycle_stages
+                    .iter()
+                    .cloned()
+                    .collect(),
+                observed_lifecycle_stages: tracker
+                    .observed_lifecycle_stages
+                    .iter()
+                    .cloned()
+                    .collect(),
+                first_failed_source_pose_boundary: tracker
+                    .requires_source_pose_chain
+                    .then(|| first_source_pose_boundary_failure(&tracker.source_pose_chain))
+                    .flatten(),
             })
             .collect(),
+        required_motion_windows: state.required_motion_windows.iter().cloned().collect(),
+        temporal_anomalies: state.temporal_anomalies.clone(),
         faults: state.faults.clone(),
         graph_errors: state.graph_errors.clone(),
         thresholds,
@@ -1308,6 +2263,7 @@ fn collect_animation_visual_evidence(
         );
     }
     let root_pose = root_pose_activity(player);
+    let root_pose_value = player.get_default_output_pose();
     let direction_case = animation_window
         .as_deref()
         .and_then(|evidence| evidence.label)
@@ -1315,6 +2271,17 @@ fn collect_animation_visual_evidence(
     let direction_settled = animation_window
         .as_deref()
         .is_some_and(|evidence| evidence.settled);
+    if let Some(evidence) = animation_window.as_deref()
+        && let Some(label) = evidence.label
+        && (evidence.requires_pre_rig_motion
+            || evidence.requires_final_pose_motion
+            || evidence.requires_non_reference_root_pose
+            || evidence.requires_source_pose_chain
+            || evidence.requires_actor_yaw_motion
+            || !evidence.expected_lifecycle_stages.is_empty())
+    {
+        state.required_motion_windows.insert(label.to_owned());
+    }
     let phase = phase_evidence
         .as_deref()
         .and_then(|evidence| (!evidence.phase.is_empty()).then_some(evidence.phase.as_str()));
@@ -1334,6 +2301,40 @@ fn collect_animation_visual_evidence(
     let rotation_mode = phase_evidence.as_deref().and_then(|evidence| {
         (!evidence.rotation_mode.is_empty()).then_some(evidence.rotation_mode.as_str())
     });
+    let temporal_rebase_epoch = phase_evidence
+        .as_deref()
+        .map(|evidence| evidence.temporal_rebase_epoch)
+        .unwrap_or_default();
+    let temporal_window_requires = animation_window.as_deref().is_some_and(|evidence| {
+        evidence.requires_pre_rig_motion
+            || evidence.requires_final_pose_motion
+            || evidence.requires_non_reference_root_pose
+            || evidence.requires_source_pose_chain
+            || evidence.requires_actor_yaw_motion
+            || !evidence.expected_lifecycle_stages.is_empty()
+    });
+    let temporal_observable = !temporal_window_requires || direction_settled;
+    let temporal_context = format!(
+        "{}|{}|{}",
+        phase.unwrap_or_default(),
+        direction_case.as_deref().unwrap_or_default(),
+        stance.unwrap_or_default(),
+    );
+    let temporal_rebase = temporal_guard_should_rebase(
+        state.temporal_context.as_deref(),
+        &temporal_context,
+        state.temporal_window_settled,
+        direction_settled,
+        state.temporal_rebase_epoch,
+        temporal_rebase_epoch,
+    );
+    if temporal_rebase {
+        state.temporal_pre_rig_guard.reset();
+        state.temporal_final_guard.reset();
+    }
+    state.temporal_context = Some(temporal_context);
+    state.temporal_window_settled = direction_settled;
+    state.temporal_rebase_epoch = Some(temporal_rebase_epoch);
     let standing_pose_moving_global = player
         .get_global_input_data("als_standing_curve_pose_moving")
         .and_then(|value| value.as_f32().ok())
@@ -1371,6 +2372,12 @@ fn collect_animation_visual_evidence(
     let now = Instant::now();
     let started = state.started.unwrap_or(now);
     let elapsed = started.elapsed();
+    let terminal_lifecycle_sample = animation_window
+        .as_deref()
+        .is_some_and(terminal_lifecycle_sample_required);
+    if let Some(evidence) = animation_window.as_deref() {
+        let _ = record_motion_window_metadata(&mut state, evidence);
+    }
     let frame_ms = state
         .last_frame
         .replace(now)
@@ -1425,7 +2432,42 @@ fn collect_animation_visual_evidence(
     }
     let avatar_position = avatar_transform.translation();
     let frame_seconds = (frame_ms / 1000.0).max(1e-4) as f32;
-    let mut segments = BTreeMap::new();
+    let segments = segment_lengths(&bones);
+    let (pre_rig_metrics, final_metrics) = if temporal_observable {
+        let pre_rig = state.temporal_pre_rig_guard.observe(
+            &pre_rig.bones,
+            &BTreeMap::<String, FinalBone>::new(),
+            Vec3::ZERO,
+            frame_seconds,
+        );
+        let final_pose =
+            state
+                .temporal_final_guard
+                .observe(&final_pose, &bones, avatar_position, frame_seconds);
+        (pre_rig.metrics, final_pose.metrics)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+    if elapsed >= config.warmup && temporal_observable {
+        fault_detected |= record_temporal_metrics(
+            &mut state,
+            pre_rig_metrics,
+            "pre_rig",
+            elapsed.as_secs_f64(),
+            frame_ms,
+            direction_case.as_deref(),
+            phase,
+        );
+        fault_detected |= record_temporal_metrics(
+            &mut state,
+            final_metrics,
+            "final",
+            elapsed.as_secs_f64(),
+            frame_ms,
+            direction_case.as_deref(),
+            phase,
+        );
+    }
     for (name, (translation, rotation, scale, local_scale)) in &bones {
         let scale_abs = scale.abs();
         let relative = *translation - avatar_position;
@@ -1456,39 +2498,20 @@ fn collect_animation_visual_evidence(
                 format!("bone_radius_out_of_range:{name}"),
             );
         }
-        if let Some(previous) = state.previous_relative.get(name) {
-            if previous.distance(relative) / frame_seconds > 45.0 {
-                fault_detected |=
-                    append_unique(&mut state.faults, format!("bone_discontinuity:{name}"));
-            }
-        }
-        state.previous_relative.insert(name.clone(), relative);
     }
-    for (first, second) in SEGMENTS {
-        let Some((first_position, _, _, _)) = bones.get(*first) else {
-            continue;
-        };
-        let Some((second_position, _, _, _)) = bones.get(*second) else {
-            continue;
-        };
-        let name = segment_name(first, second);
-        let length = first_position.distance(*second_position);
-        if !length.is_finite() || !(0.015..=3.0).contains(&length) {
+    for (name, length) in &segments {
+        if !length.is_finite() || !(0.015..=3.0).contains(length) {
             fault_detected |=
                 append_unique(&mut state.faults, format!("segment_out_of_range:{name}"));
         }
-        if let Some(previous) = state.previous_segments.get(&name) {
-            if (length - previous).abs() > 0.8 {
-                fault_detected |=
-                    append_unique(&mut state.faults, format!("segment_discontinuity:{name}"));
-            }
-        }
-        state.previous_segments.insert(name.clone(), length);
-        segments.insert(name, length);
     }
     let mut sampled = false;
     if let Some(next_pose_sample) = state.next_pose_sample {
-        if now >= next_pose_sample || fault_detected || teleport_detected {
+        if now >= next_pose_sample
+            || fault_detected
+            || teleport_detected
+            || terminal_lifecycle_sample
+        {
             let mut sample = snapshot(
                 elapsed.as_secs_f64(),
                 frame_ms,
@@ -1511,8 +2534,13 @@ fn collect_animation_visual_evidence(
                     evidence,
                     &pre_rig,
                     &final_pose,
+                    evidence.observed_actor_yaw,
+                    evidence.observed_view_yaw,
                     root_pose,
+                    root_pose_value,
                     player,
+                    &asset_server,
+                    &graphs,
                     elapsed.as_secs_f64(),
                 ) {
                     fault_detected |= append_unique(
@@ -1548,8 +2576,13 @@ fn collect_animation_visual_evidence(
                 evidence,
                 &pre_rig,
                 &final_pose,
+                evidence.observed_actor_yaw,
+                evidence.observed_view_yaw,
                 root_pose,
+                root_pose_value,
                 player,
+                &asset_server,
+                &graphs,
                 elapsed.as_secs_f64(),
             ) {
                 fault_detected |= append_unique(
@@ -1559,8 +2592,10 @@ fn collect_animation_visual_evidence(
             }
         }
     }
-    if scheduled_capture_allowed(direction_settled, teleport_detected)
-        && state.capture_index < config.capture_count
+    if nonfault_capture_allowed(
+        fault_detected,
+        scheduled_capture_allowed(direction_settled, teleport_detected),
+    ) && state.capture_index < config.capture_count
         && state
             .next_capture
             .is_some_and(|next_capture| now >= next_capture)
@@ -1590,8 +2625,10 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if direction_capture_allowed(direction_settled, teleport_detected)
-        && let Some(direction_case) = direction_case.as_ref()
+    if nonfault_capture_allowed(
+        fault_detected,
+        direction_capture_allowed(direction_settled, teleport_detected),
+    ) && let Some(direction_case) = direction_case.as_ref()
         && state
             .captured_direction_cases
             .insert(direction_case.clone())
@@ -1619,7 +2656,7 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if teleport_detected
+    if nonfault_capture_allowed(fault_detected, teleport_detected)
         && state.teleport_captures < 4
         && let Some(camera) = cameras.iter().next()
     {
@@ -1670,9 +2707,10 @@ fn collect_animation_visual_evidence(
         state.fault_captures += 1;
         state.skip_frame_samples = state.skip_frame_samples.max(3);
     }
-    if state
-        .next_report
-        .is_some_and(|next_report| now >= next_report)
+    if terminal_lifecycle_sample
+        || state
+            .next_report
+            .is_some_and(|next_report| now >= next_report)
     {
         write_report(&config, &state, &stages);
         state.next_report = Some(now + Duration::from_secs(1));
@@ -1685,6 +2723,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn visual_evidence_format_is_loaded_from_the_shared_contract() {
+        assert_eq!(
+            animation_visual_evidence_format(),
+            "als_animation_visual_evidence_v17"
+        );
+    }
+
+    #[test]
     fn stats_uses_ordered_percentiles() {
         let value = stats(&[4.0, 1.0, 3.0, 2.0, 5.0]);
         assert_eq!(value.samples, 5);
@@ -1694,8 +2740,368 @@ mod tests {
     }
 
     #[test]
+    fn wrapped_yaw_delta_preserves_turn_side() {
+        assert!(
+            (wrapped_yaw_delta(0.0, 90.0_f32.to_radians()) - 90.0_f32.to_radians()).abs() < 1e-6
+        );
+        assert!(
+            (wrapped_yaw_delta(0.0, -90.0_f32.to_radians()) + 90.0_f32.to_radians()).abs() < 1e-6
+        );
+        assert!(
+            (wrapped_yaw_delta(170.0_f32.to_radians(), -170.0_f32.to_radians())
+                - 20.0_f32.to_radians())
+            .abs()
+                < 1e-6
+        );
+    }
+
+    #[test]
+    fn lifecycle_pulse_is_recorded_without_a_pose_sample() {
+        let mut state = AnimationVisualValidationState::default();
+        let evidence = ManualAnimationWindowEvidence {
+            label: Some("turn"),
+            capture_source_window: true,
+            expected_actor_yaw_baseline: Some(0.5),
+            expected_lifecycle_stages: &["slot_active", "natural_completion", "settled"],
+            observed_lifecycle_stages: &["natural_completion", "settled"],
+            ..default()
+        };
+        assert_eq!(
+            record_motion_window_metadata(&mut state, &evidence).as_deref(),
+            Some("turn")
+        );
+        let tracker = state.motion_windows.get("turn").unwrap();
+        assert_eq!(tracker.sample_count, 0);
+        assert!(tracker.expected_lifecycle_stages.contains("slot_active"));
+        assert!(
+            tracker
+                .observed_lifecycle_stages
+                .contains("natural_completion")
+        );
+        assert!(tracker.observed_lifecycle_stages.contains("settled"));
+        assert!(tracker.expected_actor_yaw_baseline.is_none());
+        assert!(tracker.actor_yaw_reference.is_none());
+    }
+
+    #[test]
+    fn precondition_window_cannot_record_lifecycle_or_yaw_baseline() {
+        let mut state = AnimationVisualValidationState::default();
+        let evidence = ManualAnimationWindowEvidence {
+            label: Some("turn"),
+            capture_source_window: false,
+            expected_actor_yaw_baseline: Some(0.5),
+            expected_lifecycle_stages: &["slot_active"],
+            observed_lifecycle_stages: &["slot_active"],
+            ..default()
+        };
+        assert!(record_motion_window_metadata(&mut state, &evidence).is_none());
+        let tracker = state.motion_windows.get("turn").unwrap();
+        assert!(tracker.expected_lifecycle_stages.contains("slot_active"));
+        assert!(tracker.observed_lifecycle_stages.is_empty());
+        assert!(tracker.expected_actor_yaw_baseline.is_none());
+        assert!(tracker.actor_yaw_reference.is_none());
+    }
+
+    #[test]
+    fn terminal_lifecycle_forces_a_pose_sample_and_report_flush() {
+        let active = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["slot_active"],
+            ..default()
+        };
+        assert!(!terminal_lifecycle_sample_required(&active));
+        let completion = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["natural_completion", "inertialization"],
+            ..default()
+        };
+        assert!(terminal_lifecycle_sample_required(&completion));
+        let settled = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["sequence_completed", "settled"],
+            ..default()
+        };
+        assert!(terminal_lifecycle_sample_required(&settled));
+        let precondition = ManualAnimationWindowEvidence {
+            capture_source_window: false,
+            observed_lifecycle_stages: &["settled"],
+            ..default()
+        };
+        assert!(!terminal_lifecycle_sample_required(&precondition));
+    }
+
+    #[test]
+    fn settled_lifecycle_routes_parent_state_to_the_terminal_contract() {
+        let active = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["slot_active"],
+            ..default()
+        };
+        assert!(!terminal_parent_state_sample(&active));
+        let completion = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["natural_completion", "inertialization"],
+            ..default()
+        };
+        assert!(!terminal_parent_state_sample(&completion));
+        let settled = ManualAnimationWindowEvidence {
+            capture_source_window: true,
+            observed_lifecycle_stages: &["sequence_completed", "settled"],
+            ..default()
+        };
+        assert!(terminal_parent_state_sample(&settled));
+    }
+
+    #[test]
     fn segment_name_is_stable() {
         assert_eq!(segment_name("pelvis", "spine_01"), "pelvis->spine_01");
+    }
+
+    fn temporal_local_pose(calf_rotation: Quat) -> BTreeMap<String, LocalBonePose> {
+        BTreeMap::from([
+            (
+                "thigh_l".to_owned(),
+                LocalBonePose {
+                    scale: Vec3::ONE,
+                    ..default()
+                },
+            ),
+            (
+                "calf_l".to_owned(),
+                LocalBonePose {
+                    rotation: calf_rotation,
+                    scale: Vec3::ONE,
+                    ..default()
+                },
+            ),
+            (
+                "foot_l".to_owned(),
+                LocalBonePose {
+                    scale: Vec3::ONE,
+                    ..default()
+                },
+            ),
+        ])
+    }
+
+    fn temporal_bones(knee_x: f32) -> BTreeMap<String, FinalBone> {
+        BTreeMap::from([
+            (
+                "thigh_l".to_owned(),
+                (
+                    Vec3::new(0.0, 1.0, 0.0),
+                    Quat::IDENTITY,
+                    Vec3::ONE,
+                    Vec3::ONE,
+                ),
+            ),
+            (
+                "calf_l".to_owned(),
+                (
+                    Vec3::new(knee_x, 0.5, 0.0),
+                    Quat::IDENTITY,
+                    Vec3::ONE,
+                    Vec3::ONE,
+                ),
+            ),
+            (
+                "foot_l".to_owned(),
+                (Vec3::ZERO, Quat::IDENTITY, Vec3::ONE, Vec3::ONE),
+            ),
+        ])
+    }
+
+    #[test]
+    fn temporal_guard_rejects_an_instant_local_leg_twist() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let bones = temporal_bones(0.25);
+        assert!(
+            guard
+                .observe(
+                    &temporal_local_pose(Quat::IDENTITY),
+                    &bones,
+                    Vec3::ZERO,
+                    1.0 / 60.0,
+                )
+                .metrics
+                .is_empty()
+        );
+        let observation = guard.observe(
+            &temporal_local_pose(Quat::from_rotation_x(std::f32::consts::PI)),
+            &bones,
+            Vec3::ZERO,
+            1.0 / 60.0,
+        );
+        assert!(
+            observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_rotation_spike" && value.subject == "calf_l")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_rejects_an_instant_limb_plane_flip() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let local = temporal_local_pose(Quat::IDENTITY);
+        assert!(
+            guard
+                .observe(&local, &temporal_bones(0.25), Vec3::ZERO, 1.0 / 60.0)
+                .metrics
+                .is_empty()
+        );
+        let observation = guard.observe(&local, &temporal_bones(-0.25), Vec3::ZERO, 1.0 / 60.0);
+        assert!(
+            observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "limb_plane_flip" && value.subject == "left_leg")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_rejects_an_instant_local_scale_spike() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let bones = temporal_bones(0.25);
+        assert!(
+            guard
+                .observe(
+                    &temporal_local_pose(Quat::IDENTITY),
+                    &bones,
+                    Vec3::ZERO,
+                    1.0 / 60.0,
+                )
+                .metrics
+                .is_empty()
+        );
+        let mut scaled = temporal_local_pose(Quat::IDENTITY);
+        scaled.get_mut("calf_l").unwrap().scale = Vec3::splat(2.0);
+        let observation = guard.observe(&scaled, &bones, Vec3::ZERO, 1.0 / 60.0);
+        assert!(
+            observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_scale_spike" && value.subject == "calf_l")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_rejects_an_instant_local_translation_spike() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let bones = temporal_bones(0.25);
+        let baseline = temporal_local_pose(Quat::IDENTITY);
+        assert!(
+            guard
+                .observe(&baseline, &bones, Vec3::ZERO, 1.0 / 60.0)
+                .metrics
+                .is_empty()
+        );
+        let mut displaced = baseline;
+        displaced.get_mut("calf_l").unwrap().translation = Vec3::new(1.0, 0.0, 0.0);
+        let observation = guard.observe(&displaced, &bones, Vec3::ZERO, 1.0 / 60.0);
+        assert!(
+            observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_translation_spike" && value.subject == "calf_l")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_rejects_an_instant_segment_and_position_spike() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let local = temporal_local_pose(Quat::IDENTITY);
+        assert!(
+            guard
+                .observe(&local, &temporal_bones(0.25), Vec3::ZERO, 1.0 / 60.0)
+                .metrics
+                .is_empty()
+        );
+        let observation = guard.observe(&local, &temporal_bones(1.5), Vec3::ZERO, 1.0 / 60.0);
+        assert!(observation.metrics.iter().any(
+            |value| value.kind == "segment_length_spike" && value.subject == "thigh_l->calf_l"
+        ));
+        assert!(
+            observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "global_position_speed" && value.subject == "calf_l")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_ablation_without_local_history_misses_a_twist() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let bones = temporal_bones(0.25);
+        let baseline = temporal_local_pose(Quat::IDENTITY);
+        let _ = guard.observe(&baseline, &bones, Vec3::ZERO, 1.0 / 60.0);
+        guard.previous_local.clear();
+        let observation = guard.observe(
+            &temporal_local_pose(Quat::from_rotation_x(std::f32::consts::PI)),
+            &bones,
+            Vec3::ZERO,
+            1.0 / 60.0,
+        );
+        assert!(
+            !observation
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_rotation_spike" && value.subject == "calf_l")
+        );
+    }
+
+    #[test]
+    fn temporal_guard_reset_rebases_only_the_first_new_pose() {
+        let mut guard = TemporalSkeletonGuard::default();
+        let bones = temporal_bones(0.25);
+        let baseline = temporal_local_pose(Quat::IDENTITY);
+        let _ = guard.observe(&baseline, &bones, Vec3::ZERO, 1.0 / 60.0);
+        guard.reset();
+        let turned = temporal_local_pose(Quat::from_rotation_x(std::f32::consts::PI));
+        assert!(
+            !guard
+                .observe(&turned, &bones, Vec3::ZERO, 1.0 / 60.0)
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_rotation_spike")
+        );
+        assert!(
+            guard
+                .observe(&baseline, &bones, Vec3::ZERO, 1.0 / 60.0)
+                .metrics
+                .iter()
+                .any(|value| value.kind == "local_rotation_spike")
+        );
+    }
+
+    #[test]
+    fn source_pose_chain_reports_the_first_static_boundary() {
+        let boundaries = vec![
+            SourcePoseBoundaryTracker {
+                label: "sequence_player".to_owned(),
+                sample_count: 2,
+                available_samples: 2,
+                max_rotation_span_radians: 0.1,
+                ..default()
+            },
+            SourcePoseBoundaryTracker {
+                label: "cache_producer".to_owned(),
+                sample_count: 2,
+                available_samples: 2,
+                ..default()
+            },
+            SourcePoseBoundaryTracker {
+                label: "movement_fsm".to_owned(),
+                sample_count: 2,
+                available_samples: 2,
+                max_rotation_span_radians: 0.1,
+                ..default()
+            },
+        ];
+        assert_eq!(
+            first_source_pose_boundary_failure(&boundaries),
+            Some("cache_producer: static".to_owned())
+        );
     }
 
     #[test]
@@ -1733,6 +3139,57 @@ mod tests {
         assert!(!direction_capture_allowed(true, true));
         assert!(scheduled_capture_allowed(false, false));
         assert!(direction_capture_allowed(true, false));
+    }
+
+    #[test]
+    fn fault_capture_preempts_competing_capture_requests() {
+        assert!(!nonfault_capture_allowed(true, true));
+        assert!(!nonfault_capture_allowed(true, false));
+        assert!(nonfault_capture_allowed(false, true));
+    }
+
+    #[test]
+    fn temporal_guard_rebases_at_declared_window_boundaries_only() {
+        assert!(temporal_guard_should_rebase(
+            None,
+            "phase|case|stance",
+            false,
+            false,
+            None,
+            0,
+        ));
+        assert!(temporal_guard_should_rebase(
+            Some("phase|case|stance"),
+            "phase|next_case|stance",
+            true,
+            false,
+            Some(0),
+            0,
+        ));
+        assert!(temporal_guard_should_rebase(
+            Some("phase|case|stance"),
+            "phase|case|stance",
+            false,
+            true,
+            Some(0),
+            0,
+        ));
+        assert!(!temporal_guard_should_rebase(
+            Some("phase|case|stance"),
+            "phase|case|stance",
+            true,
+            true,
+            Some(0),
+            0,
+        ));
+        assert!(temporal_guard_should_rebase(
+            Some("phase|case|stance"),
+            "phase|case|stance",
+            true,
+            true,
+            Some(0),
+            1,
+        ));
     }
 
     #[test]

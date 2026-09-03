@@ -10,8 +10,6 @@ use bevy_animation_graph::core::{
     state_machine::high_level::{DirectTransitionId, TransitionId},
 };
 
-use crate::global_f32_input::global_f32_or_root_default;
-
 pub fn direct_transition_index(value: f32, transition_count: usize) -> Option<usize> {
     if transition_count == 0 || !value.is_finite() || value < 0.0 {
         return None;
@@ -35,12 +33,23 @@ struct DirectTransitionEventState {
     last_index: Option<usize>,
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct DirectTransitionEventNode {
     pub key: String,
     pub transitions: Vec<DirectTransitionId>,
+    pub default_value: f32,
+}
+
+impl Default for DirectTransitionEventNode {
+    fn default() -> Self {
+        Self {
+            key: default(),
+            transitions: default(),
+            default_value: -1.0,
+        }
+    }
 }
 
 impl DirectTransitionEventNode {
@@ -54,7 +63,13 @@ impl NodeLike for DirectTransitionEventNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = global_f32_or_root_default(&ctx, &self.key)?;
+        let value = ctx
+            .graph_context
+            .global_input_data
+            .get(&self.key)
+            .map(|value| value.as_f32())
+            .transpose()?
+            .unwrap_or(self.default_value);
         let index = take_direct_transition_edge(
             &mut ctx.state_mut::<DirectTransitionEventState>()?.last_index,
             value,
@@ -98,6 +113,13 @@ mod tests {
         assert_eq!(take_direct_transition_edge(&mut previous, 1.0, 3), None);
         assert_eq!(take_direct_transition_edge(&mut previous, -1.0, 3), None);
         assert_eq!(take_direct_transition_edge(&mut previous, 1.0, 3), Some(1));
+    }
+
+    #[test]
+    fn default_value_is_a_no_transition_sentinel() {
+        let node = DirectTransitionEventNode::default();
+        assert_eq!(node.default_value, -1.0);
+        assert_eq!(direct_transition_index(node.default_value, 1), None);
     }
 
     #[test]

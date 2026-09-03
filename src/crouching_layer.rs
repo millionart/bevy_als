@@ -6,28 +6,36 @@ use als_core::foot_ik::{
 };
 use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::motion::{
+    AlsInputOverride, AlsRotationAnimationState, AlsRotationResponseSet, AlsViewYaw,
+};
 use als_core::movement_direction::{
     AlsMovementDirection, AlsMovementDirectionState, update_direction,
 };
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, RotationMode, Stance};
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, CurveAsset, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState,
-    advance_marker_sync_phase, build_branch_bone_mask, transition_alpha,
+    AlphaBlendMode, AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState,
+    SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
+    build_branch_bone_mask, transition_alpha,
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_graph::AnimationGraph;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
+use bevy_animation_graph::core::state_machine::{
+    high_level::StateMachine, low_level::LowLevelStateId,
+};
 
 use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
-use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback};
+use crate::stop_link::AlsTransitionPlayback;
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, ROTATE_DUR};
 
 const VELOCITY_EPSILON: f32 = 0.01;
@@ -76,6 +84,8 @@ const STOP_LEG_BRANCHES: &[&str] = &[
     "VB foot_r",
 ];
 const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const OUTER_RUNTIME_GRAPH: &str =
+    "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron";
 const YAW_OFFSET_FORWARD_BACKWARD: &str =
     "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.curve.ron";
 const YAW_OFFSET_LEFT: &str =
@@ -102,17 +112,12 @@ const TURN_LEFT_180_CURVE_ASSET: &str =
     "animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf#AlsCurves";
 const TURN_RIGHT_180_CURVE_ASSET: &str =
     "animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf#AlsCurves";
-const TRANSITION_LEFT_CURVE_ASSET: &str =
-    "animations/Transitions/A_Als_Crouch_Transition_Left.gltf#AlsCurves";
-const TRANSITION_RIGHT_CURVE_ASSET: &str =
-    "animations/Transitions/A_Als_Crouch_Transition_Right.gltf#AlsCurves";
-const DYNAMIC_LEFT_CURVE_ASSET: &str =
-    "animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf#AlsCurves";
-const DYNAMIC_RIGHT_CURVE_ASSET: &str =
-    "animations/Transitions/A_Als_Crouch_DynamicTransition_Right.gltf#AlsCurves";
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsCrouchingLayerSet;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsCrouchingTelemetrySet;
 
 #[derive(Resource)]
 struct CrouchingCurveHandles {
@@ -126,11 +131,8 @@ struct CrouchingCurveHandles {
     turn_right_90: Handle<AlsAnimCurves>,
     turn_left_180: Handle<AlsAnimCurves>,
     turn_right_180: Handle<AlsAnimCurves>,
-    transition_left: Handle<AlsAnimCurves>,
-    transition_right: Handle<AlsAnimCurves>,
-    dynamic_left: Handle<AlsAnimCurves>,
-    dynamic_right: Handle<AlsAnimCurves>,
     skeleton: Handle<Skeleton>,
+    outer_runtime: Handle<AnimationGraph>,
     left_leg_mask: Option<BoneMask>,
     right_leg_mask: Option<BoneMask>,
     stop_legs_mask: Option<BoneMask>,
@@ -423,6 +425,7 @@ struct SequenceCurves {
     foot_right_lock: f32,
     allow_transitions: f32,
     rotation_yaw_speed: f32,
+    rotation_yaw_speed_target: f32,
 }
 
 impl SequenceCurves {
@@ -435,11 +438,15 @@ impl SequenceCurves {
             rotation_yaw_speed: self
                 .rotation_yaw_speed
                 .lerp(other.rotation_yaw_speed, alpha),
+            rotation_yaw_speed_target: self
+                .rotation_yaw_speed_target
+                .lerp(other.rotation_yaw_speed_target, alpha),
         }
     }
 
     fn scale_rotation_yaw_speed(mut self, rate: f32) -> Self {
         self.rotation_yaw_speed *= rate.max(0.0);
+        self.rotation_yaw_speed_target *= rate.max(0.0);
         self
     }
 }
@@ -476,13 +483,10 @@ struct CrouchingGraphInputs {
     foot_right_lock: f32,
     allow_transitions: f32,
     rotation_yaw_speed: f32,
+    rotation_yaw_speed_target: f32,
+    turn_curve_direct_yaw_speed_target: f32,
     feet_crossing_amount: f32,
     moving_smooth: bool,
-    transition_kind: f32,
-    transition_slot_index: f32,
-    transition_slot_weight: f32,
-    transition_slot_play_rate: f32,
-    transition_slot_start_time: f32,
     start_stop_transition: bool,
     stop_transition_and_turn: bool,
     dynamic_transition_index: Option<f32>,
@@ -490,8 +494,11 @@ struct CrouchingGraphInputs {
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsCrouchingGraphTelemetry {
-    pub outer_state: Option<u8>,
-    pub outer_transition_active: Option<bool>,
+    pub requested_outer_state: Option<u8>,
+    pub requested_outer_transition_active: Option<bool>,
+    pub actual_outer_state: Option<u8>,
+    pub actual_outer_transition_active: Option<bool>,
+    pub actual_outer_pose_ready: Option<bool>,
     pub runtime_movement_state: Option<u8>,
     pub runtime_movement_transition_active: Option<bool>,
     pub graph_movement_state_input: Option<f32>,
@@ -499,6 +506,7 @@ pub struct AlsCrouchingGraphTelemetry {
     pub graph_play_rate: Option<f32>,
     pub graph_marker_phase: Option<f32>,
     pub graph_pose_moving: Option<f32>,
+    pub graph_turn_curve_direct_yaw_speed_target: Option<f32>,
     pub dominant_velocity_index: Option<u8>,
     pub dominant_velocity_weight: Option<f32>,
     pub lean_right_amount: Option<f32>,
@@ -513,7 +521,12 @@ impl Plugin for CrouchingLayerPlugin {
             PostUpdate,
             AlsCrouchingLayerSet
                 .after(crate::standing_layer::AlsStandingLayerSet)
+                .before(AlsRotationResponseSet)
                 .before(AnimationGraphSet::PrePhysics),
+        )
+        .configure_sets(
+            PostUpdate,
+            AlsCrouchingTelemetrySet.after(AnimationGraphSet::Final),
         )
         .add_systems(Startup, load_crouching_curve_assets)
         .add_systems(
@@ -522,7 +535,7 @@ impl Plugin for CrouchingLayerPlugin {
         )
         .add_systems(
             PostUpdate,
-            capture_crouching_graph_telemetry.after(AnimationGraphSet::Final),
+            capture_crouching_graph_telemetry.in_set(AlsCrouchingTelemetrySet),
         );
     }
 }
@@ -542,11 +555,8 @@ fn load_crouching_curve_assets(mut commands: Commands, assets: Res<AssetServer>)
         turn_right_90: assets.load(TURN_RIGHT_90_CURVE_ASSET),
         turn_left_180: assets.load(TURN_LEFT_180_CURVE_ASSET),
         turn_right_180: assets.load(TURN_RIGHT_180_CURVE_ASSET),
-        transition_left: assets.load(TRANSITION_LEFT_CURVE_ASSET),
-        transition_right: assets.load(TRANSITION_RIGHT_CURVE_ASSET),
-        dynamic_left: assets.load(DYNAMIC_LEFT_CURVE_ASSET),
-        dynamic_right: assets.load(DYNAMIC_RIGHT_CURVE_ASSET),
         skeleton: assets.load(SKELETON_PATH),
+        outer_runtime: assets.load(OUTER_RUNTIME_GRAPH),
         left_leg_mask: None,
         right_leg_mask: None,
         stop_legs_mask: None,
@@ -747,6 +757,7 @@ fn sample_sequence_curves(
         foot_right_lock: sample_curve(assets, handle, "FootRightLock", time).clamp(0.0, 1.0),
         allow_transitions: sample_curve(assets, handle, "AllowTransitions", time),
         rotation_yaw_speed: sample_curve(assets, handle, "RotationYawSpeed", time),
+        rotation_yaw_speed_target: sample_curve(assets, handle, "RotationYawSpeedTarget", time),
     }
 }
 
@@ -765,7 +776,15 @@ fn turn_curve_handle<'a>(
     handles: &'a CrouchingCurveHandles,
     turn: &AlsTurnDrive,
 ) -> &'a Handle<AlsAnimCurves> {
-    match (turn.is_180, turn.lr <= 0.5) {
+    turn_curve_handle_for(handles, turn.is_180, turn.lr)
+}
+
+fn turn_curve_handle_for<'a>(
+    handles: &'a CrouchingCurveHandles,
+    is_180: bool,
+    lr: f32,
+) -> &'a Handle<AlsAnimCurves> {
+    match (is_180, lr <= 0.5) {
         (false, true) => &handles.turn_left_90,
         (false, false) => &handles.turn_right_90,
         (true, true) => &handles.turn_left_180,
@@ -773,22 +792,100 @@ fn turn_curve_handle<'a>(
     }
 }
 
-fn transition_curve_handle<'a>(
-    handles: &'a CrouchingCurveHandles,
-    transition: &AlsTransitionPlayback,
-) -> &'a Handle<AlsAnimCurves> {
-    match (transition.kind, transition.index <= 0.5) {
-        (AlsTransitionKind::CrouchingDynamic, true) => &handles.dynamic_left,
-        (AlsTransitionKind::CrouchingDynamic, false) => &handles.dynamic_right,
-        (_, true) => &handles.transition_left,
-        (_, false) => &handles.transition_right,
+fn blend_turn_sequence_curves(
+    base: SequenceCurves,
+    samples: Vec<(SequenceCurves, f32)>,
+) -> SequenceCurves {
+    let total_weight = samples.iter().map(|(_, weight)| *weight).sum::<f32>();
+    if total_weight <= f32::EPSILON {
+        return base;
     }
+    let mut samples = samples.into_iter();
+    let base_weight = (1.0 - total_weight).max(0.0);
+    let (mut output, mut accumulated) = if base_weight > f32::EPSILON {
+        (base, base_weight)
+    } else {
+        let Some((first, weight)) = samples.next() else {
+            return base;
+        };
+        (first, weight)
+    };
+    for (curve, weight) in samples {
+        let next = accumulated + weight;
+        output = output.blend(curve, weight / next.max(f32::EPSILON));
+        accumulated = next;
+    }
+    output
+}
+
+fn turn_montage_sequence_curves(
+    base: SequenceCurves,
+    stack: Option<&AlsTurnMontageStack>,
+    fallback: Option<&AlsTurnDrive>,
+    animation_curves: &Assets<AlsAnimCurves>,
+    handles: &CrouchingCurveHandles,
+) -> SequenceCurves {
+    let samples = stack
+        .map(|stack| {
+            stack
+                .entries
+                .iter()
+                .filter_map(|entry| {
+                    let weight = entry.weight();
+                    (entry.crouching && weight > f32::EPSILON).then(|| {
+                        (
+                            sample_sequence_curves(
+                                animation_curves,
+                                turn_curve_handle_for(handles, entry.is_180, entry.lr),
+                                entry.elapsed.min(entry.duration),
+                            )
+                            .scale_rotation_yaw_speed(entry.play_rate),
+                            weight,
+                        )
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            fallback
+                .filter(|drive| !drive.rotate_active && drive.weight > f32::EPSILON)
+                .map(|drive| {
+                    vec![
+                        ((
+                            sample_sequence_curves(
+                                animation_curves,
+                                turn_curve_handle(handles, drive),
+                                drive.clip_time,
+                            )
+                            .scale_rotation_yaw_speed(drive.play_rate),
+                            drive.weight,
+                        )),
+                    ]
+                })
+                .unwrap_or_default()
+        });
+    blend_turn_sequence_curves(base, samples)
 }
 
 fn rotate_finished(turn: Option<&AlsTurnDrive>) -> bool {
     turn.is_some_and(|turn| {
         !turn.rotate_active && turn.rotate_clip_time >= ROTATE_DUR - ROTATE_COMPLETION_EPSILON
     })
+}
+
+fn source_rotate_automatic_transition(turn: Option<&AlsTurnDrive>) -> bool {
+    turn.is_some_and(|turn| turn.rotate_cycle_completed)
+}
+
+fn source_rotate_curve_relevant(turn: Option<&AlsTurnDrive>) -> bool {
+    turn.is_some_and(|turn| turn.rotate_active || turn.rotate_finishing)
+}
+
+fn source_turn_slot_curve_relevant(
+    outer_state: CrouchingOuterState,
+    turn: Option<&AlsTurnDrive>,
+) -> bool {
+    outer_state == CrouchingOuterState::Idle && turn.is_some_and(|turn| !turn.rotate_active)
 }
 
 fn outer_transition_for(
@@ -821,7 +918,9 @@ fn outer_transition_for(
             }
         }
         CrouchingOuterState::RotateLeft => {
-            if moving_smooth {
+            if source_rotate_automatic_transition(turn) {
+                Some(CrouchingOuterTransition::RotateLeftToIdleMoving)
+            } else if moving_smooth {
                 Some(CrouchingOuterTransition::RotateLeftToIdleMoving)
             } else if rotate_side == Some(false) {
                 Some(CrouchingOuterTransition::RotateLeftToRotateRight)
@@ -832,7 +931,9 @@ fn outer_transition_for(
             }
         }
         CrouchingOuterState::RotateRight => {
-            if moving_smooth {
+            if source_rotate_automatic_transition(turn) {
+                Some(CrouchingOuterTransition::RotateRightToIdleMoving)
+            } else if moving_smooth {
                 Some(CrouchingOuterTransition::RotateRightToIdleMoving)
             } else if rotate_side == Some(true) {
                 Some(CrouchingOuterTransition::RotateRightToRotateLeft)
@@ -845,27 +946,6 @@ fn outer_transition_for(
         CrouchingOuterState::Stop => (runtime.outer_transition_remaining <= f32::EPSILON)
             .then_some(CrouchingOuterTransition::StopToIdle),
     }
-}
-
-fn transition_signal(transition: Option<&AlsTransitionPlayback>) -> (f32, f32, f32, f32, f32) {
-    let Some(transition) =
-        transition.filter(|transition| transition.active && transition.is_crouching())
-    else {
-        return (0.0, 0.0, 0.0, 1.0, 0.0);
-    };
-    let kind = match transition.kind {
-        AlsTransitionKind::CrouchingStop => 1.0,
-        AlsTransitionKind::CrouchingQuickStop => 2.0,
-        AlsTransitionKind::CrouchingDynamic => 3.0,
-        AlsTransitionKind::Stop | AlsTransitionKind::QuickStop => 0.0,
-    };
-    (
-        kind,
-        transition.index,
-        transition.weight,
-        transition.play_rate,
-        transition.start_time,
-    )
 }
 
 fn dynamic_transition_index(
@@ -907,6 +987,7 @@ fn update_crouching_inputs(
     input: &AlsInputCommand,
     direction_state: Option<&AlsMovementDirectionState>,
     turn: Option<&AlsTurnDrive>,
+    turn_stack: Option<&AlsTurnMontageStack>,
     transition: Option<&AlsTransitionPlayback>,
     foot_lock: Option<&AlsFootLockState>,
     hips_lock: f32,
@@ -1043,7 +1124,9 @@ fn update_crouching_inputs(
 
     let state_index = runtime.outer_state.index();
     let rotating = runtime.outer_state.is_rotate().then_some(turn).flatten();
-    let turn_weight = turn
+    let turn_weight = (runtime.outer_state == CrouchingOuterState::Idle)
+        .then_some(turn)
+        .flatten()
         .filter(|turn| !turn.rotate_active)
         .map_or(0.0, |turn| turn.weight);
     let turn_index = turn.map_or(0.0, |turn| match (turn.is_180, turn.lr <= 0.5) {
@@ -1053,6 +1136,20 @@ fn update_crouching_inputs(
         (true, false) => 3.0,
     });
     let turn_play_rate = turn.map_or(1.2, |turn| turn.play_rate.max(0.0));
+    let turn_curve_direct_yaw_speed_target = (runtime.outer_state == CrouchingOuterState::Idle)
+        .then_some(turn)
+        .flatten()
+        .filter(|turn| !turn.rotate_active)
+        .map(|turn| {
+            sample_sequence_curves(
+                animation_curves,
+                turn_curve_handle(handles, turn),
+                turn.clip_time,
+            )
+            .scale_rotation_yaw_speed(turn.play_rate)
+            .rotation_yaw_speed_target
+        })
+        .unwrap_or(0.0);
     let rotation_play_rate = rotating.map_or(1.15, |turn| turn.rotate_rate.max(0.0));
     let rotate_left_loop = turn.is_some_and(|turn| turn.rotate_active && turn.rotate_lr <= 0.5);
     let rotate_right_loop = turn.is_some_and(|turn| turn.rotate_active && turn.rotate_lr > 0.5);
@@ -1062,16 +1159,20 @@ fn update_crouching_inputs(
             foot_right_lock: 1.0,
             allow_transitions: 1.0,
             rotation_yaw_speed: 0.0,
+            rotation_yaw_speed_target: 0.0,
         },
         CrouchingOuterState::Stop => SequenceCurves {
             foot_left_lock: 1.0,
             foot_right_lock: 1.0,
             allow_transitions: 0.0,
             rotation_yaw_speed: 0.0,
+            rotation_yaw_speed_target: 0.0,
         },
         _ => SequenceCurves::default(),
     };
-    if let Some(turn) = rotating {
+    if source_rotate_curve_relevant(rotating)
+        && let Some(turn) = rotating
+    {
         sequence_curves = sample_sequence_curves(
             animation_curves,
             rotate_curve_handle(handles, turn),
@@ -1079,27 +1180,13 @@ fn update_crouching_inputs(
         )
         .scale_rotation_yaw_speed(turn.rotate_rate);
     }
-    if let Some(turn) = turn.filter(|turn| !turn.rotate_active && turn.weight > f32::EPSILON) {
-        sequence_curves = sequence_curves.blend(
-            sample_sequence_curves(
-                animation_curves,
-                turn_curve_handle(handles, turn),
-                turn.clip_time,
-            )
-            .scale_rotation_yaw_speed(turn.play_rate),
-            turn.weight,
-        );
-    }
-    if let Some(transition) =
-        transition.filter(|transition| transition.active && transition.is_crouching())
-    {
-        sequence_curves = sequence_curves.blend(
-            sample_sequence_curves(
-                animation_curves,
-                transition_curve_handle(handles, transition),
-                transition.clip_time,
-            ),
-            transition.weight,
+    if source_turn_slot_curve_relevant(runtime.outer_state, turn) {
+        sequence_curves = turn_montage_sequence_curves(
+            sequence_curves,
+            turn_stack,
+            turn,
+            animation_curves,
+            handles,
         );
     }
     if runtime.dynamic_transition_delay_frames > 0 {
@@ -1119,13 +1206,6 @@ fn update_crouching_inputs(
     if dynamic_transition_index.is_some() {
         runtime.dynamic_transition_delay_frames = 2;
     }
-    let (
-        transition_kind,
-        transition_slot_index,
-        transition_slot_weight,
-        transition_slot_play_rate,
-        transition_slot_start_time,
-    ) = transition_signal(transition);
     let (clip_index, looped, output_play_rate, transition_duration) = match runtime.outer_state {
         CrouchingOuterState::Idle => (0.0, 1.0, 1.0, 0.0),
         CrouchingOuterState::Move => (direction_index(direction) + 1.0, 1.0, play_rate, 0.2),
@@ -1187,13 +1267,10 @@ fn update_crouching_inputs(
         foot_right_lock: sequence_curves.foot_right_lock,
         allow_transitions: sequence_curves.allow_transitions,
         rotation_yaw_speed: sequence_curves.rotation_yaw_speed,
+        rotation_yaw_speed_target: sequence_curves.rotation_yaw_speed_target,
+        turn_curve_direct_yaw_speed_target,
         feet_crossing_amount,
         moving_smooth,
-        transition_kind,
-        transition_slot_index,
-        transition_slot_weight,
-        transition_slot_play_rate,
-        transition_slot_start_time,
         start_stop_transition: lifecycle_action == Some(SOURCE_CROUCHING_STOP_STATE_ENTRY_FUNCTION),
         stop_transition_and_turn: lifecycle_action == Some(SOURCE_CROUCHING_TURN_STOP_FUNCTION),
         dynamic_transition_index,
@@ -1240,6 +1317,10 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
             inputs.rotation_yaw_speed,
         ),
         (
+            "als_crouching_turn_curve_direct_yaw_speed_target",
+            inputs.turn_curve_direct_yaw_speed_target,
+        ),
+        (
             "als_crouching_velocity_forward_amount",
             inputs.velocity_blend.forward,
         ),
@@ -1277,23 +1358,6 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
         ("als_crouching_turn_index", inputs.turn_index),
         ("als_crouching_turn_weight", inputs.turn_weight),
         ("als_crouching_turn_play_rate", inputs.turn_play_rate),
-        ("als_crouching_transition_kind", inputs.transition_kind),
-        (
-            "als_crouching_transition_slot_index",
-            inputs.transition_slot_index,
-        ),
-        (
-            "als_crouching_transition_slot_weight",
-            inputs.transition_slot_weight,
-        ),
-        (
-            "als_crouching_transition_slot_play_rate",
-            inputs.transition_slot_play_rate,
-        ),
-        (
-            "als_crouching_transition_slot_start_time",
-            inputs.transition_slot_start_time,
-        ),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -1326,6 +1390,13 @@ fn write_leg_masks(player: &mut AnimationGraphPlayer, handles: &CrouchingCurveHa
     );
 }
 
+fn crouching_rotation_animation_state(inputs: CrouchingGraphInputs) -> AlsRotationAnimationState {
+    AlsRotationAnimationState {
+        yaw_offset_degrees: inputs.rotation_yaw_offset,
+        yaw_speed_degrees: inputs.rotation_yaw_speed_target,
+    }
+}
+
 fn crouching_dominant_velocity(player: &AnimationGraphPlayer) -> (Option<u8>, Option<f32>) {
     let keys = [
         "als_crouching_velocity_forward_amount",
@@ -1355,6 +1426,54 @@ fn crouching_dominant_velocity(player: &AnimationGraphPlayer) -> (Option<u8>, Op
     }
 }
 
+fn crouching_outer_state_index(label: &str) -> Option<u8> {
+    match label {
+        "Idle" => Some(0),
+        "Move" => Some(1),
+        "Rotate Left" => Some(2),
+        "Rotate Right" => Some(3),
+        "Stop" => Some(4),
+        _ => None,
+    }
+}
+
+fn actual_crouching_outer_fsm(
+    player: &AnimationGraphPlayer,
+    graph: &AnimationGraph,
+    graph_handle: &Handle<AnimationGraph>,
+    state_machines: &Assets<StateMachine>,
+) -> Option<(Option<u8>, bool, bool)> {
+    let node = graph
+        .nodes
+        .values()
+        .find(|node| node.name == "crouching states runtime")?;
+    let fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
+    let state_machine = state_machines.get(&fsm.fsm)?;
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().find_map(|context_id| {
+        let context = arena.get_context(context_id)?;
+        if context.get_graph_id() != graph_handle.id() {
+            return None;
+        }
+        let state = context
+            .node_states
+            .get::<InterruptibleFsmState>(node.id, StateKey::Default)
+            .ok()?;
+        let actual_state = match &state.state {
+            LowLevelStateId::HlState(id) => state_machine
+                .states
+                .get(id)
+                .and_then(|state| crouching_outer_state_index(&state.label)),
+            LowLevelStateId::HlTransition(_) => None,
+        };
+        Some((
+            actual_state,
+            matches!(state.state, LowLevelStateId::HlTransition(_)),
+            state.last_output_pose().is_some(),
+        ))
+    })
+}
+
 fn capture_crouching_graph_telemetry(
     mut commands: Commands,
     avatars: Query<
@@ -1366,6 +1485,9 @@ fn capture_crouching_graph_telemetry(
         With<AlsCharacterAvatar>,
     >,
     players: Query<&AnimationGraphPlayer>,
+    graphs: Res<Assets<AnimationGraph>>,
+    state_machines: Res<Assets<StateMachine>>,
+    handles: Res<CrouchingCurveHandles>,
     mut characters: Query<Option<&mut AlsCrouchingGraphTelemetry>, With<AlsCharacter>>,
 ) {
     for (parent, instance, runtime) in &avatars {
@@ -1374,10 +1496,16 @@ fn capture_crouching_graph_telemetry(
         };
         let (dominant_velocity_index, dominant_velocity_weight) =
             crouching_dominant_velocity(player);
+        let actual_outer = graphs.get(&handles.outer_runtime).and_then(|graph| {
+            actual_crouching_outer_fsm(player, graph, &handles.outer_runtime, &state_machines)
+        });
         let telemetry = AlsCrouchingGraphTelemetry {
-            outer_state: runtime.map(|value| value.outer_state.index() as u8),
-            outer_transition_active: runtime
+            requested_outer_state: runtime.map(|value| value.outer_state.index() as u8),
+            requested_outer_transition_active: runtime
                 .map(|value| value.outer_transition_remaining > f32::EPSILON),
+            actual_outer_state: actual_outer.and_then(|value| value.0),
+            actual_outer_transition_active: actual_outer.map(|value| value.1),
+            actual_outer_pose_ready: actual_outer.map(|value| value.2),
             runtime_movement_state: runtime.map(|value| value.movement_state.index() as u8),
             runtime_movement_transition_active: runtime
                 .map(|value| value.movement_transition_remaining > f32::EPSILON),
@@ -1395,6 +1523,9 @@ fn capture_crouching_graph_telemetry(
                 .and_then(|value| value.as_f32().ok()),
             graph_pose_moving: player
                 .get_global_input_data("als_crouching_curve_pose_moving")
+                .and_then(|value| value.as_f32().ok()),
+            graph_turn_curve_direct_yaw_speed_target: player
+                .get_global_input_data("als_crouching_turn_curve_direct_yaw_speed_target")
                 .and_then(|value| value.as_f32().ok()),
             dominant_velocity_index,
             dominant_velocity_weight,
@@ -1434,6 +1565,7 @@ fn crouching_layer_writer(
             Option<&AlsMovementDirectionState>,
             Option<&mut AlsTransitionPlayback>,
             Option<&AlsFootLockState>,
+            Option<&mut AlsRotationAnimationState>,
         ),
         With<AlsCharacter>,
     >,
@@ -1471,6 +1603,7 @@ fn crouching_layer_writer(
             direction_state,
             mut transition,
             foot_lock,
+            rotation_animation,
         )) = characters.get_mut(parent.parent())
         else {
             continue;
@@ -1509,6 +1642,7 @@ fn crouching_layer_writer(
             override_command.map_or(command, |value| &value.0),
             direction_state,
             turn,
+            turn_stack.as_deref(),
             transition.as_deref(),
             foot_lock,
             hips_lock,
@@ -1549,12 +1683,163 @@ fn crouching_layer_writer(
             feet_crossing_amount: inputs.feet_crossing_amount,
             ..Default::default()
         });
+        let rotation_animation_state = crouching_rotation_animation_state(inputs);
+        if let Some(mut rotation_animation) = rotation_animation {
+            *rotation_animation = rotation_animation_state;
+        } else {
+            commands
+                .entity(parent.parent())
+                .insert(rotation_animation_state);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::turn_layer::AlsTurnMontage;
+    use als_ext::parse_curves;
+    use std::{collections::HashMap, fs};
+
+    fn crouching_turn_left_curve_asset() -> AlsAnimCurves {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf");
+        let document: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+        let extension = document["animations"][0]["extensions"]["ALS_float_curves"].clone();
+        let curves = parse_curves(&extension).unwrap();
+        AlsAnimCurves(HashMap::from([(Box::<str>::from("clip"), curves)]))
+    }
+
+    fn crouching_turn_curve_handles(turn_left_90: Handle<AlsAnimCurves>) -> CrouchingCurveHandles {
+        CrouchingCurveHandles {
+            forward_backward: Handle::default(),
+            left: Handle::default(),
+            right: Handle::default(),
+            movement: Vec::new(),
+            rotate_left: Handle::default(),
+            rotate_right: Handle::default(),
+            turn_left_90,
+            turn_right_90: Handle::default(),
+            turn_left_180: Handle::default(),
+            turn_right_180: Handle::default(),
+            skeleton: Handle::default(),
+            outer_runtime: Handle::default(),
+            left_leg_mask: None,
+            right_leg_mask: None,
+            stop_legs_mask: None,
+        }
+    }
+
+    #[test]
+    fn crouching_turn_curve_stack_samples_the_active_target_asset_at_its_clip_time() {
+        let mut assets = Assets::default();
+        let turn_left_90 = assets.add(crouching_turn_left_curve_asset());
+        let handles = crouching_turn_curve_handles(turn_left_90);
+        let mut stack = AlsTurnMontageStack::default();
+        stack.entries.push(AlsTurnMontage {
+            id: 1,
+            elapsed: 0.56,
+            duration: 2.0,
+            play_rate: 1.2,
+            lr: 0.0,
+            is_180: false,
+            crouching: true,
+            sampling_ready: true,
+            blend_in_elapsed: 0.2,
+            blend_out_elapsed: None,
+            blend_out_start_weight: 0.0,
+        });
+        let curves = turn_montage_sequence_curves(
+            SequenceCurves::default(),
+            Some(&stack),
+            None,
+            &assets,
+            &handles,
+        );
+        assert!(curves.rotation_yaw_speed_target > 140.0);
+    }
+
+    #[test]
+    fn crouching_turn_curve_blend_keeps_the_fading_montage_yaw() {
+        let output = blend_turn_sequence_curves(
+            SequenceCurves::default(),
+            vec![
+                (
+                    SequenceCurves {
+                        rotation_yaw_speed: -72.0,
+                        rotation_yaw_speed_target: 72.0,
+                        ..default()
+                    },
+                    0.5,
+                ),
+                (SequenceCurves::default(), 0.5),
+            ],
+        );
+        assert!((output.rotation_yaw_speed - (-36.0)).abs() < 1e-6);
+        assert!((output.rotation_yaw_speed_target - 36.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn crouching_turn_curve_ablation_without_fading_montage_loses_yaw() {
+        let fading = SequenceCurves {
+            rotation_yaw_speed: -72.0,
+            rotation_yaw_speed_target: 72.0,
+            ..default()
+        };
+        let latest = SequenceCurves::default();
+        let blended = blend_turn_sequence_curves(
+            SequenceCurves::default(),
+            vec![(fading, 0.5), (latest, 0.5)],
+        );
+        assert!(latest.rotation_yaw_speed_target.abs() < 1e-6);
+        assert!(blended.rotation_yaw_speed_target.abs() > 1e-6);
+    }
+
+    #[test]
+    fn source_rotate_and_turn_curve_relays_are_state_scoped() {
+        let mut drive = AlsTurnDrive::default();
+        assert!(!source_rotate_curve_relevant(Some(&drive)));
+        assert!(source_turn_slot_curve_relevant(
+            CrouchingOuterState::Idle,
+            Some(&drive)
+        ));
+        assert!(!source_turn_slot_curve_relevant(
+            CrouchingOuterState::RotateRight,
+            Some(&drive)
+        ));
+        drive.rotate_active = true;
+        assert!(source_rotate_curve_relevant(Some(&drive)));
+        assert!(!source_turn_slot_curve_relevant(
+            CrouchingOuterState::Idle,
+            Some(&drive)
+        ));
+        drive.rotate_active = false;
+        drive.rotate_finishing = true;
+        assert!(source_rotate_curve_relevant(Some(&drive)));
+    }
+
+    #[test]
+    fn source_rotate_automatic_rule_exits_at_the_loop_boundary() {
+        let mut runtime = CrouchingLayerRuntime {
+            outer_state: CrouchingOuterState::RotateRight,
+            ..default()
+        };
+        let mut drive = AlsTurnDrive {
+            rotate_active: true,
+            rotate_cycle_completed: true,
+            ..default()
+        };
+        assert!(source_rotate_automatic_transition(Some(&drive)));
+        assert_eq!(
+            outer_transition_for(&runtime, false, Some(&drive)),
+            Some(CrouchingOuterTransition::RotateRightToIdleMoving)
+        );
+        drive.rotate_cycle_completed = false;
+        runtime.outer_state = CrouchingOuterState::RotateLeft;
+        assert!(!source_rotate_automatic_transition(Some(&drive)));
+        assert_eq!(outer_transition_for(&runtime, false, Some(&drive)), None);
+    }
 
     #[test]
     fn crouching_direction_uses_the_source_view_yaw_sign() {
@@ -1567,6 +1852,28 @@ mod tests {
             ),
             AlsMovementDirection::LeftBackward
         );
+    }
+
+    #[test]
+    fn crouching_outer_state_labels_match_the_source_machine() {
+        assert_eq!(crouching_outer_state_index("Idle"), Some(0));
+        assert_eq!(crouching_outer_state_index("Move"), Some(1));
+        assert_eq!(crouching_outer_state_index("Rotate Left"), Some(2));
+        assert_eq!(crouching_outer_state_index("Rotate Right"), Some(3));
+        assert_eq!(crouching_outer_state_index("Stop"), Some(4));
+        assert_eq!(crouching_outer_state_index("Other"), None);
+    }
+
+    #[test]
+    fn crouching_rotation_curve_reaches_the_character_rotation_state() {
+        let state = crouching_rotation_animation_state(CrouchingGraphInputs {
+            rotation_yaw_offset: 12.0,
+            rotation_yaw_speed: -90.0,
+            rotation_yaw_speed_target: 90.0,
+            ..default()
+        });
+        assert_eq!(state.yaw_offset_degrees, 12.0);
+        assert_eq!(state.yaw_speed_degrees, 90.0);
     }
 
     #[test]

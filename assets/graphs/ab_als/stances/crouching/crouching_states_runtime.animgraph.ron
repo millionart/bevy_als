@@ -17,6 +17,7 @@
             inner: {
                 "als_ext::DirectTransitionEventNode": (
                     key: "als_crouching_transition_index",
+                    default_value: -1.0,
                     transitions: [
                         ("16100000-0000-4000-8000-000000000103"),
                         ("16100000-0000-4000-8000-000000000106"),

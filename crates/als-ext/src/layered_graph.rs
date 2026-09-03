@@ -442,7 +442,6 @@ impl NodeLike for LayeredGraphNode {
         for input in &self.global_input_pins {
             ctx.add_input_data(input.pin.clone(), DataSpec::F32);
         }
-
         if let Some(output) = &self.named_pose_output {
             ctx.add_output_data(output.outer_output.clone(), DataSpec::Pose);
             return Ok(());

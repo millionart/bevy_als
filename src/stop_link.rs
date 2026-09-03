@@ -235,14 +235,14 @@ pub struct AlsQuickStopNotify {
 }
 
 #[derive(Component, Debug, Clone, Copy)]
-struct AlsStandingTransitionSlotSampler {
+struct AlsRootTransitionSlotSampler {
     character: Entity,
     target_player: Entity,
     reported_unready: bool,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-pub struct AlsStandingTransitionSlotRuntime {
+pub struct AlsRootTransitionSlotRuntime {
     pub active: bool,
     pub weight: f32,
     pub pose_ready: bool,
@@ -264,8 +264,7 @@ pub const TRANSITION_SEQUENCE_DURATION: f32 = 2.3333333;
 pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
 pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
 pub const DYNAMIC_TRANSITION_PLAY_RATE: f32 = 1.5;
-const STANDING_QUICK_STOP_SLOT_GRAPH: &str =
-    "graphs/ab_als/stances/standing/quick_stop.animgraph.ron";
+const ROOT_TRANSITION_SLOT_GRAPH: &str = "graphs/ab_als/root_transition_slot.animgraph.ron";
 const ROOT_TRANSITION_SLOT_POSE_KEY: &str = "als_root_transition_slot_pose";
 const ROOT_TRANSITION_SLOT_WEIGHT_KEY: &str = "als_root_transition_slot_weight";
 const ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "als_root_transition_slot_layer_weight";
@@ -346,13 +345,13 @@ impl Plugin for AlsStopLinkPlugin {
                     stop_link_system.after(ensure_stop_match),
                     quick_stop_notify_system,
                     transition_playback_system.after(quick_stop_notify_system),
-                    ensure_standing_transition_slot_samplers,
-                    prepare_standing_transition_slot_samples.after(transition_playback_system),
+                    ensure_root_transition_slot_samplers,
+                    prepare_root_transition_slot_samples.after(transition_playback_system),
                 ),
             )
             .add_systems(
                 PostUpdate,
-                bridge_standing_transition_slot_samples.after(AnimationGraphSet::Final),
+                bridge_root_transition_slot_samples.after(AnimationGraphSet::Final),
             );
     }
 }
@@ -372,14 +371,32 @@ fn ensure_stop_match(
     }
 }
 
-fn standing_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
-    playback.active && playback.kind == AlsTransitionKind::QuickStop
+fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
+    playback.active
+        && matches!(
+            playback.kind,
+            AlsTransitionKind::QuickStop
+                | AlsTransitionKind::CrouchingStop
+                | AlsTransitionKind::CrouchingQuickStop
+                | AlsTransitionKind::CrouchingDynamic
+        )
 }
 
-fn ensure_standing_transition_slot_samplers(
+fn root_transition_slot_index(playback: &AlsTransitionPlayback) -> f32 {
+    match playback.kind {
+        AlsTransitionKind::QuickStop => playback.index,
+        AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => {
+            2.0 + playback.index
+        }
+        AlsTransitionKind::CrouchingDynamic => 4.0 + playback.index,
+        AlsTransitionKind::Stop => 0.0,
+    }
+}
+
+fn ensure_root_transition_slot_samplers(
     asset_server: Res<AssetServer>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    samplers: Query<&AlsStandingTransitionSlotSampler>,
+    samplers: Query<&AlsRootTransitionSlotSampler>,
     players: Query<&AnimationGraphPlayer>,
     mut commands: Commands,
 ) {
@@ -395,12 +412,12 @@ fn ensure_standing_transition_slot_samplers(
             continue;
         };
         commands.spawn((
-            Name::new("als_standing_transition_slot_sampler"),
+            Name::new("als_root_transition_slot_sampler"),
             Children::default(),
             ChildOf(avatar_entity),
             AnimationGraphPlayer::new(player.skeleton().clone())
-                .with_graph(asset_server.load(STANDING_QUICK_STOP_SLOT_GRAPH)),
-            AlsStandingTransitionSlotSampler {
+                .with_graph(asset_server.load(ROOT_TRANSITION_SLOT_GRAPH)),
+            AlsRootTransitionSlotSampler {
                 character: avatar.character,
                 target_player,
                 reported_unready: false,
@@ -409,46 +426,57 @@ fn ensure_standing_transition_slot_samplers(
     }
 }
 
-fn prepare_standing_transition_slot_samples(
+fn prepare_root_transition_slot_samples(
     playbacks: Query<&AlsTransitionPlayback>,
-    mut samplers: Query<(&AlsStandingTransitionSlotSampler, &mut AnimationGraphPlayer)>,
+    mut samplers: Query<(&AlsRootTransitionSlotSampler, &mut AnimationGraphPlayer)>,
 ) {
     for (sampler, mut player) in &mut samplers {
         let playback = playbacks
             .get(sampler.character)
             .ok()
-            .filter(|playback| standing_transition_slot_active(playback));
+            .filter(|playback| root_transition_slot_active(playback));
         player.set_global_input_data(
-            "als_standing_quick_stop_index",
-            playback.map_or(0.0, |value| value.index),
+            "als_root_transition_slot_index",
+            playback.map_or(0.0, root_transition_slot_index),
         );
         player.set_global_input_data(
-            "als_standing_quick_stop_weight",
+            "als_root_transition_slot_weight",
             playback.map_or(0.0, |value| value.weight),
         );
         player.set_global_input_data(
-            "als_standing_quick_stop_play_rate",
+            "als_root_transition_slot_play_rate",
             playback.map_or(1.75, |value| value.play_rate),
+        );
+        player.set_global_input_data(
+            "als_root_transition_slot_start_time",
+            playback.map_or(0.0, |value| value.start_time),
         );
     }
 }
 
-fn standing_curve_key(name: &str) -> Option<&'static str> {
-    match name {
-        "PoseStanding" => Some("als_standing_curve_pose_standing"),
-        "PoseMoving" => Some("als_standing_curve_pose_moving"),
-        "RotationYawOffset" => Some("als_standing_curve_rotation_yaw_offset"),
-        "FootLeftLock" => Some("als_standing_curve_foot_left_lock"),
-        "FootRightLock" => Some("als_standing_curve_foot_right_lock"),
-        "AllowTransitions" => Some("als_standing_curve_allow_transitions"),
-        "RotationYawSpeed" => Some("als_standing_curve_rotation_yaw_speed"),
+fn root_transition_curve_key(name: &str, crouching: bool) -> Option<&'static str> {
+    match (crouching, name) {
+        (true, "PoseCrouching") => Some("als_crouching_curve_pose_crouching"),
+        (true, "PoseMoving") => Some("als_crouching_curve_pose_moving"),
+        (true, "RotationYawOffset") => Some("als_crouching_curve_rotation_yaw_offset"),
+        (true, "FootLeftLock") => Some("als_crouching_curve_foot_left_lock"),
+        (true, "FootRightLock") => Some("als_crouching_curve_foot_right_lock"),
+        (true, "AllowTransitions") => Some("als_crouching_curve_allow_transitions"),
+        (true, "RotationYawSpeed") => Some("als_crouching_curve_rotation_yaw_speed"),
+        (false, "PoseStanding") => Some("als_standing_curve_pose_standing"),
+        (false, "PoseMoving") => Some("als_standing_curve_pose_moving"),
+        (false, "RotationYawOffset") => Some("als_standing_curve_rotation_yaw_offset"),
+        (false, "FootLeftLock") => Some("als_standing_curve_foot_left_lock"),
+        (false, "FootRightLock") => Some("als_standing_curve_foot_right_lock"),
+        (false, "AllowTransitions") => Some("als_standing_curve_allow_transitions"),
+        (false, "RotationYawSpeed") => Some("als_standing_curve_rotation_yaw_speed"),
         _ => None,
     }
 }
 
-fn write_standing_transition_slot_curves(player: &mut AnimationGraphPlayer) {
+fn write_root_transition_slot_curves(player: &mut AnimationGraphPlayer, crouching: bool) {
     for name in ROOT_TRANSITION_SLOT_CURVE_NAMES {
-        let value = standing_curve_key(name)
+        let value = root_transition_curve_key(name, crouching)
             .and_then(|key| player.get_global_input_data(key))
             .and_then(|value| value.as_f32().ok())
             .filter(|value| value.is_finite())
@@ -457,10 +485,11 @@ fn write_standing_transition_slot_curves(player: &mut AnimationGraphPlayer) {
     }
 }
 
-fn bridge_standing_transition_slot_samples(
+fn bridge_root_transition_slot_samples(
     playbacks: Query<&AlsTransitionPlayback>,
-    mut samplers: Query<(&mut AlsStandingTransitionSlotSampler, &AnimationGraphPlayer)>,
-    mut target_players: Query<&mut AnimationGraphPlayer, Without<AlsStandingTransitionSlotSampler>>,
+    stances: Query<&Stance>,
+    mut samplers: Query<(&mut AlsRootTransitionSlotSampler, &AnimationGraphPlayer)>,
+    mut target_players: Query<&mut AnimationGraphPlayer, Without<AlsRootTransitionSlotSampler>>,
     mut commands: Commands,
 ) {
     for (mut sampler, source_player) in &mut samplers {
@@ -470,14 +499,18 @@ fn bridge_standing_transition_slot_samples(
         let playback = playbacks
             .get(sampler.character)
             .ok()
-            .filter(|playback| standing_transition_slot_active(playback));
+            .filter(|playback| root_transition_slot_active(playback));
+        let crouching = playback.is_some_and(|value| value.is_crouching())
+            || stances
+                .get(sampler.character)
+                .is_ok_and(|stance| *stance == Stance::Crouching);
         let Some(playback) = playback else {
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            write_standing_transition_slot_curves(&mut target_player);
+            write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
-                .insert(AlsStandingTransitionSlotRuntime::default());
+                .insert(AlsRootTransitionSlotRuntime::default());
             continue;
         };
         let Some(pose) = source_player.get_default_output_pose().cloned() else {
@@ -491,9 +524,10 @@ fn bridge_standing_transition_slot_samples(
             }
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
-                .insert(AlsStandingTransitionSlotRuntime {
+                .insert(AlsRootTransitionSlotRuntime {
                     active: true,
                     weight: 0.0,
                     pose_ready: false,
@@ -503,11 +537,11 @@ fn bridge_standing_transition_slot_samples(
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
-        write_standing_transition_slot_curves(&mut target_player);
+        write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
         commands
             .entity(sampler.character)
-            .insert(AlsStandingTransitionSlotRuntime {
+            .insert(AlsRootTransitionSlotRuntime {
                 active: true,
                 weight: playback.weight,
                 pose_ready: true,
@@ -711,16 +745,51 @@ mod tests {
     }
 
     #[test]
-    fn standing_transition_slot_accepts_only_the_source_quick_stop_montage() {
-        assert!(standing_transition_slot_active(
-            &AlsTransitionPlayback::quick_stop(0.0, 1.75)
-        ));
-        assert!(!standing_transition_slot_active(
-            &AlsTransitionPlayback::stop(0.0)
-        ));
+    fn root_transition_slot_accepts_the_source_dynamic_transition_montages() {
+        let quick_stop = AlsTransitionPlayback::quick_stop(0.0, 1.75);
+        let crouching_stop = AlsTransitionPlayback::crouching_stop_right();
+        let crouching_quick_stop = AlsTransitionPlayback::crouching_quick_stop(0.0, 1.75);
+        let crouching_dynamic = AlsTransitionPlayback::crouching_dynamic(1.0);
+        assert!(root_transition_slot_active(&quick_stop));
+        assert!(root_transition_slot_active(&crouching_stop));
+        assert!(root_transition_slot_active(&crouching_quick_stop));
+        assert!(root_transition_slot_active(&crouching_dynamic));
+        assert!(!root_transition_slot_active(&AlsTransitionPlayback::stop(
+            0.0
+        )));
         let mut inactive = AlsTransitionPlayback::quick_stop(0.0, 1.75);
         inactive.active = false;
-        assert!(!standing_transition_slot_active(&inactive));
+        assert!(!root_transition_slot_active(&inactive));
+    }
+
+    #[test]
+    fn root_transition_slot_preserves_the_source_variant_and_start_time() {
+        let quick_stop = AlsTransitionPlayback::quick_stop(1.0, 2.0);
+        assert_eq!(root_transition_slot_index(&quick_stop), 1.0);
+        assert_eq!(quick_stop.start_time, QUICK_STOP_START_TIME);
+        let crouching_stop = AlsTransitionPlayback::crouching_stop_right();
+        assert_eq!(root_transition_slot_index(&crouching_stop), 3.0);
+        assert_eq!(crouching_stop.start_time, CROUCH_STOP_TRANSITION_START_TIME);
+        let crouching_quick_stop = AlsTransitionPlayback::crouching_quick_stop(0.0, 2.0);
+        assert_eq!(root_transition_slot_index(&crouching_quick_stop), 2.0);
+        assert_eq!(crouching_quick_stop.start_time, QUICK_STOP_START_TIME);
+        let dynamic_left = AlsTransitionPlayback::crouching_dynamic(0.0);
+        let dynamic_right = AlsTransitionPlayback::crouching_dynamic(1.0);
+        assert_eq!(root_transition_slot_index(&dynamic_left), 4.0);
+        assert_eq!(root_transition_slot_index(&dynamic_right), 5.0);
+        assert_eq!(dynamic_left.start_time, 0.0);
+    }
+
+    #[test]
+    fn root_transition_slot_uses_crouching_curve_context_for_crouching_playback() {
+        assert_eq!(
+            root_transition_curve_key("RotationYawSpeed", true),
+            Some("als_crouching_curve_rotation_yaw_speed")
+        );
+        assert_eq!(
+            root_transition_curve_key("RotationYawSpeed", false),
+            Some("als_standing_curve_rotation_yaw_speed")
+        );
     }
 
     #[test]

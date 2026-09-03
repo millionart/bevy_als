@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageStat
 
 
-FORMAT = "als_animation_visual_evidence_v4"
+FORMAT = Path(__file__).with_name("animation_visual_evidence_format.txt").read_text(encoding="utf-8").strip()
 MOTION_EPSILON = 1e-5
 MOTION_BONES = (
     "thigh_l",
@@ -303,11 +303,110 @@ def direction_signature_issues(windows):
     return issues
 
 
+def source_pose_boundary_failure(boundary):
+    label = boundary.get("label")
+    sample_count = boundary.get("sample_count")
+    available_samples = boundary.get("available_samples")
+    unavailable_samples = boundary.get("unavailable_samples")
+    translation_span = boundary.get("max_translation_span")
+    rotation_span = boundary.get("max_rotation_span_radians")
+    translation_floor = boundary.get("minimum_translation_span")
+    rotation_floor = boundary.get("minimum_rotation_span_radians")
+    if not isinstance(label, str) or not label:
+        return None
+    if not isinstance(sample_count, int) or sample_count < 2 or not isinstance(available_samples, int) or available_samples < 2:
+        return f"{label}: unavailable"
+    if not isinstance(unavailable_samples, int) or unavailable_samples > 0:
+        return f"{label}: intermittently unavailable"
+    if not finite(translation_span) or not finite(rotation_span):
+        return f"{label}: unavailable"
+    if translation_span <= MOTION_EPSILON and rotation_span <= MOTION_EPSILON:
+        return f"{label}: static"
+    if (
+        finite(translation_floor)
+        and finite(rotation_floor)
+        and (translation_floor > MOTION_EPSILON or rotation_floor > MOTION_EPSILON)
+        and (translation_floor <= MOTION_EPSILON or translation_span < translation_floor)
+        and (rotation_floor <= MOTION_EPSILON or rotation_span < rotation_floor)
+    ):
+        return f"{label}: below source floor"
+    return None
+
+
+def source_pose_chain_issues(window, label):
+    issues = []
+    required = window.get("requires_source_pose_chain")
+    chain = window.get("source_pose_chain")
+    reported_failure = window.get("first_failed_source_pose_boundary")
+    if not isinstance(required, bool):
+        return [f"motion window source pose chain requirement is invalid: {label}"]
+    if required is False:
+        if chain not in (None, []):
+            issues.append(f"motion window has an unexpected source pose chain: {label}")
+        if reported_failure is not None:
+            issues.append(f"motion window has an unexpected source pose chain failure: {label}")
+        return issues
+    if not isinstance(chain, list) or not chain:
+        return [f"motion window source pose chain is missing: {label}"]
+    labels = []
+    expected_failure = None
+    for boundary in chain:
+        if not isinstance(boundary, dict):
+            issues.append(f"motion window source pose boundary is invalid: {label}")
+            continue
+        boundary_label = boundary.get("label")
+        graph = boundary.get("graph")
+        node = boundary.get("node")
+        output = boundary.get("output")
+        labels.append(boundary_label)
+        for name, value in (("label", boundary_label), ("graph", graph), ("node", node), ("output", output)):
+            if not isinstance(value, str) or not value:
+                issues.append(f"motion window source pose boundary {name} is invalid: {label}")
+        for name in (
+            "minimum_translation_span",
+            "minimum_rotation_span_radians",
+            "max_translation_span",
+            "max_rotation_span_radians",
+        ):
+            value = boundary.get(name)
+            if not finite(value) or value < 0.0:
+                issues.append(f"motion window source pose boundary {name} is invalid: {label}")
+        for name in ("sample_count", "available_samples", "unavailable_samples"):
+            value = boundary.get(name)
+            if not isinstance(value, int) or value < 0:
+                issues.append(f"motion window source pose boundary {name} is invalid: {label}")
+        if expected_failure is None:
+            expected_failure = source_pose_boundary_failure(boundary)
+    if all(isinstance(value, str) and value for value in labels) and len(set(labels)) != len(labels):
+        issues.append(f"motion window source pose chain has duplicate boundaries: {label}")
+    if reported_failure != expected_failure:
+        issues.append(f"motion window source pose chain first failure is inconsistent: {label}")
+    if expected_failure is not None:
+        issues.append(f"motion window source pose chain failed: {label}: {expected_failure}")
+    return issues
+
+
 def motion_window_issues(report, screenshots, pose_samples):
     issues = []
     windows = report.get("motion_windows")
     if not isinstance(windows, list):
         return ["motion windows are invalid"]
+    required_windows = report.get("required_motion_windows")
+    if not isinstance(required_windows, list) or not all(
+        isinstance(value, str) and value for value in required_windows
+    ):
+        issues.append("required motion windows are invalid")
+        required_windows = []
+    elif len(set(required_windows)) != len(required_windows):
+        issues.append("required motion windows contain duplicates")
+    observed_labels = {
+        window.get("label")
+        for window in windows
+        if isinstance(window, dict) and isinstance(window.get("label"), str)
+    }
+    missing_required = sorted(set(required_windows) - observed_labels)
+    if missing_required:
+        issues.append("required motion windows are missing: " + ", ".join(missing_required))
     for window in windows:
         if not isinstance(window, dict):
             issues.append("motion window is invalid")
@@ -318,10 +417,17 @@ def motion_window_issues(report, screenshots, pose_samples):
         requires_pre_rig_motion = window.get("requires_pre_rig_motion")
         requires_final_pose_motion = window.get("requires_final_pose_motion")
         requires_non_reference_root_pose = window.get("requires_non_reference_root_pose")
+        requires_actor_yaw_motion = window.get("requires_actor_yaw_motion")
+        requires_actor_yaw_convergence = window.get("requires_actor_yaw_convergence")
         pre_translation_floor = window.get("minimum_pre_rig_translation_span")
         pre_rotation_floor = window.get("minimum_pre_rig_rotation_span_radians")
         final_translation_floor = window.get("minimum_final_translation_span")
         final_rotation_floor = window.get("minimum_final_rotation_span_radians")
+        actor_yaw_floor = window.get("minimum_actor_yaw_delta_radians")
+        actor_yaw_convergence_floor = window.get("minimum_actor_yaw_convergence_radians")
+        actor_yaw_sign = window.get("expected_actor_yaw_delta_sign")
+        actor_yaw_baseline = window.get("expected_actor_yaw_baseline")
+        expected_animation_variant = window.get("expected_animation_variant")
         minimum_observation_seconds = window.get("minimum_observation_seconds")
         observation_seconds = window.get("observation_seconds")
         pre_translation_delta = window.get("max_pre_rig_translation_span")
@@ -339,6 +445,9 @@ def motion_window_issues(report, screenshots, pose_samples):
             ("requires_pre_rig_motion", requires_pre_rig_motion),
             ("requires_final_pose_motion", requires_final_pose_motion),
             ("requires_non_reference_root_pose", requires_non_reference_root_pose),
+            ("requires_source_pose_chain", window.get("requires_source_pose_chain")),
+            ("requires_actor_yaw_motion", requires_actor_yaw_motion),
+            ("requires_actor_yaw_convergence", requires_actor_yaw_convergence),
         ):
             if not isinstance(value, bool):
                 issues.append(f"motion window requirement is invalid: {label}.{name}")
@@ -347,6 +456,8 @@ def motion_window_issues(report, screenshots, pose_samples):
             ("pre-rig rotation floor", pre_rotation_floor),
             ("final translation floor", final_translation_floor),
             ("final rotation floor", final_rotation_floor),
+            ("actor yaw floor", actor_yaw_floor),
+            ("actor yaw convergence floor", actor_yaw_convergence_floor),
             ("observation floor", minimum_observation_seconds),
             ("observation span", observation_seconds),
             ("pre-rig translation delta", pre_translation_delta),
@@ -386,6 +497,172 @@ def motion_window_issues(report, screenshots, pose_samples):
                 and (final_rotation_floor <= MOTION_EPSILON or final_rotation_delta < final_rotation_floor)
             ):
                 issues.append(f"motion window is below its source-derived final floor: {label}")
+        actor_yaw_sample_count = window.get("actor_yaw_sample_count")
+        actor_yaw_delta = window.get("max_actor_yaw_delta_radians")
+        actor_yaw_signed_delta = window.get("max_actor_yaw_signed_delta_radians")
+        actor_yaw_opposite_delta = window.get("max_actor_yaw_opposite_delta_radians")
+        actor_yaw_convergence = window.get("max_actor_yaw_convergence_radians")
+        actor_yaw_trace = window.get("actor_yaw_trace")
+        if not isinstance(actor_yaw_sample_count, int) or actor_yaw_sample_count < 0:
+            issues.append(f"motion window actor yaw sample count is invalid: {label}")
+        if not finite(actor_yaw_delta) or actor_yaw_delta < 0.0:
+            issues.append(f"motion window actor yaw delta is invalid: {label}")
+        if not finite(actor_yaw_signed_delta) or actor_yaw_signed_delta < 0.0:
+            issues.append(f"motion window signed actor yaw delta is invalid: {label}")
+        if not finite(actor_yaw_opposite_delta) or actor_yaw_opposite_delta < 0.0:
+            issues.append(f"motion window opposite actor yaw delta is invalid: {label}")
+        if not finite(actor_yaw_convergence) or actor_yaw_convergence < 0.0:
+            issues.append(f"motion window actor yaw convergence is invalid: {label}")
+        if actor_yaw_sign is not None and (
+            not isinstance(actor_yaw_sign, int)
+            or isinstance(actor_yaw_sign, bool)
+            or actor_yaw_sign not in (-1, 1)
+        ):
+            issues.append(f"motion window actor yaw sign is invalid: {label}")
+        if actor_yaw_sign is not None and not finite(actor_yaw_baseline):
+            issues.append(f"motion window actor yaw baseline is invalid: {label}")
+        if actor_yaw_sign is not None and (
+            not isinstance(expected_animation_variant, str) or not expected_animation_variant
+        ):
+            issues.append(f"motion window expected animation variant is invalid: {label}")
+        if actor_yaw_sign is not None:
+            if not isinstance(actor_yaw_trace, list) or len(actor_yaw_trace) < 2:
+                issues.append(f"motion window actor yaw trace is missing: {label}")
+            else:
+                previous_elapsed = None
+                has_curve_sample = False
+                for sample in actor_yaw_trace:
+                    if not isinstance(sample, dict):
+                        issues.append(f"motion window actor yaw trace sample is invalid: {label}")
+                        continue
+                    elapsed = sample.get("elapsed_secs")
+                    actor = sample.get("actor_yaw_radians")
+                    view = sample.get("view_yaw_radians")
+                    curve = sample.get("animation_yaw_speed_degrees")
+                    direct_curve = sample.get("animation_curve_direct_yaw_speed_degrees")
+                    clip_time = sample.get("animation_clip_time")
+                    weight = sample.get("animation_weight")
+                    play_rate = sample.get("animation_play_rate")
+                    curve_stack_weight = sample.get("animation_curve_stack_weight")
+                    curve_stack_entries = sample.get("animation_curve_stack_entries")
+                    animation_variant = sample.get("animation_variant")
+                    if not finite(elapsed) or not finite(actor):
+                        issues.append(f"motion window actor yaw trace values are invalid: {label}")
+                    if previous_elapsed is not None and finite(elapsed) and elapsed <= previous_elapsed:
+                        issues.append(f"motion window actor yaw trace is not ordered: {label}")
+                    if finite(elapsed):
+                        previous_elapsed = elapsed
+                    if view is not None and not finite(view):
+                        issues.append(f"motion window actor yaw trace view is invalid: {label}")
+                    if curve is not None:
+                        if not finite(curve):
+                            issues.append(f"motion window actor yaw trace curve is invalid: {label}")
+                        elif abs(curve) > MOTION_EPSILON:
+                            has_curve_sample = True
+                    if (
+                        finite(curve_stack_weight)
+                        and curve_stack_weight > MOTION_EPSILON
+                        and not finite(direct_curve)
+                    ):
+                        issues.append(f"motion window actor yaw trace direct curve is invalid: {label}")
+                    if not finite(clip_time) or clip_time < 0.0:
+                        issues.append(f"motion window actor yaw trace clip time is invalid: {label}")
+                    if not finite(weight) or weight < 0.0:
+                        issues.append(f"motion window actor yaw trace weight is invalid: {label}")
+                    elif finite(curve) and weight <= MOTION_EPSILON and abs(curve) > MOTION_EPSILON:
+                        issues.append(f"motion window inactive clip emitted actor yaw curve: {label}")
+                    if not finite(play_rate) or play_rate < 0.0:
+                        issues.append(f"motion window actor yaw trace play rate is invalid: {label}")
+                    if not finite(curve_stack_weight) or curve_stack_weight < 0.0:
+                        issues.append(f"motion window actor yaw trace curve stack weight is invalid: {label}")
+                    if not isinstance(curve_stack_entries, list):
+                        issues.append(f"motion window actor yaw trace curve stack entries are invalid: {label}")
+                    else:
+                        for entry in curve_stack_entries:
+                            if not isinstance(entry, dict):
+                                issues.append(
+                                    f"motion window actor yaw trace curve stack entry is invalid: {label}"
+                                )
+                                continue
+                            variant = entry.get("animation_variant")
+                            entry_elapsed = entry.get("elapsed_seconds")
+                            entry_weight = entry.get("weight")
+                            entry_play_rate = entry.get("play_rate")
+                            entry_ready = entry.get("sampling_ready")
+                            if not isinstance(variant, str) or not variant:
+                                issues.append(
+                                    f"motion window actor yaw trace curve stack variant is invalid: {label}"
+                                )
+                            for name, value in (
+                                ("elapsed", entry_elapsed),
+                                ("weight", entry_weight),
+                                ("play rate", entry_play_rate),
+                            ):
+                                if not finite(value) or value < 0.0:
+                                    issues.append(
+                                        f"motion window actor yaw trace curve stack {name} is invalid: {label}"
+                                    )
+                            if not isinstance(entry_ready, bool):
+                                issues.append(
+                                    f"motion window actor yaw trace curve stack readiness is invalid: {label}"
+                                )
+                        if (
+                            finite(weight)
+                            and weight > MOTION_EPSILON
+                            and finite(curve_stack_weight)
+                            and curve_stack_weight > MOTION_EPSILON
+                            and not curve_stack_entries
+                        ):
+                            issues.append(
+                                f"motion window active clip has no curve stack entry: {label}"
+                            )
+                    if actor_yaw_sign is not None and (
+                        not isinstance(animation_variant, str) or not animation_variant
+                    ):
+                        issues.append(f"motion window actor yaw trace animation variant is invalid: {label}")
+                    elif (
+                        isinstance(expected_animation_variant, str)
+                        and finite(weight)
+                        and weight > MOTION_EPSILON
+                        and animation_variant != expected_animation_variant
+                    ):
+                        issues.append(f"motion window selected the wrong animation variant: {label}")
+                if not has_curve_sample:
+                    issues.append(f"motion window actor yaw trace has no animation curve: {label}")
+        if requires_actor_yaw_motion is True and (
+            not isinstance(actor_yaw_sample_count, int)
+            or actor_yaw_sample_count < 2
+            or not finite(actor_yaw_floor)
+            or not finite(actor_yaw_delta)
+            or actor_yaw_delta < actor_yaw_floor
+            or (
+                actor_yaw_sign is not None
+                and (
+                    not finite(actor_yaw_signed_delta)
+                    or actor_yaw_signed_delta < actor_yaw_floor
+                )
+            )
+        ):
+            issues.append(f"motion window actor yaw did not follow source motion: {label}")
+        if requires_actor_yaw_convergence is True and (
+            not isinstance(actor_yaw_sample_count, int)
+            or actor_yaw_sample_count < 2
+            or not finite(actor_yaw_convergence_floor)
+            or not finite(actor_yaw_convergence)
+            or actor_yaw_convergence < actor_yaw_convergence_floor
+        ):
+            issues.append(f"motion window actor yaw did not converge toward the source view: {label}")
+        if (
+            actor_yaw_sign is not None
+            and isinstance(actor_yaw_sample_count, int)
+            and actor_yaw_sample_count >= 2
+            and finite(actor_yaw_floor)
+            and finite(actor_yaw_signed_delta)
+            and finite(actor_yaw_opposite_delta)
+            and actor_yaw_opposite_delta >= actor_yaw_floor
+            and actor_yaw_opposite_delta > actor_yaw_signed_delta + MOTION_EPSILON
+        ):
+            issues.append(f"motion window actor yaw turned opposite to the source action: {label}")
         if (
             finite(minimum_observation_seconds)
             and finite(observation_seconds)
@@ -396,6 +673,8 @@ def motion_window_issues(report, screenshots, pose_samples):
         root_active_samples = window.get("root_pose_active_samples")
         root_reference_samples = window.get("root_pose_reference_samples")
         root_max_channels = window.get("root_pose_max_active_channels")
+        root_translation_delta = window.get("root_pose_max_translation_span")
+        root_rotation_delta = window.get("root_pose_max_rotation_span_radians")
         for name, value in (
             ("sample count", root_sample_count),
             ("active samples", root_active_samples),
@@ -403,6 +682,12 @@ def motion_window_issues(report, screenshots, pose_samples):
             ("maximum channels", root_max_channels),
         ):
             if not isinstance(value, int) or value < 0:
+                issues.append(f"motion window root pose {name} is invalid: {label}")
+        for name, value in (
+            ("translation delta", root_translation_delta),
+            ("rotation delta", root_rotation_delta),
+        ):
+            if not finite(value) or value < 0.0:
                 issues.append(f"motion window root pose {name} is invalid: {label}")
         if requires_non_reference_root_pose is True and (
             not isinstance(root_sample_count, int)
@@ -416,6 +701,13 @@ def motion_window_issues(report, screenshots, pose_samples):
             or root_max_channels <= 0
         ):
             issues.append(f"motion window resolved to a reference root pose: {label}")
+        if requires_pre_rig_motion is True and (
+            finite(root_translation_delta)
+            and finite(root_rotation_delta)
+            and root_translation_delta <= MOTION_EPSILON
+            and root_rotation_delta <= MOTION_EPSILON
+        ):
+            issues.append(f"motion window root graph pose is static: {label}")
         expected_direction = window.get("expected_direction")
         observed_directions = window.get("observed_directions")
         if not isinstance(expected_direction, str):
@@ -438,6 +730,165 @@ def motion_window_issues(report, screenshots, pose_samples):
             issues.append(f"motion window observed runtime states are invalid: {label}")
         elif expected_runtime_state is not None and observed_runtime_states != [expected_runtime_state]:
             issues.append(f"motion window selected the wrong runtime state: {label}")
+        expected_parent_runtime_state = window.get("expected_parent_runtime_state")
+        observed_parent_runtime_states = window.get("observed_parent_runtime_states")
+        observed_parent_transition_active = window.get("observed_parent_transition_active")
+        observed_requested_parent_runtime_states = window.get(
+            "observed_requested_parent_runtime_states"
+        )
+        observed_requested_parent_transition_active = window.get(
+            "observed_requested_parent_transition_active"
+        )
+        if expected_parent_runtime_state is not None and (
+            not isinstance(expected_parent_runtime_state, int) or expected_parent_runtime_state < 0
+        ):
+            issues.append(f"motion window expected parent runtime state is invalid: {label}")
+        if not isinstance(observed_parent_runtime_states, list) or not all(
+            isinstance(value, int) and value >= 0 for value in observed_parent_runtime_states
+        ):
+            issues.append(f"motion window observed parent runtime states are invalid: {label}")
+        elif (
+            expected_parent_runtime_state is not None
+            and observed_parent_runtime_states != [expected_parent_runtime_state]
+        ):
+            issues.append(f"motion window selected the wrong parent runtime state: {label}")
+        if not isinstance(observed_parent_transition_active, list) or not all(
+            isinstance(value, bool) for value in observed_parent_transition_active
+        ):
+            issues.append(f"motion window observed parent transition state is invalid: {label}")
+        elif expected_parent_runtime_state is not None and False not in observed_parent_transition_active:
+            issues.append(f"motion window parent transition did not settle: {label}")
+        if not isinstance(observed_requested_parent_runtime_states, list) or not all(
+            isinstance(value, int) and value >= 0
+            for value in observed_requested_parent_runtime_states
+        ):
+            issues.append(f"motion window requested parent runtime states are invalid: {label}")
+        elif (
+            expected_parent_runtime_state is not None
+            and observed_requested_parent_runtime_states != [expected_parent_runtime_state]
+        ):
+            issues.append(f"motion window requested the wrong parent runtime state: {label}")
+        if not isinstance(observed_requested_parent_transition_active, list) or not all(
+            isinstance(value, bool) for value in observed_requested_parent_transition_active
+        ):
+            issues.append(f"motion window requested parent transition state is invalid: {label}")
+        elif (
+            expected_parent_runtime_state is not None
+            and False not in observed_requested_parent_transition_active
+        ):
+            issues.append(f"motion window requested parent transition did not settle: {label}")
+        expected_terminal_parent_runtime_state = window.get(
+            "expected_terminal_parent_runtime_state"
+        )
+        expected_terminal_parent_transition_active = window.get(
+            "expected_terminal_parent_transition_active"
+        )
+        expected_terminal_requested_parent_transition_active = window.get(
+            "expected_terminal_requested_parent_transition_active"
+        )
+        observed_terminal_parent_runtime_states = window.get(
+            "observed_terminal_parent_runtime_states"
+        )
+        observed_terminal_parent_transition_active = window.get(
+            "observed_terminal_parent_transition_active"
+        )
+        observed_terminal_requested_parent_runtime_states = window.get(
+            "observed_terminal_requested_parent_runtime_states"
+        )
+        observed_terminal_requested_parent_transition_active = window.get(
+            "observed_terminal_requested_parent_transition_active"
+        )
+        if expected_terminal_parent_runtime_state is not None and (
+            not isinstance(expected_terminal_parent_runtime_state, int)
+            or expected_terminal_parent_runtime_state < 0
+        ):
+            issues.append(f"motion window expected terminal parent state is invalid: {label}")
+        if expected_terminal_parent_runtime_state is None and (
+            expected_terminal_parent_transition_active is not None
+            or expected_terminal_requested_parent_transition_active is not None
+        ):
+            issues.append(f"motion window terminal transition expectation is invalid: {label}")
+        if expected_terminal_parent_runtime_state is not None and (
+            not isinstance(expected_terminal_parent_transition_active, bool)
+            or not isinstance(expected_terminal_requested_parent_transition_active, bool)
+        ):
+            issues.append(f"motion window terminal transition expectation is invalid: {label}")
+        for name, values, kind in (
+            (
+                "terminal parent runtime states",
+                observed_terminal_parent_runtime_states,
+                int,
+            ),
+            (
+                "terminal requested parent runtime states",
+                observed_terminal_requested_parent_runtime_states,
+                int,
+            ),
+            (
+                "terminal parent transition states",
+                observed_terminal_parent_transition_active,
+                bool,
+            ),
+            (
+                "terminal requested parent transition states",
+                observed_terminal_requested_parent_transition_active,
+                bool,
+            ),
+        ):
+            if not isinstance(values, list) or not all(
+                isinstance(value, kind)
+                and (
+                    isinstance(value, bool)
+                    if kind is bool
+                    else not isinstance(value, bool) and value >= 0
+                )
+                for value in values
+            ):
+                issues.append(f"motion window {name} are invalid: {label}")
+        if expected_terminal_parent_runtime_state is None:
+            if any(
+                values
+                for values in (
+                    observed_terminal_parent_runtime_states,
+                    observed_terminal_parent_transition_active,
+                    observed_terminal_requested_parent_runtime_states,
+                    observed_terminal_requested_parent_transition_active,
+                )
+                if isinstance(values, list)
+            ):
+                issues.append(f"motion window has unexpected terminal parent state: {label}")
+        elif (
+            observed_terminal_parent_runtime_states
+            != [expected_terminal_parent_runtime_state]
+        ):
+            issues.append(f"motion window selected the wrong terminal parent state: {label}")
+        elif (
+            observed_terminal_requested_parent_runtime_states
+            != [expected_terminal_parent_runtime_state]
+        ):
+            issues.append(f"motion window requested the wrong terminal parent state: {label}")
+        elif (
+            observed_terminal_parent_transition_active
+            != [expected_terminal_parent_transition_active]
+        ):
+            issues.append(f"motion window terminal parent transition is wrong: {label}")
+        elif (
+            observed_terminal_requested_parent_transition_active
+            != [expected_terminal_requested_parent_transition_active]
+        ):
+            issues.append(f"motion window terminal requested parent transition is wrong: {label}")
+        expected_lifecycle = window.get("expected_lifecycle_stages")
+        observed_lifecycle = window.get("observed_lifecycle_stages")
+        if not isinstance(expected_lifecycle, list) or not all(
+            isinstance(value, str) and value for value in expected_lifecycle
+        ):
+            issues.append(f"motion window expected lifecycle is invalid: {label}")
+        if not isinstance(observed_lifecycle, list) or not all(
+            isinstance(value, str) and value for value in observed_lifecycle
+        ):
+            issues.append(f"motion window observed lifecycle is invalid: {label}")
+        elif isinstance(expected_lifecycle, list) and observed_lifecycle != expected_lifecycle:
+            issues.append(f"motion window lifecycle is incomplete: {label}")
         matching_screenshots = [
             value
             for value in screenshots
@@ -454,7 +905,33 @@ def motion_window_issues(report, screenshots, pose_samples):
         ]
         if len(matching_samples) < 2:
             issues.append(f"motion window pose samples are missing: {label}")
+        issues.extend(source_pose_chain_issues(window, label))
     issues.extend(direction_signature_issues(windows))
+    return issues
+
+
+def temporal_anomaly_issues(values):
+    if not isinstance(values, list):
+        return ["temporal_anomalies is invalid"]
+    issues = []
+    for value in values:
+        if not isinstance(value, dict):
+            issues.append("temporal anomaly is invalid")
+            continue
+        if value.get("stage") not in ("pre_rig", "final"):
+            issues.append("temporal anomaly stage is invalid")
+        for key in ("kind", "subject"):
+            if not isinstance(value.get(key), str) or not value.get(key):
+                issues.append(f"temporal anomaly field is invalid: {key}")
+        for key in ("previous", "current", "threshold", "elapsed_secs", "frame_ms"):
+            if not finite(value.get(key)):
+                issues.append(f"temporal anomaly value is invalid: {key}")
+        for key in ("direction_case", "phase"):
+            label = value.get(key)
+            if label is not None and (not isinstance(label, str) or not label):
+                issues.append(f"temporal anomaly label is invalid: {key}")
+    if values:
+        issues.append("temporal_anomalies is non-empty")
     return issues
 
 
@@ -473,6 +950,7 @@ def audit(report, min_screenshots):
             issues.append(f"{key} is invalid")
         elif values:
             issues.append(f"{key} is non-empty")
+    issues.extend(temporal_anomaly_issues(report.get("temporal_anomalies")))
     required_bones = report.get("required_bones")
     if not isinstance(required_bones, list) or not required_bones or not all(
         isinstance(name, str) and name for name in required_bones
@@ -499,6 +977,16 @@ def audit(report, min_screenshots):
     ):
         issues.append("performance payload is invalid")
     else:
+        for key in (
+            "temporal_global_position_speed_mps",
+            "temporal_local_translation_jump_m",
+            "temporal_local_rotation_jump_radians",
+            "temporal_scale_ratio",
+            "temporal_segment_ratio",
+            "temporal_limb_plane_flip_dot",
+        ):
+            if not finite(thresholds.get(key)):
+                issues.append(f"temporal threshold is invalid: {key}")
         checks = (
             (frame_time, "max_frame_p95_ms", "p95_ms"),
             (frame_time, "max_frame_ms", "max_ms"),
@@ -749,9 +1237,22 @@ def fixture_report(paths):
         ],
         "screenshots": [{"path": str(path), "elapsed_secs": 1.0, "kind": "fixture", "faults": []} for path in paths],
         "motion_windows": [],
+        "required_motion_windows": [],
+        "temporal_anomalies": [],
         "faults": [],
         "graph_errors": [],
-        "thresholds": {"max_frame_p95_ms": 25.0, "max_frame_ms": 75.0, "max_eval_p95_ms": 4.0, "max_physics_steps_per_render": 3.0},
+        "thresholds": {
+            "max_frame_p95_ms": 25.0,
+            "max_frame_ms": 75.0,
+            "max_eval_p95_ms": 4.0,
+            "max_physics_steps_per_render": 3.0,
+            "temporal_global_position_speed_mps": 24.0,
+            "temporal_local_translation_jump_m": 0.35,
+            "temporal_local_rotation_jump_radians": 2.2,
+            "temporal_scale_ratio": 1.5,
+            "temporal_segment_ratio": 0.35,
+            "temporal_limb_plane_flip_dot": -0.5,
+        },
     }
 
 
@@ -785,14 +1286,34 @@ def fixture_motion_window(label="dynamic", rotation_radians=0.0, group=None):
         "observed_directions": [group_direction] if is_group_member else [],
         "expected_runtime_state": group_state if is_group_member else None,
         "observed_runtime_states": [group_state] if is_group_member else [],
+        "expected_parent_runtime_state": None,
+        "expected_terminal_parent_runtime_state": None,
+        "expected_terminal_parent_transition_active": None,
+        "expected_terminal_requested_parent_transition_active": None,
+        "observed_parent_runtime_states": [],
+        "observed_parent_transition_active": [],
+        "observed_requested_parent_runtime_states": [],
+        "observed_requested_parent_transition_active": [],
+        "observed_terminal_parent_runtime_states": [],
+        "observed_terminal_parent_transition_active": [],
+        "observed_terminal_requested_parent_runtime_states": [],
+        "observed_terminal_requested_parent_transition_active": [],
         "sample_count": 2,
         "requires_pre_rig_motion": True,
         "requires_final_pose_motion": True,
         "requires_non_reference_root_pose": True,
+        "requires_source_pose_chain": False,
+        "requires_actor_yaw_motion": False,
+        "requires_actor_yaw_convergence": False,
+        "expected_actor_yaw_delta_sign": None,
+        "expected_actor_yaw_baseline": None,
+        "expected_animation_variant": None,
         "minimum_pre_rig_translation_span": 0.0,
         "minimum_pre_rig_rotation_span_radians": 0.0,
         "minimum_final_translation_span": 0.0,
         "minimum_final_rotation_span_radians": 0.0,
+        "minimum_actor_yaw_delta_radians": 0.0,
+        "minimum_actor_yaw_convergence_radians": 0.0,
         "minimum_observation_seconds": 0.0,
         "observation_seconds": 1.0,
         "max_pre_rig_translation_span": 0.01,
@@ -803,6 +1324,14 @@ def fixture_motion_window(label="dynamic", rotation_radians=0.0, group=None):
         "root_pose_active_samples": 2,
         "root_pose_reference_samples": 0,
         "root_pose_max_active_channels": 6,
+        "root_pose_max_translation_span": 0.01,
+        "root_pose_max_rotation_span_radians": 0.01,
+        "actor_yaw_sample_count": 2,
+        "actor_yaw_trace": [],
+        "max_actor_yaw_delta_radians": 0.0,
+        "max_actor_yaw_signed_delta_radians": 0.0,
+        "max_actor_yaw_opposite_delta_radians": 0.0,
+        "max_actor_yaw_convergence_radians": 0.0,
         "source_sync_group": "Movement" if is_group_member else "",
         "sync_phase_global": "marker_phase" if is_group_member else "",
         "canonical_sync_phase": 0.5 if is_group_member else None,
@@ -812,6 +1341,26 @@ def fixture_motion_window(label="dynamic", rotation_radians=0.0, group=None):
         "required_direction_signature_members": 6 if is_group_member else 0,
         "minimum_direction_signature_rotation_radians": 0.01 if is_group_member else 0.0,
         "canonical_pre_rig_pose": fixture_canonical_pose(rotation_radians) if is_group_member else {},
+        "source_pose_chain": [],
+        "expected_lifecycle_stages": [],
+        "observed_lifecycle_stages": [],
+        "first_failed_source_pose_boundary": None,
+    }
+
+
+def fixture_source_pose_boundary(label):
+    return {
+        "label": label,
+        "graph": "graphs/fixture.animgraph.ron",
+        "node": f"{label} node",
+        "output": "Pose",
+        "minimum_translation_span": 0.0,
+        "minimum_rotation_span_radians": 0.01,
+        "sample_count": 2,
+        "available_samples": 2,
+        "unavailable_samples": 0,
+        "max_translation_span": 0.0,
+        "max_rotation_span_radians": 0.02,
     }
 
 
@@ -860,6 +1409,28 @@ def run_self_test():
         report["faults"] = ["fault"]
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
+        report["temporal_anomalies"] = [
+            {
+                "stage": "final",
+                "kind": "limb_plane_flip",
+                "subject": "left_leg",
+                "previous": 1.0,
+                "current": -1.0,
+                "threshold": -0.5,
+                "elapsed_secs": 1.0,
+                "frame_ms": 16.0,
+                "direction_case": "crouch_left_forward",
+                "phase": "CrouchDirectionRegression",
+            }
+        ]
+        assert not audit(report, 2)["pass"]
+        missing_stage = copy.deepcopy(report["temporal_anomalies"])
+        missing_stage[0].pop("stage")
+        assert any("stage" in issue for issue in temporal_anomaly_issues(missing_stage))
+        report = fixture_report(paths)
+        report.pop("temporal_anomalies")
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
         report["graph_errors"] = ["ClipMissing"]
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
@@ -887,8 +1458,79 @@ def run_self_test():
         add_dynamic_window_samples(report, ["dynamic"])
         report["motion_windows"] = [fixture_motion_window()]
         assert audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report["required_motion_windows"] = ["missing_dynamic"]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_source_pose_chain"] = True
+        report["motion_windows"][0]["source_pose_chain"] = [
+            fixture_source_pose_boundary("sequence_player"),
+            fixture_source_pose_boundary("cache_producer"),
+            fixture_source_pose_boundary("movement_fsm"),
+        ]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["expected_parent_runtime_state"] = 1
+        report["motion_windows"][0]["observed_parent_runtime_states"] = [1]
+        report["motion_windows"][0]["observed_parent_transition_active"] = [False]
+        report["motion_windows"][0]["observed_requested_parent_runtime_states"] = [1]
+        report["motion_windows"][0]["observed_requested_parent_transition_active"] = [False]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_parent_transition_active"] = [False, True]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_parent_runtime_states"] = [0]
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_parent_runtime_states"] = [1]
+        report["motion_windows"][0]["observed_requested_parent_runtime_states"] = [0]
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_requested_parent_runtime_states"] = [1]
+        report["motion_windows"][0]["expected_terminal_parent_runtime_state"] = 0
+        report["motion_windows"][0]["expected_terminal_parent_transition_active"] = False
+        report["motion_windows"][0][
+            "expected_terminal_requested_parent_transition_active"
+        ] = True
+        report["motion_windows"][0]["observed_terminal_parent_runtime_states"] = [0]
+        report["motion_windows"][0]["observed_terminal_parent_transition_active"] = [False]
+        report["motion_windows"][0]["observed_terminal_requested_parent_runtime_states"] = [0]
+        report["motion_windows"][0][
+            "observed_terminal_requested_parent_transition_active"
+        ] = [True]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_terminal_parent_runtime_states"] = [1]
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_terminal_parent_runtime_states"] = [0]
+        report["motion_windows"][0]["observed_terminal_requested_parent_runtime_states"] = [1]
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["observed_terminal_requested_parent_runtime_states"] = [0]
+        report["motion_windows"][0][
+            "observed_terminal_requested_parent_transition_active"
+        ] = [False]
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0][
+            "observed_terminal_requested_parent_transition_active"
+        ] = [True]
+        report["motion_windows"][0]["source_pose_chain"][1]["max_rotation_span_radians"] = 0.0
+        report["motion_windows"][0]["first_failed_source_pose_boundary"] = "cache_producer: static"
+        result = audit(report, 2)
+        assert not result["pass"]
+        assert any("cache_producer: static" in issue for issue in result["issues"])
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_source_pose_chain"] = True
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
         report["motion_windows"][0]["max_pre_rig_translation_span"] = 0.0
         report["motion_windows"][0]["max_pre_rig_rotation_span_radians"] = 0.0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["root_pose_max_translation_span"] = 0.0
+        report["motion_windows"][0]["root_pose_max_rotation_span_radians"] = 0.0
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
         add_dynamic_window_samples(report, ["dynamic"])
@@ -923,6 +1565,243 @@ def run_self_test():
         report["motion_windows"][0]["max_final_translation_span"] = 0.0
         report["motion_windows"][0]["max_final_rotation_span_radians"] = 0.0
         assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_motion"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_delta_radians"] = 0.05
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_convergence"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_convergence_radians"] = 0.05
+        report["motion_windows"][0]["max_actor_yaw_delta_radians"] = 0.1
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_motion"] = True
+        report["motion_windows"][0]["requires_actor_yaw_convergence"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_delta_radians"] = 1.4
+        report["motion_windows"][0]["minimum_actor_yaw_convergence_radians"] = 1.4
+        report["motion_windows"][0]["max_actor_yaw_delta_radians"] = 0.7
+        report["motion_windows"][0]["max_actor_yaw_convergence_radians"] = 0.7
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_motion"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_delta_radians"] = 0.05
+        report["motion_windows"][0]["expected_actor_yaw_delta_sign"] = -1
+        report["motion_windows"][0]["expected_actor_yaw_baseline"] = 0.0
+        report["motion_windows"][0]["expected_animation_variant"] = "FixtureTurn"
+        report["motion_windows"][0]["max_actor_yaw_delta_radians"] = 0.1
+        report["motion_windows"][0]["max_actor_yaw_signed_delta_radians"] = 0.1
+        report["motion_windows"][0]["actor_yaw_trace"] = [
+            {
+                "elapsed_secs": 0.0,
+                "actor_yaw_radians": 0.0,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.0,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+            },
+            {
+                "elapsed_secs": 1.0,
+                "actor_yaw_radians": -0.1,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.1,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+            },
+        ]
+        for sample in report["motion_windows"][0]["actor_yaw_trace"]:
+            sample["animation_variant"] = "FixtureTurn"
+            sample["animation_curve_direct_yaw_speed_degrees"] = sample[
+                "animation_yaw_speed_degrees"
+            ]
+            sample["animation_curve_stack_entries"] = [
+                {
+                    "animation_variant": "FixtureTurn",
+                    "elapsed_seconds": sample["animation_clip_time"],
+                    "weight": 1.0,
+                    "play_rate": 1.0,
+                    "sampling_ready": True,
+                }
+            ]
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["actor_yaw_trace"][1]["animation_curve_stack_entries"] = []
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["actor_yaw_trace"][1]["animation_curve_stack_entries"] = [
+            {
+                "animation_variant": "FixtureTurn",
+                "elapsed_seconds": 0.1,
+                "weight": 1.0,
+                "play_rate": 1.0,
+                "sampling_ready": True,
+            }
+        ]
+        report["motion_windows"][0]["actor_yaw_trace"][1]["animation_variant"] = "WrongTurn"
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["actor_yaw_trace"][1]["animation_variant"] = "FixtureTurn"
+        report["motion_windows"][0]["actor_yaw_trace"] = []
+        assert not audit(report, 2)["pass"]
+        report["motion_windows"][0]["actor_yaw_trace"] = [
+            {
+                "elapsed_secs": 0.0,
+                "actor_yaw_radians": 0.0,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.0,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+            },
+            {
+                "elapsed_secs": 1.0,
+                "actor_yaw_radians": -0.1,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.1,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+            },
+        ]
+        for sample in report["motion_windows"][0]["actor_yaw_trace"]:
+            sample["animation_variant"] = "FixtureTurn"
+            sample["animation_curve_direct_yaw_speed_degrees"] = sample[
+                "animation_yaw_speed_degrees"
+            ]
+            sample["animation_curve_stack_entries"] = [
+                {
+                    "animation_variant": "FixtureTurn",
+                    "elapsed_seconds": sample["animation_clip_time"],
+                    "weight": 1.0,
+                    "play_rate": 1.0,
+                    "sampling_ready": True,
+                }
+            ]
+        report["motion_windows"][0]["max_actor_yaw_signed_delta_radians"] = 0.0
+        result = audit(report, 2)
+        assert not result["pass"]
+        assert not any("turned opposite" in issue for issue in result["issues"])
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_motion"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_delta_radians"] = 0.05
+        report["motion_windows"][0]["expected_actor_yaw_delta_sign"] = -1
+        report["motion_windows"][0]["expected_actor_yaw_baseline"] = 0.0
+        report["motion_windows"][0]["expected_animation_variant"] = "FixtureTurn"
+        report["motion_windows"][0]["max_actor_yaw_delta_radians"] = 0.1
+        report["motion_windows"][0]["max_actor_yaw_signed_delta_radians"] = 0.0
+        report["motion_windows"][0]["max_actor_yaw_opposite_delta_radians"] = 0.1
+        report["motion_windows"][0]["actor_yaw_trace"] = [
+            {
+                "elapsed_secs": 0.0,
+                "actor_yaw_radians": 0.0,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_curve_direct_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.0,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+                "animation_variant": "FixtureTurn",
+                "animation_curve_stack_entries": [
+                    {
+                        "animation_variant": "FixtureTurn",
+                        "elapsed_seconds": 0.0,
+                        "weight": 1.0,
+                        "play_rate": 1.0,
+                        "sampling_ready": True,
+                    }
+                ],
+            },
+            {
+                "elapsed_secs": 1.0,
+                "actor_yaw_radians": 0.1,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_curve_direct_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.1,
+                "animation_weight": 1.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 1.0,
+                "animation_variant": "FixtureTurn",
+                "animation_curve_stack_entries": [
+                    {
+                        "animation_variant": "FixtureTurn",
+                        "elapsed_seconds": 0.1,
+                        "weight": 1.0,
+                        "play_rate": 1.0,
+                        "sampling_ready": True,
+                    }
+                ],
+            },
+        ]
+        result = audit(report, 2)
+        assert not result["pass"]
+        assert any("turned opposite" in issue for issue in result["issues"])
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["requires_actor_yaw_motion"] = True
+        report["motion_windows"][0]["minimum_actor_yaw_delta_radians"] = 0.05
+        report["motion_windows"][0]["expected_actor_yaw_delta_sign"] = -1
+        report["motion_windows"][0]["expected_actor_yaw_baseline"] = 0.0
+        report["motion_windows"][0]["expected_animation_variant"] = "FixtureTurn"
+        report["motion_windows"][0]["max_actor_yaw_delta_radians"] = 0.1
+        report["motion_windows"][0]["max_actor_yaw_signed_delta_radians"] = 0.1
+        report["motion_windows"][0]["actor_yaw_trace"] = [
+            {
+                "elapsed_secs": 0.0,
+                "actor_yaw_radians": 0.0,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.0,
+                "animation_weight": 0.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 0.0,
+            },
+            {
+                "elapsed_secs": 1.0,
+                "actor_yaw_radians": -0.1,
+                "view_yaw_radians": -0.2,
+                "animation_yaw_speed_degrees": -45.0,
+                "animation_clip_time": 0.1,
+                "animation_weight": 0.0,
+                "animation_play_rate": 1.0,
+                "animation_curve_stack_weight": 0.0,
+            },
+        ]
+        for sample in report["motion_windows"][0]["actor_yaw_trace"]:
+            sample["animation_variant"] = "FixtureTurn"
+            sample["animation_curve_direct_yaw_speed_degrees"] = sample[
+                "animation_yaw_speed_degrees"
+            ]
+            sample["animation_curve_stack_entries"] = [
+                {
+                    "animation_variant": "FixtureTurn",
+                    "elapsed_seconds": sample["animation_clip_time"],
+                    "weight": 0.0,
+                    "play_rate": 1.0,
+                    "sampling_ready": True,
+                }
+            ]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        add_dynamic_window_samples(report, ["dynamic"])
+        report["motion_windows"] = [fixture_motion_window()]
+        report["motion_windows"][0]["expected_lifecycle_stages"] = ["active", "completed"]
+        report["motion_windows"][0]["observed_lifecycle_stages"] = ["active"]
+        assert not audit(report, 2)["pass"]
         labels = [
             "forward",
             "backward",
@@ -955,6 +1834,9 @@ def run_self_test():
         "runtime_report_and_png_checked": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
+        "temporal_anomaly_schema_required": "PASS",
+        "instant_limb_deformation_rejected": "PASS",
+        "temporal_anomaly_stage_required": "PASS",
         "foot_lock_teleport_evidence_required": "PASS",
         "foot_ik_teleport_case_required": "PASS",
         "runtime_phase_evidence_required": "PASS",
@@ -962,11 +1844,29 @@ def run_self_test():
         "state_machine_direction_evidence_required": "PASS",
         "sprint_source_curve_relay_required": "PASS",
         "shared_pre_rig_motion_window_required": "PASS",
+        "missing_required_motion_window_rejected": "PASS",
+        "source_pose_chain_required": "PASS",
+        "first_static_source_boundary_reported": "PASS",
+        "wrong_parent_fsm_state_rejected": "PASS",
+        "wrong_requested_parent_fsm_state_rejected": "PASS",
+        "wrong_terminal_parent_fsm_state_rejected": "PASS",
+        "automatic_transition_tail_allowed": "PASS",
         "static_dynamic_window_rejected": "PASS",
         "source_motion_floor_required": "PASS",
         "motion_window_span_required": "PASS",
+        "static_root_graph_pose_rejected": "PASS",
         "reference_root_pose_rejected": "PASS",
         "static_final_pose_rejected": "PASS",
+        "actor_yaw_motion_required": "PASS",
+        "actor_yaw_convergence_required": "PASS",
+        "positive_but_insufficient_actor_yaw_rejected": "PASS",
+        "actor_yaw_trace_required": "PASS",
+        "inactive_clip_yaw_curve_rejected": "PASS",
+        "active_curve_stack_entry_required": "PASS",
+        "wrong_animation_variant_rejected": "PASS",
+        "insufficient_signed_yaw_not_mislabeled_opposite": "PASS",
+        "opposite_actor_yaw_rejected": "PASS",
+        "turn_lifecycle_completion_required": "PASS",
         "collapsed_direction_signatures_rejected": "PASS",
         "wrong_direction_state_rejected": "PASS",
     }
