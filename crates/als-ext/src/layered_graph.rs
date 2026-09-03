@@ -13,8 +13,9 @@ use bevy_animation_graph::core::{
 
 use crate::animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextIoEnv,
-    AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
-    resolve_context_curves,
+    AnimationContextState, capture_context_curve, context_time_update, graph_output_context_state,
+    is_context_curve_input, merge_missing_context_curves, resolve_context_curves,
+    select_context_pose_output,
 };
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::source_cached_pose::resolve_cached_pose;
@@ -396,16 +397,24 @@ impl NodeLike for LayeredGraphNode {
         }
 
         let mut context_state = AnimationContextState::default();
+        let mut pose_output = None;
         for (id, data_spec) in graph.io_spec.iter_output_data() {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
+            let outer_output = self.outer_output(id);
             if self.capture_context {
                 capture_context_curve(&mut context_state, id, &value)?;
             }
+            select_context_pose_output(&mut pose_output, id, data_spec);
             if self.expose_output(id, data_spec) {
-                ctx.set_data_fwd(self.outer_output(id), value);
+                ctx.set_data_fwd(outer_output, value);
             }
         }
         if self.capture_context {
+            if let Some(output) = pose_output
+                && let Some(output_context) = graph_output_context_state(graph, &sub_ctx, &output)
+            {
+                merge_missing_context_curves(&mut context_state, &output_context);
+            }
             self.capture_global_curves(&ctx, &mut context_state)?;
             *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
         }

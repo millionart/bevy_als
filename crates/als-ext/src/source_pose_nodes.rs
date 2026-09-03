@@ -8,6 +8,8 @@ use bevy_animation_graph::core::{
     interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator},
 };
 
+use crate::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::global_f32_or_root_default;
 use crate::{context_time_update, f_interp_to};
 
@@ -344,16 +346,44 @@ impl SourceCurveModifyNode {
     }
 }
 
+fn source_curve_modify_value(source: f32, target: f32, alpha: f32, apply_mode: &str) -> f32 {
+    let value = if apply_mode.eq_ignore_ascii_case("Add") {
+        source + target
+    } else if apply_mode.eq_ignore_ascii_case("Scale") {
+        source * target
+    } else if apply_mode.eq_ignore_ascii_case("RemapCurve") {
+        ((source - target).max(0.0) / (1.0 - target).max(0.01)).min(1.0)
+    } else {
+        target
+    };
+    blend_curve_value(source, value, alpha.clamp(0.0, 1.0))
+}
+
 impl NodeLike for SourceCurveModifyNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        for key in self.value_keys() {
-            if !key.is_empty() {
-                global_f32_or_root_default(&ctx, &key)?;
-            }
-        }
         let pose = ctx.data_back("Source Pose")?.into_pose()?;
+        let mut context = pose_input_context_state(&ctx, "Source Pose").unwrap_or_default();
+        let curve_names = self.curve_pin_names();
+        let value_keys = self.value_keys();
+        for (index, curve_name) in curve_names.iter().enumerate() {
+            let default = self
+                .pin_defaults
+                .get(index)
+                .copied()
+                .unwrap_or(self.pin_default);
+            let target = value_keys
+                .get(index)
+                .filter(|key| !key.is_empty())
+                .map(|key| global_f32_or_root_default(&ctx, key))
+                .transpose()?
+                .unwrap_or(default);
+            let source = context.curves.get(curve_name).copied().unwrap_or(default);
+            let value = source_curve_modify_value(source, target, self.alpha, &self.apply_mode);
+            context.curves.insert(curve_name.clone(), value);
+        }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 
@@ -439,5 +469,14 @@ mod tests {
                 "AllowTransitions".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn source_curve_modify_matches_engine_apply_modes() {
+        assert_eq!(source_curve_modify_value(2.0, 3.0, 1.0, "Add"), 5.0);
+        assert_eq!(source_curve_modify_value(2.0, 3.0, 1.0, "Scale"), 6.0);
+        assert_eq!(source_curve_modify_value(0.2, 0.8, 1.0, "Blend"), 0.8);
+        assert!((source_curve_modify_value(0.9, 0.5, 1.0, "RemapCurve") - 0.8).abs() < 1e-6);
+        assert_eq!(source_curve_modify_value(2.0, 3.0, 0.25, "Scale"), 3.0);
     }
 }

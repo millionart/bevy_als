@@ -11,6 +11,8 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
+use crate::animation_context::{AnimationContextState, pose_input_context_state};
+
 pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
 
 fn saved_cache_key<'a>(cache: &'a SourceCachedPoseSaveNode, node_name: &'a str) -> &'a str {
@@ -26,6 +28,83 @@ fn cache_error(ctx: &NodeContext, message: String) -> GraphError {
         graph: ctx.graph_context.context_id,
         node: ctx.node_id,
         error: message,
+    }
+}
+
+fn cached_context_state(ctx: &NodeContext, cache_node: &str) -> Option<AnimationContextState> {
+    let cache = ctx
+        .graph_context
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.name == cache_node)?;
+    ctx.graph_context
+        .node_states()
+        .get::<AnimationContextState>(cache.id, ctx.graph_context.state_key)
+        .ok()
+        .cloned()
+}
+
+fn scoped_cached_context_state(
+    ctx: &NodeContext,
+    cache_node: &str,
+    cache_key: &str,
+) -> Option<AnimationContextState> {
+    let requested_key = if cache_key.is_empty() {
+        cache_node
+    } else {
+        cache_key
+    };
+    let (context_id, graph, cache) = ctx
+        .graph_context
+        .context_arena
+        .get_ref()
+        .iter_context_ids()
+        .find_map(|context_id| {
+            let context = ctx
+                .graph_context
+                .context_arena
+                .get_ref()
+                .get_context(context_id)?;
+            let graph = ctx
+                .graph_context
+                .resources
+                .animation_graph_assets
+                .get(context.get_graph_id())?;
+            let cache = graph.nodes.values().find(|node| {
+                node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                    .is_some_and(|cache| saved_cache_key(cache, &node.name) == requested_key)
+            })?;
+            Some((context_id, graph, cache))
+        })?;
+    let scoped_context = GraphContext {
+        context_id,
+        graph,
+        ..ctx.graph_context.clone()
+    }
+    .with_state_key(StateKey::Default);
+    scoped_context
+        .node_states()
+        .get::<AnimationContextState>(cache.id, StateKey::Default)
+        .ok()
+        .cloned()
+}
+
+#[derive(Reflect, Clone, Debug, Default, PartialEq)]
+#[reflect(Default)]
+pub struct SourceContextDefault {
+    pub curve: String,
+    pub value: f32,
+}
+
+fn merge_context_defaults(state: &mut AnimationContextState, defaults: &[SourceContextDefault]) {
+    for default in defaults {
+        if !default.curve.is_empty() {
+            state
+                .curves
+                .entry(default.curve.clone())
+                .or_insert(default.value);
+        }
     }
 }
 
@@ -146,6 +225,9 @@ impl NodeLike for SourceCachedPoseSaveNode {
         let pose = ctx.data_back("Pose")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(CACHED_POSE_VALUE, pose);
+        if let Some(context) = pose_input_context_state(&ctx, "Pose") {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        }
         Ok(())
     }
 
@@ -172,6 +254,7 @@ pub struct SourceCachedPoseUseNode {
 pub struct SourceScopedCachedPoseUseNode {
     pub cache_node: String,
     pub cache_key: String,
+    pub context_defaults: Vec<SourceContextDefault>,
 }
 
 impl NodeLike for SourceScopedCachedPoseUseNode {
@@ -179,6 +262,12 @@ impl NodeLike for SourceScopedCachedPoseUseNode {
         let pose = resolve_scoped_cached_pose(&mut ctx, &self.cache_node, &self.cache_key)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
+        let mut context = scoped_cached_context_state(&ctx, &self.cache_node, &self.cache_key)
+            .unwrap_or_default();
+        merge_context_defaults(&mut context, &self.context_defaults);
+        if !context.curves.is_empty() {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        }
         Ok(())
     }
 
@@ -197,6 +286,9 @@ impl NodeLike for SourceCachedPoseUseNode {
         let pose = resolve_cached_pose(&mut ctx, &self.cache_node)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
+        if let Some(context) = cached_context_state(&ctx, &self.cache_node) {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        }
         Ok(())
     }
 
@@ -250,5 +342,26 @@ mod tests {
             ),
             "Save cached pose 'Movement'"
         );
+    }
+
+    #[test]
+    fn context_defaults_fill_missing_curves_without_overwriting_cached_curves() {
+        let mut state = AnimationContextState::default();
+        state.curves.insert("PoseStanding".to_owned(), 1.0);
+        merge_context_defaults(
+            &mut state,
+            &[
+                SourceContextDefault {
+                    curve: "PoseCrouching".to_owned(),
+                    value: 0.0,
+                },
+                SourceContextDefault {
+                    curve: "PoseStanding".to_owned(),
+                    value: 0.0,
+                },
+            ],
+        );
+        assert_eq!(state.curves.get("PoseCrouching"), Some(&0.0));
+        assert_eq!(state.curves.get("PoseStanding"), Some(&1.0));
     }
 }

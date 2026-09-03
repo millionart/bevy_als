@@ -990,10 +990,36 @@ def primary_failure_issues(report):
             value = candidate.get(key)
             if value is not None and (not isinstance(value, str) or not value):
                 issues.append(f"primary failure candidate field is invalid: {key}")
+        context_curves = candidate.get("context_curves")
+        if not isinstance(context_curves, dict) or not all(
+            isinstance(name, str) and name and finite(value)
+            for name, value in context_curves.items()
+        ):
+            issues.append("primary failure candidate context_curves is invalid")
         if not isinstance(candidate.get("active_context"), bool):
             issues.append("primary failure candidate active_context is invalid")
         elif candidate["active_context"]:
             active_candidates.append(candidate)
+    context_nodes = failure.get("active_context_nodes")
+    if not isinstance(context_nodes, list):
+        issues.append("primary failure active_context_nodes is invalid")
+        context_nodes = []
+    for context_node in context_nodes:
+        if not isinstance(context_node, dict):
+            issues.append("primary failure context node is invalid")
+            continue
+        for key in ("graph_context", "node_id", "node_name", "node_kind"):
+            if not isinstance(context_node.get(key), str) or not context_node.get(key):
+                issues.append(f"primary failure context node field is invalid: {key}")
+        graph_path = context_node.get("graph_path")
+        if graph_path is not None and (not isinstance(graph_path, str) or not graph_path):
+            issues.append("primary failure context node graph_path is invalid")
+        context_curves = context_node.get("context_curves")
+        if not isinstance(context_curves, dict) or not all(
+            isinstance(name, str) and name and finite(value)
+            for name, value in context_curves.items()
+        ):
+            issues.append("primary failure context node curves are invalid")
     active_count = failure.get("active_node_candidate_count")
     if not isinstance(active_count, int) or active_count < 0:
         issues.append("primary failure active candidate count is invalid")
@@ -1051,6 +1077,19 @@ def primary_failure_issues(report):
     summary = f"primary graph failure: {failure.get('error_kind', 'unknown')}; {failure.get('raw_error', 'unknown')}"
     if candidate_locations:
         summary += "; active candidates=" + ", ".join(candidate_locations)
+    context_names = sorted(
+        {
+            name
+            for candidate in active_candidates
+            for name in candidate.get("context_curves", {})
+        }
+    )
+    if context_names:
+        summary += "; active context curves=" + ", ".join(context_names)
+    if context_nodes:
+        summary += "; context nodes=" + ", ".join(
+            sorted(context_node.get("node_name", "") for context_node in context_nodes)
+        )
     if resolution == "ambiguous_active_context":
         summary += "; active candidate resolution is ambiguous"
     return issues, {
@@ -1059,6 +1098,7 @@ def primary_failure_issues(report):
         "candidate_resolution": resolution,
         "pose_classification": failure.get("pose_classification"),
         "reported_before_ready": failure.get("reported_before_ready"),
+        "active_context_node_count": len(context_nodes),
     }
 
 
@@ -1417,8 +1457,10 @@ def fixture_graph_failure():
                 "node_name": "fixture runtime",
                 "node_kind": "Interruptible FSM",
                 "active_context": True,
+                "context_curves": {"PoseStanding": 1.0, "PoseCrouching": 0.0},
             }
         ],
+        "active_context_nodes": [],
         "active_node_candidate_count": 1,
         "candidate_resolution": "resolved_active_context",
         "root_graph_path": "graphs/fixture/root.animgraph.ron",
@@ -1627,6 +1669,10 @@ def run_self_test():
         assert not result["pass"]
         assert result["primary_failure"]["error_kind"] == "missing_edge_to_source"
         assert "fixture runtime" in result["primary_failure"]["summary"]
+        report["primary_failure"].pop("active_context_nodes")
+        result = audit(report, 2)
+        assert any("active_context_nodes" in issue for issue in result["issues"])
+        report["primary_failure"] = fixture_graph_failure()
         report["primary_failure"] = None
         result = audit(report, 2)
         assert any("graph failure diagnostics are missing" in issue for issue in result["issues"])
@@ -1640,6 +1686,7 @@ def run_self_test():
                 "node_name": "alternate runtime",
                 "node_kind": "Interruptible FSM",
                 "active_context": True,
+                "context_curves": {},
             }
         )
         report["primary_failure"]["active_node_candidate_count"] = 2
@@ -2053,6 +2100,7 @@ def run_self_test():
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
         "structured_graph_failure_reported": "PASS",
+        "graph_failure_context_diagnostic_required": "PASS",
         "missing_graph_failure_diagnostic_rejected": "PASS",
         "ambiguous_graph_candidate_preserved": "PASS",
         "a_pose_failure_classification_rejected": "PASS",

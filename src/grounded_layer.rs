@@ -1,7 +1,9 @@
 use als_core::character::AlsCharacter;
 use als_core::roll::{AlsRollState, ROLL_PLAY_RATE};
 use als_core::state::Stance;
-use als_ext::{AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState};
+use als_ext::{
+    AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState, LayeredGraphNode,
+};
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -28,6 +30,7 @@ const ROLL_CURVES: &str = "animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
 const STANCE_CHANGE_CURVE: &str =
     "curves/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.curve.ron";
 const GROUNDED_GRAPH: &str = "graphs/ab_als/grounded.animgraph.ron";
+const GROUNDED_INTERNAL_TIME_KEY: &str = "als_grounded_delta_seconds";
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AlsGroundedEntryMode {
@@ -115,26 +118,26 @@ enum GroundedTransition {
 impl GroundedTransition {
     fn index(self) -> f32 {
         match self {
-            Self::EntryToRoll => 0.0,
-            Self::EntryToCrouching => 1.0,
-            Self::EntryToStanding => 2.0,
-            Self::EntryFallbackToStanding => 3.0,
-            Self::StandingToCrouching => 4.0,
-            Self::StandingToStandingToCrouching => 5.0,
-            Self::CrouchingToStanding => 6.0,
-            Self::CrouchingToCrouchingToStanding => 7.0,
-            Self::StandingToCrouchingAutomatic => 8.0,
-            Self::StandingToCrouchingToStanding => 9.0,
-            Self::StandingToCrouchingToCrouching => 10.0,
-            Self::StandingToCrouchingToCrouchingToStanding => 11.0,
-            Self::StandingToCrouchingSelf => 12.0,
-            Self::CrouchingToStandingAutomatic => 13.0,
-            Self::CrouchingToStandingToStanding => 14.0,
-            Self::CrouchingToStandingToCrouching => 15.0,
-            Self::CrouchingToStandingSelf => 16.0,
-            Self::CrouchingToStandingToStandingToCrouching => 17.0,
-            Self::RollToCrouching => 18.0,
-            Self::RollToStanding => 19.0,
+            Self::EntryToRoll => 9.0,
+            Self::EntryToCrouching => 10.0,
+            Self::EntryToStanding => 8.0,
+            Self::EntryFallbackToStanding => 11.0,
+            Self::StandingToCrouching => 6.0,
+            Self::StandingToStandingToCrouching => 7.0,
+            Self::CrouchingToStanding => 4.0,
+            Self::CrouchingToCrouchingToStanding => 5.0,
+            Self::StandingToCrouchingAutomatic => 0.0,
+            Self::StandingToCrouchingToStanding => 4.0,
+            Self::StandingToCrouchingToCrouching => 6.0,
+            Self::StandingToCrouchingToCrouchingToStanding => 5.0,
+            Self::StandingToCrouchingSelf => 7.0,
+            Self::CrouchingToStandingAutomatic => 1.0,
+            Self::CrouchingToStandingToStanding => 4.0,
+            Self::CrouchingToStandingToCrouching => 6.0,
+            Self::CrouchingToStandingSelf => 5.0,
+            Self::CrouchingToStandingToStandingToCrouching => 7.0,
+            Self::RollToCrouching => 3.0,
+            Self::RollToStanding => 2.0,
         }
     }
 
@@ -480,6 +483,7 @@ fn write_globals(
     request: Option<GroundedTransition>,
     values: GroundedCurves,
     stance_alpha: f32,
+    delta_seconds: f32,
 ) {
     for (key, value) in [
         (
@@ -513,6 +517,8 @@ fn write_globals(
             "als_grounded_curve_RotationYawSpeed",
             values.rotation_yaw_speed,
         ),
+        ("als_grounded_roll_explicit_frame", 45.0),
+        (GROUNDED_INTERNAL_TIME_KEY, delta_seconds.max(0.0)),
         ("als_grounded_curve_PoseGroundedInput", 0.0),
         ("als_grounded_curve_FootLeftIkInput", 0.0),
         ("als_grounded_curve_FootRightIkInput", 0.0),
@@ -596,7 +602,14 @@ fn grounded_layer_writer(
         }
         let values = transition_curves(runtime, &animation_curves, &handles, roll_clip_time);
         let stance_alpha = current_transition_alpha(runtime, &curves, &handles);
-        write_globals(&mut player, runtime, request, values, stance_alpha);
+        write_globals(
+            &mut player,
+            runtime,
+            request,
+            values,
+            stance_alpha,
+            time.delta_secs(),
+        );
         if let Some(mut current_runtime) = current_runtime {
             *current_runtime = runtime;
         } else {
@@ -621,23 +634,36 @@ fn actual_grounded_fsm_telemetry(
     player: &AnimationGraphPlayer,
     graph: &AnimationGraph,
     graph_handle: &Handle<AnimationGraph>,
+    graph_assets: &Assets<AnimationGraph>,
     state_machines: &Assets<StateMachine>,
 ) -> Option<(Option<u8>, bool, bool)> {
     let node = graph
         .nodes
         .values()
         .find(|node| node.name == "Grounded States")?;
-    let fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
-    let machine = state_machines.get(&fsm.fsm)?;
+    let (fsm_handle, fsm_node, fsm_graph) =
+        if let Some(fsm) = node.try_inner_downcast_ref::<InterruptibleFsmNode>() {
+            (fsm.fsm.clone(), node.id, graph_handle.id())
+        } else {
+            let layered = node.try_inner_downcast_ref::<LayeredGraphNode>()?;
+            let runtime_graph = graph_assets.get(&layered.graph)?;
+            let runtime_node = runtime_graph.nodes.values().find(|node| {
+                node.try_inner_downcast_ref::<InterruptibleFsmNode>()
+                    .is_some()
+            })?;
+            let fsm = runtime_node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
+            (fsm.fsm.clone(), runtime_node.id, layered.graph.id())
+        };
+    let machine = state_machines.get(&fsm_handle)?;
     let arena = player.get_context_arena()?;
     arena.iter_context_ids().find_map(|context_id| {
         let context = arena.get_context(context_id)?;
-        if context.get_graph_id() != graph_handle.id() {
+        if context.get_graph_id() != fsm_graph {
             return None;
         }
         let state = context
             .node_states
-            .get::<InterruptibleFsmState>(node.id, StateKey::Default)
+            .get::<InterruptibleFsmState>(fsm_node, StateKey::Default)
             .ok()?;
         let actual_state = match &state.state {
             LowLevelStateId::HlState(state) => machine
@@ -668,7 +694,13 @@ fn capture_grounded_graph_telemetry(
             continue;
         };
         let actual = graph_assets.get(&handles.graph).and_then(|graph| {
-            actual_grounded_fsm_telemetry(player, graph, &handles.graph, &state_machines)
+            actual_grounded_fsm_telemetry(
+                player,
+                graph,
+                &handles.graph,
+                &graph_assets,
+                &state_machines,
+            )
         });
         let telemetry = AlsGroundedGraphTelemetry {
             actual_state: actual.and_then(|value| value.0),
@@ -791,5 +823,72 @@ mod tests {
         assert_eq!(grounded_state_index("Crouching To Standing"), Some(4));
         assert_eq!(grounded_state_index("Roll"), Some(5));
         assert_eq!(grounded_state_index("Unknown"), None);
+    }
+
+    #[test]
+    fn grounded_runtime_fsm_has_a_writer_backed_internal_time_contract() {
+        let runtime =
+            include_str!("../assets/graphs/ab_als/grounded/grounded_runtime.animgraph.ron");
+        assert!(runtime.contains(&format!(
+            "internal_time_key: \"{GROUNDED_INTERNAL_TIME_KEY}\""
+        )));
+        let mut player = AnimationGraphPlayer::default();
+        write_globals(
+            &mut player,
+            GroundedLayerRuntime::default(),
+            None,
+            GroundedCurves::default(),
+            0.0,
+            1.0 / 60.0,
+        );
+        assert_eq!(
+            player
+                .get_global_input_data(GROUNDED_INTERNAL_TIME_KEY)
+                .and_then(|value| value.as_f32().ok()),
+            Some(1.0 / 60.0)
+        );
+    }
+
+    #[test]
+    fn grounded_cached_state_proxies_supply_the_opposite_stance_curve_default() {
+        for (graph, curve) in [
+            (
+                include_str!(
+                    "../assets/graphs/ab_als/grounded/state_entry_conduit_runtime.animgraph.ron"
+                ),
+                "PoseCrouching",
+            ),
+            (
+                include_str!(
+                    "../assets/graphs/ab_als/grounded/state_alias_standing_runtime.animgraph.ron"
+                ),
+                "PoseCrouching",
+            ),
+            (
+                include_str!("../assets/graphs/ab_als/grounded/state_standing.animgraph.ron"),
+                "PoseCrouching",
+            ),
+            (
+                include_str!(
+                    "../assets/graphs/ab_als/grounded/state_alias_crouching_runtime.animgraph.ron"
+                ),
+                "PoseStanding",
+            ),
+            (
+                include_str!("../assets/graphs/ab_als/grounded/state_crouching.animgraph.ron"),
+                "PoseStanding",
+            ),
+        ] {
+            assert!(graph.contains(&format!(
+                "context_defaults: [(curve: \"{curve}\", value: 0.0)]"
+            )));
+        }
+    }
+
+    #[test]
+    fn grounded_inertialization_defaults_curves_before_the_visible_modifier() {
+        let graph = include_str!("../assets/graphs/ab_als/grounded.animgraph.ron");
+        assert!(graph.contains("missing_curve_value: Some(0.0)"));
+        assert!(graph.contains("pin_defaults: [1.0, 1.0, 1.0]"));
     }
 }

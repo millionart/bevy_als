@@ -1,21 +1,15 @@
 (
     nodes: [
-        (id: "17070000-0000-4000-8000-000000000001", name: "roll clip", inner: { "bevy_animation_graph::builtin_nodes::ClipNode": (clip: "animations/Actions/Roll/A_Als_Roll.anim.ron", override_duration: None, override_interpolation: None) }, should_debug: false),
-        (id: "17070000-0000-4000-8000-000000000002", name: "roll explicit frame forty five", inner: { "als_ext::ConstantF32Node": (value: 1.5) }, should_debug: false),
-        (id: "17070000-0000-4000-8000-000000000003", name: "roll evaluator", inner: { "als_ext::TimePositionNode": (duration_fallback: 1.5, loop_position: false) }, should_debug: false),
-        (id: "17070000-0000-4000-8000-000000000004", name: "roll curves", inner: { "als_ext::LayeredGraphNode": (graph: "graphs/ab_als/grounded/state_transition_curves.animgraph.ron") }, should_debug: false),
+        (id: "17070000-0000-4000-8000-000000000001", name: "A_Als_Roll\nSequence Evaluator (by frame)", inner: { "als_ext::LayeredGraphNode": (graph: "graphs/ab_als/grounded/state_roll_runtime.animgraph.ron", global_input_pins: [(pin: "Explicit Frame", key: "als_grounded_roll_explicit_frame", default_value: 45.0)], output_aliases: [(child_output: "pose", outer_output: "Pose")], capture_context: true, expose_context_curves: false, hide_context_auxiliary_outputs: true, internalize_time: true) }, should_debug: false),
+        (id: "17070000-0000-4000-8000-000000000002", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (curve_names: ["FootLeftLock", "FootRightLock"], value: 0.0, pin_default: 1.0, pin_defaults: [1.0, 1.0], alpha: 1.0, apply_mode: "Blend") }, should_debug: false),
+        (id: "17070000-0000-4000-8000-000000000003", name: "ResetGroundedEntryMode\nOn Become Relevant", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "ResetGroundedEntryMode", call_site: "On Become Relevant") }, should_debug: false),
     ],
     edges_inverted: {
-        NodeData("17070000-0000-4000-8000-000000000003", "position"): NodeData("17070000-0000-4000-8000-000000000002", "value"), NodeData("17070000-0000-4000-8000-000000000003", "pose"): NodeData("17070000-0000-4000-8000-000000000001", "pose"), NodeData("17070000-0000-4000-8000-000000000003", "events"): NodeData("17070000-0000-4000-8000-000000000001", "events"), NodeTime("17070000-0000-4000-8000-000000000003", "time"): NodeTime("17070000-0000-4000-8000-000000000001"),
-        OutputData("pose"): NodeData("17070000-0000-4000-8000-000000000003", "pose"), OutputData("events"): NodeData("17070000-0000-4000-8000-000000000003", "events"), OutputTime: NodeTime("17070000-0000-4000-8000-000000000003"),
-        OutputData("PoseStanding"): NodeData("17070000-0000-4000-8000-000000000004", "PoseStanding"), OutputData("PoseCrouching"): NodeData("17070000-0000-4000-8000-000000000004", "PoseCrouching"), OutputData("PoseMoving"): NodeData("17070000-0000-4000-8000-000000000004", "PoseMoving"), OutputData("RotationYawOffset"): NodeData("17070000-0000-4000-8000-000000000004", "RotationYawOffset"), OutputData("FootLeftLock"): NodeData("17070000-0000-4000-8000-000000000004", "FootLeftLock"), OutputData("FootRightLock"): NodeData("17070000-0000-4000-8000-000000000004", "FootRightLock"), OutputData("AllowTransitions"): NodeData("17070000-0000-4000-8000-000000000004", "AllowTransitions"), OutputData("RotationYawSpeed"): NodeData("17070000-0000-4000-8000-000000000004", "RotationYawSpeed"),
+        NodeData("17070000-0000-4000-8000-000000000002", "Source Pose"): NodeData("17070000-0000-4000-8000-000000000001", "Pose"),
+        NodeData("17070000-0000-4000-8000-000000000003", "Source"): NodeData("17070000-0000-4000-8000-000000000002", "Pose"),
+        OutputData("Result"): NodeData("17070000-0000-4000-8000-000000000003", "Pose"),
     },
-    io_spec: (input_times: [], input_data: {}, output_time: true, output_data: { "pose": Pose, "events": EventQueue, "PoseStanding": F32, "PoseCrouching": F32, "PoseMoving": F32, "RotationYawOffset": F32, "FootLeftLock": F32, "FootRightLock": F32, "AllowTransitions": F32, "RotationYawSpeed": F32 }, input_order: {}, output_order: { Data("pose"): 0, Data("events"): 1, Data("PoseStanding"): 2, Data("PoseCrouching"): 3, Data("PoseMoving"): 4, Data("RotationYawOffset"): 5, Data("FootLeftLock"): 6, Data("FootRightLock"): 7, Data("AllowTransitions"): 8, Data("RotationYawSpeed"): 9, Time: 10 }),
+    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Result": Pose }, input_order: {}, output_order: { Data("Result"): 0 }),
     default_data: {},
-    editor_metadata: (node_positions: {
-        "17070000-0000-4000-8000-000000000001": (-816.000, -16.000),
-        "17070000-0000-4000-8000-000000000002": (-1072.000, 80.000),
-        "17070000-0000-4000-8000-000000000004": (-528.000, 0.000),
-        "17070000-0000-4000-8000-000000000003": (-1072.000, -16.000),
-    }, input_position: (0.0, 0.0), output_position: (320.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: { "17070000-0000-4000-8000-000000000001": (-816.0, -16.0), "17070000-0000-4000-8000-000000000002": (-528.0, 0.0), "17070000-0000-4000-8000-000000000003": (-256.0, -16.0) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

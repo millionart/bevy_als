@@ -6,6 +6,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::animation_context::{AnimationContextState, pose_input_context_state};
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -46,6 +48,9 @@ impl NodeLike for SourcePosePassthroughNode {
         let pose = ctx.data_back(self.input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
+        if let Some(context) = pose_input_context_state(&ctx, &self.input) {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        }
         if self.output_time {
             let time_update = ctx.time_update_fwd()?;
             ctx.set_time_update_back(self.input_time.clone(), time_update);

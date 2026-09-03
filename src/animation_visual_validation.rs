@@ -8,7 +8,7 @@ use std::{
 
 use als_camera::AlsCameraSet;
 use als_core::character::AlsCharacter;
-use als_ext::player_animation_context_state;
+use als_ext::{AnimationContextState, InterruptibleFsmState, player_animation_context_state};
 use avian3d::prelude::PhysicsSystems;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
@@ -277,6 +277,17 @@ struct GraphFailureNodeCandidate {
     node_name: String,
     node_kind: String,
     active_context: bool,
+    context_curves: BTreeMap<String, f32>,
+}
+
+#[derive(Serialize, Clone)]
+struct GraphFailureContextNode {
+    graph_path: Option<String>,
+    graph_context: String,
+    node_id: String,
+    node_name: String,
+    node_kind: String,
+    context_curves: BTreeMap<String, f32>,
 }
 
 #[derive(Serialize, Clone)]
@@ -286,6 +297,7 @@ struct GraphEvaluationFailure {
     error_kind: String,
     pin: Option<GraphFailurePin>,
     node_candidates: Vec<GraphFailureNodeCandidate>,
+    active_context_nodes: Vec<GraphFailureContextNode>,
     active_node_candidate_count: usize,
     candidate_resolution: String,
     root_graph_path: Option<String>,
@@ -678,6 +690,10 @@ impl Plugin for AnimationVisualValidationPlugin {
                     .after(AlsControlRigPropagationSet)
                     .after(AlsCameraSet)
                     .after(ManualIntegrationObservationSet),
+            )
+            .add_systems(
+                PostUpdate,
+                finish_fatal_animation_visual_failure.after(collect_animation_visual_evidence),
             )
             .add_systems(
                 PostUpdate,
@@ -1338,6 +1354,7 @@ fn add_graph_failure_node_candidate(
     node_id: NodeId,
     graph_context: Option<String>,
     active_context: bool,
+    context_curves: BTreeMap<String, f32>,
 ) {
     let Some(node) = graph.nodes.get(&node_id) else {
         return;
@@ -1349,6 +1366,9 @@ fn add_graph_failure_node_candidate(
         existing.active_context |= active_context;
         if existing.graph_context.is_none() {
             existing.graph_context = graph_context;
+        }
+        if existing.context_curves.is_empty() {
+            existing.context_curves = context_curves;
         }
         return;
     }
@@ -1362,6 +1382,7 @@ fn add_graph_failure_node_candidate(
         node_name: node.name.clone(),
         node_kind: node.inner_ref().display_name(),
         active_context,
+        context_curves,
     });
 }
 
@@ -1381,6 +1402,22 @@ fn graph_failure_node_candidates(
             let Some(graph) = graphs.get(graph_id) else {
                 continue;
             };
+            let context_curves = context
+                .node_states
+                .get::<AnimationContextState>(node_id, StateKey::Default)
+                .ok()
+                .map(|state| state.curves.clone())
+                .or_else(|| {
+                    context
+                        .node_states
+                        .get::<InterruptibleFsmState>(node_id, StateKey::Default)
+                        .ok()
+                        .map(|state| state.context.curves.clone())
+                })
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|(_, value)| value.is_finite())
+                .collect();
             add_graph_failure_node_candidate(
                 &mut candidates,
                 asset_server,
@@ -1389,6 +1426,7 @@ fn graph_failure_node_candidates(
                 node_id,
                 Some(format!("{context_id:?}")),
                 true,
+                context_curves,
             );
         }
     }
@@ -1401,6 +1439,7 @@ fn graph_failure_node_candidates(
             node_id,
             None,
             false,
+            BTreeMap::new(),
         );
     }
     candidates.sort_by(|left, right| {
@@ -1411,6 +1450,63 @@ fn graph_failure_node_candidates(
             .then_with(|| left.graph_asset_id.cmp(&right.graph_asset_id))
     });
     candidates
+}
+
+fn graph_failure_context_nodes(
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+) -> Vec<GraphFailureContextNode> {
+    let Some(arena) = player.get_context_arena() else {
+        return Vec::new();
+    };
+    let mut nodes = Vec::new();
+    for context_id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(context_id) else {
+            continue;
+        };
+        let graph_id = context.get_graph_id();
+        let Some(graph) = graphs.get(graph_id) else {
+            continue;
+        };
+        for node in graph.nodes.values() {
+            let context_curves = context
+                .node_states
+                .get::<AnimationContextState>(node.id, StateKey::Default)
+                .ok()
+                .map(|state| state.curves.clone())
+                .or_else(|| {
+                    context
+                        .node_states
+                        .get::<InterruptibleFsmState>(node.id, StateKey::Default)
+                        .ok()
+                        .map(|state| state.context.curves.clone())
+                });
+            let Some(context_curves) = context_curves else {
+                continue;
+            };
+            nodes.push(GraphFailureContextNode {
+                graph_path: asset_server
+                    .get_path(graph_id)
+                    .map(|path| path.path().to_string_lossy().into_owned()),
+                graph_context: format!("{context_id:?}"),
+                node_id: format!("{:?}", node.id),
+                node_name: node.name.clone(),
+                node_kind: node.inner_ref().display_name(),
+                context_curves: context_curves
+                    .into_iter()
+                    .filter(|(_, value)| value.is_finite())
+                    .collect(),
+            });
+        }
+    }
+    nodes.sort_by(|left, right| {
+        left.graph_context
+            .cmp(&right.graph_context)
+            .then_with(|| left.node_name.cmp(&right.node_name))
+    });
+    nodes.truncate(128);
+    nodes
 }
 
 fn graph_error_pose_classification(root_pose: RootPoseActivity) -> String {
@@ -1442,6 +1538,7 @@ fn graph_evaluation_failure(
     let node_candidates = graph_error_node_id(error)
         .map(|node_id| graph_failure_node_candidates(player, asset_server, graphs, node_id))
         .unwrap_or_default();
+    let active_context_nodes = graph_failure_context_nodes(player, asset_server, graphs);
     let active_node_candidate_count = node_candidates
         .iter()
         .filter(|candidate| candidate.active_context)
@@ -1467,6 +1564,7 @@ fn graph_evaluation_failure(
         error_kind: graph_error_kind(error),
         pin: graph_error_pin(error),
         node_candidates,
+        active_context_nodes,
         active_node_candidate_count,
         candidate_resolution,
         root_graph_path,
@@ -2647,9 +2745,28 @@ fn record_graph_evaluation_failure(
     write_report(config, state, stages);
 }
 
+fn finish_fatal_animation_visual_failure(
+    config: Res<AnimationVisualValidationConfig>,
+    mut state: ResMut<AnimationVisualValidationState>,
+    stages: Res<AnimationVisualStageTiming>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let Some(remaining) = state.fatal_exit_frames_remaining else {
+        return;
+    };
+    let exiting = remaining <= 1;
+    refresh_graph_failure_screenshot_status(&mut state, exiting);
+    write_report(&config, &state, &stages);
+    if exiting {
+        state.fatal_exit_frames_remaining = None;
+        exit.write(AppExit::Error(NonZeroU8::new(92).unwrap()));
+    } else {
+        state.fatal_exit_frames_remaining = Some(remaining - 1);
+    }
+}
+
 fn collect_animation_visual_evidence(
     mut commands: Commands,
-    mut exit: MessageWriter<AppExit>,
     config: Res<AnimationVisualValidationConfig>,
     mut state: ResMut<AnimationVisualValidationState>,
     mut stages: ResMut<AnimationVisualStageTiming>,
@@ -2679,16 +2796,7 @@ fn collect_animation_visual_evidence(
     let Ok((player, context)) = players.get(instance.player_entity()) else {
         return;
     };
-    if let Some(remaining) = state.fatal_exit_frames_remaining {
-        let exiting = remaining <= 1;
-        refresh_graph_failure_screenshot_status(&mut state, exiting);
-        write_report(&config, &state, &stages);
-        if exiting {
-            state.fatal_exit_frames_remaining = None;
-            exit.write(AppExit::Error(NonZeroU8::new(92).unwrap()));
-        } else {
-            state.fatal_exit_frames_remaining = Some(remaining - 1);
-        }
+    if state.fatal_exit_frames_remaining.is_some() {
         return;
     }
     let graph_asset = match player.get_animation_source() {
@@ -3183,7 +3291,7 @@ mod tests {
     fn visual_evidence_format_is_loaded_from_the_shared_contract() {
         assert_eq!(
             animation_visual_evidence_format(),
-            "als_animation_visual_evidence_v18"
+            "als_animation_visual_evidence_v20"
         );
     }
 

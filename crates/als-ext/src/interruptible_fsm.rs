@@ -25,6 +25,10 @@ use bevy_animation_graph::core::{
     },
 };
 
+use crate::animation_context::{
+    AnimationContextState, capture_context_curve, graph_output_context_state,
+    merge_missing_context_curves,
+};
 use crate::global_f32_input::global_f32_or_root_default;
 use crate::state_label_event::state_label_index;
 
@@ -41,11 +45,19 @@ pub struct StatePoseOutput {
     pub output: String,
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct StateAliasBinding {
+    pub state_id: String,
+    pub member_state_ids: Vec<String>,
+}
+
 #[derive(Reflect, Clone, Debug)]
 pub struct InterruptibleFsmState {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
+    pub context: AnimationContextState,
     source_pose: Option<Pose>,
     last_pose: Option<Pose>,
     label_last_index: Option<usize>,
@@ -84,6 +96,7 @@ pub struct InterruptibleFsmNode {
     pub telemetry_transitions: Vec<DirectTransitionId>,
     pub state_pose_output: String,
     pub state_pose_outputs: Vec<StatePoseOutput>,
+    pub state_aliases: Vec<StateAliasBinding>,
     pub outer_pose_output: String,
     pub state_label_key: String,
     pub state_labels: Vec<String>,
@@ -101,6 +114,7 @@ impl Default for InterruptibleFsmNode {
             telemetry_transitions: default(),
             state_pose_output: Self::OUT_POSE.to_owned(),
             state_pose_outputs: default(),
+            state_aliases: default(),
             outer_pose_output: Self::OUT_POSE.to_owned(),
             state_label_key: default(),
             state_labels: default(),
@@ -127,6 +141,7 @@ impl InterruptibleFsmNode {
             telemetry_transitions: Vec::new(),
             state_pose_output: Self::OUT_POSE.to_owned(),
             state_pose_outputs: Vec::new(),
+            state_aliases: Vec::new(),
             outer_pose_output: Self::OUT_POSE.to_owned(),
             state_label_key: String::new(),
             state_labels: Vec::new(),
@@ -226,7 +241,36 @@ impl InterruptibleFsmNode {
                 .is_some_and(|target| target == transition.hl_source)
     }
 
+    fn alias_matches(
+        &self,
+        machine: &LowLevelStateMachine,
+        state: &InterruptibleFsmState,
+        transition: &LowLevelTransition,
+    ) -> bool {
+        let LowLevelStateId::HlState(alias_state) = transition.source else {
+            return false;
+        };
+        let Some(alias) = self
+            .state_aliases
+            .iter()
+            .find(|alias| alias.state_id == alias_state.uuid().to_string())
+        else {
+            return false;
+        };
+        let current = match state.state {
+            LowLevelStateId::HlState(current) => Some(current),
+            LowLevelStateId::HlTransition(_) => Self::active_target(machine, &state.state),
+        };
+        current.is_some_and(|current| {
+            alias
+                .member_state_ids
+                .iter()
+                .any(|member| member == &current.uuid().to_string())
+        })
+    }
+
     fn direct_transition<'a>(
+        &self,
         machine: &'a LowLevelStateMachine,
         state: &InterruptibleFsmState,
         transition_id: TransitionId,
@@ -240,7 +284,9 @@ impl InterruptibleFsmNode {
                     .get(&LowLevelTransitionId::Immediate(transition_id))
             })
             .filter(|transition| {
-                state.state == transition.source || Self::can_interrupt(machine, state, transition)
+                state.state == transition.source
+                    || Self::can_interrupt(machine, state, transition)
+                    || self.alias_matches(machine, state, transition)
             })
     }
 
@@ -324,6 +370,7 @@ impl InterruptibleFsmNode {
                 state: start_state,
                 state_entered_time: time,
                 interrupted_sources: Vec::new(),
+                context: AnimationContextState::default(),
                 source_pose: None,
                 last_pose: None,
                 label_last_index: None,
@@ -360,7 +407,7 @@ impl InterruptibleFsmNode {
                         }
                     }
                     AnimationEvent::Transition(transition_id) => {
-                        Self::direct_transition(machine, state, transition_id)
+                        self.direct_transition(machine, state, transition_id)
                     }
                     AnimationEvent::EndTransition => machine
                         .states
@@ -460,6 +507,8 @@ impl InterruptibleFsmNode {
             .with_io(&io);
         let mut internal_events = EventQueue::default();
         let mut latest_pose = None;
+        let mut pose_output = None;
+        let mut context_state = AnimationContextState::default();
         for (id, _) in graph.io_spec.iter_output_data() {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
             if id == LowLevelStateMachine::DRIVER_EVENT_QUEUE {
@@ -469,8 +518,10 @@ impl InterruptibleFsmNode {
                 if outer_output == self.outer_pose_output {
                     if let DataValue::Pose(pose) = &value {
                         latest_pose = Some(pose.clone());
+                        pose_output = Some(id.clone());
                     }
                 }
+                capture_context_curve(&mut context_state, id, &value)?;
                 ctx.set_data_fwd(outer_output, value);
             }
         }
@@ -485,6 +536,13 @@ impl InterruptibleFsmNode {
             let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
             ctx.state_mut_or_else(|| snapshot)?.last_pose = Some(pose);
         }
+        if let Some(output) = pose_output
+            && let Some(context) = graph_output_context_state(graph, &sub_ctx, &output)
+        {
+            merge_missing_context_curves(&mut context_state, &context);
+        }
+        let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
+        ctx.state_mut_or_else(|| snapshot)?.context = context_state;
         if machine
             .states
             .get(&state.state)
@@ -520,6 +578,7 @@ impl NodeLike for InterruptibleFsmNode {
             state: start_state,
             state_entered_time: time,
             interrupted_sources: Vec::new(),
+            context: AnimationContextState::default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -736,10 +795,22 @@ impl<'a> InterruptibleFsmIo<'a> {
             .ok_or(GraphError::FSMGraphAssetMissing)?;
         let sub_ctx = self
             .node_context
-            .create_child_context(graph_handle.id(), graph, Some(state))
+            .create_child_context(graph_handle.id(), graph, Some(state.clone()))
             .with_state_key(ctx.state_key)
             .with_io(&io);
-        graph.get_data(TargetPin::OutputData(pin), sub_ctx)
+        let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
+        let Err(error) = result else {
+            return result;
+        };
+        let pose_output = self.state_pose_output_for(&state).to_owned();
+        if pin == pose_output {
+            return Err(error);
+        }
+        graph.get_data(TargetPin::OutputData(pose_output.clone()), sub_ctx.clone())?;
+        graph_output_context_state(graph, &sub_ctx, &pose_output)
+            .and_then(|context| context.curves.get(&pin).copied())
+            .map(DataValue::F32)
+            .ok_or(error)
     }
 
     fn state_duration(
@@ -761,7 +832,9 @@ impl<'a> InterruptibleFsmIo<'a> {
             .create_child_context(graph_handle.id(), graph, Some(state))
             .with_state_key(ctx.state_key)
             .with_io(&io);
-        graph.get_duration(TargetPin::OutputTime, sub_ctx)
+        graph
+            .get_duration(TargetPin::OutputTime, sub_ctx)
+            .or(Ok(None))
     }
 
     fn parent_time(&self, _ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
@@ -904,16 +977,57 @@ mod tests {
             state,
             state_entered_time: 0.0,
             interrupted_sources: Vec::new(),
+            context: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
         };
 
-        let selected = InterruptibleFsmNode::direct_transition(&machine, &runtime, transition_id);
+        let selected =
+            InterruptibleFsmNode::default().direct_transition(&machine, &runtime, transition_id);
 
         assert!(selected.is_some_and(|transition| {
             transition.id == LowLevelTransitionId::Immediate(transition_id)
         }));
+    }
+
+    #[test]
+    fn alias_direct_edge_uses_the_active_member_state() {
+        let alias = StateId::default();
+        let member = StateId::default();
+        let target = StateId::default();
+        let transition_id = TransitionId::Direct(default());
+        let mut machine = LowLevelStateMachine::new();
+        machine.add_transition(LowLevelTransition {
+            id: LowLevelTransitionId::Immediate(transition_id),
+            ignore_external: false,
+            reset_target_state: false,
+            source: LowLevelStateId::HlState(alias),
+            target: LowLevelStateId::HlState(target),
+            transition_type: LowLevelTransitionType::Direct,
+            hl_source: alias,
+            hl_target: target,
+        });
+        let runtime = InterruptibleFsmState {
+            state: LowLevelStateId::HlState(member),
+            state_entered_time: 0.0,
+            interrupted_sources: Vec::new(),
+            context: default(),
+            source_pose: None,
+            last_pose: None,
+            label_last_index: None,
+        };
+        let node = InterruptibleFsmNode {
+            state_aliases: vec![StateAliasBinding {
+                state_id: alias.uuid().to_string(),
+                member_state_ids: vec![member.uuid().to_string()],
+            }],
+            ..default()
+        };
+        assert!(
+            node.direct_transition(&machine, &runtime, transition_id)
+                .is_some()
+        );
     }
 
     #[test]
@@ -937,6 +1051,7 @@ mod tests {
             state: source,
             state_entered_time: 0.0,
             interrupted_sources: Vec::new(),
+            context: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -944,8 +1059,9 @@ mod tests {
         let mut previous = None;
         let mut deliveries = 0;
         if take_direct_transition_edge(&mut previous, 0.0, 1).is_some() {
-            let transition =
-                InterruptibleFsmNode::direct_transition(&machine, &runtime, transition_id).unwrap();
+            let transition = InterruptibleFsmNode::default()
+                .direct_transition(&machine, &runtime, transition_id)
+                .unwrap();
             InterruptibleFsmNode::activate_transition(&mut runtime, transition, 0.25);
             deliveries += 1;
         }
@@ -1092,6 +1208,7 @@ mod tests {
             state: active_state.clone(),
             state_entered_time: 1.0,
             interrupted_sources: Vec::new(),
+            context: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,

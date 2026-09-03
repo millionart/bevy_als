@@ -12,6 +12,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::interruptible_fsm::InterruptibleFsmState;
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
 pub struct AnimationContextInput {
@@ -157,6 +159,60 @@ pub fn source_node_for_pose_input(
     }
 }
 
+pub fn pose_input_context_state(
+    ctx: &NodeContext,
+    pose_input: &str,
+) -> Option<AnimationContextState> {
+    let source_node = source_node_for_pose_input(ctx, pose_input).ok()?;
+    node_context_state(&ctx.graph_context, source_node)
+}
+
+fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationContextState> {
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<AnimationContextState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.clone());
+    }
+    ctx.node_states()
+        .get::<InterruptibleFsmState>(node, ctx.state_key)
+        .ok()
+        .map(|state| state.context.clone())
+}
+
+pub fn graph_output_context_state(
+    graph: &AnimationGraph,
+    ctx: &GraphContext,
+    output: &str,
+) -> Option<AnimationContextState> {
+    let source = graph
+        .edges_inverted
+        .get(&TargetPin::OutputData(output.to_owned()))?;
+    let SourcePin::NodeData(node, _) = source else {
+        return None;
+    };
+    node_context_state(ctx, node.clone())
+}
+
+pub fn merge_missing_context_curves(
+    target: &mut AnimationContextState,
+    source: &AnimationContextState,
+) {
+    for (name, value) in &source.curves {
+        target.curves.entry(name.clone()).or_insert(*value);
+    }
+}
+
+pub fn select_context_pose_output(
+    pose_output: &mut Option<String>,
+    output_name: &str,
+    data_spec: &DataSpec,
+) {
+    if *data_spec == DataSpec::Pose && pose_output.is_none() {
+        *pose_output = Some(output_name.to_owned());
+    }
+}
+
 fn source_curve_value(
     ctx: &NodeContext,
     source_node: NodeId,
@@ -164,11 +220,10 @@ fn source_curve_value(
     default: Option<f32>,
 ) -> Result<f32, GraphError> {
     let state_key = ctx.graph_context.state_key;
-    if let Ok(state) = ctx
-        .graph_context
-        .node_states()
-        .get::<AnimationContextState>(source_node.clone(), state_key)
-        && let Some(value) = state.curves.get(curve_name)
+    if let Some(state) = node_context_state(
+        &ctx.graph_context.clone().with_state_key(state_key),
+        source_node.clone(),
+    ) && let Some(value) = state.curves.get(curve_name)
     {
         return Ok(*value);
     }
@@ -278,5 +333,30 @@ mod tests {
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.25)).unwrap();
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.75)).unwrap();
         assert_eq!(state.curves.get("PoseMoving"), Some(&0.75));
+    }
+
+    #[test]
+    fn merged_output_context_preserves_explicit_output_curves() {
+        let mut target = AnimationContextState {
+            curves: HashMap::from([("PoseGrounded".to_owned(), 1.0)]),
+        };
+        let source = AnimationContextState {
+            curves: HashMap::from([
+                ("PoseGrounded".to_owned(), 0.0),
+                ("PoseMoving".to_owned(), 1.0),
+            ]),
+        };
+        merge_missing_context_curves(&mut target, &source);
+        assert_eq!(target.curves.get("PoseGrounded"), Some(&1.0));
+        assert_eq!(target.curves.get("PoseMoving"), Some(&1.0));
+    }
+
+    #[test]
+    fn pose_output_selection_uses_type_not_serialized_pin_case() {
+        let mut output = None;
+        select_context_pose_output(&mut output, "Pose", &DataSpec::Pose);
+        select_context_pose_output(&mut output, "OtherPose", &DataSpec::Pose);
+        select_context_pose_output(&mut output, "PoseStanding", &DataSpec::F32);
+        assert_eq!(output, Some("Pose".to_owned()));
     }
 }

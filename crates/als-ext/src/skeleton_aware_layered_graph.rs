@@ -14,9 +14,11 @@ use bevy_animation_graph::core::{
 
 use crate::animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextIoEnv,
-    AnimationContextState, capture_context_curve, context_time_update, is_context_curve_input,
-    resolve_context_curves,
+    AnimationContextState, capture_context_curve, context_time_update, graph_output_context_state,
+    is_context_curve_input, merge_missing_context_curves, resolve_context_curves,
+    select_context_pose_output,
 };
+use crate::layered_graph::OutputDataAlias;
 use crate::mesh_space_additive::apply_mesh_space_additive;
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -34,6 +36,7 @@ pub struct SkeletonAwareLayeredGraphNode {
     pub always_update_source_pose: bool,
     pub context_inputs: Vec<AnimationContextInput>,
     pub input_aliases: Vec<AnimationContextInputAlias>,
+    pub output_aliases: Vec<OutputDataAlias>,
     pub capture_context: bool,
     pub expose_context_curves: bool,
     pub exposed_output_data: Vec<String>,
@@ -73,6 +76,14 @@ impl SkeletonAwareLayeredGraphNode {
             .find(|alias| alias.child_input == child_input)
             .map(|alias| alias.outer_input.clone())
             .unwrap_or_else(|| child_input.to_owned())
+    }
+
+    fn outer_output(&self, child_output: &str) -> String {
+        self.output_aliases
+            .iter()
+            .find(|alias| alias.child_output == child_output)
+            .map(|alias| alias.outer_output.clone())
+            .unwrap_or_else(|| child_output.to_owned())
     }
 
     fn io_input_aliases(&self) -> bevy::platform::collections::HashMap<String, String> {
@@ -264,17 +275,25 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
             sub_ctx.context_mut().query_output_time = QueryOutputTime::from_key(key, time_update);
         }
         let mut context_state = AnimationContextState::default();
+        let mut pose_output = None;
         for (id, data_spec) in graph.io_spec.iter_output_data() {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
             let value = self.apply_fallback(id.as_str(), value, &ctx)?;
+            let outer_output = self.outer_output(id);
             if self.capture_context {
                 capture_context_curve(&mut context_state, id, &value)?;
             }
+            select_context_pose_output(&mut pose_output, id, data_spec);
             if self.expose_output(id, data_spec) {
-                ctx.set_data_fwd(id.clone(), value);
+                ctx.set_data_fwd(outer_output, value);
             }
         }
         if self.capture_context {
+            if let Some(output) = pose_output
+                && let Some(output_context) = graph_output_context_state(graph, &sub_ctx, &output)
+            {
+                merge_missing_context_curves(&mut context_state, &output_context);
+            }
             *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
         }
         Ok(())
@@ -310,7 +329,7 @@ impl NodeLike for SkeletonAwareLayeredGraphNode {
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
                     if self.expose_output(&pin_id, &data_spec) {
-                        ctx.add_output_data(pin_id, data_spec);
+                        ctx.add_output_data(self.outer_output(&pin_id), data_spec);
                     }
                 }
             }

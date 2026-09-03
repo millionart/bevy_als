@@ -59,6 +59,7 @@ pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
 pub mod source_cached_pose;
+pub mod source_linked_input_pose;
 pub mod source_movement_nodes;
 pub mod source_pose_nodes;
 pub mod source_pose_passthrough;
@@ -142,7 +143,8 @@ pub use inertialized_linked_anim_layer::{
     inertialized_linked_layer_activation,
 };
 pub use interruptible_fsm::{
-    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, StatePoseOutput,
+    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, StateAliasBinding,
+    StatePoseOutput,
 };
 pub use layered_graph::{
     CachedPoseInput, FixedF32Input, FixedGlobalF32Input, GlobalF32InputPin, LayeredGraphNode,
@@ -214,9 +216,10 @@ pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_anima
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
 pub use source_cached_pose::{
-    SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceScopedCachedPoseUseNode,
-    resolve_cached_pose, resolve_scoped_cached_pose,
+    SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceContextDefault,
+    SourceScopedCachedPoseUseNode, resolve_cached_pose, resolve_scoped_cached_pose,
 };
+pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_pose_nodes::{
     SourceApplyAdditiveNode, SourceCurveModifyNode, SourceGameplayTagBlendNode,
@@ -316,6 +319,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<InertializedLinkedAnimLayerNode>()
             .register_type::<GlobalDataInput>()
             .register_type::<InterruptibleFsmNode>()
+            .register_type::<StateAliasBinding>()
             .register_type::<StatePoseOutput>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()
@@ -325,7 +329,9 @@ impl Plugin for AlsExtPlugin {
             .register_type::<RootMotionClipNode>()
             .register_type::<SourceCachedPoseSaveNode>()
             .register_type::<SourceCachedPoseUseNode>()
+            .register_type::<SourceContextDefault>()
             .register_type::<SourceScopedCachedPoseUseNode>()
+            .register_type::<SourceLinkedInputPoseNode>()
             .register_type::<SourceApplyAdditiveNode>()
             .register_type::<SourceCurveModifyNode>()
             .register_type::<SourceGameplayTagBlendNode>()
