@@ -115,7 +115,68 @@ enum GroundedTransition {
     RollToStanding,
 }
 
+#[derive(Clone, Copy)]
+struct GroundedTransitionProfile {
+    source_static_contract: &'static str,
+    duration: f32,
+}
+
+const GROUNDED_TRANSITION_PROFILES: [GroundedTransitionProfile; 12] = [
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_20|PriorityOrder=1|CrossfadeDuration=0.000000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.0,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_24|PriorityOrder=1|CrossfadeDuration=0.000000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=True|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.0,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_11|PriorityOrder=1|CrossfadeDuration=0.600000|BlendMode=Cubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.6,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_15|PriorityOrder=1|CrossfadeDuration=0.600000|BlendMode=Cubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.6,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_9|PriorityOrder=1|CrossfadeDuration=0.500000|BlendMode=Custom|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.5,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_18|PriorityOrder=2|CrossfadeDuration=0.300000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.3,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_19|PriorityOrder=1|CrossfadeDuration=0.500000|BlendMode=Custom|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.5,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_21|PriorityOrder=2|CrossfadeDuration=0.300000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.3,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_1|PriorityOrder=2|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_2|PriorityOrder=1|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_3|PriorityOrder=2|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+    GroundedTransitionProfile {
+        source_static_contract: "AnimStateTransitionNode_0|PriorityOrder=3|CrossfadeDuration=0.200000|BlendMode=HermiteCubic|bAutomaticRuleBasedOnSequencePlayerInState=False|AutomaticRuleTriggerTime=-1.000000|SyncGroupNameToRequireValidMarkersRule=None|bAllowInertializationForSelfTransitions=False|bSharedRules=False|bSharedCrossfade=False",
+        duration: 0.2,
+    },
+];
+
 impl GroundedTransition {
+    fn profile(self) -> &'static GroundedTransitionProfile {
+        &GROUNDED_TRANSITION_PROFILES[self.index() as usize]
+    }
+
     fn index(self) -> f32 {
         match self {
             Self::EntryToRoll => 9.0,
@@ -167,26 +228,9 @@ impl GroundedTransition {
     }
 
     fn duration(self) -> f32 {
-        match self {
-            Self::StandingToCrouchingAutomatic | Self::CrouchingToStandingAutomatic => 0.0,
-            Self::StandingToCrouching
-            | Self::CrouchingToStanding
-            | Self::StandingToCrouchingToStanding
-            | Self::StandingToCrouchingToCrouching
-            | Self::CrouchingToStandingToStanding
-            | Self::CrouchingToStandingToCrouching => 0.5,
-            Self::StandingToStandingToCrouching
-            | Self::CrouchingToCrouchingToStanding
-            | Self::StandingToCrouchingToCrouchingToStanding
-            | Self::StandingToCrouchingSelf
-            | Self::CrouchingToStandingSelf
-            | Self::CrouchingToStandingToStandingToCrouching => 0.3,
-            Self::RollToCrouching | Self::RollToStanding => 0.6,
-            Self::EntryToRoll
-            | Self::EntryToCrouching
-            | Self::EntryToStanding
-            | Self::EntryFallbackToStanding => 0.2,
-        }
+        let profile = self.profile();
+        debug_assert!(!profile.source_static_contract.is_empty());
+        profile.duration
     }
 
     fn uses_stance_change_curve(self) -> bool {
@@ -823,6 +867,23 @@ mod tests {
         assert_eq!(grounded_state_index("Crouching To Standing"), Some(4));
         assert_eq!(grounded_state_index("Roll"), Some(5));
         assert_eq!(grounded_state_index("Unknown"), None);
+    }
+
+    #[test]
+    fn grounded_transition_profiles_cover_the_source_fsm_order() {
+        assert_eq!(GROUNDED_TRANSITION_PROFILES.len(), 12);
+        assert!(
+            GROUNDED_TRANSITION_PROFILES[0]
+                .source_static_contract
+                .starts_with("AnimStateTransitionNode_20|")
+        );
+        assert!(
+            GROUNDED_TRANSITION_PROFILES[11]
+                .source_static_contract
+                .starts_with("AnimStateTransitionNode_0|")
+        );
+        assert_eq!(GroundedTransition::RollToStanding.duration(), 0.6);
+        assert_eq!(GroundedTransition::EntryToStanding.duration(), 0.2);
     }
 
     #[test]

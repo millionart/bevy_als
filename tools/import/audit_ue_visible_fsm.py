@@ -57,7 +57,9 @@ def source_states(contract):
     return [
         node
         for node in source_nodes(contract)
-        if node["class_path"].endswith("AnimStateNode")
+        if node["class_path"].endswith(
+            ("AnimStateNode", "AnimStateAliasNode", "AnimStateConduitNode")
+        )
     ]
 
 
@@ -622,6 +624,31 @@ def run_self_test():
         (root / "target.fsm.ron").write_text(fsm, encoding="utf-8")
         report = audit(root, mapping)
         assert report["pass"]
+        special_source = json.loads(json.dumps(source))
+        special_source["source_graph"]["nodes"].extend(
+            [
+                {
+                    "object_path": "/Asset:Fsm.Alias",
+                    "class_path": "/Script/AnimGraph.AnimStateAliasNode",
+                    "title": "Alias",
+                    "position_x": 32,
+                    "position_y": 32,
+                },
+                {
+                    "object_path": "/Asset:Fsm.Conduit",
+                    "class_path": "/Script/AnimGraph.AnimStateConduitNode",
+                    "title": "Conduit",
+                    "position_x": 48,
+                    "position_y": 48,
+                },
+            ]
+        )
+        assert [node["title"] for node in source_states(special_source)] == [
+            "Idle",
+            "Run",
+            "Alias",
+            "Conduit",
+        ]
         missing_static = json.loads(json.dumps(mapping))
         missing_static["transition_map"][0]["property_assertions"] = []
         assert not audit(root, missing_static)["pass"]
