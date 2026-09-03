@@ -112,6 +112,10 @@ def issues_for_sample(sample, required_bones):
             value = root_pose.get(key)
             if not isinstance(value, int) or value < 0:
                 issues.append(f"pose sample root pose metric is invalid: {key}")
+        if root_pose.get("output_present") is not True:
+            issues.append("pose sample root pose is missing")
+        elif root_pose.get("active_channel_count") == 0:
+            issues.append("pose sample root pose is reference or A-pose")
     foot_ik = sample.get("foot_ik")
     if foot_ik is not None:
         if not isinstance(foot_ik, dict):
@@ -1639,6 +1643,14 @@ def run_self_test():
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
         report["pose_samples"][0]["gait"] = ""
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        for sample in report["pose_samples"]:
+            sample["root_pose"]["active_channel_count"] = 0
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        for sample in report["pose_samples"]:
+            sample["root_pose"]["output_present"] = False
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
         report["faults"] = ["fault"]

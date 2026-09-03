@@ -1261,6 +1261,10 @@ fn root_pose_activity(player: &AnimationGraphPlayer) -> RootPoseActivity {
     }
 }
 
+fn root_pose_has_animation_channels(activity: RootPoseActivity) -> bool {
+    activity.output_present && activity.active_channel_count > 0
+}
+
 fn graph_dependency_state(asset_server: &AssetServer, player: &AnimationGraphPlayer) -> String {
     match player.get_animation_source() {
         AnimationSource::Graph(handle) => asset_server
@@ -1555,7 +1559,7 @@ fn graph_failure_context_nodes(
 fn graph_error_pose_classification(root_pose: RootPoseActivity) -> String {
     if !root_pose.output_present {
         "missing_root_pose_likely_reference_or_a_pose".to_owned()
-    } else if root_pose.active_channel_count == 0 {
+    } else if !root_pose_has_animation_channels(root_pose) {
         "reference_root_pose_likely_a_pose".to_owned()
     } else {
         "root_pose_channels_present_graph_error".to_owned()
@@ -3017,6 +3021,15 @@ fn collect_animation_visual_evidence(
     }
     stages.physics_steps_since_render = 0;
     let mut fault_detected = false;
+    if elapsed >= config.warmup && !root_pose_has_animation_channels(root_pose) {
+        fault_detected |= append_unique(
+            &mut state.faults,
+            format!(
+                "startup_root_pose:{}",
+                graph_error_pose_classification(root_pose)
+            ),
+        );
+    }
     let teleport_detected = foot_ik_sample.as_ref().is_some_and(|sample| {
         let detected = sample.teleport.detected_count > state.last_teleport_count;
         state.last_teleport_count = state
@@ -3821,6 +3834,7 @@ mod tests {
         assert!(reference.output_present);
         assert_eq!(reference.bone_count, 0);
         assert_eq!(reference.active_channel_count, 0);
+        assert!(!root_pose_has_animation_channels(reference));
         let animated = Pose {
             bones: vec![BonePose {
                 rotation: Some(Quat::IDENTITY),
@@ -3832,6 +3846,7 @@ mod tests {
         assert!(activity.output_present);
         assert_eq!(activity.bone_count, 1);
         assert_eq!(activity.active_channel_count, 1);
+        assert!(root_pose_has_animation_channels(activity));
     }
 
     #[test]

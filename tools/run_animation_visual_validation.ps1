@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("base", "standing_direction", "crouching", "control_rig", "default_overlay", "state_machine", "foot_ik", "sprint", "ragdoll", "camera", "interface", "notify")]
+    [ValidateSet("startup", "base", "standing_direction", "crouching", "control_rig", "default_overlay", "state_machine", "foot_ik", "sprint", "ragdoll", "camera", "interface", "notify")]
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
     [int]$CaptureCount = 6,
@@ -40,7 +40,8 @@ $variables = @(
     "ALS_ANIMATION_VISUAL_MAX_FRAME_P95_MS",
     "ALS_ANIMATION_VISUAL_MAX_FRAME_MS",
     "ALS_ANIMATION_VISUAL_MAX_EVAL_P95_MS",
-    "ALS_ANIMATION_VISUAL_MAX_PHYSICS_STEPS_PER_RENDER"
+    "ALS_ANIMATION_VISUAL_MAX_PHYSICS_STEPS_PER_RENDER",
+    "ALS_BOOT_AUTO_QUIT_SECS"
 )
 $previous = @{}
 foreach ($name in $variables) {
@@ -49,7 +50,13 @@ foreach ($name in $variables) {
 }
 
 try {
-    $env:ALS_MANUAL_INTEGRATION_GATE = "1"
+    if ($Case -eq "startup") {
+        Remove-Item Env:ALS_MANUAL_INTEGRATION_GATE -ErrorAction SilentlyContinue
+        $minimumStartupSeconds = 5.0 + $CaptureCount * $CaptureIntervalSeconds
+        $env:ALS_BOOT_AUTO_QUIT_SECS = [Math]::Max(10.0, $minimumStartupSeconds).ToString([Globalization.CultureInfo]::InvariantCulture)
+    } else {
+        $env:ALS_MANUAL_INTEGRATION_GATE = "1"
+    }
     $env:ALS_MANUAL_INTEGRATION_CASE = $Case
     $env:ALS_ANIMATION_VISUAL_EVIDENCE_DIR = $candidate
     $env:ALS_ANIMATION_VISUAL_CAPTURE_COUNT = $CaptureCount.ToString([Globalization.CultureInfo]::InvariantCulture)

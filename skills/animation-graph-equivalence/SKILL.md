@@ -32,7 +32,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 
 ## Runtime behavior
 
-1. Complete source-to-target static closure before one coherent real Playground run. Use focused fixtures and tool self-tests for detector design; execute `tools/run_animation_visual_validation.ps1` and `tools/validate_animation_visual_evidence.py` only after that closure is ready. Do not repeatedly launch the game to guess a root cause.
+1. Complete source-to-target static closure before one coherent real Playground run. Use focused fixtures and tool self-tests for detector design; execute `tools/run_animation_visual_validation.ps1` and `tools/validate_animation_visual_evidence.py` only after that closure is ready. Run its no-driver `startup` case before motion cases; it must reject missing or zero-channel root Pose even without a graph error. Do not repeatedly launch the game to guess a root cause.
 2. A dynamic window declares source state/clip, stable precondition, expected actual FSM state, expected direction/variant, and whether pre-rig/final pose motion, root-pose activity, actor yaw, or lifecycle is required.
 3. Evidence records actual rather than requested graph state, root-pose channel activity, pre-rig and final local-pose motion, target variant, curve/clip/weight trace, scenario labels, camera frames, skeleton continuity, and timing. Distinct source branches need source-derived inputs and distinct canonical pose signatures.
 4. The common temporal guard runs independently of project algorithms at pre-rig and final stages. It rejects non-finite values, scale/segment failures, local spikes, position spikes, and limb-plane flips. Rebase only at an explicit source fixture boundary.
@@ -41,7 +41,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 ## Failure reports and repair
 
 1. The first graph evaluation error must write `report.json` before exit, including `primary_failure`, raw error, pin/node identity, active graph/context candidates, ambiguity status, root graph/dependency state, root-pose classification, scenario labels, and screenshot attempt status. The runner must audit that report even when the game exits nonzero.
-2. A missing root Pose or zero active channels after a graph error is classified as reference/A-pose risk; it is a reportable root cause, not merely a generic failed run.
+2. A missing root Pose or zero active channels is classified as reference/A-pose risk whether or not a graph error occurred; it is a reportable root cause, not merely a generic failed run.
 3. Repair the first source-chain boundary that violates its source dynamic invariant. Downstream IK/Control Rig ablation only proves sensitivity, never root cause.
 4. After a source-proven repair, add the smallest regression or self-test that would reject the old false pass, then keep only the reusable contract and final evidence.
 
