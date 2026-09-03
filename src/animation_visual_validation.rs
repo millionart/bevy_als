@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
+    num::NonZeroU8,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -13,10 +14,11 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
-    animation_graph::AnimationGraph,
+    animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin},
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
     context::node_states::StateKey,
     edge_data::DataValue,
+    errors::GraphError,
     plugin::AnimationGraphSet,
     pose::{BonePose, Pose},
     systems::apply_animation_to_targets,
@@ -169,6 +171,8 @@ struct AnimationVisualValidationState {
     screenshots: Vec<ScreenshotSample>,
     faults: Vec<String>,
     graph_errors: Vec<String>,
+    primary_failure: Option<GraphEvaluationFailure>,
+    fatal_exit_frames_remaining: Option<u8>,
     temporal_pre_rig_guard: TemporalSkeletonGuard,
     temporal_final_guard: TemporalSkeletonGuard,
     temporal_anomalies: Vec<TemporalSkeletonAnomaly>,
@@ -254,6 +258,51 @@ struct RootPoseSample {
     output_present: bool,
     bone_count: usize,
     active_channel_count: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct GraphFailurePin {
+    kind: String,
+    node_id: Option<String>,
+    pin_id: Option<String>,
+    graph_context: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct GraphFailureNodeCandidate {
+    graph_path: Option<String>,
+    graph_asset_id: String,
+    graph_context: Option<String>,
+    node_id: String,
+    node_name: String,
+    node_kind: String,
+    active_context: bool,
+}
+
+#[derive(Serialize, Clone)]
+struct GraphEvaluationFailure {
+    category: String,
+    raw_error: String,
+    error_kind: String,
+    pin: Option<GraphFailurePin>,
+    node_candidates: Vec<GraphFailureNodeCandidate>,
+    active_node_candidate_count: usize,
+    candidate_resolution: String,
+    root_graph_path: Option<String>,
+    root_graph_recursive_dependencies: String,
+    root_pose: RootPoseSample,
+    pose_classification: String,
+    case: String,
+    direction_case: Option<String>,
+    phase: Option<String>,
+    phase_elapsed_secs: Option<f32>,
+    locomotion: Option<String>,
+    gait: Option<String>,
+    stance: Option<String>,
+    rotation_mode: Option<String>,
+    screenshot_status: String,
+    screenshot_path: Option<String>,
+    reported_before_ready: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -589,6 +638,7 @@ struct AnimationVisualReport {
     temporal_anomalies: Vec<TemporalSkeletonAnomaly>,
     faults: Vec<String>,
     graph_errors: Vec<String>,
+    primary_failure: Option<GraphEvaluationFailure>,
     thresholds: BTreeMap<String, f64>,
 }
 
@@ -1167,6 +1217,290 @@ fn root_pose_sample(activity: RootPoseActivity) -> RootPoseSample {
         output_present: activity.output_present,
         bone_count: activity.bone_count,
         active_channel_count: activity.active_channel_count,
+    }
+}
+
+fn source_pin_failure_pin(pin: &SourcePin) -> GraphFailurePin {
+    match pin {
+        SourcePin::NodeData(node, pin) => GraphFailurePin {
+            kind: "node_data".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: Some(pin.clone()),
+            graph_context: None,
+        },
+        SourcePin::InputData(pin) => GraphFailurePin {
+            kind: "input_data".to_owned(),
+            node_id: None,
+            pin_id: Some(format!("{pin:?}")),
+            graph_context: None,
+        },
+        SourcePin::NodeTime(node) => GraphFailurePin {
+            kind: "node_time".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: None,
+            graph_context: None,
+        },
+        SourcePin::InputTime(pin) => GraphFailurePin {
+            kind: "input_time".to_owned(),
+            node_id: None,
+            pin_id: Some(format!("{pin:?}")),
+            graph_context: None,
+        },
+    }
+}
+
+fn target_pin_failure_pin(pin: &TargetPin) -> GraphFailurePin {
+    match pin {
+        TargetPin::NodeData(node, pin) => GraphFailurePin {
+            kind: "node_data".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: Some(pin.clone()),
+            graph_context: None,
+        },
+        TargetPin::OutputData(pin) => GraphFailurePin {
+            kind: "output_data".to_owned(),
+            node_id: None,
+            pin_id: Some(pin.clone()),
+            graph_context: None,
+        },
+        TargetPin::NodeTime(node, pin) => GraphFailurePin {
+            kind: "node_time".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: Some(pin.clone()),
+            graph_context: None,
+        },
+        TargetPin::OutputTime => GraphFailurePin {
+            kind: "output_time".to_owned(),
+            node_id: None,
+            pin_id: None,
+            graph_context: None,
+        },
+    }
+}
+
+fn graph_error_kind(error: &GraphError) -> String {
+    format!("{error:?}")
+        .split(['(', '{', ' '])
+        .next()
+        .unwrap_or("GraphError")
+        .to_owned()
+}
+
+fn graph_error_pin(error: &GraphError) -> Option<GraphFailurePin> {
+    match error {
+        GraphError::MissingEdgeToSource(pin)
+        | GraphError::DurationMissing(pin)
+        | GraphError::TimeUpdateMissingFwd(pin) => Some(source_pin_failure_pin(pin)),
+        GraphError::MissingEdgeToTarget(pin) | GraphError::TimeUpdateMissingBack(pin) => {
+            Some(target_pin_failure_pin(pin))
+        }
+        GraphError::OutputMissing { graph, node, pin }
+        | GraphError::ExtraTimeUpdateNotAvailable { graph, node, pin } => Some(GraphFailurePin {
+            kind: "node_output".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: Some(pin.clone()),
+            graph_context: Some(format!("{graph:?}")),
+        }),
+        GraphError::UnknownErrorNode { graph, node, .. } => Some(GraphFailurePin {
+            kind: "node".to_owned(),
+            node_id: Some(format!("{node:?}")),
+            pin_id: None,
+            graph_context: Some(format!("{graph:?}")),
+        }),
+        _ => None,
+    }
+}
+
+fn graph_error_node_id(error: &GraphError) -> Option<NodeId> {
+    match error {
+        GraphError::MissingEdgeToSource(SourcePin::NodeData(node, _))
+        | GraphError::MissingEdgeToSource(SourcePin::NodeTime(node))
+        | GraphError::DurationMissing(SourcePin::NodeData(node, _))
+        | GraphError::DurationMissing(SourcePin::NodeTime(node))
+        | GraphError::TimeUpdateMissingFwd(SourcePin::NodeData(node, _))
+        | GraphError::TimeUpdateMissingFwd(SourcePin::NodeTime(node))
+        | GraphError::MissingEdgeToTarget(TargetPin::NodeData(node, _))
+        | GraphError::MissingEdgeToTarget(TargetPin::NodeTime(node, _))
+        | GraphError::TimeUpdateMissingBack(TargetPin::NodeData(node, _))
+        | GraphError::TimeUpdateMissingBack(TargetPin::NodeTime(node, _))
+        | GraphError::OutputMissing { node, .. }
+        | GraphError::ExtraTimeUpdateNotAvailable { node, .. }
+        | GraphError::UnknownErrorNode { node, .. } => Some(*node),
+        _ => None,
+    }
+}
+
+fn add_graph_failure_node_candidate(
+    candidates: &mut Vec<GraphFailureNodeCandidate>,
+    asset_server: &AssetServer,
+    graph_id: bevy::asset::AssetId<AnimationGraph>,
+    graph: &AnimationGraph,
+    node_id: NodeId,
+    graph_context: Option<String>,
+    active_context: bool,
+) {
+    let Some(node) = graph.nodes.get(&node_id) else {
+        return;
+    };
+    let graph_asset_id = format!("{graph_id:?}");
+    if let Some(existing) = candidates.iter_mut().find(|candidate| {
+        candidate.graph_asset_id == graph_asset_id && candidate.node_id == format!("{node_id:?}")
+    }) {
+        existing.active_context |= active_context;
+        if existing.graph_context.is_none() {
+            existing.graph_context = graph_context;
+        }
+        return;
+    }
+    candidates.push(GraphFailureNodeCandidate {
+        graph_path: asset_server
+            .get_path(graph_id)
+            .map(|path| path.path().to_string_lossy().into_owned()),
+        graph_asset_id,
+        graph_context,
+        node_id: format!("{node_id:?}"),
+        node_name: node.name.clone(),
+        node_kind: node.inner_ref().display_name(),
+        active_context,
+    });
+}
+
+fn graph_failure_node_candidates(
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+    node_id: NodeId,
+) -> Vec<GraphFailureNodeCandidate> {
+    let mut candidates = Vec::new();
+    if let Some(arena) = player.get_context_arena() {
+        for context_id in arena.iter_context_ids() {
+            let Some(context) = arena.get_context(context_id) else {
+                continue;
+            };
+            let graph_id = context.get_graph_id();
+            let Some(graph) = graphs.get(graph_id) else {
+                continue;
+            };
+            add_graph_failure_node_candidate(
+                &mut candidates,
+                asset_server,
+                graph_id,
+                graph,
+                node_id,
+                Some(format!("{context_id:?}")),
+                true,
+            );
+        }
+    }
+    for (graph_id, graph) in graphs.iter() {
+        add_graph_failure_node_candidate(
+            &mut candidates,
+            asset_server,
+            graph_id,
+            graph,
+            node_id,
+            None,
+            false,
+        );
+    }
+    candidates.sort_by(|left, right| {
+        right
+            .active_context
+            .cmp(&left.active_context)
+            .then_with(|| left.graph_path.cmp(&right.graph_path))
+            .then_with(|| left.graph_asset_id.cmp(&right.graph_asset_id))
+    });
+    candidates
+}
+
+fn graph_error_pose_classification(root_pose: RootPoseActivity) -> String {
+    if !root_pose.output_present {
+        "missing_root_pose_likely_reference_or_a_pose".to_owned()
+    } else if root_pose.active_channel_count == 0 {
+        "reference_root_pose_likely_a_pose".to_owned()
+    } else {
+        "root_pose_channels_present_graph_error".to_owned()
+    }
+}
+
+fn graph_evaluation_failure(
+    config: &AnimationVisualValidationConfig,
+    error: &GraphError,
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+    root_pose: RootPoseActivity,
+    direction_case: Option<String>,
+    phase: Option<String>,
+    phase_elapsed_secs: Option<f32>,
+    locomotion: Option<String>,
+    gait: Option<String>,
+    stance: Option<String>,
+    rotation_mode: Option<String>,
+    reported_before_ready: bool,
+) -> GraphEvaluationFailure {
+    let node_candidates = graph_error_node_id(error)
+        .map(|node_id| graph_failure_node_candidates(player, asset_server, graphs, node_id))
+        .unwrap_or_default();
+    let active_node_candidate_count = node_candidates
+        .iter()
+        .filter(|candidate| candidate.active_context)
+        .count();
+    let candidate_resolution = if graph_error_node_id(error).is_none() {
+        "not_applicable".to_owned()
+    } else if active_node_candidate_count == 1 {
+        "resolved_active_context".to_owned()
+    } else if active_node_candidate_count > 1 {
+        "ambiguous_active_context".to_owned()
+    } else {
+        "not_resolved_from_active_context".to_owned()
+    };
+    let root_graph_path = match player.get_animation_source() {
+        AnimationSource::Graph(handle) => asset_server
+            .get_path(handle.id())
+            .map(|path| path.path().to_string_lossy().into_owned()),
+        _ => None,
+    };
+    GraphEvaluationFailure {
+        category: "graph_evaluation_error".to_owned(),
+        raw_error: format!("{error:?}"),
+        error_kind: graph_error_kind(error),
+        pin: graph_error_pin(error),
+        node_candidates,
+        active_node_candidate_count,
+        candidate_resolution,
+        root_graph_path,
+        root_graph_recursive_dependencies: graph_dependency_state(asset_server, player),
+        root_pose: root_pose_sample(root_pose),
+        pose_classification: graph_error_pose_classification(root_pose),
+        case: config.case.clone(),
+        direction_case,
+        phase,
+        phase_elapsed_secs,
+        locomotion,
+        gait,
+        stance,
+        rotation_mode,
+        screenshot_status: "not_attempted".to_owned(),
+        screenshot_path: None,
+        reported_before_ready,
+    }
+}
+
+fn refresh_graph_failure_screenshot_status(
+    state: &mut AnimationVisualValidationState,
+    exiting: bool,
+) {
+    let Some(failure) = state.primary_failure.as_mut() else {
+        return;
+    };
+    let Some(path) = failure.screenshot_path.as_deref() else {
+        return;
+    };
+    if Path::new(path).is_file() {
+        failure.screenshot_status = "captured".to_owned();
+    } else if exiting && failure.screenshot_status == "capture_scheduled" {
+        failure.screenshot_status = "capture_not_materialized_before_exit".to_owned();
     }
 }
 
@@ -2011,6 +2345,7 @@ fn write_report(
         && state.faults.is_empty()
         && state.temporal_anomalies.is_empty()
         && state.graph_errors.is_empty()
+        && state.primary_failure.is_none()
         && frame_time.p95_ms <= config.max_frame_p95_ms
         && frame_time.max_ms <= config.max_frame_ms
         && animation_eval_time.p95_ms <= config.max_eval_p95_ms
@@ -2208,6 +2543,7 @@ fn write_report(
         temporal_anomalies: state.temporal_anomalies.clone(),
         faults: state.faults.clone(),
         graph_errors: state.graph_errors.clone(),
+        primary_failure: state.primary_failure.clone(),
         thresholds,
     };
     let path = config.directory.join("report.json");
@@ -2216,8 +2552,104 @@ fn write_report(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn record_graph_evaluation_failure(
+    commands: &mut Commands,
+    config: &AnimationVisualValidationConfig,
+    state: &mut AnimationVisualValidationState,
+    stages: &AnimationVisualStageTiming,
+    error: &GraphError,
+    player: &AnimationGraphPlayer,
+    asset_server: &AssetServer,
+    graphs: &Assets<AnimationGraph>,
+    root_pose: RootPoseActivity,
+    direction_case: Option<&str>,
+    phase: Option<&str>,
+    phase_elapsed_secs: Option<f32>,
+    locomotion: Option<&str>,
+    gait: Option<&str>,
+    stance: Option<&str>,
+    rotation_mode: Option<&str>,
+    foot_ik: Option<&FootIkSample>,
+    bones: &BTreeMap<String, FinalBone>,
+    has_camera: bool,
+) {
+    let elapsed_secs = state
+        .started
+        .map(|started| started.elapsed().as_secs_f64())
+        .unwrap_or_default();
+    let mut failure = graph_evaluation_failure(
+        config,
+        error,
+        player,
+        asset_server,
+        graphs,
+        root_pose,
+        direction_case.map(str::to_owned),
+        phase.map(str::to_owned),
+        phase_elapsed_secs,
+        locomotion.map(str::to_owned),
+        gait.map(str::to_owned),
+        stance.map(str::to_owned),
+        rotation_mode.map(str::to_owned),
+        state.started.is_none(),
+    );
+    if has_camera {
+        let path = config.directory.join("graph_error.png");
+        commands
+            .spawn(Screenshot::primary_window())
+            .observe(save_to_disk(path.clone()));
+        let path = path.to_string_lossy().into_owned();
+        state.screenshots.push(ScreenshotSample {
+            path: path.clone(),
+            elapsed_secs,
+            kind: "graph_error".to_owned(),
+            direction_case: direction_case.map(str::to_owned),
+            phase: phase.map(str::to_owned),
+            phase_elapsed_secs,
+            locomotion: locomotion.map(str::to_owned),
+            gait: gait.map(str::to_owned),
+            stance: stance.map(str::to_owned),
+            rotation_mode: rotation_mode.map(str::to_owned),
+            faults: vec![format!("graph_evaluation_error:{}", failure.error_kind)],
+        });
+        failure.screenshot_status = "capture_scheduled".to_owned();
+        failure.screenshot_path = Some(path);
+    } else {
+        failure.screenshot_status = "unavailable_no_camera".to_owned();
+    }
+    append_unique(
+        &mut state.graph_errors,
+        format!(
+            "{}; root_graph_recursive_dependencies={}",
+            failure.raw_error, failure.root_graph_recursive_dependencies
+        ),
+    );
+    state.observed_bones = state.observed_bones.max(bones.len());
+    let mut sample = snapshot(
+        elapsed_secs,
+        0.0,
+        bones,
+        direction_case,
+        phase,
+        phase_elapsed_secs,
+        locomotion,
+        gait,
+        stance,
+        rotation_mode,
+        foot_ik,
+        root_pose,
+    );
+    sample.segments = segment_lengths(bones);
+    state.pose_samples.push(sample);
+    state.primary_failure = Some(failure);
+    state.fatal_exit_frames_remaining = Some(2);
+    write_report(config, state, stages);
+}
+
 fn collect_animation_visual_evidence(
     mut commands: Commands,
+    mut exit: MessageWriter<AppExit>,
     config: Res<AnimationVisualValidationConfig>,
     mut state: ResMut<AnimationVisualValidationState>,
     mut stages: ResMut<AnimationVisualStageTiming>,
@@ -2247,21 +2679,24 @@ fn collect_animation_visual_evidence(
     let Ok((player, context)) = players.get(instance.player_entity()) else {
         return;
     };
+    if let Some(remaining) = state.fatal_exit_frames_remaining {
+        let exiting = remaining <= 1;
+        refresh_graph_failure_screenshot_status(&mut state, exiting);
+        write_report(&config, &state, &stages);
+        if exiting {
+            state.fatal_exit_frames_remaining = None;
+            exit.write(AppExit::Error(NonZeroU8::new(92).unwrap()));
+        } else {
+            state.fatal_exit_frames_remaining = Some(remaining - 1);
+        }
+        return;
+    }
     let graph_asset = match player.get_animation_source() {
         AnimationSource::Graph(handle) => graphs.get(handle),
         _ => None,
     };
     let graph_ready = graph_asset.is_some();
-    let graph_error = player.get_error().map(|error| format!("{error:?}"));
-    if let Some(error) = graph_error.as_ref() {
-        append_unique(
-            &mut state.graph_errors,
-            format!(
-                "{error}; root_graph_recursive_dependencies={}",
-                graph_dependency_state(&asset_server, player)
-            ),
-        );
-    }
+    let graph_error = player.get_error();
     let root_pose = root_pose_activity(player);
     let root_pose_value = player.get_default_output_pose();
     let direction_case = animation_window
@@ -2356,8 +2791,33 @@ fn collect_animation_visual_evidence(
                 lineage,
             )
         });
+    if let Some(error) = graph_error.as_ref() {
+        let bones = collect_bones(avatar, &children, &named_transforms);
+        record_graph_evaluation_failure(
+            &mut commands,
+            &config,
+            &mut state,
+            &stages,
+            error,
+            player,
+            &asset_server,
+            &graphs,
+            root_pose,
+            direction_case.as_deref(),
+            phase,
+            phase_elapsed_secs,
+            locomotion,
+            gait,
+            stance,
+            rotation_mode,
+            foot_ik_sample.as_ref(),
+            &bones,
+            cameras.iter().next().is_some(),
+        );
+        return;
+    }
     if state.started.is_none() {
-        if !graph_ready || graph_error.is_some() {
+        if !graph_ready {
             return;
         }
         let now = Instant::now();
@@ -2415,9 +2875,6 @@ fn collect_animation_visual_evidence(
     });
     if !graph_ready {
         fault_detected |= append_unique(&mut state.faults, "animation_source_not_graph".to_owned());
-    }
-    if let Some(error) = graph_error {
-        fault_detected |= append_unique(&mut state.graph_errors, error);
     }
     let bones = collect_bones(avatar, &children, &named_transforms);
     let final_pose = collect_local_motion_bones(avatar, &children, &named_transforms);
@@ -2726,7 +3183,22 @@ mod tests {
     fn visual_evidence_format_is_loaded_from_the_shared_contract() {
         assert_eq!(
             animation_visual_evidence_format(),
-            "als_animation_visual_evidence_v17"
+            "als_animation_visual_evidence_v18"
+        );
+    }
+
+    #[test]
+    fn graph_error_diagnostic_preserves_node_time_and_a_pose_risk() {
+        let node = NodeId::default();
+        let error = GraphError::MissingEdgeToSource(SourcePin::NodeTime(node));
+        let pin = graph_error_pin(&error).unwrap();
+        assert_eq!(graph_error_kind(&error), "MissingEdgeToSource");
+        assert_eq!(pin.kind, "node_time");
+        assert_eq!(pin.node_id, Some(format!("{node:?}")));
+        assert_eq!(graph_error_node_id(&error), Some(node));
+        assert_eq!(
+            graph_error_pose_classification(RootPoseActivity::default()),
+            "missing_root_pose_likely_reference_or_a_pose"
         );
     }
 

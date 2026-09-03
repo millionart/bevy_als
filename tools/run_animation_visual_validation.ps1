@@ -61,11 +61,17 @@ try {
     Push-Location $workspaceRoot
     try {
         & cmd.exe /d /c "run_manual.bat"
-        if ($LASTEXITCODE -ne 0) {
-            throw "manual_playground exited with code $LASTEXITCODE."
+        $manualExitCode = $LASTEXITCODE
+        $reportPath = Join-Path $candidate "report.json"
+        if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+            throw "manual_playground exited with code $manualExitCode and did not write $reportPath."
         }
-        python tools/validate_animation_visual_evidence.py --report (Join-Path $candidate "report.json") --min-screenshots $CaptureCount --check
-        if ($LASTEXITCODE -ne 0) {
+        python tools/validate_animation_visual_evidence.py --report $reportPath --min-screenshots $CaptureCount --check
+        $validationExitCode = $LASTEXITCODE
+        if ($manualExitCode -ne 0) {
+            throw "manual_playground exited with code $manualExitCode; visual diagnosis was written to $reportPath."
+        }
+        if ($validationExitCode -ne 0) {
             throw "Animation visual evidence validation failed."
         }
     } finally {

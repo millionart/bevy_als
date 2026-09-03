@@ -935,11 +935,151 @@ def temporal_anomaly_issues(values):
     return issues
 
 
+def primary_failure_issues(report):
+    graph_errors = report.get("graph_errors")
+    failure = report.get("primary_failure")
+    if not isinstance(graph_errors, list):
+        return ["graph_errors is invalid"], None
+    if not graph_errors:
+        if failure is not None:
+            return ["primary_failure exists without graph error"], None
+        return [], None
+    if not all(isinstance(value, str) and value for value in graph_errors):
+        return ["graph_errors contains an invalid value"], None
+    if not isinstance(failure, dict):
+        return ["graph failure diagnostics are missing: primary_failure"], None
+    issues = []
+    if failure.get("category") != "graph_evaluation_error":
+        issues.append("primary failure category is invalid")
+    for key in ("raw_error", "error_kind", "root_graph_recursive_dependencies", "case", "pose_classification", "screenshot_status", "candidate_resolution"):
+        if not isinstance(failure.get(key), str) or not failure.get(key):
+            issues.append(f"primary failure field is invalid: {key}")
+    if not isinstance(failure.get("reported_before_ready"), bool):
+        issues.append("primary failure reported_before_ready is invalid")
+    for key in ("direction_case", "phase", "locomotion", "gait", "stance", "rotation_mode", "root_graph_path", "screenshot_path"):
+        value = failure.get(key)
+        if value is not None and (not isinstance(value, str) or not value):
+            issues.append(f"primary failure label is invalid: {key}")
+    phase_elapsed = failure.get("phase_elapsed_secs")
+    if phase_elapsed is not None and (not finite(phase_elapsed) or phase_elapsed < 0.0):
+        issues.append("primary failure phase elapsed time is invalid")
+    pin = failure.get("pin")
+    if pin is not None:
+        if not isinstance(pin, dict):
+            issues.append("primary failure pin is invalid")
+        else:
+            if not isinstance(pin.get("kind"), str) or not pin.get("kind"):
+                issues.append("primary failure pin kind is invalid")
+            for key in ("node_id", "pin_id", "graph_context"):
+                value = pin.get(key)
+                if value is not None and (not isinstance(value, str) or not value):
+                    issues.append(f"primary failure pin field is invalid: {key}")
+    candidates = failure.get("node_candidates")
+    if not isinstance(candidates, list):
+        issues.append("primary failure node candidates are invalid")
+        candidates = []
+    active_candidates = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            issues.append("primary failure node candidate is invalid")
+            continue
+        for key in ("graph_asset_id", "node_id", "node_name", "node_kind"):
+            if not isinstance(candidate.get(key), str) or not candidate.get(key):
+                issues.append(f"primary failure candidate field is invalid: {key}")
+        for key in ("graph_path", "graph_context"):
+            value = candidate.get(key)
+            if value is not None and (not isinstance(value, str) or not value):
+                issues.append(f"primary failure candidate field is invalid: {key}")
+        if not isinstance(candidate.get("active_context"), bool):
+            issues.append("primary failure candidate active_context is invalid")
+        elif candidate["active_context"]:
+            active_candidates.append(candidate)
+    active_count = failure.get("active_node_candidate_count")
+    if not isinstance(active_count, int) or active_count < 0:
+        issues.append("primary failure active candidate count is invalid")
+        active_count = -1
+    elif active_count != len(active_candidates):
+        issues.append("primary failure active candidate count disagrees with candidates")
+    resolution = failure.get("candidate_resolution")
+    has_node = bool(candidates) or isinstance(pin, dict) and pin.get("node_id") is not None
+    if has_node:
+        expected_resolution = (
+            "resolved_active_context"
+            if active_count == 1
+            else "ambiguous_active_context"
+            if active_count > 1
+            else "not_resolved_from_active_context"
+        )
+        if resolution != expected_resolution:
+            issues.append("primary failure candidate resolution is invalid")
+    elif resolution != "not_applicable":
+        issues.append("primary failure candidate resolution is invalid")
+    root_pose = failure.get("root_pose")
+    if not isinstance(root_pose, dict):
+        issues.append("primary failure root pose is invalid")
+    else:
+        if not isinstance(root_pose.get("output_present"), bool):
+            issues.append("primary failure root pose output flag is invalid")
+        for key in ("bone_count", "active_channel_count"):
+            value = root_pose.get(key)
+            if not isinstance(value, int) or value < 0:
+                issues.append(f"primary failure root pose metric is invalid: {key}")
+        classification = failure.get("pose_classification")
+        if root_pose.get("output_present") is False and classification != "missing_root_pose_likely_reference_or_a_pose":
+            issues.append("primary failure missing root pose classification is invalid")
+        elif root_pose.get("output_present") is True and root_pose.get("active_channel_count") == 0 and classification != "reference_root_pose_likely_a_pose":
+            issues.append("primary failure reference root pose classification is invalid")
+        elif root_pose.get("output_present") is True and root_pose.get("active_channel_count", 0) > 0 and classification != "root_pose_channels_present_graph_error":
+            issues.append("primary failure active root pose classification is invalid")
+    status = failure.get("screenshot_status")
+    allowed_status = {
+        "capture_scheduled",
+        "captured",
+        "capture_not_materialized_before_exit",
+        "unavailable_no_camera",
+    }
+    if status not in allowed_status:
+        issues.append("primary failure screenshot status is invalid")
+    elif status == "unavailable_no_camera" and failure.get("screenshot_path") is not None:
+        issues.append("primary failure unavailable screenshot has a path")
+    elif status != "unavailable_no_camera" and not isinstance(failure.get("screenshot_path"), str):
+        issues.append("primary failure screenshot path is missing")
+    candidate_locations = [
+        f"{candidate.get('graph_path') or candidate.get('graph_asset_id')}:{candidate.get('node_name')}"
+        for candidate in active_candidates
+    ]
+    summary = f"primary graph failure: {failure.get('error_kind', 'unknown')}; {failure.get('raw_error', 'unknown')}"
+    if candidate_locations:
+        summary += "; active candidates=" + ", ".join(candidate_locations)
+    if resolution == "ambiguous_active_context":
+        summary += "; active candidate resolution is ambiguous"
+    return issues, {
+        "summary": summary,
+        "error_kind": failure.get("error_kind"),
+        "candidate_resolution": resolution,
+        "pose_classification": failure.get("pose_classification"),
+        "reported_before_ready": failure.get("reported_before_ready"),
+    }
+
+
 def audit(report, min_screenshots):
     issues = []
     images = []
     if not isinstance(report, dict) or report.get("format") != FORMAT:
         return {"pass": False, "issues": ["visual report format is invalid"], "images": []}
+    primary_issues, primary_failure = primary_failure_issues(report)
+    graph_errors = report.get("graph_errors")
+    if primary_failure is not None or isinstance(graph_errors, list) and graph_errors:
+        issues.extend(primary_issues)
+        if primary_failure is not None:
+            issues.append(primary_failure["summary"])
+        return {
+            "pass": False,
+            "issues": list(dict.fromkeys(issues)),
+            "images": [],
+            "primary_failure": primary_failure,
+        }
+    issues.extend(primary_issues)
     if report.get("ready") is not True:
         issues.append("visual report is not ready")
     if report.get("pass") is not True:
@@ -1241,6 +1381,7 @@ def fixture_report(paths):
         "temporal_anomalies": [],
         "faults": [],
         "graph_errors": [],
+        "primary_failure": None,
         "thresholds": {
             "max_frame_p95_ms": 25.0,
             "max_frame_ms": 75.0,
@@ -1253,6 +1394,48 @@ def fixture_report(paths):
             "temporal_segment_ratio": 0.35,
             "temporal_limb_plane_flip_dot": -0.5,
         },
+    }
+
+
+def fixture_graph_failure():
+    return {
+        "category": "graph_evaluation_error",
+        "raw_error": "MissingEdgeToSource(NodeTime(NodeId(17150000-0000-4000-8000-000000000001)))",
+        "error_kind": "missing_edge_to_source",
+        "pin": {
+            "kind": "node_time",
+            "node_id": "NodeId(17150000-0000-4000-8000-000000000001)",
+            "pin_id": None,
+            "graph_context": None,
+        },
+        "node_candidates": [
+            {
+                "graph_path": "graphs/fixture/runtime.animgraph.ron",
+                "graph_asset_id": "AssetId(fixture_runtime)",
+                "graph_context": "GraphContextId(1)",
+                "node_id": "NodeId(17150000-0000-4000-8000-000000000001)",
+                "node_name": "fixture runtime",
+                "node_kind": "Interruptible FSM",
+                "active_context": True,
+            }
+        ],
+        "active_node_candidate_count": 1,
+        "candidate_resolution": "resolved_active_context",
+        "root_graph_path": "graphs/fixture/root.animgraph.ron",
+        "root_graph_recursive_dependencies": "Loaded",
+        "root_pose": {"output_present": False, "bone_count": 0, "active_channel_count": 0},
+        "pose_classification": "missing_root_pose_likely_reference_or_a_pose",
+        "case": "fixture_graph_error",
+        "direction_case": None,
+        "phase": None,
+        "phase_elapsed_secs": None,
+        "locomotion": None,
+        "gait": None,
+        "stance": None,
+        "rotation_mode": None,
+        "screenshot_status": "unavailable_no_camera",
+        "screenshot_path": None,
+        "reported_before_ready": True,
     }
 
 
@@ -1433,6 +1616,41 @@ def run_self_test():
         report = fixture_report(paths)
         report["graph_errors"] = ["ClipMissing"]
         assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report["ready"] = False
+        report["pass"] = False
+        report["graph_errors"] = [
+            "MissingEdgeToSource(NodeTime(NodeId(17150000-0000-4000-8000-000000000001)))"
+        ]
+        report["primary_failure"] = fixture_graph_failure()
+        result = audit(report, 2)
+        assert not result["pass"]
+        assert result["primary_failure"]["error_kind"] == "missing_edge_to_source"
+        assert "fixture runtime" in result["primary_failure"]["summary"]
+        report["primary_failure"] = None
+        result = audit(report, 2)
+        assert any("graph failure diagnostics are missing" in issue for issue in result["issues"])
+        report["primary_failure"] = fixture_graph_failure()
+        report["primary_failure"]["node_candidates"].append(
+            {
+                "graph_path": "graphs/fixture/alternate_runtime.animgraph.ron",
+                "graph_asset_id": "AssetId(alternate_runtime)",
+                "graph_context": "GraphContextId(4)",
+                "node_id": "NodeId(17150000-0000-4000-8000-000000000001)",
+                "node_name": "alternate runtime",
+                "node_kind": "Interruptible FSM",
+                "active_context": True,
+            }
+        )
+        report["primary_failure"]["active_node_candidate_count"] = 2
+        report["primary_failure"]["candidate_resolution"] = "ambiguous_active_context"
+        result = audit(report, 2)
+        assert result["primary_failure"]["candidate_resolution"] == "ambiguous_active_context"
+        assert "ambiguous" in result["primary_failure"]["summary"]
+        report["primary_failure"] = fixture_graph_failure()
+        report["primary_failure"]["pose_classification"] = "root_pose_channels_present_graph_error"
+        result = audit(report, 2)
+        assert any("missing root pose classification" in issue for issue in result["issues"])
         report = fixture_report(paths)
         report["stage_time"].pop("physics_step")
         assert not audit(report, 2)["pass"]
@@ -1834,6 +2052,10 @@ def run_self_test():
         "runtime_report_and_png_checked": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
+        "structured_graph_failure_reported": "PASS",
+        "missing_graph_failure_diagnostic_rejected": "PASS",
+        "ambiguous_graph_candidate_preserved": "PASS",
+        "a_pose_failure_classification_rejected": "PASS",
         "temporal_anomaly_schema_required": "PASS",
         "instant_limb_deformation_rejected": "PASS",
         "temporal_anomaly_stage_required": "PASS",
