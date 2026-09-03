@@ -226,6 +226,9 @@ struct TemporalSkeletonMetric {
     previous: f32,
     current: f32,
     threshold: f32,
+    trigger: &'static str,
+    rate: Option<f32>,
+    rate_threshold: Option<f32>,
 }
 
 struct TemporalSkeletonObservation {
@@ -240,6 +243,9 @@ struct TemporalSkeletonAnomaly {
     previous: f32,
     current: f32,
     threshold: f32,
+    trigger: String,
+    rate: Option<f32>,
+    rate_threshold: Option<f32>,
     elapsed_secs: f64,
     frame_ms: f64,
     direction_case: Option<String>,
@@ -859,6 +865,9 @@ impl TemporalSkeletonGuard {
                         previous: 0.0,
                         current: speed,
                         threshold: TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND,
+                        trigger: "rate",
+                        rate: Some(speed),
+                        rate_threshold: Some(TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND),
                     });
                 }
             }
@@ -868,30 +877,49 @@ impl TemporalSkeletonGuard {
             if let Some(previous) = self.previous_local.get(name).copied() {
                 let translation_delta = previous.translation.distance(current.translation);
                 let translation_speed = translation_delta / frame_seconds;
-                if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS
-                    || (translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS * 0.35
-                        && translation_speed > TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND)
-                {
+                let translation_trigger =
+                    if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS {
+                        Some(("jump", TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS))
+                    } else if translation_delta > TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS * 0.35
+                        && translation_speed > TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND
+                    {
+                        Some(("rate", TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND))
+                    } else {
+                        None
+                    };
+                if let Some((trigger, threshold)) = translation_trigger {
                     metrics.push(TemporalSkeletonMetric {
                         kind: "local_translation_spike",
                         subject: name.clone(),
                         previous: 0.0,
                         current: translation_delta,
-                        threshold: TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS,
+                        threshold,
+                        trigger,
+                        rate: Some(translation_speed),
+                        rate_threshold: Some(TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND),
                     });
                 }
                 let rotation_delta = rotation_delta_radians(previous.rotation, current.rotation);
                 let rotation_speed = rotation_delta / frame_seconds;
-                if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS
-                    || (rotation_delta > TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS
-                        && rotation_speed > TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND)
+                let rotation_trigger = if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS {
+                    Some(("jump", TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS))
+                } else if rotation_delta > TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS
+                    && rotation_speed > TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND
                 {
+                    Some(("rate", TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND))
+                } else {
+                    None
+                };
+                if let Some((trigger, threshold)) = rotation_trigger {
                     metrics.push(TemporalSkeletonMetric {
                         kind: "local_rotation_spike",
                         subject: name.clone(),
                         previous: 0.0,
                         current: rotation_delta,
-                        threshold: TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS,
+                        threshold,
+                        trigger,
+                        rate: Some(rotation_speed),
+                        rate_threshold: Some(TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND),
                     });
                 }
                 let scale_ratio = temporal_scale_ratio(previous.scale, current.scale);
@@ -902,6 +930,9 @@ impl TemporalSkeletonGuard {
                         previous: 1.0,
                         current: scale_ratio,
                         threshold: TEMPORAL_SCALE_RATIO,
+                        trigger: "ratio",
+                        rate: None,
+                        rate_threshold: None,
                     });
                 }
             }
@@ -919,6 +950,9 @@ impl TemporalSkeletonGuard {
                         previous: *previous,
                         current: *length,
                         threshold: TEMPORAL_SEGMENT_RATIO,
+                        trigger: "ratio",
+                        rate: None,
+                        rate_threshold: None,
                     });
                 }
             }
@@ -938,6 +972,9 @@ impl TemporalSkeletonGuard {
                         previous: 1.0,
                         current: dot,
                         threshold: TEMPORAL_LIMB_PLANE_FLIP_DOT,
+                        trigger: "plane_flip",
+                        rate: None,
+                        rate_threshold: None,
                     });
                 }
             }
@@ -965,13 +1002,16 @@ fn record_temporal_metrics(
             .any(|value| value.kind == metric.kind && value.subject == metric.subject);
         if !duplicate && state.temporal_anomalies.len() < MAX_TEMPORAL_ANOMALIES {
             warn!(
-                "[ANIMATION-VISUAL][TEMPORAL] stage={} kind={} subject={} previous={:.6} current={:.6} threshold={:.6} elapsed={:.6} frame_ms={:.3}",
+                "[ANIMATION-VISUAL][TEMPORAL] stage={} kind={} trigger={} subject={} previous={:.6} current={:.6} threshold={:.6} rate={:?} rate_threshold={:?} elapsed={:.6} frame_ms={:.3}",
                 stage,
                 metric.kind,
+                metric.trigger,
                 metric.subject,
                 metric.previous,
                 metric.current,
                 metric.threshold,
+                metric.rate,
+                metric.rate_threshold,
                 elapsed_secs,
                 frame_ms,
             );
@@ -982,6 +1022,9 @@ fn record_temporal_metrics(
                 previous: metric.previous,
                 current: metric.current,
                 threshold: metric.threshold,
+                trigger: metric.trigger.to_owned(),
+                rate: metric.rate,
+                rate_threshold: metric.rate_threshold,
                 elapsed_secs,
                 frame_ms,
                 direction_case: direction_case.map(str::to_owned),
@@ -3291,7 +3334,7 @@ mod tests {
     fn visual_evidence_format_is_loaded_from_the_shared_contract() {
         assert_eq!(
             animation_visual_evidence_format(),
-            "als_animation_visual_evidence_v20"
+            "als_animation_visual_evidence_v21"
         );
     }
 

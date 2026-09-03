@@ -920,12 +920,22 @@ def temporal_anomaly_issues(values):
             continue
         if value.get("stage") not in ("pre_rig", "final"):
             issues.append("temporal anomaly stage is invalid")
-        for key in ("kind", "subject"):
+        for key in ("kind", "subject", "trigger"):
             if not isinstance(value.get(key), str) or not value.get(key):
                 issues.append(f"temporal anomaly field is invalid: {key}")
+        if value.get("trigger") not in ("jump", "rate", "ratio", "plane_flip"):
+            issues.append("temporal anomaly trigger is invalid")
         for key in ("previous", "current", "threshold", "elapsed_secs", "frame_ms"):
             if not finite(value.get(key)):
                 issues.append(f"temporal anomaly value is invalid: {key}")
+        for key in ("rate", "rate_threshold"):
+            rate = value.get(key)
+            if rate is not None and (not finite(rate) or rate < 0.0):
+                issues.append(f"temporal anomaly rate is invalid: {key}")
+        if value.get("trigger") == "rate" and (
+            not finite(value.get("rate")) or not finite(value.get("rate_threshold"))
+        ):
+            issues.append("temporal anomaly rate trigger is incomplete")
         for key in ("direction_case", "phase"):
             label = value.get(key)
             if label is not None and (not isinstance(label, str) or not label):
@@ -1642,6 +1652,9 @@ def run_self_test():
                 "previous": 1.0,
                 "current": -1.0,
                 "threshold": -0.5,
+                "trigger": "plane_flip",
+                "rate": None,
+                "rate_threshold": None,
                 "elapsed_secs": 1.0,
                 "frame_ms": 16.0,
                 "direction_case": "crouch_left_forward",
@@ -1652,6 +1665,9 @@ def run_self_test():
         missing_stage = copy.deepcopy(report["temporal_anomalies"])
         missing_stage[0].pop("stage")
         assert any("stage" in issue for issue in temporal_anomaly_issues(missing_stage))
+        missing_trigger = copy.deepcopy(report["temporal_anomalies"])
+        missing_trigger[0].pop("trigger")
+        assert any("trigger" in issue for issue in temporal_anomaly_issues(missing_trigger))
         report = fixture_report(paths)
         report.pop("temporal_anomalies")
         assert not audit(report, 2)["pass"]
@@ -2107,6 +2123,7 @@ def run_self_test():
         "temporal_anomaly_schema_required": "PASS",
         "instant_limb_deformation_rejected": "PASS",
         "temporal_anomaly_stage_required": "PASS",
+        "temporal_anomaly_trigger_required": "PASS",
         "foot_lock_teleport_evidence_required": "PASS",
         "foot_ik_teleport_case_required": "PASS",
         "runtime_phase_evidence_required": "PASS",
