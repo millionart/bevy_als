@@ -156,10 +156,16 @@ def validate_registry(value):
         raise ConversionError("mapping registry format is invalid")
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
+    sync_group_phase_keys = value.get("sync_group_phase_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
     if not isinstance(functions, list):
         raise ConversionError("mapping registry function rules are invalid")
+    if not isinstance(sync_group_phase_keys, dict):
+        raise ConversionError("mapping registry sync group phase keys are invalid")
+    for group, key in sync_group_phase_keys.items():
+        if not isinstance(group, str) or not group or not isinstance(key, str) or not key:
+            raise ConversionError("mapping registry sync group phase key is invalid")
     for key, mapping in node_classes.items():
         if not isinstance(key, str) or not key.startswith("/Script/"):
             raise ConversionError("mapping registry source class is invalid")
@@ -328,22 +334,64 @@ def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
     }, unsupported
 
 
-def pose_renderer_status(graph_contract, graph_value, animation_assets):
+def pose_renderer_status(graph_contract, graph_value, animation_assets, sync_group_phase_keys):
     if not all(node.get("renderer") in SUPPORTED_RENDERERS for node in graph_value["nodes"]):
         return {"state": "deferred"}
     try:
-        render_pose_graph(graph_contract, graph_value, animation_assets)
+        render_pose_graph(
+            graph_contract,
+            graph_value,
+            animation_assets,
+            sync_group_phase_keys,
+        )
     except PoseRenderError as error:
         return {"state": "blocked", "detail": str(error)}
     return {"state": "renderable"}
 
 
-def build_ir(source, root_graph, registry, asset_root):
+def supported_sync_group_nodes(graphs, animation_assets, registry):
+    assets = {
+        asset.get("source_node"): asset
+        for asset in animation_assets
+        if isinstance(asset.get("source_node"), str)
+    }
+    supported = set()
+    for graph in graphs:
+        for node in graph["nodes"]:
+            semantic = node.get("semantic")
+            if node.get("renderer") != "sequence_player" or not isinstance(semantic, dict):
+                continue
+            group = semantic.get("sync_group")
+            asset = assets.get(node.get("source_node"))
+            timing = asset.get("source_timing") if isinstance(asset, dict) else None
+            if (
+                isinstance(group, str)
+                and group in registry["sync_group_phase_keys"]
+                and isinstance(timing, dict)
+                and timing.get("markers") == []
+            ):
+                supported.add(node["source_node"])
+    return supported
+
+
+def build_ir(
+    source,
+    root_graph,
+    registry,
+    asset_root,
+    source_content_root=None,
+    source_mount=None,
+):
     source_reachability = traverse(source, root_graph)
     graphs = []
     unsupported = list(source_reachability["issues"])
     try:
-        assets = resolve_graph_animation_assets(asset_root, source)
+        assets = resolve_graph_animation_assets(
+            asset_root,
+            source,
+            source_content_root,
+            source_mount,
+        )
     except AssetResolutionError as error:
         unsupported.append(
             {
@@ -361,9 +409,23 @@ def build_ir(source, root_graph, registry, asset_root):
             entry["kind"],
         )
         if entry["kind"] == "graph":
-            graph_value["pose_renderer"] = pose_renderer_status(value, graph_value, assets)
+            graph_value["pose_renderer"] = pose_renderer_status(
+                value,
+                graph_value,
+                assets,
+                registry["sync_group_phase_keys"],
+            )
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
+    supported_sync_nodes = supported_sync_group_nodes(graphs, assets, registry)
+    unsupported = [
+        issue
+        for issue in unsupported
+        if not (
+            issue.get("kind") == "source_sync_group_unsupported"
+            and issue.get("source_node") in supported_sync_nodes
+        )
+    ]
     for dependency in source_reachability["external_dependencies"]:
         unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
     return {
@@ -386,8 +448,23 @@ def build_report(source_identity, ir, unsupported):
     }
 
 
-def expected_outputs(source, source_identity, root_graph, registry, asset_root):
-    ir, unsupported = build_ir(source, root_graph, registry, asset_root)
+def expected_outputs(
+    source,
+    source_identity,
+    root_graph,
+    registry,
+    asset_root,
+    source_content_root=None,
+    source_mount=None,
+):
+    ir, unsupported = build_ir(
+        source,
+        root_graph,
+        registry,
+        asset_root,
+        source_content_root,
+        source_mount,
+    )
     report = build_report(source_identity, ir, unsupported)
     return ir, report
 
@@ -657,6 +734,7 @@ def main():
     registry = validate_registry(read_json(args.registry))
     if not args.asset_root.is_dir():
         raise ConversionError("target asset root is unavailable")
+    source_content_root = content_root_for_uasset(args.uasset.resolve(), args.content_root)
     source, source_identity = read_uasset_source(
         args.uasset,
         args.content_root,
@@ -671,6 +749,8 @@ def main():
         args.root_graph,
         registry,
         args.asset_root,
+        source_content_root,
+        args.mount,
     )
     if args.report is not None:
         write_json(args.report, report)

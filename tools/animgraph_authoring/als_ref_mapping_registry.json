@@ -34,5 +34,11 @@
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshRotateInPlace", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "Equal (GameplayTag)", "renderer": "gameplay_tag_equal" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "To Float (Boolean)", "renderer": "boolean_to_float" }
-  ]
+  ],
+  "sync_group_phase_keys": {
+    "Fall": "als_locomotion_fall_phase",
+    "Jump": "als_locomotion_jump_phase",
+    "Flail": "als_locomotion_flail_phase",
+    "Land": "als_locomotion_land_phase"
+  }
 }

@@ -139,8 +139,6 @@ def rendered_inner(source, semantic, asset_by_node):
     value = semantic.get("semantic")
     if renderer == "sequence_player":
         pins = input_names(value)
-        if value.get("sync_group") != "None":
-            raise PoseRenderError("source sync group requires group renderer")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("additive_reference", "None"),
@@ -155,7 +153,7 @@ def rendered_inner(source, semantic, asset_by_node):
             field("loop_animation", bool_ron(value["loop_animation"])),
             field("loop_animation_key", quoted("")),
             field("expose_loop_animation_pin", bool_ron("LoopAnimation" in pins)),
-            field("sync_group", quoted("")),
+            field("sync_group", quoted(value["sync_group"])),
         ]
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
     if renderer == "sequence_evaluator":
@@ -252,7 +250,7 @@ def target_pin(renderer, source_pin):
     return source_pin
 
 
-def render(graph_contract, graph_ir, animation_assets):
+def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=None):
     raw_nodes = node_index(graph_contract)
     ir_nodes = semantic_index(graph_ir)
     if set(raw_nodes) < set(ir_nodes):
@@ -264,12 +262,41 @@ def render(graph_contract, graph_ir, animation_assets):
     if len(raw_by_id) != len(raw_nodes):
         raise PoseRenderError("source node identifiers are duplicated")
     asset_by_node = asset_index(animation_assets)
+    sync_group_phase_keys = sync_group_phase_keys or {}
     result_nodes = []
+    sync_wrappers = {}
     for source_path, semantic in ir_nodes.items():
         raw = raw_nodes[source_path]
         identifier = node_id(raw)
         node_type, inner = rendered_inner(raw, semantic, asset_by_node)
         result_nodes.append((identifier, source_title(raw), inner, node_type, position(raw)))
+        if semantic.get("renderer") != "sequence_player":
+            continue
+        group = semantic["semantic"].get("sync_group")
+        if group == "None":
+            continue
+        key = sync_group_phase_keys.get(group)
+        if not isinstance(key, str) or not key:
+            raise PoseRenderError("source sync group phase key is unavailable")
+        wrapper_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/sync/" + source_path))
+        x, y = position(raw)
+        looped = bool_ron(semantic["semantic"]["loop_animation"])
+        wrapper = (
+            "(key: " + quoted(key)
+            + ", leader_duration: 0.0, leader_markers: [], follower_duration: 0.0, follower_markers: [], looped: "
+            + looped
+            + ")"
+        )
+        result_nodes.append(
+            (
+                wrapper_id,
+                "Sync group " + group,
+                wrapper,
+                "als_ext::GlobalSyncGroupSampleNode",
+                (x, y + 96.0),
+            )
+        )
+        sync_wrappers[source_path] = wrapper_id
     result_nodes.sort(key=lambda value: value[0])
     state_results = [node for node in ir_nodes.values() if node.get("renderer") == "state_result"]
     if len(state_results) != 1:
@@ -285,13 +312,26 @@ def render(graph_contract, graph_ir, animation_assets):
         target_semantic = ir_nodes.get(target.get("node_object_path"))
         if source_semantic is None or target_semantic is None:
             raise PoseRenderError("source pose edge endpoint is unsupported")
-        source_identifier = node_id(raw_nodes[source_semantic["source_node"]])
+        source_identifier = sync_wrappers.get(
+            source_semantic["source_node"],
+            node_id(raw_nodes[source_semantic["source_node"]]),
+        )
         target_identifier = node_id(raw_nodes[target_semantic["source_node"]])
-        source_pin = target_pin(source_semantic["renderer"], source.get("pin_name"))
+        source_pin = (
+            "pose"
+            if source_semantic["source_node"] in sync_wrappers
+            else target_pin(source_semantic["renderer"], source.get("pin_name"))
+        )
         target_pin_name = target_pin(target_semantic["renderer"], target.get("pin_name"))
         edges.append(
             f"NodeData({quoted(target_identifier)}, {quoted(target_pin_name)}): NodeData({quoted(source_identifier)}, {quoted(source_pin)})"
         )
+    for source_path, wrapper_id in sync_wrappers.items():
+        identifier = node_id(raw_nodes[source_path])
+        edges.append(
+            f"NodeData({quoted(wrapper_id)}, \"pose\"): NodeData({quoted(identifier)}, \"Pose\")"
+        )
+        edges.append(f"NodeTime({quoted(wrapper_id)}, \"time\"): NodeTime({quoted(identifier)})")
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
     positions = ", ".join(
@@ -415,10 +455,18 @@ def run_self_test():
         pass
     else:
         raise AssertionError("source sync group was rendered without a group renderer")
+    text = render(
+        graph_contract,
+        graph_ir,
+        assets,
+        {"Movement": "als_source_movement_phase"},
+    )
+    assert '"als_ext::GlobalSyncGroupSampleNode"' in text
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
-        "sync_group_requires_its_own_renderer": "PASS",
+        "sync_group_requires_a_phase_source": "PASS",
+        "sync_group_wrapper_preserves_source_player": "PASS",
     }
 
 

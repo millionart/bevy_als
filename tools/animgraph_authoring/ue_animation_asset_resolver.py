@@ -1,8 +1,14 @@
 import json
 import re
+import sys
 import tempfile
 from pathlib import Path
 
+IMPORT_ROOT = Path(__file__).resolve().parents[1] / "import"
+sys.path.insert(0, str(IMPORT_ROOT))
+
+from uasset_base import UAsset
+from uasset_reader import PropReader
 from ue_exported_text import ExportedTextError, field as struct_field, parse_bool, parse_number, parse_struct
 
 
@@ -27,6 +33,64 @@ def source_package_path(source_path):
     if not isinstance(source_path, str) or "." not in source_path:
         raise AssetResolutionError("source asset path is invalid")
     return source_path.rsplit(".", 1)[0]
+
+
+def source_uasset_path(content_root, mount, source_path):
+    root = Path(content_root).resolve()
+    if not root.is_dir() or not isinstance(mount, str) or not mount.startswith("/"):
+        raise AssetResolutionError("source content root or mount is invalid")
+    package = source_package_path(source_path)
+    prefix = mount.rstrip("/")
+    if not prefix or not package.startswith(prefix + "/"):
+        raise AssetResolutionError("source asset is outside mount")
+    path = (root / (package[len(prefix) + 1 :] + ".uasset")).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as error:
+        raise AssetResolutionError("source asset is outside content root") from error
+    if not path.is_file():
+        raise AssetResolutionError("source animation asset is unavailable")
+    return path
+
+
+def source_export_class(asset, export):
+    if export.class_index >= 0:
+        return None
+    imported = asset.imports[-export.class_index - 1]
+    return imported.object_name if imported.class_name == "Class" else imported.class_name
+
+
+def source_sequence_timing(content_root, mount, source_path):
+    path = source_uasset_path(content_root, mount, source_path)
+    try:
+        asset = UAsset(str(path))
+        reader = PropReader(asset)
+    except Exception as error:
+        raise AssetResolutionError("source animation asset cannot be read") from error
+    name = source_asset_name(source_path)
+    matches = [
+        index
+        for index, export in enumerate(asset.exports)
+        if source_export_class(asset, export) == "AnimSequence" and export.object_name == name
+    ]
+    if len(matches) != 1:
+        raise AssetResolutionError("source animation sequence export is missing or ambiguous")
+    properties, ok, _ = reader.read_export(matches[0])
+    if not ok:
+        raise AssetResolutionError("source animation sequence properties are unreadable")
+    duration = properties.get("SequenceLength")
+    if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0.0:
+        raise AssetResolutionError("source animation sequence duration is invalid")
+    markers = []
+    for marker in properties.get("AuthoredSyncMarkers", []):
+        if not isinstance(marker, dict):
+            raise AssetResolutionError("source animation sync marker is invalid")
+        marker_name = marker.get("MarkerName")
+        time = marker.get("Time")
+        if not isinstance(marker_name, str) or not isinstance(time, (int, float)) or isinstance(time, bool):
+            raise AssetResolutionError("source animation sync marker fields are invalid")
+        markers.append({"name": marker_name, "time": float(time)})
+    return {"duration": float(duration), "markers": markers}
 
 
 def relative_asset_path(asset_root, path):
@@ -196,8 +260,9 @@ def blendspace_evaluator_contract(node, blendspace):
     }
 
 
-def resolve_graph_animation_assets(asset_root, source):
+def resolve_graph_animation_assets(asset_root, source, source_content_root=None, source_mount=None):
     rows = []
+    timings = {}
     for graph in source.get("graphs", []):
         for node in graph.get("nodes", []):
             class_path = node.get("class_path")
@@ -227,6 +292,12 @@ def resolve_graph_animation_assets(asset_root, source):
             if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator":
                 row["blendspace"] = blendspace
                 row["evaluator"] = evaluator
+            if category == "sequence" and source_content_root is not None:
+                timing = timings.get(source_path)
+                if timing is None:
+                    timing = source_sequence_timing(source_content_root, source_mount, source_path)
+                    timings[source_path] = timing
+                row["source_timing"] = timing
             rows.append(row)
     return rows
 
@@ -274,6 +345,16 @@ def run_self_test():
             pass
         else:
             raise AssertionError("ambiguous animation target was accepted")
+    with tempfile.TemporaryDirectory() as directory:
+        content = Path(directory) / "Content"
+        source = content / "ALS" / "Animations" / "A_Test.uasset"
+        source.parent.mkdir(parents=True)
+        source.write_bytes(b"fixture")
+        assert source_uasset_path(
+            content,
+            "/ALS",
+            "/ALS/ALS/Animations/A_Test.A_Test",
+        ) == source.resolve()
     source = {
         "graphs": [
             {
@@ -385,6 +466,7 @@ def run_self_test():
         "blendspace_metadata_resolved": "PASS",
         "blendspace_samples_resolve_to_target_clips": "PASS",
         "ambiguous_target_rejected": "PASS",
+        "source_animation_path_resolves_inside_mount": "PASS",
         "sequence_nodes_resolve_from_source_graphs": "PASS",
         "blendspace_evaluator_schema_is_validated": "PASS",
     }
