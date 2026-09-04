@@ -222,8 +222,8 @@ pub use source_cached_pose::{
 pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_pose_nodes::{
-    SourceApplyAdditiveNode, SourceCurveModifyNode, SourceGameplayTagBlendNode,
-    SourceTwoWayBlendNode,
+    SourceAlphaMapping, SourceApplyAdditiveNode, SourceCurveModifyNode, SourceGameplayTagBlendNode,
+    SourceMeshSpaceAdditiveNode, SourceTwoWayBlendNode,
 };
 pub use source_pose_passthrough::SourcePosePassthroughNode;
 pub use source_scalar_expression::{
@@ -333,8 +333,10 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceScopedCachedPoseUseNode>()
             .register_type::<SourceLinkedInputPoseNode>()
             .register_type::<SourceApplyAdditiveNode>()
+            .register_type::<SourceAlphaMapping>()
             .register_type::<SourceCurveModifyNode>()
             .register_type::<SourceGameplayTagBlendNode>()
+            .register_type::<SourceMeshSpaceAdditiveNode>()
             .register_type::<SourceMultiWayBlendNode>()
             .register_type::<SourceSetHipsDirectionNode>()
             .register_type::<SourcePosePassthroughNode>()

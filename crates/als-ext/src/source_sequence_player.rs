@@ -19,12 +19,18 @@ use bevy_animation_graph::core::{
 };
 
 use crate::global_f32_input::root_defaults_enabled;
-use crate::{context_time_update, make_local_difference};
+use crate::{
+    context_time_update, make_local_difference,
+    source_pose_nodes::{
+        SourceAlphaMapping, SourceInputScaleBiasClampState, apply_source_input_scale_bias_clamp,
+    },
+};
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct SourceSequencePlayerState {
     initialized: bool,
     position: f32,
+    play_rate_state: SourceInputScaleBiasClampState,
 }
 
 enum CurveSample {
@@ -147,6 +153,9 @@ pub struct SourceSequencePlayerNode {
     pub additive_reference_position: f32,
     pub play_rate: f32,
     pub play_rate_key: String,
+    pub expose_play_rate_pin: bool,
+    pub play_rate_basis: f32,
+    pub play_rate_mapping: SourceAlphaMapping,
     pub start_position: f32,
     pub expose_start_position_pin: bool,
     pub loop_animation: bool,
@@ -163,6 +172,9 @@ impl Default for SourceSequencePlayerNode {
             additive_reference_position: 0.0,
             play_rate: 1.0,
             play_rate_key: Default::default(),
+            expose_play_rate_pin: true,
+            play_rate_basis: 1.0,
+            play_rate_mapping: Default::default(),
             start_position: 0.0,
             expose_start_position_pin: true,
             loop_animation: true,
@@ -185,14 +197,49 @@ impl NodeLike for SourceSequencePlayerNode {
             return Ok(());
         };
         let update = context_time_update(&ctx)?;
-        let play_rate = global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate)?;
-        let loop_animation =
-            global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)?;
+        let play_rate = if self.expose_play_rate_pin {
+            ctx.data_back("Play Rate")
+                .and_then(|value| value.as_f32())
+                .or_else(|_| global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate))?
+        } else {
+            global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate)?
+        };
+        let loop_animation = if self.expose_loop_animation_pin {
+            ctx.data_back("Loop Animation")
+                .and_then(|value| value.as_bool())
+                .or_else(|_| {
+                    global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)
+                })?
+        } else {
+            global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)?
+        };
+        let start_position = if self.expose_start_position_pin {
+            ctx.data_back("Start Position")
+                .and_then(|value| value.as_f32())
+                .unwrap_or(self.start_position)
+        } else {
+            self.start_position
+        };
+        let delta = match &update {
+            TimeUpdate::Delta(value) => value.max(0.0),
+            TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
+        };
+        let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
+        let play_rate = apply_source_input_scale_bias_clamp(
+            &mut state.play_rate_state,
+            if self.play_rate_basis.abs() <= f32::EPSILON {
+                0.0
+            } else {
+                play_rate / self.play_rate_basis
+            },
+            &self.play_rate_mapping,
+            delta,
+        );
         let position = next_position(
-            ctx.state_mut_or_else(SourceSequencePlayerState::default)?,
+            state,
             update,
             clip.duration(),
-            self.start_position,
+            start_position,
             play_rate,
             loop_animation,
         );
@@ -227,7 +274,9 @@ impl NodeLike for SourceSequencePlayerNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data("Play Rate", DataSpec::F32);
+        if self.expose_play_rate_pin {
+            ctx.add_input_data("Play Rate", DataSpec::F32);
+        }
         if self.expose_start_position_pin {
             ctx.add_input_data("Start Position", DataSpec::F32);
         }
@@ -265,5 +314,53 @@ mod tests {
                 .abs()
                 < 1e-6
         );
+    }
+
+    #[test]
+    fn source_sequence_player_can_hide_an_unexposed_play_rate_pin() {
+        let node = SourceSequencePlayerNode {
+            expose_play_rate_pin: false,
+            ..Default::default()
+        };
+        assert!(!node.expose_play_rate_pin);
+    }
+
+    #[test]
+    fn source_sequence_player_can_hide_an_unexposed_loop_pin() {
+        let node = SourceSequencePlayerNode {
+            expose_loop_animation_pin: false,
+            ..Default::default()
+        };
+        assert!(!node.expose_loop_animation_pin);
+    }
+
+    #[test]
+    fn source_sequence_player_can_hide_an_unexposed_start_position_pin() {
+        let node = SourceSequencePlayerNode {
+            expose_start_position_pin: false,
+            ..Default::default()
+        };
+        assert!(!node.expose_start_position_pin);
+    }
+
+    #[test]
+    fn source_sequence_player_applies_basis_before_source_scale_bias_clamp() {
+        let mapping = SourceAlphaMapping {
+            source_semantics: true,
+            map_range: true,
+            input_min: 0.0,
+            input_max: 1.0,
+            output_min: 0.5,
+            output_max: 1.5,
+            scale: 2.0,
+            bias: -0.25,
+            clamp_result: true,
+            clamp_min: 0.0,
+            clamp_max: 2.0,
+            ..Default::default()
+        };
+        let mut state = SourceInputScaleBiasClampState::default();
+        let rate = apply_source_input_scale_bias_clamp(&mut state, 50.0 / 100.0, &mapping, 0.0);
+        assert!((rate - 1.75).abs() < 1e-6);
     }
 }

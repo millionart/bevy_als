@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 from extract_ue_visible_graph_contract import contract
 from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
 from ue_animgraph_pose_contract import pose_contract
+from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, render as render_pose_graph
 from ue_animgraph_reachability import traverse
 
 
@@ -327,22 +328,20 @@ def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
     }, unsupported
 
 
+def pose_renderer_status(graph_contract, graph_value, animation_assets):
+    if not all(node.get("renderer") in SUPPORTED_RENDERERS for node in graph_value["nodes"]):
+        return {"state": "deferred"}
+    try:
+        render_pose_graph(graph_contract, graph_value, animation_assets)
+    except PoseRenderError as error:
+        return {"state": "blocked", "detail": str(error)}
+    return {"state": "renderable"}
+
+
 def build_ir(source, root_graph, registry, asset_root):
     source_reachability = traverse(source, root_graph)
     graphs = []
     unsupported = list(source_reachability["issues"])
-    for entry in source_reachability["graphs"]:
-        value = contract(source, entry["source_graph"])
-        graph_value, graph_unsupported = graph_ir(
-            value,
-            registry,
-            entry["reachable_nodes"],
-            entry["kind"],
-        )
-        graphs.append({**entry, **graph_value})
-        unsupported.extend(graph_unsupported)
-    for dependency in source_reachability["external_dependencies"]:
-        unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
     try:
         assets = resolve_graph_animation_assets(asset_root, source)
     except AssetResolutionError as error:
@@ -353,6 +352,20 @@ def build_ir(source, root_graph, registry, asset_root):
             }
         )
         assets = []
+    for entry in source_reachability["graphs"]:
+        value = contract(source, entry["source_graph"])
+        graph_value, graph_unsupported = graph_ir(
+            value,
+            registry,
+            entry["reachable_nodes"],
+            entry["kind"],
+        )
+        if entry["kind"] == "graph":
+            graph_value["pose_renderer"] = pose_renderer_status(value, graph_value, assets)
+        graphs.append({**entry, **graph_value})
+        unsupported.extend(graph_unsupported)
+    for dependency in source_reachability["external_dependencies"]:
+        unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
     return {
         "format": IR_FORMAT,
         "source_asset": source["asset_path"],

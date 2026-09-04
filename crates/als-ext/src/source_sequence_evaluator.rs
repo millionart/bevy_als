@@ -22,6 +22,7 @@ pub struct SourceSequenceEvaluatorNode {
     pub explicit_frame: f32,
     pub explicit_frame_key: String,
     pub explicit_frame_pin: String,
+    pub expose_explicit_frame_pin: bool,
     pub frames_per_second: f32,
     pub should_loop: bool,
     pub teleport_to_explicit_time: bool,
@@ -35,6 +36,7 @@ impl Default for SourceSequenceEvaluatorNode {
             explicit_frame: 0.0,
             explicit_frame_key: default(),
             explicit_frame_pin: "Explicit Frame".to_owned(),
+            expose_explicit_frame_pin: true,
             frames_per_second: 30.0,
             should_loop: true,
             teleport_to_explicit_time: true,
@@ -45,8 +47,10 @@ impl Default for SourceSequenceEvaluatorNode {
 
 impl SourceSequenceEvaluatorNode {
     fn explicit_frame_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        if let Ok(value) = ctx.data_back(self.explicit_frame_pin.clone()) {
-            return value.as_f32();
+        if self.expose_explicit_frame_pin {
+            if let Ok(value) = ctx.data_back(self.explicit_frame_pin.clone()) {
+                return value.as_f32();
+            }
         }
         if self.explicit_frame_key.is_empty() {
             return Ok(self.explicit_frame);
@@ -90,8 +94,10 @@ impl NodeLike for SourceSequenceEvaluatorNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(self.explicit_frame_pin.clone(), DataSpec::F32)
-            .add_output_data("Pose", DataSpec::Pose);
+        if self.expose_explicit_frame_pin {
+            ctx.add_input_data(self.explicit_frame_pin.clone(), DataSpec::F32);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
     }
 
@@ -117,5 +123,14 @@ mod tests {
             SourceSequenceEvaluatorNode::default().explicit_frame_pin,
             "Explicit Frame"
         );
+    }
+
+    #[test]
+    fn source_sequence_evaluator_can_hide_an_unexposed_frame_pin() {
+        let node = SourceSequenceEvaluatorNode {
+            expose_explicit_frame_pin: false,
+            ..default()
+        };
+        assert!(!node.expose_explicit_frame_pin);
     }
 }

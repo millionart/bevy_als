@@ -11,12 +11,59 @@ use bevy_animation_graph::core::{
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::global_f32_or_root_default;
+use crate::mesh_space_additive::apply_mesh_space_additive;
 use crate::{context_time_update, f_interp_to};
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct SourceBlendState {
     initialized: bool,
     value: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+pub struct SourceInputScaleBiasClampState {
+    initialized: bool,
+    value: f32,
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default)]
+pub struct SourceAlphaMapping {
+    pub source_semantics: bool,
+    pub map_range: bool,
+    pub input_min: f32,
+    pub input_max: f32,
+    pub output_min: f32,
+    pub output_max: f32,
+    pub scale: f32,
+    pub bias: f32,
+    pub clamp_result: bool,
+    pub clamp_min: f32,
+    pub clamp_max: f32,
+    pub interpolate_result: bool,
+    pub interpolate_speed_increasing: f32,
+    pub interpolate_speed_decreasing: f32,
+}
+
+impl Default for SourceAlphaMapping {
+    fn default() -> Self {
+        Self {
+            source_semantics: false,
+            map_range: false,
+            input_min: 0.0,
+            input_max: 1.0,
+            output_min: 0.0,
+            output_max: 1.0,
+            scale: 1.0,
+            bias: 0.0,
+            clamp_result: false,
+            clamp_min: 0.0,
+            clamp_max: 1.0,
+            interpolate_result: false,
+            interpolate_speed_increasing: 10.0,
+            interpolate_speed_decreasing: 10.0,
+        }
+    }
 }
 
 fn delta_seconds(ctx: &NodeContext) -> Result<f32, GraphError> {
@@ -26,16 +73,67 @@ fn delta_seconds(ctx: &NodeContext) -> Result<f32, GraphError> {
     })
 }
 
+pub fn apply_source_input_scale_bias_clamp(
+    state: &mut SourceInputScaleBiasClampState,
+    raw: f32,
+    mapping: &SourceAlphaMapping,
+    delta: f32,
+) -> f32 {
+    if !mapping.source_semantics {
+        return raw;
+    }
+    let mut target = raw;
+    if mapping.map_range {
+        let divisor = mapping.input_max - mapping.input_min;
+        let percent = if divisor.abs() <= 1.0e-8 {
+            if raw >= mapping.input_max { 1.0 } else { 0.0 }
+        } else {
+            (raw - mapping.input_min) / divisor
+        };
+        target = mapping.output_min + (mapping.output_max - mapping.output_min) * percent;
+    }
+    target = target * mapping.scale + mapping.bias;
+    if mapping.clamp_result {
+        target = target.clamp(mapping.clamp_min, mapping.clamp_max);
+    }
+    if mapping.interpolate_result {
+        if state.initialized {
+            let speed = if target >= state.value {
+                mapping.interpolate_speed_increasing
+            } else {
+                mapping.interpolate_speed_decreasing
+            };
+            target = f_interp_to(state.value, target, delta, speed);
+        }
+        state.value = target;
+    }
+    state.initialized = true;
+    target
+}
+
 fn source_blend_alpha(
     state: &mut SourceBlendState,
     raw: f32,
     mapping_max: f32,
+    mapping: &SourceAlphaMapping,
+    alpha_scale: f32,
+    alpha_bias: f32,
     minimum: f32,
     maximum: f32,
     increasing_speed: f32,
     decreasing_speed: f32,
     delta: f32,
 ) -> f32 {
+    if mapping.source_semantics {
+        let mut mapping_state = SourceInputScaleBiasClampState {
+            initialized: state.initialized,
+            value: state.value,
+        };
+        let target = apply_source_input_scale_bias_clamp(&mut mapping_state, raw, mapping, delta);
+        state.initialized = mapping_state.initialized;
+        state.value = mapping_state.value;
+        return (target * alpha_scale + alpha_bias).clamp(0.0, 1.0);
+    }
     let mapped = if mapping_max > f32::EPSILON {
         (raw / mapping_max).clamp(0.0, 1.0)
     } else {
@@ -45,7 +143,7 @@ fn source_blend_alpha(
     if !state.initialized {
         state.initialized = true;
         state.value = target;
-        return target;
+        return (target * alpha_scale + alpha_bias).clamp(0.0, 1.0);
     }
     let speed = if target >= state.value {
         increasing_speed
@@ -53,7 +151,7 @@ fn source_blend_alpha(
         decreasing_speed
     };
     state.value = f_interp_to(state.value, target, delta, speed);
-    state.value
+    (state.value * alpha_scale + alpha_bias).clamp(0.0, 1.0)
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -62,8 +160,12 @@ fn source_blend_alpha(
 pub struct SourceTwoWayBlendNode {
     pub alpha_key: String,
     pub alpha_pin: String,
+    pub expose_alpha_pin: bool,
     pub pin_default: f32,
     pub mapping_max: f32,
+    pub mapping: SourceAlphaMapping,
+    pub alpha_scale: f32,
+    pub alpha_bias: f32,
     pub increasing_speed: f32,
     pub decreasing_speed: f32,
 }
@@ -73,8 +175,12 @@ impl Default for SourceTwoWayBlendNode {
         Self {
             alpha_key: default(),
             alpha_pin: "Alpha".to_owned(),
+            expose_alpha_pin: true,
             pin_default: 0.0,
             mapping_max: 0.0,
+            mapping: default(),
+            alpha_scale: 1.0,
+            alpha_bias: 0.0,
             increasing_speed: 0.0,
             decreasing_speed: 0.0,
         }
@@ -83,16 +189,31 @@ impl Default for SourceTwoWayBlendNode {
 
 impl NodeLike for SourceTwoWayBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let raw = crate::global_f32_input::global_f32_or_root_default_value(
-            &ctx,
-            &self.alpha_key,
-            self.pin_default,
-        )?;
+        let raw = if self.expose_alpha_pin {
+            ctx.data_back(self.alpha_pin.clone())
+                .and_then(|value| value.as_f32())
+                .or_else(|_| {
+                    crate::global_f32_input::global_f32_or_root_default_value(
+                        &ctx,
+                        &self.alpha_key,
+                        self.pin_default,
+                    )
+                })?
+        } else {
+            crate::global_f32_input::global_f32_or_root_default_value(
+                &ctx,
+                &self.alpha_key,
+                self.pin_default,
+            )?
+        };
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
             ctx.state_mut::<SourceBlendState>()?,
             raw,
             self.mapping_max,
+            &self.mapping,
+            self.alpha_scale,
+            self.alpha_bias,
             0.0,
             1.0,
             self.increasing_speed,
@@ -112,9 +233,11 @@ impl NodeLike for SourceTwoWayBlendNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data("A", DataSpec::Pose)
-            .add_input_data("B", DataSpec::Pose)
-            .add_input_data(self.alpha_pin.clone(), DataSpec::F32)
-            .add_output_data("Pose", DataSpec::Pose);
+            .add_input_data("B", DataSpec::Pose);
+        if self.expose_alpha_pin {
+            ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
     }
 
@@ -132,6 +255,9 @@ pub struct SourceApplyAdditiveNode {
     pub expose_alpha_pin: bool,
     pub use_constant_alpha: bool,
     pub constant_alpha: f32,
+    pub mapping: SourceAlphaMapping,
+    pub alpha_scale: f32,
+    pub alpha_bias: f32,
     pub minimum_alpha: f32,
     pub maximum_alpha: f32,
     pub increasing_speed: f32,
@@ -149,6 +275,9 @@ impl Default for SourceApplyAdditiveNode {
             expose_alpha_pin: true,
             use_constant_alpha: false,
             constant_alpha: 0.0,
+            mapping: default(),
+            alpha_scale: 1.0,
+            alpha_bias: 0.0,
             minimum_alpha: 0.0,
             maximum_alpha: 1.0,
             increasing_speed: 0.0,
@@ -164,6 +293,10 @@ impl NodeLike for SourceApplyAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let raw = if self.use_constant_alpha {
             self.constant_alpha
+        } else if self.expose_alpha_pin {
+            ctx.data_back(self.alpha_pin.clone())
+                .and_then(|value| value.as_f32())
+                .or_else(|_| global_f32_or_root_default(&ctx, &self.alpha_key))?
         } else {
             global_f32_or_root_default(&ctx, &self.alpha_key)?
         };
@@ -172,6 +305,9 @@ impl NodeLike for SourceApplyAdditiveNode {
             ctx.state_mut::<SourceBlendState>()?,
             raw,
             0.0,
+            &self.mapping,
+            self.alpha_scale,
+            self.alpha_bias,
             self.minimum_alpha,
             self.maximum_alpha,
             self.increasing_speed,
@@ -205,6 +341,118 @@ impl NodeLike for SourceApplyAdditiveNode {
 
     fn display_name(&self) -> String {
         "ALS Source Apply Additive".to_owned()
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct SourceMeshSpaceAdditiveNode {
+    pub alpha_key: String,
+    pub alpha_pin: String,
+    pub expose_alpha_pin: bool,
+    pub use_constant_alpha: bool,
+    pub constant_alpha: f32,
+    pub mapping: SourceAlphaMapping,
+    pub alpha_scale: f32,
+    pub alpha_bias: f32,
+    pub minimum_alpha: f32,
+    pub maximum_alpha: f32,
+    pub increasing_speed: f32,
+    pub decreasing_speed: f32,
+    pub expose_source_alpha_controls: bool,
+    pub alpha_curve_name: String,
+    pub alpha_bool_enabled: bool,
+}
+
+impl Default for SourceMeshSpaceAdditiveNode {
+    fn default() -> Self {
+        Self {
+            alpha_key: default(),
+            alpha_pin: "Alpha".to_owned(),
+            expose_alpha_pin: true,
+            use_constant_alpha: false,
+            constant_alpha: 0.0,
+            mapping: default(),
+            alpha_scale: 1.0,
+            alpha_bias: 0.0,
+            minimum_alpha: 0.0,
+            maximum_alpha: 1.0,
+            increasing_speed: 0.0,
+            decreasing_speed: 0.0,
+            expose_source_alpha_controls: false,
+            alpha_curve_name: "None".to_owned(),
+            alpha_bool_enabled: true,
+        }
+    }
+}
+
+impl NodeLike for SourceMeshSpaceAdditiveNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let raw = if self.use_constant_alpha {
+            self.constant_alpha
+        } else if self.expose_alpha_pin {
+            ctx.data_back(self.alpha_pin.clone())
+                .and_then(|value| value.as_f32())
+                .or_else(|_| global_f32_or_root_default(&ctx, &self.alpha_key))?
+        } else {
+            global_f32_or_root_default(&ctx, &self.alpha_key)?
+        };
+        let delta = delta_seconds(&ctx)?;
+        let alpha = source_blend_alpha(
+            ctx.state_mut::<SourceBlendState>()?,
+            raw,
+            0.0,
+            &self.mapping,
+            self.alpha_scale,
+            self.alpha_bias,
+            self.minimum_alpha,
+            self.maximum_alpha,
+            self.increasing_speed,
+            self.decreasing_speed,
+            delta,
+        );
+        let mut base = ctx.data_back("Base")?.into_pose()?;
+        if alpha.abs() > f32::EPSILON {
+            let additive = ctx.data_back("Additive")?.into_pose()?;
+            if ctx
+                .graph_context
+                .resources
+                .skeleton_assets
+                .get(&base.skeleton)
+                .is_none()
+            {
+                base.skeleton = additive.skeleton.clone();
+            }
+            let skeleton = ctx
+                .graph_context
+                .resources
+                .skeleton_assets
+                .get(&base.skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            apply_mesh_space_additive(&mut base, &additive, alpha, skeleton);
+        }
+        ctx.set_time(base.timestamp);
+        ctx.set_data_fwd("Pose", base);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data("Base", DataSpec::Pose)
+            .add_input_data("Additive", DataSpec::Pose);
+        if self.expose_alpha_pin {
+            ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
+        }
+        if self.expose_source_alpha_controls {
+            ctx.add_input_data("AlphaCurveName", DataSpec::F32)
+                .add_input_data("bAlphaBoolEnabled", DataSpec::F32);
+        }
+        ctx.add_output_data("Pose", DataSpec::Pose);
+        Ok(())
+    }
+
+    fn display_name(&self) -> String {
+        "ALS Source Mesh Space Additive".to_owned()
     }
 }
 
@@ -449,11 +697,122 @@ mod tests {
     fn source_two_way_alpha_matches_range_and_directional_interpolation() {
         let mut state = SourceBlendState::default();
         assert_eq!(
-            source_blend_alpha(&mut state, 0.125, 0.25, 0.0, 1.0, 20.0, 4.0, 0.1),
+            source_blend_alpha(
+                &mut state,
+                0.125,
+                0.25,
+                &SourceAlphaMapping::default(),
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                20.0,
+                4.0,
+                0.1,
+            ),
             0.5
         );
         assert!(
-            (source_blend_alpha(&mut state, 0.0, 0.25, 0.0, 1.0, 20.0, 4.0, 0.1) - 0.3).abs()
+            (source_blend_alpha(
+                &mut state,
+                0.0,
+                0.25,
+                &SourceAlphaMapping::default(),
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                20.0,
+                4.0,
+                0.1,
+            ) - 0.3)
+                .abs()
+                < 1e-6
+        );
+    }
+
+    #[test]
+    fn source_alpha_scale_bias_applies_on_the_first_legacy_sample() {
+        let mut state = SourceBlendState::default();
+        assert_eq!(
+            source_blend_alpha(
+                &mut state,
+                0.25,
+                0.0,
+                &SourceAlphaMapping::default(),
+                -1.0,
+                1.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+            ),
+            0.75
+        );
+    }
+
+    #[test]
+    fn source_alpha_mapping_matches_unclamped_range_then_final_alpha_clamp() {
+        let mapping = SourceAlphaMapping {
+            source_semantics: true,
+            map_range: true,
+            input_min: 0.0,
+            input_max: 1.0,
+            output_min: 1.0,
+            output_max: 0.5,
+            ..default()
+        };
+        let mut state = SourceBlendState::default();
+        assert_eq!(
+            source_blend_alpha(
+                &mut state, 0.0, 0.0, &mapping, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
+            ),
+            1.0
+        );
+        assert_eq!(
+            source_blend_alpha(
+                &mut state, 1.0, 0.0, &mapping, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
+            ),
+            0.5
+        );
+        assert_eq!(
+            source_blend_alpha(
+                &mut state, 3.0, 0.0, &mapping, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
+            ),
+            0.0
+        );
+    }
+
+    #[test]
+    fn source_alpha_mapping_applies_source_clamp_and_interpolation_before_alpha_bias() {
+        let mapping = SourceAlphaMapping {
+            source_semantics: true,
+            map_range: true,
+            input_min: 0.0,
+            input_max: 1.0,
+            output_min: 0.0,
+            output_max: 2.0,
+            clamp_result: true,
+            clamp_min: 0.25,
+            clamp_max: 0.75,
+            interpolate_result: true,
+            interpolate_speed_increasing: 2.0,
+            interpolate_speed_decreasing: 2.0,
+            ..default()
+        };
+        let mut state = SourceBlendState::default();
+        assert_eq!(
+            source_blend_alpha(
+                &mut state, 0.0, 0.0, &mapping, -1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.1
+            ),
+            0.75
+        );
+        assert!(
+            (source_blend_alpha(
+                &mut state, 1.0, 0.0, &mapping, -1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.1
+            ) - 0.65)
+                .abs()
                 < 1e-6
         );
     }
@@ -474,6 +833,9 @@ mod tests {
             expose_alpha_pin: false,
             use_constant_alpha: true,
             constant_alpha: 1.0,
+            mapping: default(),
+            alpha_scale: 1.0,
+            alpha_bias: 0.0,
             minimum_alpha: 0.0,
             maximum_alpha: 1.0,
             increasing_speed: 0.0,
@@ -485,6 +847,22 @@ mod tests {
         assert!(!node.expose_alpha_pin);
         assert!(node.use_constant_alpha);
         assert_eq!(node.constant_alpha, 1.0);
+    }
+
+    #[test]
+    fn source_two_way_blend_can_hide_an_unexposed_alpha_pin() {
+        let node = SourceTwoWayBlendNode {
+            expose_alpha_pin: false,
+            ..default()
+        };
+        assert!(!node.expose_alpha_pin);
+    }
+
+    #[test]
+    fn source_mesh_space_additive_preserves_source_pose_pin_names() {
+        let node = SourceMeshSpaceAdditiveNode::default();
+        assert_eq!(node.alpha_pin, "Alpha");
+        assert!(node.expose_alpha_pin);
     }
 
     #[test]
