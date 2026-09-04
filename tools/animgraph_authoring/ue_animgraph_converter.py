@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 from extract_ue_visible_graph_contract import contract
 from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
-from ue_animgraph_pose_contract import pose_contract
+from ue_animgraph_pose_contract import PoseContractError, pose_contract, property_binding_paths
 from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, render as render_pose_graph
 from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
@@ -336,6 +336,48 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
     return issues
 
 
+def handled_property_binding_pins(renderer, semantic):
+    if renderer != "multi_way_blend" or not isinstance(semantic, dict):
+        return set()
+    paths = semantic.get("desired_alpha_paths")
+    keys = semantic.get("desired_alpha_keys")
+    if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
+        return set()
+    return {
+        f"DesiredAlphas_{index}"
+        for index, (path, key) in enumerate(zip(paths, keys))
+        if isinstance(path, str) and path and isinstance(key, str) and key
+    }
+
+
+def unhandled_property_binding_issues(node, renderer, semantic):
+    try:
+        bindings = property_binding_paths(node)
+    except PoseContractError as error:
+        return [
+            {
+                "kind": "source_property_binding_unsupported",
+                "source_node": node.get("object_path"),
+                "source_class": node.get("class_path"),
+                "renderer": renderer,
+                "detail": str(error),
+            }
+        ]
+    handled = handled_property_binding_pins(renderer, semantic)
+    return [
+        {
+            "kind": "source_property_binding_unhandled",
+            "source_node": node.get("object_path"),
+            "source_class": node.get("class_path"),
+            "renderer": renderer,
+            "source_pin": pin,
+            "source_property_path": path,
+        }
+        for pin, path in sorted(bindings.items())
+        if pin not in handled
+    ]
+
+
 def normalized_pin(pin):
     return {
         "index": pin.get("index"),
@@ -446,6 +488,7 @@ def graph_ir(
                 registry,
             )
         )
+        contract_issues.extend(unhandled_property_binding_issues(node, renderer, semantic))
         if semantic is None and renderer == "blendspace_evaluator":
             asset = animation_by_node.get(node.get("object_path"))
             if (
@@ -862,6 +905,29 @@ def run_self_test():
         binding_semantic,
         binding_registry,
     )[0]["kind"] == "source_property_binding_unresolved"
+    binding_node["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))',
+            }
+        ]
+    }
+    assert unhandled_property_binding_issues(
+        binding_node,
+        "two_way_blend",
+        {"renderer": "two_way_blend"},
+    )[0]["kind"] == "source_property_binding_unhandled"
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)))'
+    assert not unhandled_property_binding_issues(
+        binding_node,
+        "multi_way_blend",
+        {
+            "renderer": "multi_way_blend",
+            "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
+            "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
+        },
+    )
     source_contract = {
         "source_graph_suffix": "AnimGraph",
         "source_graph": {
@@ -1005,6 +1071,7 @@ def run_self_test():
         "uasset_package_path_derived_without_source_json_input": "PASS",
         "crlf_function_signature_normalized": "PASS",
         "source_property_binding_keys_resolved_or_rejected": "PASS",
+        "unhandled_source_property_bindings_rejected": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",
         "source_pose_contract_blocker_rejected": "PASS",
         "unimplemented_registered_renderer_rejected": "PASS",

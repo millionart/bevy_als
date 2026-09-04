@@ -8,8 +8,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 import ue_animgraph_converter as converter
+from extract_ue_visible_graph_contract import contract
+from ue_animgraph_pose_contract import PoseContractError, property_binding_paths
 from ue_animgraph_reachability import traverse
 
 
@@ -70,6 +73,35 @@ def reachable_source_classes(source):
             if node.get("object_path") in reachable:
                 values.append(node.get("class_path"))
     return closure, collections.Counter(value for value in values if isinstance(value, str))
+
+
+def reachable_property_bindings(source, registry):
+    closure = traverse(source, "AnimGraph")
+    rows = collections.Counter()
+    for entry in closure["graphs"]:
+        graph = contract(source, entry["source_graph"])
+        reachable = set(entry["reachable_nodes"])
+        for node in graph["source_graph"]["nodes"]:
+            if node.get("object_path") not in reachable:
+                continue
+            try:
+                bindings = property_binding_paths(node)
+            except PoseContractError as error:
+                rows[(node.get("class_path"), "invalid", "", str(error))] += 1
+                continue
+            renderer, _ = converter.mapping_for(node, registry)
+            for pin, path in bindings.items():
+                rows[(node.get("class_path"), renderer or "unregistered", pin, path)] += 1
+    return [
+        {
+            "source_class": source_class,
+            "renderer": renderer,
+            "source_pin": pin,
+            "source_path": path,
+            "count": count,
+        }
+        for (source_class, renderer, pin, path), count in sorted(rows.items())
+    ]
 
 
 def candidate_rows(class_counts, manual_types, registry, issues):
@@ -175,6 +207,7 @@ def compare(source, topology, registry, asset_root, source_content_root, mount):
             "reachable_graph_count": len(closure["graphs"]),
             "reachable_node_count": sum(len(graph["reachable_nodes"]) for graph in closure["graphs"]),
             "classes": dict(sorted(class_counts.items())),
+            "property_bindings": reachable_property_bindings(source, registry),
         },
         "manual": {
             "file_count": len(topology.get("files", [])),
@@ -259,6 +292,34 @@ def run_self_test():
     }
     manual_types = manual_node_types(topology)
     assert manual_types["als_ext::SourceMultiWayBlendNode"] == 1
+    source = fixture_source()
+    source["graphs"][0]["nodes"][0]["properties"] = [
+        {
+            "name": "Binding",
+            "exported_text": "/Script/AnimGraph.AnimGraphNodeBinding_Base'/Asset:AnimGraph.Root.Binding'",
+        }
+    ]
+    source["asset_objects"] = [
+        {
+            "object_path": "/Asset:AnimGraph.Root.Binding",
+            "class_path": "/Script/AnimGraph.AnimGraphNodeBinding_Base",
+            "properties": [
+                {
+                    "name": "PropertyBindings",
+                    "exported_text": '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))',
+                }
+            ],
+        }
+    ]
+    assert reachable_property_bindings(source, converter.fixture_registry()) == [
+        {
+            "source_class": "/Script/AnimGraph.AnimGraphNode_Root",
+            "renderer": "root_output",
+            "source_pin": "Alpha",
+            "source_path": "InAirState.GroundPredictionAmount",
+            "count": 1,
+        }
+    ]
     rows = candidate_rows(
         collections.Counter(
             {"/Script/AnimGraph.AnimGraphNode_MultiWayBlend": 2}
@@ -323,6 +384,7 @@ def run_self_test():
     ]
     return {
         "manual_node_type_inventory": "PASS",
+        "reachable_source_property_bindings_reported": "PASS",
         "source_to_manual_candidate_gap_reported": "PASS",
         "resolved_source_property_bindings_reported": "PASS",
         "resolved_source_custom_curves_reported": "PASS",
