@@ -27,6 +27,7 @@
     "/Script/AnimGraph.AnimGraphNode_Slot": { "renderer": "slot" },
     "/Script/AnimGraph.AnimGraphNode_StateResult": { "renderer": "state_result" },
     "/Script/AnimGraph.AnimGraphNode_TransitionResult": { "renderer": "transition_result" },
+    "/Script/AnimGraph.K2Node_AnimGetter": { "renderer": "anim_getter" },
     "/Script/AnimGraph.AnimStateEntryNode": { "renderer": "fsm_entry" },
     "/Script/AnimGraph.AnimStateNode": { "renderer": "fsm_state" },
     "/Script/AnimGraph.AnimStateAliasNode": { "renderer": "fsm_alias" },

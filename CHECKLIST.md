@@ -116,6 +116,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：UE 5.8 `FAnimNode_TransitionResult`默认`bCanEnterTransition=false`；`FAnimNode_StateMachine`在检查 rule 时执行`GetEvaluateGraphExposedInputs()`，随后比较该字段。Crouching/Standing的该 pin具有直接PropertyBinding，且无上游图节点。
   - Gate summary：transition generator、converter、FSM/materializer self-test均PASS。Crouching和Standing fresh direct报告已移除全部direct TransitionResult property-binding blocker；integration JSON列出原始path→dotted snake key。六个ready corpus fresh `--write`/`--check`为ready且editor/position Gate 35/50/1/1/2/1零失败。消融：复用`SourceScalarExpressionNode`的`global` operation，未新增bool adapter或passthrough alias；transition RON pin直接保留`bCanEnterTransition`而不使用friendly label。
 
+- [x] BF112.22 Generic K2 AnimGetter provider contract：开始：2026-09-05 07:29:36 +08:00；预估结束：2026-09-05 08:24:36 +08:00；实际结束：2026-09-05 07:43:38 +08:00（偏差 -40m58s）。解析`GetInstanceStateWeight`/`GetInstanceMachineWeight`的 source machine/state references，生成source-derived F32 key与明确provider report；复用`SourceScalarExpressionNode`的global读取和UE默认0语义，不把状态名改成手工`als_*`输入。验收：UE 5.8 getter source、transition/converter fixture、Crouching/Standing K2 blocker归零或仅保留非getter功能、ready corpus回归。
+  - source fact：UE `FAnimInstanceProxy::GetInstanceStateWeight(MachineIndex, StateIndex)`返回recorded state weight，`GetInstanceMachineWeight(MachineIndex)`返回recorded machine weight；两个当前K2节点输出`ReturnValue`并且source函数引用/SourceNode/SourceStateNode均在native export中明确。
+  - Gate summary：transition generator/converter/FSM-materializer self-test均PASS。Crouching与Standing fresh direct报告均无K2 AnimGetter blocker；Crouching仅到达下一层`source FSM state label provider` blocker，Standing仅剩child-reset。integration JSON为每个getter列出source function/machine/state→key和`AnimationGraphPlayer::set_global_input_data` provider contract。六个ready corpus fresh `--write`/`--check`与editor/position Gate 35/50/1/1/2/1均PASS。消融：复用既有`SourceScalarExpressionNode`的global F32与源默认0，不新增getter node、alias或手工状态输入。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

@@ -35,6 +35,7 @@ FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", 
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
 TRANSITION_RENDERERS = {
     "transition_result",
+    "anim_getter",
     "property_access",
     "boolean_operator",
     "comparison_operator",
@@ -860,6 +861,18 @@ def graph_ir(
             semantic = {"renderer": renderer}
         if semantic is None and renderer == "transition_result":
             semantic = {"renderer": renderer}
+        if semantic is None and renderer == "anim_getter":
+            try:
+                semantic = {"renderer": renderer, **transition_renderer().anim_getter_config(node)}
+            except ValueError as error:
+                contract_issues.append(
+                    {
+                        "kind": "source_anim_getter_unsupported",
+                        "source_node": node.get("object_path"),
+                        "source_class": node.get("class_path"),
+                        "detail": str(error),
+                    }
+                )
         if renderer == "linked_anim_layer" and semantic is not None:
             target = linked_layer_targets.get(node.get("object_path"))
             if not isinstance(target, str) or not target:
@@ -1370,6 +1383,35 @@ def integration_runtime_inputs(ir):
     return sorted(rows, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
 
 
+def integration_anim_getter_providers(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            semantic = node.get("semantic") if isinstance(node, dict) else None
+            if node.get("renderer") != "anim_getter" or not isinstance(semantic, dict):
+                continue
+            if not all(
+                isinstance(semantic.get(field), str) and semantic[field]
+                for field in ("source_function", "source_machine", "target_key")
+            ):
+                continue
+            state = semantic.get("source_state", "")
+            if not isinstance(state, str):
+                continue
+            rows.append(
+                {
+                    "source_node": node.get("source_node"),
+                    "source_function": semantic["source_function"],
+                    "source_machine": semantic["source_machine"],
+                    "source_state": state,
+                    "target_key": semantic["target_key"],
+                    "provider_api": "AnimationGraphPlayer::set_global_input_data",
+                    "status": "requires_animation_state_provider",
+                }
+            )
+    return sorted(rows, key=lambda item: item["source_node"])
+
+
 def integration_slot_providers(ir):
     rows = []
     for graph in ir.get("graphs", []):
@@ -1505,6 +1547,7 @@ def build_integration_report(ir, report):
         "animation_blueprint_functions": animation_blueprint_functions,
         "sync_phase_providers": integration_sync_phase_providers(ir),
         "runtime_inputs": integration_runtime_inputs(ir),
+        "animation_state_getter_providers": integration_anim_getter_providers(ir),
         "slot_providers": integration_slot_providers(ir),
         "gameplay_tag_providers": integration_gameplay_tag_providers(ir),
         "unhandled_property_bindings": property_bindings,
@@ -1588,6 +1631,22 @@ def integration_report_markdown(value):
             + "`: "
             + item["status"]
             for item in tag_providers
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Animation state getter providers", ""])
+    getter_providers = value["animation_state_getter_providers"]
+    if getter_providers:
+        lines.extend(
+            "- `"
+            + item["source_function"]
+            + "` at `"
+            + str(item["source_node"])
+            + "` → `"
+            + item["target_key"]
+            + "`: "
+            + item["status"]
+            for item in getter_providers
         )
     else:
         lines.append("- None")
@@ -2400,6 +2459,16 @@ def run_self_test():
                         },
                     },
                     {
+                        "source_node": "/Asset:Transition.Getter",
+                        "renderer": "anim_getter",
+                        "semantic": {
+                            "source_function": "GetInstanceStateWeight",
+                            "source_machine": "/Asset:AnimGraph.Machine",
+                            "source_state": "/Asset:AnimGraph.Machine.State",
+                            "target_key": "anim_getters.ab_als_test.get_instance_state_weight.anim_graph.machine.anim_graph.machine.state",
+                        },
+                    },
+                    {
                         "source_node": "/Asset:AnimGraph.Slot",
                         "renderer": "slot",
                         "semantic": {
@@ -2460,6 +2529,7 @@ def run_self_test():
         for item in integration["sync_phase_providers"]
     )
     assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
+    assert integration["animation_state_getter_providers"][0]["source_function"] == "GetInstanceStateWeight"
     assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
     assert integration["gameplay_tag_providers"][0]["provider_api"] == "als_ext::set_gameplay_tag_input"
     blocked_markdown = integration_report_markdown(integration)
@@ -2481,6 +2551,7 @@ def run_self_test():
     assert "## External graph dependencies" in integration_report_markdown(ready)
     assert "## Runtime sync phase providers" in integration_report_markdown(ready)
     assert "## Runtime property inputs" in integration_report_markdown(ready)
+    assert "## Animation state getter providers" in integration_report_markdown(ready)
     assert "## Slot providers" in integration_report_markdown(ready)
     assert "## Gameplay tag providers" in integration_report_markdown(ready)
     assert "source candidates" in integration_report_markdown(ready)

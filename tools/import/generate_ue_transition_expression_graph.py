@@ -100,6 +100,74 @@ def source_property_key(value):
     )
 
 
+def source_identifier_key(value):
+    if not isinstance(value, str) or not value:
+        raise ValueError("source identifier is invalid")
+    value = re.sub(r"[^A-Za-z0-9.]+", "_", value).strip("._")
+    if not value:
+        raise ValueError("source identifier is invalid")
+    return source_property_key(value)
+
+
+def named_property(node, name):
+    values = [
+        value.get("exported_text")
+        for value in node.get("properties", [])
+        if value.get("name") == name and isinstance(value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        raise ValueError("source node property is missing or ambiguous")
+    return values[0]
+
+
+def source_object_reference(value):
+    match = re.search(r"'(/[^']+)'", value) if isinstance(value, str) else None
+    if match is None:
+        raise ValueError("source object reference is invalid")
+    return match.group(1)
+
+
+def anim_getter_config(node):
+    if node.get("class_path") != "/Script/AnimGraph.K2Node_AnimGetter":
+        return None
+    function = named_property(node, "FunctionReference")
+    match = re.search(r'MemberName="([A-Za-z][A-Za-z0-9_]*)"', function)
+    if match is None or match.group(1) not in {
+        "GetInstanceStateWeight",
+        "GetInstanceMachineWeight",
+    }:
+        raise ValueError("source animation getter is unsupported")
+    getter = match.group(1)
+    machine = source_object_reference(named_property(node, "SourceNode"))
+    state_value = named_property(node, "SourceStateNode")
+    state = "" if state_value == "None" else source_object_reference(state_value)
+    if (getter == "GetInstanceStateWeight") != bool(state):
+        raise ValueError("source animation getter state reference is invalid")
+    if ":" not in machine:
+        raise ValueError("source animation getter machine reference is invalid")
+    asset, machine_suffix = machine.split(":", 1)
+    asset_name = asset.rsplit("/", 1)[-1].split(".", 1)[0]
+    key = ".".join(
+        (
+            "anim_getters",
+            source_identifier_key(asset_name),
+            source_property_key(getter),
+            source_identifier_key(machine_suffix),
+            *([source_identifier_key(state.split(":", 1)[1])] if state else []),
+        )
+    )
+    outputs = AUDIT.visible_pins(node, "Output")
+    if len(outputs) != 1 or outputs[0].get("name") != "ReturnValue" or scalar_type(outputs[0])[0] != "F32":
+        raise ValueError("source animation getter output is unsupported")
+    return {
+        "source_function": getter,
+        "source_machine": machine,
+        "source_state": state,
+        "target_key": key,
+        "output": outputs[0]["name"],
+    }
+
+
 def node_for_path(contract, path):
     matches = [node for node in contract["source_graph"]["nodes"] if node.get("object_path") == path]
     if len(matches) != 1:
@@ -371,6 +439,9 @@ def node_inner(contract, node=None):
 
 
 def node_ron(contract, identifier, node):
+    getter = anim_getter_config(node)
+    if getter is not None:
+        return anim_getter_node(identifier, node, getter)
     tag_input = gameplay_tag_input_config(contract, node)
     if tag_input is not None:
         inner = "(" + ", ".join(
@@ -431,6 +502,26 @@ def direct_bound_root_node(root, pin, binding):
     )
     return (
         f"(id: {quoted(node_id(root))}, name: {quoted(AUDIT.source_title(root))}, "
+        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": ({inner}) }}, should_debug: false)"
+    )
+
+
+def anim_getter_node(identifier, node, config):
+    output = pin_payload(None, node, AUDIT.visible_pins(node, "Output")[0], {})
+    output["global_key"] = config["target_key"]
+    inner = ", ".join(
+        (
+            "input_pins: []",
+            "output_pins: [" + pin_ron(output) + "]",
+            'operation: "global"',
+            "source_class: " + quoted(node["class_path"]),
+            "source_properties: ["
+            + ", ".join(quoted(value) for value in source_properties(node))
+            + "]",
+        )
+    )
+    return (
+        f"(id: {quoted(identifier)}, name: {quoted(AUDIT.source_title(node))}, "
         f"inner: {{ \"als_ext::SourceScalarExpressionNode\": ({inner}) }}, should_debug: false)"
     )
 
@@ -760,6 +851,48 @@ def fixture_bound_root_contract():
     }
 
 
+def fixture_anim_getter_contract():
+    bool_type = [{"name": "PinCategory", "exported_text": "bool"}]
+    float_type = [
+        {"name": "PinCategory", "exported_text": "real"},
+        {"name": "PinSubCategory", "exported_text": "float"},
+    ]
+    return {
+        "format": "als_ue_visible_animgraph_contract_v2",
+        "source_graph": {
+            "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+            "nodes": [
+                {
+                    "object_path": "/Asset:Transition.Result",
+                    "node_guid": "20000000-0000-4000-8000-000000000001",
+                    "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "title": "Result",
+                    "pins": [{"name": "Result", "direction": "Input", "hidden": False, "pin_type_properties": bool_type}],
+                },
+                {
+                    "object_path": "/Asset:Transition.Getter",
+                    "node_guid": "20000000-0000-4000-8000-000000000002",
+                    "class_path": "/Script/AnimGraph.K2Node_AnimGetter",
+                    "position_x": -64,
+                    "position_y": 0,
+                    "title": "State Weight (Move)",
+                    "properties": [
+                        {"name": "SourceNode", "exported_text": "/Script/AnimGraph.AnimGraphNode_StateMachine'/ALS/ALS/Character/AnimationInstances/AB_Als_Test.AB_Als_Test:AnimGraph.AnimGraphNode_StateMachine_1'"},
+                        {"name": "SourceStateNode", "exported_text": "/Script/AnimGraph.AnimStateNode'/ALS/ALS/Character/AnimationInstances/AB_Als_Test.AB_Als_Test:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_2'"},
+                        {"name": "FunctionReference", "exported_text": "(MemberName=\"GetInstanceStateWeight\")"},
+                    ],
+                    "pins": [{"name": "ReturnValue", "direction": "Output", "hidden": False, "default_value": "0.0", "pin_type_properties": float_type}],
+                },
+            ],
+        },
+        "links": [
+            {"source": {"node_object_path": "/Asset:Transition.Getter", "pin_name": "ReturnValue"}, "target": {"node_object_path": "/Asset:Transition.Result", "pin_name": "Result"}},
+        ],
+    }
+
+
 def fixture_gameplay_tag_contract():
     bool_type = [{"name": "PinCategory", "exported_text": "bool"}]
     tag_type = [
@@ -974,12 +1107,19 @@ def run_self_test():
                 "target_default_contains": 'source_default: "False"',
             }
         ]
+        getter_contract = fixture_anim_getter_contract()
+        getter_text = graph_text(getter_contract)
+        getter = anim_getter_config(getter_contract["source_graph"]["nodes"][1])
+        assert getter["target_key"] == "anim_getters.ab_als_test.get_instance_state_weight.anim_graph.anim_graph_node_state_machine_1.anim_graph.anim_graph_node_state_machine_1.movement_states.anim_state_node_2"
+        assert ('global_key: "' + getter["target_key"] + '"') in getter_text
+        assert 'OutputData("Result"): NodeData("20000000-0000-4000-8000-000000000002", "ReturnValue")' in getter_text
     return {
         "transition_scalar_node_generation": "PASS",
         "source_pin_default_and_type_mapping": "PASS",
         "source_link_and_root_output_mapping": "PASS",
         "property_access_path_becomes_target_key": "PASS",
         "bound_transition_result_root_is_preserved": "PASS",
+        "animation_state_getter_provider_key_is_preserved": "PASS",
         "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
         "gameplay_tag_adapter_reads_real_tag_provider": "PASS",
         "scalar_node_inner_is_reusable": "PASS",
