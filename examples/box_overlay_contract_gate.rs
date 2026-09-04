@@ -7,6 +7,7 @@ use als_ext::{
     ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, ConstantF32Node, CurveModifyNode,
     CurveSampleSetNode, CurveWeightedSamplesNode, GameplayTagBlendMode, GameplayTagLayerBlendNode,
     GlobalSyncGroupSampleNode, LinkedAnimLayerNode, MultiWayBlendNode, TimePositionNode,
+    set_gameplay_tag_input,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -22,6 +23,7 @@ use bevy_animation_graph::core::{
     pose::Pose,
     skeleton::Skeleton,
 };
+use bevy_gameplay_tag::GameplayTag;
 
 const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 const BOX_GRAPH_PATH: &str = "graphs/ab_als/overlays/box.animgraph.ron";
@@ -176,6 +178,15 @@ fn set_inputs(
     player.set_global_input_data(CROUCHING, crouching);
     player.set_global_input_data(LOCOMOTION_ACTION, locomotion_action);
     player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
+}
+
+fn locomotion_action_tag(index: f32) -> GameplayTag {
+    GameplayTag::new(match index as i32 {
+        1 => "Als.LocomotionAction.Mantling",
+        2 => "Als.LocomotionAction.GettingUp",
+        3 => "Als.LocomotionAction.Rolling",
+        _ => "",
+    })
 }
 
 fn modify_contract(graph: &AnimationGraph, name: &str, curves: &[&str], values: &[f32]) -> bool {
@@ -387,6 +398,7 @@ fn verify_static_contract(
             player,
         ))
         .id();
+    set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(0.0));
     probe.player = Some(entity);
     probe.phase = ProbePhase::Default;
     probe.static_verified = true;
@@ -482,6 +494,7 @@ fn observe_runtime(
                 pose.bones.len()
             );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 1.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(1.0));
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = ProbePhase::Mantling;
         }
@@ -502,6 +515,7 @@ fn observe_runtime(
                 "[BOX-OVERLAY-CONTRACT] action=Mantling LayerHeadAdditive=0.5 LayerSpineAdditive=0.5 pose_changed=true"
             );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 2.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(2.0));
             player.queue_time_update(TimeUpdate::Delta(0.0));
             probe.phase = ProbePhase::GettingUp;
         }
@@ -520,6 +534,7 @@ fn observe_runtime(
                 "[BOX-OVERLAY-CONTRACT] action=GettingUp LayerArmLeft=3 LayerArmRight=3 pose_changed=true"
             );
             set_inputs(&mut player, 0.0, 1.0, 0.0, 3.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(3.0));
             player.queue_time_update(TimeUpdate::Delta(0.2));
             probe.phase = ProbePhase::Rolling;
         }

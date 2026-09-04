@@ -7,6 +7,7 @@ use als_ext::{
     ALS_LAYER_CURVE_NAMES, AlsExtPlugin, ConstantF32Node, CurveBlendNode, CurveModifyNode,
     CurveSampleSetNode, GameplayTagBlendMode, GameplayTagBlendNode, GlobalF32InputNode,
     GlobalSyncGroupSampleNode, LinkedAnimLayerNode, MeshSpaceAdditiveNode, MultiWayBlendNode,
+    set_gameplay_tag_input,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -25,6 +26,7 @@ use bevy_animation_graph::core::{
     pose::Pose,
     skeleton::Skeleton,
 };
+use bevy_gameplay_tag::GameplayTag;
 
 const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 const GRAPH_PATH: &str = "graphs/ab_als/overlays/binoculars.animgraph.ron";
@@ -202,6 +204,23 @@ fn set_overlay_inputs(
     player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
 }
 
+fn locomotion_action_tag(index: f32) -> GameplayTag {
+    GameplayTag::new(match index as i32 {
+        1 => "Als.LocomotionAction.Mantling",
+        2 => "Als.LocomotionAction.GettingUp",
+        3 => "Als.LocomotionAction.Rolling",
+        _ => "",
+    })
+}
+
+fn rotation_mode_tag(index: f32) -> GameplayTag {
+    GameplayTag::new(if index > 0.5 {
+        "Als.RotationMode.Aiming"
+    } else {
+        "Als.RotationMode.ViewDirection"
+    })
+}
+
 fn build_linked_root(
     interface: Handle<AnimationGraph>,
     binoculars: Handle<AnimationGraph>,
@@ -239,6 +258,7 @@ fn build_linked_root(
 fn tag_contract(
     graph: &AnimationGraph,
     name: &str,
+    active_key: &str,
     tags: &[&str],
     blend_times: &[f32],
     blend_mode: GameplayTagBlendMode,
@@ -249,10 +269,12 @@ fn tag_contract(
         .find(|node| node.name == name)
         .and_then(|node| node.try_inner_downcast_ref::<GameplayTagBlendNode>())
         .is_some_and(|node| {
-            node.tags
-                .iter()
-                .map(String::as_str)
-                .eq(tags.iter().copied())
+            node.active_key == active_key
+                && node
+                    .tags
+                    .iter()
+                    .map(String::as_str)
+                    .eq(tags.iter().copied())
                 && node.blend_times.len() == blend_times.len()
                 && node
                     .blend_times
@@ -404,12 +426,14 @@ fn verify_static_contract(
     let tag_blends = tag_contract(
         graph,
         "rotation mode tag blend",
+        "rotation_mode",
         &["Als.RotationMode.Aiming"],
         &[0.75, 0.2],
         GameplayTagBlendMode::HermiteCubic,
     ) && tag_contract(
         graph,
         "locomotion action tag blend",
+        "locomotion_action",
         &[
             "Als.LocomotionAction.Mantling",
             "Als.LocomotionAction.GettingUp",
@@ -498,22 +522,14 @@ fn verify_static_contract(
                     && node.values == [3.0, 3.0]
                     && close(node.alpha, 1.0)
             });
-    let global_inputs = [
-        GAIT_WALKING,
-        GAIT_SPRINTING,
-        STANDING,
-        CROUCHING,
-        PITCH,
-        ROTATION_MODE,
-        LOCOMOTION_ACTION,
-    ]
-    .into_iter()
-    .all(|key| {
-        graph.nodes.values().any(|node| {
-            node.try_inner_downcast_ref::<GlobalF32InputNode>()
-                .is_some_and(|candidate| candidate.key == key)
-        })
-    });
+    let global_inputs = [GAIT_WALKING, GAIT_SPRINTING, STANDING, CROUCHING, PITCH]
+        .into_iter()
+        .all(|key| {
+            graph.nodes.values().any(|node| {
+                node.try_inner_downcast_ref::<GlobalF32InputNode>()
+                    .is_some_and(|candidate| candidate.key == key)
+            })
+        });
     let source = std::fs::read_to_string(Path::new("assets").join(GRAPH_PATH)).unwrap_or_default();
     let asset_paths = source.matches("A_Als_Binoculars_Poses.anim.ron").count() == 10
         && source.contains("A_Als_Binoculars_Aim.anim.ron")
@@ -572,16 +588,21 @@ fn verify_static_contract(
     set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, TEST_PITCH, 0.0, 0.0);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.player = Some(
-        commands
-            .spawn((
-                Name::new("binoculars_overlay_contract_probe"),
-                Children::default(),
-                Transform::IDENTITY,
-                player,
-            ))
-            .id(),
+    let player_entity = commands
+        .spawn((
+            Name::new("binoculars_overlay_contract_probe"),
+            Children::default(),
+            Transform::IDENTITY,
+            player,
+        ))
+        .id();
+    set_gameplay_tag_input(player_entity, "rotation_mode", rotation_mode_tag(0.0));
+    set_gameplay_tag_input(
+        player_entity,
+        "locomotion_action",
+        locomotion_action_tag(0.0),
     );
+    probe.player = Some(player_entity);
     probe.phase = ProbePhase::DefaultIdle;
     probe.static_verified = true;
     info!("[BINOCULARS-OVERLAY-CONTRACT] linked runtime probe initialized");
@@ -686,6 +707,7 @@ fn observe_runtime(
                 "[BINOCULARS-OVERLAY-CONTRACT] runtime state=crouching LayerArmLeftLocalSpace=1.0 PoseAiming=0.0"
             );
             set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, TEST_PITCH, 1.0, 0.0);
+            set_gameplay_tag_input(entity, "rotation_mode", rotation_mode_tag(1.0));
             player.queue_time_update(TimeUpdate::Delta(0.05));
             probe.phase = ProbePhase::AimingPartial;
         }
@@ -723,6 +745,7 @@ fn observe_runtime(
             );
             probe.aim_pose = Some(pose);
             set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, TEST_PITCH, 1.0, 1.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(1.0));
             player.queue_time_update(TimeUpdate::Delta(0.1));
             probe.phase = ProbePhase::MantlingHalf;
         }
@@ -737,6 +760,7 @@ fn observe_runtime(
                 "[BINOCULARS-OVERLAY-CONTRACT] runtime action=Mantling elapsed=0.10 PoseAiming=0.5"
             );
             set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, TEST_PITCH, 1.0, 2.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(2.0));
             player.queue_time_update(TimeUpdate::Delta(0.01));
             probe.phase = ProbePhase::GettingUp;
         }
@@ -752,6 +776,7 @@ fn observe_runtime(
                 "[BINOCULARS-OVERLAY-CONTRACT] runtime action=GettingUp LayerArmLeft=1.0 LayerArmRight=3.0"
             );
             set_overlay_inputs(&mut player, 0.0, 0.0, 1.0, 0.0, TEST_PITCH, 1.0, 3.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(3.0));
             player.queue_time_update(TimeUpdate::Delta(0.1));
             probe.phase = ProbePhase::RollingHalf;
         }

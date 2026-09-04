@@ -9,9 +9,10 @@ use bevy_animation_graph::core::{
 use bevy_gameplay_tag::GameplayTag;
 use serde::{Deserialize, Serialize};
 
+use crate::source_gameplay_tag_input::gameplay_tag_input;
+
 pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
 
-pub const ACTIVE_INDEX: &str = "active_index";
 pub const UPSTREAM_TIME: &str = "upstream_time";
 
 pub fn weight_output(index: usize) -> String {
@@ -127,6 +128,7 @@ pub(crate) fn advance_gameplay_tag_weights(
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct GameplayTagBlendNode {
+    pub active_key: String,
     pub tags: Vec<String>,
     pub blend_times: Vec<f32>,
     pub blend_mode: GameplayTagBlendMode,
@@ -136,6 +138,7 @@ pub struct GameplayTagBlendNode {
 impl Default for GameplayTagBlendNode {
     fn default() -> Self {
         Self {
+            active_key: default(),
             tags: default(),
             blend_times: vec![0.0],
             blend_mode: default(),
@@ -149,8 +152,8 @@ impl GameplayTagBlendNode {
         self.tags.len() + 1
     }
 
-    fn select_child_index(&self, value: f32) -> usize {
-        select_gameplay_tag_child_index(&self.tags, value)
+    fn select_child_index(&self, tag: &GameplayTag) -> usize {
+        select_gameplay_tag_child_index_for_tag(&self.tags, Some(tag))
     }
 
     fn blend_time(&self, index: usize) -> f32 {
@@ -191,13 +194,14 @@ impl NodeLike for GameplayTagBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_value = ctx.data_back(ACTIVE_INDEX)?.as_f32()?;
+        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let time_update = ctx.time_update_fwd()?;
         let delta_seconds = match &time_update {
             TimeUpdate::Delta(value) => *value,
             TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
         };
-        let active_index = self.select_child_index(active_value);
+        let active_index = self.select_child_index(&active_tag);
         let child_count = self.child_count();
         let weights = {
             let state = ctx.state_mut::<GameplayTagBlendState>()?;
@@ -224,9 +228,7 @@ impl NodeLike for GameplayTagBlendNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(ACTIVE_INDEX, DataSpec::F32)
-            .add_input_time(UPSTREAM_TIME)
-            .add_output_time();
+        ctx.add_input_time(UPSTREAM_TIME).add_output_time();
         for index in 0..self.child_count() {
             ctx.add_output_data(weight_output(index), DataSpec::F32);
         }
@@ -239,17 +241,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn selection_uses_default_for_invalid_indices() {
+    fn selection_uses_default_for_invalid_or_unknown_tags() {
         let node = GameplayTagBlendNode {
+            active_key: "locomotion_action".to_owned(),
             tags: vec!["A".to_owned(), "B".to_owned(), "C".to_owned()],
             blend_times: vec![0.3, 0.1, 0.0, 0.1],
             blend_mode: GameplayTagBlendMode::Linear,
             forward_time: true,
         };
-        assert_eq!(node.select_child_index(-1.0), 0);
-        assert_eq!(node.select_child_index(2.0), 2);
-        assert_eq!(node.select_child_index(4.0), 0);
-        assert_eq!(node.select_child_index(f32::NAN), 0);
+        assert_eq!(node.select_child_index(&GameplayTag::new("B")), 2);
+        assert_eq!(node.select_child_index(&GameplayTag::new("Missing")), 0);
+        assert_eq!(node.select_child_index(&GameplayTag::new("")), 0);
     }
 
     #[test]

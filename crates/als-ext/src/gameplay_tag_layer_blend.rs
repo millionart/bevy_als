@@ -13,16 +13,18 @@ use crate::{
     GameplayTagBlendMode,
     curve_bundle::{active_curve_weights, curve_value_input},
     gameplay_tag_blend::{
-        ACTIVE_INDEX, GameplayTagBlendState, WEIGHT_THRESHOLD, advance_gameplay_tag_weights,
-        gameplay_tag_blend_time, select_gameplay_tag_child_index, weight_output,
+        GameplayTagBlendState, WEIGHT_THRESHOLD, advance_gameplay_tag_weights,
+        gameplay_tag_blend_time, select_gameplay_tag_child_index_for_tag, weight_output,
     },
     multi_way_blend::{pose_input, time_input},
+    source_gameplay_tag_input::gameplay_tag_input,
 };
 
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct GameplayTagLayerBlendNode {
+    pub active_key: String,
     pub tags: Vec<String>,
     pub blend_times: Vec<f32>,
     pub blend_mode: GameplayTagBlendMode,
@@ -35,6 +37,7 @@ pub struct GameplayTagLayerBlendNode {
 impl Default for GameplayTagLayerBlendNode {
     fn default() -> Self {
         Self {
+            active_key: default(),
             tags: default(),
             blend_times: vec![0.0],
             blend_mode: default(),
@@ -63,14 +66,15 @@ impl NodeLike for GameplayTagLayerBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_value = ctx.data_back(ACTIVE_INDEX)?.as_f32()?;
+        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let time_update = ctx.time_update_fwd()?;
         let delta_seconds = match &time_update {
             TimeUpdate::Delta(value) => *value,
             TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
         };
         let child_count = self.child_count();
-        let active_index = select_gameplay_tag_child_index(&self.tags, active_value);
+        let active_index = select_gameplay_tag_child_index_for_tag(&self.tags, Some(&active_tag));
         let weights = {
             let state = ctx.state_mut::<GameplayTagBlendState>()?;
             advance_gameplay_tag_weights(
@@ -138,7 +142,6 @@ impl NodeLike for GameplayTagLayerBlendNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(ACTIVE_INDEX, DataSpec::F32);
         for index in 0..self.child_count() {
             ctx.add_input_data(pose_input(index), DataSpec::Pose)
                 .add_input_time(time_input(index));

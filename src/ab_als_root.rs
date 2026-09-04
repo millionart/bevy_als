@@ -139,6 +139,30 @@ fn locomotion_action_index(
     }
 }
 
+fn locomotion_action_tag(
+    notify_action: Option<&AlsNotifyLocomotionAction>,
+    mantle: Option<&AlsMantleState>,
+    roll: Option<&AlsRollState>,
+) -> GameplayTag {
+    GameplayTag::new(match notify_action {
+        Some(AlsNotifyLocomotionAction::Mantling) => "Als.LocomotionAction.Mantling",
+        Some(AlsNotifyLocomotionAction::GettingUp) => "Als.LocomotionAction.GettingUp",
+        Some(AlsNotifyLocomotionAction::Rolling) => "Als.LocomotionAction.Rolling",
+        Some(AlsNotifyLocomotionAction::None) => "",
+        None if mantle.is_some_and(|state| state.active) => "Als.LocomotionAction.Mantling",
+        None if roll.is_some_and(|state| state.active) => "Als.LocomotionAction.Rolling",
+        None => "",
+    })
+}
+
+fn rotation_mode_tag(rotation_mode: RotationMode) -> GameplayTag {
+    GameplayTag::new(match rotation_mode {
+        RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
+        RotationMode::ViewDirection => "Als.RotationMode.ViewDirection",
+        RotationMode::Aiming => "Als.RotationMode.Aiming",
+    })
+}
+
 fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
     if player.get_global_input_data(key).is_none() {
         player.set_global_input_data(key, 0.0_f32);
@@ -234,6 +258,16 @@ fn root_graph_writer(
                 continue;
             };
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
+            set_gameplay_tag_input(
+                instance.player_entity(),
+                "locomotion_action",
+                locomotion_action_tag(notify_action, mantle, roll),
+            );
+            set_gameplay_tag_input(
+                instance.player_entity(),
+                "rotation_mode",
+                rotation_mode_tag(*rotation_mode),
+            );
             let secondary_motion_phase = advance_sync_phase(
                 secondary_motion
                     .states
@@ -365,6 +399,18 @@ mod tests {
     fn gait_tag_uses_the_source_hierarchy() {
         assert_eq!(gait_tag(Gait::Walking).as_str(), "Als.Gait.Walking");
         assert_eq!(gait_tag(Gait::Sprinting).as_str(), "Als.Gait.Sprinting");
+    }
+
+    #[test]
+    fn action_and_rotation_tags_use_the_source_hierarchy() {
+        assert_eq!(
+            locomotion_action_tag(Some(&AlsNotifyLocomotionAction::Rolling), None, None).as_str(),
+            "Als.LocomotionAction.Rolling"
+        );
+        assert_eq!(
+            rotation_mode_tag(RotationMode::Aiming).as_str(),
+            "Als.RotationMode.Aiming"
+        );
     }
 
     #[test]

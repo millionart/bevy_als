@@ -6,7 +6,7 @@ use std::{
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, AlsExtPlugin, ConstantF32Node, CurveBlendNode, CurveModifyNode,
     CurveSampleSetNode, GameplayTagBlendMode, GameplayTagBlendNode, GlobalSyncGroupSampleNode,
-    LinkedAnimLayerNode, MultiWayBlendNode,
+    LinkedAnimLayerNode, MultiWayBlendNode, set_gameplay_tag_input,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -22,6 +22,7 @@ use bevy_animation_graph::core::{
     pose::Pose,
     skeleton::Skeleton,
 };
+use bevy_gameplay_tag::GameplayTag;
 
 const INTERFACE_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
 const GRAPH_PATH: &str = "graphs/ab_als/overlays/barrel.animgraph.ron";
@@ -183,6 +184,15 @@ fn set_overlay_inputs(
     player.set_global_input_data(CROUCHING, crouching);
     player.set_global_input_data(LOCOMOTION_ACTION, locomotion_action);
     player.set_global_input_data("als_secondary_motion_phase", 0.0_f32);
+}
+
+fn locomotion_action_tag(index: f32) -> GameplayTag {
+    GameplayTag::new(match index as i32 {
+        1 => "Als.LocomotionAction.Mantling",
+        2 => "Als.LocomotionAction.GettingUp",
+        3 => "Als.LocomotionAction.Rolling",
+        _ => "",
+    })
 }
 
 fn build_linked_root(
@@ -436,16 +446,20 @@ fn verify_static_contract(
     set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 0.0);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.player = Some(
-        commands
-            .spawn((
-                Name::new("barrel_overlay_contract_probe"),
-                Children::default(),
-                Transform::IDENTITY,
-                player,
-            ))
-            .id(),
+    let player_entity = commands
+        .spawn((
+            Name::new("barrel_overlay_contract_probe"),
+            Children::default(),
+            Transform::IDENTITY,
+            player,
+        ))
+        .id();
+    set_gameplay_tag_input(
+        player_entity,
+        "locomotion_action",
+        locomotion_action_tag(0.0),
     );
+    probe.player = Some(player_entity);
     probe.phase = ProbePhase::GroundedIdle;
     probe.static_verified = true;
     info!("[BARREL-OVERLAY-CONTRACT] linked runtime probe initialized");
@@ -545,6 +559,7 @@ fn observe_runtime(
                 "[BARREL-OVERLAY-CONTRACT] runtime state=mixed_stance HandRightIk=0.5 LayerArmRightAdditive=0.375"
             );
             set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 2.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(2.0));
             player.queue_time_update(TimeUpdate::Delta(0.01));
             probe.phase = ProbePhase::GettingUp;
         }
@@ -561,6 +576,7 @@ fn observe_runtime(
             }
             info!("[BARREL-OVERLAY-CONTRACT] runtime action=GettingUp LayerArmLeft=3.0");
             set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 0.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(0.0));
             player.queue_time_update(TimeUpdate::Delta(0.15));
             probe.phase = ProbePhase::ReturnHalf;
         }
@@ -582,6 +598,7 @@ fn observe_runtime(
             }
             info!("[BARREL-OVERLAY-CONTRACT] runtime action=Default elapsed=0.30 LayerArmLeft=1.0");
             set_overlay_inputs(&mut player, 0.0, 1.0, 0.0, 3.0);
+            set_gameplay_tag_input(entity, "locomotion_action", locomotion_action_tag(3.0));
             player.queue_time_update(TimeUpdate::Delta(0.1));
             probe.phase = ProbePhase::Rolling;
         }

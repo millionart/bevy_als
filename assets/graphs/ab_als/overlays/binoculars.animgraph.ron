@@ -51,26 +51,6 @@
             should_debug: false,
         ),
         (
-            id: "04040404-0000-4000-8000-000000000006",
-            name: "overlay rotation mode input",
-            inner: {
-                "als_ext::GlobalF32InputNode": (
-                                    key: "als_overlay_rotation_mode_index",
-                ),
-            },
-            should_debug: false,
-        ),
-        (
-            id: "04040404-0000-4000-8000-000000000007",
-            name: "overlay locomotion action input",
-            inner: {
-                "als_ext::GlobalF32InputNode": (
-                                    key: "als_overlay_locomotion_action_index",
-                ),
-            },
-            should_debug: false,
-        ),
-        (
             id: "04040404-0000-4000-8000-000000000008",
             name: "one",
             inner: {
@@ -548,6 +528,7 @@
             name: "rotation mode tag blend",
             inner: {
                 "als_ext::GameplayTagBlendNode": (
+                                    active_key: "rotation_mode",
                                     tags: ["Als.RotationMode.Aiming"],
                                     blend_times: [0.75, 0.2],
                                     blend_mode: HermiteCubic,
@@ -574,6 +555,7 @@
             name: "locomotion action tag blend",
             inner: {
                 "als_ext::GameplayTagBlendNode": (
+                                    active_key: "locomotion_action",
                                     tags: ["Als.LocomotionAction.Mantling", "Als.LocomotionAction.GettingUp", "Als.LocomotionAction.Rolling"],
                                     blend_times: [0.5, 0.2, 0.0, 0.2],
                                     blend_mode: Linear,
@@ -853,7 +835,6 @@
         NodeData("04040404-0000-4000-8000-000000000407", "pose_1"): NodeData("04040404-0000-4000-8000-000000000406", "pose"),
         NodeTime("04040404-0000-4000-8000-000000000407", "time_1"): NodeTime("04040404-0000-4000-8000-000000000406"),
         NodeData("04040404-0000-4000-8000-000000000407", "weight_1"): NodeData("04040404-0000-4000-8000-000000000004", "als_overlay_crouching_amount"),
-        NodeData("04040404-0000-4000-8000-000000000408", "active_index"): NodeData("04040404-0000-4000-8000-000000000006", "als_overlay_rotation_mode_index"),
         NodeData("04040404-0000-4000-8000-000000000412", "pose_0"): NodeData("04040404-0000-4000-8000-000000000403", "pose"),
         NodeTime("04040404-0000-4000-8000-000000000412", "time_0"): NodeTime("04040404-0000-4000-8000-000000000403"),
         NodeData("04040404-0000-4000-8000-000000000412", "weight_0"): NodeData("04040404-0000-4000-8000-000000000408", "weight_0"),
@@ -865,7 +846,6 @@
         NodeData("04040404-0000-4000-8000-000000000409", "pose_b"): NodeData("04040404-0000-4000-8000-000000000302", "pose"),
         NodeTime("04040404-0000-4000-8000-000000000409", "time_b"): NodeTime("04040404-0000-4000-8000-000000000302"),
         NodeData("04040404-0000-4000-8000-000000000409", "factor"): NodeData("04040404-0000-4000-8000-000000000011", "value"),
-        NodeData("04040404-0000-4000-8000-000000000410", "active_index"): NodeData("04040404-0000-4000-8000-000000000007", "als_overlay_locomotion_action_index"),
         NodeData("04040404-0000-4000-8000-000000000411", "pose_0"): NodeData("04040404-0000-4000-8000-000000000409", "pose"),
         NodeTime("04040404-0000-4000-8000-000000000411", "time_0"): NodeTime("04040404-0000-4000-8000-000000000409"),
         NodeData("04040404-0000-4000-8000-000000000411", "weight_0"): NodeData("04040404-0000-4000-8000-000000000410", "weight_0"),

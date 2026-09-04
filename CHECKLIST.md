@@ -44,6 +44,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`FAlsAnimNode_GameplayTagsBlend::GetActiveChildIndex()` 在 `ActiveTag.IsValid()` 时返回 `Tags.Find(ActiveTag) + 1`，否则返回 0；因此无效或不在 `Tags` 内的有效 Tag 都回退默认 pose，且为 exact match。`FAnimNode_BlendListBase::Update_AnyThread()` 先执行 exposed inputs，才读取 `GetBlendTimes()`；Standing 的序列化 `BlendTime=(0.1,0.1)`保留作 source record，但生效的可见 pin 默认是 `(0.3,0.2)`。当前 `SourceGameplayTagBlendNode` 的 sprint 专例已替换为任意 tag/pose 数组实现。
   - Gate summary：contract/renderer/converter self-test、`als-ext` real-tag selection test、Standing contract runtime Gate 均PASS。fresh Standing direct `--write`/`--check`无 drift，`AlsAnimGraphNode_GameplayTagsBlend` blocker 1→0，报告要求在 `AnimationGraphPlayer` 实体以 `als_ext::set_gameplay_tag_input("gait", GameplayTag)`提供真实 tag。消融：未保留 sprint-only state 或 f32 fallback；多 Tag 的 exact-index/权重路径复用通用 child blend 数据。
 
+- [x] BF112.04 overlay GameplayTagBlend real-tag ABI：开始：2026-09-04 22:17:40 +08:00；预估结束：2026-09-04 23:07:40 +08:00；实际结束：2026-09-04 22:40:23 +08:00（偏差 -27m17s）。将现有 `GameplayTagBlendNode` 的 `active_index: f32` 输入改为真实 Tag key，迁移 barrel/binoculars/hands-tied/injured overlay 图及 root writer 的 locomotion-action/rotation-mode provider。验收：source tag constants、focused node selection test、受影响 RON 资产加载 Gate PASS。
+  - source fact：`AlsGameplayTags.cpp`定义 `Als.LocomotionAction.{Mantling,GettingUp,Rolling}` 和 `Als.RotationMode.{VelocityDirection,ViewDirection,Aiming}`；当前 12 个 overlay `GameplayTagBlendNode`/`GameplayTagLayerBlendNode`均由 `als_overlay_*_index` 的 f32 edge 驱动。只有这些 Tag node 及其直接 input edge 属于迁移范围，其他 f32 state/curve 输入保持原样。
+  - Gate summary：generic tag selection、root source-tag mapping、tag table parse 和 Box/Barrel/Binoculars runtime asset Gate均PASS；12 个 overlay node均改用`locomotion_action`或`rotation_mode`真实 Tag key，overlay图的`active_index` edge为0。消融：删除全部仅供这些节点使用的`GlobalF32InputNode`及edge；RagdollingTagBlend仍是独立 source node，保留为下一边界而不在本项复用/伪装。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

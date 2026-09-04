@@ -16,6 +16,34 @@
     "description": "ALS source gameplay tag"
   },
   {
+    "tag_name": "Als.LocomotionAction.GettingUp",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Mantling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Ragdolling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionAction.Rolling",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.Aiming",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.VelocityDirection",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.RotationMode.ViewDirection",
+    "description": "ALS source gameplay tag"
+  },
+  {
     "tag_name": "Als.Stance.Crouching",
     "description": "ALS source gameplay tag"
   },

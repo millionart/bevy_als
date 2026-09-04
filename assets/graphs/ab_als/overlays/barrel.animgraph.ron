@@ -31,16 +31,6 @@
             should_debug: false,
         ),
         (
-            id: "03030303-0000-4000-8000-000000000004",
-            name: "overlay locomotion action input",
-            inner: {
-                "als_ext::GlobalF32InputNode": (
-                    key: "als_overlay_locomotion_action_index",
-                ),
-            },
-            should_debug: false,
-        ),
-        (
             id: "03030303-0000-4000-8000-000000000005",
             name: "one",
             inner: {
@@ -189,6 +179,7 @@
             name: "locomotion action tag blend",
             inner: {
                 "als_ext::GameplayTagBlendNode": (
+                    active_key: "locomotion_action",
                     tags: [
                         "Als.LocomotionAction.Mantling",
                         "Als.LocomotionAction.GettingUp",
@@ -353,7 +344,6 @@
         NodeData("03030303-0000-4000-8000-000000000302", "pose_1"): NodeData("03030303-0000-4000-8000-000000000113", "pose"),
         NodeTime("03030303-0000-4000-8000-000000000302", "time_1"): NodeTime("03030303-0000-4000-8000-000000000113"),
         NodeData("03030303-0000-4000-8000-000000000302", "weight_1"): NodeData("03030303-0000-4000-8000-000000000003", "als_overlay_crouching_amount"),
-        NodeData("03030303-0000-4000-8000-000000000303", "active_index"): NodeData("03030303-0000-4000-8000-000000000004", "als_overlay_locomotion_action_index"),
         NodeData("03030303-0000-4000-8000-000000000202", "pose"): NodeData("422296da-0a29-5e71-99fa-071b25c01835", "pose"),
         NodeTime("03030303-0000-4000-8000-000000000202", "time"): NodeTime("422296da-0a29-5e71-99fa-071b25c01835"),
         NodeData("03030303-0000-4000-8000-000000000304", "pose_a"): NodeData("03030303-0000-4000-8000-000000000302", "pose"),
