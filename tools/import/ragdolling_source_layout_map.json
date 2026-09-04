@@ -9,7 +9,6 @@
         {"target_id": "1a220000-0000-4000-8000-000000000002", "source_index": 4, "offset": [192.0, 0.0], "strategy": "source_sequence_player_loop_split"},
         {"target_id": "1a220000-0000-4000-8000-000000000003", "source_index": 4, "offset": [384.0, 0.0], "strategy": "source_sequence_player_speed_split"},
         {"target_id": "1a220000-0000-4000-8000-000000000004", "source_index": 4, "offset": [0.0, 96.0], "strategy": "source_sequence_player_rate_split"},
-        {"target_id": "1a220000-0000-4000-8000-000000000005", "source_index": 2, "offset": [-192.0, -64.0], "strategy": "source_outer_tag_active_tag_split"},
         {"target_id": "1a220000-0000-4000-8000-000000000006", "source_index": 5, "offset": [0.0, 0.0], "strategy": "source_snapshot_pin"},
         {"target_id": "1a220000-0000-4000-8000-000000000007", "source_indices": [2, 3], "offset": [0.0, 0.0], "strategy": "source_outer_inner_tag_collapse"},
         {"target_id": "1a220000-0000-4000-8000-000000000008", "source_index": 2, "offset": [0.0, 128.0], "strategy": "source_outer_tag_dynamic_bridge"},

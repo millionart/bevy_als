@@ -69,10 +69,6 @@ fn ragdoll_pelvis_speed(
 }
 
 fn write_globals(player: &mut AnimationGraphPlayer, ragdolling: bool, flail_play_rate: f32) {
-    player.set_global_input_data(
-        "als_ragdolling_action_index",
-        if ragdolling { 1.0 } else { 0.0 },
-    );
     player.set_global_input_data("als_ragdolling_flail_play_rate", flail_play_rate);
     player.set_global_input_data("als_ragdolling_dynamic", ragdolling);
     player.set_global_input_data("als_ragdolling_readback", ragdolling);

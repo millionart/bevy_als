@@ -47,14 +47,6 @@ pub(crate) struct GameplayTagBlendState {
     duration: f32,
 }
 
-pub(crate) fn select_gameplay_tag_child_index(tags: &[String], value: f32) -> usize {
-    if !value.is_finite() || value < 0.0 {
-        return 0;
-    }
-    let index = value.round() as usize;
-    if index <= tags.len() { index } else { 0 }
-}
-
 pub(crate) fn select_gameplay_tag_child_index_for_tag(
     tags: &[String],
     active_tag: Option<&GameplayTag>,

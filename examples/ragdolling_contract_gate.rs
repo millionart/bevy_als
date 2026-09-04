@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use als_ext::{
     AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
-    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode,
+    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode, set_gameplay_tag_input,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -20,6 +20,7 @@ use bevy_animation_graph::core::{
     ragdoll::definition::BodyMode,
     skeleton::Skeleton,
 };
+use bevy_gameplay_tag::GameplayTag;
 use serde_json::Value;
 
 const RAGDOLLING_PATH: &str = "graphs/ab_als/ragdolling.animgraph.ron";
@@ -170,7 +171,6 @@ fn verify_native_source() {
         "\"1a220000-0000-4000-8000-000000000002\": (-864.000, 192.000)",
         "\"1a220000-0000-4000-8000-000000000003\": (-672.000, 192.000)",
         "\"1a220000-0000-4000-8000-000000000004\": (-1056.000, 288.000)",
-        "\"1a220000-0000-4000-8000-000000000005\": (-528.000, 0.000)",
         "\"1a220000-0000-4000-8000-000000000006\": (-1024.000, 64.000)",
         "\"1a220000-0000-4000-8000-000000000007\": (-336.000, 64.000)",
         "\"1a220000-0000-4000-8000-000000000008\": (-336.000, 192.000)",
@@ -185,7 +185,7 @@ fn verify_native_source() {
         );
     }
     info!(
-        "[RAGDOLLING-SOURCE] authored_nodes=6 pins=18 outer=(0.4,0.5) inner=(0,0) flail=looping snapshot=pin positions=10 -> PASS"
+        "[RAGDOLLING-SOURCE] authored_nodes=6 pins=18 outer=(0.4,0.5) inner=(0,0) flail=looping snapshot=pin positions=9 -> PASS"
     );
 }
 
@@ -310,13 +310,7 @@ fn set_curve_inputs(player: &mut AnimationGraphPlayer) {
     }
 }
 
-fn set_runtime_inputs(
-    player: &mut AnimationGraphPlayer,
-    action_index: f32,
-    flail_play_rate: f32,
-    dynamic: bool,
-) {
-    player.set_global_input_data("als_ragdolling_action_index", action_index);
+fn set_runtime_inputs(player: &mut AnimationGraphPlayer, flail_play_rate: f32, dynamic: bool) {
     player.set_global_input_data("als_ragdolling_flail_play_rate", flail_play_rate);
     player.set_global_input_data("als_ragdolling_dynamic", dynamic);
     player.set_global_input_data("als_ragdolling_readback", dynamic);
@@ -341,7 +335,8 @@ fn verify_static(
     };
     let outer =
         node::<RagdollingTagBlendNode>(graph, "Ragdolling nested tag blend").is_some_and(|node| {
-            node.tag == "Als.LocomotionAction.Ragdolling"
+            node.active_key == "locomotion_action"
+                && node.tag == "Als.LocomotionAction.Ragdolling"
                 && node.outer_blend_times == [0.4, 0.5]
                 && node.blend_mode == GameplayTagBlendMode::Linear
                 && node
@@ -376,7 +371,6 @@ fn verify_static(
                 && graph.io_spec.get_output_data(&curve.to_string()).is_some()
         })
         && [
-            "action_index",
             "outer_input_weight",
             "outer_ragdoll_weight",
             "inner_snapshot_weight",
@@ -420,19 +414,19 @@ fn verify_static(
         DataValue::Pose(snapshot_pose),
     );
     set_curve_inputs(&mut player);
-    set_runtime_inputs(&mut player, 0.0, 1.0, false);
+    set_runtime_inputs(&mut player, 1.0, false);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
     probe.base_pose = Some(base_pose);
-    probe.entity = Some(
-        commands
-            .spawn((
-                Name::new("ragdolling_contract_probe"),
-                Children::default(),
-                player,
-            ))
-            .id(),
-    );
+    let player_entity = commands
+        .spawn((
+            Name::new("ragdolling_contract_probe"),
+            Children::default(),
+            player,
+        ))
+        .id();
+    set_gameplay_tag_input(player_entity, "locomotion_action", GameplayTag::new(""));
+    probe.entity = Some(player_entity);
 }
 
 fn observe(
@@ -468,13 +462,18 @@ fn observe(
                 fail(&mut exit, "initial input phase");
                 return;
             }
-            set_runtime_inputs(&mut player, 1.0, 0.5, true);
+            set_runtime_inputs(&mut player, 0.5, true);
+            set_gameplay_tag_input(
+                entity,
+                "locomotion_action",
+                GameplayTag::new("Als.LocomotionAction.Ragdolling"),
+            );
             player.queue_time_update(TimeUpdate::Delta(0.25));
             probe.phase = Phase::Enter;
         }
         Phase::Enter => {
-            let valid = output_f32(&player, "action_index").is_some_and(|value| close(value, 1.0))
-                && output_f32(&player, "outer_input_weight").is_some_and(|value| close(value, 0.5))
+            let valid = output_f32(&player, "outer_input_weight")
+                .is_some_and(|value| close(value, 0.5))
                 && output_f32(&player, "outer_ragdoll_weight")
                     .is_some_and(|value| close(value, 0.5))
                 && output_f32(&player, "inner_flail_weight").is_some_and(|value| close(value, 1.0))
@@ -513,7 +512,7 @@ fn observe(
                 "als_ragdolling_snapshot_pose",
                 DataValue::Pose(snapshot.clone()),
             );
-            player.set_global_input_data("als_ragdolling_action_index", 0.0_f32);
+            set_gameplay_tag_input(entity, "locomotion_action", GameplayTag::new(""));
             player.set_global_input_data("als_ragdolling_dynamic", false);
             player.set_global_input_data("als_ragdolling_readback", false);
             player.queue_time_update(TimeUpdate::Delta(0.2));

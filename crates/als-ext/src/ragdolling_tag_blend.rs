@@ -14,11 +14,11 @@ use crate::{
     curve_bundle::{active_curve_weights, curve_value_input},
     gameplay_tag_blend::{
         GameplayTagBlendState, WEIGHT_THRESHOLD, advance_gameplay_tag_weights,
-        select_gameplay_tag_child_index,
+        select_gameplay_tag_child_index_for_tag,
     },
+    source_gameplay_tag_input::gameplay_tag_input,
 };
 
-pub const ACTIVE_INDEX: &str = "active_index";
 pub const INPUT_POSE: &str = "input_pose";
 pub const INPUT_TIME: &str = "input_time";
 pub const SNAPSHOT_POSE: &str = "snapshot_pose";
@@ -41,6 +41,7 @@ pub(crate) struct RagdollingTagBlendState {
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct RagdollingTagBlendNode {
+    pub active_key: String,
     pub tag: String,
     pub outer_blend_times: [f32; 2],
     pub inner_blend_times: [f32; 2],
@@ -52,6 +53,7 @@ pub struct RagdollingTagBlendNode {
 impl Default for RagdollingTagBlendNode {
     fn default() -> Self {
         Self {
+            active_key: "locomotion_action".to_owned(),
             tag: "Als.LocomotionAction.Ragdolling".to_owned(),
             outer_blend_times: [0.0, 0.0],
             inner_blend_times: [0.0, 0.0],
@@ -110,9 +112,11 @@ impl NodeLike for RagdollingTagBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_index = select_gameplay_tag_child_index(
+        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
+        let active_index = select_gameplay_tag_child_index_for_tag(
             std::slice::from_ref(&self.tag),
-            ctx.data_back(ACTIVE_INDEX)?.as_f32()?,
+            Some(&active_tag),
         );
         let time_update = ctx.time_update_fwd()?;
         let delta_seconds = match &time_update {
@@ -182,8 +186,7 @@ impl NodeLike for RagdollingTagBlendNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(ACTIVE_INDEX, DataSpec::F32)
-            .add_input_data(INPUT_POSE, DataSpec::Pose)
+        ctx.add_input_data(INPUT_POSE, DataSpec::Pose)
             .add_input_time(INPUT_TIME)
             .add_input_data(SNAPSHOT_POSE, DataSpec::Pose)
             .add_input_time(SNAPSHOT_TIME)
@@ -206,6 +209,7 @@ impl NodeLike for RagdollingTagBlendNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_gameplay_tag::GameplayTag;
 
     #[test]
     fn node_registers_node_like_dispatch_key() {
@@ -250,6 +254,25 @@ mod tests {
             0.25,
         );
         assert_eq!(inner, vec![0.0, 1.0]);
+    }
+
+    #[test]
+    fn source_tag_selects_the_ragdolling_child() {
+        let node = RagdollingTagBlendNode::default();
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                std::slice::from_ref(&node.tag),
+                Some(&GameplayTag::new("Als.LocomotionAction.Ragdolling")),
+            ),
+            1
+        );
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                std::slice::from_ref(&node.tag),
+                Some(&GameplayTag::new("Als.LocomotionAction.Rolling")),
+            ),
+            0
+        );
     }
 
     #[test]

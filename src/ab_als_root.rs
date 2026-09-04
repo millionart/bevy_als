@@ -140,10 +140,14 @@ fn locomotion_action_index(
 }
 
 fn locomotion_action_tag(
+    locomotion: LocomotionState,
     notify_action: Option<&AlsNotifyLocomotionAction>,
     mantle: Option<&AlsMantleState>,
     roll: Option<&AlsRollState>,
 ) -> GameplayTag {
+    if locomotion == LocomotionState::Ragdolling {
+        return GameplayTag::new("Als.LocomotionAction.Ragdolling");
+    }
     GameplayTag::new(match notify_action {
         Some(AlsNotifyLocomotionAction::Mantling) => "Als.LocomotionAction.Mantling",
         Some(AlsNotifyLocomotionAction::GettingUp) => "Als.LocomotionAction.GettingUp",
@@ -261,7 +265,7 @@ fn root_graph_writer(
             set_gameplay_tag_input(
                 instance.player_entity(),
                 "locomotion_action",
-                locomotion_action_tag(notify_action, mantle, roll),
+                locomotion_action_tag(*locomotion, notify_action, mantle, roll),
             );
             set_gameplay_tag_input(
                 instance.player_entity(),
@@ -404,8 +408,18 @@ mod tests {
     #[test]
     fn action_and_rotation_tags_use_the_source_hierarchy() {
         assert_eq!(
-            locomotion_action_tag(Some(&AlsNotifyLocomotionAction::Rolling), None, None).as_str(),
+            locomotion_action_tag(
+                LocomotionState::Grounded,
+                Some(&AlsNotifyLocomotionAction::Rolling),
+                None,
+                None,
+            )
+            .as_str(),
             "Als.LocomotionAction.Rolling"
+        );
+        assert_eq!(
+            locomotion_action_tag(LocomotionState::Ragdolling, None, None, None).as_str(),
+            "Als.LocomotionAction.Ragdolling"
         );
         assert_eq!(
             rotation_mode_tag(RotationMode::Aiming).as_str(),

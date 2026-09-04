@@ -48,13 +48,17 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`AlsGameplayTags.cpp`定义 `Als.LocomotionAction.{Mantling,GettingUp,Rolling}` 和 `Als.RotationMode.{VelocityDirection,ViewDirection,Aiming}`；当前 12 个 overlay `GameplayTagBlendNode`/`GameplayTagLayerBlendNode`均由 `als_overlay_*_index` 的 f32 edge 驱动。只有这些 Tag node 及其直接 input edge 属于迁移范围，其他 f32 state/curve 输入保持原样。
   - Gate summary：generic tag selection、root source-tag mapping、tag table parse 和 Box/Barrel/Binoculars runtime asset Gate均PASS；12 个 overlay node均改用`locomotion_action`或`rotation_mode`真实 Tag key，overlay图的`active_index` edge为0。消融：删除全部仅供这些节点使用的`GlobalF32InputNode`及edge；RagdollingTagBlend仍是独立 source node，保留为下一边界而不在本项复用/伪装。
 
+- [x] BF112.05 RagdollingTagBlend real-tag ABI：开始：2026-09-04 22:41:22 +08:00；预估结束：2026-09-04 23:21:22 +08:00；实际结束：2026-09-04 22:53:51 +08:00（偏差 -27m31s）。将 RagdollingTagBlend 的唯一 `active_index` 输入改为 `locomotion_action`真实 Tag，并以 `LocomotionState::Ragdolling` 写入 `Als.LocomotionAction.Ragdolling`。验收：focused ragdoll tag selection、Ragdolling contract runtime Gate、无 active-index edge PASS。
+  - source fact：`AlsGameplayTags.cpp`定义 `Als.LocomotionAction.Ragdolling`；本地 `AB_Als_Ragdolling` 原始图中 inner/outer `GameplayTagsBlend`均以该 exact Tag 选择，outer/inner 的有效 blend time 分别为 `(0.4,0.5)`/`(0,0)`。
+  - Gate summary：`source_tag_selects_the_ragdolling_child`、`SourceGameplayTagInputNode` real-identity、root state→Tag mapping、带本地 UE 原始导出的 Ragdoll contract runtime Gate均PASS；position/coverage audit为9 target node、零 missing/mismatch/unexplained。消融：删除 `als_ragdolling_action_index` 的图节点、edge、output ABI、writer、fixture输入和最后一个 f32 selector helper；Ragdoll selection只读取`GameplayTag`，无索引兼容路径。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
 |---|---|---|
 | AnimBP 状态机 | 显式 system 路由 + animation graph RON | ECS 数据流，无隐藏图执行 |
-| GameplayTags | 普通 Rust 枚举组件 | 编译期检查 |
+| GameplayTags | `bevy_gameplay_tag` 的真实层级 Tag | 保留 UE Tag identity 与 exact/hierarchical query 语义 |
 | ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
 | Root Motion | 图内 `RootMotionMode` 提取 + `RootMotionOutput` 驱动位移（M8.8；数据经 M8.6 回填） | fork 已支持提取，M0.5 导出缺根轨道由 M8.6 离线回填，不再用曲线等价物 |
 | Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
