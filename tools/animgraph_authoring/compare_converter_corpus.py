@@ -136,6 +136,27 @@ def resolved_property_bindings(ir):
     ]
 
 
+def resolved_custom_curves(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        plan = graph.get("fsm_renderer")
+        if not isinstance(plan, dict):
+            continue
+        for transition in plan.get("transitions", []):
+            render = transition.get("render") if isinstance(transition, dict) else None
+            if not isinstance(render, dict):
+                continue
+            source_curve = render.get("source_custom_curve")
+            keys = render.get("custom_curve")
+            if isinstance(source_curve, str) and source_curve and isinstance(keys, list):
+                rows.append({"source_curve": source_curve, "key_count": len(keys)})
+    counts = collections.Counter((row["source_curve"], row["key_count"]) for row in rows)
+    return [
+        {"source_curve": source_curve, "key_count": key_count, "transition_count": count}
+        for (source_curve, key_count), count in sorted(counts.items())
+    ]
+
+
 def compare(source, topology, registry, asset_root, source_content_root, mount):
     closure, class_counts = reachable_source_classes(source)
     ir, issues = converter.build_ir(
@@ -184,6 +205,7 @@ def compare(source, topology, registry, asset_root, source_content_root, mount):
                 )
             ),
             "resolved_property_bindings": resolved_property_bindings(ir),
+            "resolved_custom_curves": resolved_custom_curves(ir),
         },
         "manual_capability_candidates": candidate_rows(
             class_counts,
@@ -275,10 +297,35 @@ def run_self_test():
             "count": 1,
         }
     ]
+    assert resolved_custom_curves(
+        {
+            "graphs": [
+                {
+                    "fsm_renderer": {
+                        "transitions": [
+                            {
+                                "render": {
+                                    "source_custom_curve": "/ALS/Curves/CF_Test.CF_Test",
+                                    "custom_curve": [{}, {}, {}],
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ) == [
+        {
+            "source_curve": "/ALS/Curves/CF_Test.CF_Test",
+            "key_count": 3,
+            "transition_count": 1,
+        }
+    ]
     return {
         "manual_node_type_inventory": "PASS",
         "source_to_manual_candidate_gap_reported": "PASS",
         "resolved_source_property_bindings_reported": "PASS",
+        "resolved_source_custom_curves_reported": "PASS",
     }
 
 

@@ -8,7 +8,12 @@ sys.path.insert(0, str(IMPORT_ROOT))
 
 from extract_ue_visible_graph_contract import contract
 import generate_ue_transition_expression_graph as transition_renderer
-from ue_animation_asset_resolver import AssetResolutionError, source_blend_profile_wrapper
+from ue_animation_asset_resolver import (
+    AssetResolutionError,
+    source_blend_profile_wrapper,
+    source_curve_float,
+    source_object_path,
+)
 from ue_animgraph_fsm_contract import (
     ALIAS_CLASS,
     CONDUIT_CLASS,
@@ -72,12 +77,13 @@ def ordered_outgoing(transitions):
     }
 
 
-def profile_plan(transition, source_content_root, source_mount):
+def profile_plan(transition, source_content_root, source_mount, source_reader=None, curve_cache=None):
     if transition["blend_mode"] not in {
         "Linear",
         "Cubic",
         "HermiteCubic",
         "QuadraticInOut",
+        "Custom",
     }:
         raise FsmRenderError("source transition blend mode is unsupported")
     if transition["logic_type"] not in {"TLT_StandardBlend", "TLT_Inertialization"}:
@@ -98,6 +104,29 @@ def profile_plan(transition, source_content_root, source_mount):
         )
     except AssetResolutionError as error:
         raise FsmRenderError(str(error)) from error
+    custom_curve = []
+    source_custom_curve = None
+    if transition["blend_mode"] == "Custom":
+        if transition["logic_type"] != "TLT_StandardBlend":
+            raise FsmRenderError("source custom inertial transition is unsupported")
+        reference = transition["source_properties"].get("CustomBlendCurve")
+        if not isinstance(reference, str) or source_content_root is None or source_mount is None:
+            raise FsmRenderError("source custom blend curve is unavailable")
+        try:
+            source_custom_curve = source_object_path(reference)
+            curve_cache = curve_cache if curve_cache is not None else {}
+            curve = curve_cache.get(source_custom_curve)
+            if curve is None:
+                curve = source_curve_float(
+                    source_content_root,
+                    source_mount,
+                    source_custom_curve,
+                    source_reader,
+                )
+                curve_cache[source_custom_curve] = curve
+            custom_curve = curve["keys"]
+        except AssetResolutionError as error:
+            raise FsmRenderError(str(error)) from error
     return {
         "logic": "inertialization"
         if transition["logic_type"] == "TLT_Inertialization"
@@ -105,6 +134,8 @@ def profile_plan(transition, source_content_root, source_mount):
         "duration": transition["crossfade_duration"],
         "blend_mode": transition["blend_mode"],
         "blend_profile": profile,
+        "source_custom_curve": source_custom_curve,
+        "custom_curve": custom_curve,
         "automatic_rule": (
             {
                 "source_semantics": "relevant_asset_time_remaining",
@@ -116,7 +147,7 @@ def profile_plan(transition, source_content_root, source_mount):
     }
 
 
-def render_plan(source, suffix, source_content_root=None, source_mount=None):
+def render_plan(source, suffix, source_content_root=None, source_mount=None, source_reader=None):
     try:
         value = fsm_contract(source, suffix)
         graph = graph_for_suffix(source, suffix)
@@ -142,6 +173,7 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None):
         raise FsmRenderError("source FSM entry is invalid")
     conditions = {}
     conduit_conditions = {}
+    curve_cache = {}
     for conduit in value["conduits"]:
         bool_condition_contract(source, conduit["graph"])
         conduit_conditions[conduit["source_node"]] = conduit["graph"]
@@ -156,7 +188,13 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None):
         transitions.append(
             {
                 **transition,
-                "render": profile_plan(transition, source_content_root, source_mount),
+                "render": profile_plan(
+                    transition,
+                    source_content_root,
+                    source_mount,
+                    source_reader,
+                    curve_cache,
+                ),
             }
         )
     return {

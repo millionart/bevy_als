@@ -551,6 +551,7 @@ def build_ir(
     asset_root,
     source_content_root=None,
     source_mount=None,
+    source_reader=None,
 ):
     source_reachability = traverse(source, root_graph)
     graphs = []
@@ -593,6 +594,7 @@ def build_ir(
                 entry["source_graph"],
                 source_content_root,
                 source_mount,
+                source_reader,
             )
         except FsmRenderError as error:
             unsupported.append(
@@ -696,6 +698,7 @@ def expected_outputs(
     asset_root,
     source_content_root=None,
     source_mount=None,
+    source_reader=None,
 ):
     ir, unsupported = build_ir(
         source,
@@ -704,6 +707,7 @@ def expected_outputs(
         asset_root,
         source_content_root,
         source_mount,
+        source_reader,
     )
     report = build_report(source_identity, ir, unsupported)
     return ir, report
@@ -1053,6 +1057,7 @@ def main():
         args.asset_root,
         source_content_root,
         args.mount,
+        args.source_reader,
     )
     materialized_files = expected_materialized_files(source, ir, registry, report)
     if args.report is not None:

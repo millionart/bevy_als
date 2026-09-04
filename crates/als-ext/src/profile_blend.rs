@@ -255,6 +255,33 @@ mod tests {
     }
 
     #[test]
+    fn custom_stance_curve_matches_the_source_midpoint() {
+        let curve = [
+            RichCurveKey {
+                interpolation: crate::RichCurveInterpolation::Cubic,
+                t: 0.0,
+                v: 0.0,
+                ..default()
+            },
+            RichCurveKey {
+                interpolation: crate::RichCurveInterpolation::Cubic,
+                tangent_mode: crate::RichCurveTangentMode::User,
+                t: 0.4,
+                v: 0.4,
+                arrive_tangent: 2.730308,
+                leave_tangent: 2.730308,
+                ..default()
+            },
+            RichCurveKey {
+                t: 1.0,
+                v: 1.0,
+                ..default()
+            },
+        ];
+        assert!((transition_alpha(0.5, AlphaBlendMode::Custom, &curve) - 0.63404917).abs() < 1e-6);
+    }
+
+    #[test]
     fn profiled_blend_applies_normalized_target_weight_to_listed_bone() {
         let (skeleton, foot) = skeleton();
         let mut source = Pose::default();

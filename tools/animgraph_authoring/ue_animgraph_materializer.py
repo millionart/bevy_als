@@ -95,6 +95,59 @@ def placeholder_graph_text(source_asset, state_id):
     )
 
 
+def rich_curve_ron(keys):
+    fields = (
+        "interpolation",
+        "tangent_mode",
+        "tangent_weight_mode",
+        "t",
+        "v",
+        "arrive_tangent",
+        "arrive_weight",
+        "leave_tangent",
+        "leave_weight",
+    )
+    if not isinstance(keys, list):
+        raise MaterializationError("source custom curve is invalid")
+    rows = []
+    for key in keys:
+        if not isinstance(key, dict) or set(key) != set(fields):
+            raise MaterializationError("source custom curve key is invalid")
+        if key["interpolation"] not in {"Constant", "Linear", "Cubic"}:
+            raise MaterializationError("source custom curve interpolation is invalid")
+        if key["tangent_mode"] not in {"Auto", "User", "Break", "None", "SmartAuto"}:
+            raise MaterializationError("source custom curve tangent mode is invalid")
+        if key["tangent_weight_mode"] not in {"None", "Arrive", "Leave", "Both"}:
+            raise MaterializationError("source custom curve tangent weight mode is invalid")
+        if not all(
+            isinstance(key[field], (int, float)) and not isinstance(key[field], bool)
+            for field in fields[3:]
+        ):
+            raise MaterializationError("source custom curve value is invalid")
+        rows.append(
+            "(interpolation: "
+            + key["interpolation"]
+            + ", tangent_mode: "
+            + key["tangent_mode"]
+            + ", tangent_weight_mode: "
+            + key["tangent_weight_mode"]
+            + ", t: "
+            + repr(key["t"])
+            + ", v: "
+            + repr(key["v"])
+            + ", arrive_tangent: "
+            + repr(key["arrive_tangent"])
+            + ", arrive_weight: "
+            + repr(key["arrive_weight"])
+            + ", leave_tangent: "
+            + repr(key["leave_tangent"])
+            + ", leave_weight: "
+            + repr(key["leave_weight"])
+            + ")"
+        )
+    return "[" + ", ".join(rows) + "]"
+
+
 def transition_graph_text(source_asset, transition):
     render = transition["render"]
     node = stable_id(source_asset, "transition-node", transition["id"])
@@ -119,12 +172,15 @@ def transition_graph_text(source_asset, transition):
             for scale in scales
         )
         node_type = "als_ext::ProfiledBlendNode"
+        custom_curve = rich_curve_ron(render.get("custom_curve", []))
         inner = (
             "(curve_names: [], bone_scales: ["
             + scale_ron
             + "], alpha_blend_mode: "
             + render["blend_mode"]
-            + ", custom_curve: [])"
+            + ", custom_curve: "
+            + custom_curve
+            + ")"
         )
     return "(\n" + "\n".join(
         (
@@ -351,6 +407,30 @@ def run_self_test():
     }
     assert "ProfiledBlendNode" in transition_graph_text("/Asset", standard)
     assert "InertializationNode" in transition_graph_text("/Asset", inertial)
+    custom = {
+        "id": "10000000-0000-4000-8000-000000000003",
+        "title": "Custom",
+        "render": {
+            "logic": "profiled_blend",
+            "duration": 0.5,
+            "blend_mode": "Custom",
+            "blend_profile": {"bone_scales": []},
+            "custom_curve": [
+                {
+                    "interpolation": "Cubic",
+                    "tangent_mode": "Auto",
+                    "tangent_weight_mode": "None",
+                    "t": 0.0,
+                    "v": 0.0,
+                    "arrive_tangent": 0.0,
+                    "arrive_weight": 0.0,
+                    "leave_tangent": 0.0,
+                    "leave_weight": 0.0,
+                }
+            ],
+        },
+    }
+    assert "alpha_blend_mode: Custom" in transition_graph_text("/Asset", custom)
     assert graph_path("/Asset", "AnimGraph") == graph_path("/Asset", "AnimGraph")
     assert graph_path("/Asset", "AnimGraph") != fsm_path("/Asset", "AnimGraph")
     assert materialized_reference_issues(
@@ -358,6 +438,7 @@ def run_self_test():
     )
     return {
         "standard_and_inertial_transitions_materialized": "PASS",
+        "source_custom_curve_materialized": "PASS",
         "source_paths_are_deterministic": "PASS",
         "missing_generated_reference_rejected": "PASS",
     }

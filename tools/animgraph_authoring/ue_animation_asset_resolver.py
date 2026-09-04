@@ -1,5 +1,6 @@
 import json
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -9,7 +10,37 @@ sys.path.insert(0, str(IMPORT_ROOT))
 
 from uasset_base import UAsset
 from uasset_reader import PropReader
-from ue_exported_text import ExportedTextError, field as struct_field, parse_bool, parse_number, parse_struct
+from ue_exported_text import (
+    ExportedTextError,
+    field as struct_field,
+    parse_bool,
+    parse_list,
+    parse_number,
+    parse_struct,
+    reject_unknown_fields,
+)
+
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SOURCE_READER = ROOT / "tools" / "run_ue_source_reader.ps1"
+RICH_CURVE_INTERPOLATIONS = {
+    "RCIM_Constant": "Constant",
+    "RCIM_Linear": "Linear",
+    "RCIM_Cubic": "Cubic",
+}
+RICH_CURVE_TANGENT_MODES = {
+    "RCTM_Auto": "Auto",
+    "RCTM_User": "User",
+    "RCTM_Break": "Break",
+    "RCTM_None": "None",
+    "RCTM_SmartAuto": "SmartAuto",
+}
+RICH_CURVE_TANGENT_WEIGHT_MODES = {
+    "RCTWM_WeightedNone": "None",
+    "RCTWM_WeightedArrive": "Arrive",
+    "RCTWM_WeightedLeave": "Leave",
+    "RCTWM_WeightedBoth": "Both",
+}
 
 
 class AssetResolutionError(ValueError):
@@ -58,6 +89,144 @@ def source_export_class(asset, export):
         return None
     imported = asset.imports[-export.class_index - 1]
     return imported.object_name if imported.class_name == "Class" else imported.class_name
+
+
+def native_source_asset(source_path, source_reader=None):
+    reader = Path(source_reader or DEFAULT_SOURCE_READER)
+    if not reader.is_file():
+        raise AssetResolutionError("native source reader is unavailable")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
+        output = Path(directory) / "source.ue.json"
+        try:
+            process = subprocess.run(
+                [
+                    "pwsh",
+                    "-NoProfile",
+                    "-File",
+                    str(reader),
+                    "-Asset",
+                    source_path,
+                    "-Output",
+                    str(output),
+                    "-TimeoutSeconds",
+                    "120",
+                    "-NoProgressSeconds",
+                    "60",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=150,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise AssetResolutionError("native source reader failed") from error
+        if process.returncode != 0 or not output.is_file():
+            raise AssetResolutionError("native source reader failed")
+        try:
+            value = json.loads(output.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise AssetResolutionError("native source reader output is invalid") from error
+    if value.get("format") != "ue_asset_source_v1" or value.get("asset_path") != source_path:
+        raise AssetResolutionError("native source reader returned an unexpected asset")
+    return value
+
+
+def asset_property(source, name):
+    values = [
+        value.get("exported_text")
+        for value in source.get("asset_properties", [])
+        if value.get("name") == name and isinstance(value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        raise AssetResolutionError(f"source asset property is missing or ambiguous: {name}")
+    return values[0]
+
+
+def rich_curve_enum(fields, name, default, values):
+    value = struct_field(fields, name, default)
+    target = values.get(value)
+    if target is None:
+        raise AssetResolutionError(f"source rich curve {name} is unsupported")
+    return target
+
+
+def rich_curve_key(value):
+    try:
+        fields = parse_struct(value)
+        reject_unknown_fields(
+            fields,
+            {
+                "InterpMode",
+                "TangentMode",
+                "TangentWeightMode",
+                "Time",
+                "Value",
+                "ArriveTangent",
+                "ArriveTangentWeight",
+                "LeaveTangent",
+                "LeaveTangentWeight",
+            },
+        )
+        return {
+            "interpolation": rich_curve_enum(
+                fields,
+                "InterpMode",
+                "RCIM_Linear",
+                RICH_CURVE_INTERPOLATIONS,
+            ),
+            "tangent_mode": rich_curve_enum(
+                fields,
+                "TangentMode",
+                "RCTM_Auto",
+                RICH_CURVE_TANGENT_MODES,
+            ),
+            "tangent_weight_mode": rich_curve_enum(
+                fields,
+                "TangentWeightMode",
+                "RCTWM_WeightedNone",
+                RICH_CURVE_TANGENT_WEIGHT_MODES,
+            ),
+            "t": parse_number(struct_field(fields, "Time", "0.0")),
+            "v": parse_number(struct_field(fields, "Value", "0.0")),
+            "arrive_tangent": parse_number(struct_field(fields, "ArriveTangent", "0.0")),
+            "arrive_weight": parse_number(struct_field(fields, "ArriveTangentWeight", "0.0")),
+            "leave_tangent": parse_number(struct_field(fields, "LeaveTangent", "0.0")),
+            "leave_weight": parse_number(struct_field(fields, "LeaveTangentWeight", "0.0")),
+        }
+    except ExportedTextError as error:
+        raise AssetResolutionError("source rich curve key is invalid") from error
+
+
+def curve_float_contract(source):
+    if (
+        not isinstance(source, dict)
+        or source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_class") != "/Script/Engine.CurveFloat"
+        or not isinstance(source.get("asset_path"), str)
+    ):
+        raise AssetResolutionError("source CurveFloat is invalid")
+    try:
+        fields = parse_struct(asset_property(source, "FloatCurve"))
+        reject_unknown_fields(
+            fields,
+            {"Keys", "DefaultValue", "PreInfinityExtrap", "PostInfinityExtrap"},
+        )
+        parse_number(struct_field(fields, "DefaultValue"))
+        if struct_field(fields, "PreInfinityExtrap", "RCCE_Constant") != "RCCE_Constant":
+            raise AssetResolutionError("source CurveFloat pre-infinity extrapolation is unsupported")
+        if struct_field(fields, "PostInfinityExtrap", "RCCE_Constant") != "RCCE_Constant":
+            raise AssetResolutionError("source CurveFloat post-infinity extrapolation is unsupported")
+        keys = [rich_curve_key(value) for value in parse_list(struct_field(fields, "Keys"))]
+    except ExportedTextError as error:
+        raise AssetResolutionError("source CurveFloat properties are invalid") from error
+    if len(keys) < 2 or any(right["t"] <= left["t"] for left, right in zip(keys, keys[1:])):
+        raise AssetResolutionError("source CurveFloat key times are invalid")
+    return {"source_curve": source["asset_path"], "keys": keys}
+
+
+def source_curve_float(content_root, mount, source_path, source_reader=None):
+    source_uasset_path(content_root, mount, source_path)
+    return curve_float_contract(native_source_asset(source_path, source_reader))
 
 
 def source_sequence_timing(content_root, mount, source_path):
@@ -525,6 +694,62 @@ def run_self_test():
         pass
     else:
         raise AssertionError("non-skeleton blend profile was accepted")
+    curve_source = {
+        "format": "ue_asset_source_v1",
+        "asset_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Test.CF_Test",
+        "asset_class": "/Script/Engine.CurveFloat",
+        "asset_properties": [
+            {
+                "name": "FloatCurve",
+                "exported_text": "(Keys=((InterpMode=RCIM_Cubic),(InterpMode=RCIM_Cubic,TangentMode=RCTM_User,Time=0.400000,Value=0.400000,ArriveTangent=2.730308,LeaveTangent=2.730308),(Time=1.000000,Value=1.000000)),DefaultValue=340282346638528859811704183484516925440.000000,PreInfinityExtrap=RCCE_Constant,PostInfinityExtrap=RCCE_Constant)",
+            }
+        ],
+    }
+    curve = curve_float_contract(curve_source)
+    assert curve["keys"] == [
+        {
+            "interpolation": "Cubic",
+            "tangent_mode": "Auto",
+            "tangent_weight_mode": "None",
+            "t": 0.0,
+            "v": 0.0,
+            "arrive_tangent": 0.0,
+            "arrive_weight": 0.0,
+            "leave_tangent": 0.0,
+            "leave_weight": 0.0,
+        },
+        {
+            "interpolation": "Cubic",
+            "tangent_mode": "User",
+            "tangent_weight_mode": "None",
+            "t": 0.4,
+            "v": 0.4,
+            "arrive_tangent": 2.730308,
+            "arrive_weight": 0.0,
+            "leave_tangent": 2.730308,
+            "leave_weight": 0.0,
+        },
+        {
+            "interpolation": "Linear",
+            "tangent_mode": "Auto",
+            "tangent_weight_mode": "None",
+            "t": 1.0,
+            "v": 1.0,
+            "arrive_tangent": 0.0,
+            "arrive_weight": 0.0,
+            "leave_tangent": 0.0,
+            "leave_weight": 0.0,
+        },
+    ]
+    curve_source["asset_properties"][0]["exported_text"] = curve_source["asset_properties"][0][
+        "exported_text"
+    ].replace("PreInfinityExtrap=RCCE_Constant", "PreInfinityExtrap=RCCE_Linear")
+    try:
+        curve_float_contract(curve_source)
+    except AssetResolutionError:
+        pass
+    else:
+        raise AssertionError("unsupported CurveFloat extrapolation was accepted")
     return {
         "source_object_reference_parsed": "PASS",
         "unique_animation_clip_resolved": "PASS",
@@ -536,6 +761,8 @@ def run_self_test():
         "blendspace_evaluator_schema_is_validated": "PASS",
         "empty_skeleton_blend_profile_preserved": "PASS",
         "unsupported_blend_profile_rejected": "PASS",
+        "source_rich_curve_keys_preserved": "PASS",
+        "unsupported_curve_float_extrapolation_rejected": "PASS",
     }
 
 
