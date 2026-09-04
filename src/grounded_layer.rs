@@ -32,6 +32,7 @@ const STANCE_CHANGE_CURVE: &str =
     "curves/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.curve.ron";
 const GROUNDED_GRAPH: &str = "graphs/ab_als/grounded.animgraph.ron";
 const GROUNDED_INTERNAL_TIME_KEY: &str = "als_grounded_delta_seconds";
+const GROUNDED_STATE_LABEL_KEY: &str = "grounded_states.state_index";
 const GROUNDED_STATES_NODE_NAME: &str = "Grounded States\nState Machine";
 const SOURCE_GROUNDED_TURN_STOP_FUNCTION: &str = "StopTransitionAndTurnInPlaceAnimations";
 const SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION: &str = "PlayRollToGroundedTransitionAnimation";
@@ -566,6 +567,7 @@ fn write_globals(
             request.map_or(-1.0, GroundedTransition::index),
         ),
         ("als_grounded_state_index", runtime.state.index()),
+        (GROUNDED_STATE_LABEL_KEY, runtime.state.index()),
         ("als_grounded_entry_index", runtime.entry_index),
         ("als_grounded_clip_index", runtime.state.clip_index()),
         ("als_grounded_loop", runtime.state.looped()),
@@ -963,6 +965,30 @@ mod tests {
         assert_eq!(grounded_state_index("Crouching To Standing"), Some(4));
         assert_eq!(grounded_state_index("Roll"), Some(5));
         assert_eq!(grounded_state_index("Unknown"), None);
+    }
+
+    #[test]
+    fn grounded_state_label_provider_matches_source_structural_order() {
+        let mut player = AnimationGraphPlayer::new(default());
+        let runtime = GroundedLayerRuntime {
+            state: GroundedState::Roll,
+            ..default()
+        };
+        write_globals(
+            &mut player,
+            runtime,
+            None,
+            GroundedCurves::default(),
+            0.0,
+            0.0,
+        );
+        assert_eq!(GROUNDED_STATE_LABEL_KEY, "grounded_states.state_index");
+        assert_eq!(
+            player
+                .get_global_input_data(GROUNDED_STATE_LABEL_KEY)
+                .and_then(|value| value.as_f32().ok()),
+            Some(5.0)
+        );
     }
 
     #[test]

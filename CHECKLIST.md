@@ -60,6 +60,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：Standing 的 `OnStateEntry`/`StopLeft`/`StopRight`分别绑定到`PlayStopLeftTransitionAnimation`或`PlayStopRightTransitionAnimation`；Crouching Stop绑定`PlayStopTransitionAnimation`；Grounded Roll exit绑定`PlayRollToGroundedTransitionAnimation`。这些 function graph 均是 FunctionEntry→GetParent→transition call；Standing Left/Right固定 `.2/.2/1.5/.4`，Crouching/Roll为 right transition `.2/.2/1.5/.2`。
   - Gate summary：state binding precedence/ablation、transition-function、pose-contract、converter self-test和三图 fresh direct `--write`/`--check`均PASS（blocked exit=3且无 drift）；integration JSON明确列出实际函数名，Standing/Crouching/Grounded 的`source_lifecycle_unsupported`均为0。消融：去掉 binding 时 fixture立即退回`CompiledPlaceholder`外部依赖；未按占位名映射或吞掉未知 binding。
 
+- [x] BF112.08 Grounded States source label provider：开始：2026-09-04 23:47:45 +08:00；预估结束：2026-09-05 00:17:45 +08:00；实际结束：2026-09-04 23:54:31 +08:00（偏差 -23m14s）。注册 source `Grounded States` FSM label key，并由现有 `GroundedLayerPlugin`以与 source structural order 一致的状态 index 写入；不为其它 FSM 预注册 key。验收：focused label-index/registry fixture、Grounded direct `--write`/`--check`到 ready、生成闭包静态可读。
+  - source fact：本地 Grounded FSM structural order为 `Entry Conduit(0) → Standing(1) → Crouching(2) → Standing To Crouching(3) → Crouching To Standing(4) → Roll(5)`；现有`GroundedState::index()`和`grounded_state_index()`已有完全相同的映射，只缺 target key `grounded_states.state_index`写入和 converter registry 声明。
+  - Gate summary：writer label test、registry/key materialization ablation、converter self-test、Grounded direct `--write`/`--check`均PASS，conversion/integration status均为`ready`；生成35个 RON/FSM/condition 文件，静态 editor validator为0 failure。当前手工 `grounded_contract_gate`的 static predicates全为false；该 Gate不读取新 key，故非本项回归信号，保留为下一 runtime-audit 边界而不计入本项验收。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
