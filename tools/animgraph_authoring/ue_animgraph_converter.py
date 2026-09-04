@@ -16,6 +16,7 @@ from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_anim
 from ue_animgraph_pose_contract import pose_contract
 from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, render as render_pose_graph
 from ue_animgraph_reachability import traverse
+from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
@@ -415,6 +416,17 @@ def build_ir(
                 assets,
                 registry["sync_group_phase_keys"],
             )
+        if entry["kind"] == "state_machine":
+            try:
+                graph_value["fsm_contract"] = fsm_contract(source, entry["source_graph"])
+            except FsmContractError as error:
+                unsupported.append(
+                    {
+                        "kind": "source_fsm_contract_unsupported",
+                        "source_graph": entry["source_graph"],
+                        "detail": str(error),
+                    }
+                )
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
     supported_sync_nodes = supported_sync_group_nodes(graphs, assets, registry)
