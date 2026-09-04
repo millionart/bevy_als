@@ -96,6 +96,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`FAlsAnimNode_CurvesBlend::Evaluate_AnyThread`先 Evaluate BasePose，再以 BlendAmount Evaluate CurvePose；`Accumulate`调用`Curve.Accumulate(curves, alpha)`，`Override`调用`Curve.Override(curves, alpha)`。当前 Layering仅有两个节点，分别为`BlendAmount=1`的`Accumulate`与`Override`，无 property binding。
   - Gate summary：source contract/renderer/converter self-test、focused context merge + NodeLike registration test均PASS；Layering fresh `--write`/blocked `--check`稳定且不再包含 CurvesBlend/MakeDynamicAdditive，目录只含三行 blocker Markdown和JSON。消融：`Lerp` contract fixture仍拒绝；动态 context key merge替代曲线白名单；缺 semantic renderer现在受控为`PoseRenderError`而非 traceback。
 
+- [x] BF112.17 Layered Bone Blend branch filters：开始：2026-09-05 05:29:41 +08:00；预估结束：2026-09-05 06:24:41 +08:00；实际结束：2026-09-05 05:51:50 +08:00（偏差 -32m51s）。保留每 layer 的 source `BoneName + BlendDepth`及`BlendWeights_n` source pin/property binding，复用已有 branch-filter mask与 SourceLayeredBoneBlendNode；旧手工 RON默认 ABI不变。验收：depth/weight fixture与消融、Layering direct `--write`/`--check`到 ready或剩余首个 source blocker、静态 RON Gate。
+  - source fact：Layering的九个 standard LayeredBoneBlend使用`BlendDepth`为`-1/0/1/3`，并有`LayeringState.{ArmLeftMeshSpaceBlendAmount,ArmRightMeshSpaceBlendAmount,HandLeftBlendAmount,HandRightBlendAmount,ArmLeftLocalSpaceBlendAmount,ArmRightLocalSpaceBlendAmount}`绑定到`BlendWeights_n`。现有`build_branch_filter_bone_mask`已有正/负深度 source rule test，但`SourceLayeredBoneBlendNode`尚未携带depth或权重 pin。
+  - Gate summary：branch-filter、SourceLayeredBoneBlend、contract/renderer/materializer/converter self-test均PASS；Layering fresh direct `--write`/`--check`为ready，editor/position Gate和手工 Layering runtime contract均PASS，六个ready corpus的确定性/静态回归均PASS。消融：正/负depth rule与weight helper fixture保持 source差异；未达根输出的 reroute edge不会被物化，旧手工 RON保持`expose_blend_weight_pins=false`默认ABI。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

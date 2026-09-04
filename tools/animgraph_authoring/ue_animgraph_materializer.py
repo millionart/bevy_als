@@ -368,7 +368,7 @@ def materialize_files(source, ir, registry):
                 fsm_configs,
             )
         except PoseRenderError as error:
-            raise MaterializationError(f"source pose graph is not materializable: {suffix}") from error
+            raise MaterializationError(f"source pose graph is not materializable: {suffix}: {error}") from error
         files[graph_paths[suffix]] = text
     condition_paths = {}
     for entry in ir.get("graphs", []):

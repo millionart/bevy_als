@@ -7,9 +7,11 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     interpolation::linear::LinearInterpolator,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    apply_mesh_space_layered_blend, build_branch_bone_mask, context_time_update, f_interp_to,
+    apply_mesh_space_layered_blend, build_branch_bone_mask, build_branch_filter_bone_mask_by_name,
+    context_time_update, f_interp_to,
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -138,14 +140,25 @@ impl NodeLike for SourceEnumPoseBlendNode {
     }
 }
 
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default)]
+#[reflect(Default, Serialize)]
+pub struct SourceBranchFilter {
+    pub bone: String,
+    pub blend_depth: i32,
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceLayeredBoneBlendNode {
     pub branch_bones: Vec<String>,
     pub branch_bone_layers: Vec<Vec<String>>,
+    pub branch_filters: Vec<SourceBranchFilter>,
+    pub branch_filter_layers: Vec<Vec<SourceBranchFilter>>,
     pub blend_weight: f32,
     pub blend_weights: Vec<f32>,
+    pub blend_weight_pin_prefix: String,
+    pub expose_blend_weight_pins: bool,
     pub mesh_space_rotation_blend: bool,
     pub blend_root_motion_based_on_root_bone: bool,
     pub base_pose_pin: String,
@@ -159,8 +172,12 @@ impl Default for SourceLayeredBoneBlendNode {
         Self {
             branch_bones: default(),
             branch_bone_layers: default(),
+            branch_filters: default(),
+            branch_filter_layers: default(),
             blend_weight: 1.0,
             blend_weights: default(),
+            blend_weight_pin_prefix: "BlendWeights_".to_owned(),
+            expose_blend_weight_pins: false,
             mesh_space_rotation_blend: true,
             blend_root_motion_based_on_root_bone: true,
             base_pose_pin: "Base Pose".to_owned(),
@@ -186,11 +203,24 @@ impl SourceLayeredBoneBlendNode {
             .unwrap_or(&self.branch_bones)
     }
 
-    fn layer_weight(&self, index: usize) -> f32 {
-        self.blend_weights
+    fn layer_filters(&self, index: usize) -> &[SourceBranchFilter] {
+        self.branch_filter_layers
+            .get(index)
+            .map(Vec::as_slice)
+            .unwrap_or(&self.branch_filters)
+    }
+
+    fn layer_weight(&self, ctx: &NodeContext, index: usize) -> Result<f32, GraphError> {
+        let fallback = self
+            .blend_weights
             .get(index)
             .copied()
-            .unwrap_or(self.blend_weight)
+            .unwrap_or(self.blend_weight);
+        if !self.expose_blend_weight_pins {
+            return Ok(fallback);
+        }
+        ctx.data_back(format!("{}{}", self.blend_weight_pin_prefix, index))?
+            .as_f32()
     }
 
     fn layer_count(&self) -> usize {
@@ -213,17 +243,28 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 if base.skeleton != overlay.skeleton && skeletons.get(&base.skeleton).is_none() {
                     base.skeleton = overlay.skeleton.clone();
                 }
-                let names = self
-                    .layer_bones(index)
-                    .iter()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>();
-                let mask = build_branch_bone_mask(skeleton, &names, 1.0);
+                let filters = self.layer_filters(index);
+                let mask = if filters.is_empty() {
+                    let names = self
+                        .layer_bones(index)
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>();
+                    build_branch_bone_mask(skeleton, &names, 1.0)
+                } else {
+                    build_branch_filter_bone_mask_by_name(
+                        skeleton,
+                        &filters
+                            .iter()
+                            .map(|filter| (filter.bone.as_str(), filter.blend_depth))
+                            .collect::<Vec<_>>(),
+                    )
+                };
                 if self.mesh_space_rotation_blend {
                     apply_mesh_space_layered_blend(
                         &mut base,
                         &overlay,
-                        self.layer_weight(index),
+                        self.layer_weight(&ctx, index)?,
                         &mask,
                         skeleton,
                     );
@@ -231,7 +272,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     LinearInterpolator { bone_mask: mask }.interpolate_pose(
                         &mut base,
                         &overlay,
-                        self.layer_weight(index).clamp(0.0, 1.0),
+                        self.layer_weight(&ctx, index)?.clamp(0.0, 1.0),
                     );
                 }
             }
@@ -245,6 +286,12 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         ctx.add_input_data(self.base_pose_pin.clone(), DataSpec::Pose);
         for index in 0..self.layer_count() {
             ctx.add_input_data(self.layer_pin(index).to_owned(), DataSpec::Pose);
+            if self.expose_blend_weight_pins {
+                ctx.add_input_data(
+                    format!("{}{}", self.blend_weight_pin_prefix, index),
+                    DataSpec::F32,
+                );
+            }
         }
         ctx.add_output_data(self.output_pin.clone(), DataSpec::Pose);
         Ok(())
@@ -279,6 +326,16 @@ mod tests {
     fn source_layered_bone_blend_keeps_each_source_layer_pin_and_mask() {
         let node = SourceLayeredBoneBlendNode {
             branch_bone_layers: vec![vec!["thigh_l".to_owned()], vec!["thigh_r".to_owned()]],
+            branch_filter_layers: vec![
+                vec![SourceBranchFilter {
+                    bone: "thigh_l".to_owned(),
+                    blend_depth: 3,
+                }],
+                vec![SourceBranchFilter {
+                    bone: "thigh_r".to_owned(),
+                    blend_depth: -1,
+                }],
+            ],
             blend_weights: vec![1.0, 0.5],
             blend_pose_pins: vec!["Blend Poses 0".to_owned(), "Blend Poses 1".to_owned()],
             ..default()
@@ -288,7 +345,7 @@ mod tests {
         assert_eq!(node.layer_pin(1), "Blend Poses 1");
         assert_eq!(node.layer_bones(0), ["thigh_l"]);
         assert_eq!(node.layer_bones(1), ["thigh_r"]);
-        assert_eq!(node.layer_weight(0), 1.0);
-        assert_eq!(node.layer_weight(1), 0.5);
+        assert_eq!(node.layer_filters(0)[0].blend_depth, 3);
+        assert_eq!(node.layer_filters(1)[0].blend_depth, -1);
     }
 }

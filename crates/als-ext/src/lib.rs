@@ -169,7 +169,8 @@ pub use normalized_blendspace::{
 pub use overlay::{
     BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
     TORCH_RIGHT_HAND_BONES, TORCH_SPINE_UPPER_BONES, build_bone_mask, build_branch_bone_mask,
-    build_branch_filter_bone_mask, build_grouped_bone_mask, mask_coverage,
+    build_branch_filter_bone_mask, build_branch_filter_bone_mask_by_name, build_grouped_bone_mask,
+    mask_coverage,
 };
 pub use penetration_recovery::sum_penetration_adjustments;
 pub use playground::{
@@ -235,7 +236,7 @@ pub use source_scalar_expression::{
 pub use source_sequence_evaluator::SourceSequenceEvaluatorNode;
 pub use source_sequence_player::SourceSequencePlayerNode;
 pub use source_slot::SourceSlotNode;
-pub use source_stop_nodes::{SourceEnumPoseBlendNode, SourceLayeredBoneBlendNode};
+pub use source_stop_nodes::{SourceBranchFilter, SourceEnumPoseBlendNode, SourceLayeredBoneBlendNode};
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
     GlobalSyncGroupSampleNode, SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode,
@@ -354,6 +355,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceSequencePlayerNode>()
             .register_type::<SourceSlotNode>()
             .register_type::<SourceEnumPoseBlendNode>()
+            .register_type::<SourceBranchFilter>()
             .register_type::<SourceLayeredBoneBlendNode>()
             .register_type::<SourceTwoWayBlendNode>()
             .register_type::<ControlRigBoundaryNode>()

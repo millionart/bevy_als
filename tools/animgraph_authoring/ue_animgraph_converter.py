@@ -506,6 +506,35 @@ def resolve_property_bindings(node, semantic, registry):
             keys,
         )
         return issues
+    if renderer == "layered_bone_blend":
+        pins = semantic.get("blend_weight_pins")
+        if not isinstance(pins, list) or not all(isinstance(pin, str) and pin for pin in pins):
+            return [
+                {
+                    "kind": "source_layered_bone_blend_weights_unresolved",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        try:
+            bindings = property_binding_paths(node)
+        except PoseContractError as error:
+            return [
+                {
+                    "kind": "source_property_binding_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "detail": str(error),
+                }
+            ]
+        paths = [bindings.get(pin, "") for pin in pins]
+        keys, issues = resolve_bound_keys(node, renderer, pins, paths)
+        semantic["blend_weight_paths"] = paths
+        semantic["blend_weight_keys"] = keys
+        record_resolved_bindings(semantic, pins, paths, keys)
+        return issues
     if renderer == "sequence_player":
         keys, issues = resolve_bound_keys(
             node,
@@ -675,6 +704,12 @@ def handled_property_binding_pins(renderer, semantic):
         return {"Alpha"} if semantic.get("alpha_path") else set()
     if renderer in {"apply_additive", "apply_mesh_space_additive"}:
         return {"Alpha"} if semantic.get("alpha_path") else set()
+    if renderer == "layered_bone_blend":
+        return handled_bound_pins(
+            "BlendWeights_",
+            semantic.get("blend_weight_paths"),
+            semantic.get("blend_weight_keys"),
+        )
     if renderer == "sequence_player":
         handled = set()
         if semantic.get("play_rate_path"):

@@ -495,15 +495,27 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + ")"
     if renderer == "layered_bone_blend":
         layers = value.get("branch_bone_layers")
+        filters = value.get("branch_filter_layers")
         weights = value.get("blend_weights")
         pins = value.get("blend_pose_pins")
         if (
             not isinstance(layers, list)
+            or not isinstance(filters, list)
             or not isinstance(weights, list)
             or not isinstance(pins, list)
             or len(layers) != len(weights)
+            or len(filters) != len(weights)
             or len(layers) != len(pins)
             or not all(isinstance(bone, str) for layer in layers for bone in layer)
+            or not all(
+                isinstance(filter, dict)
+                and set(filter) == {"bone", "blend_depth"}
+                and isinstance(filter["bone"], str)
+                and isinstance(filter["blend_depth"], int)
+                and not isinstance(filter["blend_depth"], bool)
+                for layer in filters
+                for filter in layer
+            )
             or not all(isinstance(weight, (int, float)) for weight in weights)
             or not all(isinstance(pin, str) for pin in pins)
         ):
@@ -511,11 +523,24 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         layers_ron = "[" + ", ".join(
             "[" + ", ".join(quoted(bone) for bone in layer) + "]" for layer in layers
         ) + "]"
+        filters_ron = "[" + ", ".join(
+            "["
+            + ", ".join(
+                "(bone: " + quoted(filter["bone"]) + ", blend_depth: " + repr(filter["blend_depth"]) + ")"
+                for filter in layer
+            )
+            + "]"
+            for layer in filters
+        ) + "]"
         fields = [
             field("branch_bones", "[]"),
             field("branch_bone_layers", layers_ron),
+            field("branch_filters", "[]"),
+            field("branch_filter_layers", filters_ron),
             field("blend_weight", "1.0"),
             field("blend_weights", "[" + ", ".join(repr(weight) for weight in weights) + "]"),
+            field("blend_weight_pin_prefix", quoted("BlendWeights_")),
+            field("expose_blend_weight_pins", "true"),
             field("mesh_space_rotation_blend", bool_ron(value["mesh_space_rotation_blend"])),
             field("blend_root_motion_based_on_root_bone", bool_ron(value["blend_root_motion_based_on_root_bone"])),
             field("base_pose_pin", quoted(value["base_pose_pin"])),
@@ -758,6 +783,8 @@ def target_pin(renderer, source_pin, node=None):
             return "Base Pose"
         if source_pin.startswith("BlendPoses_"):
             return "Blend Poses " + source_pin.rsplit("_", 1)[1]
+        if source_pin.startswith("BlendWeights_"):
+            return source_pin
     return source_pin
 
 
@@ -981,14 +1008,68 @@ def blendspace_helpers(graph_contract, raw, semantic):
     return nodes, edges, targets
 
 
-def collapsed_links(graph_contract, ir_nodes):
+def layered_bone_weight_helpers(graph_contract, raw, semantic):
+    value = semantic.get("semantic")
+    if not isinstance(value, dict):
+        raise PoseRenderError("source layered bone blend contract is unavailable")
+    defaults = value.get("blend_weights")
+    keys = value.get("blend_weight_keys")
+    pins = value.get("blend_weight_pins")
+    if (
+        not isinstance(defaults, list)
+        or not isinstance(keys, list)
+        or not isinstance(pins, list)
+        or len(defaults) != len(keys)
+        or len(defaults) != len(pins)
+        or not all(isinstance(default, (int, float)) and not isinstance(default, bool) for default in defaults)
+        or not all(isinstance(key, str) for key in keys)
+        or not all(isinstance(pin, str) and pin for pin in pins)
+    ):
+        raise PoseRenderError("source layered bone blend weight contract is unavailable")
+    source_path = raw["object_path"]
+    primary_id = node_id(raw)
+    x, y = position(raw)
+    linked_inputs = {
+        (link.get("target", {}).get("node_object_path"), link.get("target", {}).get("pin_name"))
+        for link in graph_contract.get("links", [])
+    }
+    nodes = []
+    edges = []
+    for index, (default, key, pin) in enumerate(zip(defaults, keys, pins)):
+        if (source_path, pin) in linked_inputs:
+            continue
+        identifier = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                "bevy-als/layered-bone-blend/weight/" + source_path + "/" + pin,
+            )
+        )
+        if key:
+            inner = "(key: " + quoted(key) + ")"
+            node_type = "als_ext::GlobalF32InputNode"
+            source_pin = key
+            name = "Layered blend " + pin + " binding"
+        else:
+            inner = "(value: " + repr(default) + ")"
+            node_type = "als_ext::ConstantF32Node"
+            source_pin = "value"
+            name = "Layered blend " + pin + " default"
+        nodes.append((identifier, name, inner, node_type, (x - 96.0, y + 96.0 + index * 48.0)))
+        edges.append(
+            f"NodeData({quoted(primary_id)}, {quoted(pin)}): NodeData({quoted(identifier)}, {quoted(source_pin)})"
+        )
+    return nodes, edges
+
+
+def collapsed_links(graph_contract, ir_nodes, links=None):
+    links = graph_contract.get("links", []) if links is None else links
     reroutes = {
         path
         for path, semantic in ir_nodes.items()
         if semantic.get("renderer") == "reroute"
     }
     incoming = {}
-    for link in graph_contract.get("links", []):
+    for link in links:
         target = link.get("target", {})
         target_path = target.get("node_object_path")
         if target_path in reroutes:
@@ -1006,7 +1087,7 @@ def collapsed_links(graph_contract, ir_nodes):
         return resolve(links[0].get("source", {}), seen | {path})
 
     result = []
-    for link in graph_contract.get("links", []):
+    for link in links:
         target = link.get("target", {})
         if target.get("node_object_path") in reroutes:
             continue
@@ -1038,6 +1119,7 @@ def render(
     sync_wrappers = {}
     linked_layer_selectors = {}
     blendspace_edges = []
+    layered_bone_edges = []
     blendspace_targets = {}
     for source_path, semantic in ir_nodes.items():
         if semantic.get("renderer") in {"comment_group", "reroute"}:
@@ -1057,6 +1139,10 @@ def render(
             result_nodes.extend(nodes)
             blendspace_edges.extend(edges)
             blendspace_targets.update(targets)
+        if semantic.get("renderer") == "layered_bone_blend":
+            nodes, edges = layered_bone_weight_helpers(graph_contract, raw, semantic)
+            result_nodes.extend(nodes)
+            layered_bone_edges.extend(edges)
         if semantic.get("renderer") == "linked_anim_layer":
             selector_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/linked-layer/" + source_path))
             x, y = position(raw)
@@ -1120,13 +1206,18 @@ def render(
     state_result_raw = raw_nodes[state_result["source_node"]]
     output_name = "Result"
     edges = []
-    for link in collapsed_links(graph_contract, ir_nodes):
+    for link in collapsed_links(graph_contract, ir_nodes, graph_ir.get("links")):
         source = link.get("source", {})
         target = link.get("target", {})
         source_semantic = ir_nodes.get(source.get("node_object_path"))
         target_semantic = ir_nodes.get(target.get("node_object_path"))
         if source_semantic is None or target_semantic is None:
-            raise PoseRenderError("source pose edge endpoint is unsupported")
+            raise PoseRenderError(
+                "source pose edge endpoint is unsupported: "
+                + str(source.get("node_object_path"))
+                + " -> "
+                + str(target.get("node_object_path"))
+            )
         source_identifier = sync_wrappers.get(
             source_semantic["source_node"],
             node_id(raw_nodes[source_semantic["source_node"]]),
@@ -1167,6 +1258,7 @@ def render(
             f"NodeData({quoted(identifier)}, \"layer_index\"): NodeData({quoted(selector_id)}, \"value\")"
         )
     edges.extend(blendspace_edges)
+    edges.extend(layered_bone_edges)
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
     result_nodes.sort(key=lambda value: value[0])
@@ -1311,6 +1403,25 @@ def run_self_test():
     assert '"als_ext::SourceTwoWayBlendNode"' in text
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'OutputData("Result")' in text
+    graph_ir["links"] = list(graph_contract["links"])
+    unused_path = "/Asset:State.Unreachable"
+    graph_contract["source_graph"]["nodes"].append(
+        {
+            "object_path": unused_path,
+            "node_guid": "10000000-0000-4000-8000-000000000090",
+            "title": "Unreachable",
+            "position_x": 64,
+            "position_y": 64,
+            "pins": [],
+        }
+    )
+    graph_contract["links"].append(
+        {
+            "source": {"node_object_path": graph_ir["nodes"][0]["source_node"], "pin_name": "Pose"},
+            "target": {"node_object_path": unused_path, "pin_name": "Pose"},
+        }
+    )
+    assert 'OutputData("Result")' in render(graph_contract, graph_ir, assets)
     linked_path = "/Asset:AnimGraph.Layer"
     linked_result = "/Asset:AnimGraph.LayerResult"
     linked_contract = {
@@ -1520,6 +1631,10 @@ def run_self_test():
             "renderer": "layered_bone_blend",
             "semantic": {
                 "branch_bone_layers": [["thigh_l"], ["thigh_r"]],
+                "branch_filter_layers": [
+                    [{"bone": "thigh_l", "blend_depth": 3}],
+                    [{"bone": "thigh_r", "blend_depth": -1}],
+                ],
                 "blend_weights": [1.0, 0.5],
                 "mesh_space_rotation_blend": True,
                 "blend_root_motion_based_on_root_bone": True,
@@ -1533,7 +1648,31 @@ def run_self_test():
     )
     assert layered_type == "als_ext::SourceLayeredBoneBlendNode"
     assert 'branch_bone_layers: [["thigh_l"], ["thigh_r"]]' in layered_inner
+    assert 'blend_depth: -1' in layered_inner
     assert target_pin("layered_bone_blend", "BlendPoses_1") == "Blend Poses 1"
+    assert target_pin("layered_bone_blend", "BlendWeights_1") == "BlendWeights_1"
+    layered_path = "/Asset:State.Layered"
+    layered_raw = {
+        "object_path": layered_path,
+        "node_guid": "10000000-0000-4000-8000-000000000023",
+        "position_x": 0,
+        "position_y": 0,
+    }
+    layered_nodes, layered_edges = layered_bone_weight_helpers(
+        {"links": []},
+        layered_raw,
+        {
+            "semantic": {
+                "blend_weights": [1.0, 0.5],
+                "blend_weight_keys": ["layering_state.left_amount", ""],
+                "blend_weight_pins": ["BlendWeights_0", "BlendWeights_1"],
+            }
+        },
+    )
+    assert len(layered_nodes) == 2
+    assert any(node[3] == "als_ext::GlobalF32InputNode" for node in layered_nodes)
+    assert any(node[3] == "als_ext::ConstantF32Node" for node in layered_nodes)
+    assert any('"BlendWeights_0"' in edge for edge in layered_edges)
     curve_type, curve_inner = rendered_inner(
         graph_contract,
         {},
@@ -1788,6 +1927,7 @@ def run_self_test():
         "sync_group_wrapper_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_reroutes_are_folded": "PASS",
+        "unreachable_source_edges_are_ignored": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
         "one_dimensional_dynamic_blendspace_evaluator_is_rendered": "PASS",
         "source_blendspace_property_binding_is_rendered": "PASS",

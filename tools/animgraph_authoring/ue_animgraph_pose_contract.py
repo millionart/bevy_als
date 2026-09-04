@@ -791,23 +791,34 @@ def layered_bone_blend_contract(node):
     if not poses or len(poses) != len(layers) or len(poses) != len(weights):
         raise PoseContractError("source layered bone blend layer count is invalid")
     required = ("BasePose",) + tuple(f"BlendPoses_{index}" for index in range(len(poses)))
-    inputs, issues = validate_inputs(node, renderer, required)
+    inputs, issues = validate_inputs(
+        node,
+        renderer,
+        required,
+        tuple(f"BlendWeights_{index}" for index in range(len(poses))),
+    )
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
     branch_layers = []
+    branch_filter_layers = []
     for layer in layers:
         layer_fields = parse_struct(layer)
         reject_unknown_fields(layer_fields, {"BranchFilters"})
         bones = []
+        filters = []
         for branch in parse_list(field(layer_fields, "BranchFilters")):
             branch_fields = parse_struct(branch)
             reject_unknown_fields(branch_fields, {"BoneName", "BlendDepth"})
-            if parse_number(field(branch_fields, "BlendDepth", "0.0")) != 0.0:
-                raise PoseContractError("source layered bone blend depth is unsupported")
-            bones.append(parse_quoted(field(branch_fields, "BoneName")))
+            depth = parse_number(field(branch_fields, "BlendDepth", "0.0"))
+            if not depth.is_integer() or not -(2**31) <= depth < 2**31:
+                raise PoseContractError("source layered bone blend depth is invalid")
+            bone = parse_quoted(field(branch_fields, "BoneName"))
+            bones.append(bone)
+            filters.append({"bone": bone, "blend_depth": int(depth)})
         if not bones:
             raise PoseContractError("source layered bone blend branch filter is empty")
         branch_layers.append(bones)
+        branch_filter_layers.append(filters)
     if field(fields, "SkeletonGuid", "00000000000000000000000000000000") != "00000000000000000000000000000000":
         issues.append(issue(node, renderer, "source_layered_bone_skeleton_guid_unsupported", "SkeletonGuid"))
     if field(fields, "VirtualBoneGuid", "00000000000000000000000000000000") != "00000000000000000000000000000000":
@@ -826,7 +837,9 @@ def layered_bone_blend_contract(node):
         "renderer": renderer,
         "input_pins": inputs,
         "branch_bone_layers": branch_layers,
+        "branch_filter_layers": branch_filter_layers,
         "blend_weights": weights,
+        "blend_weight_pins": [f"BlendWeights_{index}" for index in range(len(poses))],
         "mesh_space_rotation_blend": parse_bool(
             field(fields, "bMeshSpaceRotationBlend", "False")
         ),
@@ -1470,6 +1483,12 @@ def run_self_test():
         ["thigh_l", "ik_foot_l"],
         ["thigh_r"],
     ]
+    assert layered_contract["branch_filter_layers"][0][0]["blend_depth"] == 0
+    layered["properties"][0]["exported_text"] = '(BasePose=(),BlendPoses=((),()),LayerSetup=((BranchFilters=((BoneName="thigh_l",BlendDepth=3))),(BranchFilters=((BoneName="thigh_r",BlendDepth=-1)))),BlendWeights=(1.000000,0.500000),SkeletonGuid=00000000000000000000000000000000,VirtualBoneGuid=00000000000000000000000000000000,LODThreshold=-1,bMeshSpaceRotationBlend=True,bBlendRootMotionBasedOnRootBone=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())'
+    layered["pins"].extend([input_pin("BlendWeights_0"), input_pin("BlendWeights_1")])
+    layered_contract, issues = pose_contract(layered, "layered_bone_blend")
+    assert not issues
+    assert [item[0]["blend_depth"] for item in layered_contract["branch_filter_layers"]] == [3, -1]
     slot = fixture_node(
         "slot",
         "Node",

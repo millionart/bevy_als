@@ -58,21 +58,24 @@ pub fn build_branch_bone_mask(skeleton: &Skeleton, branch_names: &[&str], weight
     mask
 }
 
-pub fn build_branch_filter_bone_mask(skeleton: &Skeleton, filters: &[BranchFilter]) -> BoneMask {
+pub fn build_branch_filter_bone_mask_by_name(
+    skeleton: &Skeleton,
+    filters: &[(&str, i32)],
+) -> BoneMask {
     let paths = skeleton.iter_paths().cloned().collect::<Vec<_>>();
     let mut mask = BoneMask::none();
-    for filter in filters {
+    for (bone_name, blend_depth) in filters {
         let Some(root) = paths.iter().find(|path| {
             path.parts
                 .last()
-                .is_some_and(|name| name.as_str() == filter.bone_name)
+                .is_some_and(|name| name.as_str() == *bone_name)
         }) else {
             continue;
         };
-        let increase_per_depth = if filter.blend_depth == 0 {
+        let increase_per_depth = if *blend_depth == 0 {
             1.0
         } else {
-            1.0 / filter.blend_depth as f32
+            1.0 / *blend_depth as f32
         };
         for path in &paths {
             if path.parts.len() < root.parts.len()
@@ -88,6 +91,16 @@ pub fn build_branch_filter_bone_mask(skeleton: &Skeleton, filters: &[BranchFilte
         }
     }
     mask
+}
+
+pub fn build_branch_filter_bone_mask(skeleton: &Skeleton, filters: &[BranchFilter]) -> BoneMask {
+    build_branch_filter_bone_mask_by_name(
+        skeleton,
+        &filters
+            .iter()
+            .map(|filter| (filter.bone_name, filter.blend_depth))
+            .collect::<Vec<_>>(),
+    )
 }
 
 pub fn build_grouped_bone_mask(skeleton: &Skeleton, groups: &[(&[&str], f32)]) -> BoneMask {
