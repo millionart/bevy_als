@@ -10,13 +10,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "import"))
 
-from extract_ue_authored_graph_inventory import inventory
 from extract_ue_visible_graph_contract import contract
+from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
+from ue_animgraph_pose_contract import pose_contract
+from ue_animgraph_reachability import traverse
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
+IR_ONLY_RENDERERS = {"root_output", "comment_group"}
 
 
 class ConversionError(RuntimeError):
@@ -58,14 +61,30 @@ def package_path_for_uasset(uasset, content_root, mount):
     return f"{mount.rstrip('/')}/{package}.{asset_name}"
 
 
-def read_uasset_source(uasset, content_root, mount, source_reader):
+def source_reader_failure(report_path, exit_code):
+    if report_path.is_file():
+        try:
+            report = read_json(report_path)
+        except (OSError, json.JSONDecodeError):
+            report = None
+        if isinstance(report, dict):
+            reason = report.get("exit_reason")
+            if isinstance(reason, str) and reason:
+                return f"native UE source reader failed: {reason}"
+    return f"native UE source reader failed with exit code {exit_code}"
+
+
+def read_uasset_source(uasset, content_root, mount, source_reader, timeout_seconds, no_progress_seconds):
     if not source_reader.is_file():
         raise ConversionError("native UE source reader is unavailable")
+    if timeout_seconds <= 0 or no_progress_seconds <= 0:
+        raise ConversionError("native UE source reader timeout is invalid")
     resolved_uasset = uasset.resolve()
     resolved_content = content_root_for_uasset(resolved_uasset, content_root)
     package_path = package_path_for_uasset(resolved_uasset, resolved_content, mount)
     with tempfile.TemporaryDirectory() as directory:
         intermediate = Path(directory) / "source.ue.json"
+        reader_report = Path(str(intermediate) + ".reader.report.json")
         process = subprocess.run(
             [
                 "pwsh",
@@ -76,6 +95,10 @@ def read_uasset_source(uasset, content_root, mount, source_reader):
                 package_path,
                 "-Output",
                 str(intermediate),
+                "-TimeoutSeconds",
+                str(timeout_seconds),
+                "-NoProgressSeconds",
+                str(no_progress_seconds),
             ],
             cwd=ROOT,
             capture_output=True,
@@ -83,7 +106,7 @@ def read_uasset_source(uasset, content_root, mount, source_reader):
             check=False,
         )
         if process.returncode != 0 or not intermediate.is_file():
-            raise ConversionError(f"native UE source reader failed with exit code {process.returncode}")
+            raise ConversionError(source_reader_failure(reader_report, process.returncode))
         source = read_json(intermediate)
     if source.get("asset_path") != package_path:
         raise ConversionError("native UE source reader returned an unexpected asset")
@@ -186,8 +209,8 @@ def normalized_pin(pin):
     }
 
 
-def normalized_node(node, renderer):
-    return {
+def normalized_node(node, renderer, semantic):
+    result = {
         "source_node": node.get("object_path"),
         "source_class": node.get("class_path"),
         "source_title": node.get("title"),
@@ -203,38 +226,81 @@ def normalized_node(node, renderer):
             for value in node.get("properties", [])
         ],
     }
+    if semantic is not None:
+        result["semantic"] = semantic
+    return result
 
 
-def graph_ir(graph_contract, registry):
+def renderer_semantic_issues(node, renderer, semantic):
+    if renderer == "unsupported" or semantic is not None or renderer in IR_ONLY_RENDERERS:
+        return []
+    return [
+        {
+            "kind": "source_renderer_unimplemented",
+            "source_node": node.get("object_path"),
+            "source_class": node.get("class_path"),
+            "renderer": renderer,
+        }
+    ]
+
+
+def graph_ir(graph_contract, registry, reachable_nodes):
+    included = set(reachable_nodes)
+    for node in graph_contract["source_graph"]["nodes"]:
+        if node.get("class_path") == "/Script/UnrealEd.EdGraphNode_Comment":
+            included.add(node.get("object_path"))
     nodes = []
     unsupported = []
     for node in graph_contract["source_graph"]["nodes"]:
+        if node.get("object_path") not in included:
+            continue
         renderer, issue = mapping_for(node, registry)
         if issue is not None:
             unsupported.append(issue)
             renderer = "unsupported"
-        nodes.append(normalized_node(node, renderer))
+        semantic, contract_issues = pose_contract(node, renderer)
+        unsupported.extend(contract_issues)
+        unsupported.extend(renderer_semantic_issues(node, renderer, semantic))
+        nodes.append(normalized_node(node, renderer, semantic))
     return {
         "source_graph": graph_contract["source_graph_suffix"],
         "nodes": nodes,
-        "links": graph_contract["links"],
+        "links": [
+            link
+            for link in graph_contract["links"]
+            if link["source"]["node_object_path"] in included
+            and link["target"]["node_object_path"] in included
+        ],
     }, unsupported
 
 
-def build_ir(source, root_graph, registry):
-    source_inventory = inventory(source, root_graph)
+def build_ir(source, root_graph, registry, asset_root):
+    source_reachability = traverse(source, root_graph)
     graphs = []
-    unsupported = []
-    for entry in source_inventory["entries"]:
+    unsupported = list(source_reachability["issues"])
+    for entry in source_reachability["graphs"]:
         value = contract(source, entry["source_graph"])
-        graph_value, graph_unsupported = graph_ir(value, registry)
+        graph_value, graph_unsupported = graph_ir(value, registry, entry["reachable_nodes"])
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
+    for dependency in source_reachability["external_dependencies"]:
+        unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
+    try:
+        assets = resolve_graph_animation_assets(asset_root, source)
+    except AssetResolutionError as error:
+        unsupported.append(
+            {
+                "kind": "unresolved_source_animation_asset",
+                "message": str(error),
+            }
+        )
+        assets = []
     return {
         "format": IR_FORMAT,
         "source_asset": source["asset_path"],
         "root_source_graph": root_graph,
         "graphs": graphs,
+        "animation_assets": assets,
     }, unsupported
 
 
@@ -247,8 +313,8 @@ def build_report(source_identity, ir, unsupported):
     }
 
 
-def expected_outputs(source, source_identity, root_graph, registry):
-    ir, unsupported = build_ir(source, root_graph, registry)
+def expected_outputs(source, source_identity, root_graph, registry, asset_root):
+    ir, unsupported = build_ir(source, root_graph, registry, asset_root)
     report = build_report(source_identity, ir, unsupported)
     return ir, report
 
@@ -306,6 +372,15 @@ def run_self_test():
     renderer, issue = mapping_for(function_node, registry)
     assert renderer == "root_output"
     assert issue is None
+    assert renderer_semantic_issues(function_node, renderer, None) == []
+    assert renderer_semantic_issues(
+        {
+            "object_path": "/Asset:AnimGraph.StateMachine",
+            "class_path": "/Script/AnimGraph.AnimGraphNode_StateMachine",
+        },
+        "state_machine",
+        None,
+    )[0]["kind"] == "source_renderer_unimplemented"
     function_registry = validate_registry(
         {
             "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
@@ -361,7 +436,11 @@ def run_self_test():
             }
         ],
     }
-    graph_value, graph_unsupported = graph_ir(source_contract, registry)
+    graph_value, graph_unsupported = graph_ir(
+        source_contract,
+        registry,
+        {"/Asset:AnimGraph.Root"},
+    )
     assert not graph_unsupported
     for mutate in [
         lambda value: value["source_graph"]["nodes"][0]["pins"][0].update(default_value="changed"),
@@ -371,9 +450,64 @@ def run_self_test():
     ]:
         changed = copy.deepcopy(source_contract)
         mutate(changed)
-        changed_value, changed_unsupported = graph_ir(changed, registry)
+        changed_value, changed_unsupported = graph_ir(
+            changed,
+            registry,
+            {"/Asset:AnimGraph.Root"},
+        )
         assert not changed_unsupported
         assert graph_value != changed_value
+    sequence_registry = validate_registry(
+        {
+            "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
+            "node_classes": {
+                "/Script/AnimGraph.AnimGraphNode_SequencePlayer": {
+                    "renderer": "sequence_player"
+                }
+            },
+            "function_rules": [],
+        }
+    )
+    sequence_contract = {
+        "source_graph_suffix": "AnimGraph",
+        "source_graph": {
+            "nodes": [
+                {
+                    "object_path": "/Asset:AnimGraph.Player",
+                    "class_path": "/Script/AnimGraph.AnimGraphNode_SequencePlayer",
+                    "title": "Sequence Player",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "pins": [
+                        {
+                            "index": 0,
+                            "name": "PlayRate",
+                            "direction": "Input",
+                            "hidden": False,
+                            "not_connectable": False,
+                            "default_value": "1.000000",
+                            "default_value_ignored": False,
+                        }
+                    ],
+                    "properties": [
+                        {
+                            "name": "Node",
+                            "array_index": 0,
+                            "exported_text": "(GroupName=\"Movement\",Method=SyncGroup,Sequence=\"/Script/Engine.AnimSequence'/ALS/Animations/A_Test.A_Test'\",PlayRateBasis=1.000000,PlayRate=1.000000,PlayRateScaleBiasClampConstants=(),bLoopAnimation=True,PlayRateScaleBiasClampState=(),InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+                        }
+                    ],
+                }
+            ]
+        },
+        "links": [],
+    }
+    sequence_value, sequence_unsupported = graph_ir(
+        sequence_contract,
+        sequence_registry,
+        {"/Asset:AnimGraph.Player"},
+    )
+    assert sequence_value["nodes"][0]["semantic"]["sync_group"] == "Movement"
+    assert sequence_unsupported[0]["kind"] == "source_sync_group_unsupported"
     bad = fixture_registry()
     bad["asset_name"] = "Forbidden"
     try:
@@ -411,6 +545,8 @@ def run_self_test():
         "uasset_package_path_derived_without_source_json_input": "PASS",
         "crlf_function_signature_normalized": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",
+        "source_pose_contract_blocker_rejected": "PASS",
+        "unimplemented_registered_renderer_rejected": "PASS",
         "deterministic_ir_drift_rejected": "PASS",
         "unsupported_source_blocks_generation": "PASS",
         "core_does_not_emit_partial_bevy_graphs": "PASS",
@@ -423,8 +559,11 @@ def main():
     parser.add_argument("--content-root", type=Path)
     parser.add_argument("--mount", default="/ALS")
     parser.add_argument("--source-reader", type=Path, default=ROOT / "tools" / "run_ue_source_reader.ps1")
+    parser.add_argument("--source-reader-timeout-seconds", type=int, default=300)
+    parser.add_argument("--source-reader-no-progress-seconds", type=int, default=150)
     parser.add_argument("--root-graph", default="AnimGraph")
     parser.add_argument("--registry", type=Path, default=ROOT / "tools" / "animgraph_authoring" / "als_ref_mapping_registry.json")
+    parser.add_argument("--asset-root", type=Path, default=ROOT / "assets")
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--write", action="store_true")
@@ -437,13 +576,23 @@ def main():
     if args.uasset is None or args.output_root is None or args.write == args.check:
         raise ConversionError("uasset, output-root, and exactly one mode are required")
     registry = validate_registry(read_json(args.registry))
+    if not args.asset_root.is_dir():
+        raise ConversionError("target asset root is unavailable")
     source, source_identity = read_uasset_source(
         args.uasset,
         args.content_root,
         args.mount,
         args.source_reader,
+        args.source_reader_timeout_seconds,
+        args.source_reader_no_progress_seconds,
     )
-    ir, report = expected_outputs(source, source_identity, args.root_graph, registry)
+    ir, report = expected_outputs(
+        source,
+        source_identity,
+        args.root_graph,
+        registry,
+        args.asset_root,
+    )
     if args.report is not None:
         write_json(args.report, report)
     if unsupported_failure(report):
