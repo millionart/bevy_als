@@ -12,6 +12,8 @@ use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::mesh_space_additive::apply_mesh_space_additive;
+use crate::mesh_space_difference::make_mesh_space_difference;
+use crate::reference_local_difference::make_local_difference;
 use crate::{
     context_time_update, f_interp_to,
     gameplay_tag_blend::{
@@ -460,6 +462,68 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
 
     fn display_name(&self) -> String {
         "ALS Source Mesh Space Additive".to_owned()
+    }
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct SourceMakeDynamicAdditiveNode {
+    pub mesh_space_additive: bool,
+}
+
+fn make_dynamic_additive_difference(
+    base: &bevy_animation_graph::core::pose::Pose,
+    additive: &bevy_animation_graph::core::pose::Pose,
+    skeleton: &bevy_animation_graph::core::skeleton::Skeleton,
+    mesh_space_additive: bool,
+) -> bevy_animation_graph::core::pose::Pose {
+    if mesh_space_additive {
+        make_mesh_space_difference(base, additive, skeleton)
+    } else {
+        make_local_difference(base, additive, skeleton)
+    }
+}
+
+impl NodeLike for SourceMakeDynamicAdditiveNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let mut base = ctx.data_back("Base")?.into_pose()?;
+        let additive = ctx.data_back("Additive")?.into_pose()?;
+        if ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .is_none()
+        {
+            base.skeleton = additive.skeleton.clone();
+        }
+        let skeleton = ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        let difference = make_dynamic_additive_difference(
+            &base,
+            &additive,
+            skeleton,
+            self.mesh_space_additive,
+        );
+        ctx.set_time(difference.timestamp);
+        ctx.set_data_fwd("Pose", difference);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data("Base", DataSpec::Pose)
+            .add_input_data("Additive", DataSpec::Pose)
+            .add_output_data("Pose", DataSpec::Pose);
+        Ok(())
+    }
+
+    fn display_name(&self) -> String {
+        "ALS Source Make Dynamic Additive".to_owned()
     }
 }
 
@@ -925,6 +989,80 @@ mod tests {
         let node = SourceMeshSpaceAdditiveNode::default();
         assert_eq!(node.alpha_pin, "Alpha");
         assert!(node.expose_alpha_pin);
+    }
+
+    #[test]
+    fn source_make_dynamic_additive_defaults_to_local_space() {
+        assert!(!SourceMakeDynamicAdditiveNode::default().mesh_space_additive);
+        let mut registry = bevy::reflect::TypeRegistry::default();
+        registry.register::<SourceMakeDynamicAdditiveNode>();
+        assert!(
+            registry
+                .get(std::any::TypeId::of::<SourceMakeDynamicAdditiveNode>())
+                .unwrap()
+                .data::<ReflectNodeLike>()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn source_make_dynamic_additive_selects_mesh_space_difference() {
+        use bevy_animation_graph::core::{
+            animation_clip::EntityPath,
+            pose::{BonePose, Pose},
+            skeleton::Skeleton,
+        };
+
+        let root_path = EntityPath::default().child("root");
+        let child_path = root_path.child("child");
+        let root = root_path.id();
+        let child = child_path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_y(0.7)),
+                ..default()
+            },
+            root,
+        );
+        base.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_x(-0.4)),
+                ..default()
+            },
+            child,
+        );
+        let mut additive = Pose::default();
+        additive.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_z(0.45)),
+                ..default()
+            },
+            root,
+        );
+        additive.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_y(0.9)),
+                ..default()
+            },
+            child,
+        );
+        let local = make_dynamic_additive_difference(&base, &additive, &skeleton, false);
+        let mesh = make_dynamic_additive_difference(&base, &additive, &skeleton, true);
+        assert!(
+            local
+                .get_bone(child)
+                .unwrap()
+                .rotation
+                .unwrap()
+                .dot(mesh.get_bone(child).unwrap().rotation.unwrap())
+                .abs()
+                < 0.999
+        );
     }
 
     #[test]

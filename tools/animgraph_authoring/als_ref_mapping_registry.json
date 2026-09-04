@@ -17,6 +17,7 @@
     "/Script/AnimGraph.AnimGraphNode_TwoWayBlend": { "renderer": "two_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_ApplyAdditive": { "renderer": "apply_additive" },
     "/Script/AnimGraph.AnimGraphNode_ApplyMeshSpaceAdditive": { "renderer": "apply_mesh_space_additive" },
+    "/Script/AnimGraph.AnimGraphNode_MakeDynamicAdditive": { "renderer": "make_dynamic_additive" },
     "/Script/AnimGraph.AnimGraphNode_ModifyCurve": { "renderer": "modify_curve" },
     "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": { "renderer": "multi_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_BlendListByEnum": { "renderer": "enum_pose_blend" },

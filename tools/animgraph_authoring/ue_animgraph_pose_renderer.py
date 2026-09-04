@@ -20,6 +20,7 @@ SUPPORTED_RENDERERS = {
     "two_way_blend",
     "apply_additive",
     "apply_mesh_space_additive",
+    "make_dynamic_additive",
     "modify_curve",
     "state_result",
     "root_output",
@@ -563,6 +564,14 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             else "als_ext::SourceMeshSpaceAdditiveNode"
         )
         return node_type, "(" + ", ".join(fields) + ")"
+    if renderer == "make_dynamic_additive":
+        mesh_space = value.get("mesh_space_additive")
+        if not isinstance(mesh_space, bool):
+            raise PoseRenderError("source dynamic additive space is unavailable")
+        return (
+            "als_ext::SourceMakeDynamicAdditiveNode",
+            "(mesh_space_additive: " + bool_ron(mesh_space) + ")",
+        )
     if renderer == "modify_curve":
         pins = input_names(value)
         value_pins = [pin for pin in pins if pin not in {"SourcePose", "Alpha"}]
@@ -1545,6 +1554,19 @@ def run_self_test():
     assert slot_type == "als_ext::SourceSlotNode"
     assert 'slot_name: "TurnInPlaceStanding"' in slot_inner
     assert 'pose_key: "turn_in_place_standing.pose"' in slot_inner
+    for mesh_space in (False, True):
+        node_type, inner = rendered_inner(
+            graph_contract,
+            {},
+            {
+                "renderer": "make_dynamic_additive",
+                "semantic": {"mesh_space_additive": mesh_space},
+            },
+            {},
+            {},
+        )
+        assert node_type == "als_ext::SourceMakeDynamicAdditiveNode"
+        assert inner == "(mesh_space_additive: " + bool_ron(mesh_space) + ")"
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -1733,6 +1755,7 @@ def run_self_test():
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
+        "source_dynamic_additive_space_is_rendered": "PASS",
         "source_slot_is_rendered": "PASS",
     }
 

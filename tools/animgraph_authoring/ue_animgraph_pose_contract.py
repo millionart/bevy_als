@@ -22,6 +22,7 @@ POSE_RENDERERS = {
     "two_way_blend",
     "apply_additive",
     "apply_mesh_space_additive",
+    "make_dynamic_additive",
     "modify_curve",
     "save_cached_pose",
     "use_cached_pose",
@@ -390,6 +391,40 @@ def apply_additive_contract(node, mesh_space):
         if parse_bool(field(fields, "bRootSpaceAdditive", "False")):
             issues.append(issue(node, renderer, "source_root_space_additive_unsupported", "bRootSpaceAdditive"))
     return contract, issues
+
+
+def make_dynamic_additive_contract(node):
+    renderer = "make_dynamic_additive"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Base",
+            "Additive",
+            "bMeshSpaceAdditive",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Base", "Additive"))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "mesh_space_additive": parse_bool(field(fields, "bMeshSpaceAdditive", "False")),
+    }, issues
 
 
 def modify_curve_contract(node):
@@ -1162,6 +1197,8 @@ def pose_contract(node, renderer):
             return apply_additive_contract(node, False)
         if renderer == "apply_mesh_space_additive":
             return apply_additive_contract(node, True)
+        if renderer == "make_dynamic_additive":
+            return make_dynamic_additive_contract(node)
         if renderer == "modify_curve":
             return modify_curve_contract(node)
         if renderer == "multi_way_blend":
@@ -1457,6 +1494,19 @@ def run_self_test():
     assert not issues
     assert linked_layer_contract_value["interface"] == "/Asset/ALI_Test.ALI_Test_C"
     assert linked_layer_contract_value["layer"] == "Overlay"
+    dynamic_additive = fixture_node(
+        "make_dynamic_additive",
+        "Node",
+        "(Base=(),Additive=(),bMeshSpaceAdditive=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("Base"), input_pin("Additive"), output_pin("Pose")],
+    )
+    dynamic_contract, issues = pose_contract(dynamic_additive, "make_dynamic_additive")
+    assert not issues
+    assert dynamic_contract["mesh_space_additive"]
+    dynamic_additive["properties"][0]["exported_text"] = "(Base=(),Additive=(),InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())"
+    dynamic_contract, issues = pose_contract(dynamic_additive, "make_dynamic_additive")
+    assert not issues
+    assert not dynamic_contract["mesh_space_additive"]
     inertial = fixture_node(
         "inertialization",
         "Node",
@@ -1485,6 +1535,7 @@ def run_self_test():
         "pose_snapshot_binding_contract_parsed": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "linked_anim_layer_contract_parsed": "PASS",
+        "dynamic_additive_space_contract_parsed": "PASS",
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",

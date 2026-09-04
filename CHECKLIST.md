@@ -88,6 +88,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：fresh reader确认 Default root只有`ALI_Overlay - Overlay` Linked Anim Layer，`Node`为`Interface=ALI_Overlay`、`Layer=Overlay`，无 lifecycle functions或输入 pin；同一 AnimBP 的`ImplementedInterfaces`声明该`Overlay` graph，interface asset也只声明此 layer root。该子图唯一 sync player是`A_Als_Idle`的`Secondary Motion`，loop、零 start、2.666667 秒且无 markers。
   - Gate summary：contract/reachability/renderer/materializer/converter self-test、复用`LinkedAnimLayerNode`的 focused Rust test、Default direct `--write`/`--check`、2 graph static editor/position Gate均PASS；Default report为`ready`、零 blocker，明确列出`secondary_motion.sync_phase`和五个 target runtime input。同期重写/确定性检查并静态审计 Grounded、Locomotion、Ragdolling、Head；补齐 synthetic state editor position 后四项均PASS。消融：移除自身 interface 声明会被 fixture拒绝；缺少物化 layer target也会被 materializer拒绝；未新增 runtime node。
 
+- [x] BF112.15 Make Dynamic Additive：开始：2026-09-05 01:40:22 +08:00；预估结束：2026-09-05 02:10:22 +08:00；实际结束：2026-09-05 01:51:22 +08:00（偏差 -19m00s）。按 source `bMeshSpaceAdditive`选择既有 mesh/local difference 算法，保留`Base`/`Additive`连接及时间语义；新增最小 Pose-only`SourceMakeDynamicAdditiveNode`以匹配 source graph ABI。验收：source contract/renderer fixture和 mesh/local 消融、Layering direct blocker减少且无 partial RON。
+  - source fact：fresh Layering source有两个`Make Dynamic Additive`，同为`Base`/`Additive`→`Pose`且无 lifecycle/binding；一个明确`bMeshSpaceAdditive=True`，另一个省略该字段即 local。现有`als-ext`已有对应 mesh/local difference node。
+  - Gate summary：contract/renderer/converter self-test、focused Rust mesh/local branch + NodeLike registration test均PASS；Layering fresh `--write`和 blocked `--check`输出稳定，两个 Dynamic Additive不再是 blocker，且目录仅保留三行 blocked Markdown/JSON报告。消融：同一骨骼父子旋转 fixture证明 mesh/local差分不同；不以带 Time pin 的既有 node硬接 source Pose-only ABI。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
