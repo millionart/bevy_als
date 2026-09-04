@@ -15,6 +15,7 @@ use crate::grounded_layer::GroundedLayerPlugin;
 use crate::head_layer::HeadLayerPlugin;
 use crate::layering_layer::LayeringLayerPlugin;
 use crate::locomotion_layer::LocomotionLayerPlugin;
+use crate::locomotion_lifecycle::LocomotionLifecyclePlugin;
 use crate::mantle_drive::AlsMantleDrivePlugin;
 use crate::pa_als::PaAlsPhysicsPlugin;
 use crate::ragdoll_link::AlsRagdollLinkPlugin;
@@ -52,6 +53,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             ))
             .add_plugins((
                 LocomotionLayerPlugin,
+                LocomotionLifecyclePlugin,
                 LayeringLayerPlugin,
                 HeadLayerPlugin,
                 RagdollingLayerPlugin,

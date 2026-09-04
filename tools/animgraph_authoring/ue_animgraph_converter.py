@@ -18,6 +18,7 @@ from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, ren
 from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
 from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_plan
+from ue_animgraph_lifecycle import LifecycleRenderError, resolve_lifecycle
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
@@ -459,6 +460,19 @@ def build_ir(
     source_reachability = traverse(source, root_graph)
     graphs = []
     unsupported = list(source_reachability["issues"])
+    lifecycle_dispatch = None
+    try:
+        lifecycle_dispatch = resolve_lifecycle(
+            source,
+            source_reachability["function_dependencies"],
+        )
+    except LifecycleRenderError as error:
+        unsupported.append(
+            {
+                "kind": "source_lifecycle_dispatch_unsupported",
+                "detail": str(error),
+            }
+        )
     try:
         assets = resolve_graph_animation_assets(
             asset_root,
@@ -542,6 +556,22 @@ def build_ir(
     ]
     for dependency in source_reachability["external_dependencies"]:
         unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
+    handled_lifecycle_nodes = set(
+        lifecycle_dispatch["handled_nodes"] if lifecycle_dispatch is not None else []
+    )
+    unsupported = [
+        issue
+        for issue in unsupported
+        if not (
+            issue.get("source_node") in handled_lifecycle_nodes
+            and issue.get("kind")
+            in {
+                "source_lifecycle_unsupported",
+                "unregistered_source_node",
+                "unregistered_source_function",
+            }
+        )
+    ]
     return {
         "format": IR_FORMAT,
         "source_asset": source["asset_path"],
@@ -549,6 +579,7 @@ def build_ir(
         "graphs": graphs,
         "animation_assets": assets,
         "function_dependencies": source_reachability["function_dependencies"],
+        "lifecycle_dispatch": lifecycle_dispatch,
     }, unsupported
 
 

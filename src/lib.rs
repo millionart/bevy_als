@@ -21,6 +21,7 @@ pub mod grounded_layer;
 pub mod head_layer;
 pub mod layering_layer;
 pub mod locomotion_layer;
+pub mod locomotion_lifecycle;
 pub mod mantle_drive;
 pub mod manual_playground_integration;
 pub mod motion_graph_link;
