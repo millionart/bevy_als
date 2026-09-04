@@ -14,7 +14,12 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 from extract_ue_visible_graph_contract import contract
 from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
-from ue_animgraph_pose_contract import PoseContractError, pose_contract, property_binding_paths
+from ue_animgraph_pose_contract import (
+    PoseContractError,
+    input_is_linked,
+    pose_contract,
+    property_binding_paths,
+)
 from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, render as render_pose_graph
 from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
@@ -352,7 +357,80 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
         pins = [f"CurveValues_{index}" for index in range(len(semantic.get("curve_names", [])))]
         keys, issues = resolve_bound_keys(source_asset, node, renderer, pins, paths, registry)
         semantic["curve_value_keys"] = keys
+        alpha_keys, alpha_issues = resolve_bound_keys(
+            source_asset,
+            node,
+            renderer,
+            ["Alpha"],
+            [semantic.get("alpha_path", "")],
+            registry,
+        )
+        semantic["alpha_key"] = alpha_keys[0] if len(alpha_keys) == 1 else ""
+        return [*issues, *alpha_issues]
+    if renderer == "two_way_blend":
+        keys, issues = resolve_bound_keys(
+            source_asset,
+            node,
+            renderer,
+            ["Alpha"],
+            [semantic.get("alpha_path", "")],
+            registry,
+        )
+        semantic["alpha_key"] = keys[0] if len(keys) == 1 else ""
         return issues
+    if renderer == "sequence_player":
+        keys, issues = resolve_bound_keys(
+            source_asset,
+            node,
+            renderer,
+            ["PlayRate", "bLoopAnimation"],
+            [
+                semantic.get("play_rate_path", ""),
+                semantic.get("loop_animation_path", ""),
+            ],
+            registry,
+        )
+        semantic["play_rate_key"] = keys[0] if len(keys) == 2 else ""
+        semantic["loop_animation_key"] = keys[1] if len(keys) == 2 else ""
+        return issues
+    if renderer == "blendspace_evaluator":
+        try:
+            bindings = property_binding_paths(node)
+        except PoseContractError as error:
+            return [
+                {
+                    "kind": "source_property_binding_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "detail": str(error),
+                }
+            ]
+        paths = [bindings.get("X", ""), bindings.get("Y", "")]
+        keys, issues = resolve_bound_keys(
+            source_asset,
+            node,
+            renderer,
+            ["X", "Y"],
+            paths,
+            registry,
+        )
+        semantic["input_binding_paths"] = paths
+        semantic["input_binding_keys"] = keys
+        return [
+            *issues,
+            *[
+                {
+                    "kind": "source_property_binding_link_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "source_pin": pin,
+                }
+                for pin, path in zip(("X", "Y"), paths)
+                if path and input_is_linked(node, pin)
+            ],
+        ]
     return []
 
 
@@ -362,7 +440,7 @@ def handled_bound_pins(prefix, paths, keys):
     return {
         f"{prefix}{index}"
         for index, (path, key) in enumerate(zip(paths, keys))
-        if isinstance(path, str) and path and isinstance(key, str) and key
+        if isinstance(path, str) and path and isinstance(key, str)
     }
 
 
@@ -376,11 +454,33 @@ def handled_property_binding_pins(renderer, semantic):
             semantic.get("desired_alpha_keys"),
         )
     if renderer == "modify_curve":
-        return handled_bound_pins(
+        handled = handled_bound_pins(
             "CurveValues_",
             semantic.get("curve_value_paths"),
             semantic.get("curve_value_keys"),
         )
+        if semantic.get("alpha_path"):
+            handled.add("Alpha")
+        return handled
+    if renderer == "two_way_blend":
+        return {"Alpha"} if semantic.get("alpha_path") else set()
+    if renderer == "sequence_player":
+        handled = set()
+        if semantic.get("play_rate_path"):
+            handled.add("PlayRate")
+        if semantic.get("loop_animation_path"):
+            handled.add("bLoopAnimation")
+        return handled
+    if renderer == "blendspace_evaluator":
+        paths = semantic.get("input_binding_paths")
+        keys = semantic.get("input_binding_keys")
+        if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != 2 or len(keys) != 2:
+            return set()
+        return {
+            pin
+            for pin, path, key in zip(("X", "Y"), paths, keys)
+            if isinstance(path, str) and path and isinstance(key, str)
+        }
     return set()
 
 
@@ -514,15 +614,6 @@ def graph_ir(
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
-        contract_issues.extend(
-            resolve_property_bindings(
-                graph_contract.get("source_asset"),
-                node,
-                semantic,
-                registry,
-            )
-        )
-        contract_issues.extend(unhandled_property_binding_issues(node, renderer, semantic))
         if semantic is None and renderer == "blendspace_evaluator":
             asset = animation_by_node.get(node.get("object_path"))
             if (
@@ -553,6 +644,15 @@ def graph_ir(
         if semantic is None and renderer in FSM_RENDERERS and fsm_renderable:
             selected = fsm_plan if fsm_plan is not None else node_fsm_plan
             semantic = {"fsm_source_graph": selected["source_graph"]}
+        contract_issues.extend(
+            resolve_property_bindings(
+                graph_contract.get("source_asset"),
+                node,
+                semantic,
+                registry,
+            )
+        )
+        contract_issues.extend(unhandled_property_binding_issues(node, renderer, semantic))
         unsupported.extend(contract_issues)
         unsupported.extend(
             renderer_semantic_issues(
@@ -1168,6 +1268,22 @@ def run_self_test():
                 {
                     "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
                     "target_key": "als_{asset_layer}_curve_rotation_yaw_offset",
+                },
+                {
+                    "source_path": "InAirState.GroundPredictionAmount",
+                    "target_key": "als_{asset_layer}_ground_prediction",
+                },
+                {
+                    "source_path": "InAirState.JumpPlayRate",
+                    "target_key": "als_{asset_layer}_jump_play_rate",
+                },
+                {
+                    "source_path": "LeanState.RightAmount",
+                    "target_key": "als_{asset_layer}_air_lean_right",
+                },
+                {
+                    "source_path": "LeanState.ForwardAmount",
+                    "target_key": "als_{asset_layer}_air_lean_forward",
                 }
             ],
         }
@@ -1175,6 +1291,10 @@ def run_self_test():
     binding_node = {
         "object_path": "/Asset:AnimGraph.Multi",
         "class_path": "/Script/AnimGraph.AnimGraphNode_MultiWayBlend",
+        "pins": [
+            {"name": "X", "direction": "Input", "hidden": False, "linked_to": []},
+            {"name": "Y", "direction": "Input", "hidden": False, "linked_to": []},
+        ],
     }
     binding_semantic = {
         "renderer": "multi_way_blend",
@@ -1205,6 +1325,37 @@ def run_self_test():
     assert curve_semantic["curve_value_keys"] == [
         "als_standing_curve_rotation_yaw_offset"
     ]
+    curve_semantic["alpha_path"] = "InAirState.GroundPredictionAmount"
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+        binding_node,
+        curve_semantic,
+        binding_registry,
+    )
+    assert curve_semantic["alpha_key"] == "als_locomotion_ground_prediction"
+    two_way_semantic = {
+        "renderer": "two_way_blend",
+        "alpha_path": "InAirState.GroundPredictionAmount",
+    }
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+        binding_node,
+        two_way_semantic,
+        binding_registry,
+    )
+    assert two_way_semantic["alpha_key"] == "als_locomotion_ground_prediction"
+    sequence_semantic = {
+        "renderer": "sequence_player",
+        "play_rate_path": "InAirState.JumpPlayRate",
+        "loop_animation_path": "",
+    }
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+        binding_node,
+        sequence_semantic,
+        binding_registry,
+    )
+    assert sequence_semantic["play_rate_key"] == "als_locomotion_jump_play_rate"
     binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown", ""]
     assert resolve_property_bindings(
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
@@ -1216,10 +1367,22 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))',
+                "exported_text": '(("X", (PropertyName="X",PathAsText="GetParent.LeanState.RightAmount",bIsBound=True)),("Y", (PropertyName="Y",PathAsText="GetParent.LeanState.ForwardAmount",bIsBound=True)))',
             }
         ]
     }
+    blendspace_semantic = {"renderer": "blendspace_evaluator"}
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
+        binding_node,
+        blendspace_semantic,
+        binding_registry,
+    )
+    assert blendspace_semantic["input_binding_keys"] == [
+        "als_locomotion_air_lean_right",
+        "als_locomotion_air_lean_forward",
+    ]
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))'
     assert unhandled_property_binding_issues(
         binding_node,
         "two_way_blend",

@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::curve_bundle::blend_curve_value;
-use crate::global_f32_input::global_f32_or_root_default;
+use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::mesh_space_additive::apply_mesh_space_additive;
 use crate::{context_time_update, f_interp_to};
 
@@ -574,6 +574,7 @@ pub struct SourceCurveModifyNode {
     pub source_value_path: String,
     pub source_value_paths: Vec<String>,
     pub alpha: f32,
+    pub alpha_key: String,
     pub alpha_pin: String,
     pub expose_alpha_pin: bool,
     pub apply_mode: String,
@@ -615,7 +616,8 @@ impl SourceCurveModifyNode {
             Ok(value) => value
                 .as_f32()
                 .map(|value| resolved_curve_alpha(Some(value), self.alpha)),
-            Err(_) => Ok(resolved_curve_alpha(None, self.alpha)),
+            Err(_) if self.alpha_key.is_empty() => Ok(resolved_curve_alpha(None, self.alpha)),
+            Err(_) => global_f32_or_root_default_value(&ctx, &self.alpha_key, self.alpha),
         }
     }
 }
@@ -908,6 +910,15 @@ mod tests {
             node.value_pin_names(),
             vec!["CurveValues_0".to_owned(), "CurveValues_1".to_owned()]
         );
+    }
+
+    #[test]
+    fn source_curve_modify_retains_alpha_global_fallback_key() {
+        let node = SourceCurveModifyNode {
+            alpha_key: "als_locomotion_ground_prediction".to_owned(),
+            ..default()
+        };
+        assert_eq!(node.alpha_key, "als_locomotion_ground_prediction");
     }
 
     #[test]

@@ -180,12 +180,16 @@ def alpha_contract(node, renderer, fields, base_inputs):
     alpha_bool_blend = field(fields, "AlphaBoolBlend", "()")
     if input_type != "Float" and alpha_bool_blend != "()":
         issues.append(issue(node, renderer, "source_alpha_bool_blend_unsupported", alpha_bool_blend))
+    alpha_path = property_binding_paths(node).get("Alpha", "")
+    if alpha_path and "Alpha" in names and input_is_linked(node, "Alpha"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "Alpha"))
     return {
         "input_pins": names,
         "alpha_visible": "Alpha" in names,
         "alpha_default": parse_number(field(fields, "Alpha", "0.0")),
         "alpha_scale_bias": parse_scale_bias(field(fields, "AlphaScaleBias", "()")),
         "alpha_mapping": parse_scale_bias_clamp(field(fields, "AlphaScaleBiasClamp", "()")),
+        "alpha_path": alpha_path,
     }, issues
 
 
@@ -233,17 +237,26 @@ def sequence_player_contract(node):
         issues.append(issue(node, renderer, "source_pose_matching_unsupported", "bStartFromMatchingPose"))
     if field(fields, "PlayRateScaleBiasClampState", "()") != "()":
         issues.append(issue(node, renderer, "source_player_runtime_state_unsupported", "PlayRateScaleBiasClampState"))
+    bindings = property_binding_paths(node)
+    play_rate_path = bindings.get("PlayRate", "")
+    loop_animation_path = bindings.get("bLoopAnimation", "")
+    if play_rate_path and input_is_linked(node, "PlayRate"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "PlayRate"))
+    if loop_animation_path and "LoopAnimation" in names and input_is_linked(node, "LoopAnimation"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "LoopAnimation"))
     return {
         "renderer": renderer,
         "input_pins": names,
         "sequence": parse_quoted(field(fields, "Sequence")),
         "play_rate_basis": parse_number(field(fields, "PlayRateBasis", "1.0")),
         "play_rate": parse_number(field(fields, "PlayRate", "1.0")),
+        "play_rate_path": play_rate_path,
         "play_rate_mapping": parse_scale_bias_clamp(
             field(fields, "PlayRateScaleBiasClampConstants", "()")
         ),
         "start_position": parse_number(field(fields, "StartPosition", "0.0")),
         "loop_animation": parse_bool(field(fields, "bLoopAnimation", "True")),
+        "loop_animation_path": loop_animation_path,
         "sync_group": group,
         "sync_group_role": group_role,
         "sync_method": method,

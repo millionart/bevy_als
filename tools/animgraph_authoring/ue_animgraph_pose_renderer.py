@@ -220,19 +220,23 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     value = semantic.get("semantic")
     if renderer == "sequence_player":
         pins = input_names(value)
+        play_rate_key = value.get("play_rate_key")
+        loop_animation_key = value.get("loop_animation_key")
+        if not isinstance(play_rate_key, str) or not isinstance(loop_animation_key, str):
+            raise PoseRenderError("source sequence property binding is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
             field("play_rate", repr(value["play_rate"])),
-            field("play_rate_key", quoted("")),
+            field("play_rate_key", quoted(play_rate_key)),
             field("expose_play_rate_pin", bool_ron("PlayRate" in pins)),
             field("play_rate_basis", repr(value["play_rate_basis"])),
             field("play_rate_mapping", mapping_ron(value["play_rate_mapping"])),
             field("start_position", repr(value["start_position"])),
             field("expose_start_position_pin", bool_ron("StartPosition" in pins)),
             field("loop_animation", bool_ron(value["loop_animation"])),
-            field("loop_animation_key", quoted("")),
+            field("loop_animation_key", quoted(loop_animation_key)),
             field("expose_loop_animation_pin", bool_ron("LoopAnimation" in pins)),
             field("sync_group", quoted(value["sync_group"])),
         ]
@@ -317,8 +321,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         )
     if renderer == "two_way_blend":
         pins = input_names(value)
+        alpha_key = value.get("alpha_key")
+        if not isinstance(alpha_key, str):
+            raise PoseRenderError("source blend property binding is unavailable")
         fields = [
-            field("alpha_key", quoted("")),
+            field("alpha_key", quoted(alpha_key)),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron("Alpha" in pins)),
             field("pin_default", repr(value["alpha_default"])),
@@ -380,6 +387,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("source_value_path", quoted("")),
             field("source_value_paths", "[" + ", ".join(quoted(path) for path in value_paths) + "]"),
             field("alpha", repr(value["alpha"])),
+            field("alpha_key", quoted(value.get("alpha_key", ""))),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron(value["alpha_visible"])),
             field("apply_mode", quoted(value["apply_mode"])),
@@ -494,6 +502,11 @@ def blendspace_helpers(graph_contract, raw, semantic):
     inputs = value.get("input_pins")
     if not isinstance(blendspace, dict) or not isinstance(inputs, list) or len(inputs) != 2:
         raise PoseRenderError("source blendspace input contract is invalid")
+    binding_keys = value.get("input_binding_keys")
+    if not isinstance(binding_keys, list) or len(binding_keys) != 2 or not all(
+        isinstance(key, str) for key in binding_keys
+    ):
+        raise PoseRenderError("source blendspace property binding is unavailable")
     if [item.get("name") for item in inputs] != ["X", "Y"]:
         raise PoseRenderError("source blendspace input schema is unsupported")
     primary_id = node_id(raw)
@@ -520,7 +533,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
         f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"value\")",
     ]
     targets = {}
-    for axis, input_value in zip(("x", "y"), inputs):
+    for axis, input_value, binding_key in zip(("x", "y"), inputs, binding_keys):
         pin_name = input_value["name"]
         targets[(source_path, pin_name)] = (vector_id, axis)
         if (source_path, pin_name) not in linked_inputs:
@@ -530,17 +543,30 @@ def blendspace_helpers(graph_contract, raw, semantic):
                     "bevy-als/blendspace/default/" + source_path + "/" + pin_name,
                 )
             )
-            nodes.append(
-                (
-                    default_id,
-                    "Blendspace " + pin_name + " default",
-                    "(value: " + repr(input_value["default_value"]) + ")",
-                    "als_ext::ConstantF32Node",
-                    (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+            if binding_key:
+                nodes.append(
+                    (
+                        default_id,
+                        "Blendspace " + pin_name + " binding",
+                        "(key: " + quoted(binding_key) + ")",
+                        "als_ext::GlobalF32InputNode",
+                        (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                    )
                 )
-            )
+                source_pin = binding_key
+            else:
+                nodes.append(
+                    (
+                        default_id,
+                        "Blendspace " + pin_name + " default",
+                        "(value: " + repr(input_value["default_value"]) + ")",
+                        "als_ext::ConstantF32Node",
+                        (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                    )
+                )
+                source_pin = "value"
             edges.append(
-                f"NodeData({quoted(vector_id)}, {quoted(axis)}): NodeData({quoted(default_id)}, \"value\")"
+                f"NodeData({quoted(vector_id)}, {quoted(axis)}): NodeData({quoted(default_id)}, {quoted(source_pin)})"
             )
     for index, sample in enumerate(blendspace.get("samples", [])):
         target = sample.get("target_clip") if isinstance(sample, dict) else None
@@ -776,10 +802,12 @@ def fixture_graph():
                 "semantic": {
                     "input_pins": [],
                     "play_rate": 1.0,
+                    "play_rate_key": "",
                     "play_rate_basis": 1.0,
                     "play_rate_mapping": mapping,
                     "start_position": 0.0,
                     "loop_animation": True,
+                    "loop_animation_key": "",
                     "sync_group": "None",
                 },
             },
@@ -789,6 +817,7 @@ def fixture_graph():
                 "semantic": {
                     "input_pins": ["A", "B", "Alpha"],
                     "alpha_default": 0.25,
+                    "alpha_key": "",
                     "alpha_mapping": mapping,
                     "alpha_scale_bias": {"scale": 1.0, "bias": 0.0},
                 },
@@ -931,6 +960,7 @@ def run_self_test():
                         {"name": "X", "default_value": 0.25},
                         {"name": "Y", "default_value": -0.5},
                     ],
+                    "input_binding_keys": ["", ""],
                     "normalized_time": 0.0,
                     "teleport_to_normalized_time": True,
                     "loop": True,
@@ -954,6 +984,13 @@ def run_self_test():
     assert '"als_ext::F32ToVec2Node"' in text
     assert '"bevy_animation_graph::builtin_nodes::ClipNode"' in text
     assert "value: 0.25" in text and "value: -0.5" in text
+    blend_ir["nodes"][0]["semantic"]["input_binding_keys"] = [
+        "als_locomotion_air_lean_right",
+        "",
+    ]
+    text = render(blend_contract, blend_ir, [])
+    assert '"als_ext::GlobalF32InputNode"' in text
+    assert 'key: "als_locomotion_air_lean_right"' in text
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
@@ -961,6 +998,7 @@ def run_self_test():
         "sync_group_wrapper_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
+        "source_blendspace_property_binding_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
