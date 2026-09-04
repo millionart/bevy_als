@@ -38,3 +38,4 @@
 ## 2026-09-04
 
 - [BF111.05 AB_Als_Grounded 图等价](2026-09-04/BF111.05-2026-09-04.md)
+- [BF111.06-SS source-to-Bevy AnimGraph converter](2026-09-04/BF111.06-SS-2026-09-04.md)
