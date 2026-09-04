@@ -1116,6 +1116,57 @@ def primary_failure_issues(report):
     }
 
 
+def manual_integration_issues(report):
+    if report.get("case") == "startup":
+        return []
+    value = report.get("manual_integration")
+    if not isinstance(value, dict):
+        return ["manual integration verdict is missing"]
+    issues = []
+    if not isinstance(value.get("scenario"), str) or not value.get("scenario"):
+        issues.append("manual integration scenario is invalid")
+    if value.get("timed_out") is not False:
+        issues.append("manual integration timed_out is invalid")
+    if value.get("completed") is not True:
+        issues.append("manual integration did not complete")
+    if value.get("passed") is not True:
+        issues.append("manual integration verdict is not pass")
+    results = value.get("results")
+    if not isinstance(results, list) or not results:
+        issues.append("manual integration results are missing")
+    else:
+        for result in results:
+            if not isinstance(result, dict):
+                issues.append("manual integration result is invalid")
+                continue
+            if not isinstance(result.get("name"), str) or not result.get("name"):
+                issues.append("manual integration result name is invalid")
+            if not isinstance(result.get("detail"), str) or not result.get("detail"):
+                issues.append("manual integration result detail is invalid")
+            if result.get("covered") is not True:
+                issues.append("manual integration result is not covered")
+    return issues
+
+
+def automation_watchdog_issues(report):
+    value = report.get("automation_watchdog")
+    if not isinstance(value, dict):
+        return ["automation watchdog record is missing"]
+    issues = []
+    if not isinstance(value.get("triggered"), bool):
+        issues.append("automation watchdog triggered is invalid")
+    if not isinstance(value.get("reason"), str):
+        issues.append("automation watchdog reason is invalid")
+    if not finite(value.get("stalled_seconds")) or value.get("stalled_seconds") < 0.0:
+        issues.append("automation watchdog stalled seconds is invalid")
+    for key in ("capture_count", "required_capture_count"):
+        if not isinstance(value.get(key), int) or value.get(key) < 0:
+            issues.append(f"automation watchdog {key} is invalid")
+    if value.get("triggered") is True:
+        issues.append("automation watchdog triggered")
+    return issues
+
+
 def audit(report, min_screenshots):
     issues = []
     images = []
@@ -1138,6 +1189,8 @@ def audit(report, min_screenshots):
         issues.append("visual report is not ready")
     if report.get("pass") is not True:
         issues.append("runtime visual verdict is not pass")
+    issues.extend(manual_integration_issues(report))
+    issues.extend(automation_watchdog_issues(report))
     for key in ("faults", "graph_errors", "missing_bones"):
         values = report.get(key)
         if not isinstance(values, list):
@@ -1436,6 +1489,20 @@ def fixture_report(paths):
         "faults": [],
         "graph_errors": [],
         "primary_failure": None,
+        "manual_integration": {
+            "scenario": "Fixture",
+            "timed_out": False,
+            "completed": True,
+            "passed": True,
+            "results": [{"name": "fixture", "covered": True, "detail": "covered"}],
+        },
+        "automation_watchdog": {
+            "triggered": False,
+            "reason": "",
+            "stalled_seconds": 0.0,
+            "capture_count": 2,
+            "required_capture_count": 2,
+        },
         "thresholds": {
             "max_frame_p95_ms": 25.0,
             "max_frame_ms": 75.0,
@@ -1654,6 +1721,20 @@ def run_self_test():
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
         report["faults"] = ["fault"]
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report["manual_integration"]["results"][0]["covered"] = False
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report["manual_integration"]["results"][0].pop("detail")
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report.pop("automation_watchdog")
+        assert not audit(report, 2)["pass"]
+        report = fixture_report(paths)
+        report["automation_watchdog"]["triggered"] = True
+        report["automation_watchdog"]["reason"] = "capture_progress_stalled"
+        report["automation_watchdog"]["stalled_seconds"] = 12.0
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
         report["temporal_anomalies"] = [
@@ -2130,6 +2211,7 @@ def run_self_test():
         "structured_graph_failure_reported": "PASS",
         "graph_failure_context_diagnostic_required": "PASS",
         "missing_graph_failure_diagnostic_rejected": "PASS",
+        "automation_watchdog_record_required": "PASS",
         "ambiguous_graph_candidate_preserved": "PASS",
         "a_pose_failure_classification_rejected": "PASS",
         "temporal_anomaly_schema_required": "PASS",

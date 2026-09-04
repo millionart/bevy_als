@@ -5,6 +5,10 @@
     {
       "path": "docs/bf109/source_contracts/AB_Als.source.json",
       "sha256": "7e488fdce577b8cb41fb068db44783ea1fd3a0eb80384cee832dc3007a882393"
+    },
+    {
+      "path": "tools/animgraph_authoring/ab_als_grounded.lifecycle.source.json",
+      "sha256": "4c9debe7dcc4696565a22c6ba63e34e619a2ad49d13aa039c8088d37b782ffd4"
     }
   ],
   "graphs": [
@@ -17,6 +21,7 @@
         {"id":"1a240000-0000-4000-8000-000000000004","name":"crouching transition right clip","position":[-1600.0,-320.0]},
         {"id":"1a240000-0000-4000-8000-000000000005","name":"crouching dynamic transition left clip","position":[-1600.0,-80.0]},
         {"id":"1a240000-0000-4000-8000-000000000006","name":"crouching dynamic transition right clip","position":[-1600.0,80.0]},
+        {"id":"1a240000-0000-4000-8000-000000000037","name":"standing transition right clip","position":[-1600.0,-640.0]},
         {"id":"1a240000-0000-4000-8000-000000000007","name":"root transition selector","position":[-608.0,-320.0]},
         {"id":"1a240000-0000-4000-8000-000000000008","name":"root transition index","position":[-1600.0,256.0]},
         {"id":"1a240000-0000-4000-8000-000000000009","name":"root transition activation reset","position":[-384.0,-320.0]},
@@ -46,7 +51,11 @@
         {"id":"1a240000-0000-4000-8000-000000000033","name":"transition additive reference frame crouching dynamic transition left","position":[-2080.0,16.0]},
         {"id":"1a240000-0000-4000-8000-000000000034","name":"transition additive reference clip crouching dynamic transition right","position":[-2080.0,80.0]},
         {"id":"1a240000-0000-4000-8000-000000000035","name":"transition additive reference evaluator crouching dynamic transition right","position":[-1856.0,80.0]},
-        {"id":"1a240000-0000-4000-8000-000000000036","name":"transition additive reference frame crouching dynamic transition right","position":[-2080.0,176.0]}
+        {"id":"1a240000-0000-4000-8000-000000000036","name":"transition additive reference frame crouching dynamic transition right","position":[-2080.0,176.0]},
+        {"id":"1a240000-0000-4000-8000-000000000038","name":"transition additive reference clip standing transition right","position":[-2080.0,-640.0]},
+        {"id":"1a240000-0000-4000-8000-000000000039","name":"transition additive reference evaluator standing transition right","position":[-1856.0,-640.0]},
+        {"id":"1a240000-0000-4000-8000-000000000040","name":"transition additive reference frame standing transition right","position":[-2080.0,-544.0]},
+        {"id":"1a240000-0000-4000-8000-000000000041","name":"additive difference standing transition right","position":[-1152.0,-640.0]}
       ],
       "expected_edges": [
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000007\",\"parameter\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000008\",\"als_root_transition_slot_index\")"},
@@ -62,6 +71,8 @@
         {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000007\",\"time_dynamic_left\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000020\")"},
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000007\",\"pose_dynamic_right\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000021\",\"pose\")"},
         {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000007\",\"time_dynamic_right\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000021\")"},
+        {"target":"NodeData(\"1a240000-0000-4000-8000-000000000007\",\"pose_standing_transition_right\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000041\",\"pose\")"},
+        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000007\",\"time_standing_transition_right\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000041\")"},
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000009\",\"active\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000010\",\"als_root_transition_slot_weight\")"},
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000009\",\"pose\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000007\",\"pose\")"},
         {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000009\",\"time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000007\")"},
@@ -111,7 +122,14 @@
         {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000032\",\"time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000031\")"},
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000035\",\"position\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000036\",\"value\")"},
         {"target":"NodeData(\"1a240000-0000-4000-8000-000000000035\",\"pose\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000034\",\"pose\")"},
-        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000035\",\"time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000034\")"}
+        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000035\",\"time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000034\")"},
+        {"target":"NodeData(\"1a240000-0000-4000-8000-000000000039\",\"position\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000040\",\"value\")"},
+        {"target":"NodeData(\"1a240000-0000-4000-8000-000000000039\",\"pose\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000038\",\"pose\")"},
+        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000039\",\"time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000038\")"},
+        {"target":"NodeData(\"1a240000-0000-4000-8000-000000000041\",\"reference_pose\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000039\",\"pose\")"},
+        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000041\",\"reference_time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000039\")"},
+        {"target":"NodeData(\"1a240000-0000-4000-8000-000000000041\",\"target_pose\")","source":"NodeData(\"1a240000-0000-4000-8000-000000000037\",\"pose\")"},
+        {"target":"NodeTime(\"1a240000-0000-4000-8000-000000000041\",\"target_time\")","source":"NodeTime(\"1a240000-0000-4000-8000-000000000037\")"}
       ],
       "expected_io": {
         "input_data": {},

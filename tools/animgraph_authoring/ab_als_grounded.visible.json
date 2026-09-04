@@ -1,6 +1,6 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
-  "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.AnimGraph.source.json",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-f1fb79396ffa8063.source.json",
   "target_graph": "assets/graphs/ab_als/grounded.animgraph.ron",
   "target_spec": "target/bf111/grounded_bf11105.target_spec.json",
   "node_map": [

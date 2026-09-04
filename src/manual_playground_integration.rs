@@ -18,7 +18,7 @@ use als_core::params::AlsMovementParams;
 use als_core::roll::AlsRollState;
 use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::AlsStateRequest;
+use als_core::transition::{AlsDesiredStance, AlsStateRequest};
 use als_core::view::AlsViewPitch;
 use als_ext::{ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
@@ -39,6 +39,7 @@ use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::animation_events::{
     AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
 };
+use crate::animation_visual_validation::AnimationVisualValidationProgress;
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::{
     AlsControlRigConstruction, AlsControlRigInput, AlsControlRigSet, AlsControlRigStageTrace,
@@ -64,6 +65,11 @@ use crate::show_debug_hud::{
 };
 use crate::stance_layer::AlsStanceBlend;
 use crate::standing_layer::{AlsPivotNotify, AlsStandingGraphTelemetry};
+use crate::stop_link::{
+    AlsRootTransitionSlotRuntime, AlsTransitionKind, AlsTransitionPlayback,
+    RIGHT_TRANSITION_START_TIME, STOP_TRANSITION_BLEND_IN, STOP_TRANSITION_BLEND_OUT,
+    STOP_TRANSITION_PLAY_RATE,
+};
 use crate::turn_layer::{
     AlsStandingTurnSlotRuntime, AlsTurnDrive, AlsTurnMontageStack, AlsTurnSlotBridgeSet,
     TURN_DUR_90,
@@ -230,6 +236,22 @@ pub struct ManualRuntimePhaseEvidence {
     pub rotation_mode: String,
 }
 
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ManualIntegrationGateResult {
+    pub name: String,
+    pub covered: bool,
+    pub detail: String,
+}
+
+#[derive(Resource, Clone, Debug, Default, Serialize, PartialEq, Eq)]
+pub struct ManualIntegrationGateReport {
+    pub scenario: String,
+    pub timed_out: bool,
+    pub completed: bool,
+    pub passed: Option<bool>,
+    pub results: Vec<ManualIntegrationGateResult>,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ManualIntegrationObservationSet;
 
@@ -237,6 +259,7 @@ pub struct ManualIntegrationObservationSet;
 struct ManualObservationResources<'w> {
     state: ResMut<'w, ManualIntegrationState>,
     animation_window: ResMut<'w, ManualAnimationWindowEvidence>,
+    gate_report: ResMut<'w, ManualIntegrationGateReport>,
 }
 
 pub struct ManualPlaygroundIntegrationPlugin;
@@ -247,6 +270,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             .init_resource::<ManualIntegrationState>()
             .init_resource::<ManualAnimationWindowEvidence>()
             .init_resource::<ManualRuntimePhaseEvidence>()
+            .init_resource::<ManualIntegrationGateReport>()
             .add_systems(Update, initialize_manual_integration)
             .add_systems(
                 PreUpdate,
@@ -398,6 +422,7 @@ enum CrouchClearanceStage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IntegrationScenario {
     Base,
+    Grounded,
     StandingDirection,
     Crouching,
     ControlRig,
@@ -414,6 +439,7 @@ enum IntegrationScenario {
 impl IntegrationScenario {
     fn from_environment() -> Self {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
+            Some("grounded") => Self::Grounded,
             Some("standing_direction") => Self::StandingDirection,
             Some("crouching") => Self::Crouching,
             Some("control_rig") => Self::ControlRig,
@@ -427,6 +453,24 @@ impl IntegrationScenario {
             Some("notify") => Self::Notify,
             _ => Self::Base,
         }
+    }
+}
+
+fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
+    match scenario {
+        IntegrationScenario::Base
+        | IntegrationScenario::StandingDirection
+        | IntegrationScenario::StateMachine
+        | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::Grounded => IntegrationPhase::Roll,
+        IntegrationScenario::Sprint => IntegrationPhase::Sprint,
+        IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
+        IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
+        IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
+        IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
+        IntegrationScenario::Camera => IntegrationPhase::Camera,
+        IntegrationScenario::Interface => IntegrationPhase::Interface,
+        IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
 }
 
@@ -1302,6 +1346,7 @@ struct IntegrationCoverage {
     sprint_curve_relay: bool,
     roll_started: bool,
     roll_slot: bool,
+    grounded_roll_exit_transition: bool,
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
     ragdoll_follow: bool,
@@ -1414,8 +1459,10 @@ struct ManualIntegrationState {
     p1_air_mask: u8,
     p1_turn_mask: u8,
     p1_stance_mask: u8,
+    grounded_roll_exit_diagnostic: String,
     timed_out: bool,
     final_logged: bool,
+    exit_requested: bool,
     coverage: IntegrationCoverage,
 }
 
@@ -1497,8 +1544,10 @@ impl Default for ManualIntegrationState {
             p1_air_mask: 0,
             p1_turn_mask: 0,
             p1_stance_mask: 0,
+            grounded_roll_exit_diagnostic: "not observed".to_owned(),
             timed_out: false,
             final_logged: false,
+            exit_requested: false,
             coverage: IntegrationCoverage::default(),
         }
     }
@@ -1513,6 +1562,7 @@ impl ManualIntegrationState {
 #[derive(SystemParam)]
 struct InterfaceProbe<'w, 's> {
     virtual_time: Res<'w, Time<Virtual>>,
+    visual_progress: Option<Res<'w, AnimationVisualValidationProgress>>,
     hud_state: Res<'w, AlsHudState>,
     menu_state: Res<'w, OverlayMenuState>,
     show_debug: Res<'w, AlsShowDebugHudState>,
@@ -1691,20 +1741,7 @@ fn initialize_manual_integration(
     foot_ik_weight_override.right = None;
     state.coverage.assembly = true;
     state.coverage.graph = true;
-    let first_phase = match state.scenario {
-        IntegrationScenario::Base
-        | IntegrationScenario::StandingDirection
-        | IntegrationScenario::StateMachine
-        | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
-        IntegrationScenario::Sprint => IntegrationPhase::Sprint,
-        IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
-        IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
-        IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
-        IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
-        IntegrationScenario::Camera => IntegrationPhase::Camera,
-        IntegrationScenario::Interface => IntegrationPhase::Interface,
-        IntegrationScenario::Notify => IntegrationPhase::Notify,
-    };
+    let first_phase = initial_phase(state.scenario);
     begin_phase(&mut state, first_phase);
     info!(
         "[MANUAL-INTEGRATION][EXECUTED] runtime_assembly scenario={:?} character={character:?} avatar={:?} camera={camera:?} playable_plugin=AlsPlayableCharacterPlugin runtime_plugin=AlsCharacterRuntimePlugin graph=Graph tnua=Enabled camera_valid=true",
@@ -3094,6 +3131,20 @@ fn drive_manual_integration(
             }
             input.0.move_dir = Vec2::Y;
             input.0.roll_pressed = (1.0..1.2).contains(&elapsed);
+            if state.scenario == IntegrationScenario::Grounded {
+                *animation_window = ManualAnimationWindowEvidence {
+                    label: Some("grounded_roll_exit_standing"),
+                    settled: elapsed >= 3.0,
+                    capture_source_window: true,
+                    requires_pre_rig_motion: true,
+                    requires_final_pose_motion: true,
+                    requires_non_reference_root_pose: true,
+                    source_node: Some("AB_Als_Grounded/Grounded States"),
+                    source_state: Some("Roll"),
+                    expected_runtime_state: Some(1),
+                    ..default()
+                };
+            }
             if elapsed >= 5.5 {
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -3668,6 +3719,94 @@ fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bo
     })
 }
 
+fn grounded_roll_exit_transition_matches_source(
+    phase: IntegrationPhase,
+    roll: Option<&AlsRollState>,
+    playback: Option<&AlsTransitionPlayback>,
+    slot: Option<&AlsRootTransitionSlotRuntime>,
+    grounded: Option<&AlsGroundedGraphTelemetry>,
+) -> bool {
+    phase == IntegrationPhase::Roll
+        && roll.is_some_and(|roll| !roll.active)
+        && playback.is_some_and(|playback| {
+            playback.active
+                && playback.kind == AlsTransitionKind::StandingTransitionRight
+                && (playback.blend_in - STOP_TRANSITION_BLEND_IN).abs() <= 1e-6
+                && (playback.blend_out - STOP_TRANSITION_BLEND_OUT).abs() <= 1e-6
+                && (playback.play_rate - STOP_TRANSITION_PLAY_RATE).abs() <= 1e-6
+                && (playback.start_time - RIGHT_TRANSITION_START_TIME).abs() <= 1e-6
+        })
+        && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 1e-4)
+        && grounded.is_some_and(|grounded| {
+            grounded.actual_state == Some(1)
+                && grounded.transition_active == Some(false)
+                && grounded.pose_ready == Some(true)
+        })
+}
+
+fn grounded_roll_exit_diagnostic(
+    stance: Stance,
+    desired_stance: AlsDesiredStance,
+    roll: Option<&AlsRollState>,
+    grounded: Option<&AlsGroundedGraphTelemetry>,
+    playback: Option<&AlsTransitionPlayback>,
+    slot: Option<&AlsRootTransitionSlotRuntime>,
+) -> String {
+    let roll = roll.map_or_else(
+        || "missing".to_owned(),
+        |roll| {
+            format!(
+                "active={} time={:.6} stance_before={:?}",
+                roll.active, roll.time, roll.stance_before_roll
+            )
+        },
+    );
+    let grounded = grounded.map_or_else(
+        || "missing".to_owned(),
+        |grounded| {
+            format!(
+                "state={:?} transition={:?} pose_ready={:?}",
+                grounded.actual_state, grounded.transition_active, grounded.pose_ready
+            )
+        },
+    );
+    let playback = playback.map_or_else(
+        || "missing".to_owned(),
+        |playback| {
+            format!(
+                "active={} kind={:?} weight={:.6} blend_in={:.6} blend_out={:.6} play_rate={:.6} start_time={:.6}",
+                playback.active,
+                playback.kind,
+                playback.weight,
+                playback.blend_in,
+                playback.blend_out,
+                playback.play_rate,
+                playback.start_time,
+            )
+        },
+    );
+    let slot = slot.map_or_else(
+        || "missing".to_owned(),
+        |slot| {
+            format!(
+                "active={} pose_ready={} weight={:.6}",
+                slot.active, slot.pose_ready, slot.weight
+            )
+        },
+    );
+    format!(
+        "stance={stance:?}; desired_stance={:?}; roll={roll}; grounded={grounded}; transition={playback}; slot={slot}",
+        desired_stance.0
+    )
+}
+
+fn manual_gate_exit_ready(
+    visual_progress: Option<&AnimationVisualValidationProgress>,
+    timed_out: bool,
+) -> bool {
+    timed_out || visual_progress.map_or(true, |progress| progress.evidence_ready)
+}
+
 #[allow(clippy::type_complexity)]
 fn observe_manual_integration(
     fixture: Option<Res<ManualIntegrationFixture>>,
@@ -3728,6 +3867,9 @@ fn observe_manual_integration(
             Option<&AlsNotifyRootMotionScale>,
             Option<&AlsNotifyEarlyBlendOut>,
             Option<&AlsGroundedEntryMode>,
+            Option<&AlsTransitionPlayback>,
+            Option<&AlsRootTransitionSlotRuntime>,
+            Option<&AlsDesiredStance>,
         ),
         With<AlsCharacter>,
     >,
@@ -3747,7 +3889,11 @@ fn observe_manual_integration(
     cameras: Query<(&Transform, &AlsCameraDebugInfo), With<AlsCameraRig>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let (state, mut animation_window) = (&mut observation.state, &mut observation.animation_window);
+    let (state, mut animation_window, gate_report) = (
+        &mut observation.state,
+        &mut observation.animation_window,
+        &mut observation.gate_report,
+    );
     if !state.initialized {
         return;
     }
@@ -3817,6 +3963,9 @@ fn observe_manual_integration(
         notify_root_scale,
         notify_early_blend_out,
         grounded_entry,
+        transition_playback,
+        root_transition_slot,
+        desired_stance,
     )) = action.get(character)
     else {
         return;
@@ -3882,6 +4031,11 @@ fn observe_manual_integration(
             crouching_graph.and_then(|value| value.requested_outer_state);
         animation_window.observed_requested_parent_transition_active =
             crouching_graph.and_then(|value| value.requested_outer_transition_active);
+    } else if state.scenario == IntegrationScenario::Grounded
+        && state.phase == IntegrationPhase::Roll
+    {
+        animation_window.observed_runtime_state =
+            grounded_graph.and_then(|value| value.actual_state);
     }
     if !source_ready {
         state.coverage.graph = false;
@@ -5238,6 +5392,36 @@ fn observe_manual_integration(
             && slot.weight > 0.2
             && slot.root_motion_delta.length() > 1e-5;
     }
+    if state.scenario == IntegrationScenario::Grounded && state.phase == IntegrationPhase::Roll {
+        state.grounded_roll_exit_diagnostic = grounded_roll_exit_diagnostic(
+            *stance,
+            desired_stance.copied().unwrap_or(AlsDesiredStance(*stance)),
+            roll,
+            grounded_graph,
+            transition_playback,
+            root_transition_slot,
+        );
+    }
+    if grounded_roll_exit_transition_matches_source(
+        state.phase,
+        roll,
+        transition_playback,
+        root_transition_slot,
+        grounded_graph,
+    ) && !state.coverage.grounded_roll_exit_transition
+    {
+        let playback = transition_playback.unwrap();
+        info!(
+            "[MANUAL-INTEGRATION][GROUNDED-ROLL-EXIT] stance=Standing kind={:?} blend_in={:.3} blend_out={:.3} play_rate={:.3} start_time={:.3} slot_weight={:.3} -> PASS",
+            playback.kind,
+            playback.blend_in,
+            playback.blend_out,
+            playback.play_rate,
+            playback.start_time,
+            root_transition_slot.unwrap().weight,
+        );
+        state.coverage.grounded_roll_exit_transition = true;
+    }
     if let Some(spawned) = player.get_spawned_ragdoll() {
         let profile_valid = ragdoll_probe
             .profiles
@@ -5479,6 +5663,7 @@ fn observe_manual_integration(
 
     if state.phase == IntegrationPhase::Finish && !state.final_logged {
         state.final_logged = true;
+        let grounded_roll_exit_detail = state.grounded_roll_exit_diagnostic.clone();
         let coverage = &state.coverage;
         let direction_regression = coverage.direction_cases.iter().all(|covered| *covered);
         if matches!(
@@ -5589,6 +5774,20 @@ fn observe_manual_integration(
                 ("foot_lock", coverage.foot_lock),
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
+                (
+                    "grounded_roll_exit_transition",
+                    coverage.grounded_roll_exit_transition,
+                ),
+            ],
+            IntegrationScenario::Grounded => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("roll_start", coverage.roll_started),
+                ("roll_slot", coverage.roll_slot),
+                (
+                    "grounded_roll_exit_transition",
+                    coverage.grounded_roll_exit_transition,
+                ),
             ],
             IntegrationScenario::StateMachine => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -5755,17 +5954,45 @@ fn observe_manual_integration(
             }
         }
         let passed = !state.timed_out && results.iter().all(|(_, covered)| *covered);
+        gate_report.scenario = format!("{:?}", state.scenario);
+        gate_report.timed_out = state.timed_out;
+        gate_report.completed = true;
+        gate_report.passed = Some(passed);
+        gate_report.results = results
+            .iter()
+            .map(|(name, covered)| ManualIntegrationGateResult {
+                name: (*name).to_owned(),
+                covered: *covered,
+                detail: if *name == "grounded_roll_exit_transition" {
+                    grounded_roll_exit_detail.clone()
+                } else if *covered {
+                    "covered".to_owned()
+                } else {
+                    "not covered".to_owned()
+                },
+            })
+            .collect();
         if passed {
             info!(
-                "[MANUAL-INTEGRATION][VERDICT] scenario={:?} real_entry_paths -> PASS",
+                "[MANUAL-INTEGRATION][VERDICT] scenario={:?} real_entry_paths -> PASS awaiting_visual_evidence",
                 state.scenario
             );
-            exit.write(AppExit::Success);
         } else {
             error!(
-                "[MANUAL-INTEGRATION][VERDICT] scenario={:?} real_entry_paths -> FAIL timed_out={}",
+                "[MANUAL-INTEGRATION][VERDICT] scenario={:?} real_entry_paths -> FAIL timed_out={} awaiting_visual_evidence",
                 state.scenario, state.timed_out
             );
+        }
+    }
+    if state.phase == IntegrationPhase::Finish
+        && state.final_logged
+        && !state.exit_requested
+        && manual_gate_exit_ready(interface.visual_progress.as_deref(), state.timed_out)
+    {
+        state.exit_requested = true;
+        if gate_report.passed == Some(true) {
+            exit.write(AppExit::Success);
+        } else {
             exit.write(AppExit::Error(NonZeroU8::new(91).unwrap()));
         }
     }
@@ -5787,6 +6014,74 @@ mod tests {
 
     fn observe_bridge_order_probe(mut probe: ResMut<BridgeOrderProbe>) {
         probe.observed = probe.published;
+    }
+
+    #[test]
+    fn grounded_scenario_starts_with_the_source_roll_chain() {
+        assert_eq!(
+            initial_phase(IntegrationScenario::Grounded),
+            IntegrationPhase::Roll
+        );
+    }
+
+    #[test]
+    fn manual_exit_waits_for_visual_capture_completion() {
+        assert!(!manual_gate_exit_ready(
+            Some(&AnimationVisualValidationProgress {
+                evidence_ready: false,
+            }),
+            false,
+        ));
+        assert!(manual_gate_exit_ready(
+            Some(&AnimationVisualValidationProgress {
+                evidence_ready: true,
+            }),
+            false,
+        ));
+        assert!(manual_gate_exit_ready(None, false));
+        assert!(manual_gate_exit_ready(
+            Some(&AnimationVisualValidationProgress {
+                evidence_ready: false,
+            }),
+            true,
+        ));
+    }
+
+    #[test]
+    fn grounded_roll_exit_probe_requires_source_transition_and_slot_pose() {
+        let roll = AlsRollState::default();
+        let playback = AlsTransitionPlayback::standing_transition_right();
+        let slot = AlsRootTransitionSlotRuntime {
+            active: true,
+            weight: 0.5,
+            pose_ready: true,
+        };
+        let grounded = AlsGroundedGraphTelemetry {
+            actual_state: Some(1),
+            transition_active: Some(false),
+            pose_ready: Some(true),
+        };
+        assert!(grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(&roll),
+            Some(&playback),
+            Some(&slot),
+            Some(&grounded),
+        ));
+        assert!(!grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(&roll),
+            Some(&playback),
+            None,
+            Some(&grounded),
+        ));
+        assert!(!grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Locomotion,
+            Some(&roll),
+            Some(&playback),
+            Some(&slot),
+            Some(&grounded),
+        ));
     }
 
     #[test]

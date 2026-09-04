@@ -37,7 +37,7 @@ use crate::{
         AlsFootIkSpaceState, AlsFootLockTeleportTelemetry, FootIkApplySet,
     },
     manual_playground_integration::{
-        ManualAnimationPoseBoundary, ManualAnimationWindowEvidence,
+        ManualAnimationPoseBoundary, ManualAnimationWindowEvidence, ManualIntegrationGateReport,
         ManualIntegrationObservationSet, ManualRuntimePhaseEvidence, ManualTurnStackEntryEvidence,
     },
 };
@@ -108,6 +108,7 @@ fn animation_visual_evidence_format() -> &'static str {
 }
 const TEMPORAL_LIMB_BEND_SINE: f32 = 0.08;
 const MAX_TEMPORAL_ANOMALIES: usize = 64;
+const AUTOMATION_PROGRESS_STALL: Duration = Duration::from_secs(12);
 
 type FinalBone = (Vec3, Quat, Vec3, Vec3);
 
@@ -185,6 +186,21 @@ struct AnimationVisualValidationState {
     last_teleport_count: u32,
     teleport_captures: usize,
     observed_bones: usize,
+    manual_integration: Option<ManualIntegrationGateReport>,
+    watchdog: AutomationProgressWatchdog,
+}
+
+#[derive(Clone, Default)]
+struct AutomationProgressWatchdog {
+    last_capture_count: usize,
+    last_progress: Option<Instant>,
+    triggered: bool,
+    stalled_seconds: f64,
+}
+
+#[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AnimationVisualValidationProgress {
+    pub evidence_ready: bool,
 }
 
 #[derive(Resource, Default)]
@@ -635,6 +651,15 @@ struct CountStats {
 }
 
 #[derive(Serialize)]
+struct AutomationWatchdogReport {
+    triggered: bool,
+    reason: String,
+    stalled_seconds: f64,
+    capture_count: usize,
+    required_capture_count: usize,
+}
+
+#[derive(Serialize)]
 struct AnimationVisualReport {
     format: &'static str,
     case: String,
@@ -657,6 +682,8 @@ struct AnimationVisualReport {
     faults: Vec<String>,
     graph_errors: Vec<String>,
     primary_failure: Option<GraphEvaluationFailure>,
+    manual_integration: Option<ManualIntegrationGateReport>,
+    automation_watchdog: AutomationWatchdogReport,
     thresholds: BTreeMap<String, f64>,
 }
 
@@ -670,6 +697,7 @@ impl Plugin for AnimationVisualValidationPlugin {
         app.insert_resource(config)
             .init_resource::<AnimationVisualValidationState>()
             .init_resource::<AnimationVisualStageTiming>()
+            .init_resource::<AnimationVisualValidationProgress>()
             .init_resource::<AnimationVisualPreRigPose>()
             .add_systems(First, animation_cpu_frame_start)
             .add_systems(
@@ -700,6 +728,14 @@ impl Plugin for AnimationVisualValidationPlugin {
             .add_systems(
                 PostUpdate,
                 finish_fatal_animation_visual_failure.after(collect_animation_visual_evidence),
+            )
+            .add_systems(
+                PostUpdate,
+                update_animation_visual_progress.after(collect_animation_visual_evidence),
+            )
+            .add_systems(
+                PostUpdate,
+                abort_stalled_animation_visual_validation.after(update_animation_visual_progress),
             )
             .add_systems(
                 PostUpdate,
@@ -1066,6 +1102,92 @@ fn record_stage(
             .entry(name.to_owned())
             .or_default()
             .push(started.elapsed().as_secs_f64() * 1000.0);
+    }
+}
+
+fn evidence_capture_complete(
+    config: &AnimationVisualValidationConfig,
+    state: &AnimationVisualValidationState,
+    stages: &AnimationVisualStageTiming,
+) -> bool {
+    state.started.is_some()
+        && state.pose_samples.len() >= config.min_pose_samples
+        && state.frame_ms.len() >= config.min_pose_samples
+        && state.eval_ms.len() >= config.min_pose_samples
+        && stages.physics_steps_per_render.len() >= config.min_pose_samples
+        && state.screenshots.len() >= config.capture_count
+        && state
+            .screenshots
+            .iter()
+            .all(|screenshot| Path::new(&screenshot.path).is_file())
+        && state.required_motion_windows.iter().all(|label| {
+            state.screenshots.iter().any(|screenshot| {
+                screenshot.kind == "direction"
+                    && screenshot.direction_case.as_deref() == Some(label.as_str())
+            })
+        })
+}
+
+fn update_animation_visual_progress(
+    config: Res<AnimationVisualValidationConfig>,
+    state: Res<AnimationVisualValidationState>,
+    stages: Res<AnimationVisualStageTiming>,
+    mut progress: ResMut<AnimationVisualValidationProgress>,
+) {
+    progress.evidence_ready = evidence_capture_complete(&config, &state, &stages);
+}
+
+fn automation_watchdog_should_abort(
+    manual_completed: bool,
+    evidence_ready: bool,
+    capture_progressed: bool,
+    stalled_for: Duration,
+) -> bool {
+    manual_completed
+        && !evidence_ready
+        && !capture_progressed
+        && stalled_for >= AUTOMATION_PROGRESS_STALL
+}
+
+fn abort_stalled_animation_visual_validation(
+    config: Res<AnimationVisualValidationConfig>,
+    progress: Res<AnimationVisualValidationProgress>,
+    stages: Res<AnimationVisualStageTiming>,
+    mut state: ResMut<AnimationVisualValidationState>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let manual_completed = state
+        .manual_integration
+        .as_ref()
+        .is_some_and(|report| report.completed);
+    if !manual_completed || progress.evidence_ready || state.watchdog.triggered {
+        state.watchdog = AutomationProgressWatchdog::default();
+        return;
+    }
+    let now = Instant::now();
+    let capture_count = state.screenshots.len();
+    let capture_progressed = state.watchdog.last_progress.is_none()
+        || state.watchdog.last_capture_count != capture_count;
+    if capture_progressed {
+        state.watchdog.last_capture_count = capture_count;
+        state.watchdog.last_progress = Some(now);
+        return;
+    }
+    let stalled_for = now.duration_since(state.watchdog.last_progress.unwrap_or(now));
+    if automation_watchdog_should_abort(
+        manual_completed,
+        progress.evidence_ready,
+        capture_progressed,
+        stalled_for,
+    ) {
+        state.watchdog.triggered = true;
+        state.watchdog.stalled_seconds = stalled_for.as_secs_f64();
+        append_unique(
+            &mut state.faults,
+            "automation_visual_capture_stalled".to_owned(),
+        );
+        write_report(&config, &state, &stages);
+        exit.write(AppExit::Error(NonZeroU8::new(94).unwrap()));
     }
 }
 
@@ -2234,8 +2356,8 @@ fn safe(value: f32) -> f32 {
     value.is_finite().then_some(value).unwrap_or(0.0)
 }
 
-fn scheduled_capture_allowed(direction_settled: bool, teleport_detected: bool) -> bool {
-    !direction_settled && !teleport_detected
+fn scheduled_capture_allowed(_direction_settled: bool, teleport_detected: bool) -> bool {
+    !teleport_detected
 }
 
 fn direction_capture_allowed(direction_settled: bool, teleport_detected: bool) -> bool {
@@ -2689,6 +2811,18 @@ fn write_report(
         faults: state.faults.clone(),
         graph_errors: state.graph_errors.clone(),
         primary_failure: state.primary_failure.clone(),
+        manual_integration: state.manual_integration.clone(),
+        automation_watchdog: AutomationWatchdogReport {
+            triggered: state.watchdog.triggered,
+            reason: if state.watchdog.triggered {
+                "capture_progress_stalled".to_owned()
+            } else {
+                String::new()
+            },
+            stalled_seconds: state.watchdog.stalled_seconds,
+            capture_count: state.screenshots.len(),
+            required_capture_count: config.capture_count,
+        },
         thresholds,
     };
     let path = config.directory.join("report.json");
@@ -2819,6 +2953,7 @@ fn collect_animation_visual_evidence(
     mut stages: ResMut<AnimationVisualStageTiming>,
     animation_window: Option<Res<ManualAnimationWindowEvidence>>,
     phase_evidence: Option<Res<ManualRuntimePhaseEvidence>>,
+    manual_integration: Option<Res<ManualIntegrationGateReport>>,
     pre_rig: Res<AnimationVisualPreRigPose>,
     asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
@@ -2837,6 +2972,12 @@ fn collect_animation_visual_evidence(
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
     cameras: Query<Entity, With<Camera3d>>,
 ) {
+    let manual_gate_finalized = manual_integration
+        .as_deref()
+        .is_some_and(|report| report.completed);
+    if manual_gate_finalized {
+        state.manual_integration = manual_integration.as_deref().cloned();
+    }
     let Ok((avatar, instance, avatar_transform)) = avatars.single() else {
         return;
     };
@@ -3329,6 +3470,7 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
     }
     if terminal_lifecycle_sample
+        || manual_gate_finalized
         || state
             .next_report
             .is_some_and(|next_report| now >= next_report)
@@ -3347,7 +3489,7 @@ mod tests {
     fn visual_evidence_format_is_loaded_from_the_shared_contract() {
         assert_eq!(
             animation_visual_evidence_format(),
-            "als_animation_visual_evidence_v21"
+            "als_animation_visual_evidence_v24"
         );
     }
 
@@ -3774,7 +3916,36 @@ mod tests {
         assert!(!scheduled_capture_allowed(false, true));
         assert!(!direction_capture_allowed(true, true));
         assert!(scheduled_capture_allowed(false, false));
+        assert!(scheduled_capture_allowed(true, false));
         assert!(direction_capture_allowed(true, false));
+    }
+
+    #[test]
+    fn automation_watchdog_stops_completed_scenarios_without_capture_progress() {
+        assert!(!automation_watchdog_should_abort(
+            true,
+            false,
+            true,
+            AUTOMATION_PROGRESS_STALL,
+        ));
+        assert!(!automation_watchdog_should_abort(
+            true,
+            true,
+            false,
+            AUTOMATION_PROGRESS_STALL,
+        ));
+        assert!(!automation_watchdog_should_abort(
+            false,
+            false,
+            false,
+            AUTOMATION_PROGRESS_STALL,
+        ));
+        assert!(automation_watchdog_should_abort(
+            true,
+            false,
+            false,
+            AUTOMATION_PROGRESS_STALL,
+        ));
     }
 
     #[test]

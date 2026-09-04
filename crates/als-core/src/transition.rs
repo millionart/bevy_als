@@ -99,6 +99,9 @@ pub struct AlsStateRequest {
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsDesiredStance(pub Stance);
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsPhysicalStanceOverride(pub Stance);
+
 impl AlsStateRequest {
     pub const fn with_locomotion_state(mut self, v: LocomotionState) -> Self {
         self.locomotion_state = Some(v);

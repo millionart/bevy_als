@@ -1,0 +1,654 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-2768f8fa2af0404f.source.json",
+  "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_03_2768f8fa2af0.animgraph.ron",
+  "target_spec": "target/bf111/source_specs/ab_als_grounded.transition.ue_source_transition_03_2768f8fa2af0.visible.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_PropertyAccess_1",
+      "target_node": "3f3fe574-5e6d-4cb6-8ec5-f769419fd938",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Value",
+          "target": "Value",
+          "type_exception": "Source GameplayTag pin is encoded as F32."
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "(\"GetParent\",\"Stance\")",
+          "target_contains": "\"(\\\"GetParent\\\",\\\"Stance\\\")\""
+        },
+        {
+          "source_contains": "GetParent.Stance",
+          "target_contains": "\"GetParent.Stance\""
+        },
+        {
+          "source_contains": "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())",
+          "target_contains": "\"(PinCategory=\\\"struct\\\",PinSubCategoryObject=\\\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\\\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "-800",
+          "target_contains": "\"-800\""
+        },
+        {
+          "source_contains": "-48",
+          "target_contains": "\"-48\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "A3F22D3943709B64AAE3599BFD8FA743",
+          "target_contains": "\"A3F22D3943709B64AAE3599BFD8FA743\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_PromotableOperator_0",
+      "target_node": "f61d8881-a29c-4a64-8e87-9373f88bace4",
+      "input_pins": [
+        {
+          "source": "A",
+          "target": "A",
+          "type_exception": "Source GameplayTag pin is encoded as F32."
+        },
+        {
+          "source": "B",
+          "target": "B",
+          "type_exception": "Source GameplayTag pin is encoded as F32.",
+          "source_default": "(TagName=\"Als.Stance.Standing\")",
+          "target_default_contains": "source_default: \"(TagName=\\\"Als.Stance.Standing\\\")\""
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "ReturnValue",
+          "target": "ReturnValue"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "EqualEqual",
+          "target_contains": "\"EqualEqual\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "True",
+          "target_contains": "\"True\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)",
+          "target_contains": "\"(MemberParent=\\\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\\\",MemberName=\\\"EqualEqual_GameplayTag\\\",MemberGuid=00000000000000000000000000000000)\""
+        },
+        {
+          "source_contains": "Unset",
+          "target_contains": "\"Unset\""
+        },
+        {
+          "source_contains": "-528",
+          "target_contains": "\"-528\""
+        },
+        {
+          "source_contains": "-48",
+          "target_contains": "\"-48\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "F16DEF8743B3C3EFAB163B8AA1D140C0",
+          "target_contains": "\"F16DEF8743B3C3EFAB163B8AA1D140C0\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_PropertyAccess_0",
+      "target_node": "4605035f-d31a-45c7-8247-f2a765ca4dd1",
+      "input_pins": [],
+      "output_pins": [
+        {
+          "source": "Value",
+          "target": "Value",
+          "type_exception": "Source GameplayTag pin is encoded as F32."
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "(\"GetParent\",\"Stance\")",
+          "target_contains": "\"(\\\"GetParent\\\",\\\"Stance\\\")\""
+        },
+        {
+          "source_contains": "GetParent.Stance",
+          "target_contains": "\"GetParent.Stance\""
+        },
+        {
+          "source_contains": "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())",
+          "target_contains": "\"(PinCategory=\\\"struct\\\",PinSubCategoryObject=\\\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\\\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "None",
+          "target_contains": "\"None\""
+        },
+        {
+          "source_contains": "-960",
+          "target_contains": "\"-960\""
+        },
+        {
+          "source_contains": "48",
+          "target_contains": "\"48\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "E9C070D94094D666D014A097ABCBA7FD",
+          "target_contains": "\"E9C070D94094D666D014A097ABCBA7FD\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_CallFunction_0",
+      "target_node": "37568a12-ddc4-47c2-8c21-4a6f346791cc",
+      "input_pins": [
+        {
+          "source": "GameplayTag",
+          "target": "GameplayTag",
+          "type_exception": "Source GameplayTag pin is encoded as F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "ReturnValue",
+          "target": "ReturnValue"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "True",
+          "target_contains": "\"True\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"IsGameplayTagValid\",MemberGuid=00000000000000000000000000000000)",
+          "target_contains": "\"(MemberParent=\\\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\\\",MemberName=\\\"IsGameplayTagValid\\\",MemberGuid=00000000000000000000000000000000)\""
+        },
+        {
+          "source_contains": "Unset",
+          "target_contains": "\"Unset\""
+        },
+        {
+          "source_contains": "-688",
+          "target_contains": "\"-688\""
+        },
+        {
+          "source_contains": "48",
+          "target_contains": "\"48\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "5E4E37BD4E0F251142307D97D9F70EE1",
+          "target_contains": "\"5E4E37BD4E0F251142307D97D9F70EE1\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_CallFunction_1",
+      "target_node": "62a1ee8c-684d-4708-88fd-a11ed62e90e4",
+      "input_pins": [
+        {
+          "source": "A",
+          "target": "A"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "ReturnValue",
+          "target": "ReturnValue"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "True",
+          "target_contains": "\"True\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Not_PreBool\",MemberGuid=00000000000000000000000000000000)",
+          "target_contains": "\"(MemberParent=\\\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\\\",MemberName=\\\"Not_PreBool\\\",MemberGuid=00000000000000000000000000000000)\""
+        },
+        {
+          "source_contains": "Unset",
+          "target_contains": "\"Unset\""
+        },
+        {
+          "source_contains": "-400",
+          "target_contains": "\"-400\""
+        },
+        {
+          "source_contains": "64",
+          "target_contains": "\"64\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "9653F8924A4A2EEFB224119D4A2869F1",
+          "target_contains": "\"9653F8924A4A2EEFB224119D4A2869F1\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2.K2Node_CommutativeAssociativeBinaryOperator_0",
+      "target_node": "71ebe6b5-0aaf-4d5a-8e63-62ea650c0a07",
+      "input_pins": [
+        {
+          "source": "A",
+          "target": "A"
+        },
+        {
+          "source": "B",
+          "target": "B"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "ReturnValue",
+          "target": "ReturnValue"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "True",
+          "target_contains": "\"True\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanOR\",MemberGuid=00000000000000000000000000000000)",
+          "target_contains": "\"(MemberParent=\\\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\\\",MemberName=\\\"BooleanOR\\\",MemberGuid=00000000000000000000000000000000)\""
+        },
+        {
+          "source_contains": "Unset",
+          "target_contains": "\"Unset\""
+        },
+        {
+          "source_contains": "-192",
+          "target_contains": "\"-192\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "NoPins",
+          "target_contains": "\"NoPins\""
+        },
+        {
+          "source_contains": "Enabled",
+          "target_contains": "\"Enabled\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "False",
+          "target_contains": "\"False\""
+        },
+        {
+          "source_contains": "0",
+          "target_contains": "\"0\""
+        },
+        {
+          "source_contains": "D7177C3B419597751CE4629364183DEB",
+          "target_contains": "\"D7177C3B419597751CE4629364183DEB\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "bCanEnterTransition",
+      "target": "Can Enter Transition"
+    }
+  ],
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved nonfunctional editor comment omission."
+}

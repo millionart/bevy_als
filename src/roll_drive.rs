@@ -6,7 +6,6 @@ use als_core::roll::{
     damper_exact_angle, roll_weight_at,
 };
 use als_core::state::{LocomotionState, Stance};
-use als_core::transition::AlsStateRequest;
 use als_ext::AlsAnimCurves;
 use avian3d::prelude::{LinearVelocity, Rotation};
 use bevy::ecs::hierarchy::ChildOf;
@@ -266,7 +265,6 @@ fn roll_drive_system(
             &mut Transform,
             Option<&mut Rotation>,
             &mut LinearVelocity,
-            &mut AlsStateRequest,
             Option<&AlsAirState>,
             Option<&AlsNotifyRootMotionScale>,
             &AlsInputCommand,
@@ -288,7 +286,6 @@ fn roll_drive_system(
         mut transform,
         rotation,
         mut vel,
-        mut request,
         air,
         notify_root_scale,
         cmd,
@@ -297,21 +294,14 @@ fn roll_drive_system(
     {
         let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
 
-        let mut lifecycle = roll.update(effective, view, loco, stance, dt);
+        let lifecycle = roll.update(effective, view, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
         {
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-            lifecycle =
-                roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
+            roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
-        if lifecycle.started {
-            request.stance = Some(Stance::Crouching);
-        } else if lifecycle.ended {
-            request.stance = Some(roll.stance_before_roll);
-        }
-
         if !roll.active || dt <= 1e-5 {
             continue;
         }

@@ -18,7 +18,8 @@ use bevy_animation_graph::core::state_machine::{
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::crouching_layer::AlsCrouchingLayerSet;
-use crate::turn_layer::AlsTurnDrive;
+use crate::stop_link::AlsTransitionPlayback;
+use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const MOVING_SMOOTH_SPEED_THRESHOLD: f32 = 1.5;
 const STANCE_CLIP_DURATION: f32 = 1.0;
@@ -31,6 +32,9 @@ const STANCE_CHANGE_CURVE: &str =
     "curves/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.curve.ron";
 const GROUNDED_GRAPH: &str = "graphs/ab_als/grounded.animgraph.ron";
 const GROUNDED_INTERNAL_TIME_KEY: &str = "als_grounded_delta_seconds";
+const GROUNDED_STATES_NODE_NAME: &str = "Grounded States\nState Machine";
+const SOURCE_GROUNDED_TURN_STOP_FUNCTION: &str = "StopTransitionAndTurnInPlaceAnimations";
+const SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION: &str = "PlayRollToGroundedTransitionAnimation";
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AlsGroundedEntryMode {
@@ -410,6 +414,33 @@ fn next_transition(
     }
 }
 
+fn source_grounded_state_lifecycle_action(
+    source_function: &str,
+    request: Option<GroundedTransition>,
+) -> bool {
+    source_function == SOURCE_GROUNDED_TURN_STOP_FUNCTION
+        && request.is_some_and(|transition| {
+            matches!(
+                transition.target(),
+                GroundedState::StandingToCrouching | GroundedState::CrouchingToStanding
+            )
+        })
+}
+
+fn source_roll_exit_transition(
+    source_function: &str,
+    request: Option<GroundedTransition>,
+) -> Option<bool> {
+    if source_function != SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION {
+        return None;
+    }
+    match request {
+        Some(GroundedTransition::RollToCrouching) => Some(true),
+        Some(GroundedTransition::RollToStanding) => Some(false),
+        _ => None,
+    }
+}
+
 fn advance_runtime(
     runtime: &mut GroundedLayerRuntime,
     delta_seconds: f32,
@@ -575,12 +606,13 @@ fn write_globals(
 fn grounded_layer_writer(
     time: Res<Time>,
     mut commands: Commands,
-    characters: Query<
+    mut characters: Query<
         (
             Option<&Stance>,
             Option<&AlsGroundedEntryMode>,
             Option<&AlsRollState>,
             &LinearVelocity,
+            Option<&mut AlsTransitionPlayback>,
         ),
         With<AlsCharacter>,
     >,
@@ -591,6 +623,7 @@ fn grounded_layer_writer(
             &AnimatedSceneInstance,
             Option<&mut GroundedLayerRuntime>,
             Option<&AlsTurnDrive>,
+            Option<&mut AlsTurnMontageStack>,
         ),
         With<AlsCharacterAvatar>,
     >,
@@ -599,8 +632,10 @@ fn grounded_layer_writer(
     handles: Res<GroundedCurveHandles>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (avatar, parent, instance, current_runtime, turn) in &mut avatars {
-        let Ok((stance, entry_mode, roll, velocity)) = characters.get(parent.parent()) else {
+    for (avatar, parent, instance, current_runtime, turn, mut turn_stack) in &mut avatars {
+        let Ok((stance, entry_mode, roll, velocity, mut transition)) =
+            characters.get_mut(parent.parent())
+        else {
             continue;
         };
         let Ok(mut player) = players.get_mut(instance.player_entity()) else {
@@ -644,6 +679,21 @@ fn grounded_layer_writer(
                 .entity(parent.parent())
                 .insert(AlsGroundedEntryMode::None);
         }
+        if source_grounded_state_lifecycle_action(SOURCE_GROUNDED_TURN_STOP_FUNCTION, request) {
+            if let Some(turn_stack) = turn_stack.as_deref_mut() {
+                turn_stack.request_stop();
+            }
+            if let Some(transition) = transition.as_deref_mut() {
+                transition.request_stop();
+            }
+        }
+        if let Some(crouching) =
+            source_roll_exit_transition(SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION, request)
+        {
+            commands
+                .entity(parent.parent())
+                .insert(AlsTransitionPlayback::roll_to_grounded_right(crouching));
+        }
         let values = transition_curves(runtime, &animation_curves, &handles, roll_clip_time);
         let stance_alpha = current_transition_alpha(runtime, &curves, &handles);
         write_globals(
@@ -684,7 +734,7 @@ fn actual_grounded_fsm_telemetry(
     let node = graph
         .nodes
         .values()
-        .find(|node| node.name == "Grounded States")?;
+        .find(|node| node.name == GROUNDED_STATES_NODE_NAME)?;
     let (fsm_handle, fsm_node, fsm_graph) =
         if let Some(fsm) = node.try_inner_downcast_ref::<InterruptibleFsmNode>() {
             (fsm.fsm.clone(), node.id, graph_handle.id())
@@ -787,6 +837,11 @@ mod tests {
     }
 
     #[test]
+    fn grounded_fsm_telemetry_uses_the_authored_node_title() {
+        assert_eq!(GROUNDED_STATES_NODE_NAME, "Grounded States\nState Machine");
+    }
+
+    #[test]
     fn aliases_use_direct_when_moving_and_inertial_when_stationary() {
         assert_eq!(
             next_transition(GroundedState::Standing, 0.0, true, true),
@@ -839,6 +894,47 @@ mod tests {
             Some(GroundedTransition::RollToStanding)
         );
         assert_eq!(GroundedTransition::RollToStanding.duration(), 0.6);
+    }
+
+    #[test]
+    fn source_state_entry_stop_action_only_targets_stance_change_states() {
+        assert!(source_grounded_state_lifecycle_action(
+            SOURCE_GROUNDED_TURN_STOP_FUNCTION,
+            Some(GroundedTransition::StandingToStandingToCrouching)
+        ));
+        assert!(source_grounded_state_lifecycle_action(
+            SOURCE_GROUNDED_TURN_STOP_FUNCTION,
+            Some(GroundedTransition::CrouchingToCrouchingToStanding)
+        ));
+        assert!(!source_grounded_state_lifecycle_action(
+            SOURCE_GROUNDED_TURN_STOP_FUNCTION,
+            Some(GroundedTransition::RollToStanding)
+        ));
+    }
+
+    #[test]
+    fn source_roll_exit_transition_preserves_the_target_stance() {
+        assert_eq!(
+            source_roll_exit_transition(
+                SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION,
+                Some(GroundedTransition::RollToCrouching)
+            ),
+            Some(true)
+        );
+        assert_eq!(
+            source_roll_exit_transition(
+                SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION,
+                Some(GroundedTransition::RollToStanding)
+            ),
+            Some(false)
+        );
+        assert_eq!(
+            source_roll_exit_transition(
+                SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION,
+                Some(GroundedTransition::EntryToRoll)
+            ),
+            None
+        );
     }
 
     #[test]

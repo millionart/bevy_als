@@ -1,0 +1,84 @@
+{
+  "format": "als_ue_transition_expression_graph_batch_v1",
+  "inventory": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/index.json",
+  "entries": [
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateConduitNode_0.Entry Conduit",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-79fac47af49dd433.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_00_79fac47af49d.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_00_79fac47af49d.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_0.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-f74b2f2813aa3887.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_01_f74b2f2813aa.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_01_f74b2f2813aa.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_1.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-56d1c90697c34ca9.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_02_56d1c90697c3.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_02_56d1c90697c3.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_11.AnimationTransitionGraph_2",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-2768f8fa2af0404f.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_03_2768f8fa2af0.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_03_2768f8fa2af0.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_15.AnimationTransitionGraph_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-3c94afd8b76469fb.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_04_3c94afd8b764.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_04_3c94afd8b764.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_18.AnimationTransitionGraph_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-ce65e853632f12ad.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_05_ce65e853632f.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_05_ce65e853632f.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_19.AnimationTransitionGraph_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-0fa85a2627e523c4.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_06_0fa85a2627e5.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_06_0fa85a2627e5.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_2.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-e256a49d12234399.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_07_e256a49d1223.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_07_e256a49d1223.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_20.AnimationTransitionGraph_2",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-b3191fa59b94f875.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_08_b3191fa59b94.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_08_b3191fa59b94.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_21.AnimationTransitionGraph_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-121762f693eab98e.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_09_121762f693ea.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_09_121762f693ea.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_24.AnimationTransitionGraph_2",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-e54e9ee33cbb99f6.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_10_e54e9ee33cbb.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_10_e54e9ee33cbb.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_3.Transition",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-22237039c0f8967a.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_11_22237039c0f8.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_11_22237039c0f8.visible.json"
+    },
+    {
+      "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateTransitionNode_9.AnimationTransitionGraph_1",
+      "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-3a73f70235e4265a.source.json",
+      "target_graph": "tools/animgraph_authoring/ab_als_grounded.transition_conditions/ue_source_transition_12_3a73f70235e4.animgraph.ron",
+      "map": "tools/animgraph_authoring/ab_als_grounded.transition.ue_source_transition_12_3a73f70235e4.visible.json"
+    }
+  ]
+}

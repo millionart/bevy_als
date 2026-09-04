@@ -28,7 +28,8 @@ use crate::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::params::AlsMovementParams;
 use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use crate::transition::{
-    AlsDesiredStance, AlsStateRequest, Dimension, StateTransitionEvent, StateValue,
+    AlsDesiredStance, AlsPhysicalStanceOverride, AlsStateRequest, Dimension, StateTransitionEvent,
+    StateValue,
 };
 
 const MAX_SLOPE_DEGREES: f32 = 44.765_083;
@@ -1164,6 +1165,7 @@ mod rotation_cap_tests {
                 Stance::Standing,
                 LocomotionState::Grounded,
                 false,
+                None,
             ),
             Stance::Crouching
         );
@@ -1173,6 +1175,7 @@ mod rotation_cap_tests {
                 Stance::Standing,
                 LocomotionState::Air,
                 false,
+                None,
             ),
             Stance::Standing
         );
@@ -1182,6 +1185,7 @@ mod rotation_cap_tests {
                 Stance::Crouching,
                 LocomotionState::Air,
                 true,
+                None,
             ),
             Stance::Crouching
         );
@@ -1191,6 +1195,7 @@ mod rotation_cap_tests {
                 Stance::Standing,
                 LocomotionState::Air,
                 false,
+                None,
             ),
             Stance::Standing
         );
@@ -1200,6 +1205,41 @@ mod rotation_cap_tests {
                 Stance::Standing,
                 LocomotionState::Air,
                 true,
+                None,
+            ),
+            Stance::Standing
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Standing,
+                Stance::Standing,
+                LocomotionState::Grounded,
+                false,
+                Some(Stance::Crouching),
+            ),
+            Stance::Crouching
+        );
+    }
+
+    #[test]
+    fn physical_stance_override_releases_to_unchanged_desired_stance() {
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Standing,
+                Stance::Crouching,
+                LocomotionState::Grounded,
+                false,
+                Some(Stance::Crouching),
+            ),
+            Stance::Crouching
+        );
+        assert_eq!(
+            capsule_target_for_locomotion(
+                Stance::Standing,
+                Stance::Crouching,
+                LocomotionState::Grounded,
+                false,
+                None,
             ),
             Stance::Standing
         );
@@ -2013,6 +2053,7 @@ type ReshapeQueryItem<'a> = (
     Entity,
     &'a mut Stance,
     &'a AlsDesiredStance,
+    Option<&'a AlsPhysicalStanceOverride>,
     &'a LocomotionState,
     Option<&'a AlsMantleState>,
     &'a Transform,
@@ -2032,6 +2073,7 @@ fn capsule_reshape_system(
         entity,
         mut stance,
         desired,
+        physical_override,
         locomotion,
         mantle,
         transform,
@@ -2053,7 +2095,13 @@ fn capsule_reshape_system(
             transform.translation,
             *locomotion == LocomotionState::Air && !action_active,
         );
-        let target = capsule_target_for_locomotion(desired.0, *stance, *locomotion, action_active);
+        let target = capsule_target_for_locomotion(
+            desired.0,
+            *stance,
+            *locomotion,
+            action_active,
+            physical_override.map(|value| value.0),
+        );
         if target == *stance && !already_deferred {
             continue;
         }
@@ -2170,8 +2218,11 @@ fn capsule_target_for_locomotion(
     actual: Stance,
     locomotion: LocomotionState,
     action_active: bool,
+    physical_override: Option<Stance>,
 ) -> Stance {
-    if action_active {
+    if let Some(physical_override) = physical_override {
+        physical_override
+    } else if action_active {
         actual
     } else if locomotion == LocomotionState::Air {
         Stance::Standing

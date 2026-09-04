@@ -4,6 +4,8 @@ use als_camera::AlsCameraShakeRequest;
 use als_core::character::AlsCharacter;
 use als_core::mantle::{AlsMantleState, MantleKind, mantle_weight_at};
 use als_core::roll::{AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE};
+use als_core::state::Stance;
+use als_core::transition::AlsPhysicalStanceOverride;
 use als_ext::{
     EventClock, EventDispatchContext, EventLifecycle, EventPhase, PlaybackDirection,
     StateIntervalBoundary, TimedEvent, TimedEventKind,
@@ -46,6 +48,7 @@ const SOURCE_MANTLE_LOW_BOTH_MONTAGE: &str =
     "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_BothArms.AM_Als_Mantle_Low_BothArms";
 const SOURCE_MANTLE_LOW_BOX_MONTAGE: &str =
     "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Box.AM_Als_Mantle_Low_Box";
+const ROLL_CROUCH_ON_START: bool = true;
 
 #[derive(Asset, TypePath, Deserialize, Clone, Debug)]
 pub struct AlsNotifyManifest {
@@ -594,6 +597,16 @@ fn notify_action(tag: Option<&str>) -> AlsNotifyLocomotionAction {
     }
 }
 
+fn physical_stance_override(
+    action: AlsNotifyLocomotionAction,
+) -> Option<AlsPhysicalStanceOverride> {
+    if action == AlsNotifyLocomotionAction::Rolling && ROLL_CROUCH_ON_START {
+        Some(AlsPhysicalStanceOverride(Stance::Crouching))
+    } else {
+        None
+    }
+}
+
 fn dispatch_animation_events(
     mut commands: Commands,
     manifest_handle: Option<Res<AlsNotifyManifestHandle>>,
@@ -607,6 +620,7 @@ fn dispatch_animation_events(
             &AlsAnimationEventPlaybacks,
             &mut AlsAnimationEventRuntime,
             &mut AlsNotifyLocomotionAction,
+            Option<&AlsPhysicalStanceOverride>,
             &mut AlsNotifyRootMotionScale,
             &mut AlsNotifyEarlyBlendOut,
         ),
@@ -621,8 +635,15 @@ fn dispatch_animation_events(
     let Some(manifest) = manifests.get(&handle.0) else {
         return;
     };
-    for (character, playbacks, mut runtime, mut action, mut root_scale, mut early_blend_out) in
-        &mut characters
+    for (
+        character,
+        playbacks,
+        mut runtime,
+        mut action,
+        physical_override,
+        mut root_scale,
+        mut early_blend_out,
+    ) in &mut characters
     {
         let mut active_sources = HashMap::<String, bool>::default();
         for playback in &playbacks.entries {
@@ -786,6 +807,18 @@ fn dispatch_animation_events(
             }
             runtime.sources.remove(&source_asset);
         }
+        match (physical_stance_override(action.clone()), physical_override) {
+            (Some(next), Some(current)) if *current == next => {}
+            (Some(next), _) => {
+                commands.entity(character).insert(next);
+            }
+            (None, Some(_)) => {
+                commands
+                    .entity(character)
+                    .remove::<AlsPhysicalStanceOverride>();
+            }
+            (None, None) => {}
+        }
     }
 }
 
@@ -820,5 +853,17 @@ mod tests {
             AlsNotifyLocomotionAction::Mantling
         );
         assert_eq!(notify_action(None), AlsNotifyLocomotionAction::None);
+    }
+
+    #[test]
+    fn rolling_action_uses_a_physical_crouch_override() {
+        assert_eq!(
+            physical_stance_override(AlsNotifyLocomotionAction::Rolling),
+            Some(AlsPhysicalStanceOverride(Stance::Crouching))
+        );
+        assert_eq!(
+            physical_stance_override(AlsNotifyLocomotionAction::None),
+            None
+        );
     }
 }

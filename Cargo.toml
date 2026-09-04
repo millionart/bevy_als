@@ -7,13 +7,10 @@ opt-level = 3
 
 [profile.play]
 inherits = "dev"
+opt-level = 3
 debug = 0
 strip = "debuginfo"
 incremental = false
-
-[profile.play.package."*"]
-opt-level = 3
-debug = 0
 
 [workspace.package]
 edition = "2024"

@@ -1,0 +1,149 @@
+{
+  "format": "als_ue_visible_animgraph_map_v2",
+  "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-a0fb14a74cbf1d8a.source.json",
+  "target_graph": "assets/graphs/ab_als/grounded/state_roll.animgraph.ron",
+  "target_spec": "target/bf111/grounded_state_roll.spec.json",
+  "node_map": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_6.Roll.AnimGraphNode_SequenceEvaluator_0",
+      "target_node": "17070000-0000-4000-8000-000000000001",
+      "input_pins": [
+        {
+          "source": "ExplicitFrame",
+          "target": "Explicit Frame",
+          "target_binding": "als_grounded_roll_explicit_frame",
+          "source_default": "45",
+          "target_default_contains": "default_value: 45.0",
+          "type_exception": "UE frame count is represented as target F32."
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "A_Als_Roll",
+          "target_contains": "clip: \"animations/Actions/Roll/A_Als_Roll.anim.ron\"",
+          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+        },
+        {
+          "source_contains": "bUseExplicitFrame=True",
+          "target_contains": "explicit_frame_pin: \"Explicit Frame\"",
+          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+        },
+        {
+          "source_contains": "bShouldLoop=True",
+          "target_contains": "should_loop: true",
+          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+        },
+        {
+          "source_contains": "bTeleportToExplicitTime=True",
+          "target_contains": "teleport_to_explicit_time: true",
+          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+        },
+        {
+          "source_contains": "ReinitializationBehavior=ExplicitTime",
+          "target_contains": "reinitialization_behavior: \"ExplicitTime\"",
+          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_6.Roll.AnimGraphNode_ModifyCurve_0",
+      "target_node": "17070000-0000-4000-8000-000000000002",
+      "input_pins": [
+        {
+          "source": "SourcePose",
+          "target": "Source Pose"
+        },
+        {
+          "source": "CurveValues_0",
+          "target": "FootLeftLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0, 1.0]"
+        },
+        {
+          "source": "CurveValues_1",
+          "target": "FootRightLock",
+          "source_default": "1.000000",
+          "target_default_contains": "pin_defaults: [1.0, 1.0]"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CurveNames=(\"FootLeftLock\",\"FootRightLock\")",
+          "target_contains": "curve_names: [\"FootLeftLock\", \"FootRightLock\"]"
+        },
+        {
+          "source_contains": "Alpha=1.000000",
+          "target_contains": "alpha: 1.0"
+        },
+        {
+          "source_contains": "ApplyMode=Blend",
+          "target_contains": "apply_mode: \"Blend\""
+        }
+      ]
+    },
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_6.Roll.AnimGraphNode_CallFunction_0",
+      "target_node": "17070000-0000-4000-8000-000000000003",
+      "input_pins": [
+        {
+          "source": "Source",
+          "target": "Source"
+        }
+      ],
+      "output_pins": [
+        {
+          "source": "Pose",
+          "target": "Pose"
+        }
+      ],
+      "property_assertions": [
+        {
+          "source_contains": "CallSite=OnBecomeRelevant",
+          "target_contains": "call_site: \"On Become Relevant\""
+        }
+      ]
+    }
+  ],
+  "root_output_pins": [
+    {
+      "source": "Result",
+      "target": "Result"
+    }
+  ],
+  "root_property_assertions": [
+    {
+      "source_contains": "MemberName=\"PlayRollToGroundedTransitionAnimation\"",
+      "target_contains": "SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION",
+      "target_runtime_path": "src/grounded_layer.rs"
+    },
+    {
+      "source_contains": "StateExitFunction=(FunctionName=\"OnStateExit\")",
+      "target_contains": "source_roll_exit_transition",
+      "target_runtime_path": "src/grounded_layer.rs"
+    }
+  ],
+  "require_root_property_assertions": true,
+  "comment_groups": [],
+  "comment_policy": "ignore",
+  "comment_exception": "User-approved BF111 comment exception.",
+  "experimental_node_notes": [
+    {
+      "source_node": "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded:AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_6.Roll.AnimGraphNode_CallFunction_0",
+      "target_node": "17070000-0000-4000-8000-000000000003",
+      "source_warning": "ResetGroundedEntryMode  - Node is experimental",
+      "maintenance_note": "Re-extract the source node before each equivalent change and replace the target implementation with current source behavior when this warning disappears in a future Unreal version."
+    }
+  ]
+}

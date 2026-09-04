@@ -61,6 +61,7 @@ impl Default for AlsStopMatch {
 pub enum AlsTransitionKind {
     Stop,
     QuickStop,
+    StandingTransitionRight,
     CrouchingStop,
     CrouchingQuickStop,
     CrouchingDynamic,
@@ -134,6 +135,18 @@ impl AlsTransitionPlayback {
         )
     }
 
+    pub fn standing_transition_right() -> Self {
+        Self::new(
+            AlsTransitionKind::StandingTransitionRight,
+            6.0,
+            STOP_TRANSITION_BLEND_IN,
+            STOP_TRANSITION_BLEND_OUT,
+            STOP_TRANSITION_PLAY_RATE,
+            RIGHT_TRANSITION_START_TIME,
+            TRANSITION_SEQUENCE_DURATION,
+        )
+    }
+
     pub fn crouching_stop_right() -> Self {
         Self::new(
             AlsTransitionKind::CrouchingStop,
@@ -141,9 +154,17 @@ impl AlsTransitionPlayback {
             STOP_TRANSITION_BLEND_IN,
             STOP_TRANSITION_BLEND_OUT,
             STOP_TRANSITION_PLAY_RATE,
-            CROUCH_STOP_TRANSITION_START_TIME,
+            RIGHT_TRANSITION_START_TIME,
             TRANSITION_SEQUENCE_DURATION,
         )
+    }
+
+    pub fn roll_to_grounded_right(crouching: bool) -> Self {
+        if crouching {
+            Self::crouching_stop_right()
+        } else {
+            Self::standing_transition_right()
+        }
     }
 
     pub fn crouching_quick_stop(index: f32, play_rate: f32) -> Self {
@@ -259,7 +280,7 @@ pub const STOP_TRANSITION_BLEND_IN: f32 = 0.2;
 pub const STOP_TRANSITION_BLEND_OUT: f32 = 0.2;
 pub const STOP_TRANSITION_PLAY_RATE: f32 = 1.5;
 pub const STOP_TRANSITION_START_TIME: f32 = 0.4;
-pub const CROUCH_STOP_TRANSITION_START_TIME: f32 = 0.2;
+pub const RIGHT_TRANSITION_START_TIME: f32 = 0.2;
 pub const TRANSITION_SEQUENCE_DURATION: f32 = 2.3333333;
 pub const CROUCH_DYNAMIC_TRANSITION_DURATION: f32 = 1.5333333;
 pub const DYNAMIC_TRANSITION_BLEND: f32 = 0.2;
@@ -376,6 +397,7 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
         && matches!(
             playback.kind,
             AlsTransitionKind::QuickStop
+                | AlsTransitionKind::StandingTransitionRight
                 | AlsTransitionKind::CrouchingStop
                 | AlsTransitionKind::CrouchingQuickStop
                 | AlsTransitionKind::CrouchingDynamic
@@ -385,6 +407,7 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
 fn root_transition_slot_index(playback: &AlsTransitionPlayback) -> f32 {
     match playback.kind {
         AlsTransitionKind::QuickStop => playback.index,
+        AlsTransitionKind::StandingTransitionRight => 6.0,
         AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => {
             2.0 + playback.index
         }
@@ -747,10 +770,12 @@ mod tests {
     #[test]
     fn root_transition_slot_accepts_the_source_dynamic_transition_montages() {
         let quick_stop = AlsTransitionPlayback::quick_stop(0.0, 1.75);
+        let standing_transition = AlsTransitionPlayback::standing_transition_right();
         let crouching_stop = AlsTransitionPlayback::crouching_stop_right();
         let crouching_quick_stop = AlsTransitionPlayback::crouching_quick_stop(0.0, 1.75);
         let crouching_dynamic = AlsTransitionPlayback::crouching_dynamic(1.0);
         assert!(root_transition_slot_active(&quick_stop));
+        assert!(root_transition_slot_active(&standing_transition));
         assert!(root_transition_slot_active(&crouching_stop));
         assert!(root_transition_slot_active(&crouching_quick_stop));
         assert!(root_transition_slot_active(&crouching_dynamic));
@@ -769,7 +794,7 @@ mod tests {
         assert_eq!(quick_stop.start_time, QUICK_STOP_START_TIME);
         let crouching_stop = AlsTransitionPlayback::crouching_stop_right();
         assert_eq!(root_transition_slot_index(&crouching_stop), 3.0);
-        assert_eq!(crouching_stop.start_time, CROUCH_STOP_TRANSITION_START_TIME);
+        assert_eq!(crouching_stop.start_time, RIGHT_TRANSITION_START_TIME);
         let crouching_quick_stop = AlsTransitionPlayback::crouching_quick_stop(0.0, 2.0);
         assert_eq!(root_transition_slot_index(&crouching_quick_stop), 2.0);
         assert_eq!(crouching_quick_stop.start_time, QUICK_STOP_START_TIME);
@@ -778,6 +803,21 @@ mod tests {
         assert_eq!(root_transition_slot_index(&dynamic_left), 4.0);
         assert_eq!(root_transition_slot_index(&dynamic_right), 5.0);
         assert_eq!(dynamic_left.start_time, 0.0);
+    }
+
+    #[test]
+    fn roll_to_grounded_transition_selects_the_source_stance_asset_and_parameters() {
+        let standing = AlsTransitionPlayback::roll_to_grounded_right(false);
+        assert_eq!(standing.kind, AlsTransitionKind::StandingTransitionRight);
+        assert_eq!(root_transition_slot_index(&standing), 6.0);
+        assert_eq!(standing.blend_in, 0.2);
+        assert_eq!(standing.blend_out, 0.2);
+        assert_eq!(standing.play_rate, 1.5);
+        assert_eq!(standing.start_time, 0.2);
+        let crouching = AlsTransitionPlayback::roll_to_grounded_right(true);
+        assert_eq!(crouching.kind, AlsTransitionKind::CrouchingStop);
+        assert_eq!(root_transition_slot_index(&crouching), 3.0);
+        assert_eq!(crouching.start_time, 0.2);
     }
 
     #[test]

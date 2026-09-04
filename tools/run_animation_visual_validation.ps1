@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("startup", "base", "standing_direction", "crouching", "control_rig", "default_overlay", "state_machine", "foot_ik", "sprint", "ragdoll", "camera", "interface", "notify")]
+    [ValidateSet("startup", "base", "grounded", "standing_direction", "crouching", "control_rig", "default_overlay", "state_machine", "foot_ik", "sprint", "ragdoll", "camera", "interface", "notify")]
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
     [int]$CaptureCount = 6,
@@ -70,11 +70,23 @@ try {
         & cmd.exe /d /c "run_manual.bat"
         $manualExitCode = $LASTEXITCODE
         $reportPath = Join-Path $candidate "report.json"
+        $runnerPath = Join-Path $candidate "runner.json"
+        $runner = [ordered]@{
+            format = "als_animation_visual_runner_v1"
+            case = $Case
+            manual_exit_code = $manualExitCode
+            report_path = $reportPath
+            report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf
+            validation_exit_code = $null
+        }
         if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+            $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
             throw "manual_playground exited with code $manualExitCode and did not write $reportPath."
         }
         python tools/validate_animation_visual_evidence.py --report $reportPath --min-screenshots $CaptureCount --check
         $validationExitCode = $LASTEXITCODE
+        $runner.validation_exit_code = $validationExitCode
+        $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
         if ($manualExitCode -ne 0) {
             throw "manual_playground exited with code $manualExitCode; visual diagnosis was written to $reportPath."
         }
