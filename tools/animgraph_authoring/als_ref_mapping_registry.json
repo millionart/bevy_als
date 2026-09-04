@@ -30,6 +30,7 @@
     "/Script/BlueprintGraph.K2Node_CallFunction": { "renderer": "blueprint_call" },
     "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator": { "renderer": "boolean_operator" },
     "/Script/BlueprintGraph.K2Node_PromotableOperator": { "renderer": "comparison_operator" },
+    "/Script/BlueprintGraph.K2Node_Knot": { "renderer": "reroute" },
     "/Script/PropertyAccessNode.K2Node_PropertyAccess": { "renderer": "property_access" },
     "/Script/UnrealEd.EdGraphNode_Comment": { "renderer": "comment_group" }
   },

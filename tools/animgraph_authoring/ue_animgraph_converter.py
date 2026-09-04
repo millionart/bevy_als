@@ -787,6 +787,8 @@ def graph_ir(
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
+        if semantic is None and renderer == "reroute":
+            semantic = {"renderer": renderer}
         if semantic is None and renderer in {"blendspace_evaluator", "blendspace_player"}:
             asset = animation_by_node.get(node.get("object_path"))
             contract_name = "evaluator" if renderer == "blendspace_evaluator" else "player"

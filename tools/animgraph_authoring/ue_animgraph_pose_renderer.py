@@ -41,6 +41,7 @@ SUPPORTED_RENDERERS = {
     "enum_pose_blend",
     "layered_bone_blend",
     "slot",
+    "reroute",
 }
 
 SCALAR_RENDERERS = {
@@ -790,6 +791,39 @@ def blendspace_helpers(graph_contract, raw, semantic):
     return nodes, edges, targets
 
 
+def collapsed_links(graph_contract, ir_nodes):
+    reroutes = {
+        path
+        for path, semantic in ir_nodes.items()
+        if semantic.get("renderer") == "reroute"
+    }
+    incoming = {}
+    for link in graph_contract.get("links", []):
+        target = link.get("target", {})
+        target_path = target.get("node_object_path")
+        if target_path in reroutes:
+            incoming.setdefault(target_path, []).append(link)
+
+    def resolve(source, seen):
+        path = source.get("node_object_path")
+        if path not in reroutes:
+            return source
+        if path in seen:
+            raise PoseRenderError("source reroute cycle is unsupported")
+        links = incoming.get(path, [])
+        if len(links) != 1:
+            raise PoseRenderError("source reroute input is unsupported")
+        return resolve(links[0].get("source", {}), seen | {path})
+
+    result = []
+    for link in graph_contract.get("links", []):
+        target = link.get("target", {})
+        if target.get("node_object_path") in reroutes:
+            continue
+        result.append({"source": resolve(link.get("source", {}), set()), "target": target})
+    return result
+
+
 def render(
     graph_contract,
     graph_ir,
@@ -815,7 +849,7 @@ def render(
     blendspace_edges = []
     blendspace_targets = {}
     for source_path, semantic in ir_nodes.items():
-        if semantic.get("renderer") == "comment_group":
+        if semantic.get("renderer") in {"comment_group", "reroute"}:
             continue
         raw = raw_nodes[source_path]
         identifier = node_id(raw)
@@ -870,7 +904,7 @@ def render(
     state_result_raw = raw_nodes[state_result["source_node"]]
     output_name = "Result"
     edges = []
-    for link in graph_contract.get("links", []):
+    for link in collapsed_links(graph_contract, ir_nodes):
         source = link.get("source", {})
         target = link.get("target", {})
         source_semantic = ir_nodes.get(source.get("node_object_path"))
@@ -1044,6 +1078,41 @@ def run_self_test():
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'OutputData("Result")' in text
     assert 'name: "Comment"' not in text
+    reroute_path = "/Asset:State.Reroute"
+    graph_contract["source_graph"]["nodes"].append(
+        {
+            "object_path": reroute_path,
+            "node_guid": "10000000-0000-4000-8000-000000000005",
+            "title": "Reroute Node",
+            "position_x": -192,
+            "position_y": 0,
+        }
+    )
+    graph_contract["links"] = [
+        link
+        for link in graph_contract["links"]
+        if not (
+            link["source"]["node_object_path"] == "/Asset:State.Player"
+            and link["target"]["node_object_path"] == "/Asset:State.Blend"
+            and link["target"]["pin_name"] == "A"
+        )
+    ]
+    graph_contract["links"].extend(
+        [
+            {
+                "source": {"node_object_path": "/Asset:State.Player", "pin_name": "Pose"},
+                "target": {"node_object_path": reroute_path, "pin_name": "InputPin"},
+            },
+            {
+                "source": {"node_object_path": reroute_path, "pin_name": "OutputPin"},
+                "target": {"node_object_path": "/Asset:State.Blend", "pin_name": "A"},
+            },
+        ]
+    )
+    graph_ir["nodes"].append({"source_node": reroute_path, "renderer": "reroute", "semantic": {}})
+    text = render(graph_contract, graph_ir, assets)
+    assert 'name: "Reroute Node"' not in text
+    assert 'NodeData("10000000-0000-4000-8000-000000000002", "A"): NodeData("10000000-0000-4000-8000-000000000001", "Pose")' in text
     multi_type, multi_inner = rendered_inner(
         graph_contract,
         {},
@@ -1315,6 +1384,7 @@ def run_self_test():
         "sync_group_requires_a_phase_source": "PASS",
         "sync_group_wrapper_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",
+        "source_reroutes_are_folded": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
         "source_blendspace_property_binding_is_rendered": "PASS",
         "source_blendspace_player_marker_phase_is_rendered": "PASS",

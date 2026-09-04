@@ -28,6 +28,14 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 > BF111 Character Base 图作者性规范化的完整任务、Gate 与状态已移至 [TODO.md](TODO.md)。
 
+## BF112 ALS-ref AnimBP converter completion（当前批次）
+
+目标：将 `AB_Als_Standing`、`AB_Als_Crouching`、`AB_Als_Grounded`、`AB_Als_Locomotion`、`AB_Als_Layering`、`AB_Als_Head`、`AB_Als_Ragdolling`、`AB_Als_Default` 从原始 `.uasset` 完整转换为可接入的 RON 闭包。每个节点类别按 source-first 合同实现；未知节点/功能保留 blocker，修复后才生成完整产物。每个蓝图必须通过 direct `--write`/`--check`、手工图交叉对比、source/runtime Gate 与 integration report。
+
+- [x] BF112.01 pose reroute contraction：开始：2026-09-04 20:22:50 +08:00；预估结束：2026-09-04 20:42:50 +08:00；实际结束：2026-09-04 20:39:50 +08:00（偏差 -3m00s）。将 `K2Node_Knot` 作为 editor-only relay 自动折叠为直接边，不生成目标节点或运行时 ABI。验收：Standing/Crouching 各两条 reroute 不再成为 blocker，直接 source→target edge 保留，renderer fixture 与 fresh direct report PASS。
+  - source fact：两图顶层的 relay 均连接 PoseLink；Standing 为 `StateMachine_2.Pose → Knot → Knot → ApplyAdditive.Base`，Crouching 为 `TwoWayBlend_0.Pose → Knot → Knot → ApplyAdditive_0.Base`。
+  - Gate summary：renderer contraction fixture、converter/corpus self-test、Crouching corpus write/check和两份 fresh direct `--write`/`--check`均PASS；Knot blocker Standing/Crouching各2→0，未注册节点分别9→7、6→4。消融：不创建passthrough runtime node，只在目标边生成前递归归约source relay。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
