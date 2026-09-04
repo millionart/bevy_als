@@ -26,6 +26,14 @@ POSE_RENDERERS = {
     "use_cached_pose",
     "state_result",
 }
+SYNC_GROUP_ROLES = {
+    "CanBeLeader",
+    "AlwaysFollower",
+    "AlwaysLeader",
+    "TransitionLeader",
+    "TransitionFollower",
+    "ExclusiveAlwaysLeader",
+}
 
 
 class PoseContractError(ValueError):
@@ -158,7 +166,10 @@ def sequence_player_contract(node):
         )
     )
     group = parse_name(field(fields, "GroupName", "None"))
+    group_role = parse_name(field(fields, "GroupRole", "CanBeLeader"))
     method = parse_name(field(fields, "Method", "DoNotSync"))
+    if group_role not in SYNC_GROUP_ROLES:
+        issues.append(issue(node, renderer, "source_sync_group_role_unsupported", group_role))
     if group != "None" or method != "DoNotSync":
         issues.append(issue(node, renderer, "source_sync_group_unsupported", f"{group}:{method}"))
     if parse_bool(field(fields, "bStartFromMatchingPose", "False")):
@@ -177,7 +188,11 @@ def sequence_player_contract(node):
         "start_position": parse_number(field(fields, "StartPosition", "0.0")),
         "loop_animation": parse_bool(field(fields, "bLoopAnimation", "True")),
         "sync_group": group,
+        "sync_group_role": group_role,
         "sync_method": method,
+        "override_position_when_joining_sync_group_as_leader": parse_bool(
+            field(fields, "bOverridePositionWhenJoiningSyncGroupAsLeader", "False")
+        ),
     }, issues
 
 
@@ -457,6 +472,8 @@ def run_self_test():
     )
     _, issues = pose_contract(sequence, "sequence_player")
     assert issues[0]["kind"] == "source_sync_group_unsupported"
+    contract, _ = pose_contract(sequence, "sequence_player")
+    assert contract["sync_group_role"] == "CanBeLeader"
     curve = fixture_node(
         "modify_curve",
         "Node",

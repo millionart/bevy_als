@@ -58,6 +58,73 @@ pub struct SyncPhaseInput {
     pub delta_seconds: f32,
 }
 
+
+#[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[reflect(Default, Serialize, Deserialize)]
+pub enum SourceSyncGroupRole {
+    #[default]
+    CanBeLeader,
+    AlwaysFollower,
+    AlwaysLeader,
+    TransitionLeader,
+    TransitionFollower,
+    ExclusiveAlwaysLeader,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SourceSyncGroupCandidate {
+    pub role: SourceSyncGroupRole,
+    pub blend_weight: f32,
+    pub source_order: usize,
+    pub marker_sync_valid: bool,
+}
+
+pub fn source_sync_group_leader_score(candidate: SourceSyncGroupCandidate) -> f32 {
+    match candidate.role {
+        SourceSyncGroupRole::CanBeLeader | SourceSyncGroupRole::TransitionLeader => {
+            candidate.blend_weight
+        }
+        SourceSyncGroupRole::AlwaysLeader | SourceSyncGroupRole::ExclusiveAlwaysLeader => 2.0,
+        SourceSyncGroupRole::AlwaysFollower | SourceSyncGroupRole::TransitionFollower => {
+            -2.0 + candidate.blend_weight
+        }
+    }
+}
+
+fn source_sync_group_tie_prefers_last(candidate: SourceSyncGroupCandidate) -> bool {
+    matches!(
+        candidate.role,
+        SourceSyncGroupRole::AlwaysLeader | SourceSyncGroupRole::ExclusiveAlwaysLeader
+    )
+}
+
+pub fn select_source_sync_group_leader(
+    candidates: &[SourceSyncGroupCandidate],
+    require_marker_sync: bool,
+) -> Option<usize> {
+    let mut ordered: Vec<usize> = (0..candidates.len()).collect();
+    ordered.sort_by(|left, right| {
+        let left_candidate = candidates[*left];
+        let right_candidate = candidates[*right];
+        let score = source_sync_group_leader_score(right_candidate)
+            .total_cmp(&source_sync_group_leader_score(left_candidate));
+        if !score.is_eq() {
+            return score;
+        }
+        if source_sync_group_tie_prefers_last(left_candidate)
+            && source_sync_group_tie_prefers_last(right_candidate)
+        {
+            return right_candidate.source_order.cmp(&left_candidate.source_order);
+        }
+        left_candidate.source_order.cmp(&right_candidate.source_order)
+    });
+    ordered
+        .iter()
+        .copied()
+        .find(|index| !require_marker_sync || candidates[*index].marker_sync_valid)
+        .or_else(|| ordered.first().copied())
+}
+
 #[derive(Resource, Default)]
 pub struct SyncGroupPhaseRegistry {
     phases: HashMap<String, SyncPhaseState>,
@@ -709,6 +776,87 @@ mod tests {
         };
         assert!((advance_sync_phase(&mut state, input) - 0.2).abs() < EPSILON);
         assert!((advance_sync_phase(&mut state, input) - 0.45).abs() < EPSILON);
+    }
+
+    #[test]
+    fn source_group_leader_scoring_matches_ue_roles() {
+        let candidates = [
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::AlwaysFollower,
+                blend_weight: 1.0,
+                source_order: 0,
+                marker_sync_valid: true,
+            },
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::CanBeLeader,
+                blend_weight: 0.75,
+                source_order: 1,
+                marker_sync_valid: true,
+            },
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::AlwaysLeader,
+                blend_weight: 0.0,
+                source_order: 2,
+                marker_sync_valid: true,
+            },
+        ];
+        assert_eq!(source_sync_group_leader_score(candidates[0]), -1.0);
+        assert_eq!(source_sync_group_leader_score(candidates[1]), 0.75);
+        assert_eq!(source_sync_group_leader_score(candidates[2]), 2.0);
+        assert_eq!(select_source_sync_group_leader(&candidates, false), Some(2));
+    }
+
+    #[test]
+    fn source_group_leader_ties_follow_ue_role_ordering() {
+        let normal = [
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::CanBeLeader,
+                blend_weight: 0.5,
+                source_order: 0,
+                marker_sync_valid: true,
+            },
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::CanBeLeader,
+                blend_weight: 0.5,
+                source_order: 1,
+                marker_sync_valid: true,
+            },
+        ];
+        let always = [
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::AlwaysLeader,
+                blend_weight: 0.0,
+                source_order: 0,
+                marker_sync_valid: true,
+            },
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::ExclusiveAlwaysLeader,
+                blend_weight: 0.0,
+                source_order: 1,
+                marker_sync_valid: true,
+            },
+        ];
+        assert_eq!(select_source_sync_group_leader(&normal, false), Some(0));
+        assert_eq!(select_source_sync_group_leader(&always, false), Some(1));
+    }
+
+    #[test]
+    fn source_group_marker_failure_tries_the_next_leader() {
+        let candidates = [
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::CanBeLeader,
+                blend_weight: 1.0,
+                source_order: 0,
+                marker_sync_valid: false,
+            },
+            SourceSyncGroupCandidate {
+                role: SourceSyncGroupRole::CanBeLeader,
+                blend_weight: 0.5,
+                source_order: 1,
+                marker_sync_valid: true,
+            },
+        ];
+        assert_eq!(select_source_sync_group_leader(&candidates, true), Some(1));
     }
 
     #[test]
