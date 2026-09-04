@@ -1017,8 +1017,29 @@ def state_result_contract(node):
         if value == "()":
             continue
         reference = parse_struct(value)
-        function = parse_quoted(field(reference, "FunctionName"))
-        lifecycle.append({"call_site": call_site, "source_function": function})
+        declared_function = parse_quoted(field(reference, "FunctionName"))
+        binding_values = [
+            value.get("exported_text")
+            for value in node.get("properties", [])
+            if value.get("name") == property_name and isinstance(value.get("exported_text"), str)
+        ]
+        if len(binding_values) > 1:
+            raise PoseContractError("source state lifecycle binding is ambiguous")
+        bound_function = ""
+        if binding_values:
+            binding = parse_struct(binding_values[0])
+            bound_function = parse_quoted(field(binding, "MemberName", '""'))
+        lifecycle.append(
+            {
+                "call_site": call_site,
+                "source_function": bound_function or declared_function,
+                **(
+                    {"source_declared_function": declared_function}
+                    if bound_function and bound_function != declared_function
+                    else {}
+                ),
+            }
+        )
     issues.extend(
         lifecycle_issues(
             node,
@@ -1296,11 +1317,21 @@ def run_self_test():
         "(StateIndex=-1,StateEntryFunction=(),StateFullyBlendedInFunction=(),StateExitFunction=(FunctionName=\"Exit\"),StateFullyBlendedOutFunction=(),Result=(),LayerGroup=\"DefaultSharedGroup\",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
         [input_pin("Result")],
     )
+    state["properties"].append(
+        {
+            "name": "StateExitFunction",
+            "exported_text": '(MemberName="ActualExit",MemberGuid=00000000000000000000000000000000,bSelfContext=True)',
+        }
+    )
     _, issues = pose_contract(state, "state_result")
     assert issues[0]["kind"] == "source_lifecycle_unsupported"
     state_contract, _ = pose_contract(state, "state_result")
     assert state_contract["lifecycle"] == [
-        {"call_site": "OnStateExit", "source_function": "Exit"}
+        {
+            "call_site": "OnStateExit",
+            "source_function": "ActualExit",
+            "source_declared_function": "Exit",
+        }
     ]
     linked = fixture_node(
         "linked_input_pose",

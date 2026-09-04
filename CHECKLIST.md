@@ -56,6 +56,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：本地 `AB_Als_Standing.uasset`的9类调用均为 self-context、无参数、`OnBecomeRelevant`或`OnUpdate`；`AlsLinkedAnimationInstance.cpp`只转发给 parent。`AlsAnimationInstance.cpp`定义 grounded/standing/crouching/dynamic/turn 的状态写入；当前 `GroundedLayerPlugin`、`StandingLayerPlugin`、`CrouchingLayerPlugin`、`TurnLayerPlugin`已消费相同状态和生命周期。
   - Gate summary：lifecycle fixture、converter self-test、JSON parse、Standing/Crouching/Grounded direct `--write`/`--check`均PASS（blocked exit=3且无 drift）；三图的 `unregistered_source_function`均为0，已映射函数在 integration JSON 指向实际 runtime plugin。保留 Standing 5、Crouching 1、Grounded 1 个 `source_lifecycle_unsupported`及其余 node/property/sync blocker。消融：临时移除`RefreshStandingMovement` provider使 dispatch 0→1缺失，故保留最小函数签名映射；未按 asset path 建白名单。
 
+- [x] BF112.07 StateResult MemberName lifecycle lowering：开始：2026-09-04 23:25:21 +08:00；预估结束：2026-09-05 00:05:21 +08:00；实际结束：2026-09-04 23:43:24 +08:00（偏差 -21m57s）。以 StateResult binding 的真实 `MemberName`取代编译期占位 `FunctionName`，递归验证已知 stop/roll函数图并映射到现有 transition runtime；其它 StateResult binding 保持 blocker。验收：binding precedence fixture、function-graph fixture、Standing/Crouching/Grounded fresh direct report 的 StateResult lifecycle blocker清零且 actual function name可人工对照。
+  - source fact：Standing 的 `OnStateEntry`/`StopLeft`/`StopRight`分别绑定到`PlayStopLeftTransitionAnimation`或`PlayStopRightTransitionAnimation`；Crouching Stop绑定`PlayStopTransitionAnimation`；Grounded Roll exit绑定`PlayRollToGroundedTransitionAnimation`。这些 function graph 均是 FunctionEntry→GetParent→transition call；Standing Left/Right固定 `.2/.2/1.5/.4`，Crouching/Roll为 right transition `.2/.2/1.5/.2`。
+  - Gate summary：state binding precedence/ablation、transition-function、pose-contract、converter self-test和三图 fresh direct `--write`/`--check`均PASS（blocked exit=3且无 drift）；integration JSON明确列出实际函数名，Standing/Crouching/Grounded 的`source_lifecycle_unsupported`均为0。消融：去掉 binding 时 fixture立即退回`CompiledPlaceholder`外部依赖；未按占位名映射或吞掉未知 binding。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

@@ -92,6 +92,19 @@ def node_class(node):
     return value
 
 
+def lifecycle_binding_name(node, field_name):
+    values = [
+        property_value.get("exported_text")
+        for property_value in node.get("properties", [])
+        if property_value.get("name") == field_name
+        and isinstance(property_value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        return None
+    match = re.search(r'MemberName="([^\"]+)"', values[0])
+    return match.group(1) if match is not None else None
+
+
 def animation_function_references(node):
     references = []
     class_path = node_class(node)
@@ -102,6 +115,8 @@ def animation_function_references(node):
             if name:
                 references.append(("anim_node", name))
     for property_value in node.get("properties", []):
+        if property_value.get("name") != "Node":
+            continue
         value = property_value.get("exported_text")
         if not isinstance(value, str):
             continue
@@ -111,7 +126,9 @@ def animation_function_references(node):
                 value,
             )
             if match is not None:
-                references.append((field_name, match.group(1)))
+                references.append(
+                    (field_name, lifecycle_binding_name(node, field_name) or match.group(1))
+                )
     return sorted(set(references))
 
 
@@ -552,6 +569,31 @@ def fixture_source_with_native_pin_links():
     return source
 
 
+def fixture_source_with_state_lifecycle_binding():
+    source = fixture_source()
+    state_result = source["graphs"][2]["nodes"][0]
+    state_result["properties"] = [
+        {
+            "name": "Node",
+            "exported_text": '(StateEntryFunction=(FunctionName="CompiledPlaceholder"))',
+        },
+        {
+            "name": "StateEntryFunction",
+            "exported_text": '(MemberName="ActualStateEntry",MemberGuid=00000000000000000000000000000000,bSelfContext=True)',
+        },
+    ]
+    source["graphs"].append(
+        {
+            "index": 4,
+            "object_path": "/Asset:ActualStateEntry",
+            "class_path": "/Script/Engine.EdGraph",
+            "name": "ActualStateEntry",
+            "nodes": [],
+        }
+    )
+    return source
+
+
 def run_self_test():
     result = traverse(fixture_source(), "AnimGraph")
     graphs = {entry["source_graph"]: entry for entry in result["graphs"]}
@@ -583,12 +625,32 @@ def run_self_test():
     assert "/Asset:AnimGraph.Save" in native_nodes
     assert "/Asset:AnimGraph.Linked" in native_nodes
     assert not native_result["issues"]
+    bound_result = traverse(fixture_source_with_state_lifecycle_binding(), "AnimGraph")
+    assert {
+        "source_node": "/Asset:AnimGraph.StateMachine.Locomotion.State.Idle.Result",
+        "source_function": "ActualStateEntry",
+        "call_site": "StateEntryFunction",
+        "source_graph": "ActualStateEntry",
+        "resolution": "graph",
+    } in bound_result["function_dependencies"]
+    unbound_source = fixture_source_with_state_lifecycle_binding()
+    unbound_source["graphs"][2]["nodes"][0]["properties"].pop()
+    unbound_result = traverse(unbound_source, "AnimGraph")
+    assert {
+        "source_node": "/Asset:AnimGraph.StateMachine.Locomotion.State.Idle.Result",
+        "source_function": "CompiledPlaceholder",
+        "call_site": "StateEntryFunction",
+        "source_graph": None,
+        "resolution": "external",
+    } in unbound_result["function_dependencies"]
     return {
         "root_pose_walks_upstream_links": "PASS",
         "state_machine_walks_state_graphs": "PASS",
         "cached_pose_walks_producer": "PASS",
         "linked_anim_dependency_recorded": "PASS",
         "lifecycle_function_graph_recorded": "PASS",
+        "state_lifecycle_binding_uses_member_name": "PASS",
+        "state_lifecycle_binding_ablation_changes_dependency": "PASS",
         "native_pin_links_walk_from_root": "PASS",
     }
 
