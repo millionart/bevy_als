@@ -396,6 +396,7 @@ def run_self_test():
         write_json(root / "source.ir.json", ir)
         write_json(root / "conversion.report.json", report)
         assert not check_outputs(root, ir, report)
+        assert not list(root.rglob("*.ron"))
         write_json(root / "source.ir.json", {"format": IR_FORMAT, "graphs": ["drift"]})
         assert check_outputs(root, ir, report)
     with tempfile.TemporaryDirectory() as directory:
@@ -412,6 +413,7 @@ def run_self_test():
         "source_pin_link_position_property_drift_rejected": "PASS",
         "deterministic_ir_drift_rejected": "PASS",
         "unsupported_source_blocks_generation": "PASS",
+        "core_does_not_emit_partial_bevy_graphs": "PASS",
     }
 
 
