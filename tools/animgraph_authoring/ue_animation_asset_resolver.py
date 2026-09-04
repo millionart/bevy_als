@@ -16,6 +16,7 @@ from ue_exported_text import (
     parse_bool,
     parse_list,
     parse_number,
+    parse_quoted,
     parse_struct,
     reject_unknown_fields,
 )
@@ -131,12 +132,19 @@ def native_source_asset(source_path, source_reader=None):
     return value
 
 
-def asset_property(source, name):
+def asset_properties(source, name):
     values = [
         value.get("exported_text")
         for value in source.get("asset_properties", [])
         if value.get("name") == name and isinstance(value.get("exported_text"), str)
     ]
+    if not values:
+        raise AssetResolutionError(f"source asset property is missing: {name}")
+    return values
+
+
+def asset_property(source, name):
+    values = asset_properties(source, name)
     if len(values) != 1:
         raise AssetResolutionError(f"source asset property is missing or ambiguous: {name}")
     return values[0]
@@ -336,10 +344,6 @@ def resolve_animation_clip(asset_root, source_path):
     return relative_asset_path(asset_root, target)
 
 
-def resolve_blendspace(asset_root, source_path):
-    return resolve_blendspace_contract(asset_root, source_path)["target_asset"]
-
-
 def blendspace_metadata_path(asset_root, source_path):
     package_path = source_package_path(source_path)
     candidates = []
@@ -406,9 +410,157 @@ def resolve_blendspace_contract(asset_root, source_path):
             }
         )
     return {
+        "source_asset": source_path,
         "target_asset": relative_asset_path(asset_root, path),
         "axes": normalized_axes,
         "samples": normalized_samples,
+    }
+
+
+def source_name(value):
+    return parse_quoted(value) if value.startswith('"') else value
+
+
+def blendspace_vector(value):
+    fields = parse_struct(value)
+    reject_unknown_fields(fields, {"X", "Y", "Z"})
+    return [
+        parse_number(struct_field(fields, axis, "0.0"))
+        for axis in ("X", "Y", "Z")
+    ]
+
+
+def blendspace_source_sample(value):
+    fields = parse_struct(value)
+    reject_unknown_fields(
+        fields,
+        {
+            "Animation",
+            "SampleValue",
+            "RateScale",
+            "bMirror",
+            "bUseSingleFrameForBlending",
+            "FrameIndexToSample",
+            "bIncludeInAnalyseAll",
+        },
+    )
+    if parse_bool(struct_field(fields, "bMirror", "False")):
+        raise AssetResolutionError("source blendspace mirrored sample is unsupported")
+    if parse_bool(struct_field(fields, "bUseSingleFrameForBlending", "False")):
+        raise AssetResolutionError("source blendspace single-frame sample is unsupported")
+    if parse_number(struct_field(fields, "FrameIndexToSample", "0")) != 0.0:
+        raise AssetResolutionError("source blendspace sample frame is unsupported")
+    if not parse_bool(struct_field(fields, "bIncludeInAnalyseAll", "True")):
+        raise AssetResolutionError("source blendspace excluded sample is unsupported")
+    return {
+        "source_animation": source_object_path(struct_field(fields, "Animation")),
+        "value": blendspace_vector(struct_field(fields, "SampleValue", "()")),
+        "rate_scale": parse_number(struct_field(fields, "RateScale", "1.0")),
+    }
+
+
+def blendspace_player_asset_contract(source, blendspace):
+    if (
+        not isinstance(source, dict)
+        or source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_class") != "/Script/Engine.BlendSpace"
+        or source.get("asset_path") != blendspace.get("source_asset")
+    ):
+        raise AssetResolutionError("source BlendSpace is invalid")
+    try:
+        parameter_rows = asset_properties(source, "BlendParameters")
+        if len(parameter_rows) != 3:
+            raise AssetResolutionError("source BlendSpace axis count is unsupported")
+        axes = []
+        for row in parameter_rows:
+            fields = parse_struct(row)
+            reject_unknown_fields(fields, {"DisplayName", "Min", "Max", "GridNum"})
+            axes.append(
+                {
+                    "name": parse_quoted(struct_field(fields, "DisplayName")),
+                    "min": parse_number(struct_field(fields, "Min", "0.0")),
+                    "max": parse_number(struct_field(fields, "Max")),
+                    "grid_num": parse_number(struct_field(fields, "GridNum")),
+                }
+            )
+        interpolation_rows = asset_properties(source, "InterpolationParam")
+        if len(interpolation_rows) != 3:
+            raise AssetResolutionError("source BlendSpace interpolation axis count is unsupported")
+        filters = []
+        for index, row in enumerate(interpolation_rows):
+            fields = parse_struct(row)
+            reject_unknown_fields(fields, {"InterpolationTime", "DampingRatio", "InterpolationType"})
+            if parse_number(struct_field(fields, "DampingRatio", "1.0")) != 1.0:
+                raise AssetResolutionError("source BlendSpace damping ratio is unsupported")
+            interpolation = struct_field(fields, "InterpolationType")
+            if index < 2:
+                if interpolation != "BSIT_Cubic":
+                    raise AssetResolutionError("source BlendSpace axis interpolation is unsupported")
+                filters.append(parse_number(struct_field(fields, "InterpolationTime")))
+            elif interpolation != "BSIT_SpringDamper":
+                raise AssetResolutionError("source BlendSpace unused axis interpolation is unsupported")
+        source_samples = [
+            blendspace_source_sample(row)
+            for row in parse_list(asset_property(source, "SampleData"))
+        ]
+        dimensions = [parse_number(value) for value in parse_list(asset_property(source, "DimensionIndices"))]
+        if dimensions != [0.0, 1.0]:
+            raise AssetResolutionError("source BlendSpace dimensions are unsupported")
+        if not parse_bool(asset_property(source, "bLoop")):
+            raise AssetResolutionError("source BlendSpace non-looping asset is unsupported")
+        if not parse_bool(asset_property(source, "bAllowMarkerBasedSync")):
+            raise AssetResolutionError("source BlendSpace marker sync is unsupported")
+        if parse_bool(asset_property(source, "bShouldMatchSyncPhases")):
+            raise AssetResolutionError("source BlendSpace phase matching is unsupported")
+        if parse_bool(asset_property(source, "bUseLegacySamplePointAnimationLengthCalculations")):
+            raise AssetResolutionError("source BlendSpace legacy sample timing is unsupported")
+        if parse_bool(asset_property(source, "bAllowMeshSpaceBlending")):
+            raise AssetResolutionError("source BlendSpace mesh-space blending is unsupported")
+        if parse_number(asset_property(source, "TargetWeightInterpolationSpeedPerSec")) != 0.0:
+            raise AssetResolutionError("source BlendSpace target-weight interpolation is unsupported")
+        if parse_bool(asset_property(source, "bInterpolateUsingGrid")):
+            raise AssetResolutionError("source BlendSpace grid interpolation is unsupported")
+        if asset_property(source, "PreferredTriangulationDirection") != "Tangential":
+            raise AssetResolutionError("source BlendSpace triangulation is unsupported")
+        if asset_property(source, "NotifyTriggerMode") != "HighestWeightedAnimation":
+            raise AssetResolutionError("source BlendSpace notify mode is unsupported")
+    except ExportedTextError as error:
+        raise AssetResolutionError("source BlendSpace properties are invalid") from error
+    target_axes = blendspace.get("axes")
+    target_samples = blendspace.get("samples")
+    if not isinstance(target_axes, list) or not isinstance(target_samples, list):
+        raise AssetResolutionError("target BlendSpace metadata is invalid")
+    if len(axes) != len(target_axes) or len(source_samples) != len(target_samples):
+        raise AssetResolutionError("target BlendSpace metadata differs from source")
+    for source_axis, target_axis in zip(axes, target_axes):
+        if (
+            not isinstance(target_axis, dict)
+            or source_axis["name"] != target_axis.get("name")
+            or any(
+                abs(source_axis[field] - numeric(target_axis.get(field), "target BlendSpace axis")) > 1.0e-6
+                for field in ("min", "max", "grid_num")
+            )
+        ):
+            raise AssetResolutionError("target BlendSpace axis metadata differs from source")
+    for source_sample, target_sample in zip(source_samples, target_samples):
+        target_value = target_sample.get("value") if isinstance(target_sample, dict) else None
+        if (
+            not isinstance(target_value, list)
+            or source_sample["source_animation"] != target_sample.get("source_animation")
+            or len(target_value) != len(source_sample["value"])
+            or any(
+                abs(left - numeric(right, "target BlendSpace sample")) > 1.0e-6
+                for left, right in zip(source_sample["value"], target_value)
+            )
+            or abs(
+                source_sample["rate_scale"]
+                - numeric(target_sample.get("rate_scale"), "target BlendSpace sample rate")
+            )
+            > 1.0e-6
+        ):
+            raise AssetResolutionError("target BlendSpace sample metadata differs from source")
+    return {
+        "axis_filter": {"x_window_seconds": filters[0], "y_window_seconds": filters[1]},
     }
 
 
@@ -436,6 +588,126 @@ def visible_input_pins(node):
         for pin in node.get("pins", [])
         if pin.get("direction") == "Input" and not pin.get("hidden")
     ]
+
+
+def visible_output_pins(node):
+    return [
+        pin
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Output" and not pin.get("hidden")
+    ]
+
+
+def blendspace_player_contract(node, blendspace, asset_contract):
+    source_node = node_property(node, "Node")
+    try:
+        fields = parse_struct(source_node)
+        reject_unknown_fields(
+            fields,
+            {
+                "GroupName",
+                "GroupRole",
+                "Method",
+                "BlendSpace",
+                "X",
+                "Y",
+                "PlayRate",
+                "bLoop",
+                "bResetPlayTimeWhenBlendSpaceChanges",
+                "StartPosition",
+                "bIgnoreForRelevancyTest",
+                "bOverridePositionWhenJoiningSyncGroupAsLeader",
+                "InitialUpdateFunction",
+                "BecomeRelevantFunction",
+                "UpdateFunction",
+            },
+        )
+        if named_object_reference(source_node, "BlendSpace") != blendspace.get("source_asset"):
+            raise AssetResolutionError("source BlendSpace player asset does not match metadata")
+        for name in ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"):
+            if struct_field(fields, name, "()") != "()":
+                raise AssetResolutionError("source BlendSpace player lifecycle is unsupported")
+        group = source_name(struct_field(fields, "GroupName", "None"))
+        role = source_name(struct_field(fields, "GroupRole", "CanBeLeader"))
+        method = source_name(struct_field(fields, "Method", "DoNotSync"))
+        if group == "None" or method != "SyncGroup" or role != "CanBeLeader":
+            raise AssetResolutionError("source BlendSpace player sync contract is unsupported")
+        if parse_bool(struct_field(fields, "bIgnoreForRelevancyTest", "False")):
+            raise AssetResolutionError("source BlendSpace player relevancy override is unsupported")
+        if parse_bool(struct_field(fields, "bOverridePositionWhenJoiningSyncGroupAsLeader", "False")):
+            raise AssetResolutionError("source BlendSpace player join override is unsupported")
+        loop = parse_bool(struct_field(fields, "bLoop", "True"))
+        if not loop:
+            raise AssetResolutionError("source BlendSpace player non-looping playback is unsupported")
+        reset_play_time = parse_bool(
+            struct_field(fields, "bResetPlayTimeWhenBlendSpaceChanges", "True")
+        )
+        if not reset_play_time:
+            raise AssetResolutionError("source BlendSpace player reset mode is unsupported")
+        start_position = parse_number(struct_field(fields, "StartPosition", "0.0"))
+        if not 0.0 <= start_position <= 1.0:
+            raise AssetResolutionError("source BlendSpace player start position is invalid")
+        configured_play_rate = parse_number(struct_field(fields, "PlayRate", "1.0"))
+    except ExportedTextError as error:
+        raise AssetResolutionError("source BlendSpace player properties are invalid") from error
+    inputs = visible_input_pins(node)
+    if [pin.get("name") for pin in inputs] != ["X", "Y", "PlayRate"]:
+        raise AssetResolutionError("source BlendSpace player input schema is unsupported")
+    if [pin.get("name") for pin in visible_output_pins(node)] != ["Pose"]:
+        raise AssetResolutionError("source BlendSpace player output schema is unsupported")
+    axis_names = [axis.get("name") for axis in blendspace.get("axes", [])]
+    expected_labels = [*axis_names[:2], "Play Rate"]
+    if len(axis_names) != 3 or axis_names[2] != "None" or [
+        pin.get("friendly_name") for pin in inputs
+    ] != expected_labels:
+        raise AssetResolutionError("source BlendSpace player pin labels are unsupported")
+    if inputs[2].get("linked_to"):
+        raise AssetResolutionError("source BlendSpace player linked play rate is unsupported")
+    for pin in inputs:
+        source_pin_number(pin.get("default_value"), f"source BlendSpace player input {pin['name']}")
+    samples = blendspace.get("samples")
+    if not isinstance(samples, list) or not samples:
+        raise AssetResolutionError("source BlendSpace player samples are unavailable")
+    for index, sample in enumerate(samples):
+        timing = sample.get("source_timing") if isinstance(sample, dict) else None
+        markers = timing.get("markers") if isinstance(timing, dict) else None
+        if (
+            not isinstance(timing, dict)
+            or not isinstance(timing.get("duration"), (int, float))
+            or timing["duration"] <= 0.0
+            or not isinstance(markers, list)
+            or len(markers) < 2
+            or any(
+                not isinstance(marker, dict)
+                or not isinstance(marker.get("name"), str)
+                or not marker["name"]
+                or not isinstance(marker.get("time"), (int, float))
+                for marker in markers
+            )
+        ):
+            raise AssetResolutionError(f"source BlendSpace player sample timing is unsupported: {index}")
+    if not isinstance(asset_contract, dict) or not isinstance(asset_contract.get("axis_filter"), dict):
+        raise AssetResolutionError("source BlendSpace player asset contract is unavailable")
+    return {
+        "input_pins": [
+            {
+                "name": pin["name"],
+                "axis": axis_names[index] if index < 2 else None,
+                "default_value": source_pin_number(
+                    pin.get("default_value"), f"source BlendSpace player input {pin['name']}"
+                ),
+            }
+            for index, pin in enumerate(inputs)
+        ],
+        "sync_group": group,
+        "sync_group_role": role,
+        "sync_method": method,
+        "loop": loop,
+        "reset_play_time_when_asset_changes": reset_play_time,
+        "start_position": start_position,
+        "configured_play_rate": configured_play_rate,
+        "axis_filter": asset_contract["axis_filter"],
+    }
 
 
 def blendspace_evaluator_contract(node, blendspace):
@@ -484,9 +756,16 @@ def blendspace_evaluator_contract(node, blendspace):
     }
 
 
-def resolve_graph_animation_assets(asset_root, source, source_content_root=None, source_mount=None):
+def resolve_graph_animation_assets(
+    asset_root,
+    source,
+    source_content_root=None,
+    source_mount=None,
+    source_reader=None,
+):
     rows = []
     timings = {}
+    native_blendspaces = {}
     for graph in source.get("graphs", []):
         for node in graph.get("nodes", []):
             class_path = node.get("class_path")
@@ -503,6 +782,27 @@ def resolve_graph_animation_assets(asset_root, source, source_content_root=None,
                 evaluator = blendspace_evaluator_contract(node, blendspace)
                 target = blendspace["target_asset"]
                 category = "blendspace"
+            elif class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer":
+                if source_content_root is None or source_mount is None:
+                    raise AssetResolutionError("source BlendSpace player timing root is unavailable")
+                source_path = named_object_reference(node_property(node, "Node"), "BlendSpace")
+                blendspace = resolve_blendspace_contract(asset_root, source_path)
+                native = native_blendspaces.get(source_path)
+                if native is None:
+                    native = blendspace_player_asset_contract(
+                        native_source_asset(source_path, source_reader), blendspace
+                    )
+                    native_blendspaces[source_path] = native
+                for sample in blendspace["samples"]:
+                    animation = sample["source_animation"]
+                    timing = timings.get(animation)
+                    if timing is None:
+                        timing = source_sequence_timing(source_content_root, source_mount, animation)
+                        timings[animation] = timing
+                    sample["source_timing"] = timing
+                player = blendspace_player_contract(node, blendspace, native)
+                target = blendspace["target_asset"]
+                category = "blendspace"
             else:
                 continue
             row = {
@@ -516,6 +816,9 @@ def resolve_graph_animation_assets(asset_root, source, source_content_root=None,
             if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator":
                 row["blendspace"] = blendspace
                 row["evaluator"] = evaluator
+            if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer":
+                row["blendspace"] = blendspace
+                row["player"] = player
             if category == "sequence" and source_content_root is not None:
                 timing = timings.get(source_path)
                 if timing is None:
@@ -556,8 +859,8 @@ def run_self_test():
         (root / "metadata.json").write_text("[]", encoding="utf-8")
         assert source_object_path("Sequence=\"/Script/Engine.AnimSequence'/ALS/Animations/A_Test.A_Test'\"") == "/ALS/Animations/A_Test.A_Test"
         assert resolve_animation_clip(root, "/ALS/Animations/A_Test.A_Test") == "animations/Air/A_Test.anim.ron"
-        assert resolve_blendspace(root, "/ALS/Animations/BS_Test.BS_Test") == "animations/blendspaces/BS_Test.json"
         contract = resolve_blendspace_contract(root, "/ALS/Animations/BS_Test.BS_Test")
+        assert contract["target_asset"] == "animations/blendspaces/BS_Test.json"
         assert contract["axes"][0]["name"] == "X"
         assert contract["samples"][0]["target_clip"] == "animations/Air/A_Test.anim.ron"
         duplicate = root / "other" / "A_Test.anim.ron"
@@ -684,6 +987,76 @@ def run_self_test():
             pass
         else:
             raise AssertionError("unsupported blendspace evaluator input was accepted")
+    player_blendspace = {
+        "source_asset": "/ALS/Animations/BS_Test.BS_Test",
+        "axes": [
+            {"name": "Stride", "min": 0.0, "max": 1.0, "grid_num": 1.0},
+            {"name": "WalkRun", "min": 0.0, "max": 1.0, "grid_num": 1.0},
+            {"name": "None", "min": 0.0, "max": 100.0, "grid_num": 4.0},
+        ],
+        "samples": [
+            {
+                "source_animation": "/ALS/Animations/A_Test.A_Test",
+                "target_clip": "animations/A_Test.anim.ron",
+                "value": [0.0, 0.0, 0.0],
+                "rate_scale": 1.0,
+                "source_timing": {
+                    "duration": 1.0,
+                    "markers": [{"name": "Left", "time": 0.0}, {"name": "Right", "time": 0.5}],
+                },
+            }
+        ],
+    }
+    player_asset_properties = [
+        {"name": "BlendParameters", "exported_text": '(DisplayName="Stride",Max=1.000000,GridNum=1)'},
+        {"name": "BlendParameters", "exported_text": '(DisplayName="WalkRun",Max=1.000000,GridNum=1)'},
+        {"name": "BlendParameters", "exported_text": '(DisplayName="None",Max=100.000000,GridNum=4)'},
+        {"name": "InterpolationParam", "exported_text": '(InterpolationTime=0.200000,DampingRatio=1.000000,InterpolationType=BSIT_Cubic)'},
+        {"name": "InterpolationParam", "exported_text": '(InterpolationTime=0.400000,DampingRatio=1.000000,InterpolationType=BSIT_Cubic)'},
+        {"name": "InterpolationParam", "exported_text": '(DampingRatio=1.000000,InterpolationType=BSIT_SpringDamper)'},
+        {"name": "SampleData", "exported_text": '((Animation="/Script/Engine.AnimSequence\'/ALS/Animations/A_Test.A_Test\'"))'},
+        {"name": "DimensionIndices", "exported_text": '(0,1)'},
+        {"name": "bLoop", "exported_text": "True"},
+        {"name": "bAllowMarkerBasedSync", "exported_text": "True"},
+        {"name": "bShouldMatchSyncPhases", "exported_text": "False"},
+        {"name": "bUseLegacySamplePointAnimationLengthCalculations", "exported_text": "False"},
+        {"name": "bAllowMeshSpaceBlending", "exported_text": "False"},
+        {"name": "TargetWeightInterpolationSpeedPerSec", "exported_text": "0.000000"},
+        {"name": "bInterpolateUsingGrid", "exported_text": "False"},
+        {"name": "PreferredTriangulationDirection", "exported_text": "Tangential"},
+        {"name": "NotifyTriggerMode", "exported_text": "HighestWeightedAnimation"},
+    ]
+    player_source = {
+        "format": "ue_asset_source_v1",
+        "asset_path": "/ALS/Animations/BS_Test.BS_Test",
+        "asset_class": "/Script/Engine.BlendSpace",
+        "asset_properties": player_asset_properties,
+    }
+    player_asset = blendspace_player_asset_contract(player_source, player_blendspace)
+    assert player_asset["axis_filter"] == {"x_window_seconds": 0.2, "y_window_seconds": 0.4}
+    player_node = {
+        "properties": [
+            {
+                "name": "Node",
+                "exported_text": '(GroupName="Movement",Method=SyncGroup,PlayRate=1.000000,bLoop=True,bResetPlayTimeWhenBlendSpaceChanges=True,StartPosition=0.200000,BlendSpace="/Script/Engine.BlendSpace\'/ALS/Animations/BS_Test.BS_Test\'",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+            }
+        ],
+        "pins": [
+            {"name": "X", "direction": "Input", "hidden": False, "friendly_name": "Stride", "default_value": "0.000000", "linked_to": []},
+            {"name": "Y", "direction": "Input", "hidden": False, "friendly_name": "WalkRun", "default_value": "0.000000", "linked_to": []},
+            {"name": "PlayRate", "direction": "Input", "hidden": False, "friendly_name": "Play Rate", "default_value": "1.000000", "linked_to": []},
+            {"name": "Pose", "direction": "Output", "hidden": False},
+        ],
+    }
+    player = blendspace_player_contract(player_node, player_blendspace, player_asset)
+    assert player["sync_group"] == "Movement" and player["axis_filter"]["y_window_seconds"] == 0.4
+    player_asset_properties[8]["exported_text"] = "False"
+    try:
+        blendspace_player_asset_contract(player_source, player_blendspace)
+    except AssetResolutionError:
+        pass
+    else:
+        raise AssertionError("non-looping source BlendSpace was accepted")
     assert source_blend_profile_wrapper(None, None, "(bIsSkeletonBlendProfile=True)") == {
         "source_profile": None,
         "bone_scales": [],
@@ -759,6 +1132,7 @@ def run_self_test():
         "source_animation_path_resolves_inside_mount": "PASS",
         "sequence_nodes_resolve_from_source_graphs": "PASS",
         "blendspace_evaluator_schema_is_validated": "PASS",
+        "blendspace_player_source_asset_and_timing_contract_resolved": "PASS",
         "empty_skeleton_blend_profile_preserved": "PASS",
         "unsupported_blend_profile_rejected": "PASS",
         "source_rich_curve_keys_preserved": "PASS",

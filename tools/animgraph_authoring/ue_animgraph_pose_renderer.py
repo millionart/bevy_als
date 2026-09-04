@@ -29,6 +29,7 @@ SUPPORTED_RENDERERS = {
     "inertialization",
     "pose_lifecycle_call",
     "blendspace_evaluator",
+    "blendspace_player",
     "property_access",
     "boolean_operator",
     "comparison_operator",
@@ -174,16 +175,42 @@ def cache_key(graph_contract, cache_name):
     return "ue-cache:" + str(uuid.uuid5(uuid.NAMESPACE_URL, asset + ":" + cache_name))
 
 
-def blendspace_inner(value):
+def marker_ron(markers):
+    if not isinstance(markers, list) or len(markers) < 2:
+        raise PoseRenderError("source blendspace marker contract is invalid")
+    rows = []
+    for marker in markers:
+        if (
+            not isinstance(marker, dict)
+            or not isinstance(marker.get("name"), str)
+            or not marker["name"]
+            or not isinstance(marker.get("time"), (int, float))
+        ):
+            raise PoseRenderError("source blendspace marker is invalid")
+        rows.append("(name: " + quoted(marker["name"]) + ", time: " + repr(marker["time"]) + ")")
+    return "[" + ", ".join(rows) + "]"
+
+
+def blendspace_inner(value, player=False):
     blendspace = value.get("blendspace")
     if not isinstance(blendspace, dict):
         raise PoseRenderError("source blendspace contract is unavailable")
-    if not value.get("teleport_to_normalized_time"):
-        raise PoseRenderError("source blendspace evaluator time mode is unsupported")
-    if abs(value.get("configured_play_rate", 0.0) - 1.0) > 1.0e-6:
-        raise PoseRenderError("source blendspace evaluator play rate is unsupported")
-    if abs(value.get("normalized_time", 0.0)) > 1.0e-6:
-        raise PoseRenderError("source blendspace evaluator normalized time is unsupported")
+    if player:
+        if abs(value.get("configured_play_rate", 0.0) - 1.0) > 1.0e-6:
+            raise PoseRenderError("source blendspace player play rate is unsupported")
+        phase_duration = value.get("sync_phase_duration")
+        if not isinstance(phase_duration, (int, float)) or phase_duration <= 0.0:
+            raise PoseRenderError("source blendspace player phase duration is invalid")
+        phase_markers = marker_ron(value.get("sync_phase_markers"))
+    else:
+        if not value.get("teleport_to_normalized_time"):
+            raise PoseRenderError("source blendspace evaluator time mode is unsupported")
+        if abs(value.get("configured_play_rate", 0.0) - 1.0) > 1.0e-6:
+            raise PoseRenderError("source blendspace evaluator play rate is unsupported")
+        if abs(value.get("normalized_time", 0.0)) > 1.0e-6:
+            raise PoseRenderError("source blendspace evaluator normalized time is unsupported")
+        phase_duration = 0.0
+        phase_markers = "[]"
     points = []
     for index, sample in enumerate(blendspace.get("samples", [])):
         coordinates = sample.get("value") if isinstance(sample, dict) else None
@@ -200,10 +227,22 @@ def blendspace_inner(value):
             or abs(rate - 1.0) > 1.0e-6
         ):
             raise PoseRenderError("source blendspace sample is unsupported")
+        duration = 0.0
+        markers = "[]"
+        if player:
+            timing = sample.get("source_timing") if isinstance(sample, dict) else None
+            if (
+                not isinstance(timing, dict)
+                or not isinstance(timing.get("duration"), (int, float))
+                or timing["duration"] <= 0.0
+            ):
+                raise PoseRenderError("source blendspace player sample timing is invalid")
+            duration = timing["duration"]
+            markers = marker_ron(timing.get("markers"))
         points.append(
             "(id: "
             + quoted(f"sample_{index}")
-            + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: 0.0, markers: [])"
+            + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: {duration!r}, markers: {markers})"
         )
     if not points:
         raise PoseRenderError("source blendspace samples are missing")
@@ -211,7 +250,11 @@ def blendspace_inner(value):
         "als_ext::NormalizedBlendSpaceNode",
         "(looped: "
         + bool_ron(value["loop"])
-        + ", phase_duration: 0.0, phase_markers: [], points: ["
+        + ", phase_duration: "
+        + repr(phase_duration)
+        + ", phase_markers: "
+        + phase_markers
+        + ", points: ["
         + ", ".join(points)
         + "])",
     )
@@ -259,6 +302,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return "als_ext::SourceSequenceEvaluatorNode", "(" + ", ".join(fields) + ")"
     if renderer == "blendspace_evaluator":
         return blendspace_inner(value)
+    if renderer == "blendspace_player":
+        return blendspace_inner(value, player=True)
     if renderer in SCALAR_RENDERERS:
         return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
     if renderer == "state_machine":
@@ -535,7 +580,7 @@ def target_pin(renderer, source_pin, node=None):
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "root_output":
         return {"Result": "Source"}.get(source_pin, source_pin)
-    if renderer == "blendspace_evaluator":
+    if renderer in {"blendspace_evaluator", "blendspace_player"}:
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
         return {"Pose": "Pose"}.get(source_pin, source_pin)
@@ -563,19 +608,22 @@ def target_pin(renderer, source_pin, node=None):
 
 
 def blendspace_helpers(graph_contract, raw, semantic):
+    renderer = semantic.get("renderer")
+    player = renderer == "blendspace_player"
     value = semantic.get("semantic")
     if not isinstance(value, dict):
         raise PoseRenderError("source blendspace renderer semantic is invalid")
     blendspace = value.get("blendspace")
     inputs = value.get("input_pins")
-    if not isinstance(blendspace, dict) or not isinstance(inputs, list) or len(inputs) != 2:
+    expected_inputs = ["X", "Y", "PlayRate"] if player else ["X", "Y"]
+    if not isinstance(blendspace, dict) or not isinstance(inputs, list) or len(inputs) != len(expected_inputs):
         raise PoseRenderError("source blendspace input contract is invalid")
     binding_keys = value.get("input_binding_keys")
-    if not isinstance(binding_keys, list) or len(binding_keys) != 2 or not all(
+    if not isinstance(binding_keys, list) or len(binding_keys) != len(expected_inputs) or not all(
         isinstance(key, str) for key in binding_keys
     ):
         raise PoseRenderError("source blendspace property binding is unavailable")
-    if [item.get("name") for item in inputs] != ["X", "Y"]:
+    if [item.get("name") for item in inputs] != expected_inputs:
         raise PoseRenderError("source blendspace input schema is unsupported")
     primary_id = node_id(raw)
     source_path = raw["object_path"]
@@ -588,20 +636,81 @@ def blendspace_helpers(graph_contract, raw, semantic):
     phase_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/phase/" + source_path))
     nodes = [
         (vector_id, "Blendspace position", "()", "als_ext::F32ToVec2Node", (x - 96.0, y)),
-        (
-            phase_id,
-            "Blendspace normalized time",
-            "(value: " + repr(value["normalized_time"]) + ")",
-            "als_ext::ConstantF32Node",
-            (x - 96.0, y + 96.0),
-        ),
     ]
-    edges = [
-        f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
-        f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"value\")",
-    ]
+    edges = []
+    if player:
+        phase_key = value.get("sync_phase_key")
+        delta_seconds_key = value.get("delta_seconds_key")
+        axis_filter = value.get("axis_filter")
+        if (
+            not isinstance(phase_key, str)
+            or not phase_key
+            or not isinstance(delta_seconds_key, str)
+            or not delta_seconds_key
+            or not isinstance(axis_filter, dict)
+            or not all(
+                isinstance(axis_filter.get(key), (int, float)) and axis_filter[key] >= 0.0
+                for key in ("x_window_seconds", "y_window_seconds")
+            )
+        ):
+            raise PoseRenderError("source blendspace player phase contract is unavailable")
+        filter_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/filter/" + source_path))
+        delta_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/delta/" + source_path))
+        nodes.extend(
+            [
+                (
+                    phase_id,
+                    "Blendspace sync phase",
+                    "(key: " + quoted(phase_key) + ")",
+                    "als_ext::GlobalF32InputNode",
+                    (x - 96.0, y + 96.0),
+                ),
+                (
+                    filter_id,
+                    "Blendspace cubic axis filter",
+                    "(x_window_seconds: "
+                    + repr(axis_filter["x_window_seconds"])
+                    + ", y_window_seconds: "
+                    + repr(axis_filter["y_window_seconds"])
+                    + ")",
+                    "als_ext::CubicVec2AxisFilterNode",
+                    (x, y),
+                ),
+                (
+                    delta_id,
+                    "Animation delta seconds",
+                    "(key: " + quoted(delta_seconds_key) + ")",
+                    "als_ext::GlobalF32InputNode",
+                    (x - 96.0, y + 144.0),
+                ),
+            ]
+        )
+        edges.extend(
+            [
+                f"NodeData({quoted(filter_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
+                f"NodeData({quoted(filter_id)}, \"delta_seconds\"): NodeData({quoted(delta_id)}, \"{delta_seconds_key}\")",
+                f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(filter_id)}, \"value\")",
+                f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"{phase_key}\")",
+            ]
+        )
+    else:
+        nodes.append(
+            (
+                phase_id,
+                "Blendspace normalized time",
+                "(value: " + repr(value["normalized_time"]) + ")",
+                "als_ext::ConstantF32Node",
+                (x - 96.0, y + 96.0),
+            )
+        )
+        edges.extend(
+            [
+                f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
+                f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"value\")",
+            ]
+        )
     targets = {}
-    for axis, input_value, binding_key in zip(("x", "y"), inputs, binding_keys):
+    for axis, input_value, binding_key in zip(("x", "y"), inputs[:2], binding_keys[:2]):
         pin_name = input_value["name"]
         targets[(source_path, pin_name)] = (vector_id, axis)
         if (source_path, pin_name) not in linked_inputs:
@@ -699,7 +808,7 @@ def render(
             fsm_assets,
         )
         result_nodes.append((identifier, source_title(raw), inner, node_type, position(raw)))
-        if semantic.get("renderer") == "blendspace_evaluator":
+        if semantic.get("renderer") in {"blendspace_evaluator", "blendspace_player"}:
             nodes, edges, targets = blendspace_helpers(graph_contract, raw, semantic)
             result_nodes.extend(nodes)
             blendspace_edges.extend(edges)
@@ -924,7 +1033,7 @@ def run_self_test():
             "semantic": {
                 "pose_count": 2,
                 "desired_alpha_defaults": [0.25, 0.75],
-                "desired_alpha_keys": ["als_standing_velocity_forward_amount", ""],
+                "desired_alpha_keys": ["grounded_state.velocity_blend.forward_amount", ""],
                 "normalize_alpha": True,
                 "alpha_scale": 1.0,
             },
@@ -934,7 +1043,7 @@ def run_self_test():
     )
     assert multi_type == "als_ext::SourceMultiWayBlendNode"
     assert "desired_alpha_defaults: [0.25, 0.75]" in multi_inner
-    assert 'desired_alpha_keys: ["als_standing_velocity_forward_amount", ""]' in multi_inner
+    assert 'desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", ""]' in multi_inner
     assert target_pin("multi_way_blend", "Poses_1") == "Poses 1"
     assert target_pin("multi_way_blend", "DesiredAlphas_1") == "Desired Alphas 1"
     hips_type, hips_inner = rendered_inner(
@@ -959,7 +1068,7 @@ def run_self_test():
         {
             "renderer": "enum_pose_blend",
             "semantic": {
-                "active_key": "als_standing_hips_direction",
+                "active_key": "grounded_state.hips_direction",
                 "selected_enum_value": 3.0,
                 "active_enum_default": 0.0,
                 "default_blend_time": 0.1,
@@ -1014,7 +1123,7 @@ def run_self_test():
                 "curve_names": ["RotationYawOffset"],
                 "curve_values": [0.0],
                 "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
-                "curve_value_keys": ["als_standing_curve_rotation_yaw_offset"],
+                "curve_value_keys": ["grounded_state.rotation_yaw_offsets.forward_angle"],
                 "alpha": 1.0,
                 "alpha_visible": True,
                 "apply_mode": "Blend",
@@ -1024,7 +1133,7 @@ def run_self_test():
         {},
     )
     assert curve_type == "als_ext::SourceCurveModifyNode"
-    assert 'value_keys: ["als_standing_curve_rotation_yaw_offset"]' in curve_inner
+    assert 'value_keys: ["grounded_state.rotation_yaw_offsets.forward_angle"]' in curve_inner
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -1104,12 +1213,64 @@ def run_self_test():
     assert '"bevy_animation_graph::builtin_nodes::ClipNode"' in text
     assert "value: 0.25" in text and "value: -0.5" in text
     blend_ir["nodes"][0]["semantic"]["input_binding_keys"] = [
-        "als_locomotion_air_lean_right",
+        "lean_state.right_amount",
         "",
     ]
     text = render(blend_contract, blend_ir, [])
     assert '"als_ext::GlobalF32InputNode"' in text
-    assert 'key: "als_locomotion_air_lean_right"' in text
+    assert 'key: "lean_state.right_amount"' in text
+    player_ir = {
+        "nodes": [
+            {
+                "source_node": blend_path,
+                "renderer": "blendspace_player",
+                "semantic": {
+                    "input_pins": [
+                        {"name": "X", "default_value": 0.25},
+                        {"name": "Y", "default_value": 0.5},
+                        {"name": "PlayRate", "default_value": 1.0},
+                    ],
+                    "input_binding_keys": [
+                        "standing_state.stride_blend_amount",
+                        "standing_state.walk_run_blend_amount",
+                        "standing_state.play_rate",
+                    ],
+                    "loop": True,
+                    "configured_play_rate": 1.0,
+                    "sync_phase_key": "standing_state.movement.sync_phase",
+                    "sync_phase_duration": 1.0,
+                    "sync_phase_markers": [
+                        {"name": "Left", "time": 0.0},
+                        {"name": "Right", "time": 0.5},
+                    ],
+                    "delta_seconds_key": "animation.delta_seconds",
+                    "axis_filter": {"x_window_seconds": 0.2, "y_window_seconds": 0.4},
+                    "blendspace": {
+                        "samples": [
+                            {
+                                "value": [0.0, 0.0, 0.0],
+                                "rate_scale": 1.0,
+                                "target_clip": "animations/Center.anim.ron",
+                                "source_timing": {
+                                    "duration": 1.0,
+                                    "markers": [
+                                        {"name": "Left", "time": 0.0},
+                                        {"name": "Right", "time": 0.5},
+                                    ],
+                                },
+                            }
+                        ]
+                    },
+                },
+            },
+            {"source_node": blend_result, "renderer": "state_result", "semantic": {"lifecycle": []}},
+        ]
+    }
+    text = render(blend_contract, player_ir, [])
+    assert '"als_ext::CubicVec2AxisFilterNode"' in text
+    assert 'key: "standing_state.movement.sync_phase"' in text
+    assert 'key: "animation.delta_seconds"' in text
+    assert "duration: 1.0" in text and 'markers: [(name: "Left", time: 0.0)' in text
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
@@ -1118,6 +1279,7 @@ def run_self_test():
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
         "source_blendspace_property_binding_is_rendered": "PASS",
+        "source_blendspace_player_marker_phase_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",

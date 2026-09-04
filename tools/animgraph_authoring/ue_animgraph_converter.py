@@ -177,30 +177,84 @@ def source_signature(node):
     return value.splitlines()[0]
 
 
+def source_property_key(source_path):
+    if not isinstance(source_path, str) or not source_path:
+        raise ConversionError("source property path is invalid")
+    parts = source_path.split(".")
+    if any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", part) for part in parts):
+        raise ConversionError("source property path is invalid")
+    return ".".join(
+        re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", part)).lower()
+        for part in parts
+    )
+
+
 def validate_registry(value):
     if not isinstance(value, dict) or value.get("format") != "als_ref_to_bevy_animgraph_mapping_registry_v1":
         raise ConversionError("mapping registry format is invalid")
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
-    property_binding_rules = value.get("property_binding_rules", [])
     enum_entry_values = value.get("enum_entry_values", {})
     sync_group_phase_keys = value.get("sync_group_phase_keys", {})
+    sync_group_phase_contracts = value.get("sync_group_phase_contracts", {})
     fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
     if not isinstance(functions, list):
         raise ConversionError("mapping registry function rules are invalid")
-    if not isinstance(property_binding_rules, list):
-        raise ConversionError("mapping registry property binding rules are invalid")
     if not isinstance(enum_entry_values, dict):
         raise ConversionError("mapping registry enum entry values are invalid")
     if not isinstance(sync_group_phase_keys, dict):
         raise ConversionError("mapping registry sync group phase keys are invalid")
+    if not isinstance(sync_group_phase_contracts, dict):
+        raise ConversionError("mapping registry sync group phase contracts are invalid")
     if not isinstance(fsm_state_label_keys, dict):
         raise ConversionError("mapping registry FSM state label keys are invalid")
     for group, key in sync_group_phase_keys.items():
         if not isinstance(group, str) or not group or not isinstance(key, str) or not key:
             raise ConversionError("mapping registry sync group phase key is invalid")
+        if "{" in key or "}" in key:
+            raise ConversionError("mapping registry sync group phase key is invalid")
+    for group, contract in sync_group_phase_contracts.items():
+        if group not in sync_group_phase_keys or not isinstance(contract, dict) or set(contract) != {
+            "phase_duration",
+            "phase_markers",
+            "start_position",
+            "looped",
+            "delta_seconds_key",
+        }:
+            raise ConversionError("mapping registry sync group phase contract is invalid")
+        duration = contract["phase_duration"]
+        start = contract["start_position"]
+        markers = contract["phase_markers"]
+        if (
+            not isinstance(duration, (int, float))
+            or isinstance(duration, bool)
+            or duration <= 0.0
+            or not isinstance(start, (int, float))
+            or isinstance(start, bool)
+            or not 0.0 <= start <= 1.0
+            or not isinstance(contract["looped"], bool)
+            or not isinstance(contract["delta_seconds_key"], str)
+            or not contract["delta_seconds_key"]
+            or not isinstance(markers, list)
+            or len(markers) < 2
+        ):
+            raise ConversionError("mapping registry sync group phase contract is invalid")
+        previous = -1.0
+        for marker in markers:
+            if (
+                not isinstance(marker, dict)
+                or set(marker) != {"name", "time"}
+                or not isinstance(marker["name"], str)
+                or not marker["name"]
+                or not isinstance(marker["time"], (int, float))
+                or isinstance(marker["time"], bool)
+                or not 0.0 <= marker["time"] < duration
+                or marker["time"] <= previous
+            ):
+                raise ConversionError("mapping registry sync group phase marker is invalid")
+            previous = marker["time"]
     for name, key in fsm_state_label_keys.items():
         if not isinstance(name, str) or not name or not isinstance(key, str) or not key:
             raise ConversionError("mapping registry FSM state label key is invalid")
@@ -221,21 +275,6 @@ def validate_registry(value):
         if key in seen:
             raise ConversionError("mapping registry function rule is duplicated")
         seen.add(key)
-    seen = set()
-    for rule in property_binding_rules:
-        if not isinstance(rule, dict) or set(rule) != {"source_path", "target_key"}:
-            raise ConversionError("mapping registry property binding rule is invalid")
-        source_path = rule["source_path"]
-        target_key = rule["target_key"]
-        if not isinstance(source_path, str) or not source_path or not isinstance(target_key, str) or not target_key:
-            raise ConversionError("mapping registry property binding rule value is invalid")
-        if source_path.startswith("GetParent.") or "{" in source_path or "}" in source_path:
-            raise ConversionError("mapping registry property binding source path is invalid")
-        if target_key.replace("{asset_layer}", "").find("{") >= 0 or "}" in target_key.replace("{asset_layer}", ""):
-            raise ConversionError("mapping registry property binding target key is invalid")
-        if source_path in seen:
-            raise ConversionError("mapping registry property binding rule is duplicated")
-        seen.add(source_path)
     for enum_name, entries in enum_entry_values.items():
         if not isinstance(enum_name, str) or not enum_name or not isinstance(entries, dict) or not entries:
             raise ConversionError("mapping registry enum entry values are invalid")
@@ -295,106 +334,177 @@ def mapping_for(node, registry):
     }
 
 
-def source_asset_layer(source_asset):
-    if not isinstance(source_asset, str):
-        raise ConversionError("source property binding asset is invalid")
-    name = source_asset.rsplit(".", 1)[-1]
-    match = re.fullmatch(r"AB_Als_([A-Za-z0-9_]+)", name)
-    if match is None:
-        raise ConversionError("source property binding layer is unsupported")
-    return match.group(1).lower()
-
-
-def resolve_bound_keys(source_asset, node, renderer, pins, paths, registry):
+def resolve_bound_keys(node, renderer, pins, paths):
     if (
         not isinstance(paths, list)
         or len(pins) != len(paths)
         or not all(isinstance(pin, str) and isinstance(path, str) for pin, path in zip(pins, paths))
     ):
         return [], [{"kind": "source_property_binding_unsupported", "source_node": node.get("object_path")}]
-    rules = {rule["source_path"]: rule["target_key"] for rule in registry.get("property_binding_rules", [])}
     keys = []
     issues = []
     for pin, path in zip(pins, paths):
         if not path:
             keys.append("")
             continue
-        template = rules.get(path)
-        if template is None:
+        try:
+            keys.append(source_property_key(path))
+        except ConversionError as error:
             issues.append(
                 {
-                    "kind": "source_property_binding_unresolved",
+                    "kind": "source_property_binding_unsupported",
                     "source_node": node.get("object_path"),
                     "source_class": node.get("class_path"),
                     "renderer": renderer,
                     "source_pin": pin,
                     "source_property_path": path,
-                }
-            )
-            keys.append("")
-            continue
-        try:
-            key = (
-                template.replace("{asset_layer}", source_asset_layer(source_asset))
-                if "{asset_layer}" in template
-                else template
-            )
-        except ConversionError as error:
-            issues.append(
-                {
-                    "kind": "source_property_binding_context_unsupported",
-                    "source_node": node.get("object_path"),
-                    "source_class": node.get("class_path"),
-                    "renderer": renderer,
-                    "source_property_path": path,
                     "detail": str(error),
                 }
             )
             keys.append("")
-            continue
-        keys.append(key)
     return keys, issues
 
 
-def resolve_property_bindings(source_asset, node, semantic, registry):
+def record_resolved_bindings(semantic, pins, paths, keys):
+    if not isinstance(semantic, dict):
+        return
+    rows = semantic.setdefault("resolved_property_bindings", [])
+    if not isinstance(rows, list):
+        raise ConversionError("resolved source property bindings are invalid")
+    for pin, path, key in zip(pins, paths, keys):
+        if path and key:
+            rows.append(
+                {
+                    "source_pin": pin,
+                    "source_property_path": path,
+                    "target_key": key,
+                }
+            )
+
+
+def resolve_blendspace_bindings(node, renderer, semantic, pins):
+    try:
+        bindings = property_binding_paths(node)
+    except PoseContractError as error:
+        return [
+            {
+                "kind": "source_property_binding_unsupported",
+                "source_node": node.get("object_path"),
+                "source_class": node.get("class_path"),
+                "renderer": renderer,
+                "detail": str(error),
+            }
+        ]
+    paths = [bindings.get(pin, "") for pin in pins]
+    keys, issues = resolve_bound_keys(
+        node,
+        renderer,
+        pins,
+        paths,
+    )
+    semantic["input_binding_paths"] = paths
+    semantic["input_binding_keys"] = keys
+    record_resolved_bindings(semantic, pins, paths, keys)
+    return [
+        *issues,
+        *[
+            {
+                "kind": "source_property_binding_link_unsupported",
+                "source_node": node.get("object_path"),
+                "source_class": node.get("class_path"),
+                "renderer": renderer,
+                "source_pin": pin,
+            }
+            for pin, path in zip(pins, paths)
+            if path and input_is_linked(node, pin)
+        ],
+    ]
+
+
+def resolve_blendspace_player_phase(node, semantic, registry):
+    group = semantic.get("sync_group")
+    template = registry.get("sync_group_phase_keys", {}).get(group)
+    contract = registry.get("sync_group_phase_contracts", {}).get(group)
+    if not isinstance(group, str) or not isinstance(template, str) or not isinstance(contract, dict):
+        return [
+            {
+                "kind": "source_sync_group_phase_unresolved",
+                "source_node": node.get("object_path"),
+                "source_class": node.get("class_path"),
+                "renderer": "blendspace_player",
+                "source_sync_group": group,
+            }
+        ]
+    key = template
+    if (
+        semantic.get("loop") != contract.get("looped")
+        or abs(semantic.get("start_position", -1.0) - contract.get("start_position", -2.0))
+        > 1.0e-6
+    ):
+        return [
+            {
+                "kind": "source_sync_group_phase_contract_unsupported",
+                "source_node": node.get("object_path"),
+                "source_class": node.get("class_path"),
+                "renderer": "blendspace_player",
+                "source_sync_group": group,
+            }
+        ]
+    semantic["sync_phase_key"] = key
+    semantic["sync_phase_duration"] = contract["phase_duration"]
+    semantic["sync_phase_markers"] = contract["phase_markers"]
+    semantic["delta_seconds_key"] = contract["delta_seconds_key"]
+    return []
+
+
+def resolve_property_bindings(node, semantic, registry):
     if not isinstance(semantic, dict):
         return []
     renderer = semantic.get("renderer")
     if renderer == "multi_way_blend":
         paths = semantic.get("desired_alpha_paths")
         pins = [f"DesiredAlphas_{index}" for index in range(semantic.get("pose_count", 0))]
-        keys, issues = resolve_bound_keys(source_asset, node, renderer, pins, paths, registry)
+        keys, issues = resolve_bound_keys(node, renderer, pins, paths)
         semantic["desired_alpha_keys"] = keys
+        record_resolved_bindings(semantic, pins, paths, keys)
         return issues
     if renderer == "modify_curve":
         paths = semantic.get("curve_value_paths")
         pins = [f"CurveValues_{index}" for index in range(len(semantic.get("curve_names", [])))]
-        keys, issues = resolve_bound_keys(source_asset, node, renderer, pins, paths, registry)
+        keys, issues = resolve_bound_keys(node, renderer, pins, paths)
         semantic["curve_value_keys"] = keys
         alpha_keys, alpha_issues = resolve_bound_keys(
-            source_asset,
             node,
             renderer,
             ["Alpha"],
             [semantic.get("alpha_path", "")],
-            registry,
         )
         semantic["alpha_key"] = alpha_keys[0] if len(alpha_keys) == 1 else ""
+        record_resolved_bindings(semantic, pins, paths, keys)
+        record_resolved_bindings(
+            semantic,
+            ["Alpha"],
+            [semantic.get("alpha_path", "")],
+            alpha_keys,
+        )
         return [*issues, *alpha_issues]
     if renderer == "two_way_blend":
         keys, issues = resolve_bound_keys(
-            source_asset,
             node,
             renderer,
             ["Alpha"],
             [semantic.get("alpha_path", "")],
-            registry,
         )
         semantic["alpha_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(
+            semantic,
+            ["Alpha"],
+            [semantic.get("alpha_path", "")],
+            keys,
+        )
         return issues
     if renderer == "sequence_player":
         keys, issues = resolve_bound_keys(
-            source_asset,
             node,
             renderer,
             ["PlayRate", "bLoopAnimation"],
@@ -402,59 +512,57 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
                 semantic.get("play_rate_path", ""),
                 semantic.get("loop_animation_path", ""),
             ],
-            registry,
         )
         semantic["play_rate_key"] = keys[0] if len(keys) == 2 else ""
         semantic["loop_animation_key"] = keys[1] if len(keys) == 2 else ""
+        record_resolved_bindings(
+            semantic,
+            ["PlayRate", "bLoopAnimation"],
+            [semantic.get("play_rate_path", ""), semantic.get("loop_animation_path", "")],
+            keys,
+        )
         return issues
     if renderer == "blendspace_evaluator":
-        try:
-            bindings = property_binding_paths(node)
-        except PoseContractError as error:
-            return [
-                {
-                    "kind": "source_property_binding_unsupported",
-                    "source_node": node.get("object_path"),
-                    "source_class": node.get("class_path"),
-                    "renderer": renderer,
-                    "detail": str(error),
-                }
-            ]
-        paths = [bindings.get("X", ""), bindings.get("Y", "")]
-        keys, issues = resolve_bound_keys(
-            source_asset,
+        return resolve_blendspace_bindings(
             node,
             renderer,
+            semantic,
             ["X", "Y"],
-            paths,
-            registry,
         )
-        semantic["input_binding_paths"] = paths
-        semantic["input_binding_keys"] = keys
-        return [
-            *issues,
-            *[
+    if renderer == "blendspace_player":
+        issues = resolve_blendspace_bindings(
+            node,
+            renderer,
+            semantic,
+            ["X", "Y", "PlayRate"],
+        )
+        keys = semantic.get("input_binding_keys")
+        if not isinstance(keys, list) or len(keys) != 3 or not keys[2]:
+            issues.append(
                 {
-                    "kind": "source_property_binding_link_unsupported",
+                    "kind": "source_blendspace_player_play_rate_unresolved",
                     "source_node": node.get("object_path"),
                     "source_class": node.get("class_path"),
                     "renderer": renderer,
-                    "source_pin": pin,
+                    "source_pin": "PlayRate",
                 }
-                for pin, path in zip(("X", "Y"), paths)
-                if path and input_is_linked(node, pin)
-            ],
-        ]
+            )
+        issues.extend(resolve_blendspace_player_phase(node, semantic, registry))
+        return issues
     if renderer == "enum_pose_blend":
         keys, issues = resolve_bound_keys(
-            source_asset,
             node,
             renderer,
             ["ActiveEnumValue"],
             [semantic.get("active_enum_path", "")],
-            registry,
         )
         semantic["active_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(
+            semantic,
+            ["ActiveEnumValue"],
+            [semantic.get("active_enum_path", "")],
+            keys,
+        )
         enum_name = semantic.get("enum_name")
         entry = semantic.get("selected_enum_entry")
         value = (
@@ -516,14 +624,15 @@ def handled_property_binding_pins(renderer, semantic):
         if semantic.get("loop_animation_path"):
             handled.add("bLoopAnimation")
         return handled
-    if renderer == "blendspace_evaluator":
+    if renderer in {"blendspace_evaluator", "blendspace_player"}:
         paths = semantic.get("input_binding_paths")
         keys = semantic.get("input_binding_keys")
-        if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != 2 or len(keys) != 2:
+        pins = ("X", "Y") if renderer == "blendspace_evaluator" else ("X", "Y", "PlayRate")
+        if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(pins) or len(keys) != len(pins):
             return set()
         return {
             pin
-            for pin, path, key in zip(("X", "Y"), paths, keys)
+            for pin, path, key in zip(pins, paths, keys)
             if isinstance(path, str) and path and isinstance(key, str)
         }
     if renderer == "enum_pose_blend":
@@ -661,13 +770,14 @@ def graph_ir(
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
-        if semantic is None and renderer == "blendspace_evaluator":
+        if semantic is None and renderer in {"blendspace_evaluator", "blendspace_player"}:
             asset = animation_by_node.get(node.get("object_path"))
+            contract_name = "evaluator" if renderer == "blendspace_evaluator" else "player"
             if (
                 not isinstance(asset, dict)
                 or asset.get("category") != "blendspace"
                 or not isinstance(asset.get("blendspace"), dict)
-                or not isinstance(asset.get("evaluator"), dict)
+                or not isinstance(asset.get(contract_name), dict)
             ):
                 contract_issues.append(
                     {
@@ -681,7 +791,7 @@ def graph_ir(
             else:
                 semantic = {
                     "renderer": renderer,
-                    **asset["evaluator"],
+                    **asset[contract_name],
                     "blendspace": asset["blendspace"],
                 }
         if semantic is None and renderer in POSE_SCALAR_RENDERERS:
@@ -693,7 +803,6 @@ def graph_ir(
             semantic = {"fsm_source_graph": selected["source_graph"]}
         contract_issues.extend(
             resolve_property_bindings(
-                graph_contract.get("source_asset"),
                 node,
                 semantic,
                 registry,
@@ -799,6 +908,7 @@ def build_ir(
             source,
             source_content_root,
             source_mount,
+            source_reader,
         )
     except AssetResolutionError as error:
         unsupported.append(
@@ -939,6 +1049,88 @@ def integration_provider_by_node(ir):
     }
 
 
+def integration_sync_phase_providers(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            if not isinstance(node, dict):
+                continue
+            semantic = node.get("semantic")
+            if node.get("renderer") != "blendspace_player" or not isinstance(semantic, dict):
+                continue
+            inputs = semantic.get("input_pins")
+            paths = semantic.get("input_binding_paths")
+            keys = semantic.get("input_binding_keys")
+            if not isinstance(inputs, list) or not isinstance(paths, list) or not isinstance(keys, list):
+                continue
+            play_rate = next(
+                (
+                    (path, key)
+                    for input_value, path, key in zip(inputs, paths, keys)
+                    if isinstance(input_value, dict)
+                    and input_value.get("name") == "PlayRate"
+                    and isinstance(path, str)
+                    and isinstance(key, str)
+                ),
+                ("", ""),
+            )
+            if not all(
+                isinstance(value, str) and value
+                for value in (
+                    semantic.get("sync_group"),
+                    semantic.get("sync_phase_key"),
+                    semantic.get("delta_seconds_key"),
+                    play_rate[0],
+                    play_rate[1],
+                )
+            ):
+                continue
+            rows.append(
+                {
+                    "source_node": node.get("source_node"),
+                    "source_sync_group": semantic["sync_group"],
+                    "target_phase_key": semantic["sync_phase_key"],
+                    "target_delta_seconds_key": semantic["delta_seconds_key"],
+                    "source_play_rate_path": play_rate[0],
+                    "target_play_rate_key": play_rate[1],
+                    "source_start_position": semantic.get("start_position"),
+                    "phase_duration": semantic.get("sync_phase_duration"),
+                    "phase_markers": semantic.get("sync_phase_markers"),
+                    "status": "requires_target_provider",
+                }
+            )
+    return sorted(rows, key=lambda item: item["source_node"])
+
+
+def integration_runtime_inputs(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            if not isinstance(node, dict) or not isinstance(node.get("semantic"), dict):
+                continue
+            bindings = node["semantic"].get("resolved_property_bindings", [])
+            if not isinstance(bindings, list):
+                continue
+            for binding in bindings:
+                if (
+                    not isinstance(binding, dict)
+                    or not all(
+                        isinstance(binding.get(field), str) and binding[field]
+                        for field in ("source_pin", "source_property_path", "target_key")
+                    )
+                ):
+                    continue
+                rows.append(
+                    {
+                        "source_node": node.get("source_node"),
+                        "renderer": node.get("renderer"),
+                        **binding,
+                        "status": "requires_target_provider",
+                    }
+                )
+    return sorted(rows, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+
+
 def build_integration_report(ir, report):
     providers = integration_provider_by_node(ir)
     external_functions = []
@@ -1005,6 +1197,8 @@ def build_integration_report(ir, report):
         else "repair_conversion_blockers",
         "external_runtime_functions": external_functions,
         "animation_blueprint_functions": animation_blueprint_functions,
+        "sync_phase_providers": integration_sync_phase_providers(ir),
+        "runtime_inputs": integration_runtime_inputs(ir),
         "unhandled_property_bindings": property_bindings,
         "external_graph_dependencies": external_dependencies,
         "other_blockers": [
@@ -1027,6 +1221,15 @@ def integration_blocker_summary(value):
     )
     if functions:
         summary.append("external runtime functions: " + ", ".join(functions))
+    phase_keys = sorted(
+        {
+            item["target_phase_key"]
+            for item in value["sync_phase_providers"]
+            if item["status"] == "requires_target_provider"
+        }
+    )
+    if phase_keys:
+        summary.append("runtime sync phase providers: " + ", ".join(phase_keys))
     groups = {}
     for item in value["other_blockers"]:
         kind = item.get("kind")
@@ -1086,6 +1289,48 @@ def integration_report_markdown(value):
             + item["status"]
             + (" via `" + item["target_provider"] + "`" if item["target_provider"] else "")
             for item in functions
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Runtime property inputs", ""])
+    runtime_inputs = value["runtime_inputs"]
+    if runtime_inputs:
+        lines.extend(
+            "- `"
+            + item["source_property_path"]
+            + "` at `"
+            + str(item["source_node"])
+            + "` pin `"
+            + item["source_pin"]
+            + "` → `"
+            + item["target_key"]
+            + "`: "
+            + item["status"]
+            for item in runtime_inputs
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Runtime sync phase providers", ""])
+    phase_providers = value["sync_phase_providers"]
+    if phase_providers:
+        lines.extend(
+            "- `"
+            + item["source_sync_group"]
+            + "` at `"
+            + item["source_node"]
+            + "`: phase `"
+            + item["target_phase_key"]
+            + "`, delta `"
+            + item["target_delta_seconds_key"]
+            + "`, play rate `"
+            + item["source_play_rate_path"]
+            + "` → `"
+            + item["target_play_rate_key"]
+            + "` (start "
+            + str(item["source_start_position"])
+            + "): "
+            + item["status"]
+            for item in phase_providers
         )
     else:
         lines.append("- None")
@@ -1251,6 +1496,11 @@ def fixture_registry():
 
 def run_self_test():
     registry = fixture_registry()
+    assert source_property_key("StandingState.PlayRate") == "standing_state.play_rate"
+    assert (
+        source_property_key("GroundedState.VelocityBlend.ForwardAmount")
+        == "grounded_state.velocity_blend.forward_amount"
+    )
     node = {
         "object_path": "/Asset:AnimGraph.Unknown",
         "class_path": "/Script/AnimGraph.AnimGraphNode_Unknown",
@@ -1305,39 +1555,27 @@ def run_self_test():
     binding_registry = validate_registry(
         {
             "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
-            "node_classes": {"/Script/AnimGraph.AnimGraphNode_MultiWayBlend": {"renderer": "multi_way_blend"}},
+            "node_classes": {
+                "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": {"renderer": "multi_way_blend"},
+                "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer": {"renderer": "blendspace_player"},
+            },
             "function_rules": [],
-            "property_binding_rules": [
-                {
-                    "source_path": "GroundedState.VelocityBlend.ForwardAmount",
-                    "target_key": "als_{asset_layer}_velocity_forward_amount",
-                },
-                {
-                    "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
-                    "target_key": "als_{asset_layer}_curve_rotation_yaw_offset",
-                },
-                {
-                    "source_path": "InAirState.GroundPredictionAmount",
-                    "target_key": "als_{asset_layer}_ground_prediction",
-                },
-                {
-                    "source_path": "InAirState.JumpPlayRate",
-                    "target_key": "als_{asset_layer}_jump_play_rate",
-                },
-                {
-                    "source_path": "LeanState.RightAmount",
-                    "target_key": "als_{asset_layer}_air_lean_right",
-                },
-                {
-                    "source_path": "LeanState.ForwardAmount",
-                    "target_key": "als_{asset_layer}_air_lean_forward",
-                },
-                {
-                    "source_path": "GroundedState.HipsDirection",
-                    "target_key": "als_{asset_layer}_hips_direction",
-                }
-            ],
             "enum_entry_values": {"EAlsHipsDirection": {"LeftBackward": 3.0}},
+            "sync_group_phase_keys": {
+                "Movement": "standing_state.movement.sync_phase",
+            },
+            "sync_group_phase_contracts": {
+                "Movement": {
+                    "phase_duration": 1.0,
+                    "phase_markers": [
+                        {"name": "Left", "time": 0.0},
+                        {"name": "Right", "time": 0.5},
+                    ],
+                    "start_position": 0.2,
+                    "looped": True,
+                    "delta_seconds_key": "animation.delta_seconds",
+                }
+            },
         }
     )
     binding_node = {
@@ -1346,6 +1584,7 @@ def run_self_test():
         "pins": [
             {"name": "X", "direction": "Input", "hidden": False, "linked_to": []},
             {"name": "Y", "direction": "Input", "hidden": False, "linked_to": []},
+            {"name": "PlayRate", "direction": "Input", "hidden": False, "linked_to": []},
         ],
     }
     binding_semantic = {
@@ -1354,13 +1593,12 @@ def run_self_test():
         "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount", ""],
     }
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
         binding_node,
         binding_semantic,
         binding_registry,
     )
     assert binding_semantic["desired_alpha_keys"] == [
-        "als_standing_velocity_forward_amount",
+        "grounded_state.velocity_blend.forward_amount",
         "",
     ]
     curve_semantic = {
@@ -1369,45 +1607,41 @@ def run_self_test():
         "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
     }
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
         binding_node,
         curve_semantic,
         binding_registry,
     )
     assert curve_semantic["curve_value_keys"] == [
-        "als_standing_curve_rotation_yaw_offset"
+        "grounded_state.rotation_yaw_offsets.forward_angle"
     ]
     curve_semantic["alpha_path"] = "InAirState.GroundPredictionAmount"
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
         binding_node,
         curve_semantic,
         binding_registry,
     )
-    assert curve_semantic["alpha_key"] == "als_locomotion_ground_prediction"
+    assert curve_semantic["alpha_key"] == "in_air_state.ground_prediction_amount"
     two_way_semantic = {
         "renderer": "two_way_blend",
         "alpha_path": "InAirState.GroundPredictionAmount",
     }
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
         binding_node,
         two_way_semantic,
         binding_registry,
     )
-    assert two_way_semantic["alpha_key"] == "als_locomotion_ground_prediction"
+    assert two_way_semantic["alpha_key"] == "in_air_state.ground_prediction_amount"
     sequence_semantic = {
         "renderer": "sequence_player",
         "play_rate_path": "InAirState.JumpPlayRate",
         "loop_animation_path": "",
     }
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
         binding_node,
         sequence_semantic,
         binding_registry,
     )
-    assert sequence_semantic["play_rate_key"] == "als_locomotion_jump_play_rate"
+    assert sequence_semantic["play_rate_key"] == "in_air_state.jump_play_rate"
     enum_semantic = {
         "renderer": "enum_pose_blend",
         "active_enum_path": "GroundedState.HipsDirection",
@@ -1415,20 +1649,25 @@ def run_self_test():
         "selected_enum_entry": "LeftBackward",
     }
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
         binding_node,
         enum_semantic,
         binding_registry,
     )
-    assert enum_semantic["active_key"] == "als_standing_hips_direction"
+    assert enum_semantic["active_key"] == "grounded_state.hips_direction"
     assert enum_semantic["selected_enum_value"] == 3.0
     binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown", ""]
-    assert resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+    assert not resolve_property_bindings(
         binding_node,
         binding_semantic,
         binding_registry,
-    )[0]["kind"] == "source_property_binding_unresolved"
+    )
+    assert binding_semantic["desired_alpha_keys"] == ["grounded_state.unknown", ""]
+    binding_semantic["desired_alpha_paths"] = ["GroundedState..Unknown", ""]
+    assert resolve_property_bindings(
+        binding_node,
+        binding_semantic,
+        binding_registry,
+    )[0]["kind"] == "source_property_binding_unsupported"
     binding_node["binding"] = {
         "properties": [
             {
@@ -1439,15 +1678,38 @@ def run_self_test():
     }
     blendspace_semantic = {"renderer": "blendspace_evaluator"}
     assert not resolve_property_bindings(
-        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion",
         binding_node,
         blendspace_semantic,
         binding_registry,
     )
     assert blendspace_semantic["input_binding_keys"] == [
-        "als_locomotion_air_lean_right",
-        "als_locomotion_air_lean_forward",
+        "lean_state.right_amount",
+        "lean_state.forward_amount",
     ]
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("X", (PropertyName="X",PathAsText="GetParent.StandingState.StrideBlendAmount",bIsBound=True)),("Y", (PropertyName="Y",PathAsText="GetParent.StandingState.WalkRunBlendAmount",bIsBound=True)),("PlayRate", (PropertyName="PlayRate",PathAsText="GetParent.StandingState.PlayRate",bIsBound=True)))'
+    player_semantic = {
+        "renderer": "blendspace_player",
+        "sync_group": "Movement",
+        "loop": True,
+        "start_position": 0.2,
+    }
+    assert not resolve_property_bindings(
+        binding_node,
+        player_semantic,
+        binding_registry,
+    )
+    assert player_semantic["input_binding_keys"] == [
+        "standing_state.stride_blend_amount",
+        "standing_state.walk_run_blend_amount",
+        "standing_state.play_rate",
+    ]
+    assert player_semantic["sync_phase_key"] == "standing_state.movement.sync_phase"
+    player_semantic["start_position"] = 0.0
+    assert resolve_property_bindings(
+        binding_node,
+        player_semantic,
+        binding_registry,
+    )[-1]["kind"] == "source_sync_group_phase_contract_unsupported"
     binding_node["binding"]["properties"][0]["exported_text"] = '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))'
     assert unhandled_property_binding_issues(
         binding_node,
@@ -1461,7 +1723,7 @@ def run_self_test():
         {
             "renderer": "multi_way_blend",
             "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
-            "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
+            "desired_alpha_keys": ["grounded_state.velocity_blend.forward_amount"],
         },
     )
     binding_node["binding"]["properties"][0]["exported_text"] = '(("CurveValues_0", (PropertyName="CurveValues_0",PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))'
@@ -1639,6 +1901,37 @@ def run_self_test():
             ]
         },
         "external_dependencies": [{"kind": "linked_anim_layer", "source_node": "/Asset:AnimGraph.Layer"}],
+        "graphs": [
+            {
+                "nodes": [
+                    {
+                        "source_node": "/Asset:AnimGraph.Movement",
+                        "renderer": "blendspace_player",
+                        "semantic": {
+                            "sync_group": "Movement",
+                            "sync_phase_key": "standing_state.movement.sync_phase",
+                            "delta_seconds_key": "animation.delta_seconds",
+                            "input_pins": [{"name": "PlayRate"}],
+                            "input_binding_paths": ["StandingState.PlayRate"],
+                            "input_binding_keys": ["standing_state.play_rate"],
+                            "resolved_property_bindings": [
+                                {
+                                    "source_pin": "PlayRate",
+                                    "source_property_path": "StandingState.PlayRate",
+                                    "target_key": "standing_state.play_rate",
+                                }
+                            ],
+                            "start_position": 0.2,
+                            "sync_phase_duration": 1.0,
+                            "sync_phase_markers": [
+                                {"name": "Left", "time": 0.0},
+                                {"name": "Right", "time": 0.5},
+                            ],
+                        },
+                    }
+                ]
+            }
+        ],
     }
     integration_blocked = {
         "source": {"asset": "/Asset"},
@@ -1666,10 +1959,16 @@ def run_self_test():
         "mapped",
     ]
     assert integration["unhandled_property_bindings"][0]["status"] == "requires_target_provider"
+    assert integration["sync_phase_providers"][0]["target_phase_key"] == "standing_state.movement.sync_phase"
+    assert integration["sync_phase_providers"][0]["status"] == "requires_target_provider"
+    assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
     blocked_markdown = integration_report_markdown(integration)
     assert "CustomActorFunction" in blocked_markdown
     assert "Do not integrate generated RON files." in blocked_markdown
     assert "## External graph dependencies" not in blocked_markdown
+    assert "## Runtime sync phase providers" not in blocked_markdown
+    assert "## Runtime property inputs" not in blocked_markdown
+    assert "runtime sync phase providers: standing_state.movement.sync_phase" in blocked_markdown
     ready = build_integration_report(
         integration_ir,
         {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
@@ -1677,6 +1976,8 @@ def run_self_test():
     assert ready["conversion_status"] == "ready"
     assert ready["handoff_action"] == "integrate_generated_assets"
     assert "## External graph dependencies" in integration_report_markdown(ready)
+    assert "## Runtime sync phase providers" in integration_report_markdown(ready)
+    assert "## Runtime property inputs" in integration_report_markdown(ready)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)
@@ -1688,7 +1989,9 @@ def run_self_test():
         "registry_asset_special_case_rejected": "PASS",
         "uasset_package_path_derived_without_source_json_input": "PASS",
         "crlf_function_signature_normalized": "PASS",
-        "source_property_binding_keys_resolved_or_rejected": "PASS",
+        "source_property_paths_derived_or_invalid_rejected": "PASS",
+        "source_property_paths_use_dotted_rust_naming": "PASS",
+        "source_blendspace_player_bindings_and_phase_contract_resolved": "PASS",
         "unhandled_source_property_bindings_rejected": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",
         "source_pose_contract_blocker_rejected": "PASS",

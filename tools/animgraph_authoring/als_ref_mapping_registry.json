@@ -11,6 +11,7 @@
     "/Script/AnimGraph.AnimGraphNode_SequencePlayer": { "renderer": "sequence_player" },
     "/Script/AnimGraph.AnimGraphNode_SequenceEvaluator": { "renderer": "sequence_evaluator" },
     "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator": { "renderer": "blendspace_evaluator" },
+    "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer": { "renderer": "blendspace_player" },
     "/Script/AnimGraph.AnimGraphNode_TwoWayBlend": { "renderer": "two_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_ApplyAdditive": { "renderer": "apply_additive" },
     "/Script/AnimGraph.AnimGraphNode_ApplyMeshSpaceAdditive": { "renderer": "apply_mesh_space_additive" },
@@ -39,24 +40,6 @@
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "Equal (GameplayTag)", "renderer": "gameplay_tag_equal" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "To Float (Boolean)", "renderer": "boolean_to_float" }
   ],
-  "property_binding_rules": [
-    { "source_path": "GroundedState.VelocityBlend.ForwardAmount", "target_key": "als_{asset_layer}_velocity_forward_amount" },
-    { "source_path": "GroundedState.VelocityBlend.BackwardAmount", "target_key": "als_{asset_layer}_velocity_backward_amount" },
-    { "source_path": "GroundedState.VelocityBlend.LeftAmount", "target_key": "als_{asset_layer}_velocity_left_amount" },
-    { "source_path": "GroundedState.VelocityBlend.RightAmount", "target_key": "als_{asset_layer}_velocity_right_amount" },
-    { "source_path": "GroundedState.RotationYawOffsets.ForwardAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
-    { "source_path": "GroundedState.RotationYawOffsets.BackwardAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
-    { "source_path": "GroundedState.RotationYawOffsets.LeftAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
-    { "source_path": "GroundedState.RotationYawOffsets.RightAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
-    { "source_path": "RotateInPlaceState.PlayRate", "target_key": "als_{asset_layer}_rotation_play_rate" },
-    { "source_path": "TurnInPlaceState.PlayRate", "target_key": "als_{asset_layer}_turn_play_rate" },
-    { "source_path": "LeanState.RightAmount", "target_key": "als_{asset_layer}_air_lean_right" },
-    { "source_path": "LeanState.ForwardAmount", "target_key": "als_{asset_layer}_air_lean_forward" },
-    { "source_path": "InAirState.GroundPredictionAmount", "target_key": "als_{asset_layer}_ground_prediction" },
-    { "source_path": "InAirState.JumpPlayRate", "target_key": "als_{asset_layer}_jump_play_rate" },
-    { "source_path": "InAirState.VerticalVelocityWorldSpace", "target_key": "als_{asset_layer}_vertical_velocity" },
-    { "source_path": "GroundedState.HipsDirection", "target_key": "als_{asset_layer}_hips_direction" }
-  ],
   "enum_entry_values": {
     "EAlsHipsDirection": {
       "LeftBackward": 3.0,
@@ -64,13 +47,26 @@
     }
   },
   "sync_group_phase_keys": {
-    "Fall": "als_locomotion_fall_phase",
-    "Jump": "als_locomotion_jump_phase",
-    "Flail": "als_locomotion_flail_phase",
-    "Land": "als_locomotion_land_phase"
+    "Movement": "standing_state.movement.sync_phase",
+    "Fall": "fall.sync_phase",
+    "Jump": "jump.sync_phase",
+    "Flail": "flail.sync_phase",
+    "Land": "land.sync_phase"
+  },
+  "sync_group_phase_contracts": {
+    "Movement": {
+      "phase_duration": 1.0,
+      "phase_markers": [
+        { "name": "Left", "time": 0.0 },
+        { "name": "Right", "time": 0.5 }
+      ],
+      "start_position": 0.2,
+      "looped": true,
+      "delta_seconds_key": "animation.delta_seconds"
+    }
   },
   "fsm_state_label_keys": {
-    "Locomotion States": "als_locomotion_state_index",
-    "Jump States": "als_locomotion_jump_state_index"
+    "Locomotion States": "locomotion_states.state_index",
+    "Jump States": "jump_states.state_index"
   }
 }
