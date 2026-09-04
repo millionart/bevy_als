@@ -36,7 +36,7 @@ pub(crate) fn clear_gameplay_tag_inputs(entity: Entity) {
         .remove(&entity);
 }
 
-fn gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTag> {
+pub(crate) fn gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTag> {
     inputs()
         .read()
         .expect("gameplay tag input registry is poisoned")

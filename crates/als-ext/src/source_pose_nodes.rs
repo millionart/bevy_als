@@ -12,7 +12,14 @@ use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::mesh_space_additive::apply_mesh_space_additive;
-use crate::{context_time_update, f_interp_to};
+use crate::{
+    context_time_update, f_interp_to,
+    gameplay_tag_blend::{
+        GameplayTagBlendMode, GameplayTagBlendState, advance_gameplay_tag_weights,
+        select_gameplay_tag_child_index_for_tag,
+    },
+    source_gameplay_tag_input::gameplay_tag_input,
+};
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct SourceBlendState {
@@ -456,101 +463,141 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
     }
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
-struct SourceTagBlendState {
-    initialized: bool,
-    sprinting: bool,
-    elapsed: f32,
-    duration: f32,
-    start: f32,
-}
-
-fn source_tag_weight(
-    state: &mut SourceTagBlendState,
-    sprinting: bool,
-    default_blend_time: f32,
-    sprinting_blend_time: f32,
-    delta: f32,
-) -> f32 {
-    if !state.initialized {
-        state.initialized = true;
-        state.sprinting = sprinting;
-        return sprinting as u8 as f32;
-    }
-    let current = if state.duration <= f32::EPSILON {
-        state.sprinting as u8 as f32
-    } else {
-        let alpha = (state.elapsed / state.duration).clamp(0.0, 1.0);
-        let smooth = alpha * alpha * (3.0 - 2.0 * alpha);
-        state.start + ((state.sprinting as u8 as f32) - state.start) * smooth
-    };
-    if sprinting != state.sprinting {
-        state.start = current;
-        state.sprinting = sprinting;
-        state.elapsed = 0.0;
-        state.duration = if sprinting {
-            sprinting_blend_time.max(0.0)
-        } else {
-            default_blend_time.max(0.0)
-        };
-    }
-    if state.duration <= f32::EPSILON {
-        return sprinting as u8 as f32;
-    }
-    state.elapsed = (state.elapsed + delta).min(state.duration);
-    let alpha = (state.elapsed / state.duration).clamp(0.0, 1.0);
-    let smooth = alpha * alpha * (3.0 - 2.0 * alpha);
-    state.start + ((state.sprinting as u8 as f32) - state.start) * smooth
-}
-
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceGameplayTagBlendNode {
     pub active_key: String,
-    pub default_blend_time: f32,
-    pub sprinting_blend_time: f32,
+    pub active_tag_pin: String,
+    pub tags: Vec<String>,
+    pub blend_times: Vec<f32>,
+    pub source_blend_times: Vec<f32>,
+    pub blend_mode: GameplayTagBlendMode,
+    pub pose_pin_names: Vec<String>,
+    pub blend_time_pin_names: Vec<String>,
+    pub output_pin: String,
 }
 
 impl Default for SourceGameplayTagBlendNode {
     fn default() -> Self {
         Self {
             active_key: default(),
-            default_blend_time: 0.3,
-            sprinting_blend_time: 0.2,
+            active_tag_pin: "Active Tag".to_owned(),
+            tags: default(),
+            blend_times: vec![0.0],
+            source_blend_times: vec![0.0],
+            blend_mode: default(),
+            pose_pin_names: vec!["Default Pose".to_owned()],
+            blend_time_pin_names: vec!["Default Blend Time".to_owned()],
+            output_pin: "Pose".to_owned(),
         }
+    }
+}
+
+impl SourceGameplayTagBlendNode {
+    fn child_count(&self) -> usize {
+        self.tags.len() + 1
+    }
+
+    fn validate(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+        let count = self.child_count();
+        if self.active_key.is_empty()
+            || self.output_pin.is_empty()
+            || self.blend_times.len() != count
+            || self.source_blend_times.len() != count
+            || self.pose_pin_names.len() != count
+            || self.blend_time_pin_names.len() != count
+        {
+            return Err(GraphError::UnknownErrorNode {
+                graph: ctx.graph_context.context_id,
+                node: ctx.node_id,
+                error: "gameplay tag blend configuration is invalid".to_owned(),
+            });
+        }
+        Ok(())
+    }
+
+    fn blend_time(&self, ctx: &NodeContext, index: usize) -> f32 {
+        ctx.data_back(self.blend_time_pin_names[index].clone())
+            .ok()
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(self.blend_times[index])
+            .max(0.0)
     }
 }
 
 impl NodeLike for SourceGameplayTagBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let sprinting = global_f32_or_root_default(&ctx, &self.active_key)? > 0.5;
+        self.validate(&ctx)?;
+        let active_is_valid = self.active_tag_pin.is_empty()
+            || ctx
+                .data_back(self.active_tag_pin.clone())
+                .ok()
+                .and_then(|value| value.as_bool().ok())
+                .unwrap_or(false);
+        let active = if !active_is_valid {
+            None
+        } else {
+            Some(
+                gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+                    .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?,
+            )
+        };
+        let active_index = select_gameplay_tag_child_index_for_tag(&self.tags, active.as_ref());
         let delta = delta_seconds(&ctx)?;
-        let weight = source_tag_weight(
-            ctx.state_mut::<SourceTagBlendState>()?,
-            sprinting,
-            self.default_blend_time,
-            self.sprinting_blend_time,
+        let blend_time = self.blend_time(&ctx, active_index);
+        let weights = advance_gameplay_tag_weights(
+            ctx.state_mut::<GameplayTagBlendState>()?,
+            self.child_count(),
+            active_index,
+            blend_time,
+            self.blend_mode,
             delta,
         );
-        let mut base = ctx.data_back("Default Pose")?.into_pose()?;
-        let sprint = ctx.data_back("Sprinting Pose")?.into_pose()?;
-        LinearInterpolator {
-            bone_mask: BoneMask::all(),
+        let mut output = None;
+        let mut accumulated_weight = 0.0;
+        for (index, weight) in weights.into_iter().enumerate() {
+            if weight <= f32::EPSILON {
+                continue;
+            }
+            let pose = ctx
+                .data_back(self.pose_pin_names[index].clone())?
+                .into_pose()?;
+            if let Some(base) = output.as_mut() {
+                LinearInterpolator {
+                    bone_mask: BoneMask::all(),
+                }
+                .interpolate_pose(
+                    base,
+                    &pose,
+                    weight / (accumulated_weight + weight),
+                );
+            } else {
+                output = Some(pose);
+            }
+            accumulated_weight += weight;
         }
-        .interpolate_pose(&mut base, &sprint, weight);
-        ctx.set_time(base.timestamp);
-        ctx.set_data_fwd("Pose", base);
+        let output = output.unwrap_or_default();
+        ctx.set_time(output.timestamp);
+        ctx.set_data_fwd(self.output_pin.clone(), output);
         Ok(())
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data("Default Pose", DataSpec::Pose)
-            .add_input_data("Sprinting Pose", DataSpec::Pose)
-            .add_input_data("Default Blend Time", DataSpec::F32)
-            .add_input_data("Sprinting Blend Time", DataSpec::F32)
-            .add_input_data("Active Tag", DataSpec::F32)
-            .add_output_data("Pose", DataSpec::Pose);
+        let count = self.child_count();
+        if self.pose_pin_names.len() != count || self.blend_time_pin_names.len() != count {
+            return Err(GraphError::GlobalInputDataMissing(self.active_key.clone()));
+        }
+        for pin in &self.pose_pin_names {
+            ctx.add_input_data(pin.clone(), DataSpec::Pose);
+        }
+        for pin in &self.blend_time_pin_names {
+            ctx.add_input_data(pin.clone(), DataSpec::F32);
+        }
+        if !self.active_tag_pin.is_empty() {
+            ctx.add_input_data(self.active_tag_pin.clone(), DataSpec::Bool);
+        }
+        ctx.add_output_data(self.output_pin.clone(), DataSpec::Pose);
         Ok(())
     }
 
@@ -820,11 +867,24 @@ mod tests {
     }
 
     #[test]
-    fn source_tag_blend_switches_between_default_and_sprinting() {
-        let mut state = SourceTagBlendState::default();
-        assert_eq!(source_tag_weight(&mut state, false, 0.3, 0.2, 0.0), 0.0);
-        assert!((source_tag_weight(&mut state, true, 0.3, 0.2, 0.1) - 0.5).abs() < 1e-6);
-        assert_eq!(source_tag_weight(&mut state, true, 0.3, 0.2, 0.1), 1.0);
+    fn source_tag_blend_uses_real_tag_selection() {
+        use bevy_gameplay_tag::GameplayTag;
+
+        let tags = vec!["Als.Gait.Sprinting".to_owned()];
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                &tags,
+                Some(&GameplayTag::new("Als.Gait.Sprinting")),
+            ),
+            1
+        );
+        assert_eq!(
+            select_gameplay_tag_child_index_for_tag(
+                &tags,
+                Some(&GameplayTag::new("Als.Gait.Running")),
+            ),
+            0
+        );
     }
 
     #[test]

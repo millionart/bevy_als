@@ -6,6 +6,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
 };
+use bevy_gameplay_tag::GameplayTag;
 use serde::{Deserialize, Serialize};
 
 pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
@@ -51,6 +52,19 @@ pub(crate) fn select_gameplay_tag_child_index(tags: &[String], value: f32) -> us
     }
     let index = value.round() as usize;
     if index <= tags.len() { index } else { 0 }
+}
+
+pub(crate) fn select_gameplay_tag_child_index_for_tag(
+    tags: &[String],
+    active_tag: Option<&GameplayTag>,
+) -> usize {
+    active_tag
+        .filter(|tag| tag.is_valid())
+        .and_then(|tag| {
+            tags.iter()
+                .position(|candidate| tag.matches_tag_exact(&GameplayTag::new(candidate)))
+        })
+        .map_or(0, |index| index + 1)
 }
 
 pub(crate) fn gameplay_tag_blend_time(blend_times: &[f32], index: usize) -> f32 {

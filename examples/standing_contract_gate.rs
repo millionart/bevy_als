@@ -10,7 +10,7 @@ use als_ext::{
     ResetOnActivationNode, SourceCurveModifyNode, SourceEnumPoseBlendNode,
     SourceLayeredBoneBlendNode, SourceMultiWayBlendNode, SourceScopedCachedPoseUseNode,
     SourceSequenceEvaluatorNode, SourceSequencePlayerNode, SourceSetHipsDirectionNode,
-    SyncGroupSampleNode,
+    SyncGroupSampleNode, set_gameplay_tag_input,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -30,6 +30,7 @@ use bevy_animation_graph::core::{
         low_level::LowLevelStateId,
     },
 };
+use bevy_gameplay_tag::GameplayTag;
 
 const ROOT_PATH: &str = "graphs/ab_als/stances/standing_runtime_entry.animgraph.ron";
 const SOURCE_ROOT_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
@@ -789,7 +790,6 @@ fn set_globals(player: &mut AnimationGraphPlayer) {
         ("als_standing_walk_run_amount", 0.0),
         ("als_standing_play_rate", 1.0),
         ("als_standing_sprint_amount", 0.0),
-        ("als_standing_gait_is_sprinting", 0.0),
         ("als_standing_sprint_block_amount", 0.0),
         ("als_standing_sprint_acceleration_amount", 0.0),
         ("als_standing_sprint_play_rate", 1.0),
@@ -1388,15 +1388,15 @@ fn verify_static_contract(
     set_globals(&mut player);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
-    probe.player = Some(
-        commands
-            .spawn((
-                Name::new("standing_contract_probe"),
-                Children::default(),
-                player,
-            ))
-            .id(),
-    );
+    let player_entity = commands
+        .spawn((
+            Name::new("standing_contract_probe"),
+            Children::default(),
+            player,
+        ))
+        .id();
+    set_gameplay_tag_input(player_entity, "gait", GameplayTag::new("Als.Gait.Walking"));
+    probe.player = Some(player_entity);
     probe.phase = ProbePhase::OuterInterruptStart;
     probe.static_verified = true;
     info!("[STANDING-CONTRACT] linked runtime probe initialized");

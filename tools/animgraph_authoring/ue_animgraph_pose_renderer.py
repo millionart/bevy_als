@@ -40,6 +40,7 @@ SUPPORTED_RENDERERS = {
     "set_hips_direction",
     "enum_pose_blend",
     "layered_bone_blend",
+    "gameplay_tag_blend",
     "slot",
     "reroute",
 }
@@ -324,6 +325,69 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(keys[2])
             + ")",
         )
+    if renderer == "gameplay_tag_blend":
+        active_key = value.get("active_key")
+        blend_type = value.get("blend_type")
+        mode = {"Linear": "Linear", "Cubic": "HermiteCubic"}.get(blend_type)
+        fields = (
+            "active_key",
+            "tags",
+            "blend_times",
+            "source_blend_times",
+            "pose_pin_names",
+            "blend_time_pin_names",
+            "active_tag_pin",
+            "output_pin",
+        )
+        if (
+            not isinstance(active_key, str)
+            or not active_key
+            or mode is None
+            or any(not isinstance(value.get(field), list) for field in ("tags", "blend_times", "source_blend_times", "pose_pin_names", "blend_time_pin_names"))
+            or not all(isinstance(value.get(field), str) and value[field] for field in ("active_tag_pin", "output_pin"))
+            or len(value["tags"]) + 1 != len(value["blend_times"])
+            or len(value["blend_times"]) != len(value["source_blend_times"])
+            or len(value["blend_times"]) != len(value["pose_pin_names"])
+            or len(value["blend_times"]) != len(value["blend_time_pin_names"])
+        ):
+            raise PoseRenderError("source gameplay tag blend contract is invalid")
+        return (
+            "als_ext::SourceGameplayTagBlendNode",
+            "(active_key: "
+            + quoted(active_key)
+            + ", active_tag_pin: "
+            + quoted(value["active_tag_pin"])
+            + ", tags: ["
+            + ", ".join(quoted(tag) for tag in value["tags"])
+            + "], blend_times: ["
+            + ", ".join(repr(blend_time) for blend_time in value["blend_times"])
+            + "], blend_mode: "
+            + mode
+            + ", source_blend_times: ["
+            + ", ".join(repr(blend_time) for blend_time in value["source_blend_times"])
+            + "], pose_pin_names: ["
+            + ", ".join(quoted(pin) for pin in value["pose_pin_names"])
+            + "], blend_time_pin_names: ["
+            + ", ".join(quoted(pin) for pin in value["blend_time_pin_names"])
+            + "], output_pin: "
+            + quoted(value["output_pin"])
+            + ")",
+        )
+    if renderer == "property_access":
+        tag_input = scalar_renderer.gameplay_tag_input_config(graph_contract, source)
+        if tag_input is not None:
+            return (
+                "als_ext::SourceGameplayTagInputNode",
+                "(key: "
+                + quoted(tag_input["key"])
+                + ", output: "
+                + quoted(tag_input["output"])
+                + ", expected_tag: \"\", source_property_path: "
+                + quoted(tag_input["source_property_path"])
+                + ", source_properties: ["
+                + ", ".join(quoted(item) for item in scalar_renderer.source_properties(source))
+                + "])"
+            )
     if renderer in SCALAR_RENDERERS:
         return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
     if renderer == "state_machine":
@@ -609,6 +673,14 @@ def target_pin(renderer, source_pin, node=None):
             return "Poses " + source_pin.rsplit("_", 1)[1]
         if source_pin.startswith("DesiredAlphas_"):
             return "Desired Alphas " + source_pin.rsplit("_", 1)[1]
+    if renderer == "gameplay_tag_blend":
+        if node is None:
+            raise PoseRenderError("source gameplay tag blend pin is unavailable")
+        pin = next((pin for pin in node.get("pins", []) if pin.get("name") == source_pin), None)
+        if not isinstance(pin, dict):
+            raise PoseRenderError("source gameplay tag blend pin is unavailable")
+        label = pin.get("friendly_name")
+        return label if isinstance(label, str) and label else source_pin
     if renderer == "enum_pose_blend":
         if source_pin == "Pose":
             return "Pose"
@@ -1134,6 +1206,29 @@ def run_self_test():
     assert 'desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", ""]' in multi_inner
     assert target_pin("multi_way_blend", "Poses_1") == "Poses 1"
     assert target_pin("multi_way_blend", "DesiredAlphas_1") == "Desired Alphas 1"
+    tag_type, tag_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "gameplay_tag_blend",
+            "semantic": {
+                "active_key": "gait",
+                "tags": ["Als.Gait.Sprinting"],
+                "blend_times": [0.3, 0.2],
+                "source_blend_times": [0.1, 0.1],
+                "blend_type": "Cubic",
+                "pose_pin_names": ["Default Pose", "Sprinting Pose"],
+                "blend_time_pin_names": ["Default Blend Time", "Sprinting Blend Time"],
+                "active_tag_pin": "Active Tag",
+                "output_pin": "Pose",
+            },
+        },
+        {},
+        {},
+    )
+    assert tag_type == "als_ext::SourceGameplayTagBlendNode"
+    assert 'active_key: "gait"' in tag_inner
+    assert "blend_mode: HermiteCubic" in tag_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -1389,6 +1484,7 @@ def run_self_test():
         "source_blendspace_property_binding_is_rendered": "PASS",
         "source_blendspace_player_marker_phase_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
+        "source_gameplay_tag_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",

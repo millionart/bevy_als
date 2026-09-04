@@ -85,6 +85,8 @@ def scalar_defaults(pin):
 def source_property_key(value):
     if not isinstance(value, str) or not value:
         raise ValueError("source property path is invalid")
+    if value.startswith("GetParent."):
+        value = value[len("GetParent.") :]
     parts = value.split(".")
     if any(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", part) is None for part in parts):
         raise ValueError("source property path is invalid")
@@ -198,6 +200,17 @@ def gameplay_tag_input_config(contract, node):
             "operation": "matches_tag_exact",
             "source_property_path": path,
         }
+    if (
+        target.get("class_path", "").endswith("AlsAnimGraphNode_GameplayTagsBlend")
+        and target_pin == "ActiveTag"
+    ):
+        return {
+            "key": source_property_key(path),
+            "output": source_pin_label(output),
+            "expected_tag": "",
+            "operation": "is_valid",
+            "source_property_path": path,
+        }
     raise ValueError("source GameplayTag consumer is unsupported")
 
 
@@ -304,6 +317,8 @@ def pin_payload(contract, node, pin, bindings):
     if AUDIT.source_pin_type(pin) == "GameplayTag":
         if pin.get("direction") != "Input":
             raise ValueError("source GameplayTag output must use the dedicated adapter node")
+        if contract is None:
+            raise ValueError("source GameplayTag input needs a graph contract")
         bool_default = gameplay_tag_input_bool_default(contract, node, pin)
         global_key = ""
     return {
@@ -329,7 +344,10 @@ def pin_ron(value):
     ) + ")"
 
 
-def node_inner(contract, node):
+def node_inner(contract, node=None):
+    if node is None:
+        node = contract
+        contract = None
     bindings = AUDIT.source_binding_paths(node)
     inputs = [
         pin_payload(contract, node, pin, bindings)
@@ -876,14 +894,14 @@ def run_self_test():
         tag_contract = fixture_gameplay_tag_contract()
         tag_text = graph_text(tag_contract)
         assert '"als_ext::SourceGameplayTagInputNode"' in tag_text
-        assert 'key: "get_parent.gait"' in tag_text
+        assert 'key: "gait"' in tag_text
         assert 'expected_tag: "Als.Gait.Walking"' in tag_text
         assert 'operation: "gameplay_tag_valid"' in tag_text
         assert gameplay_tag_providers(tag_contract) == [
             {
                 "source_node": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000002",
                 "source_property_path": "GetParent.Gait",
-                "target_key": "get_parent.gait",
+                "target_key": "gait",
                 "operation": "is_valid",
                 "expected_tag": "",
                 "provider_api": "als_ext::set_gameplay_tag_input",
@@ -893,7 +911,7 @@ def run_self_test():
             {
                 "source_node": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000003",
                 "source_property_path": "GetParent.Gait",
-                "target_key": "get_parent.gait",
+                "target_key": "gait",
                 "operation": "matches_tag_exact",
                 "expected_tag": "Als.Gait.Walking",
                 "provider_api": "als_ext::set_gameplay_tag_input",

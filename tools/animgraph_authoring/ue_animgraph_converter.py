@@ -569,6 +569,15 @@ def resolve_property_bindings(node, semantic, registry):
         semantic["weight_key"] = stem + ".weight"
         semantic["layer_weight_key"] = stem + ".layer_weight"
         return []
+    if renderer == "gameplay_tag_blend":
+        keys, issues = resolve_bound_keys(
+            node,
+            renderer,
+            ["ActiveTag"],
+            [semantic.get("active_tag_path", "")],
+        )
+        semantic["active_key"] = keys[0] if len(keys) == 1 else ""
+        return issues
     if renderer == "enum_pose_blend":
         keys, issues = resolve_bound_keys(
             node,
@@ -657,6 +666,8 @@ def handled_property_binding_pins(renderer, semantic):
         }
     if renderer == "enum_pose_blend":
         return {"ActiveEnumValue"} if semantic.get("active_enum_path") else set()
+    if renderer == "gameplay_tag_blend":
+        return {"ActiveTag"} if semantic.get("active_tag_path") else set()
     return set()
 
 
@@ -1203,6 +1214,31 @@ def integration_gameplay_tag_providers(ir):
             ):
                 continue
             rows.append(provider)
+        for node in graph.get("nodes", []):
+            if not isinstance(node, dict):
+                continue
+            semantic = node.get("semantic")
+            if (
+                node.get("renderer") != "gameplay_tag_blend"
+                or not isinstance(semantic, dict)
+                or not isinstance(semantic.get("active_tag_path"), str)
+                or not semantic["active_tag_path"]
+                or not isinstance(semantic.get("active_key"), str)
+                or not semantic["active_key"]
+            ):
+                continue
+            rows.append(
+                {
+                    "source_node": node.get("source_node"),
+                    "source_property_path": semantic["active_tag_path"],
+                    "target_key": semantic["active_key"],
+                    "operation": "select_exact_child",
+                    "expected_tag": "",
+                    "provider_api": "als_ext::set_gameplay_tag_input",
+                    "player_entity": "AnimationGraphPlayer entity",
+                    "status": "requires_target_provider",
+                }
+            )
     return sorted(rows, key=lambda item: item["source_node"])
 
 

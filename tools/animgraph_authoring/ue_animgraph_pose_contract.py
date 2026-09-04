@@ -33,6 +33,7 @@ POSE_RENDERERS = {
     "set_hips_direction",
     "enum_pose_blend",
     "layered_bone_blend",
+    "gameplay_tag_blend",
     "slot",
 }
 SYNC_GROUP_ROLES = {
@@ -92,6 +93,17 @@ def visible_input_default(node, name):
     if len(values) != 1:
         raise PoseContractError(f"source input pin is missing or ambiguous: {name}")
     return parse_number(values[0])
+
+
+def visible_input_label(node, name):
+    values = [
+        pin.get("friendly_name") or pin.get("name")
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Input" and not pin.get("hidden") and pin.get("name") == name
+    ]
+    if len(values) != 1 or not isinstance(values[0], str) or not values[0]:
+        raise PoseContractError("source input pin label is missing or ambiguous")
+    return values[0]
 
 
 def property_binding_paths(node):
@@ -747,6 +759,72 @@ def layered_bone_blend_contract(node):
     }, issues
 
 
+def gameplay_tag_blend_contract(node):
+    renderer = "gameplay_tag_blend"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "ActiveTag",
+            "Tags",
+            "BlendPose",
+            "BlendTime",
+            "BlendType",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    tags = [
+        parse_quoted(field(parse_struct(value), "TagName"))
+        for value in parse_list(field(fields, "Tags"))
+    ]
+    poses = parse_list(field(fields, "BlendPose"))
+    source_blend_times = [parse_number(value) for value in parse_list(field(fields, "BlendTime"))]
+    count = len(tags) + 1
+    if len(poses) != count or len(source_blend_times) != count:
+        raise PoseContractError("source gameplay tag blend count is invalid")
+    required = tuple(f"BlendPose_{index}" for index in range(count)) + tuple(
+        f"BlendTime_{index}" for index in range(count)
+    ) + ("ActiveTag",)
+    inputs, issues = validate_inputs(node, renderer, required)
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    blend_times = [visible_input_default(node, f"BlendTime_{index}") for index in range(count)]
+    blend_type = parse_name(field(fields, "BlendType", "Linear"))
+    if blend_type not in {"Linear", "Cubic"}:
+        issues.append(issue(node, renderer, "source_gameplay_tag_blend_type_unsupported", blend_type))
+    bindings = property_binding_paths(node)
+    active_tag_path = bindings.get("ActiveTag", "")
+    if not active_tag_path:
+        issues.append(issue(node, renderer, "source_gameplay_tag_binding_unavailable", "ActiveTag"))
+    if set(bindings) - {"ActiveTag"}:
+        issues.append(issue(node, renderer, "source_property_binding_pin_unsupported", "GameplayTagBlend"))
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "tags": tags,
+        "blend_times": blend_times,
+        "source_blend_times": source_blend_times,
+        "blend_type": blend_type,
+        "active_tag_path": active_tag_path,
+        "pose_pin_names": [visible_input_label(node, f"BlendPose_{index}") for index in range(count)],
+        "blend_time_pin_names": [
+            visible_input_label(node, f"BlendTime_{index}") for index in range(count)
+        ],
+        "active_tag_pin": visible_input_label(node, "ActiveTag"),
+        "output_pin": "Pose",
+    }, issues
+
+
 def cached_pose_contract(node, renderer):
     property_name = "CacheName" if renderer == "save_cached_pose" else "NameOfCache"
     source_name = node_property(node, property_name)
@@ -989,6 +1067,8 @@ def pose_contract(node, renderer):
             return enum_pose_blend_contract(node)
         if renderer == "layered_bone_blend":
             return layered_bone_blend_contract(node)
+        if renderer == "gameplay_tag_blend":
+            return gameplay_tag_blend_contract(node)
         if renderer == "slot":
             return slot_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
@@ -1147,6 +1227,46 @@ def run_self_test():
     assert not issues
     assert enum_blend_contract["selected_enum_entry"] == "LeftBackward"
     assert enum_blend_contract["active_enum_path"] == "GroundedState.HipsDirection"
+    gameplay_tag_blend = fixture_node(
+        "gameplay_tag_blend",
+        "Node",
+        '(ActiveTag=(),Tags=((TagName="Als.Gait.Sprinting")),BlendPose=((),()),BlendTime=(0.300000,0.200000),BlendType=Cubic,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [
+            input_pin("BlendPose_0"),
+            input_pin("BlendPose_1"),
+            input_pin("BlendTime_0"),
+            input_pin("BlendTime_1"),
+            input_pin("ActiveTag"),
+            output_pin("Pose"),
+        ],
+    )
+    for pin, label in zip(
+        gameplay_tag_blend["pins"],
+        (
+            "Default Pose",
+            "Sprinting Pose",
+            "Default Blend Time",
+            "Sprinting Blend Time",
+            "Active Tag",
+            "",
+        ),
+    ):
+        pin["friendly_name"] = label
+    gameplay_tag_blend["pins"][2]["default_value"] = "0.300000"
+    gameplay_tag_blend["pins"][3]["default_value"] = "0.200000"
+    gameplay_tag_blend["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("ActiveTag", (PropertyName="ActiveTag",PathAsText="GetParent.Gait",bIsBound=True)))',
+            }
+        ]
+    }
+    gameplay_tag_contract, issues = pose_contract(gameplay_tag_blend, "gameplay_tag_blend")
+    assert not issues
+    assert gameplay_tag_contract["tags"] == ["Als.Gait.Sprinting"]
+    assert gameplay_tag_contract["active_tag_path"] == "Gait"
+    assert gameplay_tag_contract["pose_pin_names"] == ["Default Pose", "Sprinting Pose"]
     layered = fixture_node(
         "layered_bone_blend",
         "Node",
@@ -1221,6 +1341,7 @@ def run_self_test():
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",
         "source_enum_pose_blend_contract_parsed": "PASS",
+        "source_gameplay_tag_blend_contract_parsed": "PASS",
         "source_layered_bone_blend_contract_parsed": "PASS",
         "source_slot_contract_parsed": "PASS",
     }

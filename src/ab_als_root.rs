@@ -6,7 +6,7 @@ use als_core::mantle::AlsMantleState;
 use als_core::roll::AlsRollState;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::view::AlsViewSmoothed;
-use als_ext::{SyncPhaseInput, SyncPhaseState, advance_sync_phase};
+use als_ext::{SyncPhaseInput, SyncPhaseState, advance_sync_phase, set_gameplay_tag_input};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -14,6 +14,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::Pose;
+use bevy_gameplay_tag::GameplayTag;
 
 use crate::actual_motion::AlsActualMotion;
 use crate::animation_context_projection::AlsRootAnimationContext;
@@ -112,6 +113,14 @@ pub fn overlay_layer_index(overlay: OverlayState) -> f32 {
         OverlayState::Box => 11.0,
         OverlayState::Barrel => 12.0,
     }
+}
+
+fn gait_tag(gait: Gait) -> GameplayTag {
+    GameplayTag::new(match gait {
+        Gait::Walking => "Als.Gait.Walking",
+        Gait::Running => "Als.Gait.Running",
+        Gait::Sprinting => "Als.Gait.Sprinting",
+    })
 }
 
 fn locomotion_action_index(
@@ -224,6 +233,7 @@ fn root_graph_writer(
             let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
+            set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
             let secondary_motion_phase = advance_sync_phase(
                 secondary_motion
                     .states
@@ -349,6 +359,12 @@ mod tests {
         assert_eq!(overlay_layer_index(OverlayState::Bow), 8.0);
         assert_eq!(overlay_layer_index(OverlayState::Torch), 9.0);
         assert_eq!(overlay_layer_index(OverlayState::Barrel), 12.0);
+    }
+
+    #[test]
+    fn gait_tag_uses_the_source_hierarchy() {
+        assert_eq!(gait_tag(Gait::Walking).as_str(), "Als.Gait.Walking");
+        assert_eq!(gait_tag(Gait::Sprinting).as_str(), "Als.Gait.Sprinting");
     }
 
     #[test]
