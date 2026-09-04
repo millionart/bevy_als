@@ -33,6 +33,7 @@
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "InitializeLean", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshInAir", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshRotateInPlace", "renderer": "pose_lifecycle_call" },
+    { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "SetHipsDirection", "renderer": "set_hips_direction" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "Equal (GameplayTag)", "renderer": "gameplay_tag_equal" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "To Float (Boolean)", "renderer": "boolean_to_float" }
   ],

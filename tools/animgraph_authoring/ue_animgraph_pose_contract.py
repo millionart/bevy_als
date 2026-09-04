@@ -29,6 +29,7 @@ POSE_RENDERERS = {
     "inertialization",
     "pose_lifecycle_call",
     "multi_way_blend",
+    "set_hips_direction",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -489,6 +490,66 @@ def multi_way_blend_contract(node):
     }, issues
 
 
+def set_hips_direction_contract(node):
+    renderer = "set_hips_direction"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Source",
+            "Function",
+            "CallSite",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Source", "NewHipsDirection"))
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    directions = [
+        pin.get("default_value")
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Input"
+        and not pin.get("hidden")
+        and pin.get("name") == "NewHipsDirection"
+    ]
+    if len(directions) != 1 or not isinstance(directions[0], str):
+        raise PoseContractError("source hips direction input is missing or ambiguous")
+    direction = directions[0]
+    if direction not in {
+        "Forward",
+        "Backward",
+        "RightForward",
+        "RightBackward",
+        "LeftForward",
+        "LeftBackward",
+    }:
+        issues.append(issue(node, renderer, "source_hips_direction_unsupported", direction))
+    if input_is_linked(node, "NewHipsDirection"):
+        issues.append(issue(node, renderer, "source_hips_direction_link_unsupported", "NewHipsDirection"))
+    if field(fields, "Function") != "()":
+        issues.append(issue(node, renderer, "source_hips_direction_function_unsupported", "Function"))
+    call_site = parse_name(field(fields, "CallSite"))
+    if call_site != "OnBecomeRelevant":
+        issues.append(issue(node, renderer, "source_hips_direction_call_site_unsupported", call_site))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "new_hips_direction": direction,
+        "on_become_relevant": True,
+        "call_site": call_site,
+    }, issues
+
+
 def cached_pose_contract(node, renderer):
     property_name = "CacheName" if renderer == "save_cached_pose" else "NameOfCache"
     source_name = node_property(node, property_name)
@@ -684,6 +745,8 @@ def pose_contract(node, renderer):
             return modify_curve_contract(node)
         if renderer == "multi_way_blend":
             return multi_way_blend_contract(node)
+        if renderer == "set_hips_direction":
+            return set_hips_direction_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
@@ -777,6 +840,16 @@ def run_self_test():
         "GroundedState.VelocityBlend.ForwardAmount",
         "GroundedState.VelocityBlend.BackwardAmount",
     ]
+    hips = fixture_node(
+        "set_hips_direction",
+        "Node",
+        "(Source=(LinkID=-1,SourceLinkID=-1),Function=(),CallSite=OnBecomeRelevant,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("Source"), input_pin("NewHipsDirection"), output_pin("Pose")],
+    )
+    hips["pins"][1]["default_value"] = "LeftBackward"
+    hips_contract, issues = pose_contract(hips, "set_hips_direction")
+    assert not issues
+    assert hips_contract["new_hips_direction"] == "LeftBackward"
     state = fixture_node(
         "state_result",
         "Node",
@@ -825,6 +898,7 @@ def run_self_test():
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",
+        "source_set_hips_direction_contract_parsed": "PASS",
     }
 
 

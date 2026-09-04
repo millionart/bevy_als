@@ -36,6 +36,7 @@ SUPPORTED_RENDERERS = {
     "boolean_to_float",
     "state_machine",
     "multi_way_blend",
+    "set_hips_direction",
 }
 
 SCALAR_RENDERERS = {
@@ -302,6 +303,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", alpha_scale: "
             + repr(value["alpha_scale"])
             + ", pose_pin_prefix: \"Poses \", alpha_pin_prefix: \"Desired Alphas \")",
+        )
+    if renderer == "set_hips_direction":
+        return (
+            "als_ext::SourceSetHipsDirectionNode",
+            "(new_hips_direction: "
+            + quoted(value["new_hips_direction"])
+            + ", on_become_relevant: "
+            + bool_ron(value["on_become_relevant"])
+            + ", call_site: "
+            + quoted(value["call_site"])
+            + ")",
         )
     if renderer == "two_way_blend":
         pins = input_names(value)
@@ -818,6 +830,22 @@ def run_self_test():
     assert 'desired_alpha_keys: ["als_standing_velocity_forward_amount", ""]' in multi_inner
     assert target_pin("multi_way_blend", "Poses_1") == "Poses 1"
     assert target_pin("multi_way_blend", "DesiredAlphas_1") == "Desired Alphas 1"
+    hips_type, hips_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "set_hips_direction",
+            "semantic": {
+                "new_hips_direction": "LeftBackward",
+                "on_become_relevant": True,
+                "call_site": "OnBecomeRelevant",
+            },
+        },
+        {},
+        {},
+    )
+    assert hips_type == "als_ext::SourceSetHipsDirectionNode"
+    assert 'new_hips_direction: "LeftBackward"' in hips_inner
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -903,6 +931,7 @@ def run_self_test():
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
+        "source_set_hips_direction_is_rendered": "PASS",
     }
 
 
