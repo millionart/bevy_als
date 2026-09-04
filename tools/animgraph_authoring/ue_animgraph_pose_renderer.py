@@ -14,6 +14,12 @@ SUPPORTED_RENDERERS = {
     "apply_mesh_space_additive",
     "modify_curve",
     "state_result",
+    "root_output",
+    "save_cached_pose",
+    "use_cached_pose",
+    "linked_input_pose",
+    "inertialization",
+    "pose_lifecycle_call",
 }
 
 
@@ -134,7 +140,14 @@ def asset_for_node(asset_by_node, source_node, category):
     return target
 
 
-def rendered_inner(source, semantic, asset_by_node):
+def cache_key(graph_contract, cache_name):
+    asset = graph_contract.get("source_asset")
+    if not isinstance(asset, str) or not isinstance(cache_name, str) or not cache_name:
+        raise PoseRenderError("source cache identity is invalid")
+    return "ue-cache:" + str(uuid.uuid5(uuid.NAMESPACE_URL, asset + ":" + cache_name))
+
+
+def rendered_inner(graph_contract, source, semantic, asset_by_node):
     renderer = semantic.get("renderer")
     value = semantic.get("semantic")
     if renderer == "sequence_player":
@@ -231,9 +244,68 @@ def rendered_inner(source, semantic, asset_by_node):
         ]
         return "als_ext::SourceCurveModifyNode", "(" + ", ".join(fields) + ")"
     if renderer == "state_result":
+        lifecycle = value.get("lifecycle")
+        if not isinstance(lifecycle, list) or len(lifecycle) > 1:
+            raise PoseRenderError("source state lifecycle form is unsupported")
+        source_function = ""
+        call_site = ""
+        if lifecycle:
+            source_function = lifecycle[0].get("source_function", "")
+            call_site = lifecycle[0].get("call_site", "")
+        return (
+            "als_ext::SourcePosePassthroughNode",
+            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: "
+            + quoted(source_function)
+            + ", call_site: "
+            + quoted(call_site)
+            + ")",
+        )
+    if renderer == "root_output":
         return (
             "als_ext::SourcePosePassthroughNode",
             "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\")",
+        )
+    if renderer == "save_cached_pose":
+        return (
+            "als_ext::SourceCachedPoseSaveNode",
+            "(cache_key: " + quoted(cache_key(graph_contract, value["cache_name"])) + ")",
+        )
+    if renderer == "use_cached_pose":
+        name = value["cache_name"]
+        return (
+            "als_ext::SourceScopedCachedPoseUseNode",
+            "(cache_node: "
+            + quoted("Save cached pose '" + name + "'")
+            + ", cache_key: "
+            + quoted(cache_key(graph_contract, name))
+            + ", context_defaults: [])",
+        )
+    if renderer == "linked_input_pose":
+        return (
+            "als_ext::SourceLinkedInputPoseNode",
+            "(input: "
+            + quoted(value["input_name"])
+            + ", output: \"Pose\", context_curve_prefix: \"\", context_curve_names: [])",
+        )
+    if renderer == "inertialization":
+        return (
+            "als_ext::InertializationPassthroughNode",
+            "(reset_on_becoming_relevant: "
+            + bool_ron(value["reset_on_becoming_relevant"])
+            + ", forward_requests_through_skipped_cached_poses: "
+            + bool_ron(value["forward_requests_through_skipped_cached_poses"])
+            + ", filtered_curves: ["
+            + ", ".join(quoted(curve) for curve in value["filtered_curves"])
+            + "], filtered_bones: [], curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true, output: \"Pose\", request_epoch_key: \"\", request_duration_key: \"\")",
+        )
+    if renderer == "pose_lifecycle_call":
+        return (
+            "als_ext::SourcePosePassthroughNode",
+            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: "
+            + quoted(value["source_function"])
+            + ", call_site: "
+            + quoted(value["call_site"])
+            + ")",
         )
     raise PoseRenderError("source pose renderer is unsupported")
 
@@ -246,6 +318,8 @@ def target_pin(renderer, source_pin):
     if renderer == "modify_curve":
         return {"SourcePose": "Source Pose"}.get(source_pin, source_pin)
     if renderer == "state_result":
+        return {"Result": "Source"}.get(source_pin, source_pin)
+    if renderer == "root_output":
         return {"Result": "Source"}.get(source_pin, source_pin)
     return source_pin
 
@@ -268,7 +342,7 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
     for source_path, semantic in ir_nodes.items():
         raw = raw_nodes[source_path]
         identifier = node_id(raw)
-        node_type, inner = rendered_inner(raw, semantic, asset_by_node)
+        node_type, inner = rendered_inner(graph_contract, raw, semantic, asset_by_node)
         result_nodes.append((identifier, source_title(raw), inner, node_type, position(raw)))
         if semantic.get("renderer") != "sequence_player":
             continue
@@ -298,10 +372,14 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
         )
         sync_wrappers[source_path] = wrapper_id
     result_nodes.sort(key=lambda value: value[0])
-    state_results = [node for node in ir_nodes.values() if node.get("renderer") == "state_result"]
-    if len(state_results) != 1:
-        raise PoseRenderError("source pose graph must have exactly one state result")
-    state_result = state_results[0]
+    output_nodes = [
+        node
+        for node in ir_nodes.values()
+        if node.get("renderer") in {"state_result", "root_output"}
+    ]
+    if len(output_nodes) != 1:
+        raise PoseRenderError("source pose graph must have exactly one output node")
+    state_result = output_nodes[0]
     state_result_raw = raw_nodes[state_result["source_node"]]
     output_name = "Result"
     edges = []
@@ -434,7 +512,7 @@ def fixture_graph():
                     "alpha_scale_bias": {"scale": 1.0, "bias": 0.0},
                 },
             },
-            {"source_node": result_path, "renderer": "state_result", "semantic": {}},
+            {"source_node": result_path, "renderer": "state_result", "semantic": {"lifecycle": []}},
         ]
     }
     assets = [{"source_node": sequence_path, "category": "sequence", "target_asset": "animations/A.anim.ron"}]

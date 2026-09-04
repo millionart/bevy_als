@@ -25,6 +25,9 @@ POSE_RENDERERS = {
     "save_cached_pose",
     "use_cached_pose",
     "state_result",
+    "linked_input_pose",
+    "inertialization",
+    "pose_lifecycle_call",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -63,6 +66,14 @@ def visible_input_names(node):
         pin.get("name")
         for pin in node.get("pins", [])
         if pin.get("direction") == "Input" and not pin.get("hidden")
+    ]
+
+
+def visible_output_names(node):
+    return [
+        pin.get("name")
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Output" and not pin.get("hidden")
     ]
 
 
@@ -368,6 +379,114 @@ def cached_pose_contract(node, renderer):
     return {"renderer": renderer, "input_pins": inputs, "cache_name": source_name}, issues
 
 
+def linked_input_pose_contract(node):
+    renderer = "linked_input_pose"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Name",
+            "InputPose",
+            "bIsOutputLinked",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ())
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "input_name": parse_quoted(field(fields, "Name")),
+        "output_linked": parse_bool(field(fields, "bIsOutputLinked", "False")),
+    }, issues
+
+
+def inertialization_contract(node):
+    renderer = "inertialization"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Source",
+            "FilteredCurves",
+            "bResetOnBecomingRelevant",
+            "bForwardRequestsThroughSkippedCachedPoseNodes",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Source",))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "filtered_curves": [parse_quoted(value) for value in parse_list(field(fields, "FilteredCurves", "()"))],
+        "reset_on_becoming_relevant": parse_bool(field(fields, "bResetOnBecomingRelevant", "True")),
+        "forward_requests_through_skipped_cached_poses": parse_bool(
+            field(fields, "bForwardRequestsThroughSkippedCachedPoseNodes", "True")
+        ),
+    }, issues
+
+
+def pose_lifecycle_call_contract(node):
+    renderer = "pose_lifecycle_call"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Source",
+            "Function",
+            "CallSite",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Source",))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    title = node.get("title")
+    function = title.splitlines()[0].strip() if isinstance(title, str) else ""
+    call_site = parse_name(field(fields, "CallSite"))
+    if not function:
+        issues.append(issue(node, renderer, "source_lifecycle_function_missing", "title"))
+    if call_site not in {"OnInitialUpdate", "OnBecomeRelevant", "OnUpdate"}:
+        issues.append(issue(node, renderer, "source_lifecycle_call_site_unsupported", call_site))
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "source_function": function,
+        "call_site": call_site,
+    }, issues
+
+
 def state_result_contract(node):
     renderer = "state_result"
     fields = parse_struct(node_property(node, "Node"))
@@ -387,6 +506,22 @@ def state_result_contract(node):
         },
     )
     inputs, issues = validate_inputs(node, renderer, ("Result",))
+    lifecycle = []
+    for property_name, call_site in (
+        ("StateEntryFunction", "OnStateEntry"),
+        ("StateFullyBlendedInFunction", "OnStateFullyBlendedIn"),
+        ("StateExitFunction", "OnStateExit"),
+        ("StateFullyBlendedOutFunction", "OnStateFullyBlendedOut"),
+        ("InitialUpdateFunction", "OnInitialUpdate"),
+        ("BecomeRelevantFunction", "OnBecomeRelevant"),
+        ("UpdateFunction", "OnUpdate"),
+    ):
+        value = field(fields, property_name, "()")
+        if value == "()":
+            continue
+        reference = parse_struct(value)
+        function = parse_quoted(field(reference, "FunctionName"))
+        lifecycle.append({"call_site": call_site, "source_function": function})
     issues.extend(
         lifecycle_issues(
             node,
@@ -407,6 +542,7 @@ def state_result_contract(node):
         "renderer": renderer,
         "input_pins": inputs,
         "layer_group": parse_quoted(field(fields, "LayerGroup", '"DefaultSharedGroup"')),
+        "lifecycle": lifecycle,
     }, issues
 
 
@@ -428,6 +564,12 @@ def pose_contract(node, renderer):
             return modify_curve_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
+        if renderer == "linked_input_pose":
+            return linked_input_pose_contract(node)
+        if renderer == "inertialization":
+            return inertialization_contract(node)
+        if renderer == "pose_lifecycle_call":
+            return pose_lifecycle_call_contract(node)
         if renderer == "state_result":
             return state_result_contract(node)
     except (ExportedTextError, PoseContractError) as error:
@@ -452,6 +594,10 @@ def input_pin(name):
         "hidden": False,
         "default_value": "1.000000",
     }
+
+
+def output_pin(name):
+    return {"name": name, "direction": "Output", "hidden": False}
 
 
 def run_self_test():
@@ -494,11 +640,44 @@ def run_self_test():
     )
     _, issues = pose_contract(state, "state_result")
     assert issues[0]["kind"] == "source_lifecycle_unsupported"
+    state_contract, _ = pose_contract(state, "state_result")
+    assert state_contract["lifecycle"] == [
+        {"call_site": "OnStateExit", "source_function": "Exit"}
+    ]
+    linked = fixture_node(
+        "linked_input_pose",
+        "Node",
+        '(Name="Grounded Input",InputPose=(),bIsOutputLinked=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [output_pin("Pose")],
+    )
+    linked_contract, issues = pose_contract(linked, "linked_input_pose")
+    assert not issues
+    assert linked_contract["input_name"] == "Grounded Input"
+    inertial = fixture_node(
+        "inertialization",
+        "Node",
+        '(Source=(),FilteredCurves=("RotationYawSpeed"),bResetOnBecomingRelevant=True,bForwardRequestsThroughSkippedCachedPoseNodes=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("Source"), output_pin("Pose")],
+    )
+    inertial_contract, issues = pose_contract(inertial, "inertialization")
+    assert not issues
+    assert inertial_contract["filtered_curves"] == ["RotationYawSpeed"]
+    lifecycle = fixture_node(
+        "pose_lifecycle_call",
+        "Node",
+        "(Source=(),Function=(),CallSite=OnUpdate,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("Source"), output_pin("Pose")],
+    )
+    lifecycle["title"] = "RefreshInAir\nOn Update"
+    lifecycle_contract, issues = pose_contract(lifecycle, "pose_lifecycle_call")
+    assert not issues
+    assert lifecycle_contract["source_function"] == "RefreshInAir"
     return {
         "two_way_alpha_mapping_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "state_result_lifecycle_blocked": "PASS",
+        "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
     }
 
 
