@@ -2,7 +2,7 @@
 
 用 Bevy ECS 复刻 ALS-Refactored（UE 5.8）的高级运动系统。以 `bevy_animation_graph` 与 `bevy-tnua` 为基座；不做网络同步。
 
-**当前工作范围只由 [`CHECKLIST.md`](CHECKLIST.md) 决定。** 本文件规定跨任务纪律；动画图专属流程见 [`skills/animation-graph-equivalence/SKILL.md`](skills/animation-graph-equivalence/SKILL.md)。
+**当前工作范围由 [`CHECKLIST.md`](CHECKLIST.md) 与 [`TODO.md`](TODO.md) 决定。** `CHECKLIST.md` 保留当前执行批次，`TODO.md` 保留用户明确迁入的待办；待办条目本身不授权调研或实现，直到用户将其选为当前任务。本文件规定跨任务纪律；动画图专属流程见 [`skills/animation-graph-equivalence/SKILL.md`](skills/animation-graph-equivalence/SKILL.md)。
 
 ## 规则归属
 
@@ -14,8 +14,8 @@
 
 ## 执行纪律
 
-1. **清单顺序与提交**：按 `CHECKLIST.md` 的模块和依赖顺序执行；每项通过自身 Gate 后勾选并单独提交。Gate 未通过不得开始依赖项。
-2. **活动条目摘要与范围**：每完成一轮连贯的 source/static 闭环，以及每次真实 runtime Gate 前后，都在当前 `CHECKLIST.md` 条目下补一条简短摘要：已覆盖的 source 闭包、已通过的审计/命令、当前未通过边界与下一步。未经 source 证明且未在该摘要中说明的相邻图、consumer 或辅助链路不得展开；完成条目不得因猜测复开。
+1. **清单顺序与提交**：按当前任务所在的 `CHECKLIST.md` 或 `TODO.md` 的模块和依赖顺序执行；每项通过自身 Gate 后勾选并单独提交。Gate 未通过不得开始依赖项。
+2. **活动条目摘要与范围**：每完成一轮连贯的 source/static 闭环，以及每次真实 runtime Gate 前后，都在当前条目所在文档下补一条简短摘要：已覆盖的 source 闭包、已通过的审计/命令、当前未通过边界与下一步。未经 source 证明且未在该摘要中说明的相邻图、consumer 或辅助链路不得展开；完成条目不得因猜测复开。
 3. **待执行与已完成项隔离**：登记未来条目不授权调研或实现。已完成或已归档条目只有在症状、fresh source fact 和 source-target 链路共同证明它是根因时才能复开；先取消勾选、复盘旧 Gate 的漏检边界，再改代码。不得因相邻模块、同名资产或猜测而回头修改。
 4. **归档**：只移动明确命名且已完成/废止的完整清单段落。归档前说明移动与保留边界，核对 diff；`docs/archive/archivedchecklist.md` 只作日期索引，归档单独提交。
 5. **设计消融**：每次新增抽象、适配层、状态、工具步骤或运行时分支都要在 focused fixture、测试或受控路径中移除/合并并重跑适用 Gate；信号不变即删除，只保留有明确失败边界的最小实现。
@@ -49,4 +49,4 @@
 
 ## 文档与历史
 
-`CHECKLIST.md` 保留当前目标、依赖和最小 Gate 摘要；归档保留完成证据；skill 保留可复用方法；工具与 self-test 保留可执行细节。不要把整段历史、失败截图路径或一次性数字重复复制到所有位置。
+`CHECKLIST.md` 保留当前执行目标、依赖和最小 Gate 摘要；`TODO.md` 保留已迁入的待办；归档保留完成或终止证据；skill 保留可复用方法；工具与 self-test 保留可执行细节。不要把整段历史、失败截图路径或一次性数字重复复制到所有位置。
