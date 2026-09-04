@@ -92,6 +92,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：fresh Layering source有两个`Make Dynamic Additive`，同为`Base`/`Additive`→`Pose`且无 lifecycle/binding；一个明确`bMeshSpaceAdditive=True`，另一个省略该字段即 local。现有`als-ext`已有对应 mesh/local difference node。
   - Gate summary：contract/renderer/converter self-test、focused Rust mesh/local branch + NodeLike registration test均PASS；Layering fresh `--write`和 blocked `--check`输出稳定，两个 Dynamic Additive不再是 blocker，且目录仅保留三行 blocked Markdown/JSON报告。消融：同一骨骼父子旋转 fixture证明 mesh/local差分不同；不以带 Time pin 的既有 node硬接 source Pose-only ABI。
 
+- [x] BF112.16 Curves Blend：开始：2026-09-05 05:18:08 +08:00；预估结束：2026-09-05 06:08:08 +08:00；实际结束：2026-09-05 05:26:32 +08:00（偏差 -41m36s）。以 source pose context 的动态曲线键集合实现`Accumulate`/`Override`，保留 BasePose为输出 pose 和 CurvePose的 source 曲线语义；其它 source mode继续 fail-closed，不硬编码 ALS 曲线名单。验收：C++/source contract、context merge fixture/ablation、Layering direct blocker减少且无 partial RON。
+  - source fact：`FAlsAnimNode_CurvesBlend::Evaluate_AnyThread`先 Evaluate BasePose，再以 BlendAmount Evaluate CurvePose；`Accumulate`调用`Curve.Accumulate(curves, alpha)`，`Override`调用`Curve.Override(curves, alpha)`。当前 Layering仅有两个节点，分别为`BlendAmount=1`的`Accumulate`与`Override`，无 property binding。
+  - Gate summary：source contract/renderer/converter self-test、focused context merge + NodeLike registration test均PASS；Layering fresh `--write`/blocked `--check`稳定且不再包含 CurvesBlend/MakeDynamicAdditive，目录只含三行 blocker Markdown和JSON。消融：`Lerp` contract fixture仍拒绝；动态 context key merge替代曲线白名单；缺 semantic renderer现在受控为`PoseRenderError`而非 traceback。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

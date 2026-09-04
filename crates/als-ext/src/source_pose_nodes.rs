@@ -7,6 +7,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::curve_bundle::blend_curve_value;
@@ -524,6 +525,87 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
 
     fn display_name(&self) -> String {
         "ALS Source Make Dynamic Additive".to_owned()
+    }
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[reflect(Default, Serialize)]
+pub enum SourceCurvesBlendMode {
+    #[default]
+    Accumulate,
+    Override,
+}
+
+fn blend_source_curve_context(
+    mut base: AnimationContextState,
+    curve: &AnimationContextState,
+    blend_amount: f32,
+    blend_mode: SourceCurvesBlendMode,
+) -> AnimationContextState {
+    match blend_mode {
+        SourceCurvesBlendMode::Accumulate => {
+            for (name, value) in &curve.curves {
+                *base.curves.entry(name.clone()).or_default() += value * blend_amount;
+            }
+            base
+        }
+        SourceCurvesBlendMode::Override => AnimationContextState {
+            curves: curve
+                .curves
+                .iter()
+                .map(|(name, value)| (name.clone(), value * blend_amount))
+                .collect(),
+        },
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
+pub struct SourceCurvesBlendNode {
+    pub blend_amount: f32,
+    pub blend_mode: SourceCurvesBlendMode,
+}
+
+impl Default for SourceCurvesBlendNode {
+    fn default() -> Self {
+        Self {
+            blend_amount: 1.0,
+            blend_mode: default(),
+        }
+    }
+}
+
+impl NodeLike for SourceCurvesBlendNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let base = ctx.data_back("BasePose")?.into_pose()?;
+        let base_context = pose_input_context_state(&ctx, "BasePose").unwrap_or_default();
+        let context = if self.blend_amount.abs() <= f32::EPSILON {
+            base_context
+        } else {
+            ctx.data_back("CurvePose")?.into_pose()?;
+            blend_source_curve_context(
+                base_context,
+                &pose_input_context_state(&ctx, "CurvePose").unwrap_or_default(),
+                self.blend_amount,
+                self.blend_mode,
+            )
+        };
+        ctx.set_time(base.timestamp);
+        ctx.set_data_fwd("Pose", base);
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        ctx.add_input_data("BasePose", DataSpec::Pose)
+            .add_input_data("CurvePose", DataSpec::Pose)
+            .add_output_data("Pose", DataSpec::Pose);
+        Ok(())
+    }
+
+    fn display_name(&self) -> String {
+        "ALS Source Curves Blend".to_owned()
     }
 }
 
@@ -1062,6 +1144,39 @@ mod tests {
                 .dot(mesh.get_bone(child).unwrap().rotation.unwrap())
                 .abs()
                 < 0.999
+        );
+    }
+
+    #[test]
+    fn source_curves_blend_preserves_source_modes() {
+        let mut base = AnimationContextState::default();
+        base.curves.insert("BaseOnly".to_owned(), 0.25);
+        base.curves.insert("Shared".to_owned(), 0.5);
+        let mut curve = AnimationContextState::default();
+        curve.curves.insert("CurveOnly".to_owned(), 0.4);
+        curve.curves.insert("Shared".to_owned(), 0.6);
+        let accumulated = blend_source_curve_context(
+            base.clone(),
+            &curve,
+            0.5,
+            SourceCurvesBlendMode::Accumulate,
+        );
+        assert!((accumulated.curves["BaseOnly"] - 0.25).abs() < 1e-6);
+        assert!((accumulated.curves["CurveOnly"] - 0.2).abs() < 1e-6);
+        assert!((accumulated.curves["Shared"] - 0.8).abs() < 1e-6);
+        let overridden = blend_source_curve_context(base, &curve, 0.5, SourceCurvesBlendMode::Override);
+        assert_eq!(overridden.curves.get("BaseOnly"), None);
+        assert!((overridden.curves["CurveOnly"] - 0.2).abs() < 1e-6);
+        assert!((overridden.curves["Shared"] - 0.3).abs() < 1e-6);
+        let mut registry = bevy::reflect::TypeRegistry::default();
+        registry.register::<SourceCurvesBlendMode>();
+        registry.register::<SourceCurvesBlendNode>();
+        assert!(
+            registry
+                .get(std::any::TypeId::of::<SourceCurvesBlendNode>())
+                .unwrap()
+                .data::<ReflectNodeLike>()
+                .is_some()
         );
     }
 

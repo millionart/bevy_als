@@ -23,6 +23,7 @@ POSE_RENDERERS = {
     "apply_additive",
     "apply_mesh_space_additive",
     "make_dynamic_additive",
+    "curves_blend",
     "modify_curve",
     "save_cached_pose",
     "use_cached_pose",
@@ -424,6 +425,48 @@ def make_dynamic_additive_contract(node):
         "input_pins": inputs,
         "output_pins": outputs,
         "mesh_space_additive": parse_bool(field(fields, "bMeshSpaceAdditive", "False")),
+    }, issues
+
+
+def curves_blend_contract(node):
+    renderer = "curves_blend"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "BasePose",
+            "CurvePose",
+            "BlendAmount",
+            "BlendMode",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("BasePose", "CurvePose"))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    blend_amount = parse_number(field(fields, "BlendAmount", "1.0"))
+    if not 0.0 <= blend_amount <= 1.0:
+        issues.append(issue(node, renderer, "source_curve_blend_amount_unsupported", "BlendAmount"))
+    blend_mode = parse_name(field(fields, "BlendMode"))
+    if blend_mode not in {"Accumulate", "Override"}:
+        issues.append(issue(node, renderer, "source_curve_blend_mode_unsupported", blend_mode))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "blend_amount": blend_amount,
+        "blend_mode": blend_mode,
     }, issues
 
 
@@ -1199,6 +1242,8 @@ def pose_contract(node, renderer):
             return apply_additive_contract(node, True)
         if renderer == "make_dynamic_additive":
             return make_dynamic_additive_contract(node)
+        if renderer == "curves_blend":
+            return curves_blend_contract(node)
         if renderer == "modify_curve":
             return modify_curve_contract(node)
         if renderer == "multi_way_blend":
@@ -1507,6 +1552,22 @@ def run_self_test():
     dynamic_contract, issues = pose_contract(dynamic_additive, "make_dynamic_additive")
     assert not issues
     assert not dynamic_contract["mesh_space_additive"]
+    curves_blend = fixture_node(
+        "curves_blend",
+        "Node",
+        "(BasePose=(),CurvePose=(),BlendAmount=1.000000,BlendMode=Accumulate,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("BasePose"), input_pin("CurvePose"), output_pin("Pose")],
+    )
+    curves_contract, issues = pose_contract(curves_blend, "curves_blend")
+    assert not issues
+    assert curves_contract["blend_mode"] == "Accumulate"
+    curves_blend["properties"][0]["exported_text"] = "(BasePose=(),CurvePose=(),BlendAmount=1.000000,BlendMode=Override,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())"
+    curves_contract, issues = pose_contract(curves_blend, "curves_blend")
+    assert not issues
+    assert curves_contract["blend_mode"] == "Override"
+    curves_blend["properties"][0]["exported_text"] = "(BasePose=(),CurvePose=(),BlendAmount=1.000000,BlendMode=Lerp,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())"
+    _, issues = pose_contract(curves_blend, "curves_blend")
+    assert issues[0]["kind"] == "source_curve_blend_mode_unsupported"
     inertial = fixture_node(
         "inertialization",
         "Node",
@@ -1536,6 +1597,7 @@ def run_self_test():
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "linked_anim_layer_contract_parsed": "PASS",
         "dynamic_additive_space_contract_parsed": "PASS",
+        "source_curves_blend_modes_validated": "PASS",
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",

@@ -21,6 +21,7 @@ SUPPORTED_RENDERERS = {
     "apply_additive",
     "apply_mesh_space_additive",
     "make_dynamic_additive",
+    "curves_blend",
     "modify_curve",
     "state_result",
     "root_output",
@@ -269,6 +270,11 @@ def blendspace_inner(value, player=False):
 def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     renderer = semantic.get("renderer")
     value = semantic.get("semantic")
+    if (
+        renderer not in {"root_output", "property_access", "state_machine", *SCALAR_RENDERERS}
+        and not isinstance(value, dict)
+    ):
+        raise PoseRenderError("source renderer semantic is unavailable")
     if renderer == "sequence_player":
         pins = input_names(value)
         play_rate_key = value.get("play_rate_key")
@@ -571,6 +577,20 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return (
             "als_ext::SourceMakeDynamicAdditiveNode",
             "(mesh_space_additive: " + bool_ron(mesh_space) + ")",
+        )
+    if renderer == "curves_blend":
+        blend_amount = value.get("blend_amount")
+        blend_mode = value.get("blend_mode")
+        if (
+            not isinstance(blend_amount, (int, float))
+            or isinstance(blend_amount, bool)
+            or not 0.0 <= blend_amount <= 1.0
+            or blend_mode not in {"Accumulate", "Override"}
+        ):
+            raise PoseRenderError("source curves blend contract is unavailable")
+        return (
+            "als_ext::SourceCurvesBlendNode",
+            "(blend_amount: " + repr(blend_amount) + ", blend_mode: " + blend_mode + ")",
         )
     if renderer == "modify_curve":
         pins = input_names(value)
@@ -1567,6 +1587,31 @@ def run_self_test():
         )
         assert node_type == "als_ext::SourceMakeDynamicAdditiveNode"
         assert inner == "(mesh_space_additive: " + bool_ron(mesh_space) + ")"
+    for mode in ("Accumulate", "Override"):
+        node_type, inner = rendered_inner(
+            graph_contract,
+            {},
+            {
+                "renderer": "curves_blend",
+                "semantic": {"blend_amount": 1.0, "blend_mode": mode},
+            },
+            {},
+            {},
+        )
+        assert node_type == "als_ext::SourceCurvesBlendNode"
+        assert inner == "(blend_amount: 1.0, blend_mode: " + mode + ")"
+    try:
+        rendered_inner(
+            graph_contract,
+            {},
+            {"renderer": "layered_bone_blend"},
+            {},
+            {},
+        )
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("missing source renderer semantic was accepted")
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -1756,6 +1801,8 @@ def run_self_test():
         "source_layered_bone_blend_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
         "source_dynamic_additive_space_is_rendered": "PASS",
+        "source_curves_blend_is_rendered": "PASS",
+        "missing_renderer_semantic_is_reported": "PASS",
         "source_slot_is_rendered": "PASS",
     }
 
