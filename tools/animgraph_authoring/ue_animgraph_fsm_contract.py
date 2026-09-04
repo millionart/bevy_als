@@ -97,6 +97,26 @@ def graph_links(graph):
     return links
 
 
+def outgoing_transition_order(links, nodes):
+    result = {}
+    for link in links:
+        source = link["source"]
+        target = link["target"]
+        target_node = nodes.get(target)
+        if (
+            source not in nodes
+            or target_node is None
+            or target_node.get("class_path") != TRANSITION_CLASS
+            or link["target_pin"] != "In"
+        ):
+            continue
+        result.setdefault(source, []).append(target)
+    for values in result.values():
+        if len(values) != len(set(values)):
+            raise FsmContractError("source FSM transition order is duplicated")
+    return result
+
+
 def bound_graph(source, props):
     references = object_references(required(props, "BoundGraph"))
     if len(references) != 1:
@@ -136,6 +156,7 @@ def fsm_contract(source, suffix):
     if len(nodes) != len(graph.get("nodes", [])) or None in nodes:
         raise FsmContractError("source FSM nodes are invalid")
     links = graph_links(graph)
+    transition_order = outgoing_transition_order(links, nodes)
     entries = [node for node in nodes.values() if node.get("class_path") == ENTRY_CLASS]
     if len(entries) != 1:
         raise FsmContractError("source FSM entry is missing or ambiguous")
@@ -164,14 +185,20 @@ def fsm_contract(source, suffix):
             conduits.append(item)
         elif class_path == TRANSITION_CLASS:
             item = node_base(source, node)
+            source_path = endpoint(links, node["object_path"], "In", "target")
+            order = transition_order.get(source_path, [])
+            if node["object_path"] not in order:
+                raise FsmContractError("source FSM transition order is missing")
             item.update(
                 {
-                    "source": source_suffix(source, endpoint(links, node["object_path"], "In", "target")),
+                    "source": source_suffix(source, source_path),
                     "target": source_suffix(source, endpoint(links, node["object_path"], "Out", "source")),
                     "condition_graph": bound_graph(source, props),
+                    "source_order": order.index(node["object_path"]),
                     "priority": integer(required(props, "PriorityOrder")),
                     "crossfade_duration": number(required(props, "CrossfadeDuration")),
                     "blend_mode": required(props, "BlendMode"),
+                    "blend_profile_wrapper": required(props, "BlendProfileWrapper"),
                     "logic_type": required(props, "LogicType"),
                     "automatic": boolean(required(props, "bAutomaticRuleBasedOnSequencePlayerInState")),
                     "automatic_trigger_time": number(required(props, "AutomaticRuleTriggerTime")),
@@ -232,7 +259,7 @@ def fixture_source():
                 "nodes": [
                     node(entry, ENTRY_CLASS, "10000000-0000-4000-8000-000000000001", "Entry", {}, [output("Entry", state, "In")]),
                     node(state, STATE_CLASS, "10000000-0000-4000-8000-000000000002", "Idle", {"BoundGraph": "'/Asset:AnimGraph.FSM.State.Idle'"}, [output("Out", transition, "In")]),
-                    node(transition, TRANSITION_CLASS, "10000000-0000-4000-8000-000000000003", "Idle to Idle", {"BoundGraph": "'/Asset:AnimGraph.FSM.Transition.Rule'", "PriorityOrder": "1", "CrossfadeDuration": "0.2", "BlendMode": "HermiteCubic", "LogicType": "TLT_StandardBlend", "bAutomaticRuleBasedOnSequencePlayerInState": "False", "AutomaticRuleTriggerTime": "-1.0", "MinTimeBeforeReentry": "-1.0", "SyncGroupNameToRequireValidMarkersRule": "None", "bAllowInertializationForSelfTransitions": "False", "bOnlyEvaluateWhenActive": "False"}, [output("Out", state, "In")]),
+                    node(transition, TRANSITION_CLASS, "10000000-0000-4000-8000-000000000003", "Idle to Idle", {"BoundGraph": "'/Asset:AnimGraph.FSM.Transition.Rule'", "PriorityOrder": "1", "CrossfadeDuration": "0.2", "BlendMode": "HermiteCubic", "BlendProfileWrapper": "(bIsSkeletonBlendProfile=True)", "LogicType": "TLT_StandardBlend", "bAutomaticRuleBasedOnSequencePlayerInState": "False", "AutomaticRuleTriggerTime": "-1.0", "MinTimeBeforeReentry": "-1.0", "SyncGroupNameToRequireValidMarkersRule": "None", "bAllowInertializationForSelfTransitions": "False", "bOnlyEvaluateWhenActive": "False"}, [output("Out", state, "In")]),
                 ],
             },
             {"object_path": state_graph, "class_path": "/Script/AnimGraph.AnimationStateGraph", "nodes": []},
@@ -247,6 +274,7 @@ def run_self_test():
     assert value["states"][0]["graph"] == "AnimGraph.FSM.State.Idle"
     assert value["transitions"][0]["condition_graph"] == "AnimGraph.FSM.Transition.Rule"
     assert value["transitions"][0]["blend_mode"] == "HermiteCubic"
+    assert value["transitions"][0]["source_order"] == 0
     return {
         "fsm_entry_state_transition_topology_preserved": "PASS",
         "fsm_child_graph_references_preserved": "PASS",

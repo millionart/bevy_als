@@ -17,6 +17,7 @@ from ue_animgraph_pose_contract import pose_contract
 from ue_animgraph_pose_renderer import PoseRenderError, SUPPORTED_RENDERERS, render as render_pose_graph
 from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
+from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_plan
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
@@ -30,6 +31,14 @@ TRANSITION_RENDERERS = {
     "comparison_operator",
     "gameplay_tag_equal",
     "boolean_to_float",
+}
+FSM_RENDERERS = {
+    "state_machine",
+    "fsm_entry",
+    "fsm_state",
+    "fsm_alias",
+    "fsm_conduit",
+    "fsm_transition",
 }
 _TRANSITION_RENDERER = None
 
@@ -266,12 +275,20 @@ def normalized_node(node, renderer, semantic):
     return result
 
 
-def renderer_semantic_issues(node, renderer, semantic, graph_kind, transition_renderable):
+def renderer_semantic_issues(
+    node,
+    renderer,
+    semantic,
+    graph_kind,
+    transition_renderable,
+    fsm_renderable=False,
+):
     if (
         renderer == "unsupported"
         or semantic is not None
         or renderer in IR_ONLY_RENDERERS
         or (graph_kind == "transition" and transition_renderable and renderer in TRANSITION_RENDERERS)
+        or (renderer in FSM_RENDERERS and fsm_renderable)
     ):
         return []
     return [
@@ -284,7 +301,14 @@ def renderer_semantic_issues(node, renderer, semantic, graph_kind, transition_re
     ]
 
 
-def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
+def graph_ir(
+    graph_contract,
+    registry,
+    reachable_nodes,
+    graph_kind="graph",
+    fsm_plan=None,
+    state_machine_plans=None,
+):
     included = set(reachable_nodes)
     for node in graph_contract["source_graph"]["nodes"]:
         if node.get("class_path") == "/Script/UnrealEd.EdGraphNode_Comment":
@@ -292,6 +316,7 @@ def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
     nodes = []
     unsupported = []
     transition_renderable = False
+    state_machine_plans = state_machine_plans or {}
     if graph_kind == "transition":
         try:
             render_transition_contract(graph_contract)
@@ -312,6 +337,11 @@ def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
+        node_fsm_plan = state_machine_plans.get(node.get("object_path"))
+        fsm_renderable = fsm_plan is not None or node_fsm_plan is not None
+        if semantic is None and renderer in FSM_RENDERERS and fsm_renderable:
+            selected = fsm_plan if fsm_plan is not None else node_fsm_plan
+            semantic = {"fsm_source_graph": selected["source_graph"]}
         unsupported.extend(contract_issues)
         unsupported.extend(
             renderer_semantic_issues(
@@ -320,6 +350,7 @@ def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
                 semantic,
                 graph_kind,
                 transition_renderable,
+                fsm_renderable,
             )
         )
         nodes.append(normalized_node(node, renderer, semantic))
@@ -401,13 +432,39 @@ def build_ir(
             }
         )
         assets = []
+    fsm_plans = {}
+    for entry in source_reachability["graphs"]:
+        if entry["kind"] != "state_machine":
+            continue
+        try:
+            fsm_plans[entry["source_graph"]] = render_fsm_plan(
+                source,
+                entry["source_graph"],
+                source_content_root,
+                source_mount,
+            )
+        except FsmRenderError as error:
+            unsupported.append(
+                {
+                    "kind": "source_fsm_renderer_unsupported",
+                    "source_graph": entry["source_graph"],
+                    "detail": str(error),
+                }
+            )
+    state_machine_plans = {
+        f"{source['asset_path']}:{suffix.rsplit('.', 1)[0]}": plan
+        for suffix, plan in fsm_plans.items()
+    }
     for entry in source_reachability["graphs"]:
         value = contract(source, entry["source_graph"])
+        fsm_plan = fsm_plans.get(entry["source_graph"])
         graph_value, graph_unsupported = graph_ir(
             value,
             registry,
             entry["reachable_nodes"],
             entry["kind"],
+            fsm_plan,
+            state_machine_plans,
         )
         if entry["kind"] == "graph":
             graph_value["pose_renderer"] = pose_renderer_status(
@@ -427,6 +484,8 @@ def build_ir(
                         "detail": str(error),
                     }
                 )
+            if fsm_plan is not None:
+                graph_value["fsm_renderer"] = fsm_plan
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
     supported_sync_nodes = supported_sync_group_nodes(graphs, assets, registry)

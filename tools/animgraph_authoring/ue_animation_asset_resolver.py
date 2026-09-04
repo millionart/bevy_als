@@ -93,6 +93,60 @@ def source_sequence_timing(content_root, mount, source_path):
     return {"duration": float(duration), "markers": markers}
 
 
+def source_blend_profile(content_root, mount, source_path):
+    package_object, separator, profile_name = source_path.rpartition(":")
+    if not separator or not package_object or not profile_name:
+        raise AssetResolutionError("source blend profile path is invalid")
+    path = source_uasset_path(content_root, mount, package_object)
+    try:
+        asset = UAsset(str(path))
+        reader = PropReader(asset)
+    except Exception as error:
+        raise AssetResolutionError("source blend profile cannot be read") from error
+    matches = [
+        index
+        for index, export in enumerate(asset.exports)
+        if source_export_class(asset, export) == "BlendProfile"
+        and export.object_name == profile_name
+    ]
+    if len(matches) != 1:
+        raise AssetResolutionError("source blend profile export is missing or ambiguous")
+    properties, ok, _ = reader.read_export(matches[0])
+    if not ok:
+        raise AssetResolutionError("source blend profile properties are unreadable")
+    scales = []
+    for entry in properties.get("ProfileEntries", []):
+        if not isinstance(entry, dict):
+            raise AssetResolutionError("source blend profile entry is invalid")
+        reference = entry.get("BoneReference")
+        tagged = reference.get("__tagged__") if isinstance(reference, dict) else None
+        bone = tagged.get("BoneName") if isinstance(tagged, dict) else None
+        scale = entry.get("BlendScale")
+        if (
+            not isinstance(bone, str)
+            or not bone
+            or not isinstance(scale, (int, float))
+            or isinstance(scale, bool)
+        ):
+            raise AssetResolutionError("source blend profile entry fields are invalid")
+        scales.append({"bone": bone, "scale": float(scale)})
+    return {"source_profile": source_path, "bone_scales": scales}
+
+
+def source_blend_profile_wrapper(content_root, mount, value):
+    try:
+        fields = parse_struct(value)
+        unknown = set(fields) - {"bIsSkeletonBlendProfile", "BlendProfile"}
+        if unknown or not parse_bool(struct_field(fields, "bIsSkeletonBlendProfile")):
+            raise ExportedTextError("blend profile wrapper is unsupported")
+    except ExportedTextError as error:
+        raise AssetResolutionError("source blend profile wrapper is invalid") from error
+    reference = fields.get("BlendProfile")
+    if reference is None:
+        return {"source_profile": None, "bone_scales": []}
+    return source_blend_profile(content_root, mount, source_object_path(reference))
+
+
 def relative_asset_path(asset_root, path):
     try:
         return path.resolve().relative_to(asset_root.resolve()).as_posix()
@@ -460,6 +514,16 @@ def run_self_test():
             pass
         else:
             raise AssertionError("unsupported blendspace evaluator input was accepted")
+    assert source_blend_profile_wrapper(None, None, "(bIsSkeletonBlendProfile=True)") == {
+        "source_profile": None,
+        "bone_scales": [],
+    }
+    try:
+        source_blend_profile_wrapper(None, None, "(bIsSkeletonBlendProfile=False)")
+    except AssetResolutionError:
+        pass
+    else:
+        raise AssertionError("non-skeleton blend profile was accepted")
     return {
         "source_object_reference_parsed": "PASS",
         "unique_animation_clip_resolved": "PASS",
@@ -469,6 +533,8 @@ def run_self_test():
         "source_animation_path_resolves_inside_mount": "PASS",
         "sequence_nodes_resolve_from_source_graphs": "PASS",
         "blendspace_evaluator_schema_is_validated": "PASS",
+        "empty_skeleton_blend_profile_preserved": "PASS",
+        "unsupported_blend_profile_rejected": "PASS",
     }
 
 
