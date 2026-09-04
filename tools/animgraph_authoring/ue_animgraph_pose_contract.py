@@ -31,6 +31,7 @@ POSE_RENDERERS = {
     "multi_way_blend",
     "set_hips_direction",
     "enum_pose_blend",
+    "layered_bone_blend",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -670,6 +671,80 @@ def enum_pose_blend_contract(node):
     }, issues
 
 
+def layered_bone_blend_contract(node):
+    renderer = "layered_bone_blend"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "BasePose",
+            "BlendPoses",
+            "LayerSetup",
+            "BlendWeights",
+            "SkeletonGuid",
+            "VirtualBoneGuid",
+            "LODThreshold",
+            "bMeshSpaceRotationBlend",
+            "bBlendRootMotionBasedOnRootBone",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    poses = parse_list(field(fields, "BlendPoses"))
+    layers = parse_list(field(fields, "LayerSetup"))
+    weights = [parse_number(value) for value in parse_list(field(fields, "BlendWeights"))]
+    if not poses or len(poses) != len(layers) or len(poses) != len(weights):
+        raise PoseContractError("source layered bone blend layer count is invalid")
+    required = ("BasePose",) + tuple(f"BlendPoses_{index}" for index in range(len(poses)))
+    inputs, issues = validate_inputs(node, renderer, required)
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    branch_layers = []
+    for layer in layers:
+        layer_fields = parse_struct(layer)
+        reject_unknown_fields(layer_fields, {"BranchFilters"})
+        bones = []
+        for branch in parse_list(field(layer_fields, "BranchFilters")):
+            branch_fields = parse_struct(branch)
+            reject_unknown_fields(branch_fields, {"BoneName", "BlendDepth"})
+            if parse_number(field(branch_fields, "BlendDepth", "0.0")) != 0.0:
+                raise PoseContractError("source layered bone blend depth is unsupported")
+            bones.append(parse_quoted(field(branch_fields, "BoneName")))
+        if not bones:
+            raise PoseContractError("source layered bone blend branch filter is empty")
+        branch_layers.append(bones)
+    if field(fields, "SkeletonGuid", "00000000000000000000000000000000") != "00000000000000000000000000000000":
+        issues.append(issue(node, renderer, "source_layered_bone_skeleton_guid_unsupported", "SkeletonGuid"))
+    if field(fields, "VirtualBoneGuid", "00000000000000000000000000000000") != "00000000000000000000000000000000":
+        issues.append(issue(node, renderer, "source_layered_bone_virtual_guid_unsupported", "VirtualBoneGuid"))
+    if parse_number(field(fields, "LODThreshold", "-1")) != -1.0:
+        issues.append(issue(node, renderer, "source_lod_threshold_unsupported", "LODThreshold"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "branch_bone_layers": branch_layers,
+        "blend_weights": weights,
+        "mesh_space_rotation_blend": parse_bool(
+            field(fields, "bMeshSpaceRotationBlend", "False")
+        ),
+        "blend_root_motion_based_on_root_bone": parse_bool(
+            field(fields, "bBlendRootMotionBasedOnRootBone", "False")
+        ),
+        "base_pose_pin": "Base Pose",
+        "blend_pose_pins": [f"Blend Poses {index}" for index in range(len(poses))],
+        "output_pin": "Pose",
+    }, issues
+
+
 def cached_pose_contract(node, renderer):
     property_name = "CacheName" if renderer == "save_cached_pose" else "NameOfCache"
     source_name = node_property(node, property_name)
@@ -869,6 +944,8 @@ def pose_contract(node, renderer):
             return set_hips_direction_contract(node)
         if renderer == "enum_pose_blend":
             return enum_pose_blend_contract(node)
+        if renderer == "layered_bone_blend":
+            return layered_bone_blend_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
@@ -1025,6 +1102,18 @@ def run_self_test():
     assert not issues
     assert enum_blend_contract["selected_enum_entry"] == "LeftBackward"
     assert enum_blend_contract["active_enum_path"] == "GroundedState.HipsDirection"
+    layered = fixture_node(
+        "layered_bone_blend",
+        "Node",
+        '(BasePose=(),BlendPoses=((),()),LayerSetup=((BranchFilters=((BoneName="thigh_l"),(BoneName="ik_foot_l"))),(BranchFilters=((BoneName="thigh_r")))),BlendWeights=(1.000000,0.500000),SkeletonGuid=00000000000000000000000000000000,VirtualBoneGuid=00000000000000000000000000000000,LODThreshold=-1,bMeshSpaceRotationBlend=True,bBlendRootMotionBasedOnRootBone=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("BasePose"), input_pin("BlendPoses_0"), input_pin("BlendPoses_1"), output_pin("Pose")],
+    )
+    layered_contract, issues = pose_contract(layered, "layered_bone_blend")
+    assert not issues
+    assert layered_contract["branch_bone_layers"] == [
+        ["thigh_l", "ik_foot_l"],
+        ["thigh_r"],
+    ]
     state = fixture_node(
         "state_result",
         "Node",
@@ -1076,6 +1165,7 @@ def run_self_test():
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",
         "source_enum_pose_blend_contract_parsed": "PASS",
+        "source_layered_bone_blend_contract_parsed": "PASS",
     }
 
 

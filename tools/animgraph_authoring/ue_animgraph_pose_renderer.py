@@ -38,6 +38,7 @@ SUPPORTED_RENDERERS = {
     "multi_way_blend",
     "set_hips_direction",
     "enum_pose_blend",
+    "layered_bone_blend",
 }
 
 SCALAR_RENDERERS = {
@@ -340,6 +341,37 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("source_visible_enum_entry", quoted(value["selected_enum_entry"])),
         ]
         return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + ")"
+    if renderer == "layered_bone_blend":
+        layers = value.get("branch_bone_layers")
+        weights = value.get("blend_weights")
+        pins = value.get("blend_pose_pins")
+        if (
+            not isinstance(layers, list)
+            or not isinstance(weights, list)
+            or not isinstance(pins, list)
+            or len(layers) != len(weights)
+            or len(layers) != len(pins)
+            or not all(isinstance(bone, str) for layer in layers for bone in layer)
+            or not all(isinstance(weight, (int, float)) for weight in weights)
+            or not all(isinstance(pin, str) for pin in pins)
+        ):
+            raise PoseRenderError("source layered bone blend contract is invalid")
+        layers_ron = "[" + ", ".join(
+            "[" + ", ".join(quoted(bone) for bone in layer) + "]" for layer in layers
+        ) + "]"
+        fields = [
+            field("branch_bones", "[]"),
+            field("branch_bone_layers", layers_ron),
+            field("blend_weight", "1.0"),
+            field("blend_weights", "[" + ", ".join(repr(weight) for weight in weights) + "]"),
+            field("mesh_space_rotation_blend", bool_ron(value["mesh_space_rotation_blend"])),
+            field("blend_root_motion_based_on_root_bone", bool_ron(value["blend_root_motion_based_on_root_bone"])),
+            field("base_pose_pin", quoted(value["base_pose_pin"])),
+            field("blend_pose_pin", quoted(pins[0])),
+            field("blend_pose_pins", "[" + ", ".join(quoted(pin) for pin in pins) + "]"),
+            field("output_pin", quoted(value["output_pin"])),
+        ]
+        return "als_ext::SourceLayeredBoneBlendNode", "(" + ", ".join(fields) + ")"
     if renderer == "two_way_blend":
         pins = input_names(value)
         alpha_key = value.get("alpha_key")
@@ -522,6 +554,11 @@ def target_pin(renderer, source_pin, node=None):
         if not isinstance(label, str) or not label:
             raise PoseRenderError("source enum pose blend pin is unavailable")
         return label
+    if renderer == "layered_bone_blend":
+        if source_pin == "BasePose":
+            return "Base Pose"
+        if source_pin.startswith("BlendPoses_"):
+            return "Blend Poses " + source_pin.rsplit("_", 1)[1]
     return source_pin
 
 
@@ -946,6 +983,27 @@ def run_self_test():
         "BlendPose_1",
         {"pins": [{"name": "BlendPose_1", "friendly_name": "Left Backward Pose"}]},
     ) == "Left Backward Pose"
+    layered_type, layered_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "layered_bone_blend",
+            "semantic": {
+                "branch_bone_layers": [["thigh_l"], ["thigh_r"]],
+                "blend_weights": [1.0, 0.5],
+                "mesh_space_rotation_blend": True,
+                "blend_root_motion_based_on_root_bone": True,
+                "base_pose_pin": "Base Pose",
+                "blend_pose_pins": ["Blend Poses 0", "Blend Poses 1"],
+                "output_pin": "Pose",
+            },
+        },
+        {},
+        {},
+    )
+    assert layered_type == "als_ext::SourceLayeredBoneBlendNode"
+    assert 'branch_bone_layers: [["thigh_l"], ["thigh_r"]]' in layered_inner
+    assert target_pin("layered_bone_blend", "BlendPoses_1") == "Blend Poses 1"
     curve_type, curve_inner = rendered_inner(
         graph_contract,
         {},
@@ -1063,6 +1121,7 @@ def run_self_test():
         "source_multi_way_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
+        "source_layered_bone_blend_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
     }
 
