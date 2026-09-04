@@ -123,6 +123,21 @@ fn gait_tag(gait: Gait) -> GameplayTag {
     })
 }
 
+fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
+    GameplayTag::new(match locomotion {
+        LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
+        LocomotionState::Air => "Als.LocomotionMode.InAir",
+        LocomotionState::Ragdolling => "",
+    })
+}
+
+fn stance_tag(stance: Stance) -> GameplayTag {
+    GameplayTag::new(match stance {
+        Stance::Standing => "Als.Stance.Standing",
+        Stance::Crouching => "Als.Stance.Crouching",
+    })
+}
+
 fn locomotion_action_index(
     notify_action: Option<&AlsNotifyLocomotionAction>,
     mantle: Option<&AlsMantleState>,
@@ -264,6 +279,12 @@ fn root_graph_writer(
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
             set_gameplay_tag_input(
                 instance.player_entity(),
+                "locomotion_mode",
+                locomotion_mode_tag(*locomotion),
+            );
+            set_gameplay_tag_input(instance.player_entity(), "stance", stance_tag(*stance));
+            set_gameplay_tag_input(
+                instance.player_entity(),
                 "locomotion_action",
                 locomotion_action_tag(*locomotion, notify_action, mantle, roll),
             );
@@ -403,6 +424,24 @@ mod tests {
     fn gait_tag_uses_the_source_hierarchy() {
         assert_eq!(gait_tag(Gait::Walking).as_str(), "Als.Gait.Walking");
         assert_eq!(gait_tag(Gait::Sprinting).as_str(), "Als.Gait.Sprinting");
+    }
+
+    #[test]
+    fn locomotion_mode_and_stance_tags_use_the_source_hierarchy() {
+        assert_eq!(
+            locomotion_mode_tag(LocomotionState::Grounded).as_str(),
+            "Als.LocomotionMode.Grounded"
+        );
+        assert_eq!(
+            locomotion_mode_tag(LocomotionState::Air).as_str(),
+            "Als.LocomotionMode.InAir"
+        );
+        assert!(!locomotion_mode_tag(LocomotionState::Ragdolling).is_valid());
+        assert_eq!(stance_tag(Stance::Standing).as_str(), "Als.Stance.Standing");
+        assert_eq!(
+            stance_tag(Stance::Crouching).as_str(),
+            "Als.Stance.Crouching"
+        );
     }
 
     #[test]

@@ -72,6 +72,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：本地 Ragdolling `PoseSnapshot`唯一可见输入为`Snapshot`，`Mode=SnapshotPin`，property binding为`GetParent.RagdollingState.FinalRagdollPose`，输出连接 inner GameplayTagsBlend 的`BlendPose_0`；原手工 `RagdollingLayerPlugin`在退出时捕获同一 snapshot pose。
   - Gate summary：PoseSnapshot contract/renderer、global-pose output、converter self-test、Ragdolling direct `--write`/`--check`和静态 RON validator均PASS，conversion/integration status为`ready`；带本地 UE source的 Ragdoll enter/stable/recovery contract Gate PASS。消融：移除注册映射立即回到`unregistered_source_node`；旧`als_ragdolling_snapshot_pose`/`als_ragdolling_flail_play_rate`为0引用，手工 graph/runtime使用`ragdolling_state.*` source-style key。
 
+- [x] BF112.11 LocomotionMode/Stance real-tag providers：开始：2026-09-05 00:22:23 +08:00；预估结束：2026-09-05 00:52:23 +08:00；实际结束：2026-09-05 00:25:01 +08:00（偏差 -27m22s）。将 Locomotion direct graph 已报告的`locomotion_mode`/`stance`真实 Tag 写入 root player entity，并补全 plugin tag table；没有 source `LocomotionMode`等价的 target Ragdolling 保持 invalid Tag。验收：source tag mapping fixture、tag table parse、Locomotion direct runtime provider smoke、无 f32/index alias。
+  - source fact：`AlsGameplayTags.cpp`只定义`Als.LocomotionMode.{Grounded,InAir}`和`Als.Stance.{Standing,Crouching}`；`AlsAnimationInstance.cpp`每帧从 Character 复制 LocomotionMode/Stance。ALS Ragdolling是`LocomotionAction`，不是第三个 LocomotionMode Tag，因此 target `LocomotionState::Ragdolling`不能伪造模式 Tag。
+  - Gate summary：source-tag mapping、tag table parse和 root runtime input smoke均PASS；root在同一 AnimationGraphPlayer entity 写入`locomotion_mode`/`stance`，Ragdolling mode明确无效。消融：未增加 f32/index Tag alias；移除 Ragdolling invalid branch将伪造不存在的 source Tag，故保留该唯一空 Tag 映射。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

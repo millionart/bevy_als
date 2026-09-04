@@ -32,6 +32,14 @@
     "description": "ALS source gameplay tag"
   },
   {
+    "tag_name": "Als.LocomotionMode.Grounded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.LocomotionMode.InAir",
+    "description": "ALS source gameplay tag"
+  },
+  {
     "tag_name": "Als.RotationMode.Aiming",
     "description": "ALS source gameplay tag"
   },
