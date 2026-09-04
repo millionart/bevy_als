@@ -84,6 +84,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`BS_Als_Look`是`BlendSpace1D`，唯一有效 axis为`Pitch Angle[-90,90]`，三个 sample为 Down/Forward/Up；Head evaluator pin为`X(Pitch Angle)`和`NormalizedTime(Normalized Time)`，分别绑定`HeadState.PitchAngle`与`HeadState.YawAmount`，且`bTeleportToNormalizedTime=true`。
   - Gate summary：resolver/renderer/converter self-test、Head direct `--write`/`--check`、生成 RON 静态验证、Head contract 与 yaw runtime Gate均PASS；Head report为`ready`且零 blocker。消融：删除无消费者的`normalized_time_is_input`/`normalized_time_key`和缺失 pin schema 的二维默认值后结果不变；额外 evaluator input与缺失 schema均由 fixture fail-closed 拒绝。
 
+- [x] BF112.14 Linked Anim Layer self-implementation closure：开始：2026-09-05 01:03:25 +08:00；预估结束：2026-09-05 01:53:25 +08:00；实际结束：2026-09-05 01:37:29 +08:00（偏差 -15m56s）。仅支持当前 AnimBP 以单一 `ImplementedInterfaces` layer 实现自身 `AnimGraphNode_LinkedAnimLayer`的 source 语义，递归物化该 layer graph，并复用既有`als_ext::LinkedAnimLayerNode`；多实现、动态实例或未声明实现继续 fail-closed。验收：fresh Default/interface source record、fixture/ablation、Default direct `--write`/`--check`到 ready、生成 RON 静态 Gate。
+  - source fact：fresh reader确认 Default root只有`ALI_Overlay - Overlay` Linked Anim Layer，`Node`为`Interface=ALI_Overlay`、`Layer=Overlay`，无 lifecycle functions或输入 pin；同一 AnimBP 的`ImplementedInterfaces`声明该`Overlay` graph，interface asset也只声明此 layer root。该子图唯一 sync player是`A_Als_Idle`的`Secondary Motion`，loop、零 start、2.666667 秒且无 markers。
+  - Gate summary：contract/reachability/renderer/materializer/converter self-test、复用`LinkedAnimLayerNode`的 focused Rust test、Default direct `--write`/`--check`、2 graph static editor/position Gate均PASS；Default report为`ready`、零 blocker，明确列出`secondary_motion.sync_phase`和五个 target runtime input。同期重写/确定性检查并静态审计 Grounded、Locomotion、Ragdolling、Head；补齐 synthetic state editor position 后四项均PASS。消融：移除自身 interface 声明会被 fixture拒绝；缺少物化 layer target也会被 materializer拒绝；未新增 runtime node。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

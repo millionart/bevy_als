@@ -88,7 +88,7 @@ def placeholder_graph_text(source_asset, state_id):
             "    },",
             "    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { \"Result\": Pose }, input_order: {}, output_order: { Data(\"Result\"): 0 }),",
             "    default_data: {},",
-            "    editor_metadata: (node_positions: {}, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),",
+            f"    editor_metadata: (node_positions: {{ {quoted(node)}: (0.0, 0.0) }}, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {{}}, input_time_order: {{}}, output_data_order: {{}}, output_pose_order: {{}}),",
             ")",
             "",
         )
@@ -314,6 +314,20 @@ def materialized_reference_issues(files):
     return sorted(set(issues))
 
 
+def linked_layer_targets(ir):
+    values = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            if node.get("renderer") != "linked_anim_layer":
+                continue
+            semantic = node.get("semantic")
+            target = semantic.get("target_graph") if isinstance(semantic, dict) else None
+            if not isinstance(target, str) or not target:
+                raise MaterializationError("source linked animation layer graph is unavailable")
+            values.append(target)
+    return values
+
+
 def materialize_files(source, ir, registry):
     source_asset = source.get("asset_path")
     if source_asset != ir.get("source_asset"):
@@ -326,6 +340,8 @@ def materialize_files(source, ir, registry):
     graph_paths = {
         suffix: graph_path(source_asset, suffix) for suffix in graph_entries
     }
+    if any(target not in graph_paths.values() for target in linked_layer_targets(ir)):
+        raise MaterializationError("source linked animation layer graph is not materialized")
     fsm_entries = [
         entry
         for entry in ir.get("graphs", [])
@@ -433,14 +449,38 @@ def run_self_test():
     assert "alpha_blend_mode: Custom" in transition_graph_text("/Asset", custom)
     assert graph_path("/Asset", "AnimGraph") == graph_path("/Asset", "AnimGraph")
     assert graph_path("/Asset", "AnimGraph") != fsm_path("/Asset", "AnimGraph")
+    placeholder = placeholder_graph_text("/Asset", "State")
+    assert 'node_positions: { "' + stable_id("/Asset", "placeholder", "State") in placeholder
     assert materialized_reference_issues(
         {"graphs/root.animgraph.ron": '(fsm: "fsms/missing.fsm.ron")'}
     )
+    assert linked_layer_targets(
+        {
+            "graphs": [
+                {
+                    "nodes": [
+                        {
+                            "renderer": "linked_anim_layer",
+                            "semantic": {"target_graph": "graphs/layer.animgraph.ron"},
+                        }
+                    ]
+                }
+            ]
+        }
+    ) == ["graphs/layer.animgraph.ron"]
+    try:
+        linked_layer_targets({"graphs": [{"nodes": [{"renderer": "linked_anim_layer"}]}]})
+    except MaterializationError:
+        pass
+    else:
+        raise AssertionError("linked animation layer without a target was accepted")
     return {
         "standard_and_inertial_transitions_materialized": "PASS",
         "source_custom_curve_materialized": "PASS",
         "source_paths_are_deterministic": "PASS",
+        "synthetic_state_node_position_materialized": "PASS",
         "missing_generated_reference_rejected": "PASS",
+        "linked_layer_target_closure_checked": "PASS",
     }
 
 

@@ -26,6 +26,7 @@ SUPPORTED_RENDERERS = {
     "save_cached_pose",
     "use_cached_pose",
     "linked_input_pose",
+    "linked_anim_layer",
     "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
@@ -637,6 +638,18 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(value["input_name"])
             + ", output: \"Pose\", context_curve_prefix: \"\", context_curve_names: [])",
         )
+    if renderer == "linked_anim_layer":
+        target = value.get("target_graph")
+        if not isinstance(target, str) or not target:
+            raise PoseRenderError("source linked animation layer graph is unavailable")
+        return (
+            "als_ext::LinkedAnimLayerNode",
+            "(interface: "
+            + quoted(target)
+            + ", implementations: ["
+            + quoted(target)
+            + "], selector: \"layer_index\")",
+        )
     if renderer == "inertialization":
         return (
             "als_ext::InertializationPassthroughNode",
@@ -682,6 +695,8 @@ def target_pin(renderer, source_pin, node=None):
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "root_output":
         return {"Result": "Source"}.get(source_pin, source_pin)
+    if renderer == "linked_anim_layer":
+        return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer in {"blendspace_evaluator", "blendspace_player"}:
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
@@ -992,6 +1007,7 @@ def render(
     fsm_assets = fsm_assets or {}
     result_nodes = []
     sync_wrappers = {}
+    linked_layer_selectors = {}
     blendspace_edges = []
     blendspace_targets = {}
     for source_path, semantic in ir_nodes.items():
@@ -1012,6 +1028,19 @@ def render(
             result_nodes.extend(nodes)
             blendspace_edges.extend(edges)
             blendspace_targets.update(targets)
+        if semantic.get("renderer") == "linked_anim_layer":
+            selector_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/linked-layer/" + source_path))
+            x, y = position(raw)
+            result_nodes.append(
+                (
+                    selector_id,
+                    "Linked layer selection",
+                    "(value: 0.0)",
+                    "als_ext::ConstantF32Node",
+                    (x - 96.0, y + 96.0),
+                )
+            )
+            linked_layer_selectors[source_path] = selector_id
         if semantic.get("renderer") != "sequence_player":
             continue
         group = semantic["semantic"].get("sync_group")
@@ -1020,12 +1049,24 @@ def render(
         key = sync_group_phase_keys.get(group)
         if not isinstance(key, str) or not key:
             raise PoseRenderError("source sync group phase key is unavailable")
+        asset = asset_by_node.get(source_path)
+        timing = asset.get("source_timing") if isinstance(asset, dict) else None
+        if (
+            not isinstance(timing, dict)
+            or not isinstance(timing.get("duration"), (int, float))
+            or isinstance(timing["duration"], bool)
+            or timing["duration"] <= 0.0
+            or timing.get("markers") != []
+        ):
+            raise PoseRenderError("source sync group timing is unsupported")
         wrapper_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/sync/" + source_path))
         x, y = position(raw)
         looped = bool_ron(semantic["semantic"]["loop_animation"])
         wrapper = (
             "(key: " + quoted(key)
-            + ", leader_duration: 0.0, leader_markers: [], follower_duration: 0.0, follower_markers: [], looped: "
+            + ", leader_duration: " + repr(timing["duration"])
+            + ", leader_markers: [], follower_duration: " + repr(timing["duration"])
+            + ", follower_markers: [], looped: "
             + looped
             + ")"
         )
@@ -1091,6 +1132,11 @@ def render(
             f"NodeData({quoted(wrapper_id)}, \"pose\"): NodeData({quoted(identifier)}, \"Pose\")"
         )
         edges.append(f"NodeTime({quoted(wrapper_id)}, \"time\"): NodeTime({quoted(identifier)})")
+    for source_path, selector_id in linked_layer_selectors.items():
+        identifier = node_id(raw_nodes[source_path])
+        edges.append(
+            f"NodeData({quoted(identifier)}, \"layer_index\"): NodeData({quoted(selector_id)}, \"value\")"
+        )
     edges.extend(blendspace_edges)
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
@@ -1201,7 +1247,14 @@ def fixture_graph():
             {"source_node": result_path, "renderer": "state_result", "semantic": {"lifecycle": []}},
         ]
     }
-    assets = [{"source_node": sequence_path, "category": "sequence", "target_asset": "animations/A.anim.ron"}]
+    assets = [
+        {
+            "source_node": sequence_path,
+            "category": "sequence",
+            "target_asset": "animations/A.anim.ron",
+            "source_timing": {"duration": 1.0, "markers": []},
+        }
+    ]
     return graph_contract, graph_ir, assets
 
 
@@ -1229,6 +1282,50 @@ def run_self_test():
     assert '"als_ext::SourceTwoWayBlendNode"' in text
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'OutputData("Result")' in text
+    linked_path = "/Asset:AnimGraph.Layer"
+    linked_result = "/Asset:AnimGraph.LayerResult"
+    linked_contract = {
+        "source_graph": {
+            "nodes": [
+                {
+                    "object_path": linked_path,
+                    "node_guid": "10000000-0000-4000-8000-000000000031",
+                    "title": "ALI_Test - Overlay\nLinked Anim Layer",
+                    "position_x": -128,
+                    "position_y": 0,
+                    "pins": [],
+                },
+                {
+                    "object_path": linked_result,
+                    "node_guid": "10000000-0000-4000-8000-000000000032",
+                    "title": "Output Pose\nAnimGraph",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "pins": [],
+                },
+            ]
+        },
+        "links": [
+            {
+                "source": {"node_object_path": linked_path, "pin_name": "Pose"},
+                "target": {"node_object_path": linked_result, "pin_name": "Result"},
+            }
+        ],
+    }
+    linked_ir = {
+        "nodes": [
+            {
+                "source_node": linked_path,
+                "renderer": "linked_anim_layer",
+                "semantic": {"target_graph": "graphs/overlay.animgraph.ron"},
+            },
+            {"source_node": linked_result, "renderer": "root_output", "semantic": {}},
+        ]
+    }
+    text = render(linked_contract, linked_ir, [])
+    assert '"als_ext::LinkedAnimLayerNode"' in text
+    assert 'implementations: ["graphs/overlay.animgraph.ron"]' in text
+    assert 'name: "Linked layer selection"' in text
     assert 'name: "Comment"' not in text
     reroute_path = "/Asset:State.Reroute"
     graph_contract["source_graph"]["nodes"].append(

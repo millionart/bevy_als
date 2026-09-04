@@ -27,6 +27,7 @@ POSE_RENDERERS = {
     "use_cached_pose",
     "state_result",
     "linked_input_pose",
+    "linked_anim_layer",
     "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
@@ -871,6 +872,47 @@ def linked_input_pose_contract(node):
     }, issues
 
 
+def linked_anim_layer_contract(node):
+    renderer = "linked_anim_layer"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Interface",
+            "Layer",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ())
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    interface = parse_quoted(field(fields, "Interface"))
+    match = re.fullmatch(r"[^']*'(/[^']+)'", interface)
+    if match is None:
+        raise PoseContractError("linked animation layer interface is invalid")
+    layer = parse_quoted(field(fields, "Layer"))
+    if not layer:
+        raise PoseContractError("linked animation layer name is invalid")
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "interface": match.group(1),
+        "layer": layer,
+    }, issues
+
+
 def inertialization_contract(node):
     renderer = "inertialization"
     fields = parse_struct(node_property(node, "Node"))
@@ -1138,6 +1180,8 @@ def pose_contract(node, renderer):
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
             return linked_input_pose_contract(node)
+        if renderer == "linked_anim_layer":
+            return linked_anim_layer_contract(node)
         if renderer == "inertialization":
             return inertialization_contract(node)
         if renderer == "pose_lifecycle_call":
@@ -1403,6 +1447,16 @@ def run_self_test():
     linked_contract, issues = pose_contract(linked, "linked_input_pose")
     assert not issues
     assert linked_contract["input_name"] == "Grounded Input"
+    linked_layer = fixture_node(
+        "linked_anim_layer",
+        "Node",
+        '(Interface="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/ALI_Test.ALI_Test_C\'",Layer="Overlay",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [output_pin("Pose")],
+    )
+    linked_layer_contract_value, issues = pose_contract(linked_layer, "linked_anim_layer")
+    assert not issues
+    assert linked_layer_contract_value["interface"] == "/Asset/ALI_Test.ALI_Test_C"
+    assert linked_layer_contract_value["layer"] == "Overlay"
     inertial = fixture_node(
         "inertialization",
         "Node",
@@ -1430,6 +1484,7 @@ def run_self_test():
         "state_result_lifecycle_blocked": "PASS",
         "pose_snapshot_binding_contract_parsed": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
+        "linked_anim_layer_contract_parsed": "PASS",
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",

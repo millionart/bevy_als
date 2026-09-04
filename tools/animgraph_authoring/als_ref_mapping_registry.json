@@ -3,6 +3,7 @@
   "node_classes": {
     "/Script/AnimGraph.AnimGraphNode_Root": { "renderer": "root_output" },
     "/Script/AnimGraph.AnimGraphNode_LinkedInputPose": { "renderer": "linked_input_pose" },
+    "/Script/AnimGraph.AnimGraphNode_LinkedAnimLayer": { "renderer": "linked_anim_layer" },
     "/Script/AnimGraph.AnimGraphNode_PoseSnapshot": { "renderer": "pose_snapshot" },
     "/Script/AnimGraph.AnimGraphNode_SaveCachedPose": { "renderer": "save_cached_pose" },
     "/Script/AnimGraph.AnimGraphNode_UseCachedPose": { "renderer": "use_cached_pose" },
@@ -68,6 +69,7 @@
   },
   "sync_group_phase_keys": {
     "Movement": "standing_state.movement.sync_phase",
+    "Secondary Motion": "secondary_motion.sync_phase",
     "Fall": "fall.sync_phase",
     "Jump": "jump.sync_phase",
     "Flail": "flail.sync_phase",
@@ -81,6 +83,13 @@
         { "name": "Right", "time": 0.5 }
       ],
       "start_position": 0.2,
+      "looped": true,
+      "delta_seconds_key": "animation.delta_seconds"
+    },
+    "Secondary Motion": {
+      "phase_duration": 2.666667,
+      "phase_markers": [],
+      "start_position": 0.0,
       "looped": true,
       "delta_seconds_key": "animation.delta_seconds"
     }

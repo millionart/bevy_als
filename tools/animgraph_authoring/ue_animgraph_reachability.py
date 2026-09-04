@@ -2,6 +2,8 @@ import argparse
 import json
 import re
 
+from ue_animgraph_pose_contract import PoseContractError, linked_anim_layer_contract
+
 
 FORMAT = "ue_animgraph_root_reachability_v1"
 
@@ -176,6 +178,7 @@ class RootTraversal:
         self.graph_entry_by_path = {}
         self.visited_nodes = set()
         self.external_dependencies = []
+        self.linked_layer_graphs = []
         self.function_dependencies = []
         self.issues = []
         self._index_source()
@@ -253,7 +256,7 @@ class RootTraversal:
         nodes = graph.get("nodes", [])
         if kind == "state_machine":
             anchors = [node for node in nodes if node_class(node) in FSM_STRUCTURAL_CLASSES]
-        elif graph["_source_graph_suffix"] == self.root_suffix:
+        elif graph["_source_graph_suffix"] == self.root_suffix or reason == "linked_anim_layer":
             anchors = [node for node in nodes if node_class(node) in ROOT_CLASSES]
         else:
             anchors = [node for node in nodes if node_class(node) in RESULT_CLASSES]
@@ -304,6 +307,62 @@ class RootTraversal:
                 "references": references,
             }
         )
+
+    def self_linked_layer_graph(self, node_path):
+        node = self.nodes[node_path]
+        try:
+            semantic, issues = linked_anim_layer_contract(node)
+        except PoseContractError as error:
+            self.record_issue(
+                "source_linked_anim_layer_unsupported",
+                source_node=node_path,
+                detail=str(error),
+            )
+            return None
+        if issues:
+            self.record_issue(
+                "source_linked_anim_layer_unsupported",
+                source_node=node_path,
+                detail=issues[0].get("detail", issues[0].get("kind", "invalid contract")),
+            )
+            return None
+        candidates = {
+            graph["object_path"]: graph
+            for graph in self.graphs.values()
+            if graph["_source_graph_suffix"] == semantic["layer"]
+        }
+        if len(candidates) != 1:
+            self.record_issue(
+                "source_linked_anim_layer_unsupported",
+                source_node=node_path,
+                detail="self implementation graph is missing or ambiguous",
+            )
+            return None
+        graph = next(iter(candidates.values()))
+        declarations = [
+            value.get("exported_text")
+            for value in self.source.get("asset_properties", [])
+            if value.get("name") == "ImplementedInterfaces"
+            and isinstance(value.get("exported_text"), str)
+        ]
+        if len(declarations) != 1 or set(object_references(declarations[0])) != {
+            semantic["interface"],
+            graph["object_path"],
+        }:
+            self.record_issue(
+                "source_linked_anim_layer_unsupported",
+                source_node=node_path,
+                detail="self interface declaration is unsupported",
+            )
+            return None
+        value = {
+            "source_node": node_path,
+            "source_graph": graph["_source_graph_suffix"],
+            "source_interface": semantic["interface"],
+            "source_layer": semantic["layer"],
+        }
+        self.linked_layer_graphs.append(value)
+        return graph
 
     def visit_function(self, name, parent_source_graph, source_node, call_site):
         candidates = self.function_graphs.get(name, [])
@@ -375,7 +434,18 @@ class RootTraversal:
                     parent_source_graph=entry["source_graph"],
                     reason="state_machine" if class_path in STATE_MACHINE_CLASSES else "state_topology",
                 )
-        self.external_references(node_path)
+        if class_path == "/Script/AnimGraph.AnimGraphNode_LinkedAnimLayer":
+            graph = self.self_linked_layer_graph(node_path)
+            if graph is not None:
+                self.visit_graph(
+                    graph,
+                    parent_source_graph=entry["source_graph"],
+                    reason="linked_anim_layer",
+                )
+            else:
+                self.external_references(node_path)
+        else:
+            self.external_references(node_path)
         for call_site, function_name in animation_function_references(node):
             self.visit_function(
                 function_name,
@@ -406,6 +476,7 @@ class RootTraversal:
             "root_source_graph": self.root_suffix,
             "graphs": self.graph_entries,
             "external_dependencies": self.external_dependencies,
+            "linked_layer_graphs": self.linked_layer_graphs,
             "function_dependencies": self.function_dependencies,
             "issues": self.issues,
         }
@@ -415,13 +486,13 @@ def traverse(source, root_suffix):
     return RootTraversal(source, root_suffix).build()
 
 
-def fixture_node(path, class_path, index, properties=None, title=None):
+def fixture_node(path, class_path, index, properties=None, title=None, pins=None):
     value = {
         "index": index,
         "object_path": path,
         "class_path": class_path,
         "properties": properties or [],
-        "pins": [],
+        "pins": pins or [],
     }
     if title is not None:
         value["title"] = title
@@ -594,6 +665,56 @@ def fixture_source_with_state_lifecycle_binding():
     return source
 
 
+def fixture_source_with_self_linked_layer():
+    asset = "/Asset"
+    root = asset + ":AnimGraph"
+    linked = root + ".Layer"
+    root_node = root + ".Root"
+    layer_graph = asset + ":Overlay"
+    layer_root = layer_graph + ".Root"
+    return {
+        "asset_path": asset,
+        "asset_properties": [
+            {
+                "name": "ImplementedInterfaces",
+                "exported_text": '((Interface="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/ALI_Test.ALI_Test_C\'",Graphs=("/Script/AnimGraph.AnimationGraph\'/Asset:Overlay\'")))',
+            }
+        ],
+        "graphs": [
+            {
+                "index": 0,
+                "object_path": root,
+                "class_path": "/Script/AnimGraph.AnimationGraph",
+                "name": "AnimGraph",
+                "nodes": [
+                    fixture_node(root_node, "/Script/AnimGraph.AnimGraphNode_Root", 0),
+                    fixture_node(
+                        linked,
+                        "/Script/AnimGraph.AnimGraphNode_LinkedAnimLayer",
+                        1,
+                        [
+                            {
+                                "name": "Node",
+                                "exported_text": '(Interface="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/ALI_Test.ALI_Test_C\'",Layer="Overlay",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+                            }
+                        ],
+                        pins=[{"name": "Pose", "direction": "Output", "hidden": False}],
+                    ),
+                ],
+                "links": [fixture_link(linked, root_node)],
+            },
+            {
+                "index": 1,
+                "object_path": layer_graph,
+                "class_path": "/Script/AnimGraph.AnimationGraph",
+                "name": "Overlay",
+                "nodes": [fixture_node(layer_root, "/Script/AnimGraph.AnimGraphNode_Root", 0)],
+                "links": [],
+            },
+        ],
+    }
+
+
 def run_self_test():
     result = traverse(fixture_source(), "AnimGraph")
     graphs = {entry["source_graph"]: entry for entry in result["graphs"]}
@@ -643,6 +764,27 @@ def run_self_test():
         "source_graph": None,
         "resolution": "external",
     } in unbound_result["function_dependencies"]
+    linked_layer_result = traverse(fixture_source_with_self_linked_layer(), "AnimGraph")
+    assert linked_layer_result["external_dependencies"] == []
+    assert linked_layer_result["linked_layer_graphs"] == [
+        {
+            "source_node": "/Asset:AnimGraph.Layer",
+            "source_graph": "Overlay",
+            "source_interface": "/Asset/ALI_Test.ALI_Test_C",
+            "source_layer": "Overlay",
+        }
+    ]
+    assert any(
+        entry["source_graph"] == "Overlay" and entry["reason"] == "linked_anim_layer"
+        for entry in linked_layer_result["graphs"]
+    )
+    invalid_layer_source = fixture_source_with_self_linked_layer()
+    invalid_layer_source["asset_properties"][0]["exported_text"] = "()"
+    invalid_layer_result = traverse(invalid_layer_source, "AnimGraph")
+    assert any(
+        issue["kind"] == "source_linked_anim_layer_unsupported"
+        for issue in invalid_layer_result["issues"]
+    )
     return {
         "root_pose_walks_upstream_links": "PASS",
         "state_machine_walks_state_graphs": "PASS",
@@ -652,6 +794,8 @@ def run_self_test():
         "state_lifecycle_binding_uses_member_name": "PASS",
         "state_lifecycle_binding_ablation_changes_dependency": "PASS",
         "native_pin_links_walk_from_root": "PASS",
+        "self_linked_layer_graph_is_reached": "PASS",
+        "invalid_self_linked_layer_is_rejected": "PASS",
     }
 
 
