@@ -1,0 +1,26 @@
+[
+  {
+    "tag_name": "Als.Gait.Running",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Gait.Sprinting",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Gait.Walking",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.GroundedEntryMode.FromRoll",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Stance.Crouching",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.Stance.Standing",
+    "description": "ALS source gameplay tag"
+  }
+]

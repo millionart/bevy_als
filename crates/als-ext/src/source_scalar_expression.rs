@@ -46,6 +46,19 @@ impl SourceScalarExpressionNode {
             .map(|pin| pin.name.as_str())
     }
 
+    fn bool_input_pair(&self, ctx: &NodeContext) -> Option<(bool, bool)> {
+        let mut pins = self
+            .input_pins
+            .iter()
+            .filter(|pin| pin.data_type == SourceScalarDataType::Bool);
+        let first = pins.next()?;
+        let second = pins.next()?;
+        Some((
+            self.input_bool(ctx, &first.name),
+            self.input_bool(ctx, &second.name),
+        ))
+    }
+
     fn input_f32(&self, ctx: &NodeContext, name: &str) -> f32 {
         let fallback = self
             .input_pins
@@ -114,22 +127,23 @@ impl SourceScalarExpressionNode {
             "greater" => left > right,
             "greater_equal" => left >= right,
             "equal" => {
-                let bool_inputs = self
-                    .input_pins
-                    .iter()
-                    .filter(|value| value.data_type == SourceScalarDataType::Bool)
-                    .collect::<Vec<_>>();
-                if bool_inputs.len() >= 2 {
-                    self.input_bool(ctx, &bool_inputs[0].name)
-                        == self.input_bool(ctx, &bool_inputs[1].name)
+                if let Some((first, second)) = self.bool_input_pair(ctx) {
+                    first == second
                 } else {
                     (left - right).abs() <= f32::EPSILON
                 }
             }
-            "not_equal" => (left - right).abs() > f32::EPSILON,
+            "not_equal" => {
+                if let Some((first, second)) = self.bool_input_pair(ctx) {
+                    first != second
+                } else {
+                    (left - right).abs() > f32::EPSILON
+                }
+            }
             "and" => self.input_bool(ctx, "A") && self.input_bool(ctx, "B"),
             "or" => self.input_bool(ctx, "A") || self.input_bool(ctx, "B"),
             "not" => !self.input_bool(ctx, "A"),
+            "gameplay_tag_valid" => self.input_bool(ctx, "GameplayTag"),
             "passthrough" => self.input_bool(ctx, "A"),
             _ => self.global_bool(ctx, pin),
         }

@@ -36,6 +36,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：两图顶层的 relay 均连接 PoseLink；Standing 为 `StateMachine_2.Pose → Knot → Knot → ApplyAdditive.Base`，Crouching 为 `TwoWayBlend_0.Pose → Knot → Knot → ApplyAdditive_0.Base`。
   - Gate summary：renderer contraction fixture、converter/corpus self-test、Crouching corpus write/check和两份 fresh direct `--write`/`--check`均PASS；Knot blocker Standing/Crouching各2→0，未注册节点分别9→7、6→4。消融：不创建passthrough runtime node，只在目标边生成前递归归约source relay。
 
+- [x] BF112.02 transition NOT/Absolute/GameplayTag scalar dispatch：开始：2026-09-04 20:40:48 +08:00；预估结束：2026-09-04 21:40:48 +08:00；实际结束：2026-09-04 21:39:11 +08:00（偏差 -1m37s）。注册 `NOT Boolean`、`Absolute (Float)` 与 GameplayTag 谓词；目标使用 `bevy_gameplay_tag` 的 0.3.0（Bevy 0.19）实现，而非枚举或 `f32` 索引。验收：Standing/Crouching/Grounded 对应函数 blocker 清零、transition source contract、`als-ext` Tag adapter fixture、corpus direct report PASS。
+  - source fact：所有可达 `NOT Boolean` 均为 `A → ReturnValue` bool；所有 `Absolute (Float)` 均为 `A → ReturnValue` float。`Is Gameplay Tag Valid`接受`GameplayTag → ReturnValue`；Standing 的相邻比较是 `GetParent.Gait == Als.Gait.Walking`。`bevy_animation_graph` 的 `DataValue` 无 GameplayTag 变体，因此 `als_ext::SourceGameplayTagInputNode` 通过 player entity 读取真实 `bevy_gameplay_tag::GameplayTag`，在节点内完成 `is_valid`／`matches_tag_exact` 后才输出 Bool；报告保留 source property/tag text 与写入 API。
+  - Gate summary：fresh Crouching/Standing/Grounded direct `--write` 及 Grounded `--check` 均无 drift；Standing 的 8 条 `GetParent.Gait`、Grounded 的 `GetParent.Stance` 和 `GetParent.GroundedEntryMode` 均进入 `gameplay_tag_providers`，Tag/NOT/Absolute blocker 均为 0。已通过 transition generator、converter、`als-ext` real-tag node 与 runtime plugin table 的 focused Gate。当前阻断边界仅为其余未实现 source 节点/生命周期；blocked Markdown 已收缩，详细 Tag 接入合同仅在 JSON。消融：删除未有 source 证据的 Tag-to-Tag 比较分支，遇到该形态立即 fail-closed。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

@@ -40,6 +40,9 @@ TRANSITION_RENDERERS = {
     "comparison_operator",
     "gameplay_tag_equal",
     "boolean_to_float",
+    "boolean_not",
+    "absolute",
+    "gameplay_tag_valid",
 }
 FSM_RENDERERS = {
     "state_machine",
@@ -980,6 +983,17 @@ def build_ir(
                 assets,
                 registry["sync_group_phase_keys"],
             )
+        if entry["kind"] == "transition":
+            try:
+                graph_value["gameplay_tag_providers"] = transition_renderer().gameplay_tag_providers(value)
+            except ValueError as error:
+                unsupported.append(
+                    {
+                        "kind": "source_gameplay_tag_adapter_unsupported",
+                        "source_graph": entry["source_graph"],
+                        "detail": str(error),
+                    }
+                )
         if entry["kind"] == "state_machine":
             try:
                 graph_value["fsm_contract"] = fsm_contract(source, entry["source_graph"])
@@ -1176,6 +1190,22 @@ def integration_slot_providers(ir):
     return sorted(rows, key=lambda item: item["source_node"])
 
 
+def integration_gameplay_tag_providers(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        providers = graph.get("gameplay_tag_providers", []) if isinstance(graph, dict) else []
+        if not isinstance(providers, list):
+            continue
+        for provider in providers:
+            if not isinstance(provider, dict) or not all(
+                isinstance(provider.get(field), str) and provider[field]
+                for field in ("source_node", "source_property_path", "target_key", "operation", "provider_api", "player_entity")
+            ):
+                continue
+            rows.append(provider)
+    return sorted(rows, key=lambda item: item["source_node"])
+
+
 def build_integration_report(ir, report):
     providers = integration_provider_by_node(ir)
     external_functions = []
@@ -1245,6 +1275,7 @@ def build_integration_report(ir, report):
         "sync_phase_providers": integration_sync_phase_providers(ir),
         "runtime_inputs": integration_runtime_inputs(ir),
         "slot_providers": integration_slot_providers(ir),
+        "gameplay_tag_providers": integration_gameplay_tag_providers(ir),
         "unhandled_property_bindings": property_bindings,
         "external_graph_dependencies": external_dependencies,
         "other_blockers": [
@@ -1256,64 +1287,13 @@ def build_integration_report(ir, report):
     }
 
 
-def integration_blocker_summary(value):
-    summary = []
-    functions = sorted(
-        {
-            item["source_function"]
-            for item in value["external_runtime_functions"]
-            if item["status"] == "requires_target_implementation"
-        }
-    )
-    if functions:
-        summary.append("external runtime functions: " + ", ".join(functions))
-    phase_keys = sorted(
-        {
-            item["target_phase_key"]
-            for item in value["sync_phase_providers"]
-            if item["status"] == "requires_target_provider"
-        }
-    )
-    if phase_keys:
-        summary.append("runtime sync phase providers: " + ", ".join(phase_keys))
-    groups = {}
-    for item in value["other_blockers"]:
-        kind = item.get("kind")
-        if not isinstance(kind, str) or not kind:
-            continue
-        detail = item.get("source_signature") or item.get("detail")
-        groups.setdefault(kind, set()).add(str(detail) if detail else "")
-    for kind, details in sorted(groups.items()):
-        values = sorted(detail for detail in details if detail)
-        summary.append(kind + (": " + ", ".join(values) if values else ""))
-    paths = sorted(
-        {
-            item["source_property_path"]
-            for item in value["unhandled_property_bindings"]
-            if isinstance(item.get("source_property_path"), str)
-        }
-    )
-    if paths:
-        summary.append("unhandled property bindings: " + ", ".join(paths))
-    return summary
-
-
 def integration_report_markdown(value):
     if value["conversion_status"] == "blocked":
-        lines = [
-            "# Animation graph conversion blocked",
-            "",
-            "Do not integrate generated RON files.",
-            "Implement or map every blocker below, then rerun until Conversion status: ready.",
-            "",
-            "## Required fixes",
-            "",
-        ]
-        summary = integration_blocker_summary(value)
-        lines.extend("- " + item for item in summary)
-        if not summary:
-            lines.append("- Inspect conversion.report.json for the blocking source location.")
-        return "\n".join(lines) + "\n"
+        return (
+            "# Animation graph conversion blocked\n\n"
+            "Do not integrate generated RON files.\n"
+            "Repair every conversion blocker and rerun until Conversion status: ready.\n"
+        )
     lines = [
         "# Animation graph integration report",
         "",
@@ -1357,6 +1337,26 @@ def integration_report_markdown(value):
             + "`: "
             + item["status"]
             for item in slot_providers
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Gameplay tag providers", ""])
+    tag_providers = value["gameplay_tag_providers"]
+    if tag_providers:
+        lines.extend(
+            "- `"
+            + item["source_property_path"]
+            + "` at `"
+            + item["source_node"]
+            + "` → `"
+            + item["target_key"]
+            + "` via `"
+            + item["provider_api"]
+            + "` on `"
+            + item["player_entity"]
+            + "`: "
+            + item["status"]
+            for item in tag_providers
         )
     else:
         lines.append("- None")
@@ -1602,12 +1602,30 @@ def run_self_test():
     function_registry = validate_registry(
         {
             "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
-            "node_classes": {"/Script/AnimGraph.AnimGraphNode_CallFunction": {"renderer": "anim_call"}},
+            "node_classes": {
+                "/Script/AnimGraph.AnimGraphNode_CallFunction": {"renderer": "anim_call"},
+                "/Script/BlueprintGraph.K2Node_CallFunction": {"renderer": "blueprint_call"},
+            },
             "function_rules": [
                 {
                     "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction",
                     "signature": "InitializeLean",
                     "renderer": "pose_lifecycle_call",
+                },
+                {
+                    "source_class": "/Script/BlueprintGraph.K2Node_CallFunction",
+                    "signature": "NOT Boolean",
+                    "renderer": "boolean_not",
+                },
+                {
+                    "source_class": "/Script/BlueprintGraph.K2Node_CallFunction",
+                    "signature": "Absolute (Float)",
+                    "renderer": "absolute",
+                },
+                {
+                    "source_class": "/Script/BlueprintGraph.K2Node_CallFunction",
+                    "signature": "Is Gameplay Tag Valid",
+                    "renderer": "gameplay_tag_valid",
                 }
             ],
         }
@@ -1620,6 +1638,20 @@ def run_self_test():
     renderer, issue = mapping_for(crlf_function, function_registry)
     assert renderer == "pose_lifecycle_call"
     assert issue is None
+    for signature, expected in (
+        ("NOT Boolean", "boolean_not"),
+        ("Absolute (Float)", "absolute"),
+        ("Is Gameplay Tag Valid", "gameplay_tag_valid"),
+    ):
+        renderer, issue = mapping_for(
+            {
+                "object_path": "/Asset:Transition.Function",
+                "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                "title": signature,
+            },
+            function_registry,
+        )
+        assert renderer == expected and issue is None
     binding_registry = validate_registry(
         {
             "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
@@ -2008,7 +2040,19 @@ def run_self_test():
                             "layer_weight_key": "turn_in_place_standing.layer_weight",
                         },
                     },
-                ]
+                ],
+                "gameplay_tag_providers": [
+                    {
+                        "source_node": "/Asset:AnimGraph.Gait",
+                        "source_property_path": "GetParent.Gait",
+                        "target_key": "get_parent.gait",
+                        "operation": "matches_tag_exact",
+                        "expected_tag": "Als.Gait.Walking",
+                        "provider_api": "als_ext::set_gameplay_tag_input",
+                        "player_entity": "AnimationGraphPlayer entity",
+                        "status": "requires_target_provider",
+                    }
+                ],
             }
         ],
     }
@@ -2042,14 +2086,17 @@ def run_self_test():
     assert integration["sync_phase_providers"][0]["status"] == "requires_target_provider"
     assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
     assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
+    assert integration["gameplay_tag_providers"][0]["provider_api"] == "als_ext::set_gameplay_tag_input"
     blocked_markdown = integration_report_markdown(integration)
-    assert "CustomActorFunction" in blocked_markdown
     assert "Do not integrate generated RON files." in blocked_markdown
+    assert "CustomActorFunction" not in blocked_markdown
     assert "## External graph dependencies" not in blocked_markdown
     assert "## Runtime sync phase providers" not in blocked_markdown
     assert "## Runtime property inputs" not in blocked_markdown
     assert "## Slot providers" not in blocked_markdown
-    assert "runtime sync phase providers: standing_state.movement.sync_phase" in blocked_markdown
+    assert "## Gameplay tag providers" not in blocked_markdown
+    assert "standing_state.movement.sync_phase" not in blocked_markdown
+    assert "get_parent.gait" not in blocked_markdown
     ready = build_integration_report(
         integration_ir,
         {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
@@ -2060,6 +2107,7 @@ def run_self_test():
     assert "## Runtime sync phase providers" in integration_report_markdown(ready)
     assert "## Runtime property inputs" in integration_report_markdown(ready)
     assert "## Slot providers" in integration_report_markdown(ready)
+    assert "## Gameplay tag providers" in integration_report_markdown(ready)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)

@@ -59,6 +59,7 @@ pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
 pub mod source_cached_pose;
+pub mod source_gameplay_tag_input;
 pub mod source_linked_input_pose;
 pub mod source_movement_nodes;
 pub mod source_pose_nodes;
@@ -219,6 +220,7 @@ pub use source_cached_pose::{
     SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceContextDefault,
     SourceScopedCachedPoseUseNode, resolve_cached_pose, resolve_scoped_cached_pose,
 };
+pub use source_gameplay_tag_input::{SourceGameplayTagInputNode, set_gameplay_tag_input};
 pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_pose_nodes::{
@@ -331,6 +333,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceCachedPoseUseNode>()
             .register_type::<SourceContextDefault>()
             .register_type::<SourceScopedCachedPoseUseNode>()
+            .register_type::<SourceGameplayTagInputNode>()
             .register_type::<SourceLinkedInputPoseNode>()
             .register_type::<SourceApplyAdditiveNode>()
             .register_type::<SourceAlphaMapping>()
@@ -361,6 +364,10 @@ impl Plugin for AlsExtPlugin {
             root_motion_defaults::RootMotionDefaultsPlugin,
             RagdollPhysicsProfilePlugin,
             RagdollAngularDrivePlugin,
-        ));
+        ))
+        .add_systems(
+            PostUpdate,
+            source_gameplay_tag_input::clear_removed_gameplay_tag_inputs,
+        );
     }
 }

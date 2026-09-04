@@ -63,6 +63,8 @@ def scalar_type(pin):
         return "Bool", None
     if value == "F32":
         return "F32", None
+    if value == "GameplayTag":
+        return "Bool", "UE GameplayTag is read by als_ext::SourceGameplayTagInputNode."
     return "F32", f"Source {value} pin is encoded as F32."
 
 
@@ -78,6 +80,146 @@ def scalar_defaults(pin):
         return float(source_default), False, source_default
     except ValueError:
         return 0.0, False, source_default
+
+
+def source_property_key(value):
+    if not isinstance(value, str) or not value:
+        raise ValueError("source property path is invalid")
+    parts = value.split(".")
+    if any(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", part) is None for part in parts):
+        raise ValueError("source property path is invalid")
+    return ".".join(
+        re.sub(
+            r"(?<=[a-z0-9])(?=[A-Z])",
+            "_",
+            re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", part),
+        ).lower()
+        for part in parts
+    )
+
+
+def node_for_path(contract, path):
+    matches = [node for node in contract["source_graph"]["nodes"] if node.get("object_path") == path]
+    if len(matches) != 1:
+        raise ValueError("source node is missing or ambiguous")
+    return matches[0]
+
+
+def pin_for_name(node, name):
+    matches = [pin for pin in node.get("pins", []) if pin.get("name") == name]
+    if len(matches) != 1:
+        raise ValueError("source pin is missing or ambiguous")
+    return matches[0]
+
+
+def linked_source(contract, node, pin):
+    matches = [
+        link["source"]
+        for link in contract["links"]
+        if link.get("target", {}).get("node_object_path") == node.get("object_path")
+        and link.get("target", {}).get("pin_name") == pin.get("name")
+    ]
+    if len(matches) > 1:
+        raise ValueError("source pin has multiple links")
+    return matches[0] if matches else None
+
+
+def gameplay_tag_literal(pin):
+    value = pin.get("default_value")
+    if value in {"", "None", "()"}:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError("source GameplayTag default is invalid")
+    match = re.fullmatch(r'\(TagName="([A-Za-z0-9_.]+)"\)', value)
+    if match is None:
+        raise ValueError("source GameplayTag default is unsupported")
+    return match.group(1)
+
+
+def gameplay_tag_predicate(node):
+    title = node.get("title", "").lower()
+    if "is gameplay tag valid" in title:
+        return "valid"
+    if "not equal (gameplaytag)" in title or "not equal (gameplay tag)" in title:
+        return "not_equal"
+    if "equal (gameplaytag)" in title or "equal (gameplay tag)" in title:
+        return "equal"
+    return ""
+
+
+def gameplay_tag_input_config(contract, node):
+    tag_outputs = [
+        pin
+        for pin in AUDIT.visible_pins(node, "Output")
+        if AUDIT.source_pin_type(pin) == "GameplayTag"
+    ]
+    if not tag_outputs:
+        return None
+    if (
+        not node.get("class_path", "").endswith("K2Node_PropertyAccess")
+        or len(tag_outputs) != 1
+    ):
+        raise ValueError("source GameplayTag producer is unsupported")
+    output = tag_outputs[0]
+    links = [
+        link
+        for link in contract["links"]
+        if link.get("source", {}).get("node_object_path") == node.get("object_path")
+        and link.get("source", {}).get("pin_name") == output.get("name")
+    ]
+    if len(links) != 1:
+        raise ValueError("source GameplayTag output must have one predicate consumer")
+    target = node_for_path(contract, links[0]["target"].get("node_object_path"))
+    predicate = gameplay_tag_predicate(target)
+    target_pin = links[0]["target"].get("pin_name")
+    path = property_access_key(node)
+    if not path:
+        raise ValueError("source GameplayTag property path is unavailable")
+    if predicate == "valid" and target_pin == "GameplayTag":
+        return {
+            "key": source_property_key(path),
+            "output": source_pin_label(output),
+            "expected_tag": "",
+            "operation": "is_valid",
+            "source_property_path": path,
+        }
+    if predicate in {"equal", "not_equal"} and target_pin in {"A", "B"}:
+        other_name = "B" if target_pin == "A" else "A"
+        other_pin = pin_for_name(target, other_name)
+        if linked_source(contract, target, other_pin) is not None:
+            raise ValueError("source GameplayTag property comparison is unsupported")
+        expected_tag = gameplay_tag_literal(other_pin)
+        if not expected_tag:
+            raise ValueError("source GameplayTag comparison literal is invalid")
+        return {
+            "key": source_property_key(path),
+            "output": source_pin_label(output),
+            "expected_tag": expected_tag,
+            "operation": "matches_tag_exact",
+            "source_property_path": path,
+        }
+    raise ValueError("source GameplayTag consumer is unsupported")
+
+
+def gameplay_tag_input_bool_default(contract, node, pin):
+    predicate = gameplay_tag_predicate(node)
+    if predicate == "valid" and pin.get("name") == "GameplayTag":
+        if linked_source(contract, node, pin) is None:
+            raise ValueError("source GameplayTag validity literal is unsupported")
+        return False
+    if predicate in {"equal", "not_equal"} and pin.get("name") in {"A", "B"}:
+        other_name = "B" if pin.get("name") == "A" else "A"
+        other = pin_for_name(node, other_name)
+        if linked_source(contract, node, pin) is not None:
+            if linked_source(contract, node, other) is not None:
+                raise ValueError("source GameplayTag property comparison is unsupported")
+            return False
+        if linked_source(contract, node, other) is None:
+            raise ValueError("source GameplayTag literal comparison is unsupported")
+        if not gameplay_tag_literal(pin):
+            raise ValueError("source GameplayTag comparison literal is invalid")
+        return True
+    raise ValueError("source GameplayTag consumer is unsupported")
 
 
 def operation(node):
@@ -109,6 +251,8 @@ def operation(node):
         return "equal"
     if "to float (boolean)" in title:
         return "bool_to_f32"
+    if "is gameplay tag valid" in title:
+        return "gameplay_tag_valid"
     if "not boolean" in title or title.startswith("not"):
         return "not"
     if class_path.endswith("K2Node_Knot"):
@@ -150,19 +294,25 @@ def property_access_key(node):
     return ""
 
 
-def pin_payload(node, pin, bindings):
+def pin_payload(contract, node, pin, bindings):
     data_type, _ = scalar_type(pin)
     f32_default, bool_default, source_default = scalar_defaults(pin)
+    global_key = bindings.get(
+        pin["name"],
+        property_access_key(node) if pin.get("direction") == "Output" else "",
+    )
+    if AUDIT.source_pin_type(pin) == "GameplayTag":
+        if pin.get("direction") != "Input":
+            raise ValueError("source GameplayTag output must use the dedicated adapter node")
+        bool_default = gameplay_tag_input_bool_default(contract, node, pin)
+        global_key = ""
     return {
         "name": source_pin_label(pin),
         "data_type": data_type,
         "f32_default": f32_default,
         "bool_default": bool_default,
         "source_default": source_default,
-        "global_key": bindings.get(
-            pin["name"],
-            property_access_key(node) if pin.get("direction") == "Output" else "",
-        ),
+        "global_key": global_key,
     }
 
 
@@ -179,14 +329,14 @@ def pin_ron(value):
     ) + ")"
 
 
-def node_inner(node):
+def node_inner(contract, node):
     bindings = AUDIT.source_binding_paths(node)
     inputs = [
-        pin_payload(node, pin, bindings)
+        pin_payload(contract, node, pin, bindings)
         for pin in AUDIT.visible_pins(node, "Input")
     ]
     outputs = [
-        pin_payload(node, pin, bindings)
+        pin_payload(contract, node, pin, bindings)
         for pin in AUDIT.visible_pins(node, "Output")
     ]
     properties = source_properties(node)
@@ -202,10 +352,27 @@ def node_inner(node):
     return "(" + inner + ")"
 
 
-def node_ron(identifier, node):
+def node_ron(contract, identifier, node):
+    tag_input = gameplay_tag_input_config(contract, node)
+    if tag_input is not None:
+        inner = "(" + ", ".join(
+            (
+                f"key: {quoted(tag_input['key'])}",
+                f"output: {quoted(tag_input['output'])}",
+                f"expected_tag: {quoted(tag_input['expected_tag'])}",
+                f"source_property_path: {quoted(tag_input['source_property_path'])}",
+                "source_properties: ["
+                + ", ".join(quoted(value) for value in source_properties(node))
+                + "]",
+            )
+        ) + ")"
+        return (
+            f"(id: {quoted(identifier)}, name: {quoted(AUDIT.source_title(node))}, "
+            f"inner: {{ \"als_ext::SourceGameplayTagInputNode\": {inner} }}, should_debug: false)"
+        )
     return (
         f"(id: {quoted(identifier)}, name: {quoted(AUDIT.source_title(node))}, "
-        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": {node_inner(node)} }}, should_debug: false)"
+        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": {node_inner(contract, node)} }}, should_debug: false)"
     )
 
 
@@ -278,7 +445,7 @@ def graph_text(contract):
     return "(\n" + "\n".join(
         (
             "    nodes: [",
-            *[f"        {node_ron(ids[node['object_path']], node)}," for node in nodes],
+            *[f"        {node_ron(contract, ids[node['object_path']], node)}," for node in nodes],
             "    ],",
             "    edges_inverted: {",
             *[f"        {edge}," for edge in edges],
@@ -315,6 +482,26 @@ def source_pin_label_from_name(nodes, path, name):
     if pin is None:
         raise ValueError("source pin is missing")
     return source_pin_label(pin)
+
+
+def gameplay_tag_providers(contract):
+    rows = []
+    for node in source_nodes(contract):
+        config = gameplay_tag_input_config(contract, node)
+        if config is not None:
+            rows.append(
+                {
+                    "source_node": node["object_path"],
+                    "source_property_path": config["source_property_path"],
+                    "target_key": config["key"],
+                    "operation": config["operation"],
+                    "expected_tag": config["expected_tag"],
+                    "provider_api": "als_ext::set_gameplay_tag_input",
+                    "player_entity": "AnimationGraphPlayer entity",
+                    "status": "requires_target_provider",
+                }
+            )
+    return sorted(rows, key=lambda value: value["source_node"])
 
 
 def map_payload(contract_path, target_graph, target_spec, map_path, contract):
@@ -368,12 +555,24 @@ def map_payload(contract_path, target_graph, target_spec, map_path, contract):
         ]
         access_key = property_access_key(node)
         if access_key:
+            tag_input = gameplay_tag_input_config(contract, node)
             assertions.append(
                 {
                     "source_contains": access_key,
-                    "target_contains": f"global_key: {quoted(access_key)}",
+                    "target_contains": (
+                        f"key: {quoted(tag_input['key'])}"
+                        if tag_input is not None
+                        else f"global_key: {quoted(access_key)}"
+                    ),
                 }
             )
+            if tag_input is not None and tag_input["expected_tag"]:
+                assertions.append(
+                    {
+                        "source_contains": f'TagName="{tag_input["expected_tag"]}"',
+                        "target_contains": f"expected_tag: {quoted(tag_input['expected_tag'])}",
+                    }
+                )
         if assertions:
             node_map["property_assertions"] = assertions
         result["node_map"].append(node_map)
@@ -508,6 +707,132 @@ def fixture_bound_root_contract():
     }
 
 
+def fixture_gameplay_tag_contract():
+    bool_type = [{"name": "PinCategory", "exported_text": "bool"}]
+    tag_type = [
+        {"name": "PinCategory", "exported_text": "struct"},
+        {
+            "name": "PinSubCategoryObject",
+            "exported_text": "/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'",
+        },
+    ]
+    property_node = lambda path, guid: {
+        "object_path": f"/Asset:AnimGraph.{guid}",
+        "node_guid": guid,
+        "class_path": "/Script/PropertyAccessNode.K2Node_PropertyAccess",
+        "position_x": -256,
+        "position_y": 0,
+        "title": "Property Access",
+        "properties": [{"name": "TextPath", "exported_text": path}],
+        "pins": [
+            {
+                "name": "Value",
+                "direction": "Output",
+                "hidden": False,
+                "pin_type_properties": tag_type,
+            }
+        ],
+    }
+    return {
+        "format": "als_ue_visible_graph_contract_v2",
+        "source_graph": {
+            "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+            "nodes": [
+                {
+                    "object_path": "/Asset:AnimGraph.Result",
+                    "node_guid": "30000000-0000-4000-8000-000000000001",
+                    "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "title": "Result",
+                    "pins": [
+                        {
+                            "name": "Result",
+                            "direction": "Input",
+                            "hidden": False,
+                            "pin_type_properties": bool_type,
+                        }
+                    ],
+                },
+                property_node("GetParent.Gait", "30000000-0000-4000-8000-000000000002"),
+                property_node("GetParent.Gait", "30000000-0000-4000-8000-000000000003"),
+                {
+                    "object_path": "/Asset:AnimGraph.Valid",
+                    "node_guid": "30000000-0000-4000-8000-000000000004",
+                    "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                    "position_x": -128,
+                    "position_y": -32,
+                    "title": "Is Gameplay Tag Valid",
+                    "pins": [
+                        {
+                            "name": "GameplayTag",
+                            "direction": "Input",
+                            "hidden": False,
+                            "pin_type_properties": tag_type,
+                        },
+                        {
+                            "name": "ReturnValue",
+                            "direction": "Output",
+                            "hidden": False,
+                            "pin_type_properties": bool_type,
+                        },
+                    ],
+                },
+                {
+                    "object_path": "/Asset:AnimGraph.Equal",
+                    "node_guid": "30000000-0000-4000-8000-000000000005",
+                    "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                    "position_x": -128,
+                    "position_y": 32,
+                    "title": "Equal (GameplayTag)",
+                    "pins": [
+                        {
+                            "name": "A",
+                            "direction": "Input",
+                            "hidden": False,
+                            "pin_type_properties": tag_type,
+                        },
+                        {
+                            "name": "B",
+                            "direction": "Input",
+                            "hidden": False,
+                            "default_value": '(TagName="Als.Gait.Walking")',
+                            "linked_to": [],
+                            "pin_type_properties": tag_type,
+                        },
+                        {
+                            "name": "ReturnValue",
+                            "direction": "Output",
+                            "hidden": False,
+                            "pin_type_properties": bool_type,
+                        },
+                    ],
+                },
+                {
+                    "object_path": "/Asset:AnimGraph.And",
+                    "node_guid": "30000000-0000-4000-8000-000000000006",
+                    "class_path": "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator",
+                    "position_x": -64,
+                    "position_y": 0,
+                    "title": "AND Boolean",
+                    "pins": [
+                        {"name": "A", "direction": "Input", "hidden": False, "pin_type_properties": bool_type},
+                        {"name": "B", "direction": "Input", "hidden": False, "pin_type_properties": bool_type},
+                        {"name": "ReturnValue", "direction": "Output", "hidden": False, "pin_type_properties": bool_type},
+                    ],
+                },
+            ],
+        },
+        "links": [
+            {"source": {"node_object_path": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000002", "pin_name": "Value"}, "target": {"node_object_path": "/Asset:AnimGraph.Valid", "pin_name": "GameplayTag"}},
+            {"source": {"node_object_path": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000003", "pin_name": "Value"}, "target": {"node_object_path": "/Asset:AnimGraph.Equal", "pin_name": "A"}},
+            {"source": {"node_object_path": "/Asset:AnimGraph.Valid", "pin_name": "ReturnValue"}, "target": {"node_object_path": "/Asset:AnimGraph.And", "pin_name": "A"}},
+            {"source": {"node_object_path": "/Asset:AnimGraph.Equal", "pin_name": "ReturnValue"}, "target": {"node_object_path": "/Asset:AnimGraph.And", "pin_name": "B"}},
+            {"source": {"node_object_path": "/Asset:AnimGraph.And", "pin_name": "ReturnValue"}, "target": {"node_object_path": "/Asset:AnimGraph.Result", "pin_name": "Result"}},
+        ],
+    }
+
+
 def run_self_test():
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -517,7 +842,7 @@ def run_self_test():
         write_json(root / source_contract, fixture_contract())
         text, mapping = generate(root, source_contract, target_graph, map_path)
         assert "operation: \"less\"" in text
-        assert "operation: \"less\"" in node_inner(fixture_contract()["source_graph"]["nodes"][1])
+        assert "operation: \"less\"" in node_inner(fixture_contract(), fixture_contract()["source_graph"]["nodes"][1])
         assert "output_data: { \"Result\": Bool }" in text
         assert mapping["node_map"][0]["input_pins"][0]["source_default"] == "0.0"
         assert mapping["root_output_pins"] == [{"source": "Result", "target": "Result"}]
@@ -542,6 +867,40 @@ def run_self_test():
                 "title": "To Float (Boolean)",
             }
         ) == "bool_to_f32"
+        assert operation(
+            {
+                "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                "title": "Is Gameplay Tag Valid",
+            }
+        ) == "gameplay_tag_valid"
+        tag_contract = fixture_gameplay_tag_contract()
+        tag_text = graph_text(tag_contract)
+        assert '"als_ext::SourceGameplayTagInputNode"' in tag_text
+        assert 'key: "get_parent.gait"' in tag_text
+        assert 'expected_tag: "Als.Gait.Walking"' in tag_text
+        assert 'operation: "gameplay_tag_valid"' in tag_text
+        assert gameplay_tag_providers(tag_contract) == [
+            {
+                "source_node": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000002",
+                "source_property_path": "GetParent.Gait",
+                "target_key": "get_parent.gait",
+                "operation": "is_valid",
+                "expected_tag": "",
+                "provider_api": "als_ext::set_gameplay_tag_input",
+                "player_entity": "AnimationGraphPlayer entity",
+                "status": "requires_target_provider",
+            },
+            {
+                "source_node": "/Asset:AnimGraph.30000000-0000-4000-8000-000000000003",
+                "source_property_path": "GetParent.Gait",
+                "target_key": "get_parent.gait",
+                "operation": "matches_tag_exact",
+                "expected_tag": "Als.Gait.Walking",
+                "provider_api": "als_ext::set_gameplay_tag_input",
+                "player_entity": "AnimationGraphPlayer entity",
+                "status": "requires_target_provider",
+            },
+        ]
         bound_path = Path("bound.json")
         write_json(root / bound_path, fixture_bound_root_contract())
         bound_text, bound_mapping = generate(
@@ -569,6 +928,7 @@ def run_self_test():
         "property_access_path_becomes_target_key": "PASS",
         "bound_transition_result_root_is_preserved": "PASS",
         "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
+        "gameplay_tag_adapter_reads_real_tag_provider": "PASS",
         "scalar_node_inner_is_reusable": "PASS",
     }
 

@@ -1,6 +1,7 @@
 use als_core::character::AlsCharacter;
 use als_core::start_stop::{StartStopState, start_stop_detector_system};
 use bevy::prelude::*;
+use bevy_gameplay_tag::GameplayTagsPlugin;
 
 use crate::ab_als_root::AlsRootGraphPlugin;
 use crate::actual_motion::AlsActualMotionPlugin;
@@ -32,43 +33,46 @@ pub struct AlsCharacterRuntimePlugin;
 
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AlsActualMotionPlugin)
-            .add_plugins(SourcePhysicsTimingPlugin)
-            .add_plugins((
-                als_core::foot_ik::AlsFootProbePlugin,
-                ControlRigApplyPlugin,
-                FootIkApplyPlugin,
-                GaitLayerPlugin,
-                DirectionLayerPlugin,
-                StandingLayerPlugin,
-                CrouchingLayerPlugin,
-                GroundedLayerPlugin,
-                AlsAnimationEventPlugin,
-                AirJumpLayerPlugin,
-                StanceLayerPlugin,
-                ViewLayerPlugin,
-                TurnLayerPlugin,
-                AlsRollDrivePlugin,
-                AlsStopLinkPlugin,
-            ))
-            .add_plugins((
-                LocomotionLayerPlugin,
-                LocomotionLifecyclePlugin,
-                LayeringLayerPlugin,
-                HeadLayerPlugin,
-                RagdollingLayerPlugin,
-                AlsRootGraphPlugin,
-                AlsMantleDrivePlugin,
-                PaAlsPhysicsPlugin,
-                AlsRagdollLinkPlugin,
-            ))
-            .add_systems(
-                Update,
-                (
-                    ensure_start_stop_state,
-                    start_stop_detector_system.after(ensure_start_stop_state),
-                ),
-            );
+        app.add_plugins(GameplayTagsPlugin::with_data_path(
+            "assets/als_gameplay_tags.json",
+        ))
+        .add_plugins(AlsActualMotionPlugin)
+        .add_plugins(SourcePhysicsTimingPlugin)
+        .add_plugins((
+            als_core::foot_ik::AlsFootProbePlugin,
+            ControlRigApplyPlugin,
+            FootIkApplyPlugin,
+            GaitLayerPlugin,
+            DirectionLayerPlugin,
+            StandingLayerPlugin,
+            CrouchingLayerPlugin,
+            GroundedLayerPlugin,
+            AlsAnimationEventPlugin,
+            AirJumpLayerPlugin,
+            StanceLayerPlugin,
+            ViewLayerPlugin,
+            TurnLayerPlugin,
+            AlsRollDrivePlugin,
+            AlsStopLinkPlugin,
+        ))
+        .add_plugins((
+            LocomotionLayerPlugin,
+            LocomotionLifecyclePlugin,
+            LayeringLayerPlugin,
+            HeadLayerPlugin,
+            RagdollingLayerPlugin,
+            AlsRootGraphPlugin,
+            AlsMantleDrivePlugin,
+            PaAlsPhysicsPlugin,
+            AlsRagdollLinkPlugin,
+        ))
+        .add_systems(
+            Update,
+            (
+                ensure_start_stop_state,
+                start_stop_detector_system.after(ensure_start_stop_state),
+            ),
+        );
     }
 }
 
@@ -78,5 +82,21 @@ fn ensure_start_stop_state(
 ) {
     for character in &characters {
         commands.entity(character).insert(StartStopState::default());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy_gameplay_tag::{GameplayTag, GameplayTagsSettings};
+
+    #[test]
+    fn source_gameplay_tag_table_accepts_als_gait() {
+        assert!(
+            GameplayTagsSettings::parse_tag_table(include_str!("../assets/als_gameplay_tags.json"))
+                .is_ok()
+        );
+        let tag = GameplayTag::try_new("Als.Gait.Walking").unwrap();
+        assert!(tag.is_valid());
+        assert!(tag.matches_tag_exact(&GameplayTag::new("Als.Gait.Walking")));
     }
 }

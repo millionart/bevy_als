@@ -35,6 +35,7 @@ avian3d = { version = "0.7", default-features = false, features = [
 
 # 输入抽象（UE Enhanced Input 等价物）
 bevy_enhanced_input = "0.26"
+bevy_gameplay_tag = { git = "https://github.com/SuitedRioter/bevy_gameplay_tag", rev = "1ed503fdd60de3456a96ecce7ade33f0a06bfde1" }
 
 # 内部成员
 als-core = { path = "crates/als-core" }
@@ -62,6 +63,7 @@ default = []
 bevy = { workspace = true }
 bevy_animation_graph = { workspace = true }
 bevy_enhanced_input = { workspace = true }
+bevy_gameplay_tag = { workspace = true }
 als-core = { workspace = true }
 als-ext = { workspace = true }
 als-camera = { workspace = true }
