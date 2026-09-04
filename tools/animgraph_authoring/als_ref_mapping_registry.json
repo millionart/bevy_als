@@ -38,6 +38,8 @@
   },
   "function_rules": [
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "InitializeLean", "renderer": "pose_lifecycle_call" },
+    { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "InitializeHead", "renderer": "pose_lifecycle_call" },
+    { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshHead", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "InitializeGrounded", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshGrounded", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "ResetGroundedEntryMode", "renderer": "pose_lifecycle_call" },

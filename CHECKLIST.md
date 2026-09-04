@@ -76,6 +76,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`AlsGameplayTags.cpp`只定义`Als.LocomotionMode.{Grounded,InAir}`和`Als.Stance.{Standing,Crouching}`；`AlsAnimationInstance.cpp`每帧从 Character 复制 LocomotionMode/Stance。ALS Ragdolling是`LocomotionAction`，不是第三个 LocomotionMode Tag，因此 target `LocomotionState::Ragdolling`不能伪造模式 Tag。
   - Gate summary：source-tag mapping、tag table parse和 root runtime input smoke均PASS；root在同一 AnimationGraphPlayer entity 写入`locomotion_mode`/`stance`，Ragdolling mode明确无效。消融：未增加 f32/index Tag alias；移除 Ragdolling invalid branch将伪造不存在的 source Tag，故保留该唯一空 Tag 映射。
 
+- [x] BF112.12 Head lifecycle provider dispatch：开始：2026-09-05 00:27:06 +08:00；预估结束：2026-09-05 00:42:06 +08:00；实际结束：2026-09-05 00:29:34 +08:00（偏差 -12m32s）。将无参`InitializeHead`/`RefreshHead`按签名映射到已存在`HeadLayerPlugin`，不触及独立的 BlendSpace evaluator blocker。验收：lifecycle fixture、Head fresh direct report无对应 unregistered function，剩余 evaluator/asset blocker不被吞掉。
+  - source fact：`InitializeHead()`只重置`HeadState.bInitializationRequired`；`RefreshHead()`更新 source head yaw/pitch/switch-side state，均经`AlsLinkedAnimationInstance`转发。现有`HeadLayerPlugin`拥有相同的`AlsHeadState`初始化与每帧更新通道。
+  - Gate summary：lifecycle/converter/pose renderer self-test均PASS，Head fresh direct report中两个 function均为`mapped`；BlendSpace evaluator仍报告`unresolved_source_animation_asset`、`source_pose_renderer_unsupported`和`source_renderer_unimplemented`。消融：缺少 evaluator semantic 时现在返回`PoseRenderError`→JSON blocker，不再抛出 Python `AttributeError`。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

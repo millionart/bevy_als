@@ -6,6 +6,8 @@ FUNCTION_CALL_CLASS = "/Script/BlueprintGraph.K2Node_CallFunction"
 STOP_FUNCTION = "StopTransitionAndTurnInPlaceAnimations"
 EXTERNAL_PROVIDERS = {
     "InitializeLean": "als_locomotion_initialize_lean",
+    "InitializeHead": "bevy_als::head_layer::HeadLayerPlugin",
+    "RefreshHead": "bevy_als::head_layer::HeadLayerPlugin",
     "InitializeGrounded": "bevy_als::grounded_layer::GroundedLayerPlugin",
     "RefreshGrounded": "bevy_als::actual_motion::AlsActualMotionPlugin + bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
     "ResetGroundedEntryMode": "bevy_als::grounded_layer::GroundedLayerPlugin",
@@ -346,6 +348,8 @@ def run_self_test():
         transition,
     }
     assert {
+        "InitializeHead",
+        "RefreshHead",
         "InitializeGrounded",
         "RefreshGrounded",
         "ResetGroundedEntryMode",

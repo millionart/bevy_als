@@ -196,6 +196,8 @@ def marker_ron(markers):
 
 
 def blendspace_inner(value, player=False):
+    if not isinstance(value, dict):
+        raise PoseRenderError("source blendspace contract is unavailable")
     blendspace = value.get("blendspace")
     if not isinstance(blendspace, dict):
         raise PoseRenderError("source blendspace contract is unavailable")
@@ -1148,6 +1150,12 @@ def fixture_graph():
 
 def run_self_test():
     graph_contract, graph_ir, assets = fixture_graph()
+    try:
+        blendspace_inner(None)
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("missing blendspace contract was accepted")
     comment_path = "/Asset:State.Comment"
     graph_contract["source_graph"]["nodes"].append(
         {
