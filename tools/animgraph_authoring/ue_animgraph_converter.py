@@ -1,5 +1,6 @@
 import argparse
 import copy
+import importlib.util
 import json
 import subprocess
 import sys
@@ -20,10 +21,36 @@ IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
+TRANSITION_RENDERERS = {
+    "transition_result",
+    "property_access",
+    "boolean_operator",
+    "comparison_operator",
+    "gameplay_tag_equal",
+    "boolean_to_float",
+}
+_TRANSITION_RENDERER = None
 
 
 class ConversionError(RuntimeError):
     pass
+
+
+def transition_renderer():
+    global _TRANSITION_RENDERER
+    if _TRANSITION_RENDERER is None:
+        path = ROOT / "tools" / "import" / "generate_ue_transition_expression_graph.py"
+        specification = importlib.util.spec_from_file_location("ue_transition_renderer", path)
+        if specification is None or specification.loader is None:
+            raise ConversionError("transition renderer is unavailable")
+        module = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(module)
+        _TRANSITION_RENDERER = module
+    return _TRANSITION_RENDERER
+
+
+def render_transition_contract(graph_contract):
+    return transition_renderer().graph_text(graph_contract)
 
 
 def read_json(path):
@@ -231,8 +258,13 @@ def normalized_node(node, renderer, semantic):
     return result
 
 
-def renderer_semantic_issues(node, renderer, semantic):
-    if renderer == "unsupported" or semantic is not None or renderer in IR_ONLY_RENDERERS:
+def renderer_semantic_issues(node, renderer, semantic, graph_kind, transition_renderable):
+    if (
+        renderer == "unsupported"
+        or semantic is not None
+        or renderer in IR_ONLY_RENDERERS
+        or (graph_kind == "transition" and transition_renderable and renderer in TRANSITION_RENDERERS)
+    ):
         return []
     return [
         {
@@ -244,13 +276,26 @@ def renderer_semantic_issues(node, renderer, semantic):
     ]
 
 
-def graph_ir(graph_contract, registry, reachable_nodes):
+def graph_ir(graph_contract, registry, reachable_nodes, graph_kind="graph"):
     included = set(reachable_nodes)
     for node in graph_contract["source_graph"]["nodes"]:
         if node.get("class_path") == "/Script/UnrealEd.EdGraphNode_Comment":
             included.add(node.get("object_path"))
     nodes = []
     unsupported = []
+    transition_renderable = False
+    if graph_kind == "transition":
+        try:
+            render_transition_contract(graph_contract)
+            transition_renderable = True
+        except (ConversionError, ValueError) as error:
+            unsupported.append(
+                {
+                    "kind": "source_transition_renderer_unsupported",
+                    "source_graph": graph_contract["source_graph_suffix"],
+                    "detail": str(error),
+                }
+            )
     for node in graph_contract["source_graph"]["nodes"]:
         if node.get("object_path") not in included:
             continue
@@ -260,7 +305,15 @@ def graph_ir(graph_contract, registry, reachable_nodes):
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
         unsupported.extend(contract_issues)
-        unsupported.extend(renderer_semantic_issues(node, renderer, semantic))
+        unsupported.extend(
+            renderer_semantic_issues(
+                node,
+                renderer,
+                semantic,
+                graph_kind,
+                transition_renderable,
+            )
+        )
         nodes.append(normalized_node(node, renderer, semantic))
     return {
         "source_graph": graph_contract["source_graph_suffix"],
@@ -280,7 +333,12 @@ def build_ir(source, root_graph, registry, asset_root):
     unsupported = list(source_reachability["issues"])
     for entry in source_reachability["graphs"]:
         value = contract(source, entry["source_graph"])
-        graph_value, graph_unsupported = graph_ir(value, registry, entry["reachable_nodes"])
+        graph_value, graph_unsupported = graph_ir(
+            value,
+            registry,
+            entry["reachable_nodes"],
+            entry["kind"],
+        )
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
     for dependency in source_reachability["external_dependencies"]:
@@ -374,7 +432,7 @@ def run_self_test():
     renderer, issue = mapping_for(function_node, registry)
     assert renderer == "root_output"
     assert issue is None
-    assert renderer_semantic_issues(function_node, renderer, None) == []
+    assert renderer_semantic_issues(function_node, renderer, None, "graph", False) == []
     assert renderer_semantic_issues(
         {
             "object_path": "/Asset:AnimGraph.StateMachine",
@@ -382,7 +440,12 @@ def run_self_test():
         },
         "state_machine",
         None,
+        "graph",
+        False,
     )[0]["kind"] == "source_renderer_unimplemented"
+    assert 'operation: "less"' in render_transition_contract(
+        transition_renderer().fixture_contract()
+    )
     function_registry = validate_registry(
         {
             "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
@@ -549,6 +612,7 @@ def run_self_test():
         "source_pin_link_position_property_drift_rejected": "PASS",
         "source_pose_contract_blocker_rejected": "PASS",
         "unimplemented_registered_renderer_rejected": "PASS",
+        "transition_renderer_is_callable_from_converter": "PASS",
         "deterministic_ir_drift_rejected": "PASS",
         "unsupported_source_blocks_generation": "PASS",
         "core_does_not_emit_partial_bevy_graphs": "PASS",

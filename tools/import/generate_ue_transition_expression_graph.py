@@ -1,5 +1,4 @@
 import argparse
-import hashlib
 import importlib.util
 import json
 import re
@@ -104,6 +103,12 @@ def operation(node):
             return "or"
     if "absolute" in title:
         return "absolute"
+    if "not equal (gameplaytag)" in title or "not equal (gameplay tag)" in title:
+        return "not_equal"
+    if "equal (gameplaytag)" in title or "equal (gameplay tag)" in title:
+        return "equal"
+    if "to float (boolean)" in title:
+        return "bool_to_f32"
     if "not boolean" in title or title.startswith("not"):
         return "not"
     if class_path.endswith("K2Node_Knot"):
@@ -111,9 +116,11 @@ def operation(node):
     return "global"
 
 
-def node_id(path):
-    digest = hashlib.sha256(path.encode("utf-8")).hexdigest()
-    return f"{digest[:8]}-{digest[8:12]}-4{digest[13:16]}-8{digest[17:20]}-{digest[20:32]}"
+def node_id(node):
+    value = node.get("node_guid")
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F-]{36}", value) is None:
+        raise ValueError("source node GUID is invalid")
+    return value.lower()
 
 
 def source_properties(node):
@@ -137,6 +144,9 @@ def property_access_key(node):
         match = re.search(r"PathAsText=\"([^\"]+)\"", value)
         if match is not None:
             return match.group(1)
+    for value in node.get("properties", []):
+        if value.get("name") == "TextPath" and isinstance(value.get("exported_text"), str):
+            return value["exported_text"]
     return ""
 
 
@@ -213,13 +223,12 @@ def root_passthrough(contract, root, pin):
     binding = bindings.get(pin["name"])
     if binding:
         return binding
-    digest = hashlib.sha256(contract["source_graph_suffix"].encode("utf-8")).hexdigest()[:12]
-    return f"source_transition_default_{digest}_{pin['name']}"
+    return "source_transition_default_" + node_id(root).replace("-", "") + "_" + pin["name"]
 
 
 def graph_text(contract):
     nodes = source_nodes(contract)
-    ids = {node["object_path"]: node_id(node["object_path"]) for node in nodes}
+    ids = {node["object_path"]: node_id(node) for node in nodes}
     root = AUDIT.source_root(contract)
     root_pins = AUDIT.visible_pins(root, "Input")
     if len(root_pins) != 1:
@@ -321,7 +330,7 @@ def map_payload(contract_path, target_graph, target_spec, map_path, contract):
         bindings = AUDIT.source_binding_paths(node)
         node_map = {
             "source_node": node["object_path"],
-            "target_node": node_id(node["object_path"]),
+            "target_node": node_id(node),
             "input_pins": [],
             "output_pins": [],
         }
@@ -422,6 +431,7 @@ def fixture_contract():
             "nodes": [
                 {
                     "object_path": "/Asset:AnimGraph.Result",
+                    "node_guid": "10000000-0000-4000-8000-000000000001",
                     "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
                     "position_x": 0,
                     "position_y": 0,
@@ -430,6 +440,7 @@ def fixture_contract():
                 },
                 {
                     "object_path": "/Asset:AnimGraph.Compare",
+                    "node_guid": "10000000-0000-4000-8000-000000000002",
                     "class_path": "/Script/BlueprintGraph.K2Node_PromotableOperator",
                     "position_x": -64,
                     "position_y": 0,
@@ -462,6 +473,7 @@ def fixture_bound_root_contract():
             "nodes": [
                 {
                     "object_path": "/Asset:AnimGraph.Result",
+                    "node_guid": "10000000-0000-4000-8000-000000000003",
                     "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
                     "position_x": 0,
                     "position_y": 0,
@@ -513,6 +525,18 @@ def run_self_test():
             ],
         }
         assert property_access_key(access) == "GetParent.Value"
+        assert operation(
+            {
+                "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                "title": "Equal (GameplayTag)",
+            }
+        ) == "equal"
+        assert operation(
+            {
+                "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+                "title": "To Float (Boolean)",
+            }
+        ) == "bool_to_f32"
         bound_path = Path("bound.json")
         write_json(root / bound_path, fixture_bound_root_contract())
         bound_text, bound_mapping = generate(
@@ -539,6 +563,7 @@ def run_self_test():
         "source_link_and_root_output_mapping": "PASS",
         "property_access_path_becomes_target_key": "PASS",
         "bound_transition_result_root_is_preserved": "PASS",
+        "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
     }
 
 

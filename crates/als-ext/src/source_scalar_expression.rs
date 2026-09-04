@@ -34,6 +34,10 @@ pub struct SourceScalarExpressionNode {
     pub source_properties: Vec<String>,
 }
 
+fn bool_to_f32(value: bool) -> f32 {
+    value as u8 as f32
+}
+
 impl SourceScalarExpressionNode {
     fn input_f32(&self, ctx: &NodeContext, name: &str) -> f32 {
         let fallback = self
@@ -84,6 +88,7 @@ impl SourceScalarExpressionNode {
     fn result_f32(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> f32 {
         match self.operation.as_str() {
             "absolute" => self.input_f32(ctx, "A").abs(),
+            "bool_to_f32" => bool_to_f32(self.input_bool(ctx, "A")),
             "passthrough" => self.input_f32(ctx, "A"),
             _ => self.global_f32(ctx, pin),
         }
@@ -199,5 +204,11 @@ mod tests {
         assert_eq!(node.output_pins[0].name, "Return Value");
         assert_eq!(node.output_pins[0].data_type, SourceScalarDataType::Bool);
         assert_eq!(node.source_class, "K2Node_PromotableOperator");
+    }
+
+    #[test]
+    fn scalar_expression_converts_boolean_to_source_float() {
+        assert_eq!(bool_to_f32(false), 0.0);
+        assert_eq!(bool_to_f32(true), 1.0);
     }
 }
