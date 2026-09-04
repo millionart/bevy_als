@@ -52,6 +52,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`AlsGameplayTags.cpp`定义 `Als.LocomotionAction.Ragdolling`；本地 `AB_Als_Ragdolling` 原始图中 inner/outer `GameplayTagsBlend`均以该 exact Tag 选择，outer/inner 的有效 blend time 分别为 `(0.4,0.5)`/`(0,0)`。
   - Gate summary：`source_tag_selects_the_ragdolling_child`、`SourceGameplayTagInputNode` real-identity、root state→Tag mapping、带本地 UE 原始导出的 Ragdoll contract runtime Gate均PASS；position/coverage audit为9 target node、零 missing/mismatch/unexplained。消融：删除 `als_ragdolling_action_index` 的图节点、edge、output ABI、writer、fixture输入和最后一个 f32 selector helper；Ragdoll selection只读取`GameplayTag`，无索引兼容路径。
 
+- [x] BF112.06 linked AnimInstance lifecycle provider dispatch：开始：2026-09-04 23:02:45 +08:00；预估结束：2026-09-04 23:42:45 +08:00；实际结束：2026-09-04 23:18:37 +08:00（偏差 -24m08s）。将当前三个直接转换图中已由手工 ALS runtime 覆盖的无参 `UAlsLinkedAnimationInstance`调用按函数签名映射为 lifecycle passthrough + 明确 runtime provider；未知签名与 StateResult lifecycle 仍 fail-closed。验收：lifecycle fixture、converter self-test、Standing/Crouching/Grounded fresh direct report 的对应 `unregistered_source_function`清零，其他 blocker 不被吞掉。
+  - source fact：本地 `AB_Als_Standing.uasset`的9类调用均为 self-context、无参数、`OnBecomeRelevant`或`OnUpdate`；`AlsLinkedAnimationInstance.cpp`只转发给 parent。`AlsAnimationInstance.cpp`定义 grounded/standing/crouching/dynamic/turn 的状态写入；当前 `GroundedLayerPlugin`、`StandingLayerPlugin`、`CrouchingLayerPlugin`、`TurnLayerPlugin`已消费相同状态和生命周期。
+  - Gate summary：lifecycle fixture、converter self-test、JSON parse、Standing/Crouching/Grounded direct `--write`/`--check`均PASS（blocked exit=3且无 drift）；三图的 `unregistered_source_function`均为0，已映射函数在 integration JSON 指向实际 runtime plugin。保留 Standing 5、Crouching 1、Grounded 1 个 `source_lifecycle_unsupported`及其余 node/property/sync blocker。消融：临时移除`RefreshStandingMovement` provider使 dispatch 0→1缺失，故保留最小函数签名映射；未按 asset path 建白名单。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

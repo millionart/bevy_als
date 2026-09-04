@@ -6,8 +6,20 @@ FUNCTION_CALL_CLASS = "/Script/BlueprintGraph.K2Node_CallFunction"
 STOP_FUNCTION = "StopTransitionAndTurnInPlaceAnimations"
 EXTERNAL_PROVIDERS = {
     "InitializeLean": "als_locomotion_initialize_lean",
+    "InitializeGrounded": "bevy_als::grounded_layer::GroundedLayerPlugin",
+    "RefreshGrounded": "bevy_als::actual_motion::AlsActualMotionPlugin + bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
+    "ResetGroundedEntryMode": "bevy_als::grounded_layer::GroundedLayerPlugin",
+    "RefreshGroundedMovement": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
+    "InitializeStandingMovement": "bevy_als::standing_layer::StandingLayerPlugin",
+    "RefreshStandingMovement": "bevy_als::standing_layer::StandingLayerPlugin",
+    "ResetPivot": "bevy_als::standing_layer::StandingLayerPlugin",
+    "RefreshCrouchingMovement": "bevy_als::crouching_layer::CrouchingLayerPlugin",
+    "RefreshDynamicTransitions": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
     "RefreshInAir": "als_locomotion_refresh_in_air",
     "RefreshRotateInPlace": "als_turn_layer_refresh_rotate_in_place",
+    "InitializeTurnInPlace": "bevy_als::turn_layer::TurnLayerPlugin",
+    "RefreshTurnInPlace": "bevy_als::turn_layer::TurnLayerPlugin",
+    "SetHipsDirection": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
 }
 
 
@@ -161,6 +173,20 @@ def run_self_test():
     providers = {item["provider"] for item in plan["dispatches"]}
     assert providers == {"als_locomotion_exit_stop", "als_locomotion_refresh_in_air"}
     assert set(plan["handled_nodes"]) == {"/Asset:State.Result", entry, stop, parent}
+    assert {
+        "InitializeGrounded",
+        "RefreshGrounded",
+        "ResetGroundedEntryMode",
+        "RefreshGroundedMovement",
+        "InitializeStandingMovement",
+        "RefreshStandingMovement",
+        "ResetPivot",
+        "RefreshCrouchingMovement",
+        "RefreshDynamicTransitions",
+        "InitializeTurnInPlace",
+        "RefreshTurnInPlace",
+        "SetHipsDirection",
+    }.issubset(EXTERNAL_PROVIDERS)
     return {
         "local_stop_function_chain_validated": "PASS",
         "existing_runtime_lifecycle_providers_mapped": "PASS",
