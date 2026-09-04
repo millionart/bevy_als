@@ -69,33 +69,6 @@
       "RightBackward": 5.0
     }
   },
-  "sync_group_phase_keys": {
-    "Movement": "standing_state.movement.sync_phase",
-    "Secondary Motion": "secondary_motion.sync_phase",
-    "Fall": "fall.sync_phase",
-    "Jump": "jump.sync_phase",
-    "Flail": "flail.sync_phase",
-    "Land": "land.sync_phase"
-  },
-  "sync_group_phase_contracts": {
-    "Movement": {
-      "phase_duration": 1.0,
-      "phase_markers": [
-        { "name": "Left", "time": 0.0 },
-        { "name": "Right", "time": 0.5 }
-      ],
-      "start_position": 0.2,
-      "looped": true,
-      "delta_seconds_key": "animation.delta_seconds"
-    },
-    "Secondary Motion": {
-      "phase_duration": 2.666667,
-      "phase_markers": [],
-      "start_position": 0.0,
-      "looped": true,
-      "delta_seconds_key": "animation.delta_seconds"
-    }
-  },
   "fsm_state_label_keys": {
     "Grounded States": "grounded_states.state_index",
     "Locomotion States": "locomotion_states.state_index",

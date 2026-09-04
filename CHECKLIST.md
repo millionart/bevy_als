@@ -108,6 +108,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：原始导出分别将`ExplicitFrame`、`SourcePose`、`Poses_n`/`DesiredAlphas_n`、`BlendPose_n`/`BlendTime_n`/`ActiveTag`、`BlendPose_n`/`BlendTime_n`/`ActiveEnumValue`作为 pin name；空格版是`friendly_name`，不是可稳定对照的 source identity。
   - Gate summary：converter/pose contract/renderer self-test与73个focused `als-ext` source tests均PASS；六个ready corpus fresh `--write`/`--check`和editor/position audit均PASS，Crouching/Standing fresh source报告的已知 blocker集合无新增。字段审计确认生成 RON不含此批五类的空格标签，且实际 Layering/Ragdolling输出含对应 exact source pin。消融：删除只返回`friendly_name`的contract helper和target pin label-mapping；保留适配节点可配置pin字段以支持生成的source ABI，未为旧手工名称新增转换分支。
 
+- [x] BF112.20a Generic source sync-group plan：开始：2026-09-05 06:45:20 +08:00；预估结束：2026-09-05 07:35:20 +08:00；实际结束：2026-09-05 07:09:13 +08:00（偏差 -26m07s）。删除 registry 内按组名写死的 phase key/marker contract，按 source asset + `GroupName`确定性生成 phase key、从真实动画资产导出每个候选的duration/markers/start/role，并由生成 RON消费该 source plan；integration report要求接入方提供按 UE leader selection 更新该 phase。验收：UE 5.8 `FAnimGroupInstance`/asset player source fact、converter self-test、Crouching/Standing sync blocker归零、Locomotion/Default确定性静态回归。
+  - source fact：UE 5.8先在`FAnimNode_AssetPlayerBase::Update_AnyThread`记录最终 blend weight并由`CreateTickRecordForNode`加入`FAnimSyncGroupScope`；`FAnimGroupInstance::TestTickRecordForLeadership`按role/weight打分，`Prepare`排序并以leader与共同markers建立marker sync。Crouching只有`Movement`，Standing有`Movement`、`Second Pivot`、`First Pivot`、`Run Start`，当前均为`CanBeLeader + SyncGroup`。
+  - Gate summary：UE 5.8 source、converter/contract/renderer/materializer/asset-resolver self-test均PASS。Crouching与Standing fresh direct报告已无任何sync-group blocker；分别产出`ab_als_crouching.movement`与Standing四组的source candidate/marker/role计划。六个ready corpus fresh `--write`/`--check`均ready，editor/position Gate 35/50/1/1/2/1文件零失败。消融：registry拒绝`sync_group_phase_keys`/`sync_group_phase_contracts`，删除27行手工组名/marker/phase配置；新计划以source asset + GroupName构成key，markerless和marker组使用同一计划与`GlobalSyncGroupSampleNode`。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

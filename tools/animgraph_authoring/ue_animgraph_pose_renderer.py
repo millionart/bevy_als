@@ -182,9 +182,9 @@ def cache_key(graph_contract, cache_name):
     return "ue-cache:" + str(uuid.uuid5(uuid.NAMESPACE_URL, asset + ":" + cache_name))
 
 
-def marker_ron(markers):
-    if not isinstance(markers, list) or len(markers) < 2:
-        raise PoseRenderError("source blendspace marker contract is invalid")
+def sync_marker_ron(markers):
+    if not isinstance(markers, list) or len(markers) == 1:
+        raise PoseRenderError("source sync marker contract is invalid")
     rows = []
     for marker in markers:
         if (
@@ -196,6 +196,12 @@ def marker_ron(markers):
             raise PoseRenderError("source blendspace marker is invalid")
         rows.append("(name: " + quoted(marker["name"]) + ", time: " + repr(marker["time"]) + ")")
     return "[" + ", ".join(rows) + "]"
+
+
+def marker_ron(markers):
+    if not isinstance(markers, list) or len(markers) < 2:
+        raise PoseRenderError("source blendspace marker contract is invalid")
+    return sync_marker_ron(markers)
 
 
 def blendspace_inner(value, player=False):
@@ -1081,7 +1087,6 @@ def render(
     graph_contract,
     graph_ir,
     animation_assets,
-    sync_group_phase_keys=None,
     fsm_assets=None,
 ):
     raw_nodes = node_index(graph_contract)
@@ -1095,7 +1100,6 @@ def render(
     if len(raw_by_id) != len(raw_nodes):
         raise PoseRenderError("source node identifiers are duplicated")
     asset_by_node = asset_index(animation_assets)
-    sync_group_phase_keys = sync_group_phase_keys or {}
     fsm_assets = fsm_assets or {}
     result_nodes = []
     sync_wrappers = {}
@@ -1140,11 +1144,22 @@ def render(
             linked_layer_selectors[source_path] = selector_id
         if semantic.get("renderer") != "sequence_player":
             continue
-        group = semantic["semantic"].get("sync_group")
+        value = semantic["semantic"]
+        group = value.get("sync_group")
         if group == "None":
             continue
-        key = sync_group_phase_keys.get(group)
-        if not isinstance(key, str) or not key:
+        key = value.get("sync_phase_key")
+        phase_duration = value.get("sync_phase_duration")
+        phase_markers = value.get("sync_phase_markers")
+        phase_looped = value.get("sync_phase_looped")
+        if (
+            not isinstance(key, str)
+            or not key
+            or not isinstance(phase_duration, (int, float))
+            or isinstance(phase_duration, bool)
+            or phase_duration <= 0.0
+            or not isinstance(phase_looped, bool)
+        ):
             raise PoseRenderError("source sync group phase key is unavailable")
         asset = asset_by_node.get(source_path)
         timing = asset.get("source_timing") if isinstance(asset, dict) else None
@@ -1153,18 +1168,22 @@ def render(
             or not isinstance(timing.get("duration"), (int, float))
             or isinstance(timing["duration"], bool)
             or timing["duration"] <= 0.0
-            or timing.get("markers") != []
         ):
             raise PoseRenderError("source sync group timing is unsupported")
+        leader_markers = sync_marker_ron(phase_markers)
+        follower_markers = sync_marker_ron(timing.get("markers"))
         wrapper_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/sync/" + source_path))
         x, y = position(raw)
-        looped = bool_ron(semantic["semantic"]["loop_animation"])
+        if value.get("loop_animation") != phase_looped:
+            raise PoseRenderError("source sync group loop mode is unsupported")
         wrapper = (
             "(key: " + quoted(key)
-            + ", leader_duration: " + repr(timing["duration"])
-            + ", leader_markers: [], follower_duration: " + repr(timing["duration"])
-            + ", follower_markers: [], looped: "
-            + looped
+            + ", leader_duration: " + repr(phase_duration)
+            + ", leader_markers: " + leader_markers
+            + ", follower_duration: " + repr(timing["duration"])
+            + ", follower_markers: " + follower_markers
+            + ", looped: "
+            + bool_ron(phase_looped)
             + ")"
         )
         result_nodes.append(
@@ -1742,12 +1761,15 @@ def run_self_test():
         pass
     else:
         raise AssertionError("source sync group was rendered without a group renderer")
-    text = render(
-        graph_contract,
-        graph_ir,
-        assets,
-        {"Movement": "als_source_movement_phase"},
+    graph_ir["nodes"][0]["semantic"].update(
+        {
+            "sync_phase_key": "sync_groups.asset.movement.phase",
+            "sync_phase_duration": 1.0,
+            "sync_phase_markers": [],
+            "sync_phase_looped": True,
+        }
     )
+    text = render(graph_contract, graph_ir, assets)
     assert '"als_ext::GlobalSyncGroupSampleNode"' in text
     blend_path = "/Asset:State.Blendspace"
     blend_result = "/Asset:State.BlendspaceResult"
@@ -1870,7 +1892,7 @@ def run_self_test():
                     ],
                     "loop": True,
                     "configured_play_rate": 1.0,
-                    "sync_phase_key": "standing_state.movement.sync_phase",
+                    "sync_phase_key": "sync_groups.ab_als_standing.movement.phase",
                     "sync_phase_duration": 1.0,
                     "sync_phase_markers": [
                         {"name": "Left", "time": 0.0},
@@ -1901,7 +1923,7 @@ def run_self_test():
     }
     text = render(blend_contract, player_ir, [])
     assert '"als_ext::CubicVec2AxisFilterNode"' in text
-    assert 'key: "standing_state.movement.sync_phase"' in text
+    assert 'key: "sync_groups.ab_als_standing.movement.phase"' in text
     assert 'key: "animation.delta_seconds"' in text
     assert "duration: 1.0" in text and 'markers: [(name: "Left", time: 0.0)' in text
     return {

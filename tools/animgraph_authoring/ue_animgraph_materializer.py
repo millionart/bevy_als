@@ -364,7 +364,6 @@ def materialize_files(source, ir, registry):
                 contract(source, suffix),
                 entry,
                 ir["animation_assets"],
-                registry["sync_group_phase_keys"],
                 fsm_configs,
             )
         except PoseRenderError as error:

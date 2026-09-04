@@ -195,11 +195,17 @@ def source_property_key(source_path):
 def validate_registry(value):
     if not isinstance(value, dict) or value.get("format") != "als_ref_to_bevy_animgraph_mapping_registry_v1":
         raise ConversionError("mapping registry format is invalid")
+    if set(value) - {
+        "format",
+        "node_classes",
+        "function_rules",
+        "enum_entry_values",
+        "fsm_state_label_keys",
+    }:
+        raise ConversionError("mapping registry contains unsupported configuration")
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
     enum_entry_values = value.get("enum_entry_values", {})
-    sync_group_phase_keys = value.get("sync_group_phase_keys", {})
-    sync_group_phase_contracts = value.get("sync_group_phase_contracts", {})
     fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
@@ -207,57 +213,8 @@ def validate_registry(value):
         raise ConversionError("mapping registry function rules are invalid")
     if not isinstance(enum_entry_values, dict):
         raise ConversionError("mapping registry enum entry values are invalid")
-    if not isinstance(sync_group_phase_keys, dict):
-        raise ConversionError("mapping registry sync group phase keys are invalid")
-    if not isinstance(sync_group_phase_contracts, dict):
-        raise ConversionError("mapping registry sync group phase contracts are invalid")
     if not isinstance(fsm_state_label_keys, dict):
         raise ConversionError("mapping registry FSM state label keys are invalid")
-    for group, key in sync_group_phase_keys.items():
-        if not isinstance(group, str) or not group or not isinstance(key, str) or not key:
-            raise ConversionError("mapping registry sync group phase key is invalid")
-        if "{" in key or "}" in key:
-            raise ConversionError("mapping registry sync group phase key is invalid")
-    for group, contract in sync_group_phase_contracts.items():
-        if group not in sync_group_phase_keys or not isinstance(contract, dict) or set(contract) != {
-            "phase_duration",
-            "phase_markers",
-            "start_position",
-            "looped",
-            "delta_seconds_key",
-        }:
-            raise ConversionError("mapping registry sync group phase contract is invalid")
-        duration = contract["phase_duration"]
-        start = contract["start_position"]
-        markers = contract["phase_markers"]
-        if (
-            not isinstance(duration, (int, float))
-            or isinstance(duration, bool)
-            or duration <= 0.0
-            or not isinstance(start, (int, float))
-            or isinstance(start, bool)
-            or not 0.0 <= start <= 1.0
-            or not isinstance(contract["looped"], bool)
-            or not isinstance(contract["delta_seconds_key"], str)
-            or not contract["delta_seconds_key"]
-            or not isinstance(markers, list)
-            or len(markers) == 1
-        ):
-            raise ConversionError("mapping registry sync group phase contract is invalid")
-        previous = -1.0
-        for marker in markers:
-            if (
-                not isinstance(marker, dict)
-                or set(marker) != {"name", "time"}
-                or not isinstance(marker["name"], str)
-                or not marker["name"]
-                or not isinstance(marker["time"], (int, float))
-                or isinstance(marker["time"], bool)
-                or not 0.0 <= marker["time"] < duration
-                or marker["time"] <= previous
-            ):
-                raise ConversionError("mapping registry sync group phase marker is invalid")
-            previous = marker["time"]
     for name, key in fsm_state_label_keys.items():
         if not isinstance(name, str) or not name or not isinstance(key, str) or not key:
             raise ConversionError("mapping registry FSM state label key is invalid")
@@ -424,42 +381,6 @@ def resolve_blendspace_bindings(node, renderer, semantic, pins):
     ]
 
 
-def resolve_blendspace_player_phase(node, semantic, registry):
-    group = semantic.get("sync_group")
-    template = registry.get("sync_group_phase_keys", {}).get(group)
-    contract = registry.get("sync_group_phase_contracts", {}).get(group)
-    if not isinstance(group, str) or not isinstance(template, str) or not isinstance(contract, dict):
-        return [
-            {
-                "kind": "source_sync_group_phase_unresolved",
-                "source_node": node.get("object_path"),
-                "source_class": node.get("class_path"),
-                "renderer": "blendspace_player",
-                "source_sync_group": group,
-            }
-        ]
-    key = template
-    if (
-        semantic.get("loop") != contract.get("looped")
-        or abs(semantic.get("start_position", -1.0) - contract.get("start_position", -2.0))
-        > 1.0e-6
-    ):
-        return [
-            {
-                "kind": "source_sync_group_phase_contract_unsupported",
-                "source_node": node.get("object_path"),
-                "source_class": node.get("class_path"),
-                "renderer": "blendspace_player",
-                "source_sync_group": group,
-            }
-        ]
-    semantic["sync_phase_key"] = key
-    semantic["sync_phase_duration"] = contract["phase_duration"]
-    semantic["sync_phase_markers"] = contract["phase_markers"]
-    semantic["delta_seconds_key"] = contract["delta_seconds_key"]
-    return []
-
-
 def resolve_property_bindings(node, semantic, registry):
     if not isinstance(semantic, dict):
         return []
@@ -591,7 +512,6 @@ def resolve_property_bindings(node, semantic, registry):
                     "source_pin": "PlayRate",
                 }
             )
-        issues.extend(resolve_blendspace_player_phase(node, semantic, registry))
         return issues
     if renderer == "pose_snapshot":
         keys, issues = resolve_bound_keys(
@@ -957,7 +877,7 @@ def graph_ir(
     }, unsupported
 
 
-def pose_renderer_status(graph_contract, graph_value, animation_assets, sync_group_phase_keys):
+def pose_renderer_status(graph_contract, graph_value, animation_assets):
     if not all(
         node.get("renderer") in SUPPORTED_RENDERERS
         or node.get("renderer") == "comment_group"
@@ -969,36 +889,200 @@ def pose_renderer_status(graph_contract, graph_value, animation_assets, sync_gro
             graph_contract,
             graph_value,
             animation_assets,
-            sync_group_phase_keys,
         )
     except PoseRenderError as error:
         return {"state": "blocked", "detail": str(error)}
     return {"state": "renderable"}
 
 
-def supported_sync_group_nodes(graphs, animation_assets, registry):
+def source_identifier_key(value):
+    if not isinstance(value, str) or not value:
+        raise ConversionError("source identifier is invalid")
+    value = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_")
+    if not value:
+        raise ConversionError("source identifier is invalid")
+    return source_property_key(value)
+
+
+def sync_timing(value):
+    if not isinstance(value, dict):
+        raise ConversionError("source sync group timing is unavailable")
+    duration = value.get("duration")
+    markers = value.get("markers")
+    if (
+        not isinstance(duration, (int, float))
+        or isinstance(duration, bool)
+        or duration <= 0.0
+        or not isinstance(markers, list)
+        or len(markers) == 1
+    ):
+        raise ConversionError("source sync group timing is invalid")
+    result = []
+    previous = -1.0
+    for marker in markers:
+        if (
+            not isinstance(marker, dict)
+            or set(marker) != {"name", "time"}
+            or not isinstance(marker["name"], str)
+            or not marker["name"]
+            or not isinstance(marker["time"], (int, float))
+            or isinstance(marker["time"], bool)
+            or not 0.0 <= marker["time"] <= duration
+            or marker["time"] <= previous
+        ):
+            raise ConversionError("source sync group marker is invalid")
+        result.append({"name": marker["name"], "time": float(marker["time"])})
+        previous = marker["time"]
+    return {"duration": float(duration), "markers": result}
+
+
+def sync_candidate_timing(node, semantic, assets):
+    asset = assets.get(node.get("source_node"))
+    if node.get("renderer") == "sequence_player":
+        return sync_timing(asset.get("source_timing") if isinstance(asset, dict) else None), None
+    if node.get("renderer") == "blendspace_player":
+        blendspace = semantic.get("blendspace")
+        samples = blendspace.get("samples") if isinstance(blendspace, dict) else None
+        if not isinstance(samples, list) or not samples:
+            raise ConversionError("source BlendSpace sync timing is unavailable")
+        return sync_timing(samples[0].get("source_timing") if isinstance(samples[0], dict) else None), 0
+    raise ConversionError("source sync group renderer is unsupported")
+
+
+def sync_candidate_play_rate(semantic):
+    if semantic.get("renderer") == "sequence_player":
+        return (
+            semantic.get("play_rate_path", ""),
+            semantic.get("play_rate_key", ""),
+            semantic.get("play_rate"),
+        )
+    inputs = semantic.get("input_pins")
+    paths = semantic.get("input_binding_paths")
+    keys = semantic.get("input_binding_keys")
+    if isinstance(inputs, list) and isinstance(paths, list) and isinstance(keys, list):
+        for input_value, path, key in zip(inputs, paths, keys):
+            if isinstance(input_value, dict) and input_value.get("name") == "PlayRate":
+                return path, key, semantic.get("configured_play_rate")
+    return "", "", semantic.get("configured_play_rate")
+
+
+def build_sync_group_plans(source_asset, graphs, animation_assets):
     assets = {
         asset.get("source_node"): asset
         for asset in animation_assets
         if isinstance(asset.get("source_node"), str)
     }
-    supported = set()
+    grouped = {}
     for graph in graphs:
         for node in graph["nodes"]:
             semantic = node.get("semantic")
-            if node.get("renderer") != "sequence_player" or not isinstance(semantic, dict):
+            if node.get("renderer") not in {"sequence_player", "blendspace_player"} or not isinstance(semantic, dict):
                 continue
             group = semantic.get("sync_group")
-            asset = assets.get(node.get("source_node"))
-            timing = asset.get("source_timing") if isinstance(asset, dict) else None
+            if group == "None":
+                continue
+            if not isinstance(group, str) or not group or semantic.get("sync_method") != "SyncGroup":
+                continue
+            grouped.setdefault(group, {})[node["source_node"]] = (graph, node, semantic)
+    asset_name = source_asset.rsplit("/", 1)[-1].split(".", 1)[0]
+    plans = []
+    issues = []
+    supported = set()
+    for group, candidates in sorted(grouped.items()):
+        rows = []
+        failed = False
+        for source_node, (graph, node, semantic) in sorted(candidates.items()):
+            try:
+                timing, basis_sample = sync_candidate_timing(node, semantic, assets)
+            except ConversionError as error:
+                issues.append(
+                    {
+                        "kind": "source_sync_group_timing_unsupported",
+                        "source_node": source_node,
+                        "source_class": node.get("source_class"),
+                        "renderer": node.get("renderer"),
+                        "detail": str(error),
+                    }
+                )
+                failed = True
+                continue
+            looped = semantic.get("loop_animation", semantic.get("loop"))
+            start = semantic.get("start_position")
+            role = semantic.get("sync_group_role")
+            path, key, rate = sync_candidate_play_rate(semantic)
             if (
-                isinstance(group, str)
-                and group in registry["sync_group_phase_keys"]
-                and isinstance(timing, dict)
-                and timing.get("markers") == []
+                not isinstance(looped, bool)
+                or not isinstance(start, (int, float))
+                or isinstance(start, bool)
+                or not 0.0 <= start <= 1.0
+                or not isinstance(role, str)
+                or not isinstance(path, str)
+                or not isinstance(key, str)
             ):
-                supported.add(node["source_node"])
-    return supported
+                issues.append(
+                    {
+                        "kind": "source_sync_group_contract_unsupported",
+                        "source_node": source_node,
+                        "source_class": node.get("source_class"),
+                        "renderer": node.get("renderer"),
+                    }
+                )
+                failed = True
+                continue
+            rows.append(
+                {
+                    "source_node": source_node,
+                    "source_graph": graph["source_graph"],
+                    "source_class": node.get("source_class"),
+                    "renderer": node.get("renderer"),
+                    "source_role": role,
+                    "source_method": semantic["sync_method"],
+                    "source_start_position": float(start),
+                    "source_looped": looped,
+                    "source_duration": timing["duration"],
+                    "source_markers": timing["markers"],
+                    "source_play_rate_path": path,
+                    "target_play_rate_key": key,
+                    "source_play_rate": rate,
+                    "source_phase_basis_sample": basis_sample,
+                }
+            )
+        if failed or not rows:
+            continue
+        if len({row["source_looped"] for row in rows}) != 1:
+            issues.extend(
+                {
+                    "kind": "source_sync_group_loop_mode_unsupported",
+                    "source_node": row["source_node"],
+                    "source_class": row["source_class"],
+                    "renderer": row["renderer"],
+                }
+                for row in rows
+            )
+            continue
+        basis = rows[0]
+        key = "sync_groups." + source_identifier_key(asset_name) + "." + source_identifier_key(group) + ".phase"
+        plan = {
+            "source_sync_group": group,
+            "target_phase_key": key,
+            "target_delta_seconds_key": "animation.delta_seconds",
+            "phase_basis_source_node": basis["source_node"],
+            "phase_duration": basis["source_duration"],
+            "phase_markers": basis["source_markers"],
+            "phase_looped": basis["source_looped"],
+            "candidates": rows,
+            "status": "requires_target_provider",
+        }
+        for row in rows:
+            _, node, semantic = candidates[row["source_node"]]
+            semantic["sync_phase_key"] = key
+            semantic["sync_phase_duration"] = plan["phase_duration"]
+            semantic["sync_phase_markers"] = plan["phase_markers"]
+            semantic["sync_phase_looped"] = plan["phase_looped"]
+            semantic["delta_seconds_key"] = plan["target_delta_seconds_key"]
+            supported.add(node["source_node"])
+        plans.append(plan)
+    return plans, supported, issues
 
 
 def build_ir(
@@ -1086,13 +1170,6 @@ def build_ir(
             assets,
             linked_layer_targets,
         )
-        if entry["kind"] == "graph":
-            graph_value["pose_renderer"] = pose_renderer_status(
-                value,
-                graph_value,
-                assets,
-                registry["sync_group_phase_keys"],
-            )
         if entry["kind"] == "transition":
             try:
                 graph_value["gameplay_tag_providers"] = transition_renderer().gameplay_tag_providers(value)
@@ -1119,21 +1196,12 @@ def build_ir(
                 graph_value["fsm_renderer"] = fsm_plan
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
-    supported_sync_nodes = supported_sync_group_nodes(graphs, assets, registry)
-    for graph in graphs:
-        for node in graph["nodes"]:
-            if node.get("source_node") not in supported_sync_nodes:
-                continue
-            semantic = node.get("semantic")
-            if not isinstance(semantic, dict):
-                continue
-            phase_contract = registry["sync_group_phase_contracts"].get(semantic.get("sync_group"))
-            if not isinstance(phase_contract, dict):
-                continue
-            semantic["sync_phase_key"] = registry["sync_group_phase_keys"][semantic["sync_group"]]
-            semantic["sync_phase_duration"] = phase_contract["phase_duration"]
-            semantic["sync_phase_markers"] = phase_contract["phase_markers"]
-            semantic["delta_seconds_key"] = phase_contract["delta_seconds_key"]
+    sync_group_plans, supported_sync_nodes, sync_issues = build_sync_group_plans(
+        source["asset_path"],
+        graphs,
+        assets,
+    )
+    unsupported.extend(sync_issues)
     unsupported = [
         issue
         for issue in unsupported
@@ -1142,6 +1210,13 @@ def build_ir(
             and issue.get("source_node") in supported_sync_nodes
         )
     ]
+    for graph in graphs:
+        if graph["kind"] == "graph":
+            graph["pose_renderer"] = pose_renderer_status(
+                contract(source, graph["source_graph"]),
+                graph,
+                assets,
+            )
     for dependency in source_reachability["external_dependencies"]:
         unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
     handled_lifecycle_nodes = set(
@@ -1166,6 +1241,7 @@ def build_ir(
         "root_source_graph": root_graph,
         "graphs": graphs,
         "animation_assets": assets,
+        "sync_group_plans": sync_group_plans,
         "function_dependencies": source_reachability["function_dependencies"],
         "external_dependencies": source_reachability["external_dependencies"],
         "lifecycle_dispatch": lifecycle_dispatch,
@@ -1207,58 +1283,29 @@ def integration_provider_by_node(ir):
 
 
 def integration_sync_phase_providers(ir):
-    rows = []
-    for graph in ir.get("graphs", []):
-        for node in graph.get("nodes", []):
-            if not isinstance(node, dict):
-                continue
-            semantic = node.get("semantic")
-            if (
-                node.get("renderer") not in {"blendspace_player", "sequence_player"}
-                or not isinstance(semantic, dict)
-            ):
-                continue
-            inputs = semantic.get("input_pins")
-            paths = semantic.get("input_binding_paths")
-            keys = semantic.get("input_binding_keys")
-            play_rate = ("", "")
-            if isinstance(inputs, list) and isinstance(paths, list) and isinstance(keys, list):
-                play_rate = next(
-                    (
-                        (path, key)
-                        for input_value, path, key in zip(inputs, paths, keys)
-                        if isinstance(input_value, dict)
-                        and input_value.get("name") == "PlayRate"
-                        and isinstance(path, str)
-                        and isinstance(key, str)
-                    ),
-                    ("", ""),
-                )
-            if not all(
-                isinstance(value, str) and value
-                for value in (
-                    semantic.get("sync_group"),
-                    semantic.get("sync_phase_key"),
-                    semantic.get("delta_seconds_key"),
-                )
-            ):
-                continue
-            rows.append(
-                {
-                    "source_node": node.get("source_node"),
-                    "source_sync_group": semantic["sync_group"],
-                    "target_phase_key": semantic["sync_phase_key"],
-                    "target_delta_seconds_key": semantic["delta_seconds_key"],
-                    "source_play_rate_path": play_rate[0],
-                    "target_play_rate_key": play_rate[1],
-                    "source_play_rate": semantic.get("play_rate", semantic.get("configured_play_rate")),
-                    "source_start_position": semantic.get("start_position"),
-                    "phase_duration": semantic.get("sync_phase_duration"),
-                    "phase_markers": semantic.get("sync_phase_markers"),
-                    "status": "requires_target_provider",
-                }
+    plans = ir.get("sync_group_plans", [])
+    if not isinstance(plans, list):
+        return []
+    rows = [
+        plan
+        for plan in plans
+        if isinstance(plan, dict)
+        and all(
+            isinstance(plan.get(field), str) and plan[field]
+            for field in (
+                "source_sync_group",
+                "target_phase_key",
+                "target_delta_seconds_key",
+                "phase_basis_source_node",
+                "status",
             )
-    return sorted(rows, key=lambda item: item["source_node"])
+        )
+        and isinstance(plan.get("phase_duration"), (int, float))
+        and isinstance(plan.get("phase_markers"), list)
+        and isinstance(plan.get("phase_looped"), bool)
+        and isinstance(plan.get("candidates"), list)
+    ]
+    return sorted(rows, key=lambda item: item["target_phase_key"])
 
 
 def integration_runtime_inputs(ir):
@@ -1535,23 +1582,15 @@ def integration_report_markdown(value):
         lines.extend(
             "- `"
             + item["source_sync_group"]
-            + "` at `"
-            + item["source_node"]
             + "`: phase `"
             + item["target_phase_key"]
             + "`, delta `"
             + item["target_delta_seconds_key"]
-            + (
-                "`, play rate `"
-                + item["source_play_rate_path"]
-                + "` → `"
-                + item["target_play_rate_key"]
-                if item["source_play_rate_path"] and item["target_play_rate_key"]
-                else "`, play rate literal `" + str(item["source_play_rate"])
-            )
-            + "` (start "
-            + str(item["source_start_position"])
-            + "): "
+            + "`, basis `"
+            + item["phase_basis_source_node"]
+            + "` ("
+            + str(len(item["candidates"]))
+            + " source candidates): "
             + item["status"]
             for item in phase_providers
         )
@@ -1816,42 +1855,19 @@ def run_self_test():
             },
             "function_rules": [],
             "enum_entry_values": {"EAlsHipsDirection": {"LeftBackward": 3.0}},
-            "sync_group_phase_keys": {
-                "Movement": "standing_state.movement.sync_phase",
-            },
-            "sync_group_phase_contracts": {
-                "Movement": {
-                    "phase_duration": 1.0,
-                    "phase_markers": [
-                        {"name": "Left", "time": 0.0},
-                        {"name": "Right", "time": 0.5},
-                    ],
-                    "start_position": 0.2,
-                    "looped": True,
-                    "delta_seconds_key": "animation.delta_seconds",
-                }
-            },
         }
     )
-    markerless_registry = copy.deepcopy(binding_registry)
-    markerless_registry["sync_group_phase_keys"]["Secondary Motion"] = "secondary_motion.sync_phase"
-    markerless_registry["sync_group_phase_contracts"]["Secondary Motion"] = {
-        "phase_duration": 2.666667,
-        "phase_markers": [],
-        "start_position": 0.0,
-        "looped": True,
-        "delta_seconds_key": "animation.delta_seconds",
-    }
-    validate_registry(markerless_registry)
-    markerless_registry["sync_group_phase_contracts"]["Secondary Motion"]["phase_markers"] = [
-        {"name": "Only", "time": 0.0}
-    ]
     try:
-        validate_registry(markerless_registry)
+        validate_registry(
+            {
+                **binding_registry,
+                "sync_group_phase_keys": {"Movement": "manual.phase"},
+            }
+        )
     except ConversionError:
         pass
     else:
-        raise AssertionError("single-marker sync group contract was accepted")
+        raise AssertionError("static sync group registry was accepted")
     binding_node = {
         "object_path": "/Asset:AnimGraph.Multi",
         "class_path": "/Script/AnimGraph.AnimGraphNode_MultiWayBlend",
@@ -1916,6 +1932,79 @@ def run_self_test():
         binding_registry,
     )
     assert sequence_semantic["play_rate_key"] == "in_air_state.jump_play_rate"
+    sync_graphs = [
+        {
+            "source_graph": "AnimGraph",
+            "nodes": [
+                {
+                    "source_node": "/Asset:AnimGraph.PlayerA",
+                    "source_class": "/Script/AnimGraph.AnimGraphNode_SequencePlayer",
+                    "renderer": "sequence_player",
+                    "semantic": {
+                        "renderer": "sequence_player",
+                        "sync_group": "Second Pivot",
+                        "sync_group_role": "CanBeLeader",
+                        "sync_method": "SyncGroup",
+                        "start_position": 0.2,
+                        "loop_animation": True,
+                        "play_rate": 1.0,
+                        "play_rate_path": "StandingState.PlayRate",
+                        "play_rate_key": "standing_state.play_rate",
+                    },
+                },
+                {
+                    "source_node": "/Asset:AnimGraph.PlayerB",
+                    "source_class": "/Script/AnimGraph.AnimGraphNode_SequencePlayer",
+                    "renderer": "sequence_player",
+                    "semantic": {
+                        "renderer": "sequence_player",
+                        "sync_group": "Second Pivot",
+                        "sync_group_role": "AlwaysFollower",
+                        "sync_method": "SyncGroup",
+                        "start_position": 0.0,
+                        "loop_animation": True,
+                        "play_rate": 1.0,
+                        "play_rate_path": "",
+                        "play_rate_key": "",
+                    },
+                },
+            ],
+        }
+    ]
+    sync_assets = [
+        {
+            "source_node": "/Asset:AnimGraph.PlayerA",
+            "source_timing": {
+                "duration": 1.0,
+                "markers": [{"name": "Left", "time": 0.0}, {"name": "Right", "time": 0.5}],
+            },
+        },
+        {
+            "source_node": "/Asset:AnimGraph.PlayerB",
+            "source_timing": {
+                "duration": 0.8,
+                "markers": [{"name": "Left", "time": 0.1}, {"name": "Right", "time": 0.4}],
+            },
+        },
+    ]
+    sync_plans, sync_nodes, sync_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        sync_graphs,
+        sync_assets,
+    )
+    assert not sync_issues
+    assert sync_nodes == {"/Asset:AnimGraph.PlayerA", "/Asset:AnimGraph.PlayerB"}
+    assert sync_plans[0]["target_phase_key"] == "sync_groups.ab_als_test.second_pivot.phase"
+    assert sync_plans[0]["phase_basis_source_node"] == "/Asset:AnimGraph.PlayerA"
+    assert sync_graphs[0]["nodes"][1]["semantic"]["sync_phase_key"] == sync_plans[0]["target_phase_key"]
+    mismatched_sync_graphs = copy.deepcopy(sync_graphs)
+    mismatched_sync_graphs[0]["nodes"][1]["semantic"]["loop_animation"] = False
+    _, _, mismatch_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        mismatched_sync_graphs,
+        sync_assets,
+    )
+    assert {issue["kind"] for issue in mismatch_issues} == {"source_sync_group_loop_mode_unsupported"}
     enum_semantic = {
         "renderer": "enum_pose_blend",
         "active_enum_path": "GroundedState.HipsDirection",
@@ -1985,13 +2074,13 @@ def run_self_test():
         "standing_state.walk_run_blend_amount",
         "standing_state.play_rate",
     ]
-    assert player_semantic["sync_phase_key"] == "standing_state.movement.sync_phase"
+    assert "sync_phase_key" not in player_semantic
     player_semantic["start_position"] = 0.0
-    assert resolve_property_bindings(
+    assert not resolve_property_bindings(
         binding_node,
         player_semantic,
         binding_registry,
-    )[-1]["kind"] == "source_sync_group_phase_contract_unsupported"
+    )
     binding_node["binding"]["properties"][0]["exported_text"] = '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))'
     assert unhandled_property_binding_issues(
         binding_node,
@@ -2183,6 +2272,30 @@ def run_self_test():
             ]
         },
         "external_dependencies": [{"kind": "linked_anim_layer", "source_node": "/Asset:AnimGraph.Layer"}],
+        "sync_group_plans": [
+            {
+                "source_sync_group": "Movement",
+                "target_phase_key": "sync_groups.ab_als_standing.movement.phase",
+                "target_delta_seconds_key": "animation.delta_seconds",
+                "phase_basis_source_node": "/Asset:AnimGraph.Movement",
+                "phase_duration": 1.0,
+                "phase_markers": [{"name": "Left", "time": 0.0}, {"name": "Right", "time": 0.5}],
+                "phase_looped": True,
+                "candidates": [{"source_node": "/Asset:AnimGraph.Movement"}],
+                "status": "requires_target_provider",
+            },
+            {
+                "source_sync_group": "Secondary Motion",
+                "target_phase_key": "sync_groups.ab_als_default.secondary_motion.phase",
+                "target_delta_seconds_key": "animation.delta_seconds",
+                "phase_basis_source_node": "/Asset:AnimGraph.Secondary",
+                "phase_duration": 2.666667,
+                "phase_markers": [],
+                "phase_looped": True,
+                "candidates": [{"source_node": "/Asset:AnimGraph.Secondary"}],
+                "status": "requires_target_provider",
+            },
+        ],
         "graphs": [
             {
                 "nodes": [
@@ -2191,7 +2304,7 @@ def run_self_test():
                         "renderer": "blendspace_player",
                         "semantic": {
                             "sync_group": "Movement",
-                            "sync_phase_key": "standing_state.movement.sync_phase",
+                            "sync_phase_key": "sync_groups.ab_als_standing.movement.phase",
                             "delta_seconds_key": "animation.delta_seconds",
                             "input_pins": [{"name": "PlayRate"}],
                             "input_binding_paths": ["StandingState.PlayRate"],
@@ -2216,7 +2329,7 @@ def run_self_test():
                         "renderer": "sequence_player",
                         "semantic": {
                             "sync_group": "Secondary Motion",
-                            "sync_phase_key": "secondary_motion.sync_phase",
+                            "sync_phase_key": "sync_groups.ab_als_default.secondary_motion.phase",
                             "delta_seconds_key": "animation.delta_seconds",
                             "play_rate": 1.0,
                             "start_position": 0.0,
@@ -2277,11 +2390,11 @@ def run_self_test():
         "mapped",
     ]
     assert integration["unhandled_property_bindings"][0]["status"] == "requires_target_provider"
-    assert integration["sync_phase_providers"][0]["target_phase_key"] == "standing_state.movement.sync_phase"
+    assert integration["sync_phase_providers"][0]["target_phase_key"] == "sync_groups.ab_als_default.secondary_motion.phase"
     assert integration["sync_phase_providers"][0]["status"] == "requires_target_provider"
     assert any(
-        item["target_phase_key"] == "secondary_motion.sync_phase"
-        and item["source_play_rate"] == 1.0
+        item["target_phase_key"] == "sync_groups.ab_als_standing.movement.phase"
+        and item["phase_basis_source_node"] == "/Asset:AnimGraph.Movement"
         for item in integration["sync_phase_providers"]
     )
     assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
@@ -2295,7 +2408,7 @@ def run_self_test():
     assert "## Runtime property inputs" not in blocked_markdown
     assert "## Slot providers" not in blocked_markdown
     assert "## Gameplay tag providers" not in blocked_markdown
-    assert "standing_state.movement.sync_phase" not in blocked_markdown
+    assert "sync_groups.ab_als_standing.movement.phase" not in blocked_markdown
     assert "get_parent.gait" not in blocked_markdown
     ready = build_integration_report(
         integration_ir,
@@ -2308,7 +2421,7 @@ def run_self_test():
     assert "## Runtime property inputs" in integration_report_markdown(ready)
     assert "## Slot providers" in integration_report_markdown(ready)
     assert "## Gameplay tag providers" in integration_report_markdown(ready)
-    assert "play rate literal `1.0`" in integration_report_markdown(ready)
+    assert "source candidates" in integration_report_markdown(ready)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)
@@ -2332,7 +2445,7 @@ def run_self_test():
         "unsupported_source_blocks_generation": "PASS",
         "core_does_not_emit_partial_bevy_graphs": "PASS",
         "integration_dependencies_are_reported": "PASS",
-        "static_sequence_sync_phase_provider_is_reported": "PASS",
+        "generic_source_sync_phase_plan_is_reported": "PASS",
         "integration_report_drift_rejected": "PASS",
     }
 
