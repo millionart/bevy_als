@@ -374,7 +374,10 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ")",
         )
     if renderer == "property_access":
-        tag_input = scalar_renderer.gameplay_tag_input_config(graph_contract, source)
+        try:
+            tag_input = scalar_renderer.gameplay_tag_input_config(graph_contract, source)
+        except ValueError as error:
+            raise PoseRenderError("source GameplayTag property access is unsupported") from error
         if tag_input is not None:
             return (
                 "als_ext::SourceGameplayTagInputNode",
@@ -389,7 +392,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
                 + "])"
             )
     if renderer in SCALAR_RENDERERS:
-        return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
+        try:
+            return (
+                "als_ext::SourceScalarExpressionNode",
+                scalar_renderer.node_inner(graph_contract, source),
+            )
+        except ValueError as error:
+            raise PoseRenderError("source scalar contract is unsupported") from error
     if renderer == "state_machine":
         fsm_source = value.get("fsm_source_graph") if isinstance(value, dict) else None
         config = fsm_assets.get(fsm_source)
@@ -1229,6 +1238,26 @@ def run_self_test():
     assert tag_type == "als_ext::SourceGameplayTagBlendNode"
     assert 'active_key: "gait"' in tag_inner
     assert "blend_mode: HermiteCubic" in tag_inner
+    tag_contract = scalar_renderer.fixture_gameplay_tag_contract()
+    tag_property = tag_contract["source_graph"]["nodes"][1]
+    tag_property_type, _ = rendered_inner(
+        tag_contract,
+        tag_property,
+        {"renderer": "property_access", "semantic": {}},
+        {},
+        {},
+    )
+    assert tag_property_type == "als_ext::SourceGameplayTagInputNode"
+    tag_equal = tag_contract["source_graph"]["nodes"][4]
+    tag_equal_type, tag_equal_inner = rendered_inner(
+        tag_contract,
+        tag_equal,
+        {"renderer": "gameplay_tag_equal", "semantic": {}},
+        {},
+        {},
+    )
+    assert tag_equal_type == "als_ext::SourceScalarExpressionNode"
+    assert 'data_type: Bool' in tag_equal_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -1485,6 +1514,7 @@ def run_self_test():
         "source_blendspace_player_marker_phase_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
         "source_gameplay_tag_blend_is_rendered": "PASS",
+        "source_gameplay_tag_scalar_contract_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",

@@ -139,7 +139,7 @@ def read_uasset_source(uasset, content_root, mount, source_reader, timeout_secon
     resolved_uasset = uasset.resolve()
     resolved_content = content_root_for_uasset(resolved_uasset, content_root)
     package_path = package_path_for_uasset(resolved_uasset, resolved_content, mount)
-    with tempfile.TemporaryDirectory() as directory:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
         intermediate = Path(directory) / "source.ue.json"
         reader_report = Path(str(intermediate) + ".reader.report.json")
         process = subprocess.run(

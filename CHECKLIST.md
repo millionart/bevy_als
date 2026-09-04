@@ -64,6 +64,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：本地 Grounded FSM structural order为 `Entry Conduit(0) → Standing(1) → Crouching(2) → Standing To Crouching(3) → Crouching To Standing(4) → Roll(5)`；现有`GroundedState::index()`和`grounded_state_index()`已有完全相同的映射，只缺 target key `grounded_states.state_index`写入和 converter registry 声明。
   - Gate summary：writer label test、registry/key materialization ablation、converter self-test、Grounded direct `--write`/`--check`均PASS，conversion/integration status均为`ready`；生成35个 RON/FSM/condition 文件，静态 editor validator为0 failure。当前手工 `grounded_contract_gate`的 static predicates全为false；该 Gate不读取新 key，故非本项回归信号，保留为下一 runtime-audit 边界而不计入本项验收。
 
+- [x] BF112.09 eight-asset fresh direct inventory：开始：2026-09-04 23:55:44 +08:00；预估结束：2026-09-05 00:40:44 +08:00；实际结束：2026-09-05 00:06:05 +08:00（偏差 -34m39s）。逐一从本地 8 个目标 `.uasset`生成 fresh direct report，记录 ready/blocker 类别与共同根因；不把已有 target/probe 结果当作当前 source 证据。验收：八个 output root 均有确定性 direct integration report，清单只据新报告建立后续实现项。
+  - source fact：8 个目标 asset 均在本地 ALS Content 中可读；Standing/Crouching/Grounded已完成本轮 source re-read，其中 Grounded为`ready`，前两者仍为显式 blocker。
+  - Gate summary：8/8 direct `--write`均完成；Grounded（40 files）和 Locomotion（55 files）为`ready`，其余六图均为受控`blocked`报告。Locomotion 的 pose-graph GameplayTag scalar path起初因缺 graph contract traceback；修复后 direct `--write`/`--check`为 ready，Head 同类 Windows temporary cleanup race也重试为受控 blocked。共同 blocker 为 Standing/Crouching属性、sync/AnimGetter、Layering renderer/property、Head renderer/function/asset、Ragdolling节点与 Default linked layer；未按 asset path 放行或吞掉未知 consumer。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
