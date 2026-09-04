@@ -320,11 +320,14 @@ pub struct SourceCurveModifyNode {
     pub value: f32,
     pub pin_default: f32,
     pub pin_defaults: Vec<f32>,
+    pub value_pin_names: Vec<String>,
     pub value_key: String,
     pub value_keys: Vec<String>,
     pub source_value_path: String,
     pub source_value_paths: Vec<String>,
     pub alpha: f32,
+    pub alpha_pin: String,
+    pub expose_alpha_pin: bool,
     pub apply_mode: String,
 }
 
@@ -344,6 +347,29 @@ impl SourceCurveModifyNode {
             self.value_keys.clone()
         }
     }
+
+    fn value_pin_names(&self) -> Vec<String> {
+        let curve_names = self.curve_pin_names();
+        if self.value_pin_names.len() == curve_names.len()
+            && self.value_pin_names.iter().all(|value| !value.is_empty())
+        {
+            self.value_pin_names.clone()
+        } else {
+            curve_names
+        }
+    }
+
+    fn alpha_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        if !self.expose_alpha_pin {
+            return Ok(self.alpha);
+        }
+        match ctx.data_back(self.alpha_pin.clone()) {
+            Ok(value) => value
+                .as_f32()
+                .map(|value| resolved_curve_alpha(Some(value), self.alpha)),
+            Err(_) => Ok(resolved_curve_alpha(None, self.alpha)),
+        }
+    }
 }
 
 fn source_curve_modify_value(source: f32, target: f32, alpha: f32, apply_mode: &str) -> f32 {
@@ -359,26 +385,37 @@ fn source_curve_modify_value(source: f32, target: f32, alpha: f32, apply_mode: &
     blend_curve_value(source, value, alpha.clamp(0.0, 1.0))
 }
 
+fn resolved_curve_alpha(pin_value: Option<f32>, fallback: f32) -> f32 {
+    pin_value.unwrap_or(fallback)
+}
+
 impl NodeLike for SourceCurveModifyNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let pose = ctx.data_back("Source Pose")?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, "Source Pose").unwrap_or_default();
         let curve_names = self.curve_pin_names();
         let value_keys = self.value_keys();
+        let value_pin_names = self.value_pin_names();
+        let alpha = self.alpha_value(&ctx)?;
         for (index, curve_name) in curve_names.iter().enumerate() {
             let default = self
                 .pin_defaults
                 .get(index)
                 .copied()
                 .unwrap_or(self.pin_default);
-            let target = value_keys
+            let input_value = value_pin_names
                 .get(index)
-                .filter(|key| !key.is_empty())
-                .map(|key| global_f32_or_root_default(&ctx, key))
-                .transpose()?
-                .unwrap_or(default);
+                .and_then(|pin| ctx.data_back(pin.clone()).ok())
+                .and_then(|value| value.as_f32().ok());
+            let target = if let Some(value) = input_value {
+                value
+            } else if let Some(key) = value_keys.get(index).filter(|key| !key.is_empty()) {
+                global_f32_or_root_default(&ctx, key)?
+            } else {
+                default
+            };
             let source = context.curves.get(curve_name).copied().unwrap_or(default);
-            let value = source_curve_modify_value(source, target, self.alpha, &self.apply_mode);
+            let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
             context.curves.insert(curve_name.clone(), value);
         }
         ctx.set_time(pose.timestamp);
@@ -389,8 +426,11 @@ impl NodeLike for SourceCurveModifyNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         ctx.add_input_data("Source Pose", DataSpec::Pose);
-        for curve_name in self.curve_pin_names() {
-            ctx.add_input_data(curve_name, DataSpec::F32);
+        for pin_name in self.value_pin_names() {
+            ctx.add_input_data(pin_name, DataSpec::F32);
+        }
+        if self.expose_alpha_pin {
+            ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -469,6 +509,27 @@ mod tests {
                 "AllowTransitions".to_owned(),
             ]
         );
+        assert_eq!(
+            node.value_pin_names(),
+            vec![
+                "FootLeftLock".to_owned(),
+                "FootRightLock".to_owned(),
+                "AllowTransitions".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn source_curve_modify_can_preserve_source_curve_value_pin_names() {
+        let node = SourceCurveModifyNode {
+            curve_names: vec!["PoseStanding".to_owned(), "PoseInAir".to_owned()],
+            value_pin_names: vec!["CurveValues_0".to_owned(), "CurveValues_1".to_owned()],
+            ..default()
+        };
+        assert_eq!(
+            node.value_pin_names(),
+            vec!["CurveValues_0".to_owned(), "CurveValues_1".to_owned()]
+        );
     }
 
     #[test]
@@ -478,5 +539,11 @@ mod tests {
         assert_eq!(source_curve_modify_value(0.2, 0.8, 1.0, "Blend"), 0.8);
         assert!((source_curve_modify_value(0.9, 0.5, 1.0, "RemapCurve") - 0.8).abs() < 1e-6);
         assert_eq!(source_curve_modify_value(2.0, 3.0, 0.25, "Scale"), 3.0);
+    }
+
+    #[test]
+    fn source_curve_modify_uses_visible_alpha_pin_before_node_default() {
+        assert_eq!(resolved_curve_alpha(Some(0.25), 1.0), 0.25);
+        assert_eq!(resolved_curve_alpha(None, 1.0), 1.0);
     }
 }

@@ -58,6 +58,17 @@ def visible_input_names(node):
     ]
 
 
+def visible_input_default(node, name):
+    values = [
+        pin.get("default_value")
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Input" and not pin.get("hidden") and pin.get("name") == name
+    ]
+    if len(values) != 1:
+        raise PoseContractError(f"source input pin is missing or ambiguous: {name}")
+    return parse_number(values[0])
+
+
 def issue(node, renderer, kind, detail):
     return {
         "kind": kind,
@@ -315,14 +326,19 @@ def modify_curve_contract(node):
         issues.append(issue(node, renderer, "source_curve_value_count_mismatch", "CurveValues"))
     if field(fields, "CurveMap", "()") != "()":
         issues.append(issue(node, renderer, "source_curve_map_unsupported", "CurveMap"))
-    if "Alpha" in input_names:
-        issues.append(issue(node, renderer, "source_curve_alpha_pin_unsupported", "Alpha"))
+    alpha = parse_number(field(fields, "Alpha", "1.0"))
+    alpha_visible = "Alpha" in input_names
+    if alpha_visible:
+        pin_alpha = visible_input_default(node, "Alpha")
+        if abs(pin_alpha - alpha) > 1.0e-6:
+            issues.append(issue(node, renderer, "source_curve_alpha_default_mismatch", "Alpha"))
     return {
         "renderer": renderer,
         "input_pins": input_names,
         "curve_names": names,
         "curve_values": values,
-        "alpha": parse_number(field(fields, "Alpha", "1.0")),
+        "alpha": alpha,
+        "alpha_visible": alpha_visible,
         "apply_mode": parse_name(field(fields, "ApplyMode", "Blend")),
     }, issues
 
@@ -415,7 +431,12 @@ def fixture_node(renderer, property_name, property_value, pins):
 
 
 def input_pin(name):
-    return {"name": name, "direction": "Input", "hidden": False}
+    return {
+        "name": name,
+        "direction": "Input",
+        "hidden": False,
+        "default_value": "1.000000",
+    }
 
 
 def run_self_test():
@@ -442,8 +463,12 @@ def run_self_test():
         "(SourcePose=(),CurveValues=(0.000000,1.000000),CurveNames=(\"A\",\"B\"),Alpha=1.000000,ApplyMode=Blend,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
         [input_pin("SourcePose"), input_pin("CurveValues_0"), input_pin("CurveValues_1"), input_pin("Alpha")],
     )
+    contract, issues = pose_contract(curve, "modify_curve")
+    assert not issues
+    assert contract["alpha_visible"]
+    curve["pins"][-1]["default_value"] = "0.500000"
     _, issues = pose_contract(curve, "modify_curve")
-    assert issues[-1]["kind"] == "source_curve_alpha_pin_unsupported"
+    assert issues[-1]["kind"] == "source_curve_alpha_default_mismatch"
     state = fixture_node(
         "state_result",
         "Node",
@@ -455,7 +480,7 @@ def run_self_test():
     return {
         "two_way_alpha_mapping_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
-        "modify_curve_alpha_pin_blocked": "PASS",
+        "modify_curve_alpha_pin_contract_parsed": "PASS",
         "state_result_lifecycle_blocked": "PASS",
     }
 
