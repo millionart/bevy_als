@@ -153,13 +153,16 @@ pub struct SourceSequencePlayerNode {
     pub additive_reference_position: f32,
     pub play_rate: f32,
     pub play_rate_key: String,
+    pub play_rate_pin: String,
     pub expose_play_rate_pin: bool,
     pub play_rate_basis: f32,
     pub play_rate_mapping: SourceAlphaMapping,
     pub start_position: f32,
+    pub start_position_pin: String,
     pub expose_start_position_pin: bool,
     pub loop_animation: bool,
     pub loop_animation_key: String,
+    pub loop_animation_pin: String,
     pub expose_loop_animation_pin: bool,
     pub sync_group: String,
 }
@@ -172,13 +175,16 @@ impl Default for SourceSequencePlayerNode {
             additive_reference_position: 0.0,
             play_rate: 1.0,
             play_rate_key: Default::default(),
+            play_rate_pin: "Play Rate".to_owned(),
             expose_play_rate_pin: true,
             play_rate_basis: 1.0,
             play_rate_mapping: Default::default(),
             start_position: 0.0,
+            start_position_pin: "Start Position".to_owned(),
             expose_start_position_pin: true,
             loop_animation: true,
             loop_animation_key: Default::default(),
+            loop_animation_pin: "Loop Animation".to_owned(),
             expose_loop_animation_pin: false,
             sync_group: Default::default(),
         }
@@ -198,14 +204,14 @@ impl NodeLike for SourceSequencePlayerNode {
         };
         let update = context_time_update(&ctx)?;
         let play_rate = if self.expose_play_rate_pin {
-            ctx.data_back("Play Rate")
+            ctx.data_back(self.play_rate_pin.clone())
                 .and_then(|value| value.as_f32())
                 .or_else(|_| global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate))?
         } else {
             global_f32_or_field(&ctx, &self.play_rate_key, self.play_rate)?
         };
         let loop_animation = if self.expose_loop_animation_pin {
-            ctx.data_back("Loop Animation")
+            ctx.data_back(self.loop_animation_pin.clone())
                 .and_then(|value| value.as_bool())
                 .or_else(|_| {
                     global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)
@@ -214,7 +220,7 @@ impl NodeLike for SourceSequencePlayerNode {
             global_bool_or_field(&ctx, &self.loop_animation_key, self.loop_animation)?
         };
         let start_position = if self.expose_start_position_pin {
-            ctx.data_back("Start Position")
+            ctx.data_back(self.start_position_pin.clone())
                 .and_then(|value| value.as_f32())
                 .unwrap_or(self.start_position)
         } else {
@@ -275,13 +281,13 @@ impl NodeLike for SourceSequencePlayerNode {
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
         if self.expose_play_rate_pin {
-            ctx.add_input_data("Play Rate", DataSpec::F32);
+            ctx.add_input_data(self.play_rate_pin.clone(), DataSpec::F32);
         }
         if self.expose_start_position_pin {
-            ctx.add_input_data("Start Position", DataSpec::F32);
+            ctx.add_input_data(self.start_position_pin.clone(), DataSpec::F32);
         }
         if self.expose_loop_animation_pin {
-            ctx.add_input_data("Loop Animation", DataSpec::Bool);
+            ctx.add_input_data(self.loop_animation_pin.clone(), DataSpec::Bool);
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -332,6 +338,19 @@ mod tests {
             ..Default::default()
         };
         assert!(!node.expose_loop_animation_pin);
+    }
+
+    #[test]
+    fn source_sequence_player_preserves_source_visible_pin_names() {
+        let node = SourceSequencePlayerNode {
+            play_rate_pin: "PlayRate".to_owned(),
+            start_position_pin: "StartPosition".to_owned(),
+            loop_animation_pin: "bLoopAnimation".to_owned(),
+            ..Default::default()
+        };
+        assert_eq!(node.play_rate_pin, "PlayRate");
+        assert_eq!(node.start_position_pin, "StartPosition");
+        assert_eq!(node.loop_animation_pin, "bLoopAnimation");
     }
 
     #[test]

@@ -100,6 +100,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：Layering的九个 standard LayeredBoneBlend使用`BlendDepth`为`-1/0/1/3`，并有`LayeringState.{ArmLeftMeshSpaceBlendAmount,ArmRightMeshSpaceBlendAmount,HandLeftBlendAmount,HandRightBlendAmount,ArmLeftLocalSpaceBlendAmount,ArmRightLocalSpaceBlendAmount}`绑定到`BlendWeights_n`。现有`build_branch_filter_bone_mask`已有正/负深度 source rule test，但`SourceLayeredBoneBlendNode`尚未携带depth或权重 pin。
   - Gate summary：branch-filter、SourceLayeredBoneBlend、contract/renderer/materializer/converter self-test均PASS；Layering fresh direct `--write`/`--check`为ready，editor/position Gate和手工 Layering runtime contract均PASS，六个ready corpus的确定性/静态回归均PASS。消融：正/负depth rule与weight helper fixture保持 source差异；未达根输出的 reroute edge不会被物化，旧手工 RON保持`expose_blend_weight_pins=false`默认ABI。
 
+- [x] BF112.18 Source pin naming：开始：2026-09-05 05:56:26 +08:00；预估结束：2026-09-05 06:36:26 +08:00；实际结束：2026-09-05 06:24:17 +08:00（偏差 -12m09s）。转换产物以 UE source property/pin 名配置 Sequence Player 的`PlayRate`/`StartPosition`/`bLoopAnimation`与 Layered Bone Blend 的`BasePose`/`BlendPoses_n`/`BlendWeights_n`；不输出旧手工 RON 标签或重复 branch-bone 表示。验收：source contract/renderer/NodeLike fixture、Standing/Crouching direct blocker减少、受影响 ready corpus回归。
+  - source fact：Standing/Crouching的 Rotate sequence player可见 pin恰为`PlayRate`和`bLoopAnimation`，无 binding；`FAnimNode_SequencePlayer`字段名是`bLoopAnimation`。Layered Bone Blend 的 source property/pin 名为`BasePose`、`BlendPoses`、`BlendWeights`，friendly label `Base Pose`/`Blend Poses`不属于转换产物 ABI。
+  - Gate summary：pose contract/renderer self-test、70个focused `als-ext` source tests均PASS；Crouching/Standing fresh direct block report已移除所有 Sequence Player pin blocker，剩余仅sync group、K2 getter、transition binding与Standing child-reset。六个ready corpus重新`--write`/`--check`均PASS，editor/position audit零失败（35/50/1/1/2/1文件）。生成产物字段审计零个旧 Sequence/Layered pin label。消融：只保留`branch_filter_layers`，删除转换输出中与其等价的`branch_bone_layers`，无语义差异；手工资产均显式配置旧pin，未让默认兼容影响生成器。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

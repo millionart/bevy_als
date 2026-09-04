@@ -180,8 +180,8 @@ impl Default for SourceLayeredBoneBlendNode {
             expose_blend_weight_pins: false,
             mesh_space_rotation_blend: true,
             blend_root_motion_based_on_root_bone: true,
-            base_pose_pin: "Base Pose".to_owned(),
-            blend_pose_pin: "Blend Poses 0".to_owned(),
+            base_pose_pin: "BasePose".to_owned(),
+            blend_pose_pin: "BlendPoses_0".to_owned(),
             blend_pose_pins: default(),
             output_pin: "Pose".to_owned(),
         }
@@ -315,10 +315,10 @@ mod tests {
     }
 
     #[test]
-    fn source_layered_bone_blend_defaults_preserve_visible_pin_names() {
+    fn source_layered_bone_blend_defaults_preserve_source_pin_names() {
         let node = SourceLayeredBoneBlendNode::default();
-        assert_eq!(node.base_pose_pin, "Base Pose");
-        assert_eq!(node.blend_pose_pin, "Blend Poses 0");
+        assert_eq!(node.base_pose_pin, "BasePose");
+        assert_eq!(node.blend_pose_pin, "BlendPoses_0");
         assert!(node.mesh_space_rotation_blend);
     }
 
@@ -337,12 +337,12 @@ mod tests {
                 }],
             ],
             blend_weights: vec![1.0, 0.5],
-            blend_pose_pins: vec!["Blend Poses 0".to_owned(), "Blend Poses 1".to_owned()],
+            blend_pose_pins: vec!["BlendPoses_0".to_owned(), "BlendPoses_1".to_owned()],
             ..default()
         };
         assert_eq!(node.layer_count(), 2);
-        assert_eq!(node.layer_pin(0), "Blend Poses 0");
-        assert_eq!(node.layer_pin(1), "Blend Poses 1");
+        assert_eq!(node.layer_pin(0), "BlendPoses_0");
+        assert_eq!(node.layer_pin(1), "BlendPoses_1");
         assert_eq!(node.layer_bones(0), ["thigh_l"]);
         assert_eq!(node.layer_bones(1), ["thigh_r"]);
         assert_eq!(node.layer_filters(0)[0].blend_depth, 3);

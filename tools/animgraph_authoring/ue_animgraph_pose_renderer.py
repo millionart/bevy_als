@@ -279,7 +279,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         pins = input_names(value)
         play_rate_key = value.get("play_rate_key")
         loop_animation_key = value.get("loop_animation_key")
-        if not isinstance(play_rate_key, str) or not isinstance(loop_animation_key, str):
+        play_rate_pin = value.get("play_rate_pin")
+        start_position_pin = value.get("start_position_pin")
+        loop_animation_pin = value.get("loop_animation_pin")
+        if (
+            not isinstance(play_rate_key, str)
+            or not isinstance(loop_animation_key, str)
+            or not all(
+                isinstance(item, str) and item
+                for item in (play_rate_pin, start_position_pin, loop_animation_pin)
+            )
+        ):
             raise PoseRenderError("source sequence property binding is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
@@ -287,14 +297,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("additive_reference_position", "0.0"),
             field("play_rate", repr(value["play_rate"])),
             field("play_rate_key", quoted(play_rate_key)),
-            field("expose_play_rate_pin", bool_ron("PlayRate" in pins)),
+            field("play_rate_pin", quoted(play_rate_pin)),
+            field("expose_play_rate_pin", bool_ron(play_rate_pin in pins)),
             field("play_rate_basis", repr(value["play_rate_basis"])),
             field("play_rate_mapping", mapping_ron(value["play_rate_mapping"])),
             field("start_position", repr(value["start_position"])),
-            field("expose_start_position_pin", bool_ron("StartPosition" in pins)),
+            field("start_position_pin", quoted(start_position_pin)),
+            field("expose_start_position_pin", bool_ron(start_position_pin in pins)),
             field("loop_animation", bool_ron(value["loop_animation"])),
             field("loop_animation_key", quoted(loop_animation_key)),
-            field("expose_loop_animation_pin", bool_ron("LoopAnimation" in pins)),
+            field("loop_animation_pin", quoted(loop_animation_pin)),
+            field("expose_loop_animation_pin", bool_ron(loop_animation_pin in pins)),
             field("sync_group", quoted(value["sync_group"])),
         ]
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
@@ -494,19 +507,15 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         ]
         return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + ")"
     if renderer == "layered_bone_blend":
-        layers = value.get("branch_bone_layers")
         filters = value.get("branch_filter_layers")
         weights = value.get("blend_weights")
         pins = value.get("blend_pose_pins")
         if (
-            not isinstance(layers, list)
-            or not isinstance(filters, list)
+            not isinstance(filters, list)
             or not isinstance(weights, list)
             or not isinstance(pins, list)
-            or len(layers) != len(weights)
             or len(filters) != len(weights)
-            or len(layers) != len(pins)
-            or not all(isinstance(bone, str) for layer in layers for bone in layer)
+            or len(filters) != len(pins)
             or not all(
                 isinstance(filter, dict)
                 and set(filter) == {"bone", "blend_depth"}
@@ -520,9 +529,6 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             or not all(isinstance(pin, str) for pin in pins)
         ):
             raise PoseRenderError("source layered bone blend contract is invalid")
-        layers_ron = "[" + ", ".join(
-            "[" + ", ".join(quoted(bone) for bone in layer) + "]" for layer in layers
-        ) + "]"
         filters_ron = "[" + ", ".join(
             "["
             + ", ".join(
@@ -533,18 +539,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             for layer in filters
         ) + "]"
         fields = [
-            field("branch_bones", "[]"),
-            field("branch_bone_layers", layers_ron),
-            field("branch_filters", "[]"),
             field("branch_filter_layers", filters_ron),
-            field("blend_weight", "1.0"),
             field("blend_weights", "[" + ", ".join(repr(weight) for weight in weights) + "]"),
             field("blend_weight_pin_prefix", quoted("BlendWeights_")),
             field("expose_blend_weight_pins", "true"),
             field("mesh_space_rotation_blend", bool_ron(value["mesh_space_rotation_blend"])),
             field("blend_root_motion_based_on_root_bone", bool_ron(value["blend_root_motion_based_on_root_bone"])),
             field("base_pose_pin", quoted(value["base_pose_pin"])),
-            field("blend_pose_pin", quoted(pins[0])),
             field("blend_pose_pins", "[" + ", ".join(quoted(pin) for pin in pins) + "]"),
             field("output_pin", quoted(value["output_pin"])),
         ]
@@ -740,7 +741,7 @@ def target_pin(renderer, source_pin, node=None):
             raise PoseRenderError("source scalar node is unavailable")
         return scalar_pin_name(node, source_pin)
     if renderer == "sequence_player":
-        return {"PlayRate": "Play Rate", "StartPosition": "Start Position", "LoopAnimation": "Loop Animation"}.get(source_pin, source_pin)
+        return source_pin
     if renderer == "sequence_evaluator":
         return {"ExplicitFrame": "Explicit Frame"}.get(source_pin, source_pin)
     if renderer == "modify_curve":
@@ -779,12 +780,7 @@ def target_pin(renderer, source_pin, node=None):
             raise PoseRenderError("source enum pose blend pin is unavailable")
         return label
     if renderer == "layered_bone_blend":
-        if source_pin == "BasePose":
-            return "Base Pose"
-        if source_pin.startswith("BlendPoses_"):
-            return "Blend Poses " + source_pin.rsplit("_", 1)[1]
-        if source_pin.startswith("BlendWeights_"):
-            return source_pin
+        return source_pin
     return source_pin
 
 
@@ -1346,11 +1342,14 @@ def fixture_graph():
                     "input_pins": [],
                     "play_rate": 1.0,
                     "play_rate_key": "",
+                    "play_rate_pin": "PlayRate",
                     "play_rate_basis": 1.0,
                     "play_rate_mapping": mapping,
                     "start_position": 0.0,
+                    "start_position_pin": "StartPosition",
                     "loop_animation": True,
                     "loop_animation_key": "",
+                    "loop_animation_pin": "bLoopAnimation",
                     "sync_group": "None",
                 },
             },
@@ -1630,7 +1629,6 @@ def run_self_test():
         {
             "renderer": "layered_bone_blend",
             "semantic": {
-                "branch_bone_layers": [["thigh_l"], ["thigh_r"]],
                 "branch_filter_layers": [
                     [{"bone": "thigh_l", "blend_depth": 3}],
                     [{"bone": "thigh_r", "blend_depth": -1}],
@@ -1638,8 +1636,8 @@ def run_self_test():
                 "blend_weights": [1.0, 0.5],
                 "mesh_space_rotation_blend": True,
                 "blend_root_motion_based_on_root_bone": True,
-                "base_pose_pin": "Base Pose",
-                "blend_pose_pins": ["Blend Poses 0", "Blend Poses 1"],
+                "base_pose_pin": "BasePose",
+                "blend_pose_pins": ["BlendPoses_0", "BlendPoses_1"],
                 "output_pin": "Pose",
             },
         },
@@ -1647,9 +1645,10 @@ def run_self_test():
         {},
     )
     assert layered_type == "als_ext::SourceLayeredBoneBlendNode"
-    assert 'branch_bone_layers: [["thigh_l"], ["thigh_r"]]' in layered_inner
+    assert 'branch_bone_layers' not in layered_inner
     assert 'blend_depth: -1' in layered_inner
-    assert target_pin("layered_bone_blend", "BlendPoses_1") == "Blend Poses 1"
+    assert 'base_pose_pin: "BasePose"' in layered_inner
+    assert target_pin("layered_bone_blend", "BlendPoses_1") == "BlendPoses_1"
     assert target_pin("layered_bone_blend", "BlendWeights_1") == "BlendWeights_1"
     layered_path = "/Asset:State.Layered"
     layered_raw = {

@@ -237,7 +237,7 @@ def sequence_player_contract(node):
             "UpdateFunction",
         },
     )
-    names, issues = validate_inputs(node, renderer, (), ("PlayRate", "StartPosition", "LoopAnimation"))
+    names, issues = validate_inputs(node, renderer, (), ("PlayRate", "StartPosition", "bLoopAnimation"))
     issues.extend(
         lifecycle_issues(
             node,
@@ -262,8 +262,8 @@ def sequence_player_contract(node):
     loop_animation_path = bindings.get("bLoopAnimation", "")
     if play_rate_path and input_is_linked(node, "PlayRate"):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "PlayRate"))
-    if loop_animation_path and "LoopAnimation" in names and input_is_linked(node, "LoopAnimation"):
-        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "LoopAnimation"))
+    if loop_animation_path and "bLoopAnimation" in names and input_is_linked(node, "bLoopAnimation"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "bLoopAnimation"))
     return {
         "renderer": renderer,
         "input_pins": names,
@@ -271,12 +271,15 @@ def sequence_player_contract(node):
         "play_rate_basis": parse_number(field(fields, "PlayRateBasis", "1.0")),
         "play_rate": parse_number(field(fields, "PlayRate", "1.0")),
         "play_rate_path": play_rate_path,
+        "play_rate_pin": "PlayRate",
         "play_rate_mapping": parse_scale_bias_clamp(
             field(fields, "PlayRateScaleBiasClampConstants", "()")
         ),
         "start_position": parse_number(field(fields, "StartPosition", "0.0")),
+        "start_position_pin": "StartPosition",
         "loop_animation": parse_bool(field(fields, "bLoopAnimation", "True")),
         "loop_animation_path": loop_animation_path,
+        "loop_animation_pin": "bLoopAnimation",
         "sync_group": group,
         "sync_group_role": group_role,
         "sync_method": method,
@@ -799,7 +802,6 @@ def layered_bone_blend_contract(node):
     )
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
-    branch_layers = []
     branch_filter_layers = []
     for layer in layers:
         layer_fields = parse_struct(layer)
@@ -817,7 +819,6 @@ def layered_bone_blend_contract(node):
             filters.append({"bone": bone, "blend_depth": int(depth)})
         if not bones:
             raise PoseContractError("source layered bone blend branch filter is empty")
-        branch_layers.append(bones)
         branch_filter_layers.append(filters)
     if field(fields, "SkeletonGuid", "00000000000000000000000000000000") != "00000000000000000000000000000000":
         issues.append(issue(node, renderer, "source_layered_bone_skeleton_guid_unsupported", "SkeletonGuid"))
@@ -836,7 +837,6 @@ def layered_bone_blend_contract(node):
     return {
         "renderer": renderer,
         "input_pins": inputs,
-        "branch_bone_layers": branch_layers,
         "branch_filter_layers": branch_filter_layers,
         "blend_weights": weights,
         "blend_weight_pins": [f"BlendWeights_{index}" for index in range(len(poses))],
@@ -846,8 +846,8 @@ def layered_bone_blend_contract(node):
         "blend_root_motion_based_on_root_bone": parse_bool(
             field(fields, "bBlendRootMotionBasedOnRootBone", "False")
         ),
-        "base_pose_pin": "Base Pose",
-        "blend_pose_pins": [f"Blend Poses {index}" for index in range(len(poses))],
+        "base_pose_pin": "BasePose",
+        "blend_pose_pins": [f"BlendPoses_{index}" for index in range(len(poses))],
         "output_pin": "Pose",
     }, issues
 
@@ -1479,7 +1479,7 @@ def run_self_test():
     )
     layered_contract, issues = pose_contract(layered, "layered_bone_blend")
     assert not issues
-    assert layered_contract["branch_bone_layers"] == [
+    assert [[filter["bone"] for filter in layer] for layer in layered_contract["branch_filter_layers"]] == [
         ["thigh_l", "ik_foot_l"],
         ["thigh_r"],
     ]
