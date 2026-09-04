@@ -37,6 +37,7 @@ SUPPORTED_RENDERERS = {
     "state_machine",
     "multi_way_blend",
     "set_hips_direction",
+    "enum_pose_blend",
 }
 
 SCALAR_RENDERERS = {
@@ -319,6 +320,26 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(value["call_site"])
             + ")",
         )
+    if renderer == "enum_pose_blend":
+        active_key = value.get("active_key")
+        selected_enum_value = value.get("selected_enum_value")
+        if not isinstance(active_key, str) or not isinstance(selected_enum_value, (int, float)):
+            raise PoseRenderError("source enum pose blend property binding is unavailable")
+        fields = [
+            field("active_key", quoted(active_key)),
+            field("selected_enum_value", repr(selected_enum_value)),
+            field("active_enum_default", repr(value["active_enum_default"])),
+            field("default_blend_time", repr(value["default_blend_time"])),
+            field("selected_blend_time", repr(value["selected_blend_time"])),
+            field("default_pose_pin", quoted(value["default_pose_pin"])),
+            field("selected_pose_pin", quoted(value["selected_pose_pin"])),
+            field("default_blend_time_pin", quoted(value["default_blend_time_pin"])),
+            field("selected_blend_time_pin", quoted(value["selected_blend_time_pin"])),
+            field("active_enum_pin", quoted(value["active_enum_pin"])),
+            field("output_pin", quoted(value["output_pin"])),
+            field("source_visible_enum_entry", quoted(value["selected_enum_entry"])),
+        ]
+        return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + ")"
     if renderer == "two_way_blend":
         pins = input_names(value)
         alpha_key = value.get("alpha_key")
@@ -491,6 +512,16 @@ def target_pin(renderer, source_pin, node=None):
             return "Poses " + source_pin.rsplit("_", 1)[1]
         if source_pin.startswith("DesiredAlphas_"):
             return "Desired Alphas " + source_pin.rsplit("_", 1)[1]
+    if renderer == "enum_pose_blend":
+        if source_pin == "Pose":
+            return "Pose"
+        if node is None:
+            raise PoseRenderError("source enum pose blend pin is unavailable")
+        pin = next((pin for pin in node.get("pins", []) if pin.get("name") == source_pin), None)
+        label = pin.get("friendly_name") if isinstance(pin, dict) else None
+        if not isinstance(label, str) or not label:
+            raise PoseRenderError("source enum pose blend pin is unavailable")
+        return label
     return source_pin
 
 
@@ -885,6 +916,36 @@ def run_self_test():
     )
     assert hips_type == "als_ext::SourceSetHipsDirectionNode"
     assert 'new_hips_direction: "LeftBackward"' in hips_inner
+    enum_type, enum_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "enum_pose_blend",
+            "semantic": {
+                "active_key": "als_standing_hips_direction",
+                "selected_enum_value": 3.0,
+                "active_enum_default": 0.0,
+                "default_blend_time": 0.1,
+                "selected_blend_time": 0.1,
+                "default_pose_pin": "Default Pose",
+                "selected_pose_pin": "Left Backward Pose",
+                "default_blend_time_pin": "Default Blend Time",
+                "selected_blend_time_pin": "Left Backward Blend Time",
+                "active_enum_pin": "Active Enum Value",
+                "output_pin": "Pose",
+                "selected_enum_entry": "LeftBackward",
+            },
+        },
+        {},
+        {},
+    )
+    assert enum_type == "als_ext::SourceEnumPoseBlendNode"
+    assert 'selected_enum_value: 3.0' in enum_inner
+    assert target_pin(
+        "enum_pose_blend",
+        "BlendPose_1",
+        {"pins": [{"name": "BlendPose_1", "friendly_name": "Left Backward Pose"}]},
+    ) == "Left Backward Pose"
     curve_type, curve_inner = rendered_inner(
         graph_contract,
         {},
@@ -1001,6 +1062,7 @@ def run_self_test():
         "source_blendspace_property_binding_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
+        "source_enum_pose_blend_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
     }
 

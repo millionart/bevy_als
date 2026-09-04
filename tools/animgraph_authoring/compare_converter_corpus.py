@@ -161,6 +161,9 @@ def resolved_property_bindings(ir):
             elif semantic.get("renderer") == "modify_curve":
                 paths = semantic.get("curve_value_paths")
                 keys = semantic.get("curve_value_keys")
+            elif semantic.get("renderer") == "enum_pose_blend":
+                paths = [semantic.get("active_enum_path", "")]
+                keys = [semantic.get("active_key", "")]
             else:
                 continue
             if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
@@ -360,11 +363,23 @@ def run_self_test():
                                 "curve_value_keys": ["als_standing_curve_rotation_yaw_offset"],
                             }
                         },
+                        {
+                            "semantic": {
+                                "renderer": "enum_pose_blend",
+                                "active_enum_path": "GroundedState.HipsDirection",
+                                "active_key": "als_standing_hips_direction",
+                            }
+                        },
                     ]
                 }
             ]
         }
     ) == [
+        {
+            "source_path": "GroundedState.HipsDirection",
+            "target_key": "als_standing_hips_direction",
+            "count": 1,
+        },
         {
             "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
             "target_key": "als_standing_curve_rotation_yaw_offset",

@@ -30,6 +30,7 @@ POSE_RENDERERS = {
     "pose_lifecycle_call",
     "multi_way_blend",
     "set_hips_direction",
+    "enum_pose_blend",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -582,6 +583,93 @@ def set_hips_direction_contract(node):
     }, issues
 
 
+def enum_pose_blend_contract(node):
+    renderer = "enum_pose_blend"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "BlendPose",
+            "BlendTime",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    poses = parse_list(field(fields, "BlendPose"))
+    times = [parse_number(value) for value in parse_list(field(fields, "BlendTime"))]
+    if len(poses) != 2 or len(times) != 2:
+        raise PoseContractError("source enum pose blend entry count is unsupported")
+    required = (
+        "BlendPose_0",
+        "BlendPose_1",
+        "BlendTime_0",
+        "BlendTime_1",
+        "ActiveEnumValue",
+    )
+    inputs, issues = validate_inputs(node, renderer, required)
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    pins = {
+        pin.get("name"): pin
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Input" and not pin.get("hidden")
+    }
+    labels = []
+    for name in ("BlendPose_0", "BlendPose_1", "BlendTime_0", "BlendTime_1", "ActiveEnumValue"):
+        label = pins.get(name, {}).get("friendly_name")
+        if not isinstance(label, str) or not label:
+            issues.append(issue(node, renderer, "source_enum_pose_blend_pin_unsupported", name))
+            label = name
+        labels.append(label)
+    title = node.get("title")
+    prefix = "Blend Poses ("
+    if not isinstance(title, str) or not title.startswith(prefix) or not title.endswith(")"):
+        raise PoseContractError("source enum pose blend title is invalid")
+    enum_name = title[len(prefix) : -1]
+    selected_label = labels[1]
+    if not selected_label.endswith(" Pose"):
+        raise PoseContractError("source enum pose blend selected label is invalid")
+    selected_entry = selected_label[: -len(" Pose")].replace(" ", "")
+    if selected_entry not in {"LeftBackward", "RightBackward"}:
+        issues.append(issue(node, renderer, "source_enum_entry_unsupported", selected_entry))
+    bindings = property_binding_paths(node)
+    unknown_bindings = sorted(set(bindings) - {"ActiveEnumValue"})
+    if unknown_bindings:
+        issues.append(
+            issue(node, renderer, "source_property_binding_pin_unsupported", ",".join(unknown_bindings))
+        )
+    active_enum_path = bindings.get("ActiveEnumValue", "")
+    if active_enum_path and input_is_linked(node, "ActiveEnumValue"):
+        issues.append(
+            issue(node, renderer, "source_property_binding_link_unsupported", "ActiveEnumValue")
+        )
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "enum_name": enum_name,
+        "selected_enum_entry": selected_entry,
+        "active_enum_path": active_enum_path,
+        "active_enum_default": visible_input_default(node, "ActiveEnumValue"),
+        "default_blend_time": times[0],
+        "selected_blend_time": times[1],
+        "default_pose_pin": labels[0],
+        "selected_pose_pin": labels[1],
+        "default_blend_time_pin": labels[2],
+        "selected_blend_time_pin": labels[3],
+        "active_enum_pin": labels[4],
+        "output_pin": "Pose",
+    }, issues
+
+
 def cached_pose_contract(node, renderer):
     property_name = "CacheName" if renderer == "save_cached_pose" else "NameOfCache"
     source_name = node_property(node, property_name)
@@ -779,6 +867,8 @@ def pose_contract(node, renderer):
             return multi_way_blend_contract(node)
         if renderer == "set_hips_direction":
             return set_hips_direction_contract(node)
+        if renderer == "enum_pose_blend":
+            return enum_pose_blend_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
@@ -896,6 +986,45 @@ def run_self_test():
     hips_contract, issues = pose_contract(hips, "set_hips_direction")
     assert not issues
     assert hips_contract["new_hips_direction"] == "LeftBackward"
+    enum_blend = fixture_node(
+        "enum_pose_blend",
+        "Node",
+        "(BlendPose=((),()),BlendTime=(0.100000,0.100000),InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [
+            input_pin("BlendPose_0"),
+            input_pin("BlendPose_1"),
+            input_pin("BlendTime_0"),
+            input_pin("BlendTime_1"),
+            input_pin("ActiveEnumValue"),
+            output_pin("Pose"),
+        ],
+    )
+    enum_blend["title"] = "Blend Poses (EAlsHipsDirection)"
+    for pin, label in zip(
+        enum_blend["pins"],
+        (
+            "Default Pose",
+            "Left Backward Pose",
+            "Default Blend Time",
+            "Left Backward Blend Time",
+            "Active Enum Value",
+            "",
+        ),
+    ):
+        pin["friendly_name"] = label
+    enum_blend["pins"][4]["default_value"] = "0"
+    enum_blend["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("ActiveEnumValue", (PropertyName="ActiveEnumValue",PathAsText="GetParent.GroundedState.HipsDirection",bIsBound=True)))',
+            }
+        ]
+    }
+    enum_blend_contract, issues = pose_contract(enum_blend, "enum_pose_blend")
+    assert not issues
+    assert enum_blend_contract["selected_enum_entry"] == "LeftBackward"
+    assert enum_blend_contract["active_enum_path"] == "GroundedState.HipsDirection"
     state = fixture_node(
         "state_result",
         "Node",
@@ -946,6 +1075,7 @@ def run_self_test():
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",
         "source_set_hips_direction_contract_parsed": "PASS",
+        "source_enum_pose_blend_contract_parsed": "PASS",
     }
 
 

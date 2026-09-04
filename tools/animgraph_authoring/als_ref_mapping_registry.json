@@ -16,6 +16,7 @@
     "/Script/AnimGraph.AnimGraphNode_ApplyMeshSpaceAdditive": { "renderer": "apply_mesh_space_additive" },
     "/Script/AnimGraph.AnimGraphNode_ModifyCurve": { "renderer": "modify_curve" },
     "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": { "renderer": "multi_way_blend" },
+    "/Script/AnimGraph.AnimGraphNode_BlendListByEnum": { "renderer": "enum_pose_blend" },
     "/Script/AnimGraph.AnimGraphNode_StateResult": { "renderer": "state_result" },
     "/Script/AnimGraph.AnimGraphNode_TransitionResult": { "renderer": "transition_result" },
     "/Script/AnimGraph.AnimStateEntryNode": { "renderer": "fsm_entry" },
@@ -52,8 +53,15 @@
     { "source_path": "LeanState.ForwardAmount", "target_key": "als_{asset_layer}_air_lean_forward" },
     { "source_path": "InAirState.GroundPredictionAmount", "target_key": "als_{asset_layer}_ground_prediction" },
     { "source_path": "InAirState.JumpPlayRate", "target_key": "als_{asset_layer}_jump_play_rate" },
-    { "source_path": "InAirState.VerticalVelocityWorldSpace", "target_key": "als_{asset_layer}_vertical_velocity" }
+    { "source_path": "InAirState.VerticalVelocityWorldSpace", "target_key": "als_{asset_layer}_vertical_velocity" },
+    { "source_path": "GroundedState.HipsDirection", "target_key": "als_{asset_layer}_hips_direction" }
   ],
+  "enum_entry_values": {
+    "EAlsHipsDirection": {
+      "LeftBackward": 3.0,
+      "RightBackward": 5.0
+    }
+  },
   "sync_group_phase_keys": {
     "Fall": "als_locomotion_fall_phase",
     "Jump": "als_locomotion_jump_phase",

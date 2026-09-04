@@ -183,6 +183,7 @@ def validate_registry(value):
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
     property_binding_rules = value.get("property_binding_rules", [])
+    enum_entry_values = value.get("enum_entry_values", {})
     sync_group_phase_keys = value.get("sync_group_phase_keys", {})
     fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
@@ -191,6 +192,8 @@ def validate_registry(value):
         raise ConversionError("mapping registry function rules are invalid")
     if not isinstance(property_binding_rules, list):
         raise ConversionError("mapping registry property binding rules are invalid")
+    if not isinstance(enum_entry_values, dict):
+        raise ConversionError("mapping registry enum entry values are invalid")
     if not isinstance(sync_group_phase_keys, dict):
         raise ConversionError("mapping registry sync group phase keys are invalid")
     if not isinstance(fsm_state_label_keys, dict):
@@ -233,6 +236,17 @@ def validate_registry(value):
         if source_path in seen:
             raise ConversionError("mapping registry property binding rule is duplicated")
         seen.add(source_path)
+    for enum_name, entries in enum_entry_values.items():
+        if not isinstance(enum_name, str) or not enum_name or not isinstance(entries, dict) or not entries:
+            raise ConversionError("mapping registry enum entry values are invalid")
+        for entry, entry_value in entries.items():
+            if (
+                not isinstance(entry, str)
+                or not entry
+                or not isinstance(entry_value, (int, float))
+                or isinstance(entry_value, bool)
+            ):
+                raise ConversionError("mapping registry enum entry value is invalid")
     def visit(item):
         if isinstance(item, dict):
             forbidden = FORBIDDEN_REGISTRY_KEYS & set(item)
@@ -431,6 +445,37 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
                 if path and input_is_linked(node, pin)
             ],
         ]
+    if renderer == "enum_pose_blend":
+        keys, issues = resolve_bound_keys(
+            source_asset,
+            node,
+            renderer,
+            ["ActiveEnumValue"],
+            [semantic.get("active_enum_path", "")],
+            registry,
+        )
+        semantic["active_key"] = keys[0] if len(keys) == 1 else ""
+        enum_name = semantic.get("enum_name")
+        entry = semantic.get("selected_enum_entry")
+        value = (
+            registry.get("enum_entry_values", {}).get(enum_name, {}).get(entry)
+            if isinstance(enum_name, str) and isinstance(entry, str)
+            else None
+        )
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            issues.append(
+                {
+                    "kind": "source_enum_entry_unresolved",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "enum_name": enum_name,
+                    "enum_entry": entry,
+                }
+            )
+        else:
+            semantic["selected_enum_value"] = float(value)
+        return issues
     return []
 
 
@@ -481,6 +526,8 @@ def handled_property_binding_pins(renderer, semantic):
             for pin, path, key in zip(("X", "Y"), paths, keys)
             if isinstance(path, str) and path and isinstance(key, str)
         }
+    if renderer == "enum_pose_blend":
+        return {"ActiveEnumValue"} if semantic.get("active_enum_path") else set()
     return set()
 
 
@@ -1284,8 +1331,13 @@ def run_self_test():
                 {
                     "source_path": "LeanState.ForwardAmount",
                     "target_key": "als_{asset_layer}_air_lean_forward",
+                },
+                {
+                    "source_path": "GroundedState.HipsDirection",
+                    "target_key": "als_{asset_layer}_hips_direction",
                 }
             ],
+            "enum_entry_values": {"EAlsHipsDirection": {"LeftBackward": 3.0}},
         }
     )
     binding_node = {
@@ -1356,6 +1408,20 @@ def run_self_test():
         binding_registry,
     )
     assert sequence_semantic["play_rate_key"] == "als_locomotion_jump_play_rate"
+    enum_semantic = {
+        "renderer": "enum_pose_blend",
+        "active_enum_path": "GroundedState.HipsDirection",
+        "enum_name": "EAlsHipsDirection",
+        "selected_enum_entry": "LeftBackward",
+    }
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+        binding_node,
+        enum_semantic,
+        binding_registry,
+    )
+    assert enum_semantic["active_key"] == "als_standing_hips_direction"
+    assert enum_semantic["selected_enum_value"] == 3.0
     binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown", ""]
     assert resolve_property_bindings(
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
