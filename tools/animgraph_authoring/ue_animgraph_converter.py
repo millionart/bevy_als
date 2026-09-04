@@ -2,6 +2,7 @@ import argparse
 import copy
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -175,12 +176,15 @@ def validate_registry(value):
         raise ConversionError("mapping registry format is invalid")
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
+    property_binding_rules = value.get("property_binding_rules", [])
     sync_group_phase_keys = value.get("sync_group_phase_keys", {})
     fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
     if not isinstance(functions, list):
         raise ConversionError("mapping registry function rules are invalid")
+    if not isinstance(property_binding_rules, list):
+        raise ConversionError("mapping registry property binding rules are invalid")
     if not isinstance(sync_group_phase_keys, dict):
         raise ConversionError("mapping registry sync group phase keys are invalid")
     if not isinstance(fsm_state_label_keys, dict):
@@ -208,6 +212,21 @@ def validate_registry(value):
         if key in seen:
             raise ConversionError("mapping registry function rule is duplicated")
         seen.add(key)
+    seen = set()
+    for rule in property_binding_rules:
+        if not isinstance(rule, dict) or set(rule) != {"source_path", "target_key"}:
+            raise ConversionError("mapping registry property binding rule is invalid")
+        source_path = rule["source_path"]
+        target_key = rule["target_key"]
+        if not isinstance(source_path, str) or not source_path or not isinstance(target_key, str) or not target_key:
+            raise ConversionError("mapping registry property binding rule value is invalid")
+        if source_path.startswith("GetParent.") or "{" in source_path or "}" in source_path:
+            raise ConversionError("mapping registry property binding source path is invalid")
+        if target_key.replace("{asset_layer}", "").find("{") >= 0 or "}" in target_key.replace("{asset_layer}", ""):
+            raise ConversionError("mapping registry property binding target key is invalid")
+        if source_path in seen:
+            raise ConversionError("mapping registry property binding rule is duplicated")
+        seen.add(source_path)
     def visit(item):
         if isinstance(item, dict):
             forbidden = FORBIDDEN_REGISTRY_KEYS & set(item)
@@ -254,6 +273,67 @@ def mapping_for(node, registry):
         "source_signature": signature,
         "source_title": title,
     }
+
+
+def source_asset_layer(source_asset):
+    if not isinstance(source_asset, str):
+        raise ConversionError("source property binding asset is invalid")
+    name = source_asset.rsplit(".", 1)[-1]
+    match = re.fullmatch(r"AB_Als_([A-Za-z0-9_]+)", name)
+    if match is None:
+        raise ConversionError("source property binding layer is unsupported")
+    return match.group(1).lower()
+
+
+def resolve_property_bindings(source_asset, node, semantic, registry):
+    if not isinstance(semantic, dict) or semantic.get("renderer") != "multi_way_blend":
+        return []
+    paths = semantic.get("desired_alpha_paths")
+    if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+        return [{"kind": "source_property_binding_unsupported", "source_node": node.get("object_path")}]
+    rules = {rule["source_path"]: rule["target_key"] for rule in registry.get("property_binding_rules", [])}
+    keys = []
+    issues = []
+    for index, path in enumerate(paths):
+        if not path:
+            keys.append("")
+            continue
+        template = rules.get(path)
+        if template is None:
+            issues.append(
+                {
+                    "kind": "source_property_binding_unresolved",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": semantic["renderer"],
+                    "source_pin": f"DesiredAlphas_{index}",
+                    "source_property_path": path,
+                }
+            )
+            keys.append("")
+            continue
+        try:
+            key = (
+                template.replace("{asset_layer}", source_asset_layer(source_asset))
+                if "{asset_layer}" in template
+                else template
+            )
+        except ConversionError as error:
+            issues.append(
+                {
+                    "kind": "source_property_binding_context_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": semantic["renderer"],
+                    "source_property_path": path,
+                    "detail": str(error),
+                }
+            )
+            keys.append("")
+            continue
+        keys.append(key)
+    semantic["desired_alpha_keys"] = keys
+    return issues
 
 
 def normalized_pin(pin):
@@ -358,6 +438,14 @@ def graph_ir(
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
+        contract_issues.extend(
+            resolve_property_bindings(
+                graph_contract.get("source_asset"),
+                node,
+                semantic,
+                registry,
+            )
+        )
         if semantic is None and renderer == "blendspace_evaluator":
             asset = animation_by_node.get(node.get("object_path"))
             if (
@@ -732,6 +820,44 @@ def run_self_test():
     renderer, issue = mapping_for(crlf_function, function_registry)
     assert renderer == "pose_lifecycle_call"
     assert issue is None
+    binding_registry = validate_registry(
+        {
+            "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
+            "node_classes": {"/Script/AnimGraph.AnimGraphNode_MultiWayBlend": {"renderer": "multi_way_blend"}},
+            "function_rules": [],
+            "property_binding_rules": [
+                {
+                    "source_path": "GroundedState.VelocityBlend.ForwardAmount",
+                    "target_key": "als_{asset_layer}_velocity_forward_amount",
+                }
+            ],
+        }
+    )
+    binding_node = {
+        "object_path": "/Asset:AnimGraph.Multi",
+        "class_path": "/Script/AnimGraph.AnimGraphNode_MultiWayBlend",
+    }
+    binding_semantic = {
+        "renderer": "multi_way_blend",
+        "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount", ""],
+    }
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+        binding_node,
+        binding_semantic,
+        binding_registry,
+    )
+    assert binding_semantic["desired_alpha_keys"] == [
+        "als_standing_velocity_forward_amount",
+        "",
+    ]
+    binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown"]
+    assert resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+        binding_node,
+        binding_semantic,
+        binding_registry,
+    )[0]["kind"] == "source_property_binding_unresolved"
     source_contract = {
         "source_graph_suffix": "AnimGraph",
         "source_graph": {
@@ -874,6 +1000,7 @@ def run_self_test():
         "registry_asset_special_case_rejected": "PASS",
         "uasset_package_path_derived_without_source_json_input": "PASS",
         "crlf_function_signature_normalized": "PASS",
+        "source_property_binding_keys_resolved_or_rejected": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",
         "source_pose_contract_blocker_rejected": "PASS",
         "unimplemented_registered_renderer_rejected": "PASS",

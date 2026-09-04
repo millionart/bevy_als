@@ -62,12 +62,16 @@ impl SourceMultiWayBlendNode {
             .desired_alpha_defaults
             .get(index)
             .ok_or_else(|| node_error(ctx, "desired alpha default is missing".to_owned()))?;
-        let value = if key.is_empty() {
+        let fallback = if key.is_empty() {
             *default
         } else {
             global_f32_or_root_default(ctx, key)?
         };
-        Ok(value * self.alpha_scale)
+        let input = ctx
+            .data_back(self.alpha_input(index))
+            .ok()
+            .and_then(|value| value.as_f32().ok());
+        Ok(input.unwrap_or(fallback) * self.alpha_scale)
     }
 }
 

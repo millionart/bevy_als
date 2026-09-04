@@ -116,6 +116,26 @@ def function_candidate_rows(manual_types, issues):
     ]
 
 
+def resolved_property_bindings(ir):
+    counts = collections.Counter()
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            semantic = node.get("semantic")
+            if not isinstance(semantic, dict) or semantic.get("renderer") != "multi_way_blend":
+                continue
+            paths = semantic.get("desired_alpha_paths")
+            keys = semantic.get("desired_alpha_keys")
+            if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
+                continue
+            for path, key in zip(paths, keys):
+                if isinstance(path, str) and path and isinstance(key, str) and key:
+                    counts[(path, key)] += 1
+    return [
+        {"source_path": path, "target_key": key, "count": count}
+        for (path, key), count in sorted(counts.items())
+    ]
+
+
 def compare(source, topology, registry, asset_root, source_content_root, mount):
     closure, class_counts = reachable_source_classes(source)
     ir, issues = converter.build_ir(
@@ -163,6 +183,7 @@ def compare(source, topology, registry, asset_root, source_content_root, mount):
                     ).items()
                 )
             ),
+            "resolved_property_bindings": resolved_property_bindings(ir),
         },
         "manual_capability_candidates": candidate_rows(
             class_counts,
@@ -231,9 +252,33 @@ def run_self_test():
     )
     assert rows[0]["converter_blocker_count"] == 1
     assert rows[0]["manual_candidate_count"] == 1
+    assert resolved_property_bindings(
+        {
+            "graphs": [
+                {
+                    "nodes": [
+                        {
+                            "semantic": {
+                                "renderer": "multi_way_blend",
+                                "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
+                                "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ) == [
+        {
+            "source_path": "GroundedState.VelocityBlend.ForwardAmount",
+            "target_key": "als_standing_velocity_forward_amount",
+            "count": 1,
+        }
+    ]
     return {
         "manual_node_type_inventory": "PASS",
         "source_to_manual_candidate_gap_reported": "PASS",
+        "resolved_source_property_bindings_reported": "PASS",
     }
 
 

@@ -15,6 +15,7 @@
     "/Script/AnimGraph.AnimGraphNode_ApplyAdditive": { "renderer": "apply_additive" },
     "/Script/AnimGraph.AnimGraphNode_ApplyMeshSpaceAdditive": { "renderer": "apply_mesh_space_additive" },
     "/Script/AnimGraph.AnimGraphNode_ModifyCurve": { "renderer": "modify_curve" },
+    "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": { "renderer": "multi_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_StateResult": { "renderer": "state_result" },
     "/Script/AnimGraph.AnimGraphNode_TransitionResult": { "renderer": "transition_result" },
     "/Script/AnimGraph.AnimStateEntryNode": { "renderer": "fsm_entry" },
@@ -34,6 +35,12 @@
     { "source_class": "/Script/AnimGraph.AnimGraphNode_CallFunction", "signature": "RefreshRotateInPlace", "renderer": "pose_lifecycle_call" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "Equal (GameplayTag)", "renderer": "gameplay_tag_equal" },
     { "source_class": "/Script/BlueprintGraph.K2Node_CallFunction", "signature": "To Float (Boolean)", "renderer": "boolean_to_float" }
+  ],
+  "property_binding_rules": [
+    { "source_path": "GroundedState.VelocityBlend.ForwardAmount", "target_key": "als_{asset_layer}_velocity_forward_amount" },
+    { "source_path": "GroundedState.VelocityBlend.BackwardAmount", "target_key": "als_{asset_layer}_velocity_backward_amount" },
+    { "source_path": "GroundedState.VelocityBlend.LeftAmount", "target_key": "als_{asset_layer}_velocity_left_amount" },
+    { "source_path": "GroundedState.VelocityBlend.RightAmount", "target_key": "als_{asset_layer}_velocity_right_amount" }
   ],
   "sync_group_phase_keys": {
     "Fall": "als_locomotion_fall_phase",

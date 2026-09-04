@@ -28,6 +28,7 @@ POSE_RENDERERS = {
     "linked_input_pose",
     "inertialization",
     "pose_lifecycle_call",
+    "multi_way_blend",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -86,6 +87,50 @@ def visible_input_default(node, name):
     if len(values) != 1:
         raise PoseContractError(f"source input pin is missing or ambiguous: {name}")
     return parse_number(values[0])
+
+
+def property_binding_paths(node):
+    binding = node.get("binding")
+    if binding is None:
+        return {}
+    if not isinstance(binding, dict):
+        raise PoseContractError("source property binding is invalid")
+    values = [
+        value.get("exported_text")
+        for value in binding.get("properties", [])
+        if value.get("name") == "PropertyBindings" and isinstance(value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        raise PoseContractError("source property bindings are missing or ambiguous")
+    result = {}
+    for item in parse_list(values[0]):
+        pair = parse_list(item)
+        if len(pair) != 2:
+            raise PoseContractError("source property binding entry is invalid")
+        pin = parse_quoted(pair[0])
+        fields = parse_struct(pair[1])
+        if parse_quoted(field(fields, "PropertyName")) != pin:
+            raise PoseContractError("source property binding pin name is invalid")
+        if not parse_bool(field(fields, "bIsBound")):
+            continue
+        path = parse_quoted(field(fields, "PathAsText"))
+        if path.startswith("GetParent."):
+            path = path[len("GetParent.") :]
+        if not path or pin in result:
+            raise PoseContractError("source property binding path is invalid")
+        result[pin] = path
+    return result
+
+
+def input_is_linked(node, name):
+    pins = [
+        pin
+        for pin in node.get("pins", [])
+        if pin.get("direction") == "Input" and not pin.get("hidden") and pin.get("name") == name
+    ]
+    if len(pins) != 1:
+        raise PoseContractError("source input pin is missing or ambiguous")
+    return any(item.get("node_object_path") != "None" for item in pins[0].get("linked_to", []))
 
 
 def issue(node, renderer, kind, detail):
@@ -369,6 +414,81 @@ def modify_curve_contract(node):
     }, issues
 
 
+def multi_way_blend_contract(node):
+    renderer = "multi_way_blend"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Poses",
+            "DesiredAlphas",
+            "AlphaScaleBias",
+            "bAdditiveNode",
+            "bNormalizeAlpha",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    poses = parse_list(field(fields, "Poses"))
+    alphas = [parse_number(value) for value in parse_list(field(fields, "DesiredAlphas"))]
+    if not poses or len(poses) != len(alphas):
+        raise PoseContractError("multi-way blend pose and alpha count is invalid")
+    required = tuple(f"Poses_{index}" for index in range(len(poses))) + tuple(
+        f"DesiredAlphas_{index}" for index in range(len(alphas))
+    )
+    inputs, issues = validate_inputs(node, renderer, required)
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    for index, value in enumerate(alphas):
+        if abs(visible_input_default(node, f"DesiredAlphas_{index}") - value) > 1.0e-6:
+            issues.append(
+                issue(node, renderer, "source_multi_way_alpha_default_mismatch", str(index))
+            )
+    scale_bias = parse_scale_bias(field(fields, "AlphaScaleBias", "()"))
+    if abs(scale_bias["bias"]) > 1.0e-6:
+        issues.append(issue(node, renderer, "source_multi_way_alpha_bias_unsupported", "AlphaScaleBias"))
+    if parse_bool(field(fields, "bAdditiveNode", "False")):
+        issues.append(issue(node, renderer, "source_multi_way_additive_unsupported", "bAdditiveNode"))
+    if not parse_bool(field(fields, "bNormalizeAlpha", "True")):
+        issues.append(issue(node, renderer, "source_multi_way_non_normalized_unsupported", "bNormalizeAlpha"))
+    if abs(scale_bias["scale"] - 1.0) > 1.0e-6:
+        issues.append(issue(node, renderer, "source_multi_way_alpha_scale_unsupported", "AlphaScaleBias"))
+    bindings = property_binding_paths(node)
+    allowed_binding_pins = {f"DesiredAlphas_{index}" for index in range(len(alphas))}
+    unknown_bindings = sorted(set(bindings) - allowed_binding_pins)
+    if unknown_bindings:
+        issues.append(
+            issue(node, renderer, "source_property_binding_pin_unsupported", ",".join(unknown_bindings))
+        )
+    desired_alpha_paths = []
+    for index in range(len(alphas)):
+        pin = f"DesiredAlphas_{index}"
+        path = bindings.get(pin, "")
+        if path and input_is_linked(node, pin):
+            issues.append(
+                issue(node, renderer, "source_property_binding_link_unsupported", pin)
+            )
+        desired_alpha_paths.append(path)
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "pose_count": len(poses),
+        "desired_alpha_defaults": alphas,
+        "desired_alpha_paths": desired_alpha_paths,
+        "normalize_alpha": parse_bool(field(fields, "bNormalizeAlpha", "True")),
+        "alpha_scale": scale_bias["scale"],
+    }, issues
+
+
 def cached_pose_contract(node, renderer):
     property_name = "CacheName" if renderer == "save_cached_pose" else "NameOfCache"
     source_name = node_property(node, property_name)
@@ -562,6 +682,8 @@ def pose_contract(node, renderer):
             return apply_additive_contract(node, True)
         if renderer == "modify_curve":
             return modify_curve_contract(node)
+        if renderer == "multi_way_blend":
+            return multi_way_blend_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
@@ -632,6 +754,29 @@ def run_self_test():
     curve["pins"][-1]["default_value"] = "0.500000"
     _, issues = pose_contract(curve, "modify_curve")
     assert issues[-1]["kind"] == "source_curve_alpha_default_mismatch"
+    multi = fixture_node(
+        "multi_way_blend",
+        "Node",
+        "(Poses=((),()),DesiredAlphas=(0.250000,0.750000),AlphaScaleBias=(Scale=1.000000),bNormalizeAlpha=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("Poses_0"), input_pin("Poses_1"), input_pin("DesiredAlphas_0"), input_pin("DesiredAlphas_1"), output_pin("Pose")],
+    )
+    multi["pins"][2]["default_value"] = "0.250000"
+    multi["pins"][3]["default_value"] = "0.750000"
+    multi["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)),("DesiredAlphas_1", (PropertyName="DesiredAlphas_1",PathAsText="GetParent.GroundedState.VelocityBlend.BackwardAmount",bIsBound=True)))',
+            }
+        ]
+    }
+    multi_contract, issues = pose_contract(multi, "multi_way_blend")
+    assert not issues
+    assert multi_contract["pose_count"] == 2
+    assert multi_contract["desired_alpha_paths"] == [
+        "GroundedState.VelocityBlend.ForwardAmount",
+        "GroundedState.VelocityBlend.BackwardAmount",
+    ]
     state = fixture_node(
         "state_result",
         "Node",
@@ -678,6 +823,8 @@ def run_self_test():
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "state_result_lifecycle_blocked": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
+        "multi_way_blend_contract_parsed": "PASS",
+        "source_property_binding_paths_preserved": "PASS",
     }
 
 

@@ -35,6 +35,7 @@ SUPPORTED_RENDERERS = {
     "gameplay_tag_equal",
     "boolean_to_float",
     "state_machine",
+    "multi_way_blend",
 }
 
 SCALAR_RENDERERS = {
@@ -282,6 +283,26 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", ".join(quoted(label) for label in labels)
             + "], expose_telemetry: false)",
         )
+    if renderer == "multi_way_blend":
+        keys = value.get("desired_alpha_keys")
+        if not isinstance(keys, list) or len(keys) != value["pose_count"] or not all(
+            isinstance(key, str) for key in keys
+        ):
+            raise PoseRenderError("source multi-way blend property binding is unavailable")
+        return (
+            "als_ext::SourceMultiWayBlendNode",
+            "(pose_count: "
+            + repr(value["pose_count"])
+            + ", desired_alpha_keys: ["
+            + ", ".join(quoted(key) for key in keys)
+            + "], desired_alpha_defaults: ["
+            + ", ".join(repr(default) for default in value["desired_alpha_defaults"])
+            + "], normalize_alpha: "
+            + bool_ron(value["normalize_alpha"])
+            + ", alpha_scale: "
+            + repr(value["alpha_scale"])
+            + ", pose_pin_prefix: \"Poses \", alpha_pin_prefix: \"Desired Alphas \")",
+        )
     if renderer == "two_way_blend":
         pins = input_names(value)
         fields = [
@@ -435,6 +456,11 @@ def target_pin(renderer, source_pin, node=None):
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
         return {"Pose": "Pose"}.get(source_pin, source_pin)
+    if renderer == "multi_way_blend":
+        if source_pin.startswith("Poses_"):
+            return "Poses " + source_pin.rsplit("_", 1)[1]
+        if source_pin.startswith("DesiredAlphas_"):
+            return "Desired Alphas " + source_pin.rsplit("_", 1)[1]
     return source_pin
 
 
@@ -771,6 +797,27 @@ def run_self_test():
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'OutputData("Result")' in text
     assert 'name: "Comment"' not in text
+    multi_type, multi_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "multi_way_blend",
+            "semantic": {
+                "pose_count": 2,
+                "desired_alpha_defaults": [0.25, 0.75],
+                "desired_alpha_keys": ["als_standing_velocity_forward_amount", ""],
+                "normalize_alpha": True,
+                "alpha_scale": 1.0,
+            },
+        },
+        {},
+        {},
+    )
+    assert multi_type == "als_ext::SourceMultiWayBlendNode"
+    assert "desired_alpha_defaults: [0.25, 0.75]" in multi_inner
+    assert 'desired_alpha_keys: ["als_standing_velocity_forward_amount", ""]' in multi_inner
+    assert target_pin("multi_way_blend", "Poses_1") == "Poses 1"
+    assert target_pin("multi_way_blend", "DesiredAlphas_1") == "Desired Alphas 1"
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -855,6 +902,7 @@ def run_self_test():
         "sync_group_wrapper_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
+        "source_multi_way_blend_is_rendered": "PASS",
     }
 
 
