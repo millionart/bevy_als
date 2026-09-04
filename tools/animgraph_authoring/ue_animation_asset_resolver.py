@@ -725,15 +725,29 @@ def blendspace_evaluator_contract(node, blendspace):
         raise AssetResolutionError(f"blendspace evaluator source properties are invalid: {error}") from error
     input_pins = visible_input_pins(node)
     input_names = [pin.get("name") for pin in input_pins]
-    if input_names != ["X", "Y"]:
-        raise AssetResolutionError("blendspace evaluator input schema is unsupported")
     axis_names = [axis["name"] for axis in blendspace["axes"]]
-    if len(axis_names) < 2 or axis_names[2:] != ["None"] * len(axis_names[2:]):
+    axis_count = 1 if len(axis_names) >= 2 and axis_names[1] == "None" else 2
+    if (
+        len(axis_names) < axis_count
+        or any(name != "None" for name in axis_names[axis_count:])
+    ):
         raise AssetResolutionError("blendspace evaluator dimensionality is unsupported")
-    for index, pin in enumerate(input_pins):
+    axis_pins = ["X"] if axis_count == 1 else ["X", "Y"]
+    dynamic_normalized_time = input_names == [*axis_pins, "NormalizedTime"]
+    if input_names not in (axis_pins, [*axis_pins, "NormalizedTime"]):
+        raise AssetResolutionError("blendspace evaluator input schema is unsupported")
+    for index, pin in enumerate(input_pins[:axis_count]):
         if pin.get("friendly_name") != axis_names[index]:
             raise AssetResolutionError("blendspace evaluator axis pin does not match metadata")
         source_pin_number(pin.get("default_value"), f"blendspace evaluator input {pin['name']} default")
+    if dynamic_normalized_time:
+        normalized_time_pin = input_pins[-1]
+        if normalized_time_pin.get("friendly_name") != "Normalized Time":
+            raise AssetResolutionError("blendspace evaluator normalized time label is unsupported")
+        source_pin_number(
+            normalized_time_pin.get("default_value"),
+            "blendspace evaluator normalized time default",
+        )
     for index, sample in enumerate(blendspace["samples"]):
         if any(abs(value) > 1.0e-8 for value in sample["value"][2:]):
             raise AssetResolutionError(f"blendspace evaluator sample {index} uses unsupported axis")
@@ -746,8 +760,22 @@ def blendspace_evaluator_contract(node, blendspace):
                 "axis": axis_names[index],
                 "default_value": source_pin_number(pin.get("default_value"), f"blendspace evaluator input {pin['name']} default"),
             }
-            for index, pin in enumerate(input_pins)
-        ],
+            for index, pin in enumerate(input_pins[:axis_count])
+        ]
+        + (
+            [
+                {
+                    "name": "NormalizedTime",
+                    "axis": None,
+                    "default_value": source_pin_number(
+                        input_pins[-1].get("default_value"),
+                        "blendspace evaluator normalized time default",
+                    ),
+                }
+            ]
+            if dynamic_normalized_time
+            else []
+        ),
         "normalized_time": normalized_time,
         "teleport_to_normalized_time": teleport,
         "loop": loop,
@@ -972,6 +1000,45 @@ def run_self_test():
         rows = resolve_graph_animation_assets(root, blendspace_source)
         assert rows[0]["evaluator"]["teleport_to_normalized_time"]
         assert rows[0]["evaluator"]["input_pins"][1]["axis"] == "Y"
+        one_dimensional = blendspace_evaluator_contract(
+            {
+                "properties": [
+                    {
+                        "name": "Node",
+                        "exported_text": "(bTeleportToNormalizedTime=True,bLoop=True,PlayRate=1.000000)",
+                    }
+                ],
+                "pins": [
+                    {
+                        "name": "X",
+                        "direction": "Input",
+                        "hidden": False,
+                        "friendly_name": "Pitch Angle",
+                        "default_value": "0.000000",
+                    },
+                    {
+                        "name": "NormalizedTime",
+                        "direction": "Input",
+                        "hidden": False,
+                        "friendly_name": "Normalized Time",
+                        "default_value": "0.000000",
+                    },
+                    {"name": "Pose", "direction": "Output", "hidden": False},
+                ],
+            },
+            {
+                "axes": [
+                    {"name": "Pitch Angle"},
+                    {"name": "None"},
+                    {"name": "None"},
+                ],
+                "samples": [{"value": [0.0, 0.0, 0.0]}],
+            },
+        )
+        assert [pin["name"] for pin in one_dimensional["input_pins"]] == [
+            "X",
+            "NormalizedTime",
+        ]
         blendspace_source["graphs"][0]["nodes"][0]["pins"].append(
             {
                 "name": "Z",
@@ -1132,6 +1199,7 @@ def run_self_test():
         "source_animation_path_resolves_inside_mount": "PASS",
         "sequence_nodes_resolve_from_source_graphs": "PASS",
         "blendspace_evaluator_schema_is_validated": "PASS",
+        "one_dimensional_dynamic_blendspace_evaluator_supported": "PASS",
         "blendspace_player_source_asset_and_timing_contract_resolved": "PASS",
         "empty_skeleton_blend_profile_preserved": "PASS",
         "unsupported_blend_profile_rejected": "PASS",

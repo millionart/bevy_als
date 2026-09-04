@@ -586,9 +586,9 @@ fn observe(
                 && (MIN_SKIN_FOOT_SEPARATION..=MAX_SKIN_FOOT_SEPARATION).contains(&foot_separation)
         });
     let head_state = heads.get(character).ok().copied();
-    let head_pitch = global_f32(player, "als_head_pitch_angle");
-    let head_yaw_amount = global_f32(player, "als_head_yaw_amount");
-    let head_blend_amount = global_f32(player, "als_head_blend_amount");
+    let head_pitch = global_f32(player, "head_state.pitch_angle");
+    let head_yaw_amount = global_f32(player, "head_state.yaw_amount");
+    let head_blend_amount = global_f32(player, "view_state.head_blend_amount");
     let ragdoll_modes = player.get_spawned_ragdoll().map(|spawned| {
         spawned
             .bodies

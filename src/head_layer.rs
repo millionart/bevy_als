@@ -332,9 +332,9 @@ fn write_globals(
     curves: AlsHeadCurveState,
 ) {
     for (key, value) in [
-        ("als_head_pitch_angle", state.pitch_angle),
-        ("als_head_yaw_amount", state.yaw_amount),
-        ("als_head_blend_amount", head_blend_amount(curves)),
+        ("head_state.pitch_angle", state.pitch_angle),
+        ("head_state.yaw_amount", state.yaw_amount),
+        ("view_state.head_blend_amount", head_blend_amount(curves)),
     ] {
         player.set_global_input_data(key, value);
     }

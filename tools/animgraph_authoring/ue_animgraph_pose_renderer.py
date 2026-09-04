@@ -213,8 +213,6 @@ def blendspace_inner(value, player=False):
             raise PoseRenderError("source blendspace evaluator time mode is unsupported")
         if abs(value.get("configured_play_rate", 0.0) - 1.0) > 1.0e-6:
             raise PoseRenderError("source blendspace evaluator play rate is unsupported")
-        if abs(value.get("normalized_time", 0.0)) > 1.0e-6:
-            raise PoseRenderError("source blendspace evaluator normalized time is unsupported")
         phase_duration = 0.0
         phase_markers = "[]"
     points = []
@@ -538,8 +536,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return "als_ext::SourceTwoWayBlendNode", "(" + ", ".join(fields) + ")"
     if renderer in {"apply_additive", "apply_mesh_space_additive"}:
         pins = input_names(value)
+        alpha_key = value.get("alpha_key")
+        if not isinstance(alpha_key, str):
+            raise PoseRenderError("source additive property binding is unavailable")
         fields = [
-            field("alpha_key", quoted("")),
+            field("alpha_key", quoted(alpha_key)),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron("Alpha" in pins)),
             field("use_constant_alpha", bool_ron("Alpha" not in pins)),
@@ -724,16 +725,37 @@ def blendspace_helpers(graph_contract, raw, semantic):
         raise PoseRenderError("source blendspace renderer semantic is invalid")
     blendspace = value.get("blendspace")
     inputs = value.get("input_pins")
-    expected_inputs = ["X", "Y", "PlayRate"] if player else ["X", "Y"]
-    if not isinstance(blendspace, dict) or not isinstance(inputs, list) or len(inputs) != len(expected_inputs):
+    if not isinstance(blendspace, dict) or not isinstance(inputs, list):
         raise PoseRenderError("source blendspace input contract is invalid")
     binding_keys = value.get("input_binding_keys")
-    if not isinstance(binding_keys, list) or len(binding_keys) != len(expected_inputs) or not all(
+    if not isinstance(binding_keys, list) or len(binding_keys) != len(inputs) or not all(
         isinstance(key, str) for key in binding_keys
     ):
         raise PoseRenderError("source blendspace property binding is unavailable")
-    if [item.get("name") for item in inputs] != expected_inputs:
-        raise PoseRenderError("source blendspace input schema is unsupported")
+    if player:
+        axis_entries = list(enumerate(inputs[:2]))
+        phase_entry = None
+        if [item.get("name") for item in inputs] != ["X", "Y", "PlayRate"]:
+            raise PoseRenderError("source blendspace input schema is unsupported")
+    else:
+        input_names = [item.get("name") for item in inputs]
+        axis_entries = [
+            (index, item)
+            for index, item in enumerate(inputs)
+            if isinstance(item.get("axis"), str)
+        ]
+        phase_entries = [
+            (index, item)
+            for index, item in enumerate(inputs)
+            if item.get("name") == "NormalizedTime" and item.get("axis") is None
+        ]
+        if (
+            [item.get("name") for _, item in axis_entries] not in (["X"], ["X", "Y"])
+            or len(phase_entries) > 1
+            or len(axis_entries) + len(phase_entries) != len(inputs)
+        ):
+            raise PoseRenderError("source blendspace evaluator input schema is unsupported")
+        phase_entry = phase_entries[0] if phase_entries else None
     primary_id = node_id(raw)
     source_path = raw["object_path"]
     x, y = position(raw)
@@ -803,23 +825,58 @@ def blendspace_helpers(graph_contract, raw, semantic):
             ]
         )
     else:
+        phase_key = ""
+        phase_default = value["normalized_time"]
+        if phase_entry is not None:
+            phase_index, phase_input = phase_entry
+            if (source_path, phase_input["name"]) in linked_inputs:
+                raise PoseRenderError("source blendspace evaluator linked normalized time is unsupported")
+            phase_key = binding_keys[phase_index]
+            phase_default = phase_input["default_value"]
         nodes.append(
             (
                 phase_id,
                 "Blendspace normalized time",
-                "(value: " + repr(value["normalized_time"]) + ")",
-                "als_ext::ConstantF32Node",
+                (
+                    "(key: " + quoted(phase_key) + ")"
+                    if phase_key
+                    else "(value: " + repr(phase_default) + ")"
+                ),
+                "als_ext::GlobalF32InputNode" if phase_key else "als_ext::ConstantF32Node",
                 (x - 96.0, y + 96.0),
             )
         )
+        phase_output = phase_key or "value"
         edges.extend(
             [
                 f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
-                f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"value\")",
+                f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, {quoted(phase_output)})",
             ]
         )
     targets = {}
-    for axis, input_value, binding_key in zip(("x", "y"), inputs[:2], binding_keys[:2]):
+    for axis_index, axis in enumerate(("x", "y")):
+        if axis_index >= len(axis_entries):
+            default_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    "bevy-als/blendspace/default/" + source_path + "/" + axis,
+                )
+            )
+            nodes.append(
+                (
+                    default_id,
+                    "Blendspace " + axis.upper() + " default",
+                    "(value: 0.0)",
+                    "als_ext::ConstantF32Node",
+                    (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                )
+            )
+            edges.append(
+                f"NodeData({quoted(vector_id)}, {quoted(axis)}): NodeData({quoted(default_id)}, \"value\")"
+            )
+            continue
+        input_index, input_value = axis_entries[axis_index]
+        binding_key = binding_keys[input_index]
         pin_name = input_value["name"]
         targets[(source_path, pin_name)] = (vector_id, axis)
         if (source_path, pin_name) not in linked_inputs:
@@ -1442,8 +1499,8 @@ def run_self_test():
                 "renderer": "blendspace_evaluator",
                 "semantic": {
                     "input_pins": [
-                        {"name": "X", "default_value": 0.25},
-                        {"name": "Y", "default_value": -0.5},
+                        {"name": "X", "axis": "X", "default_value": 0.25},
+                        {"name": "Y", "axis": "Y", "default_value": -0.5},
                     ],
                     "input_binding_keys": ["", ""],
                     "normalized_time": 0.0,
@@ -1476,6 +1533,38 @@ def run_self_test():
     text = render(blend_contract, blend_ir, [])
     assert '"als_ext::GlobalF32InputNode"' in text
     assert 'key: "lean_state.right_amount"' in text
+    one_dimensional_ir = {
+        "nodes": [
+            {
+                "source_node": blend_path,
+                "renderer": "blendspace_evaluator",
+                "semantic": {
+                    "input_pins": [
+                        {"name": "X", "axis": "Pitch Angle", "default_value": 0.0},
+                        {"name": "NormalizedTime", "axis": None, "default_value": 0.0},
+                    ],
+                    "input_binding_keys": ["head_state.pitch_angle", "head_state.yaw_amount"],
+                    "normalized_time": 0.0,
+                    "teleport_to_normalized_time": True,
+                    "loop": True,
+                    "configured_play_rate": 1.0,
+                    "blendspace": {
+                        "samples": [
+                            {
+                                "value": [0.0, 0.0, 0.0],
+                                "rate_scale": 1.0,
+                                "target_clip": "animations/Center.anim.ron",
+                            }
+                        ]
+                    },
+                },
+            },
+            {"source_node": blend_result, "renderer": "state_result", "semantic": {"lifecycle": []}},
+        ]
+    }
+    text = render(blend_contract, one_dimensional_ir, [])
+    assert 'key: "head_state.yaw_amount"' in text
+    assert 'Blendspace Y default' in text
     player_ir = {
         "nodes": [
             {
@@ -1536,6 +1625,7 @@ def run_self_test():
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_reroutes_are_folded": "PASS",
         "source_blendspace_evaluator_is_rendered": "PASS",
+        "one_dimensional_dynamic_blendspace_evaluator_is_rendered": "PASS",
         "source_blendspace_property_binding_is_rendered": "PASS",
         "source_blendspace_player_marker_phase_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",

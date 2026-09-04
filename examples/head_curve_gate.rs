@@ -98,7 +98,7 @@ fn verify(
     let pose_aiming = graph_f32(player, "PoseAiming");
     let view_block = graph_f32(player, "ViewBlock");
     let head_blend = player
-        .get_global_input_data("als_head_blend_amount")
+        .get_global_input_data("view_state.head_blend_amount")
         .and_then(|value| value.as_f32().ok());
     let Some((pose_aiming, view_block, head_blend)) = pose_aiming
         .zip(view_block)

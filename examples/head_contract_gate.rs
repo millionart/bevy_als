@@ -173,9 +173,9 @@ fn set_globals(player: &mut AnimationGraphPlayer, graphs: &Assets<AnimationGraph
             }
         }
     }
-    player.set_global_input_data("als_head_pitch_angle", 0.0_f32);
-    player.set_global_input_data("als_head_yaw_amount", 0.5_f32);
-    player.set_global_input_data("als_head_blend_amount", 0.0_f32);
+    player.set_global_input_data("head_state.pitch_angle", 0.0_f32);
+    player.set_global_input_data("head_state.yaw_amount", 0.5_f32);
+    player.set_global_input_data("view_state.head_blend_amount", 0.0_f32);
 }
 
 fn set_curve_inputs(player: &mut AnimationGraphPlayer) {
@@ -320,11 +320,11 @@ fn verify_static(
                 && close(node.points[2].position, 90.0)
         })
         && node::<GlobalF32InputNode>(head, "HeadState PitchAngle")
-            .is_some_and(|node| node.key == "als_head_pitch_angle")
+            .is_some_and(|node| node.key == "head_state.pitch_angle")
         && node::<GlobalF32InputNode>(head, "HeadState YawAmount")
-            .is_some_and(|node| node.key == "als_head_yaw_amount")
+            .is_some_and(|node| node.key == "head_state.yaw_amount")
         && node::<GlobalF32InputNode>(head, "ViewState HeadBlendAmount")
-            .is_some_and(|node| node.key == "als_head_blend_amount");
+            .is_some_and(|node| node.key == "view_state.head_blend_amount");
     let evaluators = [
         "look down evaluator",
         "look forward evaluator",
@@ -524,9 +524,9 @@ fn observe(
                 return;
             }
             probe.base_pose = Some(pose);
-            head.set_global_input_data("als_head_pitch_angle", 0.0_f32);
-            head.set_global_input_data("als_head_yaw_amount", 0.5_f32);
-            head.set_global_input_data("als_head_blend_amount", 1.0_f32);
+            head.set_global_input_data("head_state.pitch_angle", 0.0_f32);
+            head.set_global_input_data("head_state.yaw_amount", 0.5_f32);
+            head.set_global_input_data("view_state.head_blend_amount", 1.0_f32);
             head.queue_time_update(TimeUpdate::Delta(0.0));
             probe.phase = Phase::HeadCenter;
             info!("[HEAD-CONTRACT] base blend=0 pose/time/curve contract preserved");
@@ -564,7 +564,7 @@ fn observe(
                 fail(&mut exit, "center additive runtime probe");
                 return;
             }
-            head.set_global_input_data("als_head_pitch_angle", 90.0_f32);
+            head.set_global_input_data("head_state.pitch_angle", 90.0_f32);
             head.queue_time_update(TimeUpdate::Delta(0.0));
             probe.phase = Phase::HeadOffAxis;
             info!("[HEAD-CONTRACT] pitch=0 yaw_amount=.5 blend=1 preserves reference rotation");

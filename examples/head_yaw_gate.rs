@@ -78,7 +78,7 @@ fn verify(
         return;
     };
     let Some(graph_amount) = player
-        .get_global_input_data("als_head_yaw_amount")
+        .get_global_input_data("head_state.yaw_amount")
         .and_then(|value| value.as_f32().ok())
     else {
         if Instant::now() >= deadline.0 {

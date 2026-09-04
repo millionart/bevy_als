@@ -80,6 +80,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：`InitializeHead()`只重置`HeadState.bInitializationRequired`；`RefreshHead()`更新 source head yaw/pitch/switch-side state，均经`AlsLinkedAnimationInstance`转发。现有`HeadLayerPlugin`拥有相同的`AlsHeadState`初始化与每帧更新通道。
   - Gate summary：lifecycle/converter/pose renderer self-test均PASS，Head fresh direct report中两个 function均为`mapped`；BlendSpace evaluator仍报告`unresolved_source_animation_asset`、`source_pose_renderer_unsupported`和`source_renderer_unimplemented`。消融：缺少 evaluator semantic 时现在返回`PoseRenderError`→JSON blocker，不再抛出 Python `AttributeError`。
 
+- [x] BF112.13 1D dynamic BlendSpace evaluator：开始：2026-09-05 00:33:46 +08:00；预估结束：2026-09-05 01:23:46 +08:00；实际结束：2026-09-05 01:00:27 +08:00（偏差 -23m19s）。支持一维 `X + NormalizedTime` evaluator schema，将动态 normalized time 写入 existing `NormalizedBlendSpaceNode` phase；保留二维 evaluator与其它 schema的 fail-closed 行为。验收：1D fixture/ablation、Head direct `--write`/`--check`到 ready、手工 Head contract runtime Gate。
+  - source fact：`BS_Als_Look`是`BlendSpace1D`，唯一有效 axis为`Pitch Angle[-90,90]`，三个 sample为 Down/Forward/Up；Head evaluator pin为`X(Pitch Angle)`和`NormalizedTime(Normalized Time)`，分别绑定`HeadState.PitchAngle`与`HeadState.YawAmount`，且`bTeleportToNormalizedTime=true`。
+  - Gate summary：resolver/renderer/converter self-test、Head direct `--write`/`--check`、生成 RON 静态验证、Head contract 与 yaw runtime Gate均PASS；Head report为`ready`且零 blocker。消融：删除无消费者的`normalized_time_is_input`/`normalized_time_key`和缺失 pin schema 的二维默认值后结果不变；额外 evaluator input与缺失 schema均由 fixture fail-closed 拒绝。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

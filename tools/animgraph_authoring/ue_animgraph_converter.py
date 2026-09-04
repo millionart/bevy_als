@@ -491,7 +491,7 @@ def resolve_property_bindings(node, semantic, registry):
             alpha_keys,
         )
         return [*issues, *alpha_issues]
-    if renderer == "two_way_blend":
+    if renderer in {"two_way_blend", "apply_additive", "apply_mesh_space_additive"}:
         keys, issues = resolve_bound_keys(
             node,
             renderer,
@@ -526,12 +526,24 @@ def resolve_property_bindings(node, semantic, registry):
         )
         return issues
     if renderer == "blendspace_evaluator":
-        return resolve_blendspace_bindings(
+        inputs = semantic.get("input_pins")
+        pins = [item.get("name") for item in inputs] if isinstance(inputs, list) else []
+        if not pins or not all(isinstance(pin, str) and pin for pin in pins):
+            return [
+                {
+                    "kind": "source_blendspace_evaluator_input_unresolved",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        issues = resolve_blendspace_bindings(
             node,
             renderer,
             semantic,
-            ["X", "Y"],
+            pins,
         )
+        return issues
     if renderer == "blendspace_player":
         issues = resolve_blendspace_bindings(
             node,
@@ -661,6 +673,8 @@ def handled_property_binding_pins(renderer, semantic):
         return handled
     if renderer == "two_way_blend":
         return {"Alpha"} if semantic.get("alpha_path") else set()
+    if renderer in {"apply_additive", "apply_mesh_space_additive"}:
+        return {"Alpha"} if semantic.get("alpha_path") else set()
     if renderer == "sequence_player":
         handled = set()
         if semantic.get("play_rate_path"):
@@ -671,7 +685,17 @@ def handled_property_binding_pins(renderer, semantic):
     if renderer in {"blendspace_evaluator", "blendspace_player"}:
         paths = semantic.get("input_binding_paths")
         keys = semantic.get("input_binding_keys")
-        pins = ("X", "Y") if renderer == "blendspace_evaluator" else ("X", "Y", "PlayRate")
+        if renderer == "blendspace_evaluator":
+            inputs = semantic.get("input_pins")
+            pins = (
+                tuple(item.get("name") for item in inputs)
+                if isinstance(inputs, list)
+                else ()
+            )
+        else:
+            pins = ("X", "Y", "PlayRate")
+        if not all(isinstance(pin, str) and pin for pin in pins):
+            return set()
         if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(pins) or len(keys) != len(pins):
             return set()
         return {
@@ -1829,7 +1853,15 @@ def run_self_test():
             }
         ]
     }
-    blendspace_semantic = {"renderer": "blendspace_evaluator"}
+    assert resolve_property_bindings(
+        binding_node,
+        {"renderer": "blendspace_evaluator"},
+        binding_registry,
+    )[0]["kind"] == "source_blendspace_evaluator_input_unresolved"
+    blendspace_semantic = {
+        "renderer": "blendspace_evaluator",
+        "input_pins": [{"name": "X"}, {"name": "Y"}],
+    }
     assert not resolve_property_bindings(
         binding_node,
         blendspace_semantic,

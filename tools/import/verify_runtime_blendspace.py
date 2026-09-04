@@ -861,7 +861,7 @@ def look_graph_failures(root, properties, spec):
             failures.append(f"runtime graph point {role} differs")
     if "BlendSpace1DNode" not in graph:
         failures.append("runtime graph blendspace node differs")
-    for key in ["als_head_pitch_angle", "als_head_yaw_amount"]:
+    for key in ["head_state.pitch_angle", "head_state.yaw_amount"]:
         if key not in graph:
             failures.append(f"runtime graph input differs: {key}")
     root_graph = (root / spec["route"]).read_text(encoding="utf-8")
@@ -869,8 +869,8 @@ def look_graph_failures(root, properties, spec):
         failures.append("runtime head route differs")
     writer = (root / "src/head_layer.rs").read_text(encoding="utf-8")
     for fragment in [
-        "(\"als_head_pitch_angle\", state.pitch_angle)",
-        "(\"als_head_yaw_amount\", state.yaw_amount)",
+        "(\"head_state.pitch_angle\", state.pitch_angle)",
+        "(\"head_state.yaw_amount\", state.yaw_amount)",
     ]:
         if fragment not in writer:
             failures.append(f"runtime head writer differs: {fragment}")
