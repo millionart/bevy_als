@@ -25,6 +25,7 @@ from ue_animgraph_materializer import MaterializationError, materialize_files
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
+INTEGRATION_REPORT_FORMAT = "ue_animgraph_integration_report_v1"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
 TRANSITION_RENDERERS = {
@@ -752,6 +753,7 @@ def build_ir(
         "graphs": graphs,
         "animation_assets": assets,
         "function_dependencies": source_reachability["function_dependencies"],
+        "external_dependencies": source_reachability["external_dependencies"],
         "lifecycle_dispatch": lifecycle_dispatch,
     }, unsupported
 
@@ -764,6 +766,259 @@ def build_report(source_identity, ir, unsupported):
         "unsupported": unsupported,
         "pass": not unsupported,
     }
+
+
+def integration_blockers(report, source_node):
+    return sorted(
+        {
+            issue["kind"]
+            for issue in report.get("unsupported", [])
+            if isinstance(issue, dict)
+            and issue.get("source_node") == source_node
+            and isinstance(issue.get("kind"), str)
+        }
+    )
+
+
+def integration_provider_by_node(ir):
+    lifecycle = ir.get("lifecycle_dispatch")
+    dispatches = lifecycle.get("dispatches", []) if isinstance(lifecycle, dict) else []
+    return {
+        dispatch["source_node"]: dispatch["provider"]
+        for dispatch in dispatches
+        if isinstance(dispatch, dict)
+        and isinstance(dispatch.get("source_node"), str)
+        and isinstance(dispatch.get("provider"), str)
+    }
+
+
+def build_integration_report(ir, report):
+    providers = integration_provider_by_node(ir)
+    external_functions = []
+    animation_blueprint_functions = []
+    for dependency in ir.get("function_dependencies", []):
+        if not isinstance(dependency, dict):
+            continue
+        source_node = dependency.get("source_node")
+        function = dependency.get("source_function")
+        call_site = dependency.get("call_site")
+        resolution = dependency.get("resolution")
+        if not all(isinstance(value, str) and value for value in (source_node, function, call_site, resolution)):
+            continue
+        provider = providers.get(source_node)
+        row = {
+            "source_node": source_node,
+            "source_function": function,
+            "call_site": call_site,
+            "target_provider": provider,
+            "blockers": integration_blockers(report, source_node),
+        }
+        if resolution == "external":
+            external_functions.append(
+                {
+                    **row,
+                    "status": "mapped" if provider is not None else "requires_target_implementation",
+                }
+            )
+        elif resolution == "graph":
+            animation_blueprint_functions.append(
+                {
+                    **row,
+                    "source_graph": dependency.get("source_graph"),
+                    "status": "mapped" if provider is not None else "requires_function_graph_lowering",
+                }
+            )
+    property_bindings = [
+        {
+            "source_node": issue.get("source_node"),
+            "source_class": issue.get("source_class"),
+            "renderer": issue.get("renderer"),
+            "source_pin": issue.get("source_pin"),
+            "source_property_path": issue.get("source_property_path"),
+            "status": "requires_target_provider",
+        }
+        for issue in report.get("unsupported", [])
+        if isinstance(issue, dict) and issue.get("kind") == "source_property_binding_unhandled"
+    ]
+    property_bindings.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+    external_dependencies = [
+        dependency
+        for dependency in ir.get("external_dependencies", [])
+        if isinstance(dependency, dict)
+    ]
+    external_dependencies.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
+    external_functions.sort(key=lambda item: item["source_node"])
+    animation_blueprint_functions.sort(key=lambda item: item["source_node"])
+    return {
+        "format": INTEGRATION_REPORT_FORMAT,
+        "source": report.get("source", {}),
+        "conversion_status": "ready" if report.get("pass") else "blocked",
+        "handoff_action": "integrate_generated_assets"
+        if report.get("pass")
+        else "repair_conversion_blockers",
+        "external_runtime_functions": external_functions,
+        "animation_blueprint_functions": animation_blueprint_functions,
+        "unhandled_property_bindings": property_bindings,
+        "external_graph_dependencies": external_dependencies,
+        "other_blockers": [
+            issue
+            for issue in report.get("unsupported", [])
+            if isinstance(issue, dict)
+            and issue.get("kind") != "source_property_binding_unhandled"
+        ],
+    }
+
+
+def integration_blocker_summary(value):
+    summary = []
+    functions = sorted(
+        {
+            item["source_function"]
+            for item in value["external_runtime_functions"]
+            if item["status"] == "requires_target_implementation"
+        }
+    )
+    if functions:
+        summary.append("external runtime functions: " + ", ".join(functions))
+    groups = {}
+    for item in value["other_blockers"]:
+        kind = item.get("kind")
+        if not isinstance(kind, str) or not kind:
+            continue
+        detail = item.get("source_signature") or item.get("detail")
+        groups.setdefault(kind, set()).add(str(detail) if detail else "")
+    for kind, details in sorted(groups.items()):
+        values = sorted(detail for detail in details if detail)
+        summary.append(kind + (": " + ", ".join(values) if values else ""))
+    paths = sorted(
+        {
+            item["source_property_path"]
+            for item in value["unhandled_property_bindings"]
+            if isinstance(item.get("source_property_path"), str)
+        }
+    )
+    if paths:
+        summary.append("unhandled property bindings: " + ", ".join(paths))
+    return summary
+
+
+def integration_report_markdown(value):
+    if value["conversion_status"] == "blocked":
+        lines = [
+            "# Animation graph conversion blocked",
+            "",
+            "Do not integrate generated RON files.",
+            "Implement or map every blocker below, then rerun until Conversion status: ready.",
+            "",
+            "## Required fixes",
+            "",
+        ]
+        summary = integration_blocker_summary(value)
+        lines.extend("- " + item for item in summary)
+        if not summary:
+            lines.append("- Inspect conversion.report.json for the blocking source location.")
+        return "\n".join(lines) + "\n"
+    lines = [
+        "# Animation graph integration report",
+        "",
+        "Conversion status: " + value["conversion_status"],
+        "",
+        "## External runtime functions",
+        "",
+    ]
+    functions = value["external_runtime_functions"]
+    if functions:
+        lines.extend(
+            "- `"
+            + item["source_function"]
+            + "` at `"
+            + item["source_node"]
+            + "` ("
+            + item["call_site"]
+            + "): "
+            + item["status"]
+            + (" via `" + item["target_provider"] + "`" if item["target_provider"] else "")
+            for item in functions
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Unhandled property bindings", ""])
+    bindings = value["unhandled_property_bindings"]
+    if bindings:
+        lines.extend(
+            "- `"
+            + item["source_property_path"]
+            + "` at `"
+            + item["source_node"]
+            + "` pin `"
+            + item["source_pin"]
+            + "`: "
+            + item["status"]
+            for item in bindings
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Animation Blueprint function graphs", ""])
+    functions = value["animation_blueprint_functions"]
+    if functions:
+        lines.extend(
+            "- `"
+            + item["source_function"]
+            + "` at `"
+            + item["source_node"]
+            + "`: "
+            + item["status"]
+            for item in functions
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## External graph dependencies", ""])
+    dependencies = value["external_graph_dependencies"]
+    if dependencies:
+        lines.extend(
+            "- `"
+            + str(item.get("kind", "unknown"))
+            + "` at `"
+            + str(item.get("source_node", "unknown"))
+            + "`: requires target integration"
+            for item in dependencies
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Other conversion blockers", ""])
+    blockers = value["other_blockers"]
+    if blockers:
+        lines.extend(
+            "- `"
+            + str(item.get("kind", "unknown"))
+            + "` at `"
+            + str(item.get("source_node", "unknown"))
+            + "`"
+            for item in blockers
+        )
+    else:
+        lines.append("- None")
+    return "\n".join(lines) + "\n"
+
+
+def write_integration_report(output_root, value):
+    write_json(output_root / "integration.report.json", value)
+    (output_root / "integration.report.md").write_text(
+        integration_report_markdown(value), encoding="utf-8"
+    )
+
+
+def integration_report_drift(output_root, value):
+    expected = {
+        "integration.report.json": json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        "integration.report.md": integration_report_markdown(value),
+    }
+    return [
+        {"kind": "generated_output_drift", "path": name}
+        for name, text in expected.items()
+        if not (output_root / name).is_file()
+        or (output_root / name).read_text(encoding="utf-8") != text
+    ]
 
 
 def expected_outputs(
@@ -1123,6 +1378,82 @@ def run_self_test():
         assert unsupported_failure(blocked)
         assert not write_outputs_if_supported(root, {"format": IR_FORMAT}, blocked)
         assert not (root / "source.ir.json").exists()
+    integration_ir = {
+        "function_dependencies": [
+            {
+                "source_node": "/Asset:AnimGraph.Refresh",
+                "source_function": "RefreshInAir",
+                "call_site": "anim_node",
+                "resolution": "external",
+            },
+            {
+                "source_node": "/Asset:AnimGraph.Custom",
+                "source_function": "CustomActorFunction",
+                "call_site": "anim_node",
+                "resolution": "external",
+            },
+            {
+                "source_node": "/Asset:AnimGraph.Stop",
+                "source_function": "StopTransitionAndTurnInPlaceAnimations",
+                "call_site": "StateExitFunction",
+                "source_graph": "StopTransitionAndTurnInPlaceAnimations",
+                "resolution": "graph",
+            },
+        ],
+        "lifecycle_dispatch": {
+            "dispatches": [
+                {
+                    "source_node": "/Asset:AnimGraph.Refresh",
+                    "source_function": "RefreshInAir",
+                    "provider": "als_locomotion_refresh_in_air",
+                }
+            ]
+        },
+        "external_dependencies": [{"kind": "linked_anim_layer", "source_node": "/Asset:AnimGraph.Layer"}],
+    }
+    integration_blocked = {
+        "source": {"asset": "/Asset"},
+        "pass": False,
+        "unsupported": [
+            {
+                "kind": "unregistered_source_function",
+                "source_node": "/Asset:AnimGraph.Custom",
+            },
+            {
+                "kind": "source_property_binding_unhandled",
+                "source_node": "/Asset:AnimGraph.Blend",
+                "source_class": "/Script/AnimGraph.AnimGraphNode_TwoWayBlend",
+                "renderer": "two_way_blend",
+                "source_pin": "Alpha",
+                "source_property_path": "InAirState.GroundPredictionAmount",
+            },
+        ],
+    }
+    integration = build_integration_report(integration_ir, integration_blocked)
+    assert integration["conversion_status"] == "blocked"
+    assert integration["handoff_action"] == "repair_conversion_blockers"
+    assert [item["status"] for item in integration["external_runtime_functions"]] == [
+        "requires_target_implementation",
+        "mapped",
+    ]
+    assert integration["unhandled_property_bindings"][0]["status"] == "requires_target_provider"
+    blocked_markdown = integration_report_markdown(integration)
+    assert "CustomActorFunction" in blocked_markdown
+    assert "Do not integrate generated RON files." in blocked_markdown
+    assert "## External graph dependencies" not in blocked_markdown
+    ready = build_integration_report(
+        integration_ir,
+        {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
+    )
+    assert ready["conversion_status"] == "ready"
+    assert ready["handoff_action"] == "integrate_generated_assets"
+    assert "## External graph dependencies" in integration_report_markdown(ready)
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write_integration_report(root, integration)
+        assert not integration_report_drift(root, integration)
+        (root / "integration.report.md").write_text("drift\n", encoding="utf-8")
+        assert integration_report_drift(root, integration)
     return {
         "unregistered_node_rejected": "PASS",
         "registry_asset_special_case_rejected": "PASS",
@@ -1137,6 +1468,8 @@ def run_self_test():
         "deterministic_ir_drift_rejected": "PASS",
         "unsupported_source_blocks_generation": "PASS",
         "core_does_not_emit_partial_bevy_graphs": "PASS",
+        "integration_dependencies_are_reported": "PASS",
+        "integration_report_drift_rejected": "PASS",
     }
 
 
@@ -1185,8 +1518,17 @@ def main():
         args.source_reader,
     )
     materialized_files = expected_materialized_files(source, ir, registry, report)
+    integration = build_integration_report(ir, report)
     if args.report is not None:
         write_json(args.report, report)
+    if args.write:
+        write_integration_report(args.output_root, integration)
+    else:
+        drift = integration_report_drift(args.output_root, integration)
+        if drift:
+            report["drift"] = drift
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 2
     if unsupported_failure(report):
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 3
