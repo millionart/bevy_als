@@ -549,6 +549,23 @@ def resolve_property_bindings(node, semantic, registry):
             )
         issues.extend(resolve_blendspace_player_phase(node, semantic, registry))
         return issues
+    if renderer == "slot":
+        try:
+            stem = source_property_key(semantic.get("slot_name"))
+        except ConversionError as error:
+            return [
+                {
+                    "kind": "source_slot_provider_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "detail": str(error),
+                }
+            ]
+        semantic["pose_key"] = stem + ".pose"
+        semantic["weight_key"] = stem + ".weight"
+        semantic["layer_weight_key"] = stem + ".layer_weight"
+        return []
     if renderer == "enum_pose_blend":
         keys, issues = resolve_bound_keys(
             node,
@@ -1131,6 +1148,32 @@ def integration_runtime_inputs(ir):
     return sorted(rows, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
 
 
+def integration_slot_providers(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            if not isinstance(node, dict) or node.get("renderer") != "slot":
+                continue
+            semantic = node.get("semantic")
+            if not isinstance(semantic, dict) or not all(
+                isinstance(semantic.get(field), str) and semantic[field]
+                for field in ("slot_name", "group_name", "pose_key", "weight_key", "layer_weight_key")
+            ):
+                continue
+            rows.append(
+                {
+                    "source_node": node.get("source_node"),
+                    "slot_name": semantic["slot_name"],
+                    "group_name": semantic["group_name"],
+                    "pose_key": semantic["pose_key"],
+                    "weight_key": semantic["weight_key"],
+                    "layer_weight_key": semantic["layer_weight_key"],
+                    "status": "requires_target_provider",
+                }
+            )
+    return sorted(rows, key=lambda item: item["source_node"])
+
+
 def build_integration_report(ir, report):
     providers = integration_provider_by_node(ir)
     external_functions = []
@@ -1199,6 +1242,7 @@ def build_integration_report(ir, report):
         "animation_blueprint_functions": animation_blueprint_functions,
         "sync_phase_providers": integration_sync_phase_providers(ir),
         "runtime_inputs": integration_runtime_inputs(ir),
+        "slot_providers": integration_slot_providers(ir),
         "unhandled_property_bindings": property_bindings,
         "external_graph_dependencies": external_dependencies,
         "other_blockers": [
@@ -1289,6 +1333,28 @@ def integration_report_markdown(value):
             + item["status"]
             + (" via `" + item["target_provider"] + "`" if item["target_provider"] else "")
             for item in functions
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Slot providers", ""])
+    slot_providers = value["slot_providers"]
+    if slot_providers:
+        lines.extend(
+            "- `"
+            + item["slot_name"]
+            + "` / `"
+            + item["group_name"]
+            + "` at `"
+            + str(item["source_node"])
+            + "`: pose `"
+            + item["pose_key"]
+            + "`, weight `"
+            + item["weight_key"]
+            + "`, layer weight `"
+            + item["layer_weight_key"]
+            + "`: "
+            + item["status"]
+            for item in slot_providers
         )
     else:
         lines.append("- None")
@@ -1928,7 +1994,18 @@ def run_self_test():
                                 {"name": "Right", "time": 0.5},
                             ],
                         },
-                    }
+                    },
+                    {
+                        "source_node": "/Asset:AnimGraph.Slot",
+                        "renderer": "slot",
+                        "semantic": {
+                            "slot_name": "TurnInPlaceStanding",
+                            "group_name": "Grounded",
+                            "pose_key": "turn_in_place_standing.pose",
+                            "weight_key": "turn_in_place_standing.weight",
+                            "layer_weight_key": "turn_in_place_standing.layer_weight",
+                        },
+                    },
                 ]
             }
         ],
@@ -1962,12 +2039,14 @@ def run_self_test():
     assert integration["sync_phase_providers"][0]["target_phase_key"] == "standing_state.movement.sync_phase"
     assert integration["sync_phase_providers"][0]["status"] == "requires_target_provider"
     assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
+    assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
     blocked_markdown = integration_report_markdown(integration)
     assert "CustomActorFunction" in blocked_markdown
     assert "Do not integrate generated RON files." in blocked_markdown
     assert "## External graph dependencies" not in blocked_markdown
     assert "## Runtime sync phase providers" not in blocked_markdown
     assert "## Runtime property inputs" not in blocked_markdown
+    assert "## Slot providers" not in blocked_markdown
     assert "runtime sync phase providers: standing_state.movement.sync_phase" in blocked_markdown
     ready = build_integration_report(
         integration_ir,
@@ -1978,6 +2057,7 @@ def run_self_test():
     assert "## External graph dependencies" in integration_report_markdown(ready)
     assert "## Runtime sync phase providers" in integration_report_markdown(ready)
     assert "## Runtime property inputs" in integration_report_markdown(ready)
+    assert "## Slot providers" in integration_report_markdown(ready)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)

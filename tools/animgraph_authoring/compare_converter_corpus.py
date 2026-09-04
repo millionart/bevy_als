@@ -152,23 +152,17 @@ def resolved_property_bindings(ir):
     counts = collections.Counter()
     for graph in ir.get("graphs", []):
         for node in graph.get("nodes", []):
-            semantic = node.get("semantic")
+            semantic = node.get("semantic") if isinstance(node, dict) else None
             if not isinstance(semantic, dict):
                 continue
-            if semantic.get("renderer") == "multi_way_blend":
-                paths = semantic.get("desired_alpha_paths")
-                keys = semantic.get("desired_alpha_keys")
-            elif semantic.get("renderer") == "modify_curve":
-                paths = semantic.get("curve_value_paths")
-                keys = semantic.get("curve_value_keys")
-            elif semantic.get("renderer") == "enum_pose_blend":
-                paths = [semantic.get("active_enum_path", "")]
-                keys = [semantic.get("active_key", "")]
-            else:
+            bindings = semantic.get("resolved_property_bindings")
+            if not isinstance(bindings, list):
                 continue
-            if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
-                continue
-            for path, key in zip(paths, keys):
+            for binding in bindings:
+                if not isinstance(binding, dict):
+                    continue
+                path = binding.get("source_property_path")
+                key = binding.get("target_key")
                 if isinstance(path, str) and path and isinstance(key, str) and key:
                     counts[(path, key)] += 1
     return [
@@ -351,23 +345,32 @@ def run_self_test():
                     "nodes": [
                         {
                             "semantic": {
-                                "renderer": "multi_way_blend",
-                                "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
-                                "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
+                                "resolved_property_bindings": [
+                                    {
+                                        "source_property_path": "GroundedState.VelocityBlend.ForwardAmount",
+                                        "target_key": "grounded_state.velocity_blend.forward_amount",
+                                    }
+                                ],
                             }
                         },
                         {
                             "semantic": {
-                                "renderer": "modify_curve",
-                                "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
-                                "curve_value_keys": ["als_standing_curve_rotation_yaw_offset"],
+                                "resolved_property_bindings": [
+                                    {
+                                        "source_property_path": "GroundedState.RotationYawOffsets.ForwardAngle",
+                                        "target_key": "grounded_state.rotation_yaw_offsets.forward_angle",
+                                    }
+                                ],
                             }
                         },
                         {
                             "semantic": {
-                                "renderer": "enum_pose_blend",
-                                "active_enum_path": "GroundedState.HipsDirection",
-                                "active_key": "als_standing_hips_direction",
+                                "resolved_property_bindings": [
+                                    {
+                                        "source_property_path": "GroundedState.HipsDirection",
+                                        "target_key": "grounded_state.hips_direction",
+                                    }
+                                ],
                             }
                         },
                     ]
@@ -377,17 +380,17 @@ def run_self_test():
     ) == [
         {
             "source_path": "GroundedState.HipsDirection",
-            "target_key": "als_standing_hips_direction",
+            "target_key": "grounded_state.hips_direction",
             "count": 1,
         },
         {
             "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
-            "target_key": "als_standing_curve_rotation_yaw_offset",
+            "target_key": "grounded_state.rotation_yaw_offsets.forward_angle",
             "count": 1,
         },
         {
             "source_path": "GroundedState.VelocityBlend.ForwardAmount",
-            "target_key": "als_standing_velocity_forward_amount",
+            "target_key": "grounded_state.velocity_blend.forward_amount",
             "count": 1,
         }
     ]

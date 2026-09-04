@@ -40,6 +40,7 @@ SUPPORTED_RENDERERS = {
     "set_hips_direction",
     "enum_pose_blend",
     "layered_bone_blend",
+    "slot",
 }
 
 SCALAR_RENDERERS = {
@@ -304,6 +305,24 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return blendspace_inner(value)
     if renderer == "blendspace_player":
         return blendspace_inner(value, player=True)
+    if renderer == "slot":
+        keys = [value.get(name) for name in ("pose_key", "weight_key", "layer_weight_key")]
+        if not all(isinstance(key, str) and key for key in keys):
+            raise PoseRenderError("source slot provider contract is unavailable")
+        return (
+            "als_ext::SourceSlotNode",
+            "(slot_name: "
+            + quoted(value["slot_name"])
+            + ", group_name: "
+            + quoted(value["group_name"])
+            + ", pose_key: "
+            + quoted(keys[0])
+            + ", weight_key: "
+            + quoted(keys[1])
+            + ", layer_weight_key: "
+            + quoted(keys[2])
+            + ")",
+        )
     if renderer in SCALAR_RENDERERS:
         return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
     if renderer == "state_machine":
@@ -1134,6 +1153,25 @@ def run_self_test():
     )
     assert curve_type == "als_ext::SourceCurveModifyNode"
     assert 'value_keys: ["grounded_state.rotation_yaw_offsets.forward_angle"]' in curve_inner
+    slot_type, slot_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "slot",
+            "semantic": {
+                "slot_name": "TurnInPlaceStanding",
+                "group_name": "Grounded",
+                "pose_key": "turn_in_place_standing.pose",
+                "weight_key": "turn_in_place_standing.weight",
+                "layer_weight_key": "turn_in_place_standing.layer_weight",
+            },
+        },
+        {},
+        {},
+    )
+    assert slot_type == "als_ext::SourceSlotNode"
+    assert 'slot_name: "TurnInPlaceStanding"' in slot_inner
+    assert 'pose_key: "turn_in_place_standing.pose"' in slot_inner
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -1285,6 +1323,7 @@ def run_self_test():
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",
         "source_modify_curve_binding_is_rendered": "PASS",
+        "source_slot_is_rendered": "PASS",
     }
 
 

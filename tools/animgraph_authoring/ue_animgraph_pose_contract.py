@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 
 from ue_exported_text import (
     ExportedTextError,
@@ -32,6 +33,7 @@ POSE_RENDERERS = {
     "set_hips_direction",
     "enum_pose_blend",
     "layered_bone_blend",
+    "slot",
 }
 SYNC_GROUP_ROLES = {
     "CanBeLeader",
@@ -863,6 +865,47 @@ def pose_lifecycle_call_contract(node):
     }, issues
 
 
+def slot_contract(node):
+    renderer = "slot"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Source",
+            "SlotName",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Source",))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    title = node.get("title")
+    match = re.fullmatch(r"Slot '([^']+)'\r?\nGroup '([^']+)'", title or "")
+    if match is None:
+        raise PoseContractError("source slot title is unsupported")
+    slot_name = parse_quoted(field(fields, "SlotName"))
+    if slot_name != match.group(1):
+        raise PoseContractError("source slot name does not match title")
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "slot_name": slot_name,
+        "group_name": match.group(2),
+    }, issues
+
+
 def state_result_contract(node):
     renderer = "state_result"
     fields = parse_struct(node_property(node, "Node"))
@@ -946,6 +989,8 @@ def pose_contract(node, renderer):
             return enum_pose_blend_contract(node)
         if renderer == "layered_bone_blend":
             return layered_bone_blend_contract(node)
+        if renderer == "slot":
+            return slot_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
@@ -1114,6 +1159,17 @@ def run_self_test():
         ["thigh_l", "ik_foot_l"],
         ["thigh_r"],
     ]
+    slot = fixture_node(
+        "slot",
+        "Node",
+        '(Source=(),SlotName="TurnInPlaceStanding",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("Source"), output_pin("Pose")],
+    )
+    slot["title"] = "Slot 'TurnInPlaceStanding'\nGroup 'Grounded'"
+    slot_contract, issues = pose_contract(slot, "slot")
+    assert not issues
+    assert slot_contract["slot_name"] == "TurnInPlaceStanding"
+    assert slot_contract["group_name"] == "Grounded"
     state = fixture_node(
         "state_result",
         "Node",
@@ -1166,6 +1222,7 @@ def run_self_test():
         "source_set_hips_direction_contract_parsed": "PASS",
         "source_enum_pose_blend_contract_parsed": "PASS",
         "source_layered_bone_blend_contract_parsed": "PASS",
+        "source_slot_contract_parsed": "PASS",
     }
 
 

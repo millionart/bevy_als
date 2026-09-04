@@ -19,6 +19,7 @@
     "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": { "renderer": "multi_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_BlendListByEnum": { "renderer": "enum_pose_blend" },
     "/Script/AnimGraph.AnimGraphNode_LayeredBoneBlend": { "renderer": "layered_bone_blend" },
+    "/Script/AnimGraph.AnimGraphNode_Slot": { "renderer": "slot" },
     "/Script/AnimGraph.AnimGraphNode_StateResult": { "renderer": "state_result" },
     "/Script/AnimGraph.AnimGraphNode_TransitionResult": { "renderer": "transition_result" },
     "/Script/AnimGraph.AnimStateEntryNode": { "renderer": "fsm_entry" },
