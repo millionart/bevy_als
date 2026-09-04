@@ -373,7 +373,7 @@ fn set_global_defaults(player: &mut AnimationGraphPlayer, graphs: &Assets<Animat
         }
     }
     player.set_global_input_data("als_root_overlay_index", 0.0_f32);
-    player.set_global_input_data("als_ragdolling_flail_play_rate", 0.5_f32);
+    player.set_global_input_data("ragdolling_state.flail_play_rate", 0.5_f32);
     player.set_global_input_data("als_root_defaults_enabled", true);
 }
 
@@ -914,7 +914,7 @@ fn observe(
             player.set_global_input_data("als_ragdolling_action_index", 1.0_f32);
             player.set_global_input_data("als_ragdolling_dynamic", true);
             player.set_global_input_data("als_ragdolling_readback", true);
-            player.set_global_input_data("als_ragdolling_flail_play_rate", 0.5_f32);
+            player.set_global_input_data("ragdolling_state.flail_play_rate", 0.5_f32);
             player.queue_time_update(TimeUpdate::Delta(0.5));
             probe.phase = Phase::Ragdoll;
             info!("[AB-ALS-CONTRACT] Overlay index=Torch reached the linked layer branch");
@@ -930,7 +930,10 @@ fn observe(
             let Some(snapshot) = probe.base_pose.clone() else {
                 return;
             };
-            player.set_global_input_data("als_ragdolling_snapshot_pose", DataValue::Pose(snapshot));
+            player.set_global_input_data(
+                "ragdolling_state.final_ragdoll_pose",
+                DataValue::Pose(snapshot),
+            );
             player.set_global_input_data("als_ragdolling_action_index", 0.0_f32);
             player.set_global_input_data("als_ragdolling_dynamic", false);
             player.set_global_input_data("als_ragdolling_readback", false);

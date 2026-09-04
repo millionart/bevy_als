@@ -3,6 +3,7 @@
   "node_classes": {
     "/Script/AnimGraph.AnimGraphNode_Root": { "renderer": "root_output" },
     "/Script/AnimGraph.AnimGraphNode_LinkedInputPose": { "renderer": "linked_input_pose" },
+    "/Script/AnimGraph.AnimGraphNode_PoseSnapshot": { "renderer": "pose_snapshot" },
     "/Script/AnimGraph.AnimGraphNode_SaveCachedPose": { "renderer": "save_cached_pose" },
     "/Script/AnimGraph.AnimGraphNode_UseCachedPose": { "renderer": "use_cached_pose" },
     "/Script/AnimGraph.AnimGraphNode_StateMachine": { "renderer": "state_machine" },

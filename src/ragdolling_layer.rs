@@ -14,6 +14,8 @@ use crate::head_layer::AlsHeadLayerSet;
 
 const PELVIS_LABEL: &str = "pelvis";
 const REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
+const RAGDOLLING_FINAL_POSE_KEY: &str = "ragdolling_state.final_ragdoll_pose";
+const RAGDOLLING_FLAIL_PLAY_RATE_KEY: &str = "ragdolling_state.flail_play_rate";
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct AlsRagdollingAnimationState {
@@ -69,7 +71,7 @@ fn ragdoll_pelvis_speed(
 }
 
 fn write_globals(player: &mut AnimationGraphPlayer, ragdolling: bool, flail_play_rate: f32) {
-    player.set_global_input_data("als_ragdolling_flail_play_rate", flail_play_rate);
+    player.set_global_input_data(RAGDOLLING_FLAIL_PLAY_RATE_KEY, flail_play_rate);
     player.set_global_input_data("als_ragdolling_dynamic", ragdolling);
     player.set_global_input_data("als_ragdolling_readback", ragdolling);
 }
@@ -112,19 +114,16 @@ fn ragdolling_layer_writer(
                 if let Some(snapshot) = player_pose_with_skeleton(&player) {
                     player.set_default_output_pose(snapshot.clone());
                     player.set_global_input_data(
-                        "als_ragdolling_snapshot_pose",
+                        RAGDOLLING_FINAL_POSE_KEY,
                         DataValue::Pose(snapshot),
                     );
                 }
             } else if player
-                .get_global_input_data("als_ragdolling_snapshot_pose")
+                .get_global_input_data(RAGDOLLING_FINAL_POSE_KEY)
                 .is_none()
                 && let Some(snapshot) = player_pose_with_skeleton(&player)
             {
-                player.set_global_input_data(
-                    "als_ragdolling_snapshot_pose",
-                    DataValue::Pose(snapshot),
-                );
+                player.set_global_input_data(RAGDOLLING_FINAL_POSE_KEY, DataValue::Pose(snapshot));
             }
             if ragdolling {
                 state.flail_play_rate = ragdoll_pelvis_speed(&player, &labels, &velocities)

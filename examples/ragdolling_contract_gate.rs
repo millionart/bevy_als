@@ -311,7 +311,7 @@ fn set_curve_inputs(player: &mut AnimationGraphPlayer) {
 }
 
 fn set_runtime_inputs(player: &mut AnimationGraphPlayer, flail_play_rate: f32, dynamic: bool) {
-    player.set_global_input_data("als_ragdolling_flail_play_rate", flail_play_rate);
+    player.set_global_input_data("ragdolling_state.flail_play_rate", flail_play_rate);
     player.set_global_input_data("als_ragdolling_dynamic", dynamic);
     player.set_global_input_data("als_ragdolling_readback", dynamic);
 }
@@ -356,9 +356,10 @@ fn verify_static(
             .is_some_and(|node| close(node.interpolation_period, 0.0))
         && node::<SpeedNode>(graph, "ragdoll flail speed").is_some()
         && node::<GlobalF32InputNode>(graph, "RagdollingState FlailPlayRate")
-            .is_some_and(|node| node.key == "als_ragdolling_flail_play_rate")
-        && node::<GlobalPoseInputNode>(graph, "FinalRagdollPose snapshot")
-            .is_some_and(|node| node.key == "als_ragdolling_snapshot_pose");
+            .is_some_and(|node| node.key == "ragdolling_state.flail_play_rate")
+        && node::<GlobalPoseInputNode>(graph, "FinalRagdollPose snapshot").is_some_and(|node| {
+            node.key == "ragdolling_state.final_ragdoll_pose" && node.output == "Pose"
+        });
     let config = node::<GlobalBoolInputNode>(graph, "ragdoll dynamic")
         .is_some_and(|node| node.key == "als_ragdolling_dynamic")
         && node::<GlobalBoolInputNode>(graph, "ragdoll readback")
@@ -410,7 +411,7 @@ fn verify_static(
         AnimationGraphPlayer::new(assets.skeleton.clone()).with_graph(assets.graph.clone());
     player.set_input_data("ragdolling_pose", DataValue::Pose(base_pose.clone()));
     player.set_global_input_data(
-        "als_ragdolling_snapshot_pose",
+        "ragdolling_state.final_ragdoll_pose",
         DataValue::Pose(snapshot_pose),
     );
     set_curve_inputs(&mut player);
@@ -509,7 +510,7 @@ fn observe(
             let mut snapshot = stable_pose;
             snapshot.timestamp = 4.0;
             player.set_global_input_data(
-                "als_ragdolling_snapshot_pose",
+                "ragdolling_state.final_ragdoll_pose",
                 DataValue::Pose(snapshot.clone()),
             );
             set_gameplay_tag_input(entity, "locomotion_action", GameplayTag::new(""));

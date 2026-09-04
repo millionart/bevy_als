@@ -68,6 +68,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：8 个目标 asset 均在本地 ALS Content 中可读；Standing/Crouching/Grounded已完成本轮 source re-read，其中 Grounded为`ready`，前两者仍为显式 blocker。
   - Gate summary：8/8 direct `--write`均完成；Grounded（40 files）和 Locomotion（55 files）为`ready`，其余六图均为受控`blocked`报告。Locomotion 的 pose-graph GameplayTag scalar path起初因缺 graph contract traceback；修复后 direct `--write`/`--check`为 ready，Head 同类 Windows temporary cleanup race也重试为受控 blocked。共同 blocker 为 Standing/Crouching属性、sync/AnimGetter、Layering renderer/property、Head renderer/function/asset、Ragdolling节点与 Default linked layer；未按 asset path 放行或吞掉未知 consumer。
 
+- [x] BF112.10 PoseSnapshot source-node lowering：开始：2026-09-05 00:09:04 +08:00；预估结束：2026-09-05 00:54:04 +08:00；实际结束：2026-09-05 00:19:18 +08:00（偏差 -34m46s）。以已存在的 global pose input 承载 source `AnimGraphNode_PoseSnapshot`的`SnapshotPin`模式，严格保持`RagdollingState.FinalRagdollPose → ragdolling_state.final_ragdoll_pose`命名；删除手工图的旧 snapshot alias。验收：pose snapshot contract/renderer fixture、Ragdolling source tag+snapshot runtime Gate、direct `--write`/`--check`到 ready、无旧 alias。
+  - source fact：本地 Ragdolling `PoseSnapshot`唯一可见输入为`Snapshot`，`Mode=SnapshotPin`，property binding为`GetParent.RagdollingState.FinalRagdollPose`，输出连接 inner GameplayTagsBlend 的`BlendPose_0`；原手工 `RagdollingLayerPlugin`在退出时捕获同一 snapshot pose。
+  - Gate summary：PoseSnapshot contract/renderer、global-pose output、converter self-test、Ragdolling direct `--write`/`--check`和静态 RON validator均PASS，conversion/integration status为`ready`；带本地 UE source的 Ragdoll enter/stable/recovery contract Gate PASS。消融：移除注册映射立即回到`unregistered_source_node`；旧`als_ragdolling_snapshot_pose`/`als_ragdolling_flail_play_rate`为0引用，手工 graph/runtime使用`ragdolling_state.*` source-style key。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

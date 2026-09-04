@@ -27,6 +27,7 @@ POSE_RENDERERS = {
     "use_cached_pose",
     "state_result",
     "linked_input_pose",
+    "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
     "multi_way_blend",
@@ -1064,6 +1065,47 @@ def state_result_contract(node):
     }, issues
 
 
+def pose_snapshot_contract(node):
+    renderer = "pose_snapshot"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "Snapshot",
+            "Mode",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Snapshot",))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    if parse_name(field(fields, "Mode")) != "SnapshotPin":
+        issues.append(issue(node, renderer, "source_pose_snapshot_mode_unsupported", "Mode"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    bindings = property_binding_paths(node)
+    snapshot_path = bindings.get("Snapshot", "")
+    if not snapshot_path:
+        issues.append(issue(node, renderer, "source_pose_snapshot_binding_unsupported", "Snapshot"))
+    elif input_is_linked(node, "Snapshot"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "Snapshot"))
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "snapshot_path": snapshot_path,
+    }, issues
+
+
 def pose_contract(node, renderer):
     if renderer not in POSE_RENDERERS:
         return None, []
@@ -1102,6 +1144,8 @@ def pose_contract(node, renderer):
             return pose_lifecycle_call_contract(node)
         if renderer == "state_result":
             return state_result_contract(node)
+        if renderer == "pose_snapshot":
+            return pose_snapshot_contract(node)
     except (ExportedTextError, PoseContractError) as error:
         return None, [issue(node, renderer, "source_property_unsupported", str(error))]
     raise AssertionError("pose renderer is not dispatched")
@@ -1333,6 +1377,23 @@ def run_self_test():
             "source_declared_function": "Exit",
         }
     ]
+    snapshot = fixture_node(
+        "pose_snapshot",
+        "Node",
+        "(Snapshot=(),Mode=SnapshotPin,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        [input_pin("Snapshot"), output_pin("Pose")],
+    )
+    snapshot["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("Snapshot",(PropertyName="Snapshot",bIsBound=True,PathAsText="GetParent.RagdollingState.FinalRagdollPose")))',
+            }
+        ]
+    }
+    snapshot_contract, issues = pose_contract(snapshot, "pose_snapshot")
+    assert not issues
+    assert snapshot_contract["snapshot_path"] == "RagdollingState.FinalRagdollPose"
     linked = fixture_node(
         "linked_input_pose",
         "Node",
@@ -1367,6 +1428,7 @@ def run_self_test():
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "modify_curve_property_binding_paths_preserved": "PASS",
         "state_result_lifecycle_blocked": "PASS",
+        "pose_snapshot_binding_contract_parsed": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "multi_way_blend_contract_parsed": "PASS",
         "source_property_binding_paths_preserved": "PASS",

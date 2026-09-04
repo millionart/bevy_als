@@ -552,6 +552,21 @@ def resolve_property_bindings(node, semantic, registry):
             )
         issues.extend(resolve_blendspace_player_phase(node, semantic, registry))
         return issues
+    if renderer == "pose_snapshot":
+        keys, issues = resolve_bound_keys(
+            node,
+            renderer,
+            ["Snapshot"],
+            [semantic.get("snapshot_path", "")],
+        )
+        semantic["snapshot_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(
+            semantic,
+            ["Snapshot"],
+            [semantic.get("snapshot_path", "")],
+            keys,
+        )
+        return issues
     if renderer == "slot":
         try:
             stem = source_property_key(semantic.get("slot_name"))
@@ -664,6 +679,8 @@ def handled_property_binding_pins(renderer, semantic):
             for pin, path, key in zip(pins, paths, keys)
             if isinstance(path, str) and path and isinstance(key, str)
         }
+    if renderer == "pose_snapshot":
+        return {"Snapshot"} if semantic.get("snapshot_path") else set()
     if renderer == "enum_pose_blend":
         return {"ActiveEnumValue"} if semantic.get("active_enum_path") else set()
     if renderer == "gameplay_tag_blend":

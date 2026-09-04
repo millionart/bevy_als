@@ -26,6 +26,7 @@ SUPPORTED_RENDERERS = {
     "save_cached_pose",
     "use_cached_pose",
     "linked_input_pose",
+    "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
     "blendspace_evaluator",
@@ -399,6 +400,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             )
         except ValueError as error:
             raise PoseRenderError("source scalar contract is unsupported") from error
+    if renderer == "pose_snapshot":
+        key = value.get("snapshot_key") if isinstance(value, dict) else None
+        if not isinstance(key, str) or not key:
+            raise PoseRenderError("source pose snapshot provider is unavailable")
+        return "als_ext::GlobalPoseInputNode", "(key: " + quoted(key) + ', output: "Pose")'
     if renderer == "state_machine":
         fsm_source = value.get("fsm_source_graph") if isinstance(value, dict) else None
         config = fsm_assets.get(fsm_source)
@@ -1258,6 +1264,18 @@ def run_self_test():
     )
     assert tag_equal_type == "als_ext::SourceScalarExpressionNode"
     assert 'data_type: Bool' in tag_equal_inner
+    snapshot_type, snapshot_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "pose_snapshot",
+            "semantic": {"snapshot_key": "ragdolling_state.final_ragdoll_pose"},
+        },
+        {},
+        {},
+    )
+    assert snapshot_type == "als_ext::GlobalPoseInputNode"
+    assert 'output: "Pose"' in snapshot_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -1515,6 +1533,7 @@ def run_self_test():
         "source_multi_way_blend_is_rendered": "PASS",
         "source_gameplay_tag_blend_is_rendered": "PASS",
         "source_gameplay_tag_scalar_contract_is_rendered": "PASS",
+        "source_pose_snapshot_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",
