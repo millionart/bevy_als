@@ -301,6 +301,7 @@ def build_ir(source, root_graph, registry, asset_root):
         "root_source_graph": root_graph,
         "graphs": graphs,
         "animation_assets": assets,
+        "function_dependencies": source_reachability["function_dependencies"],
     }, unsupported
 
 
@@ -308,6 +309,7 @@ def build_report(source_identity, ir, unsupported):
     return {
         "format": REPORT_FORMAT,
         "source": {**source_identity, "asset": ir["source_asset"]},
+        "function_dependencies": ir["function_dependencies"],
         "unsupported": unsupported,
         "pass": not unsupported,
     }

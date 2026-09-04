@@ -32,6 +32,17 @@ EXTERNAL_NODE_KINDS = {
     "/Script/AnimGraph.AnimGraphNode_LinkedAnimLayer": "linked_anim_layer",
     "/Script/AnimGraph.AnimGraphNode_ControlRig": "control_rig",
 }
+FUNCTION_GRAPH_CLASSES = {"/Script/Engine.EdGraph"}
+ANIM_FUNCTION_CLASSES = {"/Script/AnimGraph.AnimGraphNode_CallFunction"}
+LIFECYCLE_FUNCTION_FIELDS = {
+    "InitialUpdateFunction",
+    "BecomeRelevantFunction",
+    "UpdateFunction",
+    "StateEntryFunction",
+    "StateFullyBlendedInFunction",
+    "StateExitFunction",
+    "StateFullyBlendedOutFunction",
+}
 
 
 class ReachabilityError(ValueError):
@@ -81,6 +92,29 @@ def node_class(node):
     return value
 
 
+def animation_function_references(node):
+    references = []
+    class_path = node_class(node)
+    if class_path in ANIM_FUNCTION_CLASSES:
+        title = node.get("title")
+        if isinstance(title, str):
+            name = title.splitlines()[0].strip()
+            if name:
+                references.append(("anim_node", name))
+    for property_value in node.get("properties", []):
+        value = property_value.get("exported_text")
+        if not isinstance(value, str):
+            continue
+        for field_name in LIFECYCLE_FUNCTION_FIELDS:
+            match = re.search(
+                rf"{re.escape(field_name)}=\(FunctionName=\"([^\"]+)\"",
+                value,
+            )
+            if match is not None:
+                references.append((field_name, match.group(1)))
+    return sorted(set(references))
+
+
 def incoming_links(graph):
     explicit = graph.get("links")
     if explicit is not None:
@@ -115,6 +149,8 @@ class RootTraversal:
         self.source = source
         self.root_suffix = root_suffix
         self.graphs = {}
+        self.all_graphs = {}
+        self.function_graphs = {}
         self.nodes = {}
         self.node_graph = {}
         self.node_rank = {}
@@ -123,20 +159,27 @@ class RootTraversal:
         self.graph_entry_by_path = {}
         self.visited_nodes = set()
         self.external_dependencies = []
+        self.function_dependencies = []
         self.issues = []
         self._index_source()
 
     def _index_source(self):
         source_graphs = []
         for graph in self.source.get("graphs", []):
-            if graph.get("class_path") not in GRAPH_KINDS:
+            class_path = graph.get("class_path")
+            if class_path not in GRAPH_KINDS and class_path not in FUNCTION_GRAPH_CLASSES:
                 continue
-            source_graphs.append(graph)
             graph_path = graph.get("object_path")
             suffix = source_graph_suffix(self.source, graph)
-            if graph_path in self.graphs or suffix in self.graphs:
+            if graph_path in self.all_graphs or suffix in self.all_graphs:
                 raise ReachabilityError("source graph is duplicated")
             graph["_source_graph_suffix"] = suffix
+            self.all_graphs[graph_path] = graph
+            self.all_graphs[suffix] = graph
+            if class_path in FUNCTION_GRAPH_CLASSES:
+                self.function_graphs.setdefault(graph.get("name"), []).append(graph)
+                continue
+            source_graphs.append(graph)
             self.graphs[graph_path] = graph
             self.graphs[suffix] = graph
             for node in graph.get("nodes", []):
@@ -245,6 +288,50 @@ class RootTraversal:
             }
         )
 
+    def visit_function(self, name, parent_source_graph, source_node, call_site):
+        candidates = self.function_graphs.get(name, [])
+        dependency = {
+            "source_node": source_node,
+            "source_function": name,
+            "call_site": call_site,
+            "source_graph": None,
+            "resolution": "external",
+        }
+        if len(candidates) == 0:
+            if dependency not in self.function_dependencies:
+                self.function_dependencies.append(dependency)
+            return
+        if len(candidates) != 1:
+            self.record_issue(
+                "source_function_graph_missing_or_ambiguous",
+                source_node=source_node,
+                source_function=name,
+                call_site=call_site,
+                candidate_count=len(candidates),
+            )
+            return
+        graph = candidates[0]
+        graph_path = graph["object_path"]
+        dependency["source_graph"] = graph["_source_graph_suffix"]
+        dependency["resolution"] = "graph"
+        if dependency not in self.function_dependencies:
+            self.function_dependencies.append(dependency)
+        if graph_path in self.graph_entry_by_path:
+            return
+        entry = {
+            "source_graph": graph["_source_graph_suffix"],
+            "kind": "function",
+            "class_path": graph["class_path"],
+            "name": graph.get("name"),
+            "index": graph.get("index"),
+            "parent_source_graph": parent_source_graph,
+            "reason": "lifecycle_function",
+            "reachable_nodes": [node_identity(node) for node in graph.get("nodes", [])],
+            "unreachable_nodes": [],
+        }
+        self.graph_entry_by_path[graph_path] = entry
+        self.graph_entries.append(entry)
+
     def visit_node(self, node_path, graph_path):
         if node_path in self.visited_nodes:
             return
@@ -272,6 +359,13 @@ class RootTraversal:
                     reason="state_machine" if class_path in STATE_MACHINE_CLASSES else "state_topology",
                 )
         self.external_references(node_path)
+        for call_site, function_name in animation_function_references(node):
+            self.visit_function(
+                function_name,
+                parent_source_graph=entry["source_graph"],
+                source_node=node_path,
+                call_site=call_site,
+            )
 
     def build(self):
         root_graph = self.graphs.get(self.root_suffix)
@@ -279,6 +373,8 @@ class RootTraversal:
             raise ReachabilityError("root source graph is unavailable")
         self.visit_graph(root_graph)
         for entry in self.graph_entries:
+            if entry["kind"] == "function":
+                continue
             graph = self.graphs[entry["source_graph"]]
             unreachable = [
                 node_identity(node)
@@ -293,6 +389,7 @@ class RootTraversal:
             "root_source_graph": self.root_suffix,
             "graphs": self.graph_entries,
             "external_dependencies": self.external_dependencies,
+            "function_dependencies": self.function_dependencies,
             "issues": self.issues,
         }
 
@@ -301,14 +398,17 @@ def traverse(source, root_suffix):
     return RootTraversal(source, root_suffix).build()
 
 
-def fixture_node(path, class_path, index, properties=None):
-    return {
+def fixture_node(path, class_path, index, properties=None, title=None):
+    value = {
         "index": index,
         "object_path": path,
         "class_path": class_path,
         "properties": properties or [],
         "pins": [],
     }
+    if title is not None:
+        value["title"] = title
+    return value
 
 
 def fixture_link(source, target):
@@ -341,7 +441,12 @@ def fixture_source():
                 "name": "AnimGraph",
                 "nodes": [
                     fixture_node(root_node, "/Script/AnimGraph.AnimGraphNode_Root", 0),
-                    fixture_node(function, "/Script/AnimGraph.AnimGraphNode_CallFunction", 1),
+                    fixture_node(
+                        function,
+                        "/Script/AnimGraph.AnimGraphNode_CallFunction",
+                        1,
+                        title="Refresh\nOn Update",
+                    ),
                     fixture_node(state_machine, "/Script/AnimGraph.AnimGraphNode_StateMachine", 2),
                     fixture_node(
                         cache_save,
@@ -385,6 +490,19 @@ def fixture_source():
                     ),
                 ],
                 "links": [fixture_link(cache_use, state_result)],
+            },
+            {
+                "index": 3,
+                "object_path": asset + ":Refresh",
+                "class_path": "/Script/Engine.EdGraph",
+                "name": "Refresh",
+                "nodes": [
+                    fixture_node(
+                        asset + ":Refresh.Entry",
+                        "/Script/BlueprintGraph.K2Node_FunctionEntry",
+                        0,
+                    )
+                ],
             },
         ],
     }
@@ -447,6 +565,16 @@ def run_self_test():
         "/Asset:AnimGraph.StateMachine.Locomotion.State.Idle.Use",
     ]
     assert result["external_dependencies"][0]["kind"] == "linked_anim_graph"
+    assert result["function_dependencies"] == [
+        {
+            "source_node": "/Asset:AnimGraph.Function",
+            "source_function": "Refresh",
+            "call_site": "anim_node",
+            "source_graph": "Refresh",
+            "resolution": "graph",
+        }
+    ]
+    assert any(entry["kind"] == "function" for entry in result["graphs"])
     assert not result["issues"]
     native_result = traverse(fixture_source_with_native_pin_links(), "AnimGraph")
     native_nodes = native_result["graphs"][0]["reachable_nodes"]
@@ -460,6 +588,7 @@ def run_self_test():
         "state_machine_walks_state_graphs": "PASS",
         "cached_pose_walks_producer": "PASS",
         "linked_anim_dependency_recorded": "PASS",
+        "lifecycle_function_graph_recorded": "PASS",
         "native_pin_links_walk_from_root": "PASS",
     }
 
