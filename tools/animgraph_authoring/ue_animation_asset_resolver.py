@@ -279,6 +279,7 @@ def blendspace_evaluator_contract(node, blendspace):
             struct_field(fields, "bResetPlayTimeWhenBlendSpaceChanges", "True")
         )
         configured_play_rate = parse_number(struct_field(fields, "PlayRate", "1.0"))
+        normalized_time = parse_number(struct_field(fields, "NormalizedTime", "0.0"))
     except ExportedTextError as error:
         raise AssetResolutionError(f"blendspace evaluator source properties are invalid: {error}") from error
     input_pins = visible_input_pins(node)
@@ -306,7 +307,7 @@ def blendspace_evaluator_contract(node, blendspace):
             }
             for index, pin in enumerate(input_pins)
         ],
-        "normalized_time": 0.0,
+        "normalized_time": normalized_time,
         "teleport_to_normalized_time": teleport,
         "loop": loop,
         "reset_play_time_when_asset_changes": reset_play_time,

@@ -40,6 +40,13 @@ FSM_RENDERERS = {
     "fsm_conduit",
     "fsm_transition",
 }
+POSE_SCALAR_RENDERERS = {
+    "property_access",
+    "boolean_operator",
+    "comparison_operator",
+    "gameplay_tag_equal",
+    "boolean_to_float",
+}
 _TRANSITION_RENDERER = None
 
 
@@ -308,6 +315,7 @@ def graph_ir(
     graph_kind="graph",
     fsm_plan=None,
     state_machine_plans=None,
+    animation_assets=None,
 ):
     included = set(reachable_nodes)
     for node in graph_contract["source_graph"]["nodes"]:
@@ -317,6 +325,11 @@ def graph_ir(
     unsupported = []
     transition_renderable = False
     state_machine_plans = state_machine_plans or {}
+    animation_by_node = {
+        asset.get("source_node"): asset
+        for asset in animation_assets or []
+        if isinstance(asset.get("source_node"), str)
+    }
     if graph_kind == "transition":
         try:
             render_transition_contract(graph_contract)
@@ -337,6 +350,31 @@ def graph_ir(
             unsupported.append(issue)
             renderer = "unsupported"
         semantic, contract_issues = pose_contract(node, renderer)
+        if semantic is None and renderer == "blendspace_evaluator":
+            asset = animation_by_node.get(node.get("object_path"))
+            if (
+                not isinstance(asset, dict)
+                or asset.get("category") != "blendspace"
+                or not isinstance(asset.get("blendspace"), dict)
+                or not isinstance(asset.get("evaluator"), dict)
+            ):
+                contract_issues.append(
+                    {
+                        "kind": "source_pose_renderer_unsupported",
+                        "source_node": node.get("object_path"),
+                        "source_class": node.get("class_path"),
+                        "renderer": renderer,
+                        "detail": "blendspace asset binding is unavailable",
+                    }
+                )
+            else:
+                semantic = {
+                    "renderer": renderer,
+                    **asset["evaluator"],
+                    "blendspace": asset["blendspace"],
+                }
+        if semantic is None and renderer in POSE_SCALAR_RENDERERS:
+            semantic = {"renderer": renderer}
         node_fsm_plan = state_machine_plans.get(node.get("object_path"))
         fsm_renderable = fsm_plan is not None or node_fsm_plan is not None
         if semantic is None and renderer in FSM_RENDERERS and fsm_renderable:
@@ -367,7 +405,11 @@ def graph_ir(
 
 
 def pose_renderer_status(graph_contract, graph_value, animation_assets, sync_group_phase_keys):
-    if not all(node.get("renderer") in SUPPORTED_RENDERERS for node in graph_value["nodes"]):
+    if not all(
+        node.get("renderer") in SUPPORTED_RENDERERS
+        or node.get("renderer") == "comment_group"
+        for node in graph_value["nodes"]
+    ):
         return {"state": "deferred"}
     try:
         render_pose_graph(
@@ -465,6 +507,7 @@ def build_ir(
             entry["kind"],
             fsm_plan,
             state_machine_plans,
+            assets,
         )
         if entry["kind"] == "graph":
             graph_value["pose_renderer"] = pose_renderer_status(

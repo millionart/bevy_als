@@ -39,6 +39,13 @@ fn bool_to_f32(value: bool) -> f32 {
 }
 
 impl SourceScalarExpressionNode {
+    fn first_bool_input_name(&self) -> Option<&str> {
+        self.input_pins
+            .iter()
+            .find(|pin| pin.data_type == SourceScalarDataType::Bool)
+            .map(|pin| pin.name.as_str())
+    }
+
     fn input_f32(&self, ctx: &NodeContext, name: &str) -> f32 {
         let fallback = self
             .input_pins
@@ -88,7 +95,11 @@ impl SourceScalarExpressionNode {
     fn result_f32(&self, ctx: &NodeContext, pin: &SourceScalarPin) -> f32 {
         match self.operation.as_str() {
             "absolute" => self.input_f32(ctx, "A").abs(),
-            "bool_to_f32" => bool_to_f32(self.input_bool(ctx, "A")),
+            "bool_to_f32" => bool_to_f32(
+                self.first_bool_input_name()
+                    .map(|name| self.input_bool(ctx, name))
+                    .unwrap_or(false),
+            ),
             "passthrough" => self.input_f32(ctx, "A"),
             _ => self.global_f32(ctx, pin),
         }
@@ -210,5 +221,18 @@ mod tests {
     fn scalar_expression_converts_boolean_to_source_float() {
         assert_eq!(bool_to_f32(false), 0.0);
         assert_eq!(bool_to_f32(true), 1.0);
+    }
+
+    #[test]
+    fn boolean_to_float_uses_the_source_boolean_pin_name() {
+        let node = SourceScalarExpressionNode {
+            input_pins: vec![SourceScalarPin {
+                name: "InBool".to_owned(),
+                data_type: SourceScalarDataType::Bool,
+                ..default()
+            }],
+            ..default()
+        };
+        assert_eq!(node.first_bool_input_name(), Some("InBool"));
     }
 }

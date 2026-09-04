@@ -179,7 +179,7 @@ def pin_ron(value):
     ) + ")"
 
 
-def node_ron(identifier, node):
+def node_inner(node):
     bindings = AUDIT.source_binding_paths(node)
     inputs = [
         pin_payload(node, pin, bindings)
@@ -199,9 +199,13 @@ def node_ron(identifier, node):
             "source_properties: [" + ", ".join(quoted(value) for value in properties) + "]",
         )
     )
+    return "(" + inner + ")"
+
+
+def node_ron(identifier, node):
     return (
         f"(id: {quoted(identifier)}, name: {quoted(AUDIT.source_title(node))}, "
-        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": ({inner}) }}, should_debug: false)"
+        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": {node_inner(node)} }}, should_debug: false)"
     )
 
 
@@ -513,6 +517,7 @@ def run_self_test():
         write_json(root / source_contract, fixture_contract())
         text, mapping = generate(root, source_contract, target_graph, map_path)
         assert "operation: \"less\"" in text
+        assert "operation: \"less\"" in node_inner(fixture_contract()["source_graph"]["nodes"][1])
         assert "output_data: { \"Result\": Bool }" in text
         assert mapping["node_map"][0]["input_pins"][0]["source_default"] == "0.0"
         assert mapping["root_output_pins"] == [{"source": "Result", "target": "Result"}]
@@ -564,6 +569,7 @@ def run_self_test():
         "property_access_path_becomes_target_key": "PASS",
         "bound_transition_result_root_is_preserved": "PASS",
         "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
+        "scalar_node_inner_is_reusable": "PASS",
     }
 
 

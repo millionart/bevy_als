@@ -1,5 +1,13 @@
 import json
+import sys
 import uuid
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools" / "import"))
+
+import generate_ue_transition_expression_graph as scalar_renderer
 
 
 class PoseRenderError(ValueError):
@@ -20,6 +28,20 @@ SUPPORTED_RENDERERS = {
     "linked_input_pose",
     "inertialization",
     "pose_lifecycle_call",
+    "blendspace_evaluator",
+    "property_access",
+    "boolean_operator",
+    "comparison_operator",
+    "gameplay_tag_equal",
+    "boolean_to_float",
+}
+
+SCALAR_RENDERERS = {
+    "property_access",
+    "boolean_operator",
+    "comparison_operator",
+    "gameplay_tag_equal",
+    "boolean_to_float",
 }
 
 
@@ -147,6 +169,49 @@ def cache_key(graph_contract, cache_name):
     return "ue-cache:" + str(uuid.uuid5(uuid.NAMESPACE_URL, asset + ":" + cache_name))
 
 
+def blendspace_inner(value):
+    blendspace = value.get("blendspace")
+    if not isinstance(blendspace, dict):
+        raise PoseRenderError("source blendspace contract is unavailable")
+    if not value.get("teleport_to_normalized_time"):
+        raise PoseRenderError("source blendspace evaluator time mode is unsupported")
+    if abs(value.get("configured_play_rate", 0.0) - 1.0) > 1.0e-6:
+        raise PoseRenderError("source blendspace evaluator play rate is unsupported")
+    if abs(value.get("normalized_time", 0.0)) > 1.0e-6:
+        raise PoseRenderError("source blendspace evaluator normalized time is unsupported")
+    points = []
+    for index, sample in enumerate(blendspace.get("samples", [])):
+        coordinates = sample.get("value") if isinstance(sample, dict) else None
+        target = sample.get("target_clip") if isinstance(sample, dict) else None
+        rate = sample.get("rate_scale") if isinstance(sample, dict) else None
+        if (
+            not isinstance(coordinates, list)
+            or len(coordinates) < 2
+            or not all(isinstance(component, (int, float)) for component in coordinates)
+            or any(abs(component) > 1.0e-8 for component in coordinates[2:])
+            or not isinstance(target, str)
+            or not target
+            or not isinstance(rate, (int, float))
+            or abs(rate - 1.0) > 1.0e-6
+        ):
+            raise PoseRenderError("source blendspace sample is unsupported")
+        points.append(
+            "(id: "
+            + quoted(f"sample_{index}")
+            + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: 0.0, markers: [])"
+        )
+    if not points:
+        raise PoseRenderError("source blendspace samples are missing")
+    return (
+        "als_ext::NormalizedBlendSpaceNode",
+        "(looped: "
+        + bool_ron(value["loop"])
+        + ", phase_duration: 0.0, phase_markers: [], points: ["
+        + ", ".join(points)
+        + "])",
+    )
+
+
 def rendered_inner(graph_contract, source, semantic, asset_by_node):
     renderer = semantic.get("renderer")
     value = semantic.get("semantic")
@@ -183,6 +248,10 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node):
             field("reinitialization_behavior", quoted(value["reinitialization_behavior"])),
         ]
         return "als_ext::SourceSequenceEvaluatorNode", "(" + ", ".join(fields) + ")"
+    if renderer == "blendspace_evaluator":
+        return blendspace_inner(value)
+    if renderer in SCALAR_RENDERERS:
+        return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
     if renderer == "two_way_blend":
         pins = input_names(value)
         fields = [
@@ -310,7 +379,18 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node):
     raise PoseRenderError("source pose renderer is unsupported")
 
 
-def target_pin(renderer, source_pin):
+def scalar_pin_name(node, source_pin):
+    pin = next((pin for pin in node.get("pins", []) if pin.get("name") == source_pin), None)
+    if pin is None:
+        raise PoseRenderError("source scalar pin is unavailable")
+    return scalar_renderer.source_pin_label(pin)
+
+
+def target_pin(renderer, source_pin, node=None):
+    if renderer in SCALAR_RENDERERS:
+        if node is None:
+            raise PoseRenderError("source scalar node is unavailable")
+        return scalar_pin_name(node, source_pin)
     if renderer == "sequence_player":
         return {"PlayRate": "Play Rate", "StartPosition": "Start Position", "LoopAnimation": "Loop Animation"}.get(source_pin, source_pin)
     if renderer == "sequence_evaluator":
@@ -321,7 +401,91 @@ def target_pin(renderer, source_pin):
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "root_output":
         return {"Result": "Source"}.get(source_pin, source_pin)
+    if renderer == "blendspace_evaluator":
+        return {"Pose": "pose"}.get(source_pin, source_pin)
     return source_pin
+
+
+def blendspace_helpers(graph_contract, raw, semantic):
+    value = semantic.get("semantic")
+    if not isinstance(value, dict):
+        raise PoseRenderError("source blendspace renderer semantic is invalid")
+    blendspace = value.get("blendspace")
+    inputs = value.get("input_pins")
+    if not isinstance(blendspace, dict) or not isinstance(inputs, list) or len(inputs) != 2:
+        raise PoseRenderError("source blendspace input contract is invalid")
+    if [item.get("name") for item in inputs] != ["X", "Y"]:
+        raise PoseRenderError("source blendspace input schema is unsupported")
+    primary_id = node_id(raw)
+    source_path = raw["object_path"]
+    x, y = position(raw)
+    linked_inputs = {
+        (link.get("target", {}).get("node_object_path"), link.get("target", {}).get("pin_name"))
+        for link in graph_contract.get("links", [])
+    }
+    vector_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/vector/" + source_path))
+    phase_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/phase/" + source_path))
+    nodes = [
+        (vector_id, "Blendspace position", "()", "als_ext::F32ToVec2Node", (x - 96.0, y)),
+        (
+            phase_id,
+            "Blendspace normalized time",
+            "(value: " + repr(value["normalized_time"]) + ")",
+            "als_ext::ConstantF32Node",
+            (x - 96.0, y + 96.0),
+        ),
+    ]
+    edges = [
+        f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
+        f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"value\")",
+    ]
+    targets = {}
+    for axis, input_value in zip(("x", "y"), inputs):
+        pin_name = input_value["name"]
+        targets[(source_path, pin_name)] = (vector_id, axis)
+        if (source_path, pin_name) not in linked_inputs:
+            default_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    "bevy-als/blendspace/default/" + source_path + "/" + pin_name,
+                )
+            )
+            nodes.append(
+                (
+                    default_id,
+                    "Blendspace " + pin_name + " default",
+                    "(value: " + repr(input_value["default_value"]) + ")",
+                    "als_ext::ConstantF32Node",
+                    (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                )
+            )
+            edges.append(
+                f"NodeData({quoted(vector_id)}, {quoted(axis)}): NodeData({quoted(default_id)}, \"value\")"
+            )
+    for index, sample in enumerate(blendspace.get("samples", [])):
+        target = sample.get("target_clip") if isinstance(sample, dict) else None
+        if not isinstance(target, str) or not target:
+            raise PoseRenderError("source blendspace target clip is invalid")
+        clip_id = str(
+            uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/sample/" + source_path + f"/{index}")
+        )
+        nodes.append(
+            (
+                clip_id,
+                "Blendspace sample " + str(index),
+                "(clip: " + quoted(target) + ", override_duration: None, override_interpolation: None)",
+                "bevy_animation_graph::builtin_nodes::ClipNode",
+                (x - 192.0, y + 160.0 + index * 64.0),
+            )
+        )
+        point = f"sample_{index}"
+        edges.extend(
+            [
+                f"NodeData({quoted(primary_id)}, {quoted('pose_' + point)}): NodeData({quoted(clip_id)}, \"pose\")",
+                f"NodeTime({quoted(primary_id)}, {quoted('time_' + point)}): NodeTime({quoted(clip_id)})",
+            ]
+        )
+    return nodes, edges, targets
 
 
 def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=None):
@@ -330,7 +494,7 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
     if set(raw_nodes) < set(ir_nodes):
         raise PoseRenderError("source IR node is missing from source graph")
     for semantic in ir_nodes.values():
-        if semantic.get("renderer") not in SUPPORTED_RENDERERS:
+        if semantic.get("renderer") not in SUPPORTED_RENDERERS and semantic.get("renderer") != "comment_group":
             raise PoseRenderError("source pose graph contains an unsupported renderer")
     raw_by_id = {node_id(node): node for node in raw_nodes.values()}
     if len(raw_by_id) != len(raw_nodes):
@@ -339,11 +503,20 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
     sync_group_phase_keys = sync_group_phase_keys or {}
     result_nodes = []
     sync_wrappers = {}
+    blendspace_edges = []
+    blendspace_targets = {}
     for source_path, semantic in ir_nodes.items():
+        if semantic.get("renderer") == "comment_group":
+            continue
         raw = raw_nodes[source_path]
         identifier = node_id(raw)
         node_type, inner = rendered_inner(graph_contract, raw, semantic, asset_by_node)
         result_nodes.append((identifier, source_title(raw), inner, node_type, position(raw)))
+        if semantic.get("renderer") == "blendspace_evaluator":
+            nodes, edges, targets = blendspace_helpers(graph_contract, raw, semantic)
+            result_nodes.extend(nodes)
+            blendspace_edges.extend(edges)
+            blendspace_targets.update(targets)
         if semantic.get("renderer") != "sequence_player":
             continue
         group = semantic["semantic"].get("sync_group")
@@ -371,7 +544,6 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
             )
         )
         sync_wrappers[source_path] = wrapper_id
-    result_nodes.sort(key=lambda value: value[0])
     output_nodes = [
         node
         for node in ir_nodes.values()
@@ -394,13 +566,27 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
             source_semantic["source_node"],
             node_id(raw_nodes[source_semantic["source_node"]]),
         )
-        target_identifier = node_id(raw_nodes[target_semantic["source_node"]])
+        target_raw = raw_nodes[target_semantic["source_node"]]
+        target_identifier, target_pin_name = blendspace_targets.get(
+            (target_semantic["source_node"], target.get("pin_name")),
+            (
+                node_id(target_raw),
+                target_pin(
+                    target_semantic["renderer"],
+                    target.get("pin_name"),
+                    target_raw,
+                ),
+            ),
+        )
         source_pin = (
             "pose"
             if source_semantic["source_node"] in sync_wrappers
-            else target_pin(source_semantic["renderer"], source.get("pin_name"))
+            else target_pin(
+                source_semantic["renderer"],
+                source.get("pin_name"),
+                raw_nodes[source_semantic["source_node"]],
+            )
         )
-        target_pin_name = target_pin(target_semantic["renderer"], target.get("pin_name"))
         edges.append(
             f"NodeData({quoted(target_identifier)}, {quoted(target_pin_name)}): NodeData({quoted(source_identifier)}, {quoted(source_pin)})"
         )
@@ -410,8 +596,10 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
             f"NodeData({quoted(wrapper_id)}, \"pose\"): NodeData({quoted(identifier)}, \"Pose\")"
         )
         edges.append(f"NodeTime({quoted(wrapper_id)}, \"time\"): NodeTime({quoted(identifier)})")
+    edges.extend(blendspace_edges)
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
+    result_nodes.sort(key=lambda value: value[0])
     positions = ", ".join(
         f"{quoted(identifier)}: ({x:.3f}, {y:.3f})" for identifier, _, _, _, (x, y) in result_nodes
     )
@@ -521,11 +709,23 @@ def fixture_graph():
 
 def run_self_test():
     graph_contract, graph_ir, assets = fixture_graph()
+    comment_path = "/Asset:State.Comment"
+    graph_contract["source_graph"]["nodes"].append(
+        {
+            "object_path": comment_path,
+            "node_guid": "10000000-0000-4000-8000-000000000004",
+            "title": "Comment",
+            "position_x": 0,
+            "position_y": 64,
+        }
+    )
+    graph_ir["nodes"].append({"source_node": comment_path, "renderer": "comment_group"})
     text = render(graph_contract, graph_ir, assets)
     assert '"als_ext::SourceSequencePlayerNode"' in text
     assert '"als_ext::SourceTwoWayBlendNode"' in text
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'OutputData("Result")' in text
+    assert 'name: "Comment"' not in text
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -540,11 +740,76 @@ def run_self_test():
         {"Movement": "als_source_movement_phase"},
     )
     assert '"als_ext::GlobalSyncGroupSampleNode"' in text
+    blend_path = "/Asset:State.Blendspace"
+    blend_result = "/Asset:State.BlendspaceResult"
+    blend_contract = {
+        "source_graph": {
+            "nodes": [
+                {
+                    "object_path": blend_path,
+                    "node_guid": "10000000-0000-4000-8000-000000000101",
+                    "title": "Blendspace Evaluator",
+                    "position_x": -64,
+                    "position_y": 0,
+                    "pins": [],
+                },
+                {
+                    "object_path": blend_result,
+                    "node_guid": "10000000-0000-4000-8000-000000000102",
+                    "title": "Output Animation Pose",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "pins": [],
+                },
+            ]
+        },
+        "links": [
+            {
+                "source": {"node_object_path": blend_path, "pin_name": "Pose"},
+                "target": {"node_object_path": blend_result, "pin_name": "Result"},
+            }
+        ],
+    }
+    blend_ir = {
+        "nodes": [
+            {
+                "source_node": blend_path,
+                "renderer": "blendspace_evaluator",
+                "semantic": {
+                    "input_pins": [
+                        {"name": "X", "default_value": 0.25},
+                        {"name": "Y", "default_value": -0.5},
+                    ],
+                    "normalized_time": 0.0,
+                    "teleport_to_normalized_time": True,
+                    "loop": True,
+                    "configured_play_rate": 1.0,
+                    "blendspace": {
+                        "samples": [
+                            {
+                                "value": [0.0, 0.0, 0.0],
+                                "rate_scale": 1.0,
+                                "target_clip": "animations/Center.anim.ron",
+                            }
+                        ]
+                    },
+                },
+            },
+            {"source_node": blend_result, "renderer": "state_result", "semantic": {"lifecycle": []}},
+        ]
+    }
+    text = render(blend_contract, blend_ir, [])
+    assert '"als_ext::NormalizedBlendSpaceNode"' in text
+    assert '"als_ext::F32ToVec2Node"' in text
+    assert '"bevy_animation_graph::builtin_nodes::ClipNode"' in text
+    assert "value: 0.25" in text and "value: -0.5" in text
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
         "sync_group_requires_a_phase_source": "PASS",
         "sync_group_wrapper_preserves_source_player": "PASS",
+        "nonfunctional_source_comments_are_ignored": "PASS",
+        "source_blendspace_evaluator_is_rendered": "PASS",
     }
 
 
