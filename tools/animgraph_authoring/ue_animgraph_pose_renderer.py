@@ -313,12 +313,15 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
     if renderer == "sequence_evaluator":
         pins = input_names(value)
+        explicit_frame_pin = value.get("explicit_frame_pin")
+        if not isinstance(explicit_frame_pin, str) or not explicit_frame_pin:
+            raise PoseRenderError("source sequence evaluator pin is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("explicit_frame", "0.0"),
             field("explicit_frame_key", quoted("")),
-            field("explicit_frame_pin", quoted("Explicit Frame")),
-            field("expose_explicit_frame_pin", bool_ron("ExplicitFrame" in pins)),
+            field("explicit_frame_pin", quoted(explicit_frame_pin)),
+            field("expose_explicit_frame_pin", bool_ron(explicit_frame_pin in pins)),
             field("frames_per_second", "30.0"),
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
@@ -473,7 +476,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + bool_ron(value["normalize_alpha"])
             + ", alpha_scale: "
             + repr(value["alpha_scale"])
-            + ", pose_pin_prefix: \"Poses \", alpha_pin_prefix: \"Desired Alphas \")",
+            + ", pose_pin_prefix: \"Poses_\", alpha_pin_prefix: \"DesiredAlphas_\")",
         )
     if renderer == "set_hips_direction":
         return (
@@ -620,18 +623,22 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         )
     if renderer == "modify_curve":
         pins = input_names(value)
+        source_pose_pin = value.get("source_pose_pin")
         value_pins = [pin for pin in pins if pin not in {"SourcePose", "Alpha"}]
         value_keys = value.get("curve_value_keys")
         value_paths = value.get("curve_value_paths")
         if (
             not isinstance(value_keys, list)
             or not isinstance(value_paths, list)
+            or not isinstance(source_pose_pin, str)
+            or not source_pose_pin
             or len(value_keys) != len(value["curve_names"])
             or len(value_paths) != len(value["curve_names"])
             or not all(isinstance(item, str) for item in [*value_keys, *value_paths])
         ):
             raise PoseRenderError("source curve property binding is unavailable")
         fields = [
+            field("source_pose_pin", quoted(source_pose_pin)),
             field("curve_name", quoted("")),
             field("curve_names", "[" + ", ".join(quoted(name) for name in value["curve_names"]) + "]"),
             field("value", "0.0"),
@@ -740,12 +747,16 @@ def target_pin(renderer, source_pin, node=None):
         if node is None:
             raise PoseRenderError("source scalar node is unavailable")
         return scalar_pin_name(node, source_pin)
-    if renderer == "sequence_player":
+    if renderer in {
+        "sequence_player",
+        "sequence_evaluator",
+        "modify_curve",
+        "multi_way_blend",
+        "gameplay_tag_blend",
+        "enum_pose_blend",
+        "layered_bone_blend",
+    }:
         return source_pin
-    if renderer == "sequence_evaluator":
-        return {"ExplicitFrame": "Explicit Frame"}.get(source_pin, source_pin)
-    if renderer == "modify_curve":
-        return {"SourcePose": "Source Pose"}.get(source_pin, source_pin)
     if renderer == "state_result":
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "root_output":
@@ -756,31 +767,6 @@ def target_pin(renderer, source_pin, node=None):
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
         return {"Pose": "Pose"}.get(source_pin, source_pin)
-    if renderer == "multi_way_blend":
-        if source_pin.startswith("Poses_"):
-            return "Poses " + source_pin.rsplit("_", 1)[1]
-        if source_pin.startswith("DesiredAlphas_"):
-            return "Desired Alphas " + source_pin.rsplit("_", 1)[1]
-    if renderer == "gameplay_tag_blend":
-        if node is None:
-            raise PoseRenderError("source gameplay tag blend pin is unavailable")
-        pin = next((pin for pin in node.get("pins", []) if pin.get("name") == source_pin), None)
-        if not isinstance(pin, dict):
-            raise PoseRenderError("source gameplay tag blend pin is unavailable")
-        label = pin.get("friendly_name")
-        return label if isinstance(label, str) and label else source_pin
-    if renderer == "enum_pose_blend":
-        if source_pin == "Pose":
-            return "Pose"
-        if node is None:
-            raise PoseRenderError("source enum pose blend pin is unavailable")
-        pin = next((pin for pin in node.get("pins", []) if pin.get("name") == source_pin), None)
-        label = pin.get("friendly_name") if isinstance(pin, dict) else None
-        if not isinstance(label, str) or not label:
-            raise PoseRenderError("source enum pose blend pin is unavailable")
-        return label
-    if renderer == "layered_bone_blend":
-        return source_pin
     return source_pin
 
 
@@ -1520,8 +1506,9 @@ def run_self_test():
     assert multi_type == "als_ext::SourceMultiWayBlendNode"
     assert "desired_alpha_defaults: [0.25, 0.75]" in multi_inner
     assert 'desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", ""]' in multi_inner
-    assert target_pin("multi_way_blend", "Poses_1") == "Poses 1"
-    assert target_pin("multi_way_blend", "DesiredAlphas_1") == "Desired Alphas 1"
+    assert 'pose_pin_prefix: "Poses_"' in multi_inner
+    assert target_pin("multi_way_blend", "Poses_1") == "Poses_1"
+    assert target_pin("multi_way_blend", "DesiredAlphas_1") == "DesiredAlphas_1"
     tag_type, tag_inner = rendered_inner(
         graph_contract,
         {},
@@ -1533,9 +1520,9 @@ def run_self_test():
                 "blend_times": [0.3, 0.2],
                 "source_blend_times": [0.1, 0.1],
                 "blend_type": "Cubic",
-                "pose_pin_names": ["Default Pose", "Sprinting Pose"],
-                "blend_time_pin_names": ["Default Blend Time", "Sprinting Blend Time"],
-                "active_tag_pin": "Active Tag",
+                "pose_pin_names": ["BlendPose_0", "BlendPose_1"],
+                "blend_time_pin_names": ["BlendTime_0", "BlendTime_1"],
+                "active_tag_pin": "ActiveTag",
                 "output_pin": "Pose",
             },
         },
@@ -1604,11 +1591,11 @@ def run_self_test():
                 "active_enum_default": 0.0,
                 "default_blend_time": 0.1,
                 "selected_blend_time": 0.1,
-                "default_pose_pin": "Default Pose",
-                "selected_pose_pin": "Left Backward Pose",
-                "default_blend_time_pin": "Default Blend Time",
-                "selected_blend_time_pin": "Left Backward Blend Time",
-                "active_enum_pin": "Active Enum Value",
+                "default_pose_pin": "BlendPose_0",
+                "selected_pose_pin": "BlendPose_1",
+                "default_blend_time_pin": "BlendTime_0",
+                "selected_blend_time_pin": "BlendTime_1",
+                "active_enum_pin": "ActiveEnumValue",
                 "output_pin": "Pose",
                 "selected_enum_entry": "LeftBackward",
             },
@@ -1618,11 +1605,7 @@ def run_self_test():
     )
     assert enum_type == "als_ext::SourceEnumPoseBlendNode"
     assert 'selected_enum_value: 3.0' in enum_inner
-    assert target_pin(
-        "enum_pose_blend",
-        "BlendPose_1",
-        {"pins": [{"name": "BlendPose_1", "friendly_name": "Left Backward Pose"}]},
-    ) == "Left Backward Pose"
+    assert target_pin("enum_pose_blend", "BlendPose_1") == "BlendPose_1"
     layered_type, layered_inner = rendered_inner(
         graph_contract,
         {},
@@ -1679,6 +1662,7 @@ def run_self_test():
             "renderer": "modify_curve",
             "semantic": {
                 "input_pins": ["SourcePose", "CurveValues_0", "Alpha"],
+                "source_pose_pin": "SourcePose",
                 "curve_names": ["RotationYawOffset"],
                 "curve_values": [0.0],
                 "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
@@ -1692,6 +1676,7 @@ def run_self_test():
         {},
     )
     assert curve_type == "als_ext::SourceCurveModifyNode"
+    assert 'source_pose_pin: "SourcePose"' in curve_inner
     assert 'value_keys: ["grounded_state.rotation_yaw_offsets.forward_angle"]' in curve_inner
     slot_type, slot_inner = rendered_inner(
         graph_contract,

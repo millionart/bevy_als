@@ -118,11 +118,12 @@ mod tests {
     }
 
     #[test]
-    fn source_explicit_frame_pin_name_is_visible() {
-        assert_eq!(
-            SourceSequenceEvaluatorNode::default().explicit_frame_pin,
-            "Explicit Frame"
-        );
+    fn source_explicit_frame_pin_name_can_be_preserved() {
+        let node = SourceSequenceEvaluatorNode {
+            explicit_frame_pin: "ExplicitFrame".to_owned(),
+            ..default()
+        };
+        assert_eq!(node.explicit_frame_pin, "ExplicitFrame");
     }
 
     #[test]

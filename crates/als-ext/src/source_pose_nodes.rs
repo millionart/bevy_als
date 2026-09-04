@@ -752,10 +752,11 @@ impl NodeLike for SourceGameplayTagBlendNode {
     }
 }
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceCurveModifyNode {
+    pub source_pose_pin: String,
     pub curve_name: String,
     pub curve_names: Vec<String>,
     pub value: f32,
@@ -771,6 +772,29 @@ pub struct SourceCurveModifyNode {
     pub alpha_pin: String,
     pub expose_alpha_pin: bool,
     pub apply_mode: String,
+}
+
+impl Default for SourceCurveModifyNode {
+    fn default() -> Self {
+        Self {
+            source_pose_pin: "Source Pose".to_owned(),
+            curve_name: default(),
+            curve_names: default(),
+            value: 0.0,
+            pin_default: 0.0,
+            pin_defaults: default(),
+            value_pin_names: default(),
+            value_key: default(),
+            value_keys: default(),
+            source_value_path: default(),
+            source_value_paths: default(),
+            alpha: 0.0,
+            alpha_key: default(),
+            alpha_pin: default(),
+            expose_alpha_pin: false,
+            apply_mode: default(),
+        }
+    }
 }
 
 impl SourceCurveModifyNode {
@@ -834,8 +858,8 @@ fn resolved_curve_alpha(pin_value: Option<f32>, fallback: f32) -> f32 {
 
 impl NodeLike for SourceCurveModifyNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let pose = ctx.data_back("Source Pose")?.into_pose()?;
-        let mut context = pose_input_context_state(&ctx, "Source Pose").unwrap_or_default();
+        let pose = ctx.data_back(self.source_pose_pin.clone())?.into_pose()?;
+        let mut context = pose_input_context_state(&ctx, &self.source_pose_pin).unwrap_or_default();
         let curve_names = self.curve_pin_names();
         let value_keys = self.value_keys();
         let value_pin_names = self.value_pin_names();
@@ -868,7 +892,7 @@ impl NodeLike for SourceCurveModifyNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data("Source Pose", DataSpec::Pose);
+        ctx.add_input_data(self.source_pose_pin.clone(), DataSpec::Pose);
         for pin_name in self.value_pin_names() {
             ctx.add_input_data(pin_name, DataSpec::F32);
         }
@@ -1213,6 +1237,18 @@ mod tests {
     }
 
     #[test]
+    fn source_gameplay_tag_blend_can_preserve_source_pin_names() {
+        let node = SourceGameplayTagBlendNode {
+            active_tag_pin: "ActiveTag".to_owned(),
+            pose_pin_names: vec!["BlendPose_0".to_owned(), "BlendPose_1".to_owned()],
+            blend_time_pin_names: vec!["BlendTime_0".to_owned(), "BlendTime_1".to_owned()],
+            ..default()
+        };
+        assert_eq!(node.active_tag_pin, "ActiveTag");
+        assert_eq!(node.pose_pin_names[1], "BlendPose_1");
+    }
+
+    #[test]
     fn source_curve_modify_can_preserve_source_curve_value_pin_names() {
         let node = SourceCurveModifyNode {
             curve_names: vec!["PoseStanding".to_owned(), "PoseInAir".to_owned()],
@@ -1223,6 +1259,15 @@ mod tests {
             node.value_pin_names(),
             vec!["CurveValues_0".to_owned(), "CurveValues_1".to_owned()]
         );
+    }
+
+    #[test]
+    fn source_curve_modify_can_preserve_source_pose_pin_name() {
+        let node = SourceCurveModifyNode {
+            source_pose_pin: "SourcePose".to_owned(),
+            ..default()
+        };
+        assert_eq!(node.source_pose_pin, "SourcePose");
     }
 
     #[test]

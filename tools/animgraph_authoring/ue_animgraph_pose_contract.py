@@ -99,17 +99,6 @@ def visible_input_default(node, name):
     return parse_number(values[0])
 
 
-def visible_input_label(node, name):
-    values = [
-        pin.get("friendly_name") or pin.get("name")
-        for pin in node.get("pins", [])
-        if pin.get("direction") == "Input" and not pin.get("hidden") and pin.get("name") == name
-    ]
-    if len(values) != 1 or not isinstance(values[0], str) or not values[0]:
-        raise PoseContractError("source input pin label is missing or ambiguous")
-    return values[0]
-
-
 def property_binding_paths(node):
     binding = node.get("binding")
     if binding is None:
@@ -333,6 +322,7 @@ def sequence_evaluator_contract(node):
         "reinitialization_behavior": parse_name(
             field(fields, "ReinitializationBehavior", "ExplicitTime")
         ),
+        "explicit_frame_pin": "ExplicitFrame",
     }, issues
 
 
@@ -538,6 +528,7 @@ def modify_curve_contract(node):
         "input_pins": input_names,
         "curve_names": names,
         "curve_values": values,
+        "source_pose_pin": "SourcePose",
         "curve_value_paths": curve_value_paths,
         "alpha_path": alpha_path,
         "alpha": alpha,
@@ -759,11 +750,11 @@ def enum_pose_blend_contract(node):
         "active_enum_default": visible_input_default(node, "ActiveEnumValue"),
         "default_blend_time": times[0],
         "selected_blend_time": times[1],
-        "default_pose_pin": labels[0],
-        "selected_pose_pin": labels[1],
-        "default_blend_time_pin": labels[2],
-        "selected_blend_time_pin": labels[3],
-        "active_enum_pin": labels[4],
+        "default_pose_pin": "BlendPose_0",
+        "selected_pose_pin": "BlendPose_1",
+        "default_blend_time_pin": "BlendTime_0",
+        "selected_blend_time_pin": "BlendTime_1",
+        "active_enum_pin": "ActiveEnumValue",
         "output_pin": "Pose",
     }, issues
 
@@ -909,11 +900,9 @@ def gameplay_tag_blend_contract(node):
         "source_blend_times": source_blend_times,
         "blend_type": blend_type,
         "active_tag_path": active_tag_path,
-        "pose_pin_names": [visible_input_label(node, f"BlendPose_{index}") for index in range(count)],
-        "blend_time_pin_names": [
-            visible_input_label(node, f"BlendTime_{index}") for index in range(count)
-        ],
-        "active_tag_pin": visible_input_label(node, "ActiveTag"),
+        "pose_pin_names": [f"BlendPose_{index}" for index in range(count)],
+        "blend_time_pin_names": [f"BlendTime_{index}" for index in range(count)],
+        "active_tag_pin": "ActiveTag",
         "output_pin": "Pose",
     }, issues
 
@@ -1470,7 +1459,7 @@ def run_self_test():
     assert not issues
     assert gameplay_tag_contract["tags"] == ["Als.Gait.Sprinting"]
     assert gameplay_tag_contract["active_tag_path"] == "Gait"
-    assert gameplay_tag_contract["pose_pin_names"] == ["Default Pose", "Sprinting Pose"]
+    assert gameplay_tag_contract["pose_pin_names"] == ["BlendPose_0", "BlendPose_1"]
     layered = fixture_node(
         "layered_bone_blend",
         "Node",

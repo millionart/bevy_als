@@ -104,6 +104,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：Standing/Crouching的 Rotate sequence player可见 pin恰为`PlayRate`和`bLoopAnimation`，无 binding；`FAnimNode_SequencePlayer`字段名是`bLoopAnimation`。Layered Bone Blend 的 source property/pin 名为`BasePose`、`BlendPoses`、`BlendWeights`，friendly label `Base Pose`/`Blend Poses`不属于转换产物 ABI。
   - Gate summary：pose contract/renderer self-test、70个focused `als-ext` source tests均PASS；Crouching/Standing fresh direct block report已移除所有 Sequence Player pin blocker，剩余仅sync group、K2 getter、transition binding与Standing child-reset。六个ready corpus重新`--write`/`--check`均PASS，editor/position audit零失败（35/50/1/1/2/1文件）。生成产物字段审计零个旧 Sequence/Layered pin label。消融：只保留`branch_filter_layers`，删除转换输出中与其等价的`branch_bone_layers`，无语义差异；手工资产均显式配置旧pin，未让默认兼容影响生成器。
 
+- [x] BF112.19a Source leaf/combinator pin ABI：开始：2026-09-05 06:25:44 +08:00；预估结束：2026-09-05 07:20:44 +08:00；实际结束：2026-09-05 06:40:11 +08:00（偏差 -40m33s）。使 Sequence Evaluator、Modify Curve、Multi Way Blend、Gameplay Tag Blend、Enum Pose Blend 的生成 RON直接使用源 pin/property 名；friendly label只保留节点显示文本或 source 取证，不进入生成 ABI。验收：本地 UE source pin-name contract、adapter NodeLike fixture、六个ready corpus重新生成/确定性/静态 Gate。
+  - source fact：原始导出分别将`ExplicitFrame`、`SourcePose`、`Poses_n`/`DesiredAlphas_n`、`BlendPose_n`/`BlendTime_n`/`ActiveTag`、`BlendPose_n`/`BlendTime_n`/`ActiveEnumValue`作为 pin name；空格版是`friendly_name`，不是可稳定对照的 source identity。
+  - Gate summary：converter/pose contract/renderer self-test与73个focused `als-ext` source tests均PASS；六个ready corpus fresh `--write`/`--check`和editor/position audit均PASS，Crouching/Standing fresh source报告的已知 blocker集合无新增。字段审计确认生成 RON不含此批五类的空格标签，且实际 Layering/Ragdolling输出含对应 exact source pin。消融：删除只返回`friendly_name`的contract helper和target pin label-mapping；保留适配节点可配置pin字段以支持生成的source ABI，未为旧手工名称新增转换分支。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

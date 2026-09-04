@@ -180,10 +180,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_multi_way_blend_uses_source_visible_pin_names() {
-        let node = SourceMultiWayBlendNode::default();
-        assert_eq!(node.pose_input(2), "Poses 2");
-        assert_eq!(node.alpha_input(2), "Desired Alphas 2");
+    fn source_multi_way_blend_can_preserve_source_pin_names() {
+        let node = SourceMultiWayBlendNode {
+            pose_pin_prefix: "Poses_".to_owned(),
+            alpha_pin_prefix: "DesiredAlphas_".to_owned(),
+            ..default()
+        };
+        assert_eq!(node.pose_input(2), "Poses_2");
+        assert_eq!(node.alpha_input(2), "DesiredAlphas_2");
     }
 
     #[test]

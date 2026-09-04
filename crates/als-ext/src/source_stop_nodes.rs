@@ -315,6 +315,20 @@ mod tests {
     }
 
     #[test]
+    fn source_enum_pose_blend_can_preserve_source_pin_names() {
+        let node = SourceEnumPoseBlendNode {
+            default_pose_pin: "BlendPose_0".to_owned(),
+            selected_pose_pin: "BlendPose_1".to_owned(),
+            default_blend_time_pin: "BlendTime_0".to_owned(),
+            selected_blend_time_pin: "BlendTime_1".to_owned(),
+            active_enum_pin: "ActiveEnumValue".to_owned(),
+            ..default()
+        };
+        assert_eq!(node.selected_pose_pin, "BlendPose_1");
+        assert_eq!(node.active_enum_pin, "ActiveEnumValue");
+    }
+
+    #[test]
     fn source_layered_bone_blend_defaults_preserve_source_pin_names() {
         let node = SourceLayeredBoneBlendNode::default();
         assert_eq!(node.base_pose_pin, "BasePose");
