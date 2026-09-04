@@ -358,6 +358,16 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     if renderer == "modify_curve":
         pins = input_names(value)
         value_pins = [pin for pin in pins if pin not in {"SourcePose", "Alpha"}]
+        value_keys = value.get("curve_value_keys")
+        value_paths = value.get("curve_value_paths")
+        if (
+            not isinstance(value_keys, list)
+            or not isinstance(value_paths, list)
+            or len(value_keys) != len(value["curve_names"])
+            or len(value_paths) != len(value["curve_names"])
+            or not all(isinstance(item, str) for item in [*value_keys, *value_paths])
+        ):
+            raise PoseRenderError("source curve property binding is unavailable")
         fields = [
             field("curve_name", quoted("")),
             field("curve_names", "[" + ", ".join(quoted(name) for name in value["curve_names"]) + "]"),
@@ -366,9 +376,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("pin_defaults", "[" + ", ".join(repr(item) for item in value["curve_values"]) + "]"),
             field("value_pin_names", "[" + ", ".join(quoted(name) for name in value_pins) + "]"),
             field("value_key", quoted("")),
-            field("value_keys", "[" + ", ".join(quoted("") for _ in value["curve_names"]) + "]"),
+            field("value_keys", "[" + ", ".join(quoted(key) for key in value_keys) + "]"),
             field("source_value_path", quoted("")),
-            field("source_value_paths", "[" + ", ".join(quoted("") for _ in value["curve_names"]) + "]"),
+            field("source_value_paths", "[" + ", ".join(quoted(path) for path in value_paths) + "]"),
             field("alpha", repr(value["alpha"])),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron(value["alpha_visible"])),
@@ -846,6 +856,27 @@ def run_self_test():
     )
     assert hips_type == "als_ext::SourceSetHipsDirectionNode"
     assert 'new_hips_direction: "LeftBackward"' in hips_inner
+    curve_type, curve_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "modify_curve",
+            "semantic": {
+                "input_pins": ["SourcePose", "CurveValues_0", "Alpha"],
+                "curve_names": ["RotationYawOffset"],
+                "curve_values": [0.0],
+                "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
+                "curve_value_keys": ["als_standing_curve_rotation_yaw_offset"],
+                "alpha": 1.0,
+                "alpha_visible": True,
+                "apply_mode": "Blend",
+            },
+        },
+        {},
+        {},
+    )
+    assert curve_type == "als_ext::SourceCurveModifyNode"
+    assert 'value_keys: ["als_standing_curve_rotation_yaw_offset"]' in curve_inner
     graph_ir["nodes"][0]["semantic"]["sync_group"] = "Movement"
     try:
         render(graph_contract, graph_ir, assets)
@@ -932,6 +963,7 @@ def run_self_test():
         "source_blendspace_evaluator_is_rendered": "PASS",
         "source_multi_way_blend_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
+        "source_modify_curve_binding_is_rendered": "PASS",
     }
 
 

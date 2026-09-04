@@ -404,11 +404,30 @@ def modify_curve_contract(node):
         pin_alpha = visible_input_default(node, "Alpha")
         if abs(pin_alpha - alpha) > 1.0e-6:
             issues.append(issue(node, renderer, "source_curve_alpha_default_mismatch", "Alpha"))
+    bindings = property_binding_paths(node)
+    curve_pins = {f"CurveValues_{index}" for index in range(len(names))}
+    unknown_bindings = sorted(set(bindings) - curve_pins - {"Alpha"})
+    if unknown_bindings:
+        issues.append(
+            issue(node, renderer, "source_property_binding_pin_unsupported", ",".join(unknown_bindings))
+        )
+    curve_value_paths = []
+    for index in range(len(names)):
+        pin = f"CurveValues_{index}"
+        path = bindings.get(pin, "")
+        if path and input_is_linked(node, pin):
+            issues.append(issue(node, renderer, "source_property_binding_link_unsupported", pin))
+        curve_value_paths.append(path)
+    alpha_path = bindings.get("Alpha", "")
+    if alpha_path and input_is_linked(node, "Alpha"):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "Alpha"))
     return {
         "renderer": renderer,
         "input_pins": input_names,
         "curve_names": names,
         "curve_values": values,
+        "curve_value_paths": curve_value_paths,
+        "alpha_path": alpha_path,
         "alpha": alpha,
         "alpha_visible": alpha_visible,
         "apply_mode": parse_name(field(fields, "ApplyMode", "Blend")),
@@ -814,6 +833,20 @@ def run_self_test():
     contract, issues = pose_contract(curve, "modify_curve")
     assert not issues
     assert contract["alpha_visible"]
+    curve["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("CurveValues_0", (PropertyName="CurveValues_0",PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))',
+            }
+        ]
+    }
+    contract, issues = pose_contract(curve, "modify_curve")
+    assert not issues
+    assert contract["curve_value_paths"] == [
+        "GroundedState.RotationYawOffsets.ForwardAngle",
+        "",
+    ]
     curve["pins"][-1]["default_value"] = "0.500000"
     _, issues = pose_contract(curve, "modify_curve")
     assert issues[-1]["kind"] == "source_curve_alpha_default_mismatch"
@@ -894,6 +927,7 @@ def run_self_test():
         "two_way_alpha_mapping_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
         "modify_curve_alpha_pin_contract_parsed": "PASS",
+        "modify_curve_property_binding_paths_preserved": "PASS",
         "state_result_lifecycle_blocked": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "multi_way_blend_contract_parsed": "PASS",

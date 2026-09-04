@@ -285,16 +285,17 @@ def source_asset_layer(source_asset):
     return match.group(1).lower()
 
 
-def resolve_property_bindings(source_asset, node, semantic, registry):
-    if not isinstance(semantic, dict) or semantic.get("renderer") != "multi_way_blend":
-        return []
-    paths = semantic.get("desired_alpha_paths")
-    if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
-        return [{"kind": "source_property_binding_unsupported", "source_node": node.get("object_path")}]
+def resolve_bound_keys(source_asset, node, renderer, pins, paths, registry):
+    if (
+        not isinstance(paths, list)
+        or len(pins) != len(paths)
+        or not all(isinstance(pin, str) and isinstance(path, str) for pin, path in zip(pins, paths))
+    ):
+        return [], [{"kind": "source_property_binding_unsupported", "source_node": node.get("object_path")}]
     rules = {rule["source_path"]: rule["target_key"] for rule in registry.get("property_binding_rules", [])}
     keys = []
     issues = []
-    for index, path in enumerate(paths):
+    for pin, path in zip(pins, paths):
         if not path:
             keys.append("")
             continue
@@ -305,8 +306,8 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
                     "kind": "source_property_binding_unresolved",
                     "source_node": node.get("object_path"),
                     "source_class": node.get("class_path"),
-                    "renderer": semantic["renderer"],
-                    "source_pin": f"DesiredAlphas_{index}",
+                    "renderer": renderer,
+                    "source_pin": pin,
                     "source_property_path": path,
                 }
             )
@@ -324,7 +325,7 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
                     "kind": "source_property_binding_context_unsupported",
                     "source_node": node.get("object_path"),
                     "source_class": node.get("class_path"),
-                    "renderer": semantic["renderer"],
+                    "renderer": renderer,
                     "source_property_path": path,
                     "detail": str(error),
                 }
@@ -332,22 +333,54 @@ def resolve_property_bindings(source_asset, node, semantic, registry):
             keys.append("")
             continue
         keys.append(key)
-    semantic["desired_alpha_keys"] = keys
-    return issues
+    return keys, issues
 
 
-def handled_property_binding_pins(renderer, semantic):
-    if renderer != "multi_way_blend" or not isinstance(semantic, dict):
-        return set()
-    paths = semantic.get("desired_alpha_paths")
-    keys = semantic.get("desired_alpha_keys")
+def resolve_property_bindings(source_asset, node, semantic, registry):
+    if not isinstance(semantic, dict):
+        return []
+    renderer = semantic.get("renderer")
+    if renderer == "multi_way_blend":
+        paths = semantic.get("desired_alpha_paths")
+        pins = [f"DesiredAlphas_{index}" for index in range(semantic.get("pose_count", 0))]
+        keys, issues = resolve_bound_keys(source_asset, node, renderer, pins, paths, registry)
+        semantic["desired_alpha_keys"] = keys
+        return issues
+    if renderer == "modify_curve":
+        paths = semantic.get("curve_value_paths")
+        pins = [f"CurveValues_{index}" for index in range(len(semantic.get("curve_names", [])))]
+        keys, issues = resolve_bound_keys(source_asset, node, renderer, pins, paths, registry)
+        semantic["curve_value_keys"] = keys
+        return issues
+    return []
+
+
+def handled_bound_pins(prefix, paths, keys):
     if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
         return set()
     return {
-        f"DesiredAlphas_{index}"
+        f"{prefix}{index}"
         for index, (path, key) in enumerate(zip(paths, keys))
         if isinstance(path, str) and path and isinstance(key, str) and key
     }
+
+
+def handled_property_binding_pins(renderer, semantic):
+    if not isinstance(semantic, dict):
+        return set()
+    if renderer == "multi_way_blend":
+        return handled_bound_pins(
+            "DesiredAlphas_",
+            semantic.get("desired_alpha_paths"),
+            semantic.get("desired_alpha_keys"),
+        )
+    if renderer == "modify_curve":
+        return handled_bound_pins(
+            "CurveValues_",
+            semantic.get("curve_value_paths"),
+            semantic.get("curve_value_keys"),
+        )
+    return set()
 
 
 def unhandled_property_binding_issues(node, renderer, semantic):
@@ -876,6 +909,10 @@ def run_self_test():
                 {
                     "source_path": "GroundedState.VelocityBlend.ForwardAmount",
                     "target_key": "als_{asset_layer}_velocity_forward_amount",
+                },
+                {
+                    "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
+                    "target_key": "als_{asset_layer}_curve_rotation_yaw_offset",
                 }
             ],
         }
@@ -886,6 +923,7 @@ def run_self_test():
     }
     binding_semantic = {
         "renderer": "multi_way_blend",
+        "pose_count": 2,
         "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount", ""],
     }
     assert not resolve_property_bindings(
@@ -898,7 +936,21 @@ def run_self_test():
         "als_standing_velocity_forward_amount",
         "",
     ]
-    binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown"]
+    curve_semantic = {
+        "renderer": "modify_curve",
+        "curve_names": ["RotationYawOffset"],
+        "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
+    }
+    assert not resolve_property_bindings(
+        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
+        binding_node,
+        curve_semantic,
+        binding_registry,
+    )
+    assert curve_semantic["curve_value_keys"] == [
+        "als_standing_curve_rotation_yaw_offset"
+    ]
+    binding_semantic["desired_alpha_paths"] = ["GroundedState.Unknown", ""]
     assert resolve_property_bindings(
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing",
         binding_node,
@@ -927,6 +979,12 @@ def run_self_test():
             "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
             "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
         },
+    )
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("CurveValues_0", (PropertyName="CurveValues_0",PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))'
+    assert not unhandled_property_binding_issues(
+        binding_node,
+        "modify_curve",
+        curve_semantic,
     )
     source_contract = {
         "source_graph_suffix": "AnimGraph",

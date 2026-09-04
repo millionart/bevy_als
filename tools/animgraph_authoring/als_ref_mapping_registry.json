@@ -41,7 +41,13 @@
     { "source_path": "GroundedState.VelocityBlend.ForwardAmount", "target_key": "als_{asset_layer}_velocity_forward_amount" },
     { "source_path": "GroundedState.VelocityBlend.BackwardAmount", "target_key": "als_{asset_layer}_velocity_backward_amount" },
     { "source_path": "GroundedState.VelocityBlend.LeftAmount", "target_key": "als_{asset_layer}_velocity_left_amount" },
-    { "source_path": "GroundedState.VelocityBlend.RightAmount", "target_key": "als_{asset_layer}_velocity_right_amount" }
+    { "source_path": "GroundedState.VelocityBlend.RightAmount", "target_key": "als_{asset_layer}_velocity_right_amount" },
+    { "source_path": "GroundedState.RotationYawOffsets.ForwardAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
+    { "source_path": "GroundedState.RotationYawOffsets.BackwardAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
+    { "source_path": "GroundedState.RotationYawOffsets.LeftAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
+    { "source_path": "GroundedState.RotationYawOffsets.RightAngle", "target_key": "als_{asset_layer}_curve_rotation_yaw_offset" },
+    { "source_path": "RotateInPlaceState.PlayRate", "target_key": "als_{asset_layer}_rotation_play_rate" },
+    { "source_path": "TurnInPlaceState.PlayRate", "target_key": "als_{asset_layer}_turn_play_rate" }
   ],
   "sync_group_phase_keys": {
     "Fall": "als_locomotion_fall_phase",

@@ -153,10 +153,16 @@ def resolved_property_bindings(ir):
     for graph in ir.get("graphs", []):
         for node in graph.get("nodes", []):
             semantic = node.get("semantic")
-            if not isinstance(semantic, dict) or semantic.get("renderer") != "multi_way_blend":
+            if not isinstance(semantic, dict):
                 continue
-            paths = semantic.get("desired_alpha_paths")
-            keys = semantic.get("desired_alpha_keys")
+            if semantic.get("renderer") == "multi_way_blend":
+                paths = semantic.get("desired_alpha_paths")
+                keys = semantic.get("desired_alpha_keys")
+            elif semantic.get("renderer") == "modify_curve":
+                paths = semantic.get("curve_value_paths")
+                keys = semantic.get("curve_value_keys")
+            else:
+                continue
             if not isinstance(paths, list) or not isinstance(keys, list) or len(paths) != len(keys):
                 continue
             for path, key in zip(paths, keys):
@@ -346,12 +352,24 @@ def run_self_test():
                                 "desired_alpha_paths": ["GroundedState.VelocityBlend.ForwardAmount"],
                                 "desired_alpha_keys": ["als_standing_velocity_forward_amount"],
                             }
-                        }
+                        },
+                        {
+                            "semantic": {
+                                "renderer": "modify_curve",
+                                "curve_value_paths": ["GroundedState.RotationYawOffsets.ForwardAngle"],
+                                "curve_value_keys": ["als_standing_curve_rotation_yaw_offset"],
+                            }
+                        },
                     ]
                 }
             ]
         }
     ) == [
+        {
+            "source_path": "GroundedState.RotationYawOffsets.ForwardAngle",
+            "target_key": "als_standing_curve_rotation_yaw_offset",
+            "count": 1,
+        },
         {
             "source_path": "GroundedState.VelocityBlend.ForwardAmount",
             "target_key": "als_standing_velocity_forward_amount",
