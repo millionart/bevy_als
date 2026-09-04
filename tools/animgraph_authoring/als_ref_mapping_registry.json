@@ -40,5 +40,9 @@
     "Jump": "als_locomotion_jump_phase",
     "Flail": "als_locomotion_flail_phase",
     "Land": "als_locomotion_land_phase"
+  },
+  "fsm_state_label_keys": {
+    "Locomotion States": "als_locomotion_state_index",
+    "Jump States": "als_locomotion_jump_state_index"
   }
 }

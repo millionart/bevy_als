@@ -34,6 +34,7 @@ SUPPORTED_RENDERERS = {
     "comparison_operator",
     "gameplay_tag_equal",
     "boolean_to_float",
+    "state_machine",
 }
 
 SCALAR_RENDERERS = {
@@ -212,7 +213,7 @@ def blendspace_inner(value):
     )
 
 
-def rendered_inner(graph_contract, source, semantic, asset_by_node):
+def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     renderer = semantic.get("renderer")
     value = semantic.get("semantic")
     if renderer == "sequence_player":
@@ -252,6 +253,35 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node):
         return blendspace_inner(value)
     if renderer in SCALAR_RENDERERS:
         return "als_ext::SourceScalarExpressionNode", scalar_renderer.node_inner(source)
+    if renderer == "state_machine":
+        fsm_source = value.get("fsm_source_graph") if isinstance(value, dict) else None
+        config = fsm_assets.get(fsm_source)
+        if not isinstance(config, dict):
+            raise PoseRenderError("source state machine materialization is unavailable")
+        aliases = config.get("state_aliases", [])
+        labels = config.get("state_labels", [])
+        if not isinstance(aliases, list) or not isinstance(labels, list):
+            raise PoseRenderError("source state machine materialization is invalid")
+        alias_ron = ", ".join(
+            "(state_id: "
+            + quoted(alias["state_id"])
+            + ", member_state_ids: ["
+            + ", ".join(quoted(member) for member in alias["member_state_ids"])
+            + "])"
+            for alias in aliases
+        )
+        return (
+            "als_ext::InterruptibleFsmNode",
+            "(fsm: "
+            + quoted(config["path"])
+            + ", state_pose_output: \"Result\", outer_pose_output: \"Pose\", state_aliases: ["
+            + alias_ron
+            + "], state_label_key: "
+            + quoted(config["state_label_key"])
+            + ", state_labels: ["
+            + ", ".join(quoted(label) for label in labels)
+            + "], expose_telemetry: false)",
+        )
     if renderer == "two_way_blend":
         pins = input_names(value)
         fields = [
@@ -403,6 +433,8 @@ def target_pin(renderer, source_pin, node=None):
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "blendspace_evaluator":
         return {"Pose": "pose"}.get(source_pin, source_pin)
+    if renderer == "state_machine":
+        return {"Pose": "Pose"}.get(source_pin, source_pin)
     return source_pin
 
 
@@ -488,7 +520,13 @@ def blendspace_helpers(graph_contract, raw, semantic):
     return nodes, edges, targets
 
 
-def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=None):
+def render(
+    graph_contract,
+    graph_ir,
+    animation_assets,
+    sync_group_phase_keys=None,
+    fsm_assets=None,
+):
     raw_nodes = node_index(graph_contract)
     ir_nodes = semantic_index(graph_ir)
     if set(raw_nodes) < set(ir_nodes):
@@ -501,6 +539,7 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
         raise PoseRenderError("source node identifiers are duplicated")
     asset_by_node = asset_index(animation_assets)
     sync_group_phase_keys = sync_group_phase_keys or {}
+    fsm_assets = fsm_assets or {}
     result_nodes = []
     sync_wrappers = {}
     blendspace_edges = []
@@ -510,7 +549,13 @@ def render(graph_contract, graph_ir, animation_assets, sync_group_phase_keys=Non
             continue
         raw = raw_nodes[source_path]
         identifier = node_id(raw)
-        node_type, inner = rendered_inner(graph_contract, raw, semantic, asset_by_node)
+        node_type, inner = rendered_inner(
+            graph_contract,
+            raw,
+            semantic,
+            asset_by_node,
+            fsm_assets,
+        )
         result_nodes.append((identifier, source_title(raw), inner, node_type, position(raw)))
         if semantic.get("renderer") == "blendspace_evaluator":
             nodes, edges, targets = blendspace_helpers(graph_contract, raw, semantic)

@@ -19,6 +19,7 @@ from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
 from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_plan
 from ue_animgraph_lifecycle import LifecycleRenderError, resolve_lifecycle
+from ue_animgraph_materializer import MaterializationError, materialize_files
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
@@ -175,15 +176,21 @@ def validate_registry(value):
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
     sync_group_phase_keys = value.get("sync_group_phase_keys", {})
+    fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
     if not isinstance(functions, list):
         raise ConversionError("mapping registry function rules are invalid")
     if not isinstance(sync_group_phase_keys, dict):
         raise ConversionError("mapping registry sync group phase keys are invalid")
+    if not isinstance(fsm_state_label_keys, dict):
+        raise ConversionError("mapping registry FSM state label keys are invalid")
     for group, key in sync_group_phase_keys.items():
         if not isinstance(group, str) or not group or not isinstance(key, str) or not key:
             raise ConversionError("mapping registry sync group phase key is invalid")
+    for name, key in fsm_state_label_keys.items():
+        if not isinstance(name, str) or not name or not isinstance(key, str) or not key:
+            raise ConversionError("mapping registry FSM state label key is invalid")
     for key, mapping in node_classes.items():
         if not isinstance(key, str) or not key.startswith("/Script/"):
             raise ConversionError("mapping registry source class is invalid")
@@ -614,7 +621,7 @@ def expected_outputs(
     return ir, report
 
 
-def check_outputs(output_root, ir, report):
+def check_outputs(output_root, ir, report, materialized_files=None):
     expected = {
         "source.ir.json": ir,
         "conversion.report.json": report,
@@ -624,6 +631,10 @@ def check_outputs(output_root, ir, report):
         path = output_root / name
         if not path.is_file() or read_json(path) != value:
             failures.append({"kind": "generated_output_drift", "path": name})
+    for name, value in (materialized_files or {}).items():
+        path = output_root / name
+        if not path.is_file() or path.read_text(encoding="utf-8") != value:
+            failures.append({"kind": "generated_output_drift", "path": name})
     return failures
 
 
@@ -631,12 +642,31 @@ def unsupported_failure(report):
     return bool(report.get("unsupported"))
 
 
-def write_outputs_if_supported(output_root, ir, report):
+def write_outputs_if_supported(output_root, ir, report, materialized_files=None):
     if unsupported_failure(report):
         return False
     write_json(output_root / "source.ir.json", ir)
     write_json(output_root / "conversion.report.json", report)
+    for name, value in (materialized_files or {}).items():
+        path = output_root / name
+        if path.resolve().parent != output_root.resolve() and output_root.resolve() not in path.resolve().parents:
+            raise ConversionError("materialized output path is outside output root")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value, encoding="utf-8")
     return True
+
+
+def expected_materialized_files(source, ir, registry, report):
+    if unsupported_failure(report):
+        return {}
+    try:
+        return materialize_files(source, ir, registry)
+    except MaterializationError as error:
+        report["unsupported"].append(
+            {"kind": "source_materialization_unsupported", "detail": str(error)}
+        )
+        report["pass"] = False
+        return {}
 
 
 def fixture_registry():
@@ -897,16 +927,17 @@ def main():
         source_content_root,
         args.mount,
     )
+    materialized_files = expected_materialized_files(source, ir, registry, report)
     if args.report is not None:
         write_json(args.report, report)
     if unsupported_failure(report):
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 3
     if args.write:
-        if not write_outputs_if_supported(args.output_root, ir, report):
+        if not write_outputs_if_supported(args.output_root, ir, report, materialized_files):
             raise ConversionError("unsupported source unexpectedly reached output generation")
     else:
-        drift = check_outputs(args.output_root, ir, report)
+        drift = check_outputs(args.output_root, ir, report, materialized_files)
         if drift:
             report["drift"] = drift
             print(json.dumps(report, ensure_ascii=False, indent=2))
