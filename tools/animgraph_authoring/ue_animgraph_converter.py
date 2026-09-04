@@ -385,6 +385,35 @@ def resolve_property_bindings(node, semantic, registry):
     if not isinstance(semantic, dict):
         return []
     renderer = semantic.get("renderer")
+    if renderer == "transition_result":
+        try:
+            bindings = property_binding_paths(node)
+        except PoseContractError as error:
+            return [
+                {
+                    "kind": "source_property_binding_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "detail": str(error),
+                }
+            ]
+        path = bindings.get("bCanEnterTransition", "")
+        keys, issues = resolve_bound_keys(node, renderer, ["bCanEnterTransition"], [path])
+        semantic["condition_path"] = path
+        semantic["condition_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(semantic, ["bCanEnterTransition"], [path], keys)
+        if path and input_is_linked(node, "bCanEnterTransition"):
+            issues.append(
+                {
+                    "kind": "source_property_binding_link_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                    "source_pin": "bCanEnterTransition",
+                }
+            )
+        return issues
     if renderer == "multi_way_blend":
         paths = semantic.get("desired_alpha_paths")
         pins = [f"DesiredAlphas_{index}" for index in range(semantic.get("pose_count", 0))]
@@ -664,6 +693,8 @@ def handled_property_binding_pins(renderer, semantic):
         return {"ActiveEnumValue"} if semantic.get("active_enum_path") else set()
     if renderer == "gameplay_tag_blend":
         return {"ActiveTag"} if semantic.get("active_tag_path") else set()
+    if renderer == "transition_result":
+        return {"bCanEnterTransition"} if semantic.get("condition_path") else set()
     return set()
 
 
@@ -826,6 +857,8 @@ def graph_ir(
                     "blendspace": asset["blendspace"],
                 }
         if semantic is None and renderer in POSE_SCALAR_RENDERERS:
+            semantic = {"renderer": renderer}
+        if semantic is None and renderer == "transition_result":
             semantic = {"renderer": renderer}
         if renderer == "linked_anim_layer" and semantic is not None:
             target = linked_layer_targets.get(node.get("object_path"))
@@ -1932,6 +1965,35 @@ def run_self_test():
         binding_registry,
     )
     assert sequence_semantic["play_rate_key"] == "in_air_state.jump_play_rate"
+    transition_node = {
+        "object_path": "/Asset:Transition.Result",
+        "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+        "pins": [
+            {
+                "name": "bCanEnterTransition",
+                "direction": "Input",
+                "hidden": False,
+                "linked_to": [],
+            }
+        ],
+        "binding": {
+            "properties": [
+                {
+                    "name": "PropertyBindings",
+                    "exported_text": '(("bCanEnterTransition", (PropertyName="bCanEnterTransition",PathAsText="RotateInPlaceState.bRotatingLeft",bIsBound=True)))',
+                }
+            ]
+        },
+    }
+    transition_semantic = {"renderer": "transition_result"}
+    assert not resolve_property_bindings(transition_node, transition_semantic, binding_registry)
+    assert transition_semantic["condition_key"] == "rotate_in_place_state.b_rotating_left"
+    assert handled_property_binding_pins("transition_result", transition_semantic) == {"bCanEnterTransition"}
+    assert not unhandled_property_binding_issues(
+        transition_node,
+        "transition_result",
+        transition_semantic,
+    )
     sync_graphs = [
         {
             "source_graph": "AnimGraph",

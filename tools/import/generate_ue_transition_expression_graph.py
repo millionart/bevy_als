@@ -54,7 +54,7 @@ def source_nodes(contract):
 
 
 def source_pin_label(pin):
-    return AUDIT.source_pin_label(pin)
+    return pin["name"]
 
 
 def scalar_type(pin):
@@ -415,6 +415,26 @@ def root_passthrough(contract, root, pin):
     return "source_transition_default_" + node_id(root).replace("-", "") + "_" + pin["name"]
 
 
+def direct_bound_root_node(root, pin, binding):
+    output = pin_payload(None, root, pin, {})
+    output["global_key"] = source_property_key(binding)
+    inner = ", ".join(
+        (
+            "input_pins: []",
+            "output_pins: [" + pin_ron(output) + "]",
+            'operation: "global"',
+            "source_class: " + quoted(root["class_path"]),
+            "source_properties: ["
+            + ", ".join(quoted(value) for value in source_properties(root))
+            + "]",
+        )
+    )
+    return (
+        f"(id: {quoted(node_id(root))}, name: {quoted(AUDIT.source_title(root))}, "
+        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": ({inner}) }}, should_debug: false)"
+    )
+
+
 def graph_text(contract):
     nodes = source_nodes(contract)
     ids = {node["object_path"]: node_id(node) for node in nodes}
@@ -424,7 +444,9 @@ def graph_text(contract):
         raise ValueError("transition root must expose exactly one input pin")
     root_pin = root_pins[0]
     root_is_direct = not nodes
-    passthrough = root_passthrough(contract, root, root_pin) if root_is_direct else None
+    binding = AUDIT.source_binding_paths(root).get(root_pin["name"])
+    root_is_bound = root_is_direct and isinstance(binding, str) and bool(binding)
+    passthrough = root_passthrough(contract, root, root_pin) if root_is_direct and not root_is_bound else None
     edges = []
     for link in contract["links"]:
         source = link["source"]
@@ -443,20 +465,29 @@ def graph_text(contract):
             )
         else:
             raise ValueError("transition link references an unsupported endpoint")
-    if root_is_direct:
+    if root_is_bound:
+        edges.append(
+            f"OutputData({quoted(source_pin_label(root_pin))}): NodeData({quoted(node_id(root))}, {quoted(source_pin_label(root_pin))})"
+        )
+    elif root_is_direct:
         edges.append(
             f"OutputData({quoted(source_pin_label(root_pin))}): InputData(Passthrough({quoted(passthrough)}))"
         )
-    positions = ", ".join(
+    position_rows = [
         f"{quoted(ids[node['object_path']])}: ({float(node['position_x']):.3f}, {float(node['position_y']):.3f})"
         for node in nodes
-    )
+    ]
+    if root_is_bound:
+        position_rows.append(
+            f"{quoted(node_id(root))}: ({float(root['position_x']):.3f}, {float(root['position_y']):.3f})"
+        )
+    positions = ", ".join(position_rows)
     root_type = output_type(root_pin)
     root_name = source_pin_label(root_pin)
     input_data = "{}"
     input_order = "{}"
     default_data = "{}"
-    if root_is_direct:
+    if root_is_direct and not root_is_bound:
         input_data = f"{{ Passthrough({quoted(passthrough)}): {root_type} }}"
         input_order = f"{{ Data(Passthrough({quoted(passthrough)})): 0 }}"
         default_data = f"{{ Passthrough({quoted(passthrough)}): {data_default_ron(root_pin)} }}"
@@ -464,6 +495,7 @@ def graph_text(contract):
         (
             "    nodes: [",
             *[f"        {node_ron(contract, ids[node['object_path']], node)}," for node in nodes],
+            *([f"        {direct_bound_root_node(root, root_pin, binding)},"] if root_is_bound else []),
             "    ],",
             "    edges_inverted: {",
             *[f"        {edge}," for edge in edges],
@@ -605,7 +637,9 @@ def map_payload(contract_path, target_graph, target_spec, map_path, contract):
             entry["target_binding"] = binding
         if not nodes:
             entry["target_root_input"] = (
-                f"Passthrough({quoted(root_passthrough(contract, root, pin))})"
+                f"NodeData({quoted(node_id(root))}, {quoted(source_pin_label(pin))})"
+                if binding
+                else f"Passthrough({quoted(root_passthrough(contract, root, pin))})"
             )
         default = pin.get("default_value")
         if (
@@ -615,9 +649,10 @@ def map_payload(contract_path, target_graph, target_spec, map_path, contract):
             and not nodes
         ):
             entry["source_default"] = default
-            passthrough = root_passthrough(contract, root, pin)
             entry["target_default_contains"] = (
-                f"Passthrough({quoted(passthrough)}): {data_default_ron(pin)}"
+                f"source_default: {quoted(default)}"
+                if binding
+                else f"Passthrough({quoted(root_passthrough(contract, root, pin))}): {data_default_ron(pin)}"
             )
         result["root_output_pins"].append(entry)
     return result
@@ -927,16 +962,16 @@ def run_self_test():
             Path("assets/bound.animgraph.ron"),
             Path("maps/bound.visible.json"),
         )
-        assert 'InputData(Passthrough("GetParent.Value"))' in bound_text
-        assert 'Passthrough("GetParent.Value"): Bool(false)' in bound_text
+        assert 'global_key: "value"' in bound_text
+        assert 'OutputData("bCanEnterTransition"): NodeData("10000000-0000-4000-8000-000000000003", "bCanEnterTransition")' in bound_text
         assert bound_mapping["root_output_pins"] == [
             {
                 "source": "bCanEnterTransition",
-                "target": "Can Enter Transition",
+                "target": "bCanEnterTransition",
                 "target_binding": "GetParent.Value",
-                "target_root_input": 'Passthrough("GetParent.Value")',
+                "target_root_input": 'NodeData("10000000-0000-4000-8000-000000000003", "bCanEnterTransition")',
                 "source_default": "False",
-                "target_default_contains": 'Passthrough("GetParent.Value"): Bool(false)',
+                "target_default_contains": 'source_default: "False"',
             }
         ]
     return {

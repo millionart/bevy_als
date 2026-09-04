@@ -112,6 +112,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：UE 5.8先在`FAnimNode_AssetPlayerBase::Update_AnyThread`记录最终 blend weight并由`CreateTickRecordForNode`加入`FAnimSyncGroupScope`；`FAnimGroupInstance::TestTickRecordForLeadership`按role/weight打分，`Prepare`排序并以leader与共同markers建立marker sync。Crouching只有`Movement`，Standing有`Movement`、`Second Pivot`、`First Pivot`、`Run Start`，当前均为`CanBeLeader + SyncGroup`。
   - Gate summary：UE 5.8 source、converter/contract/renderer/materializer/asset-resolver self-test均PASS。Crouching与Standing fresh direct报告已无任何sync-group blocker；分别产出`ab_als_crouching.movement`与Standing四组的source candidate/marker/role计划。六个ready corpus fresh `--write`/`--check`均ready，editor/position Gate 35/50/1/1/2/1文件零失败。消融：registry拒绝`sync_group_phase_keys`/`sync_group_phase_contracts`，删除27行手工组名/marker/phase配置；新计划以source asset + GroupName构成key，markerless和marker组使用同一计划与`GlobalSyncGroupSampleNode`。
 
+- [x] BF112.21 Direct TransitionResult property bindings：开始：2026-09-05 07:10:01 +08:00；预估结束：2026-09-05 08:00:01 +08:00；实际结束：2026-09-05 07:25:51 +08:00（偏差 -34m10s）。将直接绑定的`TransitionResult.bCanEnterTransition`转换为读取 source-derived bool key 的无输入 condition graph，而非以手工 pass-through 或 friendly label 作为外部 ABI；把绑定列入 integration report。验收：UE 5.8 transition source、transition generator/converter self-test、Crouching/Standing property-binding blocker减少、受影响 ready corpus回归。
+  - source fact：UE 5.8 `FAnimNode_TransitionResult`默认`bCanEnterTransition=false`；`FAnimNode_StateMachine`在检查 rule 时执行`GetEvaluateGraphExposedInputs()`，随后比较该字段。Crouching/Standing的该 pin具有直接PropertyBinding，且无上游图节点。
+  - Gate summary：transition generator、converter、FSM/materializer self-test均PASS。Crouching和Standing fresh direct报告已移除全部direct TransitionResult property-binding blocker；integration JSON列出原始path→dotted snake key。六个ready corpus fresh `--write`/`--check`为ready且editor/position Gate 35/50/1/1/2/1零失败。消融：复用`SourceScalarExpressionNode`的`global` operation，未新增bool adapter或passthrough alias；transition RON pin直接保留`bCanEnterTransition`而不使用friendly label。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
