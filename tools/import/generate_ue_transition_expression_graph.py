@@ -378,9 +378,10 @@ def property_access_key(node):
 def pin_payload(contract, node, pin, bindings):
     data_type, _ = scalar_type(pin)
     f32_default, bool_default, source_default = scalar_defaults(pin)
+    access_key = property_access_key(node) if pin.get("direction") == "Output" else ""
     global_key = bindings.get(
         pin["name"],
-        property_access_key(node) if pin.get("direction") == "Output" else "",
+        source_property_key(access_key) if access_key else "",
     )
     if AUDIT.source_pin_type(pin) == "GameplayTag":
         if pin.get("direction") != "Input":
@@ -1044,11 +1045,23 @@ def run_self_test():
             "class_path": "/Script/PropertyAccessNode.K2Node_PropertyAccess",
             "properties": [
                 {
-                    "exported_text": "(PathAsText=\"GetParent.Value\")",
+                    "exported_text": "(PathAsText=\"GetParent.PoseState.GroundedAmount\")",
+                }
+            ],
+            "pins": [
+                {
+                    "name": "Value",
+                    "direction": "Output",
+                    "hidden": False,
+                    "pin_type_properties": [
+                        {"name": "PinCategory", "exported_text": "real"},
+                        {"name": "PinSubCategory", "exported_text": "float"},
+                    ],
                 }
             ],
         }
-        assert property_access_key(access) == "GetParent.Value"
+        assert property_access_key(access) == "GetParent.PoseState.GroundedAmount"
+        assert 'global_key: "pose_state.grounded_amount"' in node_inner(None, access)
         assert operation(
             {
                 "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",

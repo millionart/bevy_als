@@ -193,6 +193,8 @@ def source_signature(node):
 def source_property_key(source_path):
     if not isinstance(source_path, str) or not source_path:
         raise ConversionError("source property path is invalid")
+    if source_path.startswith("GetParent."):
+        source_path = source_path[len("GetParent.") :]
     parts = source_path.split(".")
     if any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", part) for part in parts):
         raise ConversionError("source property path is invalid")
@@ -388,6 +390,55 @@ def resolve_property_bindings(node, semantic, registry):
     if not isinstance(semantic, dict):
         return []
     renderer = semantic.get("renderer")
+    if renderer == "property_access":
+        scalar = transition_renderer()
+        path = scalar.property_access_key(node)
+        if not path:
+            return [
+                {
+                    "kind": "source_property_access_unavailable",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        outputs = scalar.AUDIT.visible_pins(node, "Output")
+        if not outputs:
+            return [
+                {
+                    "kind": "source_property_access_output_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        output_types = [scalar.AUDIT.source_pin_type(pin) for pin in outputs]
+        if any(value not in {"F32", "Bool", "GameplayTag"} for value in output_types):
+            return [
+                {
+                    "kind": "source_property_access_output_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        if all(value == "GameplayTag" for value in output_types):
+            return []
+        if any(value == "GameplayTag" for value in output_types):
+            return [
+                {
+                    "kind": "source_property_access_output_unsupported",
+                    "source_node": node.get("object_path"),
+                    "source_class": node.get("class_path"),
+                    "renderer": renderer,
+                }
+            ]
+        pins = [scalar.source_pin_label(pin) for pin in outputs]
+        keys, issues = resolve_bound_keys(node, renderer, pins, [path] * len(pins))
+        semantic["property_access_path"] = path
+        semantic["property_access_keys"] = keys
+        record_resolved_bindings(semantic, pins, [path] * len(pins), keys)
+        return issues
     if renderer == "transition_result":
         try:
             bindings = property_binding_paths(node)
@@ -2292,22 +2343,43 @@ def installation_files(source_identity, materialized_files, output_namespace):
     return files
 
 
-def install_generated_files(install_root, files):
+def install_generated_files(install_root, files, replace=False):
     root = install_root.resolve()
     if not root.is_dir():
         raise ConversionError("installation root is unavailable")
+    manifest_path = next(
+        (path for path in files if path.endswith("/installation.manifest.json")),
+        None,
+    )
+    if manifest_path is None:
+        raise ConversionError("installation manifest is unavailable")
+    if replace:
+        existing_manifest = root / manifest_path
+        if existing_manifest.is_file():
+            try:
+                existing = read_json(existing_manifest)
+                expected = json.loads(files[manifest_path])
+            except (OSError, json.JSONDecodeError) as error:
+                raise ConversionError("installed namespace ownership is invalid") from error
+            if (
+                existing.get("format") != INSTALLATION_MANIFEST_FORMAT
+                or existing.get("source") != expected.get("source")
+                or existing.get("namespace") != expected.get("namespace")
+                or set(existing.get("files", [])) != set(expected.get("files", []))
+            ):
+                raise ConversionError("installed namespace ownership is invalid")
     targets = {}
     for path, text in files.items():
         target = (root / path).resolve()
         if root not in target.parents:
             raise ConversionError("installation target is outside root")
-        if target.is_file() and target.read_text(encoding="utf-8") != text:
+        if not replace and target.is_file() and target.read_text(encoding="utf-8") != text:
             raise ConversionError("installed generated output conflicts")
         targets[path] = target
     for path, text in files.items():
         target = targets[path]
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.is_file():
+        if replace or not target.is_file():
             target.write_text(text, encoding="utf-8")
 
 
@@ -2469,6 +2541,50 @@ def run_self_test():
             {"name": "PlayRate", "direction": "Input", "hidden": False, "linked_to": []},
         ],
     }
+    property_node = {
+        "object_path": "/Asset:AnimGraph.Property",
+        "class_path": "/Script/PropertyAccessNode.K2Node_PropertyAccess",
+        "properties": [{"name": "TextPath", "exported_text": "GetParent.PoseState.GroundedAmount"}],
+        "pins": [
+            {
+                "name": "Value",
+                "direction": "Output",
+                "hidden": False,
+                "pin_type_properties": [
+                    {"name": "PinCategory", "exported_text": "real"},
+                    {"name": "PinSubCategory", "exported_text": "float"},
+                ],
+            }
+        ],
+    }
+    property_semantic = {"renderer": "property_access"}
+    assert not resolve_property_bindings(property_node, property_semantic, binding_registry)
+    assert property_semantic["resolved_property_bindings"] == [
+        {
+            "source_pin": "Value",
+            "source_property_path": "GetParent.PoseState.GroundedAmount",
+            "target_key": "pose_state.grounded_amount",
+        }
+    ]
+    assert integration_runtime_inputs(
+        {
+            "graphs": [
+                {
+                    "nodes": [
+                        {
+                            "source_node": property_node["object_path"],
+                            "renderer": "property_access",
+                            "semantic": property_semantic,
+                        }
+                    ]
+                }
+            ]
+        }
+    )[0]["target_key"] == "pose_state.grounded_amount"
+    property_node["properties"][0]["exported_text"] = ""
+    assert resolve_property_bindings(property_node, {"renderer": "property_access"}, binding_registry)[0][
+        "kind"
+    ] == "source_property_access_unavailable"
     binding_semantic = {
         "renderer": "multi_way_blend",
         "pose_count": 2,
@@ -3161,6 +3277,14 @@ def run_self_test():
         assert not installation_drift(root, installed)
         (root / root_graph).write_text("drift\n", encoding="utf-8")
         assert installation_drift(root, installed)
+        try:
+            install_generated_files(root, installed)
+        except ConversionError:
+            pass
+        else:
+            raise AssertionError("installed output conflict was accepted")
+        install_generated_files(root, installed, replace=True)
+        assert not installation_drift(root, installed)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)
@@ -3207,6 +3331,7 @@ def main():
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--install-root", type=Path)
     parser.add_argument("--install-namespace")
+    parser.add_argument("--replace-installed", action="store_true")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--check", action="store_true")
@@ -3219,6 +3344,8 @@ def main():
         raise ConversionError("uasset, output-root, and exactly one mode are required")
     if args.install_namespace is not None and args.install_root is None:
         raise ConversionError("installation namespace requires an installation root")
+    if args.replace_installed and args.install_root is None:
+        raise ConversionError("installed replacement requires an installation root")
     if args.install_root is not None and args.install_root.resolve() == args.output_root.resolve():
         raise ConversionError("installation root and output root must differ")
     registry = validate_registry(read_json(args.registry))
@@ -3273,7 +3400,9 @@ def main():
         if not write_outputs_if_supported(args.output_root, ir, report, materialized_files):
             raise ConversionError("unsupported source unexpectedly reached output generation")
         if args.install_root is not None:
-            install_generated_files(args.install_root, installed_files)
+            install_generated_files(
+                args.install_root, installed_files, args.replace_installed
+            )
     else:
         drift = check_outputs(args.output_root, ir, report, materialized_files)
         if args.install_root is not None:
