@@ -52,6 +52,15 @@ pub struct StateAliasBinding {
     pub member_state_ids: Vec<String>,
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct SourceTransitionCondition {
+    pub transition_id: String,
+    pub source_state_id: String,
+    pub condition: Handle<AnimationGraph>,
+    pub output: String,
+}
+
 #[derive(Reflect, Clone, Debug)]
 pub struct InterruptibleFsmState {
     pub state: LowLevelStateId,
@@ -97,6 +106,7 @@ pub struct InterruptibleFsmNode {
     pub state_pose_output: String,
     pub state_pose_outputs: Vec<StatePoseOutput>,
     pub state_aliases: Vec<StateAliasBinding>,
+    pub source_transition_conditions: Vec<SourceTransitionCondition>,
     pub outer_pose_output: String,
     pub state_label_key: String,
     pub state_labels: Vec<String>,
@@ -115,6 +125,7 @@ impl Default for InterruptibleFsmNode {
             state_pose_output: Self::OUT_POSE.to_owned(),
             state_pose_outputs: default(),
             state_aliases: default(),
+            source_transition_conditions: default(),
             outer_pose_output: Self::OUT_POSE.to_owned(),
             state_label_key: default(),
             state_labels: default(),
@@ -142,6 +153,7 @@ impl InterruptibleFsmNode {
             state_pose_output: Self::OUT_POSE.to_owned(),
             state_pose_outputs: Vec::new(),
             state_aliases: Vec::new(),
+            source_transition_conditions: Vec::new(),
             outer_pose_output: Self::OUT_POSE.to_owned(),
             state_label_key: String::new(),
             state_labels: Vec::new(),
@@ -229,6 +241,22 @@ impl InterruptibleFsmNode {
             .get(state)
             .and_then(|state| state.hl_transition.as_ref())
             .map(|transition| transition.target)
+    }
+
+    fn source_condition_transition_id(
+        machine: &LowLevelStateMachine,
+        state: &LowLevelStateId,
+        condition: &SourceTransitionCondition,
+    ) -> Option<TransitionId> {
+        machine.transitions.values().find_map(|transition| match &transition.id {
+            LowLevelTransitionId::Start(TransitionId::Direct(id))
+            | LowLevelTransitionId::Immediate(TransitionId::Direct(id))
+                if transition.source == *state && id.uuid().to_string() == condition.transition_id =>
+            {
+                Some(TransitionId::Direct(*id))
+            }
+            _ => None,
+        })
     }
 
     fn can_interrupt(
@@ -437,6 +465,9 @@ impl InterruptibleFsmNode {
 
     fn driver_events(&self, ctx: &mut NodeContext) -> Result<EventQueue, GraphError> {
         if self.state_label_key.is_empty() {
+            if !self.source_transition_conditions.is_empty() {
+                return Ok(EventQueue::default());
+            }
             return ctx
                 .data_back(LowLevelStateMachine::DRIVER_EVENT_QUEUE)?
                 .into_event_queue();
@@ -454,6 +485,59 @@ impl InterruptibleFsmNode {
                 AnimationEvent::TransitionToStateLabel(value),
             )])
         }))
+    }
+
+    fn source_transition_event(
+        &self,
+        machine: &LowLevelStateMachine,
+        parent_time_update: TimeUpdate,
+        ctx: &mut NodeContext,
+    ) -> Result<Option<TransitionId>, GraphError> {
+        let state = ctx.state::<InterruptibleFsmState>()?.clone();
+        let LowLevelStateId::HlState(active_state) = &state.state else {
+            return Ok(None);
+        };
+        for condition in &self.source_transition_conditions {
+            if condition.source_state_id != active_state.uuid().to_string() {
+                continue;
+            }
+            let graph = ctx
+                .graph_context
+                .resources
+                .animation_graph_assets
+                .get(&condition.condition)
+                .ok_or(GraphError::GraphAssetMissing)?;
+            let io = InterruptibleFsmIo {
+                node_context: ctx.clone(),
+                machine,
+                current_time: ctx.time(),
+                parent_time_update: parent_time_update.clone(),
+                state: state.state.clone(),
+                state_entered_time: state.state_entered_time,
+                source_pose: state.source_pose.clone(),
+                role: FsmRole::Root,
+                stack: VecDeque::new(),
+                state_pose_output: self.state_pose_output.clone(),
+                state_pose_outputs: self.state_pose_outputs.clone(),
+            };
+            let sub_ctx = ctx
+                .create_child_context(condition.condition.id(), graph, Some(state.state.clone()))
+                .with_io(&io);
+            if !graph
+                .get_data(TargetPin::OutputData(condition.output.clone()), sub_ctx)?
+                .as_bool()?
+            {
+                continue;
+            }
+            let transition = Self::source_condition_transition_id(machine, &state.state, condition)
+                .ok_or_else(|| GraphError::UnknownErrorNode {
+                    graph: ctx.graph_context.context_id,
+                    node: ctx.node_id,
+                    error: "source transition condition target is unavailable".to_owned(),
+                })?;
+            return Ok(Some(transition));
+        }
+        Ok(None)
     }
 
     fn active_graph<'a>(
@@ -592,6 +676,19 @@ impl NodeLike for InterruptibleFsmNode {
             &mut remaining_transitions,
             &mut ctx,
         )?;
+        if remaining_transitions > 0
+            && let Some(transition) = self.source_transition_event(machine, update.clone(), &mut ctx)?
+        {
+            self.process_events(
+                machine,
+                EventQueue::with_events([SampledEvent::instant(AnimationEvent::Transition(
+                    transition,
+                ))]),
+                false,
+                &mut remaining_transitions,
+                &mut ctx,
+            )?;
+        }
         let internal_events = self.evaluate_active_state(machine, update, &mut ctx)?;
         self.process_events(
             machine,
@@ -630,7 +727,7 @@ impl NodeLike for InterruptibleFsmNode {
             .fsm_assets
             .get(&self.fsm)
             .ok_or(GraphError::FsmAssetMissing)?;
-        if self.state_label_key.is_empty() {
+        if self.state_label_key.is_empty() && self.source_transition_conditions.is_empty() {
             ctx.add_input_data(
                 LowLevelStateMachine::DRIVER_EVENT_QUEUE,
                 DataSpec::EventQueue,
@@ -989,6 +1086,46 @@ mod tests {
         assert!(selected.is_some_and(|transition| {
             transition.id == LowLevelTransitionId::Immediate(transition_id)
         }));
+    }
+
+    #[test]
+    fn source_transition_condition_selects_only_the_active_direct_transition() {
+        let source = StateId::default();
+        let target = StateId::default();
+        let transition_id = DirectTransitionId::default();
+        let mut machine = LowLevelStateMachine::new();
+        machine.add_transition(LowLevelTransition {
+            id: LowLevelTransitionId::Start(TransitionId::Direct(transition_id)),
+            ignore_external: false,
+            reset_target_state: true,
+            source: LowLevelStateId::HlState(source),
+            target: LowLevelStateId::HlTransition(TransitionId::Direct(transition_id)),
+            transition_type: LowLevelTransitionType::Direct,
+            hl_source: source,
+            hl_target: target,
+        });
+        let condition = SourceTransitionCondition {
+            transition_id: transition_id.uuid().to_string(),
+            source_state_id: source.uuid().to_string(),
+            output: "bCanEnterTransition".to_owned(),
+            ..default()
+        };
+        assert_eq!(
+            InterruptibleFsmNode::source_condition_transition_id(
+                &machine,
+                &LowLevelStateId::HlState(source),
+                &condition,
+            ),
+            Some(TransitionId::Direct(transition_id))
+        );
+        assert_eq!(
+            InterruptibleFsmNode::source_condition_transition_id(
+                &machine,
+                &LowLevelStateId::HlTransition(TransitionId::Direct(transition_id)),
+                &condition,
+            ),
+            None
+        );
     }
 
     #[test]

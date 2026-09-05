@@ -486,6 +486,14 @@ def root_passthrough(contract, root, pin):
     return "source_transition_default_" + node_id(root).replace("-", "") + "_" + pin["name"]
 
 
+def root_output_name(contract):
+    root = AUDIT.source_root(contract)
+    pins = AUDIT.visible_pins(root, "Input")
+    if len(pins) != 1:
+        raise ValueError("transition root must expose exactly one input pin")
+    return source_pin_label(pins[0])
+
+
 def direct_bound_root_node(root, pin, binding):
     output = pin_payload(None, root, pin, {})
     output["global_key"] = source_property_key(binding)

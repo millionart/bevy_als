@@ -201,24 +201,17 @@ def validate_registry(value):
         "node_classes",
         "function_rules",
         "enum_entry_values",
-        "fsm_state_label_keys",
     }:
         raise ConversionError("mapping registry contains unsupported configuration")
     node_classes = value.get("node_classes")
     functions = value.get("function_rules")
     enum_entry_values = value.get("enum_entry_values", {})
-    fsm_state_label_keys = value.get("fsm_state_label_keys", {})
     if not isinstance(node_classes, dict) or not node_classes:
         raise ConversionError("mapping registry node classes are invalid")
     if not isinstance(functions, list):
         raise ConversionError("mapping registry function rules are invalid")
     if not isinstance(enum_entry_values, dict):
         raise ConversionError("mapping registry enum entry values are invalid")
-    if not isinstance(fsm_state_label_keys, dict):
-        raise ConversionError("mapping registry FSM state label keys are invalid")
-    for name, key in fsm_state_label_keys.items():
-        if not isinstance(name, str) or not name or not isinstance(key, str) or not key:
-            raise ConversionError("mapping registry FSM state label key is invalid")
     for key, mapping in node_classes.items():
         if not isinstance(key, str) or not key.startswith("/Script/"):
             raise ConversionError("mapping registry source class is invalid")
@@ -1825,11 +1818,11 @@ def write_outputs_if_supported(output_root, ir, report, materialized_files=None)
     return True
 
 
-def expected_materialized_files(source, ir, registry, report):
+def expected_materialized_files(source, ir, report):
     if unsupported_failure(report):
         return {}
     try:
-        return materialize_files(source, ir, registry)
+        return materialize_files(source, ir)
     except MaterializationError as error:
         report["unsupported"].append(
             {"kind": "source_materialization_unsupported", "detail": str(error)}
@@ -2627,7 +2620,7 @@ def main():
         args.mount,
         args.source_reader,
     )
-    materialized_files = expected_materialized_files(source, ir, registry, report)
+    materialized_files = expected_materialized_files(source, ir, report)
     integration = build_integration_report(ir, report)
     if args.report is not None:
         write_json(args.report, report)

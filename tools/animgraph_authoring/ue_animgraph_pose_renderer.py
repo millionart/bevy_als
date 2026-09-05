@@ -441,8 +441,19 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         if not isinstance(config, dict):
             raise PoseRenderError("source state machine materialization is unavailable")
         aliases = config.get("state_aliases", [])
-        labels = config.get("state_labels", [])
-        if not isinstance(aliases, list) or not isinstance(labels, list):
+        conditions = config.get("source_transition_conditions", [])
+        if (
+            not isinstance(aliases, list)
+            or not isinstance(conditions, list)
+            or not all(
+                isinstance(condition, dict)
+                and all(
+                    isinstance(condition.get(field), str) and condition[field]
+                    for field in ("transition_id", "source_state_id", "condition", "output")
+                )
+                for condition in conditions
+            )
+        ):
             raise PoseRenderError("source state machine materialization is invalid")
         alias_ron = ", ".join(
             "(state_id: "
@@ -452,16 +463,26 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + "])"
             for alias in aliases
         )
+        conditions_ron = ", ".join(
+            "(transition_id: "
+            + quoted(condition["transition_id"])
+            + ", source_state_id: "
+            + quoted(condition["source_state_id"])
+            + ", condition: "
+            + quoted(condition["condition"])
+            + ", output: "
+            + quoted(condition["output"])
+            + ")"
+            for condition in conditions
+        )
         return (
             "als_ext::InterruptibleFsmNode",
             "(fsm: "
             + quoted(config["path"])
             + ", state_pose_output: \"Result\", outer_pose_output: \"Pose\", state_aliases: ["
             + alias_ron
-            + "], state_label_key: "
-            + quoted(config["state_label_key"])
-            + ", state_labels: ["
-            + ", ".join(quoted(label) for label in labels)
+            + "], source_transition_conditions: ["
+            + conditions_ron
             + "], expose_telemetry: false)",
         )
     if renderer == "multi_way_blend":

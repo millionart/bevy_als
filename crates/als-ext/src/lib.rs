@@ -145,7 +145,7 @@ pub use inertialized_linked_anim_layer::{
 };
 pub use interruptible_fsm::{
     InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, StateAliasBinding,
-    StatePoseOutput,
+    SourceTransitionCondition, StatePoseOutput,
 };
 pub use layered_graph::{
     CachedPoseInput, FixedF32Input, FixedGlobalF32Input, GlobalF32InputPin, LayeredGraphNode,
@@ -324,6 +324,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<GlobalDataInput>()
             .register_type::<InterruptibleFsmNode>()
             .register_type::<StateAliasBinding>()
+            .register_type::<SourceTransitionCondition>()
             .register_type::<StatePoseOutput>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()

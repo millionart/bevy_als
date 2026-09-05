@@ -69,10 +69,5 @@
       "LeftBackward": 3.0,
       "RightBackward": 5.0
     }
-  },
-  "fsm_state_label_keys": {
-    "Grounded States": "grounded_states.state_index",
-    "Locomotion States": "locomotion_states.state_index",
-    "Jump States": "jump_states.state_index"
   }
 }

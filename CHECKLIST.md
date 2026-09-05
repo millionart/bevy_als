@@ -120,6 +120,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：UE `FAnimInstanceProxy::GetInstanceStateWeight(MachineIndex, StateIndex)`返回recorded state weight，`GetInstanceMachineWeight(MachineIndex)`返回recorded machine weight；两个当前K2节点输出`ReturnValue`并且source函数引用/SourceNode/SourceStateNode均在native export中明确。
   - Gate summary：transition generator/converter/FSM-materializer self-test均PASS。Crouching与Standing fresh direct报告均无K2 AnimGetter blocker；Crouching仅到达下一层`source FSM state label provider` blocker，Standing仅剩child-reset。integration JSON为每个getter列出source function/machine/state→key和`AnimationGraphPlayer::set_global_input_data` provider contract。六个ready corpus fresh `--write`/`--check`与editor/position Gate 35/50/1/1/2/1均PASS。消融：复用既有`SourceScalarExpressionNode`的global F32与源默认0，不新增getter node、alias或手工状态输入。
 
+- [x] BF112.23 Source FSM condition evaluation：开始：2026-09-05 07:44:58 +08:00；预估结束：2026-09-05 08:39:58 +08:00；实际结束：2026-09-05 08:09:56 +08:00（偏差 -30m02s）。删除`fsm_state_label_keys`和旧直接state-label驱动；让`InterruptibleFsmNode`在当前 source state 上按`PriorityOrder/source_order`执行已物化 transition condition graph并触发对应direct transition。验收：bevy low-level FSM与UE transition order source、focused transition-condition NodeLike test、Crouching materialization到ready或下一个source blocker、现有FSM/ready corpus回归。
+  - source fact：bevy low-level FSM仅从`driver_events`处理Transition事件；`TransitionKind::Graph`是过渡混合图而非条件执行图。UE按transition priority检查`bCanEnterTransition`。因此不能继续用外部state index白名单替代source condition graph。
+  - Gate summary：UE/bevy FSM source、transition/materializer/converter self-test和13个focused `interruptible_fsm` tests均PASS；source-condition matcher只选择当前state的direct transition。Crouching fresh direct `--write`/`--check`为ready，生成66文件且editor/position Gate零失败；六个既有ready corpus重新`--write`/`--check`及35/50/1/1/2/1静态Gate均PASS。消融：删除registry的三个FSM label键、物化manifest的label map、无用registry参数以及生成RON中空label字段；未修改手工direct-transition runtime graph。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

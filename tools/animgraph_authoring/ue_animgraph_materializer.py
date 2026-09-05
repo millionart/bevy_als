@@ -37,6 +37,10 @@ def transition_path(source_asset, transition_id):
     return f"transitions/{stable_id(source_asset, 'transition', transition_id)}.animgraph.ron"
 
 
+def condition_path(source_asset, suffix):
+    return f"conditions/{stable_id(source_asset, 'condition', suffix)}.animgraph.ron"
+
+
 def synthetic_state_path(source_asset, state_id):
     return f"states/{stable_id(source_asset, 'synthetic-state', state_id)}.animgraph.ron"
 
@@ -205,14 +209,10 @@ def transition_graph_text(source_asset, transition):
     )
 
 
-def fsm_config(source, plan, registry, graph_paths):
+def fsm_config(source, plan, graph_paths):
     source_asset = source["asset_path"]
     actual, aliases = structural_order(source, plan)
     state_ids = {item["source_node"]: item["id"] for item in [*actual, *aliases]}
-    label_keys = registry.get("fsm_state_label_keys", {})
-    key = label_keys.get(graph_for_suffix(source, plan["source_graph"]).get("name"))
-    if not isinstance(key, str) or not key:
-        raise MaterializationError("source FSM state label provider is unavailable")
     alias_bindings = []
     for alias in aliases:
         members = []
@@ -223,11 +223,32 @@ def fsm_config(source, plan, registry, graph_paths):
                 raise MaterializationError("source FSM alias member is unavailable")
             members.append(member)
         alias_bindings.append({"state_id": alias["id"], "member_state_ids": members})
+    source_transition_conditions = []
+    for transition in sorted(
+        plan["transitions"],
+        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
+    ):
+        source_state = state_ids.get(f"{source_asset}:{transition['source']}")
+        if source_state is None:
+            raise MaterializationError("source transition condition state is unavailable")
+        try:
+            output = transition_renderer.root_output_name(
+                contract(source, transition["condition_graph"])
+            )
+        except ValueError as error:
+            raise MaterializationError("source transition condition output is unavailable") from error
+        source_transition_conditions.append(
+            {
+                "transition_id": transition["id"],
+                "source_state_id": source_state,
+                "condition": condition_path(source_asset, transition["condition_graph"]),
+                "output": output,
+            }
+        )
     return {
         "path": fsm_path(source_asset, plan["source_graph"]),
-        "state_label_key": key,
-        "state_labels": [item["title"] for item in [*actual, *aliases]],
         "state_aliases": alias_bindings,
+        "source_transition_conditions": source_transition_conditions,
         "actual": actual,
         "aliases": aliases,
         "state_ids": state_ids,
@@ -308,7 +329,7 @@ def materialized_reference_issues(files):
     for path, text in files.items():
         if not path.endswith((".animgraph.ron", ".fsm.ron")):
             continue
-        for reference in re.findall(r"(?:graph|fsm):\s*\"([^\"]+)\"", text):
+        for reference in re.findall(r"(?:graph|fsm|condition):\s*\"([^\"]+)\"", text):
             if reference.endswith((".animgraph.ron", ".fsm.ron")) and reference not in files:
                 issues.append(f"{path}: missing generated reference {reference}")
     return sorted(set(issues))
@@ -328,7 +349,7 @@ def linked_layer_targets(ir):
     return values
 
 
-def materialize_files(source, ir, registry):
+def materialize_files(source, ir):
     source_asset = source.get("asset_path")
     if source_asset != ir.get("source_asset"):
         raise MaterializationError("source IR asset is invalid")
@@ -350,7 +371,7 @@ def materialize_files(source, ir, registry):
     fsm_configs = {}
     for entry in fsm_entries:
         plan = entry["fsm_renderer"]
-        fsm_configs[plan["source_graph"]] = fsm_config(source, plan, registry, graph_paths)
+        fsm_configs[plan["source_graph"]] = fsm_config(source, plan, graph_paths)
     files = {}
     for entry in fsm_entries:
         plan = entry["fsm_renderer"]
@@ -374,7 +395,7 @@ def materialize_files(source, ir, registry):
         if entry.get("kind") != "transition":
             continue
         suffix = entry["source_graph"]
-        path = f"conditions/{stable_id(source_asset, 'condition', suffix)}.animgraph.ron"
+        path = condition_path(source_asset, suffix)
         files[path] = (
             transition_renderer.graph_text(contract(source, suffix))
         )
@@ -388,8 +409,8 @@ def materialize_files(source, ir, registry):
         "graphs": graph_paths,
         "fsms": {key: value["path"] for key, value in fsm_configs.items()},
         "conditions": condition_paths,
-        "fsm_state_label_keys": {
-            key: value["state_label_key"] for key, value in fsm_configs.items()
+        "source_transition_conditions": {
+            key: value["source_transition_conditions"] for key, value in fsm_configs.items()
         },
         "lifecycle_dispatch": ir.get("lifecycle_dispatch"),
     }
