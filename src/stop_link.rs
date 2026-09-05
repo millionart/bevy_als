@@ -289,6 +289,9 @@ const ROOT_TRANSITION_SLOT_GRAPH: &str = "graphs/ab_als/root_transition_slot.ani
 const ROOT_TRANSITION_SLOT_POSE_KEY: &str = "als_root_transition_slot_pose";
 const ROOT_TRANSITION_SLOT_WEIGHT_KEY: &str = "als_root_transition_slot_weight";
 const ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "als_root_transition_slot_layer_weight";
+const GENERATED_TRANSITION_SLOT_POSE_KEY: &str = "transition.pose";
+const GENERATED_TRANSITION_SLOT_WEIGHT_KEY: &str = "transition.weight";
+const GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "transition.layer_weight";
 const ROOT_TRANSITION_SLOT_CURVE_PREFIX: &str = "als_root_transition_slot_curve_";
 const ROOT_TRANSITION_SLOT_CURVE_NAMES: [&str; 12] = [
     "PoseStanding",
@@ -530,6 +533,9 @@ fn bridge_root_transition_slot_samples(
         let Some(playback) = playback else {
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
@@ -547,6 +553,9 @@ fn bridge_root_transition_slot_samples(
             }
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
@@ -557,9 +566,15 @@ fn bridge_root_transition_slot_samples(
                 });
             continue;
         };
-        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
+        target_player
+            .set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
+        target_player
+            .set_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
+        target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
+        target_player
+            .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
         write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
         commands

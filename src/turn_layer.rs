@@ -50,6 +50,9 @@ struct TurnSlotContract {
     play_rate_key: &'static str,
     pose_key: &'static str,
     layer_weight_key: &'static str,
+    generated_pose_key: &'static str,
+    generated_weight_key: &'static str,
+    generated_layer_weight_key: &'static str,
     inertialization_epoch_key: &'static str,
     inertialization_duration_key: &'static str,
 }
@@ -64,6 +67,9 @@ fn turn_slot_contract(crouching: bool) -> TurnSlotContract {
             play_rate_key: "als_crouching_turn_play_rate",
             pose_key: CROUCHING_TURN_SLOT_POSE_KEY,
             layer_weight_key: CROUCHING_TURN_SLOT_LAYER_WEIGHT_KEY,
+            generated_pose_key: "turn_in_place_crouching.pose",
+            generated_weight_key: "turn_in_place_crouching.weight",
+            generated_layer_weight_key: "turn_in_place_crouching.layer_weight",
             inertialization_epoch_key: CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY,
             inertialization_duration_key: CROUCHING_TURN_INERTIALIZATION_DURATION_KEY,
         }
@@ -76,6 +82,9 @@ fn turn_slot_contract(crouching: bool) -> TurnSlotContract {
             play_rate_key: "als_standing_turn_play_rate",
             pose_key: STANDING_TURN_SLOT_POSE_KEY,
             layer_weight_key: STANDING_TURN_SLOT_LAYER_WEIGHT_KEY,
+            generated_pose_key: "turn_in_place_standing.pose",
+            generated_weight_key: "turn_in_place_standing.weight",
+            generated_layer_weight_key: "turn_in_place_standing.layer_weight",
             inertialization_epoch_key: STANDING_TURN_INERTIALIZATION_EPOCH_KEY,
             inertialization_duration_key: STANDING_TURN_INERTIALIZATION_DURATION_KEY,
         }
@@ -586,6 +595,8 @@ fn clear_turn_slot_inputs(player: &mut AnimationGraphPlayer) {
         let contract = turn_slot_contract(crouching);
         player.set_global_input_data(contract.weight_key, 0.0_f32);
         player.set_global_input_data(contract.layer_weight_key, 0.0_f32);
+        player.set_global_input_data(contract.generated_weight_key, 0.0_f32);
+        player.set_global_input_data(contract.generated_layer_weight_key, 0.0_f32);
     }
 }
 
@@ -663,9 +674,12 @@ fn bridge_turn_slot_samples(
             });
             continue;
         };
-        target_player.set_global_input_data(contract.pose_key, DataValue::Pose(pose));
+        target_player.set_global_input_data(contract.pose_key, DataValue::Pose(pose.clone()));
         target_player.set_global_input_data(contract.weight_key, weight);
         target_player.set_global_input_data(contract.layer_weight_key, 1.0_f32);
+        target_player.set_global_input_data(contract.generated_pose_key, DataValue::Pose(pose));
+        target_player.set_global_input_data(contract.generated_weight_key, weight);
+        target_player.set_global_input_data(contract.generated_layer_weight_key, 1.0_f32);
         commands.entity(avatar).insert(AlsStandingTurnSlotRuntime {
             active: true,
             weight,

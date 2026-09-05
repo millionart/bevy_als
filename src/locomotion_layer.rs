@@ -790,6 +790,7 @@ fn update_locomotion_sync_phases(
 fn write_globals(
     player: &mut AnimationGraphPlayer,
     runtime: &LocomotionLayerRuntime,
+    jumped: bool,
     curves: LocomotionCurves,
     vertical_velocity: f32,
     ground_prediction: f32,
@@ -876,6 +877,33 @@ fn write_globals(
     ] {
         player.set_global_input_data(key, value);
     }
+    for (key, value) in [
+        ("in_air_state.b_jumped", jumped as u8 as f32),
+        ("in_air_state.ground_prediction_amount", ground_prediction),
+        ("in_air_state.jump_play_rate", jump_play_rate),
+        (
+            "in_air_state.vertical_velocity_world_space",
+            vertical_velocity,
+        ),
+        (
+            "sync_groups.ab_als_locomotion.fall.phase",
+            runtime.fall_phase.phase,
+        ),
+        (
+            "sync_groups.ab_als_locomotion.jump.phase",
+            runtime.jump_phase.phase,
+        ),
+        (
+            "sync_groups.ab_als_locomotion.flail.phase",
+            runtime.flail_phase.phase,
+        ),
+        (
+            "sync_groups.ab_als_locomotion.land.phase",
+            runtime.land_phase.phase,
+        ),
+    ] {
+        player.set_global_input_data(key, value);
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -948,6 +976,7 @@ fn locomotion_layer_writer(
         let rotating = turn.is_some_and(|turn| turn.rotate_active);
         let has_relative_location = movement_base.is_some_and(|state| state.has_relative_location);
         update_jump_success_latch(&mut runtime, *locomotion, velocity.y);
+        let jumped = runtime.jump_latched;
         runtime.state_elapsed += delta_seconds.max(0.0);
         runtime.transition_elapsed = (runtime.transition_elapsed + delta_seconds.max(0.0))
             .min(runtime.transition_duration.max(0.0));
@@ -1050,6 +1079,7 @@ fn locomotion_layer_writer(
         write_globals(
             &mut player,
             &runtime,
+            jumped,
             curves,
             animation_vertical_velocity,
             prediction,
@@ -1387,6 +1417,27 @@ mod tests {
             rejected.jump_latched, succeeded.jump_latched,
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn source_jump_signal_is_written_before_the_local_fsm_consumes_it() {
+        let mut player = AnimationGraphPlayer::new(default());
+        write_globals(
+            &mut player,
+            &LocomotionLayerRuntime::default(),
+            true,
+            LocomotionCurves::default(),
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("in_air_state.b_jumped")
+                .and_then(|value| value.as_f32().ok()),
+            Some(1.0)
+        );
     }
 
     #[test]

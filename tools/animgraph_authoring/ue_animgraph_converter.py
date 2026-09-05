@@ -41,6 +41,8 @@ IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
 INTEGRATION_REPORT_FORMAT = "ue_animgraph_integration_report_v1"
 INSTALLATION_MANIFEST_FORMAT = "ue_animgraph_installation_manifest_v1"
+RUNTIME_PROVIDER_CONTRACT_FORMAT = "als_runtime_provider_contract_v1"
+RUNTIME_PROVIDER_CONTRACT_PATH = ROOT / "tools" / "animgraph_authoring" / "als_runtime_provider_contract.json"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
 TRANSITION_RENDERERS = {
@@ -96,6 +98,41 @@ def render_transition_contract(graph_contract):
 
 def read_json(path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def runtime_provider_contract():
+    try:
+        value = read_json(RUNTIME_PROVIDER_CONTRACT_PATH)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ConversionError("runtime provider contract is unavailable") from error
+    expected = {
+        "format",
+        "runtime_inputs",
+        "sync_phase_providers",
+        "slot_providers",
+        "gameplay_tag_providers",
+    }
+    if not isinstance(value, dict) or set(value) != expected or value.get("format") != RUNTIME_PROVIDER_CONTRACT_FORMAT:
+        raise ConversionError("runtime provider contract is invalid")
+    for category in expected - {"format"}:
+        providers = value.get(category)
+        if not isinstance(providers, dict) or any(
+            not isinstance(key, str)
+            or not key
+            or not isinstance(provider, str)
+            or not provider
+            for key, provider in providers.items()
+        ):
+            raise ConversionError("runtime provider contract is invalid")
+    return value
+
+
+RUNTIME_PROVIDER_CONTRACT = runtime_provider_contract()
+
+
+def runtime_provider(category, key):
+    value = RUNTIME_PROVIDER_CONTRACT[category].get(key, "")
+    return value if isinstance(value, str) else ""
 
 
 def write_json(path, value):
@@ -1488,7 +1525,15 @@ def integration_sync_phase_providers(ir):
     if not isinstance(plans, list):
         return []
     rows = [
-        plan
+        {
+            **plan,
+            "target_provider": runtime_provider(
+                "sync_phase_providers", plan["target_phase_key"]
+            ),
+            "status": "mapped"
+            if runtime_provider("sync_phase_providers", plan["target_phase_key"])
+            else plan["status"],
+        }
         for plan in plans
         if isinstance(plan, dict)
         and all(
@@ -1527,12 +1572,14 @@ def integration_runtime_inputs(ir):
                     )
                 ):
                     continue
+                provider = runtime_provider("runtime_inputs", binding["target_key"])
                 rows.append(
                     {
                         "source_node": node.get("source_node"),
                         "renderer": node.get("renderer"),
                         **binding,
-                        "status": "requires_target_provider",
+                        "target_provider": provider,
+                        "status": "mapped" if provider else "requires_target_provider",
                     }
                 )
     return sorted(rows, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
@@ -1591,6 +1638,7 @@ def integration_slot_providers(ir):
                 for field in ("slot_name", "group_name", "pose_key", "weight_key", "layer_weight_key")
             ):
                 continue
+            provider = runtime_provider("slot_providers", semantic["slot_name"])
             rows.append(
                 {
                     "source_node": node.get("source_node"),
@@ -1599,7 +1647,8 @@ def integration_slot_providers(ir):
                     "pose_key": semantic["pose_key"],
                     "weight_key": semantic["weight_key"],
                     "layer_weight_key": semantic["layer_weight_key"],
-                    "status": "requires_target_provider",
+                    "target_provider": provider,
+                    "status": "mapped" if provider else "requires_target_provider",
                 }
             )
     return sorted(rows, key=lambda item: item["source_node"])
@@ -1617,7 +1666,16 @@ def integration_gameplay_tag_providers(ir):
                 for field in ("source_node", "source_property_path", "target_key", "operation", "provider_api", "player_entity")
             ):
                 continue
-            rows.append(provider)
+            target_provider = runtime_provider("gameplay_tag_providers", provider["target_key"])
+            rows.append(
+                {
+                    **provider,
+                    "target_provider": target_provider,
+                    "status": "mapped"
+                    if target_provider
+                    else "requires_target_provider",
+                }
+            )
         for node in graph.get("nodes", []):
             if not isinstance(node, dict):
                 continue
@@ -1631,6 +1689,7 @@ def integration_gameplay_tag_providers(ir):
                 or not semantic["active_key"]
             ):
                 continue
+            target_provider = runtime_provider("gameplay_tag_providers", semantic["active_key"])
             rows.append(
                 {
                     "source_node": node.get("source_node"),
@@ -1640,7 +1699,10 @@ def integration_gameplay_tag_providers(ir):
                     "expected_tag": "",
                     "provider_api": "als_ext::set_gameplay_tag_input",
                     "player_entity": "AnimationGraphPlayer entity",
-                    "status": "requires_target_provider",
+                    "target_provider": target_provider,
+                    "status": "mapped"
+                    if target_provider
+                    else "requires_target_provider",
                 }
             )
     return sorted(rows, key=lambda item: item["source_node"])
@@ -3324,7 +3386,7 @@ def run_self_test():
     ]
     assert integration["unhandled_property_bindings"][0]["status"] == "requires_target_provider"
     assert integration["sync_phase_providers"][0]["target_phase_key"] == "sync_groups.ab_als_default.secondary_motion.phase"
-    assert integration["sync_phase_providers"][0]["status"] == "requires_target_provider"
+    assert integration["sync_phase_providers"][0]["status"] == "mapped"
     assert any(
         item["target_phase_key"] == "sync_groups.ab_als_standing.movement.phase"
         and item["phase_basis_source_node"] == "/Asset:AnimGraph.Movement"

@@ -17,6 +17,7 @@ pub mod direction_layer;
 pub mod foot_ik_apply;
 pub mod gait_layer;
 pub mod game_mode;
+pub mod generated_ab_als_provider;
 pub mod grounded_layer;
 pub mod head_layer;
 pub mod layering_layer;

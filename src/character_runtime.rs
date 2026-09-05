@@ -12,6 +12,7 @@ use crate::crouching_layer::CrouchingLayerPlugin;
 use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::GaitLayerPlugin;
+use crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin;
 use crate::grounded_layer::GroundedLayerPlugin;
 use crate::head_layer::HeadLayerPlugin;
 use crate::layering_layer::LayeringLayerPlugin;
@@ -62,6 +63,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             HeadLayerPlugin,
             RagdollingLayerPlugin,
             AlsRootGraphPlugin,
+            GeneratedAbAlsProviderPlugin,
             AlsMantleDrivePlugin,
             PaAlsPhysicsPlugin,
             AlsRagdollLinkPlugin,

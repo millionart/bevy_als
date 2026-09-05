@@ -28,6 +28,9 @@ const ROOT_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "als_root_post_locomotion_slot_
 const ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "als_root_post_locomotion_slot_weight";
 const ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str =
     "als_root_post_locomotion_slot_layer_weight";
+const GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "post_locomotion.pose";
+const GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "post_locomotion.weight";
+const GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str = "post_locomotion.layer_weight";
 const ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX: &str = "als_root_post_locomotion_slot_curve_";
 const ROLL_SLOT_CURVES: &str = "animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
 const ROLL_SLOT_CURVE_NAMES: [&str; 2] = ["PoseStanding", "PoseGrounded"];
@@ -194,6 +197,9 @@ fn bridge_roll_slot_samples(
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             write_roll_slot_curves(&mut target_player, None, 0.0);
             commands
                 .entity(sampler.character)
@@ -213,6 +219,9 @@ fn bridge_roll_slot_samples(
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             write_roll_slot_curves(&mut target_player, None, 0.0);
             commands
                 .entity(sampler.character)
@@ -227,10 +236,19 @@ fn bridge_roll_slot_samples(
                 });
             continue;
         };
-        target_player
-            .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose));
+        target_player.set_global_input_data(
+            ROOT_POST_LOCOMOTION_SLOT_POSE_KEY,
+            DataValue::Pose(pose.clone()),
+        );
         target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
         target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, weight);
+        target_player.set_global_input_data(
+            GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
+            DataValue::Pose(pose),
+        );
+        target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
+        target_player
+            .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, weight);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         let (pose_standing, pose_grounded) = write_roll_slot_curves(
             &mut target_player,

@@ -346,6 +346,92 @@ fn write_state(player: &mut AnimationGraphPlayer, state: AlsLayeringState, crouc
     ] {
         player.set_global_input_data(key, value);
     }
+    for (key, value) in [
+        ("layering_state.head_blend_amount", state.head_blend_amount),
+        (
+            "layering_state.head_additive_blend_amount",
+            state.head_additive_blend_amount,
+        ),
+        (
+            "layering_state.head_slot_blend_amount",
+            state.head_slot_blend_amount,
+        ),
+        (
+            "layering_state.arm_left_blend_amount",
+            state.arm_left_blend_amount,
+        ),
+        (
+            "layering_state.arm_left_additive_blend_amount",
+            state.arm_left_additive_blend_amount,
+        ),
+        (
+            "layering_state.arm_left_slot_blend_amount",
+            state.arm_left_slot_blend_amount,
+        ),
+        (
+            "layering_state.arm_left_local_space_blend_amount",
+            state.arm_left_local_space_blend_amount,
+        ),
+        (
+            "layering_state.arm_left_mesh_space_blend_amount",
+            state.arm_left_mesh_space_blend_amount,
+        ),
+        (
+            "layering_state.arm_right_blend_amount",
+            state.arm_right_blend_amount,
+        ),
+        (
+            "layering_state.arm_right_additive_blend_amount",
+            state.arm_right_additive_blend_amount,
+        ),
+        (
+            "layering_state.arm_right_slot_blend_amount",
+            state.arm_right_slot_blend_amount,
+        ),
+        (
+            "layering_state.arm_right_local_space_blend_amount",
+            state.arm_right_local_space_blend_amount,
+        ),
+        (
+            "layering_state.arm_right_mesh_space_blend_amount",
+            state.arm_right_mesh_space_blend_amount,
+        ),
+        (
+            "layering_state.hand_left_blend_amount",
+            state.hand_left_blend_amount,
+        ),
+        (
+            "layering_state.hand_right_blend_amount",
+            state.hand_right_blend_amount,
+        ),
+        (
+            "layering_state.spine_blend_amount",
+            state.spine_blend_amount,
+        ),
+        (
+            "layering_state.spine_additive_blend_amount",
+            state.spine_additive_blend_amount,
+        ),
+        (
+            "layering_state.spine_slot_blend_amount",
+            state.spine_slot_blend_amount,
+        ),
+        (
+            "layering_state.pelvis_blend_amount",
+            state.pelvis_blend_amount,
+        ),
+        (
+            "layering_state.pelvis_slot_blend_amount",
+            state.pelvis_slot_blend_amount,
+        ),
+        ("layering_state.legs_blend_amount", state.legs_blend_amount),
+        (
+            "layering_state.legs_slot_blend_amount",
+            state.legs_slot_blend_amount,
+        ),
+    ] {
+        player.set_global_input_data(key, value);
+    }
 }
 
 fn write_masks(player: &mut AnimationGraphPlayer, masks: &LayeringMasks) {
@@ -419,6 +505,39 @@ mod tests {
         assert_eq!(arm_mesh_space_blend_amount(0.99998), 1.0);
         assert_eq!(arm_mesh_space_blend_amount(0.99999), 0.0);
         assert_eq!(arm_mesh_space_blend_amount(1.0), 0.0);
+    }
+
+    #[test]
+    fn layering_state_writes_direct_generated_inputs() {
+        let mut player = AnimationGraphPlayer::new(default());
+        write_state(
+            &mut player,
+            AlsLayeringState {
+                head_blend_amount: 0.25,
+                arm_left_slot_blend_amount: 0.5,
+                legs_blend_amount: 0.75,
+                ..default()
+            },
+            0.0,
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("layering_state.head_blend_amount")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.25)
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("layering_state.arm_left_slot_blend_amount")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.5)
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("layering_state.legs_blend_amount")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.75)
+        );
     }
 
     #[test]

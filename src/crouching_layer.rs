@@ -33,6 +33,7 @@ use bevy_animation_graph::core::state_machine::{
 };
 
 use crate::actual_motion::AlsActualMotion;
+use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
 use crate::stop_link::AlsTransitionPlayback;
@@ -1361,6 +1362,28 @@ fn write_crouching_inputs(player: &mut AnimationGraphPlayer, inputs: CrouchingGr
     ] {
         player.set_global_input_data(key, value);
     }
+    for (key, value) in [
+        ("crouching_state.play_rate", inputs.play_rate),
+        ("crouching_state.stride_blend_amount", inputs.stride_amount),
+        ("lean_state.right_amount", inputs.lean_right_amount),
+        ("lean_state.forward_amount", inputs.lean_forward_amount),
+        ("rotate_in_place_state.play_rate", inputs.rotation_play_rate),
+        ("turn_in_place_state.play_rate", inputs.turn_play_rate),
+        (
+            "rotate_in_place_state.b_rotating_left",
+            inputs.rotate_left_loop as u8 as f32,
+        ),
+        (
+            "rotate_in_place_state.b_rotating_right",
+            inputs.rotate_right_loop as u8 as f32,
+        ),
+        (
+            "sync_groups.ab_als_crouching.movement.phase",
+            inputs.movement_marker_phase,
+        ),
+    ] {
+        player.set_global_input_data(key, value);
+    }
     player.set_global_input_data("als_crouching_rotate_left_loop", inputs.rotate_left_loop);
     player.set_global_input_data("als_crouching_rotate_right_loop", inputs.rotate_right_loop);
 }
@@ -1585,7 +1608,7 @@ fn crouching_layer_writer(
     animation_curves: Res<Assets<AlsAnimCurves>>,
     mut curve_handles: ResMut<CrouchingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     update_leg_masks(&mut curve_handles, &skeletons);
     let delta_seconds = time.delta_secs();
@@ -1621,12 +1644,11 @@ fn crouching_layer_writer(
         let Some(movement_params) = params.get(handle.id()) else {
             continue;
         };
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+        let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
-        let hips_lock = player
-            .get_global_input_data("als_crouching_hips_direction_lock_amount")
-            .and_then(|value| value.as_f32().ok())
+        let hips_lock = context
+            .and_then(|state| state.f32("HipsDirectionLock"))
             .unwrap_or(0.0)
             .clamp(-1.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
@@ -2243,6 +2265,8 @@ mod tests {
             &mut player,
             CrouchingGraphInputs {
                 movement_marker_phase: 0.25,
+                stride_amount: 0.5,
+                play_rate: 0.75,
                 ..default()
             },
         );
@@ -2251,6 +2275,24 @@ mod tests {
                 .get_global_input_data("als_movement_marker_phase")
                 .and_then(|value| value.as_f32().ok()),
             Some(0.25)
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("sync_groups.ab_als_crouching.movement.phase")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.25)
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("crouching_state.stride_blend_amount")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.5)
+        );
+        assert_eq!(
+            player
+                .get_global_input_data("crouching_state.play_rate")
+                .and_then(|value| value.as_f32().ok()),
+            Some(0.75)
         );
     }
 
