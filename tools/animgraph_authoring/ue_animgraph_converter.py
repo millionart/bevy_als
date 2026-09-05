@@ -1499,6 +1499,31 @@ def integration_gameplay_tag_providers(ir):
     return sorted(rows, key=lambda item: item["source_node"])
 
 
+def integration_control_rig_providers(ir):
+    rows = []
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            semantic = node.get("semantic") if isinstance(node, dict) else None
+            if node.get("renderer") != "control_rig" or not isinstance(semantic, dict):
+                continue
+            if not all(
+                isinstance(semantic.get(field), str) and semantic[field]
+                for field in ("rig_class", "rig_input_binding_pin", "rig_input_binding_path")
+            ):
+                continue
+            rows.append(
+                {
+                    "source_node": node.get("source_node"),
+                    "source_rig_class": semantic["rig_class"],
+                    "source_pin": semantic["rig_input_binding_pin"],
+                    "source_function": semantic["rig_input_binding_path"],
+                    "target_provider": "crate::control_rig_apply::ControlRigApplyPlugin (AlsControlRigInput)",
+                    "status": "mapped",
+                }
+            )
+    return sorted(rows, key=lambda item: item["source_node"])
+
+
 def build_integration_report(ir, report):
     providers = integration_provider_by_node(ir)
     external_functions = []
@@ -1570,6 +1595,7 @@ def build_integration_report(ir, report):
         "animation_state_getter_providers": integration_anim_getter_providers(ir),
         "slot_providers": integration_slot_providers(ir),
         "gameplay_tag_providers": integration_gameplay_tag_providers(ir),
+        "control_rig_providers": integration_control_rig_providers(ir),
         "unhandled_property_bindings": property_bindings,
         "external_graph_dependencies": external_dependencies,
         "other_blockers": [
@@ -1609,6 +1635,26 @@ def integration_report_markdown(value):
             + item["status"]
             + (" via `" + item["target_provider"] + "`" if item["target_provider"] else "")
             for item in functions
+        )
+    else:
+        lines.append("- None")
+    lines.extend(["", "## Control Rig providers", ""])
+    control_rig_providers = value["control_rig_providers"]
+    if control_rig_providers:
+        lines.extend(
+            "- `"
+            + item["source_rig_class"]
+            + "` / `"
+            + item["source_function"]
+            + "` at `"
+            + str(item["source_node"])
+            + "` pin `"
+            + item["source_pin"]
+            + "` → `"
+            + item["target_provider"]
+            + "`: "
+            + item["status"]
+            for item in control_rig_providers
         )
     else:
         lines.append("- None")
@@ -2809,6 +2855,15 @@ def run_self_test():
                             "layer_weight_key": "turn_in_place_standing.layer_weight",
                         },
                     },
+                    {
+                        "source_node": "/Asset:AnimGraph.ControlRig",
+                        "renderer": "control_rig",
+                        "semantic": {
+                            "rig_class": "CR_Als",
+                            "rig_input_binding_pin": "__CustomProperty_RigInput",
+                            "rig_input_binding_path": "GetControlRigInput",
+                        },
+                    },
                 ],
                 "gameplay_tag_providers": [
                     {
@@ -2862,6 +2917,16 @@ def run_self_test():
     assert integration["animation_state_getter_providers"][0]["source_function"] == "GetInstanceStateWeight"
     assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
     assert integration["gameplay_tag_providers"][0]["provider_api"] == "als_ext::set_gameplay_tag_input"
+    assert integration["control_rig_providers"] == [
+        {
+            "source_node": "/Asset:AnimGraph.ControlRig",
+            "source_rig_class": "CR_Als",
+            "source_pin": "__CustomProperty_RigInput",
+            "source_function": "GetControlRigInput",
+            "target_provider": "crate::control_rig_apply::ControlRigApplyPlugin (AlsControlRigInput)",
+            "status": "mapped",
+        }
+    ]
     blocked_markdown = integration_report_markdown(integration)
     assert "Do not integrate generated RON files." in blocked_markdown
     assert "CustomActorFunction" not in blocked_markdown
@@ -2884,6 +2949,8 @@ def run_self_test():
     assert "## Animation state getter providers" in integration_report_markdown(ready)
     assert "## Slot providers" in integration_report_markdown(ready)
     assert "## Gameplay tag providers" in integration_report_markdown(ready)
+    assert "## Control Rig providers" in integration_report_markdown(ready)
+    assert "GetControlRigInput" in integration_report_markdown(ready)
     assert "source candidates" in integration_report_markdown(ready)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

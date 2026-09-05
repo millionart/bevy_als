@@ -1080,11 +1080,34 @@ def control_rig_contract(node):
     rig_class = generated_anim_blueprint_asset(field(reference, "BlueprintRigClass"))
     if not rig_class:
         raise PoseContractError("control rig class is unavailable")
+    rig_class = rig_class.rsplit(".", 1)[-1]
+    alpha_enabled = parse_bool(field(fields, "bAlphaBoolEnabled", "True"))
+    transfer_input_pose = parse_bool(field(fields, "bTransferInputPose", "True"))
+    transfer_input_curves = parse_bool(field(fields, "bTransferInputCurves", "True"))
+    transfer_pose_in_global_space = parse_bool(
+        field(fields, "bTransferPoseInGlobalSpace", "False")
+    )
+    if rig_class != "CR_Als":
+        issues.append(issue(node, renderer, "source_control_rig_class_unsupported", "ControlRigAssetReference"))
+    if not alpha_enabled or input_is_linked(node, "bAlphaBoolEnabled"):
+        issues.append(issue(node, renderer, "source_control_rig_alpha_unsupported", "bAlphaBoolEnabled"))
+    if not transfer_input_pose:
+        issues.append(issue(node, renderer, "source_control_rig_input_pose_unsupported", "bTransferInputPose"))
+    if transfer_pose_in_global_space:
+        issues.append(issue(node, renderer, "source_control_rig_global_pose_unsupported", "bTransferPoseInGlobalSpace"))
+    try:
+        lod_threshold = float(field(fields, "LODThreshold", "-1"))
+    except ValueError:
+        lod_threshold = None
+    if lod_threshold != -1.0:
+        issues.append(issue(node, renderer, "source_control_rig_lod_unsupported", "LODThreshold"))
+    if field(fields, "DefaultControlRigAssetReference", "()").strip() not in {"()", "None"}:
+        issues.append(issue(node, renderer, "source_control_rig_default_asset_unsupported", "DefaultControlRigAssetReference"))
     bindings = property_binding_paths(node)
     rig_input_pins = [
         pin for pin, path in bindings.items() if path == "GetControlRigInput"
     ]
-    if len(rig_input_pins) != 1:
+    if len(rig_input_pins) != 1 or input_is_linked(node, "RigInput"):
         issues.append(issue(node, renderer, "source_control_rig_input_unsupported", "RigInput"))
     issues.extend(
         lifecycle_issues(
@@ -1098,14 +1121,13 @@ def control_rig_contract(node):
         "renderer": renderer,
         "input_pins": inputs,
         "output_pins": outputs,
-        "rig_class": rig_class.rsplit(".", 1)[-1],
-        "alpha_enabled": parse_bool(field(fields, "bAlphaBoolEnabled", "True")),
-        "transfer_input_pose": parse_bool(field(fields, "bTransferInputPose", "True")),
-        "transfer_input_curves": parse_bool(field(fields, "bTransferInputCurves", "True")),
-        "transfer_pose_in_global_space": parse_bool(
-            field(fields, "bTransferPoseInGlobalSpace", "False")
-        ),
+        "rig_class": rig_class,
+        "alpha_enabled": alpha_enabled,
+        "transfer_input_pose": transfer_input_pose,
+        "transfer_input_curves": transfer_input_curves,
+        "transfer_pose_in_global_space": transfer_pose_in_global_space,
         "rig_input_binding_pin": rig_input_pins[0] if len(rig_input_pins) == 1 else "",
+        "rig_input_binding_path": bindings.get(rig_input_pins[0], "") if len(rig_input_pins) == 1 else "",
     }, issues
 
 
@@ -1684,7 +1706,7 @@ def run_self_test():
     control_rig = fixture_node(
         "control_rig",
         "Node",
-        '(ControlRigAssetReference=(BlueprintRigClass="/Script/ControlRig.ControlRigBlueprintGeneratedClass\'/Asset/CR_Test.CR_Test_C\'"),AlphaInputType=Bool,bAlphaBoolEnabled=True,Source=(),bTransferInputPose=True,bTransferInputCurves=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        '(ControlRigAssetReference=(BlueprintRigClass="/Script/ControlRig.ControlRigBlueprintGeneratedClass\'/Asset/CR_Als.CR_Als_C\'"),AlphaInputType=Bool,bAlphaBoolEnabled=True,Source=(),bTransferInputPose=True,bTransferInputCurves=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
         [input_pin("Source"), input_pin("bAlphaBoolEnabled"), input_pin("RigInput"), output_pin("Pose")],
     )
     control_rig["binding"] = {
@@ -1697,8 +1719,16 @@ def run_self_test():
     }
     control_rig_contract_value, issues = pose_contract(control_rig, "control_rig")
     assert not issues
-    assert control_rig_contract_value["rig_class"] == "CR_Test"
+    assert control_rig_contract_value["rig_class"] == "CR_Als"
     assert control_rig_contract_value["rig_input_binding_pin"] == "__CustomProperty_RigInput"
+    assert control_rig_contract_value["rig_input_binding_path"] == "GetControlRigInput"
+    control_rig["properties"][0]["exported_text"] = control_rig["properties"][0]["exported_text"].replace("CR_Als", "CR_Unknown")
+    _, issues = pose_contract(control_rig, "control_rig")
+    assert issues[0]["kind"] == "source_control_rig_class_unsupported"
+    control_rig["properties"][0]["exported_text"] = control_rig["properties"][0]["exported_text"].replace("CR_Unknown", "CR_Als")
+    control_rig["pins"][2]["linked_to"] = [{"node_object_path": "/Asset:AnimGraph.Source"}]
+    _, issues = pose_contract(control_rig, "control_rig")
+    assert issues[0]["kind"] == "source_control_rig_input_unsupported"
     dynamic_additive = fixture_node(
         "make_dynamic_additive",
         "Node",

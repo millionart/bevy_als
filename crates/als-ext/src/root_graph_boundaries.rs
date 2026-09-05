@@ -7,11 +7,22 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{
-    AnimationContextState, context_time_update, resolve_named_context_curves,
+    AnimationContextState, context_time_update, merge_missing_context_curves,
+    pose_input_context_state, resolve_named_context_curves,
 };
 
 const SOURCE_TIME: &str = "source_time";
 const OUT_POSE: &str = "pose";
+
+fn merge_transferred_input_context(
+    transfer_input_curves: bool,
+    target: &mut AnimationContextState,
+    source: Option<AnimationContextState>,
+) {
+    if transfer_input_curves && let Some(source) = source {
+        merge_missing_context_curves(target, &source);
+    }
+}
 
 fn pose_spec(
     mut ctx: SpecContext,
@@ -122,6 +133,11 @@ impl NodeLike for ControlRigBoundaryNode {
             }
         }
         if self.capture_context {
+            merge_transferred_input_context(
+                self.transfer_input_curves,
+                &mut state,
+                pose_input_context_state(&ctx, &self.pose_input),
+            );
             *ctx.state_mut_or_else(AnimationContextState::default)? = state;
         }
         Ok(())
@@ -143,6 +159,23 @@ impl NodeLike for ControlRigBoundaryNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_rig_transfer_input_curves_preserves_full_upstream_context() {
+        let mut context = AnimationContextState::default();
+        context.curves.insert("Explicit".to_owned(), 0.5);
+        let mut source = AnimationContextState::default();
+        source.curves.insert("Explicit".to_owned(), 0.25);
+        source.curves.insert("Transferred".to_owned(), 0.75);
+        merge_transferred_input_context(true, &mut context, Some(source));
+        assert_eq!(context.curves.get("Explicit"), Some(&0.5));
+        assert_eq!(context.curves.get("Transferred"), Some(&0.75));
+
+        let mut ignored = AnimationContextState::default();
+        ignored.curves.insert("Ignored".to_owned(), 1.0);
+        merge_transferred_input_context(false, &mut context, Some(ignored));
+        assert!(!context.curves.contains_key("Ignored"));
+    }
 
     #[test]
     fn control_rig_boundary_registers_node_like_dispatch_key() {

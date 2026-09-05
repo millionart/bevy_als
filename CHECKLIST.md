@@ -156,6 +156,11 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - Gate summary：class-reference/control-rig/linked-input renderer fixtures、converter/reachability/materializer self-tests均PASS。`AB_Als` fresh direct `--write`与持久 PTY `--check`均exit 0、零 blocker，report/manifest各列8个linked source roots；265个文件 editor/position/runtime-boundary Gate零失败。真实 Bevy loader/spec覆盖249个generated graph、963 nodes、1730 edges；root的每个Linked node在spec中精确暴露source Pose input名。
   - 消融：初版尝试 builtin `GraphNode`在真实 loader中因无反射注册被拒绝，删除该路径；复用已注册`LayeredGraphNode`并只配置child input/output alias。junction、source reader JSON与已修复blocker报告均留在`target/`，未复制或覆盖手工资产；没有按`AB_Als`名称或路径分支。
 
+- [x] BF112.30 CR_Als Control Rig boundary completion：开始：2026-09-05 11:50:47 +08:00；预估结束：2026-09-05 12:35:47 +08:00；实际结束：2026-09-05 12:31:49 +08:00（偏差 -3m58s）。以fresh `AB_Als` ControlRig source、现有手工边界与`ControlRigApplyPlugin`为事实，转换`CR_Als`/`GetControlRigInput`到已注册`ControlRigBoundaryNode`，完整传递输入姿态上下文曲线；无现有对应运行时实现的rig class、global-space或input-pose模式必须fail-closed。integration report必须说明既有target provider。验收：contract/renderer/converter focused self-test，fresh `AB_Als --write/--check`及生成root ControlRig字段/报告断言；不读取或复制手工曲线名单。
+  - source closure：fresh root的`AnimGraphNode_ControlRig`为`CR_Als`，`RigInput`唯一property binding为`GetControlRigInput`；bool alpha=true、`bTransferInputPose`/`bTransferInputCurves`=true、global-space=false、LOD=-1。递归输出仍覆盖根加8个linked source roots，256个`.animgraph.ron`/265个RON文件。
+  - Gate summary：contract/renderer/converter self-test均PASS；两个focused Rust test验证`TransferInputCurves`完整合并上游`AnimationContextState`和root Pose output edge定位，均PASS。fresh `.uasset --write`/`--check`均exit 0、零blocker/drift；生成root为`ControlRigBoundaryNode(rig_class: "CR_Als", capture_context: true)`且report精确映射`GetControlRigInput`→`ControlRigApplyPlugin (AlsControlRigInput)`。265文件 editor/position/runtime-asset-boundary Gate零失败，真实Bevy loader/spec接受递归closure root。可见`startup` Gate在warm run PASS：root 79 bones/237 active channels、source curves available、无graph error/primary failure。
+  - 消融：删除手工37曲线名单和手工`AB_Als_Ragdolling`/`Inertialization`名称依赖；只复用现有ControlRig boundary、`AnimationContextState`和`ControlRigApplyPlugin`。未知rig class、动态/disabled alpha、非input-pose、global-space、LOD和default rig asset均明确fail-closed，不按资产路径或名称做fallback。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

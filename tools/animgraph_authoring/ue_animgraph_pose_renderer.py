@@ -773,7 +773,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + bool_ron(value["transfer_input_curves"])
             + ", transfer_pose_in_global_space: "
             + bool_ron(value["transfer_pose_in_global_space"])
-            + ", pose_input: \"Source\", curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true)",
+            + ", pose_input: \"Source\", curve_names: [], capture_context: "
+            + bool_ron(value["transfer_input_curves"])
+            + ", expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true)",
         )
     if renderer == "inertialization":
         return (
@@ -1796,6 +1798,25 @@ def run_self_test():
     )
     assert snapshot_type == "als_ext::GlobalPoseInputNode"
     assert 'output: "Pose"' in snapshot_inner
+    control_rig_type, control_rig_inner = rendered_inner(
+        graph_contract,
+        {},
+        {
+            "renderer": "control_rig",
+            "semantic": {
+                "rig_class": "CR_Als",
+                "alpha_enabled": True,
+                "transfer_input_pose": True,
+                "transfer_input_curves": True,
+                "transfer_pose_in_global_space": False,
+            },
+        },
+        {},
+        {},
+    )
+    assert control_rig_type == "als_ext::ControlRigBoundaryNode"
+    assert 'rig_class: "CR_Als"' in control_rig_inner
+    assert "capture_context: true" in control_rig_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -2164,6 +2185,7 @@ def run_self_test():
         "source_gameplay_tag_blend_is_rendered": "PASS",
         "source_gameplay_tag_scalar_contract_is_rendered": "PASS",
         "source_pose_snapshot_is_rendered": "PASS",
+        "source_control_rig_context_transfer_is_rendered": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",

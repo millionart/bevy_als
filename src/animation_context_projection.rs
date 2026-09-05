@@ -3,13 +3,11 @@ use std::collections::HashMap;
 use als_ext::player_animation_context_state;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
-    animation_graph::AnimationGraph,
+    animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin},
     animation_graph_player::{AnimationGraphPlayer, AnimationSource},
+    edge_data::DataSpec,
     plugin::AnimationGraphSet,
 };
-
-const ROOT_CONTEXT_NODE: &str = "AB_Als_Ragdolling";
-const SIGNAL_CONTEXT_NODE: &str = "Inertialization";
 
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AlsRootAnimationContext {
@@ -43,6 +41,23 @@ impl Plugin for AlsRootAnimationContextPlugin {
     }
 }
 
+fn root_pose_source_node(graph: &AnimationGraph) -> Option<NodeId> {
+    let mut pose_outputs = graph
+        .io_spec
+        .iter_output_data()
+        .filter(|(_, spec)| **spec == DataSpec::Pose)
+        .map(|(output, _)| output.clone());
+    let output = pose_outputs.next()?;
+    if pose_outputs.next().is_some() {
+        return None;
+    }
+    let SourcePin::NodeData(node, _) = graph.edges_inverted.get(&TargetPin::OutputData(output))?
+    else {
+        return None;
+    };
+    Some(node.clone())
+}
+
 fn project_root_animation_context(
     mut commands: Commands,
     graphs: Res<Assets<AnimationGraph>>,
@@ -59,27 +74,40 @@ fn project_root_animation_context(
         let Some(graph) = graphs.get(graph_handle) else {
             continue;
         };
-        let mut curves = HashMap::default();
-        for node_name in [ROOT_CONTEXT_NODE, SIGNAL_CONTEXT_NODE] {
-            let Some(node) = graph.nodes.values().find(|node| node.name == node_name) else {
-                continue;
-            };
-            let Some(state) = player_animation_context_state(player, node.id) else {
-                continue;
-            };
-            curves.extend(
+        let curves = root_pose_source_node(graph)
+            .and_then(|node| player_animation_context_state(player, node))
+            .map(|state| {
                 state
                     .curves
                     .iter()
                     .filter(|(_, value)| value.is_finite())
-                    .map(|(name, value)| (name.clone(), *value)),
-            );
-        }
+                    .map(|(name, value)| (name.clone(), *value))
+                    .collect()
+            })
+            .unwrap_or_default();
         let projected = AlsRootAnimationContext { curves };
         if let Some(mut current) = current {
             *current = projected;
         } else {
             commands.entity(entity).insert(projected);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_context_uses_pose_output_edge_not_editor_name() {
+        let mut graph = AnimationGraph::default();
+        let node = NodeId::default();
+        graph.add_output_data("Result".to_owned(), DataSpec::Pose);
+        graph.edges_inverted.insert(
+            TargetPin::OutputData("Result".to_owned()),
+            SourcePin::NodeData(node.clone(), "Pose".to_owned()),
+        );
+
+        assert_eq!(root_pose_source_node(&graph), Some(node));
     }
 }
