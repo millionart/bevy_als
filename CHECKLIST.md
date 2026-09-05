@@ -161,6 +161,22 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - Gate summary：contract/renderer/converter self-test均PASS；两个focused Rust test验证`TransferInputCurves`完整合并上游`AnimationContextState`和root Pose output edge定位，均PASS。fresh `.uasset --write`/`--check`均exit 0、零blocker/drift；生成root为`ControlRigBoundaryNode(rig_class: "CR_Als", capture_context: true)`且report精确映射`GetControlRigInput`→`ControlRigApplyPlugin (AlsControlRigInput)`。265文件 editor/position/runtime-asset-boundary Gate零失败，真实Bevy loader/spec接受递归closure root。可见`startup` Gate在warm run PASS：root 79 bones/237 active channels、source curves available、无graph error/primary failure。
   - 消融：删除手工37曲线名单和手工`AB_Als_Ragdolling`/`Inertialization`名称依赖；只复用现有ControlRig boundary、`AnimationContextState`和`ControlRigApplyPlugin`。未知rig class、动态/disabled alpha、非input-pose、global-space、LOD和default rig asset均明确fail-closed，不按资产路径或名称做fallback。
 
+## BF113 Converter-generated AB_Als runtime replacement（当前批次）
+
+目标：删除失败的手工 Locomotion bridge，以 `.uasset` 直接生成的完整 `AB_Als` closure 正式替换手工 AB_Als 图树。先以独立 source-derived target namespace 安装生成资产，逐项接通 integration report 所列 provider，再切换真实角色入口；只有全部真实 Gate 通过后才删除旧手工图资产。
+
+- [x] BF113.01 Generated closure installation ABI：开始：2026-09-05 16:04:05 +08:00；预估结束：2026-09-05 16:54:05 +08:00；实际结束：2026-09-05 16:38:08 +08:00（偏差 -15m57s）。为 converter 增加 source-derived install namespace，使 `AB_Als.uasset` 的根和8个linked source roots 能直接物化到正式 asset root 而不复制手工 RON、不污染 report/source intermediate；生成可检查的 installation manifest。验收：fresh `--write`/`--check`、完整target closure editor/position/runtime-boundary/Bevy loader Gate，且所有引用留在install namespace。
+  - source closure：fresh root及8个linked roots均ready，原始 root的source-visible node/pin/position保持由BF112.29/30 contract覆盖；新安装根为`generated/als_als_character_ab_als_ab_als/graphs/45715269-7c4e-529c-9f0d-05ebba0b58ca.animgraph.ron`。
+  - Gate summary：converter/materializer self-test均PASS（含namespace traversal、installation drift与冲突拒绝）；fresh direct `--write`/`--check`均exit 0、零blocker/drift。安装`assets/generated/als_als_character_ab_als_ab_als`含265个RON/FSM和1份installation manifest，所有内部generated reference均在namespace内；editor/position/runtime-asset-boundary Gate零失败，真实Bevy loader接受installed root（14 nodes/14 edges/1 output）。
+  - 消融：未复制手工`graphs/ab_als`、未把IR/report写入assets、未使用junction或路径白名单；namespace默认为source asset identifier，只有显式`--install-root`才启用安装，现有converter输出路径保持不变。
+  - 已知 source closure：root有7个`LinkedAnimGraph`、1个固定`AB_Als_Default` linked layer与`CR_Als`；现有生成路径的 source-visible pin/position 已由BF112.29/30验证。当前开口边界是 asset namespace 不能与手工`graphs/ab_als`混用。
+
+- [ ] BF113.02 Provider parity for generated closure：开始：2026-09-05 16:54:05 +08:00；预估结束：2026-09-05 17:49:05 +08:00。按安装后的 integration report 接通 source-derived runtime property、actor function、state getter、slot、sync phase、tag与ControlRig provider；未知 provider 继续 fail-closed，不引入手工命名 alias。验收：report所有必需 provider为mapped/实际可写，focused provider tests与generated root runtime load通过。
+
+- [ ] BF113.03 Real-entry switchover：开始：2026-09-05 17:49:05 +08:00；预估结束：2026-09-05 18:44:05 +08:00。将正式 animated-scene 入口从手工 AB_Als graph 切至installed generated root，保留可回退的已提交手工资产直至 Gate 完成。验收：startup、state_machine、standing_direction、crouching、control_rig、ragdoll visual Gate均由generated root实际通过，首个graph error报告有效。
+
+- [ ] BF113.04 Remove superseded manual AB_Als graph closure：开始：2026-09-05 18:44:05 +08:00；预估结束：2026-09-05 19:34:05 +08:00。仅在BF113.03全过后删除已被generated closure逐文件替代的手工 AB_Als RON/FSM及专用手工 runtime bridge，保留source record和转换器。验收：无死引用、asset boundary/loader/visual Gates回归通过，删除清单与恢复路径写入提交。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

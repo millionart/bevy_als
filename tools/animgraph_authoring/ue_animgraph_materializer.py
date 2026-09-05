@@ -25,24 +25,53 @@ def stable_id(source_asset, category, value):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"bevy-als/{category}/{source_asset}/{value}"))
 
 
-def graph_path(source_asset, suffix):
-    return f"graphs/{stable_id(source_asset, 'graph', suffix)}.animgraph.ron"
+def asset_namespace(value):
+    if value is None or value == "":
+        return ""
+    if not isinstance(value, str):
+        raise MaterializationError("asset namespace is invalid")
+    parts = value.split("/")
+    if not all(re.fullmatch(r"[A-Za-z0-9_-]+", part) for part in parts):
+        raise MaterializationError("asset namespace is invalid")
+    return "/".join(parts)
 
 
-def fsm_path(source_asset, suffix):
-    return f"fsms/{stable_id(source_asset, 'fsm', suffix)}.fsm.ron"
+def namespaced_path(namespace, path):
+    namespace = asset_namespace(namespace)
+    return f"{namespace}/{path}" if namespace else path
 
 
-def transition_path(source_asset, transition_id):
-    return f"transitions/{stable_id(source_asset, 'transition', transition_id)}.animgraph.ron"
+def graph_path(source_asset, suffix, namespace=""):
+    return namespaced_path(
+        namespace, f"graphs/{stable_id(source_asset, 'graph', suffix)}.animgraph.ron"
+    )
 
 
-def condition_path(source_asset, suffix):
-    return f"conditions/{stable_id(source_asset, 'condition', suffix)}.animgraph.ron"
+def fsm_path(source_asset, suffix, namespace=""):
+    return namespaced_path(
+        namespace, f"fsms/{stable_id(source_asset, 'fsm', suffix)}.fsm.ron"
+    )
 
 
-def synthetic_state_path(source_asset, state_id):
-    return f"states/{stable_id(source_asset, 'synthetic-state', state_id)}.animgraph.ron"
+def transition_path(source_asset, transition_id, namespace=""):
+    return namespaced_path(
+        namespace,
+        f"transitions/{stable_id(source_asset, 'transition', transition_id)}.animgraph.ron",
+    )
+
+
+def condition_path(source_asset, suffix, namespace=""):
+    return namespaced_path(
+        namespace,
+        f"conditions/{stable_id(source_asset, 'condition', suffix)}.animgraph.ron",
+    )
+
+
+def synthetic_state_path(source_asset, state_id, namespace=""):
+    return namespaced_path(
+        namespace,
+        f"states/{stable_id(source_asset, 'synthetic-state', state_id)}.animgraph.ron",
+    )
 
 
 def graph_for_suffix(source, suffix):
@@ -209,7 +238,7 @@ def transition_graph_text(source_asset, transition):
     )
 
 
-def fsm_config(source, plan, graph_paths):
+def fsm_config(source, plan, graph_paths, namespace):
     source_asset = source["asset_path"]
     actual, aliases = structural_order(source, plan)
     state_ids = {item["source_node"]: item["id"] for item in [*actual, *aliases]}
@@ -241,12 +270,14 @@ def fsm_config(source, plan, graph_paths):
             {
                 "transition_id": transition["id"],
                 "source_state_id": source_state,
-                "condition": condition_path(source_asset, transition["condition_graph"]),
+                "condition": condition_path(
+                    source_asset, transition["condition_graph"], namespace
+                ),
                 "output": output,
             }
         )
     return {
-        "path": fsm_path(source_asset, plan["source_graph"]),
+        "path": fsm_path(source_asset, plan["source_graph"], namespace),
         "state_aliases": alias_bindings,
         "source_transition_conditions": source_transition_conditions,
         "actual": actual,
@@ -256,7 +287,7 @@ def fsm_config(source, plan, graph_paths):
     }
 
 
-def fsm_text(source, plan, config, graph_paths):
+def fsm_text(source, plan, config, graph_paths, namespace):
     source_asset = source["asset_path"]
     state_rows = []
     files = {}
@@ -265,7 +296,7 @@ def fsm_text(source, plan, config, graph_paths):
         if "graph" in item:
             state_path = graph_paths.get(item["graph"])
         if state_path is None:
-            state_path = synthetic_state_path(source_asset, item["id"])
+            state_path = synthetic_state_path(source_asset, item["id"], namespace)
             files[state_path] = placeholder_graph_text(source_asset, item["id"])
         state_rows.append(
             "(id: "
@@ -284,7 +315,7 @@ def fsm_text(source, plan, config, graph_paths):
         target_id = config["state_ids"].get(target_node)
         if source_id is None or target_id is None:
             raise MaterializationError("source FSM transition endpoint is unavailable")
-        path = transition_path(source_asset, transition["id"])
+        path = transition_path(source_asset, transition["id"], namespace)
         files[path] = transition_graph_text(source_asset, transition)
         transitions.append(
             "(id: "
@@ -354,17 +385,18 @@ def linked_layer_targets(ir):
     return values
 
 
-def materialize_files(source, ir, external_graph_paths=()):
+def materialize_files(source, ir, external_graph_paths=(), namespace=""):
     source_asset = source.get("asset_path")
     if source_asset != ir.get("source_asset"):
         raise MaterializationError("source IR asset is invalid")
+    namespace = asset_namespace(namespace)
     graph_entries = {
         entry["source_graph"]: entry
         for entry in ir.get("graphs", [])
         if entry.get("kind") == "graph"
     }
     graph_paths = {
-        suffix: graph_path(source_asset, suffix) for suffix in graph_entries
+        suffix: graph_path(source_asset, suffix, namespace) for suffix in graph_entries
     }
     available_graph_paths = set(graph_paths.values()) | set(external_graph_paths)
     if any(target not in available_graph_paths for target in linked_layer_targets(ir)):
@@ -377,12 +409,14 @@ def materialize_files(source, ir, external_graph_paths=()):
     fsm_configs = {}
     for entry in fsm_entries:
         plan = entry["fsm_renderer"]
-        fsm_configs[plan["source_graph"]] = fsm_config(source, plan, graph_paths)
+        fsm_configs[plan["source_graph"]] = fsm_config(
+            source, plan, graph_paths, namespace
+        )
     files = {}
     for entry in fsm_entries:
         plan = entry["fsm_renderer"]
         config = fsm_configs[plan["source_graph"]]
-        text, extras = fsm_text(source, plan, config, graph_paths)
+        text, extras = fsm_text(source, plan, config, graph_paths, namespace)
         files[config["path"]] = text
         files.update(extras)
     for suffix, entry in graph_entries.items():
@@ -401,7 +435,7 @@ def materialize_files(source, ir, external_graph_paths=()):
         if entry.get("kind") != "transition":
             continue
         suffix = entry["source_graph"]
-        path = condition_path(source_asset, suffix)
+        path = condition_path(source_asset, suffix, namespace)
         files[path] = (
             transition_renderer.graph_text(contract(source, suffix))
         )
@@ -475,6 +509,15 @@ def run_self_test():
     assert "alpha_blend_mode: Custom" in transition_graph_text("/Asset", custom)
     assert graph_path("/Asset", "AnimGraph") == graph_path("/Asset", "AnimGraph")
     assert graph_path("/Asset", "AnimGraph") != fsm_path("/Asset", "AnimGraph")
+    assert graph_path("/Asset", "AnimGraph", "generated/asset") == (
+        "generated/asset/" + graph_path("/Asset", "AnimGraph")
+    )
+    try:
+        asset_namespace("generated/../asset")
+    except MaterializationError:
+        pass
+    else:
+        raise AssertionError("path traversal namespace was accepted")
     placeholder = placeholder_graph_text("/Asset", "State")
     assert 'node_positions: { "' + stable_id("/Asset", "placeholder", "State") in placeholder
     assert materialized_reference_issues(

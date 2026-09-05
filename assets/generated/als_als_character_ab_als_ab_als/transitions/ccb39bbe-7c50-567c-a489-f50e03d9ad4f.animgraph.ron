@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", name: "Switch Pivot", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "pose"),
+        OutputTime: NodeTime("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "c97d7cdd-7f8f-52fe-bff2-ada7094ecb01": (885.000, 75.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

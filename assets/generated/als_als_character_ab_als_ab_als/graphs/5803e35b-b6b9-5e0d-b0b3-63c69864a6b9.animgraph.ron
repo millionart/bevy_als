@@ -1,0 +1,25 @@
+(
+    nodes: [
+        (id: "1959c3fa-4a96-bb98-c3de-be92be13dbf1", name: "Use cached pose 'Move Backward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Backward'", cache_key: "ue-cache:37031549-d6ee-54a1-8fa4-596df9cb66a8", context_defaults: []) }, should_debug: false),
+        (id: "208be4f5-47d2-9c5a-4e6c-b9a26de88c47", name: "Use cached pose 'Move Left Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Left Forward'", cache_key: "ue-cache:6df4583a-a993-5cd2-b8f9-663e9faf3fdb", context_defaults: []) }, should_debug: false),
+        (id: "2aa6123f-4231-09a4-3fca-08881845d160", name: "Use cached pose 'Move Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Forward'", cache_key: "ue-cache:21da0e07-605f-5933-9573-0f4e89662e8c", context_defaults: []) }, should_debug: false),
+        (id: "41fd7093-488e-6d0a-5539-a3a501b0d11f", name: "Blend Multi", inner: { "als_ext::SourceMultiWayBlendNode": (pose_count: 4, desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", "grounded_state.velocity_blend.backward_amount", "grounded_state.velocity_blend.left_amount", "grounded_state.velocity_blend.right_amount"], desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0], normalize_alpha: true, alpha_scale: 1.0, pose_pin_prefix: "Poses_", alpha_pin_prefix: "DesiredAlphas_") }, should_debug: false),
+        (id: "61034920-43b2-4dda-61e8-6cb5368d19fa", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (source_pose_pin: "SourcePose", curve_name: "", curve_names: ["RotationYawOffset"], value: 0.0, pin_default: 0.0, pin_defaults: [0.0], value_pin_names: ["CurveValues_0"], value_key: "", value_keys: ["grounded_state.rotation_yaw_offsets.forward_angle"], source_value_path: "", source_value_paths: ["GroundedState.RotationYawOffsets.ForwardAngle"], alpha: 1.0, alpha_key: "", alpha_pin: "Alpha", expose_alpha_pin: false, apply_mode: "Blend") }, should_debug: false),
+        (id: "7dfbf5df-45f5-aef5-d8bd-3ba40495993c", name: "SetHipsDirection\r\nOn Become Relevant", inner: { "als_ext::SourceSetHipsDirectionNode": (new_hips_direction: "Forward", on_become_relevant: true, call_site: "OnBecomeRelevant") }, should_debug: false),
+        (id: "a12e9bf6-4f57-370c-cafd-8b8a80d26a32", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "f60e07ab-44ee-2273-e546-4fa1a5e41e04", name: "Use cached pose 'Move Right Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Right Forward'", cache_key: "ue-cache:4ffab496-37af-592e-9e4b-e7678f5a21fb", context_defaults: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("41fd7093-488e-6d0a-5539-a3a501b0d11f", "Poses_0"): NodeData("2aa6123f-4231-09a4-3fca-08881845d160", "Pose"),
+        NodeData("61034920-43b2-4dda-61e8-6cb5368d19fa", "SourcePose"): NodeData("41fd7093-488e-6d0a-5539-a3a501b0d11f", "Pose"),
+        NodeData("41fd7093-488e-6d0a-5539-a3a501b0d11f", "Poses_3"): NodeData("f60e07ab-44ee-2273-e546-4fa1a5e41e04", "Pose"),
+        NodeData("a12e9bf6-4f57-370c-cafd-8b8a80d26a32", "Source"): NodeData("7dfbf5df-45f5-aef5-d8bd-3ba40495993c", "Pose"),
+        NodeData("7dfbf5df-45f5-aef5-d8bd-3ba40495993c", "Source"): NodeData("61034920-43b2-4dda-61e8-6cb5368d19fa", "Pose"),
+        NodeData("41fd7093-488e-6d0a-5539-a3a501b0d11f", "Poses_1"): NodeData("1959c3fa-4a96-bb98-c3de-be92be13dbf1", "Pose"),
+        NodeData("41fd7093-488e-6d0a-5539-a3a501b0d11f", "Poses_2"): NodeData("208be4f5-47d2-9c5a-4e6c-b9a26de88c47", "Pose"),
+        OutputData("Result"): NodeData("a12e9bf6-4f57-370c-cafd-8b8a80d26a32", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "1959c3fa-4a96-bb98-c3de-be92be13dbf1": (-1312.000, -16.000), "208be4f5-47d2-9c5a-4e6c-b9a26de88c47": (-1328.000, 80.000), "2aa6123f-4231-09a4-3fca-08881845d160": (-1312.000, -112.000), "41fd7093-488e-6d0a-5539-a3a501b0d11f": (-1008.000, 0.000), "61034920-43b2-4dda-61e8-6cb5368d19fa": (-672.000, 0.000), "7dfbf5df-45f5-aef5-d8bd-3ba40495993c": (-336.000, -16.000), "a12e9bf6-4f57-370c-cafd-8b8a80d26a32": (0.000, 0.000), "f60e07ab-44ee-2273-e546-4fa1a5e41e04": (-1344.000, 176.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

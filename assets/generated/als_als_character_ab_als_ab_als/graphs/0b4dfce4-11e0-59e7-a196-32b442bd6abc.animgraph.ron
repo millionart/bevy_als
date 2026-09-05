@@ -1,0 +1,25 @@
+(
+    nodes: [
+        (id: "25f27893-4217-a3cc-9f85-bc967e047e0b", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (source_pose_pin: "SourcePose", curve_name: "", curve_names: ["RotationYawOffset"], value: 0.0, pin_default: 0.0, pin_defaults: [0.0], value_pin_names: ["CurveValues_0"], value_key: "", value_keys: ["grounded_state.rotation_yaw_offsets.left_angle"], source_value_path: "", source_value_paths: ["GroundedState.RotationYawOffsets.LeftAngle"], alpha: 1.0, alpha_key: "", alpha_pin: "Alpha", expose_alpha_pin: false, apply_mode: "Blend") }, should_debug: false),
+        (id: "2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", name: "Blend Multi", inner: { "als_ext::SourceMultiWayBlendNode": (pose_count: 4, desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", "grounded_state.velocity_blend.backward_amount", "grounded_state.velocity_blend.left_amount", "grounded_state.velocity_blend.right_amount"], desired_alpha_defaults: [0.0, 0.0, 0.0, 0.0], normalize_alpha: true, alpha_scale: 1.0, pose_pin_prefix: "Poses_", alpha_pin_prefix: "DesiredAlphas_") }, should_debug: false),
+        (id: "2d457c65-478b-1b52-1327-d88115f54de1", name: "SetHipsDirection\r\nOn Become Relevant", inner: { "als_ext::SourceSetHipsDirectionNode": (new_hips_direction: "LeftBackward", on_become_relevant: true, call_site: "OnBecomeRelevant") }, should_debug: false),
+        (id: "381227a9-4c14-b49b-c820-0193f2c5e75e", name: "Use cached pose 'Move Backward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Backward'", cache_key: "ue-cache:37031549-d6ee-54a1-8fa4-596df9cb66a8", context_defaults: []) }, should_debug: false),
+        (id: "6892f69e-40c7-ee71-1266-78b83c285400", name: "Use cached pose 'Move Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Forward'", cache_key: "ue-cache:21da0e07-605f-5933-9573-0f4e89662e8c", context_defaults: []) }, should_debug: false),
+        (id: "8cc7d0b6-4acb-5cce-b540-0e9f3ca7dc7c", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "a47d56ec-469d-2361-2f2a-a5910e6cf56e", name: "Use cached pose 'Move Left Backward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Left Backward'", cache_key: "ue-cache:459f0523-9107-523c-a67c-8a09c12627e4", context_defaults: []) }, should_debug: false),
+        (id: "fb226165-4fcc-d7ea-3916-2e905d8fbb02", name: "Use cached pose 'Move Right Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Right Forward'", cache_key: "ue-cache:4ffab496-37af-592e-9e4b-e7678f5a21fb", context_defaults: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", "Poses_1"): NodeData("381227a9-4c14-b49b-c820-0193f2c5e75e", "Pose"),
+        NodeData("2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", "Poses_2"): NodeData("a47d56ec-469d-2361-2f2a-a5910e6cf56e", "Pose"),
+        NodeData("2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", "Poses_0"): NodeData("6892f69e-40c7-ee71-1266-78b83c285400", "Pose"),
+        NodeData("8cc7d0b6-4acb-5cce-b540-0e9f3ca7dc7c", "Source"): NodeData("2d457c65-478b-1b52-1327-d88115f54de1", "Pose"),
+        NodeData("25f27893-4217-a3cc-9f85-bc967e047e0b", "SourcePose"): NodeData("2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", "Pose"),
+        NodeData("2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5", "Poses_3"): NodeData("fb226165-4fcc-d7ea-3916-2e905d8fbb02", "Pose"),
+        NodeData("2d457c65-478b-1b52-1327-d88115f54de1", "Source"): NodeData("25f27893-4217-a3cc-9f85-bc967e047e0b", "Pose"),
+        OutputData("Result"): NodeData("8cc7d0b6-4acb-5cce-b540-0e9f3ca7dc7c", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "25f27893-4217-a3cc-9f85-bc967e047e0b": (-672.000, 0.000), "2a82ea13-4f98-c5ab-ad5b-7bb2497a24f5": (-1008.000, 0.000), "2d457c65-478b-1b52-1327-d88115f54de1": (-336.000, -16.000), "381227a9-4c14-b49b-c820-0193f2c5e75e": (-1312.000, -16.000), "6892f69e-40c7-ee71-1266-78b83c285400": (-1312.000, -112.000), "8cc7d0b6-4acb-5cce-b540-0e9f3ca7dc7c": (0.000, 0.000), "a47d56ec-469d-2361-2f2a-a5910e6cf56e": (-1344.000, 80.000), "fb226165-4fcc-d7ea-3916-2e905d8fbb02": (-1344.000, 176.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

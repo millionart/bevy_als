@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "60be07fe-4c58-f628-4aa1-6d899f18508e", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "stance", output: "Value", expected_tag: "Als.Stance.Crouching", source_property_path: "GetParent.Stance", source_properties: ["(\"GetParent\",\"Stance\")", "GetParent.Stance", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-608", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "60BE07FE4C58F6284AA16D899F18508E"]) }, should_debug: false),
+        (id: "bc86a688-4353-b67a-0d8e-fc8cc8d526e2", name: "Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.Stance.Crouching\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["EqualEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-336", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "BC86A6884353B67A0D8EFC8CC8D526E2"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("bc86a688-4353-b67a-0d8e-fc8cc8d526e2", "ReturnValue"),
+        NodeData("bc86a688-4353-b67a-0d8e-fc8cc8d526e2", "A"): NodeData("60be07fe-4c58-f628-4aa1-6d899f18508e", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "60be07fe-4c58-f628-4aa1-6d899f18508e": (-608.000, 0.000), "bc86a688-4353-b67a-0d8e-fc8cc8d526e2": (-336.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

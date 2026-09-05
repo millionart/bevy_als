@@ -29,6 +29,7 @@ from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_
 from ue_animgraph_lifecycle import LifecycleRenderError, resolve_lifecycle
 from ue_animgraph_materializer import (
     MaterializationError,
+    asset_namespace,
     graph_path,
     materialize_files,
     materialized_reference_issues,
@@ -38,6 +39,7 @@ from ue_animgraph_materializer import (
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
 INTEGRATION_REPORT_FORMAT = "ue_animgraph_integration_report_v1"
+INSTALLATION_MANIFEST_FORMAT = "ue_animgraph_installation_manifest_v1"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
 TRANSITION_RENDERERS = {
@@ -1146,7 +1148,9 @@ def build_ir(
     source_mount=None,
     source_reader=None,
     external_linked_graph_targets=None,
+    output_namespace="",
 ):
+    output_namespace = asset_namespace(output_namespace)
     source_reachability = traverse(source, root_graph)
     graphs = []
     unsupported = list(source_reachability["issues"])
@@ -1204,7 +1208,9 @@ def build_ir(
         for suffix, plan in fsm_plans.items()
     }
     linked_graph_targets = {
-        value["source_node"]: graph_path(source["asset_path"], value["source_graph"])
+        value["source_node"]: graph_path(
+            source["asset_path"], value["source_graph"], output_namespace
+        )
         for value in source_reachability.get("linked_layer_graphs", [])
         if isinstance(value, dict)
         and isinstance(value.get("source_node"), str)
@@ -1843,6 +1849,7 @@ def expected_outputs(
     source_mount=None,
     source_reader=None,
     external_linked_graph_targets=None,
+    output_namespace="",
 ):
     ir, unsupported = build_ir(
         source,
@@ -1853,6 +1860,7 @@ def expected_outputs(
         source_mount,
         source_reader,
         external_linked_graph_targets,
+        output_namespace,
     )
     report = build_report(source_identity, ir, unsupported)
     return ir, report
@@ -1944,17 +1952,19 @@ def linked_manifest_path(source_asset):
     return "linked_manifests/" + source_identifier_key(source_asset) + ".json"
 
 
-def collect_linked_sources(result):
+def collect_linked_sources(result, output_namespace):
     values = []
     for child in result["children"]:
         values.append(
             {
                 "source_asset": child["source"]["asset_path"],
-                "root_graph": graph_path(child["source"]["asset_path"], "AnimGraph"),
+                "root_graph": graph_path(
+                    child["source"]["asset_path"], "AnimGraph", output_namespace
+                ),
                 "links": child["links"],
             }
         )
-        values.extend(collect_linked_sources(child))
+        values.extend(collect_linked_sources(child, output_namespace))
     return values
 
 
@@ -1982,6 +1992,7 @@ def convert_source_tree(
     source_reader,
     timeout_seconds,
     no_progress_seconds,
+    output_namespace,
     cache,
     active_assets,
 ):
@@ -2018,6 +2029,7 @@ def convert_source_tree(
                 source_reader,
                 timeout_seconds,
                 no_progress_seconds,
+                output_namespace,
                 cache,
                 active_assets,
             )
@@ -2032,7 +2044,9 @@ def convert_source_tree(
             )
             continue
         children.append({**child, "links": [link]})
-        external_targets[link["source_node"]] = graph_path(child_source["asset_path"], "AnimGraph")
+        external_targets[link["source_node"]] = graph_path(
+            child_source["asset_path"], "AnimGraph", output_namespace
+        )
     ir, report = expected_outputs(
         source,
         source_identity,
@@ -2043,6 +2057,7 @@ def convert_source_tree(
         mount,
         source_reader,
         external_targets,
+        output_namespace,
     )
     for child in children:
         if child["report"].get("pass"):
@@ -2071,6 +2086,7 @@ def convert_source_tree(
             source,
             ir,
             external_targets.values(),
+            output_namespace,
         )
     active_assets.remove(source_asset)
     cache[source_asset] = result
@@ -2088,7 +2104,9 @@ def conversion_tree_outputs(
     source_reader,
     timeout_seconds,
     no_progress_seconds,
+    output_namespace="",
 ):
+    output_namespace = asset_namespace(output_namespace)
     result = convert_source_tree(
         source,
         source_identity,
@@ -2100,10 +2118,11 @@ def conversion_tree_outputs(
         source_reader,
         timeout_seconds,
         no_progress_seconds,
+        output_namespace,
         {},
         set(),
     )
-    linked_sources = collect_linked_sources(result)
+    linked_sources = collect_linked_sources(result, output_namespace)
     result["ir"]["linked_sources"] = linked_sources
     result["report"]["linked_sources"] = linked_sources
     files = collect_tree_files(result)
@@ -2154,11 +2173,88 @@ def write_outputs_if_supported(output_root, ir, report, materialized_files=None)
     return True
 
 
-def expected_materialized_files(source, ir, report):
+def default_install_namespace(source):
+    asset = source.get("asset_path") if isinstance(source, dict) else None
+    return asset_namespace("generated/" + source_identifier_key(asset))
+
+
+def installation_manifest_path(output_namespace):
+    output_namespace = asset_namespace(output_namespace)
+    if not output_namespace:
+        raise ConversionError("installation namespace is unavailable")
+    return output_namespace + "/installation.manifest.json"
+
+
+def installation_files(source_identity, materialized_files, output_namespace):
+    output_namespace = asset_namespace(output_namespace)
+    manifest_text = materialized_files.get("materialization.manifest.json")
+    if not isinstance(manifest_text, str):
+        raise ConversionError("materialization manifest is unavailable")
+    try:
+        materialization = json.loads(manifest_text)
+    except json.JSONDecodeError as error:
+        raise ConversionError("materialization manifest is invalid") from error
+    root_graph = materialization.get("root_graph")
+    files = {
+        path: text
+        for path, text in materialized_files.items()
+        if path.endswith((".animgraph.ron", ".fsm.ron"))
+    }
+    if not isinstance(root_graph, str) or root_graph not in files:
+        raise ConversionError("installed root graph is unavailable")
+    if any(not path.startswith(output_namespace + "/") for path in files):
+        raise ConversionError("installed graph is outside its namespace")
+    manifest = {
+        "format": INSTALLATION_MANIFEST_FORMAT,
+        "source": source_identity,
+        "namespace": output_namespace,
+        "root_graph": root_graph,
+        "files": sorted(files),
+    }
+    files[installation_manifest_path(output_namespace)] = (
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    )
+    return files
+
+
+def install_generated_files(install_root, files):
+    root = install_root.resolve()
+    if not root.is_dir():
+        raise ConversionError("installation root is unavailable")
+    targets = {}
+    for path, text in files.items():
+        target = (root / path).resolve()
+        if root not in target.parents:
+            raise ConversionError("installation target is outside root")
+        if target.is_file() and target.read_text(encoding="utf-8") != text:
+            raise ConversionError("installed generated output conflicts")
+        targets[path] = target
+    for path, text in files.items():
+        target = targets[path]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.is_file():
+            target.write_text(text, encoding="utf-8")
+
+
+def installation_drift(install_root, files):
+    root = install_root.resolve()
+    if not root.is_dir():
+        return [{"kind": "installation_root_unavailable"}]
+    failures = []
+    for path, text in files.items():
+        target = (root / path).resolve()
+        if root not in target.parents:
+            failures.append({"kind": "installation_target_outside_root", "path": path})
+        elif not target.is_file() or target.read_text(encoding="utf-8") != text:
+            failures.append({"kind": "installed_generated_output_drift", "path": path})
+    return failures
+
+
+def expected_materialized_files(source, ir, report, output_namespace=""):
     if unsupported_failure(report):
         return {}
     try:
-        return materialize_files(source, ir)
+        return materialize_files(source, ir, namespace=output_namespace)
     except MaterializationError as error:
         report["unsupported"].append(
             {"kind": "source_materialization_unsupported", "detail": str(error)}
@@ -2952,6 +3048,23 @@ def run_self_test():
     assert "## Control Rig providers" in integration_report_markdown(ready)
     assert "GetControlRigInput" in integration_report_markdown(ready)
     assert "source candidates" in integration_report_markdown(ready)
+    namespace = default_install_namespace({"asset_path": "/Asset/AB_Als.AB_Als"})
+    root_graph = namespace + "/graphs/root.animgraph.ron"
+    installed = installation_files(
+        {"asset": "/Asset/AB_Als.AB_Als"},
+        {
+            "materialization.manifest.json": json.dumps({"root_graph": root_graph}),
+            root_graph: "()\n",
+        },
+        namespace,
+    )
+    assert installation_manifest_path(namespace) in installed
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        install_generated_files(root, installed)
+        assert not installation_drift(root, installed)
+        (root / root_graph).write_text("drift\n", encoding="utf-8")
+        assert installation_drift(root, installed)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)
@@ -2979,6 +3092,7 @@ def run_self_test():
         "integration_dependencies_are_reported": "PASS",
         "generic_source_sync_phase_plan_is_reported": "PASS",
         "integration_report_drift_rejected": "PASS",
+        "namespaced_installation_is_deterministic_and_checked": "PASS",
     }
 
 
@@ -2994,6 +3108,8 @@ def main():
     parser.add_argument("--registry", type=Path, default=ROOT / "tools" / "animgraph_authoring" / "als_ref_mapping_registry.json")
     parser.add_argument("--asset-root", type=Path, default=ROOT / "assets")
     parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--install-root", type=Path)
+    parser.add_argument("--install-namespace")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--check", action="store_true")
@@ -3004,6 +3120,10 @@ def main():
         return 0
     if args.uasset is None or args.output_root is None or args.write == args.check:
         raise ConversionError("uasset, output-root, and exactly one mode are required")
+    if args.install_namespace is not None and args.install_root is None:
+        raise ConversionError("installation namespace requires an installation root")
+    if args.install_root is not None and args.install_root.resolve() == args.output_root.resolve():
+        raise ConversionError("installation root and output root must differ")
     registry = validate_registry(read_json(args.registry))
     if not args.asset_root.is_dir():
         raise ConversionError("target asset root is unavailable")
@@ -3016,6 +3136,11 @@ def main():
         args.source_reader_timeout_seconds,
         args.source_reader_no_progress_seconds,
     )
+    output_namespace = (
+        asset_namespace(args.install_namespace)
+        if args.install_namespace is not None
+        else default_install_namespace(source)
+    ) if args.install_root is not None else ""
     ir, report, materialized_files = conversion_tree_outputs(
         source,
         source_identity,
@@ -3027,6 +3152,12 @@ def main():
         args.source_reader,
         args.source_reader_timeout_seconds,
         args.source_reader_no_progress_seconds,
+        output_namespace,
+    )
+    installed_files = (
+        installation_files(source_identity, materialized_files, output_namespace)
+        if args.install_root is not None and not unsupported_failure(report)
+        else {}
     )
     integration = build_integration_report(ir, report)
     if args.report is not None:
@@ -3045,8 +3176,12 @@ def main():
     if args.write:
         if not write_outputs_if_supported(args.output_root, ir, report, materialized_files):
             raise ConversionError("unsupported source unexpectedly reached output generation")
+        if args.install_root is not None:
+            install_generated_files(args.install_root, installed_files)
     else:
         drift = check_outputs(args.output_root, ir, report, materialized_files)
+        if args.install_root is not None:
+            drift.extend(installation_drift(args.install_root, installed_files))
         if drift:
             report["drift"] = drift
             print(json.dumps(report, ensure_ascii=False, indent=2))

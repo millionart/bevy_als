@@ -1,0 +1,36 @@
+(
+    nodes: [
+        (id: "8018bade-47eb-aef9-c2bc-db8acafbd371", name: "OR Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "C", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "D", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "or", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["2", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanOR\",MemberGuid=00000000000000000000000000000000)", "Unset", "-192", "-16", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "8018BADE47EBAEF9C2BCDB8ACAFBD371"]) }, should_debug: false),
+        (id: "48cf1288-4833-cc50-0ce9-4eaa51eeb893", name: "float >= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 650.0, bool_default: false, source_default: "650.000000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "greater_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["GreaterEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"GreaterEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-432", "128", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "48CF12884833CC500CE94EAA51EEB893"]) }, should_debug: false),
+        (id: "00a88729-4892-4568-6301-b2a41039eed7", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "GetParent.RotateInPlaceState.bRotatingLeft")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"RotateInPlaceState\",\"bRotatingLeft\")", "GetParent.RotateInPlaceState.bRotatingLeft", "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-576", "-32", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "00A88729489245686301B2A41039EED7"]) }, should_debug: false),
+        (id: "5b984bac-403b-a543-367a-72bc3cd03d1c", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "GetParent.RotateInPlaceState.bRotatingRight")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"RotateInPlaceState\",\"bRotatingRight\")", "GetParent.RotateInPlaceState.bRotatingRight", "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-576", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "5B984BAC403BA543367A72BC3CD03D1C"]) }, should_debug: false),
+        (id: "e1b6d63c-45ef-e2b6-b63d-f6a0d1b6130e", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "GetParent.LocomotionState.bHasInput")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"LocomotionState\",\"bHasInput\")", "GetParent.LocomotionState.bHasInput", "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-544", "-112", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "E1B6D63C45EFE2B6B63DF6A0D1B6130E"]) }, should_debug: false),
+        (id: "c41e57e5-4cbc-e5bf-5337-689b30bc7b68", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: "GetParent.LocomotionState.Speed")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"LocomotionState\",\"Speed\")", "GetParent.LocomotionState.Speed", "(PinCategory=\"real\",PinSubCategory=\"float\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-768", "128", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "C41E57E54CBCE5BF5337689B30BC7B68"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("8018bade-47eb-aef9-c2bc-db8acafbd371", "C"): NodeData("5b984bac-403b-a543-367a-72bc3cd03d1c", "Value"),
+        NodeData("8018bade-47eb-aef9-c2bc-db8acafbd371", "A"): NodeData("e1b6d63c-45ef-e2b6-b63d-f6a0d1b6130e", "Value"),
+        OutputData("bCanEnterTransition"): NodeData("8018bade-47eb-aef9-c2bc-db8acafbd371", "ReturnValue"),
+        NodeData("8018bade-47eb-aef9-c2bc-db8acafbd371", "B"): NodeData("00a88729-4892-4568-6301-b2a41039eed7", "Value"),
+        NodeData("48cf1288-4833-cc50-0ce9-4eaa51eeb893", "A"): NodeData("c41e57e5-4cbc-e5bf-5337-689b30bc7b68", "Value"),
+        NodeData("8018bade-47eb-aef9-c2bc-db8acafbd371", "D"): NodeData("48cf1288-4833-cc50-0ce9-4eaa51eeb893", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "8018bade-47eb-aef9-c2bc-db8acafbd371": (-192.000, -16.000), "48cf1288-4833-cc50-0ce9-4eaa51eeb893": (-432.000, 128.000), "00a88729-4892-4568-6301-b2a41039eed7": (-576.000, -32.000), "5b984bac-403b-a543-367a-72bc3cd03d1c": (-576.000, 48.000), "e1b6d63c-45ef-e2b6-b63d-f6a0d1b6130e": (-544.000, -112.000), "c41e57e5-4cbc-e5bf-5337-689b30bc7b68": (-768.000, 128.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

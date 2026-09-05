@@ -1,0 +1,19 @@
+(
+    states: [
+        (id: "63b947ab-4aa0-69e3-c274-f49320ce46c6", label: "Entry Conduit", graph: "generated/als_als_character_ab_als_ab_als/states/0037a017-20b2-5930-b8fe-2a8183460384.animgraph.ron", state_transition: None),
+        (id: "0658d344-4936-9679-25bf-e2860e9b7e84", label: "Left Foot", graph: "generated/als_als_character_ab_als_ab_als/graphs/a9d96c8c-f7c2-5b11-82ac-77237301b4d5.animgraph.ron", state_transition: None),
+        (id: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", label: "Right Foot", graph: "generated/als_als_character_ab_als_ab_als/graphs/20ca6151-7e9e-50d6-b0d4-a8cab4e3aafc.animgraph.ron", state_transition: None),
+        (id: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", label: "Loop", graph: "generated/als_als_character_ab_als_ab_als/graphs/9bf227b2-65e7-56d3-a1f3-5871f9ddca6f.animgraph.ron", state_transition: None),
+        (id: "27b1012f-4021-e09b-acdc-9b8ada91cd5e", label: "Flail", graph: "generated/als_als_character_ab_als_ab_als/graphs/64bc599b-198a-54be-99cd-3d279e2cf4ff.animgraph.ron", state_transition: None),
+    ],
+    transitions: [
+        (id: "2afa6785-449f-6d18-91a1-22924162fe6d", source: "0658d344-4936-9679-25bf-e2860e9b7e84", target: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", data: (kind: Graph(graph: "generated/als_als_character_ab_als_ab_als/transitions/f205c5c3-f4a7-541e-beaf-f580518a14e3.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "622d4091-4be3-4d5e-4312-4c8c402ef29b", source: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", target: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", data: (kind: Graph(graph: "generated/als_als_character_ab_als_ab_als/transitions/701799c1-5204-539c-95c7-265e25a1abb5.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "91501cc0-4fed-ad0a-330d-11896007f9cf", source: "63b947ab-4aa0-69e3-c274-f49320ce46c6", target: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", data: (kind: Graph(graph: "generated/als_als_character_ab_als_ab_als/transitions/5b427433-aba1-54c8-a41e-34341f559d85.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "d1522bec-4b5b-a20f-9e12-71a88a499d99", source: "63b947ab-4aa0-69e3-c274-f49320ce46c6", target: "0658d344-4936-9679-25bf-e2860e9b7e84", data: (kind: Graph(graph: "generated/als_als_character_ab_als_ab_als/transitions/0efa1198-89b0-5d58-ae86-a1ed1bc0ebfb.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "f1ccbd69-4446-9ec9-c0fa-85b00bc38247", source: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", target: "27b1012f-4021-e09b-acdc-9b8ada91cd5e", data: (kind: Graph(graph: "generated/als_als_character_ab_als_ab_als/transitions/30425a7c-5660-5497-b35c-19c9357e9f93.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+    ],
+    start_state: "63b947ab-4aa0-69e3-c274-f49320ce46c6",
+    node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Pose": Pose }, input_order: {}, output_order: { Data("Pose"): 0 }),
+    editor_metadata: (states: { "63b947ab-4aa0-69e3-c274-f49320ce46c6": (176, 0), "0658d344-4936-9679-25bf-e2860e9b7e84": (416, -64), "dc05dc35-4a57-916b-bb5f-4daba6b11c61": (416, 64), "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d": (640, 0), "27b1012f-4021-e09b-acdc-9b8ada91cd5e": (816, 0) }),
+)

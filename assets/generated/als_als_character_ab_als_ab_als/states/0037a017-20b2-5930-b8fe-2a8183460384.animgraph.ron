@@ -1,0 +1,11 @@
+(
+    nodes: [
+        (id: "b2ca7cda-e5ff-562d-8d72-52d594b5596d", name: "Source conduit or alias", inner: { "als_ext::LocalRefPoseNode": (internalize_time: true) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("Result"): NodeData("b2ca7cda-e5ff-562d-8d72-52d594b5596d", "pose"),
+    },
+    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Result": Pose }, input_order: {}, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "b2ca7cda-e5ff-562d-8d72-52d594b5596d": (0.0, 0.0) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)
