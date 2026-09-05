@@ -31,6 +31,13 @@ struct SourceBlendState {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
+struct SourceTwoWayBlendState {
+    alpha: SourceBlendState,
+    a_is_relevant: bool,
+    b_is_relevant: bool,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
 pub struct SourceInputScaleBiasClampState {
     initialized: bool,
     value: f32,
@@ -164,6 +171,21 @@ fn source_blend_alpha(
     (state.value * alpha_scale + alpha_bias).clamp(0.0, 1.0)
 }
 
+fn source_two_way_child_relevancy(
+    state: &mut SourceTwoWayBlendState,
+    alpha: f32,
+) -> (bool, bool, bool, bool) {
+    const ZERO_ANIMWEIGHT_THRESHOLD: f32 = 1.0e-5;
+
+    let a_is_relevant = alpha < 1.0 - ZERO_ANIMWEIGHT_THRESHOLD;
+    let b_is_relevant = alpha > ZERO_ANIMWEIGHT_THRESHOLD;
+    let reset_a = a_is_relevant && !state.a_is_relevant;
+    let reset_b = b_is_relevant && !state.b_is_relevant;
+    state.a_is_relevant = a_is_relevant;
+    state.b_is_relevant = b_is_relevant;
+    (a_is_relevant, b_is_relevant, reset_a, reset_b)
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -178,6 +200,7 @@ pub struct SourceTwoWayBlendNode {
     pub alpha_bias: f32,
     pub increasing_speed: f32,
     pub decreasing_speed: f32,
+    pub reset_child_on_activation: bool,
 }
 
 impl Default for SourceTwoWayBlendNode {
@@ -193,6 +216,7 @@ impl Default for SourceTwoWayBlendNode {
             alpha_bias: 0.0,
             increasing_speed: 0.0,
             decreasing_speed: 0.0,
+            reset_child_on_activation: false,
         }
     }
 }
@@ -217,25 +241,60 @@ impl NodeLike for SourceTwoWayBlendNode {
             )?
         };
         let delta = delta_seconds(&ctx)?;
-        let alpha = source_blend_alpha(
-            ctx.state_mut::<SourceBlendState>()?,
-            raw,
-            self.mapping_max,
-            &self.mapping,
-            self.alpha_scale,
-            self.alpha_bias,
-            0.0,
-            1.0,
-            self.increasing_speed,
-            self.decreasing_speed,
-            delta,
-        );
-        let mut base = ctx.data_back("A")?.into_pose()?;
-        let overlay = ctx.data_back("B")?.into_pose()?;
-        LinearInterpolator {
-            bone_mask: BoneMask::all(),
+        let (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b) = {
+            let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
+            let alpha = source_blend_alpha(
+                &mut state.alpha,
+                raw,
+                self.mapping_max,
+                &self.mapping,
+                self.alpha_scale,
+                self.alpha_bias,
+                0.0,
+                1.0,
+                self.increasing_speed,
+                self.decreasing_speed,
+                delta,
+            );
+            let (a_is_relevant, b_is_relevant, reset_a, reset_b) =
+                source_two_way_child_relevancy(state, alpha);
+            (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
+        };
+        if self.reset_child_on_activation {
+            let update = ctx.time_update_fwd()?;
+            if a_is_relevant {
+                ctx.set_time_update_back(
+                    "A",
+                    if reset_a {
+                        TimeUpdate::Absolute(0.0)
+                    } else {
+                        update.clone()
+                    },
+                );
+            }
+            if b_is_relevant {
+                ctx.set_time_update_back(
+                    "B",
+                    if reset_b {
+                        TimeUpdate::Absolute(0.0)
+                    } else {
+                        update
+                    },
+                );
+            }
         }
-        .interpolate_pose(&mut base, &overlay, alpha);
+        let mut base = if a_is_relevant {
+            ctx.data_back("A")?.into_pose()?
+        } else {
+            ctx.data_back("B")?.into_pose()?
+        };
+        if b_is_relevant && a_is_relevant {
+            let overlay = ctx.data_back("B")?.into_pose()?;
+            LinearInterpolator {
+                bone_mask: BoneMask::all(),
+            }
+            .interpolate_pose(&mut base, &overlay, alpha);
+        }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
         Ok(())
@@ -246,6 +305,9 @@ impl NodeLike for SourceTwoWayBlendNode {
             .add_input_data("B", DataSpec::Pose);
         if self.expose_alpha_pin {
             ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
+        }
+        if self.reset_child_on_activation {
+            ctx.add_input_time("A").add_input_time("B");
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -1088,6 +1150,27 @@ mod tests {
             ..default()
         };
         assert!(!node.expose_alpha_pin);
+    }
+
+    #[test]
+    fn source_two_way_child_reset_matches_ue_relevancy_thresholds() {
+        let mut state = SourceTwoWayBlendState::default();
+        assert_eq!(
+            source_two_way_child_relevancy(&mut state, 0.0),
+            (true, false, true, false)
+        );
+        assert_eq!(
+            source_two_way_child_relevancy(&mut state, 1.0),
+            (false, true, false, true)
+        );
+        assert_eq!(
+            source_two_way_child_relevancy(&mut state, 0.5),
+            (true, true, true, false)
+        );
+        assert_eq!(
+            source_two_way_child_relevancy(&mut state, 0.5),
+            (true, true, false, false)
+        );
     }
 
     #[test]

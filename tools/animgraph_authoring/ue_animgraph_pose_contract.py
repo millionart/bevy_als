@@ -357,13 +357,15 @@ def blend_contract(node, renderer, property_name, base_inputs, extra_fields=()):
             ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
         )
     )
-    if parse_bool(field(fields, "bResetChildOnActivation", "False")):
+    reset_child_on_activation = parse_bool(field(fields, "bResetChildOnActivation", "False"))
+    if reset_child_on_activation and renderer != "two_way_blend":
         issues.append(issue(node, renderer, "source_child_reset_unsupported", "bResetChildOnActivation"))
     if parse_bool(field(fields, "bAlwaysUpdateChildren", "False")):
         issues.append(issue(node, renderer, "source_child_update_unsupported", "bAlwaysUpdateChildren"))
     if parse_number(field(fields, "LODThreshold", "-1.0")) != -1.0:
         issues.append(issue(node, renderer, "source_lod_threshold_unsupported", "LODThreshold"))
     contract["renderer"] = renderer
+    contract["reset_child_on_activation"] = reset_child_on_activation
     return contract, issues
 
 
@@ -1306,12 +1308,13 @@ def run_self_test():
     two_way = fixture_node(
         "two_way_blend",
         "BlendNode",
-        "(A=(),B=(),AlphaScaleBias=(Scale=1.000000),AlphaScaleBiasClamp=(bMapRange=True,bInterpResult=True,InRange=(Min=-500.000000,Max=-1000.000000),OutRange=(Max=1.000000),Scale=1.000000,ClampMax=1.000000,InterpSpeedIncreasing=5.000000,InterpSpeedDecreasing=5.000000),InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+        "(A=(),B=(),bResetChildOnActivation=True,AlphaScaleBias=(Scale=1.000000),AlphaScaleBiasClamp=(bMapRange=True,bInterpResult=True,InRange=(Min=-500.000000,Max=-1000.000000),OutRange=(Max=1.000000),Scale=1.000000,ClampMax=1.000000,InterpSpeedIncreasing=5.000000,InterpSpeedDecreasing=5.000000),InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
         [input_pin("A"), input_pin("B"), input_pin("Alpha")],
     )
     contract, issues = pose_contract(two_way, "two_way_blend")
     assert not issues
     assert contract["alpha_mapping"]["input_max"] == -1000.0
+    assert contract["reset_child_on_activation"]
     sequence = fixture_node(
         "sequence_player",
         "Node",
@@ -1597,6 +1600,7 @@ def run_self_test():
     assert lifecycle_contract["source_function"] == "RefreshInAir"
     return {
         "two_way_alpha_mapping_contract_parsed": "PASS",
+        "two_way_child_reset_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "modify_curve_property_binding_paths_preserved": "PASS",

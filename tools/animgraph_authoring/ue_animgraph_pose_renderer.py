@@ -583,7 +583,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     if renderer == "two_way_blend":
         pins = input_names(value)
         alpha_key = value.get("alpha_key")
-        if not isinstance(alpha_key, str):
+        reset_child_on_activation = value.get("reset_child_on_activation", False)
+        if not isinstance(alpha_key, str) or not isinstance(reset_child_on_activation, bool):
             raise PoseRenderError("source blend property binding is unavailable")
         fields = [
             field("alpha_key", quoted(alpha_key)),
@@ -596,6 +597,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("alpha_bias", repr(value["alpha_scale_bias"]["bias"])),
             field("increasing_speed", "0.0"),
             field("decreasing_speed", "0.0"),
+            field("reset_child_on_activation", bool_ron(reset_child_on_activation)),
         ]
         return "als_ext::SourceTwoWayBlendNode", "(" + ", ".join(fields) + ")"
     if renderer in {"apply_additive", "apply_mesh_space_additive"}:
@@ -839,6 +841,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
     primary_id = node_id(raw)
     source_path = raw["object_path"]
     x, y = position(raw)
+    axis_input_x = x - (288.0 if player else 192.0)
     linked_inputs = {
         (link.get("target", {}).get("node_object_path"), link.get("target", {}).get("pin_name"))
         for link in graph_contract.get("links", [])
@@ -846,7 +849,13 @@ def blendspace_helpers(graph_contract, raw, semantic):
     vector_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/vector/" + source_path))
     phase_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/blendspace/phase/" + source_path))
     nodes = [
-        (vector_id, "Blendspace position", "()", "als_ext::F32ToVec2Node", (x - 96.0, y)),
+        (
+            vector_id,
+            "Blendspace position",
+            "()",
+            "als_ext::F32ToVec2Node",
+            (x - (192.0 if player else 96.0), y),
+        ),
     ]
     edges = []
     if player:
@@ -885,7 +894,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
                     + repr(axis_filter["y_window_seconds"])
                     + ")",
                     "als_ext::CubicVec2AxisFilterNode",
-                    (x, y),
+                    (x - 96.0, y),
                 ),
                 (
                     delta_id,
@@ -948,7 +957,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
                     "Blendspace " + axis.upper() + " default",
                     "(value: 0.0)",
                     "als_ext::ConstantF32Node",
-                    (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                    (axis_input_x, y + (0.0 if axis == "x" else 48.0)),
                 )
             )
             edges.append(
@@ -973,7 +982,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
                         "Blendspace " + pin_name + " binding",
                         "(key: " + quoted(binding_key) + ")",
                         "als_ext::GlobalF32InputNode",
-                        (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                        (axis_input_x, y + (0.0 if axis == "x" else 48.0)),
                     )
                 )
                 source_pin = binding_key
@@ -984,7 +993,7 @@ def blendspace_helpers(graph_contract, raw, semantic):
                         "Blendspace " + pin_name + " default",
                         "(value: " + repr(input_value["default_value"]) + ")",
                         "als_ext::ConstantF32Node",
-                        (x - 192.0, y + (0.0 if axis == "x" else 48.0)),
+                        (axis_input_x, y + (0.0 if axis == "x" else 48.0)),
                     )
                 )
                 source_pin = "value"
@@ -1102,6 +1111,49 @@ def collapsed_links(graph_contract, ir_nodes, links=None):
             continue
         result.append({"source": resolve(link.get("source", {}), set()), "target": target})
     return result
+
+
+def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes, sync_wrappers):
+    reset_nodes = {
+        source_path
+        for source_path, semantic in ir_nodes.items()
+        if semantic.get("renderer") == "two_way_blend"
+        and isinstance(semantic.get("semantic"), dict)
+        and semantic["semantic"].get("reset_child_on_activation", False)
+    }
+    reset_inputs = {}
+    for link in collapsed_links(graph_contract, ir_nodes, graph_contract.get("links")):
+        source = link.get("source", {})
+        target = link.get("target", {})
+        target_path = target.get("node_object_path")
+        target_semantic = ir_nodes.get(target_path)
+        if target_path not in reset_nodes:
+            continue
+        pin = target.get("pin_name")
+        if pin not in {"A", "B"}:
+            continue
+        source_semantic = ir_nodes.get(source.get("node_object_path"))
+        if (
+            source_semantic is None
+            or source_semantic.get("renderer") != "sequence_player"
+            or source.get("pin_name") != "Pose"
+            or pin in reset_inputs.get(target_path, {})
+        ):
+            raise PoseRenderError("source child reset requires one direct Sequence Player per A/B input")
+        reset_inputs.setdefault(target_path, {})[pin] = source_semantic["source_node"]
+    edges = []
+    for target_path in sorted(reset_nodes):
+        inputs = reset_inputs.get(target_path, {})
+        if set(inputs) != {"A", "B"} or inputs["A"] == inputs["B"]:
+            raise PoseRenderError("source child reset requires distinct direct Sequence Players for A and B")
+        target_identifier = node_id(raw_nodes[target_path])
+        for pin in ("A", "B"):
+            source_path = inputs[pin]
+            source_identifier = sync_wrappers.get(source_path, node_id(raw_nodes[source_path]))
+            edges.append(
+                f"NodeTime({quoted(target_identifier)}, {quoted(pin)}): NodeTime({quoted(source_identifier)})"
+            )
+    return edges
 
 
 def render(
@@ -1274,6 +1326,7 @@ def render(
             f"NodeData({quoted(wrapper_id)}, \"pose\"): NodeData({quoted(identifier)}, \"Pose\")"
         )
         edges.append(f"NodeTime({quoted(wrapper_id)}, \"time\"): NodeTime({quoted(identifier)})")
+    edges.extend(source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes, sync_wrappers))
     for source_path, selector_id in linked_layer_selectors.items():
         identifier = node_id(raw_nodes[source_path])
         edges.append(
@@ -1427,7 +1480,45 @@ def run_self_test():
     assert '"als_ext::SourceSequencePlayerNode"' in text
     assert '"als_ext::SourceTwoWayBlendNode"' in text
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
+    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A")' not in text
     assert 'OutputData("Result")' in text
+    graph_ir["nodes"][1]["semantic"]["reset_child_on_activation"] = True
+    try:
+        render(graph_contract, graph_ir, assets)
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("child reset accepted one Sequence Player for both inputs")
+    reset_player_path = "/Asset:State.ResetPlayer"
+    graph_contract["source_graph"]["nodes"].append(
+        {
+            "object_path": reset_player_path,
+            "node_guid": "10000000-0000-4000-8000-000000000006",
+            "title": "Sequence Player B",
+            "position_x": -256,
+            "position_y": 96,
+        }
+    )
+    graph_ir["nodes"].append(
+        {
+            "source_node": reset_player_path,
+            "renderer": "sequence_player",
+            "semantic": dict(graph_ir["nodes"][0]["semantic"]),
+        }
+    )
+    assets.append(
+        {
+            "source_node": reset_player_path,
+            "category": "sequence",
+            "target_asset": "animations/B.anim.ron",
+            "source_timing": {"duration": 1.0, "markers": []},
+        }
+    )
+    graph_contract["links"][1]["source"]["node_object_path"] = reset_player_path
+    text = render(graph_contract, graph_ir, assets)
+    assert "reset_child_on_activation: true" in text
+    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A"): NodeTime("10000000-0000-4000-8000-000000000001")' in text
+    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "B"): NodeTime("10000000-0000-4000-8000-000000000006")' in text
     graph_ir["links"] = list(graph_contract["links"])
     unused_path = "/Asset:State.Unreachable"
     graph_contract["source_graph"]["nodes"].append(
@@ -1947,6 +2038,15 @@ def run_self_test():
     assert 'key: "sync_groups.ab_als_standing.movement.phase"' in text
     assert 'key: "animation.delta_seconds"' in text
     assert "duration: 1.0" in text and 'markers: [(name: "Left", time: 0.0)' in text
+    player_nodes, _, _ = blendspace_helpers(
+        blend_contract,
+        blend_contract["source_graph"]["nodes"][0],
+        player_ir["nodes"][0],
+    )
+    player_positions = {node[1]: node[4] for node in player_nodes}
+    assert player_positions["Blendspace position"] == (-256.0, 0.0)
+    assert player_positions["Blendspace cubic axis filter"] == (-160.0, 0.0)
+    assert player_positions["Blendspace X binding"] == (-352.0, 0.0)
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",

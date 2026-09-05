@@ -124,6 +124,12 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - source fact：bevy low-level FSM仅从`driver_events`处理Transition事件；`TransitionKind::Graph`是过渡混合图而非条件执行图。UE按transition priority检查`bCanEnterTransition`。因此不能继续用外部state index白名单替代source condition graph。
   - Gate summary：UE/bevy FSM source、transition/materializer/converter self-test和13个focused `interruptible_fsm` tests均PASS；source-condition matcher只选择当前state的direct transition。Crouching fresh direct `--write`/`--check`为ready，生成66文件且editor/position Gate零失败；六个既有ready corpus重新`--write`/`--check`及35/50/1/1/2/1静态Gate均PASS。消融：删除registry的三个FSM label键、物化manifest的label map、无用registry参数以及生成RON中空label字段；未修改手工direct-transition runtime graph。
 
+- [x] BF112.24 Two Way Blend child reset：开始：2026-09-05 08:15:14 +08:00；预估结束：2026-09-05 09:10:14 +08:00；实际结束：2026-09-05 09:03:38 +08:00（偏差 -6m36s）。为 source `bResetChildOnActivation=True`保留 UE 的 child relevancy 重入初始化：直接扩展既有`SourceTwoWayBlendNode`的 A/B time input，以 Two Way Blend 最终映射后的 alpha 驱动 child reinitialization；非直接 Sequence Player child 或未证实的 reset 形态继续 fail-closed。验收：UE 5.8 `FAnimNode_TwoWayBlend` source、renderer/NodeLike fixture与消融、Standing direct `--write`/`--check`到ready、既有ready corpus回归。
+  - 已知 source closure：`AB_Als_Standing:AnimGraphNode_TwoWayBlend_0`将`A_Als_Sprint`接至`A`、`A_Als_Sprint_Acceleration`接至`B`，唯一额外行为为`bResetChildOnActivation=True`；其最终 alpha 来自 source `AlphaScaleBiasClamp`，不是可用手工 alias 代替的 raw alpha。
+  - source fact：UE 5.8 `FAnimNode_TwoWayBlend::Update_AnyThread`以`A=!IsFullWeight(alpha)`、`B=IsRelevant(alpha)`判断 child relevancy；`ZERO_ANIMWEIGHT_THRESH=0.00001`，只在 false→true 时 reinitialize child。fresh Standing export确认两个 child 都是无绑定的 direct Sequence Player，`StartPosition=0.166667`、同属`Movement` SyncGroup。
+  - Gate summary：contract/renderer/converter self-test及3个focused `source_two_way` Rust tests均PASS。Standing fresh `.uasset` direct `--write`为`pass=true`/零 blocker，持久 PTY `--check` exit 0；108个生成文件 editor/position audit及runtime asset boundary均零失败。既有converter corpus的156文件只读 editor/position/boundary回归均PASS。
+  - 消融：关闭 source flag 时 fixture不生成 A/B time edge；同一 Sequence Player 同接 A/B时 fail-closed。未引入`ResetOnActivationNode`、alias或额外 wrapper；只保留 TwoWay 自身的必要 state/time edge。BlendSpace Player helper按`binding → vector → filter → source`排布，消除生成辅助节点与 source node 的重叠，不移动任何 source-visible node。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
