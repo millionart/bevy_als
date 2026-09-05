@@ -130,6 +130,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - Gate summary：contract/renderer/converter self-test及3个focused `source_two_way` Rust tests均PASS。Standing fresh `.uasset` direct `--write`为`pass=true`/零 blocker，持久 PTY `--check` exit 0；108个生成文件 editor/position audit及runtime asset boundary均零失败。既有converter corpus的156文件只读 editor/position/boundary回归均PASS。
   - 消融：关闭 source flag 时 fixture不生成 A/B time edge；同一 Sequence Player 同接 A/B时 fail-closed。未引入`ResetOnActivationNode`、alias或额外 wrapper；只保留 TwoWay 自身的必要 state/time edge。BlendSpace Player helper按`binding → vector → filter → source`排布，消除生成辅助节点与 source node 的重叠，不移动任何 source-visible node。
 
+- [x] BF112.25a First four AnimBP golden-corpus refresh：开始：2026-09-05 09:04:47 +08:00；预估结束：2026-09-05 09:54:47 +08:00；实际结束：2026-09-05 09:21:10 +08:00（偏差 -33m37s）。以 `.uasset` direct input 重新生成并确定性检查`AB_Als_Standing`、`AB_Als_Crouching`、`AB_Als_Grounded`、`AB_Als_Locomotion`；随后对四个 target closure 做 editor/position/runtime-boundary Gate，不读取或修改手工 RON。验收：每个 report为ready/零 blocker、每个`--check` exit 0、合并静态 Gate零失败。
+  - 已知 source/target：source 分别位于`Stances/`和`AnimationInstances/`；target 分别为`standing-direct`、`crouching-direct`、`grounded-direct`、`locomotion-direct`。Standing本轮已由BF112.24 fresh source验证；其余三个须在此轮重新取证。后续四个 AnimBP 与手工版交叉差异报告在下一切片执行，避免单条 Gate超过一小时。
+  - Gate summary：四份 fresh direct `--write`和四份持久 PTY `--check`均exit 0、`pass=true`且零 blocker；source closure合计145 graphs/884 nodes。统一corpus的264文件 editor/position audit与runtime asset boundary均零失败。当前开口边界仅为第二组四个 source trees和手工三图的source-first差异取证。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
