@@ -146,6 +146,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已知边界：generated output在`target/animgraph_converter_corpus/*-direct`，原始资源在`assets/`；Bevy asset server只有一个 root，因此本项只在`target/`下以 junction 组合二者，实际 Playground replacement继续由handoff report指定的provider接入完成。
   - Gate summary：隔离`target/bf11227_spec`以`--jobs 2`完成`animgraph_spec_dump`构建；八个 closure的248个 generated `.animgraph.ron`均通过真实 Bevy recursive asset load与`AlsExtPlugin` NodeLike spec，合计949 nodes/1716 edges。single-graph batch JSON参数被固定为数组后，Layering/Head/Ragdolling/Default同样通过；没有 converter loader/spec error。消融：junction只存在于`target/`，未复制或覆盖手工asset；未填充任一source-derived global，缺 provider继续按fail-closed与handoff report边界处理。
 
+- [x] BF112.28 AB_Als linked graph recursion validation：开始：2026-09-05 10:25:27 +08:00；预估结束：2026-09-05 10:55:27 +08:00；实际结束：2026-09-05 10:31:18 +08:00（偏差 -24m09s）。以主角色`AB_Als.uasset`作为根，验证 converter 对`AnimGraphNode_LinkedAnimGraph`与`AnimGraphNode_LinkedAnimLayer`（Overlay）的递归闭包、物化文件与fail-closed报告；不使用手工 RON 或按资产路径白名单。验收：fresh direct `--write`/`--check`；若 source graph可自动递归，检查根到子图 target path；若不能，保留最短 Markdown blocker，精确指出 source node/class 与缺失语义。
+  - 已知实现边界：当前 reachability 只会对 self-implemented Linked Anim Layer递归；`LinkedAnimGraph`目前作为 external dependency 记录。此项用真实`AB_Als`确认该边界是否覆盖主角色实际连线。
+  - Gate summary：native source reader PASS。根图有7个`LinkedAnimGraph`与1个带`InstanceClass=AB_Als_Default`的Overlay layer；converter在layer contract抛`ExportedTextError`而非blocked report，故本轮未生成partial RON。最短source blocker写入`target/animgraph_converter_probe/ab_als_linked_recursive/conversion.blocked.md`；下轮修复从generated-class→uasset解析、递归物化和named Linked Input Pose传递，不引入手工fallback。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
