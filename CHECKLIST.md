@@ -134,6 +134,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已知 source/target：source 分别位于`Stances/`和`AnimationInstances/`；target 分别为`standing-direct`、`crouching-direct`、`grounded-direct`、`locomotion-direct`。Standing本轮已由BF112.24 fresh source验证；其余三个须在此轮重新取证。后续四个 AnimBP 与手工版交叉差异报告在下一切片执行，避免单条 Gate超过一小时。
   - Gate summary：四份 fresh direct `--write`和四份持久 PTY `--check`均exit 0、`pass=true`且零 blocker；source closure合计145 graphs/884 nodes。统一corpus的264文件 editor/position audit与runtime asset boundary均零失败。当前开口边界仅为第二组四个 source trees和手工三图的source-first差异取证。
 
+- [x] BF112.25b Second four AnimBP golden-corpus refresh：开始：2026-09-05 09:21:10 +08:00；预估结束：2026-09-05 10:11:10 +08:00；实际结束：2026-09-05 09:28:41 +08:00（偏差 -42m29s）。以 `.uasset` direct input 重新生成并确定性检查`AB_Als_Layering`、`AB_Als_Head`、`AB_Als_Ragdolling`、`AB_Als_Default`；随后对全八个 target closure 做 editor/position/runtime-boundary Gate，不读取或修改手工 RON。验收：每个 report为ready/零 blocker、每个`--check` exit 0、合并静态 Gate零失败。
+  - 已知 source/target：前三个 source 位于`AnimationInstances/`，Default位于`Overlays/`；target分别为`layering-direct`、`head-direct`、`ragdolling-direct`、`default-direct`。下一条只在八树全部ready后处理 Standing/Crouching/Grounded手工图交叉差异和接手报告。
+  - Gate summary：四份 fresh direct `--write`和四份持久 PTY `--check`均exit 0、`pass=true`且零 blocker。八个 source closures合计150 graphs/1051 nodes；统一corpus的264文件 editor/position audit与runtime asset boundary均零失败。八个指定AnimBP现均由当前converter生成，未读取或修改手工RON。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
