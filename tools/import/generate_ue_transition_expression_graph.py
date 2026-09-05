@@ -439,10 +439,11 @@ def node_inner(contract, node=None):
     return "(" + inner + ")"
 
 
-def node_ron(contract, identifier, node):
+def node_ron(contract, identifier, node, getter_bindings=None, validate_only=False):
     getter = anim_getter_config(node)
     if getter is not None:
-        return anim_getter_node(identifier, node, getter)
+        binding = (getter_bindings or {}).get(node["object_path"])
+        return anim_getter_node(identifier, node, getter, binding, validate_only)
     tag_input = gameplay_tag_input_config(contract, node)
     if tag_input is not None:
         inner = "(" + ", ".join(
@@ -515,27 +516,38 @@ def direct_bound_root_node(root, pin, binding):
     )
 
 
-def anim_getter_node(identifier, node, config):
-    output = pin_payload(None, node, AUDIT.visible_pins(node, "Output")[0], {})
-    output["global_key"] = config["target_key"]
+def anim_getter_node(identifier, node, config, binding, validate_only):
+    if binding is None:
+        if not validate_only:
+            raise ValueError("source animation getter target is unavailable")
+        fsm_node = ""
+        state_id = ""
+    else:
+        fsm_node = binding.get("target_fsm_node")
+        state_id = binding.get("target_state_id", "")
+        if not isinstance(fsm_node, str) or not fsm_node:
+            raise ValueError("source animation getter machine target is unavailable")
+        if not isinstance(state_id, str):
+            raise ValueError("source animation getter state target is invalid")
+    if config["source_function"] == "GetInstanceStateWeight" and not state_id and not validate_only:
+        raise ValueError("source animation getter state target is unavailable")
+    if config["source_function"] == "GetInstanceMachineWeight" and state_id:
+        raise ValueError("source machine weight getter unexpectedly references a state")
     inner = ", ".join(
         (
-            "input_pins: []",
-            "output_pins: [" + pin_ron(output) + "]",
-            'operation: "global"',
-            "source_class: " + quoted(node["class_path"]),
-            "source_properties: ["
-            + ", ".join(quoted(value) for value in source_properties(node))
-            + "]",
+            "source_function: " + quoted(config["source_function"]),
+            "fsm_node: " + quoted(fsm_node),
+            "state_id: " + quoted(state_id),
+            "output: " + quoted(config["output"]),
         )
     )
     return (
         f"(id: {quoted(identifier)}, name: {quoted(AUDIT.source_title(node))}, "
-        f"inner: {{ \"als_ext::SourceScalarExpressionNode\": ({inner}) }}, should_debug: false)"
+        f"inner: {{ \"als_ext::SourceAnimationStateGetterNode\": ({inner}) }}, should_debug: false)"
     )
 
 
-def graph_text(contract):
+def graph_text(contract, getter_bindings=None, validate_only=False):
     nodes = source_nodes(contract)
     ids = {node["object_path"]: node_id(node) for node in nodes}
     root = AUDIT.source_root(contract)
@@ -594,7 +606,10 @@ def graph_text(contract):
     return "(\n" + "\n".join(
         (
             "    nodes: [",
-            *[f"        {node_ron(contract, ids[node['object_path']], node)}," for node in nodes],
+            *[
+                f"        {node_ron(contract, ids[node['object_path']], node, getter_bindings, validate_only)},"
+                for node in nodes
+            ],
             *([f"        {direct_bound_root_node(root, root_pin, binding)},"] if root_is_bound else []),
             "    ],",
             "    edges_inverted: {",
@@ -712,7 +727,7 @@ def map_payload(contract_path, target_graph, target_spec, map_path, contract):
                     "target_contains": (
                         f"key: {quoted(tag_input['key'])}"
                         if tag_input is not None
-                        else f"global_key: {quoted(access_key)}"
+                        else f"global_key: {quoted(source_property_key(access_key))}"
                     ),
                 }
             )
@@ -1129,10 +1144,19 @@ def run_self_test():
             }
         ]
         getter_contract = fixture_anim_getter_contract()
-        getter_text = graph_text(getter_contract)
         getter = anim_getter_config(getter_contract["source_graph"]["nodes"][1])
+        getter_text = graph_text(
+            getter_contract,
+            {
+                "/Asset:Transition.Getter": {
+                    "target_fsm_node": "20000000-0000-4000-8000-000000000003",
+                    "target_state_id": "20000000-0000-4000-8000-000000000004",
+                }
+            },
+        )
         assert getter["target_key"] == "anim_getters.ab_als_test.get_instance_state_weight.anim_graph.anim_graph_node_state_machine_1.anim_graph.anim_graph_node_state_machine_1.movement_states.anim_state_node_2"
-        assert ('global_key: "' + getter["target_key"] + '"') in getter_text
+        assert '"als_ext::SourceAnimationStateGetterNode"' in getter_text
+        assert 'fsm_node: "20000000-0000-4000-8000-000000000003"' in getter_text
         assert 'OutputData("Result"): NodeData("20000000-0000-4000-8000-000000000002", "ReturnValue")' in getter_text
     return {
         "transition_scalar_node_generation": "PASS",
@@ -1140,7 +1164,7 @@ def run_self_test():
         "source_link_and_root_output_mapping": "PASS",
         "property_access_path_becomes_target_key": "PASS",
         "bound_transition_result_root_is_preserved": "PASS",
-        "animation_state_getter_provider_key_is_preserved": "PASS",
+        "animation_state_getter_target_is_materialized": "PASS",
         "gameplay_tag_and_boolean_function_operations_mapped": "PASS",
         "gameplay_tag_adapter_reads_real_tag_provider": "PASS",
         "scalar_node_inner_is_reusable": "PASS",

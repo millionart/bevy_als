@@ -1,0 +1,28 @@
+(
+    nodes: [
+        (id: "f3710f80-49c6-919d-a7ad-caab6a83669f", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "stance", output: "Value", expected_tag: "Als.Stance.Standing", source_property_path: "GetParent.Stance", source_properties: ["(\"GetParent\",\"Stance\")", "GetParent.Stance", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-608", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "F3710F8049C6919DA7ADCAAB6A83669F"]) }, should_debug: false),
+        (id: "394a16d1-4dc1-2be0-323e-c59cb6e5cd4d", name: "Not Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.Stance.Standing\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "not_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["NotEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"NotEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-336", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "394A16D14DC12BE0323EC59CB6E5CD4D"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("394a16d1-4dc1-2be0-323e-c59cb6e5cd4d", "ReturnValue"),
+        NodeData("394a16d1-4dc1-2be0-323e-c59cb6e5cd4d", "A"): NodeData("f3710f80-49c6-919d-a7ad-caab6a83669f", "Value"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "f3710f80-49c6-919d-a7ad-caab6a83669f": (-608.000, 0.000), "394a16d1-4dc1-2be0-323e-c59cb6e5cd4d": (-336.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

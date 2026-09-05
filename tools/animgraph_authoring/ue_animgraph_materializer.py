@@ -41,36 +41,109 @@ def namespaced_path(namespace, path):
     return f"{namespace}/{path}" if namespace else path
 
 
+def source_path_segment(value):
+    if not isinstance(value, str) or not value:
+        raise MaterializationError("source path segment is invalid")
+    value = re.sub(r"[^A-Za-z0-9_-]+", "_", value).strip("_")
+    if not value:
+        raise MaterializationError("source path segment is invalid")
+    return value
+
+
+def source_asset_directory(source_asset):
+    if not isinstance(source_asset, str) or not source_asset.startswith("/"):
+        raise MaterializationError("source asset path is invalid")
+    parts = [part for part in source_asset.split("/") if part]
+    if not parts:
+        raise MaterializationError("source asset path is invalid")
+    relative = parts[1:] if len(parts) > 1 else parts
+    leaf = relative[-1].rsplit(".", 1)[0]
+    if not leaf:
+        raise MaterializationError("source asset path is invalid")
+    return "/".join([*(source_path_segment(part) for part in relative[:-1]), source_path_segment(leaf)])
+
+
+STRUCTURAL_SOURCE_NODE_PREFIXES = (
+    ("AnimGraphNode_StateMachine_", "SM"),
+    ("AnimStateNode_", "S"),
+    ("AnimStateTransitionNode_", "T"),
+    ("AnimStateConduitNode_", "C"),
+    ("AnimStateAliasNode_", "A"),
+)
+
+
+def structural_source_node_segment(value):
+    for prefix, label in STRUCTURAL_SOURCE_NODE_PREFIXES:
+        suffix = value.removeprefix(prefix)
+        if suffix and suffix.isdecimal():
+            return label + suffix
+    return None
+
+
+def source_graph_parts(suffix):
+    if not isinstance(suffix, str) or not suffix:
+        raise MaterializationError("source graph path is invalid")
+    source_parts = suffix.split(".")
+    if any(not part for part in source_parts):
+        raise MaterializationError("source graph path is invalid")
+    parts = []
+    index = 0
+    while index < len(source_parts):
+        node = structural_source_node_segment(source_parts[index])
+        if node is not None and index + 1 < len(source_parts):
+            title = structural_source_node_segment(source_parts[index + 1])
+            if title is None:
+                parts.append(node + "_" + source_path_segment(source_parts[index + 1]))
+                index += 2
+                continue
+        parts.append(node or source_path_segment(source_parts[index]))
+        index += 1
+    return parts
+
+
+def source_graph_path(source_asset, suffix, extension, namespace=""):
+    if not isinstance(extension, str) or not extension.startswith("."):
+        raise MaterializationError("source graph extension is invalid")
+    parts = source_graph_parts(suffix)
+    base = namespaced_path(namespace, source_asset_directory(source_asset))
+    return "/".join([base, *parts[:-1], parts[-1] + extension])
+
+
 def graph_path(source_asset, suffix, namespace=""):
-    return namespaced_path(
-        namespace, f"graphs/{stable_id(source_asset, 'graph', suffix)}.animgraph.ron"
-    )
+    return source_graph_path(source_asset, suffix, ".animgraph.ron", namespace)
 
 
 def fsm_path(source_asset, suffix, namespace=""):
-    return namespaced_path(
-        namespace, f"fsms/{stable_id(source_asset, 'fsm', suffix)}.fsm.ron"
-    )
+    return source_graph_path(source_asset, suffix, ".fsm.ron", namespace)
 
 
-def transition_path(source_asset, transition_id, namespace=""):
-    return namespaced_path(
-        namespace,
-        f"transitions/{stable_id(source_asset, 'transition', transition_id)}.animgraph.ron",
-    )
+def transition_path(source_asset, transition, namespace=""):
+    if not isinstance(transition, dict):
+        raise MaterializationError("source transition is invalid")
+    source_node = transition.get("source_node")
+    prefix = source_asset + ":"
+    if not isinstance(source_node, str) or not source_node.startswith(prefix):
+        raise MaterializationError("source transition node is invalid")
+    parts = source_graph_parts(source_node[len(prefix) :])
+    base = namespaced_path(namespace, source_asset_directory(source_asset))
+    return "/".join([base, *parts, "Transition.transition.animgraph.ron"])
 
 
 def condition_path(source_asset, suffix, namespace=""):
-    return namespaced_path(
-        namespace,
-        f"conditions/{stable_id(source_asset, 'condition', suffix)}.animgraph.ron",
-    )
+    return source_graph_path(source_asset, suffix, ".condition.animgraph.ron", namespace)
 
 
-def synthetic_state_path(source_asset, state_id, namespace=""):
+def synthetic_state_path(source_asset, state, namespace=""):
+    if not isinstance(state, dict):
+        raise MaterializationError("source synthetic state is invalid")
+    source_node = state.get("source_node")
+    title = state.get("title")
+    if not isinstance(source_node, str) or not isinstance(title, str):
+        raise MaterializationError("source synthetic state is invalid")
+    stem = source_path_segment(source_node.rsplit(".", 1)[-1]) + "_" + source_path_segment(title)
     return namespaced_path(
         namespace,
-        f"states/{stable_id(source_asset, 'synthetic-state', state_id)}.animgraph.ron",
+        source_asset_directory(source_asset) + "/synthetic_states/" + stem + ".animgraph.ron",
     )
 
 
@@ -296,7 +369,7 @@ def fsm_text(source, plan, config, graph_paths, namespace):
         if "graph" in item:
             state_path = graph_paths.get(item["graph"])
         if state_path is None:
-            state_path = synthetic_state_path(source_asset, item["id"], namespace)
+            state_path = synthetic_state_path(source_asset, item, namespace)
             files[state_path] = placeholder_graph_text(source_asset, item["id"])
         state_rows.append(
             "(id: "
@@ -315,7 +388,9 @@ def fsm_text(source, plan, config, graph_paths, namespace):
         target_id = config["state_ids"].get(target_node)
         if source_id is None or target_id is None:
             raise MaterializationError("source FSM transition endpoint is unavailable")
-        path = transition_path(source_asset, transition["id"], namespace)
+        path = transition_path(source_asset, transition, namespace)
+        if path in files:
+            raise MaterializationError("source transition output path is ambiguous")
         files[path] = transition_graph_text(source_asset, transition)
         transitions.append(
             "(id: "
@@ -385,6 +460,34 @@ def linked_layer_targets(ir):
     return values
 
 
+def animation_getter_bindings(ir):
+    bindings = {}
+    for graph in ir.get("graphs", []):
+        for node in graph.get("nodes", []):
+            if node.get("renderer") != "anim_getter":
+                continue
+            source_node = node.get("source_node")
+            semantic = node.get("semantic")
+            if not isinstance(source_node, str) or not isinstance(semantic, dict):
+                raise MaterializationError("source animation getter identity is unavailable")
+            function = semantic.get("source_function")
+            fsm_node = semantic.get("target_fsm_node")
+            state_id = semantic.get("target_state_id", "")
+            if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight"}:
+                raise MaterializationError("source animation getter function is unsupported")
+            if not isinstance(fsm_node, str) or not fsm_node or not isinstance(state_id, str):
+                raise MaterializationError("source animation getter target is unavailable")
+            if (function == "GetInstanceStateWeight") != bool(state_id):
+                raise MaterializationError("source animation getter state target is invalid")
+            if source_node in bindings:
+                raise MaterializationError("source animation getter is duplicated")
+            bindings[source_node] = {
+                "target_fsm_node": fsm_node,
+                "target_state_id": state_id,
+            }
+    return bindings
+
+
 def materialize_files(source, ir, external_graph_paths=(), namespace=""):
     source_asset = source.get("asset_path")
     if source_asset != ir.get("source_asset"):
@@ -412,6 +515,7 @@ def materialize_files(source, ir, external_graph_paths=(), namespace=""):
         fsm_configs[plan["source_graph"]] = fsm_config(
             source, plan, graph_paths, namespace
         )
+    getter_bindings = animation_getter_bindings(ir)
     files = {}
     for entry in fsm_entries:
         plan = entry["fsm_renderer"]
@@ -437,7 +541,7 @@ def materialize_files(source, ir, external_graph_paths=(), namespace=""):
         suffix = entry["source_graph"]
         path = condition_path(source_asset, suffix, namespace)
         files[path] = (
-            transition_renderer.graph_text(contract(source, suffix))
+            transition_renderer.graph_text(contract(source, suffix), getter_bindings)
         )
         condition_paths[suffix] = path
     issues = materialized_reference_issues(files, external_graph_paths)
@@ -461,6 +565,30 @@ def materialize_files(source, ir, external_graph_paths=(), namespace=""):
 
 
 def run_self_test():
+    assert animation_getter_bindings(
+        {
+            "graphs": [
+                {
+                    "nodes": [
+                        {
+                            "source_node": "/Asset:Transition.Getter",
+                            "renderer": "anim_getter",
+                            "semantic": {
+                                "source_function": "GetInstanceStateWeight",
+                                "target_fsm_node": "10000000-0000-4000-8000-000000000001",
+                                "target_state_id": "10000000-0000-4000-8000-000000000002",
+                            },
+                        }
+                    ]
+                }
+            ]
+        }
+    ) == {
+        "/Asset:Transition.Getter": {
+            "target_fsm_node": "10000000-0000-4000-8000-000000000001",
+            "target_state_id": "10000000-0000-4000-8000-000000000002",
+        }
+    }
     standard = {
         "id": "10000000-0000-4000-8000-000000000001",
         "title": "Standard",
@@ -507,7 +635,47 @@ def run_self_test():
         },
     }
     assert "alpha_blend_mode: Custom" in transition_graph_text("/Asset", custom)
-    assert graph_path("/Asset", "AnimGraph") == graph_path("/Asset", "AnimGraph")
+    assert graph_path("/Asset", "AnimGraph") == "Asset/AnimGraph.animgraph.ron"
+    assert graph_path("/ALS/ALS/Character/AB_Als.AB_Als", "AnimGraph") == (
+        "ALS/Character/AB_Als/AnimGraph.animgraph.ron"
+    )
+    assert fsm_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        "AnimGraph.AnimGraphNode_StateMachine_6.Standing States",
+        "generated",
+    ) == "generated/ALS/Character/AB_Als/AnimGraph/SM6_Standing_States.fsm.ron"
+    assert condition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8.Transition",
+        "generated",
+    ) == "generated/ALS/Character/AB_Als/AnimGraph/SM6_Standing_States/T8_Transition.condition.animgraph.ron"
+    assert transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        {
+            "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8"
+        },
+        "generated",
+    ) == "generated/ALS/Character/AB_Als/AnimGraph/SM6_Standing_States/T8/Transition.transition.animgraph.ron"
+    assert transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        {
+            "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8"
+        },
+        "generated",
+    ) != transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        {
+            "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_9"
+        },
+        "generated",
+    )
+    assert len(transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als",
+        {
+            "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_21"
+        },
+        "generated",
+    )) < 200
     assert graph_path("/Asset", "AnimGraph") != fsm_path("/Asset", "AnimGraph")
     assert graph_path("/Asset", "AnimGraph", "generated/asset") == (
         "generated/asset/" + graph_path("/Asset", "AnimGraph")
@@ -550,6 +718,8 @@ def run_self_test():
         "synthetic_state_node_position_materialized": "PASS",
         "missing_generated_reference_rejected": "PASS",
         "linked_layer_target_closure_checked": "PASS",
+        "animation_state_getter_target_binding_materialized": "PASS",
+        "source_asset_and_graph_ancestry_paths_are_readable": "PASS",
     }
 
 

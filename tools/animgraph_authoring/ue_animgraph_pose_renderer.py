@@ -485,7 +485,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + alias_ron
             + "], source_transition_conditions: ["
             + conditions_ron
-            + "], expose_telemetry: false)",
+            + "], internal_time_key: \"animation.delta_seconds\", expose_telemetry: false)",
         )
     if renderer == "multi_way_blend":
         keys = value.get("desired_alpha_keys")
@@ -1817,6 +1817,15 @@ def run_self_test():
     assert control_rig_type == "als_ext::ControlRigBoundaryNode"
     assert 'rig_class: "CR_Als"' in control_rig_inner
     assert "capture_context: true" in control_rig_inner
+    fsm_type, fsm_inner = rendered_inner(
+        graph_contract,
+        {},
+        {"renderer": "state_machine", "semantic": {"fsm_source_graph": "Machine"}},
+        {},
+        {"Machine": {"path": "fsms/machine.fsm.ron", "state_aliases": [], "source_transition_conditions": []}},
+    )
+    assert fsm_type == "als_ext::InterruptibleFsmNode"
+    assert 'internal_time_key: "animation.delta_seconds"' in fsm_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -2186,6 +2195,7 @@ def run_self_test():
         "source_gameplay_tag_scalar_contract_is_rendered": "PASS",
         "source_pose_snapshot_is_rendered": "PASS",
         "source_control_rig_context_transfer_is_rendered": "PASS",
+        "source_state_machine_uses_internal_delta_time": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",
         "source_layered_bone_blend_is_rendered": "PASS",

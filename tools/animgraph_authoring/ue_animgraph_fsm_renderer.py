@@ -59,7 +59,7 @@ def bool_condition_contract(source, suffix):
     if len(pins) != 1 or not is_bool_pin(pins[0]):
         raise FsmRenderError("source FSM condition result is not Bool")
     try:
-        transition_renderer.graph_text(value)
+        transition_renderer.graph_text(value, validate_only=True)
     except ValueError as error:
         raise FsmRenderError("source FSM condition renderer is unsupported") from error
     return value

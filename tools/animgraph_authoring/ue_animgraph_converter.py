@@ -33,6 +33,7 @@ from ue_animgraph_materializer import (
     graph_path,
     materialize_files,
     materialized_reference_issues,
+    source_asset_directory,
 )
 
 
@@ -90,7 +91,7 @@ def transition_renderer():
 
 
 def render_transition_contract(graph_contract):
-    return transition_renderer().graph_text(graph_contract)
+    return transition_renderer().graph_text(graph_contract, validate_only=True)
 
 
 def read_json(path):
@@ -202,6 +203,67 @@ def source_property_key(source_path):
         re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", part)).lower()
         for part in parts
     )
+
+
+def source_node_guid(source, object_path):
+    matches = [
+        node
+        for graph in source.get("graphs", [])
+        for node in graph.get("nodes", [])
+        if node.get("object_path") == object_path
+    ]
+    if len(matches) != 1:
+        raise ConversionError("source animation graph node is missing or ambiguous")
+    guid = matches[0].get("node_guid")
+    if not isinstance(guid, str) or re.fullmatch(
+        r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}", guid
+    ) is None:
+        raise ConversionError("source animation graph node identifier is invalid")
+    return guid.lower()
+
+
+def animation_getter_machine_plans(source, fsm_plans):
+    plans = {}
+    for suffix, plan in fsm_plans.items():
+        machine = f"{source['asset_path']}:{suffix.rsplit('.', 1)[0]}"
+        state_ids = {
+            item["source_node"]: item["id"]
+            for item in [*plan["states"], *plan["aliases"]]
+            if isinstance(item.get("source_node"), str) and isinstance(item.get("id"), str)
+        }
+        if not state_ids:
+            raise ConversionError("source animation state machine states are unavailable")
+        plans[machine] = {
+            **plan,
+            "fsm_node_id": source_node_guid(source, machine),
+            "state_ids": state_ids,
+        }
+    return plans
+
+
+def bind_animation_getter(semantic, state_machine_plans):
+    if not isinstance(semantic, dict):
+        raise ConversionError("source animation getter semantic is unavailable")
+    function = semantic.get("source_function")
+    machine = semantic.get("source_machine")
+    state = semantic.get("source_state")
+    if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight"}:
+        raise ConversionError("source animation getter function is unsupported")
+    if not isinstance(machine, str) or not machine:
+        raise ConversionError("source animation getter machine is unavailable")
+    plan = state_machine_plans.get(machine)
+    if not isinstance(plan, dict) or not isinstance(plan.get("fsm_node_id"), str):
+        raise ConversionError("source animation getter machine target is unavailable")
+    if not isinstance(state, str):
+        raise ConversionError("source animation getter state is invalid")
+    semantic["target_fsm_node"] = plan["fsm_node_id"]
+    if function == "GetInstanceStateWeight":
+        target_state = plan.get("state_ids", {}).get(state)
+        if not isinstance(target_state, str) or not target_state:
+            raise ConversionError("source animation getter state target is unavailable")
+        semantic["target_state_id"] = target_state
+    elif state:
+        raise ConversionError("source machine weight getter unexpectedly references a state")
 
 
 def validate_registry(value):
@@ -920,10 +982,20 @@ def graph_ir(
         if semantic is None and renderer == "anim_getter":
             try:
                 semantic = {"renderer": renderer, **transition_renderer().anim_getter_config(node)}
+                bind_animation_getter(semantic, state_machine_plans)
             except ValueError as error:
                 contract_issues.append(
                     {
                         "kind": "source_anim_getter_unsupported",
+                        "source_node": node.get("object_path"),
+                        "source_class": node.get("class_path"),
+                        "detail": str(error),
+                    }
+                )
+            except ConversionError as error:
+                contract_issues.append(
+                    {
+                        "kind": "source_anim_getter_target_unavailable",
                         "source_node": node.get("object_path"),
                         "source_class": node.get("class_path"),
                         "detail": str(error),
@@ -1254,10 +1326,16 @@ def build_ir(
                     "detail": str(error),
                 }
             )
-    state_machine_plans = {
-        f"{source['asset_path']}:{suffix.rsplit('.', 1)[0]}": plan
-        for suffix, plan in fsm_plans.items()
-    }
+    try:
+        state_machine_plans = animation_getter_machine_plans(source, fsm_plans)
+    except ConversionError as error:
+        unsupported.append(
+            {
+                "kind": "source_anim_getter_target_unavailable",
+                "detail": str(error),
+            }
+        )
+        state_machine_plans = {}
     linked_graph_targets = {
         value["source_node"]: graph_path(
             source["asset_path"], value["source_graph"], output_namespace
@@ -1475,6 +1553,10 @@ def integration_anim_getter_providers(ir):
             state = semantic.get("source_state", "")
             if not isinstance(state, str):
                 continue
+            target_fsm_node = semantic.get("target_fsm_node", "")
+            target_state_id = semantic.get("target_state_id", "")
+            target_fsm_node = target_fsm_node if isinstance(target_fsm_node, str) else ""
+            target_state_id = target_state_id if isinstance(target_state_id, str) else ""
             rows.append(
                 {
                     "source_node": node.get("source_node"),
@@ -1482,8 +1564,16 @@ def integration_anim_getter_providers(ir):
                     "source_machine": semantic["source_machine"],
                     "source_state": state,
                     "target_key": semantic["target_key"],
-                    "provider_api": "AnimationGraphPlayer::set_global_input_data",
-                    "status": "requires_animation_state_provider",
+                    "target_fsm_node": target_fsm_node,
+                    "target_state_id": target_state_id,
+                    "provider_api": "als_ext::SourceAnimationStateGetterNode",
+                    "status": "mapped"
+                    if target_fsm_node
+                    and (
+                        semantic["source_function"] == "GetInstanceMachineWeight"
+                        or target_state_id
+                    )
+                    else "requires_animation_state_provider",
                 }
             )
     return sorted(rows, key=lambda item: item["source_node"])
@@ -2300,15 +2390,19 @@ def write_outputs_if_supported(output_root, ir, report, materialized_files=None)
 
 
 def default_install_namespace(source):
-    asset = source.get("asset_path") if isinstance(source, dict) else None
-    return asset_namespace("generated/" + source_identifier_key(asset))
+    if not isinstance(source, dict) or not isinstance(source.get("asset_path"), str):
+        raise ConversionError("source installation asset is unavailable")
+    return "generated"
 
 
-def installation_manifest_path(output_namespace):
+def installation_manifest_path(source_asset, output_namespace):
     output_namespace = asset_namespace(output_namespace)
     if not output_namespace:
         raise ConversionError("installation namespace is unavailable")
-    return output_namespace + "/installation.manifest.json"
+    try:
+        return output_namespace + "/" + source_asset_directory(source_asset) + "/installation.manifest.json"
+    except MaterializationError as error:
+        raise ConversionError("installation source asset is invalid") from error
 
 
 def installation_files(source_identity, materialized_files, output_namespace):
@@ -2337,7 +2431,10 @@ def installation_files(source_identity, materialized_files, output_namespace):
         "root_graph": root_graph,
         "files": sorted(files),
     }
-    files[installation_manifest_path(output_namespace)] = (
+    source_asset = source_identity.get("package_path") or source_identity.get("asset")
+    if not isinstance(source_asset, str) or not source_asset:
+        raise ConversionError("installation source asset is unavailable")
+    files[installation_manifest_path(source_asset, output_namespace)] = (
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     )
     return files
@@ -2521,6 +2618,37 @@ def run_self_test():
             "enum_entry_values": {"EAlsHipsDirection": {"LeftBackward": 3.0}},
         }
     )
+    getter_machine = "/Asset:AnimGraph.Machine"
+    getter_state = getter_machine + ".State"
+    getter_plans = animation_getter_machine_plans(
+        {
+            "asset_path": "/Asset",
+            "graphs": [
+                {
+                    "nodes": [
+                        {
+                            "object_path": getter_machine,
+                            "node_guid": "10000000-0000-4000-8000-000000000001",
+                        }
+                    ]
+                }
+            ],
+        },
+        {
+            "AnimGraph.Machine.Fsm": {
+                "states": [{"source_node": getter_state, "id": "10000000-0000-4000-8000-000000000002"}],
+                "aliases": [],
+            }
+        },
+    )
+    getter_semantic = {
+        "source_function": "GetInstanceStateWeight",
+        "source_machine": getter_machine,
+        "source_state": getter_state,
+    }
+    bind_animation_getter(getter_semantic, getter_plans)
+    assert getter_semantic["target_fsm_node"] == "10000000-0000-4000-8000-000000000001"
+    assert getter_semantic["target_state_id"] == "10000000-0000-4000-8000-000000000002"
     try:
         validate_registry(
             {
@@ -3129,6 +3257,8 @@ def run_self_test():
                             "source_machine": "/Asset:AnimGraph.Machine",
                             "source_state": "/Asset:AnimGraph.Machine.State",
                             "target_key": "anim_getters.ab_als_test.get_instance_state_weight.anim_graph.machine.anim_graph.machine.state",
+                            "target_fsm_node": "10000000-0000-4000-8000-000000000001",
+                            "target_state_id": "10000000-0000-4000-8000-000000000002",
                         },
                     },
                     {
@@ -3202,6 +3332,8 @@ def run_self_test():
     )
     assert integration["runtime_inputs"][0]["target_key"] == "standing_state.play_rate"
     assert integration["animation_state_getter_providers"][0]["source_function"] == "GetInstanceStateWeight"
+    assert integration["animation_state_getter_providers"][0]["target_fsm_node"] == "10000000-0000-4000-8000-000000000001"
+    assert integration["animation_state_getter_providers"][0]["target_state_id"] == "10000000-0000-4000-8000-000000000002"
     assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
     assert integration["gameplay_tag_providers"][0]["provider_api"] == "als_ext::set_gameplay_tag_input"
     assert integration["control_rig_providers"] == [
@@ -3260,8 +3392,9 @@ def run_self_test():
     ]
     assert tree_integration["control_rig_providers"] == ready["control_rig_providers"]
     assert "## Source closure" in integration_report_markdown(tree_integration)
-    namespace = default_install_namespace({"asset_path": "/Asset/AB_Als.AB_Als"})
-    root_graph = namespace + "/graphs/root.animgraph.ron"
+    source_asset = "/Asset/AB_Als.AB_Als"
+    namespace = default_install_namespace({"asset_path": source_asset})
+    root_graph = graph_path(source_asset, "AnimGraph", namespace)
     installed = installation_files(
         {"asset": "/Asset/AB_Als.AB_Als"},
         {
@@ -3270,7 +3403,7 @@ def run_self_test():
         },
         namespace,
     )
-    assert installation_manifest_path(namespace) in installed
+    assert installation_manifest_path(source_asset, namespace) in installed
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         install_generated_files(root, installed)
@@ -3299,6 +3432,7 @@ def run_self_test():
         "crlf_function_signature_normalized": "PASS",
         "source_property_paths_derived_or_invalid_rejected": "PASS",
         "source_property_paths_use_dotted_rust_naming": "PASS",
+        "animation_state_getter_targets_are_bound": "PASS",
         "source_blendspace_player_bindings_and_phase_contract_resolved": "PASS",
         "unhandled_source_property_bindings_rejected": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",

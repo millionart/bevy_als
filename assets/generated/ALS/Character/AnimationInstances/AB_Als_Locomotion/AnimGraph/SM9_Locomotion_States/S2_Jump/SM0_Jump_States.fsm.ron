@@ -1,0 +1,19 @@
+(
+    states: [
+        (id: "63b947ab-4aa0-69e3-c274-f49320ce46c6", label: "Entry Conduit", graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/synthetic_states/AnimStateConduitNode_0_Entry_Conduit.animgraph.ron", state_transition: None),
+        (id: "0658d344-4936-9679-25bf-e2860e9b7e84", label: "Left Foot", graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron", state_transition: None),
+        (id: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", label: "Right Foot", graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron", state_transition: None),
+        (id: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", label: "Loop", graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron", state_transition: None),
+        (id: "27b1012f-4021-e09b-acdc-9b8ada91cd5e", label: "Flail", graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron", state_transition: None),
+    ],
+    transitions: [
+        (id: "2afa6785-449f-6d18-91a1-22924162fe6d", source: "0658d344-4936-9679-25bf-e2860e9b7e84", target: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/T24/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "622d4091-4be3-4d5e-4312-4c8c402ef29b", source: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", target: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/T28/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "91501cc0-4fed-ad0a-330d-11896007f9cf", source: "63b947ab-4aa0-69e3-c274-f49320ce46c6", target: "dc05dc35-4a57-916b-bb5f-4daba6b11c61", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/T1/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "d1522bec-4b5b-a20f-9e12-71a88a499d99", source: "63b947ab-4aa0-69e3-c274-f49320ce46c6", target: "0658d344-4936-9679-25bf-e2860e9b7e84", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/T0/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "f1ccbd69-4446-9ec9-c0fa-85b00bc38247", source: "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d", target: "27b1012f-4021-e09b-acdc-9b8ada91cd5e", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/T27/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+    ],
+    start_state: "63b947ab-4aa0-69e3-c274-f49320ce46c6",
+    node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Pose": Pose }, input_order: {}, output_order: { Data("Pose"): 0 }),
+    editor_metadata: (states: { "63b947ab-4aa0-69e3-c274-f49320ce46c6": (176, 0), "0658d344-4936-9679-25bf-e2860e9b7e84": (416, -64), "dc05dc35-4a57-916b-bb5f-4daba6b11c61": (416, 64), "8c3d0618-4b28-cf63-bc3e-7e8c50b91c4d": (640, 0), "27b1012f-4021-e09b-acdc-9b8ada91cd5e": (816, 0) }),
+)

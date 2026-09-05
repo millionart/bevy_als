@@ -1,0 +1,36 @@
+(
+    nodes: [
+        (id: "a3f22d39-4370-9b64-aae3-599bfd8fa743", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "stance", output: "Value", expected_tag: "Als.Stance.Standing", source_property_path: "GetParent.Stance", source_properties: ["(\"GetParent\",\"Stance\")", "GetParent.Stance", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-800", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "A3F22D3943709B64AAE3599BFD8FA743"]) }, should_debug: false),
+        (id: "f16def87-43b3-c3ef-ab16-3b8aa1d140c0", name: "Equal (GameplayTag)", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: true, source_default: "(TagName=\"Als.Stance.Standing\")", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["EqualEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"EqualEqual_GameplayTag\",MemberGuid=00000000000000000000000000000000)", "Unset", "-528", "-48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "F16DEF8743B3C3EFAB163B8AA1D140C0"]) }, should_debug: false),
+        (id: "e9c070d9-4094-d666-d014-a097abcba7fd", name: "Property Access", inner: { "als_ext::SourceGameplayTagInputNode": (key: "stance", output: "Value", expected_tag: "", source_property_path: "GetParent.Stance", source_properties: ["(\"GetParent\",\"Stance\")", "GetParent.Stance", "(PinCategory=\"struct\",PinSubCategoryObject=\"/Script/CoreUObject.ScriptStruct'/Script/GameplayTags.GameplayTag'\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-960", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "E9C070D94094D666D014A097ABCBA7FD"]) }, should_debug: false),
+        (id: "5e4e37bd-4e0f-2511-4230-7d97d9f70ee1", name: "Is Gameplay Tag Valid", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "GameplayTag", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "gameplay_tag_valid", source_class: "/Script/BlueprintGraph.K2Node_CallFunction", source_properties: ["True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/GameplayTags.BlueprintGameplayTagLibrary'\",MemberName=\"IsGameplayTagValid\",MemberGuid=00000000000000000000000000000000)", "Unset", "-688", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "5E4E37BD4E0F251142307D97D9F70EE1"]) }, should_debug: false),
+        (id: "9653f892-4a4a-2eef-b224-119d4a2869f1", name: "NOT Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "not", source_class: "/Script/BlueprintGraph.K2Node_CallFunction", source_properties: ["True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"Not_PreBool\",MemberGuid=00000000000000000000000000000000)", "Unset", "-400", "64", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "9653F8924A4A2EEFB224119D4A2869F1"]) }, should_debug: false),
+        (id: "d7177c3b-4195-9775-1ce4-629364183deb", name: "OR Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "or", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanOR\",MemberGuid=00000000000000000000000000000000)", "Unset", "-192", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "D7177C3B419597751CE4629364183DEB"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("d7177c3b-4195-9775-1ce4-629364183deb", "B"): NodeData("9653f892-4a4a-2eef-b224-119d4a2869f1", "ReturnValue"),
+        OutputData("bCanEnterTransition"): NodeData("d7177c3b-4195-9775-1ce4-629364183deb", "ReturnValue"),
+        NodeData("9653f892-4a4a-2eef-b224-119d4a2869f1", "A"): NodeData("5e4e37bd-4e0f-2511-4230-7d97d9f70ee1", "ReturnValue"),
+        NodeData("5e4e37bd-4e0f-2511-4230-7d97d9f70ee1", "GameplayTag"): NodeData("e9c070d9-4094-d666-d014-a097abcba7fd", "Value"),
+        NodeData("f16def87-43b3-c3ef-ab16-3b8aa1d140c0", "A"): NodeData("a3f22d39-4370-9b64-aae3-599bfd8fa743", "Value"),
+        NodeData("d7177c3b-4195-9775-1ce4-629364183deb", "A"): NodeData("f16def87-43b3-c3ef-ab16-3b8aa1d140c0", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "a3f22d39-4370-9b64-aae3-599bfd8fa743": (-800.000, -48.000), "f16def87-43b3-c3ef-ab16-3b8aa1d140c0": (-528.000, -48.000), "e9c070d9-4094-d666-d014-a097abcba7fd": (-960.000, 48.000), "5e4e37bd-4e0f-2511-4230-7d97d9f70ee1": (-688.000, 48.000), "9653f892-4a4a-2eef-b224-119d4a2869f1": (-400.000, 64.000), "d7177c3b-4195-9775-1ce4-629364183deb": (-192.000, 0.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

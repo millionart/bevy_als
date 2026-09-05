@@ -58,6 +58,7 @@ pub mod root_motion_clip;
 pub mod root_motion_defaults;
 pub mod skeleton_aware_layered_graph;
 pub mod slot_node;
+pub mod source_animation_state_getter;
 pub mod source_cached_pose;
 pub mod source_gameplay_tag_input;
 pub mod source_linked_input_pose;
@@ -144,8 +145,8 @@ pub use inertialized_linked_anim_layer::{
     inertialized_linked_layer_activation,
 };
 pub use interruptible_fsm::{
-    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, StateAliasBinding,
-    SourceTransitionCondition, StatePoseOutput,
+    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, SourceFsmStateWeight,
+    SourceTransitionCondition, StateAliasBinding, StatePoseOutput,
 };
 pub use layered_graph::{
     CachedPoseInput, FixedF32Input, FixedGlobalF32Input, GlobalF32InputPin, LayeredGraphNode,
@@ -217,6 +218,7 @@ pub use root_motion_clip::RootMotionClipNode;
 pub use root_motion_defaults::{derive_default_root_bone, select_shallowest_animated_path};
 pub use skeleton_aware_layered_graph::SkeletonAwareLayeredGraphNode;
 pub use slot_node::SlotNode;
+pub use source_animation_state_getter::SourceAnimationStateGetterNode;
 pub use source_cached_pose::{
     SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceContextDefault,
     SourceScopedCachedPoseUseNode, resolve_cached_pose, resolve_scoped_cached_pose,
@@ -236,7 +238,9 @@ pub use source_scalar_expression::{
 pub use source_sequence_evaluator::SourceSequenceEvaluatorNode;
 pub use source_sequence_player::SourceSequencePlayerNode;
 pub use source_slot::SourceSlotNode;
-pub use source_stop_nodes::{SourceBranchFilter, SourceEnumPoseBlendNode, SourceLayeredBoneBlendNode};
+pub use source_stop_nodes::{
+    SourceBranchFilter, SourceEnumPoseBlendNode, SourceLayeredBoneBlendNode,
+};
 pub use state_label_event::{StateLabelEventNode, state_label_index};
 pub use sync_group_phase::{
     GlobalSyncGroupSampleNode, SyncGroupPhaseNode, SyncGroupPhaseRegistry, SyncGroupSampleNode,
@@ -336,6 +340,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceCachedPoseUseNode>()
             .register_type::<SourceContextDefault>()
             .register_type::<SourceScopedCachedPoseUseNode>()
+            .register_type::<SourceAnimationStateGetterNode>()
             .register_type::<SourceGameplayTagInputNode>()
             .register_type::<SourceLinkedInputPoseNode>()
             .register_type::<SourceApplyAdditiveNode>()

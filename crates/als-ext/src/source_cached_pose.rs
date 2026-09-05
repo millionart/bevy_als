@@ -151,6 +151,14 @@ pub fn resolve_scoped_cached_pose(
     } else {
         cache_key
     };
+    let local_cache = ctx.graph_context.graph.nodes.values().find_map(|node| {
+        node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+            .is_some_and(|value| saved_cache_key(value, &node.name) == requested_key)
+            .then(|| node.name.clone())
+    });
+    if let Some(local_cache) = local_cache {
+        return resolve_cached_pose(ctx, &local_cache);
+    }
     let contexts = ctx
         .graph_context
         .context_arena

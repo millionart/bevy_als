@@ -1,0 +1,15 @@
+(
+    nodes: [
+        (id: "c270df95-4bde-d67d-be1a-838f652feafa", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (source_pose_pin: "SourcePose", curve_name: "", curve_names: ["RotationYawSpeed"], value: 0.0, pin_default: 0.0, pin_defaults: [0.0], value_pin_names: ["CurveValues_0"], value_key: "", value_keys: ["rotate_in_place_state.play_rate"], source_value_path: "", source_value_paths: ["RotateInPlaceState.PlayRate"], alpha: 1.0, alpha_key: "", alpha_pin: "Alpha", expose_alpha_pin: false, apply_mode: "Scale") }, should_debug: false),
+        (id: "f741d025-452d-1ae2-0280-7382750246fc", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "f91b257e-4033-6f96-a45f-839aed85e60f", name: "A_Als_Rotate_90_Right\nSequence Player", inner: { "als_ext::SourceSequencePlayerNode": (clip: "animations/RotateInPlace/A_Als_Rotate_90_Right.anim.ron", additive_reference: None, additive_reference_position: 0.0, play_rate: 1.0, play_rate_key: "rotate_in_place_state.play_rate", play_rate_pin: "PlayRate", expose_play_rate_pin: true, play_rate_basis: 1.0, play_rate_mapping: (source_semantics: true, map_range: false, input_min: 0.0, input_max: 1.0, output_min: 0.0, output_max: 1.0, scale: 1.0, bias: 0.0, clamp_result: false, clamp_min: 0.0, clamp_max: 1.0, interpolate_result: false, interpolate_speed_increasing: 10.0, interpolate_speed_decreasing: 10.0), start_position: 0.0, start_position_pin: "StartPosition", expose_start_position_pin: false, loop_animation: true, loop_animation_key: "rotate_in_place_state.b_rotating_right", loop_animation_pin: "bLoopAnimation", expose_loop_animation_pin: true, sync_group: "None") }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("f741d025-452d-1ae2-0280-7382750246fc", "Source"): NodeData("c270df95-4bde-d67d-be1a-838f652feafa", "Pose"),
+        NodeData("c270df95-4bde-d67d-be1a-838f652feafa", "SourcePose"): NodeData("f91b257e-4033-6f96-a45f-839aed85e60f", "Pose"),
+        OutputData("Result"): NodeData("f741d025-452d-1ae2-0280-7382750246fc", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "c270df95-4bde-d67d-be1a-838f652feafa": (-336.000, 0.000), "f741d025-452d-1ae2-0280-7382750246fc": (0.000, 0.000), "f91b257e-4033-6f96-a45f-839aed85e60f": (-720.000, -16.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)
