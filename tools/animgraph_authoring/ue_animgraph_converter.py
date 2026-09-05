@@ -17,6 +17,8 @@ from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_anim
 from ue_animgraph_pose_contract import (
     PoseContractError,
     input_is_linked,
+    linked_anim_graph_contract,
+    linked_anim_layer_contract,
     pose_contract,
     property_binding_paths,
 )
@@ -25,7 +27,12 @@ from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
 from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_plan
 from ue_animgraph_lifecycle import LifecycleRenderError, resolve_lifecycle
-from ue_animgraph_materializer import MaterializationError, graph_path, materialize_files
+from ue_animgraph_materializer import (
+    MaterializationError,
+    graph_path,
+    materialize_files,
+    materialized_reference_issues,
+)
 
 
 IR_FORMAT = "ue_animgraph_contract_ir_v1"
@@ -643,6 +650,9 @@ def handled_property_binding_pins(renderer, semantic):
         if semantic.get("alpha_path"):
             handled.add("Alpha")
         return handled
+    if renderer == "control_rig":
+        pin = semantic.get("rig_input_binding_pin")
+        return {pin} if isinstance(pin, str) and pin else set()
     if renderer == "two_way_blend":
         return {"Alpha"} if semantic.get("alpha_path") else set()
     if renderer in {"apply_additive", "apply_mesh_space_additive"}:
@@ -788,7 +798,7 @@ def graph_ir(
     fsm_plan=None,
     state_machine_plans=None,
     animation_assets=None,
-    linked_layer_targets=None,
+    linked_graph_targets=None,
 ):
     included = set(reachable_nodes)
     for node in graph_contract["source_graph"]["nodes"]:
@@ -803,7 +813,7 @@ def graph_ir(
         for asset in animation_assets or []
         if isinstance(asset.get("source_node"), str)
     }
-    linked_layer_targets = linked_layer_targets or {}
+    linked_graph_targets = linked_graph_targets or {}
     if graph_kind == "transition":
         try:
             render_transition_contract(graph_contract)
@@ -866,12 +876,12 @@ def graph_ir(
                         "detail": str(error),
                     }
                 )
-        if renderer == "linked_anim_layer" and semantic is not None:
-            target = linked_layer_targets.get(node.get("object_path"))
+        if renderer in {"linked_anim_graph", "linked_anim_layer"} and semantic is not None:
+            target = linked_graph_targets.get(node.get("object_path"))
             if not isinstance(target, str) or not target:
                 contract_issues.append(
                     {
-                        "kind": "source_linked_anim_layer_graph_unresolved",
+                        "kind": "source_linked_animation_graph_unresolved",
                         "source_node": node.get("object_path"),
                         "source_class": node.get("class_path"),
                         "renderer": renderer,
@@ -879,6 +889,9 @@ def graph_ir(
                 )
             else:
                 semantic["target_graph"] = target
+                semantic["external_instance"] = (
+                    renderer == "linked_anim_graph" or bool(semantic.get("instance_class"))
+                )
         node_fsm_plan = state_machine_plans.get(node.get("object_path"))
         fsm_renderable = fsm_plan is not None or node_fsm_plan is not None
         if semantic is None and renderer in FSM_RENDERERS and fsm_renderable:
@@ -1132,6 +1145,7 @@ def build_ir(
     source_content_root=None,
     source_mount=None,
     source_reader=None,
+    external_linked_graph_targets=None,
 ):
     source_reachability = traverse(source, root_graph)
     graphs = []
@@ -1189,13 +1203,14 @@ def build_ir(
         f"{source['asset_path']}:{suffix.rsplit('.', 1)[0]}": plan
         for suffix, plan in fsm_plans.items()
     }
-    linked_layer_targets = {
+    linked_graph_targets = {
         value["source_node"]: graph_path(source["asset_path"], value["source_graph"])
         for value in source_reachability.get("linked_layer_graphs", [])
         if isinstance(value, dict)
         and isinstance(value.get("source_node"), str)
         and isinstance(value.get("source_graph"), str)
     }
+    linked_graph_targets.update(external_linked_graph_targets or {})
     for entry in source_reachability["graphs"]:
         value = contract(source, entry["source_graph"])
         fsm_plan = fsm_plans.get(entry["source_graph"])
@@ -1207,7 +1222,7 @@ def build_ir(
             fsm_plan,
             state_machine_plans,
             assets,
-            linked_layer_targets,
+            linked_graph_targets,
         )
         if entry["kind"] == "transition":
             try:
@@ -1256,7 +1271,19 @@ def build_ir(
                 graph,
                 assets,
             )
-    for dependency in source_reachability["external_dependencies"]:
+    handled_external_nodes = {
+        node["source_node"]
+        for graph in graphs
+        for node in graph["nodes"]
+        if node.get("renderer") == "control_rig"
+    }
+    external_dependencies = [
+        dependency
+        for dependency in source_reachability["external_dependencies"]
+        if dependency.get("source_node") not in linked_graph_targets
+        and dependency.get("source_node") not in handled_external_nodes
+    ]
+    for dependency in external_dependencies:
         unsupported.append({"kind": "source_external_dependency_unresolved", **dependency})
     handled_lifecycle_nodes = set(
         lifecycle_dispatch["handled_nodes"] if lifecycle_dispatch is not None else []
@@ -1282,7 +1309,7 @@ def build_ir(
         "animation_assets": assets,
         "sync_group_plans": sync_group_plans,
         "function_dependencies": source_reachability["function_dependencies"],
-        "external_dependencies": source_reachability["external_dependencies"],
+        "external_dependencies": external_dependencies,
         "lifecycle_dispatch": lifecycle_dispatch,
     }, unsupported
 
@@ -1769,6 +1796,7 @@ def expected_outputs(
     source_content_root=None,
     source_mount=None,
     source_reader=None,
+    external_linked_graph_targets=None,
 ):
     ir, unsupported = build_ir(
         source,
@@ -1778,9 +1806,271 @@ def expected_outputs(
         source_content_root,
         source_mount,
         source_reader,
+        external_linked_graph_targets,
     )
     report = build_report(source_identity, ir, unsupported)
     return ir, report
+
+
+def source_nodes(source):
+    values = {}
+    for graph in source.get("graphs", []):
+        for node in graph.get("nodes", []):
+            path = node.get("object_path")
+            if isinstance(path, str) and path:
+                values[path] = node
+    return values
+
+
+def uasset_for_generated_anim_blueprint(asset, content_root, mount):
+    prefix = mount.rstrip("/") + "/"
+    if not isinstance(asset, str) or not asset.startswith(prefix):
+        raise ConversionError("linked animation generated class is outside the configured mount")
+    package, separator, name = asset.rpartition(".")
+    if not separator or package.rsplit("/", 1)[-1] != name:
+        raise ConversionError("linked animation generated class is invalid")
+    uasset = content_root / (package[len(prefix) :] + ".uasset")
+    if not uasset.is_file():
+        raise ConversionError("linked animation source uasset is unavailable")
+    return uasset
+
+
+def linked_instance_specs(source, root_graph):
+    reachability = traverse(source, root_graph)
+    nodes = source_nodes(source)
+    values = []
+    issues = []
+    for dependency in reachability.get("external_dependencies", []):
+        kind = dependency.get("kind") if isinstance(dependency, dict) else None
+        node_path = dependency.get("source_node") if isinstance(dependency, dict) else None
+        if kind not in {"linked_anim_graph", "linked_anim_layer"} or node_path not in nodes:
+            continue
+        node = nodes[node_path]
+        try:
+            semantic, contract_issues = (
+                linked_anim_graph_contract(node)
+                if kind == "linked_anim_graph"
+                else linked_anim_layer_contract(node)
+            )
+        except (PoseContractError, ValueError) as error:
+            issues.append(
+                {
+                    "kind": "source_linked_animation_graph_unsupported",
+                    "source_node": node_path,
+                    "source_class": node.get("class_path"),
+                    "detail": str(error),
+                }
+            )
+            continue
+        if contract_issues or not semantic.get("instance_class"):
+            issues.append(
+                {
+                    "kind": "source_linked_animation_graph_unsupported",
+                    "source_node": node_path,
+                    "source_class": node.get("class_path"),
+                    "detail": (
+                        contract_issues[0].get("detail", contract_issues[0].get("kind"))
+                        if contract_issues
+                        else "linked animation instance class is unavailable"
+                    ),
+                }
+            )
+            continue
+        values.append(
+            {
+                "source_node": node_path,
+                "kind": kind,
+                "source_asset": semantic["instance_class"],
+            }
+        )
+    return values, issues
+
+
+def merge_generated_files(destination, source):
+    for path, text in source.items():
+        existing = destination.get(path)
+        if existing is not None and existing != text:
+            raise ConversionError("linked animation closures generated conflicting target paths")
+        destination[path] = text
+
+
+def linked_manifest_path(source_asset):
+    return "linked_manifests/" + source_identifier_key(source_asset) + ".json"
+
+
+def collect_linked_sources(result):
+    values = []
+    for child in result["children"]:
+        values.append(
+            {
+                "source_asset": child["source"]["asset_path"],
+                "root_graph": graph_path(child["source"]["asset_path"], "AnimGraph"),
+                "links": child["links"],
+            }
+        )
+        values.extend(collect_linked_sources(child))
+    return values
+
+
+def collect_tree_files(result, root=True):
+    files = {}
+    for child in result["children"]:
+        merge_generated_files(files, collect_tree_files(child, False))
+    own_files = dict(result["files"])
+    manifest = own_files.pop("materialization.manifest.json", None)
+    if manifest is not None:
+        path = "materialization.manifest.json" if root else linked_manifest_path(result["source"]["asset_path"])
+        own_files[path] = manifest
+    merge_generated_files(files, own_files)
+    return files
+
+
+def convert_source_tree(
+    source,
+    source_identity,
+    root_graph,
+    registry,
+    asset_root,
+    content_root,
+    mount,
+    source_reader,
+    timeout_seconds,
+    no_progress_seconds,
+    cache,
+    active_assets,
+):
+    source_asset = source["asset_path"]
+    if source_asset in active_assets:
+        raise ConversionError("linked animation graph cycle is unsupported")
+    if source_asset in cache:
+        return cache[source_asset]
+    active_assets.add(source_asset)
+    links, link_issues = linked_instance_specs(source, root_graph)
+    children = []
+    external_targets = {}
+    for link in links:
+        try:
+            child_uasset = uasset_for_generated_anim_blueprint(
+                link["source_asset"], content_root, mount
+            )
+            child_source, child_identity = read_uasset_source(
+                child_uasset,
+                content_root,
+                mount,
+                source_reader,
+                timeout_seconds,
+                no_progress_seconds,
+            )
+            child = convert_source_tree(
+                child_source,
+                child_identity,
+                "AnimGraph",
+                registry,
+                asset_root,
+                content_root,
+                mount,
+                source_reader,
+                timeout_seconds,
+                no_progress_seconds,
+                cache,
+                active_assets,
+            )
+        except ConversionError as error:
+            link_issues.append(
+                {
+                    "kind": "source_linked_animation_graph_unsupported",
+                    "source_node": link["source_node"],
+                    "source_asset": link["source_asset"],
+                    "detail": str(error),
+                }
+            )
+            continue
+        children.append({**child, "links": [link]})
+        external_targets[link["source_node"]] = graph_path(child_source["asset_path"], "AnimGraph")
+    ir, report = expected_outputs(
+        source,
+        source_identity,
+        root_graph,
+        registry,
+        asset_root,
+        content_root,
+        mount,
+        source_reader,
+        external_targets,
+    )
+    for child in children:
+        if child["report"].get("pass"):
+            continue
+        link_issues.append(
+            {
+                "kind": "source_linked_animation_graph_child_blocked",
+                "source_asset": child["source"]["asset_path"],
+                "detail": child["report"].get("unsupported", []),
+            }
+        )
+    if link_issues:
+        report["unsupported"].extend(link_issues)
+        report["pass"] = False
+    result = {
+        "source": source,
+        "source_identity": source_identity,
+        "ir": ir,
+        "report": report,
+        "children": children,
+        "links": [],
+        "files": {},
+    }
+    if report["pass"]:
+        result["files"] = materialize_files(
+            source,
+            ir,
+            external_targets.values(),
+        )
+    active_assets.remove(source_asset)
+    cache[source_asset] = result
+    return result
+
+
+def conversion_tree_outputs(
+    source,
+    source_identity,
+    root_graph,
+    registry,
+    asset_root,
+    content_root,
+    mount,
+    source_reader,
+    timeout_seconds,
+    no_progress_seconds,
+):
+    result = convert_source_tree(
+        source,
+        source_identity,
+        root_graph,
+        registry,
+        asset_root,
+        content_root,
+        mount,
+        source_reader,
+        timeout_seconds,
+        no_progress_seconds,
+        {},
+        set(),
+    )
+    linked_sources = collect_linked_sources(result)
+    result["ir"]["linked_sources"] = linked_sources
+    result["report"]["linked_sources"] = linked_sources
+    files = collect_tree_files(result)
+    if result["report"]["pass"]:
+        issues = materialized_reference_issues(files)
+        if issues:
+            raise ConversionError("; ".join(issues))
+        manifest = json.loads(files["materialization.manifest.json"])
+        manifest["linked_sources"] = linked_sources
+        files["materialization.manifest.json"] = json.dumps(
+            manifest, ensure_ascii=False, indent=2
+        ) + "\n"
+    return result["ir"], result["report"], files
 
 
 def check_outputs(output_root, ir, report, materialized_files=None):
@@ -2323,6 +2613,50 @@ def run_self_test():
     )
     assert sequence_value["nodes"][0]["semantic"]["sync_group"] == "Movement"
     assert sequence_unsupported[0]["kind"] == "source_sync_group_unsupported"
+    invalid_contract_registry = validate_registry(
+        {
+            "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
+            "node_classes": {
+                "/Script/AnimGraph.AnimGraphNode_TwoWayBlend": {
+                    "renderer": "two_way_blend"
+                }
+            },
+            "function_rules": [],
+        }
+    )
+    invalid_contract = {
+        "source_graph_suffix": "AnimGraph",
+        "source_graph": {
+            "nodes": [
+                {
+                    "object_path": "/Asset:AnimGraph.Invalid",
+                    "class_path": "/Script/AnimGraph.AnimGraphNode_TwoWayBlend",
+                    "title": "Two Way Blend",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "pins": [
+                        {"name": "A", "direction": "Input", "hidden": False},
+                        {"name": "B", "direction": "Input", "hidden": False},
+                        {"name": "Alpha", "direction": "Input", "hidden": False},
+                        {"name": "Pose", "direction": "Output", "hidden": False},
+                    ],
+                    "properties": [
+                        {
+                            "name": "BlendNode",
+                            "exported_text": "(A=(),B=(),Unknown=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())",
+                        }
+                    ],
+                }
+            ]
+        },
+        "links": [],
+    }
+    _, invalid_contract_issues = graph_ir(
+        invalid_contract,
+        invalid_contract_registry,
+        {"/Asset:AnimGraph.Invalid"},
+    )
+    assert any(issue["kind"] == "source_property_unsupported" for issue in invalid_contract_issues)
     bad = fixture_registry()
     bad["asset_name"] = "Forbidden"
     try:
@@ -2338,6 +2672,9 @@ def run_self_test():
         uasset.parent.mkdir(parents=True)
         uasset.write_bytes(b"fixture")
         assert package_path_for_uasset(uasset, content, "/ALS") == "/ALS/ALS/Character/AB_Test.AB_Test"
+        assert uasset_for_generated_anim_blueprint(
+            "/ALS/ALS/Character/AB_Test.AB_Test", content, "/ALS"
+        ) == uasset
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         ir = {"format": IR_FORMAT, "graphs": []}
@@ -2558,6 +2895,7 @@ def run_self_test():
         "unregistered_node_rejected": "PASS",
         "registry_asset_special_case_rejected": "PASS",
         "uasset_package_path_derived_without_source_json_input": "PASS",
+        "generated_anim_blueprint_class_path_resolved_without_whitelist": "PASS",
         "crlf_function_signature_normalized": "PASS",
         "source_property_paths_derived_or_invalid_rejected": "PASS",
         "source_property_paths_use_dotted_rust_naming": "PASS",
@@ -2565,6 +2903,7 @@ def run_self_test():
         "unhandled_source_property_bindings_rejected": "PASS",
         "source_pin_link_position_property_drift_rejected": "PASS",
         "source_pose_contract_blocker_rejected": "PASS",
+        "malformed_pose_contract_is_reported_not_raised": "PASS",
         "unimplemented_registered_renderer_rejected": "PASS",
         "transition_renderer_is_callable_from_converter": "PASS",
         "deterministic_ir_drift_rejected": "PASS",
@@ -2610,7 +2949,7 @@ def main():
         args.source_reader_timeout_seconds,
         args.source_reader_no_progress_seconds,
     )
-    ir, report = expected_outputs(
+    ir, report, materialized_files = conversion_tree_outputs(
         source,
         source_identity,
         args.root_graph,
@@ -2619,8 +2958,9 @@ def main():
         source_content_root,
         args.mount,
         args.source_reader,
+        args.source_reader_timeout_seconds,
+        args.source_reader_no_progress_seconds,
     )
-    materialized_files = expected_materialized_files(source, ir, report)
     integration = build_integration_report(ir, report)
     if args.report is not None:
         write_json(args.report, report)

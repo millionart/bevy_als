@@ -150,6 +150,12 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已知实现边界：当前 reachability 只会对 self-implemented Linked Anim Layer递归；`LinkedAnimGraph`目前作为 external dependency 记录。此项用真实`AB_Als`确认该边界是否覆盖主角色实际连线。
   - Gate summary：native source reader PASS。根图有7个`LinkedAnimGraph`与1个带`InstanceClass=AB_Als_Default`的Overlay layer；converter在layer contract抛`ExportedTextError`而非blocked report，故本轮未生成partial RON。最短source blocker写入`target/animgraph_converter_probe/ab_als_linked_recursive/conversion.blocked.md`；下轮修复从generated-class→uasset解析、递归物化和named Linked Input Pose传递，不引入手工fallback。
 
+- [x] BF112.29 Generic external linked AnimBP recursion：开始：2026-09-05 10:31:18 +08:00；预估结束：2026-09-05 11:26:18 +08:00；实际结束：2026-09-05 11:33:17 +08:00（偏差 +6m59s）。解析`InstanceClass` generated-class引用为content-root内`.uasset`，递归转换`LinkedAnimGraph`与有固定实例的`LinkedAnimLayer`；复用 child graph IO 的 named Linked Input Pose，统一物化根/子 closure并保持source-derived target path。验收：class-reference/recursion/pose-IO fixtures与NodeLike test、`AB_Als` fresh `--write`/`--check`为ready、完整closure editor/position/Bevy loader Gate。
+  - 已知 source closure：主根的链路为Layering→Head→Ragdolling和Locomotion→Grounded→Standing/Crouching；Overlay layer固定`AB_Als_Default`。只支持真实、单一、content-root内的generated AnimBP class；动态实例、循环、非 AnimBP class、重复/不匹配 input pin继续machine-readable fail-closed。
+  - source fact：fresh root有7个`LinkedAnimGraph`，输入分别为`Ragdolling Input`、`View Input`、`Grounded Input`、`Standing Input`、`Crouching Input`、`Locomotion Input`、`Overlay Input`；Overlay layer的`InstanceClass`为`AB_Als_Default`。同根ControlRig绑定`GetControlRigInput`、`CR_Als`、bool alpha及input pose/curve transfer，现有`ControlRigBoundaryNode`可表达该 graph boundary。
+  - Gate summary：class-reference/control-rig/linked-input renderer fixtures、converter/reachability/materializer self-tests均PASS。`AB_Als` fresh direct `--write`与持久 PTY `--check`均exit 0、零 blocker，report/manifest各列8个linked source roots；265个文件 editor/position/runtime-boundary Gate零失败。真实 Bevy loader/spec覆盖249个generated graph、963 nodes、1730 edges；root的每个Linked node在spec中精确暴露source Pose input名。
+  - 消融：初版尝试 builtin `GraphNode`在真实 loader中因无反射注册被拒绝，删除该路径；复用已注册`LayeredGraphNode`并只配置child input/output alias。junction、source reader JSON与已修复blocker报告均留在`target/`，未复制或覆盖手工资产；没有按`AB_Als`名称或路径分支。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

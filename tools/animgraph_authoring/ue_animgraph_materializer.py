@@ -324,13 +324,18 @@ def fsm_text(source, plan, config, graph_paths):
     return text, files
 
 
-def materialized_reference_issues(files):
+def materialized_reference_issues(files, external_references=()):
     issues = []
+    external_references = set(external_references)
     for path, text in files.items():
         if not path.endswith((".animgraph.ron", ".fsm.ron")):
             continue
         for reference in re.findall(r"(?:graph|fsm|condition):\s*\"([^\"]+)\"", text):
-            if reference.endswith((".animgraph.ron", ".fsm.ron")) and reference not in files:
+            if (
+                reference.endswith((".animgraph.ron", ".fsm.ron"))
+                and reference not in files
+                and reference not in external_references
+            ):
                 issues.append(f"{path}: missing generated reference {reference}")
     return sorted(set(issues))
 
@@ -339,7 +344,7 @@ def linked_layer_targets(ir):
     values = []
     for graph in ir.get("graphs", []):
         for node in graph.get("nodes", []):
-            if node.get("renderer") != "linked_anim_layer":
+            if node.get("renderer") not in {"linked_anim_layer", "linked_anim_graph"}:
                 continue
             semantic = node.get("semantic")
             target = semantic.get("target_graph") if isinstance(semantic, dict) else None
@@ -349,7 +354,7 @@ def linked_layer_targets(ir):
     return values
 
 
-def materialize_files(source, ir):
+def materialize_files(source, ir, external_graph_paths=()):
     source_asset = source.get("asset_path")
     if source_asset != ir.get("source_asset"):
         raise MaterializationError("source IR asset is invalid")
@@ -361,7 +366,8 @@ def materialize_files(source, ir):
     graph_paths = {
         suffix: graph_path(source_asset, suffix) for suffix in graph_entries
     }
-    if any(target not in graph_paths.values() for target in linked_layer_targets(ir)):
+    available_graph_paths = set(graph_paths.values()) | set(external_graph_paths)
+    if any(target not in available_graph_paths for target in linked_layer_targets(ir)):
         raise MaterializationError("source linked animation layer graph is not materialized")
     fsm_entries = [
         entry
@@ -400,7 +406,7 @@ def materialize_files(source, ir):
             transition_renderer.graph_text(contract(source, suffix))
         )
         condition_paths[suffix] = path
-    issues = materialized_reference_issues(files)
+    issues = materialized_reference_issues(files, external_graph_paths)
     if issues:
         raise MaterializationError("; ".join(issues))
     manifest = {

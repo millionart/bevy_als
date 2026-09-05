@@ -28,7 +28,9 @@ SUPPORTED_RENDERERS = {
     "save_cached_pose",
     "use_cached_pose",
     "linked_input_pose",
+    "linked_anim_graph",
     "linked_anim_layer",
+    "control_rig",
     "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
@@ -729,10 +731,27 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(value["input_name"])
             + ", output: \"Pose\", context_curve_prefix: \"\", context_curve_names: [])",
         )
+    if renderer == "linked_anim_graph":
+        target = value.get("target_graph")
+        if not isinstance(target, str) or not target:
+            raise PoseRenderError("source linked animation graph is unavailable")
+        return (
+            "als_ext::LayeredGraphNode",
+            "(graph: "
+            + quoted(target)
+            + ", input_aliases: [], output_aliases: [(child_output: \"Result\", outer_output: \"Pose\")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true)",
+        )
     if renderer == "linked_anim_layer":
         target = value.get("target_graph")
         if not isinstance(target, str) or not target:
             raise PoseRenderError("source linked animation layer graph is unavailable")
+        if value.get("external_instance"):
+            return (
+                "als_ext::LayeredGraphNode",
+                "(graph: "
+                + quoted(target)
+                + ", input_aliases: [], output_aliases: [(child_output: \"Result\", outer_output: \"Pose\")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true)",
+            )
         return (
             "als_ext::LinkedAnimLayerNode",
             "(interface: "
@@ -740,6 +759,21 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", implementations: ["
             + quoted(target)
             + "], selector: \"layer_index\")",
+        )
+    if renderer == "control_rig":
+        return (
+            "als_ext::ControlRigBoundaryNode",
+            "(rig_class: "
+            + quoted(value["rig_class"])
+            + ", alpha_enabled: "
+            + bool_ron(value["alpha_enabled"])
+            + ", transfer_input_pose: "
+            + bool_ron(value["transfer_input_pose"])
+            + ", transfer_input_curves: "
+            + bool_ron(value["transfer_input_curves"])
+            + ", transfer_pose_in_global_space: "
+            + bool_ron(value["transfer_pose_in_global_space"])
+            + ", pose_input: \"Source\", curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true)",
         )
     if renderer == "inertialization":
         return (
@@ -792,6 +826,8 @@ def target_pin(renderer, source_pin, node=None):
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "linked_anim_layer":
         return {"Pose": "pose"}.get(source_pin, source_pin)
+    if renderer == "control_rig":
+        return {"Source": "Source", "Pose": "pose"}.get(source_pin, source_pin)
     if renderer in {"blendspace_evaluator", "blendspace_player"}:
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
@@ -1337,6 +1373,21 @@ def render(
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
     result_nodes.sort(key=lambda value: value[0])
+    graph_inputs = []
+    for semantic in ir_nodes.values():
+        if semantic.get("renderer") != "linked_input_pose":
+            continue
+        value = semantic.get("semantic")
+        input_name = value.get("input_name") if isinstance(value, dict) else None
+        if not isinstance(input_name, str) or not input_name or input_name in graph_inputs:
+            raise PoseRenderError("source linked input pose graph input is invalid")
+        graph_inputs.append(input_name)
+    input_data = "{ " + ", ".join(
+        f"Passthrough({quoted(name)}): Pose" for name in graph_inputs
+    ) + " }"
+    input_order = "{ " + ", ".join(
+        f"Data(Passthrough({quoted(name)})): {index}" for index, name in enumerate(graph_inputs)
+    ) + " }"
     positions = ", ".join(
         f"{quoted(identifier)}: ({x:.3f}, {y:.3f})" for identifier, _, _, _, (x, y) in result_nodes
     )
@@ -1351,7 +1402,7 @@ def render(
             "    edges_inverted: {",
             *[f"        {edge}," for edge in edges],
             "    },",
-            "    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { \"Result\": Pose }, input_order: {}, output_order: { Data(\"Result\"): 0 }),",
+            "    io_spec: (input_times: [], input_data: " + input_data + ", output_time: false, output_data: { \"Result\": Pose }, input_order: " + input_order + ", output_order: { Data(\"Result\"): 0 }),",
             "    default_data: {},",
             "    editor_metadata: (node_positions: { " + positions + " }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),",
             ")",
@@ -1583,6 +1634,56 @@ def run_self_test():
     assert 'implementations: ["graphs/overlay.animgraph.ron"]' in text
     assert 'name: "Linked layer selection"' in text
     assert 'name: "Comment"' not in text
+    linked_ir["nodes"][0] = {
+        "source_node": linked_path,
+        "renderer": "linked_anim_graph",
+        "semantic": {"target_graph": "graphs/child.animgraph.ron"},
+    }
+    text = render(linked_contract, linked_ir, [])
+    assert '"als_ext::LayeredGraphNode"' in text
+    assert 'child_output: "Result", outer_output: "Pose"' in text
+    input_path = "/Asset:AnimGraph.Input"
+    input_contract = {
+        "source_graph": {
+            "nodes": [
+                {
+                    "object_path": input_path,
+                    "node_guid": "10000000-0000-4000-8000-000000000091",
+                    "title": "Grounded Input",
+                    "position_x": -128,
+                    "position_y": 0,
+                    "pins": [],
+                },
+                {
+                    "object_path": linked_result,
+                    "node_guid": "10000000-0000-4000-8000-000000000092",
+                    "title": "Output Animation Pose",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "pins": [],
+                },
+            ]
+        },
+        "links": [
+            {
+                "source": {"node_object_path": input_path, "pin_name": "Pose"},
+                "target": {"node_object_path": linked_result, "pin_name": "Result"},
+            }
+        ],
+    }
+    input_ir = {
+        "nodes": [
+            {
+                "source_node": input_path,
+                "renderer": "linked_input_pose",
+                "semantic": {"input_name": "Grounded Input"},
+            },
+            {"source_node": linked_result, "renderer": "root_output", "semantic": {}},
+        ]
+    }
+    text = render(input_contract, input_ir, [])
+    assert 'input_data: { Passthrough("Grounded Input"): Pose }' in text
+    assert 'Data(Passthrough("Grounded Input")): 0' in text
     reroute_path = "/Asset:State.Reroute"
     graph_contract["source_graph"]["nodes"].append(
         {

@@ -29,7 +29,9 @@ POSE_RENDERERS = {
     "use_cached_pose",
     "state_result",
     "linked_input_pose",
+    "linked_anim_graph",
     "linked_anim_layer",
+    "control_rig",
     "pose_snapshot",
     "inertialization",
     "pose_lifecycle_call",
@@ -954,6 +956,53 @@ def linked_input_pose_contract(node):
     }, issues
 
 
+def generated_anim_blueprint_asset(value):
+    if value in {"", "None"}:
+        return ""
+    parsed = parse_quoted(value)
+    match = re.fullmatch(r"[^']*'(/[^']+)'", parsed)
+    if match is None:
+        raise PoseContractError("linked animation generated class is invalid")
+    class_path = match.group(1)
+    package, separator, generated_name = class_path.rpartition(".")
+    if not separator or not generated_name.endswith("_C"):
+        raise PoseContractError("linked animation generated class is invalid")
+    asset_name = generated_name.removesuffix("_C")
+    if package.rsplit("/", 1)[-1] != asset_name:
+        raise PoseContractError("linked animation generated class is invalid")
+    return package + "." + asset_name
+
+
+def linked_anim_graph_contract(node):
+    renderer = "linked_anim_graph"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "InstanceClass",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs = visible_input_names(node)
+    outputs = visible_output_names(node)
+    issues = lifecycle_issues(
+        node,
+        renderer,
+        fields,
+        ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+    )
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "instance_class": generated_anim_blueprint_asset(field(fields, "InstanceClass")),
+    }, issues
+
+
 def linked_anim_layer_contract(node):
     renderer = "linked_anim_layer"
     fields = parse_struct(node_property(node, "Node"))
@@ -962,6 +1011,7 @@ def linked_anim_layer_contract(node):
         {
             "Interface",
             "Layer",
+            "InstanceClass",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
@@ -992,6 +1042,70 @@ def linked_anim_layer_contract(node):
         "output_pins": outputs,
         "interface": match.group(1),
         "layer": layer,
+        "instance_class": generated_anim_blueprint_asset(field(fields, "InstanceClass", "None")),
+    }, issues
+
+
+def control_rig_contract(node):
+    renderer = "control_rig"
+    fields = parse_struct(node_property(node, "Node"))
+    reject_unknown_fields(
+        fields,
+        {
+            "ControlRigAssetReference",
+            "DefaultControlRigAssetReference",
+            "Alpha",
+            "AlphaInputType",
+            "bAlphaBoolEnabled",
+            "AlphaScaleBias",
+            "AlphaBoolBlend",
+            "AlphaScaleBiasClamp",
+            "LODThreshold",
+            "Source",
+            "bTransferInputPose",
+            "bTransferInputCurves",
+            "bTransferPoseInGlobalSpace",
+            "InitialUpdateFunction",
+            "BecomeRelevantFunction",
+            "UpdateFunction",
+        },
+    )
+    inputs, issues = validate_inputs(node, renderer, ("Source", "bAlphaBoolEnabled", "RigInput"))
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    if parse_name(field(fields, "AlphaInputType", "Bool")) != "Bool":
+        issues.append(issue(node, renderer, "source_control_rig_alpha_unsupported", "AlphaInputType"))
+    reference = parse_struct(field(fields, "ControlRigAssetReference"))
+    rig_class = generated_anim_blueprint_asset(field(reference, "BlueprintRigClass"))
+    if not rig_class:
+        raise PoseContractError("control rig class is unavailable")
+    bindings = property_binding_paths(node)
+    rig_input_pins = [
+        pin for pin, path in bindings.items() if path == "GetControlRigInput"
+    ]
+    if len(rig_input_pins) != 1:
+        issues.append(issue(node, renderer, "source_control_rig_input_unsupported", "RigInput"))
+    issues.extend(
+        lifecycle_issues(
+            node,
+            renderer,
+            fields,
+            ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"),
+        )
+    )
+    return {
+        "renderer": renderer,
+        "input_pins": inputs,
+        "output_pins": outputs,
+        "rig_class": rig_class.rsplit(".", 1)[-1],
+        "alpha_enabled": parse_bool(field(fields, "bAlphaBoolEnabled", "True")),
+        "transfer_input_pose": parse_bool(field(fields, "bTransferInputPose", "True")),
+        "transfer_input_curves": parse_bool(field(fields, "bTransferInputCurves", "True")),
+        "transfer_pose_in_global_space": parse_bool(
+            field(fields, "bTransferPoseInGlobalSpace", "False")
+        ),
+        "rig_input_binding_pin": rig_input_pins[0] if len(rig_input_pins) == 1 else "",
     }, issues
 
 
@@ -1266,8 +1380,12 @@ def pose_contract(node, renderer):
             return cached_pose_contract(node, renderer)
         if renderer == "linked_input_pose":
             return linked_input_pose_contract(node)
+        if renderer == "linked_anim_graph":
+            return linked_anim_graph_contract(node)
         if renderer == "linked_anim_layer":
             return linked_anim_layer_contract(node)
+        if renderer == "control_rig":
+            return control_rig_contract(node)
         if renderer == "inertialization":
             return inertialization_contract(node)
         if renderer == "pose_lifecycle_call":
@@ -1550,6 +1668,37 @@ def run_self_test():
     assert not issues
     assert linked_layer_contract_value["interface"] == "/Asset/ALI_Test.ALI_Test_C"
     assert linked_layer_contract_value["layer"] == "Overlay"
+    linked_graph = fixture_node(
+        "linked_anim_graph",
+        "Node",
+        '(InstanceClass="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/Child.Child_C\'",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("Grounded Input"), output_pin("Pose")],
+    )
+    linked_graph_contract_value, issues = pose_contract(linked_graph, "linked_anim_graph")
+    assert not issues
+    assert linked_graph_contract_value["instance_class"] == "/Asset/Child.Child"
+    linked_layer["properties"][0]["exported_text"] = '(Interface="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/ALI_Test.ALI_Test_C\'",Layer="Overlay",InstanceClass="/Script/Engine.AnimBlueprintGeneratedClass\'/Asset/Overlay.Overlay_C\'",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())'
+    linked_layer_contract_value, issues = pose_contract(linked_layer, "linked_anim_layer")
+    assert not issues
+    assert linked_layer_contract_value["instance_class"] == "/Asset/Overlay.Overlay"
+    control_rig = fixture_node(
+        "control_rig",
+        "Node",
+        '(ControlRigAssetReference=(BlueprintRigClass="/Script/ControlRig.ControlRigBlueprintGeneratedClass\'/Asset/CR_Test.CR_Test_C\'"),AlphaInputType=Bool,bAlphaBoolEnabled=True,Source=(),bTransferInputPose=True,bTransferInputCurves=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("Source"), input_pin("bAlphaBoolEnabled"), input_pin("RigInput"), output_pin("Pose")],
+    )
+    control_rig["binding"] = {
+        "properties": [
+            {
+                "name": "PropertyBindings",
+                "exported_text": '(("__CustomProperty_RigInput",(PropertyName="__CustomProperty_RigInput",PathAsText="GetControlRigInput",bIsBound=True)))',
+            }
+        ]
+    }
+    control_rig_contract_value, issues = pose_contract(control_rig, "control_rig")
+    assert not issues
+    assert control_rig_contract_value["rig_class"] == "CR_Test"
+    assert control_rig_contract_value["rig_input_binding_pin"] == "__CustomProperty_RigInput"
     dynamic_additive = fixture_node(
         "make_dynamic_additive",
         "Node",
@@ -1608,6 +1757,7 @@ def run_self_test():
         "pose_snapshot_binding_contract_parsed": "PASS",
         "linked_input_inertial_and_pose_lifecycle_contracts_parsed": "PASS",
         "linked_anim_layer_contract_parsed": "PASS",
+        "external_linked_graph_and_control_rig_contracts_parsed": "PASS",
         "dynamic_additive_space_contract_parsed": "PASS",
         "source_curves_blend_modes_validated": "PASS",
         "multi_way_blend_contract_parsed": "PASS",

@@ -3,6 +3,7 @@ import json
 import re
 
 from ue_animgraph_pose_contract import PoseContractError, linked_anim_layer_contract
+from ue_exported_text import ExportedTextError
 
 
 FORMAT = "ue_animgraph_root_reachability_v1"
@@ -312,7 +313,7 @@ class RootTraversal:
         node = self.nodes[node_path]
         try:
             semantic, issues = linked_anim_layer_contract(node)
-        except PoseContractError as error:
+        except (PoseContractError, ExportedTextError) as error:
             self.record_issue(
                 "source_linked_anim_layer_unsupported",
                 source_node=node_path,
@@ -325,6 +326,8 @@ class RootTraversal:
                 source_node=node_path,
                 detail=issues[0].get("detail", issues[0].get("kind", "invalid contract")),
             )
+            return None
+        if semantic["instance_class"]:
             return None
         candidates = {
             graph["object_path"]: graph
