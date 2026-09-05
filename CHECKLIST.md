@@ -171,7 +171,11 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 消融：未复制手工`graphs/ab_als`、未把IR/report写入assets、未使用junction或路径白名单；namespace默认为source asset identifier，只有显式`--install-root`才启用安装，现有converter输出路径保持不变。
   - 已知 source closure：root有7个`LinkedAnimGraph`、1个固定`AB_Als_Default` linked layer与`CR_Als`；现有生成路径的 source-visible pin/position 已由BF112.29/30验证。当前开口边界是 asset namespace 不能与手工`graphs/ab_als`混用。
 
-- [ ] BF113.02 Provider parity for generated closure：开始：2026-09-05 16:54:05 +08:00；预估结束：2026-09-05 17:49:05 +08:00。按安装后的 integration report 接通 source-derived runtime property、actor function、state getter、slot、sync phase、tag与ControlRig provider；未知 provider 继续 fail-closed，不引入手工命名 alias。验收：report所有必需 provider为mapped/实际可写，focused provider tests与generated root runtime load通过。
+- [x] BF113.02a Recursive integration closure report：开始：2026-09-05 16:39:16 +08:00；预估结束：2026-09-05 17:04:16 +08:00；实际结束：2026-09-05 16:57:25 +08:00（偏差 -6m51s）。将根与递归linked AnimBP child的 integration report 去重聚合，使正式接入不遗漏子图的runtime property、actor function、state getter、slot、sync phase、tag与ControlRig provider。验收：tree-report self-test、fresh recursive `--write`、零blocker，并确认所有source closure均在同一报告中。
+  - Gate summary：9个source closure全部ready；聚合报告列出208个runtime input、38个已mapped external function、13个function graph、10个state getter、11个slot、26个tag、10个sync phase和1个CR_Als provider，零unhandled/other blocker。converter self-test覆盖递归去重与closure Markdown，fresh source `--write`通过。
+  - 消融：不创建child report文件副本、不按资产名白名单拼接报告；仅递归现有conversion tree并按source asset/JSON row去重。
+
+- [ ] BF113.02b Provider value parity：开始：2026-09-05 16:57:25 +08:00；预估结束：2026-09-05 17:52:25 +08:00。按聚合报告接通source-derived runtime property、state getter、slot、sync phase、tag与ControlRig provider；复用既有ALS状态/函数计算，未知值继续fail-closed，不引入手工命名 alias。验收：report所有必需 provider为mapped/实际可写，focused provider tests与installed generated root runtime load通过。
 
 - [ ] BF113.03 Real-entry switchover：开始：2026-09-05 17:49:05 +08:00；预估结束：2026-09-05 18:44:05 +08:00。将正式 animated-scene 入口从手工 AB_Als graph 切至installed generated root，保留可回退的已提交手工资产直至 Gate 完成。验收：startup、state_machine、standing_direction、crouching、control_rig、ragdoll visual Gate均由generated root实际通过，首个graph error报告有效。
 

@@ -1613,6 +1613,68 @@ def build_integration_report(ir, report):
     }
 
 
+def integration_tree_results(result, seen=None):
+    seen = set() if seen is None else seen
+    source = result.get("source", {})
+    asset = source.get("asset_path") if isinstance(source, dict) else None
+    if not isinstance(asset, str) or not asset or asset in seen:
+        return []
+    seen.add(asset)
+    values = [result]
+    for child in result.get("children", []):
+        values.extend(integration_tree_results(child, seen))
+    return values
+
+
+def merge_integration_rows(reports, field):
+    rows = {}
+    for report in reports:
+        for row in report.get(field, []):
+            if isinstance(row, dict):
+                rows[json.dumps(row, ensure_ascii=False, sort_keys=True)] = row
+    return [rows[key] for key in sorted(rows)]
+
+
+def build_tree_integration_report(result):
+    results = integration_tree_results(result)
+    reports = [build_integration_report(item["ir"], item["report"]) for item in results]
+    if not reports:
+        raise ConversionError("integration source tree is unavailable")
+    root = reports[0]
+    list_fields = (
+        "external_runtime_functions",
+        "animation_blueprint_functions",
+        "sync_phase_providers",
+        "runtime_inputs",
+        "animation_state_getter_providers",
+        "slot_providers",
+        "gameplay_tag_providers",
+        "control_rig_providers",
+        "unhandled_property_bindings",
+        "external_graph_dependencies",
+        "other_blockers",
+    )
+    merged = {
+        **root,
+        "conversion_status": "ready"
+        if all(report["conversion_status"] == "ready" for report in reports)
+        else "blocked",
+        "handoff_action": "integrate_generated_assets"
+        if all(report["conversion_status"] == "ready" for report in reports)
+        else "repair_conversion_blockers",
+        "source_closure": [
+            {
+                "source_asset": item["source"]["asset_path"],
+                "conversion_status": report["conversion_status"],
+            }
+            for item, report in zip(results, reports, strict=True)
+        ],
+    }
+    for field in list_fields:
+        merged[field] = merge_integration_rows(reports, field)
+    return merged
+
+
 def integration_report_markdown(value):
     if value["conversion_status"] == "blocked":
         return (
@@ -1625,9 +1687,22 @@ def integration_report_markdown(value):
         "",
         "Conversion status: " + value["conversion_status"],
         "",
-        "## External runtime functions",
+        "## Source closure",
         "",
     ]
+    closure = value.get("source_closure", [])
+    if closure:
+        lines.extend(
+            "- `" + item["source_asset"] + "`: " + item["conversion_status"]
+            for item in closure
+        )
+    else:
+        lines.append("- Root source only")
+    lines.extend([
+        "",
+        "## External runtime functions",
+        "",
+    ])
     functions = value["external_runtime_functions"]
     if functions:
         lines.extend(
@@ -2135,7 +2210,7 @@ def conversion_tree_outputs(
         files["materialization.manifest.json"] = json.dumps(
             manifest, ensure_ascii=False, indent=2
         ) + "\n"
-    return result["ir"], result["report"], files
+    return result["ir"], result["report"], files, build_tree_integration_report(result)
 
 
 def check_outputs(output_root, ir, report, materialized_files=None):
@@ -3048,6 +3123,27 @@ def run_self_test():
     assert "## Control Rig providers" in integration_report_markdown(ready)
     assert "GetControlRigInput" in integration_report_markdown(ready)
     assert "source candidates" in integration_report_markdown(ready)
+    tree_integration = build_tree_integration_report(
+        {
+            "source": {"asset_path": "/Asset/Root.Root"},
+            "ir": integration_ir,
+            "report": {"source": {"asset": "/Asset/Root.Root"}, "pass": True, "unsupported": []},
+            "children": [
+                {
+                    "source": {"asset_path": "/Asset/Child.Child"},
+                    "ir": {"function_dependencies": [], "graphs": []},
+                    "report": {"source": {"asset": "/Asset/Child.Child"}, "pass": True, "unsupported": []},
+                    "children": [],
+                }
+            ],
+        }
+    )
+    assert [item["source_asset"] for item in tree_integration["source_closure"]] == [
+        "/Asset/Root.Root",
+        "/Asset/Child.Child",
+    ]
+    assert tree_integration["control_rig_providers"] == ready["control_rig_providers"]
+    assert "## Source closure" in integration_report_markdown(tree_integration)
     namespace = default_install_namespace({"asset_path": "/Asset/AB_Als.AB_Als"})
     root_graph = namespace + "/graphs/root.animgraph.ron"
     installed = installation_files(
@@ -3093,6 +3189,7 @@ def run_self_test():
         "generic_source_sync_phase_plan_is_reported": "PASS",
         "integration_report_drift_rejected": "PASS",
         "namespaced_installation_is_deterministic_and_checked": "PASS",
+        "recursive_integration_dependencies_are_aggregated": "PASS",
     }
 
 
@@ -3141,7 +3238,7 @@ def main():
         if args.install_namespace is not None
         else default_install_namespace(source)
     ) if args.install_root is not None else ""
-    ir, report, materialized_files = conversion_tree_outputs(
+    ir, report, materialized_files, integration = conversion_tree_outputs(
         source,
         source_identity,
         args.root_graph,
@@ -3159,7 +3256,6 @@ def main():
         if args.install_root is not None and not unsupported_failure(report)
         else {}
     )
-    integration = build_integration_report(ir, report)
     if args.report is not None:
         write_json(args.report, report)
     if args.write:
