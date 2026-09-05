@@ -4,6 +4,8 @@ This report covers the fresh direct conversion corpus generated on 2026-09-05 fo
 
 All eight source records converted with zero blockers. Their 150 reachable graphs and 1051 reachable nodes passed deterministic regeneration, editor structure, node-position, and runtime asset-boundary checks. The generated closure's own `integration.report.json` and `integration.report.md` are the authoritative per-asset wiring contracts; keep them beside the generated RON closure when it is integrated.
 
+All 248 generated `.animgraph.ron` files also loaded through the real Bevy asset loader with `AlsExtPlugin`; their 949 NodeLike specs and 1716 edges resolved without a loader or spec error. This is deliberately not a visual Playground claim: the generated graphs fail closed until the source-derived providers below are connected.
+
 ## Manual graph comparison
 
 Standing, Crouching, and Grounded were compared against their existing manual topology records, with fresh UE source as the arbiter. The converter passed all three comparisons with no source-class blocker.

@@ -142,6 +142,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已知边界：Standing/Crouching/Grounded手工 RON是旧技术记录，不是目标 ABI；真实 conversion output保留 source property/pin identity与 Rust 语法转换。report只区分自包含 Animation Blueprint graph function 与需要角色/actor 或 animation runtime provider 的依赖。
   - Gate summary：三个 native source reader record均由watchdog成功产出；三个 comparison `--write`/`--check`均exit 0、converter pass且零 blocker。Standing source的6 Getter/2 Knot与手工2/2、Crouching source的4/2与手工0/0证明手工 topology不能裁定 ABI；Grounded的2个三key custom-curve transition由converter解析。八份integration report断言为ready，零unhandled binding/external graph/other blocker；`docs/animgraph_converter_handoff.md`覆盖38个已映射外部调用与全部provider类别。
 
+- [x] BF112.27 Generated closure Bevy loader gate：开始：2026-09-05 09:48:00 +08:00；预估结束：2026-09-05 10:28:00 +08:00；实际结束：2026-09-05 10:17:36 +08:00（偏差 -10m24s）。为每个生成 closure 建立只读 target asset root，复用原始动画/curve/skeleton assets，并以现有`animgraph_spec_dump`在真实`AlsExtPlugin`/Bevy asset loader中加载八个 root graph及递归依赖；不覆盖手工 RON，也不伪造 runtime provider值。验收：八个 root均完成 recursive dependency load与 NodeLike spec，零 loader/spec error；若缺少集成 provider，只记录其在handoff report中的现有边界而不把它误判为 source conversion blocker。
+  - 已知边界：generated output在`target/animgraph_converter_corpus/*-direct`，原始资源在`assets/`；Bevy asset server只有一个 root，因此本项只在`target/`下以 junction 组合二者，实际 Playground replacement继续由handoff report指定的provider接入完成。
+  - Gate summary：隔离`target/bf11227_spec`以`--jobs 2`完成`animgraph_spec_dump`构建；八个 closure的248个 generated `.animgraph.ron`均通过真实 Bevy recursive asset load与`AlsExtPlugin` NodeLike spec，合计949 nodes/1716 edges。single-graph batch JSON参数被固定为数组后，Layering/Head/Ragdolling/Default同样通过；没有 converter loader/spec error。消融：junction只存在于`target/`，未复制或覆盖手工asset；未填充任一source-derived global，缺 provider继续按fail-closed与handoff report边界处理。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
