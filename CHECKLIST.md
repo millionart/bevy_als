@@ -138,6 +138,10 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
   - 已知 source/target：前三个 source 位于`AnimationInstances/`，Default位于`Overlays/`；target分别为`layering-direct`、`head-direct`、`ragdolling-direct`、`default-direct`。下一条只在八树全部ready后处理 Standing/Crouching/Grounded手工图交叉差异和接手报告。
   - Gate summary：四份 fresh direct `--write`和四份持久 PTY `--check`均exit 0、`pass=true`且零 blocker。八个 source closures合计150 graphs/1051 nodes；统一corpus的264文件 editor/position audit与runtime asset boundary均零失败。八个指定AnimBP现均由当前converter生成，未读取或修改手工RON。
 
+- [x] BF112.26 Source-arbitrated manual comparison and handoff report：开始：2026-09-05 09:29:21 +08:00；预估结束：2026-09-05 10:19:21 +08:00；实际结束：2026-09-05 09:45:23 +08:00（偏差 -33m58s）。对`AB_Als_Standing`、`AB_Als_Crouching`、`AB_Als_Grounded`重新读取 source record，用现有 manual topology 仅对照能力/拓扑差异；以 UE source 判定正确性，不向 converter 添加手工版兼容。汇总八个 generated integration report，生成接手 AI 可执行的外部 actor function、runtime property、sync phase、state getter、tag/slot provider报告。验收：三个 fresh comparison `--write`/`--check`、source-confirmed conclusion、无手工命名/路径反向进入 converter、handoff report 覆盖全部八份 integration report。
+  - 已知边界：Standing/Crouching/Grounded手工 RON是旧技术记录，不是目标 ABI；真实 conversion output保留 source property/pin identity与 Rust 语法转换。report只区分自包含 Animation Blueprint graph function 与需要角色/actor 或 animation runtime provider 的依赖。
+  - Gate summary：三个 native source reader record均由watchdog成功产出；三个 comparison `--write`/`--check`均exit 0、converter pass且零 blocker。Standing source的6 Getter/2 Knot与手工2/2、Crouching source的4/2与手工0/0证明手工 topology不能裁定 ABI；Grounded的2个三key custom-curve transition由converter解析。八份integration report断言为ready，零unhandled binding/external graph/other blocker；`docs/animgraph_converter_handoff.md`覆盖38个已映射外部调用与全部provider类别。
+
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
