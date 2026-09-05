@@ -39,6 +39,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 4. Only an unavailable source asset, missing authority, or a proven target capability boundary may block automation. Record the exact unsupported source identity and evidence; do not silently fall back to a partial graph or ask the user to complete the mapping.
 5. Once the project declares a source-diverse golden corpus passed by one-click generation and all declared static/runtime Gates, every later source-equivalence graph task is converter-first. Re-extract the fresh source, update the registry when unsupported, generate and verify the target, and only materialize generated assets; do not resume graph-by-graph hand authoring. This never removes source fact, lifecycle, asset, coordinate, or real-entry validation.
 6. A graph tree is convertible only when its complete reachable target dependency closure can load. A partial root/FSM tree with missing state or transition artifacts must not be emitted as RON or used for editor/spec/runtime proof; retain only its IR and grouped unsupported report until the full closure is materialized.
+7. A native source reader invoked by the converter must have a bounded wall/no-progress watchdog, emit a machine-readable result with its last progress, and keep a focused self-test for both timeout and normal completion. An absent or stale reader output is a failed source fact, never a successful conversion.
 
 ## Runtime behavior
 
