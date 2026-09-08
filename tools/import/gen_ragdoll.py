@@ -1,24 +1,21 @@
+import argparse
 import json
 import math
 import re
 import struct
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "target" / "bf109" / "source_native" / "PA_Als.ue.json"
-GLTF = ROOT / "assets" / "animations" / "Base" / "A_Als_Idle.gltf"
-RAGDOLL = ROOT / "assets" / "ragdolls" / "als_manny.rag.ron"
-BONE_MAP = ROOT / "assets" / "ragdoll_bone_maps" / "als_manny.bm.ron"
-PROFILE = ROOT / "assets" / "ragdolls" / "pa_als.physics.json"
 NAMESPACE = uuid.UUID("a4ea5f25-7f81-5f46-bb37-15ebc4778125")
 CM_TO_M = 0.01
 
 
-def stable_id(kind, label):
-    return str(uuid.uuid5(NAMESPACE, f"pa_als/{kind}/{label}"))
+def stable_id(source_asset, kind, label):
+    return str(uuid.uuid5(NAMESPACE, f"{source_asset}/{kind}/{label}"))
 
 
 def text_number(value):
@@ -34,6 +31,41 @@ def text_vec(values):
 
 def props(entries):
     return {entry["name"]: entry["exported_text"] for entry in entries}
+
+
+def expanded_text(entry):
+    if entry.get("fields"):
+        return "(" + ",".join(f"{field['name']}={expanded_text(field)}" for field in entry["fields"]) + ")"
+    return entry["exported_text"]
+
+
+def collision_disabled_pairs(physics):
+    return sorted([pair["body_index_1"], pair["body_index_2"]] for pair in physics["collision_disabled_pairs"])
+
+
+def target_material(entries):
+    values = props(entries)
+    friction = float(values["Friction"])
+    return {
+        "dynamic_friction": friction,
+        "static_friction": max(friction, float(values["StaticFriction"])),
+        "restitution": float(values["Restitution"]),
+        "friction_combine": values["FrictionCombineMode"],
+        "restitution_combine": values["RestitutionCombineMode"],
+    }
+
+
+def target_spring(stiffness, damping, acceleration_mode, stiffness_scale, damping_scale):
+    units = 1.0 if acceleration_mode else CM_TO_M ** 2
+    return {
+        "stiffness": stiffness * stiffness_scale * units,
+        "damping": damping * damping_scale * units,
+        "acceleration_mode": acceleration_mode,
+    }
+
+
+def target_angular_limit(mode, radians):
+    return {"Limited": radians} if mode == "ACM_Limited" else mode.removeprefix("ACM_")
 
 
 def numeric(entries, key, default=0.0):
@@ -252,6 +284,30 @@ def self_test():
     target_basis = ue_frame(primary, secondary)
     for vector in [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]:
         assert_close(direction(quat_rotate(source_basis, vector)), quat_rotate(target_basis, direction(vector)))
+    assert target_joint_variant(math.radians(60.0), 0.0, 0.0) == "Revolute"
+    assert target_joint_variant(math.radians(65.0), math.radians(20.0), math.radians(15.0)) == "Spherical"
+    assert native_swing_limit(math.radians(65.0), math.radians(20.0)) is None
+    assert native_swing_limit(math.radians(20.0), math.radians(20.0)) == [
+        -math.radians(20.0),
+        math.radians(20.0),
+    ]
+    assert hinge_axis(math.radians(60.0), 0.0, 0.0) == direction([0.0, 0.0, 1.0])
+    assert stable_id("/A.A", "body", "pelvis") != stable_id("/B.B", "body", "pelvis")
+    assert target_spring(50.0, 5.0, True, 100000.0, 1000.0) == {
+        "stiffness": 5000000.0, "damping": 5000.0, "acceleration_mode": True,
+    }
+    assert math.isclose(target_spring(50.0, 0.0, False, 1.5, 1.5)["stiffness"], 0.0075)
+    assert target_angular_limit("ACM_Locked", 0.0) == "Locked"
+    assert target_angular_limit("ACM_Limited", 0.0) == {"Limited": 0.0}
+    material = target_material([
+        {"name": key, "exported_text": value} for key, value in {
+            "Friction": "0.7", "StaticFriction": "0", "Restitution": "0.3",
+            "FrictionCombineMode": "Average", "RestitutionCombineMode": "Average",
+        }.items()
+    ])
+    assert material["static_friction"] == material["dynamic_friction"] == 0.7
+    assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
+    assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
 
 
 def volume(shape):
@@ -305,11 +361,11 @@ def matrix_quat(matrix):
     ])
 
 
-def load_skeleton():
-    document = json.loads(GLTF.read_text(encoding="utf-8"))
+def load_skeleton(gltf):
+    document = json.loads(gltf.read_text(encoding="utf-8"))
     buffers = []
     for buffer in document["buffers"]:
-        buffers.append(((GLTF.parent / buffer["uri"]).read_bytes(), buffer.get("byteOffset", 0)))
+        buffers.append(((gltf.parent / buffer["uri"]).read_bytes(), buffer.get("byteOffset", 0)))
     accessor = document["accessors"][document["skins"][0]["inverseBindMatrices"]]
     view = document["bufferViews"][accessor["bufferView"]]
     data, base = buffers[view["buffer"]]
@@ -375,7 +431,10 @@ def verify_constraint_rest_frames(profile, rest):
 
 
 def parsed_profile(entries):
-    text = props(entries).get("ProfileInstance", "")
+    entry = next(entry for entry in entries if entry["name"] == "ProfileInstance")
+    if not entry.get("fields"):
+        raise ValueError("native reader lacks complete constraint profile fields")
+    text = expanded_text(entry)
     cone = nested_after(text, "ConeLimit")
     twist = nested_after(text, "TwistLimit")
     linear_drive = nested_after(text, "LinearDrive")
@@ -399,10 +458,22 @@ def parsed_profile(entries):
         "angular_drive_stiffness": number_after(nested_after(angular_drive, "TwistDrive"), "Stiffness"),
         "angular_drive_damping": number_after(nested_after(angular_drive, "TwistDrive"), "Damping"),
         "angular_drive_enabled": bool_after(nested_after(angular_drive, "TwistDrive"), "bEnablePositionDrive", False),
+        "angular_drive_mode": word_after(angular_drive, "AngularDriveMode"),
+        "angular_drives": {
+            name: {
+                "stiffness": number_after(nested_after(angular_drive, name), "Stiffness"),
+                "damping": number_after(nested_after(angular_drive, name), "Damping"),
+                "max_force": number_after(nested_after(angular_drive, name), "MaxForce"),
+                "position_enabled": bool_after(nested_after(angular_drive, name), "bEnablePositionDrive"),
+                "velocity_enabled": bool_after(nested_after(angular_drive, name), "bEnableVelocityDrive"),
+            } for name in ("TwistDrive", "SwingDrive", "SlerpDrive")
+        },
+        "angular_velocity_target": vector_after(angular_drive, "AngularVelocityTarget"),
         "angular_drive_target_ue": rotator_after(angular_drive, "OrientationTarget"),
         "projection_linear_tolerance_cm": number_after(text, "ProjectionLinearTolerance"),
         "projection_angular_tolerance_degrees": number_after(text, "ProjectionAngularTolerance"),
         "projection_linear_alpha": number_after(text, "ProjectionLinearAlpha"),
+        "projection_angular_alpha": number_after(text, "ProjectionAngularAlpha"),
         "shock_propagation_alpha": number_after(text, "ShockPropagationAlpha"),
         "linear_break_threshold": number_after(text, "LinearBreakThreshold"),
         "angular_break_threshold": number_after(text, "AngularBreakThreshold"),
@@ -411,6 +482,13 @@ def parsed_profile(entries):
         "projection_enabled": bool_after(text, "bEnableProjection", False),
         "mass_conditioning_enabled": bool_after(text, "bEnableMassConditioning", False),
         "linear_joint_solver": bool_after(text, "bUseLinearJointSolver", False),
+        "angular_drive_acceleration_mode": bool_after(angular_drive, "bAccelerationMode", False),
+        "shock_propagation_enabled": bool_after(text, "bEnableShockPropagation", False),
+        "parent_dominates": bool_after(text, "bParentDominates", False),
+        "linear_breakable": bool_after(text, "bLinearBreakable", False),
+        "angular_breakable": bool_after(text, "bAngularBreakable", False),
+        "linear_plasticity": bool_after(text, "bLinearPlasticity", False),
+        "angular_plasticity": bool_after(text, "bAngularPlasticity", False),
     }
     return result
 
@@ -423,11 +501,50 @@ def mode_limit(mode, degrees):
     return None
 
 
+def target_joint_variant(swing_1, swing_2, twist):
+    if hinge_axis(swing_1, swing_2, twist) is not None:
+        return "Revolute"
+    return "Spherical"
+
+
+def hinge_axis(swing_1, swing_2, twist):
+    if twist != 0.0:
+        return None
+    if swing_1 is not None and swing_1 > 0.0 and swing_2 == 0.0:
+        return [0.0, 1.0, 0.0]
+    if swing_2 is not None and swing_2 > 0.0 and swing_1 == 0.0:
+        return [0.0, 0.0, 1.0]
+    return None
+
+
+def hinge_limit(swing_1, swing_2, twist):
+    if hinge_axis(swing_1, swing_2, twist) == [0.0, 1.0, 0.0]:
+        return swing_1
+    if hinge_axis(swing_1, swing_2, twist) == [0.0, 0.0, 1.0]:
+        return swing_2
+    return None
+
+
+def native_swing_limit(swing_1, swing_2):
+    if swing_1 is None or swing_2 is None:
+        return None
+    if not math.isclose(swing_1, swing_2, abs_tol=1e-3):
+        return None
+    return [-swing_1, swing_1]
+
+
 def build_profile(source):
     source_map = source_props(source)
     physics = source["physics_asset"]
+    cvars = physics["constraint_console_variables"]
+    limit_stiffness_scale = float(cvars["p.Chaos.JointConstraint.SoftAngularStiffnessScale"])
+    limit_damping_scale = float(cvars["p.Chaos.JointConstraint.SoftAngularDampingScale"])
+    drive_stiffness_scale = float(cvars["p.Chaos.JointConstraint.AngularDriveStiffnessScale"])
+    drive_damping_scale = float(cvars["p.Chaos.JointConstraint.AngularDriveDampingScale"])
     bodies = []
     for body in sorted(physics["bodies"], key=lambda item: item["index"]):
+        if body["shape_count"] != len(body["shapes"]):
+            raise ValueError(f"unsupported source collision geometry: {body['bone_name']}")
         bone = body["bone_name"]
         original = source_map[("body", bone)]
         shapes = []
@@ -455,6 +572,7 @@ def build_profile(source):
                 "angular_damping": numeric(body["default_instance_properties"], "AngularDamping"),
                 "max_angular_speed_radians_per_second": math.radians(numeric(body["default_instance_properties"], "MaxAngularVelocity")),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
+                "material": target_material(body["physical_material_properties"]),
             },
             "shapes": shapes,
         })
@@ -462,15 +580,12 @@ def build_profile(source):
     for constraint in sorted(physics["constraints"], key=lambda item: item["index"]):
         name = constraint["joint_name"]
         profile = parsed_profile(constraint["instance_properties"])
-        swing = [
-            value
-            for value in [
-                mode_limit(profile["swing_1_motion"], profile["swing_1_limit_degrees"]),
-                mode_limit(profile["swing_2_motion"], profile["swing_2_limit_degrees"]),
-            ]
-            if value is not None
-        ]
+        swing_1 = mode_limit(profile["swing_1_motion"], profile["swing_1_limit_degrees"])
+        swing_2 = mode_limit(profile["swing_2_motion"], profile["swing_2_limit_degrees"])
         twist = mode_limit(profile["twist_motion"], profile["twist_limit_degrees"])
+        variant = target_joint_variant(swing_1, swing_2, twist)
+        axis = hinge_axis(swing_1, swing_2, twist)
+        limit = hinge_limit(swing_1, swing_2, twist)
         frame_1_position = [constraint["position_1"][key] for key in ["x", "y", "z"]]
         frame_2_position = [constraint["position_2"][key] for key in ["x", "y", "z"]]
         primary_1 = [constraint["primary_axis_1"][key] for key in ["x", "y", "z"]]
@@ -493,37 +608,67 @@ def build_profile(source):
             "target": {
                 "frame_1": {"translation_m": ue_point(frame_1_position), "rotation_xyzw": ue_frame(primary_1, secondary_1)},
                 "frame_2": {"translation_m": ue_point(frame_2_position), "rotation_xyzw": ue_frame(primary_2, secondary_2)},
-                "angular_rotation_offset_xyzw": ue_rotator(angular_offset),
                 "twist_axis": [1.0, 0.0, 0.0],
-                "swing_limit_radians": None if not swing else [-max(swing), max(swing)],
+                "swing_1_limit_radians": swing_1,
+                "swing_2_limit_radians": swing_2,
+                "swing_limit_radians": native_swing_limit(swing_1, swing_2),
                 "twist_limit_radians": None if twist is None else [-twist, twist],
-                "point_compliance": 0.0,
-                "swing_compliance": 0.0 if not profile["cone_soft"] or profile["cone_stiffness"] <= 0.0 else 1.0 / profile["cone_stiffness"],
-                "twist_compliance": 0.0 if not profile["twist_soft"] or profile["twist_stiffness"] <= 0.0 else 1.0 / profile["twist_stiffness"],
-                "calibrate_frame_2_to_initial_pose": True,
+                "angular_limits": [target_angular_limit(profile[key], value) for key, value in (
+                    ("twist_motion", twist), ("swing_1_motion", swing_1), ("swing_2_motion", swing_2),
+                )],
+                "joint_variant": variant,
+                "hinge_axis": axis,
+                "hinge_limit_radians": None if limit is None else [-limit, limit],
+                "swing_spring": target_spring(profile["cone_stiffness"], profile["cone_damping"], True, limit_stiffness_scale, limit_damping_scale) if profile["cone_soft"] else None,
+                "twist_spring": target_spring(profile["twist_stiffness"], profile["twist_damping"], True, limit_stiffness_scale, limit_damping_scale) if profile["twist_soft"] else None,
+                "drive_mode": profile["angular_drive_mode"],
+                "drive_target_xyzw": ue_rotator(profile["angular_drive_target_ue"]),
+                "drives": [
+                    {
+                        **target_spring(profile["angular_drives"][name]["stiffness"], profile["angular_drives"][name]["damping"], profile["angular_drive_acceleration_mode"], drive_stiffness_scale, drive_damping_scale),
+                        "position_enabled": profile["angular_drives"][name]["position_enabled"],
+                        "velocity_enabled": profile["angular_drives"][name]["velocity_enabled"],
+                    } for name in ("TwistDrive", "SwingDrive", "SwingDrive")
+                ],
+                "angular_drive_stiffness_scale": drive_stiffness_scale * (1.0 if profile["angular_drive_acceleration_mode"] else CM_TO_M ** 2),
+                "angular_drive_damping_scale": drive_damping_scale * (1.0 if profile["angular_drive_acceleration_mode"] else CM_TO_M ** 2),
+                "mass_conditioning": profile["mass_conditioning_enabled"],
+                "projection_linear_alpha": profile["projection_linear_alpha"] if profile["projection_enabled"] else 0.0,
+                "projection_linear_tolerance_m": profile["projection_linear_tolerance_cm"] * CM_TO_M if profile["projection_enabled"] else 0.0,
+                "projection_angular_alpha": profile["projection_angular_alpha"] if profile["projection_enabled"] else 0.0,
                 "linear_locked": linear_locked,
-                "enabled": linear_locked or bool(swing) or twist is not None or profile["angular_drive_enabled"],
+                "enabled": linear_locked or swing_1 is not None or swing_2 is not None or twist is not None or profile["angular_drive_enabled"],
             },
         })
     return {
-        "format": "pa_als_physics_v1",
+        "format": "physics_asset_runtime_v1",
         "source_asset_path": source["asset_path"],
         "source_units_per_meter": 100.0,
         "target_axis_mapping": ["x", "z", "y"],
         "solver_settings": props(physics["solver_settings_properties"]),
+        "target_solver": {
+            "position_iterations": int(props(physics["solver_settings_properties"])["PositionIterations"]),
+            "projection_iterations": int(props(physics["solver_settings_properties"])["ProjectionIterations"]),
+            "min_parent_mass_ratio": float(cvars["p.Chaos.Solver.Joint.MinParentMassRatio"]),
+            "max_inertia_ratio": float(cvars["p.Chaos.Solver.Joint.MaxInertiaRatio"]),
+            "angle_tolerance_radians": float(cvars["p.Chaos.Solver.Joint.AngleTolerance"]),
+            "position_tolerance_m": float(cvars["p.Chaos.Solver.Joint.PositionTolerance"]) * CM_TO_M,
+            "projection_velocity_alpha": float(cvars["p.Chaos.Joint.VelProjectionAlpha"]),
+        },
         "bodies": bodies,
         "constraints": constraints,
-        "collision_disabled_pairs": [[pair["body_index_1"], pair["body_index_2"]] for pair in sorted(physics["collision_disabled_pairs"], key=lambda pair: (pair["body_index_1"], pair["body_index_2"]))],
+        "collision_disabled_pairs": collision_disabled_pairs(physics),
     }
 
 
-def write_ragdoll(profile, rest):
-    ids = {body["bone_name"]: stable_id("body", body["bone_name"]) for body in profile["bodies"]}
+def write_ragdoll(profile, rest, output):
+    source_asset = profile["source_asset_path"]
+    ids = {body["bone_name"]: stable_id(source_asset, "body", body["bone_name"]) for body in profile["bodies"]}
     collider_ids = {}
     for body in profile["bodies"]:
         for shape in body["shapes"]:
             key = f"{body['bone_name']}/{shape['source_shape_index']}"
-            collider_ids[key] = stable_id("collider", key)
+            collider_ids[key] = stable_id(source_asset, "collider", key)
     lines = ["(", "    bodies: {"]
     for body in profile["bodies"]:
         bone = body["bone_name"]
@@ -565,24 +710,36 @@ def write_ragdoll(profile, rest):
         twist_text = "None" if twist is None else f"Some((min: {text_number(twist[0])}, max: {text_number(twist[1])}))"
         body_1 = constraint["constraint_bone_1"]
         body_2 = constraint["constraint_bone_2"]
-        joint = stable_id("joint", constraint["joint_name"])
+        joint = stable_id(source_asset, "joint", constraint["joint_name"])
         lines.extend([
             "        (", f'            uuid: "{joint}",', "        ): (", "            id: (", f'                uuid: "{joint}",', "            ),",
-            f'            label: "{constraint["joint_name"]}",', "            use_symmetry: false,", "            created_from: None,", "            variant: Spherical((",
-            "                body1: (", f'                    uuid: "{ids[body_1]}",', "                ),", "                body2: (", f'                    uuid: "{ids[body_2]}",', "                ),",
-            f"                position: {text_vec(translation(rest, body_1))},", f"                twist_axis: {text_vec(target['twist_axis'])},", f"                swing_limit: {swing_text},", f"                twist_limit: {twist_text},",
-            f"                point_compliance: {text_number(target['point_compliance'])},", f"                swing_compliance: {text_number(target['swing_compliance'])},", f"                twist_compliance: {text_number(target['twist_compliance'])},", "            )),", "        ),",
+            f'            label: "{constraint["joint_name"]}",', "            use_symmetry: false,", "            created_from: None,",
         ])
+        if target["joint_variant"] == "Revolute":
+            hinge = target["hinge_limit_radians"]
+            hinge_text = f"Some((min: {text_number(hinge[0])}, max: {text_number(hinge[1])}))"
+            lines.extend([
+                "            variant: Revolute((",
+                "                body1: (", f'                    uuid: "{ids[body_1]}",', "                ),", "                body2: (", f'                    uuid: "{ids[body_2]}",', "                ),",
+                f"                position: {text_vec(translation(rest, body_1))},", f"                hinge_axis: {text_vec(target['hinge_axis'])},", f"                angle_limit: {hinge_text},",
+                "                point_compliance: 0,", "                align_compliance: 0,", "                limit_compliance: 0,", "            )),",
+            ])
+        else:
+            lines.extend([
+                "            variant: Spherical((",
+                "                body1: (", f'                    uuid: "{ids[body_1]}",', "                ),", "                body2: (", f'                    uuid: "{ids[body_2]}",', "                ),",
+                f"                position: {text_vec(translation(rest, body_1))},", f"                twist_axis: {text_vec(target['twist_axis'])},", f"                swing_limit: {swing_text},", f"                twist_limit: {twist_text},",
+                "                point_compliance: 0,", "                swing_compliance: 0,", "                twist_compliance: 0,", "            )),",
+            ])
+        lines.append("        ),")
     total_mass = sum(body["calculated_mass_kg"] for body in profile["bodies"])
     lines.extend(["    },", "    suffixes: (", '        original: ".R",', '        mirror: ".L",', "    ),", f"    total_mass: {text_number(total_mass)},", ")", ""])
-    RAGDOLL.write_text("\n".join(lines), encoding="utf-8")
+    output.write_text("\n".join(lines), encoding="utf-8")
     return ids
 
 
-def write_bone_map(profile, document, rest, names, parents, ids):
+def write_bone_map(profile, document, rest, names, parents, ids, output, skeleton_asset, ragdoll_asset):
     mapping = {body["bone_name"]: body["bone_name"] for body in profile["bodies"]}
-    mapping["ball_l"] = "foot_l"
-    mapping["ball_r"] = "foot_r"
     lines = ["(", "    bones_from_bodies: {"]
     for bone, body in sorted(mapping.items()):
         bone_path = path(document, names, parents, bone)
@@ -599,36 +756,138 @@ def write_bone_map(profile, document, rest, names, parents, ids):
         lines.extend([
             "        (", f'            uuid: "{ids[bone]}",', "        ): (", "            body_id: (", f'                uuid: "{ids[bone]}",', "            ),", "            bone: (", "                bone: [", f"                    {path_text(bone_path)},", "                ],", "                offset: (", "                    rotation: (0.0, 0.0, 0.0, 1.0),", "                    translation: (0.0, 0.0, 0.0),", "                ),", "                override_offset: false,", "            ),", "            created_from: None,", "        ),",
         ])
-    lines.extend(["    },", '    skeleton: "skeletons/SKM_Als.skn.ron",', '    ragdoll: "ragdolls/als_manny.rag.ron",', "    skeleton_symmetry: (", "        name_mapper: Pattern((", '            key_1: "_l",', '            key_2: "_r",', '            pattern_before: "^.*",', '            pattern_after: "$",', "        )),", "        mode: MirrorX,", "    ),", ")", ""])
-    BONE_MAP.write_text("\n".join(lines), encoding="utf-8")
+    lines.extend(["    },", f'    skeleton: {json.dumps(skeleton_asset)},', f'    ragdoll: {json.dumps(ragdoll_asset)},', "    skeleton_symmetry: (", "        name_mapper: Pattern((", '            key_1: "_l",', '            key_2: "_r",', '            pattern_before: "^.*",', '            pattern_after: "$",', "        )),", "        mode: MirrorX,", "    ),", ")", ""])
+    output.write_text("\n".join(lines), encoding="utf-8")
+
+
+def validate_native_reference(mesh, rest, body_names):
+    native = mesh.get("skeletal_mesh")
+    if not native:
+        raise ValueError("native reader lacks the SkeletalMesh reference skeleton")
+    bones = {bone["name"]: bone for bone in native["bones"]}
+    for name in body_names:
+        source = bones[name]["component_transform"]
+        assert_close([source["scale"][key] for key in "xyz"], [1.0, 1.0, 1.0])
+        assert_close(ue_point([source["translation"][key] for key in "xyz"]), translation(rest, name), 2e-5)
+        rotation = ue_quat_to_bevy([source["rotation"][key] for key in "xyzw"])
+        if abs(sum(left * right for left, right in zip(rotation, matrix_quat(rest[name])))) < 1.0 - 1e-5:
+            raise ValueError(f"runtime skeleton reference rotation differs from source: {name}")
+
+
+def generate(source, mesh, gltf, asset_root, skeleton_path, ragdoll_path, bone_map_path, profile_path):
+    if source.get("asset_class") != "/Script/Engine.PhysicsAsset" or "physics_asset" not in source:
+        raise ValueError("source input is not a PhysicsAsset")
+    profile = build_profile(source)
+    document, rest, names, parents = load_skeleton(gltf)
+    missing = [body["bone_name"] for body in profile["bodies"] if body["bone_name"] not in rest]
+    if missing:
+        raise ValueError(f"missing skeleton bones: {missing}")
+    validate_native_reference(mesh, rest, [body["bone_name"] for body in profile["bodies"]])
+    verify_constraint_rest_frames(profile, rest)
+    skeleton_asset = skeleton_path.resolve().relative_to(asset_root.resolve()).as_posix()
+    ragdoll_asset = ragdoll_path.resolve().relative_to(asset_root.resolve()).as_posix()
+    for body in profile["bodies"]:
+        if any(shape["kind"] not in {"sphere", "box", "capsule"} for shape in body["shapes"]):
+            raise ValueError(f"unsupported shape on body: {body['bone_name']}")
+        if re.search(r"(?:ConvexElems|TaperedCapsuleElems|LevelSetElems|SkinnedLevelSetElems)=\(", body["source_properties"].get("AggGeom", "")):
+            raise ValueError(f"unsupported aggregate geometry on body: {body['bone_name']}")
+        for shape in body["shapes"]:
+            values = props(shape["properties"])
+            if float(values["RestOffset"]) != 0.0 or values["bContributeToMass"] != "True":
+                raise ValueError(f"unsupported primitive mass or rest offset: {body['bone_name']}")
+    for joint in profile["constraints"]:
+        fields = joint["source_profile"]
+        linear = {fields[key] for key in ("linear_x_motion", "linear_y_motion", "linear_z_motion")}
+        if linear not in ({"LCM_Locked"}, {"LCM_Free"}):
+            raise ValueError(f"unsupported linear constraint modes: {joint['joint_name']}")
+        pair = (fields["swing_1_motion"], fields["swing_2_motion"])
+        if joint["target"]["joint_variant"] != "Revolute" and pair not in {
+            ("ACM_Free", "ACM_Free"), ("ACM_Locked", "ACM_Locked"),
+            ("ACM_Limited", "ACM_Limited"), ("ACM_Limited", "ACM_Locked"),
+        }:
+            raise ValueError(f"unsupported independent swing modes: {joint['joint_name']}")
+        for feature in ("linear_breakable", "angular_breakable", "linear_plasticity", "angular_plasticity", "parent_dominates", "shock_propagation_enabled"):
+            if fields[feature]:
+                raise ValueError(f"unsupported active constraint feature: {joint['joint_name']}:{feature}")
+        active_drive = any(drive["position_enabled"] or drive["velocity_enabled"] for drive in fields["angular_drives"].values())
+        if active_drive and (fields["angular_drive_mode"] != "TwistAndSwing" or any(fields["angular_velocity_target"])):
+            raise ValueError(f"unsupported angular drive mode or velocity target: {joint['joint_name']}")
+        if fields["projection_enabled"] and fields["projection_angular_alpha"] != 0.0:
+            raise ValueError(f"unsupported angular projection: {joint['joint_name']}")
+        if any(drive["max_force"] != 0.0 for drive in fields["angular_drives"].values()):
+            raise ValueError(f"unsupported capped angular drive: {joint['joint_name']}")
+    with tempfile.TemporaryDirectory() as temporary:
+        staged = Path(temporary)
+        ids = write_ragdoll(profile, rest, staged / "ragdoll.ron")
+        write_bone_map(profile, document, rest, names, parents, ids, staged / "map.ron", skeleton_asset, ragdoll_asset)
+        (staged / "profile.json").write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        for name, destination in (("ragdoll.ron", ragdoll_path), ("map.ron", bone_map_path), ("profile.json", profile_path)):
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((staged / name).read_bytes())
+    return {
+        "source_asset": source["asset_path"],
+        "source_mesh": mesh["asset_path"],
+        "bodies": len(profile["bodies"]),
+        "colliders": sum(len(body["shapes"]) for body in profile["bodies"]),
+        "constraints": len(profile["constraints"]),
+        "collision_disabled_pairs": len(profile["collision_disabled_pairs"]),
+        "outputs": [path.resolve().relative_to(asset_root.resolve()).as_posix() for path in (ragdoll_path, bone_map_path, profile_path)],
+    }
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--uasset", type=Path)
+    parser.add_argument("--content-root", type=Path)
+    parser.add_argument("--mount", default="/ALS")
+    parser.add_argument("--asset-root", type=Path, default=ROOT / "assets")
+    parser.add_argument("--skeleton", type=Path)
+    parser.add_argument("--ragdoll-output", type=Path)
+    parser.add_argument("--bone-map-output", type=Path)
+    parser.add_argument("--profile-output", type=Path)
+    parser.add_argument("--report", type=Path, default=ROOT / "target" / "physics_asset_conversion.report.json")
+    parser.add_argument("--source-reader", type=Path, default=ROOT / "tools" / "run_ue_source_reader.ps1")
+    parser.add_argument("--self-test", action="store_true")
+    args = parser.parse_args()
     self_test()
-    if "--self-test" in sys.argv:
-        print("transform conversion self-test PASS")
+    if args.self_test:
+        print("PhysicsAsset conversion self-test PASS")
         return
-    if not SOURCE.exists():
-        raise SystemExit(f"missing source export: {SOURCE}")
-    source = json.loads(SOURCE.read_text(encoding="utf-8"))
-    if source.get("format") != "ue_asset_source_v1" or "physics_asset" not in source:
-        raise SystemExit("source export does not contain a PhysicsAsset")
-    profile = build_profile(source)
-    document, rest, names, parents = load_skeleton()
-    missing = [body["bone_name"] for body in profile["bodies"] if body["bone_name"] not in rest]
-    if missing:
-        raise SystemExit(f"missing skeleton bones: {missing}")
-    PROFILE.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    verify_constraint_rest_frames(profile, rest)
-    ids = write_ragdoll(profile, rest)
-    write_bone_map(profile, document, rest, names, parents, ids)
-    print(
-        "generated "
-        f"bodies={len(profile['bodies'])} "
-        f"colliders={sum(len(body['shapes']) for body in profile['bodies'])} "
-        f"constraints={len(profile['constraints'])} "
-        f"collision_disabled_pairs={len(profile['collision_disabled_pairs'])}"
-    )
+    report = {"format": "physics_asset_conversion_report_v1", "success": False}
+    try:
+        if args.uasset is None:
+            raise ValueError("uasset input is required")
+        sys.path.insert(0, str(ROOT / "tools" / "animgraph_authoring"))
+        from ue_animgraph_converter import content_root_for_uasset, read_uasset_source
+        content_root = content_root_for_uasset(args.uasset, args.content_root)
+        print(json.dumps({"progress": "read_physics_asset", "asset": args.uasset.name}), flush=True)
+        source, _ = read_uasset_source(args.uasset, content_root, args.mount, args.source_reader, 300, 150)
+        preview = props(source["asset_properties"]).get("PreviewSkeletalMesh", "")
+        prefix = args.mount.rstrip("/") + "/"
+        if not preview.startswith(prefix):
+            raise ValueError("PhysicsAsset preview mesh is missing or belongs to another mount")
+        mesh_uasset = content_root / (preview.split(".")[0][len(prefix):] + ".uasset")
+        print(json.dumps({"progress": "read_skeletal_mesh", "asset": mesh_uasset.name}), flush=True)
+        mesh, _ = read_uasset_source(mesh_uasset, content_root, args.mount, args.source_reader, 300, 150)
+        skeleton = args.skeleton or args.asset_root / "skeletons" / (mesh_uasset.stem + ".skn.ron")
+        match = re.search(r'source:\s*"([^"]+\.gltf)"', skeleton.read_text(encoding="utf-8"))
+        if not match:
+            raise ValueError("runtime skeleton does not reference a supported glTF source")
+        name = args.uasset.stem
+        report.update(generate(
+            source, mesh, args.asset_root / match.group(1), args.asset_root, skeleton,
+            args.ragdoll_output or args.asset_root / "ragdolls" / (name + ".rag.ron"),
+            args.bone_map_output or args.asset_root / "ragdoll_bone_maps" / (name + ".bm.ron"),
+            args.profile_output or args.asset_root / "ragdolls" / (name + ".physics.json"),
+        ))
+        report["success"] = True
+    except (ValueError, KeyError, OSError, AssertionError, RuntimeError, StopIteration) as error:
+        report["error"] = str(error)
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report))
+    if not report["success"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

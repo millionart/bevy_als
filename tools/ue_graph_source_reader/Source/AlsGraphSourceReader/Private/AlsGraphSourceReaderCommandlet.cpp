@@ -12,7 +12,9 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Serialization/JsonSerializer.h"
@@ -93,6 +95,10 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             Entry->SetStringField(TEXT("cpp_type"), Property->GetCPPType());
             Entry->SetStringField(TEXT("flags"), FString::Printf(TEXT("0x%llX"), Property->GetPropertyFlags()));
             Entry->SetStringField(TEXT("exported_text"), ExportedText);
+            if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+            {
+                Entry->SetArrayField(TEXT("fields"), CaptureProperties(StructProperty->Struct, Value, Parent));
+            }
             Values.Add(MakeShared<FJsonValueObject>(Entry));
         }
     }
@@ -228,6 +234,12 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
     Value->SetNumberField(TEXT("physics_type"), static_cast<int32>(Body->PhysicsType.GetValue()));
     Value->SetNumberField(TEXT("collision_response"), static_cast<int32>(Body->CollisionReponse.GetValue()));
     Value->SetNumberField(TEXT("calculated_mass"), Body->CalculateMass());
+    Value->SetNumberField(TEXT("shape_count"), Body->AggGeom.GetElementCount());
+    if (UPhysicalMaterial* Material = Body->GetPhysMaterial())
+    {
+        Value->SetStringField(TEXT("physical_material_path"), ObjectPath(Material));
+        Value->SetArrayField(TEXT("physical_material_properties"), CaptureProperties(Material->GetClass(), Material, Material));
+    }
     Value->SetArrayField(
         TEXT("default_instance_properties"),
         CaptureProperties(FBodyInstance::StaticStruct(), &Body->DefaultInstance, const_cast<USkeletalBodySetup*>(Body))
@@ -242,6 +254,7 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
         ShapeValue->SetStringField(TEXT("kind"), TEXT("sphere"));
         ShapeValue->SetObjectField(TEXT("center"), CaptureVector(Shape.Center));
         ShapeValue->SetNumberField(TEXT("radius"), Shape.Radius);
+        ShapeValue->SetArrayField(TEXT("properties"), CaptureProperties(FKSphereElem::StaticStruct(), &Shape, const_cast<USkeletalBodySetup*>(Body)));
         Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
     }
     for (int32 ShapeIndex = 0; ShapeIndex < Body->AggGeom.BoxElems.Num(); ++ShapeIndex)
@@ -255,6 +268,7 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
         ShapeValue->SetNumberField(TEXT("x"), Shape.X);
         ShapeValue->SetNumberField(TEXT("y"), Shape.Y);
         ShapeValue->SetNumberField(TEXT("z"), Shape.Z);
+        ShapeValue->SetArrayField(TEXT("properties"), CaptureProperties(FKBoxElem::StaticStruct(), &Shape, const_cast<USkeletalBodySetup*>(Body)));
         Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
     }
     for (int32 ShapeIndex = 0; ShapeIndex < Body->AggGeom.SphylElems.Num(); ++ShapeIndex)
@@ -267,6 +281,7 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
         ShapeValue->SetObjectField(TEXT("rotation"), CaptureRotator(Shape.Rotation));
         ShapeValue->SetNumberField(TEXT("radius"), Shape.Radius);
         ShapeValue->SetNumberField(TEXT("length"), Shape.Length);
+        ShapeValue->SetArrayField(TEXT("properties"), CaptureProperties(FKSphylElem::StaticStruct(), &Shape, const_cast<USkeletalBodySetup*>(Body)));
         Shapes.Add(MakeShared<FJsonValueObject>(ShapeValue));
     }
     Value->SetArrayField(TEXT("shapes"), Shapes);
@@ -298,6 +313,19 @@ TSharedRef<FJsonObject> CapturePhysicsConstraint(const UPhysicsConstraintTemplat
 TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    TSharedRef<FJsonObject> ConsoleVariables = MakeShared<FJsonObject>();
+    const FConsoleObjectVisitor Visitor = FConsoleObjectVisitor::CreateLambda([&ConsoleVariables](const TCHAR* Name, IConsoleObject* Object)
+    {
+        if (IConsoleVariable* Variable = Object->AsVariable())
+        {
+            ConsoleVariables->SetStringField(Name, Variable->GetString());
+        }
+    });
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint.")})
+    {
+        IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
+    }
+    Value->SetObjectField(TEXT("constraint_console_variables"), ConsoleVariables);
     Value->SetArrayField(
         TEXT("solver_settings_properties"),
         CaptureProperties(FPhysicsAssetSolverSettings::StaticStruct(), &Asset->SolverSettings, const_cast<UPhysicsAsset*>(Asset))
@@ -329,7 +357,8 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
         TSharedRef<FJsonObject> PairValue = MakeShared<FJsonObject>();
         PairValue->SetNumberField(TEXT("body_index_1"), Pair.Key.Indices[0]);
         PairValue->SetNumberField(TEXT("body_index_2"), Pair.Key.Indices[1]);
-        PairValue->SetBoolField(TEXT("disabled"), Pair.Value);
+        PairValue->SetBoolField(TEXT("stored_value"), Pair.Value);
+        PairValue->SetBoolField(TEXT("disabled"), !Asset->IsCollisionEnabled(Pair.Key.Indices[0], Pair.Key.Indices[1]));
         CollisionDisabledPairs.Add(MakeShared<FJsonValueObject>(PairValue));
     }
     Value->SetArrayField(TEXT("collision_disabled_pairs"), CollisionDisabledPairs);
@@ -445,6 +474,7 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     Root->SetArrayField(TEXT("asset_properties"), CaptureProperties(Asset->GetClass(), Asset, Asset));
     Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
     Root->SetArrayField(TEXT("blueprint_cdo_properties"), {});
+    TArray<TSharedPtr<FJsonValue>> DefaultSubobjectValues;
     if (Blueprint != nullptr && Blueprint->GeneratedClass != nullptr)
     {
         UObject* DefaultObject = Blueprint->GeneratedClass->GetDefaultObject();
@@ -455,8 +485,19 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
                 TEXT("blueprint_cdo_properties"),
                 CaptureProperties(DefaultObject->GetClass(), DefaultObject, DefaultObject)
             );
+            TArray<UObject*> DefaultSubobjects;
+            GetObjectsWithOuter(DefaultObject, DefaultSubobjects, EGetObjectsFlags::IncludeNestedObjects);
+            DefaultSubobjects.Sort([](const UObject& Left, const UObject& Right)
+            {
+                return Left.GetPathName() < Right.GetPathName();
+            });
+            for (int32 ObjectIndex = 0; ObjectIndex < DefaultSubobjects.Num(); ++ObjectIndex)
+            {
+                DefaultSubobjectValues.Add(MakeShared<FJsonValueObject>(CaptureObject(DefaultSubobjects[ObjectIndex], ObjectIndex)));
+            }
         }
     }
+    Root->SetArrayField(TEXT("blueprint_cdo_subobjects"), DefaultSubobjectValues);
 
     TArray<TSharedPtr<FJsonValue>> AssetObjectValues;
     for (int32 ObjectIndex = 0; ObjectIndex < AssetObjects.Num(); ++ObjectIndex)

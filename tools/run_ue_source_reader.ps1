@@ -1,12 +1,13 @@
 param(
     [string]$Asset,
     [string]$Output,
-    [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\HostProject\Plugins\AlsGraphSourceReader\AlsGraphSourceReader.uplugin"),
+    [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\AlsGraphSourceReader.uplugin"),
     [ValidateRange(1, 3600)]
     [int]$TimeoutSeconds = 300,
     [ValidateRange(1, 3600)]
     [int]$NoProgressSeconds = 150,
-    [switch]$SelfTest
+    [switch]$SelfTest,
+    [switch]$FunctionsOnly
 )
 
 function ConvertTo-WindowsArgument {
@@ -55,7 +56,7 @@ function Invoke-ProcessWithWatchdog {
     $lastProgressSource = "process_started"
     $argumentText = ($ArgumentList | ForEach-Object { ConvertTo-WindowsArgument $_ }) -join " "
     try {
-        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -PassThru -NoNewWindow -RedirectStandardOutput $StdoutPath -RedirectStandardError $stderrPath
+        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -PassThru -WindowStyle Hidden -RedirectStandardOutput $StdoutPath -RedirectStandardError $stderrPath
     }
     catch {
         $report = [ordered]@{
@@ -86,12 +87,12 @@ function Invoke-ProcessWithWatchdog {
         }
         if (($now - $startedAt).TotalSeconds -ge $TimeoutSeconds) {
             $exitReason = "wall_timeout"
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
             break
         }
         if (($now - $lastProgressAt).TotalSeconds -ge $NoProgressSeconds) {
             $exitReason = "no_progress_timeout"
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
             break
         }
         $process.Refresh()
@@ -130,10 +131,35 @@ function Invoke-WatchdogSelfTest {
     $temporaryBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
     New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
     try {
+        $sourceRoot = Join-Path $temporaryRoot "source"
+        $builtRoot = Join-Path $temporaryRoot "built"
+        New-Item -ItemType Directory -Path (Join-Path $sourceRoot "Source"), (Join-Path $builtRoot "Binaries/Win64") | Out-Null
+        $sourceFile = Join-Path $sourceRoot "Source/Reader.cpp"
+        $sourcePlugin = Join-Path $sourceRoot "AlsGraphSourceReader.uplugin"
+        $builtPlugin = Join-Path $builtRoot "AlsGraphSourceReader.uplugin"
+        $builtDll = Join-Path $builtRoot "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll"
+        Set-Content -LiteralPath $sourceFile -Value "source"
+        Set-Content -LiteralPath $sourcePlugin -Value "descriptor"
+        if (-not (Test-ReaderBuildRequired $sourceRoot $builtPlugin)) { throw "missing reader build was accepted" }
+        Set-Content -LiteralPath $builtPlugin -Value "descriptor"
+        Set-Content -LiteralPath $builtDll -Value "binary"
+        (Get-Item -LiteralPath $builtDll).LastWriteTimeUtc = [DateTime]::UtcNow.AddSeconds(10)
+        if (Test-ReaderBuildRequired $sourceRoot $builtPlugin) { throw "current reader build was rejected" }
+        (Get-Item -LiteralPath $sourceFile).LastWriteTimeUtc = [DateTime]::UtcNow.AddSeconds(20)
+        if (-not (Test-ReaderBuildRequired $sourceRoot $builtPlugin)) { throw "stale reader build was accepted" }
         $shell = (Get-Command pwsh -ErrorAction Stop).Source
-        $stalled = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList @("-NoProfile", "-Command", "Start-Sleep -Seconds 3") -ReportPath (Join-Path $temporaryRoot "stalled.report.json") -StdoutPath (Join-Path $temporaryRoot "stalled.stdout.log") -StderrPath (Join-Path $temporaryRoot "stalled.stderr.log") -ProgressPaths @((Join-Path $temporaryRoot "stalled.stdout.log"), (Join-Path $temporaryRoot "stalled.stderr.log")) -TimeoutSeconds 4 -NoProgressSeconds 1
+        $stalledCommand = '$child = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @("-NoProfile", "-Command", "Start-Sleep -Seconds 10") -WindowStyle Hidden -PassThru; $child.Id; Start-Sleep -Seconds 10'
+        $stalledScript = Join-Path $temporaryRoot "stalled.ps1"
+        [IO.File]::WriteAllText($stalledScript, $stalledCommand, [Text.UTF8Encoding]::new($false))
+        $stalled = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList @("-NoProfile", "-File", $stalledScript) -ReportPath (Join-Path $temporaryRoot "stalled.report.json") -StdoutPath (Join-Path $temporaryRoot "stalled.stdout.log") -StderrPath (Join-Path $temporaryRoot "stalled.stderr.log") -ProgressPaths @((Join-Path $temporaryRoot "stalled.stdout.log"), (Join-Path $temporaryRoot "stalled.stderr.log")) -TimeoutSeconds 4 -NoProgressSeconds 1
         if ($stalled.exit_reason -ne "no_progress_timeout" -or $stalled.success) {
             throw "watchdog did not terminate a stalled process"
+        }
+        $childProcessId = [int](Get-Content -LiteralPath (Join-Path $temporaryRoot "stalled.stdout.log") | Where-Object { $_ -match '^\d+$' } | Select-Object -Last 1)
+        if ($childProcessId -le 0) { throw "watchdog child fixture did not start" }
+        if (Get-Process -Id $childProcessId -ErrorAction SilentlyContinue) {
+            Stop-Process -Id $childProcessId -Force
+            throw "watchdog left its child process running"
         }
         $completed = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList @("-NoProfile", "-Command", "Write-Output progress") -ReportPath (Join-Path $temporaryRoot "completed.report.json") -StdoutPath (Join-Path $temporaryRoot "completed.stdout.log") -StderrPath (Join-Path $temporaryRoot "completed.stderr.log") -ProgressPaths @((Join-Path $temporaryRoot "completed.stdout.log"), (Join-Path $temporaryRoot "completed.stderr.log")) -TimeoutSeconds 4 -NoProgressSeconds 1
         if ($completed.exit_reason -ne "completed" -or -not $completed.success) {
@@ -141,8 +167,10 @@ function Invoke-WatchdogSelfTest {
         }
         [ordered]@{
             stalled_process_terminated = "PASS"
+            stalled_child_process_terminated = "PASS"
             completed_process_preserved = "PASS"
             machine_readable_report_written = "PASS"
+            missing_stale_and_current_reader_build = "PASS"
         } | ConvertTo-Json -Compress
     }
     finally {
@@ -154,6 +182,21 @@ function Invoke-WatchdogSelfTest {
             Remove-Item -LiteralPath $resolvedRoot -Recurse -Force
         }
     }
+}
+
+function Test-ReaderBuildRequired {
+    param([string]$SourceRoot, [string]$BuiltPlugin)
+
+    $dll = Join-Path (Split-Path -Parent $BuiltPlugin) "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll"
+    if (-not (Test-Path -LiteralPath $BuiltPlugin) -or -not (Test-Path -LiteralPath $dll)) { return $true }
+    $binaryTime = (Get-Item -LiteralPath $dll).LastWriteTimeUtc
+    $sources = @(Get-ChildItem -LiteralPath (Join-Path $SourceRoot "Source") -File -Recurse)
+    $sources += Get-Item -LiteralPath (Join-Path $SourceRoot "AlsGraphSourceReader.uplugin")
+    return @($sources | Where-Object { $_.LastWriteTimeUtc -gt $binaryTime }).Count -gt 0
+}
+
+if ($FunctionsOnly) {
+    return
 }
 
 if ($SelfTest) {
@@ -172,6 +215,13 @@ if (-not (Test-Path -LiteralPath $configPath)) {
 
 $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
 $pluginPath = [IO.Path]::GetFullPath($Plugin)
+if (-not $PSBoundParameters.ContainsKey("Plugin") -and (Test-ReaderBuildRequired (Join-Path $PSScriptRoot "ue_graph_source_reader") $pluginPath)) {
+    $buildPrefix = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../target/ue_graph_source_reader_build"))
+    $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $buildPrefix)
+    $build = Invoke-ProcessWithWatchdog -FilePath (Get-Command pwsh).Source -ArgumentList @("-NoProfile", "-File", (Join-Path $PSScriptRoot "build_ue_source_reader.ps1")) -ReportPath ($buildPrefix + ".report.json") -StdoutPath ($buildPrefix + ".stdout.log") -StderrPath ($buildPrefix + ".stderr.log") -ProgressPaths @(($buildPrefix + ".stdout.log"), ($buildPrefix + ".stderr.log")) -TimeoutSeconds 600 -NoProgressSeconds 120
+    if (-not $build.success) { throw ("source reader build failed: " + $build.exit_reason) }
+    if (Test-ReaderBuildRequired (Join-Path $PSScriptRoot "ue_graph_source_reader") $pluginPath) { throw "source reader build did not produce a current binary" }
+}
 $outputPath = [IO.Path]::GetFullPath($Output)
 $outputDirectory = Split-Path -Parent $outputPath
 $reportPath = $outputPath + ".reader.report.json"
