@@ -494,15 +494,11 @@ impl InterruptibleFsmNode {
             })
     }
 
-    fn reset_target_state(
+    fn initialize_state(
         machine: &LowLevelStateMachine,
-        transition: &LowLevelTransition,
+        target: LowLevelStateId,
         ctx: &mut NodeContext,
     ) {
-        if !transition.reset_target_state {
-            return;
-        }
-        let target = LowLevelStateId::HlState(transition.hl_target);
         let Some(target_state) = machine.states.get(&target) else {
             return;
         };
@@ -660,7 +656,7 @@ impl InterruptibleFsmNode {
         let default_state = state.clone();
         *ctx.state_mut_or_else(|| default_state)? = state;
         if let Some(transition) = reset.as_ref() {
-            Self::reset_target_state(machine, transition, ctx);
+            Self::initialize_state(machine, LowLevelStateId::HlState(transition.hl_target), ctx);
         }
         Ok(())
     }
@@ -1181,6 +1177,8 @@ impl NodeLike for InterruptibleFsmNode {
                     .map_err(|error| entry_error("state replacement", error))? =
                     Self::initial_state(LowLevelStateId::HlState(entry), time, frame);
             }
+            let entry = ctx.state::<InterruptibleFsmState>()?.state.clone();
+            Self::initialize_state(machine, entry, &mut ctx);
         }
         let state = ctx
             .state_mut_or_else(|| initial_state.clone())
@@ -1773,8 +1771,9 @@ mod tests {
         condition_graph.add_output_data_edge(condition.id, "left", "left");
         let condition_graph = graphs.add(condition_graph);
 
-        let state_id = StateId::default();
-        let second_state_id = StateId::default();
+        let state_id = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+        let second_state_id =
+            serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
         let transition_id = DirectTransitionId::default();
         let mut state_machine = StateMachine::default();
         state_machine.start_state = state_id;
@@ -1868,6 +1867,213 @@ mod tests {
             .unwrap();
         assert_eq!(first.bones[0].translation, Some(Vec3::X));
         assert_eq!(second.bones[0].translation, Some(Vec3::new(2.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn shared_cache_and_nested_fsm_follow_source_initialization_boundaries() {
+        fn query(In(root): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            [0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 0.0, 1.0, 0.0]
+                .into_iter()
+                .enumerate()
+                .map(|(frame, state)| {
+                    if frame == 8 {
+                        arena = GraphContextArena::new(root.id());
+                    }
+                    let inputs = HashMap::from([
+                        ("delta".to_owned(), DataValue::F32(0.1)),
+                        ("state".to_owned(), DataValue::F32(state)),
+                        ("inner_state".to_owned(), DataValue::F32(0.0)),
+                        ("idle".to_owned(), DataValue::Pose(Pose::default())),
+                    ]);
+                    graph
+                        .query_with_context(
+                            QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                            GraphContext::new(
+                                arena.get_toplevel_id(),
+                                graph,
+                                &mut arena,
+                                &resources,
+                                &env,
+                                Entity::PLACEHOLDER,
+                                &entities,
+                                &mut gizmos,
+                                &inputs,
+                            ),
+                        )
+                        .unwrap()
+                        .remove("Pose")
+                        .unwrap()
+                        .into_pose()
+                        .unwrap()
+                        .timestamp
+                })
+                .collect()
+        }
+        let source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tools/animgraph_authoring/fixtures/ue_cached_pose_lifecycle.json"
+        ))
+        .unwrap();
+        for (nested, reinitialize) in [(false, false), (true, false), (true, true)] {
+            let mut graphs = Assets::<AnimationGraph>::default();
+            let mut clips = Assets::<GraphClip>::default();
+            let clip = clips.add(GraphClip {
+                duration: 2.0,
+                ..default()
+            });
+            let mut machines = Assets::<StateMachine>::default();
+            let states = [1, 2, 3].map(|id| {
+                serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\""))
+                    .unwrap()
+            });
+            let mut machine = StateMachine::default();
+            machine.start_state = states[0];
+            machine
+                .node_spec
+                .add_output_data("Pose".to_owned(), DataSpec::Pose);
+            for (index, label) in ["Move", "Stop", "Idle"].into_iter().enumerate() {
+                let mut graph = AnimationGraph::new();
+                let node = if index == 2 {
+                    AnimationNode::new(
+                        "idle",
+                        GlobalPoseInputNode {
+                            key: "idle".to_owned(),
+                            output: "Pose".to_owned(),
+                        },
+                    )
+                } else {
+                    AnimationNode::new(
+                        "shared movement",
+                        SourceScopedCachedPoseUseNode {
+                            cache_node: "movement".to_owned(),
+                            cache_key: "movement".to_owned(),
+                            ..default()
+                        },
+                    )
+                };
+                graph.add_node(node.clone());
+                graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+                graph.add_output_data_edge(node.id, "Pose", "Pose");
+                machine.add_state(State {
+                    id: states[index],
+                    label: label.to_owned(),
+                    graph: graphs.add(graph),
+                    state_transition: None,
+                });
+            }
+            for (source, target) in [(0, 1), (1, 2), (2, 0)] {
+                machine.add_transition_unchecked(DirectTransition {
+                    id: serde_json::from_str(&format!("\"20000000-0000-4000-8000-{source:012}\""))
+                        .unwrap(),
+                    source: states[source],
+                    target: states[target],
+                    data: TransitionData {
+                        reset_target_state: true,
+                        ..default()
+                    },
+                    ..default()
+                });
+            }
+            machine.update_low_level_fsm();
+            let mut root = AnimationGraph::new();
+            let mut player = AnimationNode::new(
+                "player",
+                crate::SourceSequencePlayerNode {
+                    clip,
+                    start_position: 0.2,
+                    ..default()
+                },
+            );
+            if nested {
+                let mut graph = AnimationGraph::new();
+                graph.add_node(player.clone());
+                graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+                graph.add_output_data_edge(player.id, "Pose", "Pose");
+                let mut inner = StateMachine::default();
+                inner
+                    .node_spec
+                    .add_output_data("Pose".to_owned(), DataSpec::Pose);
+                inner.add_state(State {
+                    label: "Entry".to_owned(),
+                    graph: graphs.add(graph),
+                    ..default()
+                });
+                inner.update_low_level_fsm();
+                player = AnimationNode::new(
+                    "inner fsm",
+                    InterruptibleFsmNode {
+                        fsm: machines.add(inner),
+                        state_label_key: "inner_state".to_owned(),
+                        state_labels: vec!["Entry".to_owned()],
+                        internal_time_key: "delta".to_owned(),
+                        reinitialize_on_becoming_relevant: reinitialize,
+                        expose_telemetry: false,
+                        state_pose_output: "Pose".to_owned(),
+                        outer_pose_output: "Pose".to_owned(),
+                        ..default()
+                    },
+                );
+            }
+            let cache = AnimationNode::new(
+                "movement",
+                SourceCachedPoseSaveNode {
+                    cache_key: "movement".to_owned(),
+                },
+            );
+            let machine = AnimationNode::new(
+                "state machine",
+                InterruptibleFsmNode {
+                    fsm: machines.add(machine),
+                    state_label_key: "state".to_owned(),
+                    state_labels: ["Move", "Stop", "Idle"].map(str::to_owned).to_vec(),
+                    internal_time_key: "delta".to_owned(),
+                    expose_telemetry: false,
+                    state_pose_output: "Pose".to_owned(),
+                    outer_pose_output: "Pose".to_owned(),
+                    ..default()
+                },
+            );
+            let scope = AnimationNode::new(
+                "sync scope",
+                SourcePosePassthroughNode {
+                    synchronize_groups: true,
+                    output_time: false,
+                    ..default()
+                },
+            );
+            for node in [&player, &cache, &machine, &scope] {
+                root.add_node(node.clone());
+            }
+            root.add_node_parameter_edge(player.id, "Pose", cache.id, "Pose");
+            root.add_node_parameter_edge(machine.id, "Pose", scope.id, "Source");
+            root.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            root.add_output_data_edge(scope.id, "Pose", "Pose");
+            let root = graphs.add(root);
+            let mut world = World::new();
+            world.insert_resource(graphs);
+            world.insert_resource(clips);
+            world.insert_resource(machines);
+            world.insert_resource(Assets::<Skeleton>::default());
+            let actual = world.run_system_cached_with(query, root).unwrap();
+            for (frame, actual) in actual.into_iter().enumerate() {
+                let source = &source["frames"][frame];
+                let expected = if !source["active"].as_bool().unwrap() {
+                    0.0
+                } else if reinitialize && (frame == 6 || frame == 7) {
+                    (frame - 3) as f32 * 0.1
+                } else {
+                    source["child_position"].as_f64().unwrap() as f32
+                };
+                assert!(
+                    (actual - expected).abs() < 1e-6,
+                    "nested {nested}, reinitialize {reinitialize}, frame {frame}: {actual} != {expected}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -40,8 +40,15 @@
   - 静态Gate与拆分：实际结束2026-09-09 00:45:00 +08:00，偏差+8m，未超过20m容差。源曲线涵盖32动画/249 keys（245 linear、4 cubic）；WalkForward与RotateLeft的native文本交叉核对时间、值、插值及实际生效的cubic切线，差异限于native加载后为linear段重算但不参与该段采样的切线，未放宽数值门限。实际图8路曲线组合通过；直接Sequence重新激活先FAIL旧位置0.5对源起点推进0.3，修复与关闭重置的消融均通过；改为清空既有播放器状态，删除两条伪初始化时间边。328个als-ext、4个生成输入、35个Standing测试及4个工具self-test通过，删除的旧方向测试只覆盖已移除的Actor重复采样器。
   - 生成与安装：第一次公开曲线生成273.627s通过；移除初始化时间边后第二次公开源读取/编译277.471s、unsupported 0，最终隔离安装因已有输出且未传replace标志被拒绝。随后对同次完整编译输出调用既有installer的replace路径，并确认文件集合不变；实际安装只覆盖原AB_Als owner中的108文件，10个改变，未覆盖owner清单。target_game/play最终双example编译108.797s，23个Pose图spec加载3.776s；编辑器修复/复查108文件零改动，声明式Gate2.672s通过62子图与108文件一致性、位置及运行资产边界。原始动画未重写，数据直接生成进运行RON，未新增依赖。
   - 本次拆分保留未通过边界：原“核对缓存重入”已确认UE SaveCachedPose初始化计数与relevance判断没有被当前缓存实现表达；本项完成曲线和直接播放器初始化，不宣称缓存重入或Standing功能通过。该差异转01e独立修复；尚未启动Standing startup或运动runtime。
-- [ ] BF115.01e Standing共享缓存重入：开始：2026-09-09 00:48:00 +08:00；预估结束：2026-09-09 01:33:00 +08:00。估时依据为Standing 9个SaveCachedPose、38个Use、4个FSM和已通过的实际图测试基座；fresh UE仅在初始化请求且上一轮已不相关时重建缓存子图，持续相关的共享缓存保持时钟。先用实际FSM/共享缓存图复现Move→Stop连续与Idle间隔后重入，再用公开扩展能力保留正确初始化边界；不能通过只重置组相位或复用旧Actor时钟掩盖过滤器/FSM状态。完成后继续Standing Actor条件和真实可见Gate，不转入Grounded。
+- [x] BF115.01e Standing共享缓存与FSM初始化：开始：2026-09-09 00:48:00 +08:00；预估结束：2026-09-09 01:33:00 +08:00。估时依据为Standing 9个SaveCachedPose、38个Use、4个FSM和已通过的实际图测试基座；fresh UE仅在初始化请求且上一轮已不相关时重建缓存子图，持续相关的共享缓存保持时钟。先用实际FSM/共享缓存图复现Move→Stop连续与Idle间隔后重入，再用公开扩展能力保留正确初始化边界；不能通过只重置组相位或复用旧Actor时钟掩盖过滤器/FSM状态。完成后继续Standing Actor条件和真实可见Gate，不转入Grounded。
   - 新段前全程复盘（2026-09-09 00:48:00 +08:00）：20:50至今四段分别以UE执行推翻Actor时钟、修正原生sample排序、接入图内时钟、闭合曲线与直接初始化。原“节点类别支持+静态连接”Gate遗漏的是跨帧执行，不是地形/物理或旧图观感。剩余拆分按真实生命周期建立小图反例，再回到同一Playground；不扩大到未选相邻图，不为通过运行而调整步幅/平滑/容差。已有结果复用，缓存初始化只补一次最小能力；全Standing仍以最终实际源状态、pose/curve和Actor表现验收。
+  - Source纠正（2026-09-09 01:01:00 +08:00）：重新逐项追踪SaveCachedPose后发现安装版与本地5.8源码均没有写入该节点的UpdateCounter；先前依据Initialize注释和条件式推导“间隔重入须重置”并不成立。实际FSM fixture已建立，初次失败是测试误用相同默认nil StateId，已改为不同身份，不能算行为反例。当前不实施缓存重置；复用native reader添加固定有限帧的SaveCachedPose实际Initialize/Update/PostGraphUpdate探针，核实连续、间隔、实例重新初始化三种调用，并以执行结果决定是否存在target差异。
+  - 有效失败闭包（2026-09-09 01:07:00 +08:00）：native插件76.956s构建、Standing读取及九帧调用43.924s通过；共享缓存间隔重入继续0.7s，实例初始化才重回0.3s，UpdateCounter全程未更新，故删除拟议的缓存重置设计。相同实际target图的直接缓存与关闭FSM重新相关初始化两路PASS；开启该选项的嵌套FSM在第6帧仍0.7s，对UE StateMachine::Initialize→SetState→StatePoseLink.Initialize要求的0.3s稳定FAIL。四个Standing FSM均启用该选项；target遗漏入口子图初始化是本项最小根因，复用现有直接状态清理，不改缓存节点、依赖或新增反射层。
+
+
+  - 本段Gate完成：实际结束2026-09-09 01:12:00 +08:00，偏差-21m。九帧native记录与实际图三路初始化边界通过；移除入口初始化的旧实现稳定FAIL，关闭重新相关初始化的对照保留0.7s；329个als-ext回归PASS（watchdog 19.818s），native reader五项watchdog/build新旧判断自测PASS。旧状态输出测试也改用两个不同状态ID，避免默认nil身份合并造成假覆盖。运行改动仅复用状态清理到入口选择，未新增缓存状态、反射层或依赖；尚未运行完整Standing场景，同入口预构建留待下一静态闭环后的runtime Gate。
+  - 后续边界：fresh Standing 22个实际状态的bAlwaysResetOnEntry均为False；UE SetState只在目标已无权重或强制重置时初始化，而当前生成FSM过渡始终reset_target_state=true且运行时未按实际目标权重拦截。此源边属于同一Standing初始化闭包，转01f独立修复；Actor输入和真实Standing Gate仍未完成。
+- [ ] BF115.01f Standing活动状态重返合同：开始：2026-09-09 01:12:00 +08:00；预估结束：2026-09-09 01:57:00 +08:00。依据为当次Standing 4个FSM/22个实际状态、UE SetState已提取的条件、既有实际状态权重与interrupt fixture；预计复用现有SourceTransitionCondition保留目标状态初始化策略，再以实际过渡中的重返反例验证。修复通用转换与source状态策略，完成生成/静态Gate并提交后继续Actor输入；不把bAlwaysReset默认值藏在Standing专用分支，也不改变非source FSM显式重置语义。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

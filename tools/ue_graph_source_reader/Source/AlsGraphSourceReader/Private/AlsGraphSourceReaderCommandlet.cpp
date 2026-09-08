@@ -5,6 +5,8 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
@@ -507,6 +509,72 @@ TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& Re
     return Result;
 }
 
+TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
+{
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        void InitializeGraph() { InitializationCounter.Increment(); }
+        void AdvanceFrame() { UpdateCounter.Increment(); }
+    } Proxy;
+    struct FProbeNode : FAnimNode_Base
+    {
+        int32 Initializations = 0;
+        int32 Updates = 0;
+        float Position = 0.0f;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override
+        {
+            ++Initializations;
+            Position = 0.2f;
+        }
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override
+        {
+            ++Updates;
+            Position += Context.GetDeltaTime();
+        }
+    } Child;
+    struct FProbeCache : FAnimNode_SaveCachedPose
+    {
+        bool WasUpdated() const { return UpdateCounter.HasEverBeenUpdated(); }
+    } Cache;
+    Cache.Pose.SetLinkNode(&Child);
+    Proxy.InitializeGraph();
+    TArray<TSharedPtr<FJsonValue>> Frames;
+    for (int32 Index = 0; Index < 9; ++Index)
+    {
+        Proxy.AdvanceFrame();
+        const bool bActive = Index != 4 && Index != 5;
+        const bool bInitialize = Index == 0 || Index == 2 || Index == 6 || Index == 7 || Index == 8;
+        if (Index == 8)
+        {
+            Proxy.InitializeGraph();
+        }
+        if (bInitialize)
+        {
+            Cache.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        }
+        if (bActive)
+        {
+            Cache.Update_AnyThread(FAnimationUpdateContext(&Proxy, 0.1f));
+        }
+        Cache.PostGraphUpdate();
+        TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+        Frame->SetNumberField(TEXT("frame"), Index);
+        Frame->SetBoolField(TEXT("active"), bActive);
+        Frame->SetBoolField(TEXT("initialize_request"), bInitialize);
+        Frame->SetBoolField(TEXT("instance_reinitialize"), Index == 8);
+        Frame->SetBoolField(TEXT("cache_update_counter_valid"), Cache.WasUpdated());
+        Frame->SetNumberField(TEXT("child_initializations"), Child.Initializations);
+        Frame->SetNumberField(TEXT("child_updates"), Child.Updates);
+        Frame->SetNumberField(TEXT("child_position"), Child.Position);
+        Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Cached pose lifecycle probe frame %d/9."), Index + 1);
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("format"), TEXT("ue_cached_pose_lifecycle_probe_v1"));
+    Result->SetArrayField(TEXT("frames"), Frames);
+    return Result;
+}
+
 UAlsGraphSourceReaderCommandlet::UAlsGraphSourceReaderCommandlet()
 {
     IsClient = false;
@@ -631,6 +699,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         Root->SetObjectField(TEXT("blendspace_probe"), Probe.ToSharedRef());
+    }
+    if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
+    {
+        Root->SetObjectField(TEXT("cached_pose_lifecycle_probe"), CaptureCachedPoseLifecycleProbe());
     }
 
     FString Json;
