@@ -93,7 +93,11 @@ impl NodeLike for BlendSpace1DNode {
         let update = ctx.time_update_fwd()?;
         let position = ctx.data_back(Self::POSITION)?.as_f32()?;
         let Some((left, right, factor)) = blend_weights(&self.points, position) else {
-            return Err(GraphError::FSMRequestedMissingData);
+            return Err(GraphError::UnknownErrorNode {
+                graph: ctx.graph_context.context_id,
+                node: ctx.node_id,
+                error: "blend space has no selected samples".to_owned(),
+            });
         };
         let left_point = &self.points[left];
         let right_point = &self.points[right];

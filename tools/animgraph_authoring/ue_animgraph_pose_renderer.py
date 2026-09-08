@@ -341,7 +341,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
     if renderer == "blendspace_player":
         return blendspace_inner(value, player=True)
     if renderer == "slot":
-        keys = [value.get(name) for name in ("pose_key", "weight_key", "layer_weight_key")]
+        keys = [value.get(name) for name in ("pose_key", "weight_key", "layer_weight_key", "mesh_space_additive_key")]
         if not all(isinstance(key, str) and key for key in keys):
             raise PoseRenderError("source slot provider contract is unavailable")
         return (
@@ -356,6 +356,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(keys[1])
             + ", layer_weight_key: "
             + quoted(keys[2])
+            + ", mesh_space_additive_key: "
+            + quoted(keys[3])
             + ")",
         )
     if renderer == "gameplay_tag_blend":
@@ -444,16 +446,74 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             raise PoseRenderError("source state machine materialization is unavailable")
         aliases = config.get("state_aliases", [])
         conditions = config.get("source_transition_conditions", [])
+        entry_conditions = config.get("source_entry_conditions", [])
+        max_transitions_per_frame = config.get("max_transitions_per_frame", 3)
+        max_transition_requests = config.get("max_transition_requests", 32)
+        skip_first_update_transition = config.get("skip_first_update_transition", True)
+        reinitialize_on_becoming_relevant = config.get(
+            "reinitialize_on_becoming_relevant", True
+        )
         if (
             not isinstance(aliases, list)
             or not isinstance(conditions, list)
+            or not isinstance(entry_conditions, list)
+            or not isinstance(max_transitions_per_frame, int)
+            or max_transitions_per_frame < 0
+            or not isinstance(max_transition_requests, int)
+            or max_transition_requests < 0
+            or not isinstance(skip_first_update_transition, bool)
+            or not isinstance(reinitialize_on_becoming_relevant, bool)
             or not all(
                 isinstance(condition, dict)
                 and all(
                     isinstance(condition.get(field), str) and condition[field]
-                    for field in ("transition_id", "source_state_id", "condition", "output")
+                    for field in (
+                        "transition_id",
+                        "source_state_id",
+                        "condition",
+                        "output",
+                        "context_state_id",
+                    )
+                )
+                and (
+                    condition.get("automatic_trigger_time") is None
+                    or isinstance(condition.get("automatic_trigger_time"), (int, float))
+                )
+                and isinstance(condition.get("transition_duration"), (int, float))
+                and isinstance(condition.get("gates", []), list)
+                and all(
+                    isinstance(gate, dict)
+                    and all(
+                        isinstance(gate.get(field), str) and gate[field]
+                        for field in ("condition", "output", "context_state_id")
+                    )
+                    for gate in condition.get("gates", [])
+                )
+                and isinstance(condition.get("notifications", []), list)
+                and all(
+                    isinstance(notification, dict)
+                    and all(
+                        isinstance(notification.get(field), str) and notification[field]
+                        for field in ("phase", "name")
+                    )
+                    for notification in condition.get("notifications", [])
                 )
                 for condition in conditions
+            )
+            or not all(
+                isinstance(condition, dict)
+                and isinstance(condition.get("target_state_id"), str)
+                and condition["target_state_id"]
+                and isinstance(condition.get("gates", []), list)
+                and all(
+                    isinstance(gate, dict)
+                    and all(
+                        isinstance(gate.get(field), str) and gate[field]
+                        for field in ("condition", "output", "context_state_id")
+                    )
+                    for gate in condition.get("gates", [])
+                )
+                for condition in entry_conditions
             )
         ):
             raise PoseRenderError("source state machine materialization is invalid")
@@ -474,8 +534,60 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(condition["condition"])
             + ", output: "
             + quoted(condition["output"])
+            + ", context_state: ("
+            + quoted(condition["context_state_id"])
+            + ")"
+            + ", automatic_trigger_time: "
+            + (
+                "None"
+                if condition["automatic_trigger_time"] is None
+                else "Some(" + repr(condition["automatic_trigger_time"]) + ")"
+            )
+            + ", transition_duration: "
+            + repr(condition["transition_duration"])
+            + ", gates: ["
+            + ", ".join(
+                "(condition: "
+                + quoted(gate["condition"])
+                + ", output: "
+                + quoted(gate["output"])
+                + ", context_state: ("
+                + quoted(gate["context_state_id"])
+                + ")"
+                + ")"
+                for gate in condition.get("gates", [])
+            )
+            + "]"
+            + ", notifications: ["
+            + ", ".join(
+                "(phase: "
+                + quoted(notification["phase"])
+                + ", name: "
+                + quoted(notification["name"])
+                + ")"
+                for notification in condition.get("notifications", [])
+            )
+            + "]"
             + ")"
             for condition in conditions
+        )
+        entry_conditions_ron = ", ".join(
+            "(target_state_id: "
+            + quoted(condition["target_state_id"])
+            + ", gates: ["
+            + ", ".join(
+                "(condition: "
+                + quoted(gate["condition"])
+                + ", output: "
+                + quoted(gate["output"])
+                + ", context_state: ("
+                + quoted(gate["context_state_id"])
+                + ")"
+                + ")"
+                for gate in condition.get("gates", [])
+            )
+            + "])"
+            for condition in entry_conditions
         )
         return (
             "als_ext::InterruptibleFsmNode",
@@ -485,7 +597,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + alias_ron
             + "], source_transition_conditions: ["
             + conditions_ron
-            + "], internal_time_key: \"animation.delta_seconds\", expose_telemetry: false)",
+            + "], source_entry_conditions: ["
+            + entry_conditions_ron
+            + "], internal_time_key: \"animation.delta_seconds\", max_transitions_per_frame: "
+            + repr(max_transitions_per_frame)
+            + ", max_transition_requests: "
+            + repr(max_transition_requests)
+            + ", skip_first_update_transition: "
+            + bool_ron(skip_first_update_transition)
+            + ", reinitialize_on_becoming_relevant: "
+            + bool_ron(reinitialize_on_becoming_relevant)
+            + ", expose_telemetry: false)",
         )
     if renderer == "multi_way_blend":
         keys = value.get("desired_alpha_keys")
@@ -827,9 +949,9 @@ def target_pin(renderer, source_pin, node=None):
     if renderer == "root_output":
         return {"Result": "Source"}.get(source_pin, source_pin)
     if renderer == "linked_anim_layer":
-        return {"Pose": "pose"}.get(source_pin, source_pin)
+        return {"Pose": "Pose"}.get(source_pin, source_pin)
     if renderer == "control_rig":
-        return {"Source": "Source", "Pose": "pose"}.get(source_pin, source_pin)
+        return {"Source": "Source", "Pose": "Pose"}.get(source_pin, source_pin)
     if renderer in {"blendspace_evaluator", "blendspace_player"}:
         return {"Pose": "pose"}.get(source_pin, source_pin)
     if renderer == "state_machine":
@@ -1240,7 +1362,10 @@ def render(
             nodes, edges = layered_bone_weight_helpers(graph_contract, raw, semantic)
             result_nodes.extend(nodes)
             layered_bone_edges.extend(edges)
-        if semantic.get("renderer") == "linked_anim_layer":
+        if (
+            semantic.get("renderer") == "linked_anim_layer"
+            and not semantic.get("semantic", {}).get("external_instance")
+        ):
             selector_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/linked-layer/" + source_path))
             x, y = position(raw)
             result_nodes.append(
@@ -1636,6 +1761,11 @@ def run_self_test():
     assert 'implementations: ["graphs/overlay.animgraph.ron"]' in text
     assert 'name: "Linked layer selection"' in text
     assert 'name: "Comment"' not in text
+    linked_ir["nodes"][0]["semantic"]["external_instance"] = True
+    text = render(linked_contract, linked_ir, [])
+    assert '"als_ext::LayeredGraphNode"' in text
+    assert 'name: "Linked layer selection"' not in text
+    assert 'NodeData("10000000-0000-4000-8000-000000000032", "Source"): NodeData("10000000-0000-4000-8000-000000000031", "Pose")' in text
     linked_ir["nodes"][0] = {
         "source_node": linked_path,
         "renderer": "linked_anim_graph",
@@ -1822,10 +1952,54 @@ def run_self_test():
         {},
         {"renderer": "state_machine", "semantic": {"fsm_source_graph": "Machine"}},
         {},
-        {"Machine": {"path": "fsms/machine.fsm.ron", "state_aliases": [], "source_transition_conditions": []}},
+        {
+            "Machine": {
+                "path": "fsms/machine.fsm.ron",
+                "state_aliases": [],
+                "source_entry_conditions": [
+                    {
+                        "target_state_id": "entry",
+                        "gates": [
+                            {
+                                "condition": "conditions/entry.animgraph.ron",
+                                "output": "bCanEnterTransition",
+                                "context_state_id": "10000000-0000-4000-8000-000000000001",
+                            }
+                        ],
+                    }
+                ],
+                "source_transition_conditions": [
+                    {
+                        "transition_id": "transition",
+                        "source_state_id": "source",
+                        "condition": "conditions/primary.animgraph.ron",
+                        "output": "bCanEnterTransition",
+                        "context_state_id": "10000000-0000-4000-8000-000000000002",
+                        "automatic_trigger_time": -1.0,
+                        "transition_duration": 0.0,
+                        "gates": [
+                            {
+                                "condition": "conditions/conduit.animgraph.ron",
+                                "output": "bCanEnterTransition",
+                                "context_state_id": "10000000-0000-4000-8000-000000000003",
+                            }
+                        ],
+                        "notifications": [
+                            {"phase": "TransitionStart", "name": "Notify"}
+                        ],
+                    }
+                ],
+            }
+        },
     )
     assert fsm_type == "als_ext::InterruptibleFsmNode"
     assert 'internal_time_key: "animation.delta_seconds"' in fsm_inner
+    assert "max_transitions_per_frame: 3" in fsm_inner
+    assert "automatic_trigger_time: Some(-1.0)" in fsm_inner
+    assert 'context_state: ("10000000-0000-4000-8000-000000000002")' in fsm_inner
+    assert 'gates: [(condition: "conditions/conduit.animgraph.ron"' in fsm_inner
+    assert 'notifications: [(phase: "TransitionStart", name: "Notify")]' in fsm_inner
+    assert 'source_entry_conditions: [(target_state_id: "entry", gates: [(condition: "conditions/entry.animgraph.ron"' in fsm_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,
         {},
@@ -1951,6 +2125,7 @@ def run_self_test():
                 "pose_key": "turn_in_place_standing.pose",
                 "weight_key": "turn_in_place_standing.weight",
                 "layer_weight_key": "turn_in_place_standing.layer_weight",
+                "mesh_space_additive_key": "turn_in_place_standing.mesh_space_additive",
             },
         },
         {},
@@ -1959,6 +2134,7 @@ def run_self_test():
     assert slot_type == "als_ext::SourceSlotNode"
     assert 'slot_name: "TurnInPlaceStanding"' in slot_inner
     assert 'pose_key: "turn_in_place_standing.pose"' in slot_inner
+    assert 'mesh_space_additive_key: "turn_in_place_standing.mesh_space_additive"' in slot_inner
     for mesh_space in (False, True):
         node_type, inner = rendered_inner(
             graph_contract,

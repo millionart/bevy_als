@@ -12,6 +12,8 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::animation_context::context_time_update;
+
 pub const ALS_LAYER_CURVE_NAMES: [&str; 18] = [
     "LayerArmLeft",
     "LayerArmLeftAdditive",
@@ -52,6 +54,10 @@ impl Default for LinkedAnimLayerNode {
             selector: "layer_index".to_owned(),
         }
     }
+}
+
+fn source_pose_output_alias(output: &str, data_spec: &DataSpec) -> bool {
+    *data_spec == DataSpec::Pose && output != "Pose"
 }
 
 impl LinkedAnimLayerNode {
@@ -116,7 +122,7 @@ impl NodeLike for LinkedAnimLayerNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let (has_output_time, input_times, output_data) = {
+        let (input_times, output_data) = {
             let interface = ctx
                 .graph_context
                 .resources
@@ -124,7 +130,6 @@ impl NodeLike for LinkedAnimLayerNode {
                 .get(&self.interface)
                 .ok_or(GraphError::GraphAssetMissing)?;
             (
-                interface.io_spec.has_output_time(),
                 interface
                     .io_spec
                     .iter_input_times()
@@ -133,7 +138,7 @@ impl NodeLike for LinkedAnimLayerNode {
                 interface
                     .io_spec
                     .iter_output_data()
-                    .map(|(id, _)| id.clone())
+                    .map(|(id, data_spec)| (id.clone(), data_spec.clone()))
                     .collect::<Vec<_>>(),
             )
         };
@@ -151,15 +156,10 @@ impl NodeLike for LinkedAnimLayerNode {
             .create_child_context(implementation.id(), graph, None)
             .with_io(&sub_ctx_io);
 
-        if has_output_time {
-            if let Ok(time_update) = ctx.time_update_fwd() {
-                let key = sub_ctx.state_key;
-                sub_ctx.context_mut().query_output_time =
-                    QueryOutputTime::from_key(key, time_update);
-            }
-        }
-
-        if let Ok(time_update) = ctx.time_update_fwd() {
+        if let Ok(time_update) = context_time_update(&ctx) {
+            let key = sub_ctx.state_key;
+            sub_ctx.context_mut().query_output_time =
+                QueryOutputTime::from_key(key, time_update.clone());
             for pin in input_times {
                 if let GraphInputPin::Passthrough(pin_id) = pin {
                     ctx.set_time_update_back(pin_id, time_update.clone());
@@ -167,8 +167,11 @@ impl NodeLike for LinkedAnimLayerNode {
             }
         }
 
-        for id in output_data {
+        for (id, data_spec) in output_data {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
+            if source_pose_output_alias(&id, &data_spec) {
+                ctx.set_data_fwd("Pose", value.clone());
+            }
             ctx.set_data_fwd(id, value);
         }
 
@@ -201,6 +204,9 @@ impl NodeLike for LinkedAnimLayerNode {
                     ctx.add_output_time();
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
+                    if source_pose_output_alias(&pin_id, &data_spec) {
+                        ctx.add_output_data("Pose", DataSpec::Pose);
+                    }
                     ctx.add_output_data(pin_id, data_spec);
                 }
             }
@@ -216,7 +222,8 @@ impl NodeLike for LinkedAnimLayerNode {
 
 #[cfg(test)]
 mod tests {
-    use super::LinkedAnimLayerNode;
+    use super::{LinkedAnimLayerNode, source_pose_output_alias};
+    use bevy_animation_graph::core::edge_data::DataSpec;
 
     #[test]
     fn layer_selection_clamps_to_the_available_implementations() {
@@ -224,5 +231,12 @@ mod tests {
         assert_eq!(LinkedAnimLayerNode::selection_index(1.0, 3), 1);
         assert_eq!(LinkedAnimLayerNode::selection_index(8.0, 3), 2);
         assert_eq!(LinkedAnimLayerNode::selection_index(f32::NAN, 3), 0);
+    }
+
+    #[test]
+    fn pose_result_is_exposed_through_the_source_pose_pin() {
+        assert!(source_pose_output_alias("Result", &DataSpec::Pose));
+        assert!(!source_pose_output_alias("Pose", &DataSpec::Pose));
+        assert!(!source_pose_output_alias("Result", &DataSpec::F32));
     }
 }

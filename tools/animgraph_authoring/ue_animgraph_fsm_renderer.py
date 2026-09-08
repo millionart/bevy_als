@@ -23,11 +23,19 @@ from ue_animgraph_fsm_contract import (
     FsmContractError,
     fsm_contract,
     graph_for_suffix,
+    fixture_source,
 )
+from ue_animgraph_lifecycle import TRANSITION_NOTIFY_FUNCTIONS
 
 
 class FsmRenderError(ValueError):
     pass
+
+
+SUPPORTED_TRANSITION_NOTIFY_NAMES = {
+    function.removeprefix("AnimNotify_")
+    for function in TRANSITION_NOTIFY_FUNCTIONS
+}
 
 
 def visible_input_pins(node):
@@ -101,6 +109,7 @@ def profile_plan(transition, source_content_root, source_mount, source_reader=No
             source_content_root,
             source_mount,
             transition["blend_profile_wrapper"],
+            source_reader,
         )
     except AssetResolutionError as error:
         raise FsmRenderError(str(error)) from error
@@ -197,6 +206,19 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None, sou
                 ),
             }
         )
+    runtime = value["runtime"]
+    unsupported = []
+    unsupported.extend(
+        {
+            "kind": "source_transition_notify_runtime_unmapped",
+            "source_node": transition["source_node"],
+            "phase": notify["phase"],
+            "notify_name": notify["name"],
+        }
+        for transition in transitions
+        for notify in transition["notifies"]
+        if notify["name"] not in SUPPORTED_TRANSITION_NOTIFY_NAMES
+    )
     return {
         "format": "ue_animgraph_fsm_render_plan_v1",
         "source_graph": suffix,
@@ -208,6 +230,8 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None, sou
         "conditions": conditions,
         "transitions": transitions,
         "outgoing_order": ordered_outgoing(transitions),
+        "runtime": runtime,
+        "unsupported": unsupported,
     }
 
 
@@ -233,9 +257,39 @@ def run_self_test():
     plan = profile_plan(standard, None, None)
     assert plan["logic"] == "profiled_blend"
     assert plan["automatic_rule"]["source_semantics"] == "relevant_asset_time_remaining"
+    source = fixture_source()
+    source_plan = render_plan(source, "AnimGraph.Machine.FSM")
+    assert source_plan["runtime"]["max_transitions_per_frame"] == 1
+    assert source_plan["unsupported"] == [
+        {
+            "kind": "source_transition_notify_runtime_unmapped",
+            "source_node": "/Asset:AnimGraph.Machine.FSM.Transition",
+            "phase": "TransitionStart",
+            "notify_name": "Notify",
+        }
+    ]
+    for property_value in source["graphs"][1]["nodes"][2]["properties"]:
+        if property_value["name"] == "TransitionStart":
+            property_value["exported_text"] = '(NotifyName="ActivatePivot")'
+    assert not render_plan(source, "AnimGraph.Machine.FSM")["unsupported"]
+    for property_value in source["graphs"][1]["nodes"][2]["properties"]:
+        if property_value["name"] == "bAutomaticRuleBasedOnSequencePlayerInState":
+            property_value["exported_text"] = "True"
+    automatic_plan = render_plan(source, "AnimGraph.Machine.FSM")
+    assert automatic_plan["transitions"][0]["render"]["automatic_rule"] == {
+        "source_semantics": "relevant_asset_time_remaining",
+        "trigger_time": -1.0,
+    }
+    assert not any(
+        issue["kind"] == "source_automatic_transition_runtime_unmapped"
+        for issue in automatic_plan["unsupported"]
+    )
     return {
         "source_transition_priority_order_preserved": "PASS",
         "source_automatic_rule_semantic_preserved": "PASS",
+        "unmapped_transition_notify_blocked": "PASS",
+        "verified_transition_notify_reaches_runtime_lowering": "PASS",
+        "automatic_rule_reaches_runtime_lowering": "PASS",
         "empty_source_blend_profile_preserved": "PASS",
     }
 

@@ -1,3 +1,4 @@
+import functools
 import json
 import re
 import subprocess
@@ -93,7 +94,13 @@ def source_export_class(asset, export):
 
 
 def native_source_asset(source_path, source_reader=None):
-    reader = Path(source_reader or DEFAULT_SOURCE_READER)
+    reader = Path(source_reader or DEFAULT_SOURCE_READER).resolve()
+    return native_source_asset_cached(source_path, str(reader))
+
+
+@functools.lru_cache(maxsize=None)
+def native_source_asset_cached(source_path, reader_path):
+    reader = Path(reader_path)
     if not reader.is_file():
         raise AssetResolutionError("native source reader is unavailable")
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
@@ -147,6 +154,18 @@ def asset_property(source, name):
     values = asset_properties(source, name)
     if len(values) != 1:
         raise AssetResolutionError(f"source asset property is missing or ambiguous: {name}")
+    return values[0]
+
+
+def object_property(value, name):
+    values = [
+        property_value.get("exported_text")
+        for property_value in value.get("properties", [])
+        if property_value.get("name") == name
+        and isinstance(property_value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        raise AssetResolutionError(f"source object property is missing or ambiguous: {name}")
     return values[0]
 
 
@@ -237,13 +256,40 @@ def source_curve_float(content_root, mount, source_path, source_reader=None):
     return curve_float_contract(native_source_asset(source_path, source_reader))
 
 
-def source_sequence_timing(content_root, mount, source_path):
+def sequence_timing_contract(source):
+    if (
+        not isinstance(source, dict)
+        or source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_class") != "/Script/Engine.AnimSequence"
+    ):
+        raise AssetResolutionError("source animation sequence is invalid")
+    try:
+        duration = parse_number(asset_property(source, "SequenceLength"))
+        raw_markers = asset_property(source, "AuthoredSyncMarkers")
+        markers = []
+        for raw_marker in parse_list(raw_markers) if raw_markers else []:
+            fields = parse_struct(raw_marker)
+            reject_unknown_fields(fields, {"MarkerName", "Time", "TrackIndex", "Guid"})
+            markers.append(
+                {
+                    "name": parse_quoted(struct_field(fields, "MarkerName")),
+                    "time": parse_number(struct_field(fields, "Time")),
+                }
+            )
+    except ExportedTextError as error:
+        raise AssetResolutionError("source animation sequence properties are unreadable") from error
+    if duration <= 0.0 or any(not marker["name"] for marker in markers):
+        raise AssetResolutionError("source animation sequence duration or markers are invalid")
+    return {"duration": duration, "markers": markers}
+
+
+def source_sequence_timing(content_root, mount, source_path, source_reader=None):
     path = source_uasset_path(content_root, mount, source_path)
     try:
         asset = UAsset(str(path))
         reader = PropReader(asset)
-    except Exception as error:
-        raise AssetResolutionError("source animation asset cannot be read") from error
+    except Exception:
+        return sequence_timing_contract(native_source_asset(source_path, source_reader))
     name = source_asset_name(source_path)
     matches = [
         index
@@ -270,7 +316,43 @@ def source_sequence_timing(content_root, mount, source_path):
     return {"duration": float(duration), "markers": markers}
 
 
-def source_blend_profile(content_root, mount, source_path):
+def blend_profile_contract(source, source_path):
+    package_object, separator, profile_name = source_path.rpartition(":")
+    if not separator or not package_object or not profile_name:
+        raise AssetResolutionError("source blend profile path is invalid")
+    if (
+        not isinstance(source, dict)
+        or source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_path") != package_object
+    ):
+        raise AssetResolutionError("source blend profile asset is invalid")
+    matches = [
+        value
+        for value in source.get("asset_objects", [])
+        if value.get("class_path") == "/Script/Engine.BlendProfile"
+        and value.get("object_path") == source_path
+    ]
+    if len(matches) != 1:
+        raise AssetResolutionError("source blend profile export is missing or ambiguous")
+    try:
+        entries = parse_list(object_property(matches[0], "ProfileEntries"))
+        scales = []
+        for raw_entry in entries:
+            fields = parse_struct(raw_entry)
+            reject_unknown_fields(fields, {"BoneReference", "BlendScale"})
+            reference = parse_struct(struct_field(fields, "BoneReference"))
+            reject_unknown_fields(reference, {"BoneName"})
+            bone = parse_quoted(struct_field(reference, "BoneName"))
+            scale = parse_number(struct_field(fields, "BlendScale"))
+            if not bone:
+                raise AssetResolutionError("source blend profile entry fields are invalid")
+            scales.append({"bone": bone, "scale": scale})
+    except ExportedTextError as error:
+        raise AssetResolutionError("source blend profile properties are unreadable") from error
+    return {"source_profile": source_path, "bone_scales": scales}
+
+
+def source_blend_profile(content_root, mount, source_path, source_reader=None):
     package_object, separator, profile_name = source_path.rpartition(":")
     if not separator or not package_object or not profile_name:
         raise AssetResolutionError("source blend profile path is invalid")
@@ -278,8 +360,10 @@ def source_blend_profile(content_root, mount, source_path):
     try:
         asset = UAsset(str(path))
         reader = PropReader(asset)
-    except Exception as error:
-        raise AssetResolutionError("source blend profile cannot be read") from error
+    except Exception:
+        return blend_profile_contract(
+            native_source_asset(package_object, source_reader), source_path
+        )
     matches = [
         index
         for index, export in enumerate(asset.exports)
@@ -310,7 +394,7 @@ def source_blend_profile(content_root, mount, source_path):
     return {"source_profile": source_path, "bone_scales": scales}
 
 
-def source_blend_profile_wrapper(content_root, mount, value):
+def source_blend_profile_wrapper(content_root, mount, value, source_reader=None):
     try:
         fields = parse_struct(value)
         unknown = set(fields) - {"bIsSkeletonBlendProfile", "BlendProfile"}
@@ -321,7 +405,9 @@ def source_blend_profile_wrapper(content_root, mount, value):
     reference = fields.get("BlendProfile")
     if reference is None:
         return {"source_profile": None, "bone_scales": []}
-    return source_blend_profile(content_root, mount, source_object_path(reference))
+    return source_blend_profile(
+        content_root, mount, source_object_path(reference), source_reader
+    )
 
 
 def relative_asset_path(asset_root, path):
@@ -825,7 +911,9 @@ def resolve_graph_animation_assets(
                     animation = sample["source_animation"]
                     timing = timings.get(animation)
                     if timing is None:
-                        timing = source_sequence_timing(source_content_root, source_mount, animation)
+                        timing = source_sequence_timing(
+                            source_content_root, source_mount, animation, source_reader
+                        )
                         timings[animation] = timing
                     sample["source_timing"] = timing
                 player = blendspace_player_contract(node, blendspace, native)
@@ -850,7 +938,9 @@ def resolve_graph_animation_assets(
             if category == "sequence" and source_content_root is not None:
                 timing = timings.get(source_path)
                 if timing is None:
-                    timing = source_sequence_timing(source_content_root, source_mount, source_path)
+                    timing = source_sequence_timing(
+                        source_content_root, source_mount, source_path, source_reader
+                    )
                     timings[source_path] = timing
                 row["source_timing"] = timing
             rows.append(row)
@@ -858,6 +948,32 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    native_source_asset_cached.cache_clear()
+    reader_calls = []
+    original_run = subprocess.run
+    try:
+        def fake_reader(command, **_kwargs):
+            source = command[command.index("-Asset") + 1]
+            output = Path(command[command.index("-Output") + 1])
+            output.write_text(
+                json.dumps(
+                    {
+                        "format": "ue_asset_source_v1",
+                        "asset_path": source,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            reader_calls.append((source, command[command.index("-File") + 1]))
+            return type("ReaderResult", (), {"returncode": 0})()
+
+        subprocess.run = fake_reader
+        first = native_source_asset("/ALS/Test.A_Test")
+        second = native_source_asset("/ALS/Test.A_Test", DEFAULT_SOURCE_READER)
+        assert first == second and len(reader_calls) == 1
+    finally:
+        subprocess.run = original_run
+        native_source_asset_cached.cache_clear()
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory) / "assets"
         clip = root / "animations" / "Air" / "A_Test.anim.ron"
@@ -1134,6 +1250,74 @@ def run_self_test():
         pass
     else:
         raise AssertionError("non-skeleton blend profile was accepted")
+    sequence_source = {
+        "format": "ue_asset_source_v1",
+        "asset_path": "/ALS/ALS/Animations/A_Test.A_Test",
+        "asset_class": "/Script/Engine.AnimSequence",
+        "asset_properties": [
+            {"name": "SequenceLength", "exported_text": "0.800000"},
+            {
+                "name": "AuthoredSyncMarkers",
+                "exported_text": '((MarkerName="Left",Time=0.033333,TrackIndex=1,Guid=00000000),(MarkerName="Right",Time=0.433333,TrackIndex=1,Guid=00000001))',
+            },
+        ],
+    }
+    assert sequence_timing_contract(sequence_source) == {
+        "duration": 0.8,
+        "markers": [
+            {"name": "Left", "time": 0.033333},
+            {"name": "Right", "time": 0.433333},
+        ],
+    }
+    profile_source = {
+        "format": "ue_asset_source_v1",
+        "asset_path": "/ALS/ALS/Character/SK_Test.SK_Test",
+        "asset_objects": [
+            {
+                "object_path": "/ALS/ALS/Character/SK_Test.SK_Test:QuickFeet",
+                "class_path": "/Script/Engine.BlendProfile",
+                "properties": [
+                    {
+                        "name": "ProfileEntries",
+                        "exported_text": '((BoneReference=(BoneName="calf_l"),BlendScale=5.000000),(BoneReference=(BoneName="calf_r"),BlendScale=5.000000))',
+                    }
+                ],
+            }
+        ],
+    }
+    profile_path = "/ALS/ALS/Character/SK_Test.SK_Test:QuickFeet"
+    assert blend_profile_contract(profile_source, profile_path)["bone_scales"] == [
+        {"bone": "calf_l", "scale": 5.0},
+        {"bone": "calf_r", "scale": 5.0},
+    ]
+    with tempfile.TemporaryDirectory() as directory:
+        content = Path(directory) / "Content"
+        sequence_path = content / "ALS" / "Animations" / "A_Test.uasset"
+        profile_path_on_disk = content / "ALS" / "Character" / "SK_Test.uasset"
+        sequence_path.parent.mkdir(parents=True)
+        profile_path_on_disk.parent.mkdir(parents=True)
+        sequence_path.write_bytes(b"fixture")
+        profile_path_on_disk.write_bytes(b"fixture")
+        original_uasset = globals()["UAsset"]
+        original_native = globals()["native_source_asset"]
+        try:
+            def unreadable_uasset(_):
+                raise RuntimeError("cooked fixture")
+            globals()["UAsset"] = unreadable_uasset
+            globals()["native_source_asset"] = lambda source_path, source_reader=None: (
+                sequence_source
+                if source_path == sequence_source["asset_path"]
+                else profile_source
+            )
+            assert source_sequence_timing(
+                content, "/ALS", sequence_source["asset_path"]
+            ) == sequence_timing_contract(sequence_source)
+            assert source_blend_profile(content, "/ALS", profile_path) == blend_profile_contract(
+                profile_source, profile_path
+            )
+        finally:
+            globals()["UAsset"] = original_uasset
+            globals()["native_source_asset"] = original_native
     curve_source = {
         "format": "ue_asset_source_v1",
         "asset_path": "/ALS/ALS/Data/AnimationInstance/Blending/CF_Test.CF_Test",
@@ -1192,6 +1376,7 @@ def run_self_test():
         raise AssertionError("unsupported CurveFloat extrapolation was accepted")
     return {
         "source_object_reference_parsed": "PASS",
+        "native_source_cache_normalizes_the_reader_key": "PASS",
         "unique_animation_clip_resolved": "PASS",
         "blendspace_metadata_resolved": "PASS",
         "blendspace_samples_resolve_to_target_clips": "PASS",
@@ -1203,6 +1388,7 @@ def run_self_test():
         "blendspace_player_source_asset_and_timing_contract_resolved": "PASS",
         "empty_skeleton_blend_profile_preserved": "PASS",
         "unsupported_blend_profile_rejected": "PASS",
+        "cooked_sequence_and_blend_profile_native_fallback_preserved": "PASS",
         "source_rich_curve_keys_preserved": "PASS",
         "unsupported_curve_float_extrapolation_rejected": "PASS",
     }

@@ -96,12 +96,20 @@ function Invoke-ProcessWithWatchdog {
         }
         $process.Refresh()
     }
-    if (-not $process.HasExited) {
+    if ($exitReason -eq "completed") {
+        $null = $process.WaitForExit(5000)
+        $process.Refresh()
+    }
+    elseif (-not $process.HasExited) {
         $null = $process.WaitForExit(5000)
         $process.Refresh()
     }
     $finishedAt = Get-Date
-    $exitCode = if ($process.HasExited) { $process.ExitCode } else { $null }
+    $hasExited = $process.HasExited
+    $exitCode = $null
+    if ($hasExited) {
+        $exitCode = [int]$process.ExitCode
+    }
     $report = [ordered]@{
         format = "ue_source_reader_watchdog_v1"
         success = ($exitReason -eq "completed" -and $exitCode -eq 0)
@@ -129,7 +137,7 @@ function Invoke-WatchdogSelfTest {
         }
         $completed = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList @("-NoProfile", "-Command", "Write-Output progress") -ReportPath (Join-Path $temporaryRoot "completed.report.json") -StdoutPath (Join-Path $temporaryRoot "completed.stdout.log") -StderrPath (Join-Path $temporaryRoot "completed.stderr.log") -ProgressPaths @((Join-Path $temporaryRoot "completed.stdout.log"), (Join-Path $temporaryRoot "completed.stderr.log")) -TimeoutSeconds 4 -NoProgressSeconds 1
         if ($completed.exit_reason -ne "completed" -or -not $completed.success) {
-            throw "watchdog rejected a completed process"
+            throw ("watchdog rejected a completed process: " + ($completed | ConvertTo-Json -Compress))
         }
         [ordered]@{
             stalled_process_terminated = "PASS"

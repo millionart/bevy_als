@@ -117,7 +117,7 @@ def fsm_path(source_asset, suffix, namespace=""):
     return source_graph_path(source_asset, suffix, ".fsm.ron", namespace)
 
 
-def transition_path(source_asset, transition, namespace=""):
+def transition_path(source_asset, transition, namespace="", variant=None):
     if not isinstance(transition, dict):
         raise MaterializationError("source transition is invalid")
     source_node = transition.get("source_node")
@@ -126,7 +126,12 @@ def transition_path(source_asset, transition, namespace=""):
         raise MaterializationError("source transition node is invalid")
     parts = source_graph_parts(source_node[len(prefix) :])
     base = namespaced_path(namespace, source_asset_directory(source_asset))
-    return "/".join([base, *parts, "Transition.transition.animgraph.ron"])
+    suffix = "Transition"
+    if variant is not None:
+        if not isinstance(variant, str) or not variant:
+            raise MaterializationError("source transition variant is invalid")
+        suffix += "_" + source_path_segment(variant)
+    return "/".join([base, *parts, suffix + ".transition.animgraph.ron"])
 
 
 def condition_path(source_asset, suffix, namespace=""):
@@ -163,15 +168,15 @@ def graph_nodes_by_path(source, suffix):
     }
 
 
-def structural_order(source, plan):
+def structural_order(source, plan, entry_target):
     nodes = graph_nodes_by_path(source, plan["source_graph"])
-    actual = [*plan["states"], *plan["conduits"]]
+    actual = list(plan["states"])
     aliases = plan["aliases"]
-    if any(item["source_node"] not in nodes for item in [*actual, *aliases]):
+    if any(item["source_node"] not in nodes for item in [*actual, *aliases, *plan["conduits"]]):
         raise MaterializationError("source FSM structural node is missing")
     actual.sort(key=lambda item: nodes[item["source_node"]].get("index", -1))
     aliases.sort(key=lambda item: nodes[item["source_node"]].get("index", -1))
-    entry = f"{source['asset_path']}:{plan['entry_target']}"
+    entry = f"{source['asset_path']}:{entry_target}"
     entry_index = next(
         (index for index, item in enumerate(actual) if item["source_node"] == entry),
         None,
@@ -311,10 +316,189 @@ def transition_graph_text(source_asset, transition):
     )
 
 
+def condition_config(source, suffix, namespace):
+    try:
+        output = transition_renderer.root_output_name(contract(source, suffix))
+    except ValueError as error:
+        raise MaterializationError("source transition condition output is unavailable") from error
+    return {
+        "condition": condition_path(source["asset_path"], suffix, namespace),
+        "output": output,
+    }
+
+
+def condition_context_config(source_asset, condition, scope):
+    return {
+        **condition,
+        "context_state_id": stable_id(source_asset, "condition-context", scope),
+    }
+
+
+def resolved_fsm_transitions(source, plan, namespace):
+    source_asset = source["asset_path"]
+    conduits = {item["source_node"]: item for item in plan["conduits"]}
+    transitions = sorted(
+        plan["transitions"],
+        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
+    )
+    outgoing = {}
+    for transition in transitions:
+        outgoing.setdefault(transition["source"], []).append(transition)
+
+    def resolve(root, current, gates, visited):
+        target_node = f"{source_asset}:{current['target']}"
+        conduit = conduits.get(target_node)
+        if conduit is None:
+            transition_id = (
+                root["id"]
+                if current is root
+                else stable_id(
+                    source_asset,
+                    "conduit-transition",
+                    "/".join([root["id"], current["id"], *[gate["condition"] for gate in gates]]),
+                )
+            )
+            automatic_rule = root["render"].get("automatic_rule")
+            if automatic_rule is not None and (
+                not isinstance(automatic_rule, dict)
+                or automatic_rule.get("source_semantics") != "relevant_asset_time_remaining"
+                or not isinstance(automatic_rule.get("trigger_time"), (int, float))
+            ):
+                raise MaterializationError("source automatic transition rule is invalid")
+            return [
+                {
+                    **current,
+                    "id": transition_id,
+                    "source": root["source"],
+                    "condition_graph": root["condition_graph"],
+                    "gates": gates,
+                    "automatic_trigger_time": (
+                        automatic_rule["trigger_time"] if automatic_rule is not None else None
+                    ),
+                    "automatic_transition_duration": (
+                        0.0 if root["target"] != current["target"] else root["render"]["duration"]
+                    ),
+                }
+            ]
+        if target_node in visited:
+            raise MaterializationError("source conduit transition cycle is unsupported")
+        conduit_graph = plan["conduit_conditions"].get(target_node)
+        if not isinstance(conduit_graph, str) or not conduit_graph:
+            raise MaterializationError("source conduit condition is unavailable")
+        conduit_gate = condition_config(source, conduit_graph, namespace)
+        resolved = []
+        for child in outgoing.get(current["target"], []):
+            if child["render"].get("automatic_rule") is not None:
+                raise MaterializationError("source conduit automatic transition is unsupported")
+            child_gate = condition_config(source, child["condition_graph"], namespace)
+            resolved.extend(
+                resolve(
+                    root,
+                    child,
+                    [*gates, conduit_gate, child_gate],
+                    {*visited, target_node},
+                )
+            )
+        if not resolved:
+            raise MaterializationError("source conduit has no reachable content state")
+        return resolved
+
+    result = []
+    for transition in transitions:
+        if f"{source_asset}:{transition['source']}" in conduits:
+            continue
+        result.extend(resolve(transition, transition, [], set()))
+    return result
+
+
+def resolved_entry_conditions(source, plan, namespace):
+    source_asset = source["asset_path"]
+    conduits = {item["source_node"]: item for item in plan["conduits"]}
+    transitions = sorted(
+        plan["transitions"],
+        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
+    )
+    outgoing = {}
+    for transition in transitions:
+        outgoing.setdefault(transition["source"], []).append(transition)
+
+    def resolve(target, gates, visited):
+        target_node = f"{source_asset}:{target}"
+        conduit = conduits.get(target_node)
+        if conduit is None:
+            return [{"target": target, "gates": gates}]
+        if target_node in visited:
+            raise MaterializationError("source entry conduit cycle is unsupported")
+        conduit_graph = plan["conduit_conditions"].get(target_node)
+        if not isinstance(conduit_graph, str) or not conduit_graph:
+            raise MaterializationError("source entry conduit condition is unavailable")
+        resolved = []
+        for transition in outgoing.get(target, []):
+            if transition["render"].get("automatic_rule") is not None:
+                raise MaterializationError("source entry conduit automatic transition is unsupported")
+            resolved.extend(
+                resolve(
+                    transition["target"],
+                    [
+                        *gates,
+                        condition_config(source, conduit_graph, namespace),
+                        condition_config(source, transition["condition_graph"], namespace),
+                    ],
+                    {*visited, target_node},
+                )
+            )
+        if not resolved:
+            raise MaterializationError("source entry conduit has no reachable content state")
+        return resolved
+
+    return resolve(plan["entry_target"], [], set())
+
+
 def fsm_config(source, plan, graph_paths, namespace):
     source_asset = source["asset_path"]
-    actual, aliases = structural_order(source, plan)
+    entry_conditions = resolved_entry_conditions(source, plan, namespace)
+    entry_target = entry_conditions[0]["target"]
+    actual, aliases = structural_order(source, plan, entry_target)
+    runtime = plan.get("runtime", {})
+    if not isinstance(runtime, dict):
+        raise MaterializationError("source FSM runtime settings are invalid")
+    max_transitions_per_frame = runtime.get("max_transitions_per_frame", 3)
+    max_transition_requests = runtime.get("max_transition_requests", 32)
+    skip_first_update_transition = runtime.get("skip_first_update_transition", True)
+    reinitialize_on_becoming_relevant = runtime.get(
+        "reinitialize_on_becoming_relevant", True
+    )
+    if (
+        not isinstance(max_transitions_per_frame, int)
+        or max_transitions_per_frame < 0
+        or not isinstance(max_transition_requests, int)
+        or max_transition_requests < 0
+        or not isinstance(skip_first_update_transition, bool)
+        or not isinstance(reinitialize_on_becoming_relevant, bool)
+    ):
+        raise MaterializationError("source FSM runtime settings are invalid")
     state_ids = {item["source_node"]: item["id"] for item in [*actual, *aliases]}
+    entry_state_id = state_ids.get(f"{source_asset}:{entry_target}")
+    if entry_state_id is None:
+        raise MaterializationError("source entry target state is unavailable")
+    source_entry_conditions = []
+    for entry_index, entry in enumerate(entry_conditions):
+        target_state_id = state_ids.get(f"{source_asset}:{entry['target']}")
+        if target_state_id is None:
+            raise MaterializationError("source entry condition target is unavailable")
+        source_entry_conditions.append(
+            {
+                "target_state_id": target_state_id,
+                "gates": [
+                    condition_context_config(
+                        source_asset,
+                        gate,
+                        f"{plan['source_graph']}/entry/{entry_index}/{gate_index}",
+                    )
+                    for gate_index, gate in enumerate(entry["gates"])
+                ],
+            }
+        )
     alias_bindings = []
     for alias in aliases:
         members = []
@@ -325,38 +509,51 @@ def fsm_config(source, plan, graph_paths, namespace):
                 raise MaterializationError("source FSM alias member is unavailable")
             members.append(member)
         alias_bindings.append({"state_id": alias["id"], "member_state_ids": members})
+    transitions = resolved_fsm_transitions(source, plan, namespace)
     source_transition_conditions = []
-    for transition in sorted(
-        plan["transitions"],
-        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
-    ):
+    for transition in transitions:
         source_state = state_ids.get(f"{source_asset}:{transition['source']}")
         if source_state is None:
             raise MaterializationError("source transition condition state is unavailable")
-        try:
-            output = transition_renderer.root_output_name(
-                contract(source, transition["condition_graph"])
-            )
-        except ValueError as error:
-            raise MaterializationError("source transition condition output is unavailable") from error
+        scope = f"{plan['source_graph']}/transition/{transition['id']}/{source_state}"
+        main = condition_context_config(
+            source_asset,
+            condition_config(source, transition["condition_graph"], namespace),
+            scope + "/main",
+        )
         source_transition_conditions.append(
             {
                 "transition_id": transition["id"],
                 "source_state_id": source_state,
-                "condition": condition_path(
-                    source_asset, transition["condition_graph"], namespace
-                ),
-                "output": output,
+                **main,
+                "gates": [
+                    condition_context_config(
+                        source_asset,
+                        gate,
+                        scope + f"/gate/{gate_index}",
+                    )
+                    for gate_index, gate in enumerate(transition["gates"])
+                ],
+                "notifications": transition["notifies"],
+                "automatic_trigger_time": transition["automatic_trigger_time"],
+                "transition_duration": transition["automatic_transition_duration"],
             }
         )
     return {
         "path": fsm_path(source_asset, plan["source_graph"], namespace),
         "state_aliases": alias_bindings,
         "source_transition_conditions": source_transition_conditions,
+        "source_entry_conditions": source_entry_conditions,
+        "entry_state_id": entry_state_id,
         "actual": actual,
         "aliases": aliases,
         "state_ids": state_ids,
         "graph_paths": graph_paths,
+        "transitions": transitions,
+        "max_transitions_per_frame": max_transitions_per_frame,
+        "max_transition_requests": max_transition_requests,
+        "skip_first_update_transition": skip_first_update_transition,
+        "reinitialize_on_becoming_relevant": reinitialize_on_becoming_relevant,
     }
 
 
@@ -381,7 +578,7 @@ def fsm_text(source, plan, config, graph_paths, namespace):
             + ", state_transition: None)"
         )
     transitions = []
-    for transition in plan["transitions"]:
+    for transition in config["transitions"]:
         source_node = f"{source_asset}:{transition['source']}"
         target_node = f"{source_asset}:{transition['target']}"
         source_id = config["state_ids"].get(source_node)
@@ -389,6 +586,8 @@ def fsm_text(source, plan, config, graph_paths, namespace):
         if source_id is None or target_id is None:
             raise MaterializationError("source FSM transition endpoint is unavailable")
         path = transition_path(source_asset, transition, namespace)
+        if path in files:
+            path = transition_path(source_asset, transition, namespace, transition["id"])
         if path in files:
             raise MaterializationError("source transition output path is ambiguous")
         files[path] = transition_graph_text(source_asset, transition)
@@ -405,9 +604,7 @@ def fsm_text(source, plan, config, graph_paths, namespace):
             + repr(transition["render"]["duration"])
             + ")), ignore_external_events: false, reset_target_state: true))"
         )
-    entry = config["state_ids"].get(f"{source_asset}:{plan['entry_target']}")
-    if entry is None:
-        raise MaterializationError("source FSM entry state is unavailable")
+    entry = config["entry_state_id"]
     positions = ", ".join(
         f"{quoted(item['id'])}: ({item['position'][0]!r}, {item['position'][1]!r})"
         for item in [*config["actual"], *config["aliases"]]
@@ -564,6 +761,108 @@ def materialize_files(source, ir, external_graph_paths=(), namespace=""):
     return files
 
 
+def conduit_fixture():
+    asset = "/Asset"
+    fsm = asset + ":AnimGraph.FSM"
+    source = fsm + ".Source"
+    target = fsm + ".Target"
+    conduit = fsm + ".Conduit"
+    def graph(path):
+        return {
+            "object_path": path,
+            "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+            "nodes": [
+                {
+                    "object_path": path + ".Result",
+                    "node_guid": stable_id(asset, "fixture", path),
+                    "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+                    "position_x": 0,
+                    "position_y": 0,
+                    "title": "Result",
+                    "pins": [
+                        {
+                            "name": "bCanEnterTransition",
+                            "direction": "Input",
+                            "hidden": False,
+                            "default_value": "False",
+                            "linked_to": [],
+                            "pin_type_properties": [
+                                {"name": "PinCategory", "exported_text": "bool"}
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    def transition(source_suffix, target_suffix, index, condition, automatic=False):
+        return {
+            "id": stable_id(asset, "fixture-transition", str(index)),
+            "source_node": f"{fsm}.Transition{index}",
+            "source": source_suffix,
+            "target": target_suffix,
+            "condition_graph": condition,
+            "priority": 0,
+            "source_order": index,
+            "title": f"Transition {index}",
+            "position": [0.0, 0.0],
+            "notifies": [],
+            "render": {
+                "logic": "profiled_blend",
+                "duration": 0.1 * (index + 1),
+                "blend_mode": "Linear",
+                "blend_profile": {"bone_scales": []},
+                "automatic_rule": (
+                    {
+                        "source_semantics": "relevant_asset_time_remaining",
+                        "trigger_time": -1.0,
+                    }
+                    if automatic
+                    else None
+                ),
+            },
+        }
+    source_condition = "AnimGraph.FSM.Transition0.Rule"
+    conduit_condition = "AnimGraph.FSM.Conduit.Rule"
+    target_condition = "AnimGraph.FSM.Transition1.Rule"
+    return {
+        "asset_path": asset,
+        "graphs": [
+            {
+                "object_path": fsm,
+                "class_path": "/Script/AnimGraph.AnimationStateMachineGraph",
+                "nodes": [
+                    {"object_path": source, "index": 0},
+                    {"object_path": target, "index": 1},
+                    {"object_path": conduit, "index": 2},
+                ],
+            },
+            graph(asset + ":" + source_condition),
+            graph(asset + ":" + conduit_condition),
+            graph(asset + ":" + target_condition),
+        ],
+    }, {
+        "source_graph": "AnimGraph.FSM",
+        "entry_target": "AnimGraph.FSM.Conduit",
+        "states": [
+            {"source_node": source, "id": "10000000-0000-4000-8000-000000000001", "title": "Source", "position": [0.0, 0.0], "graph": "StateSource"},
+            {"source_node": target, "id": "10000000-0000-4000-8000-000000000002", "title": "Target", "position": [1.0, 0.0], "graph": "StateTarget"},
+        ],
+        "aliases": [],
+        "conduits": [{"source_node": conduit, "id": "10000000-0000-4000-8000-000000000003", "title": "Conduit", "position": [0.5, 0.0], "graph": conduit_condition}],
+        "conduit_conditions": {conduit: conduit_condition},
+        "transitions": [
+            transition("AnimGraph.FSM.Source", "AnimGraph.FSM.Conduit", 0, source_condition, True),
+            transition("AnimGraph.FSM.Conduit", "AnimGraph.FSM.Target", 1, target_condition),
+        ],
+        "runtime": {
+            "max_transitions_per_frame": 1,
+            "max_transition_requests": 2,
+            "skip_first_update_transition": False,
+            "reinitialize_on_becoming_relevant": True,
+        },
+    }
+
+
 def run_self_test():
     assert animation_getter_bindings(
         {
@@ -669,6 +968,15 @@ def run_self_test():
         },
         "generated",
     )
+    duplicate_transition = {
+        "source_node": "/ALS/ALS/Character/AB_Als.AB_Als:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_8",
+        "id": "lowered-a",
+    }
+    assert transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als", duplicate_transition, "generated", "lowered-a"
+    ) != transition_path(
+        "/ALS/ALS/Character/AB_Als.AB_Als", duplicate_transition, "generated", "lowered-b"
+    )
     assert len(transition_path(
         "/ALS/ALS/Character/AB_Als.AB_Als",
         {
@@ -711,6 +1019,47 @@ def run_self_test():
         pass
     else:
         raise AssertionError("linked animation layer without a target was accepted")
+    conduit_source, conduit_plan = conduit_fixture()
+    conduit_config = fsm_config(
+        conduit_source,
+        conduit_plan,
+        {"StateSource": "states/source.animgraph.ron", "StateTarget": "states/target.animgraph.ron"},
+        "",
+    )
+    assert len(conduit_config["actual"]) == 2
+    assert len(conduit_config["transitions"]) == 1
+    assert conduit_config["transitions"][0]["source"] == "AnimGraph.FSM.Source"
+    assert conduit_config["transitions"][0]["target"] == "AnimGraph.FSM.Target"
+    assert len(conduit_config["source_transition_conditions"][0]["gates"]) == 2
+    assert conduit_config["entry_state_id"] == "10000000-0000-4000-8000-000000000002"
+    assert len(conduit_config["source_entry_conditions"]) == 1
+    assert len(conduit_config["source_entry_conditions"][0]["gates"]) == 2
+    context_ids = [
+        conduit_config["source_transition_conditions"][0]["context_state_id"],
+        *(
+            gate["context_state_id"]
+            for gate in conduit_config["source_transition_conditions"][0]["gates"]
+        ),
+        *(
+            gate["context_state_id"]
+            for gate in conduit_config["source_entry_conditions"][0]["gates"]
+        ),
+    ]
+    assert len(context_ids) == len(set(context_ids))
+    assert all(uuid.UUID(value).version == 5 for value in context_ids)
+    assert conduit_config["source_transition_conditions"][0]["automatic_trigger_time"] == -1.0
+    assert conduit_config["source_transition_conditions"][0]["transition_duration"] == 0.0
+    assert not conduit_config["skip_first_update_transition"]
+    assert conduit_config["reinitialize_on_becoming_relevant"]
+    conduit_text, conduit_files = fsm_text(
+        conduit_source,
+        conduit_plan,
+        conduit_config,
+        {"StateSource": "states/source.animgraph.ron", "StateTarget": "states/target.animgraph.ron"},
+        "",
+    )
+    assert "Source conduit or alias" not in conduit_text
+    assert len(conduit_files) == 1
     return {
         "standard_and_inertial_transitions_materialized": "PASS",
         "source_custom_curve_materialized": "PASS",
@@ -719,6 +1068,8 @@ def run_self_test():
         "missing_generated_reference_rejected": "PASS",
         "linked_layer_target_closure_checked": "PASS",
         "animation_state_getter_target_binding_materialized": "PASS",
+        "conduit_guard_flattens_to_a_content_transition": "PASS",
+        "condition_graph_invocations_have_stable_isolated_contexts": "PASS",
         "source_asset_and_graph_ancestry_paths_are_readable": "PASS",
     }
 

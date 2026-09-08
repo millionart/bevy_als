@@ -12,7 +12,8 @@ use crate::animation_context::{
 };
 
 const SOURCE_TIME: &str = "source_time";
-const OUT_POSE: &str = "pose";
+const OUT_POSE: &str = "Pose";
+const LEGACY_OUT_POSE: &str = "pose";
 
 fn merge_transferred_input_context(
     transfer_input_curves: bool,
@@ -30,7 +31,8 @@ fn pose_spec(
     internalize_time: bool,
 ) -> Result<(), GraphError> {
     ctx.add_input_data(pose_input, DataSpec::Pose)
-        .add_output_data(OUT_POSE, DataSpec::Pose);
+        .add_output_data(OUT_POSE, DataSpec::Pose)
+        .add_output_data(LEGACY_OUT_POSE, DataSpec::Pose);
     if !internalize_time {
         ctx.add_input_time(SOURCE_TIME).add_output_time();
     }
@@ -107,7 +109,8 @@ impl NodeLike for ControlRigBoundaryNode {
         }
         let pose = ctx.data_back(self.pose_input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
-        ctx.set_data_fwd(OUT_POSE, pose);
+        ctx.set_data_fwd(OUT_POSE, pose.clone());
+        ctx.set_data_fwd(LEGACY_OUT_POSE, pose);
         let context_curves = if self.capture_context {
             resolve_named_context_curves(
                 &ctx,
@@ -175,6 +178,12 @@ mod tests {
         ignored.curves.insert("Ignored".to_owned(), 1.0);
         merge_transferred_input_context(false, &mut context, Some(ignored));
         assert!(!context.curves.contains_key("Ignored"));
+    }
+
+    #[test]
+    fn control_rig_boundary_exposes_the_source_pose_pin() {
+        assert_eq!(OUT_POSE, "Pose");
+        assert_eq!(LEGACY_OUT_POSE, "pose");
     }
 
     #[test]

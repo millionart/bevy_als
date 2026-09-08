@@ -20,16 +20,21 @@ use bevy_animation_graph::core::{
 
 use crate::global_f32_input::root_defaults_enabled;
 use crate::{
-    context_time_update, make_local_difference,
+    AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
+    make_mesh_space_difference,
     source_pose_nodes::{
         SourceAlphaMapping, SourceInputScaleBiasClampState, apply_source_input_scale_bias_clamp,
     },
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct SourceSequencePlayerState {
+pub(crate) struct SourceSequencePlayerState {
     initialized: bool,
     position: f32,
+    previous_position: f32,
+    has_previous_position: bool,
+    delta_seconds: f32,
+    pub(crate) context: AnimationContextState,
     play_rate_state: SourceInputScaleBiasClampState,
 }
 
@@ -105,19 +110,27 @@ fn next_position(
     loop_animation: bool,
 ) -> f32 {
     let duration = duration.max(1e-4);
+    let previous_position = state.position;
+    let has_previous_position = state.initialized && matches!(&update, TimeUpdate::Delta(_));
     if !state.initialized {
         state.initialized = true;
         state.position = start_position;
     }
-    match update {
-        TimeUpdate::Delta(value) => state.position += value.max(0.0) * play_rate,
-        TimeUpdate::Absolute(value) => state.position = start_position + value * play_rate,
+    match &update {
+        TimeUpdate::Delta(value) => state.position += (*value).max(0.0) * play_rate,
+        TimeUpdate::Absolute(value) => state.position = start_position + *value * play_rate,
         TimeUpdate::PercentOfEvent { .. } => {}
     }
     state.position = if loop_animation {
         state.position.rem_euclid(duration)
     } else {
         state.position.clamp(0.0, duration)
+    };
+    state.previous_position = previous_position;
+    state.has_previous_position = has_previous_position;
+    state.delta_seconds = match &update {
+        TimeUpdate::Delta(value) => (*value).max(0.0),
+        TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
     };
     state.position
 }
@@ -151,6 +164,7 @@ pub struct SourceSequencePlayerNode {
     pub clip: Handle<GraphClip>,
     pub additive_reference: Option<Handle<GraphClip>>,
     pub additive_reference_position: f32,
+    pub additive_mesh_space: bool,
     pub play_rate: f32,
     pub play_rate_key: String,
     pub play_rate_pin: String,
@@ -173,6 +187,7 @@ impl Default for SourceSequencePlayerNode {
             clip: Default::default(),
             additive_reference: None,
             additive_reference_position: 0.0,
+            additive_mesh_space: false,
             play_rate: 1.0,
             play_rate_key: Default::default(),
             play_rate_pin: "Play Rate".to_owned(),
@@ -249,6 +264,19 @@ impl NodeLike for SourceSequencePlayerNode {
             play_rate,
             loop_animation,
         );
+        state.context = AnimationContextState {
+            relevant_asset: Some(SourceRelevantAsset {
+                duration: clip.duration(),
+                position,
+                previous_position: state.previous_position,
+                has_previous_position: state.has_previous_position,
+                delta_seconds: state.delta_seconds,
+                looping: loop_animation,
+                weight: 1.0,
+            }),
+            curves_are_authoritative: true,
+            ..Default::default()
+        };
         let target = sample_pose(clip, position);
         let pose = if let Some(reference_handle) = &self.additive_reference {
             let reference_clip = ctx
@@ -270,7 +298,11 @@ impl NodeLike for SourceSequencePlayerNode {
                         .get(&target.skeleton)
                 })
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            make_local_difference(&reference, &target, skeleton)
+            if self.additive_mesh_space {
+                make_mesh_space_difference(&reference, &target, skeleton)
+            } else {
+                make_local_difference(&reference, &target, skeleton)
+            }
         } else {
             target
         };
@@ -323,6 +355,22 @@ mod tests {
     }
 
     #[test]
+    fn source_sequence_player_records_the_loop_boundary_for_automatic_rules() {
+        let mut state = SourceSequencePlayerState::default();
+        assert!(
+            (next_position(&mut state, TimeUpdate::Delta(0.9), 1.0, 0.0, 1.0, true) - 0.9).abs()
+                < 1e-6
+        );
+        assert!(
+            (next_position(&mut state, TimeUpdate::Delta(0.2), 1.0, 0.0, 1.0, true) - 0.1).abs()
+                < 1e-6
+        );
+        assert!(state.has_previous_position);
+        assert!((state.previous_position - 0.9).abs() < 1e-6);
+        assert!((state.delta_seconds - 0.2).abs() < 1e-6);
+    }
+
+    #[test]
     fn source_sequence_player_can_hide_an_unexposed_play_rate_pin() {
         let node = SourceSequencePlayerNode {
             expose_play_rate_pin: false,
@@ -360,6 +408,11 @@ mod tests {
             ..Default::default()
         };
         assert!(!node.expose_start_position_pin);
+    }
+
+    #[test]
+    fn source_sequence_player_defaults_additive_references_to_local_space() {
+        assert!(!SourceSequencePlayerNode::default().additive_mesh_space);
     }
 
     #[test]

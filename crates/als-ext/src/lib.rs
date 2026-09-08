@@ -80,7 +80,7 @@ pub use als_curves::{
     AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, parse_curves,
 };
 pub use animation_context::{
-    AnimationContextInput, AnimationContextInputAlias, AnimationContextState,
+    AnimationContextInput, AnimationContextInputAlias, AnimationContextState, SourceRelevantAsset,
     capture_context_curve, context_time_update, is_context_curve_input,
     player_animation_context_state, resolve_context_curves, resolve_named_context_curves,
 };
@@ -145,8 +145,9 @@ pub use inertialized_linked_anim_layer::{
     inertialized_linked_layer_activation,
 };
 pub use interruptible_fsm::{
-    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, SourceFsmStateWeight,
-    SourceTransitionCondition, StateAliasBinding, StatePoseOutput,
+    InterruptibleFsmNode, InterruptibleFsmSource, InterruptibleFsmState, SourceEntryCondition,
+    SourceFsmStateWeight, SourceTransitionCondition, SourceTransitionConditionGate,
+    SourceTransitionNotification, StateAliasBinding, StatePoseOutput,
 };
 pub use layered_graph::{
     CachedPoseInput, FixedF32Input, FixedGlobalF32Input, GlobalF32InputPin, LayeredGraphNode,
@@ -266,6 +267,7 @@ impl Plugin for AlsExtPlugin {
             .init_resource::<SyncGroupPhaseRegistry>()
             .register_type::<AnimationContextInput>()
             .register_type::<AnimationContextState>()
+            .register_type::<SourceRelevantAsset>()
             .register_type::<BlendSpace1DPoint>()
             .register_type::<BlendSpace1DNode>()
             .register_type::<CurveSampleNode>()
@@ -329,6 +331,9 @@ impl Plugin for AlsExtPlugin {
             .register_type::<InterruptibleFsmNode>()
             .register_type::<StateAliasBinding>()
             .register_type::<SourceTransitionCondition>()
+            .register_type::<SourceTransitionConditionGate>()
+            .register_type::<SourceEntryCondition>()
+            .register_type::<SourceTransitionNotification>()
             .register_type::<StatePoseOutput>()
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()

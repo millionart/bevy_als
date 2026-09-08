@@ -9,7 +9,8 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{
-    AnimationContextState, context_time_update, resolve_named_context_curves,
+    AnimationContextState, context_time_update, pose_input_context_state,
+    resolve_named_context_curves,
 };
 use crate::inertialization::source_inertial_float;
 
@@ -67,7 +68,7 @@ struct SourceInertialBone {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct SourceInertializationState {
+pub(crate) struct SourceInertializationState {
     previous: Option<Pose>,
     previous_previous: Option<Pose>,
     previous_delta: f32,
@@ -78,6 +79,7 @@ struct SourceInertializationState {
     deficit: f32,
     active: bool,
     bones: Vec<SourceInertialBone>,
+    pub(crate) context: AnimationContextState,
 }
 
 impl InertializationPassthroughNode {
@@ -318,6 +320,7 @@ impl NodeLike for InertializationPassthroughNode {
             ctx.set_time_update_back("source_time", time_update.clone());
         }
         let source_pose = ctx.data_back("Source")?.into_pose()?;
+        let source_context = pose_input_context_state(&ctx, "Source").unwrap_or_default();
         let delta = source_delta(&time_update);
         let request_epoch = optional_global_f32(&ctx, &self.request_epoch_key);
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
@@ -369,7 +372,7 @@ impl NodeLike for InertializationPassthroughNode {
         } else {
             default()
         };
-        let mut state = AnimationContextState::default();
+        let mut context = source_context;
         for curve in &self.curve_names {
             let value = if self.capture_context {
                 *context_curves
@@ -378,14 +381,13 @@ impl NodeLike for InertializationPassthroughNode {
             } else {
                 ctx.data_back(format!("source_{curve}"))?.as_f32()?
             };
-            state.curves.insert(curve.clone(), value);
+            context.curves.insert(curve.clone(), value);
             if self.expose_output(curve) {
                 ctx.set_data_fwd(curve.clone(), value);
             }
         }
-        if self.capture_context {
-            *ctx.state_mut_or_else(AnimationContextState::default)? = state;
-        }
+        ctx.state_mut_or_else(SourceInertializationState::default)?
+            .context = context;
         Ok(())
     }
 

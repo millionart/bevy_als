@@ -13,6 +13,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 from extract_ue_visible_graph_contract import contract
+from apply_additive_reference_deltas import (
+    asset_paths as additive_asset_paths,
+    graph_clip_uses as additive_graph_clip_uses,
+    patch_graph as patch_additive_graph,
+    patch_sequence_player_references,
+    raw_scale_summary,
+    referenced_animation_names,
+    source_animation_assets,
+)
 from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
 from ue_animgraph_pose_contract import (
     PoseContractError,
@@ -726,6 +735,7 @@ def resolve_property_bindings(node, semantic, registry):
         semantic["pose_key"] = stem + ".pose"
         semantic["weight_key"] = stem + ".weight"
         semantic["layer_weight_key"] = stem + ".layer_weight"
+        semantic["mesh_space_additive_key"] = stem + ".mesh_space_additive"
         return []
     if renderer == "gameplay_tag_blend":
         keys, issues = resolve_bound_keys(
@@ -1348,13 +1358,15 @@ def build_ir(
         if entry["kind"] != "state_machine":
             continue
         try:
-            fsm_plans[entry["source_graph"]] = render_fsm_plan(
+            plan = render_fsm_plan(
                 source,
                 entry["source_graph"],
                 source_content_root,
                 source_mount,
                 source_reader,
             )
+            fsm_plans[entry["source_graph"]] = plan
+            unsupported.extend(plan.get("unsupported", []))
         except FsmRenderError as error:
             unsupported.append(
                 {
@@ -1635,7 +1647,7 @@ def integration_slot_providers(ir):
             semantic = node.get("semantic")
             if not isinstance(semantic, dict) or not all(
                 isinstance(semantic.get(field), str) and semantic[field]
-                for field in ("slot_name", "group_name", "pose_key", "weight_key", "layer_weight_key")
+                for field in ("slot_name", "group_name", "pose_key", "weight_key", "layer_weight_key", "mesh_space_additive_key")
             ):
                 continue
             provider = runtime_provider("slot_providers", semantic["slot_name"])
@@ -1647,6 +1659,7 @@ def integration_slot_providers(ir):
                     "pose_key": semantic["pose_key"],
                     "weight_key": semantic["weight_key"],
                     "layer_weight_key": semantic["layer_weight_key"],
+                    "mesh_space_additive_key": semantic["mesh_space_additive_key"],
                     "target_provider": provider,
                     "status": "mapped" if provider else "requires_target_provider",
                 }
@@ -1733,6 +1746,31 @@ def integration_control_rig_providers(ir):
     return sorted(rows, key=lambda item: item["source_node"])
 
 
+def integration_is_ready(report, value):
+    if not report.get("pass"):
+        return False
+    for field in (
+        "external_runtime_functions",
+        "animation_blueprint_functions",
+        "sync_phase_providers",
+        "runtime_inputs",
+        "animation_state_getter_providers",
+        "slot_providers",
+        "gameplay_tag_providers",
+        "control_rig_providers",
+    ):
+        if any(item.get("status") != "mapped" for item in value[field]):
+            return False
+    return not any(
+        value[field]
+        for field in (
+            "unhandled_property_bindings",
+            "external_graph_dependencies",
+            "other_blockers",
+        )
+    )
+
+
 def build_integration_report(ir, report):
     providers = integration_provider_by_node(ir)
     external_functions = []
@@ -1790,13 +1828,11 @@ def build_integration_report(ir, report):
     external_dependencies.sort(key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True))
     external_functions.sort(key=lambda item: item["source_node"])
     animation_blueprint_functions.sort(key=lambda item: item["source_node"])
-    return {
+    value = {
         "format": INTEGRATION_REPORT_FORMAT,
         "source": report.get("source", {}),
-        "conversion_status": "ready" if report.get("pass") else "blocked",
-        "handoff_action": "integrate_generated_assets"
-        if report.get("pass")
-        else "repair_conversion_blockers",
+        "conversion_status": "blocked",
+        "handoff_action": "repair_conversion_blockers",
         "external_runtime_functions": external_functions,
         "animation_blueprint_functions": animation_blueprint_functions,
         "sync_phase_providers": integration_sync_phase_providers(ir),
@@ -1814,6 +1850,10 @@ def build_integration_report(ir, report):
             and issue.get("kind") != "source_property_binding_unhandled"
         ],
     }
+    if integration_is_ready(report, value):
+        value["conversion_status"] = "ready"
+        value["handoff_action"] = "integrate_generated_assets"
+    return value
 
 
 def integration_tree_results(result, seen=None):
@@ -2371,6 +2411,91 @@ def convert_source_tree(
     return result
 
 
+def materialize_additive_reference_deltas(
+    files, content_root, mount, asset_root, source_reader
+):
+    source_root = (Path(content_root) / mount.strip("/")).resolve()
+    if not source_root.is_dir():
+        raise ConversionError("source additive asset root is unavailable")
+    target_paths = additive_asset_paths(asset_root)
+    with tempfile.TemporaryDirectory() as directory:
+        graph_root = Path(directory)
+        for name, value in files.items():
+            if not name.endswith(".ron"):
+                continue
+            path = graph_root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(value, encoding="utf-8")
+        source_assets = source_animation_assets(
+            source_root,
+            referenced_animation_names(graph_root),
+            f"{mount.rstrip('/')}/{source_root.name}",
+            source_reader,
+        )
+        grouped = {}
+        for row in additive_graph_clip_uses(graph_root):
+            metadata = source_assets.get(row["clip"])
+            if metadata is None or metadata["additive_type"] == "AAT_None":
+                continue
+            reference = source_assets.get(metadata["reference_asset"])
+            if reference is None:
+                raise ConversionError(
+                    f"source additive reference is unavailable: {row['clip']}"
+                )
+            gltf_paths = list(asset_root.rglob(f"{row['clip']}.gltf"))
+            summary = raw_scale_summary(gltf_paths[0]) if len(gltf_paths) == 1 else {
+                "scale_keys": 0,
+                "scale_min": "Missing",
+                "scale_max": "Missing",
+                "unit": False,
+            }
+            merged = metadata | {
+                "reference_sequence_length": reference["sequence_length"],
+                "reference_sample_rate": reference["sample_rate"],
+                "reference_frame_count": reference["frame_count"],
+            }
+            grouped.setdefault(row["path"], []).append(row | {"metadata": merged} | summary)
+        rows = []
+        for path, graph_rows in grouped.items():
+            rows.extend(
+                row | {"kind": "clip", "requires_single_pose_consumer": True}
+                for row in patch_additive_graph(
+                    path, graph_rows[0]["graph"], graph_rows, target_paths, True
+                )
+            )
+        for path in sorted(graph_root.rglob("*.ron")):
+            rows.extend(
+                patch_sequence_player_references(
+                    path,
+                    path.relative_to(graph_root).as_posix(),
+                    source_assets,
+                    target_paths,
+                    asset_root,
+                    True,
+                )
+            )
+        if any(
+            not row["converted"]
+            or not row["unit"]
+            or (row["requires_single_pose_consumer"] and row["pose_consumers"] != 1)
+            for row in rows
+        ):
+            raise ConversionError("source additive reference delta materialization is incomplete")
+        materialized = dict(files)
+        for name in materialized:
+            if name.endswith(".ron"):
+                materialized[name] = (graph_root / name).read_text(encoding="utf-8")
+    clips = [row for row in rows if row["kind"] == "clip"]
+    players = [row for row in rows if row["kind"] == "sequence_player"]
+    return materialized, {
+        "additive_clip_uses": len(clips),
+        "additive_sequence_player_uses": len(players),
+        "converted_inputs": sum(row["converted"] for row in rows),
+        "unit_raw_scale_inputs": sum(row["unit"] for row in rows),
+        "single_pose_consumers": sum(row["pose_consumers"] == 1 for row in clips),
+    }
+
+
 def conversion_tree_outputs(
     source,
     source_identity,
@@ -2405,6 +2530,10 @@ def conversion_tree_outputs(
     result["report"]["linked_sources"] = linked_sources
     files = collect_tree_files(result)
     if result["report"]["pass"]:
+        files, additive_deltas = materialize_additive_reference_deltas(
+            files, content_root, mount, asset_root, source_reader
+        )
+        result["report"]["additive_reference_deltas"] = additive_deltas
         issues = materialized_reference_issues(files)
         if issues:
             raise ConversionError("; ".join(issues))
@@ -2502,6 +2631,60 @@ def installation_files(source_identity, materialized_files, output_namespace):
     return files
 
 
+def namespace_materialized_files(files, namespace):
+    namespace = asset_namespace(namespace)
+    if not namespace:
+        return dict(files)
+    graph_paths = {
+        path
+        for path in files
+        if path.endswith((".animgraph.ron", ".fsm.ron"))
+    }
+    if not graph_paths or any(path.startswith(namespace + "/") for path in graph_paths):
+        raise ConversionError("materialized namespace relocation is invalid")
+
+    def relocate(value):
+        if isinstance(value, str):
+            return f"{namespace}/{value}" if value in graph_paths else value
+        if isinstance(value, list):
+            return [relocate(item) for item in value]
+        if isinstance(value, dict):
+            return {key: relocate(item) for key, item in value.items()}
+        return value
+
+    result = {}
+    for path, text in files.items():
+        target_path = f"{namespace}/{path}" if path in graph_paths else path
+        if path.endswith(".ron"):
+            for source_path in sorted(graph_paths, key=len, reverse=True):
+                text = text.replace(
+                    f'"{source_path}"', f'"{namespace}/{source_path}"'
+                )
+        elif path == "materialization.manifest.json":
+            try:
+                text = json.dumps(relocate(json.loads(text)), ensure_ascii=False, indent=2) + "\n"
+            except json.JSONDecodeError as error:
+                raise ConversionError("materialization manifest is invalid") from error
+        result[target_path] = text
+    return result
+
+
+def prune_empty_owned_directories(root, namespace):
+    if not isinstance(namespace, str) or not namespace:
+        raise ConversionError("installation namespace is unavailable")
+    namespace_root = (root / namespace).resolve()
+    if root not in namespace_root.parents:
+        raise ConversionError("installation namespace is outside root")
+    if not namespace_root.is_dir():
+        return
+    for path in sorted(namespace_root.rglob("*"), key=lambda value: len(value.parts), reverse=True):
+        if path.is_dir() and not path.is_symlink():
+            try:
+                path.rmdir()
+            except OSError:
+                pass
+
+
 def install_generated_files(install_root, files, replace=False):
     root = install_root.resolve()
     if not root.is_dir():
@@ -2512,21 +2695,31 @@ def install_generated_files(install_root, files, replace=False):
     )
     if manifest_path is None:
         raise ConversionError("installation manifest is unavailable")
+    try:
+        expected = json.loads(files[manifest_path])
+    except json.JSONDecodeError as error:
+        raise ConversionError("installation manifest is invalid") from error
+    if expected.get("format") != INSTALLATION_MANIFEST_FORMAT:
+        raise ConversionError("installation manifest format is invalid")
+    stale_paths = set()
     if replace:
         existing_manifest = root / manifest_path
         if existing_manifest.is_file():
             try:
                 existing = read_json(existing_manifest)
-                expected = json.loads(files[manifest_path])
             except (OSError, json.JSONDecodeError) as error:
                 raise ConversionError("installed namespace ownership is invalid") from error
             if (
                 existing.get("format") != INSTALLATION_MANIFEST_FORMAT
                 or existing.get("source") != expected.get("source")
                 or existing.get("namespace") != expected.get("namespace")
-                or set(existing.get("files", [])) != set(expected.get("files", []))
             ):
                 raise ConversionError("installed namespace ownership is invalid")
+            if not isinstance(existing.get("files"), list) or not all(
+                isinstance(path, str) and path for path in existing["files"]
+            ):
+                raise ConversionError("installed namespace ownership is invalid")
+            stale_paths = set(existing["files"]) - set(expected.get("files", []))
     targets = {}
     for path, text in files.items():
         target = (root / path).resolve()
@@ -2540,6 +2733,13 @@ def install_generated_files(install_root, files, replace=False):
         target.parent.mkdir(parents=True, exist_ok=True)
         if replace or not target.is_file():
             target.write_text(text, encoding="utf-8")
+    namespace_root = (root / expected["namespace"]).resolve()
+    for path in stale_paths:
+        target = (root / path).resolve()
+        if namespace_root not in target.parents or not target.is_file():
+            raise ConversionError("installed namespace ownership is invalid")
+        target.unlink()
+    prune_empty_owned_directories(root, expected.get("namespace"))
 
 
 def installation_drift(install_root, files):
@@ -3332,6 +3532,7 @@ def run_self_test():
                             "pose_key": "turn_in_place_standing.pose",
                             "weight_key": "turn_in_place_standing.weight",
                             "layer_weight_key": "turn_in_place_standing.layer_weight",
+                            "mesh_space_additive_key": "turn_in_place_standing.mesh_space_additive",
                         },
                     },
                     {
@@ -3397,6 +3598,7 @@ def run_self_test():
     assert integration["animation_state_getter_providers"][0]["target_fsm_node"] == "10000000-0000-4000-8000-000000000001"
     assert integration["animation_state_getter_providers"][0]["target_state_id"] == "10000000-0000-4000-8000-000000000002"
     assert integration["slot_providers"][0]["pose_key"] == "turn_in_place_standing.pose"
+    assert integration["slot_providers"][0]["mesh_space_additive_key"] == "turn_in_place_standing.mesh_space_additive"
     assert integration["gameplay_tag_providers"][0]["provider_api"] == "als_ext::set_gameplay_tag_input"
     assert integration["control_rig_providers"] == [
         {
@@ -3418,8 +3620,18 @@ def run_self_test():
     assert "## Gameplay tag providers" not in blocked_markdown
     assert "sync_groups.ab_als_standing.movement.phase" not in blocked_markdown
     assert "get_parent.gait" not in blocked_markdown
-    ready = build_integration_report(
+    assert build_integration_report(
         integration_ir,
+        {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
+    )["conversion_status"] == "blocked"
+    ready_ir = {
+        "function_dependencies": [],
+        "external_dependencies": [],
+        "sync_group_plans": [],
+        "graphs": [{"nodes": [copy.deepcopy(integration_ir["graphs"][0]["nodes"][0])]}],
+    }
+    ready = build_integration_report(
+        ready_ir,
         {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
     )
     assert ready["conversion_status"] == "ready"
@@ -3431,8 +3643,20 @@ def run_self_test():
     assert "## Slot providers" in integration_report_markdown(ready)
     assert "## Gameplay tag providers" in integration_report_markdown(ready)
     assert "## Control Rig providers" in integration_report_markdown(ready)
-    assert "GetControlRigInput" in integration_report_markdown(ready)
-    assert "source candidates" in integration_report_markdown(ready)
+    provider = RUNTIME_PROVIDER_CONTRACT["runtime_inputs"].pop("standing_state.play_rate")
+    try:
+        missing_provider = build_integration_report(
+            ready_ir,
+            {"source": {"asset": "/Asset"}, "pass": True, "unsupported": []},
+        )
+    finally:
+        RUNTIME_PROVIDER_CONTRACT["runtime_inputs"]["standing_state.play_rate"] = provider
+    assert missing_provider["conversion_status"] == "blocked"
+    assert missing_provider["handoff_action"] == "repair_conversion_blockers"
+    assert any(
+        item["status"] == "requires_target_provider"
+        for item in missing_provider["runtime_inputs"]
+    )
     tree_integration = build_tree_integration_report(
         {
             "source": {"asset_path": "/Asset/Root.Root"},
@@ -3452,11 +3676,39 @@ def run_self_test():
         "/Asset/Root.Root",
         "/Asset/Child.Child",
     ]
-    assert tree_integration["control_rig_providers"] == ready["control_rig_providers"]
-    assert "## Source closure" in integration_report_markdown(tree_integration)
+    assert tree_integration["control_rig_providers"] == integration["control_rig_providers"]
+    assert tree_integration["conversion_status"] == "blocked"
     source_asset = "/Asset/AB_Als.AB_Als"
     namespace = default_install_namespace({"asset_path": source_asset})
     root_graph = graph_path(source_asset, "AnimGraph", namespace)
+    relocated = namespace_materialized_files(
+        {
+            "Asset/AnimGraph.animgraph.ron": 'child: "Asset/State.fsm.ron", clip: "animations/A.anim.ron"\n',
+            "Asset/State.fsm.ron": "()\n",
+            "materialization.manifest.json": json.dumps(
+                {
+                    "root_graph": "Asset/AnimGraph.animgraph.ron",
+                    "graphs": {"AnimGraph": "Asset/AnimGraph.animgraph.ron"},
+                    "fsms": {"State": "Asset/State.fsm.ron"},
+                }
+            ),
+        },
+        namespace,
+    )
+    assert set(relocated) == {
+        "generated/Asset/AnimGraph.animgraph.ron",
+        "generated/Asset/State.fsm.ron",
+        "materialization.manifest.json",
+    }
+    assert 'child: "generated/Asset/State.fsm.ron"' in relocated[
+        "generated/Asset/AnimGraph.animgraph.ron"
+    ]
+    assert 'clip: "animations/A.anim.ron"' in relocated[
+        "generated/Asset/AnimGraph.animgraph.ron"
+    ]
+    assert json.loads(relocated["materialization.manifest.json"])["root_graph"] == (
+        "generated/Asset/AnimGraph.animgraph.ron"
+    )
     installed = installation_files(
         {"asset": "/Asset/AB_Als.AB_Als"},
         {
@@ -3480,6 +3732,28 @@ def run_self_test():
             raise AssertionError("installed output conflict was accepted")
         install_generated_files(root, installed, replace=True)
         assert not installation_drift(root, installed)
+        stale = root / namespace / "obsolete.fsm.ron"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("()\n", encoding="utf-8")
+        manifest_path = root / installation_manifest_path(source_asset, namespace)
+        manifest = read_json(manifest_path)
+        manifest["files"].append(stale.relative_to(root).as_posix())
+        write_json(manifest_path, manifest)
+        install_generated_files(root, installed, replace=True)
+        assert not stale.exists()
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        owned_empty = root / namespace / "obsolete" / "empty"
+        owned_empty.mkdir(parents=True)
+        owned_kept = root / namespace / "keep"
+        owned_kept.mkdir(parents=True)
+        (owned_kept / "record.txt").write_text("keep\n", encoding="utf-8")
+        outside_empty = root / "outside" / "empty"
+        outside_empty.mkdir(parents=True)
+        prune_empty_owned_directories(root, namespace)
+        assert not owned_empty.exists()
+        assert owned_kept.is_dir()
+        assert outside_empty.is_dir()
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_integration_report(root, integration)
@@ -3506,9 +3780,12 @@ def run_self_test():
         "unsupported_source_blocks_generation": "PASS",
         "core_does_not_emit_partial_bevy_graphs": "PASS",
         "integration_dependencies_are_reported": "PASS",
+        "missing_runtime_provider_blocks_integration_ready": "PASS",
         "generic_source_sync_phase_plan_is_reported": "PASS",
         "integration_report_drift_rejected": "PASS",
         "namespaced_installation_is_deterministic_and_checked": "PASS",
+        "materialized_closure_namespace_relocation_preserves_non_graph_assets": "PASS",
+        "owned_empty_install_directories_pruned": "PASS",
         "recursive_integration_dependencies_are_aggregated": "PASS",
     }
 
@@ -3561,19 +3838,41 @@ def main():
         if args.install_namespace is not None
         else default_install_namespace(source)
     ) if args.install_root is not None else ""
-    ir, report, materialized_files, integration = conversion_tree_outputs(
-        source,
-        source_identity,
-        args.root_graph,
-        registry,
-        args.asset_root,
-        source_content_root,
-        args.mount,
-        args.source_reader,
-        args.source_reader_timeout_seconds,
-        args.source_reader_no_progress_seconds,
-        output_namespace,
-    )
+    try:
+        ir, report, materialized_files, integration = conversion_tree_outputs(
+            source,
+            source_identity,
+            args.root_graph,
+            registry,
+            args.asset_root,
+            source_content_root,
+            args.mount,
+            args.source_reader,
+            args.source_reader_timeout_seconds,
+            args.source_reader_no_progress_seconds,
+            output_namespace,
+        )
+    except Exception as error:
+        report = {
+            "format": REPORT_FORMAT,
+            "source": source_identity,
+            "function_dependencies": [],
+            "unsupported": [
+                {
+                    "kind": "conversion_internal_failure",
+                    "error_type": type(error).__name__,
+                    "detail": str(error),
+                }
+            ],
+            "pass": False,
+        }
+        if args.report is not None:
+            write_json(args.report, report)
+        if args.write:
+            args.output_root.mkdir(parents=True, exist_ok=True)
+            write_json(args.output_root / "conversion.failure.json", report)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 3
     installed_files = (
         installation_files(source_identity, materialized_files, output_namespace)
         if args.install_root is not None and not unsupported_failure(report)

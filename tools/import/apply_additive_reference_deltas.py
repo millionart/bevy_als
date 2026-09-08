@@ -3,14 +3,23 @@ import json
 import re
 import struct
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT.parent / "animgraph_authoring"))
 
 from uasset_base import UAsset
 from uasset_reader import PropReader
+import ue_animation_asset_resolver as source_resolver
+from ue_animation_asset_resolver import (
+    native_source_asset,
+    source_asset_name,
+    source_object_path,
+)
+from ue_exported_text import ExportedTextError, field as struct_field, parse_number, parse_struct
 
 
 CLIP_NODE = "bevy_animation_graph::builtin_nodes::ClipNode"
@@ -21,6 +30,12 @@ NODE_PATTERN = re.compile(
     + re.escape(CLIP_NODE)
     + r'"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"',
     re.DOTALL,
+)
+SEQUENCE_PLAYER_PATTERN = re.compile(
+    r'(?P<prefix>"als_ext::SourceSequencePlayerNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"\s*,\s*additive_reference:\s*)(?P<reference>None|Some\("[^"]+"\))(?P<middle>\s*,\s*additive_reference_position:\s*)(?P<position>-?[0-9.]+)(?:\s*,\s*additive_mesh_space:\s*(?P<mesh>true|false))?'
+)
+SEQUENCE_EVALUATOR_PATTERN = re.compile(
+    r'"als_ext::SourceSequenceEvaluatorNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"'
 )
 
 
@@ -50,7 +65,112 @@ def numerator(value):
     return 0.0
 
 
-def source_animation_assets(source_root):
+def native_property(source, name):
+    values = [
+        value.get("exported_text")
+        for value in source.get("asset_properties", [])
+        if value.get("name") == name and isinstance(value.get("exported_text"), str)
+    ]
+    if len(values) != 1:
+        raise ValueError(f"source native property is missing or ambiguous: {name}")
+    return values[0]
+
+
+def native_animation_metadata(source, source_path):
+    if (
+        source.get("format") != "ue_asset_source_v1"
+        or source.get("asset_path") != source_path
+        or source.get("asset_class") != "/Script/Engine.AnimSequence"
+    ):
+        raise ValueError("source native animation asset is invalid")
+    try:
+        frame_rate = parse_struct(native_property(source, "SamplingFrameRate"))
+        numerator_value = parse_number(struct_field(frame_rate, "Numerator"))
+        denominator_value = parse_number(struct_field(frame_rate, "Denominator"))
+        if denominator_value <= 0.0:
+            raise ValueError("source native sample rate denominator is invalid")
+        reference = native_property(source, "RefPoseSeq")
+        reference_asset = (
+            source_asset_name(source_object_path(reference))
+            if reference not in {"", "None"}
+            else "None"
+        )
+        return {
+            "additive_type": native_property(source, "AdditiveAnimType"),
+            "reference_type": native_property(source, "RefPoseType"),
+            "reference_asset": reference_asset,
+            "reference_frame": int(parse_number(native_property(source, "RefFrameIndex"))),
+            "sequence_length": parse_number(native_property(source, "SequenceLength")),
+            "sample_rate": numerator_value / denominator_value,
+            "frame_count": int(parse_number(native_property(source, "NumFrames"))),
+            "source": source_path,
+        }
+    except ExportedTextError as error:
+        raise ValueError("source native animation metadata is invalid") from error
+
+
+def raw_animation_metadata(path):
+    asset = UAsset(str(path))
+    reader = PropReader(asset)
+    matches = [
+        index
+        for index, export in enumerate(asset.exports)
+        if export_class(asset, export.class_index) == "AnimSequence"
+        and export.object_name == path.stem
+    ]
+    if len(matches) != 1:
+        raise ValueError(f"{path}: source animation sequence export is missing or ambiguous")
+    props, ok, _ = reader.read_export(matches[0])
+    if not ok:
+        raise ValueError(f"{path}: source animation sequence properties are unreadable")
+    return {
+        "additive_type": tagged_enum(props.get("AdditiveAnimType", "AAT_None")),
+        "reference_type": tagged_enum(props.get("RefPoseType", "None")),
+        "reference_asset": leaf(props.get("RefPoseSeq")),
+        "reference_frame": int(props.get("RefFrameIndex", 0)),
+        "sequence_length": float(props.get("SequenceLength", 0.0)),
+        "sample_rate": numerator(props.get("SamplingFrameRate", 0.0)),
+        "frame_count": int(props.get("NumFrames", 0)),
+        "source": path.as_posix(),
+    }
+
+
+def native_source_path(source_root, source_prefix, path):
+    relative = path.relative_to(source_root).with_suffix("").as_posix()
+    return f"{source_prefix.rstrip('/')}/{relative}.{path.stem}"
+
+
+def source_animation_assets(source_root, names=None, source_prefix=None, source_reader=None):
+    if names is not None:
+        if not source_prefix:
+            raise ValueError("source native prefix is unavailable")
+        available = {}
+        for path in source_root.rglob("*.uasset"):
+            available.setdefault(path.stem, []).append(path)
+        result = {}
+        pending = set(names)
+        while pending:
+            name = pending.pop()
+            if name in result:
+                continue
+            matches = available.get(name, [])
+            if len(matches) != 1:
+                raise ValueError(f"source animation asset {name} resolves to {len(matches)} files")
+            path = matches[0]
+            try:
+                metadata = raw_animation_metadata(path)
+            except Exception:
+                source_path = native_source_path(source_root, source_prefix, path)
+                metadata = native_animation_metadata(
+                    native_source_asset(source_path, source_reader), source_path
+                )
+            result[name] = metadata
+            if (
+                metadata["additive_type"] != "AAT_None"
+                and metadata["reference_asset"] != "None"
+            ):
+                pending.add(metadata["reference_asset"])
+        return result
     result = {}
     for path in source_root.rglob("*.uasset"):
         asset = UAsset(str(path))
@@ -160,6 +280,32 @@ def node_line(node_id, name, node_type, fields):
     )
 
 
+def node_position(text, node_id):
+    match = re.search(
+        rf'"{re.escape(node_id)}"\s*:\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)',
+        text,
+    )
+    if match is None:
+        return None
+    return float(match.group(1)), float(match.group(2))
+
+
+def occupied_positions(text):
+    return {
+        (float(match.group(1)), float(match.group(2)))
+        for match in re.finditer(r'"[^"]+"\s*:\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)', text)
+    }
+
+
+def reserve_position(used, position):
+    x, y = position
+    while (x, y) in used:
+        x += 32.0
+        y += 32.0
+    used.add((x, y))
+    return x, y
+
+
 def reference_group(graph, metadata, paths, target_id):
     reference_asset = metadata["reference_asset"]
     frame = metadata["reference_frame"]
@@ -220,11 +366,109 @@ def difference_type(additive_type):
     raise ValueError(f"unsupported additive type {additive_type}")
 
 
+def source_clip_metadata(source_assets, paths, graph, clip_path):
+    clip = Path(clip_path).name.removesuffix(".anim.ron")
+    metadata = source_assets.get(clip)
+    if metadata is None or metadata["additive_type"] == "AAT_None":
+        return None
+    reference = source_assets.get(metadata["reference_asset"])
+    if reference is None:
+        raise ValueError(f"{graph}: missing source metadata for {metadata['reference_asset']}")
+    if metadata["reference_type"] != "ABPT_AnimFrame":
+        raise ValueError(f"{graph}: {clip} has reference type {metadata['reference_type']}")
+    reference_paths = paths.get(metadata["reference_asset"], [])
+    if len(reference_paths) != 1:
+        raise ValueError(
+            f"{graph}: reference asset {metadata['reference_asset']} resolves to {len(reference_paths)} paths"
+        )
+    merged = metadata | {
+        "reference_sequence_length": reference["sequence_length"],
+        "reference_sample_rate": reference["sample_rate"],
+        "reference_frame_count": reference["frame_count"],
+    }
+    return clip, merged, reference_paths[0], frame_time(merged)
+
+
+def patch_sequence_player_references(graph_path, graph, source_assets, paths, asset_root, write):
+    text, _ = read_graph(graph_path)
+    original_text = text
+    rows = []
+
+    def replace(match):
+        nonlocal rows
+        resolved = source_clip_metadata(source_assets, paths, graph, match.group("clip"))
+        if resolved is None:
+            return match.group(0)
+        clip, metadata, reference_path, reference_time = resolved
+        if metadata["additive_type"] not in {LOCAL_ADDITIVE, MESH_ADDITIVE}:
+            raise ValueError(f"{graph}: {clip} additive type is unsupported for SourceSequencePlayer")
+        gltf_paths = list(Path(asset_root).rglob(f"{clip}.gltf"))
+        summary = raw_scale_summary(gltf_paths[0]) if len(gltf_paths) == 1 else {
+            "scale_keys": 0,
+            "scale_min": "Missing",
+            "scale_max": "Missing",
+            "unit": False,
+        }
+        expected_reference = f'Some("{reference_path}")'
+        mesh_space = metadata["additive_type"] == MESH_ADDITIVE
+        converted = match.group("reference") == expected_reference and abs(
+            float(match.group("position")) - reference_time
+        ) <= 1e-6 and (match.group("mesh") == str(mesh_space).lower())
+        rows.append(
+            {
+                "graph": graph,
+                "clip": clip,
+                "metadata": metadata,
+                "converted": converted or write,
+                "planned": not converted,
+                "reference_time": reference_time,
+                "pose_consumers": 1,
+                "unit": summary["unit"],
+                "kind": "sequence_player",
+                "requires_single_pose_consumer": False,
+            }
+        )
+        return (
+            match.group("prefix")
+            + expected_reference
+            + match.group("middle")
+            + repr(reference_time)
+            + ", additive_mesh_space: "
+            + str(mesh_space).lower()
+        )
+
+    text = SEQUENCE_PLAYER_PATTERN.sub(replace, text)
+    for match in SEQUENCE_EVALUATOR_PATTERN.finditer(text):
+        resolved = source_clip_metadata(source_assets, paths, graph, match.group("clip"))
+        if resolved is not None:
+            raise ValueError(f"{graph}: {resolved[0]} additive type is unsupported for SourceSequenceEvaluator")
+    if write and text != original_text:
+        graph_path.write_bytes(text.encode("utf-8"))
+    return rows
+
+
+def referenced_animation_names(graph_root):
+    names = {row["clip"] for row in graph_clip_uses(graph_root)}
+    for path in sorted(graph_root.rglob("*.ron")):
+        text = path.read_text(encoding="utf-8")
+        names.update(
+            Path(match.group("clip")).name.removesuffix(".anim.ron")
+            for match in SEQUENCE_PLAYER_PATTERN.finditer(text)
+        )
+        names.update(
+            Path(match.group("clip")).name.removesuffix(".anim.ron")
+            for match in SEQUENCE_EVALUATOR_PATTERN.finditer(text)
+        )
+    return names
+
+
 def patch_graph(graph_path, graph, rows, paths, write):
     text, newline = read_graph(graph_path)
     original_text = text
     added_nodes = []
     added_edges = []
+    added_positions = {}
+    used_positions = occupied_positions(text)
     groups = {}
     statuses = []
     for row in rows:
@@ -240,6 +484,9 @@ def patch_graph(graph_path, graph, rows, paths, write):
         planned = False
         if not converted:
             planned = True
+            position = node_position(original_text, row["node_id"])
+            if position is None:
+                raise ValueError(f"{graph}: {row['node']} has no editor position")
             source_pose = f'NodeData("{row["node_id"]}", "pose")'
             source_time = f'NodeTime("{row["node_id"]}")'
             if source_pose not in text or source_time not in text:
@@ -254,6 +501,22 @@ def patch_graph(graph_path, graph, rows, paths, write):
                     "",
                 )
             )
+            added_positions[difference_id] = reserve_position(
+                used_positions, (position[0] + 96.0, position[1])
+            )
+            if "positions" not in group:
+                group["positions"] = {
+                    group["clip_id"]: reserve_position(
+                        used_positions, (position[0] - 288.0, position[1])
+                    ),
+                    group["evaluator_id"]: reserve_position(
+                        used_positions, (position[0] - 192.0, position[1])
+                    ),
+                    group["constant_id"]: reserve_position(
+                        used_positions, (position[0] - 288.0, position[1] + 48.0)
+                    ),
+                }
+                added_positions.update(group["positions"])
             added_edges.append(
                 f'        NodeData("{difference_id}", "reference_pose"): NodeData("{group["evaluator_id"]}", "pose"), NodeTime("{difference_id}", "reference_time"): NodeTime("{group["evaluator_id"]}"), NodeData("{difference_id}", "target_pose"): NodeData("{row["node_id"]}", "pose"), NodeTime("{difference_id}", "target_time"): NodeTime("{row["node_id"]}"),'
             )
@@ -285,6 +548,14 @@ def patch_graph(graph_path, graph, rows, paths, write):
             1,
         )
         text = text.replace(edges_marker, f"{newline}" + newline.join(added_edges) + edges_marker, 1)
+        positions_marker = "node_positions: {"
+        if positions_marker not in text:
+            raise ValueError(f"{graph}: editor positions are missing")
+        positions = ", ".join(
+            f'"{node_id}": ({x:.3f}, {y:.3f})'
+            for node_id, (x, y) in sorted(added_positions.items())
+        )
+        text = text.replace(positions_marker, positions_marker + " " + positions + ",", 1)
         if write:
             graph_path.write_bytes(text.encode("utf-8"))
     return statuses
@@ -320,15 +591,100 @@ def markdown(rows):
     return "\n".join(lines)
 
 
+def run_self_test():
+    def native_sequence(path, additive_type="AAT_None", reference="None"):
+        return {
+            "format": "ue_asset_source_v1",
+            "asset_path": path,
+            "asset_class": "/Script/Engine.AnimSequence",
+            "asset_properties": [
+                {"name": "AdditiveAnimType", "exported_text": additive_type},
+                {"name": "RefPoseType", "exported_text": "ABPT_AnimFrame"},
+                {"name": "RefPoseSeq", "exported_text": reference},
+                {"name": "RefFrameIndex", "exported_text": "0"},
+                {"name": "SequenceLength", "exported_text": "1.000000"},
+                {"name": "SamplingFrameRate", "exported_text": "(Numerator=30,Denominator=1)"},
+                {"name": "NumFrames", "exported_text": "31"},
+            ],
+        }
+
+    base_path = "/ALS/ALS/Base/A_Base.A_Base"
+    additive_path = "/ALS/ALS/Animations/A_Add.A_Add"
+    additive = native_sequence(
+        additive_path,
+        MESH_ADDITIVE,
+        "\"/Script/Engine.AnimSequence'/ALS/ALS/Base/A_Base.A_Base'\"",
+    )
+    assert native_animation_metadata(additive, additive_path)["reference_asset"] == "A_Base"
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory) / "ALS"
+        add_file = root / "Animations" / "A_Add.uasset"
+        base_file = root / "Base" / "A_Base.uasset"
+        add_file.parent.mkdir(parents=True)
+        base_file.parent.mkdir(parents=True)
+        add_file.write_bytes(b"fixture")
+        base_file.write_bytes(b"fixture")
+        original_raw = globals()["raw_animation_metadata"]
+        original_run = source_resolver.subprocess.run
+        try:
+            def unreadable_raw(_):
+                raise RuntimeError("cooked fixture")
+
+            reader_calls = []
+
+            def fake_reader(command, **_kwargs):
+                source_path = command[command.index("-Asset") + 1]
+                output = Path(command[command.index("-Output") + 1])
+                output.write_text(
+                    json.dumps(
+                        {
+                            "format": "ue_asset_source_v1",
+                            "asset_path": source_path,
+                            "asset_class": "/Script/Engine.AnimSequence",
+                            "asset_properties": {
+                                additive_path: additive,
+                                base_path: native_sequence(base_path),
+                            }[source_path]["asset_properties"],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                reader_calls.append(source_path)
+                return type("ReaderResult", (), {"returncode": 0})()
+
+            globals()["raw_animation_metadata"] = unreadable_raw
+            source_resolver.native_source_asset_cached.cache_clear()
+            source_resolver.subprocess.run = fake_reader
+            source_resolver.native_source_asset(additive_path)
+            assets = source_animation_assets(root, {"A_Add"}, "/ALS/ALS")
+            assert set(assets) == {"A_Add", "A_Base"}
+            assert assets["A_Add"]["reference_asset"] == "A_Base"
+            assert reader_calls == [additive_path, base_path]
+        finally:
+            globals()["raw_animation_metadata"] = original_raw
+            source_resolver.subprocess.run = original_run
+            source_resolver.native_source_asset_cached.cache_clear()
+    return {
+        "native_additive_metadata_preserved": "PASS",
+        "cooked_additive_reference_fallback_reuses_native_source_records": "PASS",
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source-root", required=True, type=Path)
+    parser.add_argument("--source-root", type=Path)
     parser.add_argument("--graph-root", type=Path, default=Path("assets/graphs/ab_als"))
     parser.add_argument("--asset-root", type=Path, default=Path("assets"))
     parser.add_argument("--report", type=Path, default=Path("docs/bf100-additive-assets.md"))
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    if args.self_test:
+        print(json.dumps(run_self_test(), indent=2))
+        return
+    if args.source_root is None:
+        parser.error("--source-root is required")
     assets = source_animation_assets(args.source_root)
     paths = asset_paths(args.asset_root)
     grouped = {}

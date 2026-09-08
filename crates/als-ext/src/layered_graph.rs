@@ -14,8 +14,8 @@ use bevy_animation_graph::core::{
 use crate::animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextIoEnv,
     AnimationContextState, capture_context_curve, context_time_update, graph_output_context_state,
-    is_context_curve_input, merge_missing_context_curves, resolve_context_curves,
-    select_context_pose_output,
+    is_context_curve_input, merge_linked_input_context, merge_missing_context_curves,
+    pose_input_context_state, resolve_context_curves, select_context_pose_output,
 };
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
 use crate::source_cached_pose::resolve_cached_pose;
@@ -140,11 +140,31 @@ impl LayeredGraphNode {
             .unwrap_or_else(|| child_output.to_owned())
     }
 
+    fn exposes_source_pose_alias(output: &str, data_spec: &DataSpec) -> bool {
+        *data_spec == DataSpec::Pose && output != "pose"
+    }
+
     fn io_input_aliases(&self) -> bevy::platform::collections::HashMap<String, String> {
         self.input_aliases
             .iter()
             .map(|alias| (alias.child_input.clone(), alias.outer_input.clone()))
             .collect()
+    }
+
+    fn merge_input_pose_contexts(
+        &self,
+        graph: &AnimationGraph,
+        ctx: &NodeContext,
+        target: &mut AnimationContextState,
+    ) {
+        for input in graph.io_spec.sorted_inputs() {
+            let NodeInput::Data(GraphInputPin::Passthrough(input), DataSpec::Pose) = input else {
+                continue;
+            };
+            if let Some(context) = pose_input_context_state(ctx, &self.outer_input(&input)) {
+                merge_linked_input_context(target, &context);
+            }
+        }
     }
 
     fn child_data_values(
@@ -406,6 +426,9 @@ impl NodeLike for LayeredGraphNode {
             }
             select_context_pose_output(&mut pose_output, id, data_spec);
             if self.expose_output(id, data_spec) {
+                if Self::exposes_source_pose_alias(&outer_output, data_spec) {
+                    ctx.set_data_fwd("pose", value.clone());
+                }
                 ctx.set_data_fwd(outer_output, value);
             }
         }
@@ -415,6 +438,7 @@ impl NodeLike for LayeredGraphNode {
             {
                 merge_missing_context_curves(&mut context_state, &output_context);
             }
+            self.merge_input_pose_contexts(graph, &ctx, &mut context_state);
             self.capture_global_curves(&ctx, &mut context_state)?;
             *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
         }
@@ -465,7 +489,11 @@ impl NodeLike for LayeredGraphNode {
                 }
                 NodeOutput::Data(pin_id, data_spec) => {
                     if self.expose_output(&pin_id, &data_spec) {
-                        ctx.add_output_data(self.outer_output(&pin_id), data_spec);
+                        let outer_output = self.outer_output(&pin_id);
+                        if Self::exposes_source_pose_alias(&outer_output, &data_spec) {
+                            ctx.add_output_data("pose", DataSpec::Pose);
+                        }
+                        ctx.add_output_data(outer_output, data_spec);
                     }
                 }
             }
@@ -502,5 +530,21 @@ mod tests {
         assert_eq!(source_curve_name("pose_moving"), "PoseMoving");
         assert_eq!(source_curve_name("foot_left_ik"), "FootLeftIk");
         assert_eq!(source_curve_name("rotation_yaw_speed"), "RotationYawSpeed");
+    }
+
+    #[test]
+    fn source_pose_output_also_exposes_the_runtime_pose_alias() {
+        assert!(LayeredGraphNode::exposes_source_pose_alias(
+            "Pose",
+            &DataSpec::Pose
+        ));
+        assert!(!LayeredGraphNode::exposes_source_pose_alias(
+            "pose",
+            &DataSpec::Pose
+        ));
+        assert!(!LayeredGraphNode::exposes_source_pose_alias(
+            "Pose",
+            &DataSpec::F32
+        ));
     }
 }

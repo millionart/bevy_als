@@ -90,6 +90,12 @@ impl SourceAnimationStateGetterNode {
         target
             .node_states()
             .get::<InterruptibleFsmState>(*node_id, StateKey::Default)
+            .map_err(|error| {
+                Self::error(
+                    ctx,
+                    &format!("source animation getter target state is unavailable: {error}"),
+                )
+            })
             .cloned()
     }
 

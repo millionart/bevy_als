@@ -106,6 +106,18 @@ fn hierarchy_order(skeleton: &Skeleton) -> Vec<bevy_animation_graph::core::pose:
     order
 }
 
+pub(crate) fn materialize_missing_reference_bones(base: &mut Pose, skeleton: &Skeleton) {
+    for bone in skeleton.iter_bones() {
+        if base.paths.contains_key(&bone) {
+            continue;
+        }
+        let Some(transform) = skeleton.default_transforms(bone) else {
+            continue;
+        };
+        base.add_bone(BonePose::from_transform(transform.local), bone);
+    }
+}
+
 fn base_local_rotation(
     base: &Pose,
     skeleton: &Skeleton,
@@ -156,6 +168,8 @@ pub fn apply_mesh_space_additive(
     if alpha.abs() <= ALPHA_THRESHOLD {
         return;
     }
+
+    materialize_missing_reference_bones(base, skeleton);
 
     for (bone, additive_index) in &additive.paths {
         let additive_bone = &additive.bones[*additive_index];
@@ -301,7 +315,11 @@ mod tests {
         let mut skeleton = Skeleton::default();
         skeleton.set_root(root);
         skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
-        skeleton.add_bone(child_path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(
+            child_path,
+            Transform::from_translation(Vec3::new(0.0, 2.0, 0.0)),
+            Transform::IDENTITY,
+        );
         (skeleton, root, child)
     }
 
@@ -375,6 +393,27 @@ mod tests {
         assert_eq!(
             base.get_bone(child).and_then(|bone| bone.translation),
             Some(Vec3::new(3.0, 5.0, 7.0))
+        );
+    }
+
+    #[test]
+    fn mesh_space_additive_materializes_missing_reference_bones() {
+        let (skeleton, root, child) = test_skeleton();
+        let mut additive = Pose::default();
+        additive.add_bone(
+            BonePose {
+                translation: Some(Vec3::new(1.0, 0.0, 0.0)),
+                ..default()
+            },
+            root,
+        );
+        let mut base = Pose::default();
+
+        apply_mesh_space_additive(&mut base, &additive, 1.0, &skeleton);
+
+        assert_eq!(
+            base.get_bone(child).and_then(|bone| bone.translation),
+            Some(Vec3::new(0.0, 2.0, 0.0))
         );
     }
 

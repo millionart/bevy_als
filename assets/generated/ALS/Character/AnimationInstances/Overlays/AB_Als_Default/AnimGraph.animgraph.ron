@@ -5,7 +5,7 @@
         (id: "f5da4b55-4b5f-b6be-be66-2091b0ab63cb", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
     ],
     edges_inverted: {
-        NodeData("f5da4b55-4b5f-b6be-be66-2091b0ab63cb", "Source"): NodeData("c30d8227-4ca8-0947-b0b7-398d7a5c1d84", "pose"),
+        NodeData("f5da4b55-4b5f-b6be-be66-2091b0ab63cb", "Source"): NodeData("c30d8227-4ca8-0947-b0b7-398d7a5c1d84", "Pose"),
         NodeData("c30d8227-4ca8-0947-b0b7-398d7a5c1d84", "layer_index"): NodeData("2dabdcc0-7353-52ae-bb76-c9a6feb49249", "value"),
         OutputData("Result"): NodeData("f5da4b55-4b5f-b6be-be66-2091b0ab63cb", "Pose"),
     },

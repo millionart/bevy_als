@@ -255,12 +255,15 @@ def sequence_player_contract(node):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "PlayRate"))
     if loop_animation_path and "bLoopAnimation" in names and input_is_linked(node, "bLoopAnimation"):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "bLoopAnimation"))
+    play_rate = parse_number(field(fields, "PlayRate", "1.0"))
+    if "PlayRate" in names and not input_is_linked(node, "PlayRate"):
+        play_rate = visible_input_default(node, "PlayRate")
     return {
         "renderer": renderer,
         "input_pins": names,
         "sequence": parse_quoted(field(fields, "Sequence")),
         "play_rate_basis": parse_number(field(fields, "PlayRateBasis", "1.0")),
-        "play_rate": parse_number(field(fields, "PlayRate", "1.0")),
+        "play_rate": play_rate,
         "play_rate_path": play_rate_path,
         "play_rate_pin": "PlayRate",
         "play_rate_mapping": parse_scale_bias_clamp(
@@ -523,6 +526,8 @@ def modify_curve_contract(node):
         path = bindings.get(pin, "")
         if path and input_is_linked(node, pin):
             issues.append(issue(node, renderer, "source_property_binding_link_unsupported", pin))
+        if not input_is_linked(node, pin):
+            values[index] = visible_input_default(node, pin)
         curve_value_paths.append(path)
     alpha_path = bindings.get("Alpha", "")
     if alpha_path and input_is_linked(node, "Alpha"):
@@ -1463,8 +1468,10 @@ def run_self_test():
     )
     _, issues = pose_contract(sequence, "sequence_player")
     assert issues[0]["kind"] == "source_sync_group_unsupported"
+    sequence["pins"][0]["default_value"] = "1.200000"
     contract, _ = pose_contract(sequence, "sequence_player")
     assert contract["sync_group_role"] == "CanBeLeader"
+    assert contract["play_rate"] == 1.2
     curve = fixture_node(
         "modify_curve",
         "Node",
@@ -1474,6 +1481,7 @@ def run_self_test():
     contract, issues = pose_contract(curve, "modify_curve")
     assert not issues
     assert contract["alpha_visible"]
+    assert contract["curve_values"] == [1.0, 1.0]
     curve["binding"] = {
         "properties": [
             {

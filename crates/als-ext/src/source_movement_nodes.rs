@@ -5,6 +5,7 @@ use bevy_animation_graph::core::{
     edge_data::{DataSpec, bone_mask::BoneMask},
     errors::GraphError,
     interpolation::linear::LinearInterpolator,
+    pose::Pose,
 };
 
 use crate::global_f32_input::global_f32_or_root_default;
@@ -14,6 +15,14 @@ fn node_error(ctx: &NodeContext, message: String) -> GraphError {
         graph: ctx.graph_context.context_id,
         node: ctx.node_id,
         error: message,
+    }
+}
+
+fn source_reference_pose(source: &Pose) -> Pose {
+    Pose {
+        skeleton: source.skeleton.clone(),
+        timestamp: source.timestamp,
+        ..default()
     }
 }
 
@@ -114,7 +123,10 @@ impl NodeLike for SourceMultiWayBlendNode {
             }
             accumulated_weight += weight;
         }
-        let output = output.unwrap_or_default();
+        let output = match output {
+            Some(output) => output,
+            None => source_reference_pose(&ctx.data_back(self.pose_input(0))?.into_pose()?),
+        };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);
         Ok(())
@@ -178,6 +190,21 @@ impl NodeLike for SourceSetHipsDirectionNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn source_multi_way_blend_reference_pose_preserves_only_source_identity() {
+        let mut source = Pose {
+            timestamp: 2.5,
+            ..default()
+        };
+        source.bones.push(BonePose::default());
+        let reference = source_reference_pose(&source);
+        assert_eq!(reference.timestamp, source.timestamp);
+        assert_eq!(reference.skeleton, source.skeleton);
+        assert!(reference.bones.is_empty());
+        assert!(reference.paths.is_empty());
+    }
 
     #[test]
     fn source_multi_way_blend_can_preserve_source_pin_names() {

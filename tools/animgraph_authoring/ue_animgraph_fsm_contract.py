@@ -8,6 +8,8 @@ STATE_CLASS = "/Script/AnimGraph.AnimStateNode"
 ALIAS_CLASS = "/Script/AnimGraph.AnimStateAliasNode"
 CONDUIT_CLASS = "/Script/AnimGraph.AnimStateConduitNode"
 TRANSITION_CLASS = "/Script/AnimGraph.AnimStateTransitionNode"
+STATE_MACHINE_NODE_CLASS = "/Script/AnimGraph.AnimGraphNode_StateMachine"
+TRANSITION_NOTIFY_FIELDS = ("TransitionStart", "TransitionEnd", "TransitionInterrupt")
 
 
 class FsmContractError(ValueError):
@@ -45,6 +47,23 @@ def properties(node):
     return result
 
 
+def source_node_properties(source, path):
+    values = []
+    for graph in source.get("graphs", []):
+        values.extend(node for node in graph.get("nodes", []) if node.get("object_path") == path)
+    values.extend(node for node in source.get("asset_objects", []) if node.get("object_path") == path)
+    if not values:
+        raise FsmContractError("source FSM node is unavailable")
+    result = {}
+    for value in values:
+        for name, exported in properties(value).items():
+            existing = result.get(name)
+            if existing is not None and existing != exported:
+                raise FsmContractError("source FSM node property is inconsistent")
+            result[name] = exported
+    return result
+
+
 def required(props, name):
     value = props.get(name)
     if not isinstance(value, str):
@@ -72,6 +91,47 @@ def boolean(value):
     if value == "False":
         return False
     raise FsmContractError("source FSM boolean is invalid")
+
+
+def struct_value(value, name, default):
+    match = re.search(rf"(?:^|[,(]){re.escape(name)}=([^,()]+)", value)
+    return match.group(1) if match is not None else default
+
+
+def transition_notifies(props):
+    values = []
+    for field in TRANSITION_NOTIFY_FIELDS:
+        match = re.search(r'NotifyName="([^"]+)"', props.get(field, ""))
+        if match is not None:
+            values.append({"phase": field, "name": match.group(1)})
+    return values
+
+
+def state_machine_runtime(source, suffix):
+    asset = source.get("asset_path")
+    if not isinstance(asset, str) or not asset or "." not in suffix:
+        raise FsmContractError("source FSM runtime node is invalid")
+    source_node = f"{asset}:{suffix.rsplit('.', 1)[0]}"
+    props = source_node_properties(source, source_node)
+    node = required(props, "Node")
+    return {
+        "source_node": source_node,
+        "max_transitions_per_frame": integer(
+            struct_value(node, "MaxTransitionsPerFrame", "3")
+        ),
+        "max_transition_requests": integer(
+            struct_value(node, "MaxTransitionsRequests", "32")
+        ),
+        "skip_first_update_transition": boolean(
+            struct_value(node, "bSkipFirstUpdateTransition", "True")
+        ),
+        "reinitialize_on_becoming_relevant": boolean(
+            struct_value(node, "bReinitializeOnBecomingRelevant", "True")
+        ),
+        "allow_conduit_entry_states": boolean(
+            struct_value(node, "bAllowConduitEntryStates", "False")
+        ),
+    }
 
 
 def object_references(value):
@@ -167,7 +227,7 @@ def fsm_contract(source, suffix):
     transitions = []
     for node in nodes.values():
         class_path = node.get("class_path")
-        props = properties(node)
+        props = source_node_properties(source, node["object_path"])
         if class_path == STATE_CLASS:
             item = node_base(source, node)
             item["graph"] = bound_graph(source, props)
@@ -206,6 +266,7 @@ def fsm_contract(source, suffix):
                     "sync_group_requirement": required(props, "SyncGroupNameToRequireValidMarkersRule"),
                     "allow_inertialization_self_transition": boolean(required(props, "bAllowInertializationForSelfTransitions")),
                     "only_evaluate_when_active": boolean(required(props, "bOnlyEvaluateWhenActive")),
+                    "notifies": transition_notifies(props),
                     "source_properties": props,
                 }
             )
@@ -226,17 +287,21 @@ def fsm_contract(source, suffix):
         "aliases": sorted(aliases, key=lambda item: item["id"]),
         "conduits": sorted(conduits, key=lambda item: item["id"]),
         "transitions": sorted(transitions, key=lambda item: item["id"]),
+        "runtime": state_machine_runtime(source, suffix),
     }
 
 
 def fixture_source():
     asset = "/Asset"
-    fsm = asset + ":AnimGraph.FSM"
+    root = asset + ":AnimGraph"
+    machine = root + ".Machine"
+    fsm = machine + ".FSM"
     entry = fsm + ".Entry"
     state = fsm + ".State"
     transition = fsm + ".Transition"
     state_graph = state + ".Idle"
     transition_graph = transition + ".Rule"
+    bool_type = [{"name": "PinCategory", "exported_text": "bool"}]
     def node(path, class_path, guid, title, props, pins):
         return {
             "object_path": path,
@@ -254,31 +319,79 @@ def fixture_source():
         "asset_path": asset,
         "graphs": [
             {
+                "object_path": root,
+                "class_path": "/Script/AnimGraph.AnimationGraph",
+                "nodes": [
+                    node(
+                        machine,
+                        STATE_MACHINE_NODE_CLASS,
+                        "10000000-0000-4000-8000-000000000000",
+                        "Machine",
+                        {
+                            "Node": "(MaxTransitionsPerFrame=1,MaxTransitionsRequests=2,bSkipFirstUpdateTransition=False,bReinitializeOnBecomingRelevant=True,bAllowConduitEntryStates=False)"
+                        },
+                        [],
+                    )
+                ],
+            },
+            {
                 "object_path": fsm,
                 "class_path": FSM_CLASS,
                 "nodes": [
                     node(entry, ENTRY_CLASS, "10000000-0000-4000-8000-000000000001", "Entry", {}, [output("Entry", state, "In")]),
-                    node(state, STATE_CLASS, "10000000-0000-4000-8000-000000000002", "Idle", {"BoundGraph": "'/Asset:AnimGraph.FSM.State.Idle'"}, [output("Out", transition, "In")]),
-                    node(transition, TRANSITION_CLASS, "10000000-0000-4000-8000-000000000003", "Idle to Idle", {"BoundGraph": "'/Asset:AnimGraph.FSM.Transition.Rule'", "PriorityOrder": "1", "CrossfadeDuration": "0.2", "BlendMode": "HermiteCubic", "BlendProfileWrapper": "(bIsSkeletonBlendProfile=True)", "LogicType": "TLT_StandardBlend", "bAutomaticRuleBasedOnSequencePlayerInState": "False", "AutomaticRuleTriggerTime": "-1.0", "MinTimeBeforeReentry": "-1.0", "SyncGroupNameToRequireValidMarkersRule": "None", "bAllowInertializationForSelfTransitions": "False", "bOnlyEvaluateWhenActive": "False"}, [output("Out", state, "In")]),
+                    node(state, STATE_CLASS, "10000000-0000-4000-8000-000000000002", "Idle", {"BoundGraph": f"'{state_graph}'"}, [output("Out", transition, "In")]),
+                    node(transition, TRANSITION_CLASS, "10000000-0000-4000-8000-000000000003", "Idle to Idle", {"BoundGraph": f"'{transition_graph}'", "PriorityOrder": "1", "CrossfadeDuration": "0.2", "BlendMode": "HermiteCubic", "BlendProfileWrapper": "(bIsSkeletonBlendProfile=True)", "LogicType": "TLT_StandardBlend", "bAutomaticRuleBasedOnSequencePlayerInState": "False", "AutomaticRuleTriggerTime": "-1.0", "MinTimeBeforeReentry": "-1.0", "SyncGroupNameToRequireValidMarkersRule": "None", "bAllowInertializationForSelfTransitions": "False", "bOnlyEvaluateWhenActive": "False", "TransitionStart": '(NotifyName="Notify")'}, [output("Out", state, "In")]),
                 ],
             },
             {"object_path": state_graph, "class_path": "/Script/AnimGraph.AnimationStateGraph", "nodes": []},
-            {"object_path": transition_graph, "class_path": "/Script/AnimGraph.AnimationTransitionGraph", "nodes": []},
+            {
+                "object_path": transition_graph,
+                "class_path": "/Script/AnimGraph.AnimationTransitionGraph",
+                "nodes": [
+                    node(
+                        transition_graph + ".Result",
+                        "/Script/AnimGraph.AnimGraphNode_TransitionResult",
+                        "10000000-0000-4000-8000-000000000004",
+                        "Result",
+                        {},
+                        [
+                            {
+                                "name": "bCanEnterTransition",
+                                "direction": "Input",
+                                "hidden": False,
+                                "default_value": "False",
+                                "linked_to": [],
+                                "pin_type_properties": bool_type,
+                            }
+                        ],
+                    )
+                ],
+            },
         ],
     }
 
 
 def run_self_test():
-    value = fsm_contract(fixture_source(), "AnimGraph.FSM")
-    assert value["entry_target"] == "AnimGraph.FSM.State"
-    assert value["states"][0]["graph"] == "AnimGraph.FSM.State.Idle"
-    assert value["transitions"][0]["condition_graph"] == "AnimGraph.FSM.Transition.Rule"
+    value = fsm_contract(fixture_source(), "AnimGraph.Machine.FSM")
+    assert value["entry_target"] == "AnimGraph.Machine.FSM.State"
+    assert value["states"][0]["graph"] == "AnimGraph.Machine.FSM.State.Idle"
+    assert value["transitions"][0]["condition_graph"] == "AnimGraph.Machine.FSM.Transition.Rule"
     assert value["transitions"][0]["blend_mode"] == "HermiteCubic"
     assert value["transitions"][0]["source_order"] == 0
+    assert value["transitions"][0]["notifies"] == [{"phase": "TransitionStart", "name": "Notify"}]
+    assert value["runtime"] == {
+        "source_node": "/Asset:AnimGraph.Machine",
+        "max_transitions_per_frame": 1,
+        "max_transition_requests": 2,
+        "skip_first_update_transition": False,
+        "reinitialize_on_becoming_relevant": True,
+        "allow_conduit_entry_states": False,
+    }
     return {
         "fsm_entry_state_transition_topology_preserved": "PASS",
         "fsm_child_graph_references_preserved": "PASS",
         "fsm_transition_contract_preserved": "PASS",
+        "fsm_runtime_settings_and_transition_notifies_preserved": "PASS",
     }
 
 

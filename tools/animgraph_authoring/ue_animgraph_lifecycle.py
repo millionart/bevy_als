@@ -49,6 +49,21 @@ TRANSITION_FUNCTIONS = {
         "provider": "bevy_als::grounded_layer::GroundedLayerPlugin",
     },
 }
+TRANSITION_NOTIFY_FUNCTIONS = {
+    "AnimNotify_ActivatePivot": {
+        "call": "Activate Pivot",
+        "member": "ActivatePivot",
+    },
+    "AnimNotify_StopQuick": {
+        "call": "Play Quick Stop Animation",
+        "member": "PlayQuickStopAnimation",
+    },
+    "AnimNotify_LandToGrounded": {
+        "call": "Play Transition Right Animation",
+        "member": "PlayTransitionRightAnimation",
+    },
+}
+TRANSITION_NOTIFY_PROVIDER = "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin"
 
 
 class LifecycleRenderError(ValueError):
@@ -97,6 +112,13 @@ def input_object(node, pin):
     if len(values) != 1 or not isinstance(values[0], str):
         raise LifecycleRenderError("source lifecycle object input is missing or ambiguous")
     return values[0]
+
+
+def has_member(node, member):
+    return any(
+        f'MemberName="{member}"' in str(property.get("exported_text", ""))
+        for property in node.get("properties", [])
+    )
 
 
 def validate_stop_function(source, suffix):
@@ -173,6 +195,72 @@ def validate_transition_function(source, suffix, source_function):
     return [entry["object_path"], parent["object_path"], transition["object_path"]]
 
 
+def validate_transition_notify_function(source, suffix, source_function):
+    specification = TRANSITION_NOTIFY_FUNCTIONS[source_function]
+    graph = graph_for_suffix(source, suffix)
+    function_nodes = graph.get("nodes", [])
+    entry = [
+        node
+        for node in function_nodes
+        if node.get("class_path") == FUNCTION_ENTRY_CLASS
+    ]
+    bridge = [
+        node
+        for node in function_nodes
+        if node.get("class_path") == FUNCTION_CALL_CLASS
+        and signature(node).startswith("Execute Ubergraph ")
+    ]
+    if (
+        len(function_nodes) != 2
+        or len(entry) != 1
+        or len(bridge) != 1
+        or signature(entry[0]) != source_function
+        or not linked(entry[0], "then", bridge[0]["object_path"], "execute")
+    ):
+        raise LifecycleRenderError("source transition notify entry is unsupported")
+    event_graph = graph_for_suffix(source, "EventGraph")
+    nodes = event_graph.get("nodes", [])
+    event = [
+        node
+        for node in nodes
+        if node.get("class_path") == "/Script/BlueprintGraph.K2Node_Event"
+        and signature(node) == source_function
+    ]
+    if len(event) != 1:
+        raise LifecycleRenderError("source transition notify handler is unsupported")
+    event = event[0]
+    target = [
+        node
+        for node in nodes
+        if node.get("class_path") == FUNCTION_CALL_CLASS
+        and signature(node) == specification["call"]
+        and linked(event, "then", node["object_path"], "execute")
+    ]
+    if len(target) != 1:
+        raise LifecycleRenderError("source transition notify target is unsupported")
+    target = target[0]
+    parent = [
+        node
+        for node in nodes
+        if node.get("class_path") == FUNCTION_CALL_CLASS
+        and signature(node) == "Get Parent"
+        and linked(node, "ReturnValue", target["object_path"], "self")
+    ]
+    if len(parent) != 1:
+        raise LifecycleRenderError("source transition notify parent link is unsupported")
+    if not has_member(target, specification["member"]):
+        raise LifecycleRenderError("source transition notify target is unsupported")
+    if not linked(parent[0], "ReturnValue", target["object_path"], "self"):
+        raise LifecycleRenderError("source transition notify parent link is unsupported")
+    return [
+        entry[0]["object_path"],
+        bridge[0]["object_path"],
+        event["object_path"],
+        parent[0]["object_path"],
+        target["object_path"],
+    ]
+
+
 def resolve_lifecycle(source, function_dependencies):
     dispatches = []
     handled_nodes = set()
@@ -220,6 +308,23 @@ def resolve_lifecycle(source, function_dependencies):
                     "call_site": dependency.get("call_site"),
                     "source_node": source_node,
                     "provider": TRANSITION_FUNCTIONS[source_function]["provider"],
+                }
+            )
+            continue
+        if resolution == "graph" and source_function in TRANSITION_NOTIFY_FUNCTIONS:
+            graph = dependency.get("source_graph")
+            if not isinstance(graph, str):
+                raise LifecycleRenderError("source transition notify graph is missing")
+            handled_nodes.add(source_node)
+            handled_nodes.update(
+                validate_transition_notify_function(source, graph, source_function)
+            )
+            dispatches.append(
+                {
+                    "source_function": source_function,
+                    "call_site": dependency.get("call_site"),
+                    "source_node": source_node,
+                    "provider": TRANSITION_NOTIFY_PROVIDER,
                 }
             )
     return {
@@ -296,6 +401,43 @@ def fixture_transition_source():
     }, function, entry, parent, transition
 
 
+def fixture_transition_notify_source():
+    asset = "/Asset"
+    function = "AnimNotify_ActivatePivot"
+    graph = asset + ":" + function
+    event_graph = asset + ":EventGraph"
+    entry = graph + ".Entry"
+    bridge = graph + ".Bridge"
+    event = event_graph + ".Event"
+    target = event_graph + ".Target"
+    parent = event_graph + ".Parent"
+    other_event = event_graph + ".OtherEvent"
+    other_target = event_graph + ".OtherTarget"
+    other_parent = event_graph + ".OtherParent"
+    def output(name, target, target_pin):
+        return {"name": name, "direction": "Output", "linked_to": [{"node_object_path": target, "pin_name": target_pin}]}
+    def node(path, class_path, title, pins, properties=None):
+        return {"object_path": path, "class_path": class_path, "title": title, "pins": pins, "properties": properties or []}
+    member = lambda name: [{"exported_text": f'(MemberName="{name}")'}]
+    return {
+        "asset_path": asset,
+        "graphs": [
+            {"object_path": graph, "nodes": [
+                node(entry, FUNCTION_ENTRY_CLASS, function, [output("then", bridge, "execute")]),
+                node(bridge, FUNCTION_CALL_CLASS, "Execute Ubergraph Fixture", []),
+            ]},
+            {"object_path": event_graph, "nodes": [
+                node(event, "/Script/BlueprintGraph.K2Node_Event", function, [output("then", target, "execute")]),
+                node(target, FUNCTION_CALL_CLASS, "Activate Pivot", [], member("ActivatePivot")),
+                node(parent, FUNCTION_CALL_CLASS, "Get Parent", [output("ReturnValue", target, "self")]),
+                node(other_event, "/Script/BlueprintGraph.K2Node_Event", "AnimNotify_StopQuick", [output("then", other_target, "execute")]),
+                node(other_target, FUNCTION_CALL_CLASS, "Play Quick Stop Animation", [], member("PlayQuickStopAnimation")),
+                node(other_parent, FUNCTION_CALL_CLASS, "Get Parent", [output("ReturnValue", other_target, "self")]),
+            ]},
+        ],
+    }, function, entry, bridge, event, parent, target
+
+
 def run_self_test():
     source, entry, stop, parent = fixture_source()
     plan = resolve_lifecycle(
@@ -347,6 +489,26 @@ def run_self_test():
         transition_parent,
         transition,
     }
+    notify_source, notify_function, notify_entry, notify_bridge, notify_event, notify_parent, notify_target = fixture_transition_notify_source()
+    notify_plan = resolve_lifecycle(
+        notify_source,
+        [{
+            "source_function": notify_function,
+            "call_site": "TransitionEnd",
+            "source_node": "/Asset:State.Transition",
+            "source_graph": notify_function,
+            "resolution": "graph",
+        }],
+    )
+    assert notify_plan["dispatches"][0]["provider"] == TRANSITION_NOTIFY_PROVIDER
+    assert set(notify_plan["handled_nodes"]) == {
+        "/Asset:State.Transition",
+        notify_entry,
+        notify_bridge,
+        notify_event,
+        notify_parent,
+        notify_target,
+    }
     assert {
         "InitializeHead",
         "RefreshHead",
@@ -366,6 +528,7 @@ def run_self_test():
     return {
         "local_stop_function_chain_validated": "PASS",
         "state_transition_function_chain_validated": "PASS",
+        "transition_notify_event_handler_chain_validated": "PASS",
         "existing_runtime_lifecycle_providers_mapped": "PASS",
     }
 

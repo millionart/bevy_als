@@ -8,6 +8,10 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
+use crate::animation_context::{
+    AnimationContextState, pose_input_context_state, select_relevant_asset,
+};
+
 const WEIGHT_THRESHOLD: f32 = 1e-6;
 
 pub fn pose_input(index: usize) -> String {
@@ -71,13 +75,13 @@ impl NodeLike for MultiWayBlendNode {
 
         let mut accumulated_weight = 0.0;
         let mut output: Option<Pose> = None;
-        for (index, raw_weight) in active {
+        for (index, raw_weight) in &active {
             let weight = if self.normalize_alpha {
-                raw_weight / total_weight
+                *raw_weight / total_weight
             } else {
-                raw_weight
+                *raw_weight
             };
-            let pose = ctx.data_back(pose_input(index))?.into_pose()?;
+            let pose = ctx.data_back(pose_input(*index))?.into_pose()?;
             if let Some(base) = output.as_mut() {
                 let factor = weight / (accumulated_weight + weight);
                 LinearInterpolator {
@@ -93,6 +97,18 @@ impl NodeLike for MultiWayBlendNode {
         let output = output.unwrap_or_default();
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("pose", output);
+        let mut context = active
+            .first()
+            .and_then(|(index, _)| pose_input_context_state(&ctx, &pose_input(*index)))
+            .unwrap_or_default();
+        context.relevant_asset = select_relevant_asset(active.iter().map(|(index, weight)| {
+            (
+                pose_input_context_state(&ctx, &pose_input(*index))
+                    .and_then(|context| context.relevant_asset),
+                *weight,
+            )
+        }));
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 

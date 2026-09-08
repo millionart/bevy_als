@@ -46,6 +46,7 @@ LIFECYCLE_FUNCTION_FIELDS = {
     "StateExitFunction",
     "StateFullyBlendedOutFunction",
 }
+TRANSITION_NOTIFY_FIELDS = ("TransitionStart", "TransitionEnd", "TransitionInterrupt")
 
 
 class ReachabilityError(ValueError):
@@ -182,9 +183,25 @@ class RootTraversal:
         self.linked_layer_graphs = []
         self.function_dependencies = []
         self.issues = []
+        self.asset_object_properties = {}
         self._index_source()
 
     def _index_source(self):
+        for value in self.source.get("asset_objects", []):
+            path = value.get("object_path")
+            if not isinstance(path, str) or not path:
+                continue
+            properties = {
+                item.get("name"): item.get("exported_text")
+                for item in value.get("properties", [])
+                if isinstance(item, dict)
+                and isinstance(item.get("name"), str)
+                and isinstance(item.get("exported_text"), str)
+            }
+            existing = self.asset_object_properties.get(path)
+            if existing is not None and existing != properties:
+                raise ReachabilityError("source asset object properties are inconsistent")
+            self.asset_object_properties[path] = properties
         source_graphs = []
         for graph in self.source.get("graphs", []):
             class_path = graph.get("class_path")
@@ -411,6 +428,18 @@ class RootTraversal:
         self.graph_entry_by_path[graph_path] = entry
         self.graph_entries.append(entry)
 
+    def transition_notify_references(self, node):
+        if node_class(node) != "/Script/AnimGraph.AnimStateTransitionNode":
+            return []
+        properties = self.asset_object_properties.get(node_identity(node), {})
+        references = []
+        for field in TRANSITION_NOTIFY_FIELDS:
+            value = node_property(node, field) or properties.get(field, "")
+            match = re.search(r'NotifyName="([^"]+)"', value)
+            if match is not None:
+                references.append((field, "AnimNotify_" + match.group(1)))
+        return references
+
     def visit_node(self, node_path, graph_path):
         if node_path in self.visited_nodes:
             return
@@ -449,7 +478,10 @@ class RootTraversal:
                 self.external_references(node_path)
         else:
             self.external_references(node_path)
-        for call_site, function_name in animation_function_references(node):
+        for call_site, function_name in [
+            *animation_function_references(node),
+            *self.transition_notify_references(node),
+        ]:
             self.visit_function(
                 function_name,
                 parent_source_graph=entry["source_graph"],
@@ -668,6 +700,39 @@ def fixture_source_with_state_lifecycle_binding():
     return source
 
 
+def fixture_source_with_transition_notify():
+    source = fixture_source()
+    transition = "/Asset:AnimGraph.StateMachine.Locomotion.Transition"
+    source["graphs"][1]["nodes"].append(
+        fixture_node(
+            transition,
+            "/Script/AnimGraph.AnimStateTransitionNode",
+            1,
+        )
+    )
+    source["asset_objects"] = [
+        {
+            "object_path": transition,
+            "properties": [
+                {
+                    "name": "TransitionStart",
+                    "exported_text": '(NotifyName="Notify")',
+                }
+            ],
+        }
+    ]
+    source["graphs"].append(
+        {
+            "index": 5,
+            "object_path": "/Asset:AnimNotify_Notify",
+            "class_path": "/Script/Engine.EdGraph",
+            "name": "AnimNotify_Notify",
+            "nodes": [],
+        }
+    )
+    return source
+
+
 def fixture_source_with_self_linked_layer():
     asset = "/Asset"
     root = asset + ":AnimGraph"
@@ -767,6 +832,14 @@ def run_self_test():
         "source_graph": None,
         "resolution": "external",
     } in unbound_result["function_dependencies"]
+    notify_result = traverse(fixture_source_with_transition_notify(), "AnimGraph")
+    assert {
+        "source_node": "/Asset:AnimGraph.StateMachine.Locomotion.Transition",
+        "source_function": "AnimNotify_Notify",
+        "call_site": "TransitionStart",
+        "source_graph": "AnimNotify_Notify",
+        "resolution": "graph",
+    } in notify_result["function_dependencies"]
     linked_layer_result = traverse(fixture_source_with_self_linked_layer(), "AnimGraph")
     assert linked_layer_result["external_dependencies"] == []
     assert linked_layer_result["linked_layer_graphs"] == [
@@ -796,6 +869,7 @@ def run_self_test():
         "lifecycle_function_graph_recorded": "PASS",
         "state_lifecycle_binding_uses_member_name": "PASS",
         "state_lifecycle_binding_ablation_changes_dependency": "PASS",
+        "transition_notify_handler_graph_is_reachable": "PASS",
         "native_pin_links_walk_from_root": "PASS",
         "self_linked_layer_graph_is_reached": "PASS",
         "invalid_self_linked_layer_is_rejected": "PASS",

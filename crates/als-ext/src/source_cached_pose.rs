@@ -23,6 +23,14 @@ fn saved_cache_key<'a>(cache: &'a SourceCachedPoseSaveNode, node_name: &'a str) 
     }
 }
 
+fn requested_cache_key<'a>(cache_node: &'a str, cache_key: &'a str) -> &'a str {
+    if cache_key.is_empty() {
+        cache_node
+    } else {
+        cache_key
+    }
+}
+
 fn cache_error(ctx: &NodeContext, message: String) -> GraphError {
     GraphError::UnknownErrorNode {
         graph: ctx.graph_context.context_id,
@@ -50,11 +58,7 @@ fn scoped_cached_context_state(
     cache_node: &str,
     cache_key: &str,
 ) -> Option<AnimationContextState> {
-    let requested_key = if cache_key.is_empty() {
-        cache_node
-    } else {
-        cache_key
-    };
+    let requested_key = requested_cache_key(cache_node, cache_key);
     let (context_id, graph, cache) = ctx
         .graph_context
         .context_arena
@@ -141,16 +145,80 @@ pub fn resolve_cached_pose(ctx: &mut NodeContext, cache_node: &str) -> Result<Po
         .into_pose()
 }
 
+pub(crate) fn prewarm_scoped_cached_pose(
+    ctx: &mut NodeContext,
+    cache_node: &str,
+    cache_key: &str,
+) -> Result<(), GraphError> {
+    let requested_key = requested_cache_key(cache_node, cache_key);
+    let local_cache = ctx.graph_context.graph.nodes.values().find_map(|node| {
+        node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+            .is_some_and(|value| saved_cache_key(value, &node.name) == requested_key)
+            .then(|| node.name.clone())
+    });
+    if let Some(local_cache) = local_cache {
+        resolve_cached_pose(ctx, &local_cache)?;
+        return Ok(());
+    }
+    let contexts = ctx
+        .graph_context
+        .context_arena
+        .get_ref()
+        .iter_context_ids()
+        .filter_map(|context_id| {
+            ctx.graph_context
+                .context_arena
+                .get_ref()
+                .get_context(context_id)
+                .map(|state| (context_id, state.get_graph_id()))
+        })
+        .collect::<Vec<_>>();
+    let (context_id, graph, cache) = contexts
+        .into_iter()
+        .find_map(|(context_id, graph_id)| {
+            ctx.graph_context
+                .resources
+                .animation_graph_assets
+                .get(graph_id)
+                .and_then(|graph| {
+                    graph
+                        .nodes
+                        .values()
+                        .find(|node| {
+                            node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                                .is_some_and(|cache| {
+                                    saved_cache_key(cache, &node.name) == requested_key
+                                })
+                        })
+                        .map(|cache| (context_id, graph, cache))
+                })
+        })
+        .ok_or_else(|| {
+            cache_error(
+                ctx,
+                format!("scoped cached pose node is missing: {cache_node}"),
+            )
+        })?;
+    let cache_name = cache.name.clone();
+    let scoped_context = GraphContext {
+        context_id,
+        graph,
+        ..ctx.graph_context.clone()
+    }
+    .with_state_key(StateKey::Default);
+    resolve_cached_pose(
+        &mut scoped_context.create_node_context(cache.id),
+        &cache_name,
+    )?;
+    Ok(())
+}
+
 pub fn resolve_scoped_cached_pose(
     ctx: &mut NodeContext,
     cache_node: &str,
     cache_key: &str,
 ) -> Result<Pose, GraphError> {
-    let requested_key = if cache_key.is_empty() {
-        cache_node
-    } else {
-        cache_key
-    };
+    let requested_key = requested_cache_key(cache_node, cache_key);
     let local_cache = ctx.graph_context.graph.nodes.values().find_map(|node| {
         node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
             .is_some_and(|value| saved_cache_key(value, &node.name) == requested_key)
@@ -211,7 +279,9 @@ pub fn resolve_scoped_cached_pose(
     {
         return Err(cache_error(
             ctx,
-            format!("scoped cached pose is not prewarmed: {cache_node}"),
+            format!(
+                "scoped cached pose is not prewarmed: {cache_node}; cache_context={context_id:?}"
+            ),
         ));
     }
     scoped_context
@@ -348,6 +418,14 @@ mod tests {
                 &SourceCachedPoseSaveNode::default(),
                 "Save cached pose 'Movement'"
             ),
+            "Save cached pose 'Movement'"
+        );
+        assert_eq!(
+            requested_cache_key("Save cached pose 'Movement'", "ue-cache:movement"),
+            "ue-cache:movement"
+        );
+        assert_eq!(
+            requested_cache_key("Save cached pose 'Movement'", ""),
             "Save cached pose 'Movement'"
         );
     }

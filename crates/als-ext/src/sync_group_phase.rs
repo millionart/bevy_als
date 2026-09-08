@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::global_f32_input::global_f32_or_root_default;
+use crate::{animation_context::context_time_update, global_f32_input::global_f32_or_root_default};
 
 const EPSILON: f32 = 1e-6;
 
@@ -57,7 +57,6 @@ pub struct SyncPhaseInput {
     pub looped: bool,
     pub delta_seconds: f32,
 }
-
 
 #[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[reflect(Default, Serialize, Deserialize)]
@@ -114,9 +113,13 @@ pub fn select_source_sync_group_leader(
         if source_sync_group_tie_prefers_last(left_candidate)
             && source_sync_group_tie_prefers_last(right_candidate)
         {
-            return right_candidate.source_order.cmp(&left_candidate.source_order);
+            return right_candidate
+                .source_order
+                .cmp(&left_candidate.source_order);
         }
-        left_candidate.source_order.cmp(&right_candidate.source_order)
+        left_candidate
+            .source_order
+            .cmp(&right_candidate.source_order)
     });
     ordered
         .iter()
@@ -546,8 +549,7 @@ impl NodeLike for GlobalSyncGroupSampleNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let graph_time = ctx
-            .time_update_fwd()?
+        let graph_time = context_time_update(&ctx)?
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
         let phase = global_f32_or_root_default(&ctx, &self.key)?;

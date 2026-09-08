@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", name: "Land Conduct to Land Movement", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25", "pose"),
+        OutputTime: NodeTime("dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "dbd2bf3f-1142-5d9b-b05f-aadd46ca3a25": (607.000, 67.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

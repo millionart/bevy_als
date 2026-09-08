@@ -62,7 +62,7 @@ fn generated_animation_graph_closure_and_state_getters_load() {
         .filter(|path| path.ends_with(".fsm.ron"))
         .cloned()
         .collect::<Vec<_>>();
-    assert_eq!(files.len(), 265, "installed closure must be complete");
+    assert_eq!(files.len(), 256, "installed closure must be complete");
     assert_eq!(
         getter_paths.len(),
         10,

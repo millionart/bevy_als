@@ -10,8 +10,8 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::sync_group_phase::normalize_phase;
 use crate::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
+use crate::{animation_context::context_time_update, sync_group_phase::normalize_phase};
 
 const EPSILON: f32 = 1e-6;
 
@@ -300,8 +300,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let graph_time = ctx
-            .time_update_fwd()?
+        let graph_time = context_time_update(&ctx)?
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
         let position = ctx.data_back(IN_POSITION)?.as_vec2()?;

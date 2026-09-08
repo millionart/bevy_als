@@ -12,7 +12,12 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
+use crate::inertialization_passthrough::SourceInertializationState;
 use crate::interruptible_fsm::InterruptibleFsmState;
+use crate::source_pose_nodes::{
+    SourceBlendState, SourceGameplayTagBlendState, SourceTwoWayBlendState,
+};
+use crate::source_sequence_player::SourceSequencePlayerState;
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
@@ -32,8 +37,22 @@ pub struct AnimationContextInputAlias {
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
+pub struct SourceRelevantAsset {
+    pub duration: f32,
+    pub position: f32,
+    pub previous_position: f32,
+    pub has_previous_position: bool,
+    pub delta_seconds: f32,
+    pub looping: bool,
+    pub weight: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
 pub struct AnimationContextState {
     pub curves: HashMap<String, f32>,
+    pub relevant_asset: Option<SourceRelevantAsset>,
+    pub curves_are_authoritative: bool,
 }
 
 pub struct AnimationContextIoEnv<'a> {
@@ -174,6 +193,36 @@ fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationConte
     {
         return Some(state.clone());
     }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<SourceInertializationState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<SourceSequencePlayerState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<SourceTwoWayBlendState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<SourceGameplayTagBlendState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<SourceBlendState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
     ctx.node_states()
         .get::<InterruptibleFsmState>(node, ctx.state_key)
         .ok()
@@ -201,6 +250,38 @@ pub fn merge_missing_context_curves(
     for (name, value) in &source.curves {
         target.curves.entry(name.clone()).or_insert(*value);
     }
+    if target.relevant_asset.is_none() {
+        target.relevant_asset = source.relevant_asset.clone();
+    }
+    target.curves_are_authoritative |= source.curves_are_authoritative;
+}
+
+pub fn merge_linked_input_context(
+    target: &mut AnimationContextState,
+    source: &AnimationContextState,
+) {
+    if !target.curves_are_authoritative {
+        merge_missing_context_curves(target, source);
+    }
+}
+
+pub fn select_relevant_asset(
+    candidates: impl IntoIterator<Item = (Option<SourceRelevantAsset>, f32)>,
+) -> Option<SourceRelevantAsset> {
+    let mut selected = None;
+    for (candidate, weight) in candidates {
+        let Some(mut candidate) = candidate else {
+            continue;
+        };
+        candidate.weight *= weight.max(0.0);
+        if selected
+            .as_ref()
+            .is_none_or(|current: &SourceRelevantAsset| candidate.weight > current.weight)
+        {
+            selected = Some(candidate);
+        }
+    }
+    selected
 }
 
 pub fn select_context_pose_output(
@@ -339,16 +420,58 @@ mod tests {
     fn merged_output_context_preserves_explicit_output_curves() {
         let mut target = AnimationContextState {
             curves: HashMap::from([("PoseGrounded".to_owned(), 1.0)]),
+            ..default()
         };
         let source = AnimationContextState {
             curves: HashMap::from([
                 ("PoseGrounded".to_owned(), 0.0),
                 ("PoseMoving".to_owned(), 1.0),
             ]),
+            ..default()
         };
         merge_missing_context_curves(&mut target, &source);
         assert_eq!(target.curves.get("PoseGrounded"), Some(&1.0));
         assert_eq!(target.curves.get("PoseMoving"), Some(&1.0));
+    }
+
+    #[test]
+    fn authoritative_empty_child_context_does_not_inherit_linked_input_curves() {
+        let mut child = AnimationContextState {
+            curves_are_authoritative: true,
+            ..default()
+        };
+        let input = AnimationContextState {
+            curves: HashMap::from([("FootLeftIk".to_owned(), 1.0)]),
+            ..default()
+        };
+        merge_linked_input_context(&mut child, &input);
+        assert!(!child.curves.contains_key("FootLeftIk"));
+    }
+
+    #[test]
+    fn relevant_asset_selection_uses_the_highest_weighted_player() {
+        let first = SourceRelevantAsset {
+            duration: 1.0,
+            weight: 1.0,
+            ..default()
+        };
+        let second = SourceRelevantAsset {
+            duration: 2.0,
+            weight: 1.0,
+            ..default()
+        };
+        assert_eq!(
+            select_relevant_asset([(Some(first.clone()), 0.25), (Some(second.clone()), 0.75),])
+                .unwrap()
+                .duration,
+            2.0
+        );
+        assert_eq!(
+            select_relevant_asset([(Some(first), 1.0), (Some(second), 1.0)])
+                .unwrap()
+                .duration,
+            1.0
+        );
     }
 
     #[test]

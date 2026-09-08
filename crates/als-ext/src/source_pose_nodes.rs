@@ -9,10 +9,12 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::animation_context::{
+    AnimationContextState, pose_input_context_state, select_relevant_asset,
+};
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
-use crate::mesh_space_additive::apply_mesh_space_additive;
+use crate::mesh_space_additive::{apply_mesh_space_additive, materialize_missing_reference_bones};
 use crate::mesh_space_difference::make_mesh_space_difference;
 use crate::reference_local_difference::make_local_difference;
 use crate::{
@@ -25,16 +27,24 @@ use crate::{
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct SourceBlendState {
+pub(crate) struct SourceBlendState {
     initialized: bool,
     value: f32,
+    pub(crate) context: AnimationContextState,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct SourceTwoWayBlendState {
+pub(crate) struct SourceTwoWayBlendState {
     alpha: SourceBlendState,
     a_is_relevant: bool,
     b_is_relevant: bool,
+    pub(crate) context: AnimationContextState,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+pub(crate) struct SourceGameplayTagBlendState {
+    blend: GameplayTagBlendState,
+    pub(crate) context: AnimationContextState,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -297,6 +307,21 @@ impl NodeLike for SourceTwoWayBlendNode {
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
+        let context_a = a_is_relevant
+            .then(|| pose_input_context_state(&ctx, "A"))
+            .flatten();
+        let context_b = b_is_relevant
+            .then(|| pose_input_context_state(&ctx, "B"))
+            .flatten();
+        let mut context = context_a.clone().or(context_b.clone()).unwrap_or_default();
+        context.relevant_asset = select_relevant_asset([
+            (
+                context_a.and_then(|context| context.relevant_asset),
+                1.0 - alpha,
+            ),
+            (context_b.and_then(|context| context.relevant_asset), alpha),
+        ]);
+        ctx.state_mut::<SourceTwoWayBlendState>()?.context = context;
         Ok(())
     }
 
@@ -394,6 +419,26 @@ impl NodeLike for SourceApplyAdditiveNode {
         .interpolate_pose(&mut base, &additive, alpha);
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
+        let base_context = pose_input_context_state(&ctx, "Base");
+        let additive_context = pose_input_context_state(&ctx, "Additive");
+        let additive_is_relevant = alpha > f32::EPSILON;
+        let mut context = if additive_is_relevant {
+            additive_context.clone().or(base_context.clone())
+        } else {
+            base_context.clone().or(additive_context.clone())
+        }
+        .unwrap_or_default();
+        context.relevant_asset = select_relevant_asset([
+            (
+                additive_context.and_then(|context| context.relevant_asset),
+                if additive_is_relevant { 1.0 } else { 0.0 },
+            ),
+            (
+                base_context.and_then(|context| context.relevant_asset),
+                if additive_is_relevant { 0.0 } else { 1.0 },
+            ),
+        ]);
+        ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
     }
 
@@ -485,6 +530,14 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
             delta,
         );
         let mut base = ctx.data_back("Base")?.into_pose()?;
+        if let Some(skeleton) = ctx
+            .graph_context
+            .resources
+            .skeleton_assets
+            .get(&base.skeleton)
+        {
+            materialize_missing_reference_bones(&mut base, skeleton);
+        }
         if alpha.abs() > f32::EPSILON {
             let additive = ctx.data_back("Additive")?.into_pose()?;
             if ctx
@@ -506,6 +559,26 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
+        let base_context = pose_input_context_state(&ctx, "Base");
+        let additive_context = pose_input_context_state(&ctx, "Additive");
+        let additive_is_relevant = alpha > f32::EPSILON;
+        let mut context = if additive_is_relevant {
+            additive_context.clone().or(base_context.clone())
+        } else {
+            base_context.clone().or(additive_context.clone())
+        }
+        .unwrap_or_default();
+        context.relevant_asset = select_relevant_asset([
+            (
+                additive_context.and_then(|context| context.relevant_asset),
+                if additive_is_relevant { 1.0 } else { 0.0 },
+            ),
+            (
+                base_context.and_then(|context| context.relevant_asset),
+                if additive_is_relevant { 0.0 } else { 1.0 },
+            ),
+        ]);
+        ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
     }
 
@@ -567,12 +640,8 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
             .skeleton_assets
             .get(&base.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let difference = make_dynamic_additive_difference(
-            &base,
-            &additive,
-            skeleton,
-            self.mesh_space_additive,
-        );
+        let difference =
+            make_dynamic_additive_difference(&base, &additive, skeleton, self.mesh_space_additive);
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd("Pose", difference);
         Ok(())
@@ -609,6 +678,7 @@ fn blend_source_curve_context(
             for (name, value) in &curve.curves {
                 *base.curves.entry(name.clone()).or_default() += value * blend_amount;
             }
+            base.curves_are_authoritative |= curve.curves_are_authoritative;
             base
         }
         SourceCurvesBlendMode::Override => AnimationContextState {
@@ -617,6 +687,8 @@ fn blend_source_curve_context(
                 .iter()
                 .map(|(name, value)| (name.clone(), value * blend_amount))
                 .collect(),
+            relevant_asset: curve.relevant_asset.clone(),
+            curves_are_authoritative: curve.curves_are_authoritative,
         },
     }
 }
@@ -732,30 +804,40 @@ impl SourceGameplayTagBlendNode {
             .unwrap_or(self.blend_times[index])
             .max(0.0)
     }
+
+    fn active_index(&self, root_entity: Entity) -> Option<usize> {
+        gameplay_tag_input(root_entity, &self.active_key)
+            .map(|active| select_gameplay_tag_child_index_for_tag(&self.tags, Some(&active)))
+    }
+}
+
+fn blend_gameplay_tag_contexts(
+    contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,
+) -> AnimationContextState {
+    let mut output = AnimationContextState::default();
+    let mut relevant_assets = Vec::new();
+    for (context, weight) in contexts {
+        let weight = weight.max(0.0);
+        output.curves_are_authoritative |= context.curves_are_authoritative;
+        for (name, value) in context.curves {
+            *output.curves.entry(name).or_default() += value * weight;
+        }
+        relevant_assets.push((context.relevant_asset, weight));
+    }
+    output.relevant_asset = select_relevant_asset(relevant_assets);
+    output
 }
 
 impl NodeLike for SourceGameplayTagBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         self.validate(&ctx)?;
-        let active_is_valid = self.active_tag_pin.is_empty()
-            || ctx
-                .data_back(self.active_tag_pin.clone())
-                .ok()
-                .and_then(|value| value.as_bool().ok())
-                .unwrap_or(false);
-        let active = if !active_is_valid {
-            None
-        } else {
-            Some(
-                gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
-                    .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?,
-            )
-        };
-        let active_index = select_gameplay_tag_child_index_for_tag(&self.tags, active.as_ref());
+        let active_index = self
+            .active_index(ctx.graph_context.root_entity)
+            .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let delta = delta_seconds(&ctx)?;
         let blend_time = self.blend_time(&ctx, active_index);
         let weights = advance_gameplay_tag_weights(
-            ctx.state_mut::<GameplayTagBlendState>()?,
+            &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,
             self.child_count(),
             active_index,
             blend_time,
@@ -764,6 +846,7 @@ impl NodeLike for SourceGameplayTagBlendNode {
         );
         let mut output = None;
         let mut accumulated_weight = 0.0;
+        let mut contexts = Vec::new();
         for (index, weight) in weights.into_iter().enumerate() {
             if weight <= f32::EPSILON {
                 continue;
@@ -771,6 +854,9 @@ impl NodeLike for SourceGameplayTagBlendNode {
             let pose = ctx
                 .data_back(self.pose_pin_names[index].clone())?
                 .into_pose()?;
+            if let Some(context) = pose_input_context_state(&ctx, &self.pose_pin_names[index]) {
+                contexts.push((context, weight));
+            }
             if let Some(base) = output.as_mut() {
                 LinearInterpolator {
                     bone_mask: BoneMask::all(),
@@ -788,6 +874,8 @@ impl NodeLike for SourceGameplayTagBlendNode {
         let output = output.unwrap_or_default();
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
+        let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
+        state.context = blend_gameplay_tag_contexts(contexts);
         Ok(())
     }
 
@@ -1010,6 +1098,27 @@ mod tests {
                 .abs()
                 < 1e-6
         );
+    }
+
+    #[test]
+    fn source_blend_state_keeps_context_with_the_alpha_history() {
+        let mut state = SourceBlendState::default();
+        let alpha = source_blend_alpha(
+            &mut state,
+            0.5,
+            0.0,
+            &SourceAlphaMapping::default(),
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        state.context.curves.insert("PoseGrounded".to_owned(), 1.0);
+        assert_eq!(alpha, 0.5);
+        assert_eq!(state.context.curves.get("PoseGrounded"), Some(&1.0));
     }
 
     #[test]
@@ -1271,7 +1380,8 @@ mod tests {
         assert!((accumulated.curves["BaseOnly"] - 0.25).abs() < 1e-6);
         assert!((accumulated.curves["CurveOnly"] - 0.2).abs() < 1e-6);
         assert!((accumulated.curves["Shared"] - 0.8).abs() < 1e-6);
-        let overridden = blend_source_curve_context(base, &curve, 0.5, SourceCurvesBlendMode::Override);
+        let overridden =
+            blend_source_curve_context(base, &curve, 0.5, SourceCurvesBlendMode::Override);
         assert_eq!(overridden.curves.get("BaseOnly"), None);
         assert!((overridden.curves["CurveOnly"] - 0.2).abs() < 1e-6);
         assert!((overridden.curves["Shared"] - 0.3).abs() < 1e-6);
@@ -1329,6 +1439,45 @@ mod tests {
         };
         assert_eq!(node.active_tag_pin, "ActiveTag");
         assert_eq!(node.pose_pin_names[1], "BlendPose_1");
+    }
+
+    #[test]
+    fn source_gameplay_tag_blend_uses_the_bound_tag_without_a_bool_pin() {
+        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_gameplay_tag_input};
+
+        let entity = Entity::from_raw_u32(992).unwrap();
+        set_gameplay_tag_input(
+            entity,
+            "locomotion_action",
+            bevy_gameplay_tag::GameplayTag::new("Als.LocomotionAction.Ragdolling"),
+        );
+        let node = SourceGameplayTagBlendNode {
+            active_key: "locomotion_action".to_owned(),
+            active_tag_pin: "ActiveTag".to_owned(),
+            tags: vec!["Als.LocomotionAction.Ragdolling".to_owned()],
+            ..default()
+        };
+        assert_eq!(node.active_index(entity), Some(1));
+        clear_gameplay_tag_inputs(entity);
+    }
+
+    #[test]
+    fn source_gameplay_tag_blend_weights_missing_child_curves_as_zero() {
+        let input = AnimationContextState {
+            curves: [("FootLeftIk".to_owned(), 1.0)].into_iter().collect(),
+            curves_are_authoritative: true,
+            ..default()
+        };
+        let empty = AnimationContextState {
+            curves_are_authoritative: true,
+            ..default()
+        };
+        let output = blend_gameplay_tag_contexts([(input, 0.25), (empty.clone(), 0.75)]);
+        assert!((output.curves["FootLeftIk"] - 0.25).abs() <= 1e-6);
+        assert!(output.curves_are_authoritative);
+        let output = blend_gameplay_tag_contexts([(empty, 1.0)]);
+        assert!(output.curves_are_authoritative);
+        assert!(output.curves.is_empty());
     }
 
     #[test]
