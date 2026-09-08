@@ -12,9 +12,9 @@ use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use std::{path::Path, sync::LazyLock};
 
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, InterruptibleFsmNode, InterruptibleFsmState,
-    SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
-    build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
+    AlphaBlendMode, AlsAnimCurves, InterruptibleFsmNode, InterruptibleFsmState, SyncMarker,
+    SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase, build_branch_bone_mask,
+    marker_phase_sample_time, transition_alpha,
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
@@ -697,7 +697,6 @@ impl StandingOuterTransition {
         debug_assert!(!profile.source_static_contract.is_empty());
         profile.duration
     }
-
 }
 
 #[derive(Component, Clone, Debug, Default, PartialEq)]
@@ -788,6 +787,7 @@ pub struct AlsStandingGraphTelemetry {
     pub detail_state: Option<u8>,
     pub detail_transition_active: Option<bool>,
     pub actual_movement_state: Option<u8>,
+    pub actual_movement_states: u8,
     pub actual_movement_transition_active: Option<bool>,
     pub actual_movement_pose_ready: Option<bool>,
     pub actual_detail_state: Option<u8>,
@@ -1568,8 +1568,7 @@ fn update_standing_inputs(
     let walk_run_amount = if gait == Gait::Walking { 0.0 } else { 1.0 };
     let sprinting = gait_is_sprinting;
     let animation_speed = horizontal_speed / animation_world_scale;
-    let stride_amount =
-        standing_stride_amount(unweighted_gait_running_amount, animation_speed);
+    let stride_amount = standing_stride_amount(unweighted_gait_running_amount, animation_speed);
     let play_rate = standing_play_rate(
         params,
         animation_speed,
@@ -2051,6 +2050,12 @@ fn generated_movement_state_index(label: &str) -> Option<u8> {
     }
 }
 
+fn generated_fsm_state_mask(weights: impl Iterator<Item = (u8, f32)>) -> u8 {
+    weights
+        .filter(|(_, weight)| *weight > 1e-5)
+        .fold(0, |mask, (index, _)| mask | (1 << index))
+}
+
 fn generated_fsm_telemetry(
     player: &AnimationGraphPlayer,
     asset_server: &AssetServer,
@@ -2058,7 +2063,7 @@ fn generated_fsm_telemetry(
     state_machines: &Assets<StateMachine>,
     node_name: &str,
     state_index: fn(&str) -> Option<u8>,
-) -> Option<(Option<u8>, bool, bool)> {
+) -> Option<(Option<u8>, bool, bool, u8)> {
     let arena = player.get_context_arena()?;
     arena.iter_context_ids().find_map(|context_id| {
         let context = arena.get_context(context_id)?;
@@ -2089,10 +2094,18 @@ fn generated_fsm_telemetry(
             LowLevelStateId::HlTransition(_) => None,
         };
         let transition_active = matches!(state.state, LowLevelStateId::HlTransition(_));
+        let active_states =
+            generated_fsm_state_mask(state_machine.states.iter().filter_map(|(id, entry)| {
+                Some((
+                    state_index(&entry.label)?,
+                    state.recorded_state_weight(&id.uuid().to_string()),
+                ))
+            }));
         Some((
             actual_state,
             transition_active,
             state.last_output_pose().is_some(),
+            active_states,
         ))
     })
 }
@@ -2204,6 +2217,7 @@ fn capture_standing_graph_telemetry(
                     || value.detail_transition_request_remaining > f32::EPSILON
             }),
             actual_movement_state: actual.and_then(|value| value.0),
+            actual_movement_states: actual.map_or(0, |value| value.3),
             actual_movement_transition_active: actual.map(|value| value.1),
             actual_movement_pose_ready: actual.map(|value| value.2),
             actual_detail_state: detail.and_then(|value| value.0),
@@ -2554,6 +2568,19 @@ mod tests {
     }
 
     #[test]
+    fn generated_fsm_reader_preserves_states_during_a_weighted_transition() {
+        assert_eq!(
+            generated_fsm_state_mask([(1, 0.75), (3, 0.25)].into_iter()),
+            0b1010
+        );
+        assert_eq!(
+            generated_fsm_state_mask([(1, 0.0), (3, 1.0)].into_iter()),
+            0b1000
+        );
+        assert_eq!(generated_fsm_state_mask([].into_iter()), 0);
+    }
+
+    #[test]
     fn movement_state_indices_match_the_source_state_machine_order() {
         assert_eq!(movement_state_index(AlsMovementDirection::Forward), 0.0);
         assert_eq!(movement_state_index(AlsMovementDirection::Backward), 1.0);
@@ -2649,8 +2676,14 @@ mod tests {
         assert!((value + 60.0).abs() < 1e-6, "{value}");
         assert_eq!(standing_rotation_yaw_offsets(-420.0).0, -60.0);
         assert_eq!(standing_rotation_yaw_offsets(60.0).0, 60.0);
-        assert_eq!(standing_rotation_yaw_offsets(-45.0), (-45.0, -45.0, 45.0, 0.0));
-        assert_eq!(standing_rotation_yaw_offsets(45.0), (45.0, 45.0, 0.0, -45.0));
+        assert_eq!(
+            standing_rotation_yaw_offsets(-45.0),
+            (-45.0, -45.0, 45.0, 0.0)
+        );
+        assert_eq!(
+            standing_rotation_yaw_offsets(45.0),
+            (45.0, 45.0, 0.0, -45.0)
+        );
     }
 
     #[test]
