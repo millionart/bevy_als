@@ -23,7 +23,7 @@ STATE_MACHINE_DIRECTION_CASES = {
     "run_backward",
     "run_right_from_backward",
     "run_left_from_right_backward",
-    "run_backward_from_left_forward",
+    "run_left_forward_from_backward",
     "run_right_from_left_backward",
 }
 

@@ -25,7 +25,8 @@ use als_ext::{
 use bevy_als::motion_graph_link::{compute_motion_graph_inputs, write_motion_graph_pins};
 use bevy_als::pa_als::PaAlsPhysicsPlugin;
 use bevy_als::ragdoll_link::{
-    AlsRagdollGroundFollow, AlsRagdollJointDrive, AlsRagdollLinkPlugin, ragdoll_exit_route_system,
+    AlsRagdollGroundFollow, AlsRagdollJointDrive, AlsRagdollLinkPlugin, RAGDOLL_ANGULAR_STIFFNESS,
+    ragdoll_exit_route_system,
 };
 use bevy_als::stop_link::AlsStopLinkPlugin;
 
@@ -310,7 +311,7 @@ fn ragdoll_watcher(
     labels: Query<&BodyLabel>,
     profiles: Query<&RagdollPhysicsProfileApplied>,
     collision_members: Query<&RagdollCollisionMember>,
-    joints: Query<&SphericalJoint>,
+    joints: Query<&als_ext::SourcePhysicsJoint>,
     body_transforms: Query<(&Position, &Rotation)>,
     positions: Query<(&Position, &LinearVelocity)>,
     modes: Query<&RigidBody>,
@@ -370,6 +371,7 @@ fn ragdoll_watcher(
                         profile.body_count == 21
                             && profile.collider_count == 22
                             && profile.joint_count == 20
+                            && profile.source_joint_count == 19
                             && profile.collision_disabled_pair_count == 49
                     }) && spawned.colliders.values().all(|collider| {
                         collision_members.get(*collider).is_ok_and(|member| {
@@ -383,18 +385,19 @@ fn ragdoll_watcher(
                     && let Ok(profile) = profiles.get(instance.player_entity())
                 {
                     info!(
-                        "[RGATE][PROFILE-PROBE] bodies={} colliders={} joints={} collision_disabled_pairs={} applied_anchor_error={:.6} current_anchor_error={anchor_error:.6}",
+                        "[RGATE][PROFILE-PROBE] bodies={} colliders={} joints={} source_joints={} collision_disabled_pairs={} applied_anchor_error={:.6} current_anchor_error={anchor_error:.6}",
                         profile.body_count,
                         profile.collider_count,
                         profile.joint_count,
+                        profile.source_joint_count,
                         profile.collision_disabled_pair_count,
-                        profile.max_anchor_error_m
+                        profile.handoff_locked_joint_anchor_error_m
                     );
                     watch.profile_probe_logged = true;
                 }
                 if !watch.profile_logged && profile_valid {
                     info!(
-                        "[RGATE][PROFILE] bodies=21 colliders=22 joints=20 collision_disabled_pairs=49 max_anchor_error_m={anchor_error:.6} -> PASS"
+                        "[RGATE][PROFILE] bodies=21 colliders=22 joints=20 source_joints=19 collision_disabled_pairs=49 max_anchor_error_m={anchor_error:.6} -> PASS"
                     );
                     watch.profile_logged = true;
                 }
@@ -495,8 +498,10 @@ fn ragdoll_watcher(
                 .joint_drive_peak_stiffness
                 .max(drive.angular_stiffness);
             if !watch.joint_drive_full
-                && drive.angular_stiffness >= 49.999
-                && drive.angular_damping >= 0.999
+                && (drive.angular_stiffness - drive.speed_amount * RAGDOLL_ANGULAR_STIFFNESS).abs()
+                    <= 1e-3
+                && drive.angular_damping.abs() <= 1e-6
+                && drive.angular_force_limit.abs() <= 1e-6
                 && drive.target_joint_count >= watch.joint_drive_expected_targets
             {
                 watch.joint_drive_full = true;
@@ -641,15 +646,18 @@ fn ragdoll_watcher(
 
 fn spawned_joint_anchor_error(
     spawned: &bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll,
-    joints: &Query<&SphericalJoint>,
+    joints: &Query<&als_ext::SourcePhysicsJoint>,
     body_transforms: &Query<(&Position, &Rotation)>,
 ) -> Option<f32> {
     let mut maximum = 0.0_f32;
     for joint_entity in spawned.joints.values() {
         let joint = joints.get(*joint_entity).ok()?;
-        let (frame_1, frame_2) = (joint.local_frame1()?, joint.local_frame2()?);
+        if !joint.linear_locked {
+            continue;
+        }
+        let (frame_1, frame_2) = (joint.parent_frame, joint.child_frame);
         let [(position_1, rotation_1), (position_2, rotation_2)] =
-            body_transforms.get_many([joint.body1, joint.body2]).ok()?;
+            body_transforms.get_many([joint.parent, joint.child]).ok()?;
         let anchor_1 = position_1.0 + rotation_1.0 * Vec3::from(frame_1.translation);
         let anchor_2 = position_2.0 + rotation_2.0 * Vec3::from(frame_2.translation);
         maximum = maximum.max(anchor_1.distance(anchor_2));

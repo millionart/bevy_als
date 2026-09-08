@@ -166,6 +166,13 @@ pub struct AlsFootIkApplyTelemetrySide {
 pub struct AlsFootIkApplyTelemetry {
     pub left: AlsFootIkApplyTelemetrySide,
     pub right: AlsFootIkApplyTelemetrySide,
+    pub restore_translation_delta_m: f32,
+    pub restore_rotation_delta_radians: f32,
+    pub solver_translation_delta_m: f32,
+    pub solver_rotation_delta_radians: f32,
+    pub pelvis_write_delta_m: f32,
+    pub left_chain_write_delta_m: f32,
+    pub right_chain_write_delta_m: f32,
 }
 
 #[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -224,6 +231,10 @@ struct FootIkPoseBaseState {
     animation_base: [Transform; FOOT_IK_POSE_BONE_COUNT],
     previous_applied: [Transform; FOOT_IK_POSE_BONE_COUNT],
     initialized: [bool; FOOT_IK_POSE_BONE_COUNT],
+    restore_translation_delta_m: f32,
+    restore_rotation_delta_radians: f32,
+    solver_translation_delta_m: f32,
+    solver_rotation_delta_radians: f32,
 }
 
 impl Default for FootIkPoseBaseState {
@@ -233,6 +244,10 @@ impl Default for FootIkPoseBaseState {
             animation_base: [Transform::IDENTITY; FOOT_IK_POSE_BONE_COUNT],
             previous_applied: [Transform::IDENTITY; FOOT_IK_POSE_BONE_COUNT],
             initialized: [false; FOOT_IK_POSE_BONE_COUNT],
+            restore_translation_delta_m: 0.0,
+            restore_rotation_delta_radians: 0.0,
+            solver_translation_delta_m: 0.0,
+            solver_rotation_delta_radians: 0.0,
         }
     }
 }
@@ -241,6 +256,40 @@ fn transforms_approximately_equal(left: Transform, right: Transform) -> bool {
     left.translation.distance_squared(right.translation) <= 1e-10
         && left.rotation.dot(right.rotation).abs() >= 1.0 - 1e-6
         && left.scale.distance_squared(right.scale) <= 1e-10
+}
+
+fn foot_ik_stage_delta(before: Transform, after: Transform) -> (f32, f32) {
+    let translation = before.translation.distance(after.translation);
+    let rotation = 2.0
+        * before
+            .rotation
+            .dot(after.rotation)
+            .abs()
+            .clamp(-1.0, 1.0)
+            .acos();
+    (translation, rotation)
+}
+
+fn foot_ik_max_translation_delta<const N: usize>(
+    before: [Transform; N],
+    after: [Transform; N],
+) -> f32 {
+    before
+        .into_iter()
+        .zip(after)
+        .map(|(before, after)| before.translation.distance(after.translation))
+        .fold(0.0, f32::max)
+}
+
+fn foot_ik_chain_locals(
+    chain: &als_core::foot_ik::FootChain,
+    bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
+) -> Option<[Transform; 3]> {
+    Some([
+        *bone_locals.get(chain.thigh).ok()?.0,
+        *bone_locals.get(chain.calf).ok()?.0,
+        *bone_locals.get(chain.foot).ok()?.0,
+    ])
 }
 
 fn restore_foot_ik_animation_transform(
@@ -566,6 +615,8 @@ fn restore_foot_ik_animation_pose_base(
     mut bone_locals: Query<(&mut Transform, &ChildOf), Without<AnimationPlayer>>,
 ) {
     for (bones, mut state) in &mut characters {
+        state.restore_translation_delta_m = 0.0;
+        state.restore_rotation_delta_radians = 0.0;
         let Some(entities) = foot_ik_pose_entities(bones, &mut bone_locals) else {
             *state = FootIkPoseBaseState::default();
             continue;
@@ -575,7 +626,12 @@ fn restore_foot_ik_animation_pose_base(
                 *state = FootIkPoseBaseState::default();
                 break;
             };
-            *transform = restore_foot_ik_animation_transform(&mut state, index, entity, *transform);
+            let before = *transform;
+            *transform = restore_foot_ik_animation_transform(&mut state, index, entity, before);
+            let (translation, rotation) = foot_ik_stage_delta(before, *transform);
+            state.restore_translation_delta_m = state.restore_translation_delta_m.max(translation);
+            state.restore_rotation_delta_radians =
+                state.restore_rotation_delta_radians.max(rotation);
         }
     }
 }
@@ -588,6 +644,8 @@ fn capture_foot_ik_applied_pose_base(
     mut bone_locals: Query<(&mut Transform, &ChildOf), Without<AnimationPlayer>>,
 ) {
     for (bones, mut state) in &mut characters {
+        state.solver_translation_delta_m = 0.0;
+        state.solver_rotation_delta_radians = 0.0;
         let Some(entities) = foot_ik_pose_entities(bones, &mut bone_locals) else {
             *state = FootIkPoseBaseState::default();
             continue;
@@ -597,6 +655,10 @@ fn capture_foot_ik_applied_pose_base(
                 *state = FootIkPoseBaseState::default();
                 break;
             };
+            let (translation, rotation) =
+                foot_ik_stage_delta(state.animation_base[index], *transform);
+            state.solver_translation_delta_m = state.solver_translation_delta_m.max(translation);
+            state.solver_rotation_delta_radians = state.solver_rotation_delta_radians.max(rotation);
             state.previous_applied[index] = *transform;
         }
     }
@@ -1026,6 +1088,7 @@ fn foot_ik_apply_system(
     mut telemetry: ParamSet<(
         Query<&mut AlsFootIkTelemetry, With<als_core::character::AlsCharacter>>,
         Query<&mut AlsFootLockTeleportTelemetry, With<als_core::character::AlsCharacter>>,
+        Query<&mut AlsFootIkApplyTelemetry, With<als_core::character::AlsCharacter>>,
     )>,
     mut space_states: Query<&mut AlsFootIkSpaceState, With<als_core::character::AlsCharacter>>,
     mut poles: Query<&mut FootIkPoleState, With<als_core::character::AlsCharacter>>,
@@ -1057,6 +1120,8 @@ fn foot_ik_apply_system(
         mut dynamic_transition,
     ) in &mut characters
     {
+        let mut pelvis_write_delta_m = 0.0;
+        let mut chain_write_delta_m = [0.0; 2];
         let Some((_, _, armature)) = avatars
             .iter()
             .find(|(parent, _, _)| parent.parent() == entity)
@@ -1286,12 +1351,29 @@ fn foot_ik_apply_system(
             targets.grounded,
             dt,
         );
+        let pelvis_entity = bone_locals
+            .get(bones.left_thigh)
+            .ok()
+            .map(|(_, _, child)| child.0);
+        let pelvis_before = pelvis_entity.and_then(|entity| {
+            bone_locals
+                .get(entity)
+                .ok()
+                .map(|(transform, _, _)| *transform)
+        });
         let pelvis_world_offset = apply_pelvis_drop(
             bones.left_thigh,
             source_rig.pelvis_offset_y,
             &mut bone_locals,
             &bone_globals,
         );
+        if let (Some(_), Some(before), Some((after, _, _))) = (
+            pelvis_entity,
+            pelvis_before,
+            pelvis_entity.and_then(|entity| bone_locals.get(entity).ok()),
+        ) {
+            pelvis_write_delta_m = before.translation.distance(after.translation);
+        }
         dynamic_transition.update(
             &lock_state,
             lock_input.allow_transitions,
@@ -1514,6 +1596,7 @@ fn foot_ik_apply_system(
             {
                 continue;
             }
+            let before_chain = foot_ik_chain_locals(&chain, &mut bone_locals);
             let resolved_target = apply_chain_target(
                 &chain,
                 target_world.0,
@@ -1526,6 +1609,12 @@ fn foot_ik_apply_system(
                 &mut bone_locals,
                 &bone_globals,
             );
+            if let (Some(before), Some(after)) =
+                (before_chain, foot_ik_chain_locals(&chain, &mut bone_locals))
+            {
+                let delta = foot_ik_max_translation_delta(before, after);
+                chain_write_delta_m[side] = delta;
+            }
             if let Some(resolved_target) = resolved_target
                 && let Ok(mut space_state) = space_states.get_mut(entity)
             {
@@ -1546,6 +1635,11 @@ fn foot_ik_apply_system(
         if let Ok(mut value) = telemetry.p1().get_mut(entity) {
             value.remaining_seconds = lifecycle.teleport_remaining;
         }
+        if let Ok(mut value) = telemetry.p2().get_mut(entity) {
+            value.pelvis_write_delta_m = pelvis_write_delta_m;
+            value.left_chain_write_delta_m = chain_write_delta_m[0];
+            value.right_chain_write_delta_m = chain_write_delta_m[1];
+        }
     }
 }
 
@@ -1556,6 +1650,7 @@ fn foot_ik_post_apply_telemetry_system(
             &AlsFootBones,
             &AlsFootIkSpaceState,
             &AlsFootIkRuntime,
+            &FootIkPoseBaseState,
         ),
         With<als_core::character::AlsCharacter>,
     >,
@@ -1563,7 +1658,7 @@ fn foot_ik_post_apply_telemetry_system(
     poles: Query<&FootIkPoleState, With<als_core::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootIkApplyTelemetry, With<als_core::character::AlsCharacter>>,
 ) {
-    for (entity, bones, spaces, runtime) in &characters {
+    for (entity, bones, spaces, runtime, pose_base) in &characters {
         let Ok(pole_state) = poles.get(entity) else {
             continue;
         };
@@ -1571,6 +1666,10 @@ fn foot_ik_post_apply_telemetry_system(
             continue;
         };
         let (left_weight, right_weight) = runtime.ik_weights();
+        entry.restore_translation_delta_m = pose_base.restore_translation_delta_m;
+        entry.restore_rotation_delta_radians = pose_base.restore_rotation_delta_radians;
+        entry.solver_translation_delta_m = pose_base.solver_translation_delta_m;
+        entry.solver_rotation_delta_radians = pose_base.solver_rotation_delta_radians;
         for side in 0..2usize {
             let chain = bones.chain(side);
             let space = match side {
@@ -2365,5 +2464,29 @@ mod tests {
             (above_threshold.remaining_seconds - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6
         );
         assert!((lifecycle.teleport_remaining - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6);
+    }
+
+    #[test]
+    fn foot_ik_stage_delta_reads_translation_and_rotation() {
+        let (translation, rotation) = foot_ik_stage_delta(
+            Transform::IDENTITY,
+            Transform::from_translation(Vec3::X).with_rotation(Quat::from_rotation_y(0.5)),
+        );
+        assert!((translation - 1.0).abs() <= 1e-6);
+        assert!((rotation - 0.5).abs() <= 1e-6);
+    }
+
+    #[test]
+    fn foot_ik_chain_delta_uses_the_largest_write() {
+        assert_eq!(
+            foot_ik_max_translation_delta(
+                [Transform::IDENTITY, Transform::IDENTITY],
+                [
+                    Transform::from_translation(Vec3::X),
+                    Transform::from_translation(Vec3::new(0.0, 2.0, 0.0)),
+                ],
+            ),
+            2.0
+        );
     }
 }

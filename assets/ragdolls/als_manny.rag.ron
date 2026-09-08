@@ -1,16 +1,16 @@
 (
     bodies: {
         (
-            uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+            uuid: "16320127-5aac-5872-9041-28afcf3506e2",
         ): (
             id: (
-                uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                uuid: "16320127-5aac-5872-9041-28afcf3506e2",
             ),
             label: "pelvis",
             offset: (1.62934104e-08, 0.967505888, -0.0105615331),
             colliders: [
                 (
-                    uuid: "f96d7f9b-c9af-57eb-8f71-f6a73e6db422",
+                    uuid: "3caae0a4-b2a5-50b8-8e14-a79eac993c6b",
                 ),
             ],
             default_mode: Dynamic,
@@ -18,16 +18,16 @@
             created_from: None,
         ),
         (
-            uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+            uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
         ): (
             id: (
-                uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+                uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
             ),
             label: "spine_01",
             offset: (1.04799015e-07, 1.07556278, -0.0016545356),
             colliders: [
                 (
-                    uuid: "19c3839e-7905-5838-9da4-e0783e58e9d1",
+                    uuid: "bd138c2e-4203-5895-b290-64abcf69fe28",
                 ),
             ],
             default_mode: Dynamic,
@@ -35,16 +35,16 @@
             created_from: None,
         ),
         (
-            uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+            uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
         ): (
             id: (
-                uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+                uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
             ),
             label: "spine_02",
             offset: (7.44510819e-08, 1.26763104, -0.0151658333),
             colliders: [
                 (
-                    uuid: "b325cc79-e5b7-5405-8998-df15f43defef",
+                    uuid: "76699fcb-543b-50e8-bf8d-a3bfa5bc7e29",
                 ),
             ],
             default_mode: Dynamic,
@@ -52,19 +52,19 @@
             created_from: None,
         ),
         (
-            uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+            uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
         ): (
             id: (
-                uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
             ),
             label: "spine_03",
             offset: (1.43411076e-07, 1.40029753, -0.0349875658),
             colliders: [
                 (
-                    uuid: "660206ea-98a9-5ff8-9e6e-5bfd17cc1e90",
+                    uuid: "7f9b1796-0928-5c48-9137-1afe378c5662",
                 ),
                 (
-                    uuid: "31dcb40c-6aa7-5a23-b10e-6a50dde791eb",
+                    uuid: "b9fc8329-6b33-559b-8505-d3435c11b3fe",
                 ),
             ],
             default_mode: Dynamic,
@@ -72,16 +72,16 @@
             created_from: None,
         ),
         (
-            uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+            uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
         ): (
             id: (
-                uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+                uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
             ),
             label: "neck_01",
             offset: (-3.36443011e-08, 1.56420867, -0.0587582055),
             colliders: [
                 (
-                    uuid: "48f9a2ec-eb2b-5535-8119-35a51d5af70e",
+                    uuid: "9156b477-9243-5d9d-9d61-55df9c8d38cf",
                 ),
             ],
             default_mode: Dynamic,
@@ -89,16 +89,16 @@
             created_from: None,
         ),
         (
-            uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+            uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
         ): (
             id: (
-                uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+                uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
             ),
             label: "head",
             offset: (1.49022329e-07, 1.65515882, -0.0397891952),
             colliders: [
                 (
-                    uuid: "8fb38331-db94-581e-8024-2f5b9384fd10",
+                    uuid: "a36fcbbd-4b00-58ba-8789-0df22c440165",
                 ),
             ],
             default_mode: Dynamic,
@@ -106,16 +106,16 @@
             created_from: None,
         ),
         (
-            uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+            uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
         ): (
             id: (
-                uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+                uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
             ),
             label: "thigh_l",
             offset: (0.0900581454, 0.952997829, -0.00529999724),
             colliders: [
                 (
-                    uuid: "9ba2b3c9-6198-58d1-8005-8ad1fed39697",
+                    uuid: "dc244d3a-4892-5996-8b9c-46c35e866c41",
                 ),
             ],
             default_mode: Dynamic,
@@ -123,16 +123,16 @@
             created_from: None,
         ),
         (
-            uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+            uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
         ): (
             id: (
-                uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+                uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
             ),
             label: "thigh_r",
             offset: (-0.0900582414, 0.953000166, -0.00529996863),
             colliders: [
                 (
-                    uuid: "b149c21b-b074-5d9a-99f1-bfe12247a0bb",
+                    uuid: "46dca7c2-82e2-57a1-8c2d-479c02c2eeaf",
                 ),
             ],
             default_mode: Dynamic,
@@ -140,16 +140,16 @@
             created_from: None,
         ),
         (
-            uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+            uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
         ): (
             id: (
-                uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+                uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
             ),
             label: "calf_l",
             offset: (0.142178501, 0.530672078, -0.0180095906),
             colliders: [
                 (
-                    uuid: "03cd8cd7-072f-5f17-8f06-b2ccc6ad5348",
+                    uuid: "80edd59c-9957-5ac4-8810-c1d4cd407727",
                 ),
             ],
             default_mode: Dynamic,
@@ -157,16 +157,16 @@
             created_from: None,
         ),
         (
-            uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+            uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
         ): (
             id: (
-                uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+                uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
             ),
             label: "calf_r",
             offset: (-0.142178815, 0.530671618, -0.0180096002),
             colliders: [
                 (
-                    uuid: "ff1b9bec-5440-58d5-b4c7-e89b30fdc5fd",
+                    uuid: "14b8985f-7fb9-56c8-b1e9-02cd1c1417f2",
                 ),
             ],
             default_mode: Dynamic,
@@ -174,16 +174,16 @@
             created_from: None,
         ),
         (
-            uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+            uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
         ): (
             id: (
-                uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+                uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
             ),
             label: "clavicle_l",
             offset: (0.0378198949, 1.52201038, -0.0276144474),
             colliders: [
                 (
-                    uuid: "7cf1f38d-89ed-58c1-aea2-92252f57b481",
+                    uuid: "873f9992-cb33-514a-a6fc-ce6a3b8c4877",
                 ),
             ],
             default_mode: Dynamic,
@@ -191,16 +191,16 @@
             created_from: None,
         ),
         (
-            uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+            uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
         ): (
             id: (
-                uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+                uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
             ),
             label: "clavicle_r",
             offset: (-0.0378198882, 1.52201185, -0.0276143273),
             colliders: [
                 (
-                    uuid: "97757da6-9a53-5c13-ae1b-0e4ab9cd3b03",
+                    uuid: "27116f36-8205-52df-8e13-17d681545f70",
                 ),
             ],
             default_mode: Dynamic,
@@ -208,16 +208,16 @@
             created_from: None,
         ),
         (
-            uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+            uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
         ): (
             id: (
-                uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+                uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
             ),
             label: "upperarm_l",
             offset: (0.177002366, 1.49529924, -0.097119998),
             colliders: [
                 (
-                    uuid: "d48f5f8c-6c0b-509f-aa85-b31e06ea1de2",
+                    uuid: "7d3eee69-9433-5ab6-bfa5-fcff4b58403d",
                 ),
             ],
             default_mode: Dynamic,
@@ -225,16 +225,16 @@
             created_from: None,
         ),
         (
-            uuid: "367842ee-4385-5275-b427-77fe8145715c",
+            uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
         ): (
             id: (
-                uuid: "367842ee-4385-5275-b427-77fe8145715c",
+                uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
             ),
             label: "upperarm_r",
             offset: (-0.177001343, 1.49530127, -0.0971196732),
             colliders: [
                 (
-                    uuid: "0b52450d-85d0-54da-8c17-0d921860d38b",
+                    uuid: "1b35bb4d-9fdc-574a-b0bb-98c45d3d57b4",
                 ),
             ],
             default_mode: Dynamic,
@@ -242,16 +242,16 @@
             created_from: None,
         ),
         (
-            uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+            uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
         ): (
             id: (
-                uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+                uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
             ),
             label: "lowerarm_l",
             offset: (0.372646377, 1.26445134, -0.119111888),
             colliders: [
                 (
-                    uuid: "db748976-b886-587a-b8a2-7a30c521246e",
+                    uuid: "82ffa026-e906-558b-83fa-b4308af3538c",
                 ),
             ],
             default_mode: Dynamic,
@@ -259,16 +259,16 @@
             created_from: None,
         ),
         (
-            uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+            uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
         ): (
             id: (
-                uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+                uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
             ),
             label: "lowerarm_r",
             offset: (-0.372646061, 1.26445207, -0.119111842),
             colliders: [
                 (
-                    uuid: "0ca37188-2ade-508a-9d89-78a67e4e8dd3",
+                    uuid: "208e9d1f-473d-5f95-a466-09ab6d39d9d0",
                 ),
             ],
             default_mode: Dynamic,
@@ -276,16 +276,16 @@
             created_from: None,
         ),
         (
-            uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+            uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
         ): (
             id: (
-                uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+                uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
             ),
             label: "hand_l",
             offset: (0.566460426, 1.1167956, -0.00335469997),
             colliders: [
                 (
-                    uuid: "9c1f1629-ebd0-5440-a4d5-2eeb67136af7",
+                    uuid: "206e1c75-f9e6-53ef-91c3-94b30598c9c2",
                 ),
             ],
             default_mode: Dynamic,
@@ -293,16 +293,16 @@
             created_from: None,
         ),
         (
-            uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+            uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
         ): (
             id: (
-                uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+                uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
             ),
             label: "hand_r",
             offset: (-0.566460826, 1.11679626, -0.00335411942),
             colliders: [
                 (
-                    uuid: "04aefa0d-3b38-541c-a4b3-6f4cf219bee8",
+                    uuid: "eade27ac-9156-5213-8304-2b98d5fc8eb4",
                 ),
             ],
             default_mode: Dynamic,
@@ -310,16 +310,16 @@
             created_from: None,
         ),
         (
-            uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+            uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
         ): (
             id: (
-                uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+                uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
             ),
             label: "root",
             offset: (-0, -0, -0),
             colliders: [
                 (
-                    uuid: "a132adf8-c1d7-5761-9361-6404a6abaaae",
+                    uuid: "6beb200c-4f15-524c-af78-2264a54b8b3d",
                 ),
             ],
             default_mode: Kinematic,
@@ -327,16 +327,16 @@
             created_from: None,
         ),
         (
-            uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+            uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
         ): (
             id: (
-                uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+                uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
             ),
             label: "foot_l",
             offset: (0.170762567, 0.134657365, -0.0807212677),
             colliders: [
                 (
-                    uuid: "d706bee2-8966-5cc8-8a74-f7805367a4f2",
+                    uuid: "37302d60-c3ae-5742-bed3-1ac15966ed56",
                 ),
             ],
             default_mode: Dynamic,
@@ -344,16 +344,16 @@
             created_from: None,
         ),
         (
-            uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+            uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
         ): (
             id: (
-                uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+                uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
             ),
             label: "foot_r",
             offset: (-0.170762932, 0.13465588, -0.0807214271),
             colliders: [
                 (
-                    uuid: "33b61128-33e7-5224-bb6e-c3d255027811",
+                    uuid: "c12f266d-968e-5468-b1e3-1c393e2dab23",
                 ),
             ],
             default_mode: Dynamic,
@@ -363,10 +363,10 @@
     },
     colliders: {
         (
-            uuid: "f96d7f9b-c9af-57eb-8f71-f6a73e6db422",
+            uuid: "3caae0a4-b2a5-50b8-8e14-a79eac993c6b",
         ): (
             id: (
-                uuid: "f96d7f9b-c9af-57eb-8f71-f6a73e6db422",
+                uuid: "3caae0a4-b2a5-50b8-8e14-a79eac993c6b",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -381,10 +381,10 @@
             created_from: None,
         ),
         (
-            uuid: "19c3839e-7905-5838-9da4-e0783e58e9d1",
+            uuid: "bd138c2e-4203-5895-b290-64abcf69fe28",
         ): (
             id: (
-                uuid: "19c3839e-7905-5838-9da4-e0783e58e9d1",
+                uuid: "bd138c2e-4203-5895-b290-64abcf69fe28",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -399,10 +399,10 @@
             created_from: None,
         ),
         (
-            uuid: "b325cc79-e5b7-5405-8998-df15f43defef",
+            uuid: "76699fcb-543b-50e8-bf8d-a3bfa5bc7e29",
         ): (
             id: (
-                uuid: "b325cc79-e5b7-5405-8998-df15f43defef",
+                uuid: "76699fcb-543b-50e8-bf8d-a3bfa5bc7e29",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -417,10 +417,10 @@
             created_from: None,
         ),
         (
-            uuid: "660206ea-98a9-5ff8-9e6e-5bfd17cc1e90",
+            uuid: "7f9b1796-0928-5c48-9137-1afe378c5662",
         ): (
             id: (
-                uuid: "660206ea-98a9-5ff8-9e6e-5bfd17cc1e90",
+                uuid: "7f9b1796-0928-5c48-9137-1afe378c5662",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -435,10 +435,10 @@
             created_from: None,
         ),
         (
-            uuid: "31dcb40c-6aa7-5a23-b10e-6a50dde791eb",
+            uuid: "b9fc8329-6b33-559b-8505-d3435c11b3fe",
         ): (
             id: (
-                uuid: "31dcb40c-6aa7-5a23-b10e-6a50dde791eb",
+                uuid: "b9fc8329-6b33-559b-8505-d3435c11b3fe",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -453,10 +453,10 @@
             created_from: None,
         ),
         (
-            uuid: "48f9a2ec-eb2b-5535-8119-35a51d5af70e",
+            uuid: "9156b477-9243-5d9d-9d61-55df9c8d38cf",
         ): (
             id: (
-                uuid: "48f9a2ec-eb2b-5535-8119-35a51d5af70e",
+                uuid: "9156b477-9243-5d9d-9d61-55df9c8d38cf",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -471,10 +471,10 @@
             created_from: None,
         ),
         (
-            uuid: "8fb38331-db94-581e-8024-2f5b9384fd10",
+            uuid: "a36fcbbd-4b00-58ba-8789-0df22c440165",
         ): (
             id: (
-                uuid: "8fb38331-db94-581e-8024-2f5b9384fd10",
+                uuid: "a36fcbbd-4b00-58ba-8789-0df22c440165",
             ),
             local_offset: (
                 rotation: (0.21263111, 0.21263111, 0.674379723, 0.674379723),
@@ -489,10 +489,10 @@
             created_from: None,
         ),
         (
-            uuid: "9ba2b3c9-6198-58d1-8005-8ad1fed39697",
+            uuid: "dc244d3a-4892-5996-8b9c-46c35e866c41",
         ): (
             id: (
-                uuid: "9ba2b3c9-6198-58d1-8005-8ad1fed39697",
+                uuid: "dc244d3a-4892-5996-8b9c-46c35e866c41",
             ),
             local_offset: (
                 rotation: (-0, -0, -0.707106781, 0.707106781),
@@ -507,10 +507,10 @@
             created_from: None,
         ),
         (
-            uuid: "b149c21b-b074-5d9a-99f1-bfe12247a0bb",
+            uuid: "46dca7c2-82e2-57a1-8c2d-479c02c2eeaf",
         ): (
             id: (
-                uuid: "b149c21b-b074-5d9a-99f1-bfe12247a0bb",
+                uuid: "46dca7c2-82e2-57a1-8c2d-479c02c2eeaf",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -525,10 +525,10 @@
             created_from: None,
         ),
         (
-            uuid: "03cd8cd7-072f-5f17-8f06-b2ccc6ad5348",
+            uuid: "80edd59c-9957-5ac4-8810-c1d4cd407727",
         ): (
             id: (
-                uuid: "03cd8cd7-072f-5f17-8f06-b2ccc6ad5348",
+                uuid: "80edd59c-9957-5ac4-8810-c1d4cd407727",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -543,10 +543,10 @@
             created_from: None,
         ),
         (
-            uuid: "ff1b9bec-5440-58d5-b4c7-e89b30fdc5fd",
+            uuid: "14b8985f-7fb9-56c8-b1e9-02cd1c1417f2",
         ): (
             id: (
-                uuid: "ff1b9bec-5440-58d5-b4c7-e89b30fdc5fd",
+                uuid: "14b8985f-7fb9-56c8-b1e9-02cd1c1417f2",
             ),
             local_offset: (
                 rotation: (-0, -0, -0.707106781, 0.707106781),
@@ -561,10 +561,10 @@
             created_from: None,
         ),
         (
-            uuid: "7cf1f38d-89ed-58c1-aea2-92252f57b481",
+            uuid: "873f9992-cb33-514a-a6fc-ce6a3b8c4877",
         ): (
             id: (
-                uuid: "7cf1f38d-89ed-58c1-aea2-92252f57b481",
+                uuid: "873f9992-cb33-514a-a6fc-ce6a3b8c4877",
             ),
             local_offset: (
                 rotation: (-0, -0, -0.707106781, 0.707106781),
@@ -579,10 +579,10 @@
             created_from: None,
         ),
         (
-            uuid: "97757da6-9a53-5c13-ae1b-0e4ab9cd3b03",
+            uuid: "27116f36-8205-52df-8e13-17d681545f70",
         ): (
             id: (
-                uuid: "97757da6-9a53-5c13-ae1b-0e4ab9cd3b03",
+                uuid: "27116f36-8205-52df-8e13-17d681545f70",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -597,10 +597,10 @@
             created_from: None,
         ),
         (
-            uuid: "d48f5f8c-6c0b-509f-aa85-b31e06ea1de2",
+            uuid: "7d3eee69-9433-5ab6-bfa5-fcff4b58403d",
         ): (
             id: (
-                uuid: "d48f5f8c-6c0b-509f-aa85-b31e06ea1de2",
+                uuid: "7d3eee69-9433-5ab6-bfa5-fcff4b58403d",
             ),
             local_offset: (
                 rotation: (-0, -0, -0.707106781, 0.707106781),
@@ -615,10 +615,10 @@
             created_from: None,
         ),
         (
-            uuid: "0b52450d-85d0-54da-8c17-0d921860d38b",
+            uuid: "1b35bb4d-9fdc-574a-b0bb-98c45d3d57b4",
         ): (
             id: (
-                uuid: "0b52450d-85d0-54da-8c17-0d921860d38b",
+                uuid: "1b35bb4d-9fdc-574a-b0bb-98c45d3d57b4",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -633,10 +633,10 @@
             created_from: None,
         ),
         (
-            uuid: "db748976-b886-587a-b8a2-7a30c521246e",
+            uuid: "82ffa026-e906-558b-83fa-b4308af3538c",
         ): (
             id: (
-                uuid: "db748976-b886-587a-b8a2-7a30c521246e",
+                uuid: "82ffa026-e906-558b-83fa-b4308af3538c",
             ),
             local_offset: (
                 rotation: (-0, -0, -0.707106781, 0.707106781),
@@ -651,10 +651,10 @@
             created_from: None,
         ),
         (
-            uuid: "0ca37188-2ade-508a-9d89-78a67e4e8dd3",
+            uuid: "208e9d1f-473d-5f95-a466-09ab6d39d9d0",
         ): (
             id: (
-                uuid: "0ca37188-2ade-508a-9d89-78a67e4e8dd3",
+                uuid: "208e9d1f-473d-5f95-a466-09ab6d39d9d0",
             ),
             local_offset: (
                 rotation: (-0, -0, 0.707106781, 0.707106781),
@@ -669,10 +669,10 @@
             created_from: None,
         ),
         (
-            uuid: "9c1f1629-ebd0-5440-a4d5-2eeb67136af7",
+            uuid: "206e1c75-f9e6-53ef-91c3-94b30598c9c2",
         ): (
             id: (
-                uuid: "9c1f1629-ebd0-5440-a4d5-2eeb67136af7",
+                uuid: "206e1c75-f9e6-53ef-91c3-94b30598c9c2",
             ),
             local_offset: (
                 rotation: (0.0038016801, 0.0870727898, 0.0434534024, 0.995246541),
@@ -687,10 +687,10 @@
             created_from: None,
         ),
         (
-            uuid: "04aefa0d-3b38-541c-a4b3-6f4cf219bee8",
+            uuid: "eade27ac-9156-5213-8304-2b98d5fc8eb4",
         ): (
             id: (
-                uuid: "04aefa0d-3b38-541c-a4b3-6f4cf219bee8",
+                uuid: "eade27ac-9156-5213-8304-2b98d5fc8eb4",
             ),
             local_offset: (
                 rotation: (0.0038016801, 0.0870727898, 0.0434534024, 0.995246541),
@@ -705,10 +705,10 @@
             created_from: None,
         ),
         (
-            uuid: "a132adf8-c1d7-5761-9361-6404a6abaaae",
+            uuid: "6beb200c-4f15-524c-af78-2264a54b8b3d",
         ): (
             id: (
-                uuid: "a132adf8-c1d7-5761-9361-6404a6abaaae",
+                uuid: "6beb200c-4f15-524c-af78-2264a54b8b3d",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -723,10 +723,10 @@
             created_from: None,
         ),
         (
-            uuid: "d706bee2-8966-5cc8-8a74-f7805367a4f2",
+            uuid: "37302d60-c3ae-5742-bed3-1ac15966ed56",
         ): (
             id: (
-                uuid: "d706bee2-8966-5cc8-8a74-f7805367a4f2",
+                uuid: "37302d60-c3ae-5742-bed3-1ac15966ed56",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -741,10 +741,10 @@
             created_from: None,
         ),
         (
-            uuid: "33b61128-33e7-5224-bb6e-c3d255027811",
+            uuid: "c12f266d-968e-5468-b1e3-1c393e2dab23",
         ): (
             id: (
-                uuid: "33b61128-33e7-5224-bb6e-c3d255027811",
+                uuid: "c12f266d-968e-5468-b1e3-1c393e2dab23",
             ),
             local_offset: (
                 rotation: (-0, -0, -0, 1),
@@ -761,503 +761,499 @@
     },
     joints: {
         (
-            uuid: "47313ba5-bda4-5bee-9d03-3ea54787c55d",
+            uuid: "3925be5d-3634-5a98-b3b4-c261fc902780",
         ): (
             id: (
-                uuid: "47313ba5-bda4-5bee-9d03-3ea54787c55d",
+                uuid: "3925be5d-3634-5a98-b3b4-c261fc902780",
             ),
             label: "spine_01",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+                    uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
                 ),
                 body2: (
-                    uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                    uuid: "16320127-5aac-5872-9041-28afcf3506e2",
                 ),
                 position: (1.04799015e-07, 1.07556278, -0.0016545356),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.261799388, max: 0.261799388)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.261799388, max: 0.261799388)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "003108f8-938c-55c6-bbd3-04171648aef4",
+            uuid: "c2aade8e-cc73-572f-9214-b9322146bdb1",
         ): (
             id: (
-                uuid: "003108f8-938c-55c6-bbd3-04171648aef4",
+                uuid: "c2aade8e-cc73-572f-9214-b9322146bdb1",
             ),
             label: "spine_02",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+                    uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
                 ),
                 body2: (
-                    uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+                    uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
                 ),
                 position: (7.44510819e-08, 1.26763104, -0.0151658333),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.261799388, max: 0.261799388)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.261799388, max: 0.261799388)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "f5bd0a78-ae1f-5530-b730-b5def7b833f2",
+            uuid: "064e3861-e790-5e9b-a192-5b5955f288fd",
         ): (
             id: (
-                uuid: "f5bd0a78-ae1f-5530-b730-b5def7b833f2",
+                uuid: "064e3861-e790-5e9b-a192-5b5955f288fd",
             ),
             label: "spine_03",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                    uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
                 ),
                 body2: (
-                    uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+                    uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
                 ),
                 position: (1.43411076e-07, 1.40029753, -0.0349875658),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.261799388, max: 0.261799388)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.261799388, max: 0.261799388)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "33a64524-87be-5637-831d-76185fa958e8",
+            uuid: "4fc80d0c-a48e-5b99-bb71-14ed8ee2a88a",
         ): (
             id: (
-                uuid: "33a64524-87be-5637-831d-76185fa958e8",
+                uuid: "4fc80d0c-a48e-5b99-bb71-14ed8ee2a88a",
             ),
             label: "neck_01",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+                    uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
                 ),
                 body2: (
-                    uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                    uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
                 ),
                 position: (-3.36443011e-08, 1.56420867, -0.0587582055),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.436332313, max: 0.436332313)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.698131701, max: 0.698131701)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "ec4c5ad2-ea8a-5537-8914-61e28b78fe59",
+            uuid: "84fe98a6-11b7-56da-ab3e-1764fde84870",
         ): (
             id: (
-                uuid: "ec4c5ad2-ea8a-5537-8914-61e28b78fe59",
+                uuid: "84fe98a6-11b7-56da-ab3e-1764fde84870",
             ),
             label: "head",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+                    uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
                 ),
                 body2: (
-                    uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+                    uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
                 ),
                 position: (1.49022329e-07, 1.65515882, -0.0397891952),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.436332313, max: 0.436332313)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.698131701, max: 0.698131701)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "2ba1266e-52ca-55cb-b634-de835980c643",
+            uuid: "d79ea6c1-d537-5cc5-b835-d05228027003",
         ): (
             id: (
-                uuid: "2ba1266e-52ca-55cb-b634-de835980c643",
+                uuid: "d79ea6c1-d537-5cc5-b835-d05228027003",
             ),
             label: "thigh_l",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+                    uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
                 ),
                 body2: (
-                    uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                    uuid: "16320127-5aac-5872-9041-28afcf3506e2",
                 ),
                 position: (0.0900581454, 0.952997829, -0.00529999724),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -1.13446401, max: 1.13446401)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.261799388, max: 0.261799388)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "48cbe4ab-1a4d-5ef1-99e5-e6f26787ed4e",
+            uuid: "250d8795-6ea2-5d22-8c06-2d742867692a",
         ): (
             id: (
-                uuid: "48cbe4ab-1a4d-5ef1-99e5-e6f26787ed4e",
+                uuid: "250d8795-6ea2-5d22-8c06-2d742867692a",
             ),
             label: "thigh_r",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+                    uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
                 ),
                 body2: (
-                    uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                    uuid: "16320127-5aac-5872-9041-28afcf3506e2",
                 ),
                 position: (-0.0900582414, 0.953000166, -0.00529996863),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -1.13446401, max: 1.13446401)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.261799388, max: 0.261799388)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "3897c149-3902-571b-84df-7e87740b129e",
+            uuid: "39ddd9bb-9933-5923-9c30-c536d5e55da6",
         ): (
             id: (
-                uuid: "3897c149-3902-571b-84df-7e87740b129e",
+                uuid: "39ddd9bb-9933-5923-9c30-c536d5e55da6",
             ),
             label: "calf_l",
             use_symmetry: false,
             created_from: None,
-            variant: Spherical((
+            variant: Revolute((
                 body1: (
-                    uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+                    uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
                 ),
                 body2: (
-                    uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+                    uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
                 ),
                 position: (0.142178501, 0.530672078, -0.0180095906),
-                twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -1.04719755, max: 1.04719755)),
-                twist_limit: Some((min: -0, max: 0)),
+                hinge_axis: (0, 1, 0),
+                angle_limit: Some((min: -1.04719755, max: 1.04719755)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                align_compliance: 0,
+                limit_compliance: 0,
             )),
         ),
         (
-            uuid: "b0c2f12b-b716-5764-9a52-e28c44e8933b",
+            uuid: "e42fd6e9-bc01-5d2c-a03c-d1fe8691095e",
         ): (
             id: (
-                uuid: "b0c2f12b-b716-5764-9a52-e28c44e8933b",
+                uuid: "e42fd6e9-bc01-5d2c-a03c-d1fe8691095e",
             ),
             label: "calf_r",
             use_symmetry: false,
             created_from: None,
-            variant: Spherical((
+            variant: Revolute((
                 body1: (
-                    uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+                    uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
                 ),
                 body2: (
-                    uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+                    uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
                 ),
                 position: (-0.142178815, 0.530671618, -0.0180096002),
-                twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -1.04719755, max: 1.04719755)),
-                twist_limit: Some((min: -0, max: 0)),
+                hinge_axis: (0, 1, 0),
+                angle_limit: Some((min: -1.04719755, max: 1.04719755)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                align_compliance: 0,
+                limit_compliance: 0,
             )),
         ),
         (
-            uuid: "876ebb30-50b5-55d9-a642-cd4cd46a2a5a",
+            uuid: "66328c83-dabc-5d5e-86f8-e6722d1ec024",
         ): (
             id: (
-                uuid: "876ebb30-50b5-55d9-a642-cd4cd46a2a5a",
+                uuid: "66328c83-dabc-5d5e-86f8-e6722d1ec024",
             ),
             label: "clavicle_l",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+                    uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
                 ),
                 body2: (
-                    uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                    uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
                 ),
                 position: (0.0378198949, 1.52201038, -0.0276144474),
                 twist_axis: (1, 0, 0),
                 swing_limit: Some((min: -0.34906585, max: 0.34906585)),
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "bf0d863b-c2c4-521b-8f4d-5fb1eab48f39",
+            uuid: "0a337c95-2d1e-57bc-9db8-d3edf9c3ea4e",
         ): (
             id: (
-                uuid: "bf0d863b-c2c4-521b-8f4d-5fb1eab48f39",
+                uuid: "0a337c95-2d1e-57bc-9db8-d3edf9c3ea4e",
             ),
             label: "clavicle_r",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+                    uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
                 ),
                 body2: (
-                    uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                    uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
                 ),
                 position: (-0.0378198882, 1.52201185, -0.0276143273),
                 twist_axis: (1, 0, 0),
                 swing_limit: Some((min: -0.34906585, max: 0.34906585)),
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "5aa22df4-4067-5fe0-9a40-5b8699047461",
+            uuid: "547f6005-cc49-5074-a4a4-35e0d185d536",
         ): (
             id: (
-                uuid: "5aa22df4-4067-5fe0-9a40-5b8699047461",
+                uuid: "547f6005-cc49-5074-a4a4-35e0d185d536",
             ),
             label: "upperarm_l",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+                    uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
                 ),
                 body2: (
-                    uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+                    uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
                 ),
                 position: (0.177002366, 1.49529924, -0.097119998),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.872664626, max: 0.872664626)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.436332313, max: 0.436332313)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "e56f3c70-4267-50b8-bdd2-527be93d441a",
+            uuid: "b54ce777-c240-5e31-8c38-4c535ac17b33",
         ): (
             id: (
-                uuid: "e56f3c70-4267-50b8-bdd2-527be93d441a",
+                uuid: "b54ce777-c240-5e31-8c38-4c535ac17b33",
             ),
             label: "upperarm_r",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "367842ee-4385-5275-b427-77fe8145715c",
+                    uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
                 ),
                 body2: (
-                    uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+                    uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
                 ),
                 position: (-0.177001343, 1.49530127, -0.0971196732),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.872664626, max: 0.872664626)),
+                swing_limit: None,
                 twist_limit: Some((min: -0.436332313, max: 0.436332313)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "4f7c8a95-28ed-59ac-8d13-dcf2b52ab250",
+            uuid: "d2e48865-32be-52d0-b14a-9197873fef2b",
         ): (
             id: (
-                uuid: "4f7c8a95-28ed-59ac-8d13-dcf2b52ab250",
+                uuid: "d2e48865-32be-52d0-b14a-9197873fef2b",
             ),
             label: "lowerarm_l",
             use_symmetry: false,
             created_from: None,
-            variant: Spherical((
+            variant: Revolute((
                 body1: (
-                    uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+                    uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
                 ),
                 body2: (
-                    uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+                    uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
                 ),
                 position: (0.372646377, 1.26445134, -0.119111888),
-                twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.872664626, max: 0.872664626)),
-                twist_limit: Some((min: -0, max: 0)),
+                hinge_axis: (0, 1, 0),
+                angle_limit: Some((min: -0.872664626, max: 0.872664626)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                align_compliance: 0,
+                limit_compliance: 0,
             )),
         ),
         (
-            uuid: "5ade706e-8f17-51a3-a11e-30397857b9a5",
+            uuid: "3e7b4ee1-7227-534d-8401-fbe40963a62d",
         ): (
             id: (
-                uuid: "5ade706e-8f17-51a3-a11e-30397857b9a5",
+                uuid: "3e7b4ee1-7227-534d-8401-fbe40963a62d",
             ),
             label: "lowerarm_r",
             use_symmetry: false,
             created_from: None,
-            variant: Spherical((
+            variant: Revolute((
                 body1: (
-                    uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+                    uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
                 ),
                 body2: (
-                    uuid: "367842ee-4385-5275-b427-77fe8145715c",
+                    uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
                 ),
                 position: (-0.372646061, 1.26445207, -0.119111842),
-                twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.872664626, max: 0.872664626)),
-                twist_limit: Some((min: -0, max: 0)),
+                hinge_axis: (0, 1, 0),
+                angle_limit: Some((min: -0.872664626, max: 0.872664626)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                align_compliance: 0,
+                limit_compliance: 0,
             )),
         ),
         (
-            uuid: "1bac55f9-f4b2-50ce-9191-dfb632f0ab2e",
+            uuid: "cc7426cc-33bc-57a9-b152-e0fd2b47d78e",
         ): (
             id: (
-                uuid: "1bac55f9-f4b2-50ce-9191-dfb632f0ab2e",
+                uuid: "cc7426cc-33bc-57a9-b152-e0fd2b47d78e",
             ),
             label: "hand_l",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+                    uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
                 ),
                 body2: (
-                    uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+                    uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
                 ),
                 position: (0.566460426, 1.1167956, -0.00335469997),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.610865238, max: 0.610865238)),
+                swing_limit: None,
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "38e78dbd-b1ba-5f05-82e2-3b4bbf77efc0",
+            uuid: "9eeec905-0691-5645-a3fc-e1ee807bc095",
         ): (
             id: (
-                uuid: "38e78dbd-b1ba-5f05-82e2-3b4bbf77efc0",
+                uuid: "9eeec905-0691-5645-a3fc-e1ee807bc095",
             ),
             label: "hand_r",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+                    uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
                 ),
                 body2: (
-                    uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+                    uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
                 ),
                 position: (-0.566460826, 1.11679626, -0.00335411942),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.610865238, max: 0.610865238)),
+                swing_limit: None,
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "5fb98bfc-0c5d-5dcf-9d52-a63efe024d19",
+            uuid: "360d07f0-aac8-5a58-a35b-6d7b69acf4d5",
         ): (
             id: (
-                uuid: "5fb98bfc-0c5d-5dcf-9d52-a63efe024d19",
+                uuid: "360d07f0-aac8-5a58-a35b-6d7b69acf4d5",
             ),
             label: "pelvis",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                    uuid: "16320127-5aac-5872-9041-28afcf3506e2",
                 ),
                 body2: (
-                    uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+                    uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
                 ),
                 position: (1.62934104e-08, 0.967505888, -0.0105615331),
                 twist_axis: (1, 0, 0),
                 swing_limit: None,
                 twist_limit: None,
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "4a8a7d04-e29d-58a2-997c-5b962942f4d0",
+            uuid: "2d171e76-db0b-55b1-9ad9-febc825db43c",
         ): (
             id: (
-                uuid: "4a8a7d04-e29d-58a2-997c-5b962942f4d0",
+                uuid: "2d171e76-db0b-55b1-9ad9-febc825db43c",
             ),
             label: "foot_l",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+                    uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
                 ),
                 body2: (
-                    uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+                    uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
                 ),
                 position: (0.170762567, 0.134657365, -0.0807212677),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.610865238, max: 0.610865238)),
+                swing_limit: None,
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
         (
-            uuid: "6874c418-7a36-52ff-9489-d260cf781ed2",
+            uuid: "2c5056f0-9bad-55bd-ad49-5d95d0e3be42",
         ): (
             id: (
-                uuid: "6874c418-7a36-52ff-9489-d260cf781ed2",
+                uuid: "2c5056f0-9bad-55bd-ad49-5d95d0e3be42",
             ),
             label: "foot_r",
             use_symmetry: false,
             created_from: None,
             variant: Spherical((
                 body1: (
-                    uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+                    uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
                 ),
                 body2: (
-                    uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+                    uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
                 ),
                 position: (-0.170762932, 0.13465588, -0.0807214271),
                 twist_axis: (1, 0, 0),
-                swing_limit: Some((min: -0.610865238, max: 0.610865238)),
+                swing_limit: None,
                 twist_limit: Some((min: -0, max: 0)),
                 point_compliance: 0,
-                swing_compliance: 0.02,
-                twist_compliance: 0.02,
+                swing_compliance: 0,
+                twist_compliance: 0,
             )),
         ),
     },

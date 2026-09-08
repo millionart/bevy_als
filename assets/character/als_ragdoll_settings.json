@@ -1,0 +1,28 @@
+{
+  "minimum_initial_speed_limit_mps": 2.0,
+  "initial_speed_limit_refresh_frames": 8,
+  "reference_speed_mps": 10.0,
+  "angular_stiffness": 25000.0,
+  "stop_montage_blend_seconds": 0.2,
+  "limit_initial_speed": true,
+  "front": {
+    "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
+    "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",
+    "clip": "animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron",
+    "curves": "animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves",
+    "sequence_length": 1.5,
+    "play_rate": 1.2,
+    "blend_out_seconds": 0.3,
+    "notify_end_clip_seconds": 1.166667
+  },
+  "back": {
+    "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
+    "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back",
+    "clip": "animations/Actions/GetUp/A_Als_GetUp_Back.anim.ron",
+    "curves": "animations/Actions/GetUp/A_Als_GetUp_Back.gltf#AlsCurves",
+    "sequence_length": 1.5,
+    "play_rate": 1.2,
+    "blend_out_seconds": 0.3,
+    "notify_end_clip_seconds": 1.166667
+  }
+}

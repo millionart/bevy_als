@@ -347,6 +347,7 @@ fn rotation_response_system(
     time: Res<Time>,
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<
         (
             Entity,
@@ -387,7 +388,10 @@ fn rotation_response_system(
         mut constraint,
     ) in &mut q
     {
-        if roll.is_some_and(|state| state.active) || *locomotion == LocomotionState::Ragdolling {
+        if blocked.contains(entity)
+            || roll.is_some_and(|state| state.active)
+            || *locomotion == LocomotionState::Ragdolling
+        {
             continue;
         }
         let Some(params) = params_assets.get(params_handle.id()) else {
@@ -1517,6 +1521,19 @@ impl Default for AlsRotationResponseState {
 pub struct AlsInputOverride(pub AlsInputCommand);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsMovementInputBlocked;
+
+pub fn movement_input_for_action(mut input: AlsInputCommand, blocked: bool) -> AlsInputCommand {
+    if blocked {
+        input.move_dir = Vec2::ZERO;
+        input.jump_pressed = false;
+        input.jump_held = false;
+        input.roll_pressed = false;
+    }
+    input
+}
+
+#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCapsuleCrouched;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1857,6 +1874,7 @@ fn locomotion_drive_system(
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
 ) {
     for (
@@ -1879,7 +1897,9 @@ fn locomotion_drive_system(
     {
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
-        let effective = effective_input(cmd, override_cmd);
+        let input_blocked = blocked.contains(entity) && *loco != LocomotionState::Ragdolling;
+        let effective =
+            movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 
         let move_len = effective.move_dir.length().min(1.0);
         let world_dir = if move_len > 1e-4 {
@@ -1919,7 +1939,7 @@ fn locomotion_drive_system(
             .copied()
             .unwrap_or_default();
         let mantle_start_time_settings = mantle_start_time_settings.get(entity).ok().flatten();
-        let action_active = roll.is_some_and(|state| state.active);
+        let action_active = input_blocked || roll.is_some_and(|state| state.active);
         let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active)
             && mantle_start_allowed(mantle_control, action_active);
         let auto_mantle = mantle.as_deref().is_some_and(|m| !m.active)
@@ -2263,6 +2283,7 @@ fn step_up_assist_system(
     mut commands: Commands,
     spatial_query: SpatialQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<
         (
             Entity,
@@ -2289,7 +2310,7 @@ fn step_up_assist_system(
         }
         let mut cd = cooldown.unwrap();
         cd.0 -= dt;
-        if cd.0 > 0.0 || *loco != LocomotionState::Grounded {
+        if cd.0 > 0.0 || *loco != LocomotionState::Grounded || blocked.contains(entity) {
             continue;
         }
         let input = effective_input(cmd, override_cmd);
@@ -2390,6 +2411,25 @@ fn locomotion_state_sync_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blocked_movement_keeps_the_original_command_and_view_controls() {
+        let input = AlsInputCommand {
+            move_dir: Vec2::Y,
+            jump_pressed: true,
+            roll_pressed: true,
+            look_delta: Vec2::X,
+            ragdoll_pressed: true,
+            ..default()
+        };
+        let blocked = movement_input_for_action(input, true);
+        assert_eq!(blocked.move_dir, Vec2::ZERO);
+        assert!(!blocked.jump_pressed && !blocked.roll_pressed);
+        assert_eq!(blocked.look_delta, input.look_delta);
+        assert!(blocked.ragdoll_pressed);
+        assert_eq!(input.move_dir, Vec2::Y);
+        assert_eq!(movement_input_for_action(input, false), input);
+    }
 
     #[test]
     fn crouching_stance_forces_effective_walking_gait() {

@@ -14,7 +14,7 @@ use crate::head_layer::AlsHeadLayerSet;
 
 const PELVIS_LABEL: &str = "pelvis";
 const REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
-const RAGDOLLING_FINAL_POSE_KEY: &str = "ragdolling_state.final_ragdoll_pose";
+pub(crate) const RAGDOLLING_FINAL_POSE_KEY: &str = "ragdolling_state.final_ragdoll_pose";
 const RAGDOLLING_FLAIL_PLAY_RATE_KEY: &str = "ragdolling_state.flail_play_rate";
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -28,11 +28,6 @@ impl Default for AlsRagdollingAnimationState {
             flail_play_rate: 1.0,
         }
     }
-}
-
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct RagdollingLayerRuntime {
-    was_ragdolling: bool,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -90,7 +85,6 @@ fn ragdolling_layer_writer(
             Entity,
             &LocomotionState,
             Option<&mut AlsRagdollingAnimationState>,
-            Option<&mut RagdollingLayerRuntime>,
         ),
         With<AlsCharacter>,
     >,
@@ -99,10 +93,9 @@ fn ragdolling_layer_writer(
     velocities: Query<&LinearVelocity>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (entity, locomotion_state, current_state, current_runtime) in &mut characters {
+    for (entity, locomotion_state, current_state) in &mut characters {
         let ragdolling = matches!(*locomotion_state, LocomotionState::Ragdolling);
         let mut state = current_state.as_deref().copied().unwrap_or_default();
-        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
         for (parent, instance) in &avatars {
             if parent.parent() != entity {
                 continue;
@@ -110,15 +103,7 @@ fn ragdolling_layer_writer(
             let Ok(mut player) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
-            if runtime.was_ragdolling && !ragdolling {
-                if let Some(snapshot) = player_pose_with_skeleton(&player) {
-                    player.set_default_output_pose(snapshot.clone());
-                    player.set_global_input_data(
-                        RAGDOLLING_FINAL_POSE_KEY,
-                        DataValue::Pose(snapshot),
-                    );
-                }
-            } else if player
+            if player
                 .get_global_input_data(RAGDOLLING_FINAL_POSE_KEY)
                 .is_none()
                 && let Some(snapshot) = player_pose_with_skeleton(&player)
@@ -132,16 +117,10 @@ fn ragdolling_layer_writer(
             }
             write_globals(&mut player, ragdolling, state.flail_play_rate);
         }
-        runtime.was_ragdolling = ragdolling;
         if let Some(mut current_state) = current_state {
             *current_state = state;
         } else {
             commands.entity(entity).insert(state);
-        }
-        if let Some(mut current_runtime) = current_runtime {
-            *current_runtime = runtime;
-        } else {
-            commands.entity(entity).insert(runtime);
         }
     }
 }

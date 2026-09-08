@@ -45,9 +45,10 @@ impl Default for AlsRollState {
 
 pub fn roll_weight_at(elapsed: f32) -> f32 {
     let remaining = (ROLL_DURATION_SECS - elapsed).max(0.0);
-    (elapsed / ROLL_WEIGHT_IN_SECS)
+    let alpha = (elapsed / ROLL_WEIGHT_IN_SECS)
         .clamp(0.0, 1.0)
-        .min((remaining / ROLL_WEIGHT_OUT_SECS).clamp(0.0, 1.0))
+        .min((remaining / ROLL_WEIGHT_OUT_SECS).clamp(0.0, 1.0));
+    alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
 pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (MoveDirection, f32) {
@@ -144,6 +145,15 @@ impl AlsRollState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn roll_montage_weight_uses_source_hermite_cubic_blends() {
+        assert!((roll_weight_at(ROLL_WEIGHT_IN_SECS * 0.25) - 0.15625).abs() < 1e-6);
+        assert!(
+            (roll_weight_at(ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS * 0.25) - 0.15625).abs()
+                < 1e-6
+        );
+    }
 
     fn base_cmd() -> AlsInputCommand {
         AlsInputCommand {

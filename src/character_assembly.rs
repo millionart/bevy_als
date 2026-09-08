@@ -23,7 +23,7 @@ use crate::animation_events::{
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
-pub const ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_ragdoll.animscn.ron";
+pub const ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_generated_ab_als.animscn.ron";
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
 pub const ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB: [f32; 3] = [1.0, 1.0, 1.0];
 pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
@@ -59,11 +59,11 @@ pub fn attach_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
-    _scene: &str,
+    scene: &str,
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
+            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             AlsCharacterAvatar { character },
             avatar_transform(),
         ))
@@ -77,7 +77,7 @@ pub fn attach_avatar_with_material(
     assets: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
     character: Entity,
-    _scene: &str,
+    scene: &str,
     slot_colors: &[Color],
 ) -> Entity {
     let handles: Vec<Handle<StandardMaterial>> = slot_colors
@@ -92,7 +92,7 @@ pub fn attach_avatar_with_material(
         .collect();
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
+            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             AvatarMaterialOverride(handles),
             AlsCharacterAvatar { character },
             avatar_transform(),
@@ -145,13 +145,13 @@ pub fn attach_als_character_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
     character: Entity,
-    _scene: &str,
+    scene: &str,
     body_material: Handle<StandardMaterial>,
     main_material: Handle<StandardMaterial>,
 ) -> Entity {
     let avatar = commands
         .spawn((
-            AnimatedSceneHandle::new(assets.load(ALS_LINKED_ANIMATED_SCENE)),
+            AnimatedSceneHandle::new(assets.load(scene.to_owned())),
             AvatarMaterialOverride(als_character_material_slots(body_material, main_material)),
             AlsCharacterAvatar { character },
             avatar_transform(),

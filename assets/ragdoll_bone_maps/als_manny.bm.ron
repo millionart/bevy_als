@@ -1,48 +1,6 @@
 (
     bones_from_bodies: {
         [
-            "GltfNode0", "root", "pelvis", "thigh_l", "calf_l", "foot_l", "ball_l",
-        ]: (
-            bone_id: [
-                "GltfNode0", "root", "pelvis", "thigh_l", "calf_l", "foot_l", "ball_l",
-            ],
-            bodies: [
-                (
-                    body: (
-                        uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
-                    ),
-                    weight: 1.0,
-                    offset: (
-                        rotation: (8.01185608e-05, -0.718633787, -2.96101677e-05, 0.695388721),
-                        translation: (-0.104538383, 0.000801579932, 0.165778525),
-                    ),
-                    override_offset: false,
-                ),
-            ],
-            created_from: None,
-        ),
-        [
-            "GltfNode0", "root", "pelvis", "thigh_r", "calf_r", "foot_r", "ball_r",
-        ]: (
-            bone_id: [
-                "GltfNode0", "root", "pelvis", "thigh_r", "calf_r", "foot_r", "ball_r",
-            ],
-            bodies: [
-                (
-                    body: (
-                        uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
-                    ),
-                    weight: 1.0,
-                    offset: (
-                        rotation: (8.00001772e-05, -0.718633709, -2.95002743e-05, 0.695388801),
-                        translation: (0.104538081, -0.000801628776, -0.165777849),
-                    ),
-                    override_offset: false,
-                ),
-            ],
-            created_from: None,
-        ),
-        [
             "GltfNode0", "root", "pelvis", "thigh_l", "calf_l",
         ]: (
             bone_id: [
@@ -51,7 +9,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+                        uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
                     ),
                     weight: 1.0,
                     offset: (
@@ -72,7 +30,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+                        uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
                     ),
                     weight: 1.0,
                     offset: (
@@ -93,7 +51,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+                        uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
                     ),
                     weight: 1.0,
                     offset: (
@@ -114,7 +72,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+                        uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
                     ),
                     weight: 1.0,
                     offset: (
@@ -135,7 +93,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+                        uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
                     ),
                     weight: 1.0,
                     offset: (
@@ -156,7 +114,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+                        uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
                     ),
                     weight: 1.0,
                     offset: (
@@ -177,7 +135,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+                        uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
                     ),
                     weight: 1.0,
                     offset: (
@@ -198,7 +156,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+                        uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
                     ),
                     weight: 1.0,
                     offset: (
@@ -219,7 +177,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+                        uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
                     ),
                     weight: 1.0,
                     offset: (
@@ -240,7 +198,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+                        uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
                     ),
                     weight: 1.0,
                     offset: (
@@ -261,7 +219,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+                        uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
                     ),
                     weight: 1.0,
                     offset: (
@@ -282,7 +240,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+                        uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
                     ),
                     weight: 1.0,
                     offset: (
@@ -303,7 +261,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                        uuid: "16320127-5aac-5872-9041-28afcf3506e2",
                     ),
                     weight: 1.0,
                     offset: (
@@ -324,7 +282,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+                        uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
                     ),
                     weight: 1.0,
                     offset: (
@@ -345,7 +303,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+                        uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
                     ),
                     weight: 1.0,
                     offset: (
@@ -366,7 +324,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+                        uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
                     ),
                     weight: 1.0,
                     offset: (
@@ -387,7 +345,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                        uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
                     ),
                     weight: 1.0,
                     offset: (
@@ -408,7 +366,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+                        uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
                     ),
                     weight: 1.0,
                     offset: (
@@ -429,7 +387,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+                        uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
                     ),
                     weight: 1.0,
                     offset: (
@@ -450,7 +408,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+                        uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
                     ),
                     weight: 1.0,
                     offset: (
@@ -471,7 +429,7 @@
             bodies: [
                 (
                     body: (
-                        uuid: "367842ee-4385-5275-b427-77fe8145715c",
+                        uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
                     ),
                     weight: 1.0,
                     offset: (
@@ -486,10 +444,10 @@
     },
     bodies_from_bones: {
         (
-            uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+            uuid: "16320127-5aac-5872-9041-28afcf3506e2",
         ): (
             body_id: (
-                uuid: "70ae52a6-c8aa-5d88-94d7-78e2da1f43f4",
+                uuid: "16320127-5aac-5872-9041-28afcf3506e2",
             ),
             bone: (
                 bone: [
@@ -504,10 +462,10 @@
             created_from: None,
         ),
         (
-            uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+            uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
         ): (
             body_id: (
-                uuid: "72977890-8a65-5900-90ba-7d93a46a2b82",
+                uuid: "a9217cc2-2238-5845-8f38-697cc8a52a8b",
             ),
             bone: (
                 bone: [
@@ -522,10 +480,10 @@
             created_from: None,
         ),
         (
-            uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+            uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
         ): (
             body_id: (
-                uuid: "ca2d52f5-70a8-5337-a075-8618fa81fdbe",
+                uuid: "6bf1bd89-4f54-50c0-84ea-b5f25fa1b8b8",
             ),
             bone: (
                 bone: [
@@ -540,10 +498,10 @@
             created_from: None,
         ),
         (
-            uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+            uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
         ): (
             body_id: (
-                uuid: "52402cbc-9b32-5ffa-8f0f-5d0844510f37",
+                uuid: "17c71b83-07e4-5f29-98d8-7901bd60a595",
             ),
             bone: (
                 bone: [
@@ -558,10 +516,10 @@
             created_from: None,
         ),
         (
-            uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+            uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
         ): (
             body_id: (
-                uuid: "0aab0c92-15eb-5531-b491-95e3294ab424",
+                uuid: "2a4338d4-53da-5377-9e62-14cc4272f623",
             ),
             bone: (
                 bone: [
@@ -576,10 +534,10 @@
             created_from: None,
         ),
         (
-            uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+            uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
         ): (
             body_id: (
-                uuid: "24396a6c-231b-5d1f-8182-d2b2ca09ad8d",
+                uuid: "a08d71bf-4638-5139-b4e0-696a7e27f351",
             ),
             bone: (
                 bone: [
@@ -594,10 +552,10 @@
             created_from: None,
         ),
         (
-            uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+            uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
         ): (
             body_id: (
-                uuid: "e9727fc5-49aa-5657-8c86-aa2e030b63e1",
+                uuid: "29a0192f-7668-5134-9fa3-101a2995d1e1",
             ),
             bone: (
                 bone: [
@@ -612,10 +570,10 @@
             created_from: None,
         ),
         (
-            uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+            uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
         ): (
             body_id: (
-                uuid: "bb950f00-51ed-52c7-8fbd-3641e69af8e4",
+                uuid: "419791eb-2999-5e4b-b8cb-9d328817d784",
             ),
             bone: (
                 bone: [
@@ -630,10 +588,10 @@
             created_from: None,
         ),
         (
-            uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+            uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
         ): (
             body_id: (
-                uuid: "8cd11d40-0cd2-569c-a837-1c9d9afd060b",
+                uuid: "89def2d0-e1c6-520a-b319-ede107c61fd6",
             ),
             bone: (
                 bone: [
@@ -648,10 +606,10 @@
             created_from: None,
         ),
         (
-            uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+            uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
         ): (
             body_id: (
-                uuid: "453b87bf-ff9c-5436-bad8-c9cb5fb517ba",
+                uuid: "de48e3be-82ad-5c97-b4be-951635187dcd",
             ),
             bone: (
                 bone: [
@@ -666,10 +624,10 @@
             created_from: None,
         ),
         (
-            uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+            uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
         ): (
             body_id: (
-                uuid: "7b450822-b496-5f16-b9c0-d45b8c091f79",
+                uuid: "590976ed-59e3-5da4-bf49-ccd44c5a1c3c",
             ),
             bone: (
                 bone: [
@@ -684,10 +642,10 @@
             created_from: None,
         ),
         (
-            uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+            uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
         ): (
             body_id: (
-                uuid: "089029eb-0f72-551f-9f56-a65a03e04530",
+                uuid: "d5995442-6c6b-5dcc-ab97-09608581e347",
             ),
             bone: (
                 bone: [
@@ -702,10 +660,10 @@
             created_from: None,
         ),
         (
-            uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+            uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
         ): (
             body_id: (
-                uuid: "460b5770-b4fb-5ab6-a630-318c6291dc9e",
+                uuid: "66c19dc3-cecc-5508-9718-746f760cc7c5",
             ),
             bone: (
                 bone: [
@@ -720,10 +678,10 @@
             created_from: None,
         ),
         (
-            uuid: "367842ee-4385-5275-b427-77fe8145715c",
+            uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
         ): (
             body_id: (
-                uuid: "367842ee-4385-5275-b427-77fe8145715c",
+                uuid: "4f7562d9-8eec-5c65-b148-30e309f5eace",
             ),
             bone: (
                 bone: [
@@ -738,10 +696,10 @@
             created_from: None,
         ),
         (
-            uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+            uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
         ): (
             body_id: (
-                uuid: "98ac1f6c-b96d-5a93-a712-5b180340fa52",
+                uuid: "fb08e32e-8fd2-5274-8f5c-086c9db6d1ec",
             ),
             bone: (
                 bone: [
@@ -756,10 +714,10 @@
             created_from: None,
         ),
         (
-            uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+            uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
         ): (
             body_id: (
-                uuid: "2bdddb2c-bcd1-565b-bfa6-c91016ed3326",
+                uuid: "bc05d38d-8a8a-5456-9b92-699b69d2add0",
             ),
             bone: (
                 bone: [
@@ -774,10 +732,10 @@
             created_from: None,
         ),
         (
-            uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+            uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
         ): (
             body_id: (
-                uuid: "d9888c73-b119-5c10-82b1-75a483f53435",
+                uuid: "f19f98f2-b55f-5255-a02d-7d8a8a218d94",
             ),
             bone: (
                 bone: [
@@ -792,10 +750,10 @@
             created_from: None,
         ),
         (
-            uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+            uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
         ): (
             body_id: (
-                uuid: "714619b4-cde8-533c-8c1f-45d0a0066914",
+                uuid: "34e8c9db-5ccc-5b1b-904d-606329ab4ae1",
             ),
             bone: (
                 bone: [
@@ -810,10 +768,10 @@
             created_from: None,
         ),
         (
-            uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+            uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
         ): (
             body_id: (
-                uuid: "01d13faf-1ab8-5867-8ee3-f3812008c8ee",
+                uuid: "d731f8ba-cc0b-5844-bb80-4a6dc522a462",
             ),
             bone: (
                 bone: [
@@ -828,10 +786,10 @@
             created_from: None,
         ),
         (
-            uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+            uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
         ): (
             body_id: (
-                uuid: "9a2d64d0-085a-5162-8f56-5fbcb4ef23e7",
+                uuid: "6263f5a3-86b5-5833-9d2f-8415c78054fa",
             ),
             bone: (
                 bone: [
@@ -846,10 +804,10 @@
             created_from: None,
         ),
         (
-            uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+            uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
         ): (
             body_id: (
-                uuid: "3028ed2a-a26c-54f8-af9d-83788354f9bd",
+                uuid: "93c8e684-082a-59fd-ae27-a26098444d44",
             ),
             bone: (
                 bone: [

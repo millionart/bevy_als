@@ -21,6 +21,7 @@ use bevy_animation_graph::core::{
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::get_up::{AlsGetUpState, get_up_settings};
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::mantle_drive::AlsMantleDriveSet;
 use crate::roll_drive::AlsRollDriveSet;
@@ -389,6 +390,7 @@ fn refresh_animation_event_playbacks(
             Option<&AlsStandingEventClock>,
             Option<&AlsRollState>,
             Option<&AlsMantleState>,
+            Option<&AlsGetUpState>,
         ),
         With<AlsCharacter>,
     >,
@@ -399,7 +401,7 @@ fn refresh_animation_event_playbacks(
     let Some(manifest) = manifests.get(&handle.0) else {
         return;
     };
-    for (mut playbacks, standing, roll, mantle) in &mut characters {
+    for (mut playbacks, standing, roll, mantle, get_up) in &mut characters {
         let mut entries = Vec::new();
         if let Some(clock) = standing {
             let time = clock.sprint_time.unwrap_or_default();
@@ -457,6 +459,21 @@ fn refresh_animation_event_playbacks(
             }
             if let Some(graph_clip) = graph_clip_for_source(manifest, montage) {
                 push_playback(&mut entries, montage, graph_clip, time, weight, false);
+            }
+        }
+        if let Some(get_up) = get_up {
+            let settings = get_up_settings(get_up.facing_up);
+            for source in [&settings.source_sequence, &settings.source_montage] {
+                if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
+                    push_playback(
+                        &mut entries,
+                        source,
+                        graph_clip,
+                        get_up.clip_time,
+                        get_up.weight,
+                        false,
+                    );
+                }
             }
         }
         playbacks.entries = entries;
@@ -825,6 +842,44 @@ fn dispatch_animation_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn get_up_playbacks_use_the_existing_sequence_and_montage_event_streams() {
+        use bevy::ecs::system::RunSystemOnce;
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
+            "../assets/animation_events/als_notify_manifest.json"
+        ))
+        .unwrap();
+        let mut world = World::new();
+        let mut manifests = Assets::<AlsNotifyManifest>::default();
+        let handle = manifests.add(manifest);
+        world.insert_resource(manifests);
+        world.insert_resource(AlsNotifyManifestHandle(handle));
+        for facing_up in [false, true] {
+            let mut state = AlsGetUpState::new(facing_up);
+            state.clip_time = 0.2;
+            let entity = world
+                .spawn((AlsCharacter, AlsAnimationEventPlaybacks::default(), state))
+                .id();
+            world
+                .run_system_once(refresh_animation_event_playbacks)
+                .unwrap();
+            let entries = &world
+                .get::<AlsAnimationEventPlaybacks>(entity)
+                .unwrap()
+                .entries;
+            let settings = get_up_settings(facing_up);
+            assert_eq!(entries.len(), 2);
+            assert_eq!(entries[0].source_asset, settings.source_sequence);
+            assert_eq!(entries[1].source_asset, settings.source_montage);
+            assert!(
+                entries
+                    .iter()
+                    .all(|entry| entry.time == 0.2 && entry.graph_clip == settings.clip)
+            );
+            world.despawn(entity);
+        }
+    }
 
     #[test]
     fn source_paths_select_the_expected_mantle_variants() {

@@ -69,6 +69,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             AlsMantleDrivePlugin,
             PaAlsPhysicsPlugin,
             AlsRagdollLinkPlugin,
+            crate::get_up::AlsGetUpPlugin,
         ))
         .add_systems(
             Update,

@@ -49,7 +49,9 @@ fn stop_transition_and_turn_on_locomotion_exit(
 ) {
     let mut exited = Vec::new();
     for (character, locomotion, previous, transition) in &mut characters {
-        let prior = previous.as_ref().map_or(*locomotion, |state| state.locomotion);
+        let prior = previous
+            .as_ref()
+            .map_or(*locomotion, |state| state.locomotion);
         if source_grounded_exit_stops_transition_and_turn(prior, *locomotion) {
             if let Some(mut transition) = transition {
                 transition.request_stop();
@@ -59,9 +61,11 @@ fn stop_transition_and_turn_on_locomotion_exit(
         if let Some(mut previous) = previous {
             previous.locomotion = *locomotion;
         } else {
-            commands.entity(character).insert(SourceLocomotionLifecycleState {
-                locomotion: *locomotion,
-            });
+            commands
+                .entity(character)
+                .insert(SourceLocomotionLifecycleState {
+                    locomotion: *locomotion,
+                });
         }
     }
     for character in exited {

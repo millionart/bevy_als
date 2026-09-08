@@ -19,6 +19,7 @@ pub mod gait_layer;
 pub mod game_mode;
 pub mod generated_ab_als_provider;
 pub mod generated_transition_notify;
+pub mod get_up;
 pub mod grounded_layer;
 pub mod head_layer;
 pub mod layering_layer;

@@ -42,6 +42,82 @@ struct AlsRollSlotSampler {
     reported_unready: bool,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn get_up_input_block_prevents_an_automatic_landing_roll() {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let character = world
+            .spawn((
+                als_core::character::AlsCharacter,
+                als_core::motion::AlsMovementInputBlocked,
+                AlsRollState::default(),
+                LocomotionState::Grounded,
+                Stance::Standing,
+                AlsViewYaw::default(),
+                Transform::default(),
+                LinearVelocity(Vec3::X),
+                AlsAirState {
+                    landing_time: 0.0,
+                    last_impact_vy: 10.0,
+                    ..default()
+                },
+                AlsInputCommand::default(),
+            ))
+            .id();
+        world.run_system_once(roll_drive_system).unwrap();
+        assert!(!world.get::<AlsRollState>(character).unwrap().active);
+        world
+            .entity_mut(character)
+            .remove::<als_core::motion::AlsMovementInputBlocked>();
+        world.run_system_once(roll_drive_system).unwrap();
+        assert!(world.get::<AlsRollState>(character).unwrap().active);
+    }
+
+    #[test]
+    fn ragdoll_stops_roll_motion_while_preserving_the_montage_fade() {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.1));
+        world.insert_resource(time);
+        let roll = AlsRollState {
+            active: true,
+            time: 0.3,
+            ..default()
+        };
+        let transform =
+            Transform::from_xyz(3.0, 1.0, -2.0).with_rotation(Quat::from_rotation_y(0.7));
+        let velocity = LinearVelocity(Vec3::new(1.0, -3.0, 2.0));
+        let character = world
+            .spawn((
+                als_core::character::AlsCharacter,
+                roll,
+                AlsRollBlendOut::new(&roll),
+                LocomotionState::Ragdolling,
+                Stance::Standing,
+                AlsViewYaw::default(),
+                transform,
+                velocity,
+                AlsInputCommand::default(),
+            ))
+            .id();
+        world.run_system_once(roll_drive_system).unwrap();
+        assert_eq!(*world.get::<Transform>(character).unwrap(), transform);
+        assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), velocity);
+        assert!((world.get::<AlsRollBlendOut>(character).unwrap().weight() - 0.5).abs() < 1e-5);
+        assert!(world.get::<AlsRollState>(character).unwrap().active);
+        world.run_system_once(roll_drive_system).unwrap();
+        assert!(!world.get::<AlsRollState>(character).unwrap().active);
+        assert!(world.get::<AlsRollBlendOut>(character).is_none());
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct AlsRollSlotRuntime {
     pub active: bool,
@@ -55,6 +131,27 @@ pub struct AlsRollSlotRuntime {
 
 #[derive(Resource)]
 struct RollSlotCurveHandle(Handle<AlsAnimCurves>);
+
+#[derive(Component, Debug, Clone, Copy)]
+pub(crate) struct AlsRollBlendOut {
+    elapsed: f32,
+    start_weight: f32,
+}
+
+impl AlsRollBlendOut {
+    pub(crate) fn new(roll: &AlsRollState) -> Self {
+        Self {
+            elapsed: 0.0,
+            start_weight: roll_weight_at(roll.time),
+        }
+    }
+
+    fn weight(self) -> f32 {
+        let alpha = self.elapsed / crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds;
+        self.start_weight
+            * (1.0 - als_ext::transition_alpha(alpha, als_ext::AlphaBlendMode::Cubic, &[]))
+    }
+}
 
 pub struct AlsRollDrivePlugin;
 
@@ -176,6 +273,8 @@ fn write_roll_slot_curves(
 
 fn bridge_roll_slot_samples(
     rolls: Query<&AlsRollState, With<als_core::character::AlsCharacter>>,
+    get_ups: Query<&crate::get_up::AlsGetUpState>,
+    blend_outs: Query<&AlsRollBlendOut>,
     curve_handle: Res<RollSlotCurveHandle>,
     curves: Res<Assets<AlsAnimCurves>>,
     mut samplers: Query<
@@ -194,6 +293,20 @@ fn bridge_roll_slot_samples(
             continue;
         };
         let Some(roll) = rolls.get(sampler.character).ok().filter(|roll| roll.active) else {
+            target_player.set_global_input_data("roll.weight", 0.0_f32);
+            als_ext::source_gameplay_tag_input::set_slot_input_context(
+                sampler.target_player,
+                "roll.pose",
+                None,
+            );
+            if get_ups.contains(sampler.character) {
+                continue;
+            }
+            als_ext::source_gameplay_tag_input::set_slot_input_context(
+                sampler.target_player,
+                GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
+                None,
+            );
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
@@ -206,7 +319,9 @@ fn bridge_roll_slot_samples(
                 .insert(AlsRollSlotRuntime::default());
             continue;
         };
-        let weight = roll_weight_at(roll.time);
+        let weight = blend_outs
+            .get(sampler.character)
+            .map_or_else(|_| roll_weight_at(roll.time), |blend| blend.weight());
         let Some(pose) = source_player.get_default_output_pose().cloned() else {
             if !sampler.reported_unready {
                 warn!(
@@ -236,6 +351,26 @@ fn bridge_roll_slot_samples(
                 });
             continue;
         };
+        target_player.set_global_input_data("roll.pose", DataValue::Pose(pose.clone()));
+        target_player.set_global_input_data("roll.weight", weight);
+        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+        let context = curves
+            .get(&curve_handle.0)
+            .and_then(AlsAnimCurves::first)
+            .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time));
+        als_ext::source_gameplay_tag_input::set_slot_input_context(
+            sampler.target_player,
+            "roll.pose",
+            context.clone(),
+        );
+        if get_ups.contains(sampler.character) {
+            continue;
+        }
+        als_ext::source_gameplay_tag_input::set_slot_input_context(
+            sampler.target_player,
+            GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
+            context,
+        );
         target_player.set_global_input_data(
             ROOT_POST_LOCOMOTION_SLOT_POSE_KEY,
             DataValue::Pose(pose.clone()),
@@ -248,7 +383,7 @@ fn bridge_roll_slot_samples(
         );
         target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
         target_player
-            .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, weight);
+            .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         let (pose_standing, pose_grounded) = write_roll_slot_curves(
             &mut target_player,
@@ -273,6 +408,9 @@ fn bridge_roll_slot_samples(
 #[allow(clippy::type_complexity)]
 fn roll_drive_system(
     time: Res<Time>,
+    mut commands: Commands,
+    blocked: Query<(), With<als_core::motion::AlsMovementInputBlocked>>,
+    mut blend_outs: Query<&mut AlsRollBlendOut>,
     mut q: Query<
         (
             Entity,
@@ -310,17 +448,31 @@ fn roll_drive_system(
         ovr,
     ) in &mut q
     {
-        let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
+        let effective = als_core::motion::movement_input_for_action(
+            *ovr.map(|o| &o.0).unwrap_or(cmd),
+            blocked.contains(character),
+        );
 
-        let lifecycle = roll.update(effective, view, loco, stance, dt);
+        if let Ok(mut blend) = blend_outs.get_mut(character) {
+            roll.time += dt;
+            blend.elapsed += dt;
+            if blend.weight() <= 0.0 {
+                roll.active = false;
+                commands.entity(character).remove::<AlsRollBlendOut>();
+            }
+            continue;
+        }
+
+        let lifecycle = roll.update(&effective, view, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
+            && !blocked.contains(character)
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
         {
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
             roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
-        if !roll.active || dt <= 1e-5 {
+        if !roll.active || *loco == LocomotionState::Ragdolling || dt <= 1e-5 {
             continue;
         }
 

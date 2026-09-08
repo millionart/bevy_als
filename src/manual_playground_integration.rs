@@ -20,7 +20,10 @@ use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::{AlsDesiredStance, AlsStateRequest};
 use als_core::view::AlsViewPitch;
-use als_ext::{ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfileApplied};
+use als_ext::{
+    ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfile,
+    RagdollPhysicsProfileApplied,
+};
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
@@ -52,13 +55,16 @@ use crate::foot_ik_apply::{
     AlsFootIkWeightOverride, AlsFootLockTeleportTelemetry, FootIkApplySet,
 };
 use crate::game_mode::AlsPlayerAdmissionComplete;
+use crate::generated_transition_notify::GeneratedTransitionNotifyTelemetry;
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::head_layer::AlsHeadState;
 use crate::layering_layer::AlsLayeringState;
 use crate::overlay_mode_menu::OverlayMenuState;
 use crate::overlay_object::{AlsOverlayObject, AlsOverlayObjectState};
-use crate::ragdoll_link::{AlsRagdollGroundFollow, AlsRagdollJointDrive};
+use crate::ragdoll_link::{
+    AlsRagdollGroundFollow, AlsRagdollJointDrive, RAGDOLL_ANGULAR_STIFFNESS,
+};
 use crate::roll_drive::AlsRollSlotRuntime;
 use crate::show_debug_hud::{
     AlsShowDebugHudRoot, AlsShowDebugHudState, DebugCategory, apply_show_debug_key,
@@ -140,6 +146,28 @@ fn next_crouch_stationary_validation(
     } else {
         None
     }
+}
+
+fn generated_stop_quick_input_step(
+    input_started: bool,
+    input_released: bool,
+    telemetry: Option<&AlsStandingGraphTelemetry>,
+) -> (bool, bool, bool) {
+    let input_started = input_started
+        || telemetry.is_some_and(|telemetry| {
+            telemetry.actual_standing_state == Some(0)
+                && telemetry.actual_standing_pose_ready == Some(true)
+        });
+    let input_released = input_released
+        || (input_started
+            && telemetry.is_some_and(|telemetry| {
+                telemetry.actual_standing_transition_active == Some(true)
+            }));
+    (
+        input_started,
+        input_released,
+        input_started && !input_released,
+    )
 }
 
 #[derive(Resource, Default)]
@@ -291,6 +319,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             )
             .add_systems(
                 PostUpdate,
+                prepare_get_up_physics_fixture
+                    .after(als_ext::RagdollPhysicsHandoffSet)
+                    .before(avian3d::prelude::PhysicsSystems::First),
+            )
+            .add_systems(
+                PostUpdate,
                 observe_manual_integration
                     .after(AlsCameraSet)
                     .after(AlsCrouchingTelemetrySet)
@@ -389,6 +423,7 @@ enum IntegrationPhase {
     StateMachineGrounded,
     StateMachineAir,
     StateMachineRotate,
+    GeneratedTransitionNotify,
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
@@ -428,9 +463,11 @@ enum IntegrationScenario {
     ControlRig,
     DefaultOverlay,
     StateMachine,
+    GeneratedTransitionNotify,
     FootIk,
     Sprint,
     Ragdoll,
+    GetUp,
     Camera,
     Interface,
     Notify,
@@ -445,9 +482,11 @@ impl IntegrationScenario {
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
             Some("state_machine") => Self::StateMachine,
+            Some("transition_notify") => Self::GeneratedTransitionNotify,
             Some("foot_ik") => Self::FootIk,
             Some("sprint") => Self::Sprint,
             Some("ragdoll") => Self::Ragdoll,
+            Some("get_up") => Self::GetUp,
             Some("camera") => Self::Camera,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
@@ -462,12 +501,15 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         | IntegrationScenario::StandingDirection
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::GeneratedTransitionNotify => {
+            IntegrationPhase::GeneratedTransitionNotify
+        }
         IntegrationScenario::Grounded => IntegrationPhase::Roll,
         IntegrationScenario::Sprint => IntegrationPhase::Sprint,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
-        IntegrationScenario::Ragdoll => IntegrationPhase::Ragdoll,
+        IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
@@ -566,19 +608,23 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             )
         }),
         5 => Some(DirectionRegressionCase {
-            expected_movement_state: Some(AlsMovementDirection::LeftForward),
-            source_state: Some("Move Left Forward"),
+            expected_movement_state: Some(AlsMovementDirection::Backward),
+            source_state: Some("Move Backward"),
             direction_signature_group: None,
-            ..running("run_left_from_forward", Vec2::NEG_X, DIRECTION_BRANCH_LEFT)
-        }),
-        6 => Some(DirectionRegressionCase {
-            expected_movement_state: Some(AlsMovementDirection::LeftBackward),
-            source_state: Some("Move Left Backward"),
-            direction_signature_group: Some("AB_Als_Standing/Movement States"),
             ..running(
-                "run_backward_from_left_forward",
+                "run_backward_from_forward",
                 Vec2::NEG_Y,
                 DIRECTION_BRANCH_BACKWARD,
+            )
+        }),
+        6 => Some(DirectionRegressionCase {
+            expected_movement_state: Some(AlsMovementDirection::LeftForward),
+            source_state: Some("Move Left Backward to Move Left Forward"),
+            direction_signature_group: None,
+            ..running(
+                "run_left_forward_from_backward",
+                Vec2::NEG_X,
+                DIRECTION_BRANCH_LEFT,
             )
         }),
         7 => Some(DirectionRegressionCase {
@@ -731,6 +777,129 @@ fn crouch_direction_cache_node(direction: AlsMovementDirection) -> &'static str 
         AlsMovementDirection::RightBackward => "Save cached pose 'Move Right Backward'",
         AlsMovementDirection::LeftForward => "Save cached pose 'Move Left Forward'",
         AlsMovementDirection::LeftBackward => "Save cached pose 'Move Left Backward'",
+    }
+}
+
+fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
+    vec![
+        ManualAnimationPoseBoundary {
+            label: "standing_movement_cache",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Save cached pose 'Movement'",
+            output: "__als_source_cached_pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_movement_details_fsm",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Movement Details States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_movement_states_fsm",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Movement States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_states_fsm",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Standing States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_stop_states_fsm",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S4_Stop.animgraph.ron",
+            node: "Stop States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_apply_additive",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Apply Additive",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_refresh_rotate_in_place",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "RefreshRotateInPlace\r\nOn Update",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "standing_graph_output",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            node: "Output Pose\nAnimGraph",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "grounded_standing_cache",
+            graph: "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+            node: "Save cached pose 'Standing'",
+            output: "__als_source_cached_pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
+            label: "grounded_fsm",
+            graph: "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+            node: "Grounded States\nState Machine",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+    ]
+}
+
+fn generated_stop_quick_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
+    let mut chain = generated_standing_source_pose_chain()
+        .into_iter()
+        .filter(|boundary| {
+            matches!(
+                boundary.label,
+                "standing_states_fsm"
+                    | "standing_graph_output"
+                    | "grounded_standing_cache"
+                    | "grounded_fsm"
+            )
+        })
+        .collect::<Vec<_>>();
+    for boundary in &mut chain {
+        boundary.minimum_translation_span = 0.0;
+        boundary.minimum_rotation_span_radians = 0.0;
+    }
+    chain
+}
+
+fn state_machine_grounded_window(elapsed: f32) -> ManualAnimationWindowEvidence {
+    let moving = (1.0..2.4).contains(&elapsed) || elapsed >= 3.5;
+    ManualAnimationWindowEvidence {
+        label: Some("state_machine_grounded"),
+        settled: moving,
+        capture_source_window: moving,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Standing/Standing States"),
+        source_pose_chain: generated_standing_source_pose_chain(),
+        source_sync_group: Some("Movement"),
+        sync_phase_global: Some("sync_groups.ab_als_standing.movement.phase"),
+        ..default()
     }
 }
 
@@ -1352,6 +1521,11 @@ struct IntegrationCoverage {
     ragdoll_follow: bool,
     ragdoll_joint_drive: bool,
     ragdoll_recovered: bool,
+    ragdoll_camera_pivot: bool,
+    get_up_front: bool,
+    get_up_back: bool,
+    get_up_input_locked: [bool; 2],
+    get_up_input_released: [bool; 2],
     camera_rig: bool,
     camera_collision: bool,
     camera_recovery: bool,
@@ -1379,6 +1553,7 @@ struct IntegrationCoverage {
     p1_gait: bool,
     p1_air: bool,
     p1_turn: bool,
+    generated_transition_stop_quick: bool,
     turn_slot: bool,
     turn_inertialization: bool,
 }
@@ -1409,8 +1584,16 @@ struct ManualIntegrationState {
     ragdoll_seen: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
+    get_up_case: usize,
+    get_up_fixture_seeded: bool,
     ragdoll_grounded_at: Option<f64>,
     ragdoll_recovered_at: Option<f64>,
+    ragdoll_current_joint_anchor_error_m: f32,
+    ragdoll_current_joint_anchor_label: Option<String>,
+    ragdoll_max_joint_anchor_error_m: f32,
+    ragdoll_max_joint_anchor_label: Option<String>,
+    ragdoll_handoff_locked_joint_anchor_error_m: f32,
+    ragdoll_handoff_locked_joint_anchor_label: Option<String>,
     camera_scenario_armed: bool,
     camera_last_probe_secs: f32,
     camera_view_mode_requested: bool,
@@ -1459,6 +1642,8 @@ struct ManualIntegrationState {
     p1_air_mask: u8,
     p1_turn_mask: u8,
     p1_stance_mask: u8,
+    generated_stop_quick_input_started: bool,
+    generated_stop_quick_input_released: bool,
     grounded_roll_exit_diagnostic: String,
     timed_out: bool,
     final_logged: bool,
@@ -1494,8 +1679,16 @@ impl Default for ManualIntegrationState {
             ragdoll_seen: false,
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
+            get_up_case: 0,
+            get_up_fixture_seeded: false,
             ragdoll_grounded_at: None,
             ragdoll_recovered_at: None,
+            ragdoll_current_joint_anchor_error_m: 0.0,
+            ragdoll_current_joint_anchor_label: None,
+            ragdoll_max_joint_anchor_error_m: 0.0,
+            ragdoll_max_joint_anchor_label: None,
+            ragdoll_handoff_locked_joint_anchor_error_m: 0.0,
+            ragdoll_handoff_locked_joint_anchor_label: None,
             camera_scenario_armed: false,
             camera_last_probe_secs: -1.0,
             camera_view_mode_requested: false,
@@ -1544,6 +1737,8 @@ impl Default for ManualIntegrationState {
             p1_air_mask: 0,
             p1_turn_mask: 0,
             p1_stance_mask: 0,
+            generated_stop_quick_input_started: false,
+            generated_stop_quick_input_released: false,
             grounded_roll_exit_diagnostic: "not observed".to_owned(),
             timed_out: false,
             final_logged: false,
@@ -1584,14 +1779,129 @@ struct MotionProbe<'w, 's> {
     gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
     rotation_animation:
         Query<'w, 's, Option<&'static AlsRotationAnimationState>, With<AlsCharacter>>,
+    generated_transition_notify:
+        Query<'w, 's, Option<&'static GeneratedTransitionNotifyTelemetry>, With<AlsCharacter>>,
 }
 
 #[derive(SystemParam)]
 struct RagdollPaProbe<'w, 's> {
     labels: Query<'w, 's, &'static BodyLabel>,
-    profiles: Query<'w, 's, &'static RagdollPhysicsProfileApplied>,
+    profiles: Query<
+        'w,
+        's,
+        (
+            &'static RagdollPhysicsProfileApplied,
+            &'static RagdollPhysicsProfile,
+        ),
+    >,
     collision_members: Query<'w, 's, &'static RagdollCollisionMember>,
     body_modes: Query<'w, 's, &'static RigidBody>,
+    get_ups: Query<
+        'w,
+        's,
+        (
+            Option<&'static crate::get_up::AlsGetUpState>,
+            Has<als_core::motion::AlsMovementInputBlocked>,
+        ),
+        With<AlsCharacter>,
+    >,
+    camera_sockets: Query<
+        'w,
+        's,
+        (
+            &'static als_camera::AlsCameraSocketLocations,
+            &'static GlobalTransform,
+            &'static Collider,
+        ),
+        With<AlsCharacter>,
+    >,
+}
+
+fn get_up_fixture_rotation(facing_up: bool, yaw: f32) -> Quat {
+    Quat::from_rotation_y(yaw)
+        * Quat::from_rotation_x(if facing_up {
+            -std::f32::consts::FRAC_PI_2
+        } else {
+            std::f32::consts::FRAC_PI_2
+        })
+}
+
+fn prepare_get_up_physics_fixture(
+    mut state: ResMut<ManualIntegrationState>,
+    mut phase: ResMut<ManualRuntimePhaseEvidence>,
+    characters: Query<&LocomotionState, With<AlsCharacter>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    players: Query<&AnimationGraphPlayer>,
+    labels: Query<&BodyLabel>,
+    mut bodies: Query<
+        (
+            &mut Position,
+            &mut Rotation,
+            &mut LinearVelocity,
+            &mut avian3d::prelude::AngularVelocity,
+            &RigidBody,
+        ),
+        Without<AlsCharacter>,
+    >,
+) {
+    if state.scenario != IntegrationScenario::GetUp
+        || state.get_up_fixture_seeded
+        || state.phase != IntegrationPhase::Ragdoll
+    {
+        return;
+    }
+    let Some(character) = state.character else {
+        return;
+    };
+    if characters.get(character) != Ok(&LocomotionState::Ragdolling) {
+        return;
+    }
+    let Some(spawned) = avatars
+        .iter()
+        .find(|(avatar, _)| avatar.character == character)
+        .and_then(|(_, instance)| players.get(instance.player_entity()).ok())
+        .and_then(AnimationGraphPlayer::get_spawned_ragdoll)
+    else {
+        return;
+    };
+    let Some(pelvis) = spawned
+        .bodies
+        .values()
+        .find(|entity| labels.get(**entity).is_ok_and(|label| label.0 == "pelvis"))
+    else {
+        return;
+    };
+    let Ok((position, rotation, _, _, _)) = bodies.get(*pelvis) else {
+        return;
+    };
+    let pivot = position.0;
+    let facing_up = state.get_up_case == 1;
+    let delta = get_up_fixture_rotation(facing_up, state.spawn_yaw.unwrap_or_default())
+        * rotation.0.inverse();
+    for entity in spawned.bodies.values() {
+        let Ok((mut position, mut rotation, mut velocity, mut angular_velocity, body)) =
+            bodies.get_mut(*entity)
+        else {
+            continue;
+        };
+        if *body != RigidBody::Dynamic {
+            continue;
+        }
+        position.0 = pivot + delta * (position.0 - pivot);
+        rotation.0 = (delta * rotation.0).normalize();
+        velocity.0 = Vec3::ZERO;
+        angular_velocity.0 = Vec3::ZERO;
+    }
+    state.get_up_fixture_seeded = true;
+    rebase_temporal_fixture(
+        &mut state,
+        &mut phase,
+        if facing_up {
+            "get_up_back_initial_orientation"
+        } else {
+            "get_up_front_initial_orientation"
+        },
+    );
 }
 
 fn spawn_manual_integration_fixture(
@@ -1779,6 +2089,7 @@ fn drive_manual_integration(
             &mut AlsViewYaw,
             &mut AlsViewPitch,
             Option<&AlsRagdollGroundFollow>,
+            Option<&AlsStandingGraphTelemetry>,
         ),
         (With<AlsCharacter>, Without<ManualIntegrationPlatform>),
     >,
@@ -1835,6 +2146,7 @@ fn drive_manual_integration(
         mut view_yaw,
         mut view_pitch,
         ground_follow,
+        standing_graph,
     )) = characters.get_mut(character)
     else {
         return;
@@ -1880,6 +2192,7 @@ fn drive_manual_integration(
                     state.coverage.p1_gait = false;
                     state.coverage.p1_air = false;
                     state.coverage.p1_turn = false;
+                    state.coverage.generated_transition_stop_quick = false;
                     state.coverage.turn_slot = false;
                     state.coverage.turn_inertialization = false;
                     state.p1_pivot_sent = false;
@@ -1914,7 +2227,7 @@ fn drive_manual_integration(
                 requires_pre_rig_motion: true,
                 requires_final_pose_motion: true,
                 requires_non_reference_root_pose: true,
-                requires_source_pose_chain: false,
+                requires_source_pose_chain: true,
                 requires_actor_yaw_motion: false,
                 requires_actor_yaw_convergence: false,
                 expected_actor_yaw_delta_sign: None,
@@ -1922,7 +2235,7 @@ fn drive_manual_integration(
                 expected_animation_variant: None,
                 source_node: Some("AB_Als_Standing/Movement States"),
                 source_state: case.source_state,
-                source_pose_chain: Vec::new(),
+                source_pose_chain: generated_standing_source_pose_chain(),
                 minimum_pre_rig_translation_span: 0.0,
                 minimum_pre_rig_rotation_span_radians: 0.0,
                 minimum_final_translation_span: 0.0,
@@ -1942,7 +2255,7 @@ fn drive_manual_integration(
                 },
                 direction_signature_group: case.direction_signature_group,
                 required_direction_signature_members: if case.direction_signature_group.is_some() {
-                    6
+                    5
                 } else {
                     0
                 },
@@ -1993,6 +2306,7 @@ fn drive_manual_integration(
                         fixture.locomotion_start,
                         yaw,
                     );
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "direction_fixture");
                 }
                 *overlay = OverlayState::Default;
                 request.locomotion_state = Some(LocomotionState::Grounded);
@@ -2338,6 +2652,7 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::StateMachineGrounded => {
+            *animation_window = state_machine_grounded_window(elapsed);
             if entering {
                 reset_character(
                     &mut transform,
@@ -2356,6 +2671,7 @@ fn drive_manual_integration(
                 request.stance = Some(Stance::Standing);
                 request.gait = Some(Gait::Running);
                 request.rotation_mode = Some(RotationMode::Aiming);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_grounded");
                 info!("[MANUAL-INTEGRATION][P1][GROUND] sequence=idle_move_stop_pivot start");
             }
             let requested_gait = if (3.2..3.6).contains(&elapsed) {
@@ -2379,9 +2695,70 @@ fn drive_manual_integration(
                         "[MANUAL-INTEGRATION][P1][GROUND] pivot_notice speed={horizontal_speed:.3}"
                     );
                 }
+            } else {
+                input.0.move_dir = Vec2::ZERO;
             }
             if elapsed >= 5.8 {
                 begin_phase(&mut state, IntegrationPhase::StateMachineAir);
+            }
+        }
+        IntegrationPhase::GeneratedTransitionNotify => {
+            if entering {
+                state.generated_stop_quick_input_started = false;
+                state.generated_stop_quick_input_released = false;
+            }
+            let (input_started, input_released, should_move) = generated_stop_quick_input_step(
+                state.generated_stop_quick_input_started,
+                state.generated_stop_quick_input_released,
+                standing_graph,
+            );
+            state.generated_stop_quick_input_started = input_started;
+            state.generated_stop_quick_input_released = input_released;
+            let stopping = input_released;
+            *animation_window = ManualAnimationWindowEvidence {
+                label: Some("generated_transition_stop_quick"),
+                settled: stopping,
+                capture_source_window: stopping,
+                requires_pre_rig_motion: true,
+                requires_final_pose_motion: true,
+                requires_non_reference_root_pose: true,
+                requires_source_pose_chain: true,
+                source_node: Some("AB_Als_Standing/Standing States"),
+                source_state: Some("Move to Idle"),
+                source_pose_chain: generated_stop_quick_source_pose_chain(),
+                ..default()
+            };
+            if entering {
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                *gait = Gait::Running;
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::Aiming;
+                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.stance = Some(Stance::Standing);
+                request.gait = Some(Gait::Running);
+                request.rotation_mode = Some(RotationMode::Aiming);
+                state.coverage.generated_transition_stop_quick = false;
+                rebase_temporal_fixture(
+                    &mut state,
+                    &mut phase_evidence,
+                    "generated_transition_notify",
+                );
+            }
+            input.0.move_dir = if should_move { Vec2::Y } else { Vec2::ZERO };
+            if state.coverage.generated_transition_stop_quick {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            } else if elapsed >= 7.0 {
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
         IntegrationPhase::StateMachineAir => {
@@ -2403,6 +2780,7 @@ fn drive_manual_integration(
                 request.stance = Some(Stance::Standing);
                 request.gait = Some(Gait::Running);
                 request.rotation_mode = Some(RotationMode::ViewDirection);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_air");
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
@@ -2497,6 +2875,7 @@ fn drive_manual_integration(
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "crouch_recovery");
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
@@ -2564,6 +2943,7 @@ fn drive_manual_integration(
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "crouch_clearance");
                 state.crouch_clearance_stage = CrouchClearanceStage::AwaitStanding;
                 state.crouch_clearance_cycles = 0;
                 state.crouch_clearance_last_actual = Stance::Standing;
@@ -2984,6 +3364,7 @@ fn drive_manual_integration(
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "turn_fixture");
             }
             let body_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
             if state.scenario == IntegrationScenario::StateMachine {
@@ -3020,6 +3401,7 @@ fn drive_manual_integration(
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 request.gait = Some(Gait::Walking);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_rotate");
                 info!("[MANUAL-INTEGRATION][P1][TURN] rotate_modes start");
             }
             let body_yaw = fixture.facing_yaw;
@@ -3154,6 +3536,7 @@ fn drive_manual_integration(
                 state.ragdoll_seen = false;
                 state.ragdoll_exit_requested = false;
                 state.ragdoll_frames = 0;
+                state.get_up_fixture_seeded = false;
                 state.ragdoll_grounded_at = None;
                 state.ragdoll_recovered_at = None;
                 state.coverage.ragdoll_entered = false;
@@ -3177,13 +3560,32 @@ fn drive_manual_integration(
                 *overlay = OverlayState::Default;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
+                if state.scenario == IntegrationScenario::GetUp {
+                    rebase_temporal_fixture(
+                        &mut state,
+                        &mut phase_evidence,
+                        "get_up_initial_position",
+                    );
+                }
             }
-            let ready_to_exit = elapsed >= 2.0
+            let ready_to_exit = elapsed
+                >= if state.scenario == IntegrationScenario::GetUp {
+                    0.9
+                } else {
+                    2.0
+                }
                 && state.coverage.ragdoll_follow
                 && state.coverage.ragdoll_joint_drive
                 && ground_follow.is_some_and(|follow| follow.grounded);
             if state.ragdoll_exit_requested {
-            } else if elapsed < 1.0 && state.scenario != IntegrationScenario::Ragdoll {
+            } else if state.scenario == IntegrationScenario::GetUp && elapsed < 0.3 {
+                request.locomotion_state = Some(LocomotionState::Grounded);
+            } else if elapsed < 1.0
+                && !matches!(
+                    state.scenario,
+                    IntegrationScenario::Ragdoll | IntegrationScenario::GetUp
+                )
+            {
                 input.0.move_dir = Vec2::Y;
             } else if !ready_to_exit {
                 request.locomotion_state = Some(LocomotionState::Ragdolling);
@@ -3196,7 +3598,12 @@ fn drive_manual_integration(
                 .is_some_and(|at| state.game_time_seconds - at >= 1.5)
                 && elapsed >= 3.0
             {
-                begin_phase(&mut state, IntegrationPhase::Finish);
+                if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 0 {
+                    state.get_up_case = 1;
+                    begin_phase(&mut state, IntegrationPhase::Ragdoll);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                }
             } else if elapsed >= 20.0 {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -3485,6 +3892,19 @@ fn reset_character(
         view_pitch,
         translation,
         yaw,
+    );
+}
+
+fn rebase_temporal_fixture(
+    state: &mut ManualIntegrationState,
+    phase_evidence: &mut ManualRuntimePhaseEvidence,
+    label: &str,
+) {
+    state.temporal_rebase_epoch = state.temporal_rebase_epoch.wrapping_add(1);
+    phase_evidence.temporal_rebase_epoch = state.temporal_rebase_epoch;
+    info!(
+        "[MANUAL-INTEGRATION][TEMPORAL-REBASE] epoch={} fixture={label}",
+        state.temporal_rebase_epoch
     );
 }
 
@@ -4009,13 +4429,20 @@ fn observe_manual_integration(
         *stance == Stance::Crouching,
         None,
     );
-    if state.phase == IntegrationPhase::DirectionRegression {
+    if matches!(
+        state.phase,
+        IntegrationPhase::DirectionRegression | IntegrationPhase::StateMachineGrounded
+    ) {
         animation_window.observed_runtime_state =
             standing_graph.and_then(|value| value.actual_movement_state);
         animation_window.observed_direction = animation_window
             .observed_runtime_state
             .and_then(movement_direction_from_fsm_index)
             .map(movement_direction_name);
+        animation_window.observed_parent_runtime_state =
+            standing_graph.and_then(|value| value.actual_standing_state);
+        animation_window.observed_parent_transition_active =
+            standing_graph.and_then(|value| value.actual_standing_transition_active);
     } else if state.phase == IntegrationPhase::CrouchDirectionRegression {
         animation_window.observed_runtime_state =
             crouching_graph.and_then(|value| value.runtime_movement_state);
@@ -4766,7 +5193,16 @@ fn observe_manual_integration(
             StartStopPhase::Started(_) | StartStopPhase::Stopping(_)
         )
     });
-    if state.scenario == IntegrationScenario::StateMachine {
+    if matches!(
+        state.scenario,
+        IntegrationScenario::StateMachine | IntegrationScenario::GeneratedTransitionNotify
+    ) {
+        state.coverage.generated_transition_stop_quick |= motion_probe
+            .generated_transition_notify
+            .get(character)
+            .ok()
+            .flatten()
+            .is_some_and(|telemetry| telemetry.stop_quick_count > 0);
         if let Some(telemetry) = standing_graph {
             let previous_mask = state.p1_ground_mask;
             if source_ready && telemetry.outer_state == Some(0) {
@@ -5423,24 +5859,40 @@ fn observe_manual_integration(
         state.coverage.grounded_roll_exit_transition = true;
     }
     if let Some(spawned) = player.get_spawned_ragdoll() {
-        let profile_valid = ragdoll_probe
-            .profiles
-            .get(instance.player_entity())
-            .is_ok_and(|profile| {
-                profile.body_count == 21
-                    && profile.collider_count == 22
-                    && profile.joint_count == 20
-                    && profile.collision_disabled_pair_count == 49
-                    && profile.max_calibrated_anchor_error_m <= 1e-4
-            })
-            && spawned.colliders.values().all(|collider| {
-                ragdoll_probe
-                    .collision_members
-                    .get(*collider)
-                    .is_ok_and(|member| {
-                        member.group == spawned.root && member.disabled_pairs.len() == 49
-                    })
-            });
+        let profile = ragdoll_probe.profiles.get(instance.player_entity()).ok();
+        if let Some((applied, source_profile)) = profile {
+            state.ragdoll_current_joint_anchor_error_m = applied.current_joint_anchor_error_m;
+            state.ragdoll_current_joint_anchor_label = applied
+                .current_joint_anchor_profile_index
+                .and_then(|index| source_profile.joints.get(index as usize))
+                .map(|joint| joint.label.clone());
+            state.ragdoll_max_joint_anchor_error_m = applied.max_joint_anchor_error_m;
+            state.ragdoll_max_joint_anchor_label = applied
+                .max_joint_anchor_profile_index
+                .and_then(|index| source_profile.joints.get(index as usize))
+                .map(|joint| joint.label.clone());
+            state.ragdoll_handoff_locked_joint_anchor_error_m =
+                applied.handoff_locked_joint_anchor_error_m;
+            state.ragdoll_handoff_locked_joint_anchor_label = applied
+                .handoff_locked_joint_anchor_profile_index
+                .and_then(|index| source_profile.joints.get(index as usize))
+                .map(|joint| joint.label.clone());
+        }
+        let profile_valid = profile.is_some_and(|(applied, _)| {
+            applied.body_count == 21
+                && applied.collider_count == 22
+                && applied.joint_count == 20
+                && applied.source_joint_count == 19
+                && applied.collision_disabled_pair_count == 49
+                && applied.handoff_locked_joint_anchor_error_m <= 1e-4
+        }) && spawned.colliders.values().all(|collider| {
+            ragdoll_probe
+                .collision_members
+                .get(*collider)
+                .is_ok_and(|member| {
+                    member.group == spawned.root && member.disabled_pairs.len() == 49
+                })
+        });
         let mut dynamic = 0usize;
         let mut root_kinematic = false;
         for body in spawned.bodies.values() {
@@ -5468,6 +5920,16 @@ fn observe_manual_integration(
         state.coverage.ragdoll_entered = true;
         state.ragdoll_seen = true;
         state.ragdoll_frames = state.ragdoll_frames.saturating_add(1);
+        if let Ok((sockets, actor, collider)) = ragdoll_probe.camera_sockets.get(character) {
+            use avian3d::prelude::SimpleCollider;
+            let bounds = collider.aabb(actor.translation(), actor.rotation());
+            let bottom = actor.translation() - Vec3::Y * bounds.size().y * 0.5;
+            state.coverage.ragdoll_camera_pivot |= sockets.valid
+                && sockets.root.distance(bottom) < 1e-4
+                && cameras.iter().any(|(_, camera)| {
+                    camera.pivot_target.distance((bottom + sockets.head) * 0.5) < 1e-4
+                });
+        }
     }
     if let Some(follow) = ragdoll_follow {
         if state.ragdoll_seen && follow.grounded {
@@ -5483,8 +5945,10 @@ fn observe_manual_integration(
     if let Some(drive) = joint_drive {
         state.coverage.ragdoll_joint_drive |= state.ragdoll_seen
             && drive.target_joint_count == 19
-            && drive.angular_stiffness >= 49.999
-            && drive.angular_damping >= 0.999;
+            && (drive.angular_stiffness - drive.speed_amount * RAGDOLL_ANGULAR_STIFFNESS).abs()
+                <= 1e-3
+            && drive.angular_damping.abs() <= 1e-6
+            && drive.angular_force_limit.abs() <= 1e-6;
     }
     let ragdoll_recovered = state.ragdoll_seen
         && state.ragdoll_exit_requested
@@ -5501,6 +5965,65 @@ fn observe_manual_integration(
                 transform.translation.z,
                 velocity.0.length()
             );
+        }
+    }
+    if state.phase == IntegrationPhase::Ragdoll {
+        if let Ok((Some(get_up), blocked)) = ragdoll_probe.get_ups.get(character) {
+            let facing_matches = state.scenario != IntegrationScenario::GetUp
+                || get_up.facing_up == (state.get_up_case == 1);
+            let active = facing_matches
+                && get_up.pose_ready
+                && graph_global_f32(player, "post_locomotion.weight")
+                    .is_some_and(|weight| weight > 0.0);
+            if active {
+                state.coverage.get_up_front |= !get_up.facing_up;
+                state.coverage.get_up_back |= get_up.facing_up;
+                state.coverage.get_up_input_locked[usize::from(get_up.facing_up)] |=
+                    blocked && notify_action == Some(&AlsNotifyLocomotionAction::GettingUp);
+                state.coverage.get_up_input_released[usize::from(get_up.facing_up)] |=
+                    !blocked && notify_action == Some(&AlsNotifyLocomotionAction::None);
+            }
+            let variant = if get_up.facing_up {
+                "GetUpBack"
+            } else {
+                "GetUpFront"
+            };
+            **animation_window = ManualAnimationWindowEvidence {
+                label: Some(if get_up.facing_up {
+                    "get_up_back"
+                } else {
+                    "get_up_front"
+                }),
+                index: Some(usize::from(get_up.facing_up)),
+                settled: active && (0.4..=0.8).contains(&get_up.clip_time),
+                capture_source_window: true,
+                requires_pre_rig_motion: true,
+                requires_final_pose_motion: true,
+                requires_non_reference_root_pose: true,
+                source_node: Some("AB_Als/Slot 'PostLocomotion'"),
+                source_state: Some("GettingUp"),
+                expected_animation_variant: Some(if state.scenario == IntegrationScenario::GetUp {
+                    if state.get_up_case == 1 {
+                        "GetUpBack"
+                    } else {
+                        "GetUpFront"
+                    }
+                } else {
+                    variant
+                }),
+                observed_animation_variant: Some(variant),
+                observed_animation_clip_time: Some(get_up.clip_time),
+                observed_animation_weight: Some(get_up.weight),
+                observed_animation_play_rate: Some(
+                    crate::get_up::get_up_settings(get_up.facing_up).play_rate,
+                ),
+                direction_signature_group: (state.scenario == IntegrationScenario::GetUp)
+                    .then_some("PostLocomotion GetUp"),
+                required_direction_signature_members: 2,
+                minimum_direction_signature_rotation_radians: 0.25,
+                minimum_observation_seconds: 0.1,
+                ..default()
+            };
         }
     }
 
@@ -5664,6 +6187,25 @@ fn observe_manual_integration(
     if state.phase == IntegrationPhase::Finish && !state.final_logged {
         state.final_logged = true;
         let grounded_roll_exit_detail = state.grounded_roll_exit_diagnostic.clone();
+        let generated_transition_notify_detail = motion_probe
+            .generated_transition_notify
+            .get(character)
+            .ok()
+            .flatten()
+            .map_or_else(
+                || "generated transition telemetry is missing".to_owned(),
+                |telemetry| {
+                    format!(
+                        "stop_quick_count={} observed_named_fsm_state_ids={} active_named_source_state_count={} last_active_named_source_state_id={} active_named_transition_count={} last_active_named_transition_id={}",
+                        telemetry.stop_quick_count,
+                        telemetry.observed_named_fsm_state_ids.join(","),
+                        telemetry.active_named_source_state_count,
+                        telemetry.last_active_named_source_state_id,
+                        telemetry.active_named_transition_count,
+                        telemetry.last_active_named_transition_id
+                    )
+                },
+            );
         let coverage = &state.coverage;
         let direction_regression = coverage.direction_cases.iter().all(|covered| *covered);
         if matches!(
@@ -5802,6 +6344,18 @@ fn observe_manual_integration(
                     "p1_turn_slot_inertialization",
                     coverage.turn_inertialization,
                 ),
+                (
+                    "generated_stop_quick_transition_notify",
+                    coverage.generated_transition_stop_quick,
+                ),
+            ],
+            IntegrationScenario::GeneratedTransitionNotify => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                (
+                    "generated_stop_quick_transition_notify",
+                    coverage.generated_transition_stop_quick,
+                ),
             ],
             IntegrationScenario::Crouching => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -5894,6 +6448,37 @@ fn observe_manual_integration(
                 ("ragdoll_follow", coverage.ragdoll_follow),
                 ("ragdoll_joint_drive", coverage.ragdoll_joint_drive),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
+                ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
+                (
+                    "get_up_input_locked",
+                    coverage.get_up_input_locked.into_iter().any(|value| value),
+                ),
+                (
+                    "get_up_input_released",
+                    coverage
+                        .get_up_input_released
+                        .into_iter()
+                        .any(|value| value),
+                ),
+            ],
+            IntegrationScenario::GetUp => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("ragdoll_pa_profile", coverage.ragdoll_pa_profile),
+                ("ragdoll_recover", coverage.ragdoll_recovered),
+                ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),
+                ("get_up_front", coverage.get_up_front),
+                ("get_up_back", coverage.get_up_back),
+                ("get_up_front_input_locked", coverage.get_up_input_locked[0]),
+                (
+                    "get_up_front_input_released",
+                    coverage.get_up_input_released[0],
+                ),
+                ("get_up_back_input_locked", coverage.get_up_input_locked[1]),
+                (
+                    "get_up_back_input_released",
+                    coverage.get_up_input_released[1],
+                ),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -5954,6 +6539,24 @@ fn observe_manual_integration(
             }
         }
         let passed = !state.timed_out && results.iter().all(|(_, covered)| *covered);
+        let ragdoll_profile_detail = format!(
+            "handoff_locked_joint_anchor_error_m={:.6}; handoff_locked_joint_anchor_label={}; current_joint_anchor_error_m={:.6}; current_joint_anchor_label={}; max_joint_anchor_error_m={:.6}; max_joint_anchor_label={}",
+            state.ragdoll_handoff_locked_joint_anchor_error_m,
+            state
+                .ragdoll_handoff_locked_joint_anchor_label
+                .as_deref()
+                .unwrap_or("none"),
+            state.ragdoll_current_joint_anchor_error_m,
+            state
+                .ragdoll_current_joint_anchor_label
+                .as_deref()
+                .unwrap_or("none"),
+            state.ragdoll_max_joint_anchor_error_m,
+            state
+                .ragdoll_max_joint_anchor_label
+                .as_deref()
+                .unwrap_or("none"),
+        );
         gate_report.scenario = format!("{:?}", state.scenario);
         gate_report.timed_out = state.timed_out;
         gate_report.completed = true;
@@ -5965,6 +6568,10 @@ fn observe_manual_integration(
                 covered: *covered,
                 detail: if *name == "grounded_roll_exit_transition" {
                     grounded_roll_exit_detail.clone()
+                } else if *name == "generated_stop_quick_transition_notify" {
+                    generated_transition_notify_detail.clone()
+                } else if *name == "ragdoll_pa_profile" {
+                    ragdoll_profile_detail.clone()
                 } else if *covered {
                     "covered".to_owned()
                 } else {
@@ -6002,6 +6609,21 @@ fn observe_manual_integration(
 mod tests {
     use super::*;
 
+    #[test]
+    fn get_up_fixture_covers_both_source_facing_branches() {
+        for yaw in [-0.7, 0.0, 1.2] {
+            for facing_up in [false, true] {
+                assert_eq!(
+                    crate::ragdoll_link::ragdoll_recovery_rotation(get_up_fixture_rotation(
+                        facing_up, yaw
+                    ))
+                    .1,
+                    facing_up
+                );
+            }
+        }
+    }
+
     #[derive(Resource, Default)]
     struct BridgeOrderProbe {
         published: u8,
@@ -6021,6 +6643,39 @@ mod tests {
         assert_eq!(
             initial_phase(IntegrationScenario::Grounded),
             IntegrationPhase::Roll
+        );
+    }
+
+    #[test]
+    fn generated_transition_notify_starts_at_the_source_stop_window() {
+        assert_eq!(
+            initial_phase(IntegrationScenario::GeneratedTransitionNotify),
+            IntegrationPhase::GeneratedTransitionNotify
+        );
+    }
+
+    #[test]
+    fn generated_transition_notify_releases_on_actual_idle_to_move_transition() {
+        assert_eq!(
+            generated_stop_quick_input_step(false, false, None),
+            (false, false, false)
+        );
+        let idle = AlsStandingGraphTelemetry {
+            actual_standing_state: Some(0),
+            actual_standing_pose_ready: Some(true),
+            ..default()
+        };
+        assert_eq!(
+            generated_stop_quick_input_step(false, false, Some(&idle)),
+            (true, false, true)
+        );
+        let transitioning = AlsStandingGraphTelemetry {
+            actual_standing_transition_active: Some(true),
+            ..default()
+        };
+        assert_eq!(
+            generated_stop_quick_input_step(true, false, Some(&transitioning)),
+            (true, true, false)
         );
     }
 
@@ -6164,7 +6819,70 @@ mod tests {
     }
 
     #[test]
-    fn source_visible_six_way_states_have_exact_direction_cases() {
+    fn generated_standing_pose_chain_uses_the_installed_closure() {
+        let chain = generated_standing_source_pose_chain();
+        assert_eq!(chain.len(), 10);
+        assert_eq!(chain[0].label, "standing_movement_cache");
+        assert_eq!(
+            chain[0].graph,
+            "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
+        );
+        assert_eq!(chain[0].node, "Save cached pose 'Movement'");
+        assert_eq!(chain[1].node, "Movement Details States\nState Machine");
+        assert_eq!(chain[2].node, "Movement States\nState Machine");
+        assert_eq!(chain[3].node, "Standing States\nState Machine");
+        assert_eq!(chain[4].node, "Stop States\nState Machine");
+        assert_eq!(chain[5].node, "Apply Additive");
+        assert_eq!(chain[8].node, "Save cached pose 'Standing'");
+        assert_eq!(chain[9].node, "Grounded States\nState Machine");
+    }
+
+    #[test]
+    fn generated_stop_quick_pose_chain_uses_the_idle_endpoint_only() {
+        let chain = generated_stop_quick_source_pose_chain();
+        assert_eq!(chain.len(), 4);
+        assert_eq!(chain[0].label, "standing_states_fsm");
+        assert_eq!(chain[1].label, "standing_graph_output");
+        assert_eq!(chain[2].label, "grounded_standing_cache");
+        assert_eq!(chain[3].label, "grounded_fsm");
+        assert!(chain.iter().all(|boundary| {
+            boundary.minimum_translation_span == 0.0
+                && boundary.minimum_rotation_span_radians == 0.0
+        }));
+    }
+
+    #[test]
+    fn state_machine_grounded_window_starts_after_the_fixture_boundary() {
+        let entering = state_machine_grounded_window(0.0);
+        assert!(!entering.settled);
+        assert!(!entering.capture_source_window);
+        let settled = state_machine_grounded_window(0.5);
+        assert!(!settled.settled);
+        let before_forward = state_machine_grounded_window(0.75);
+        assert!(!before_forward.settled);
+        let forward = state_machine_grounded_window(1.0);
+        assert!(forward.settled);
+        let stop = state_machine_grounded_window(2.4);
+        assert!(!stop.settled);
+        let before_backward = state_machine_grounded_window(3.2);
+        assert!(!before_backward.settled);
+        let backward = state_machine_grounded_window(3.5);
+        assert!(backward.settled);
+        assert!(forward.capture_source_window);
+        assert_eq!(settled.source_pose_chain.len(), 10);
+        assert_eq!(
+            forward.source_pose_chain[0].node,
+            "Save cached pose 'Movement'"
+        );
+        assert_eq!(settled.source_sync_group, Some("Movement"));
+        assert_eq!(
+            settled.sync_phase_global,
+            Some("sync_groups.ab_als_standing.movement.phase")
+        );
+    }
+
+    #[test]
+    fn source_visible_standing_direction_signatures_have_exact_cases() {
         let expected = [
             (0, AlsMovementDirection::Forward, "Move Forward"),
             (1, AlsMovementDirection::Backward, "Move Backward"),
@@ -6174,7 +6892,6 @@ mod tests {
                 "Move Right Backward",
             ),
             (3, AlsMovementDirection::LeftForward, "Move Left Forward"),
-            (6, AlsMovementDirection::LeftBackward, "Move Left Backward"),
             (7, AlsMovementDirection::RightForward, "Move Right Forward"),
         ];
         for (index, direction, source_state) in expected {
@@ -6195,6 +6912,27 @@ mod tests {
                 Some(direction)
             );
         }
+    }
+
+    #[test]
+    fn left_backward_auto_edge_is_not_a_steady_direction_signature() {
+        let backward = direction_regression_case(5).unwrap();
+        let left_forward = direction_regression_case(6).unwrap();
+        assert_eq!(
+            backward.expected_movement_state,
+            Some(AlsMovementDirection::Backward)
+        );
+        assert_eq!(backward.move_dir, Vec2::NEG_Y);
+        assert_eq!(
+            left_forward.expected_movement_state,
+            Some(AlsMovementDirection::LeftForward)
+        );
+        assert_eq!(
+            left_forward.source_state,
+            Some("Move Left Backward to Move Left Forward")
+        );
+        assert!(left_forward.direction_signature_group.is_none());
+        assert_eq!(left_forward.move_dir, Vec2::NEG_X);
     }
 
     #[test]

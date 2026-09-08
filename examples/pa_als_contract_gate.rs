@@ -198,21 +198,25 @@ fn verify_constraint(source: &Value, manifest: &Value, objects: &[Value]) -> Res
             && close(manifest_offset[2], number(field(source_offset, "roll")?)?),
         "constraint angular rotation offset",
     )?;
-    let target_offset = Quat::from_array(json_array(field(
-        field(manifest, "target")?,
-        "angular_rotation_offset_xyzw",
-    )?)?);
     require(
-        target_offset.is_finite() && (target_offset.length() - 1.0).abs() <= 1e-4,
-        "constraint angular rotation offset transform",
+        field(manifest, "target")?
+            .get("angular_rotation_offset_xyzw")
+            .is_none(),
+        "baked PhysicsAsset frames do not apply an extra angular offset",
     )?;
     require(
-        field(
-            field(manifest, "target")?,
-            "calibrate_frame_2_to_initial_pose",
-        )? == &Value::Bool(true),
-        "constraint frame calibration policy",
+        field(manifest, "target")?
+            .get("calibrate_frame_2_to_initial_pose")
+            .is_none(),
+        "constraint frames use the source PhysicsAsset",
     )?;
+    let target = field(manifest, "target")?;
+    if field(target, "swing_1_limit_radians")? != field(target, "swing_2_limit_radians")? {
+        require(
+            field(target, "swing_limit_radians")?.is_null(),
+            "non-circular source swing has no max-envelope target limit",
+        )?;
+    }
     Ok(())
 }
 
@@ -275,7 +279,7 @@ fn verify_ragdoll(
         "target body bone map count",
     )?;
     require(
-        bone_map.bones_from_bodies.len() == 23,
+        bone_map.bones_from_bodies.len() == 21,
         "target readback bone map count",
     )?;
     let bodies = ragdoll
@@ -371,17 +375,18 @@ fn verify_ragdoll(
             .values()
             .find(|joint| joint.label == label)
             .ok_or_else(|| format!("missing target joint {label}"))?;
-        let JointVariant::Spherical(value) = &joint.variant else {
-            return Err(format!("target joint {label} is not spherical"));
+        let target = field(constraint, "target")?;
+        let (body_1, body_2) = match (string(field(target, "joint_variant")?)?, &joint.variant) {
+            ("Spherical", JointVariant::Spherical(value)) => (value.body1, value.body2),
+            ("Revolute", JointVariant::Revolute(value)) => (value.body1, value.body2),
+            (expected, _) => return Err(format!("target joint {label} does not use {expected}")),
         };
         require(
-            labels.get(&value.body1).copied()
-                == Some(string(field(constraint, "constraint_bone_1")?)?),
+            labels.get(&body_1).copied() == Some(string(field(constraint, "constraint_bone_1")?)?),
             "target joint child",
         )?;
         require(
-            labels.get(&value.body2).copied()
-                == Some(string(field(constraint, "constraint_bone_2")?)?),
+            labels.get(&body_2).copied() == Some(string(field(constraint, "constraint_bone_2")?)?),
             "target joint parent",
         )?;
     }

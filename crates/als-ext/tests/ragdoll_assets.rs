@@ -1,3 +1,4 @@
+use bevy::prelude::Vec3;
 use bevy_animation_graph::core::ragdoll::bone_mapping_loader::RagdollBoneMapSerial;
 use bevy_animation_graph::core::ragdoll::definition::{
     BodyMode, ColliderMassMode, ColliderShape, JointVariant, Ragdoll,
@@ -7,6 +8,57 @@ use std::fs;
 
 const RAG_PATH: &str = "../../assets/ragdolls/als_manny.rag.ron";
 const BM_PATH: &str = "../../assets/ragdoll_bone_maps/als_manny.bm.ron";
+
+#[test]
+fn physics_profile_bakes_effective_source_solver_and_material_parameters() {
+    let text = fs::read_to_string("../../assets/ragdolls/pa_als.physics.json").unwrap();
+    let profile: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(profile["target_solver"]["min_parent_mass_ratio"], 0.2);
+    assert_eq!(profile["target_solver"]["max_inertia_ratio"], 5.0);
+    assert_eq!(profile["target_solver"]["position_iterations"], 6);
+    assert_eq!(profile["target_solver"]["projection_iterations"], 1);
+    for joint in profile["constraints"].as_array().unwrap() {
+        assert_eq!(joint["target"]["swing_spring"]["stiffness"], 5_000_000.0);
+        assert_eq!(joint["target"]["swing_spring"]["damping"], 5_000.0);
+        assert_eq!(joint["target"]["swing_spring"]["acceleration_mode"], true);
+        assert!(joint["target"].get("swing_compliance").is_none());
+        assert_eq!(joint["target"]["mass_conditioning"], true);
+        assert_eq!(joint["target"]["projection_linear_alpha"], 1.0);
+    }
+    for body in profile["bodies"].as_array().unwrap() {
+        let material = &body["target"]["material"];
+        assert!((material["static_friction"].as_f64().unwrap() - 0.7).abs() < 1e-6);
+        assert!((material["dynamic_friction"].as_f64().unwrap() - 0.7).abs() < 1e-6);
+        assert!((material["restitution"].as_f64().unwrap() - 0.3).abs() < 1e-6);
+    }
+    for body in profile["bodies"].as_array().unwrap() {
+        assert_eq!(body["target"]["material"]["friction_combine"], "Average");
+    }
+    let mut target_only = profile.clone();
+    for body in target_only["bodies"].as_array_mut().unwrap() {
+        body.as_object_mut().unwrap().remove("source_properties");
+        body.as_object_mut()
+            .unwrap()
+            .remove("source_default_instance");
+    }
+    for joint in target_only["constraints"].as_array_mut().unwrap() {
+        joint.as_object_mut().unwrap().remove("source_profile");
+        joint.as_object_mut().unwrap().remove("source_properties");
+        joint
+            .as_object_mut()
+            .unwrap()
+            .remove("source_instance_properties");
+    }
+    let runtime = als_ext::RagdollPhysicsProfile::from_json(&target_only.to_string()).unwrap();
+    assert_eq!(runtime.joints.len(), 20);
+    let thigh = runtime
+        .joints
+        .iter()
+        .find(|joint| joint.label == "thigh_l")
+        .unwrap();
+    assert!(thigh.definition.motors[0].spring.acceleration_mode);
+    assert_eq!(thigh.definition.motor_stiffness_scale, 1.5);
+}
 
 #[test]
 fn als_manny_ragdoll_definition_loads_with_expected_topology() {
@@ -141,13 +193,36 @@ fn als_manny_ragdoll_definition_loads_with_expected_topology() {
                 body_labels[&value.body1],
                 body_labels[&value.body2],
             ),
-            JointVariant::Revolute(_) => panic!("PA_Als source uses spherical constraints"),
+            JointVariant::Revolute(value) => (
+                joint.label.as_str(),
+                body_labels[&value.body1],
+                body_labels[&value.body2],
+            ),
         })
         .collect::<Vec<_>>();
     actual_constraints.sort_unstable();
     let mut expected_constraints = expected_constraints.to_vec();
     expected_constraints.sort_unstable();
     assert_eq!(actual_constraints, expected_constraints);
+
+    for (label, limit) in [
+        ("calf_l", 60.0_f32.to_radians()),
+        ("calf_r", 60.0_f32.to_radians()),
+        ("lowerarm_l", 50.0_f32.to_radians()),
+        ("lowerarm_r", 50.0_f32.to_radians()),
+    ] {
+        let joint = rag
+            .joints
+            .values()
+            .find(|joint| joint.label == label)
+            .unwrap();
+        let JointVariant::Revolute(value) = &joint.variant else {
+            panic!("{label} must use the source hinge form");
+        };
+        assert!(value.hinge_axis.distance(Vec3::Y) <= 1e-6);
+        assert_eq!(value.angle_limit.as_ref().unwrap().min, -limit);
+        assert_eq!(value.angle_limit.as_ref().unwrap().max, limit);
+    }
 }
 
 #[test]
@@ -156,8 +231,8 @@ fn als_manny_bone_map_serializes_with_expected_coverage() {
     let bm: RagdollBoneMapSerial = ron::de::from_str(&text).expect("parses as bone map");
     assert_eq!(
         bm.bones_from_bodies.len(),
-        23,
-        "21 body bones plus two ball bones"
+        21,
+        "non-physical child bones retain their animation transforms"
     );
     let rag_text = fs::read_to_string(RAG_PATH).expect("rag RON readable");
     let rag: Ragdoll = ron::de::from_str(&rag_text).expect("parses as Ragdoll");
@@ -199,7 +274,17 @@ fn pa_als_manifest_has_full_source_matrix() {
     let text = fs::read_to_string("../../assets/ragdolls/pa_als.physics.json")
         .expect("PA_Als manifest readable");
     let manifest: serde_json::Value = serde_json::from_str(&text).expect("PA_Als manifest parses");
-    assert_eq!(manifest["format"], "pa_als_physics_v1");
+    assert_eq!(manifest["format"], "physics_asset_runtime_v1");
+    assert!(
+        manifest["constraints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|constraint| constraint["target"]
+                .get("calibrate_frame_2_to_initial_pose")
+                .is_none()),
+        "PhysicsAsset frames must not be replaced by the first animation frame"
+    );
     assert_eq!(manifest["bodies"].as_array().map(Vec::len), Some(21));
     assert_eq!(manifest["constraints"].as_array().map(Vec::len), Some(20));
     assert_eq!(
@@ -231,5 +316,49 @@ fn pa_als_manifest_has_full_source_matrix() {
                     && constraint["frame_1_ue"].is_object()
                     && constraint["frame_2_ue"].is_object()
             })
+    );
+}
+
+#[test]
+fn pa_als_manifest_does_not_reduce_independent_swing_axes_to_a_max_cone() {
+    let text = fs::read_to_string("../../assets/ragdolls/pa_als.physics.json")
+        .expect("PA_Als manifest readable");
+    let manifest: serde_json::Value = serde_json::from_str(&text).expect("PA_Als manifest parses");
+    let thigh = manifest["constraints"]
+        .as_array()
+        .expect("constraints array")
+        .iter()
+        .find(|constraint| constraint["joint_name"] == "thigh_l")
+        .expect("source thigh constraint");
+    let target = &thigh["target"];
+    assert_eq!(
+        target["swing_1_limit_radians"],
+        serde_json::json!(65.0_f64.to_radians()),
+        "source Swing1 stays separate"
+    );
+    assert_eq!(
+        target["swing_2_limit_radians"],
+        serde_json::json!(20.0_f64.to_radians()),
+        "source Swing2 stays separate"
+    );
+    assert!(
+        target["swing_limit_radians"].is_null(),
+        "a non-circular source cone must not become a circular max envelope"
+    );
+    let non_circular_spherical = manifest["constraints"]
+        .as_array()
+        .expect("constraints array")
+        .iter()
+        .filter(|constraint| {
+            let target = &constraint["target"];
+            target["joint_variant"] == "Spherical"
+                && target["swing_1_limit_radians"] != target["swing_2_limit_radians"]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(non_circular_spherical.len(), 13);
+    assert!(
+        non_circular_spherical
+            .iter()
+            .all(|constraint| constraint["target"]["swing_limit_radians"].is_null())
     );
 }

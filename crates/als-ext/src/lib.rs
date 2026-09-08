@@ -198,14 +198,14 @@ pub use profile_blend::{
 };
 pub use ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDrivePlugin,
-    RagdollAngularDriveSet, angular_drive_torque,
+    RagdollAngularDriveSet,
 };
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use ragdoll_physics_profile::{
     RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
     RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
-    RagdollPhysicsProfile, RagdollPhysicsProfileApplied, RagdollPhysicsProfilePlugin,
-    RagdollPhysicsProfileSet,
+    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied,
+    RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet,
 };
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;
 pub use reference_local_difference::{ReferenceLocalDifferenceNode, make_local_difference};
@@ -228,6 +228,10 @@ pub use source_cached_pose::{
 pub use source_gameplay_tag_input::{SourceGameplayTagInputNode, set_gameplay_tag_input};
 pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
+pub use source_physics_joint::{
+    SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings,
+    SourcePhysicsJoint, SourcePhysicsJointPlugin, SourcePhysicsJointSolverData,
+};
 pub use source_pose_nodes::{
     SourceAlphaMapping, SourceApplyAdditiveNode, SourceCurveModifyNode, SourceCurvesBlendMode,
     SourceCurvesBlendNode, SourceGameplayTagBlendNode, SourceMakeDynamicAdditiveNode,
