@@ -1,4 +1,6 @@
-use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{
+    Collider, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
+};
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
@@ -735,8 +737,14 @@ fn find_named_descendant(
 }
 
 fn resolve_camera_socket_locations(
-    mut targets: Query<(&mut AlsCameraSocketBinding, &mut AlsCameraSocketLocations)>,
+    mut targets: Query<(
+        &mut AlsCameraSocketBinding,
+        &mut AlsCameraSocketLocations,
+        &GlobalTransform,
+        &Collider,
+    )>,
     children: Query<&Children>,
+    parents: Query<&ChildOf>,
     names: Query<&Name>,
     globals: Query<&GlobalTransform>,
     offsets_assets: Res<Assets<AlsCameraSocketOffsets>>,
@@ -744,7 +752,7 @@ fn resolve_camera_socket_locations(
     let Some((_, offsets)) = offsets_assets.iter().next() else {
         return;
     };
-    for (mut binding, mut locations) in &mut targets {
+    for (mut binding, mut locations, actor, collider) in &mut targets {
         if binding
             .root_bone
             .is_none_or(|entity| globals.get(entity).is_err())
@@ -769,11 +777,20 @@ fn resolve_camera_socket_locations(
         let Ok(head) = globals.get(head_bone) else {
             continue;
         };
-        let Ok(avatar) = globals.get(binding.avatar) else {
+        let Ok(mesh_parent) = parents.get(root_bone) else {
             continue;
         };
-        let (scale, rotation, _) = avatar.to_scale_rotation_translation();
-        locations.root = root.translation();
+        let mesh_entity = mesh_parent.parent();
+        let Ok(mesh) = globals.get(mesh_entity) else {
+            continue;
+        };
+        let (scale, rotation, _) = mesh.to_scale_rotation_translation();
+        locations.root = if parents.get(mesh_entity).is_err() {
+            let bounds = collider.aabb(actor.translation(), actor.rotation());
+            actor.translation() - Vec3::Y * (bounds.max.y - bounds.min.y) * 0.5
+        } else {
+            root.translation()
+        };
         locations.head = head.translation();
         locations.first_person = head.transform_point(offsets.first_person_head_local);
         locations.trace_shoulder_right =
@@ -1636,6 +1653,81 @@ fn write_debug(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detached_mesh_pivot_uses_the_current_capsule_bottom_and_restores_the_socket() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut offsets = Assets::<AlsCameraSocketOffsets>::default();
+        let _offsets = offsets.add(AlsCameraSocketOffsets {
+            first_person_head_local: Vec3::ZERO,
+            trace_shoulder_right_head_local: Vec3::ZERO,
+            trace_shoulder_left_head_local: Vec3::ZERO,
+        });
+        world.insert_resource(offsets);
+        let actor_transform = GlobalTransform::from_translation(Vec3::new(4.0, 2.0, -3.0));
+        let actor = world
+            .spawn((
+                actor_transform,
+                als_core::character::als_character_capsule(0.9, 0.3),
+            ))
+            .id();
+        let avatar = world
+            .spawn((ChildOf(actor), GlobalTransform::IDENTITY))
+            .id();
+        let mesh_rotation = Quat::from_rotation_y(0.6);
+        let mesh = world
+            .spawn((
+                ChildOf(avatar),
+                GlobalTransform::from(Transform::from_rotation(mesh_rotation)),
+            ))
+            .id();
+        let root = world
+            .spawn((
+                Name::new("root"),
+                ChildOf(mesh),
+                GlobalTransform::from_translation(Vec3::X),
+            ))
+            .id();
+        world.spawn((
+            Name::new("head"),
+            ChildOf(root),
+            GlobalTransform::from_translation(Vec3::new(4.0, 1.5, -3.0)),
+        ));
+        world.entity_mut(actor).insert((
+            AlsCameraSocketBinding::new(avatar),
+            AlsCameraSocketLocations::default(),
+        ));
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            world.get::<AlsCameraSocketLocations>(actor).unwrap().root,
+            Vec3::X
+        );
+        world.entity_mut(mesh).remove::<ChildOf>();
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        let locations = world.get::<AlsCameraSocketLocations>(actor).unwrap();
+        assert!(locations.root.abs_diff_eq(Vec3::new(4.0, 1.1, -3.0), 1e-6));
+        assert!(locations.mesh_rotation.angle_between(mesh_rotation) < 1e-6);
+        world
+            .entity_mut(actor)
+            .insert(als_core::character::als_character_capsule(0.56, 0.3));
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert!((world.get::<AlsCameraSocketLocations>(actor).unwrap().root.y - 1.44).abs() < 1e-6);
+        world.entity_mut(mesh).insert(ChildOf(avatar));
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            world.get::<AlsCameraSocketLocations>(actor).unwrap().root,
+            Vec3::X
+        );
+    }
 
     fn params() -> AlsCameraParams {
         AlsCameraParams {
