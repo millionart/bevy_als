@@ -13,6 +13,7 @@ use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::GaitLayerPlugin;
 use crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin;
+use crate::generated_transition_notify::GeneratedTransitionNotifyPlugin;
 use crate::grounded_layer::GroundedLayerPlugin;
 use crate::head_layer::HeadLayerPlugin;
 use crate::layering_layer::LayeringLayerPlugin;
@@ -64,6 +65,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             RagdollingLayerPlugin,
             AlsRootGraphPlugin,
             GeneratedAbAlsProviderPlugin,
+            GeneratedTransitionNotifyPlugin,
             AlsMantleDrivePlugin,
             PaAlsPhysicsPlugin,
             AlsRagdollLinkPlugin,

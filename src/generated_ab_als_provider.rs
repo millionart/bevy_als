@@ -25,7 +25,10 @@ use crate::{
     grounded_layer::AlsGroundedEntryMode,
     locomotion_layer::AlsMovementBaseAnimationState,
     ragdolling_layer::AlsRagdollingLayerSet,
-    standing_layer::{StandingCurveHandles, source_rotation_yaw_offsets},
+    standing_layer::{
+        AlsStandingLayerSet, StandingCurveHandles, source_moving_smooth,
+        source_rotation_yaw_offsets,
+    },
 };
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,6 +43,7 @@ impl Plugin for GeneratedAbAlsProviderPlugin {
             GeneratedAbAlsProviderSet
                 .after(AlsRootGraphSet)
                 .after(AlsRagdollingLayerSet)
+                .after(AlsStandingLayerSet)
                 .before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(
@@ -53,17 +57,40 @@ fn source_direction_inputs(
     rotation_mode: RotationMode,
     gait: Gait,
     velocity_yaw_angle_view_space: f32,
-) -> (f32, f32, f32, f32) {
+) -> (bool, bool, bool, bool) {
     let direction = if rotation_mode == RotationMode::VelocityDirection || gait == Gait::Sprinting {
         AlsGroundedMovementIntent::Forward
     } else {
         classify_grounded_movement_intent(velocity_yaw_angle_view_space)
     };
     match direction {
-        AlsGroundedMovementIntent::Forward => (1.0, 0.0, 0.0, 0.0),
-        AlsGroundedMovementIntent::Backward => (0.0, 1.0, 0.0, 0.0),
-        AlsGroundedMovementIntent::Left => (0.0, 0.0, 1.0, 0.0),
-        AlsGroundedMovementIntent::Right => (0.0, 0.0, 0.0, 1.0),
+        AlsGroundedMovementIntent::Forward => (true, false, false, false),
+        AlsGroundedMovementIntent::Backward => (false, true, false, false),
+        AlsGroundedMovementIntent::Left => (false, false, true, false),
+        AlsGroundedMovementIntent::Right => (false, false, false, true),
+    }
+}
+
+fn source_velocity_blend(
+    player: &AnimationGraphPlayer,
+    use_standing_runtime: bool,
+    fallback: als_ext::HorizontalVelocityBlend,
+) -> als_ext::HorizontalVelocityBlend {
+    if !use_standing_runtime {
+        return fallback;
+    }
+    let value = |key, fallback| {
+        player
+            .get_global_input_data(key)
+            .and_then(|value| value.as_f32().ok())
+            .filter(|value| value.is_finite())
+            .unwrap_or(fallback)
+    };
+    als_ext::HorizontalVelocityBlend {
+        forward: value("als_standing_velocity_forward_amount", fallback.forward),
+        backward: value("als_standing_velocity_backward_amount", fallback.backward),
+        left: value("als_standing_velocity_left_amount", fallback.left),
+        right: value("als_standing_velocity_right_amount", fallback.right),
     }
 }
 
@@ -71,26 +98,37 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
     for key in [
         "transition.weight",
         "transition.layer_weight",
+        "transition.mesh_space_additive",
         "post_locomotion.weight",
         "post_locomotion.layer_weight",
+        "post_locomotion.mesh_space_additive",
         "turn_in_place_standing.weight",
         "turn_in_place_standing.layer_weight",
+        "turn_in_place_standing.mesh_space_additive",
         "turn_in_place_crouching.weight",
         "turn_in_place_crouching.layer_weight",
+        "turn_in_place_crouching.mesh_space_additive",
         "arm_left.weight",
         "arm_left.layer_weight",
+        "arm_left.mesh_space_additive",
         "arm_right.weight",
         "arm_right.layer_weight",
+        "arm_right.mesh_space_additive",
         "curves.weight",
         "curves.layer_weight",
+        "curves.mesh_space_additive",
         "head.weight",
         "head.layer_weight",
+        "head.mesh_space_additive",
         "legs.weight",
         "legs.layer_weight",
+        "legs.mesh_space_additive",
         "pelvis.weight",
         "pelvis.layer_weight",
+        "pelvis.mesh_space_additive",
         "spine.weight",
         "spine.layer_weight",
+        "spine.mesh_space_additive",
     ] {
         if player.get_global_input_data(key).is_none() {
             player.set_global_input_data(key, 0.0_f32);
@@ -159,6 +197,16 @@ fn generated_ab_als_input_writer(
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 source_rotation_yaw_offsets(&curves, &curve_handles, velocity_yaw_angle_view_space);
             let in_air = *locomotion == LocomotionState::Air;
+            let has_input =
+                input.is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON);
+            let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);
+            let has_relative_location =
+                movement_base.is_some_and(|state| state.has_relative_location);
+            let velocity_blend = source_velocity_blend(
+                &player,
+                *stance == Stance::Standing && *locomotion == LocomotionState::Grounded,
+                motion.velocity_blend,
+            );
             let foot_planted = feet.map_or(0.0, |state| state.foot_planted_amount);
             let feet_crossing = feet.map_or(0.0, |state| state.feet_crossing_amount);
             let hips_direction_lock = context
@@ -178,25 +226,21 @@ fn generated_ab_als_input_writer(
             );
             for (key, value) in [
                 ("animation.delta_seconds", time.delta_secs()),
-                ("grounded_state.movement_direction.b_forward", forward),
-                ("grounded_state.movement_direction.b_backward", backward),
-                ("grounded_state.movement_direction.b_left", left),
-                ("grounded_state.movement_direction.b_right", right),
                 (
                     "grounded_state.velocity_blend.forward_amount",
-                    motion.velocity_blend.forward,
+                    velocity_blend.forward,
                 ),
                 (
                     "grounded_state.velocity_blend.backward_amount",
-                    motion.velocity_blend.backward,
+                    velocity_blend.backward,
                 ),
                 (
                     "grounded_state.velocity_blend.left_amount",
-                    motion.velocity_blend.left,
+                    velocity_blend.left,
                 ),
                 (
                     "grounded_state.velocity_blend.right_amount",
-                    motion.velocity_blend.right,
+                    velocity_blend.right,
                 ),
                 (
                     "grounded_state.rotation_yaw_offsets.forward_angle",
@@ -216,18 +260,6 @@ fn generated_ab_als_input_writer(
                 ("feet_state.feet_crossing_amount", feet_crossing),
                 ("locomotion_state.speed", motion.horizontal_speed),
                 (
-                    "locomotion_state.b_moving_smooth",
-                    (motion.horizontal_speed > 0.05) as u8 as f32,
-                ),
-                (
-                    "locomotion_state.b_has_input",
-                    input.is_some_and(|value| value.move_dir.length_squared() > 1e-6) as u8 as f32,
-                ),
-                (
-                    "movement_base.b_has_relative_location",
-                    movement_base.is_some_and(|state| state.has_relative_location) as u8 as f32,
-                ),
-                (
                     "pose_state.standing_amount",
                     (*stance == Stance::Standing) as u8 as f32,
                 ),
@@ -240,6 +272,20 @@ fn generated_ab_als_input_writer(
                 (
                     "pose_state.gait_walking_amount",
                     (*gait == Gait::Walking) as u8 as f32,
+                ),
+            ] {
+                player.set_global_input_data(key, value);
+            }
+            for (key, value) in [
+                ("grounded_state.movement_direction.b_forward", forward),
+                ("grounded_state.movement_direction.b_backward", backward),
+                ("grounded_state.movement_direction.b_left", left),
+                ("grounded_state.movement_direction.b_right", right),
+                ("locomotion_state.b_moving_smooth", moving_smooth),
+                ("locomotion_state.b_has_input", has_input),
+                (
+                    "movement_base.b_has_relative_location",
+                    has_relative_location,
                 ),
             ] {
                 player.set_global_input_data(key, value);
@@ -257,16 +303,32 @@ mod tests {
     fn source_grounded_direction_is_exclusive_and_forces_velocity_or_sprint_forward() {
         assert_eq!(
             source_direction_inputs(RotationMode::Aiming, Gait::Running, 90.0),
-            (0.0, 0.0, 0.0, 1.0)
+            (false, false, false, true)
         );
         assert_eq!(
             source_direction_inputs(RotationMode::VelocityDirection, Gait::Running, -90.0),
-            (1.0, 0.0, 0.0, 0.0)
+            (true, false, false, false)
         );
         assert_eq!(
             source_direction_inputs(RotationMode::Aiming, Gait::Sprinting, 180.0),
-            (1.0, 0.0, 0.0, 0.0)
+            (true, false, false, false)
         );
+    }
+
+    #[test]
+    fn source_velocity_blend_uses_standing_runtime_only_for_standing_grounded() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("als_standing_velocity_forward_amount", 0.75_f32);
+        player.set_global_input_data("als_standing_velocity_right_amount", 0.25_f32);
+        let fallback = als_ext::HorizontalVelocityBlend {
+            backward: 1.0,
+            ..default()
+        };
+        let standing = source_velocity_blend(&player, true, fallback);
+        assert_eq!(standing.forward, 0.75);
+        assert_eq!(standing.right, 0.25);
+        assert_eq!(standing.backward, 1.0);
+        assert_eq!(source_velocity_blend(&player, false, fallback), fallback);
     }
 
     #[test]

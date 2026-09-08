@@ -9,6 +9,14 @@ use bevy_animation_graph::core::{
     plugin::AnimationGraphSet,
 };
 
+const SOURCE_CURVE_DEFAULTS: [(&str, f32); 5] = [
+    ("PoseMoving", 0.0),
+    ("FootLeftIk", 0.0),
+    ("FootRightIk", 0.0),
+    ("FootLeftLock", 0.0),
+    ("FootRightLock", 0.0),
+];
+
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AlsRootAnimationContext {
     pub curves: HashMap<String, f32>,
@@ -20,6 +28,12 @@ impl AlsRootAnimationContext {
             .get(name)
             .copied()
             .filter(|value| value.is_finite())
+    }
+}
+
+fn apply_source_curve_defaults(curves: &mut HashMap<String, f32>) {
+    for (name, value) in SOURCE_CURVE_DEFAULTS {
+        curves.entry(name.to_owned()).or_insert(value);
     }
 }
 
@@ -74,7 +88,7 @@ fn project_root_animation_context(
         let Some(graph) = graphs.get(graph_handle) else {
             continue;
         };
-        let curves = root_pose_source_node(graph)
+        let mut curves = root_pose_source_node(graph)
             .and_then(|node| player_animation_context_state(player, node))
             .map(|state| {
                 state
@@ -85,6 +99,7 @@ fn project_root_animation_context(
                     .collect()
             })
             .unwrap_or_default();
+        apply_source_curve_defaults(&mut curves);
         let projected = AlsRootAnimationContext { curves };
         if let Some(mut current) = current {
             *current = projected;
@@ -109,5 +124,23 @@ mod tests {
         );
 
         assert_eq!(root_pose_source_node(&graph), Some(node));
+    }
+
+    #[test]
+    fn missing_source_curves_use_the_unreal_curve_default() {
+        let mut curves = HashMap::new();
+        apply_source_curve_defaults(&mut curves);
+        for name in [
+            "PoseMoving",
+            "FootLeftIk",
+            "FootRightIk",
+            "FootLeftLock",
+            "FootRightLock",
+        ] {
+            assert_eq!(curves.get(name), Some(&0.0));
+        }
+        curves.insert("FootLeftLock".to_owned(), 0.75);
+        apply_source_curve_defaults(&mut curves);
+        assert_eq!(curves.get("FootLeftLock"), Some(&0.75));
     }
 }

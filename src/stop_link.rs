@@ -292,6 +292,7 @@ const ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "als_root_transition_slot_la
 const GENERATED_TRANSITION_SLOT_POSE_KEY: &str = "transition.pose";
 const GENERATED_TRANSITION_SLOT_WEIGHT_KEY: &str = "transition.weight";
 const GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY: &str = "transition.layer_weight";
+const GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY: &str = "transition.mesh_space_additive";
 const ROOT_TRANSITION_SLOT_CURVE_PREFIX: &str = "als_root_transition_slot_curve_";
 const ROOT_TRANSITION_SLOT_CURVE_NAMES: [&str; 12] = [
     "PoseStanding",
@@ -536,6 +537,8 @@ fn bridge_root_transition_slot_samples(
             target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 0.0_f32);
             write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
@@ -556,6 +559,8 @@ fn bridge_root_transition_slot_samples(
             target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
+            target_player
+                .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 0.0_f32);
             write_root_transition_slot_curves(&mut target_player, crouching);
             commands
                 .entity(sampler.character)
@@ -575,6 +580,8 @@ fn bridge_root_transition_slot_samples(
         target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
+        target_player
+            .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 1.0_f32);
         write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
         commands
