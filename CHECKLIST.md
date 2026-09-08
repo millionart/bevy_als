@@ -88,6 +88,20 @@
   - 本段Gate完成：开始04:30、预估05:23:15，Gate实际结束2026-09-09 05:43:14（偏差+19m59s）。236个als-core、331个als-ext、302个项目测试PASS（29.987s）；帧守卫禁用后24.737s稳定失败，恢复后的四项实际图/16资产测试35.815s PASS，实际arena重建也验证实例标识不会复用。隐藏turn sampler移除后直接复用已有clip采样，两个slot独立输出pose及按同一权重归一化的完整曲线；16资产包括native函数在stance变化时直接选择的六条Crouching资产，不包含Crouching图实现。
   - 生成与边界：公开uasset转换291.776s、unsupported 0；首次隔离namespace参数误为ab_als，未写真实assets，随后用同次source/IR和既有materializer按现有generated namespace重建2.671s。只允许原AB_Als owner的108文件安装，仅Standing根图及Idle图变化。target_game/play双example编译134.782s，23个Pose图spec加载3.408s，声明式Gate5.269s PASS，编辑器修复/复查零改动，62个源子图与源节点/边、位置及运行资产边界通过；montage生成和native映射自测通过。原始导出不变。完整Standing真实startup、运动与native动作Gate仍待执行。
 
+- [ ] BF115.01l Standing真实startup与方向Gate：开始：2026-09-09 05:56:00 +08:00；预估结束：2026-09-09 06:36:00 +08:00。依赖已提交的01k；以当前62个Standing源子图、23个Pose图、原生函数及16条直接montage资产闭包为边界。估时依据为此前实际入口单场景数分钟、当前同入口预构建已完成，以及首次完整生成Standing运行尚未验证的事实；先公共无驱动startup，再standing_direction。首个失败必须读取report/runner和截图，按实际状态、源输入、clip/curve与pre-rig/final骨架定位，只修证实根因。两项完成后继续Standing冲刺与停步/转向/动态过渡等实际分支；尚不进入Grounded。
+  - 运行前摘要：01k的source/math/实际图fixture、生成/安装、编辑器、声明式静态与target_game/play二进制Gate均通过。未进行过本批Standing真实runtime；运行保留原Playground地形、环境、角色和相机，沿run_manual.bat启动，使用公共固定进展watchdog，不放宽视觉或性能阈值。
+  - startup实际结束2026-09-09 05:57:35：公共入口19.439s PASS、6张截图，首尾人工检查为原场地正常站立姿态。18个要求骨骼全部观测，frame p95 13.274ms/max 28.525ms、eval p95 0.0717ms，每render恰1个physics step；graph_errors为空、primary_failure为空且总pass=true，watchdog未触发。下一步standing_direction，尚未把startup当作运动Gate。
+  - 方向输入闭环（2026-09-09 06:11:22）：运行前逐项比较当次UE RefreshInput/RefreshLocomotion与真实场景发现，角色运动使用AlsInputOverride，但生成图provider只读取普通输入，导致覆盖移动时bHasInput/bMovingSmooth错误。最小实际provider函数测试60.917s稳定FAIL；改为与角色相同的覆盖优先选择后，六项provider测试21.032s PASS，旧选择即失败消融。未新增状态或修改运动阈值；声明式静态Gate6.607s PASS，既有图/资产/spec不变，target_game/play实际入口72.357s预构建PASS。以下开始公共方向场景。
+
+  - 方向首次Gate失败（2026-09-09 06:12:27）：42.362s结束，manual exit91，runner已审计report；无graph error但视觉FAIL。首先在后退开始时出现local scale 1→2、层级末端512倍，首个pose链分歧位于Movement Details；另有后退转右窗口实际RightForward而预期RightBackward，留待首个骨架根因闭合后核对。性能p95 14.48ms/max27.2833ms，watchdog未触发。
+  - 有限复开01d（2026-09-09 06:16:25）：当次四条Acceleration uasset均为AAT_LocalSpaceBase、Lean Pose第0帧参考，而当前16个SequencePlayer实例均additive_reference=None。01d新增curves字段打断了转换器按clip紧接additive_reference匹配的旧格式；旧静态审计也复用同一遗漏，故错误通过。只复开曲线字段与additive生成组合边界，先最小工具反例，再重新生成及真实姿态验收；不撤销曲线时钟/直接初始化的既有证据，不修改原始导出。
+
+  - 静态修复进展（2026-09-09 06:23:00）：转换器新增含真实curves布局的引用发现/替换/幂等自测，旧匹配0.303s FAIL，兼容可选curves字段后0.305s PASS。并行核对方向场景前提发现未写aim_held；真实aim系统fixture36.042s复现Aiming请求退回ViewDirection，持续held输入后31项场景测试22.940s PASS，覆盖判定新增实际rotation mode检查。公开转换最初因隔离输出目录准备遗漏被拒绝，已补目录后重新开始；原生读取正在推进，尚未安装或重启runtime。
+
+  - 重跑前静态Gate（2026-09-09 06:25:36）：公开转换305.718s PASS，16个SequencePlayer和5个Clip的参考增量全部转换且原始scale为1；安装仍限既有108文件，仅四个Movement Details图改变。target_game/play双example65.210s、23图spec3.107s、编辑器108文件零修复0.572s、声明式Gate3.689s全部通过，加入additive与curves组合自测。startup既有证据保留；本次只修运动additive资产和方向场景输入，以下重跑standing_direction以关闭01d有限复开及01l运动Gate。
+
+  - 01d有限复开关闭：开始2026-09-09 06:16:25，沿用01l预估06:36，实际Gate结束06:26:39（相对窗口-9m21s）；41.105s真实重跑中视觉pass=true、faults/graph_errors/temporal_anomalies均为空，最大local scale1.0000005，后退截图姿态正常。p95 13.9674ms/max22.7051ms、eval p95 0.0757ms、每render1个physics step。additive组合根因已关闭；manual仍因RightBackward预期FAIL，01l保持未完成，下一步核对当次UE T15的自动转移条件。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |

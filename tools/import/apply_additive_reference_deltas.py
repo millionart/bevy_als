@@ -32,7 +32,8 @@ NODE_PATTERN = re.compile(
     re.DOTALL,
 )
 SEQUENCE_PLAYER_PATTERN = re.compile(
-    r'(?P<prefix>"als_ext::SourceSequencePlayerNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"\s*,\s*additive_reference:\s*)(?P<reference>None|Some\("[^"]+"\))(?P<middle>\s*,\s*additive_reference_position:\s*)(?P<position>-?[0-9.]+)(?:\s*,\s*additive_mesh_space:\s*(?P<mesh>true|false))?'
+    r'(?P<prefix>"als_ext::SourceSequencePlayerNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"\s*,\s*(?:curves:\s*\(\{.*?\}\)\s*,\s*)?additive_reference:\s*)(?P<reference>None|Some\("[^"]+"\))(?P<middle>\s*,\s*additive_reference_position:\s*)(?P<position>-?[0-9.]+)(?:\s*,\s*additive_mesh_space:\s*(?P<mesh>true|false))?',
+    re.DOTALL,
 )
 SEQUENCE_EVALUATOR_PATTERN = re.compile(
     r'"als_ext::SourceSequenceEvaluatorNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"'
@@ -664,9 +665,28 @@ def run_self_test():
             globals()["raw_animation_metadata"] = original_raw
             source_resolver.subprocess.run = original_run
             source_resolver.native_source_asset_cached.cache_clear()
+        graph = root / "Fixture.animgraph.ron"
+        for curves in ["", 'curves: ({"PoseGait": (times: [0.0], values: [2.0], interps: [Linear])}), ']:
+            graph.write_text(
+                '"als_ext::SourceSequencePlayerNode": (clip: "A_Add.anim.ron", '
+                + curves + 'additive_reference: None, additive_reference_position: 0.0)',
+                encoding="utf-8",
+            )
+            assert referenced_animation_names(root) == {"A_Add"}
+            rows = patch_sequence_player_references(
+                graph, graph.name, assets, {"A_Base": ["A_Base.anim.ron"]}, root, True
+            )
+            assert len(rows) == 1 and rows[0]["converted"]
+            text = graph.read_text(encoding="utf-8")
+            assert curves in text and 'additive_reference: Some("A_Base.anim.ron")' in text
+            rows = patch_sequence_player_references(
+                graph, graph.name, assets, {"A_Base": ["A_Base.anim.ron"]}, root, False
+            )
+            assert len(rows) == 1 and rows[0]["converted"] and not rows[0]["planned"]
     return {
         "native_additive_metadata_preserved": "PASS",
         "cooked_additive_reference_fallback_reuses_native_source_records": "PASS",
+        "sequence_player_curves_preserve_additive_reference_conversion": "PASS",
     }
 
 
