@@ -108,7 +108,7 @@ fn hierarchy_order(skeleton: &Skeleton) -> Vec<bevy_animation_graph::core::pose:
 
 pub(crate) fn materialize_missing_reference_bones(base: &mut Pose, skeleton: &Skeleton) {
     for bone in skeleton.iter_bones() {
-        if base.paths.contains_key(&bone) {
+        if bone == skeleton.root() || base.paths.contains_key(&bone) {
             continue;
         }
         let Some(transform) = skeleton.default_transforms(bone) else {
@@ -415,6 +415,44 @@ mod tests {
             base.get_bone(child).and_then(|bone| bone.translation),
             Some(Vec3::new(0.0, 2.0, 0.0))
         );
+    }
+
+    #[test]
+    fn additive_reference_fill_preserves_unanimated_scene_root_world_transform() {
+        use bevy::animation::{AnimatedBy, AnimationTargetId};
+        use bevy_animation_graph::core::{
+            animation_graph_player::AnimationGraphPlayer, systems::apply_animation_to_targets,
+        };
+
+        let (skeleton, scene_root, joint) = test_skeleton();
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose::from_transform(Transform::from_xyz(0.0, 2.0, 0.0)),
+            joint,
+        );
+        let mut additive = Pose::default();
+        additive.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_x(0.2)),
+                ..default()
+            },
+            joint,
+        );
+        apply_mesh_space_additive(&mut base, &additive, 1.0, &skeleton);
+
+        let mut world = World::new();
+        let scene_world =
+            Transform::from_xyz(4.0, 1.5, -3.0).with_rotation(Quat::from_rotation_y(0.6));
+        let entity = world.spawn(scene_world).id();
+        let mut player = AnimationGraphPlayer::new(default()).with_graph(default());
+        player.set_default_output_pose(base);
+        world.entity_mut(entity).insert((
+            player,
+            AnimationTargetId(scene_root.id()),
+            AnimatedBy(entity),
+        ));
+        world.run_system_cached(apply_animation_to_targets).unwrap();
+        assert_eq!(*world.get::<Transform>(entity).unwrap(), scene_world);
     }
 
     #[test]

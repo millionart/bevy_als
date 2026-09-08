@@ -24,11 +24,11 @@ impl NodeLike for RagdollConfigNode {
         let dynamic = ctx.data_back(IN_DYNAMIC)?.as_bool()?;
         let readback = ctx.data_back(IN_READBACK)?.as_bool()?;
         let config = RagdollConfig {
-            default_mode: Some(if dynamic {
-                BodyMode::Dynamic
+            default_mode: if dynamic {
+                None
             } else {
-                BodyMode::Kinematic
-            }),
+                Some(BodyMode::Kinematic)
+            },
             mode_overrides: Default::default(),
             default_readback: Some(readback),
             readback_overrides: Default::default(),
@@ -48,7 +48,10 @@ impl NodeLike for RagdollConfigNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::reflect::{GetTypeRegistration, TypeRegistry};
+    use bevy::reflect::TypeRegistry;
+    use bevy_animation_graph::core::{
+        animation_graph::GraphInputPin, utils::testing::GraphTestHarness,
+    };
 
     #[test]
     fn registers_node_like_dispatch_key() {
@@ -65,5 +68,22 @@ mod tests {
             <RagdollConfigNode as bevy::reflect::TypePath>::type_path(),
             "als_ext::RagdollConfigNode"
         );
+    }
+
+    #[test]
+    fn activation_preserves_asset_body_modes_and_independent_readback() {
+        GraphTestHarness::node(RagdollConfigNode)
+            .with_const_input_data(GraphInputPin::Passthrough(IN_DYNAMIC.into()), true)
+            .with_const_input_data(GraphInputPin::Passthrough(IN_READBACK.into()), false)
+            .when_queried()
+            .then_output_is(
+                OUT_CONFIG,
+                RagdollConfig {
+                    default_mode: None,
+                    mode_overrides: default(),
+                    default_readback: Some(false),
+                    readback_overrides: default(),
+                },
+            );
     }
 }
