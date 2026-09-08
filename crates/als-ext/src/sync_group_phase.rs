@@ -2,10 +2,13 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
-    animation_graph::{NodeId, TimeUpdate},
+    animation_graph::{AnimationGraph, NodeId, TimeUpdate},
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
-        graph_context_arena::GraphContextId, new_context::NodeContext, spec_context::SpecContext,
+        graph_context_arena::{GraphContextArena, GraphContextId},
+        new_context::NodeContext,
+        node_states::StateKey,
+        spec_context::SpecContext,
     },
     edge_data::DataSpec,
     errors::GraphError,
@@ -108,6 +111,38 @@ pub struct SourceSyncPlayerTick {
 }
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
+
+pub fn source_sync_phase(
+    arena: &GraphContextArena,
+    graphs: &Assets<AnimationGraph>,
+    key: &str,
+) -> Option<f32> {
+    for context_id in arena.iter_context_ids() {
+        let context = arena.get_context(context_id)?;
+        let Some(graph) = graphs.get(context.get_graph_id()) else {
+            continue;
+        };
+        for node in graph.nodes.values() {
+            if !node
+                .try_inner_downcast_ref::<crate::SourcePosePassthroughNode>()
+                .is_some_and(|node| node.synchronize_groups)
+                || !context.node_caches.is_updated(node.id, StateKey::Default)
+            {
+                continue;
+            }
+            let Ok(state) = context
+                .node_states
+                .get::<crate::AnimationContextState>(node.id, StateKey::Default)
+            else {
+                continue;
+            };
+            if let Some(player) = state.sync_players.iter().find(|player| player.key == key) {
+                return player.phase.is_finite().then_some(player.phase);
+            }
+        }
+    }
+    None
+}
 
 pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option<f32>, GraphError> {
     if !ctx

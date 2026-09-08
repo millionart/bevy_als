@@ -206,6 +206,24 @@ def marker_ron(markers):
     return sync_marker_ron(markers)
 
 
+def sync_clock_fields(value):
+    key = value.get("sync_phase_key")
+    role = value.get("sync_group_role")
+    delta = value.get("delta_seconds_key")
+    duration = value.get("sync_phase_duration")
+    looped = value.get("sync_phase_looped")
+    if (
+        not isinstance(key, str) or not key
+        or role not in {"CanBeLeader", "AlwaysFollower", "AlwaysLeader", "TransitionLeader", "TransitionFollower", "ExclusiveAlwaysLeader"}
+        or not isinstance(delta, str) or not delta
+        or not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0.0
+        or not isinstance(looped, bool) or looped != value.get("loop_animation", value.get("loop"))
+    ):
+        raise PoseRenderError("source sync group clock contract is unavailable")
+    sync_marker_ron(value.get("sync_phase_markers"))
+    return [field("key", quoted(key)), field("role", role), field("delta_seconds_key", quoted(delta))]
+
+
 def blendspace_inner(value, player=False):
     if not isinstance(value, dict):
         raise PoseRenderError("source blendspace contract is unavailable")
@@ -261,6 +279,15 @@ def blendspace_inner(value, player=False):
         )
     if not points:
         raise PoseRenderError("source blendspace samples are missing")
+    playback = "None"
+    triangulation = "None"
+    if player:
+        binding_keys = value.get("input_binding_keys")
+        topology = value.get("triangulation")
+        if not isinstance(binding_keys, list) or len(binding_keys) != 3 or not isinstance(topology, dict):
+            raise PoseRenderError("source blendspace clock contract is unavailable")
+        playback = "Some((" + ", ".join([*sync_clock_fields(value), field("start_position", repr(value["start_position"])), field("play_rate_key", quoted(binding_keys[2]))]) + "))"
+        triangulation = "Some((axis_min: (" + ", ".join(repr(float(x)) for x in topology["axis_min"]) + "), axis_max: (" + ", ".join(repr(float(x)) for x in topology["axis_max"]) + "), triangles: [" + ", ".join("(" + ", ".join(str(index) for index in triangle) + ")" for triangle in topology["triangles"]) + "]))"
     return (
         "als_ext::NormalizedBlendSpaceNode",
         "(looped: "
@@ -271,7 +298,7 @@ def blendspace_inner(value, player=False):
         + phase_markers
         + ", points: ["
         + ", ".join(points)
-        + "])",
+        + "], playback: " + playback + ", source_triangulation: " + triangulation + ")",
     )
 
 
@@ -318,6 +345,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("expose_loop_animation_pin", bool_ron(loop_animation_pin in pins)),
             field("sync_group", quoted(value["sync_group"])),
         ]
+        if value["sync_group"] != "None":
+            synchronization = sync_clock_fields(value)
+            timing = asset_by_node[semantic["source_node"]]["source_timing"]
+            synchronization.extend([field("phase_duration", repr(value["sync_phase_duration"])), field("phase_markers", sync_marker_ron(value["sync_phase_markers"])), field("markers", sync_marker_ron(timing["markers"]))])
+            fields.append(field("synchronization", "Some((" + ", ".join(synchronization) + "))"))
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
     if renderer == "sequence_evaluator":
         pins = input_names(value)
@@ -824,12 +856,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(source_function)
             + ", call_site: "
             + quoted(call_site)
+            + ", synchronize_groups: " + bool_ron(value.get("synchronize_groups", False))
             + ")",
         )
     if renderer == "root_output":
         return (
             "als_ext::SourcePosePassthroughNode",
-            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\")",
+            "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: \"\", call_site: \"\", synchronize_groups: " + bool_ron((value or {}).get("synchronize_groups", False)) + ")",
         )
     if renderer == "save_cached_pose":
         return (
@@ -1039,13 +1072,6 @@ def blendspace_helpers(graph_contract, raw, semantic):
         nodes.extend(
             [
                 (
-                    phase_id,
-                    "Blendspace sync phase",
-                    "(key: " + quoted(phase_key) + ")",
-                    "als_ext::GlobalF32InputNode",
-                    (x - 96.0, y + 96.0),
-                ),
-                (
                     filter_id,
                     "Blendspace cubic axis filter",
                     "(x_window_seconds: "
@@ -1070,7 +1096,6 @@ def blendspace_helpers(graph_contract, raw, semantic):
                 f"NodeData({quoted(filter_id)}, \"position\"): NodeData({quoted(vector_id)}, \"value\")",
                 f"NodeData({quoted(filter_id)}, \"delta_seconds\"): NodeData({quoted(delta_id)}, \"{delta_seconds_key}\")",
                 f"NodeData({quoted(primary_id)}, \"position\"): NodeData({quoted(filter_id)}, \"value\")",
-                f"NodeData({quoted(primary_id)}, \"phase\"): NodeData({quoted(phase_id)}, \"{phase_key}\")",
             ]
         )
     else:
@@ -1273,7 +1298,7 @@ def collapsed_links(graph_contract, ir_nodes, links=None):
     return result
 
 
-def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes, sync_wrappers):
+def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes):
     reset_nodes = {
         source_path
         for source_path, semantic in ir_nodes.items()
@@ -1309,7 +1334,7 @@ def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes, sync_w
         target_identifier = node_id(raw_nodes[target_path])
         for pin in ("A", "B"):
             source_path = inputs[pin]
-            source_identifier = sync_wrappers.get(source_path, node_id(raw_nodes[source_path]))
+            source_identifier = node_id(raw_nodes[source_path])
             edges.append(
                 f"NodeTime({quoted(target_identifier)}, {quoted(pin)}): NodeTime({quoted(source_identifier)})"
             )
@@ -1335,7 +1360,6 @@ def render(
     asset_by_node = asset_index(animation_assets)
     fsm_assets = fsm_assets or {}
     result_nodes = []
-    sync_wrappers = {}
     linked_layer_selectors = {}
     blendspace_edges = []
     layered_bone_edges = []
@@ -1378,60 +1402,6 @@ def render(
                 )
             )
             linked_layer_selectors[source_path] = selector_id
-        if semantic.get("renderer") != "sequence_player":
-            continue
-        value = semantic["semantic"]
-        group = value.get("sync_group")
-        if group == "None":
-            continue
-        key = value.get("sync_phase_key")
-        phase_duration = value.get("sync_phase_duration")
-        phase_markers = value.get("sync_phase_markers")
-        phase_looped = value.get("sync_phase_looped")
-        if (
-            not isinstance(key, str)
-            or not key
-            or not isinstance(phase_duration, (int, float))
-            or isinstance(phase_duration, bool)
-            or phase_duration <= 0.0
-            or not isinstance(phase_looped, bool)
-        ):
-            raise PoseRenderError("source sync group phase key is unavailable")
-        asset = asset_by_node.get(source_path)
-        timing = asset.get("source_timing") if isinstance(asset, dict) else None
-        if (
-            not isinstance(timing, dict)
-            or not isinstance(timing.get("duration"), (int, float))
-            or isinstance(timing["duration"], bool)
-            or timing["duration"] <= 0.0
-        ):
-            raise PoseRenderError("source sync group timing is unsupported")
-        leader_markers = sync_marker_ron(phase_markers)
-        follower_markers = sync_marker_ron(timing.get("markers"))
-        wrapper_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "bevy-als/sync/" + source_path))
-        x, y = position(raw)
-        if value.get("loop_animation") != phase_looped:
-            raise PoseRenderError("source sync group loop mode is unsupported")
-        wrapper = (
-            "(key: " + quoted(key)
-            + ", leader_duration: " + repr(phase_duration)
-            + ", leader_markers: " + leader_markers
-            + ", follower_duration: " + repr(timing["duration"])
-            + ", follower_markers: " + follower_markers
-            + ", looped: "
-            + bool_ron(phase_looped)
-            + ")"
-        )
-        result_nodes.append(
-            (
-                wrapper_id,
-                "Sync group " + group,
-                wrapper,
-                "als_ext::GlobalSyncGroupSampleNode",
-                (x, y + 96.0),
-            )
-        )
-        sync_wrappers[source_path] = wrapper_id
     output_nodes = [
         node
         for node in ir_nodes.values()
@@ -1455,10 +1425,7 @@ def render(
                 + " -> "
                 + str(target.get("node_object_path"))
             )
-        source_identifier = sync_wrappers.get(
-            source_semantic["source_node"],
-            node_id(raw_nodes[source_semantic["source_node"]]),
-        )
+        source_identifier = node_id(raw_nodes[source_semantic["source_node"]])
         target_raw = raw_nodes[target_semantic["source_node"]]
         target_identifier, target_pin_name = blendspace_targets.get(
             (target_semantic["source_node"], target.get("pin_name")),
@@ -1472,9 +1439,7 @@ def render(
             ),
         )
         source_pin = (
-            "pose"
-            if source_semantic["source_node"] in sync_wrappers
-            else target_pin(
+            target_pin(
                 source_semantic["renderer"],
                 source.get("pin_name"),
                 raw_nodes[source_semantic["source_node"]],
@@ -1483,13 +1448,7 @@ def render(
         edges.append(
             f"NodeData({quoted(target_identifier)}, {quoted(target_pin_name)}): NodeData({quoted(source_identifier)}, {quoted(source_pin)})"
         )
-    for source_path, wrapper_id in sync_wrappers.items():
-        identifier = node_id(raw_nodes[source_path])
-        edges.append(
-            f"NodeData({quoted(wrapper_id)}, \"pose\"): NodeData({quoted(identifier)}, \"Pose\")"
-        )
-        edges.append(f"NodeTime({quoted(wrapper_id)}, \"time\"): NodeTime({quoted(identifier)})")
-    edges.extend(source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes, sync_wrappers))
+    edges.extend(source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes))
     for source_path, selector_id in linked_layer_selectors.items():
         identifier = node_id(raw_nodes[source_path])
         edges.append(
@@ -2189,10 +2148,13 @@ def run_self_test():
             "sync_phase_duration": 1.0,
             "sync_phase_markers": [],
             "sync_phase_looped": True,
+            "sync_group_role": "CanBeLeader",
+            "delta_seconds_key": "animation.delta_seconds",
         }
     )
     text = render(graph_contract, graph_ir, assets)
-    assert '"als_ext::GlobalSyncGroupSampleNode"' in text
+    assert "synchronization: Some((" in text
+    assert '"als_ext::GlobalSyncGroupSampleNode"' not in text
     blend_path = "/Asset:State.Blendspace"
     blend_result = "/Asset:State.BlendspaceResult"
     blend_contract = {
@@ -2315,6 +2277,9 @@ def run_self_test():
                     "loop": True,
                     "configured_play_rate": 1.0,
                     "sync_phase_key": "sync_groups.ab_als_standing.movement.phase",
+                    "sync_group_role": "CanBeLeader",
+                    "sync_phase_looped": True,
+                    "start_position": 0.2,
                     "sync_phase_duration": 1.0,
                     "sync_phase_markers": [
                         {"name": "Left", "time": 0.0},
@@ -2322,6 +2287,7 @@ def run_self_test():
                     ],
                     "delta_seconds_key": "animation.delta_seconds",
                     "axis_filter": {"x_window_seconds": 0.2, "y_window_seconds": 0.4},
+                    "triangulation": {"axis_min": [0.0, 0.0], "axis_max": [1.0, 1.0], "triangles": [[0, 0, 0]]},
                     "blendspace": {
                         "samples": [
                             {
@@ -2361,8 +2327,8 @@ def run_self_test():
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
         "source_node_order_preserved": "PASS",
-        "sync_group_requires_a_phase_source": "PASS",
-        "sync_group_wrapper_preserves_source_player": "PASS",
+        "sync_group_requires_a_clock_contract": "PASS",
+        "sync_group_clock_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",
         "source_reroutes_are_folded": "PASS",
         "unreachable_source_edges_are_ignored": "PASS",

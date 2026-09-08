@@ -1,0 +1,1678 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_standing_clock",
+  "source_evidence": [
+    {
+      "path": "target/bf115_standing/converter_source/0008_AB_Als_Standing.ue.json",
+      "sha256": "de291fdfa12a3b4288c465411a0dffc85e5d136cb5c801e4b45f845d31b4efbf"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0009_BS_Als_WalkRun_Right_Forward.ue.json",
+      "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0010_BS_Als_WalkRun_Right_Backward.ue.json",
+      "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0011_BS_Als_WalkRun_Left_Forward.ue.json",
+      "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0012_BS_Als_WalkRun_Left_Backward.ue.json",
+      "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0013_BS_Als_WalkRun_Forward.ue.json",
+      "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0014_BS_Als_WalkRun_Backward.ue.json",
+      "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "ef83c7af-4106-0331-5680-7996051665e9",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "72cf65bd-4544-1341-4a84-298739d5b736",
+          "name": "Standing States\nState Machine",
+          "position": [
+            -864.0,
+            48.0
+          ]
+        },
+        {
+          "id": "b4adf615-4a1f-f890-7dcc-85b0f8910d99",
+          "name": "Save cached pose 'Movement Details'",
+          "position": [
+            0.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "e1df98e4-41cc-19b9-8b19-c184b97a3819",
+          "name": "Save cached pose 'Movement'",
+          "position": [
+            0.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "c4435405-4eac-c238-6418-a2b13a726d24",
+          "name": "Modify Curve",
+          "position": [
+            -480.0,
+            64.0
+          ]
+        },
+        {
+          "id": "db9b7eed-4220-723a-aa03-03a126b968af",
+          "name": "Movement Details States\nState Machine",
+          "position": [
+            -1248.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "d631d13f-4100-f77c-3bff-bd9a667cd35f",
+          "name": "Inertialization",
+          "position": [
+            -672.0,
+            64.0
+          ]
+        },
+        {
+          "id": "a346c3af-4656-3fd8-2537-0a848322c8eb",
+          "name": "Inertialization",
+          "position": [
+            -1008.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "7c742ec2-4a57-89f7-5699-fd9f6869c86c",
+          "name": "Apply Additive",
+          "position": [
+            -592.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "08d63289-4177-50d0-36ab-a9b4536302cf",
+          "name": "Modify Curve",
+          "position": [
+            -256.0,
+            -464.0
+          ]
+        },
+        {
+          "id": "2b4c60ec-450b-24ab-685a-ec94dd294ca0",
+          "name": "BS_Als_WalkRun_Right_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "37d2968b-e00f-5eff-b07a-13ef3d44cace",
+          "name": "Blendspace position",
+          "position": [
+            -576.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "86142b1b-7c16-541e-be91-d638ff6bd7ec",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -480.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "3f82c57e-2dc7-560d-8f4c-f65b97cfe8b9",
+          "name": "Animation delta seconds",
+          "position": [
+            -480.0,
+            -1680.0
+          ]
+        },
+        {
+          "id": "1167d75a-4a09-5e4b-af72-16033661e425",
+          "name": "Blendspace X binding",
+          "position": [
+            -672.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "9f2ef33a-fc53-5230-9af3-769ca1ef3d10",
+          "name": "Blendspace Y binding",
+          "position": [
+            -672.0,
+            -1776.0
+          ]
+        },
+        {
+          "id": "67740200-4755-576e-b9eb-ded5f4607fa0",
+          "name": "Blendspace sample 0",
+          "position": [
+            -576.0,
+            -1664.0
+          ]
+        },
+        {
+          "id": "947719e7-2759-50e4-a89f-ce38b6b2d243",
+          "name": "Blendspace sample 1",
+          "position": [
+            -576.0,
+            -1600.0
+          ]
+        },
+        {
+          "id": "e2b406d4-0a83-5467-b5ce-2254a2bc64ae",
+          "name": "Blendspace sample 2",
+          "position": [
+            -576.0,
+            -1536.0
+          ]
+        },
+        {
+          "id": "6ca556ab-7d88-59ba-a1ce-2e2ffc4be122",
+          "name": "Blendspace sample 3",
+          "position": [
+            -576.0,
+            -1472.0
+          ]
+        },
+        {
+          "id": "326f192c-4774-f143-edea-deae72c49a62",
+          "name": "BS_Als_WalkRun_Right_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "8f469f58-83b6-5590-acdb-53ec37f931f0",
+          "name": "Blendspace position",
+          "position": [
+            -576.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "f4add73b-8514-53ec-87bb-97c7e131ff45",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -480.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "0c46d1b3-05a5-519b-996d-37cabb3e8b07",
+          "name": "Animation delta seconds",
+          "position": [
+            -480.0,
+            -1312.0
+          ]
+        },
+        {
+          "id": "ee37b65c-cff3-5d05-b5f2-38d6a63f3f39",
+          "name": "Blendspace X binding",
+          "position": [
+            -672.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "591aa855-15e7-5113-aa41-af87418a4f62",
+          "name": "Blendspace Y binding",
+          "position": [
+            -672.0,
+            -1408.0
+          ]
+        },
+        {
+          "id": "18c285fc-4171-54bb-8911-163fd3a3b2d4",
+          "name": "Blendspace sample 0",
+          "position": [
+            -576.0,
+            -1296.0
+          ]
+        },
+        {
+          "id": "a3b9712e-59a8-5f03-b105-5621bcc0dc77",
+          "name": "Blendspace sample 1",
+          "position": [
+            -576.0,
+            -1232.0
+          ]
+        },
+        {
+          "id": "9803b27c-d414-524a-8308-7dc6d6d55ff8",
+          "name": "Blendspace sample 2",
+          "position": [
+            -576.0,
+            -1168.0
+          ]
+        },
+        {
+          "id": "6358d1d2-9dc8-59aa-abf4-ff28379c1e38",
+          "name": "Blendspace sample 3",
+          "position": [
+            -576.0,
+            -1104.0
+          ]
+        },
+        {
+          "id": "876421d9-437c-b7a5-a485-2cb72d48e4ac",
+          "name": "BS_Als_WalkRun_Left_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "5c96eb3e-bec3-589b-9054-9b04ad5d790d",
+          "name": "Blendspace position",
+          "position": [
+            -1184.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "b190b5c9-d772-561c-b580-1ff8a42c734f",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -1088.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "dcf9de6f-5ae5-5338-b477-8a4d7a7f242a",
+          "name": "Animation delta seconds",
+          "position": [
+            -1088.0,
+            -1680.0
+          ]
+        },
+        {
+          "id": "db734054-dd74-5fac-8f00-34a6ab595574",
+          "name": "Blendspace X binding",
+          "position": [
+            -1280.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "4a6d868a-0ecc-588e-8f3c-bb9121b50c57",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1280.0,
+            -1776.0
+          ]
+        },
+        {
+          "id": "2ee17684-c5a6-5622-9403-a1de0b025ea9",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1184.0,
+            -1664.0
+          ]
+        },
+        {
+          "id": "ebded9b5-ba81-5af6-9f98-76f4c926c8b9",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1184.0,
+            -1600.0
+          ]
+        },
+        {
+          "id": "dc952c07-4112-5b5c-8b92-62455a8eeb98",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1184.0,
+            -1536.0
+          ]
+        },
+        {
+          "id": "00caeb42-af22-54a4-84c7-552ebd1ce794",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1184.0,
+            -1472.0
+          ]
+        },
+        {
+          "id": "038f8c31-4a1d-e945-05aa-119ae6760250",
+          "name": "BS_Als_WalkRun_Left_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "f48bf887-fb57-55c2-b0da-9adb1dbc5d77",
+          "name": "Blendspace position",
+          "position": [
+            -1184.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "f7acd150-3470-5972-b06a-9fc122b74945",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -1088.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "bbbc9039-1c94-557f-b8a3-e21425f894f7",
+          "name": "Animation delta seconds",
+          "position": [
+            -1088.0,
+            -1312.0
+          ]
+        },
+        {
+          "id": "5fa6f957-6c6f-56fb-a9cc-6817fe545ca8",
+          "name": "Blendspace X binding",
+          "position": [
+            -1280.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "e7e197a9-1b93-5731-b5a2-ca67d482bb68",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1280.0,
+            -1408.0
+          ]
+        },
+        {
+          "id": "8968ad0e-9d65-5ee5-a9ce-6a00d7fc95f0",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1184.0,
+            -1296.0
+          ]
+        },
+        {
+          "id": "e572fbae-13b2-56c1-9ed0-c883bb436bad",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1184.0,
+            -1232.0
+          ]
+        },
+        {
+          "id": "f01050dd-a4e5-5c9d-91eb-069ffa66ae9e",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1184.0,
+            -1168.0
+          ]
+        },
+        {
+          "id": "80e754da-66b7-5a6e-a49f-515c38b977ac",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1184.0,
+            -1104.0
+          ]
+        },
+        {
+          "id": "8c0d0f93-4811-e641-6270-b9bc2a1465c2",
+          "name": "BS_Als_WalkRun_Forward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -1600.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "4ab9cadb-e687-5b59-b36f-73f0ba6110f9",
+          "name": "Blendspace position",
+          "position": [
+            -1792.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "22a35f43-c65a-58d1-8b94-b78dd65b679c",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -1696.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "50f3496d-8ac5-521a-a025-3610a42cbd91",
+          "name": "Animation delta seconds",
+          "position": [
+            -1696.0,
+            -1680.0
+          ]
+        },
+        {
+          "id": "928e52d0-9f96-51a1-9b56-b07e8bdac603",
+          "name": "Blendspace X binding",
+          "position": [
+            -1888.0,
+            -1824.0
+          ]
+        },
+        {
+          "id": "08f645ff-b991-57b6-aa38-5c4a5e69f340",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1888.0,
+            -1776.0
+          ]
+        },
+        {
+          "id": "86537dfa-8653-5c0e-a70c-e452cf966000",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1792.0,
+            -1664.0
+          ]
+        },
+        {
+          "id": "970293fd-1725-5935-86ca-b1d76571cbad",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1792.0,
+            -1600.0
+          ]
+        },
+        {
+          "id": "ff2147d9-1254-55f0-b381-50c1b97c0a65",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1792.0,
+            -1536.0
+          ]
+        },
+        {
+          "id": "90aa6db7-8064-5cb7-b5ce-7cee634d1bc1",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1792.0,
+            -1472.0
+          ]
+        },
+        {
+          "id": "b461d756-4d6b-6ba5-a52a-fc9f0968902b",
+          "name": "BS_Als_WalkRun_Backward\nBlendspace Player\nSync group Movement",
+          "position": [
+            -1600.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "fb6f582a-0176-5432-939c-235c0cc78bdb",
+          "name": "Blendspace position",
+          "position": [
+            -1792.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "82e954a2-3ace-5f86-8e17-16e983184ecf",
+          "name": "Blendspace cubic axis filter",
+          "position": [
+            -1696.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "7630beab-e30f-5b0f-a10f-d62138b715b9",
+          "name": "Animation delta seconds",
+          "position": [
+            -1696.0,
+            -1312.0
+          ]
+        },
+        {
+          "id": "a43693bf-fcc9-55e4-a671-4792de00e0be",
+          "name": "Blendspace X binding",
+          "position": [
+            -1888.0,
+            -1456.0
+          ]
+        },
+        {
+          "id": "b4538144-42f9-560d-9acc-1b42ea8c3d86",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1888.0,
+            -1408.0
+          ]
+        },
+        {
+          "id": "546cc417-3a19-5690-bf16-2a567de70283",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1792.0,
+            -1296.0
+          ]
+        },
+        {
+          "id": "ac3f4381-b310-5e29-83f8-a211fa856d66",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1792.0,
+            -1232.0
+          ]
+        },
+        {
+          "id": "d8539c0d-fef6-5dd1-9bbe-516855d17e0c",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1792.0,
+            -1168.0
+          ]
+        },
+        {
+          "id": "b274c92a-78c3-5b81-b25a-ca24a9927979",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1792.0,
+            -1104.0
+          ]
+        },
+        {
+          "id": "92992f00-4a96-a667-a6b3-6b81e0f00ba2",
+          "name": "A_Als_Sprint\nSequence Player\nSync group Movement",
+          "position": [
+            -1440.0,
+            -976.0
+          ]
+        },
+        {
+          "id": "f96b7815-4516-b730-ccda-41afd8c5be66",
+          "name": "A_Als_Sprint_Acceleration\nSequence Player\nSync group Movement",
+          "position": [
+            -1440.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "399f03d7-4ff5-edce-96c3-35a0f7a7c922",
+          "name": "Two Way Blend",
+          "position": [
+            -1056.0,
+            -880.0
+          ]
+        },
+        {
+          "id": "ed4a8b53-45cf-417d-c8d6-6aa7eed2f5c0",
+          "name": "Save cached pose 'Move Backward'",
+          "position": [
+            -1216.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "a2a798ac-4c76-d22f-7869-56bcb32155d4",
+          "name": "Save cached pose 'Move Left Forward'",
+          "position": [
+            -608.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "6a316d07-4b30-4d3b-e3c1-d9a19248d252",
+          "name": "Save cached pose 'Move Left Backward'",
+          "position": [
+            -608.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "2a6f018f-4577-0b0d-40ec-6ca3a297ae90",
+          "name": "Save cached pose 'Move Right Forward'",
+          "position": [
+            0.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "d5aa22b9-47b1-6783-dbf9-ae860d3f1121",
+          "name": "Save cached pose 'Move Right Backward'",
+          "position": [
+            0.0,
+            -1424.0
+          ]
+        },
+        {
+          "id": "e791b616-4486-3f0b-0f50-ef85d17b6d0c",
+          "name": "Save cached pose 'Move Forward Base'",
+          "position": [
+            -1216.0,
+            -1792.0
+          ]
+        },
+        {
+          "id": "37cbef1e-4804-897b-c2d3-8bba039c03a2",
+          "name": "Save cached pose 'Move Forward'",
+          "position": [
+            0.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "8241f0fe-43d3-3f1b-fb4d-7d91c13918d0",
+          "name": "Two Way Blend",
+          "position": [
+            -336.0,
+            -816.0
+          ]
+        },
+        {
+          "id": "c89c0179-4ebe-04fe-328b-93ab22f5f152",
+          "name": "Use cached pose 'Move Forward Base'",
+          "position": [
+            -672.0,
+            -672.0
+          ]
+        },
+        {
+          "id": "ea9a0688-4200-e765-98ff-5299c7c83149",
+          "name": "Use cached pose 'Move Forward Base'",
+          "position": [
+            -960.0,
+            -976.0
+          ]
+        },
+        {
+          "id": "d68d1f35-4127-d675-2dfd-8697d49c44ad",
+          "name": "Blend Poses by Gameplay Tag",
+          "position": [
+            -624.0,
+            -944.0
+          ]
+        },
+        {
+          "id": "4c6fa15f-47e7-6389-0533-a99b2fc63aaf",
+          "name": "Movement States\nState Machine",
+          "position": [
+            -1168.0,
+            -512.0
+          ]
+        },
+        {
+          "id": "34f57700-443d-7c77-5457-2cb100b5b922",
+          "name": "BS_Als_Lean\nBlendspace Evaluator",
+          "position": [
+            -976.0,
+            -416.0
+          ]
+        },
+        {
+          "id": "6c1fffa0-d2ee-5aa2-99f8-54338425771f",
+          "name": "Blendspace position",
+          "position": [
+            -1072.0,
+            -416.0
+          ]
+        },
+        {
+          "id": "5a15c30a-083f-528e-a8ef-ee91db9ce5a8",
+          "name": "Blendspace normalized time",
+          "position": [
+            -1072.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "2e0f30f3-9389-5292-9521-25f7e55572a3",
+          "name": "Blendspace X binding",
+          "position": [
+            -1168.0,
+            -416.0
+          ]
+        },
+        {
+          "id": "8bf8140b-6f73-578b-9715-8961d134047d",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1168.0,
+            -368.0
+          ]
+        },
+        {
+          "id": "cf4c43fd-01c0-50ed-a6f1-641f62404d49",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1168.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "ac6fff66-da3f-58c7-bca0-b79530f149fd",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1168.0,
+            -192.0
+          ]
+        },
+        {
+          "id": "89ef7c23-6e9b-55a1-84eb-3a2777ab8d3e",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1168.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "dd58defb-8c73-543a-85d1-5ea8581be5db",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1168.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "7accd076-2f2c-590b-950c-6b51e76a72dc",
+          "name": "Blendspace sample 4",
+          "position": [
+            -1168.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8c8a03b6-4215-5410-9c66-f0a3b7d80557",
+          "name": "RefreshRotateInPlace\r\nOn Update",
+          "position": [
+            -224.0,
+            48.0
+          ]
+        },
+        {
+          "id": "4ae6df60-47a4-b6cd-6db2-b2a8cbb5fbb9",
+          "name": "RefreshStandingMovement\r\nOn Update",
+          "position": [
+            -816.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "33f0c4b1-4eab-2111-3540-cfb8c6631022",
+          "name": "InitializeStandingMovement\r\nOn Become Relevant",
+          "position": [
+            -544.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "7ebeb217-4991-7ce2-b555-1fa1ebff5c33",
+          "name": "RefreshGroundedMovement\r\nOn Update",
+          "position": [
+            -272.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "65f38991-5a91-5a3a-b27d-6c0893acb968",
+          "name": "additive difference Blendspace sample 0",
+          "position": [
+            -1072.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "9ab98ca2-25d6-59b8-b172-106fc6a72652",
+          "name": "additive difference Blendspace sample 1",
+          "position": [
+            -1072.0,
+            -192.0
+          ]
+        },
+        {
+          "id": "1919d472-46aa-5d9b-9e31-8faec79ca8e5",
+          "name": "additive difference Blendspace sample 2",
+          "position": [
+            -1072.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "8e15cbad-3c18-5de8-bff0-cd5be15542f0",
+          "name": "additive difference Blendspace sample 3",
+          "position": [
+            -1072.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "c297818d-8a05-550d-85dd-85129fcdde82",
+          "name": "additive difference Blendspace sample 4",
+          "position": [
+            -1072.0,
+            0.0
+          ]
+        },
+        {
+          "id": "70e2855f-b223-5ade-bc8a-fa098de38e26",
+          "name": "additive reference A_Als_Lean_Pose cf4c43fd clip",
+          "position": [
+            -1456.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "e78eeb73-3925-5ac1-9762-b70bb3c400ac",
+          "name": "additive reference A_Als_Lean_Pose cf4c43fd evaluator",
+          "position": [
+            -1360.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "26cc36d1-fa70-59af-9d7e-98a675f08b3e",
+          "name": "additive reference A_Als_Lean_Pose cf4c43fd frame",
+          "position": [
+            -1456.0,
+            -208.0
+          ]
+        },
+        {
+          "id": "d2b0f053-079d-5e3a-882e-e4dd72170026",
+          "name": "additive reference A_Als_Lean_Pose ac6fff66 clip",
+          "position": [
+            -1456.0,
+            -192.0
+          ]
+        },
+        {
+          "id": "622ccaf9-afb6-5e19-820d-3d4c68d20833",
+          "name": "additive reference A_Als_Lean_Pose ac6fff66 evaluator",
+          "position": [
+            -1360.0,
+            -192.0
+          ]
+        },
+        {
+          "id": "8611ec0b-42f9-5804-aaaa-f129b00d8a28",
+          "name": "additive reference A_Als_Lean_Pose ac6fff66 frame",
+          "position": [
+            -1456.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "d54feab6-182f-52fb-9e68-9143d69c73e0",
+          "name": "additive reference A_Als_Lean_Pose 89ef7c23 clip",
+          "position": [
+            -1456.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "5bef23f4-44ba-59e5-84ca-45658097de9e",
+          "name": "additive reference A_Als_Lean_Pose 89ef7c23 evaluator",
+          "position": [
+            -1360.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "28f6d6f2-4d4f-580a-bbb9-7e7306f0755e",
+          "name": "additive reference A_Als_Lean_Pose 89ef7c23 frame",
+          "position": [
+            -1456.0,
+            -80.0
+          ]
+        },
+        {
+          "id": "3ec46ceb-23af-5518-b9ab-3142534469b1",
+          "name": "additive reference A_Als_Lean_Pose dd58defb clip",
+          "position": [
+            -1456.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47",
+          "name": "additive reference A_Als_Lean_Pose dd58defb evaluator",
+          "position": [
+            -1360.0,
+            -64.0
+          ]
+        },
+        {
+          "id": "72c9d99a-cf22-5463-ab2d-b046cc1e72c5",
+          "name": "additive reference A_Als_Lean_Pose dd58defb frame",
+          "position": [
+            -1456.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "de4110d9-891b-51b2-b667-63343c2694a1",
+          "name": "additive reference A_Als_Lean_Pose 7accd076 clip",
+          "position": [
+            -1456.0,
+            0.0
+          ]
+        },
+        {
+          "id": "7bec247e-e791-5277-bb4e-fd798164c785",
+          "name": "additive reference A_Als_Lean_Pose 7accd076 evaluator",
+          "position": [
+            -1360.0,
+            0.0
+          ]
+        },
+        {
+          "id": "0c2cc60e-aa25-57d5-a0b7-b44cff5a268a",
+          "name": "additive reference A_Als_Lean_Pose 7accd076 frame",
+          "position": [
+            -1456.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"72cf65bd-4544-1341-4a84-298739d5b736\", \"Pose\")",
+          "target": "NodeData(\"d631d13f-4100-f77c-3bff-bd9a667cd35f\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"a346c3af-4656-3fd8-2537-0a848322c8eb\", \"Pose\")",
+          "target": "NodeData(\"4ae6df60-47a4-b6cd-6db2-b2a8cbb5fbb9\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"pose\")",
+          "target": "NodeData(\"e791b616-4486-3f0b-0f50-ef85d17b6d0c\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"pose\")",
+          "target": "NodeData(\"6a316d07-4b30-4d3b-e3c1-d9a19248d252\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"d631d13f-4100-f77c-3bff-bd9a667cd35f\", \"Pose\")",
+          "target": "NodeData(\"c4435405-4eac-c238-6418-a2b13a726d24\", \"SourcePose\")"
+        },
+        {
+          "source": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose\")",
+          "target": "NodeData(\"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", \"Additive\")"
+        },
+        {
+          "source": "NodeData(\"db9b7eed-4220-723a-aa03-03a126b968af\", \"Pose\")",
+          "target": "NodeData(\"a346c3af-4656-3fd8-2537-0a848322c8eb\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"92992f00-4a96-a667-a6b3-6b81e0f00ba2\", \"Pose\")",
+          "target": "NodeData(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"A\")"
+        },
+        {
+          "source": "NodeData(\"ea9a0688-4200-e765-98ff-5299c7c83149\", \"Pose\")",
+          "target": "NodeData(\"d68d1f35-4127-d675-2dfd-8697d49c44ad\", \"BlendPose_0\")"
+        },
+        {
+          "source": "NodeData(\"4c6fa15f-47e7-6389-0533-a99b2fc63aaf\", \"Pose\")",
+          "target": "NodeData(\"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", \"Base\")"
+        },
+        {
+          "source": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"pose\")",
+          "target": "NodeData(\"2a6f018f-4577-0b0d-40ec-6ca3a297ae90\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"4ae6df60-47a4-b6cd-6db2-b2a8cbb5fbb9\", \"Pose\")",
+          "target": "NodeData(\"33f0c4b1-4eab-2111-3540-cfb8c6631022\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"pose\")",
+          "target": "NodeData(\"d5aa22b9-47b1-6783-dbf9-ae860d3f1121\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"Pose\")",
+          "target": "NodeData(\"d68d1f35-4127-d675-2dfd-8697d49c44ad\", \"BlendPose_1\")"
+        },
+        {
+          "source": "NodeData(\"33f0c4b1-4eab-2111-3540-cfb8c6631022\", \"Pose\")",
+          "target": "NodeData(\"7ebeb217-4991-7ce2-b555-1fa1ebff5c33\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"d68d1f35-4127-d675-2dfd-8697d49c44ad\", \"Pose\")",
+          "target": "NodeData(\"8241f0fe-43d3-3f1b-fb4d-7d91c13918d0\", \"A\")"
+        },
+        {
+          "source": "NodeData(\"8241f0fe-43d3-3f1b-fb4d-7d91c13918d0\", \"Pose\")",
+          "target": "NodeData(\"37cbef1e-4804-897b-c2d3-8bba039c03a2\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"c89c0179-4ebe-04fe-328b-93ab22f5f152\", \"Pose\")",
+          "target": "NodeData(\"8241f0fe-43d3-3f1b-fb4d-7d91c13918d0\", \"B\")"
+        },
+        {
+          "source": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"pose\")",
+          "target": "NodeData(\"a2a798ac-4c76-d22f-7869-56bcb32155d4\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"8c8a03b6-4215-5410-9c66-f0a3b7d80557\", \"Pose\")",
+          "target": "NodeData(\"ef83c7af-4106-0331-5680-7996051665e9\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"08d63289-4177-50d0-36ab-a9b4536302cf\", \"Pose\")",
+          "target": "NodeData(\"e1df98e4-41cc-19b9-8b19-c184b97a3819\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"pose\")",
+          "target": "NodeData(\"ed4a8b53-45cf-417d-c8d6-6aa7eed2f5c0\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"7ebeb217-4991-7ce2-b555-1fa1ebff5c33\", \"Pose\")",
+          "target": "NodeData(\"b4adf615-4a1f-f890-7dcc-85b0f8910d99\", \"Pose\")"
+        },
+        {
+          "source": "NodeData(\"7c742ec2-4a57-89f7-5699-fd9f6869c86c\", \"Pose\")",
+          "target": "NodeData(\"08d63289-4177-50d0-36ab-a9b4536302cf\", \"SourcePose\")"
+        },
+        {
+          "source": "NodeData(\"f96b7815-4516-b730-ccda-41afd8c5be66\", \"Pose\")",
+          "target": "NodeData(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"B\")"
+        },
+        {
+          "source": "NodeData(\"c4435405-4eac-c238-6418-a2b13a726d24\", \"Pose\")",
+          "target": "NodeData(\"8c8a03b6-4215-5410-9c66-f0a3b7d80557\", \"Source\")"
+        },
+        {
+          "source": "NodeTime(\"92992f00-4a96-a667-a6b3-6b81e0f00ba2\")",
+          "target": "NodeTime(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"A\")"
+        },
+        {
+          "source": "NodeTime(\"f96b7815-4516-b730-ccda-41afd8c5be66\")",
+          "target": "NodeTime(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"B\")"
+        },
+        {
+          "source": "NodeData(\"37d2968b-e00f-5eff-b07a-13ef3d44cace\", \"value\")",
+          "target": "NodeData(\"86142b1b-7c16-541e-be91-d638ff6bd7ec\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"3f82c57e-2dc7-560d-8f4c-f65b97cfe8b9\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"86142b1b-7c16-541e-be91-d638ff6bd7ec\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"86142b1b-7c16-541e-be91-d638ff6bd7ec\", \"value\")",
+          "target": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"1167d75a-4a09-5e4b-af72-16033661e425\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"37d2968b-e00f-5eff-b07a-13ef3d44cace\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"9f2ef33a-fc53-5230-9af3-769ca1ef3d10\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"37d2968b-e00f-5eff-b07a-13ef3d44cace\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"67740200-4755-576e-b9eb-ded5f4607fa0\", \"pose\")",
+          "target": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"67740200-4755-576e-b9eb-ded5f4607fa0\")",
+          "target": "NodeTime(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"947719e7-2759-50e4-a89f-ce38b6b2d243\", \"pose\")",
+          "target": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"947719e7-2759-50e4-a89f-ce38b6b2d243\")",
+          "target": "NodeTime(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"e2b406d4-0a83-5467-b5ce-2254a2bc64ae\", \"pose\")",
+          "target": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"e2b406d4-0a83-5467-b5ce-2254a2bc64ae\")",
+          "target": "NodeTime(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"6ca556ab-7d88-59ba-a1ce-2e2ffc4be122\", \"pose\")",
+          "target": "NodeData(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"6ca556ab-7d88-59ba-a1ce-2e2ffc4be122\")",
+          "target": "NodeTime(\"2b4c60ec-450b-24ab-685a-ec94dd294ca0\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"8f469f58-83b6-5590-acdb-53ec37f931f0\", \"value\")",
+          "target": "NodeData(\"f4add73b-8514-53ec-87bb-97c7e131ff45\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"0c46d1b3-05a5-519b-996d-37cabb3e8b07\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"f4add73b-8514-53ec-87bb-97c7e131ff45\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"f4add73b-8514-53ec-87bb-97c7e131ff45\", \"value\")",
+          "target": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"ee37b65c-cff3-5d05-b5f2-38d6a63f3f39\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"8f469f58-83b6-5590-acdb-53ec37f931f0\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"591aa855-15e7-5113-aa41-af87418a4f62\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"8f469f58-83b6-5590-acdb-53ec37f931f0\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"18c285fc-4171-54bb-8911-163fd3a3b2d4\", \"pose\")",
+          "target": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"18c285fc-4171-54bb-8911-163fd3a3b2d4\")",
+          "target": "NodeTime(\"326f192c-4774-f143-edea-deae72c49a62\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"a3b9712e-59a8-5f03-b105-5621bcc0dc77\", \"pose\")",
+          "target": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"a3b9712e-59a8-5f03-b105-5621bcc0dc77\")",
+          "target": "NodeTime(\"326f192c-4774-f143-edea-deae72c49a62\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"9803b27c-d414-524a-8308-7dc6d6d55ff8\", \"pose\")",
+          "target": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"9803b27c-d414-524a-8308-7dc6d6d55ff8\")",
+          "target": "NodeTime(\"326f192c-4774-f143-edea-deae72c49a62\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"6358d1d2-9dc8-59aa-abf4-ff28379c1e38\", \"pose\")",
+          "target": "NodeData(\"326f192c-4774-f143-edea-deae72c49a62\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"6358d1d2-9dc8-59aa-abf4-ff28379c1e38\")",
+          "target": "NodeTime(\"326f192c-4774-f143-edea-deae72c49a62\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"5c96eb3e-bec3-589b-9054-9b04ad5d790d\", \"value\")",
+          "target": "NodeData(\"b190b5c9-d772-561c-b580-1ff8a42c734f\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"dcf9de6f-5ae5-5338-b477-8a4d7a7f242a\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"b190b5c9-d772-561c-b580-1ff8a42c734f\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"b190b5c9-d772-561c-b580-1ff8a42c734f\", \"value\")",
+          "target": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"db734054-dd74-5fac-8f00-34a6ab595574\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"5c96eb3e-bec3-589b-9054-9b04ad5d790d\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"4a6d868a-0ecc-588e-8f3c-bb9121b50c57\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"5c96eb3e-bec3-589b-9054-9b04ad5d790d\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"2ee17684-c5a6-5622-9403-a1de0b025ea9\", \"pose\")",
+          "target": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"2ee17684-c5a6-5622-9403-a1de0b025ea9\")",
+          "target": "NodeTime(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"ebded9b5-ba81-5af6-9f98-76f4c926c8b9\", \"pose\")",
+          "target": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"ebded9b5-ba81-5af6-9f98-76f4c926c8b9\")",
+          "target": "NodeTime(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"dc952c07-4112-5b5c-8b92-62455a8eeb98\", \"pose\")",
+          "target": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"dc952c07-4112-5b5c-8b92-62455a8eeb98\")",
+          "target": "NodeTime(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"00caeb42-af22-54a4-84c7-552ebd1ce794\", \"pose\")",
+          "target": "NodeData(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"00caeb42-af22-54a4-84c7-552ebd1ce794\")",
+          "target": "NodeTime(\"876421d9-437c-b7a5-a485-2cb72d48e4ac\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"f48bf887-fb57-55c2-b0da-9adb1dbc5d77\", \"value\")",
+          "target": "NodeData(\"f7acd150-3470-5972-b06a-9fc122b74945\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"bbbc9039-1c94-557f-b8a3-e21425f894f7\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"f7acd150-3470-5972-b06a-9fc122b74945\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"f7acd150-3470-5972-b06a-9fc122b74945\", \"value\")",
+          "target": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"5fa6f957-6c6f-56fb-a9cc-6817fe545ca8\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"f48bf887-fb57-55c2-b0da-9adb1dbc5d77\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"e7e197a9-1b93-5731-b5a2-ca67d482bb68\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"f48bf887-fb57-55c2-b0da-9adb1dbc5d77\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"8968ad0e-9d65-5ee5-a9ce-6a00d7fc95f0\", \"pose\")",
+          "target": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"8968ad0e-9d65-5ee5-a9ce-6a00d7fc95f0\")",
+          "target": "NodeTime(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"e572fbae-13b2-56c1-9ed0-c883bb436bad\", \"pose\")",
+          "target": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"e572fbae-13b2-56c1-9ed0-c883bb436bad\")",
+          "target": "NodeTime(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"f01050dd-a4e5-5c9d-91eb-069ffa66ae9e\", \"pose\")",
+          "target": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"f01050dd-a4e5-5c9d-91eb-069ffa66ae9e\")",
+          "target": "NodeTime(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"80e754da-66b7-5a6e-a49f-515c38b977ac\", \"pose\")",
+          "target": "NodeData(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"80e754da-66b7-5a6e-a49f-515c38b977ac\")",
+          "target": "NodeTime(\"038f8c31-4a1d-e945-05aa-119ae6760250\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"4ab9cadb-e687-5b59-b36f-73f0ba6110f9\", \"value\")",
+          "target": "NodeData(\"22a35f43-c65a-58d1-8b94-b78dd65b679c\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"50f3496d-8ac5-521a-a025-3610a42cbd91\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"22a35f43-c65a-58d1-8b94-b78dd65b679c\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"22a35f43-c65a-58d1-8b94-b78dd65b679c\", \"value\")",
+          "target": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"928e52d0-9f96-51a1-9b56-b07e8bdac603\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"4ab9cadb-e687-5b59-b36f-73f0ba6110f9\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"08f645ff-b991-57b6-aa38-5c4a5e69f340\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"4ab9cadb-e687-5b59-b36f-73f0ba6110f9\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"86537dfa-8653-5c0e-a70c-e452cf966000\", \"pose\")",
+          "target": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"86537dfa-8653-5c0e-a70c-e452cf966000\")",
+          "target": "NodeTime(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"970293fd-1725-5935-86ca-b1d76571cbad\", \"pose\")",
+          "target": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"970293fd-1725-5935-86ca-b1d76571cbad\")",
+          "target": "NodeTime(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"ff2147d9-1254-55f0-b381-50c1b97c0a65\", \"pose\")",
+          "target": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"ff2147d9-1254-55f0-b381-50c1b97c0a65\")",
+          "target": "NodeTime(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"90aa6db7-8064-5cb7-b5ce-7cee634d1bc1\", \"pose\")",
+          "target": "NodeData(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"90aa6db7-8064-5cb7-b5ce-7cee634d1bc1\")",
+          "target": "NodeTime(\"8c0d0f93-4811-e641-6270-b9bc2a1465c2\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"fb6f582a-0176-5432-939c-235c0cc78bdb\", \"value\")",
+          "target": "NodeData(\"82e954a2-3ace-5f86-8e17-16e983184ecf\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"7630beab-e30f-5b0f-a10f-d62138b715b9\", \"animation.delta_seconds\")",
+          "target": "NodeData(\"82e954a2-3ace-5f86-8e17-16e983184ecf\", \"delta_seconds\")"
+        },
+        {
+          "source": "NodeData(\"82e954a2-3ace-5f86-8e17-16e983184ecf\", \"value\")",
+          "target": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"a43693bf-fcc9-55e4-a671-4792de00e0be\", \"standing_state.stride_blend_amount\")",
+          "target": "NodeData(\"fb6f582a-0176-5432-939c-235c0cc78bdb\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"b4538144-42f9-560d-9acc-1b42ea8c3d86\", \"standing_state.walk_run_blend_amount\")",
+          "target": "NodeData(\"fb6f582a-0176-5432-939c-235c0cc78bdb\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"546cc417-3a19-5690-bf16-2a567de70283\", \"pose\")",
+          "target": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"546cc417-3a19-5690-bf16-2a567de70283\")",
+          "target": "NodeTime(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"ac3f4381-b310-5e29-83f8-a211fa856d66\", \"pose\")",
+          "target": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"ac3f4381-b310-5e29-83f8-a211fa856d66\")",
+          "target": "NodeTime(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"d8539c0d-fef6-5dd1-9bbe-516855d17e0c\", \"pose\")",
+          "target": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"d8539c0d-fef6-5dd1-9bbe-516855d17e0c\")",
+          "target": "NodeTime(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"b274c92a-78c3-5b81-b25a-ca24a9927979\", \"pose\")",
+          "target": "NodeData(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"b274c92a-78c3-5b81-b25a-ca24a9927979\")",
+          "target": "NodeTime(\"b461d756-4d6b-6ba5-a52a-fc9f0968902b\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"value\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"5a15c30a-083f-528e-a8ef-ee91db9ce5a8\", \"value\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"phase\")"
+        },
+        {
+          "source": "NodeData(\"2e0f30f3-9389-5292-9521-25f7e55572a3\", \"lean_state.right_amount\")",
+          "target": "NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"x\")"
+        },
+        {
+          "source": "NodeData(\"8bf8140b-6f73-578b-9715-8961d134047d\", \"lean_state.forward_amount\")",
+          "target": "NodeData(\"6c1fffa0-d2ee-5aa2-99f8-54338425771f\", \"y\")"
+        },
+        {
+          "source": "NodeData(\"65f38991-5a91-5a3a-b27d-6c0893acb968\", \"pose\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_0\")"
+        },
+        {
+          "source": "NodeTime(\"65f38991-5a91-5a3a-b27d-6c0893acb968\")",
+          "target": "NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_0\")"
+        },
+        {
+          "source": "NodeData(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\", \"pose\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_1\")"
+        },
+        {
+          "source": "NodeTime(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\")",
+          "target": "NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_1\")"
+        },
+        {
+          "source": "NodeData(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\", \"pose\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_2\")"
+        },
+        {
+          "source": "NodeTime(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\")",
+          "target": "NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_2\")"
+        },
+        {
+          "source": "NodeData(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\", \"pose\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_3\")"
+        },
+        {
+          "source": "NodeTime(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\")",
+          "target": "NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_3\")"
+        },
+        {
+          "source": "NodeData(\"c297818d-8a05-550d-85dd-85129fcdde82\", \"pose\")",
+          "target": "NodeData(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"pose_sample_4\")"
+        },
+        {
+          "source": "NodeTime(\"c297818d-8a05-550d-85dd-85129fcdde82\")",
+          "target": "NodeTime(\"34f57700-443d-7c77-5457-2cb100b5b922\", \"time_sample_4\")"
+        },
+        {
+          "source": "NodeData(\"ef83c7af-4106-0331-5680-7996051665e9\", \"Pose\")",
+          "target": "OutputData(\"Result\")"
+        },
+        {
+          "source": "NodeData(\"e78eeb73-3925-5ac1-9762-b70bb3c400ac\", \"pose\")",
+          "target": "NodeData(\"65f38991-5a91-5a3a-b27d-6c0893acb968\", \"reference_pose\")"
+        },
+        {
+          "source": "NodeTime(\"e78eeb73-3925-5ac1-9762-b70bb3c400ac\")",
+          "target": "NodeTime(\"65f38991-5a91-5a3a-b27d-6c0893acb968\", \"reference_time\")"
+        },
+        {
+          "source": "NodeData(\"cf4c43fd-01c0-50ed-a6f1-641f62404d49\", \"pose\")",
+          "target": "NodeData(\"65f38991-5a91-5a3a-b27d-6c0893acb968\", \"target_pose\")"
+        },
+        {
+          "source": "NodeTime(\"cf4c43fd-01c0-50ed-a6f1-641f62404d49\")",
+          "target": "NodeTime(\"65f38991-5a91-5a3a-b27d-6c0893acb968\", \"target_time\")"
+        },
+        {
+          "source": "NodeData(\"622ccaf9-afb6-5e19-820d-3d4c68d20833\", \"pose\")",
+          "target": "NodeData(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\", \"reference_pose\")"
+        },
+        {
+          "source": "NodeTime(\"622ccaf9-afb6-5e19-820d-3d4c68d20833\")",
+          "target": "NodeTime(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\", \"reference_time\")"
+        },
+        {
+          "source": "NodeData(\"ac6fff66-da3f-58c7-bca0-b79530f149fd\", \"pose\")",
+          "target": "NodeData(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\", \"target_pose\")"
+        },
+        {
+          "source": "NodeTime(\"ac6fff66-da3f-58c7-bca0-b79530f149fd\")",
+          "target": "NodeTime(\"9ab98ca2-25d6-59b8-b172-106fc6a72652\", \"target_time\")"
+        },
+        {
+          "source": "NodeData(\"5bef23f4-44ba-59e5-84ca-45658097de9e\", \"pose\")",
+          "target": "NodeData(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\", \"reference_pose\")"
+        },
+        {
+          "source": "NodeTime(\"5bef23f4-44ba-59e5-84ca-45658097de9e\")",
+          "target": "NodeTime(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\", \"reference_time\")"
+        },
+        {
+          "source": "NodeData(\"89ef7c23-6e9b-55a1-84eb-3a2777ab8d3e\", \"pose\")",
+          "target": "NodeData(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\", \"target_pose\")"
+        },
+        {
+          "source": "NodeTime(\"89ef7c23-6e9b-55a1-84eb-3a2777ab8d3e\")",
+          "target": "NodeTime(\"1919d472-46aa-5d9b-9e31-8faec79ca8e5\", \"target_time\")"
+        },
+        {
+          "source": "NodeData(\"eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47\", \"pose\")",
+          "target": "NodeData(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\", \"reference_pose\")"
+        },
+        {
+          "source": "NodeTime(\"eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47\")",
+          "target": "NodeTime(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\", \"reference_time\")"
+        },
+        {
+          "source": "NodeData(\"dd58defb-8c73-543a-85d1-5ea8581be5db\", \"pose\")",
+          "target": "NodeData(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\", \"target_pose\")"
+        },
+        {
+          "source": "NodeTime(\"dd58defb-8c73-543a-85d1-5ea8581be5db\")",
+          "target": "NodeTime(\"8e15cbad-3c18-5de8-bff0-cd5be15542f0\", \"target_time\")"
+        },
+        {
+          "source": "NodeData(\"7bec247e-e791-5277-bb4e-fd798164c785\", \"pose\")",
+          "target": "NodeData(\"c297818d-8a05-550d-85dd-85129fcdde82\", \"reference_pose\")"
+        },
+        {
+          "source": "NodeTime(\"7bec247e-e791-5277-bb4e-fd798164c785\")",
+          "target": "NodeTime(\"c297818d-8a05-550d-85dd-85129fcdde82\", \"reference_time\")"
+        },
+        {
+          "source": "NodeData(\"7accd076-2f2c-590b-950c-6b51e76a72dc\", \"pose\")",
+          "target": "NodeData(\"c297818d-8a05-550d-85dd-85129fcdde82\", \"target_pose\")"
+        },
+        {
+          "source": "NodeTime(\"7accd076-2f2c-590b-950c-6b51e76a72dc\")",
+          "target": "NodeTime(\"c297818d-8a05-550d-85dd-85129fcdde82\", \"target_time\")"
+        },
+        {
+          "source": "NodeData(\"26cc36d1-fa70-59af-9d7e-98a675f08b3e\", \"value\")",
+          "target": "NodeData(\"e78eeb73-3925-5ac1-9762-b70bb3c400ac\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"70e2855f-b223-5ade-bc8a-fa098de38e26\", \"pose\")",
+          "target": "NodeData(\"e78eeb73-3925-5ac1-9762-b70bb3c400ac\", \"pose\")"
+        },
+        {
+          "source": "NodeTime(\"70e2855f-b223-5ade-bc8a-fa098de38e26\")",
+          "target": "NodeTime(\"e78eeb73-3925-5ac1-9762-b70bb3c400ac\", \"time\")"
+        },
+        {
+          "source": "NodeData(\"8611ec0b-42f9-5804-aaaa-f129b00d8a28\", \"value\")",
+          "target": "NodeData(\"622ccaf9-afb6-5e19-820d-3d4c68d20833\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"d2b0f053-079d-5e3a-882e-e4dd72170026\", \"pose\")",
+          "target": "NodeData(\"622ccaf9-afb6-5e19-820d-3d4c68d20833\", \"pose\")"
+        },
+        {
+          "source": "NodeTime(\"d2b0f053-079d-5e3a-882e-e4dd72170026\")",
+          "target": "NodeTime(\"622ccaf9-afb6-5e19-820d-3d4c68d20833\", \"time\")"
+        },
+        {
+          "source": "NodeData(\"28f6d6f2-4d4f-580a-bbb9-7e7306f0755e\", \"value\")",
+          "target": "NodeData(\"5bef23f4-44ba-59e5-84ca-45658097de9e\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"d54feab6-182f-52fb-9e68-9143d69c73e0\", \"pose\")",
+          "target": "NodeData(\"5bef23f4-44ba-59e5-84ca-45658097de9e\", \"pose\")"
+        },
+        {
+          "source": "NodeTime(\"d54feab6-182f-52fb-9e68-9143d69c73e0\")",
+          "target": "NodeTime(\"5bef23f4-44ba-59e5-84ca-45658097de9e\", \"time\")"
+        },
+        {
+          "source": "NodeData(\"72c9d99a-cf22-5463-ab2d-b046cc1e72c5\", \"value\")",
+          "target": "NodeData(\"eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"3ec46ceb-23af-5518-b9ab-3142534469b1\", \"pose\")",
+          "target": "NodeData(\"eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47\", \"pose\")"
+        },
+        {
+          "source": "NodeTime(\"3ec46ceb-23af-5518-b9ab-3142534469b1\")",
+          "target": "NodeTime(\"eb9d0dcf-3967-54a9-b7a3-fbaf37b1cf47\", \"time\")"
+        },
+        {
+          "source": "NodeData(\"0c2cc60e-aa25-57d5-a0b7-b44cff5a268a\", \"value\")",
+          "target": "NodeData(\"7bec247e-e791-5277-bb4e-fd798164c785\", \"position\")"
+        },
+        {
+          "source": "NodeData(\"de4110d9-891b-51b2-b667-63343c2694a1\", \"pose\")",
+          "target": "NodeData(\"7bec247e-e791-5277-bb4e-fd798164c785\", \"pose\")"
+        },
+        {
+          "source": "NodeTime(\"de4110d9-891b-51b2-b667-63343c2694a1\")",
+          "target": "NodeTime(\"7bec247e-e791-5277-bb4e-fd798164c785\", \"time\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_generated_standing_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf115_standing/converter_source",
+        "--materialized-directory",
+        "target/bf115_standing/clock_conversion",
+        "--spec",
+        "target/bf115_standing/clock.spec.json"
+      ]
+    },
+    {
+      "label": "standing_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing"
+      ]
+    },
+    {
+      "label": "standing_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "standing_direction"
+  }
+}

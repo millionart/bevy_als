@@ -2256,7 +2256,7 @@ fn drive_manual_integration(
                 source_sync_group: case.direction_signature_group.map(|_| "Movement"),
                 sync_phase_global: case
                     .direction_signature_group
-                    .map(|_| "als_standing_movement_marker_phase"),
+                    .map(|_| "sync_groups.ab_als_standing.movement.phase"),
                 canonical_sync_phase: case.direction_signature_group.map(|_| 0.5),
                 canonical_clip_time: None,
                 maximum_clip_time_distance: 0.0,

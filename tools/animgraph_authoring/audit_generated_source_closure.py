@@ -29,6 +29,16 @@ def reachable_pair(edges, start, end, originals):
                 pending.append(target)
     return False
 
+def compiled_asset_differences(output, assets_root):
+    paths = list(output.rglob("*.ron"))
+    failures = []
+    for path in paths:
+        relative = path.relative_to(output)
+        installed = assets_root / relative
+        if not installed.is_file() or installed.read_text(encoding="utf-8") != path.read_text(encoding="utf-8"):
+            failures.append({"kind": "compiled_asset_drift", "asset": relative.as_posix()})
+    return len(paths), failures
+
 def audit(source_directory, output, spec_path, assets_root):
     specs = json.loads(spec_path.read_text(encoding="utf-8"))
     sources = {}
@@ -49,6 +59,8 @@ def audit(source_directory, output, spec_path, assets_root):
         raise ValueError("native source closure is incomplete")
     sources = {asset: sources[asset] for asset in expected_sources}
     root_asset = conversion["source"]["package_path"]
+    totals["compiled_assets"], compiled_failures = compiled_asset_differences(output, assets_root)
+    failures.extend(compiled_failures)
     for asset, source in sources.items():
         manifest_path = output / ("materialization.manifest.json" if asset == root_asset else "linked_manifests/" + source_identifier_key(asset) + ".json")
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -123,6 +135,16 @@ def main():
         assert not reachable_pair({"a": ["helper"], "helper": ["helper"]}, "a", "b", originals)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
+            compiled = path / "compiled"
+            installed = path / "installed"
+            compiled.mkdir()
+            installed.mkdir()
+            (compiled / "state.fsm.ron").write_text("source", encoding="utf-8")
+            assert compiled_asset_differences(compiled, installed)[1]
+            (installed / "state.fsm.ron").write_text("source", encoding="utf-8")
+            assert compiled_asset_differences(compiled, installed) == (1, [])
+            (installed / "state.fsm.ron").write_text("changed", encoding="utf-8")
+            assert compiled_asset_differences(compiled, installed)[1]
             (path / "spec.json").write_text("{}", encoding="utf-8")
             (path / "conversion.report.json").write_text('{"pass":true,"unsupported":[],"source":{"package_path":"/Test/A.A"}}', encoding="utf-8")
             (path / "integration.report.json").write_text('{"conversion_status":"ready","source_closure":[{"source_asset":"/Test/A.A"}]}', encoding="utf-8")
@@ -132,7 +154,7 @@ def main():
                 assert "native source closure is incomplete" in str(error)
             else:
                 raise AssertionError("an empty source closure was accepted")
-        print('{"compiler_helper_path": "PASS", "unrelated_source_node_rejected": "PASS", "helper_cycle_terminates": "PASS"}')
+        print('{"compiler_helper_path": "PASS", "unrelated_source_node_rejected": "PASS", "helper_cycle_terminates": "PASS", "compiled_asset_drift_rejected": "PASS"}')
         return 0
     try:
         if not all((args.source_directory, args.materialized_directory, args.spec)):

@@ -233,6 +233,16 @@ mod tests {
                         context.clone(),
                     )
                     .unwrap();
+                let observed = crate::sync_group_phase::source_sync_phase(
+                    &arena,
+                    &resources.animation_graph_assets,
+                    "group",
+                );
+                let synchronized = graph.nodes.values().any(|node| {
+                    node.try_inner_downcast_ref::<SourcePosePassthroughNode>()
+                        .is_some_and(|node| node.synchronize_groups)
+                });
+                assert_eq!(observed.is_some(), synchronized);
                 result.push(
                     crate::animation_context::graph_output_context_state(graph, &context, "Pose")
                         .unwrap(),
@@ -334,7 +344,7 @@ mod tests {
                             playback: Some(SourceSyncPlayerBinding {
                                 key: "group".into(),
                                 start_position: start,
-                                play_rate_key: "rate".into(),
+                                play_rate_key: String::new(),
                                 delta_seconds_key: "delta".into(),
                                 ..default()
                             }),

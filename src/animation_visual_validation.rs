@@ -2225,6 +2225,18 @@ fn record_motion_window(
     graphs: &Assets<AnimationGraph>,
     elapsed_seconds: f64,
 ) -> bool {
+    let sync_phase = evidence.sync_phase_global.and_then(|key| {
+        if key.starts_with("sync_groups.") {
+            player
+                .get_context_arena()
+                .and_then(|arena| als_ext::sync_group_phase::source_sync_phase(arena, graphs, key))
+        } else {
+            player
+                .get_global_input_data(key)
+                .and_then(|value| value.as_f32().ok())
+        }
+        .filter(|value| value.is_finite())
+    });
     let Some(label) = record_motion_window_metadata(state, evidence) else {
         return false;
     };
@@ -2349,12 +2361,7 @@ fn record_motion_window(
     if tracker.sync_phase_global.is_empty() {
         tracker.sync_phase_global = evidence.sync_phase_global.unwrap_or_default().to_owned();
     }
-    if let Some(sync_phase) = evidence.sync_phase_global.and_then(|key| {
-        player
-            .get_global_input_data(key)
-            .and_then(|value| value.as_f32().ok())
-            .filter(|value| value.is_finite())
-    }) {
+    if let Some(sync_phase) = sync_phase {
         tracker.sync_phase_min = Some(
             tracker
                 .sync_phase_min
@@ -2471,11 +2478,7 @@ fn record_motion_window(
     } else {
         tracker
             .canonical_sync_phase
-            .zip(evidence.sync_phase_global.and_then(|key| {
-                player
-                    .get_global_input_data(key)
-                    .and_then(|value| value.as_f32().ok())
-            }))
+            .zip(sync_phase)
             .map(|(target, phase)| {
                 (
                     wrapped_phase_distance(phase, target),

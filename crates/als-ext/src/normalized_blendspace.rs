@@ -266,6 +266,30 @@ impl NormalizedBlendSpaceNode {
             .iter()
             .map(|point| (point.point.as_dvec2() - minimum) / size)
             .collect::<Vec<_>>();
+        if source.triangles.len() == 1 {
+            let [a, b, c] = source.triangles[0];
+            if a == b {
+                return Ok(vec![(a, 1.0)]);
+            }
+            if b == c {
+                let delta = vertices[b] - vertices[a];
+                if delta.length_squared() <= f64::EPSILON {
+                    return Err("source BlendSpace segment is invalid".to_owned());
+                }
+                let alpha = ((position - vertices[a]).dot(delta) / delta.length_squared())
+                    .clamp(0.0, 1.0) as f32;
+                let mut weights = vec![(a, 1.0 - alpha), (b, alpha)];
+                weights.retain(|(_, weight)| *weight > 1e-5);
+                if weights.len() == 2 && weights[0].1 <= weights[1].1 {
+                    weights.swap(0, 1);
+                }
+                let total = weights.iter().map(|(_, weight)| *weight).sum::<f32>();
+                for (_, weight) in &mut weights {
+                    *weight /= total;
+                }
+                return Ok(weights);
+            }
+        }
         if source.triangles.iter().any(|indices| {
             (vertices[indices[1]] - vertices[indices[0]])
                 .perp_dot(vertices[indices[2]] - vertices[indices[0]])
@@ -520,7 +544,11 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = global_f32_or_root_default(&ctx, &playback.delta_seconds_key)?;
-            let play_rate = global_f32_or_root_default(&ctx, &playback.play_rate_key)?;
+            let play_rate = if playback.play_rate_key.is_empty() {
+                1.0
+            } else {
+                global_f32_or_root_default(&ctx, &playback.play_rate_key)?
+            };
             let previous = ctx
                 .state::<NormalizedBlendSpaceState>()
                 .ok()
@@ -944,6 +972,16 @@ mod tests {
         let reset = node.source_weights(near_edge, &mut None).unwrap();
         assert_eq!(retained.len(), 2);
         assert_eq!(reset.len(), 3);
+        node.source_triangulation.as_mut().unwrap().triangles = vec![[0, 0, 0]];
+        assert_eq!(
+            node.source_weights(Vec2::ONE, &mut None).unwrap(),
+            vec![(0, 1.0)]
+        );
+        node.source_triangulation.as_mut().unwrap().triangles = vec![[0, 1, 1]];
+        assert_eq!(
+            node.source_weights(Vec2::splat(0.5), &mut None).unwrap(),
+            vec![(1, 0.5), (0, 0.5)]
+        );
     }
 
     #[test]

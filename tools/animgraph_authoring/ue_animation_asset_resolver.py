@@ -545,6 +545,34 @@ def blendspace_source_sample(value):
     }
 
 
+def blendspace_triangulation(source, axes, samples):
+    minimum = [axis["min"] for axis in axes[:2]]
+    maximum = [axis["max"] for axis in axes[:2]]
+    if any(high <= low for low, high in zip(minimum, maximum)):
+        raise AssetResolutionError("source BlendSpace axis range is invalid")
+    fields = parse_struct(asset_property(source, "BlendSpaceData"))
+    reject_unknown_fields(fields, {"Triangles", "Segments"})
+    if struct_field(fields, "Segments", "()") != "()":
+        raise AssetResolutionError("source BlendSpace segment data is unsupported")
+    triangles = []
+    for row in parse_list(struct_field(fields, "Triangles")):
+        fields = parse_struct(row)
+        reject_unknown_fields(fields, {f"{name}[{index}]" for name in ("SampleIndices", "Vertices", "EdgeInfo") for index in range(3)})
+        indices = [parse_number(struct_field(fields, f"SampleIndices[{index}]")) for index in range(3)]
+        if any(index != int(index) or not 0 <= index < len(samples) for index in indices):
+            raise AssetResolutionError("source BlendSpace triangle sample index is invalid")
+        indices = [int(index) for index in indices]
+        for corner, index in enumerate(indices):
+            vertex = blendspace_vector(struct_field(fields, f"Vertices[{corner}]", "()"))[:2]
+            expected = [(samples[index]["value"][axis] - minimum[axis]) / (maximum[axis] - minimum[axis]) for axis in range(2)]
+            if any(abs(actual - expected) > 1e-6 for actual, expected in zip(vertex, expected)):
+                raise AssetResolutionError("source BlendSpace normalized triangle vertex differs from its sample")
+        triangles.append(indices)
+    if not triangles:
+        raise AssetResolutionError("source BlendSpace triangles are missing")
+    return {"axis_min": minimum, "axis_max": maximum, "triangles": triangles}
+
+
 def blendspace_player_asset_contract(source, blendspace):
     if (
         not isinstance(source, dict)
@@ -610,6 +638,7 @@ def blendspace_player_asset_contract(source, blendspace):
             raise AssetResolutionError("source BlendSpace triangulation is unsupported")
         if asset_property(source, "NotifyTriggerMode") != "HighestWeightedAnimation":
             raise AssetResolutionError("source BlendSpace notify mode is unsupported")
+        triangulation = blendspace_triangulation(source, axes, source_samples)
     except ExportedTextError as error:
         raise AssetResolutionError("source BlendSpace properties are invalid") from error
     target_axes = blendspace.get("axes")
@@ -647,6 +676,7 @@ def blendspace_player_asset_contract(source, blendspace):
             raise AssetResolutionError("target BlendSpace sample metadata differs from source")
     return {
         "axis_filter": {"x_window_seconds": filters[0], "y_window_seconds": filters[1]},
+        "triangulation": triangulation,
     }
 
 
@@ -793,6 +823,7 @@ def blendspace_player_contract(node, blendspace, asset_contract):
         "start_position": start_position,
         "configured_play_rate": configured_play_rate,
         "axis_filter": asset_contract["axis_filter"],
+        "triangulation": asset_contract["triangulation"],
     }
 
 
@@ -1208,6 +1239,7 @@ def run_self_test():
         {"name": "bInterpolateUsingGrid", "exported_text": "False"},
         {"name": "PreferredTriangulationDirection", "exported_text": "Tangential"},
         {"name": "NotifyTriggerMode", "exported_text": "HighestWeightedAnimation"},
+        {"name": "BlendSpaceData", "exported_text": "(Triangles=((SampleIndices[0]=0,SampleIndices[1]=0,SampleIndices[2]=0)))"},
     ]
     player_source = {
         "format": "ue_asset_source_v1",
@@ -1217,6 +1249,7 @@ def run_self_test():
     }
     player_asset = blendspace_player_asset_contract(player_source, player_blendspace)
     assert player_asset["axis_filter"] == {"x_window_seconds": 0.2, "y_window_seconds": 0.4}
+    assert player_asset["triangulation"]["triangles"] == [[0, 0, 0]]
     player_node = {
         "properties": [
             {

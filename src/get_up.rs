@@ -179,6 +179,7 @@ pub(crate) fn sampled_curve_context(
             .collect(),
         relevant_asset: None,
         curves_are_authoritative: true,
+        ..default()
     }
 }
 

@@ -832,9 +832,6 @@ struct StandingGraphInputs {
     sprint_acceleration_amount: f32,
     sprint_play_rate: f32,
     movement_marker_phase: f32,
-    first_pivot_phase: f32,
-    second_pivot_phase: f32,
-    run_start_phase: f32,
     pivot_active: bool,
     rotation_play_rate: f32,
     rotate_left_loop: bool,
@@ -1566,17 +1563,6 @@ fn detail_for(
     runtime.detail
 }
 
-fn detail_sync_phases(detail: StandingDetail, remaining: f32) -> (f32, f32, f32) {
-    let elapsed = |duration: f32| (duration - remaining.max(0.0)).max(0.0).fract();
-    match detail {
-        StandingDetail::FirstPivot => (elapsed(PIVOT_DURATION), 0.0, 0.0),
-        StandingDetail::SecondPivot => (0.0, elapsed(PIVOT_DURATION), 0.0),
-        StandingDetail::RunStart => (0.0, 0.0, elapsed(RUN_START_DURATION)),
-        StandingDetail::RunStartFromWalk => (0.0, 0.0, elapsed(RUN_START_FROM_WALK_DURATION)),
-        _ => (0.0, 0.0, 0.0),
-    }
-}
-
 fn source_pivot_activates(requested: bool, horizontal_speed: f32) -> bool {
     requested && horizontal_speed.is_finite() && horizontal_speed < 2.0
 }
@@ -2028,8 +2014,6 @@ fn update_standing_inputs(
         play_rate,
         delta_seconds,
     );
-    let (first_pivot_phase, second_pivot_phase, run_start_phase) =
-        detail_sync_phases(runtime.detail, runtime.detail_remaining);
     runtime.previous_velocity = velocity;
     runtime.previous_gait = gait;
     runtime.previous_moving_smooth = moving_smooth;
@@ -2061,9 +2045,6 @@ fn update_standing_inputs(
         sprint_acceleration_amount,
         sprint_play_rate: play_rate,
         movement_marker_phase,
-        first_pivot_phase,
-        second_pivot_phase,
-        run_start_phase,
         pivot_active: pivot,
         rotation_play_rate,
         rotate_left_loop,
@@ -2242,22 +2223,6 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         (
             "standing_state.b_pivot_active",
             inputs.pivot_active as u8 as f32,
-        ),
-        (
-            "sync_groups.ab_als_standing.movement.phase",
-            inputs.movement_marker_phase,
-        ),
-        (
-            "sync_groups.ab_als_standing.first_pivot.phase",
-            inputs.first_pivot_phase,
-        ),
-        (
-            "sync_groups.ab_als_standing.second_pivot.phase",
-            inputs.second_pivot_phase,
-        ),
-        (
-            "sync_groups.ab_als_standing.run_start.phase",
-            inputs.run_start_phase,
         ),
     ] {
         player.set_global_input_data(key, value);
@@ -2982,15 +2947,12 @@ mod tests {
     }
 
     #[test]
-    fn standing_writes_the_canonical_movement_phase_for_linked_overlays() {
+    fn standing_does_not_supply_generated_graph_clock_values() {
         let mut player = AnimationGraphPlayer::new(default());
         write_standing_inputs(
             &mut player,
             StandingGraphInputs {
                 movement_marker_phase: 0.25,
-                first_pivot_phase: 0.1,
-                second_pivot_phase: 0.2,
-                run_start_phase: 0.3,
                 pivot_active: true,
                 ..default()
             },
@@ -3005,13 +2967,13 @@ mod tests {
             player
                 .get_global_input_data("sync_groups.ab_als_standing.movement.phase")
                 .and_then(|value| value.as_f32().ok()),
-            Some(0.25)
+            None
         );
         assert_eq!(
             player
                 .get_global_input_data("sync_groups.ab_als_standing.first_pivot.phase")
                 .and_then(|value| value.as_f32().ok()),
-            Some(0.1)
+            None
         );
         assert_eq!(
             player
@@ -3104,23 +3066,6 @@ mod tests {
         assert!((RUN_START_DURATION - 0.72).abs() < 1e-6);
         assert!((RUN_START_FROM_WALK_DURATION - 0.68).abs() < 1e-6);
         assert!((PIVOT_DURATION - 0.6).abs() < 1e-6);
-    }
-
-    #[test]
-    fn detail_sync_groups_only_advance_the_active_source_detail() {
-        let (first, second, run_start) = detail_sync_phases(StandingDetail::FirstPivot, 0.35);
-        assert!((first - 0.25).abs() < 1e-6);
-        assert_eq!((second, run_start), (0.0, 0.0));
-        let (first, second, run_start) = detail_sync_phases(StandingDetail::SecondPivot, 0.1);
-        assert_eq!((first, run_start), (0.0, 0.0));
-        assert!((second - 0.5).abs() < 1e-6);
-        let (first, second, run_start) = detail_sync_phases(StandingDetail::RunStart, 0.22);
-        assert_eq!((first, second), (0.0, 0.0));
-        assert!((run_start - 0.5).abs() < 1e-6);
-        assert_eq!(
-            detail_sync_phases(StandingDetail::Walk, 0.0),
-            (0.0, 0.0, 0.0)
-        );
     }
 
     #[test]

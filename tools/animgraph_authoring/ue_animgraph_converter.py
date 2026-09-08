@@ -1295,7 +1295,7 @@ def build_sync_group_plans(source_asset, graphs, animation_assets):
             "phase_markers": basis["source_markers"],
             "phase_looped": basis["source_looped"],
             "candidates": rows,
-            "status": "requires_target_provider",
+            "status": "graph_owned",
         }
         for row in rows:
             _, node, semantic = candidates[row["source_node"]]
@@ -1449,6 +1449,10 @@ def build_ir(
         )
     ]
     for graph in graphs:
+        if graph["source_graph"] == root_graph and sync_group_plans:
+            for node in graph["nodes"]:
+                if node.get("renderer") in {"root_output", "state_result"}:
+                    node["semantic"] = {**(node.get("semantic") or {}), "synchronize_groups": True}
         if graph["kind"] == "graph":
             graph["pose_renderer"] = pose_renderer_status(
                 contract(source, graph["source_graph"]),
@@ -1539,12 +1543,8 @@ def integration_sync_phase_providers(ir):
     rows = [
         {
             **plan,
-            "target_provider": runtime_provider(
-                "sync_phase_providers", plan["target_phase_key"]
-            ),
-            "status": "mapped"
-            if runtime_provider("sync_phase_providers", plan["target_phase_key"])
-            else plan["status"],
+            "target_provider": "als_ext::SourcePosePassthroughNode",
+            "status": "mapped",
         }
         for plan in plans
         if isinstance(plan, dict)

@@ -79,11 +79,7 @@
     "sync_groups.ab_als_locomotion.fall.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
     "sync_groups.ab_als_locomotion.flail.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
     "sync_groups.ab_als_locomotion.jump.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
-    "sync_groups.ab_als_locomotion.land.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
-    "sync_groups.ab_als_standing.first_pivot.phase": "crate::standing_layer::StandingLayerPlugin",
-    "sync_groups.ab_als_standing.movement.phase": "crate::standing_layer::StandingLayerPlugin",
-    "sync_groups.ab_als_standing.run_start.phase": "crate::standing_layer::StandingLayerPlugin",
-    "sync_groups.ab_als_standing.second_pivot.phase": "crate::standing_layer::StandingLayerPlugin"
+    "sync_groups.ab_als_locomotion.land.phase": "crate::locomotion_layer::LocomotionLayerPlugin"
   },
   "slot_providers": {
     "ArmLeft": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
