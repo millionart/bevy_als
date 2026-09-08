@@ -250,16 +250,23 @@ def direction_signature_issues(windows):
             issues.append(f"direction signature expected direction is missing: {label}")
         if not isinstance(observed_directions, list) or observed_directions != [expected_direction]:
             issues.append(f"direction signature observed direction does not match: {label}")
-        if not isinstance(expected_runtime_state, int) or expected_runtime_state < 0:
-            issues.append(f"direction signature expected runtime state is invalid: {label}")
-        if not isinstance(observed_runtime_states, list) or observed_runtime_states != [expected_runtime_state]:
-            issues.append(f"direction signature observed runtime state does not match: {label}")
-        if not isinstance(source_sync_group, str) or not source_sync_group:
-            issues.append(f"direction signature source sync group is missing: {label}")
-        if not isinstance(sync_phase_global, str) or not sync_phase_global:
-            issues.append(f"direction signature sync phase input is missing: {label}")
-        if not finite(canonical_phase) or not 0.0 <= canonical_phase < 1.0:
-            issues.append(f"direction signature canonical phase is invalid: {label}")
+        clip_time = window.get("canonical_clip_time")
+        if clip_time is not None:
+            if not finite(clip_time) or clip_time < 0.0 or canonical_phase is not None:
+                issues.append(f"direction signature canonical clip time is invalid: {label}")
+            maximum_phase_distance = window.get("maximum_clip_time_distance")
+            canonical_phase_distance = window.get("canonical_clip_time_distance")
+        else:
+            if not isinstance(expected_runtime_state, int) or expected_runtime_state < 0:
+                issues.append(f"direction signature expected runtime state is invalid: {label}")
+            if not isinstance(observed_runtime_states, list) or observed_runtime_states != [expected_runtime_state]:
+                issues.append(f"direction signature observed runtime state does not match: {label}")
+            if not isinstance(source_sync_group, str) or not source_sync_group:
+                issues.append(f"direction signature source sync group is missing: {label}")
+            if not isinstance(sync_phase_global, str) or not sync_phase_global:
+                issues.append(f"direction signature sync phase input is missing: {label}")
+            if not finite(canonical_phase) or not 0.0 <= canonical_phase < 1.0:
+                issues.append(f"direction signature canonical phase is invalid: {label}")
         if not finite(maximum_phase_distance) or maximum_phase_distance <= MOTION_EPSILON:
             issues.append(f"direction signature phase tolerance is invalid: {label}")
         if not finite(canonical_phase_distance) or canonical_phase_distance < 0.0:
@@ -1688,6 +1695,33 @@ def add_dynamic_window_samples(report, labels):
 
 
 def run_self_test():
+    clip_windows = [
+        fixture_motion_window(label, rotation, "Slot variants")
+        for label, rotation in [("front", 0.0), ("back", 1.0)]
+    ]
+    for window in clip_windows:
+        window.update(
+            expected_runtime_state=None,
+            observed_runtime_states=[],
+            source_sync_group="",
+            sync_phase_global="",
+            canonical_sync_phase=None,
+            canonical_sync_phase_distance=None,
+            maximum_sync_phase_distance=0.0,
+            canonical_clip_time=0.6,
+            maximum_clip_time_distance=0.1,
+            canonical_clip_time_distance=0.02,
+            required_direction_signature_members=2,
+        )
+    assert not direction_signature_issues(clip_windows)
+    clip_windows[1]["canonical_pre_rig_pose"] = clip_windows[0]["canonical_pre_rig_pose"]
+    assert any("not distinct" in issue for issue in direction_signature_issues(clip_windows))
+    clip_windows[1]["canonical_pre_rig_pose"] = fixture_canonical_pose(1.0)
+    clip_windows[1]["canonical_clip_time_distance"] = 0.2
+    assert any("outside tolerance" in issue for issue in direction_signature_issues(clip_windows))
+    clip_windows[1]["canonical_clip_time_distance"] = 0.02
+    clip_windows[1]["observed_directions"] = clip_windows[0]["observed_directions"]
+    assert any("does not match" in issue for issue in direction_signature_issues(clip_windows))
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         paths = []
@@ -2249,6 +2283,7 @@ def run_self_test():
         "opposite_actor_yaw_rejected": "PASS",
         "turn_lifecycle_completion_required": "PASS",
         "collapsed_direction_signatures_rejected": "PASS",
+        "montage_clip_signature_contract_checked": "PASS",
         "wrong_direction_state_rejected": "PASS",
     }
 

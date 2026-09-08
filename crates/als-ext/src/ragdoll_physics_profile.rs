@@ -9,8 +9,12 @@ use bevy::ecs::schedule::ApplyDeferred;
 use bevy::ecs::system::SystemParam;
 use bevy::math::Isometry3d;
 use bevy::prelude::*;
+use bevy_animation_graph::core::animated_scene::{
+    AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance,
+};
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
+use bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap;
 use bevy_animation_graph::core::ragdoll::definition::{
     BodyLabel, BodyMode, ColliderLabel, JointLabel,
 };
@@ -293,6 +297,9 @@ pub struct RagdollPhysicsProfileApplied {
     pub handoff_locked_joint_anchor_error_m: f32,
     pub handoff_locked_joint_anchor_profile_index: Option<u8>,
     pub handoff_locked_joint_anchor_pending: bool,
+    pub handoff_animated_body_count: u32,
+    pub handoff_animated_body_position_error_m: f32,
+    pub handoff_animated_body_rotation_error_radians: f32,
 }
 
 #[derive(SystemParam)]
@@ -540,6 +547,7 @@ fn observe_ragdoll_joint_anchor_error(
 
 fn observe_ragdoll_handoff_anchor_error(
     mut players: Query<(
+        Entity,
         &AnimationGraphPlayer,
         &RagdollPhysicsProfile,
         &mut RagdollPhysicsProfileApplied,
@@ -547,8 +555,12 @@ fn observe_ragdoll_handoff_anchor_error(
     joint_labels: Query<&JointLabel>,
     joints: Query<&SourcePhysicsJoint>,
     body_transforms: Query<(&Position, &Rotation)>,
+    scenes: Query<(&AnimatedSceneHandle, &AnimatedSceneInstance)>,
+    scene_assets: Option<Res<Assets<AnimatedScene>>>,
+    maps: Option<Res<Assets<RagdollBoneMap>>>,
+    bone_globals: Query<&GlobalTransform>,
 ) {
-    for (player, source_profile, mut profile) in &mut players {
+    for (entity, player, source_profile, mut profile) in &mut players {
         if !profile.handoff_locked_joint_anchor_pending {
             continue;
         }
@@ -556,6 +568,39 @@ fn observe_ragdoll_handoff_anchor_error(
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
+        profile.handoff_animated_body_count = 0;
+        profile.handoff_animated_body_position_error_m = 0.0;
+        profile.handoff_animated_body_rotation_error_radians = 0.0;
+        let mapping = scenes
+            .iter()
+            .find(|(_, instance)| instance.player_entity() == entity)
+            .and_then(|(handle, _)| scene_assets.as_ref()?.get(&handle.handle))
+            .and_then(|scene| maps.as_ref()?.get(scene.ragdoll_bone_map.as_ref()?));
+        if let Some(mapping) = mapping {
+            for (id, body) in &spawned.bodies {
+                let Some(mapping) = mapping.bodies_from_bones.get(id) else {
+                    continue;
+                };
+                let Some(bone) = player.bone_entity(mapping.bone.bone.id()) else {
+                    continue;
+                };
+                let (Ok(global), Ok((position, rotation))) =
+                    (bone_globals.get(bone), body_transforms.get(*body))
+                else {
+                    continue;
+                };
+                let expected = global.to_isometry() * mapping.bone.offset;
+                let (position_error, rotation_error) =
+                    body_pose_error(expected, Isometry3d::new(position.0, rotation.0));
+                profile.handoff_animated_body_count += 1;
+                profile.handoff_animated_body_position_error_m = profile
+                    .handoff_animated_body_position_error_m
+                    .max(position_error);
+                profile.handoff_animated_body_rotation_error_radians = profile
+                    .handoff_animated_body_rotation_error_radians
+                    .max(rotation_error);
+            }
+        }
         let Some((index, error)) = locked_joint_anchor_error(
             spawned,
             source_profile,
@@ -570,6 +615,16 @@ fn observe_ragdoll_handoff_anchor_error(
         profile.handoff_locked_joint_anchor_error_m = error;
         profile.handoff_locked_joint_anchor_profile_index = u8::try_from(index).ok();
     }
+}
+
+fn body_pose_error(expected: Isometry3d, actual: Isometry3d) -> (f32, f32) {
+    (
+        expected.translation.distance(actual.translation),
+        (expected.rotation * actual.rotation.conjugate())
+            .normalize()
+            .to_scaled_axis()
+            .length(),
+    )
 }
 
 fn locked_joint_anchor_error(
@@ -744,6 +799,26 @@ mod tests {
             ),
             0.0
         );
+    }
+
+    #[test]
+    fn source_animation_anchor_gap_is_preserved_without_a_body_pose_error() {
+        let calf =
+            Isometry3d::from_translation(Vec3::new(-0.42552558, -0.0000001907, -0.0000160599));
+        let reference =
+            Isometry3d::from_translation(Vec3::new(-0.42572044, 0.0000000886, -0.0000000071));
+        assert!(
+            joint_anchor_distance(
+                Vec3::ZERO,
+                Quat::IDENTITY,
+                reference,
+                calf.translation.into(),
+                calf.rotation,
+                Isometry3d::IDENTITY
+            ) > 1e-4
+        );
+        assert_eq!(body_pose_error(calf, calf), (0.0, 0.0));
+        assert!(body_pose_error(calf, reference).0 > 1e-4);
     }
 
     #[test]

@@ -172,7 +172,8 @@ impl Plugin for AlsRagdollLinkPlugin {
         )
         .add_systems(
             PostUpdate,
-            sync_animated_ragdoll_bodies.after(TransformSystems::Propagate),
+            sync_animated_ragdoll_bodies
+                .after(crate::control_rig_apply::AlsControlRigPropagationSet),
         );
     }
 }
@@ -1516,6 +1517,24 @@ mod tests {
             ragdoll::definition::{Collider as RagdollCollider, ColliderMassMode},
         };
 
+        fn late_rig(
+            characters: Query<&LocomotionState, With<AlsCharacter>>,
+            mut bones: Query<(&Name, &mut Transform)>,
+        ) {
+            if characters
+                .iter()
+                .any(|state| *state == LocomotionState::Ragdolling)
+            {
+                return;
+            }
+            for (name, mut transform) in &mut bones {
+                if name.as_str() == "pelvis" {
+                    transform.translation.x += 0.013;
+                    transform.rotation *= Quat::from_rotation_z(0.18);
+                }
+            }
+        }
+
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -1540,27 +1559,24 @@ mod tests {
             std::time::Duration::from_secs_f32(1.0 / 60.0),
         ))
         .add_plugins(crate::ragdolling_layer::RagdollingLayerPlugin)
+        .add_plugins(als_ext::RagdollPhysicsProfilePlugin)
+        .init_asset::<AlsMovementParams>()
+        .add_plugins(AlsRagdollLinkPlugin)
         .configure_sets(
             PostUpdate,
             crate::ragdolling_layer::AlsRagdollingLayerSet.before(AnimationGraphSet::PrePhysics),
         )
+        .add_systems(PostUpdate, late_rig.after(TransformSystems::Propagate))
         .add_systems(
-            Update,
+            PostUpdate,
             (
-                capture_ragdoll_player_world_transform,
-                restore_ragdoll_player_parent,
+                bevy::transform::systems::mark_dirty_trees,
+                bevy::transform::systems::propagate_parent_transforms,
+                bevy::transform::systems::sync_simple_transforms,
             )
-                .chain(),
-        )
-        .add_systems(
-            PostUpdate,
-            sync_ragdoll_body_modes
-                .after(AnimationGraphSet::PrePhysics)
-                .before(PhysicsSystems::First),
-        )
-        .add_systems(
-            PostUpdate,
-            sync_animated_ragdoll_bodies.after(TransformSystems::Propagate),
+                .chain()
+                .after(late_rig)
+                .in_set(crate::control_rig_apply::AlsControlRigPropagationSet),
         );
         app.finish();
         app.cleanup();
@@ -1753,7 +1769,24 @@ mod tests {
             .get_spawned_ragdoll()
             .unwrap()
             .bodies[&body_id];
-        let expected = player_world * armature_local * joint_local;
+        app.world_mut().entity_mut(player_entity).insert((
+            als_ext::RagdollPhysicsProfile {
+                bodies: vec![],
+                colliders: vec![],
+                joints: vec![],
+                collision_disabled_pairs: std::sync::Arc::from([]),
+            },
+            RagdollPhysicsProfileApplied {
+                body_count: 1,
+                ..default()
+            },
+        ));
+        let rigged_joint_local = Transform {
+            translation: joint_local.translation + Vec3::X * 0.013,
+            rotation: joint_local.rotation * Quat::from_rotation_z(0.18),
+            ..joint_local
+        };
+        let expected = player_world * armature_local * rigged_joint_local;
         let actual =
             Transform::from_translation(app.world().get::<Position>(body_entity).unwrap().0)
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
@@ -1772,7 +1805,7 @@ mod tests {
         for _ in 0..3 {
             app.update();
         }
-        let expected = moved_actor * avatar_local * armature_local * joint_local;
+        let expected = moved_actor * avatar_local * armature_local * rigged_joint_local;
         let actual =
             Transform::from_translation(app.world().get::<Position>(body_entity).unwrap().0)
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
@@ -1792,6 +1825,13 @@ mod tests {
             );
         app.update();
         assert!(app.world().get::<ChildOf>(player_entity).is_none());
+        let handoff = app
+            .world()
+            .get::<RagdollPhysicsProfileApplied>(player_entity)
+            .unwrap();
+        assert_eq!(handoff.handoff_animated_body_count, 1);
+        assert!(handoff.handoff_animated_body_position_error_m < 1e-4);
+        assert!(handoff.handoff_animated_body_rotation_error_radians < 1e-4);
         assert_eq!(
             *app.world().get::<RigidBody>(body_entity).unwrap(),
             RigidBody::Dynamic
@@ -1848,8 +1888,7 @@ mod tests {
             transforms_match(restored_world * armature_local * pelvis, expected),
             "exit snapshot must preserve the last simulated pelvis world pose"
         );
-        let expected_actor_rotation =
-            Quat::from_rotation_y(0.9 + 0.23 + std::f32::consts::FRAC_PI_2);
+        let expected_actor_rotation = ragdoll_recovery_rotation(expected.rotation).0;
         assert!(
             app.world()
                 .get::<Transform>(actor)

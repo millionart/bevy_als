@@ -436,6 +436,9 @@ struct MotionWindowTracker {
     canonical_sync_phase: Option<f32>,
     maximum_sync_phase_distance: f32,
     canonical_sync_phase_distance: Option<f32>,
+    canonical_clip_time: Option<f32>,
+    maximum_clip_time_distance: f32,
+    canonical_clip_time_distance: Option<f32>,
     direction_signature_group: String,
     required_direction_signature_members: usize,
     minimum_direction_signature_rotation_radians: f32,
@@ -532,6 +535,9 @@ struct MotionWindowSample {
     canonical_sync_phase: Option<f32>,
     maximum_sync_phase_distance: f32,
     canonical_sync_phase_distance: Option<f32>,
+    canonical_clip_time: Option<f32>,
+    maximum_clip_time_distance: f32,
+    canonical_clip_time_distance: Option<f32>,
     direction_signature_group: String,
     required_direction_signature_members: usize,
     minimum_direction_signature_rotation_radians: f32,
@@ -2364,6 +2370,8 @@ fn record_motion_window(
         .canonical_sync_phase
         .filter(|value| value.is_finite());
     tracker.maximum_sync_phase_distance = evidence.maximum_sync_phase_distance.max(0.0);
+    tracker.canonical_clip_time = evidence.canonical_clip_time;
+    tracker.maximum_clip_time_distance = evidence.maximum_clip_time_distance;
     if tracker.direction_signature_group.is_empty() {
         tracker.direction_signature_group = evidence
             .direction_signature_group
@@ -2452,26 +2460,38 @@ fn record_motion_window(
             tracker.root_pose_reference = Some(root_pose_value.clone());
         }
     }
-    if !tracker.direction_signature_group.is_empty()
-        && let (Some(target_phase), Some(sync_phase)) = (
-            tracker.canonical_sync_phase,
-            evidence.sync_phase_global.and_then(|key| {
+    let canonical_sample = if let Some(target_time) = tracker.canonical_clip_time {
+        evidence.observed_animation_clip_time.map(|time| {
+            (
+                (time - target_time).abs(),
+                tracker.maximum_clip_time_distance,
+                &mut tracker.canonical_clip_time_distance,
+            )
+        })
+    } else {
+        tracker
+            .canonical_sync_phase
+            .zip(evidence.sync_phase_global.and_then(|key| {
                 player
                     .get_global_input_data(key)
                     .and_then(|value| value.as_f32().ok())
-                    .filter(|value| value.is_finite())
-            }),
-        )
+            }))
+            .map(|(target, phase)| {
+                (
+                    wrapped_phase_distance(phase, target),
+                    tracker.maximum_sync_phase_distance,
+                    &mut tracker.canonical_sync_phase_distance,
+                )
+            })
+    };
+    if !tracker.direction_signature_group.is_empty()
+        && let Some((distance, maximum_distance, selected_distance)) = canonical_sample
+        && distance.is_finite()
+        && distance <= maximum_distance
+        && selected_distance.is_none_or(|current| distance < current)
     {
-        let distance = wrapped_phase_distance(sync_phase, target_phase);
-        if distance <= tracker.maximum_sync_phase_distance
-            && tracker
-                .canonical_sync_phase_distance
-                .is_none_or(|current| distance < current)
-        {
-            tracker.canonical_sync_phase_distance = Some(distance);
-            tracker.canonical_pre_rig_pose = pre_rig_current;
-        }
+        *selected_distance = Some(distance);
+        tracker.canonical_pre_rig_pose = pre_rig_current;
     }
     if evidence.requires_source_pose_chain {
         record_source_pose_chain(
@@ -2988,6 +3008,9 @@ fn write_report(
                 canonical_sync_phase: tracker.canonical_sync_phase,
                 maximum_sync_phase_distance: tracker.maximum_sync_phase_distance,
                 canonical_sync_phase_distance: tracker.canonical_sync_phase_distance,
+                canonical_clip_time: tracker.canonical_clip_time,
+                maximum_clip_time_distance: tracker.maximum_clip_time_distance,
+                canonical_clip_time_distance: tracker.canonical_clip_time_distance,
                 direction_signature_group: tracker.direction_signature_group.clone(),
                 required_direction_signature_members: tracker.required_direction_signature_members,
                 minimum_direction_signature_rotation_radians: tracker
@@ -3782,6 +3805,61 @@ fn collect_animation_visual_evidence(
 mod tests {
     use super::*;
     use bevy::ecs::system::In;
+
+    #[test]
+    fn canonical_clip_signature_uses_nearest_real_clip_sample_without_fsm_or_sync_group() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        let mut state = AnimationVisualValidationState::default();
+        let player = AnimationGraphPlayer::new(default());
+        let graphs = Assets::<AnimationGraph>::default();
+        let asset_server = app.world().resource::<AssetServer>();
+        for time in [0.51, 0.61, 0.9, f32::NAN] {
+            let evidence = ManualAnimationWindowEvidence {
+                label: Some("front"),
+                settled: true,
+                capture_source_window: true,
+                requires_pre_rig_motion: true,
+                direction_signature_group: Some("Slot variants"),
+                canonical_clip_time: Some(0.6),
+                maximum_clip_time_distance: 0.1,
+                observed_animation_clip_time: Some(time),
+                ..default()
+            };
+            let pose = AnimationVisualPreRigPose {
+                bones: BTreeMap::from([(
+                    "thigh_l".to_owned(),
+                    LocalBonePose {
+                        translation: Vec3::X * time,
+                        rotation: Quat::IDENTITY,
+                        scale: Vec3::ONE,
+                    },
+                )]),
+            };
+            record_motion_window(
+                &mut state,
+                &evidence,
+                &pose,
+                &pose.bones,
+                None,
+                None,
+                RootPoseActivity::default(),
+                None,
+                &player,
+                asset_server,
+                &graphs,
+                0.0,
+            );
+        }
+        let tracker = &state.motion_windows["front"];
+        assert!((tracker.canonical_clip_time_distance.unwrap() - 0.01).abs() < 1e-5);
+        assert_eq!(
+            tracker.canonical_pre_rig_pose["thigh_l"].translation.x,
+            0.61
+        );
+        assert!(tracker.canonical_sync_phase_distance.is_none());
+        assert!(tracker.observed_runtime_states.is_empty());
+    }
 
     fn collected_bone_count(
         In(root): In<Entity>,

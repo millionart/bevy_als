@@ -204,6 +204,8 @@ pub struct ManualAnimationWindowEvidence {
     pub sync_phase_global: Option<&'static str>,
     pub canonical_sync_phase: Option<f32>,
     pub maximum_sync_phase_distance: f32,
+    pub canonical_clip_time: Option<f32>,
+    pub maximum_clip_time_distance: f32,
     pub direction_signature_group: Option<&'static str>,
     pub required_direction_signature_members: usize,
     pub minimum_direction_signature_rotation_radians: f32,
@@ -320,7 +322,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             .add_systems(
                 PostUpdate,
                 prepare_get_up_physics_fixture
-                    .after(als_ext::RagdollPhysicsHandoffSet)
+                    .after(als_ext::RagdollAngularDriveSet)
                     .before(avian3d::prelude::PhysicsSystems::First),
             )
             .add_systems(
@@ -1117,6 +1119,8 @@ fn crouch_rotate_window(
         sync_phase_global: None,
         canonical_sync_phase: None,
         maximum_sync_phase_distance: 0.0,
+        canonical_clip_time: None,
+        maximum_clip_time_distance: 0.0,
         direction_signature_group: None,
         required_direction_signature_members: 0,
         minimum_direction_signature_rotation_radians: 0.0,
@@ -1194,6 +1198,8 @@ fn crouch_turn_window(
         sync_phase_global: None,
         canonical_sync_phase: None,
         maximum_sync_phase_distance: 0.0,
+        canonical_clip_time: None,
+        maximum_clip_time_distance: 0.0,
         direction_signature_group: None,
         required_direction_signature_members: 0,
         minimum_direction_signature_rotation_radians: 0.0,
@@ -1594,6 +1600,8 @@ struct ManualIntegrationState {
     ragdoll_max_joint_anchor_label: Option<String>,
     ragdoll_handoff_locked_joint_anchor_error_m: f32,
     ragdoll_handoff_locked_joint_anchor_label: Option<String>,
+    ragdoll_handoff_pose_error_m: f32,
+    ragdoll_handoff_rotation_error_radians: f32,
     camera_scenario_armed: bool,
     camera_last_probe_secs: f32,
     camera_view_mode_requested: bool,
@@ -1689,6 +1697,8 @@ impl Default for ManualIntegrationState {
             ragdoll_max_joint_anchor_label: None,
             ragdoll_handoff_locked_joint_anchor_error_m: 0.0,
             ragdoll_handoff_locked_joint_anchor_label: None,
+            ragdoll_handoff_pose_error_m: 0.0,
+            ragdoll_handoff_rotation_error_radians: 0.0,
             camera_scenario_armed: false,
             camera_last_probe_secs: -1.0,
             camera_view_mode_requested: false,
@@ -2248,6 +2258,8 @@ fn drive_manual_integration(
                     .direction_signature_group
                     .map(|_| "als_standing_movement_marker_phase"),
                 canonical_sync_phase: case.direction_signature_group.map(|_| 0.5),
+                canonical_clip_time: None,
+                maximum_clip_time_distance: 0.0,
                 maximum_sync_phase_distance: if case.direction_signature_group.is_some() {
                     0.12
                 } else {
@@ -3209,6 +3221,8 @@ fn drive_manual_integration(
                     sync_phase_global: None,
                     canonical_sync_phase: None,
                     maximum_sync_phase_distance: 0.0,
+                    canonical_clip_time: None,
+                    maximum_clip_time_distance: 0.0,
                     direction_signature_group: None,
                     required_direction_signature_members: 0,
                     minimum_direction_signature_rotation_radians: 0.0,
@@ -5877,6 +5891,9 @@ fn observe_manual_integration(
                 .handoff_locked_joint_anchor_profile_index
                 .and_then(|index| source_profile.joints.get(index as usize))
                 .map(|joint| joint.label.clone());
+            state.ragdoll_handoff_pose_error_m = applied.handoff_animated_body_position_error_m;
+            state.ragdoll_handoff_rotation_error_radians =
+                applied.handoff_animated_body_rotation_error_radians;
         }
         let profile_valid = profile.is_some_and(|(applied, _)| {
             applied.body_count == 21
@@ -5884,7 +5901,9 @@ fn observe_manual_integration(
                 && applied.joint_count == 20
                 && applied.source_joint_count == 19
                 && applied.collision_disabled_pair_count == 49
-                && applied.handoff_locked_joint_anchor_error_m <= 1e-4
+                && applied.handoff_animated_body_count == applied.body_count
+                && applied.handoff_animated_body_position_error_m <= 1e-4
+                && applied.handoff_animated_body_rotation_error_radians <= 1e-4
         }) && spawned.colliders.values().all(|collider| {
             ragdoll_probe
                 .collision_members
@@ -5969,8 +5988,12 @@ fn observe_manual_integration(
     }
     if state.phase == IntegrationPhase::Ragdoll {
         if let Ok((Some(get_up), blocked)) = ragdoll_probe.get_ups.get(character) {
-            let facing_matches = state.scenario != IntegrationScenario::GetUp
-                || get_up.facing_up == (state.get_up_case == 1);
+            let expected_facing_up = if state.scenario == IntegrationScenario::GetUp {
+                state.get_up_case == 1
+            } else {
+                get_up.facing_up
+            };
+            let facing_matches = get_up.facing_up == expected_facing_up;
             let active = facing_matches
                 && get_up.pose_ready
                 && graph_global_f32(player, "post_locomotion.weight")
@@ -6002,14 +6025,10 @@ fn observe_manual_integration(
                 requires_non_reference_root_pose: true,
                 source_node: Some("AB_Als/Slot 'PostLocomotion'"),
                 source_state: Some("GettingUp"),
-                expected_animation_variant: Some(if state.scenario == IntegrationScenario::GetUp {
-                    if state.get_up_case == 1 {
-                        "GetUpBack"
-                    } else {
-                        "GetUpFront"
-                    }
+                expected_animation_variant: Some(if expected_facing_up {
+                    "GetUpBack"
                 } else {
-                    variant
+                    "GetUpFront"
                 }),
                 observed_animation_variant: Some(variant),
                 observed_animation_clip_time: Some(get_up.clip_time),
@@ -6021,6 +6040,10 @@ fn observe_manual_integration(
                     .then_some("PostLocomotion GetUp"),
                 required_direction_signature_members: 2,
                 minimum_direction_signature_rotation_radians: 0.25,
+                expected_direction: Some(if expected_facing_up { "Back" } else { "Front" }),
+                observed_direction: Some(if get_up.facing_up { "Back" } else { "Front" }),
+                canonical_clip_time: Some(0.6),
+                maximum_clip_time_distance: 0.1,
                 minimum_observation_seconds: 0.1,
                 ..default()
             };
@@ -6540,7 +6563,9 @@ fn observe_manual_integration(
         }
         let passed = !state.timed_out && results.iter().all(|(_, covered)| *covered);
         let ragdoll_profile_detail = format!(
-            "handoff_locked_joint_anchor_error_m={:.6}; handoff_locked_joint_anchor_label={}; current_joint_anchor_error_m={:.6}; current_joint_anchor_label={}; max_joint_anchor_error_m={:.6}; max_joint_anchor_label={}",
+            "handoff_animated_body_position_error_m={:.6}; handoff_animated_body_rotation_error_radians={:.6}; handoff_locked_joint_anchor_error_m={:.6}; handoff_locked_joint_anchor_label={}; current_joint_anchor_error_m={:.6}; current_joint_anchor_label={}; max_joint_anchor_error_m={:.6}; max_joint_anchor_label={}",
+            state.ragdoll_handoff_pose_error_m,
+            state.ragdoll_handoff_rotation_error_radians,
             state.ragdoll_handoff_locked_joint_anchor_error_m,
             state
                 .ragdoll_handoff_locked_joint_anchor_label
