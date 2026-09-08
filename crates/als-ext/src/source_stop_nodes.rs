@@ -1,3 +1,7 @@
+use crate::animation_context::{
+    AnimationContextState, merge_sync_players, pose_input_context_state,
+};
+use crate::source_pose_nodes::blend_animation_contexts;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -15,9 +19,10 @@ use crate::{
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
-struct SourceEnumPoseBlendState {
+pub(crate) struct SourceEnumPoseBlendState {
     initialized: bool,
     alpha: f32,
+    pub(crate) context: AnimationContextState,
 }
 
 fn evaluator_delta(ctx: &NodeContext) -> Result<f32, GraphError> {
@@ -122,6 +127,17 @@ impl NodeLike for SourceEnumPoseBlendNode {
         .interpolate_pose(&mut base, &overlay, alpha);
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), base);
+        let contexts = [
+            (&self.default_pose_pin, 1.0 - alpha),
+            (&self.selected_pose_pin, alpha),
+        ]
+        .into_iter()
+        .filter_map(|(pin, weight)| {
+            pose_input_context_state(&ctx, pin).map(|context| (context, weight))
+        });
+        let context = blend_animation_contexts(contexts);
+        ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
+            .context = context;
         Ok(())
     }
 
@@ -231,10 +247,18 @@ impl SourceLayeredBoneBlendNode {
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
+        let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
         for index in 0..self.layer_count() {
             let overlay = ctx
                 .data_back(self.layer_pin(index).to_owned())?
                 .into_pose()?;
+            if let Some(overlay_context) = pose_input_context_state(&ctx, self.layer_pin(index)) {
+                merge_sync_players(
+                    &mut context.sync_players,
+                    &overlay_context.sync_players,
+                    self.layer_weight(&ctx, index)?,
+                );
+            }
             let skeletons = &ctx.graph_context.resources.skeleton_assets;
             let skeleton = skeletons
                 .get(&base.skeleton)
@@ -279,6 +303,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), base);
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 

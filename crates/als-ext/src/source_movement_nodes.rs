@@ -8,7 +8,9 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
+use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::global_f32_input::global_f32_or_root_default;
+use crate::source_pose_nodes::blend_animation_contexts;
 
 fn node_error(ctx: &NodeContext, message: String) -> GraphError {
     GraphError::UnknownErrorNode {
@@ -105,6 +107,7 @@ impl NodeLike for SourceMultiWayBlendNode {
         }
         let mut accumulated_weight = 0.0;
         let mut output = None;
+        let mut contexts = Vec::new();
         for (index, raw_weight) in active {
             let weight = if self.normalize_alpha {
                 raw_weight / total_weight
@@ -112,6 +115,9 @@ impl NodeLike for SourceMultiWayBlendNode {
                 raw_weight
             };
             let pose = ctx.data_back(self.pose_input(index))?.into_pose()?;
+            if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {
+                contexts.push((context, weight));
+            }
             if let Some(base) = output.as_mut() {
                 let factor = weight / (accumulated_weight + weight);
                 LinearInterpolator {
@@ -129,6 +135,8 @@ impl NodeLike for SourceMultiWayBlendNode {
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);
+        *ctx.state_mut_or_else(AnimationContextState::default)? =
+            blend_animation_contexts(contexts);
         Ok(())
     }
 
@@ -172,6 +180,9 @@ impl NodeLike for SourceSetHipsDirectionNode {
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
+        if let Some(context) = pose_input_context_state(&ctx, "Source") {
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        }
         Ok(())
     }
 

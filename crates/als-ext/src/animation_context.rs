@@ -53,6 +53,7 @@ pub struct AnimationContextState {
     pub curves: HashMap<String, f32>,
     pub relevant_asset: Option<SourceRelevantAsset>,
     pub curves_are_authoritative: bool,
+    pub sync_players: Vec<crate::sync_group_phase::SourceSyncPlayerTick>,
 }
 
 pub struct AnimationContextIoEnv<'a> {
@@ -189,6 +190,12 @@ pub fn pose_input_context_state(
 fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationContextState> {
     if let Ok(state) = ctx
         .node_states()
+        .get::<crate::normalized_blendspace::NormalizedBlendSpaceState>(node, ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
         .get::<AnimationContextState>(node.clone(), ctx.state_key)
     {
         return Some(state.clone());
@@ -223,6 +230,12 @@ fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationConte
     {
         return Some(state.context.clone());
     }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<crate::source_stop_nodes::SourceEnumPoseBlendState>(node, ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
     ctx.node_states()
         .get::<InterruptibleFsmState>(node, ctx.state_key)
         .ok()
@@ -254,6 +267,30 @@ pub fn merge_missing_context_curves(
         target.relevant_asset = source.relevant_asset.clone();
     }
     target.curves_are_authoritative |= source.curves_are_authoritative;
+    merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
+}
+
+pub fn merge_sync_players(
+    target: &mut Vec<crate::sync_group_phase::SourceSyncPlayerTick>,
+    source: &[crate::sync_group_phase::SourceSyncPlayerTick],
+    weight: f32,
+) {
+    for player in source {
+        let weight = player.weight * weight.max(0.0);
+        if weight <= 1e-5 {
+            continue;
+        }
+        if let Some(existing) = target
+            .iter_mut()
+            .find(|existing| existing.identity == player.identity)
+        {
+            existing.weight = existing.weight.max(weight);
+        } else {
+            let mut player = player.clone();
+            player.weight = weight;
+            target.push(player);
+        }
+    }
 }
 
 pub fn merge_linked_input_context(

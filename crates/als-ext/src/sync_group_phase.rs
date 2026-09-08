@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
-    animation_graph::TimeUpdate,
+    animation_graph::{NodeId, TimeUpdate},
     animation_node::{NodeLike, ReflectNodeLike},
-    context::{new_context::NodeContext, spec_context::SpecContext},
+    context::{
+        graph_context_arena::GraphContextId, new_context::NodeContext, spec_context::SpecContext,
+    },
     edge_data::DataSpec,
     errors::GraphError,
 };
@@ -76,6 +78,113 @@ pub struct SourceSyncGroupCandidate {
     pub blend_weight: f32,
     pub source_order: usize,
     pub marker_sync_valid: bool,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct SourceSyncPlayerBinding {
+    pub key: String,
+    pub role: SourceSyncGroupRole,
+    pub start_position: f32,
+    pub play_rate_key: String,
+    pub delta_seconds_key: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+pub struct SourceSyncPlayerTick {
+    pub identity: (GraphContextId, NodeId),
+    pub key: String,
+    pub role: SourceSyncGroupRole,
+    pub weight: f32,
+    pub phase: f32,
+    pub previous_phase: f32,
+    pub phase_duration: f32,
+    pub phase_markers: Vec<SyncMarker>,
+    pub duration: f32,
+    pub markers: Vec<SyncMarker>,
+    pub looped: bool,
+    pub delta_seconds: f32,
+    pub play_rate: f32,
+}
+
+pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
+
+pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option<f32>, GraphError> {
+    if !ctx
+        .graph_context
+        .global_input_data
+        .get(SOURCE_SYNC_RESOLVED)
+        .is_some_and(|value| value.as_bool().unwrap_or(false))
+    {
+        return Ok(None);
+    }
+    ctx.graph_context
+        .global_input_data
+        .get(&format!("{SOURCE_SYNC_RESOLVED}.{key}"))
+        .map(|value| value.as_f32())
+        .transpose()
+}
+
+pub fn resolve_source_sync_phases(
+    current: &[SourceSyncPlayerTick],
+    previous: &[SourceSyncPlayerTick],
+) -> Vec<(String, f32)> {
+    let mut groups = Vec::new();
+    for player in current {
+        if groups.iter().any(|(key, _)| key == &player.key) {
+            continue;
+        }
+        let players = current
+            .iter()
+            .filter(|candidate| candidate.key == player.key)
+            .collect::<Vec<_>>();
+        let candidates = players
+            .iter()
+            .enumerate()
+            .map(|(index, player)| SourceSyncGroupCandidate {
+                role: player.role,
+                blend_weight: player.weight,
+                source_order: index,
+                marker_sync_valid: player.markers.len() >= 2,
+            })
+            .collect::<Vec<_>>();
+        let leader =
+            players[select_source_sync_group_leader(&candidates, !player.phase_markers.is_empty())
+                .unwrap()];
+        let phase = previous
+            .iter()
+            .find(|prior| prior.key == player.key)
+            .map(|prior| prior.phase)
+            .unwrap_or(leader.previous_phase);
+        groups.push((player.key.clone(), leader.advance(phase)));
+    }
+    groups
+}
+
+impl SourceSyncPlayerTick {
+    pub fn advance(&self, previous_phase: f32) -> f32 {
+        let previous_time = marker_phase_sample_time(
+            previous_phase,
+            self.phase_duration,
+            &self.phase_markers,
+            self.duration,
+            &self.markers,
+            self.looped,
+        );
+        let next_time = phase_to_time(
+            (previous_time + self.delta_seconds * self.play_rate) / self.duration,
+            self.duration,
+            self.looped,
+        );
+        marker_phase_from_sample_time(
+            next_time,
+            self.duration,
+            &self.markers,
+            self.phase_duration,
+            &self.phase_markers,
+            self.looped,
+        )
+    }
 }
 
 pub fn source_sync_group_leader_score(candidate: SourceSyncGroupCandidate) -> f32 {

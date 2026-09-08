@@ -1840,9 +1840,19 @@ mod tests {
         root.add_node(source.clone());
         root.add_node(cache.clone());
         root.add_node(fsm_node.clone());
+        let sync_scope = AnimationNode::new(
+            "source sync scope",
+            SourcePosePassthroughNode {
+                synchronize_groups: true,
+                output_time: false,
+                ..default()
+            },
+        );
+        root.add_node(sync_scope.clone());
         root.add_node_parameter_edge(source.id, "Pose", cache.id, "Pose");
         root.add_output_data("Pose".to_owned(), DataSpec::Pose);
-        root.add_output_data_edge(fsm_node.id, "Pose", "Pose");
+        root.add_node_parameter_edge(fsm_node.id, "Pose", sync_scope.id, "Source");
+        root.add_output_data_edge(sync_scope.id, "Pose", "Pose");
         let root = graphs.add(root);
 
         world.insert_resource(graphs);

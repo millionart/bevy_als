@@ -18,7 +18,12 @@ use bevy_animation_graph::core::{
     pose::{BonePose, Pose},
 };
 
+use crate::global_f32_input::global_f32_or_root_default;
 use crate::global_f32_input::root_defaults_enabled;
+use crate::sync_group_phase::{
+    SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
+    marker_phase_sample_time, resolved_source_sync_phase,
+};
 use crate::{
     AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
     make_mesh_space_difference,
@@ -158,6 +163,30 @@ fn global_bool_or_field(ctx: &NodeContext, key: &str, fallback: bool) -> Result<
 }
 
 #[derive(Reflect, Clone, Debug)]
+#[reflect(Default)]
+pub struct SourceSequenceSynchronization {
+    pub key: String,
+    pub role: SourceSyncGroupRole,
+    pub phase_duration: f32,
+    pub phase_markers: Vec<SyncMarker>,
+    pub markers: Vec<SyncMarker>,
+    pub delta_seconds_key: String,
+}
+
+impl Default for SourceSequenceSynchronization {
+    fn default() -> Self {
+        Self {
+            key: Default::default(),
+            role: Default::default(),
+            phase_duration: 1.0,
+            phase_markers: Default::default(),
+            markers: Default::default(),
+            delta_seconds_key: Default::default(),
+        }
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceSequencePlayerNode {
@@ -179,6 +208,7 @@ pub struct SourceSequencePlayerNode {
     pub loop_animation_pin: String,
     pub expose_loop_animation_pin: bool,
     pub sync_group: String,
+    pub synchronization: Option<SourceSequenceSynchronization>,
 }
 
 impl Default for SourceSequencePlayerNode {
@@ -202,6 +232,7 @@ impl Default for SourceSequencePlayerNode {
             loop_animation_pin: "Loop Animation".to_owned(),
             expose_loop_animation_pin: false,
             sync_group: Default::default(),
+            synchronization: None,
         }
     }
 }
@@ -241,10 +272,21 @@ impl NodeLike for SourceSequencePlayerNode {
         } else {
             self.start_position
         };
-        let delta = match &update {
-            TimeUpdate::Delta(value) => value.max(0.0),
-            TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
+        let delta = if let Some(sync) = &self.synchronization {
+            global_f32_or_root_default(&ctx, &sync.delta_seconds_key)?
+        } else {
+            match &update {
+                TimeUpdate::Delta(value) => value.max(0.0),
+                TimeUpdate::Absolute(_) | TimeUpdate::PercentOfEvent { .. } => 0.0,
+            }
         };
+        let resolved_phase = self
+            .synchronization
+            .as_ref()
+            .map(|sync| resolved_source_sync_phase(&ctx, &sync.key))
+            .transpose()?
+            .flatten();
+        let identity = (ctx.graph_context.context_id, ctx.node_id);
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
         let play_rate = apply_source_input_scale_bias_clamp(
             &mut state.play_rate_state,
@@ -256,14 +298,70 @@ impl NodeLike for SourceSequencePlayerNode {
             &self.play_rate_mapping,
             delta,
         );
-        let position = next_position(
-            state,
-            update,
-            clip.duration(),
-            start_position,
-            play_rate,
-            loop_animation,
-        );
+        let mut sync_players = Vec::new();
+        let position = if let Some(sync) = &self.synchronization {
+            let previous_phase = state
+                .context
+                .sync_players
+                .first()
+                .map(|tick| tick.phase)
+                .unwrap_or_else(|| {
+                    marker_phase_from_sample_time(
+                        start_position,
+                        clip.duration(),
+                        &sync.markers,
+                        sync.phase_duration,
+                        &sync.phase_markers,
+                        loop_animation,
+                    )
+                });
+            let mut tick = SourceSyncPlayerTick {
+                identity,
+                key: sync.key.clone(),
+                role: sync.role,
+                weight: 1.0,
+                previous_phase,
+                phase_duration: sync.phase_duration,
+                phase_markers: sync.phase_markers.clone(),
+                duration: clip.duration(),
+                markers: sync.markers.clone(),
+                looped: loop_animation,
+                delta_seconds: delta,
+                play_rate,
+                ..Default::default()
+            };
+            tick.phase = resolved_phase.unwrap_or_else(|| tick.advance(previous_phase));
+            state.previous_position = marker_phase_sample_time(
+                previous_phase,
+                sync.phase_duration,
+                &sync.phase_markers,
+                clip.duration(),
+                &sync.markers,
+                loop_animation,
+            );
+            state.has_previous_position = state.initialized;
+            state.initialized = true;
+            state.delta_seconds = delta;
+            state.position = marker_phase_sample_time(
+                tick.phase,
+                sync.phase_duration,
+                &sync.phase_markers,
+                clip.duration(),
+                &sync.markers,
+                loop_animation,
+            );
+            sync_players.push(tick);
+            state.position
+        } else {
+            next_position(
+                state,
+                update,
+                clip.duration(),
+                start_position,
+                play_rate,
+                loop_animation,
+            )
+        };
         state.context = AnimationContextState {
             relevant_asset: Some(SourceRelevantAsset {
                 duration: clip.duration(),
@@ -275,6 +373,7 @@ impl NodeLike for SourceSequencePlayerNode {
                 weight: 1.0,
             }),
             curves_are_authoritative: true,
+            sync_players,
             ..Default::default()
         };
         let target = sample_pose(clip, position);

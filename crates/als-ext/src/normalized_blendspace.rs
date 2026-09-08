@@ -10,6 +10,11 @@ use bevy_animation_graph::core::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::global_f32_input::global_f32_or_root_default;
+use crate::sync_group_phase::{
+    SourceSyncPlayerBinding, SourceSyncPlayerTick, resolved_source_sync_phase,
+};
+use crate::{AnimationContextState, marker_phase_from_sample_time};
 use crate::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
 use crate::{animation_context::context_time_update, sync_group_phase::normalize_phase};
 
@@ -204,6 +209,20 @@ pub struct NormalizedBlendSpacePoint {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
+pub struct SourceBlendSpaceTriangulation {
+    pub axis_min: Vec2,
+    pub axis_max: Vec2,
+    pub triangles: Vec<[usize; 3]>,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+pub(crate) struct NormalizedBlendSpaceState {
+    pub(crate) context: AnimationContextState,
+    triangle: Option<usize>,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct NormalizedBlendSpaceNode {
@@ -211,9 +230,191 @@ pub struct NormalizedBlendSpaceNode {
     pub phase_duration: f32,
     pub phase_markers: Vec<SyncMarker>,
     pub points: Vec<NormalizedBlendSpacePoint>,
+    pub playback: Option<SourceSyncPlayerBinding>,
+    pub source_triangulation: Option<SourceBlendSpaceTriangulation>,
 }
 
 impl NormalizedBlendSpaceNode {
+    fn source_weights(
+        &self,
+        position: Vec2,
+        cached: &mut Option<usize>,
+    ) -> Result<Vec<(usize, f32)>, String> {
+        let Some(source) = &self.source_triangulation else {
+            return Ok(self.weights(position));
+        };
+        let size = (source.axis_max - source.axis_min).as_dvec2();
+        if !position.is_finite()
+            || !source.axis_min.is_finite()
+            || !size.is_finite()
+            || size.cmple(bevy::math::DVec2::ZERO).any()
+            || source.triangles.is_empty()
+            || self.points.iter().any(|point| !point.point.is_finite())
+            || source
+                .triangles
+                .iter()
+                .flatten()
+                .any(|index| *index >= self.points.len())
+        {
+            return Err("source BlendSpace triangulation is invalid".to_owned());
+        }
+        let minimum = source.axis_min.as_dvec2();
+        let position = ((position.as_dvec2() - minimum) / size)
+            .clamp(bevy::math::DVec2::ZERO, bevy::math::DVec2::ONE);
+        let vertices = self
+            .points
+            .iter()
+            .map(|point| (point.point.as_dvec2() - minimum) / size)
+            .collect::<Vec<_>>();
+        if source.triangles.iter().any(|indices| {
+            (vertices[indices[1]] - vertices[indices[0]])
+                .perp_dot(vertices[indices[2]] - vertices[indices[0]])
+                <= f64::EPSILON
+        }) {
+            return Err("source BlendSpace triangle orientation is invalid".to_owned());
+        }
+        let mut triangle = cached
+            .filter(|index| *index < source.triangles.len())
+            .unwrap_or(source.triangles.len() / 2);
+        let mut weights = Vec::new();
+        for _ in 0..source.triangles.len() {
+            let indices = source.triangles[triangle];
+            let points = indices.map(|index| vertices[index]);
+            let mut edge = None;
+            let mut distance = 1e-4;
+            for index in 0..3 {
+                let delta = points[(index + 1) % 3] - points[index];
+                let normal = bevy::math::DVec2::new(delta.y, -delta.x).normalize();
+                let value = (position - points[index]).dot(normal);
+                if value > distance {
+                    edge = Some(index);
+                    distance = value;
+                }
+            }
+            let Some(edge) = edge else {
+                let first = points[1] - points[0];
+                let second = points[2] - points[0];
+                let offset = position - points[0];
+                let area = first.perp_dot(second);
+                let y = offset.perp_dot(second) / area;
+                let z = first.perp_dot(offset) / area;
+                weights = indices
+                    .into_iter()
+                    .zip([(1.0 - y - z) as f32, y as f32, z as f32])
+                    .collect();
+                break;
+            };
+            let a = indices[edge];
+            let b = indices[(edge + 1) % 3];
+            if let Some(next) = source
+                .triangles
+                .iter()
+                .enumerate()
+                .find_map(|(index, vertices)| {
+                    (index != triangle && vertices.contains(&a) && vertices.contains(&b))
+                        .then_some(index)
+                })
+            {
+                triangle = next;
+                continue;
+            }
+            let mut closest = f64::INFINITY;
+            for (index, indices) in source.triangles.iter().enumerate() {
+                for edge in 0..3 {
+                    let a = indices[edge];
+                    let b = indices[(edge + 1) % 3];
+                    if source.triangles.iter().enumerate().any(|(other, indices)| {
+                        other != index && indices.contains(&a) && indices.contains(&b)
+                    }) {
+                        continue;
+                    }
+                    let delta = vertices[b] - vertices[a];
+                    let alpha = ((position - vertices[a]).dot(delta) / delta.length_squared())
+                        .clamp(0.0, 1.0);
+                    let distance = (position - vertices[a] - delta * alpha).length_squared();
+                    if distance < closest {
+                        closest = distance;
+                        triangle = index;
+                        weights = vec![(a, (1.0 - alpha) as f32), (b, alpha as f32)];
+                    }
+                }
+            }
+            break;
+        }
+        *cached = Some(triangle);
+        if weights.is_empty() {
+            return Err("source BlendSpace triangle search did not converge".to_owned());
+        }
+        weights.retain(|(_, weight)| *weight > 1e-5);
+        for last in (1..weights.len()).rev() {
+            let mut smallest = 0;
+            for index in 1..=last {
+                if weights[smallest].1 > weights[index].1 {
+                    smallest = index;
+                }
+            }
+            weights.swap(smallest, last);
+        }
+        let total = weights.iter().map(|(_, weight)| *weight).sum::<f32>();
+        for (_, weight) in &mut weights {
+            *weight /= total;
+        }
+        Ok(weights)
+    }
+
+    fn context_weights(
+        &self,
+        ctx: &mut NodeContext,
+        position: Vec2,
+    ) -> Result<Vec<(usize, f32)>, GraphError> {
+        if self.source_triangulation.is_none() {
+            return Ok(self.weights(position));
+        }
+        self.source_weights(
+            position,
+            &mut ctx.state_mut::<NormalizedBlendSpaceState>()?.triangle,
+        )
+        .map_err(|error| GraphError::UnknownErrorNode {
+            graph: ctx.graph_context.context_id,
+            node: ctx.node_id,
+            error,
+        })
+    }
+
+    fn player_tick(
+        &self,
+        binding: &SourceSyncPlayerBinding,
+        leader: usize,
+        previous_phase: Option<f32>,
+        delta_seconds: f32,
+        play_rate: f32,
+    ) -> SourceSyncPlayerTick {
+        let point = &self.points[leader];
+        SourceSyncPlayerTick {
+            key: binding.key.clone(),
+            role: binding.role,
+            weight: 1.0,
+            phase: previous_phase.unwrap_or_else(|| {
+                marker_phase_from_sample_time(
+                    binding.start_position * point.duration,
+                    point.duration,
+                    &point.markers,
+                    self.phase_duration,
+                    &self.phase_markers,
+                    self.looped,
+                )
+            }),
+            phase_duration: self.phase_duration,
+            phase_markers: self.phase_markers.clone(),
+            duration: point.duration,
+            markers: point.markers.clone(),
+            looped: self.looped,
+            delta_seconds,
+            play_rate,
+            ..default()
+        }
+    }
+
     pub fn pose_pin(id: &str) -> String {
         format!("pose_{id}")
     }
@@ -286,9 +487,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
 
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let position = ctx.data_back(IN_POSITION)?.as_vec2()?;
-        let Some((index, _)) = self
-            .weights(position)
+        let weights = self.context_weights(&mut ctx, position)?;
+        let Some((index, _)) = weights
             .into_iter()
+            .rev()
             .max_by(|left, right| left.1.total_cmp(&right.1))
         else {
             ctx.set_duration_fwd(None);
@@ -304,10 +506,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
         let position = ctx.data_back(IN_POSITION)?.as_vec2()?;
-        let phase = normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, self.looped);
-        let weights = self.weights(position);
+        let weights = self.context_weights(&mut ctx, position)?;
         let Some((leader_index, _)) = weights
             .iter()
+            .rev()
             .copied()
             .max_by(|left, right| left.1.total_cmp(&right.1))
         else {
@@ -316,6 +518,29 @@ impl NodeLike for NormalizedBlendSpaceNode {
         };
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
+        let phase = if let Some(playback) = &self.playback {
+            let delta_seconds = global_f32_or_root_default(&ctx, &playback.delta_seconds_key)?;
+            let play_rate = global_f32_or_root_default(&ctx, &playback.play_rate_key)?;
+            let previous = ctx
+                .state::<NormalizedBlendSpaceState>()
+                .ok()
+                .and_then(|state| state.context.sync_players.first())
+                .map(|tick| tick.phase);
+            let mut tick =
+                self.player_tick(playback, leader_index, previous, delta_seconds, play_rate);
+            tick.identity = (ctx.graph_context.context_id, ctx.node_id);
+            tick.previous_phase = tick.phase;
+            let phase = resolved_source_sync_phase(&ctx, &playback.key)?
+                .unwrap_or_else(|| tick.advance(tick.phase));
+            tick.phase = phase;
+            ctx.state_mut::<NormalizedBlendSpaceState>()?.context = AnimationContextState {
+                sync_players: vec![tick],
+                ..default()
+            };
+            phase
+        } else {
+            normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, self.looped)
+        };
         let leader_time = if self.uses_marker_phase() {
             marker_phase_sample_time(
                 phase,
@@ -381,8 +606,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        ctx.add_input_data(IN_POSITION, DataSpec::Vec2)
-            .add_input_data(IN_PHASE, DataSpec::F32);
+        ctx.add_input_data(IN_POSITION, DataSpec::Vec2);
+        if self.playback.is_none() {
+            ctx.add_input_data(IN_PHASE, DataSpec::F32);
+        }
         for point in &self.points {
             ctx.add_input_data(Self::pose_pin(&point.id), DataSpec::Pose)
                 .add_input_time(Self::time_pin(&point.id));
@@ -478,6 +705,8 @@ mod tests {
             looped: true,
             phase_duration: 1.0,
             phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
+            playback: None,
+            source_triangulation: None,
             points: vec![
                 NormalizedBlendSpacePoint {
                     id: "forward".to_owned(),
@@ -537,6 +766,184 @@ mod tests {
                 .unwrap();
         assert!((blended.rotation.dot(rotation).abs() - 1.0).abs() < 1e-6);
         assert!((blended.translation - Vec3::new(2.0, 0.0, 0.0)).length() < 1e-6);
+    }
+
+    #[test]
+    fn player_clock_and_filtered_weights_match_native_blendspace_ticks() {
+        let mut ablated_errors = 0;
+        for source_json in [
+            include_str!(
+                "../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_tick.json"
+            ),
+            include_str!(
+                "../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_weights.json"
+            ),
+        ] {
+            let source: serde_json::Value = serde_json::from_str(source_json).unwrap();
+            let binding = SourceSyncPlayerBinding {
+                start_position: source["start_position"].as_f64().unwrap() as f32,
+                ..default()
+            };
+            let node = NormalizedBlendSpaceNode {
+                looped: true,
+                phase_duration: 1.133333,
+                phase_markers: markers(&[("Right", 0.516667), ("Left", 1.083333)]),
+                points: [Vec2::X, Vec2::ZERO, Vec2::ONE, Vec2::Y]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, point)| NormalizedBlendSpacePoint {
+                        id: index.to_string(),
+                        point,
+                        duration: if index < 2 { 1.133333 } else { 0.8 },
+                        markers: if index < 2 {
+                            markers(&[("Left", 0.083333), ("Right", 0.65)])
+                        } else {
+                            markers(&[("Left", 0.033333), ("Right", 0.433333)])
+                        },
+                    })
+                    .collect(),
+                playback: Some(binding.clone()),
+                source_triangulation: Some(SourceBlendSpaceTriangulation {
+                    axis_min: Vec2::ZERO,
+                    axis_max: Vec2::ONE,
+                    triangles: vec![[1, 0, 3], [0, 2, 3]],
+                }),
+            };
+            let mut filter = CubicVec2AxisFilterState::default();
+            let mut phase = None;
+            let mut triangle = None;
+            let mut ablated = node.clone();
+            ablated.source_triangulation = None;
+            let mut ablated_phase = None;
+            for frame in source["frames"].as_array().unwrap() {
+                let input = &frame["input"];
+                let delta = input["delta_seconds"].as_f64().unwrap() as f32;
+                let position = Vec2::new(
+                    cubic_filter_sample(
+                        &mut filter.x,
+                        Vec2::X * input["x"].as_f64().unwrap() as f32,
+                        delta,
+                        0.2,
+                    )
+                    .x,
+                    cubic_filter_sample(
+                        &mut filter.y,
+                        Vec2::Y * input["y"].as_f64().unwrap() as f32,
+                        delta,
+                        0.4,
+                    )
+                    .y,
+                );
+                for (axis, actual) in [("x", position.x), ("y", position.y)] {
+                    let expected = frame["filtered_position"][axis].as_f64().unwrap() as f32;
+                    assert!(
+                        (actual - expected).abs() < 2e-5,
+                        "filter {} {axis}: {actual} != {expected}",
+                        frame["frame"]
+                    );
+                }
+                let weights = node.source_weights(position, &mut triangle).unwrap();
+                let leader = weights
+                    .iter()
+                    .rev()
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+                    .unwrap()
+                    .0;
+                let tick = node.player_tick(
+                    &binding,
+                    leader,
+                    phase,
+                    delta,
+                    input["play_rate"].as_f64().unwrap() as f32,
+                );
+                let current = tick.advance(tick.phase);
+                phase = Some(current);
+                let ablated_weights = ablated.source_weights(position, &mut None).unwrap();
+                let ablated_leader = ablated_weights
+                    .iter()
+                    .rev()
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+                    .unwrap()
+                    .0;
+                let ablated_tick = ablated.player_tick(
+                    &binding,
+                    ablated_leader,
+                    ablated_phase,
+                    delta,
+                    input["play_rate"].as_f64().unwrap() as f32,
+                );
+                let ablated_current = ablated_tick.advance(ablated_tick.phase);
+                ablated_phase = Some(ablated_current);
+                for sample in frame["samples"].as_array().unwrap() {
+                    let index = sample["sample_index"].as_u64().unwrap() as usize;
+                    let point = &node.points[index];
+                    let weight = weights
+                        .iter()
+                        .find(|(candidate, _)| *candidate == index)
+                        .map(|(_, weight)| *weight)
+                        .unwrap_or(0.0);
+                    assert!((weight - sample["weight"].as_f64().unwrap() as f32).abs() < 2e-5);
+                    let actual = marker_phase_sample_time(
+                        current,
+                        node.phase_duration,
+                        &node.phase_markers,
+                        point.duration,
+                        &point.markers,
+                        true,
+                    );
+                    let expected = sample["time"].as_f64().unwrap() as f32;
+                    let error = (actual - expected).abs().rem_euclid(point.duration);
+                    assert!(
+                        error.min(point.duration - error) < 2e-5,
+                        "clock {} sample {index}: {actual} != {expected}",
+                        frame["frame"]
+                    );
+                    let ablated_time = marker_phase_sample_time(
+                        ablated_current,
+                        node.phase_duration,
+                        &node.phase_markers,
+                        point.duration,
+                        &point.markers,
+                        true,
+                    );
+                    let error = (ablated_time - expected).abs().rem_euclid(point.duration);
+                    ablated_errors += (error.min(point.duration - error) > 2e-5) as usize;
+                }
+            }
+        }
+        assert!(ablated_errors > 0);
+    }
+
+    #[test]
+    fn source_triangles_project_to_the_boundary_and_reject_invalid_indices() {
+        let mut node = NormalizedBlendSpaceNode {
+            points: [Vec2::ZERO, Vec2::X, Vec2::Y]
+                .into_iter()
+                .map(|point| NormalizedBlendSpacePoint { point, ..default() })
+                .collect(),
+            source_triangulation: Some(SourceBlendSpaceTriangulation {
+                axis_min: Vec2::ZERO,
+                axis_max: Vec2::ONE,
+                triangles: vec![[0, 1, 2]],
+            }),
+            ..default()
+        };
+        assert_eq!(
+            node.source_weights(Vec2::splat(0.75), &mut None).unwrap(),
+            vec![(2, 0.5), (1, 0.5)]
+        );
+        node.source_triangulation.as_mut().unwrap().triangles[0][2] = 3;
+        assert!(node.source_weights(Vec2::ZERO, &mut None).is_err());
+        node.points.push(NormalizedBlendSpacePoint {
+            point: Vec2::ONE,
+            ..default()
+        });
+        node.source_triangulation.as_mut().unwrap().triangles = vec![[0, 1, 2], [1, 3, 2]];
+        let near_edge = Vec2::new(0.50003, 0.5);
+        let retained = node.source_weights(near_edge, &mut Some(0)).unwrap();
+        let reset = node.source_weights(near_edge, &mut None).unwrap();
+        assert_eq!(retained.len(), 2);
+        assert_eq!(reset.len(), 3);
     }
 
     #[test]

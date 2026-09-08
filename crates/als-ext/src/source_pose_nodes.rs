@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::animation_context::{
-    AnimationContextState, pose_input_context_state, select_relevant_asset,
+    AnimationContextState, merge_sync_players, pose_input_context_state, select_relevant_asset,
 };
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
@@ -314,6 +314,12 @@ impl NodeLike for SourceTwoWayBlendNode {
             .then(|| pose_input_context_state(&ctx, "B"))
             .flatten();
         let mut context = context_a.clone().or(context_b.clone()).unwrap_or_default();
+        context.sync_players.clear();
+        for (input, weight) in [(&context_a, 1.0 - alpha), (&context_b, alpha)] {
+            if let Some(input) = input {
+                merge_sync_players(&mut context.sync_players, &input.sync_players, weight);
+            }
+        }
         context.relevant_asset = select_relevant_asset([
             (
                 context_a.and_then(|context| context.relevant_asset),
@@ -428,6 +434,12 @@ impl NodeLike for SourceApplyAdditiveNode {
             base_context.clone().or(additive_context.clone())
         }
         .unwrap_or_default();
+        context.sync_players.clear();
+        for (input, weight) in [(&base_context, 1.0), (&additive_context, alpha)] {
+            if let Some(input) = input {
+                merge_sync_players(&mut context.sync_players, &input.sync_players, weight);
+            }
+        }
         context.relevant_asset = select_relevant_asset([
             (
                 additive_context.and_then(|context| context.relevant_asset),
@@ -673,6 +685,7 @@ fn blend_source_curve_context(
     blend_amount: f32,
     blend_mode: SourceCurvesBlendMode,
 ) -> AnimationContextState {
+    merge_sync_players(&mut base.sync_players, &curve.sync_players, blend_amount);
     match blend_mode {
         SourceCurvesBlendMode::Accumulate => {
             for (name, value) in &curve.curves {
@@ -689,6 +702,7 @@ fn blend_source_curve_context(
                 .collect(),
             relevant_asset: curve.relevant_asset.clone(),
             curves_are_authoritative: curve.curves_are_authoritative,
+            sync_players: base.sync_players,
         },
     }
 }
@@ -818,6 +832,7 @@ pub fn blend_animation_contexts(
     let mut relevant_assets = Vec::new();
     for (context, weight) in contexts {
         let weight = weight.max(0.0);
+        merge_sync_players(&mut output.sync_players, &context.sync_players, weight);
         output.curves_are_authoritative |= context.curves_are_authoritative;
         for (name, value) in context.curves {
             *output.curves.entry(name).or_default() += value * weight;

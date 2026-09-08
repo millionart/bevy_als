@@ -343,9 +343,7 @@ impl NodeLike for SourceScopedCachedPoseUseNode {
         let mut context = scoped_cached_context_state(&ctx, &self.cache_node, &self.cache_key)
             .unwrap_or_default();
         merge_context_defaults(&mut context, &self.context_defaults);
-        if !context.curves.is_empty() {
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
-        }
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 
