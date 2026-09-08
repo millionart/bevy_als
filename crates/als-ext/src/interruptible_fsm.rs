@@ -95,6 +95,7 @@ pub struct SourceTransitionCondition {
     pub notifications: Vec<SourceTransitionNotification>,
     pub automatic_trigger_time: Option<f32>,
     pub transition_duration: f32,
+    pub always_reset_target_on_entry: Option<bool>,
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -619,10 +620,23 @@ impl InterruptibleFsmNode {
                 _ => None,
             };
             if let Some(transition) = transition {
-                if transition.reset_target_state {
+                let source_weights = Self::state_weight_values(machine, &state, ctx, time)?;
+                let always_reset = Self::transition_id(transition)
+                    .and_then(|id| match id {
+                        TransitionId::Direct(id) => self
+                            .source_transition_conditions
+                            .iter()
+                            .find(|condition| condition.transition_id == id.uuid().to_string()),
+                        _ => None,
+                    })
+                    .and_then(|condition| condition.always_reset_target_on_entry)
+                    .unwrap_or(true);
+                let target_active = source_weights.iter().any(|weight| {
+                    weight.state_id == transition.hl_target.uuid().to_string() && weight.value > 0.0
+                });
+                if transition.reset_target_state && (always_reset || !target_active) {
                     reset = Some(transition.clone());
                 }
-                let source_weights = Self::state_weight_values(machine, &state, ctx, time)?;
                 let interrupted = match &state.state {
                     LowLevelStateId::HlTransition(interrupted)
                         if state.state != transition.source =>
@@ -2073,6 +2087,201 @@ mod tests {
                     "nested {nested}, reinitialize {reinitialize}, frame {frame}: {actual} != {expected}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn source_transition_preserves_a_target_that_is_still_blending() {
+        fn query(
+            In((root, player)): In<(Handle<AnimationGraph>, NodeId)>,
+            resources: SystemResources,
+        ) -> f32 {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            for frame in 0..4 {
+                let inputs = HashMap::from([
+                    ("delta".to_owned(), DataValue::F32(0.1)),
+                    ("leave".to_owned(), DataValue::Bool(frame == 2)),
+                    ("return".to_owned(), DataValue::Bool(frame == 3)),
+                ]);
+                graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        GraphContext::new(
+                            arena.get_toplevel_id(),
+                            graph,
+                            &mut arena,
+                            &resources,
+                            &env,
+                            Entity::PLACEHOLDER,
+                            &entities,
+                            &mut gizmos,
+                            &inputs,
+                        ),
+                    )
+                    .unwrap();
+            }
+            arena
+                .iter_context_ids()
+                .find_map(|context| {
+                    arena
+                        .get_context(context)?
+                        .node_states
+                        .get::<crate::source_sequence_player::SourceSequencePlayerState>(
+                            player,
+                            bevy_animation_graph::core::context::node_states::StateKey::Default,
+                        )
+                        .ok()?
+                        .context
+                        .relevant_asset
+                        .as_ref()
+                        .map(|asset| asset.position)
+                })
+                .unwrap()
+        }
+        for policy in [Some(false), Some(true), None] {
+            let mut graphs = Assets::<AnimationGraph>::default();
+            let mut clips = Assets::<GraphClip>::default();
+            let clip = clips.add(GraphClip {
+                duration: 2.0,
+                ..default()
+            });
+            let states = [1, 2].map(|id| {
+                serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\""))
+                    .unwrap()
+            });
+            let transitions = [1, 2].map(|id| {
+                serde_json::from_str::<DirectTransitionId>(&format!(
+                    "\"20000000-0000-4000-8000-{id:012}\""
+                ))
+                .unwrap()
+            });
+            let mut machine = StateMachine::default();
+            machine.start_state = states[0];
+            machine
+                .node_spec
+                .add_output_data("pose".to_owned(), DataSpec::Pose);
+            let mut players = Vec::new();
+            for (index, start_position) in [0.2, 1.0].into_iter().enumerate() {
+                let mut graph = AnimationGraph::new();
+                let player = AnimationNode::new(
+                    "player",
+                    crate::SourceSequencePlayerNode {
+                        clip: clip.clone(),
+                        start_position,
+                        ..default()
+                    },
+                );
+                players.push(player.id);
+                graph.add_node(player.clone());
+                graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+                graph.add_output_data_edge(player.id, "Pose", "pose");
+                machine.add_state(State {
+                    id: states[index],
+                    label: index.to_string(),
+                    graph: graphs.add(graph),
+                    ..default()
+                });
+            }
+            let mut transition_graph = AnimationGraph::new();
+            let blend = AnimationNode::new("transition", ProfiledBlendNode::default());
+            transition_graph.add_node(blend.clone());
+            for (pin, input, spec) in [
+                (
+                    "factor",
+                    GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration),
+                    DataSpec::F32,
+                ),
+                (
+                    "pose_a",
+                    GraphInputPin::FromFsmSource("pose".to_owned()),
+                    DataSpec::Pose,
+                ),
+                (
+                    "pose_b",
+                    GraphInputPin::FromFsmTarget("pose".to_owned()),
+                    DataSpec::Pose,
+                ),
+            ] {
+                transition_graph.add_input_data(input.clone(), spec);
+                transition_graph.add_input_data_edge(input, blend.id, pin);
+            }
+            for (pin, input) in [
+                ("time_a", GraphInputPin::FromFsmSource("time".to_owned())),
+                ("time_b", GraphInputPin::FromFsmTarget("time".to_owned())),
+            ] {
+                transition_graph.add_input_time(input.clone());
+                transition_graph.add_input_time_edge(input, blend.id, pin);
+            }
+            transition_graph.add_output_time();
+            transition_graph.add_output_pose_edge(blend.id);
+            transition_graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+            transition_graph.add_output_data_edge(blend.id, "pose", "pose");
+            let transition_graph = graphs.add(transition_graph);
+            let mut conditions = Vec::new();
+            for (index, key) in ["leave", "return"].into_iter().enumerate() {
+                let mut graph = AnimationGraph::new();
+                let condition = AnimationNode::new(
+                    "condition",
+                    GlobalBoolInputNode {
+                        key: key.to_owned(),
+                    },
+                );
+                graph.add_node(condition.clone());
+                graph.add_output_data(key.to_owned(), DataSpec::Bool);
+                graph.add_output_data_edge(condition.id, key, key);
+                conditions.push(SourceTransitionCondition {
+                    transition_id: transitions[index].uuid().to_string(),
+                    source_state_id: states[index].uuid().to_string(),
+                    condition: graphs.add(graph),
+                    output: key.to_owned(),
+                    context_state: states[index],
+                    always_reset_target_on_entry: policy,
+                    ..default()
+                });
+                machine.add_transition_unchecked(DirectTransition {
+                id: transitions[index], source: states[index], target: states[1-index],
+                data: TransitionData {
+                    kind: bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph {
+                        graph: transition_graph.clone(), timed: Some(0.5),
+                    }, reset_target_state: true, ..default()
+                },
+            });
+            }
+            machine.update_low_level_fsm();
+            let mut machines = Assets::<StateMachine>::default();
+            let fsm = machines.add(machine);
+            let mut root = AnimationGraph::new();
+            let node = AnimationNode::new(
+                "fsm",
+                InterruptibleFsmNode {
+                    fsm,
+                    source_transition_conditions: conditions,
+                    internal_time_key: "delta".to_owned(),
+                    expose_telemetry: false,
+                    ..default()
+                },
+            );
+            root.add_node(node.clone());
+            root.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            root.add_output_data_edge(node.id, "pose", "Pose");
+            let root = graphs.add(root);
+            let mut world = World::new();
+            world.insert_resource(graphs);
+            world.insert_resource(clips);
+            world.insert_resource(machines);
+            world.insert_resource(Assets::<Skeleton>::default());
+            let actual = world
+                .run_system_cached_with(query, (root, players[0]))
+                .unwrap();
+            let expected = if policy == Some(false) { 0.6 } else { 0.3 };
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "reset policy {policy:?}: {actual} != {expected}"
+            );
         }
     }
 

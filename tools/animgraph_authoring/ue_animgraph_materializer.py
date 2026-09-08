@@ -478,6 +478,7 @@ def fsm_config(source, plan, graph_paths, namespace):
     ):
         raise MaterializationError("source FSM runtime settings are invalid")
     state_ids = {item["source_node"]: item["id"] for item in [*actual, *aliases]}
+    reset_policies = {item["source_node"]: item["always_reset_on_entry"] for item in actual}
     entry_state_id = state_ids.get(f"{source_asset}:{entry_target}")
     if entry_state_id is None:
         raise MaterializationError("source entry target state is unavailable")
@@ -537,6 +538,7 @@ def fsm_config(source, plan, graph_paths, namespace):
                 "notifications": transition["notifies"],
                 "automatic_trigger_time": transition["automatic_trigger_time"],
                 "transition_duration": transition["automatic_transition_duration"],
+                "always_reset_target_on_entry": reset_policies[f"{source_asset}:{transition['target']}"],
             }
         )
     return {
@@ -844,8 +846,8 @@ def conduit_fixture():
         "source_graph": "AnimGraph.FSM",
         "entry_target": "AnimGraph.FSM.Conduit",
         "states": [
-            {"source_node": source, "id": "10000000-0000-4000-8000-000000000001", "title": "Source", "position": [0.0, 0.0], "graph": "StateSource"},
-            {"source_node": target, "id": "10000000-0000-4000-8000-000000000002", "title": "Target", "position": [1.0, 0.0], "graph": "StateTarget"},
+            {"source_node": source, "id": "10000000-0000-4000-8000-000000000001", "title": "Source", "position": [0.0, 0.0], "graph": "StateSource", "always_reset_on_entry": False},
+            {"source_node": target, "id": "10000000-0000-4000-8000-000000000002", "title": "Target", "position": [1.0, 0.0], "graph": "StateTarget", "always_reset_on_entry": True},
         ],
         "aliases": [],
         "conduits": [{"source_node": conduit, "id": "10000000-0000-4000-8000-000000000003", "title": "Conduit", "position": [0.5, 0.0], "graph": conduit_condition}],
@@ -1031,6 +1033,7 @@ def run_self_test():
     assert conduit_config["transitions"][0]["source"] == "AnimGraph.FSM.Source"
     assert conduit_config["transitions"][0]["target"] == "AnimGraph.FSM.Target"
     assert len(conduit_config["source_transition_conditions"][0]["gates"]) == 2
+    assert conduit_config["source_transition_conditions"][0]["always_reset_target_on_entry"] is True
     assert conduit_config["entry_state_id"] == "10000000-0000-4000-8000-000000000002"
     assert len(conduit_config["source_entry_conditions"]) == 1
     assert len(conduit_config["source_entry_conditions"][0]["gates"]) == 2

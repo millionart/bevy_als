@@ -553,6 +553,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
                     or isinstance(condition.get("automatic_trigger_time"), (int, float))
                 )
                 and isinstance(condition.get("transition_duration"), (int, float))
+                and isinstance(condition.get("always_reset_target_on_entry"), bool)
                 and isinstance(condition.get("gates", []), list)
                 and all(
                     isinstance(gate, dict)
@@ -618,6 +619,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             )
             + ", transition_duration: "
             + repr(condition["transition_duration"])
+            + ", always_reset_target_on_entry: Some("
+            + str(condition["always_reset_target_on_entry"]).lower()
+            + ")"
             + ", gates: ["
             + ", ".join(
                 "(condition: "
@@ -1991,6 +1995,7 @@ def run_self_test():
                         "context_state_id": "10000000-0000-4000-8000-000000000002",
                         "automatic_trigger_time": -1.0,
                         "transition_duration": 0.0,
+                        "always_reset_target_on_entry": True,
                         "gates": [
                             {
                                 "condition": "conditions/conduit.animgraph.ron",
@@ -2010,6 +2015,7 @@ def run_self_test():
     assert 'internal_time_key: "animation.delta_seconds"' in fsm_inner
     assert "max_transitions_per_frame: 3" in fsm_inner
     assert "automatic_trigger_time: Some(-1.0)" in fsm_inner
+    assert "always_reset_target_on_entry: Some(true)" in fsm_inner
     assert 'context_state: ("10000000-0000-4000-8000-000000000002")' in fsm_inner
     assert 'gates: [(condition: "conditions/conduit.animgraph.ron"' in fsm_inner
     assert 'notifications: [(phase: "TransitionStart", name: "Notify")]' in fsm_inner

@@ -48,7 +48,13 @@
 
   - 本段Gate完成：实际结束2026-09-09 01:12:00 +08:00，偏差-21m。九帧native记录与实际图三路初始化边界通过；移除入口初始化的旧实现稳定FAIL，关闭重新相关初始化的对照保留0.7s；329个als-ext回归PASS（watchdog 19.818s），native reader五项watchdog/build新旧判断自测PASS。旧状态输出测试也改用两个不同状态ID，避免默认nil身份合并造成假覆盖。运行改动仅复用状态清理到入口选择，未新增缓存状态、反射层或依赖；尚未运行完整Standing场景，同入口预构建留待下一静态闭环后的runtime Gate。
   - 后续边界：fresh Standing 22个实际状态的bAlwaysResetOnEntry均为False；UE SetState只在目标已无权重或强制重置时初始化，而当前生成FSM过渡始终reset_target_state=true且运行时未按实际目标权重拦截。此源边属于同一Standing初始化闭包，转01f独立修复；Actor输入和真实Standing Gate仍未完成。
-- [ ] BF115.01f Standing活动状态重返合同：开始：2026-09-09 01:12:00 +08:00；预估结束：2026-09-09 01:57:00 +08:00。依据为当次Standing 4个FSM/22个实际状态、UE SetState已提取的条件、既有实际状态权重与interrupt fixture；预计复用现有SourceTransitionCondition保留目标状态初始化策略，再以实际过渡中的重返反例验证。修复通用转换与source状态策略，完成生成/静态Gate并提交后继续Actor输入；不把bAlwaysReset默认值藏在Standing专用分支，也不改变非source FSM显式重置语义。
+- [x] BF115.01f Standing活动状态重返合同：开始：2026-09-09 01:12:00 +08:00；预估结束：2026-09-09 01:57:00 +08:00。依据为当次Standing 4个FSM/22个实际状态、UE SetState已提取的条件、既有实际状态权重与interrupt fixture；预计复用现有SourceTransitionCondition保留目标状态初始化策略，再以实际过渡中的重返反例验证。修复通用转换与source状态策略，完成生成/静态Gate并提交后继续Actor输入；不把bAlwaysReset默认值藏在Standing专用分支，也不改变非source FSM显式重置语义。
+  - focused闭包（2026-09-09 01:19:00 +08:00）：实际ProfiledBlend过渡A→B→A先稳定FAIL（A仍有权重但被重置0.3s，应继续0.6s）；源状态策略接入后，保留/强制重置/无源策略兼容三路PASS。源字段解析fixture先FAIL缺失always_reset_on_entry，再通过默认False及显式True；conduit最终目标策略与RON Some(true)逐步保留，五个converter相关self-test PASS。22个Standing状态在fresh native中均False，既有UE AnimStateNode构造也默认False。新Option字段只为明确区分源策略与旧资产既有显式重置；未新增独立状态或辅助执行层。下一步公开uasset重新读取生成、受owner限制安装、同入口编译与完整静态Gate。
+
+
+  - 本段Gate完成：实际结束2026-09-09 01:28:00 +08:00，偏差-29m。公开uasset转换287.584s完成、unsupported 0、隔离安装通过；只覆盖原AB_Als owner内108文件，两张图改变且差异严格限于51条已解析的目标状态策略。330个als-ext回归PASS；target_game/play双example编译122.539s、23张Pose图实际加载3.145s；108文件编辑器修复/复查零改动，声明式Gate5.318s流程通过62个源子图、174个源Pose节点、141条Pose边、4个FSM和30个条件图，以及位置/运行资产边界。消融以强制重置和无源字段策略分别确认配置与兼容边界；未改原始导出或相邻图。
+  - Standing剩余边界：图时钟、曲线与已证实初始化差异已闭合，仍须核实Initialize/RefreshStandingMovement、RefreshGroundedMovement、Pivot/HipsDirection与Rotate等已登记source函数在Actor中的算法、输入及调用阶段；然后完成真实startup和运动Gate。该函数列表来自当前转换IR/dispatch，不以插件名出现在集成报告中作为功能正确证据。
+- [ ] BF115.01g Standing Actor输入与生命周期：开始：2026-09-09 01:28:00 +08:00；预估结束：2026-09-09 02:23:00 +08:00。依据为当前62个可达源子图、IR明确的运动/方向/pivot/rotate函数及现有Actor集中输入provider；前两段实际闭环分别24m与16m，本段优先比较C++函数、source数据与调用阶段，再只修复证实差异。GroundedMovement只核对Standing直接依赖的共享函数，不提前展开Grounded/Crouching图；原始曲线与已完成ragdoll维持边界。完成focused/static闭环后单独登记真实Standing运动Gate，不能把旧Actor输出或插件provider声明当作UE事实。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

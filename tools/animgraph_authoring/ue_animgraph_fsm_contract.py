@@ -231,6 +231,7 @@ def fsm_contract(source, suffix):
         if class_path == STATE_CLASS:
             item = node_base(source, node)
             item["graph"] = bound_graph(source, props)
+            item["always_reset_on_entry"] = boolean(props.get("bAlwaysResetOnEntry", "False"))
             states.append(item)
         elif class_path == ALIAS_CLASS:
             item = node_base(source, node)
@@ -373,6 +374,12 @@ def fixture_source():
 
 def run_self_test():
     value = fsm_contract(fixture_source(), "AnimGraph.Machine.FSM")
+    assert value["states"][0]["always_reset_on_entry"] is False
+    reset_source = fixture_source()
+    reset_state = next(node for graph in reset_source["graphs"] for node in graph["nodes"]
+                       if node["class_path"] == STATE_CLASS)
+    reset_state["properties"].append({"name": "bAlwaysResetOnEntry", "exported_text": "True"})
+    assert fsm_contract(reset_source, "AnimGraph.Machine.FSM")["states"][0]["always_reset_on_entry"] is True
     assert value["entry_target"] == "AnimGraph.Machine.FSM.State"
     assert value["states"][0]["graph"] == "AnimGraph.Machine.FSM.State.Idle"
     assert value["transitions"][0]["condition_graph"] == "AnimGraph.Machine.FSM.Transition.Rule"
