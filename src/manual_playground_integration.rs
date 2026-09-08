@@ -4588,10 +4588,9 @@ fn observe_manual_integration(
                 expected_world.dot(transform.rotation * Vec3::X),
             )
             .normalize_or_zero();
-            let world_alignment = motion
-                .world_velocity
+            let world_alignment = Vec2::new(motion.world_velocity.x, motion.world_velocity.z)
                 .normalize_or_zero()
-                .dot(expected_world);
+                .dot(Vec2::new(expected_world.x, expected_world.z));
             let local_alignment = motion
                 .local_velocity
                 .normalize_or_zero()
@@ -4994,10 +4993,9 @@ fn observe_manual_integration(
             expected_world.dot(transform.rotation * Vec3::X),
         )
         .normalize_or_zero();
-        let world_alignment = motion
-            .world_velocity
+        let world_alignment = Vec2::new(motion.world_velocity.x, motion.world_velocity.z)
             .normalize_or_zero()
-            .dot(expected_world);
+            .dot(Vec2::new(expected_world.x, expected_world.z));
         let local_alignment = motion
             .local_velocity
             .normalize_or_zero()

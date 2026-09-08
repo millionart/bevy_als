@@ -23,12 +23,23 @@ pub struct AlsGroundedVelocityBlend {
 impl AlsActualMotion {
     fn from_physics_velocity(world_velocity: Vec3, character_rotation: Quat) -> Self {
         let motion = horizontal_motion_from_world_velocity(world_velocity, character_rotation);
+        let local = character_rotation.inverse() * world_velocity;
+        let direction = if local.length_squared() > 1e-12 {
+            local / local.abs().element_sum()
+        } else {
+            Vec3::ZERO
+        };
         Self {
-            world_velocity: motion.world_velocity,
+            world_velocity,
             local_velocity: motion.local_velocity,
             horizontal_speed: motion.horizontal_speed,
             signed_direction_radians: motion.signed_direction_radians,
-            velocity_blend: motion.velocity_blend,
+            velocity_blend: HorizontalVelocityBlend {
+                forward: (-direction.z).max(0.0),
+                backward: direction.z.max(0.0),
+                left: (-direction.x).max(0.0),
+                right: direction.x.max(0.0),
+            },
         }
     }
 }
@@ -139,6 +150,16 @@ fn snapshot_actual_motion_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standing_source_motion_retains_full_velocity_for_three_axis_blend() {
+        let velocity = Vec3::new(1.0, 2.0, -1.0);
+        let motion = AlsActualMotion::from_physics_velocity(velocity, Quat::IDENTITY);
+        assert_eq!(motion.world_velocity, velocity);
+        assert!((motion.horizontal_speed - 2.0_f32.sqrt()).abs() < 1e-6);
+        assert!((motion.velocity_blend.forward - 0.25).abs() < 1e-6);
+        assert!((motion.velocity_blend.right - 0.25).abs() < 1e-6);
+    }
 
     #[test]
     fn snapshot_is_character_local_and_isolated() {

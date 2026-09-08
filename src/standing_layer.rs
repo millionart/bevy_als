@@ -1,7 +1,6 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsGroundedDynamics;
 use als_core::foot_ik::AlsFootLockInput;
-use als_core::gait::stride_blend_amount_for_speed;
 use als_core::input::AlsInputCommand;
 use als_core::motion::{AlsInputOverride, AlsRotationAnimationState, AlsViewYaw};
 use als_core::movement_direction::{
@@ -13,7 +12,7 @@ use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
 use std::{path::Path, sync::LazyLock};
 
 use als_ext::{
-    AlphaBlendMode, AlsAnimCurves, CurveAsset, InterruptibleFsmNode, InterruptibleFsmState,
+    AlphaBlendMode, AlsAnimCurves, InterruptibleFsmNode, InterruptibleFsmState,
     SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
     build_branch_bone_mask, marker_phase_sample_time, transition_alpha,
 };
@@ -35,6 +34,7 @@ use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
+use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
@@ -102,12 +102,6 @@ static RUN_LEFT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
 static SPRINT_MARKERS: LazyLock<Vec<SyncMarker>> =
     LazyLock::new(|| marker_set(&[("Left", 0.016667), ("Right", 0.316667)]));
 
-const ROTATION_YAW_OFFSET_FORWARD_BACKWARD: &str =
-    "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.curve.ron";
-const ROTATION_YAW_OFFSET_LEFT: &str =
-    "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.curve.ron";
-const ROTATION_YAW_OFFSET_RIGHT: &str =
-    "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.curve.ron";
 const STANDING_SKELETON: &str = "skeletons/SKM_Als.skn.ron";
 const STOP_LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
 const STOP_RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
@@ -135,9 +129,6 @@ struct AlsPivotRequest;
 
 #[derive(Resource)]
 pub(crate) struct StandingCurveHandles {
-    forward_backward: Handle<CurveAsset>,
-    left: Handle<CurveAsset>,
-    right: Handle<CurveAsset>,
     rotate_left: Handle<AlsAnimCurves>,
     rotate_right: Handle<AlsAnimCurves>,
     turn_left_90: Handle<AlsAnimCurves>,
@@ -149,26 +140,6 @@ pub(crate) struct StandingCurveHandles {
     skeleton: Handle<Skeleton>,
     stop_left_leg_mask: Option<BoneMask>,
     stop_right_leg_mask: Option<BoneMask>,
-}
-
-pub(crate) fn source_rotation_yaw_offsets(
-    curves: &Assets<CurveAsset>,
-    handles: &StandingCurveHandles,
-    angle: f32,
-) -> (f32, f32, f32, f32) {
-    let sample = |handle: &Handle<CurveAsset>| {
-        curves
-            .get(handle)
-            .map(|curve| curve.sample(angle))
-            .unwrap_or(0.0)
-    };
-    let forward_backward = sample(&handles.forward_backward);
-    (
-        forward_backward,
-        forward_backward,
-        sample(&handles.left),
-        sample(&handles.right),
-    )
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -869,9 +840,6 @@ fn pivot_notify_system(mut commands: Commands, mut notices: MessageReader<AlsPiv
 
 fn load_standing_curve_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(StandingCurveHandles {
-        forward_backward: assets.load(ROTATION_YAW_OFFSET_FORWARD_BACKWARD),
-        left: assets.load(ROTATION_YAW_OFFSET_LEFT),
-        right: assets.load(ROTATION_YAW_OFFSET_RIGHT),
         rotate_left: assets.load(ROTATE_LEFT_CURVE_ASSET),
         rotate_right: assets.load(ROTATE_RIGHT_CURVE_ASSET),
         turn_left_90: assets.load(TURN_LEFT_90_CURVE_ASSET),
@@ -930,7 +898,7 @@ fn animation_world_scale(transform: &GlobalTransform) -> f32 {
 }
 
 fn unweighted_gait_amounts(gait_amount: f32, pose_grounded_amount: f32) -> (f32, f32) {
-    let unweighted = if pose_grounded_amount > f32::EPSILON {
+    let unweighted = if pose_grounded_amount > 1e-8 {
         gait_amount / pose_grounded_amount
     } else {
         gait_amount
@@ -962,10 +930,10 @@ fn acceleration_amount(
     } else {
         maximum_braking_deceleration
     };
-    if maximum <= f32::EPSILON {
+    if maximum <= 1e-6 {
         return Vec2::ZERO;
     }
-    (local_horizontal(acceleration, transform) / maximum).clamp_length_max(1.0)
+    local_horizontal((acceleration / maximum).clamp_length_max(1.0), transform)
 }
 
 pub fn standing_play_rate(
@@ -1356,14 +1324,12 @@ fn direction_for(
     }
 }
 
-fn yaw_offset_curve<'a>(
-    direction: AlsMovementDirection,
-    handles: &'a StandingCurveHandles,
-) -> &'a Handle<CurveAsset> {
+fn rotation_yaw_offset(direction: AlsMovementDirection, runtime_angle: f32) -> f32 {
+    let (forward, _, left, right) = standing_rotation_yaw_offsets(runtime_angle);
     match direction {
-        AlsMovementDirection::Forward | AlsMovementDirection::Backward => &handles.forward_backward,
-        AlsMovementDirection::RightForward | AlsMovementDirection::RightBackward => &handles.right,
-        AlsMovementDirection::LeftForward | AlsMovementDirection::LeftBackward => &handles.left,
+        AlsMovementDirection::Forward | AlsMovementDirection::Backward => forward,
+        AlsMovementDirection::RightForward | AlsMovementDirection::RightBackward => right,
+        AlsMovementDirection::LeftForward | AlsMovementDirection::LeftBackward => left,
     }
 }
 
@@ -1565,7 +1531,6 @@ fn update_standing_inputs(
     turn: Option<&AlsTurnDrive>,
     turn_stack: Option<&AlsTurnMontageStack>,
     hips_direction_lock_amount: f32,
-    curves: &Assets<CurveAsset>,
     animation_curves: &Assets<AlsAnimCurves>,
     curve_handles: &StandingCurveHandles,
     source_context: Option<&AlsRootAnimationContext>,
@@ -1574,7 +1539,7 @@ fn update_standing_inputs(
     let horizontal_speed = actual_motion.horizontal_speed;
     let has_input = input.move_dir.length_squared() > f32::EPSILON;
     let moving_smooth = source_moving_smooth(has_input, horizontal_speed);
-    let acceleration = if runtime.initialized && delta_seconds > f32::EPSILON {
+    let acceleration = if runtime.initialized && delta_seconds > 1e-8 {
         (velocity - runtime.previous_velocity) / delta_seconds
     } else {
         Vec3::ZERO
@@ -1617,7 +1582,7 @@ fn update_standing_inputs(
     let sprinting = gait_is_sprinting;
     let animation_speed = horizontal_speed / animation_world_scale;
     let stride_amount =
-        stride_blend_amount_for_speed(unweighted_gait_running_amount, animation_speed);
+        standing_stride_amount(unweighted_gait_running_amount, animation_speed);
     let play_rate = standing_play_rate(
         params,
         animation_speed,
@@ -1760,23 +1725,14 @@ fn update_standing_inputs(
         runtime.movement_transition_request = None;
     }
     let movement_transition_index = runtime.movement_transition_request.unwrap_or(-1.0);
-    let yaw_angle = view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
-    let target_yaw_offset = curves
-        .get(yaw_offset_curve(
-            runtime.movement_state.direction(),
-            curve_handles,
-        ))
-        .map(|curve| curve.sample(yaw_angle))
-        .unwrap_or(0.0);
+    let yaw_angle = -view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
+    let target_yaw_offset = rotation_yaw_offset(runtime.movement_state.direction(), yaw_angle);
     let yaw_offset = runtime
         .movement_transition_source
         .zip(runtime.movement_transition_request)
         .filter(|_| runtime.movement_transition_remaining > f32::EPSILON)
         .map(|(source, index)| {
-            let source_yaw_offset = curves
-                .get(yaw_offset_curve(source.direction(), curve_handles))
-                .map(|curve| curve.sample(yaw_angle))
-                .unwrap_or(0.0);
+            let source_yaw_offset = rotation_yaw_offset(source.direction(), yaw_angle);
             let duration = StandingMovementState::transition_duration(index);
             let progress = 1.0 - runtime.movement_transition_remaining / duration;
             source_yaw_offset.lerp(
@@ -2346,7 +2302,6 @@ fn standing_layer_writer(
         With<AlsCharacterAvatar>,
     >,
     params: Res<Assets<AlsMovementParams>>,
-    curves: Res<Assets<CurveAsset>>,
     animation_curves: Res<Assets<AlsAnimCurves>>,
     mut curve_handles: ResMut<StandingCurveHandles>,
     skeletons: Res<Assets<Skeleton>>,
@@ -2448,7 +2403,6 @@ fn standing_layer_writer(
             turn,
             turn_stack,
             hips_direction_lock_amount,
-            &curves,
             &animation_curves,
             &curve_handles,
             context,
@@ -2702,6 +2656,37 @@ mod tests {
                 < 1e-6
         );
         assert!((damper_exact_alpha(LEAN_HALF_LIFE, LEAN_HALF_LIFE) - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standing_source_acceleration_clamps_before_planar_projection() {
+        let velocity = Vec3::new(0.0, 3.0, -4.0);
+        let amount = acceleration_amount(velocity, velocity, &Transform::default(), 1.0, 1.0);
+        assert!(amount.distance(Vec2::new(0.8, 0.0)) < 1e-6, "{amount:?}");
+    }
+
+    #[test]
+    fn standing_source_gait_division_uses_source_small_number() {
+        assert_eq!(unweighted_gait_amounts(1.5e-7, 5e-8), (1.0, 1.0));
+    }
+
+    #[test]
+    fn standing_source_stride_retains_the_source_key() {
+        let value = standing_stride_amount(0.0, 0.583);
+        assert!((value - 0.55).abs() < 1e-6, "{value}");
+        assert!((standing_stride_amount(1.0, 1.66899994) - 0.45).abs() < 1e-6);
+        assert_eq!(standing_stride_amount(0.5, 10.0), 1.0);
+        assert_eq!(standing_stride_amount(0.5, -1.0), 0.2);
+    }
+
+    #[test]
+    fn standing_source_yaw_offset_uses_runtime_rotation_sign() {
+        let value = standing_rotation_yaw_offsets(-60.0).0;
+        assert!((value + 60.0).abs() < 1e-6, "{value}");
+        assert_eq!(standing_rotation_yaw_offsets(-420.0).0, -60.0);
+        assert_eq!(standing_rotation_yaw_offsets(60.0).0, 60.0);
+        assert_eq!(standing_rotation_yaw_offsets(-45.0), (-45.0, -45.0, 45.0, 0.0));
+        assert_eq!(standing_rotation_yaw_offsets(45.0), (45.0, 45.0, 0.0, -45.0));
     }
 
     #[test]

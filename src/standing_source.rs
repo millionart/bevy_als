@@ -10,6 +10,39 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
 };
+use serde::Deserialize;
+use std::sync::LazyLock;
+
+#[derive(Deserialize)]
+struct StandingCurves {
+    stride_walk: als_ext::als_curves::AlsFloatCurve,
+    stride_run: als_ext::als_curves::AlsFloatCurve,
+    yaw_forward_backward: als_ext::als_curves::AlsFloatCurve,
+    yaw_left: als_ext::als_curves::AlsFloatCurve,
+    yaw_right: als_ext::als_curves::AlsFloatCurve,
+}
+
+static CURVES: LazyLock<StandingCurves> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../assets/character/als_standing_curves.json"))
+        .expect("generated Standing curves are valid")
+});
+
+pub(crate) fn standing_stride_amount(running: f32, speed: f32) -> f32 {
+    CURVES
+        .stride_walk
+        .sample(speed)
+        .lerp(CURVES.stride_run.sample(speed), running)
+}
+
+pub(crate) fn standing_rotation_yaw_offsets(runtime_angle: f32) -> (f32, f32, f32, f32) {
+    let forward_backward = CURVES.yaw_forward_backward.sample(runtime_angle);
+    (
+        forward_backward,
+        forward_backward,
+        CURVES.yaw_left.sample(runtime_angle),
+        CURVES.yaw_right.sample(runtime_angle),
+    )
+}
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]

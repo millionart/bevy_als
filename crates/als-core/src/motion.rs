@@ -50,7 +50,6 @@ pub struct AlsActualVelocity {
 
 impl AlsActualVelocity {
     fn from_physics_velocity(world_velocity: Vec3) -> Self {
-        let world_velocity = Vec3::new(world_velocity.x, 0.0, world_velocity.z);
         Self {
             horizontal_speed: Vec2::new(world_velocity.x, world_velocity.z).length(),
             world_velocity,
@@ -570,7 +569,7 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    fn actual_velocity_snapshot_uses_horizontal_physics_velocity() {
+    fn actual_velocity_snapshot_retains_full_velocity_and_horizontal_speed() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_systems(FixedPostUpdate, snapshot_actual_velocity_system);
@@ -586,7 +585,7 @@ mod rotation_cap_tests {
         app.world_mut().run_schedule(FixedPostUpdate);
 
         let motion = *app.world().get::<AlsActualVelocity>(entity).unwrap();
-        assert_eq!(motion.world_velocity, Vec3::new(3.0, 0.0, -4.0));
+        assert_eq!(motion.world_velocity, Vec3::new(3.0, 7.0, -4.0));
         assert!((motion.horizontal_speed - 5.0).abs() < 1e-6);
 
         app.world_mut()

@@ -24,10 +24,8 @@ use crate::{
     grounded_layer::AlsGroundedEntryMode,
     locomotion_layer::AlsMovementBaseAnimationState,
     ragdolling_layer::AlsRagdollingLayerSet,
-    standing_layer::{
-        AlsStandingLayerSet, StandingCurveHandles, source_moving_smooth,
-        source_rotation_yaw_offsets,
-    },
+    standing_layer::{AlsStandingLayerSet, source_moving_smooth},
+    standing_source::standing_rotation_yaw_offsets,
 };
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -160,8 +158,6 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 #[allow(clippy::type_complexity)]
 fn generated_ab_als_input_writer(
     time: Res<Time>,
-    curves: Res<Assets<als_ext::CurveAsset>>,
-    curve_handles: Res<StandingCurveHandles>,
     characters: Query<
         (
             Entity,
@@ -214,7 +210,7 @@ fn generated_ab_als_input_writer(
             let (forward, backward, left, right) =
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
-                source_rotation_yaw_offsets(&curves, &curve_handles, velocity_yaw_angle_view_space);
+                standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
             let has_input =
                 input.is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON);
             let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);

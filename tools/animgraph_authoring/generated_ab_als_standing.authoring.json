@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_standing_instance_properties",
+  "id": "generated_ab_als_standing_numeric_inputs",
   "source_evidence": [
     {
       "path": "target/bf115_standing/actor/source/0036_AB_Als_Standing.ue.json",
@@ -61,6 +61,30 @@
     {
       "path": "target/bf115_standing/actor/AIS.fresh.ue.json",
       "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0048_AIS_Als_Default.ue.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0049_CF_Als_StrideBlendAmount_Walk.ue.json",
+      "sha256": "571e9eb958aec32e694dcca0cac722c724d21cd6616765b2f5eb1a7bfd9d967f"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0050_CF_Als_StrideBlendAmount_Run.ue.json",
+      "sha256": "344716f3cfbf209af937406ae54a2774d407134fc1d9d989e322b407445d8001"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0051_CF_Als_RotationYawOffset_ForwardBackward.ue.json",
+      "sha256": "9dfb1a5f22a8c327e4c8c436329c075d3c7532b5a8a0a485895a46ba19445bd7"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0052_CF_Als_RotationYawOffset_Left.ue.json",
+      "sha256": "1401e5c0fdf4b0894964c4cbd976fff8d87eccadeea11096f528e09c08caeb29"
+    },
+    {
+      "path": "target/bf115_standing/converter_source/0053_CF_Als_RotationYawOffset_Right.ue.json",
+      "sha256": "a26aeedd484bff8489e05b156d1f084570392e9af2092624e9c318e31eda4d85"
     }
   ],
   "graphs": [
@@ -1660,7 +1684,7 @@
         "--materialized-directory",
         "target/bf115_standing/actor/conversion",
         "--spec",
-        "target/bf115_standing/actor/spec.json"
+        "target/bf115_standing/actor/numeric.spec.json"
       ]
     },
     {
@@ -1692,6 +1716,15 @@
         "--assets-root",
         "assets",
         "--check"
+      ]
+    },
+    {
+      "label": "standing_curve_conversion",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/gen_standing_curves.py",
+        "--self-test"
       ]
     }
   ],
