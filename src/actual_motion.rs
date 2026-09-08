@@ -1,5 +1,6 @@
 use als_core::character::AlsCharacter;
 use als_core::motion::{AlsActualVelocity, AlsActualVelocitySet, AlsRotationResponseSet};
+use als_core::orientation::world_forward_to_yaw;
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
 use bevy::prelude::*;
 
@@ -10,6 +11,7 @@ pub struct AlsActualMotion {
     pub world_velocity: Vec3,
     pub local_velocity: Vec2,
     pub horizontal_speed: f32,
+    pub velocity_yaw_degrees: f32,
     pub signed_direction_radians: f32,
     pub velocity_blend: HorizontalVelocityBlend,
 }
@@ -33,6 +35,7 @@ impl AlsActualMotion {
             world_velocity,
             local_velocity: motion.local_velocity,
             horizontal_speed: motion.horizontal_speed,
+            velocity_yaw_degrees: world_forward_to_yaw(world_velocity).to_degrees(),
             signed_direction_radians: motion.signed_direction_radians,
             velocity_blend: HorizontalVelocityBlend {
                 forward: (-direction.z).max(0.0),
@@ -137,8 +140,13 @@ fn snapshot_actual_motion_system(
     >,
 ) {
     for (entity, velocity, transform, current) in &mut characters {
-        let next =
+        let mut next =
             AlsActualMotion::from_physics_velocity(velocity.world_velocity, transform.rotation);
+        if next.horizontal_speed < 0.01 {
+            next.velocity_yaw_degrees = current
+                .as_deref()
+                .map_or(0.0, |previous| previous.velocity_yaw_degrees);
+        }
         if let Some(mut current) = current {
             *current = next;
         } else {

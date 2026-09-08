@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_standing_numeric_inputs",
+  "id": "generated_ab_als_standing_motion_lifecycle",
   "source_evidence": [
     {
       "path": "target/bf115_standing/actor/source/0036_AB_Als_Standing.ue.json",
@@ -85,6 +85,10 @@
     {
       "path": "target/bf115_standing/converter_source/0053_CF_Als_RotationYawOffset_Right.ue.json",
       "sha256": "a26aeedd484bff8489e05b156d1f084570392e9af2092624e9c318e31eda4d85"
+    },
+    {
+      "path": "target/bf115_standing/input_lifecycle/Character.fresh.ue.json",
+      "sha256": "870faa9c71896f207585d8e996844a7383fab890e8d93162ac975e6cee588c0a"
     }
   ],
   "graphs": [
@@ -1684,7 +1688,7 @@
         "--materialized-directory",
         "target/bf115_standing/actor/conversion",
         "--spec",
-        "target/bf115_standing/actor/numeric.spec.json"
+        "target/bf115_standing/input_lifecycle/spec.json"
       ]
     },
     {

@@ -33,7 +33,7 @@ use crate::actual_motion::AlsActualMotion;
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
+use crate::direction_layer::view_space_direction_angle_from_radians;
 use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
@@ -1310,7 +1310,7 @@ fn turn_montage_sequence_curves(
 }
 
 fn direction_for(
-    velocity: Vec3,
+    velocity_yaw: f32,
     view_yaw: f32,
     rotation_mode: RotationMode,
     gait: Gait,
@@ -1319,7 +1319,7 @@ fn direction_for(
     if rotation_mode == RotationMode::VelocityDirection || gait == Gait::Sprinting {
         AlsMovementDirection::Forward
     } else {
-        let angle = view_space_direction_angle_from_radians(velocity_yaw_deg(velocity), view_yaw);
+        let angle = view_space_direction_angle_from_radians(velocity_yaw, view_yaw);
         advance_standing_movement_state(current_state, classify_grounded_movement_intent(angle))
     }
 }
@@ -1605,7 +1605,7 @@ fn update_standing_inputs(
         0.0
     };
     let direction = direction_for(
-        velocity,
+        actual_motion.velocity_yaw_degrees,
         view_yaw,
         rotation_mode,
         gait,
@@ -1613,11 +1613,7 @@ fn update_standing_inputs(
     );
     let direction_index = direction_index(direction);
     let movement_state_index = movement_state_index(direction);
-    let velocity_yaw = if horizontal_speed >= VELOCITY_EPSILON {
-        velocity_yaw_deg(velocity)
-    } else {
-        view_yaw.to_degrees()
-    };
+    let velocity_yaw = actual_motion.velocity_yaw_degrees;
     if source_pivot_activates(pivot_requested, horizontal_speed) {
         runtime.pivot_pending = true;
     }
@@ -2529,7 +2525,7 @@ mod tests {
     fn standing_direction_converts_target_yaw_to_source_sign() {
         assert_eq!(
             direction_for(
-                Vec3::X,
+                -90.0,
                 0.0,
                 RotationMode::Aiming,
                 Gait::Running,

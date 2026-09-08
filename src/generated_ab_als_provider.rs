@@ -2,9 +2,7 @@ use als_core::{
     character::AlsCharacter,
     input::AlsInputCommand,
     motion::AlsViewYaw,
-    movement_direction::{
-        AlsGroundedMovementIntent, AlsMovementDirectionState, classify_grounded_movement_intent,
-    },
+    movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     state::{Gait, LocomotionState, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
@@ -20,7 +18,7 @@ use crate::{
     actual_motion::AlsActualMotion,
     animation_context_projection::AlsRootAnimationContext,
     character_assembly::AlsCharacterAvatar,
-    direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians},
+    direction_layer::view_space_direction_angle_from_radians,
     grounded_layer::AlsGroundedEntryMode,
     locomotion_layer::AlsMovementBaseAnimationState,
     ragdolling_layer::AlsRagdollingLayerSet,
@@ -66,6 +64,10 @@ fn source_direction_inputs(
         AlsGroundedMovementIntent::Left => (false, false, true, false),
         AlsGroundedMovementIntent::Right => (false, false, false, true),
     }
+}
+
+fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
+    view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
 }
 
 fn source_velocity_blend(
@@ -167,7 +169,6 @@ fn generated_ab_als_input_writer(
             &RotationMode,
             &AlsActualMotion,
             &AlsViewYaw,
-            Option<&AlsMovementDirectionState>,
             Option<&AlsInputCommand>,
             Option<&AlsMovementBaseAnimationState>,
             Option<&AlsGroundedEntryMode>,
@@ -185,7 +186,6 @@ fn generated_ab_als_input_writer(
         rotation_mode,
         motion,
         view_yaw,
-        direction_state,
         input,
         movement_base,
         grounded_entry_mode,
@@ -198,15 +198,8 @@ fn generated_ab_als_input_writer(
             let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
-            let velocity_yaw_angle_view_space = direction_state.map_or_else(
-                || {
-                    view_space_direction_angle_from_radians(
-                        velocity_yaw_deg(motion.world_velocity),
-                        view_yaw.0,
-                    )
-                },
-                |state| state.angle,
-            );
+            let velocity_yaw_angle_view_space =
+                source_velocity_yaw_angle_view_space(motion, view_yaw.0);
             let (forward, backward, left, right) =
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
@@ -297,6 +290,42 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standing_source_velocity_yaw_survives_stop_and_tracks_view_changes() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, crate::actual_motion::AlsActualMotionPlugin));
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::default(),
+                als_core::motion::AlsActualVelocity::default(),
+            ))
+            .id();
+        for (velocity, view_yaw, expected) in [
+            (Vec3::new(1.0, 0.0, -1.0), 0.0, 45.0),
+            (Vec3::ZERO, 0.0, 45.0),
+            (Vec3::NEG_Z * 0.009, std::f32::consts::FRAC_PI_2, 135.0),
+            (Vec3::NEG_Z * 0.01, 0.0, 0.0),
+            (Vec3::ZERO, 0.0, 0.0),
+        ] {
+            app.world_mut()
+                .entity_mut(entity)
+                .insert(als_core::motion::AlsActualVelocity {
+                    world_velocity: velocity,
+                    horizontal_speed: Vec2::new(velocity.x, velocity.z).length(),
+                });
+            app.update();
+            let motion = app.world().get::<AlsActualMotion>(entity).unwrap();
+            assert_eq!(motion.world_velocity, velocity);
+            let actual = source_velocity_yaw_angle_view_space(motion, view_yaw);
+            assert!(
+                (actual - expected).abs() < 1e-5,
+                "velocity={velocity:?} view={view_yaw} angle={actual} expected={expected}"
+            );
+        }
+    }
 
     #[test]
     fn generated_pose_inputs_preserve_actual_curve_weights_and_source_defaults() {
