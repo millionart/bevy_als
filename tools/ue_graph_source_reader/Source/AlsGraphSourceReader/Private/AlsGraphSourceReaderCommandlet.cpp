@@ -5,6 +5,9 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimNotifyQueue.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SkeletalMesh.h"
@@ -407,6 +410,103 @@ TSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)
 }
 }
 
+TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& RequestPath)
+{
+    UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset);
+    FString RequestText;
+    TSharedPtr<FJsonObject> Request;
+    if (BlendSpace == nullptr || !FFileHelper::LoadFileToString(RequestText, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(RequestText), Request))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("BlendSpace probe asset or request is invalid."));
+        return nullptr;
+    }
+    const TArray<TSharedPtr<FJsonValue>>* Frames;
+    double StartPosition;
+    bool Looped;
+    if (!Request->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 600 ||
+        !Request->TryGetNumberField(TEXT("start_position"), StartPosition) || !FMath::IsFinite(StartPosition) ||
+        StartPosition < 0.0 || StartPosition > 1.0 || !Request->TryGetBoolField(TEXT("looped"), Looped))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("BlendSpace probe timeline is invalid."));
+        return nullptr;
+    }
+    float NormalizedTime = static_cast<float>(StartPosition);
+    FBlendFilter Filter;
+    BlendSpace->InitializeFilter(&Filter);
+    TArray<FBlendSampleData> Samples;
+    FMarkerTickRecord MarkerRecord;
+    FDeltaTimeRecord DeltaRecord;
+    FMarkerSyncAnimPosition LastMarkerPosition;
+    int32 TriangulationIndex = INDEX_NONE;
+    const TArray<FName> EmptyMarkers;
+    const TArray<FName>* Markers = BlendSpace->GetUniqueMarkerNames();
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (int32 Index = 0; Index < Frames->Num(); ++Index)
+    {
+        const TSharedPtr<FJsonObject>* Input;
+        double X, Y, DeltaSeconds, PlayRate;
+        if (!(*Frames)[Index]->TryGetObject(Input) ||
+            !(*Input)->TryGetNumberField(TEXT("x"), X) || !FMath::IsFinite(X) ||
+            !(*Input)->TryGetNumberField(TEXT("y"), Y) || !FMath::IsFinite(Y) ||
+            !(*Input)->TryGetNumberField(TEXT("delta_seconds"), DeltaSeconds) || !FMath::IsFinite(DeltaSeconds) ||
+            DeltaSeconds < 0.0 || DeltaSeconds > 0.25 ||
+            !(*Input)->TryGetNumberField(TEXT("play_rate"), PlayRate) || !FMath::IsFinite(PlayRate))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("BlendSpace probe frame %d is invalid."), Index);
+            return nullptr;
+        }
+        FAnimTickRecord TickRecord(BlendSpace, FVector(X, Y, 0.0), Samples, Filter, Looped,
+            static_cast<float>(PlayRate), false, false, 1.0f, NormalizedTime, MarkerRecord);
+        TickRecord.DeltaTimeRecord = &DeltaRecord;
+        TickRecord.bCanUseMarkerSync = Markers != nullptr && !Markers->IsEmpty();
+        TickRecord.BlendSpace.TriangulationIndex = TriangulationIndex;
+        FAnimAssetTickContext Context(static_cast<float>(DeltaSeconds), ERootMotionMode::NoRootMotionExtraction,
+            true, Markers != nullptr ? *Markers : EmptyMarkers);
+        if (LastMarkerPosition.IsValid())
+        {
+            Context.MarkerTickContext.SetMarkerSyncStartPosition(LastMarkerPosition);
+        }
+        FAnimNotifyQueue NotifyQueue;
+        BlendSpace->TickAssetPlayer(TickRecord, NotifyQueue, Context);
+        TriangulationIndex = TickRecord.BlendSpace.TriangulationIndex;
+        LastMarkerPosition = Context.MarkerTickContext.GetMarkerSyncEndPosition();
+        TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+        Frame->SetNumberField(TEXT("frame"), Index);
+        Frame->SetObjectField(TEXT("input"), Input->ToSharedRef());
+        Frame->SetObjectField(TEXT("filtered_position"), CaptureVector(Filter.GetFilterLastOutput()));
+        Frame->SetNumberField(TEXT("normalized_time"), NormalizedTime);
+        Frame->SetNumberField(TEXT("leader_delta"), Context.GetLeaderDelta());
+        Frame->SetStringField(TEXT("previous_marker"), LastMarkerPosition.PreviousMarkerName.ToString());
+        Frame->SetStringField(TEXT("next_marker"), LastMarkerPosition.NextMarkerName.ToString());
+        Frame->SetNumberField(TEXT("marker_alpha"), LastMarkerPosition.PositionBetweenMarkers);
+        TArray<TSharedPtr<FJsonValue>> SampleValues;
+        for (const FBlendSampleData& Sample : Samples)
+        {
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("sample_index"), Sample.SampleDataIndex);
+            Value->SetStringField(TEXT("animation"), ObjectPath(Sample.Animation));
+            Value->SetNumberField(TEXT("weight"), Sample.GetClampedWeight());
+            Value->SetNumberField(TEXT("previous_time"), Sample.PreviousTime);
+            Value->SetNumberField(TEXT("time"), Sample.Time);
+            Value->SetNumberField(TEXT("play_rate"), Sample.SamplePlayRate);
+            SampleValues.Add(MakeShared<FJsonValueObject>(Value));
+        }
+        Frame->SetArrayField(TEXT("samples"), SampleValues);
+        Results.Add(MakeShared<FJsonValueObject>(Frame));
+        if (Index % 60 == 0)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Display, TEXT("BlendSpace probe frame %d/%d."), Index + 1, Frames->Num());
+        }
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("format"), TEXT("ue_blendspace_tick_probe_v1"));
+    Result->SetNumberField(TEXT("start_position"), StartPosition);
+    Result->SetBoolField(TEXT("looped"), Looped);
+    Result->SetArrayField(TEXT("frames"), Results);
+    return Result;
+}
+
 UAlsGraphSourceReaderCommandlet::UAlsGraphSourceReaderCommandlet()
 {
     IsClient = false;
@@ -419,8 +519,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
 {
     FString AssetPath;
     FString OutputPath;
+    FString BlendSpaceProbePath;
     FParse::Value(*Params, TEXT("Asset="), AssetPath);
     FParse::Value(*Params, TEXT("Output="), OutputPath);
+    FParse::Value(*Params, TEXT("BlendSpaceProbe="), BlendSpaceProbePath);
 
     if (AssetPath.IsEmpty() || OutputPath.IsEmpty())
     {
@@ -519,6 +621,16 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))
     {
         Root->SetObjectField(TEXT("skeletal_mesh"), CaptureSkeletalMesh(SkeletalMesh));
+    }
+
+    if (!BlendSpaceProbePath.IsEmpty())
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureBlendSpaceProbe(Asset, BlendSpaceProbePath);
+        if (!Probe.IsValid())
+        {
+            return 7;
+        }
+        Root->SetObjectField(TEXT("blendspace_probe"), Probe.ToSharedRef());
     }
 
     FString Json;

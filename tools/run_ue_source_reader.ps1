@@ -1,6 +1,7 @@
 param(
     [string]$Asset,
     [string]$Output,
+    [string]$BlendSpaceProbe,
     [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\AlsGraphSourceReader.uplugin"),
     [ValidateRange(1, 3600)]
     [int]$TimeoutSeconds = 300,
@@ -258,6 +259,10 @@ $arguments = @(
     "-ForceLogFlush",
     "-abslog=$logPath"
 )
+if ($BlendSpaceProbe) {
+    $probePath = (Resolve-Path -LiteralPath $BlendSpaceProbe -ErrorAction Stop).Path
+    $arguments += "-BlendSpaceProbe=$probePath"
+}
 $result = Invoke-ProcessWithWatchdog -FilePath $config.ue_cmd -ArgumentList $arguments -ReportPath $reportPath -StdoutPath $stdoutPath -StderrPath $stderrPath -ProgressPaths @($stdoutPath, $stderrPath, $logPath, $outputPath) -TimeoutSeconds $TimeoutSeconds -NoProgressSeconds $NoProgressSeconds
 if (-not $result.success) {
     $result | ConvertTo-Json -Compress
