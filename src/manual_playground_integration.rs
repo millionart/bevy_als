@@ -536,6 +536,17 @@ struct DirectionRegressionCase {
     direction_signature_group: Option<&'static str>,
 }
 
+impl DirectionRegressionCase {
+    fn command(&self) -> als_core::input::AlsInputCommand {
+        als_core::input::AlsInputCommand {
+            move_dir: self.move_dir,
+            sprint_held: self.sprint_held,
+            aim_held: self.rotation_mode == RotationMode::Aiming,
+            ..default()
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct CrouchDirectionRegressionCase {
     name: &'static str,
@@ -584,9 +595,9 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             ..running("run_backward", Vec2::NEG_Y, DIRECTION_BRANCH_BACKWARD)
         }),
         2 => Some(DirectionRegressionCase {
-            expected_movement_state: Some(AlsMovementDirection::RightBackward),
-            source_state: Some("Move Right Backward"),
-            direction_signature_group: Some("AB_Als_Standing/Movement States"),
+            expected_movement_state: Some(AlsMovementDirection::RightForward),
+            source_state: Some("Move Right Backward to Move Right Forward"),
+            direction_signature_group: None,
             ..running("run_right_from_backward", Vec2::X, DIRECTION_BRANCH_RIGHT)
         }),
         3 => Some(DirectionRegressionCase {
@@ -812,14 +823,6 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
             label: "standing_states_fsm",
             graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Standing States\nState Machine",
-            output: "Pose",
-            minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: 0.05,
-        },
-        ManualAnimationPoseBoundary {
-            label: "standing_stop_states_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S4_Stop.animgraph.ron",
-            node: "Stop States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
@@ -1461,6 +1464,7 @@ struct IntegrationCoverage {
     default_overlay_air: bool,
     default_overlay_curves: bool,
     direction_cases: [bool; DIRECTION_CASE_COUNT],
+    direction_source_states: u8,
     crouch_transaction: bool,
     crouch_graph: bool,
     crouch_air_forced_standing: bool,
@@ -1781,6 +1785,7 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    rotation_mode: Query<'w, 's, &'static RotationMode, With<AlsCharacter>>,
     standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
     crouching_graph: Query<'w, 's, &'static AlsCrouchingGraphTelemetry, With<AlsCharacter>>,
     grounded: Query<'w, 's, &'static AlsGroundedGraphTelemetry, With<AlsCharacter>>,
@@ -2191,6 +2196,7 @@ fn drive_manual_integration(
             if entering {
                 state.direction_case_index = usize::MAX;
                 state.coverage.direction_cases = [false; DIRECTION_CASE_COUNT];
+                state.coverage.direction_source_states = 0;
                 state.foot_ik_baseline_mask = 0;
                 state.coverage.foot_ik_space_baseline = false;
                 state.coverage.foot_ik_no_hit_recovered = false;
@@ -2267,7 +2273,7 @@ fn drive_manual_integration(
                 },
                 direction_signature_group: case.direction_signature_group,
                 required_direction_signature_members: if case.direction_signature_group.is_some() {
-                    5
+                    4
                 } else {
                     0
                 },
@@ -2341,8 +2347,7 @@ fn drive_manual_integration(
                     case.yaw_offset.to_degrees(),
                 );
             }
-            input.0.move_dir = case.move_dir;
-            input.0.sprint_held = case.sprint_held;
+            input.0 = case.command();
             *rotation_mode = case.rotation_mode;
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Standing);
@@ -4973,6 +4978,12 @@ fn observe_manual_integration(
         state.coverage.crouch_canopy_recovered = true;
     }
     if state.phase == IntegrationPhase::DirectionRegression
+        && let Some(telemetry) = standing_graph
+        && telemetry.actual_movement_pose_ready == Some(true)
+    {
+        state.coverage.direction_source_states |= telemetry.actual_movement_states;
+    }
+    if state.phase == IntegrationPhase::DirectionRegression
         && state.direction_case_index < DIRECTION_CASE_COUNT
         && !state.coverage.direction_cases[state.direction_case_index]
         && state.phase_elapsed()
@@ -5022,7 +5033,8 @@ fn observe_manual_integration(
         let gait_matches = desired.0 == case.desired_gait
             && allowed.0 == case.expected_allowed_gait
             && *gait == case.expected_actual_gait
-            && first_person == case.first_person;
+            && first_person == case.first_person
+            && motion_probe.rotation_mode.get(character).ok() == Some(&case.rotation_mode);
         if source_ready
             && motion.horizontal_speed > 0.75
             && world_alignment >= 0.8
@@ -6265,6 +6277,10 @@ fn observe_manual_integration(
                 ("animation_graph", coverage.graph),
                 ("standing_graph", coverage.standing_graph),
                 ("direction_regression", direction_regression),
+                (
+                    "direction_source_states",
+                    coverage.direction_source_states == 0b11_1111,
+                ),
             ],
             IntegrationScenario::Base => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -6595,6 +6611,11 @@ fn observe_manual_integration(
                     generated_transition_notify_detail.clone()
                 } else if *name == "ragdoll_pa_profile" {
                     ragdoll_profile_detail.clone()
+                } else if *name == "direction_source_states" {
+                    format!(
+                        "sampled_state_mask={:06b}; required=111111",
+                        coverage.direction_source_states
+                    )
                 } else if *covered {
                     "covered".to_owned()
                 } else {
@@ -6842,9 +6863,43 @@ mod tests {
     }
 
     #[test]
+    fn direction_fixture_keeps_aiming_through_the_actual_aim_system() {
+        let case = direction_regression_case(0).unwrap();
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_message::<als_core::aim::AimStateChanged>()
+            .add_systems(Update, als_core::aim::aim_rotation_mode_system);
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                als_core::input::AlsInputCommand::default(),
+                AlsInputOverride(case.command()),
+                als_core::gait::AlsMaxAllowedGait(case.expected_allowed_gait),
+                Stance::Standing,
+                LocomotionState::Grounded,
+                case.rotation_mode,
+                als_core::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsStateRequest {
+                    rotation_mode: Some(case.rotation_mode),
+                    ..default()
+                },
+            ))
+            .id();
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<AlsStateRequest>(entity)
+                .unwrap()
+                .rotation_mode,
+            Some(RotationMode::Aiming)
+        );
+    }
+
+    #[test]
     fn generated_standing_pose_chain_uses_the_installed_closure() {
         let chain = generated_standing_source_pose_chain();
-        assert_eq!(chain.len(), 10);
+        assert_eq!(chain.len(), 9);
         assert_eq!(chain[0].label, "standing_movement_cache");
         assert_eq!(
             chain[0].graph,
@@ -6854,10 +6909,14 @@ mod tests {
         assert_eq!(chain[1].node, "Movement Details States\nState Machine");
         assert_eq!(chain[2].node, "Movement States\nState Machine");
         assert_eq!(chain[3].node, "Standing States\nState Machine");
-        assert_eq!(chain[4].node, "Stop States\nState Machine");
-        assert_eq!(chain[5].node, "Apply Additive");
-        assert_eq!(chain[8].node, "Save cached pose 'Standing'");
-        assert_eq!(chain[9].node, "Grounded States\nState Machine");
+        assert!(
+            chain
+                .iter()
+                .all(|boundary| boundary.node != "Stop States\nState Machine")
+        );
+        assert_eq!(chain[4].node, "Apply Additive");
+        assert_eq!(chain[7].node, "Save cached pose 'Standing'");
+        assert_eq!(chain[8].node, "Grounded States\nState Machine");
     }
 
     #[test]
@@ -6892,7 +6951,7 @@ mod tests {
         let backward = state_machine_grounded_window(3.5);
         assert!(backward.settled);
         assert!(forward.capture_source_window);
-        assert_eq!(settled.source_pose_chain.len(), 10);
+        assert_eq!(settled.source_pose_chain.len(), 9);
         assert_eq!(
             forward.source_pose_chain[0].node,
             "Save cached pose 'Movement'"
@@ -6909,11 +6968,6 @@ mod tests {
         let expected = [
             (0, AlsMovementDirection::Forward, "Move Forward"),
             (1, AlsMovementDirection::Backward, "Move Backward"),
-            (
-                2,
-                AlsMovementDirection::RightBackward,
-                "Move Right Backward",
-            ),
             (3, AlsMovementDirection::LeftForward, "Move Left Forward"),
             (7, AlsMovementDirection::RightForward, "Move Right Forward"),
         ];
@@ -6938,7 +6992,7 @@ mod tests {
     }
 
     #[test]
-    fn left_backward_auto_edge_is_not_a_steady_direction_signature() {
+    fn backward_side_auto_edges_are_not_steady_direction_signatures() {
         let backward = direction_regression_case(5).unwrap();
         let left_forward = direction_regression_case(6).unwrap();
         assert_eq!(
@@ -6956,6 +7010,17 @@ mod tests {
         );
         assert!(left_forward.direction_signature_group.is_none());
         assert_eq!(left_forward.move_dir, Vec2::NEG_X);
+        let right_forward = direction_regression_case(2).unwrap();
+        assert_eq!(
+            right_forward.expected_movement_state,
+            Some(AlsMovementDirection::RightForward)
+        );
+        assert_eq!(
+            right_forward.source_state,
+            Some("Move Right Backward to Move Right Forward")
+        );
+        assert!(right_forward.direction_signature_group.is_none());
+        assert_eq!(right_forward.move_dir, Vec2::X);
     }
 
     #[test]

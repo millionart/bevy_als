@@ -3,7 +3,7 @@ use als_core::{
     foot_ik::AlsFootLockState,
     input::AlsInputCommand,
     input_request::AlsFirstPersonView,
-    motion::AlsViewYaw,
+    motion::{AlsInputOverride, AlsViewYaw},
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     state::{Gait, LocomotionState, RotationMode, Stance},
 };
@@ -70,6 +70,16 @@ fn source_direction_inputs(
 
 fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
     view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
+}
+
+fn source_has_input(
+    input: Option<&AlsInputCommand>,
+    input_override: Option<&AlsInputOverride>,
+) -> bool {
+    input_override
+        .map(|value| &value.0)
+        .or(input)
+        .is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON)
 }
 
 fn source_velocity_blend(
@@ -172,6 +182,7 @@ fn generated_ab_als_input_writer(
             &AlsActualMotion,
             &AlsViewYaw,
             Option<&AlsInputCommand>,
+            Option<&AlsInputOverride>,
             Option<&AlsMovementBaseAnimationState>,
             Option<&AlsGroundedEntryMode>,
             &Transform,
@@ -192,6 +203,7 @@ fn generated_ab_als_input_writer(
         motion,
         view_yaw,
         input,
+        input_override,
         movement_base,
         grounded_entry_mode,
         transform,
@@ -212,8 +224,7 @@ fn generated_ab_als_input_writer(
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
-            let has_input =
-                input.is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON);
+            let has_input = source_has_input(input, input_override);
             let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);
             let view_degrees = als_core::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
@@ -373,6 +384,25 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_has_input_uses_the_same_override_as_character_movement() {
+        let idle = AlsInputCommand::default();
+        let moving = AlsInputCommand {
+            move_dir: Vec2::Y,
+            ..default()
+        };
+        assert!(source_has_input(
+            Some(&idle),
+            Some(&AlsInputOverride(moving))
+        ));
+        assert!(!source_has_input(
+            Some(&moving),
+            Some(&AlsInputOverride(idle))
+        ));
+        assert!(source_has_input(Some(&moving), None));
+        assert!(!source_has_input(None, None));
+    }
 
     #[test]
     fn standing_source_velocity_yaw_survives_stop_and_tracks_view_changes() {
