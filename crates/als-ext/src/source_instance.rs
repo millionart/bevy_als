@@ -11,12 +11,26 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
+use std::sync::atomic::{AtomicU64, Ordering};
 
-#[derive(Reflect, Clone, Debug, Default)]
+#[derive(Reflect, Clone, Debug)]
 pub struct SourceInstanceProperties {
+    pub instance_id: u64,
     pub values: HashMap<String, DataValue>,
     pub write_frames: HashMap<String, u64>,
     call_frames: HashMap<(GraphContextId, NodeId), u64>,
+}
+
+impl Default for SourceInstanceProperties {
+    fn default() -> Self {
+        static NEXT_INSTANCE_ID: AtomicU64 = AtomicU64::new(0);
+        Self {
+            instance_id: NEXT_INSTANCE_ID.fetch_add(1, Ordering::Relaxed) + 1,
+            values: default(),
+            write_frames: default(),
+            call_frames: default(),
+        }
+    }
 }
 
 pub fn source_instance_properties<'a>(

@@ -62,6 +62,7 @@ pub enum AlsTransitionKind {
     Stop,
     QuickStop,
     StandingTransitionRight,
+    StandingDynamic,
     CrouchingStop,
     CrouchingQuickStop,
     CrouchingDynamic,
@@ -188,6 +189,18 @@ impl AlsTransitionPlayback {
             DYNAMIC_TRANSITION_PLAY_RATE,
             0.0,
             CROUCH_DYNAMIC_TRANSITION_DURATION,
+        )
+    }
+
+    pub fn standing_dynamic(index: f32) -> Self {
+        Self::new(
+            AlsTransitionKind::StandingDynamic,
+            index,
+            DYNAMIC_TRANSITION_BLEND,
+            DYNAMIC_TRANSITION_BLEND,
+            DYNAMIC_TRANSITION_PLAY_RATE,
+            0.0,
+            crate::standing_source::MONTAGES["A_Als_Stand_DynamicTransition_Left"].duration,
         )
     }
 
@@ -400,8 +413,10 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
     playback.active
         && matches!(
             playback.kind,
-            AlsTransitionKind::QuickStop
+            AlsTransitionKind::Stop
+                | AlsTransitionKind::QuickStop
                 | AlsTransitionKind::StandingTransitionRight
+                | AlsTransitionKind::StandingDynamic
                 | AlsTransitionKind::CrouchingStop
                 | AlsTransitionKind::CrouchingQuickStop
                 | AlsTransitionKind::CrouchingDynamic
@@ -410,13 +425,41 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
 
 fn root_transition_slot_index(playback: &AlsTransitionPlayback) -> f32 {
     match playback.kind {
-        AlsTransitionKind::QuickStop => playback.index,
+        AlsTransitionKind::Stop | AlsTransitionKind::QuickStop => playback.index,
         AlsTransitionKind::StandingTransitionRight => 6.0,
+        AlsTransitionKind::StandingDynamic => 7.0 + playback.index,
         AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => {
             2.0 + playback.index
         }
         AlsTransitionKind::CrouchingDynamic => 4.0 + playback.index,
-        AlsTransitionKind::Stop => 0.0,
+    }
+}
+
+fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Option<&'static str> {
+    let left = playback.index <= 0.5;
+    match playback.kind {
+        AlsTransitionKind::Stop => Some(if left {
+            "A_Als_Stop_Left"
+        } else {
+            "A_Als_Stop_Right"
+        }),
+        AlsTransitionKind::QuickStop => Some(if left {
+            "A_Als_Stand_Transition_Left"
+        } else {
+            "A_Als_Stand_Transition_Right"
+        }),
+        AlsTransitionKind::StandingDynamic => Some(if left {
+            "A_Als_Stand_DynamicTransition_Left"
+        } else {
+            "A_Als_Stand_DynamicTransition_Right"
+        }),
+        AlsTransitionKind::StandingTransitionRight => Some("A_Als_Stand_Transition_Right"),
+        AlsTransitionKind::CrouchingDynamic => Some(if left {
+            "A_Als_Crouch_DynamicTransition_Left"
+        } else {
+            "A_Als_Crouch_DynamicTransition_Right"
+        }),
+        _ => None,
     }
 }
 
@@ -513,6 +556,9 @@ fn write_root_transition_slot_curves(player: &mut AnimationGraphPlayer, crouchin
 }
 
 fn bridge_root_transition_slot_samples(
+    montage_assets: Res<crate::standing_source::SourceMontageAssets>,
+    clips: Res<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
+    skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     playbacks: Query<&AlsTransitionPlayback>,
     stances: Query<&Stance>,
     mut samplers: Query<(&mut AlsRootTransitionSlotSampler, &AnimationGraphPlayer)>,
@@ -532,6 +578,11 @@ fn bridge_root_transition_slot_samples(
                 .get(sampler.character)
                 .is_ok_and(|stance| *stance == Stance::Crouching);
         let Some(playback) = playback else {
+            als_ext::source_gameplay_tag_input::set_slot_input_context(
+                sampler.target_player,
+                GENERATED_TRANSITION_SLOT_POSE_KEY,
+                None,
+            );
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
@@ -545,7 +596,22 @@ fn bridge_root_transition_slot_samples(
                 .insert(AlsRootTransitionSlotRuntime::default());
             continue;
         };
-        let Some(pose) = source_player.get_default_output_pose().cloned() else {
+        let source_sequence = source_transition_sequence(playback);
+        let sample = source_sequence.and_then(|name| {
+            crate::standing_source::sample_source_montage(
+                name,
+                playback.clip_time,
+                &montage_assets,
+                &clips,
+                &skeletons,
+            )
+        });
+        let pose = if source_sequence.is_some() {
+            sample.as_ref().map(|(pose, _)| pose.clone())
+        } else {
+            source_player.get_default_output_pose().cloned()
+        };
+        let Some(pose) = pose else {
             if !sampler.reported_unready {
                 warn!(
                     "[TRANSITION-SLOT] sampler unavailable character={:?} error={:?}",
@@ -574,16 +640,20 @@ fn bridge_root_transition_slot_samples(
         target_player
             .set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
-        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
+        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
         target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
-        target_player
-            .set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, playback.weight);
+        target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 1.0_f32);
         write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
+        als_ext::source_gameplay_tag_input::set_slot_input_context(
+            sampler.target_player,
+            GENERATED_TRANSITION_SLOT_POSE_KEY,
+            sample.map(|(_, context)| context),
+        );
         commands
             .entity(sampler.character)
             .insert(AlsRootTransitionSlotRuntime {
@@ -801,9 +871,31 @@ mod tests {
         assert!(root_transition_slot_active(&crouching_stop));
         assert!(root_transition_slot_active(&crouching_quick_stop));
         assert!(root_transition_slot_active(&crouching_dynamic));
-        assert!(!root_transition_slot_active(&AlsTransitionPlayback::stop(
+        assert!(root_transition_slot_active(&AlsTransitionPlayback::stop(
             0.0
         )));
+        assert_eq!(
+            root_transition_slot_index(&AlsTransitionPlayback::stop(1.0)),
+            1.0
+        );
+        let dynamic = AlsTransitionPlayback::standing_dynamic(1.0);
+        assert!(root_transition_slot_active(&dynamic));
+        assert_eq!(
+            source_transition_sequence(&dynamic),
+            Some("A_Als_Stand_DynamicTransition_Right")
+        );
+        assert_eq!(
+            source_transition_sequence(&quick_stop),
+            Some("A_Als_Stand_Transition_Left")
+        );
+        assert_eq!(
+            source_transition_sequence(&AlsTransitionPlayback::stop(1.0)),
+            Some("A_Als_Stop_Right")
+        );
+        assert_eq!(
+            (dynamic.start_time, dynamic.play_rate, dynamic.duration),
+            (0.0, 1.5, 1.533333)
+        );
         let mut inactive = AlsTransitionPlayback::quick_stop(0.0, 1.75);
         inactive.active = false;
         assert!(!root_transition_slot_active(&inactive));

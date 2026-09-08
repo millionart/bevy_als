@@ -36,7 +36,7 @@ pub struct TurnInPlaceEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct TurnInPlaceDetector {
-    activation_delay: f32,
+    pub activation_delay: f32,
 }
 
 pub fn wrap_angle_degrees(angle: f32) -> f32 {
@@ -66,7 +66,7 @@ impl TurnInPlaceDetector {
         config: &TurnInPlaceConfig,
     ) -> Option<TurnInPlaceEvent> {
         let _ = stance_crouched;
-        if !allowed || dt <= 0.0 {
+        if !allowed {
             self.activation_delay = 0.0;
             return None;
         }
@@ -89,7 +89,7 @@ impl TurnInPlaceDetector {
             return None;
         }
 
-        let left = view_yaw_angle <= 0.0;
+        let left = crate::transitions::remap_counterclockwise_degrees(view_yaw_angle) <= 0.0;
         let variant = if angle_abs < config.turn_180_angle_threshold_degrees {
             if left {
                 TurnVariant::Left90
@@ -119,6 +119,23 @@ impl TurnInPlaceDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_turn_remaps_near_half_turn_and_preserves_delay_at_zero_delta() {
+        let mut detector = TurnInPlaceDetector {
+            activation_delay: 1.0,
+        };
+        let event = detector
+            .update(176.0, 0.0, 0.1, true, false, &cfg())
+            .unwrap();
+        assert_eq!(event.variant, TurnVariant::Left180);
+        assert!(
+            detector
+                .update(90.0, 0.0, 0.0, true, false, &cfg())
+                .is_some()
+        );
+        assert_eq!(detector.activation_delay, 1.1);
+    }
 
     fn cfg() -> TurnInPlaceConfig {
         TurnInPlaceConfig::default()

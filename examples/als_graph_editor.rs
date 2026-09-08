@@ -6,6 +6,6 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(AnimationGraphEditorPlugin);
     app.add_plugins(AlsExtPlugin);
-    app.register_type::<bevy_als::standing_source::StandingSourceRefreshNode>();
+    app.register_type::<bevy_als::standing_source::AlsSourceRefreshNode>();
     app.run();
 }

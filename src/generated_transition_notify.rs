@@ -4,16 +4,18 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
     animation_graph::{AnimationGraph, NodeId},
     animation_graph_player::AnimationGraphPlayer,
-    context::graph_context_arena::GraphContextId,
+    context::{graph_context_arena::GraphContextId, node_states::StateKey},
     plugin::AnimationGraphSet,
 };
 
-use als_ext::{InterruptibleFsmNode, InterruptibleFsmState};
+use als_ext::{
+    InterruptibleFsmNode, InterruptibleFsmState, source_instance::SourceInstanceProperties,
+};
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::standing_layer::AlsPivotNotify;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback};
-use crate::turn_layer::AlsTurnMontageStack;
+use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest};
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
 pub struct GeneratedTransitionNotifyTelemetry {
@@ -31,11 +33,21 @@ pub struct GeneratedTransitionNotifyTelemetry {
 struct GeneratedTransitionNotifyCursor {
     generations: HashMap<(Entity, GraphContextId, NodeId), u64>,
     queued_transitions: HashMap<Entity, AlsTransitionPlayback>,
+    queued_turns: HashMap<Entity, SourceTurnRequest>,
+    source_frames: HashMap<Entity, (u64, u64)>,
 }
 
 impl GeneratedTransitionNotifyCursor {
-    fn take_transition(&mut self, character: Entity, stop_requested: bool) -> Option<AlsTransitionPlayback> {
-        if stop_requested { None } else { self.queued_transitions.remove(&character) }
+    fn take_transition(
+        &mut self,
+        character: Entity,
+        stop_requested: bool,
+    ) -> Option<AlsTransitionPlayback> {
+        if stop_requested {
+            None
+        } else {
+            self.queued_transitions.remove(&character)
+        }
     }
 }
 
@@ -96,24 +108,44 @@ fn ensure_generated_transition_notify_telemetry(
 fn dispatch_generated_transition_notifications(
     mut cursor: ResMut<GeneratedTransitionNotifyCursor>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    mut players: Query<&mut AnimationGraphPlayer>,
     graphs: Res<Assets<AnimationGraph>>,
     mut telemetry: Query<&mut GeneratedTransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
     mut playbacks: Query<&mut AlsTransitionPlayback>,
     mut turn_stacks: Query<&mut AlsTurnMontageStack>,
+    mut turn_drives: Query<&mut AlsTurnDrive>,
     mut commands: Commands,
 ) {
     for (avatar_entity, avatar, instance) in &avatars {
         let mut stop_requested = false;
         let player_entity = instance.player_entity();
-        let Ok(player) = players.get(player_entity) else {
+        let Ok(mut player) = players.get_mut(player_entity) else {
             continue;
         };
+        if player.is_paused() {
+            continue;
+        }
         let Some(arena) = player.get_context_arena() else {
             continue;
         };
+        let source = arena
+            .get_toplevel()
+            .node_states
+            .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+            .ok();
+        if let Some(source) = source {
+            let frame = (source.instance_id, arena.frame_index());
+            let previous = cursor.source_frames.insert(player_entity, frame);
+            if previous == Some(frame) {
+                continue;
+            }
+            if previous.is_some_and(|previous| previous.0 != frame.0) {
+                cursor.queued_transitions.remove(&avatar.character);
+                cursor.queued_turns.remove(&avatar.character);
+            }
+        }
         for context_id in arena.iter_context_ids() {
             let Some(context) = arena.get_context(context_id) else {
                 continue;
@@ -197,20 +229,96 @@ fn dispatch_generated_transition_notifications(
                                 .insert(AlsTransitionPlayback::standing_transition_right());
                         }
                         Some(TransitionNotifyAction::StopLeft) => {
-                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::stop(0.0));
-                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                            cursor
+                                .queued_transitions
+                                .insert(avatar.character, AlsTransitionPlayback::stop(0.0));
+                            info!(
+                                "[SOURCE-STATE-CALL] function={} phase={} character={:?}",
+                                notification.name, notification.phase, avatar.character
+                            );
                         }
                         Some(TransitionNotifyAction::StopRight) => {
-                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::stop(1.0));
-                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                            cursor
+                                .queued_transitions
+                                .insert(avatar.character, AlsTransitionPlayback::stop(1.0));
+                            info!(
+                                "[SOURCE-STATE-CALL] function={} phase={} character={:?}",
+                                notification.name, notification.phase, avatar.character
+                            );
                         }
                         Some(TransitionNotifyAction::StopAnimations) => {
                             stop_requested = true;
-                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                            info!(
+                                "[SOURCE-STATE-CALL] function={} phase={} character={:?}",
+                                notification.name, notification.phase, avatar.character
+                            );
                         }
                         None => {}
                     }
                 }
+            }
+        }
+        if let Some(source) = source {
+            let scalar = |key| {
+                source
+                    .values
+                    .get(key)
+                    .and_then(|v| v.as_f32().ok())
+                    .unwrap_or(0.0)
+            };
+            let boolean = |key| {
+                source
+                    .values
+                    .get(key)
+                    .and_then(|v| v.as_bool().ok())
+                    .unwrap_or(false)
+            };
+            if source
+                .write_frames
+                .get("rotate_in_place_state.b_updated_this_frame")
+                == Some(&arena.frame_index())
+                && let Ok(mut drive) = turn_drives.get_mut(avatar_entity)
+            {
+                drive.rotate_active = boolean("rotate_in_place_state.b_rotating_left")
+                    || boolean("rotate_in_place_state.b_rotating_right");
+                drive.rotate_lr = if boolean("rotate_in_place_state.b_rotating_right") {
+                    1.0
+                } else {
+                    0.0
+                };
+                drive.rotate_rate = scalar("rotate_in_place_state.play_rate");
+            }
+            if source.write_frames.get("turn_in_place.queued_variant") == Some(&arena.frame_index())
+            {
+                use als_core::turn_in_place::TurnVariant;
+                let variant = match scalar("turn_in_place.queued_variant") as u8 {
+                    0 => TurnVariant::Left90,
+                    1 => TurnVariant::Right90,
+                    2 => TurnVariant::Left180,
+                    3 => TurnVariant::Right180,
+                    _ => unreachable!(),
+                };
+                cursor.queued_turns.insert(
+                    avatar.character,
+                    SourceTurnRequest {
+                        variant,
+                        yaw: scalar("turn_in_place.queued_yaw"),
+                        crouching: boolean("turn_in_place.queued_crouching"),
+                    },
+                );
+            }
+            if source
+                .write_frames
+                .get("dynamic_transitions.queued_sequence")
+                == Some(&arena.frame_index())
+            {
+                let index = scalar("dynamic_transitions.queued_sequence");
+                let playback = if index < 2.0 {
+                    AlsTransitionPlayback::standing_dynamic(index)
+                } else {
+                    AlsTransitionPlayback::crouching_dynamic(index - 2.0)
+                };
+                cursor.queued_transitions.insert(avatar.character, playback);
             }
         }
         if stop_requested {
@@ -224,6 +332,13 @@ fn dispatch_generated_transition_notifications(
         if let Some(playback) = cursor.take_transition(avatar.character, stop_requested) {
             commands.entity(avatar.character).insert(playback);
         }
+        if !stop_requested
+            && let Ok(mut stack) = turn_stacks.get_mut(avatar_entity)
+            && let Some(request) = cursor.queued_turns.remove(&avatar.character)
+        {
+            let curve_play_rate = request.play(&mut stack);
+            player.set_global_input_data("turn_in_place_state.play_rate", curve_play_rate);
+        }
     }
 }
 
@@ -235,16 +350,37 @@ mod tests {
     fn state_function_transition_waits_until_the_source_stop_request_is_consumed() {
         let character = Entity::PLACEHOLDER;
         let mut cursor = GeneratedTransitionNotifyCursor::default();
-        cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(0.0));
-        cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(1.0));
+        cursor
+            .queued_transitions
+            .insert(character, AlsTransitionPlayback::stop(0.0));
+        cursor
+            .queued_transitions
+            .insert(character, AlsTransitionPlayback::stop(1.0));
         assert!(cursor.take_transition(character, true).is_none());
         let playback = cursor.take_transition(character, false).unwrap();
         assert_eq!(playback.index, 1.0);
-        assert_eq!((playback.start_time, playback.play_rate, playback.blend_in, playback.blend_out), (0.4, 1.5, 0.2, 0.2));
+        assert_eq!(
+            (
+                playback.start_time,
+                playback.play_rate,
+                playback.blend_in,
+                playback.blend_out
+            ),
+            (0.4, 1.5, 0.2, 0.2)
+        );
         assert!(cursor.take_transition(character, false).is_none());
-        assert_eq!(transition_notify_action("PlayStopLeftTransitionAnimation"), Some(TransitionNotifyAction::StopLeft));
-        assert_eq!(transition_notify_action("PlayStopRightTransitionAnimation"), Some(TransitionNotifyAction::StopRight));
-        assert_eq!(transition_notify_action("StopTransitionAndTurnInPlaceAnimations"), Some(TransitionNotifyAction::StopAnimations));
+        assert_eq!(
+            transition_notify_action("PlayStopLeftTransitionAnimation"),
+            Some(TransitionNotifyAction::StopLeft)
+        );
+        assert_eq!(
+            transition_notify_action("PlayStopRightTransitionAnimation"),
+            Some(TransitionNotifyAction::StopRight)
+        );
+        assert_eq!(
+            transition_notify_action("StopTransitionAndTurnInPlaceAnimations"),
+            Some(TransitionNotifyAction::StopAnimations)
+        );
     }
 
     #[test]

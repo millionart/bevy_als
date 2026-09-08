@@ -1,35 +1,7 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_standing_state_callbacks",
+  "id": "generated_ab_als_standing_native_functions",
   "source_evidence": [
-    {
-      "path": "target/bf115_standing/actor/source/0036_AB_Als_Standing.ue.json",
-      "sha256": "92d72a06f920f80c20e0a5edf7c9899ab2ad99f07addd89ce45d88f165d8f328"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0037_BS_Als_WalkRun_Right_Forward.ue.json",
-      "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0038_BS_Als_WalkRun_Right_Backward.ue.json",
-      "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0039_BS_Als_WalkRun_Left_Forward.ue.json",
-      "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0040_BS_Als_WalkRun_Left_Backward.ue.json",
-      "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0041_BS_Als_WalkRun_Forward.ue.json",
-      "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
-    },
-    {
-      "path": "target/bf115_standing/actor/source/0042_BS_Als_WalkRun_Backward.ue.json",
-      "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
-    },
     {
       "path": "target/bf115_standing/curves/A_Als_Walk_Forward.fresh.ue.json",
       "sha256": "84794611ce5ca5d3869fc05d93455de755b70bb7f97f62e31a126d46267f16ce"
@@ -89,6 +61,34 @@
     {
       "path": "target/bf115_standing/input_lifecycle/Character.fresh.ue.json",
       "sha256": "870faa9c71896f207585d8e996844a7383fab890e8d93162ac975e6cee588c0a"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0055_AB_Als_Standing.ue.json",
+      "sha256": "232b6143ef90015842a5fb2643b4b92dcbe54d4c0277ff18f21e64c485e2a7a4"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0056_BS_Als_WalkRun_Right_Forward.ue.json",
+      "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0057_BS_Als_WalkRun_Right_Backward.ue.json",
+      "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0058_BS_Als_WalkRun_Left_Forward.ue.json",
+      "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0059_BS_Als_WalkRun_Left_Backward.ue.json",
+      "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0060_BS_Als_WalkRun_Forward.ue.json",
+      "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
+    },
+    {
+      "path": "target/bf115_standing/native_functions/source/0061_BS_Als_WalkRun_Backward.ue.json",
+      "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
     }
   ],
   "graphs": [
@@ -1684,11 +1684,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_standing/actor/source",
+        "target/bf115_standing/native_functions/source",
         "--materialized-directory",
-        "target/bf115_standing/actor/conversion",
+        "target/bf115_standing/native_functions/canonical",
         "--spec",
-        "target/bf115_standing/callbacks/spec.json"
+        "target/bf115_standing/native_functions/spec.json"
       ]
     },
     {
@@ -1737,6 +1737,23 @@
       "argv": [
         "python",
         "tools/animgraph_authoring/ue_animgraph_lifecycle.py"
+      ]
+    },
+    {
+      "label": "native_montage_source_conversion",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/gen_native_montages.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "native_function_pose_mapping",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_renderer.py"
       ]
     }
   ],

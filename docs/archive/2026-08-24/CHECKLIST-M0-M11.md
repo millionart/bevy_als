@@ -99,8 +99,12 @@ ALS 大量依赖动画曲线与参数曲线（Layer 权重、IK 权重、倾斜�
 - [x] M5.2 Pivot（折返）触发条件与混合。
     - 源码核实：ALS 无显式 Pivot 状态/动画——C++ 仅提供速度门槛(PivotActivationSpeedThreshold=200cm/s)与 bPivotActive 标志，反转检测在 AnimBP 图层；定位为折返检测器供图路由消费。实现：PivotDetector(reversal>100°+min_speed=2.0m/s 对齐 ALS 门槛+冷却 0.3s)+PivotSide 左右支；无 Pivot 类资产(工程亦无)，表现走图内 blend 路线复刻本意。单测 10 项(反转触发/渐转不触发/冷却/低速/边界值)。
 - [x] M5.3 TurnInPlace（原地转身）：角度阈值 + 90/180 选择 + 步点对齐（foot lock 简化为曲线锁相，完整 IK 在 M7）。
+    - BF115.01k于2026-09-09 04:54复开公共检测函数方向/零delta边界，预估05:23:15结束：fresh RemapAngleForCounterClockwiseRotation把大于175°的角度减360°，旧断言没有覆盖176°，22.121s最小用例FAIL为Right180；源刷新允许零delta保留累计delay。仅此数学边界及既有调用者回归，不复开旧图。
+    - 本次公共数学边界Gate完成2026-09-09 05:43:14，相对预估05:23:15偏差+19m59s；176°/零delta反例、236个core回归、实际图与同入口编译/静态Gate通过。
     - 对齐 AlsTurnInPlaceSettings：ViewYawAngleThreshold=45°、ViewYawSpeedThreshold=50°/s、Turn180AngleThreshold=130°、PlayRate=1.2；激活延迟按 |角|∈[45,180] 线性递减（近似 ALS 曲线映射）；符号选向同 RemapAngleForCounterClockwiseRotation(≤0→Left)。步点对齐按条目范围留 M7 曲线锁相。单测 6 项。
 - [x] M5.4 RotateInPlace（瞄准态原地转向）。
+    - BF115.01k于2026-09-09 04:43复开共享数值边界，预估05:23:15结束：fresh RefreshRotateInPlace在moving/not allowed时仍向1.15衰减，旧测试仅检查side为None，漏掉play rate被清零；pending update还应直接赋目标值，源默认值为1.0。仅修公共函数此边界并回归，不展开旧图。
+    - 本次公共数学边界Gate完成2026-09-09 05:43:14，相对预估05:23:15偏差+19m59s；moving衰减、默认1.0、pending snap与实际节点执行反例及对应回归通过。
     - 对齐 AlsRotateInPlaceSettings：静止+Aiming 时 |视角偏差|>50° 选左/右旋转；play rate 由 ReferenceViewYawSpeed 180–460°/s 线性映射至 1.15–3.0 随视角转速缩放，停止时 DamperExact 回中 1.15。单测 7 项。
 - [x] M5.5 Hard Stop/Gait 过渡细节：ALS Transition 组动画接入（stance/gait 间过渡）。
     - 对齐 AlsAnimationInstance：stance 切换过渡(CrouchToStand/StandToCrouch)带 idle-only 条件(moving 时由 Dynamic 分支处理)；Dynamic Transitions 按 foot-lock 距离平方比较选对侧支+2 帧防抖(TransitionCooldown)；资产映射 A_Als_Stand/Crouch_DynamicTransition_Left/Right 与 CrouchToStand/StandToCrouch。单测 7 项(选支/idle 拦截/默认左/强制侧/冷却)。

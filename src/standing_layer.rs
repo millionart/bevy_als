@@ -804,7 +804,8 @@ pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<crate::standing_source::StandingSourceRefreshNode>();
+        app.register_type::<crate::standing_source::AlsSourceRefreshNode>();
+        app.add_systems(Startup, crate::standing_source::load_source_montage_assets);
         app.configure_sets(
             PostUpdate,
             AlsStandingLayerSet
@@ -2018,7 +2019,6 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         ("lean_state.right_amount", inputs.lean_right_amount),
         ("lean_state.forward_amount", inputs.lean_forward_amount),
         ("rotate_in_place_state.play_rate", inputs.rotation_play_rate),
-        ("turn_in_place_state.play_rate", inputs.turn_play_rate),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -2345,7 +2345,6 @@ fn standing_layer_writer(
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
-        player.set_global_input_data("standing_source.pending_update", !runtime.initialized);
         player.set_global_input_data("standing_source.pivot_requested", pivot_request.is_some());
         player.set_global_input_data(
             "standing_source.pivot_activated",

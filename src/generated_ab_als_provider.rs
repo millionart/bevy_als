@@ -1,6 +1,8 @@
 use als_core::{
     character::AlsCharacter,
+    foot_ik::AlsFootLockState,
     input::AlsInputCommand,
+    input_request::AlsFirstPersonView,
     motion::AlsViewYaw,
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     state::{Gait, LocomotionState, RotationMode, Stance},
@@ -172,10 +174,13 @@ fn generated_ab_als_input_writer(
             Option<&AlsInputCommand>,
             Option<&AlsMovementBaseAnimationState>,
             Option<&AlsGroundedEntryMode>,
+            &Transform,
+            Option<&AlsFirstPersonView>,
+            Option<&AlsFootLockState>,
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     for (
@@ -189,9 +194,12 @@ fn generated_ab_als_input_writer(
         input,
         movement_base,
         grounded_entry_mode,
+        transform,
+        first_person,
+        feet,
     ) in &characters
     {
-        for (parent, instance) in &avatars {
+        for (parent, instance, avatar_transform) in &avatars {
             if parent.parent() != character {
                 continue;
             }
@@ -207,6 +215,81 @@ fn generated_ab_als_input_writer(
             let has_input =
                 input.is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON);
             let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);
+            let view_degrees = als_core::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
+            let previous_view = player
+                .get_global_input_data("view_state.rotation_yaw")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap_or(view_degrees);
+            if time.delta_secs() > 1e-8 {
+                player.set_global_input_data(
+                    "view_state.yaw_speed",
+                    (view_degrees - previous_view).abs() / time.delta_secs(),
+                );
+            }
+            player.set_global_input_data("view_state.rotation_yaw", view_degrees);
+            let body_degrees =
+                als_core::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
+            let action = player
+                .get_global_input_data("als_overlay_locomotion_action_index")
+                .and_then(|value| value.as_f32().ok())
+                .unwrap_or(0.0);
+            if *locomotion != LocomotionState::Ragdolling && action == 0.0 {
+                player.set_global_input_data(
+                    "view_state.yaw_angle",
+                    crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),
+                );
+            }
+            player.set_global_input_data(
+                "locomotion_state.scale_world_space",
+                avatar_transform.to_scale_rotation_translation().0.y,
+            );
+            let pending_update = player
+                .get_context_arena()
+                .is_none_or(|arena| arena.frame_index() == 0);
+            player.set_global_input_data("animation.pending_update", pending_update);
+            for (key, value) in [
+                (
+                    "locomotion_state.b_moving",
+                    (has_input && motion.horizontal_speed >= 0.01) || motion.horizontal_speed > 1.5,
+                ),
+                (
+                    "rotate_in_place.allowed",
+                    *rotation_mode == RotationMode::Aiming || first_person.is_some(),
+                ),
+                (
+                    "rotate_in_place.first_person_threshold",
+                    first_person.is_some() && *rotation_mode != RotationMode::Aiming,
+                ),
+                (
+                    "turn_in_place.allowed",
+                    *rotation_mode == RotationMode::ViewDirection && first_person.is_none(),
+                ),
+                ("stance.crouching", *stance == Stance::Crouching),
+                (
+                    "transitions_state.b_transitions_allowed",
+                    context
+                        .and_then(|state| state.f32("AllowTransitions"))
+                        .unwrap_or(0.0)
+                        >= 1.0 - 1e-5,
+                ),
+            ] {
+                player.set_global_input_data(key, value);
+            }
+            for (side, foot) in [
+                ("left", feet.map(|state| &state.left)),
+                ("right", feet.map(|state| &state.right)),
+            ] {
+                player.set_global_input_data(
+                    format!("feet_state.{side}.lock_amount"),
+                    foot.map_or(0.0, |foot| foot.lock_amount),
+                );
+                player.set_global_input_data(
+                    format!("feet_state.{side}.lock_distance_squared"),
+                    foot.map_or(0.0, |foot| {
+                        foot.target_location.distance_squared(foot.lock_location)
+                    }),
+                );
+            }
             let has_relative_location =
                 movement_base.is_some_and(|state| state.has_relative_location);
             let velocity_blend = source_velocity_blend(
