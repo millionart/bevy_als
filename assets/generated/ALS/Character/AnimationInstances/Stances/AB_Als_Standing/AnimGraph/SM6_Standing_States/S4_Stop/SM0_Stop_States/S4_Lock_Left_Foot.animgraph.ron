@@ -1,8 +1,8 @@
 (
     nodes: [
+        (id: "982528f7-4542-1765-806b-ffa18a605277", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "PlayStopLeftTransitionAnimation", call_site: "OnStateEntry") }, should_debug: false),
         (id: "0d58a51a-453c-42fe-1130-9397885c6385", name: "Use cached pose 'Movement Details'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Movement Details'", cache_key: "ue-cache:0d863e6f-4847-5fda-a17d-056c0c8fc170", context_defaults: []) }, should_debug: false),
         (id: "338e0e12-4802-250c-f670-87970e4c2992", name: "Modify Curve", inner: { "als_ext::SourceCurveModifyNode": (source_pose_pin: "SourcePose", curve_name: "", curve_names: ["FootLeftLock"], value: 0.0, pin_default: 0.0, pin_defaults: [1.0], value_pin_names: ["CurveValues_0"], value_key: "", value_keys: [""], source_value_path: "", source_value_paths: [""], alpha: 1.0, alpha_key: "", alpha_pin: "Alpha", expose_alpha_pin: false, apply_mode: "Blend") }, should_debug: false),
-        (id: "982528f7-4542-1765-806b-ffa18a605277", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "PlayStopLeftTransitionAnimation", call_site: "OnStateEntry") }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("982528f7-4542-1765-806b-ffa18a605277", "Source"): NodeData("338e0e12-4802-250c-f670-87970e4c2992", "Pose"),
@@ -11,5 +11,5 @@
     },
     io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
     default_data: {},
-    editor_metadata: (node_positions: { "0d58a51a-453c-42fe-1130-9397885c6385": (-576.000, 0.000), "338e0e12-4802-250c-f670-87970e4c2992": (-256.000, 0.000), "982528f7-4542-1765-806b-ffa18a605277": (0.000, 0.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+    editor_metadata: (node_positions: { "982528f7-4542-1765-806b-ffa18a605277": (0.000, 0.000), "0d58a51a-453c-42fe-1130-9397885c6385": (-576.000, 0.000), "338e0e12-4802-250c-f670-87970e4c2992": (-256.000, 0.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )

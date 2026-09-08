@@ -1,0 +1,347 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_actor",
+  "source_evidence": [
+    {
+      "path": "target/bf114_takeover/converter_source/0017_AB_Als.ue.json",
+      "sha256": "2ba2f2f6c3c74312833d7b2088584dca71eb6f41080da6abc2e88bc4d00c6d14"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0018_AB_Als_Default.ue.json",
+      "sha256": "eb4a2c13d1601e849444d8d99bb8517c895bfe637e33c4b237a8608b7e614e98"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0019_AB_Als_Standing.ue.json",
+      "sha256": "a99cc02180678f241d7d9d50be52f28a419fb1a561ef40bae2b7af1d350a3653"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0026_AB_Als_Crouching.ue.json",
+      "sha256": "c57892beafa2f9aad659cb7bb7518a928ea841bc276c68eca75d4076894a6077"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0027_AB_Als_Grounded.ue.json",
+      "sha256": "013c008a7c7b0c806f58b69627a95ba8f9563f230f4ac4783b7a76934b3c133f"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0029_AB_Als_Locomotion.ue.json",
+      "sha256": "f53bc156cb4ec6e4cd683aa3ad84e072a78b246dd97abcab8bd4a9bcbecba70d"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0030_AB_Als_Layering.ue.json",
+      "sha256": "a2ba196c7fa28cb2bfe77fddbf4f542e018d55ee22fee5e4f462cef95f9a6450"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0031_AB_Als_Head.ue.json",
+      "sha256": "1eb13dd86214dbb4fd8915ef6cd352f5deaa51ca6d51a681a01438c96ea4f357"
+    },
+    {
+      "path": "target/bf114_takeover/converter_source/0032_AB_Als_Ragdolling.ue.json",
+      "sha256": "c69e4e2311d2682518fd507cc219797a85244419b16694834e507f3e4db193bf"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "8191c2ea-49e5-bd21-ee33-86bd87b2f93c",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "01dbd86a-4d37-d1df-d0f4-65a458a965ab",
+          "name": "AB_Als_Ragdolling\nLinked Anim Graph",
+          "position": [
+            -240.0,
+            48.0
+          ]
+        },
+        {
+          "id": "e4f33e44-4019-9bac-8e0a-dcbc0e3ae178",
+          "name": "AB_Als_Head\nLinked Anim Graph",
+          "position": [
+            -800.0,
+            48.0
+          ]
+        },
+        {
+          "id": "012331fb-4799-2546-d5fa-c5b06e65e8e9",
+          "name": "ALI_Overlay - Overlay\nLinked Anim Layer",
+          "position": [
+            -1520.0,
+            160.0
+          ]
+        },
+        {
+          "id": "c110a89c-40f7-3718-2348-e3b3de41f939",
+          "name": "Inertialization",
+          "position": [
+            -1296.0,
+            176.0
+          ]
+        },
+        {
+          "id": "5514524f-4eea-c42c-19cd-349ea6f99e36",
+          "name": "Control Rig",
+          "position": [
+            -560.0,
+            64.0
+          ]
+        },
+        {
+          "id": "ccaab6a2-424d-b00d-6794-f3a705d6f8c2",
+          "name": "Slot 'PostLocomotion'\nGroup 'Locomotion'",
+          "position": [
+            -1328.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "99688c67-43aa-bd26-2097-3d8fbfb6019a",
+          "name": "Slot 'Transition'\nGroup 'Grounded'",
+          "position": [
+            -1776.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "5b8f6ccb-4375-69e2-303f-7980cbb0e327",
+          "name": "AB_Als_Locomotion\nLinked Anim Graph",
+          "position": [
+            -1552.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "878efe04-4d03-e9c2-1d34-689bd7ad2f4d",
+          "name": "AB_Als_Grounded\nLinked Anim Graph",
+          "position": [
+            -2000.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "5ed8c6bf-4e3e-5315-045e-e8a415a9fad5",
+          "name": "AB_Als_Standing\nLinked Anim Graph",
+          "position": [
+            -2240.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "ba68267b-4da2-3440-7107-6baed4b27a24",
+          "name": "AB_Als_Crouching\nLinked Anim Graph",
+          "position": [
+            -2240.0,
+            64.0
+          ]
+        },
+        {
+          "id": "47121ad2-4d8e-11a8-1fd5-c199e70a792c",
+          "name": "AB_Als_Layering\nLinked Anim Graph",
+          "position": [
+            -1072.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"Pose\")",
+          "target": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"012331fb-4799-2546-d5fa-c5b06e65e8e9\", \"Pose\")",
+          "target": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Pose\")",
+          "target": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Pose\")",
+          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Locomotion Input\")"
+        },
+        {
+          "source": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Pose\")",
+          "target": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Grounded Input\")"
+        },
+        {
+          "source": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Pose\")",
+          "target": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"View Input\")"
+        },
+        {
+          "source": "NodeData(\"ba68267b-4da2-3440-7107-6baed4b27a24\", \"Pose\")",
+          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Crouching Input\")"
+        },
+        {
+          "source": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Pose\")",
+          "target": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"5ed8c6bf-4e3e-5315-045e-e8a415a9fad5\", \"Pose\")",
+          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Standing Input\")"
+        },
+        {
+          "source": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Pose\")",
+          "target": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Source\")"
+        },
+        {
+          "source": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Pose\")",
+          "target": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Ragdolling Input\")"
+        },
+        {
+          "source": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Pose\")",
+          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Overlay Input\")"
+        },
+        {
+          "source": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Pose\")",
+          "target": "OutputData(\"Result\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/graphs/runtime/als_generated_ab_als_ragdoll_wrapper.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "Generated AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_generated_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf114_takeover/converter_source",
+        "--materialized-directory",
+        "target/bf114_takeover/converter_order_output",
+        "--spec",
+        "target/bf114_takeover/generated.spec.json"
+      ]
+    },
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated"
+      ]
+    },
+    {
+      "label": "runtime_wrapper_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/graphs/runtime"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "ragdoll"
+  }
+}

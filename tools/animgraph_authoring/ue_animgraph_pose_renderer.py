@@ -1499,7 +1499,6 @@ def render(
     edges.extend(layered_bone_edges)
     result_identifier = node_id(state_result_raw)
     edges.append(f"OutputData({quoted(output_name)}): NodeData({quoted(result_identifier)}, \"Pose\")")
-    result_nodes.sort(key=lambda value: value[0])
     graph_inputs = []
     for semantic in ir_nodes.values():
         if semantic.get("renderer") != "linked_input_pose":
@@ -1637,6 +1636,10 @@ def fixture_graph():
 
 def run_self_test():
     graph_contract, graph_ir, assets = fixture_graph()
+    order_contract, order_ir, order_assets = fixture_graph()
+    order_contract["source_graph"]["nodes"][0]["node_guid"] = "ffffffff-0000-4000-8000-000000000001"
+    order_text = render(order_contract, order_ir, order_assets).split("edges_inverted:", 1)[0]
+    assert order_text.index("ffffffff-0000-4000-8000-000000000001") < order_text.index("10000000-0000-4000-8000-000000000002"), "source node order must not be replaced with GUID order"
     try:
         blendspace_inner(None)
     except PoseRenderError:
@@ -2357,6 +2360,7 @@ def run_self_test():
     return {
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
+        "source_node_order_preserved": "PASS",
         "sync_group_requires_a_phase_source": "PASS",
         "sync_group_wrapper_preserves_source_player": "PASS",
         "nonfunctional_source_comments_are_ignored": "PASS",

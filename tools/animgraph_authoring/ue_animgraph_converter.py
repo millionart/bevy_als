@@ -3821,6 +3821,8 @@ def main():
         raise ConversionError("installed replacement requires an installation root")
     if args.install_root is not None and args.install_root.resolve() == args.output_root.resolve():
         raise ConversionError("installation root and output root must differ")
+    if args.install_root is not None and not args.install_root.is_dir():
+        raise ConversionError("installation root is unavailable")
     registry = validate_registry(read_json(args.registry))
     if not args.asset_root.is_dir():
         raise ConversionError("target asset root is unavailable")
