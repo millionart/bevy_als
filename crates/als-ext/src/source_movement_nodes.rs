@@ -177,6 +177,31 @@ impl Default for SourceSetHipsDirectionNode {
 
 impl NodeLike for SourceSetHipsDirectionNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let became_relevant = crate::source_instance::source_call_became_relevant(&ctx)?;
+        if !self.on_become_relevant || became_relevant {
+            let value = ctx
+                .data_back("NewHipsDirection")
+                .and_then(|value| value.as_f32())
+                .or_else(|_| {
+                    [
+                        "Forward",
+                        "Backward",
+                        "LeftForward",
+                        "LeftBackward",
+                        "RightForward",
+                        "RightBackward",
+                    ]
+                    .iter()
+                    .position(|value| *value == self.new_hips_direction)
+                    .map(|value| value as f32)
+                    .ok_or_else(|| node_error(&ctx, "source hips direction is invalid".to_owned()))
+                })?;
+            crate::source_instance::set_source_property(
+                &ctx,
+                "grounded_state.hips_direction",
+                value,
+            )?;
+        }
         let pose = ctx.data_back("Source")?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
@@ -202,6 +227,134 @@ impl NodeLike for SourceSetHipsDirectionNode {
 mod tests {
     use super::*;
     use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn source_hips_direction_write_is_visible_to_the_child_graph() {
+        use crate::{GlobalF32InputNode, GlobalPoseInputNode, SourceCurveModifyNode};
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, NodeId, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(In(root): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                (
+                    "grounded_state.hips_direction".to_owned(),
+                    DataValue::F32(0.0),
+                ),
+                ("fixture".to_owned(), DataValue::Pose(Pose::default())),
+            ]);
+            let mut results = Vec::new();
+            for frame in 0..4 {
+                if frame == 2 {
+                    arena.next_frame();
+                }
+                if frame == 3 {
+                    arena = GraphContextArena::new(root.id());
+                }
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
+                if frame == 1 {
+                    crate::source_instance::set_source_property(
+                        &context.create_node_context(NodeId::default()),
+                        "grounded_state.hips_direction",
+                        0.0_f32,
+                    )
+                    .unwrap();
+                }
+                graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        context.clone(),
+                    )
+                    .unwrap();
+                results.push(
+                    crate::animation_context::graph_output_context_state(graph, &context, "Pose")
+                        .unwrap()
+                        .curves["Probe"],
+                );
+            }
+            results
+        }
+        let mut graph = AnimationGraph::new();
+        let source = AnimationNode::new(
+            "source",
+            GlobalPoseInputNode {
+                key: "fixture".to_owned(),
+                output: "Pose".to_owned(),
+            },
+        );
+        let read = AnimationNode::new(
+            "read hips",
+            GlobalF32InputNode {
+                key: "grounded_state.hips_direction".to_owned(),
+            },
+        );
+        let capture = AnimationNode::new(
+            "capture",
+            SourceCurveModifyNode {
+                curve_name: "Probe".to_owned(),
+                source_pose_pin: "Input".to_owned(),
+                alpha: 1.0,
+                ..default()
+            },
+        );
+        let write = AnimationNode::new(
+            "set hips",
+            SourceSetHipsDirectionNode {
+                new_hips_direction: "LeftBackward".to_owned(),
+                ..default()
+            },
+        );
+        for node in [&source, &read, &capture, &write] {
+            graph.add_node(node.clone());
+        }
+        graph.add_node_parameter_edge(source.id, "Pose", capture.id, "Input");
+        graph.add_node_parameter_edge(
+            read.id,
+            "grounded_state.hips_direction",
+            capture.id,
+            "Probe",
+        );
+        graph.add_node_parameter_edge(capture.id, "Pose", write.id, "Source");
+        graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        graph.add_output_data_edge(write.id, "Pose", "Pose");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let graph = graphs.add(graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        assert_eq!(
+            world.run_system_cached_with(query, graph).unwrap(),
+            [3.0, 0.0, 3.0, 3.0]
+        );
+    }
 
     #[test]
     fn source_multi_way_blend_reference_pose_preserves_only_source_identity() {

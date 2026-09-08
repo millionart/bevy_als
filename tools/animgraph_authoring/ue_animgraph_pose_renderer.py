@@ -989,6 +989,18 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + "], filtered_bones: [], curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true, output: \"Pose\", request_epoch_key: \"\", request_duration_key: \"\")",
         )
     if renderer == "pose_lifecycle_call":
+        if value["source_function"] in {"InitializeStandingMovement", "ResetPivot"}:
+            if value["call_site"] != "OnBecomeRelevant":
+                raise PoseRenderError("source standing reset call site is unsupported")
+            assignments = ['(property: "standing_state.b_pivot_active", value: Bool(false))']
+            if value["source_function"] == "InitializeStandingMovement":
+                assignments.insert(0, '(property: "standing_state.sprint_time", value: F32(0.0))')
+            return ("als_ext::SourcePropertyWriteNode",
+                    "(assignments: [" + ", ".join(assignments) + "], on_become_relevant: true)")
+        if value["source_function"] == "RefreshStandingMovement":
+            if value["call_site"] != "OnUpdate":
+                raise PoseRenderError("source standing refresh call site is unsupported")
+            return "bevy_als::StandingSourceRefreshNode", "()"
         return (
             "als_ext::SourcePosePassthroughNode",
             "(input: \"Source\", output: \"Pose\", input_time: \"source_time\", output_time: false, source_function: "
@@ -2036,6 +2048,27 @@ def run_self_test():
     )
     assert hips_type == "als_ext::SourceSetHipsDirectionNode"
     assert 'new_hips_direction: "LeftBackward"' in hips_inner
+    for function, call_site, expected_type in [
+        ("InitializeStandingMovement", "OnBecomeRelevant", "als_ext::SourcePropertyWriteNode"),
+        ("ResetPivot", "OnBecomeRelevant", "als_ext::SourcePropertyWriteNode"),
+        ("RefreshStandingMovement", "OnUpdate", "bevy_als::StandingSourceRefreshNode"),
+    ]:
+        node_type, inner = rendered_inner(graph_contract, {}, {
+            "renderer": "pose_lifecycle_call", "semantic": {"source_function": function, "call_site": call_site},
+        }, {}, {})
+        assert node_type == expected_type
+        if function == "InitializeStandingMovement":
+            assert 'property: "standing_state.sprint_time", value: F32(0.0)' in inner
+            assert 'property: "standing_state.b_pivot_active", value: Bool(false)' in inner
+        elif function == "ResetPivot":
+            assert 'property: "standing_state.b_pivot_active", value: Bool(false)' in inner
+        try:
+            rendered_inner(graph_contract, {}, {"renderer": "pose_lifecycle_call",
+                "semantic": {"source_function": function, "call_site": "OnEvaluate"}}, {}, {})
+        except PoseRenderError:
+            pass
+        else:
+            raise AssertionError("unsupported standing lifecycle call site was accepted")
     enum_type, enum_inner = rendered_inner(
         graph_contract,
         {},

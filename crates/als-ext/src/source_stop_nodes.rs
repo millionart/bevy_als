@@ -94,12 +94,11 @@ impl SourceEnumPoseBlendNode {
         if self.active_key.is_empty() {
             return Ok(self.active_enum_default);
         }
-        Ok(ctx
-            .graph_context
-            .global_input_data
-            .get(&self.active_key)
-            .and_then(|value| value.as_f32().ok())
-            .unwrap_or(self.active_enum_default))
+        Ok(
+            crate::source_instance::source_input_data(ctx, &self.active_key)
+                .and_then(|value| value.as_f32().ok())
+                .unwrap_or(self.active_enum_default),
+        )
     }
 }
 

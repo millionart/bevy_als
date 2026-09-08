@@ -25,7 +25,7 @@ pub fn global_f32_or_root_default_value(
     key: &str,
     default_value: f32,
 ) -> Result<f32, GraphError> {
-    match ctx.graph_context.global_input_data.get(key) {
+    match crate::source_instance::source_input_data(ctx, key) {
         Some(value) => value.as_f32(),
         None if root_defaults_enabled(ctx) => Ok(default_value),
         None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
@@ -45,7 +45,7 @@ impl NodeLike for GlobalF32InputNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = match ctx.graph_context.global_input_data.get(&self.key).cloned() {
+        let value = match crate::source_instance::source_input_data(&ctx, &self.key) {
             Some(value) => value,
             None if root_defaults_enabled(&ctx) => 0.0_f32.into(),
             None => return Err(GraphError::GlobalInputDataMissing(self.key.clone())),

@@ -29,7 +29,7 @@ impl NodeLike for GlobalBoolInputNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let value = match ctx.graph_context.global_input_data.get(&self.key).cloned() {
+        let value = match crate::source_instance::source_input_data(&ctx, &self.key) {
             Some(value) => value,
             None if root_defaults_enabled(&ctx) => false.into(),
             None => return Err(GraphError::GlobalInputDataMissing(self.key.clone())),

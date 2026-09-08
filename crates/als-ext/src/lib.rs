@@ -61,6 +61,7 @@ pub mod slot_node;
 pub mod source_animation_state_getter;
 pub mod source_cached_pose;
 pub mod source_gameplay_tag_input;
+pub mod source_instance;
 pub mod source_linked_input_pose;
 pub mod source_movement_nodes;
 pub mod source_physics_joint;
@@ -363,6 +364,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceMeshSpaceAdditiveNode>()
             .register_type::<SourceMultiWayBlendNode>()
             .register_type::<SourceSetHipsDirectionNode>()
+            .register_type::<source_instance::SourcePropertyWriteNode>()
             .register_type::<SourcePosePassthroughNode>()
             .register_type::<SourceScalarDataType>()
             .register_type::<SourceScalarExpressionNode>()

@@ -144,7 +144,7 @@ fn global_f32_or_field(ctx: &NodeContext, key: &str, fallback: f32) -> Result<f3
     if key.is_empty() {
         return Ok(fallback);
     }
-    match ctx.graph_context.global_input_data.get(key) {
+    match crate::source_instance::source_input_data(ctx, key) {
         Some(value) => value.as_f32(),
         None if root_defaults_enabled(ctx) => Ok(fallback),
         None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),
@@ -155,7 +155,7 @@ fn global_bool_or_field(ctx: &NodeContext, key: &str, fallback: bool) -> Result<
     if key.is_empty() {
         return Ok(fallback);
     }
-    match ctx.graph_context.global_input_data.get(key) {
+    match crate::source_instance::source_input_data(ctx, key) {
         Some(value) => value.as_bool(),
         None if root_defaults_enabled(ctx) => Ok(fallback),
         None => Err(GraphError::GlobalInputDataMissing(key.to_owned())),

@@ -12,16 +12,16 @@ EXTERNAL_PROVIDERS = {
     "RefreshGrounded": "bevy_als::actual_motion::AlsActualMotionPlugin + bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
     "ResetGroundedEntryMode": "bevy_als::grounded_layer::GroundedLayerPlugin",
     "RefreshGroundedMovement": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
-    "InitializeStandingMovement": "bevy_als::standing_layer::StandingLayerPlugin",
-    "RefreshStandingMovement": "bevy_als::standing_layer::StandingLayerPlugin",
-    "ResetPivot": "bevy_als::standing_layer::StandingLayerPlugin",
+    "InitializeStandingMovement": "als_ext::SourcePropertyWriteNode",
+    "RefreshStandingMovement": "bevy_als::StandingSourceRefreshNode",
+    "ResetPivot": "als_ext::SourcePropertyWriteNode",
     "RefreshCrouchingMovement": "bevy_als::crouching_layer::CrouchingLayerPlugin",
     "RefreshDynamicTransitions": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
     "RefreshInAir": "als_locomotion_refresh_in_air",
     "RefreshRotateInPlace": "als_turn_layer_refresh_rotate_in_place",
     "InitializeTurnInPlace": "bevy_als::turn_layer::TurnLayerPlugin",
     "RefreshTurnInPlace": "bevy_als::turn_layer::TurnLayerPlugin",
-    "SetHipsDirection": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
+    "SetHipsDirection": "als_ext::SourceSetHipsDirectionNode",
 }
 TRANSITION_FUNCTIONS = {
     "PlayStopLeftTransitionAnimation": {

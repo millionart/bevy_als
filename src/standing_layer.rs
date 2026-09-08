@@ -784,6 +784,7 @@ struct StandingGraphInputs {
     gait_is_sprinting: f32,
     sprint_block_amount: f32,
     sprint_acceleration_amount: f32,
+    acceleration_forward_amount: f32,
     sprint_play_rate: f32,
     movement_marker_phase: f32,
     pivot_active: bool,
@@ -838,6 +839,7 @@ pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<crate::standing_source::StandingSourceRefreshNode>();
         app.configure_sets(
             PostUpdate,
             AlsStandingLayerSet
@@ -922,7 +924,7 @@ fn animation_world_scale(transform: &GlobalTransform) -> f32 {
     transform
         .to_scale_rotation_translation()
         .0
-        .z
+        .y
         .abs()
         .max(f32::EPSILON)
 }
@@ -1911,6 +1913,7 @@ fn update_standing_inputs(
         gait_is_sprinting,
         sprint_block_amount,
         sprint_acceleration_amount,
+        acceleration_forward_amount: target_lean.x,
         sprint_play_rate: play_rate,
         movement_marker_phase,
         pivot_active: pivot,
@@ -2060,6 +2063,10 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         ("grounded_state.hips_direction", inputs.hips_direction),
         ("standing_state.play_rate", inputs.play_rate),
         (
+            "standing_source.acceleration_forward",
+            inputs.acceleration_forward_amount,
+        ),
+        (
             "standing_state.sprint_acceleration_amount",
             inputs.sprint_acceleration_amount,
         ),
@@ -2080,18 +2087,19 @@ fn write_standing_inputs(player: &mut AnimationGraphPlayer, inputs: StandingGrap
         ("lean_state.forward_amount", inputs.lean_forward_amount),
         ("rotate_in_place_state.play_rate", inputs.rotation_play_rate),
         ("turn_in_place_state.play_rate", inputs.turn_play_rate),
+    ] {
+        player.set_global_input_data(key, value);
+    }
+    for (key, value) in [
         (
             "rotate_in_place_state.b_rotating_left",
-            inputs.rotate_left_loop as u8 as f32,
+            inputs.rotate_left_loop,
         ),
         (
             "rotate_in_place_state.b_rotating_right",
-            inputs.rotate_right_loop as u8 as f32,
+            inputs.rotate_right_loop,
         ),
-        (
-            "standing_state.b_pivot_active",
-            inputs.pivot_active as u8 as f32,
-        ),
+        ("standing_state.b_pivot_active", inputs.pivot_active),
     ] {
         player.set_global_input_data(key, value);
     }
@@ -2407,6 +2415,12 @@ fn standing_layer_writer(
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
+        player.set_global_input_data("standing_source.pending_update", !runtime.initialized);
+        player.set_global_input_data("standing_source.pivot_requested", pivot_request.is_some());
+        player.set_global_input_data(
+            "standing_source.pivot_activated",
+            source_pivot_activates(pivot_request.is_some(), actual_motion.horizontal_speed),
+        );
         let input = override_command.map_or(command, |value| &value.0);
         let inputs = update_standing_inputs(
             &mut runtime,
@@ -2513,6 +2527,39 @@ fn standing_layer_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standing_source_boolean_inputs_keep_the_source_pin_types() {
+        let mut player = AnimationGraphPlayer::new(default());
+        write_standing_inputs(
+            &mut player,
+            StandingGraphInputs {
+                pivot_active: true,
+                rotate_left_loop: true,
+                rotate_right_loop: false,
+                ..default()
+            },
+        );
+        for (key, expected) in [
+            ("standing_state.b_pivot_active", true),
+            ("rotate_in_place_state.b_rotating_left", true),
+            ("rotate_in_place_state.b_rotating_right", false),
+        ] {
+            assert_eq!(
+                player
+                    .get_global_input_data(key)
+                    .and_then(|value| value.as_bool().ok()),
+                Some(expected),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn standing_source_height_scale_uses_the_runtime_up_axis() {
+        let transform = GlobalTransform::from(Transform::from_scale(Vec3::new(2.0, 3.0, 4.0)));
+        assert_eq!(animation_world_scale(&transform), 3.0);
+    }
 
     #[test]
     fn source_moving_smooth_matches_input_and_speed_thresholds() {
@@ -2811,8 +2858,8 @@ mod tests {
         assert_eq!(
             player
                 .get_global_input_data("standing_state.b_pivot_active")
-                .and_then(|value| value.as_f32().ok()),
-            Some(1.0)
+                .and_then(|value| value.as_bool().ok()),
+            Some(true)
         );
     }
 
@@ -2881,14 +2928,14 @@ mod tests {
     }
 
     #[test]
-    fn animation_speed_divides_by_avatar_world_z_scale() {
+    fn animation_speed_divides_by_avatar_world_height_scale() {
         let avatar_transform =
-            GlobalTransform::from(Transform::from_scale(Vec3::new(4.0, 1.0, 2.0)));
+            GlobalTransform::from(Transform::from_scale(Vec3::new(4.0, 2.0, 1.0)));
         let animation_speed = 6.0 / animation_world_scale(&avatar_transform);
         let passed = (animation_speed - 3.0).abs() < 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
-            "[BF102.38][VERDICT] character_local_scale=1.000 avatar_world_z_scale={:.3} animation_speed={animation_speed:.3} -> {verdict}",
+            "[BF102.38][VERDICT] character_local_scale=1.000 avatar_world_height_scale={:.3} animation_speed={animation_speed:.3} -> {verdict}",
             animation_world_scale(&avatar_transform),
         );
         assert!(passed);

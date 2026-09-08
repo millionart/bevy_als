@@ -87,9 +87,7 @@ impl SourceScalarExpressionNode {
         if pin.global_key.is_empty() {
             return pin.f32_default;
         }
-        ctx.graph_context
-            .global_input_data
-            .get(&pin.global_key)
+        crate::source_instance::source_input_data(ctx, &pin.global_key)
             .and_then(|value| value.as_f32().ok())
             .unwrap_or(pin.f32_default)
     }
@@ -98,9 +96,7 @@ impl SourceScalarExpressionNode {
         if pin.global_key.is_empty() {
             return pin.bool_default;
         }
-        ctx.graph_context
-            .global_input_data
-            .get(&pin.global_key)
+        crate::source_instance::source_input_data(ctx, &pin.global_key)
             .and_then(|value| value.as_bool().ok())
             .unwrap_or(pin.bool_default)
     }

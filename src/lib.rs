@@ -43,6 +43,7 @@ pub mod show_debug_hud;
 pub mod source_physics_timing;
 pub mod stance_layer;
 pub mod standing_layer;
+pub mod standing_source;
 pub mod stop_link;
 pub mod turn_layer;
 pub mod view_layer;
