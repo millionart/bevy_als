@@ -271,26 +271,26 @@ impl NodeLike for SourceTwoWayBlendNode {
             (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
         };
         if self.reset_child_on_activation {
-            let update = ctx.time_update_fwd()?;
-            if a_is_relevant {
-                ctx.set_time_update_back(
-                    "A",
-                    if reset_a {
-                        TimeUpdate::Absolute(0.0)
-                    } else {
-                        update.clone()
-                    },
-                );
-            }
-            if b_is_relevant {
-                ctx.set_time_update_back(
-                    "B",
-                    if reset_b {
-                        TimeUpdate::Absolute(0.0)
-                    } else {
-                        update
-                    },
-                );
+            for (pin, reset) in [("A", reset_a), ("B", reset_b)] {
+                if !reset {
+                    continue;
+                }
+                let node = crate::animation_context::source_node_for_pose_input(&ctx, pin)?;
+                if ctx.graph_context.graph.nodes[&node]
+                    .try_inner_downcast_ref::<crate::SourceSequencePlayerNode>()
+                    .is_none()
+                {
+                    return Err(GraphError::UnknownErrorNode {
+                        graph: ctx.graph_context.context_id,
+                        node: ctx.node_id,
+                        error: "Source child initialization requires a direct sequence player"
+                            .into(),
+                    });
+                }
+                *ctx.graph_context
+                    .create_node_context(node)
+                    .state_mut::<crate::source_sequence_player::SourceSequencePlayerState>()? =
+                    default();
             }
         }
         let mut base = if a_is_relevant {
@@ -313,19 +313,15 @@ impl NodeLike for SourceTwoWayBlendNode {
         let context_b = b_is_relevant
             .then(|| pose_input_context_state(&ctx, "B"))
             .flatten();
-        let mut context = context_a.clone().or(context_b.clone()).unwrap_or_default();
-        context.sync_players.clear();
-        for (input, weight) in [(&context_a, 1.0 - alpha), (&context_b, alpha)] {
-            if let Some(input) = input {
-                merge_sync_players(&mut context.sync_players, &input.sync_players, weight);
-            }
-        }
-        context.relevant_asset = select_relevant_asset([
+        let context = blend_animation_contexts([
             (
-                context_a.and_then(|context| context.relevant_asset),
-                1.0 - alpha,
+                context_a.unwrap_or_default(),
+                if b_is_relevant { 1.0 - alpha } else { 1.0 },
             ),
-            (context_b.and_then(|context| context.relevant_asset), alpha),
+            (
+                context_b.unwrap_or_default(),
+                if a_is_relevant { alpha } else { 1.0 },
+            ),
         ]);
         ctx.state_mut::<SourceTwoWayBlendState>()?.context = context;
         Ok(())
@@ -336,9 +332,6 @@ impl NodeLike for SourceTwoWayBlendNode {
             .add_input_data("B", DataSpec::Pose);
         if self.expose_alpha_pin {
             ctx.add_input_data(self.alpha_pin.clone(), DataSpec::F32);
-        }
-        if self.reset_child_on_activation {
-            ctx.add_input_time("A").add_input_time("B");
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -418,37 +411,23 @@ impl NodeLike for SourceApplyAdditiveNode {
             delta,
         );
         let mut base = ctx.data_back("Base")?.into_pose()?;
-        let additive = ctx.data_back("Additive")?.into_pose()?;
-        AdditiveInterpolator {
-            bone_mask: BoneMask::all(),
+        let additive_is_relevant = alpha > 1e-5;
+        if additive_is_relevant {
+            let additive = ctx.data_back("Additive")?.into_pose()?;
+            AdditiveInterpolator {
+                bone_mask: BoneMask::all(),
+            }
+            .interpolate_pose(&mut base, &additive, alpha);
         }
-        .interpolate_pose(&mut base, &additive, alpha);
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
         let base_context = pose_input_context_state(&ctx, "Base");
-        let additive_context = pose_input_context_state(&ctx, "Additive");
-        let additive_is_relevant = alpha > f32::EPSILON;
-        let mut context = if additive_is_relevant {
-            additive_context.clone().or(base_context.clone())
-        } else {
-            base_context.clone().or(additive_context.clone())
-        }
-        .unwrap_or_default();
-        context.sync_players.clear();
-        for (input, weight) in [(&base_context, 1.0), (&additive_context, alpha)] {
-            if let Some(input) = input {
-                merge_sync_players(&mut context.sync_players, &input.sync_players, weight);
-            }
-        }
-        context.relevant_asset = select_relevant_asset([
-            (
-                additive_context.and_then(|context| context.relevant_asset),
-                if additive_is_relevant { 1.0 } else { 0.0 },
-            ),
-            (
-                base_context.and_then(|context| context.relevant_asset),
-                if additive_is_relevant { 0.0 } else { 1.0 },
-            ),
+        let additive_context = additive_is_relevant
+            .then(|| pose_input_context_state(&ctx, "Additive"))
+            .flatten();
+        let context = blend_animation_contexts([
+            (base_context.unwrap_or_default(), 1.0),
+            (additive_context.unwrap_or_default(), alpha),
         ]);
         ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
@@ -1046,7 +1025,7 @@ impl NodeLike for SourceCurveModifyNode {
             } else {
                 default
             };
-            let source = context.curves.get(curve_name).copied().unwrap_or(default);
+            let source = context.curves.get(curve_name).copied().unwrap_or(0.0);
             let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
             context.curves.insert(curve_name.clone(), value);
         }
@@ -1076,6 +1055,120 @@ impl NodeLike for SourceCurveModifyNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_two_way_reinitializes_players_and_advances_the_activation_frame() {
+        use crate::SourceSequencePlayerNode;
+        use crate::source_sequence_player::SourceSequenceSynchronization;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::AnimationGraph,
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut positions = Vec::new();
+            for alpha in [0.0, 0.0, 1.0, 1.0, 0.0] {
+                let inputs = HashMap::from([
+                    ("alpha".into(), DataValue::F32(alpha)),
+                    ("delta".into(), DataValue::F32(0.1)),
+                ]);
+                let context = GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
+                let output = graph
+                    .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context)
+                    .unwrap();
+                positions.push(output["Pose"].clone().into_pose().unwrap().timestamp);
+            }
+            positions
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip {
+            duration: 1.0,
+            ..default()
+        });
+        let mut cases = Vec::new();
+        for (sync, reset) in [(false, true), (true, true), (true, false)] {
+            let mut graph = AnimationGraph::new();
+            let blend = AnimationNode::new(
+                "blend",
+                SourceTwoWayBlendNode {
+                    alpha_key: "alpha".into(),
+                    expose_alpha_pin: false,
+                    reset_child_on_activation: reset,
+                    ..default()
+                },
+            );
+            graph.add_node(blend.clone());
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            graph.add_output_time();
+            graph.add_output_pose_edge(blend.id);
+            for (pin, start) in [("A", 0.2), ("B", 0.6)] {
+                let player = AnimationNode::new(
+                    pin,
+                    SourceSequencePlayerNode {
+                        clip: clip.clone(),
+                        start_position: start,
+                        expose_play_rate_pin: false,
+                        expose_start_position_pin: false,
+                        synchronization: sync.then(|| SourceSequenceSynchronization {
+                            key: "group".into(),
+                            delta_seconds_key: "delta".into(),
+                            ..default()
+                        }),
+                        ..default()
+                    },
+                );
+                graph.add_node(player.clone());
+                graph.add_node_parameter_edge(player.id, "Pose", blend.id, pin);
+                if reset {
+                    graph.add_node_pose_edge(player.id, blend.id, pin);
+                }
+            }
+            cases.push(graphs.add(graph));
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        for (index, handle) in cases.into_iter().enumerate() {
+            let positions = world.run_system_once_with(query, handle).unwrap();
+            let last = if index == 2 { 0.5 } else { 0.3 };
+            for (actual, expected) in positions.into_iter().zip([0.3, 0.4, 0.7, 0.8, last]) {
+                assert!(
+                    (actual - expected).abs() < 1e-6,
+                    "case {index}: {actual} != {expected}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn source_two_way_alpha_matches_range_and_directional_interpolation() {

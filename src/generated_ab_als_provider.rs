@@ -1,6 +1,5 @@
 use als_core::{
     character::AlsCharacter,
-    foot_ik::AlsFootLockInput,
     input::AlsInputCommand,
     motion::AlsViewYaw,
     movement_direction::{
@@ -94,6 +93,28 @@ fn source_velocity_blend(
     }
 }
 
+fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 7] {
+    let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
+    [
+        (
+            "feet_state.foot_planted_amount",
+            curve("FootPlanted").clamp(-1.0, 1.0),
+        ),
+        (
+            "feet_state.feet_crossing_amount",
+            curve("FeetCrossing").clamp(0.0, 1.0),
+        ),
+        ("pose_state.standing_amount", curve("PoseStanding")),
+        ("pose_state.crouching_amount", curve("PoseCrouching")),
+        ("pose_state.in_air_amount", curve("PoseInAir")),
+        ("pose_state.grounded_amount", curve("PoseGrounded")),
+        (
+            "pose_state.gait_walking_amount",
+            curve("PoseGait").clamp(0.0, 1.0),
+        ),
+    ]
+}
+
 fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
     for key in [
         "transition.weight",
@@ -152,7 +173,6 @@ fn generated_ab_als_input_writer(
             &AlsViewYaw,
             Option<&AlsMovementDirectionState>,
             Option<&AlsInputCommand>,
-            Option<&AlsFootLockInput>,
             Option<&AlsMovementBaseAnimationState>,
             Option<&AlsGroundedEntryMode>,
         ),
@@ -171,7 +191,6 @@ fn generated_ab_als_input_writer(
         view_yaw,
         direction_state,
         input,
-        feet,
         movement_base,
         grounded_entry_mode,
     ) in &characters
@@ -196,7 +215,6 @@ fn generated_ab_als_input_writer(
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 source_rotation_yaw_offsets(&curves, &curve_handles, velocity_yaw_angle_view_space);
-            let in_air = *locomotion == LocomotionState::Air;
             let has_input =
                 input.is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON);
             let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);
@@ -207,8 +225,6 @@ fn generated_ab_als_input_writer(
                 *stance == Stance::Standing && *locomotion == LocomotionState::Grounded,
                 motion.velocity_blend,
             );
-            let foot_planted = feet.map_or(0.0, |state| state.foot_planted_amount);
-            let feet_crossing = feet.map_or(0.0, |state| state.feet_crossing_amount);
             let hips_direction_lock = context
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)
@@ -256,24 +272,11 @@ fn generated_ab_als_input_writer(
                     "grounded_state.hips_direction_lock_amount",
                     hips_direction_lock,
                 ),
-                ("feet_state.foot_planted_amount", foot_planted),
-                ("feet_state.feet_crossing_amount", feet_crossing),
                 ("locomotion_state.speed", motion.horizontal_speed),
-                (
-                    "pose_state.standing_amount",
-                    (*stance == Stance::Standing) as u8 as f32,
-                ),
-                (
-                    "pose_state.crouching_amount",
-                    (*stance == Stance::Crouching) as u8 as f32,
-                ),
-                ("pose_state.in_air_amount", in_air as u8 as f32),
-                ("pose_state.grounded_amount", (!in_air) as u8 as f32),
-                (
-                    "pose_state.gait_walking_amount",
-                    (*gait == Gait::Walking) as u8 as f32,
-                ),
-            ] {
+            ]
+            .into_iter()
+            .chain(source_pose_curve_inputs(context))
+            {
                 player.set_global_input_data(key, value);
             }
             for (key, value) in [
@@ -298,6 +301,32 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_pose_inputs_preserve_actual_curve_weights_and_source_defaults() {
+        let context = AlsRootAnimationContext {
+            curves: [
+                ("FootPlanted", -1.2),
+                ("FeetCrossing", 0.3),
+                ("PoseStanding", 0.4),
+                ("PoseCrouching", 0.2),
+                ("PoseInAir", 0.4),
+                ("PoseGrounded", 0.6),
+                ("PoseGait", 2.4),
+            ]
+            .into_iter()
+            .map(|(name, value)| (name.into(), value))
+            .collect(),
+        };
+        assert_eq!(
+            source_pose_curve_inputs(Some(&context)).map(|(_, value)| value),
+            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0]
+        );
+        assert_eq!(
+            source_pose_curve_inputs(None).map(|(_, value)| value),
+            [0.0; 7]
+        );
+    }
 
     #[test]
     fn source_grounded_direction_is_exclusive_and_forces_velocity_or_sprint_forward() {

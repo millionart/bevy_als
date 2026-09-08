@@ -19,6 +19,7 @@ fn frame_to_time(frame: f32, frames_per_second: f32) -> f32 {
 #[type_path = "als_ext"]
 pub struct SourceSequenceEvaluatorNode {
     pub clip: Handle<GraphClip>,
+    pub curves: crate::als_curves::AlsPoseCurves,
     pub explicit_frame: f32,
     pub explicit_frame_key: String,
     pub explicit_frame_pin: String,
@@ -33,6 +34,7 @@ impl Default for SourceSequenceEvaluatorNode {
     fn default() -> Self {
         Self {
             clip: default(),
+            curves: default(),
             explicit_frame: 0.0,
             explicit_frame_key: default(),
             explicit_frame_pin: "Explicit Frame".to_owned(),
@@ -88,6 +90,12 @@ impl NodeLike for SourceSequenceEvaluatorNode {
             time.clamp(0.0, duration)
         };
         let pose = sample_pose(clip, time);
+        *ctx.state_mut_or_else(crate::AnimationContextState::default)? =
+            crate::AnimationContextState {
+                curves: self.curves.sample_all(time),
+                curves_are_authoritative: true,
+                ..default()
+            };
         ctx.set_time(time);
         ctx.set_data_fwd("Pose", pose);
         Ok(())

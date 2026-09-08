@@ -206,6 +206,8 @@ pub struct NormalizedBlendSpacePoint {
     pub point: Vec2,
     pub duration: f32,
     pub markers: Vec<SyncMarker>,
+    #[serde(default)]
+    pub curves: crate::als_curves::AlsPoseCurves,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -583,6 +585,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         };
         let output_time = leader_time;
         let mut poses = Vec::with_capacity(weights.len());
+        let mut curves = bevy::platform::collections::HashMap::new();
         for (index, weight) in weights {
             let point = &self.points[index];
             let duration = self.point_duration(&mut ctx, point)?;
@@ -612,7 +615,13 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
                 weight,
             ));
+            for (name, value) in point.curves.sample_all(time) {
+                *curves.entry(name).or_insert(0.0) += value * weight;
+            }
         }
+        let context = &mut ctx.state_mut::<NormalizedBlendSpaceState>()?.context;
+        context.curves = curves;
+        context.curves_are_authoritative = true;
         let root_motion = blend_normalized_root_motion(
             &poses
                 .iter()
@@ -703,12 +712,14 @@ mod tests {
                     point: Vec2::new(1.0, 0.0),
                     duration: 1.133333,
                     markers: markers(&[("Left", 0.083333), ("Right", 0.65)]),
+                    ..default()
                 },
                 NormalizedBlendSpacePoint {
                     id: "run".to_owned(),
                     point: Vec2::new(1.0, 1.0),
                     duration: 0.8,
                     markers: markers(&[("Left", 0.033333), ("Right", 0.433333)]),
+                    ..default()
                 },
             ],
             ..default()
@@ -741,12 +752,14 @@ mod tests {
                     point: Vec2::ZERO,
                     duration: 1.133333,
                     markers: markers(&[("Left", 0.083333), ("Right", 0.65)]),
+                    ..default()
                 },
                 NormalizedBlendSpacePoint {
                     id: "backward".to_owned(),
                     point: Vec2::ONE,
                     duration: 1.133333,
                     markers: markers(&[("Right", 0.516667), ("Left", 1.083333)]),
+                    ..default()
                 },
             ],
         };
@@ -828,6 +841,7 @@ mod tests {
                         } else {
                             markers(&[("Left", 0.033333), ("Right", 0.433333)])
                         },
+                        ..default()
                     })
                     .collect(),
                 playback: Some(binding.clone()),

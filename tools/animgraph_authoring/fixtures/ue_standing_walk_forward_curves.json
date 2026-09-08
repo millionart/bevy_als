@@ -1,0 +1,60 @@
+{
+  "curves": [
+    {
+      "name": "FootPlanted",
+      "flags": 4,
+      "default": null,
+      "pre_infinity": "RCCE_Constant",
+      "post_infinity": "RCCE_Constant",
+      "interps": [
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR",
+        "LINEAR"
+      ],
+      "times": [
+        0.0,
+        0.10000000149011612,
+        0.13333334028720856,
+        0.4000000059604645,
+        0.4333333373069763,
+        0.6666666865348816,
+        0.699999988079071,
+        0.9666666388511658,
+        1.0
+      ],
+      "values": [
+        -0.2499999701976776,
+        -0.24999995529651642,
+        -1.0,
+        -1.0,
+        0.2500000298023224,
+        0.25,
+        1.0000001192092896,
+        1.0,
+        -0.2499999701976776
+      ]
+    },
+    {
+      "name": "PoseGait",
+      "flags": 20,
+      "default": null,
+      "pre_infinity": "RCCE_Constant",
+      "post_infinity": "RCCE_Constant",
+      "interps": [
+        "LINEAR"
+      ],
+      "times": [
+        0.0
+      ],
+      "values": [
+        1.0
+      ]
+    }
+  ]
+}

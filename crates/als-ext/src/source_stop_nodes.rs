@@ -249,6 +249,10 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
         for index in 0..self.layer_count() {
+            let weight = self.layer_weight(&ctx, index)?;
+            if weight <= 1e-5 {
+                continue;
+            }
             let overlay = ctx
                 .data_back(self.layer_pin(index).to_owned())?
                 .into_pose()?;
@@ -256,8 +260,10 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 merge_sync_players(
                     &mut context.sync_players,
                     &overlay_context.sync_players,
-                    self.layer_weight(&ctx, index)?,
+                    weight,
                 );
+                context.curves.extend(overlay_context.curves);
+                context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }
             let skeletons = &ctx.graph_context.resources.skeleton_assets;
             let skeleton = skeletons
@@ -285,18 +291,12 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     )
                 };
                 if self.mesh_space_rotation_blend {
-                    apply_mesh_space_layered_blend(
-                        &mut base,
-                        &overlay,
-                        self.layer_weight(&ctx, index)?,
-                        &mask,
-                        skeleton,
-                    );
+                    apply_mesh_space_layered_blend(&mut base, &overlay, weight, &mask, skeleton);
                 } else {
                     LinearInterpolator { bone_mask: mask }.interpolate_pose(
                         &mut base,
                         &overlay,
-                        self.layer_weight(&ctx, index)?.clamp(0.0, 1.0),
+                        weight.clamp(0.0, 1.0),
                     );
                 }
             }

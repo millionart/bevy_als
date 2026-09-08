@@ -1,34 +1,54 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_standing_clock",
+  "id": "generated_ab_als_standing_curves",
   "source_evidence": [
     {
-      "path": "target/bf115_standing/converter_source/0008_AB_Als_Standing.ue.json",
-      "sha256": "de291fdfa12a3b4288c465411a0dffc85e5d136cb5c801e4b45f845d31b4efbf"
+      "path": "target/bf115_standing/curves/source/0022_AB_Als_Standing.ue.json",
+      "sha256": "67f97633dea61a7e6005d855c760a0aab99fd796bc1f9a9b02b6a2d290633718"
     },
     {
-      "path": "target/bf115_standing/converter_source/0009_BS_Als_WalkRun_Right_Forward.ue.json",
+      "path": "target/bf115_standing/curves/source/0023_BS_Als_WalkRun_Right_Forward.ue.json",
       "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
     },
     {
-      "path": "target/bf115_standing/converter_source/0010_BS_Als_WalkRun_Right_Backward.ue.json",
+      "path": "target/bf115_standing/curves/source/0024_BS_Als_WalkRun_Right_Backward.ue.json",
       "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
     },
     {
-      "path": "target/bf115_standing/converter_source/0011_BS_Als_WalkRun_Left_Forward.ue.json",
+      "path": "target/bf115_standing/curves/source/0025_BS_Als_WalkRun_Left_Forward.ue.json",
       "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
     },
     {
-      "path": "target/bf115_standing/converter_source/0012_BS_Als_WalkRun_Left_Backward.ue.json",
+      "path": "target/bf115_standing/curves/source/0026_BS_Als_WalkRun_Left_Backward.ue.json",
       "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
     },
     {
-      "path": "target/bf115_standing/converter_source/0013_BS_Als_WalkRun_Forward.ue.json",
+      "path": "target/bf115_standing/curves/source/0027_BS_Als_WalkRun_Forward.ue.json",
       "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
     },
     {
-      "path": "target/bf115_standing/converter_source/0014_BS_Als_WalkRun_Backward.ue.json",
+      "path": "target/bf115_standing/curves/source/0028_BS_Als_WalkRun_Backward.ue.json",
       "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
+    },
+    {
+      "path": "target/bf115_standing/curves/A_Als_Walk_Forward.fresh.ue.json",
+      "sha256": "84794611ce5ca5d3869fc05d93455de755b70bb7f97f62e31a126d46267f16ce"
+    },
+    {
+      "path": "target/bf115_standing/curves/A_Als_Sprint_Acceleration.fresh.ue.json",
+      "sha256": "9fa1e4c097f75587feba447ce80103a59546f66b1e7ba92dc3d52960f8b79215"
+    },
+    {
+      "path": "target/bf115_standing/curves/A_Als_Rotate_90_Left.fresh.ue.json",
+      "sha256": "9bf83bed62ee82de70292946c865c51ac00d48a3282aa058bc06f93f4e435a4a"
+    },
+    {
+      "path": "target/bf115_standing/curves/SK_Als.fresh.ue.json",
+      "sha256": "1400a190142d940087f282fc717d2f0aa69db7b0d70632203f8e75a91faa1126"
+    },
+    {
+      "path": "target/bf115_standing/curves/current_sequence_curves.json",
+      "sha256": "1659c7d63cc7341ece055dc8ee570a2578bf16659bb44b211da2e5e011410fe0"
     }
   ],
   "graphs": [
@@ -1094,14 +1114,6 @@
           "target": "NodeData(\"8c8a03b6-4215-5410-9c66-f0a3b7d80557\", \"Source\")"
         },
         {
-          "source": "NodeTime(\"92992f00-4a96-a667-a6b3-6b81e0f00ba2\")",
-          "target": "NodeTime(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"A\")"
-        },
-        {
-          "source": "NodeTime(\"f96b7815-4516-b730-ccda-41afd8c5be66\")",
-          "target": "NodeTime(\"399f03d7-4ff5-edce-96c3-35a0f7a7c922\", \"B\")"
-        },
-        {
           "source": "NodeData(\"37d2968b-e00f-5eff-b07a-13ef3d44cace\", \"value\")",
           "target": "NodeData(\"86142b1b-7c16-541e-be91-d638ff6bd7ec\", \"position\")"
         },
@@ -1632,11 +1644,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_standing/converter_source",
+        "target/bf115_standing/curves/source",
         "--materialized-directory",
-        "target/bf115_standing/clock_conversion",
+        "target/bf115_standing/curves/conversion",
         "--spec",
-        "target/bf115_standing/clock.spec.json"
+        "target/bf115_standing/curves/spec.json"
       ]
     },
     {

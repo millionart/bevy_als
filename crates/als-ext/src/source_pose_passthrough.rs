@@ -340,6 +340,7 @@ mod tests {
                                         time: duration * 0.5,
                                     },
                                 ],
+                                ..default()
                             }],
                             playback: Some(SourceSyncPlayerBinding {
                                 key: "group".into(),

@@ -8,9 +8,13 @@ from pathlib import Path
 
 IMPORT_ROOT = Path(__file__).resolve().parents[1] / "import"
 sys.path.insert(0, str(IMPORT_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "uasset_curve_export"))
 
 from uasset_base import UAsset
 from uasset_reader import PropReader
+from uasset import UAsset as CurveUAsset
+from extract_curves import extract_float_curves, is_anim_sequence
+from export_curve_gltf import curve_to_json
 from ue_exported_text import (
     ExportedTextError,
     field as struct_field,
@@ -314,6 +318,22 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
             raise AssetResolutionError("source animation sync marker fields are invalid")
         markers.append({"name": marker_name, "time": float(time)})
     return {"duration": float(duration), "markers": markers}
+
+
+def source_sequence_curves(content_root, mount, source_path):
+    path = source_uasset_path(content_root, mount, source_path)
+    asset = CurveUAsset(str(path))
+    indices = [
+        index for index, export in enumerate(asset.exports)
+        if is_anim_sequence(asset, index) and export.object_name == source_asset_name(source_path)
+    ]
+    if len(indices) != 1:
+        raise AssetResolutionError("source animation curve export is missing or ambiguous")
+    curves = [curve_to_json(curve) for curve in extract_float_curves(asset, indices[0])]
+    names = [curve["name"] for curve in curves]
+    if any(not name for name in names) or len(names) != len(set(names)):
+        raise AssetResolutionError("source animation curve names are invalid")
+    return curves
 
 
 def blend_profile_contract(source, source_path):
@@ -910,6 +930,7 @@ def resolve_graph_animation_assets(
 ):
     rows = []
     timings = {}
+    curves = {}
     native_blendspaces = {}
     for graph in source.get("graphs", []):
         for node in graph.get("nodes", []):
@@ -960,6 +981,13 @@ def resolve_graph_animation_assets(
                 "source_asset": source_path,
                 "target_asset": target,
             }
+            if source_content_root is not None:
+                samples = blendspace["samples"] if category == "blendspace" else [row]
+                for sample in samples:
+                    animation = sample.get("source_animation", source_path)
+                    if animation not in curves:
+                        curves[animation] = source_sequence_curves(source_content_root, source_mount, animation)
+                    sample["source_curves"] = curves[animation]
             if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator":
                 row["blendspace"] = blendspace
                 row["evaluator"] = evaluator
@@ -979,6 +1007,25 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    fixture_root = Path(__file__).parent / "fixtures"
+    for fixture in ("ue_standing_walk_forward_curves", "ue_standing_rotate_left_curves"):
+        curves = json.loads((fixture_root / f"{fixture}.json").read_text())["curves"]
+        native = parse_struct((fixture_root / f"{fixture}.ue.txt").read_text().strip())
+        for raw_curve, curve in zip(parse_list(struct_field(native, "FloatCurves")), curves, strict=True):
+            fields = parse_struct(raw_curve)
+            assert parse_quoted(struct_field(fields, "CurveName")) == curve["name"]
+            rich = parse_struct(struct_field(fields, "FloatCurve"))
+            keys = [rich_curve_key(key) for key in parse_list(struct_field(rich, "Keys"))]
+            assert len(keys) == len(curve["times"])
+            for index, key in enumerate(keys):
+                assert key["interpolation"].upper() == curve["interps"][index]
+                fields = [("t", "times"), ("v", "values")]
+                if key["interpolation"] == "Cubic":
+                    fields.extend([("leave_tangent", "leave_tangents"), ("leave_weight", "leave_weights")])
+                if index > 0 and keys[index - 1]["interpolation"] == "Cubic":
+                    fields.extend([("arrive_tangent", "arrive_tangents"), ("arrive_weight", "arrive_weights")])
+                for source_field, target_field in fields:
+                    assert abs(key[source_field] - curve.get(target_field, [0.0] * len(keys))[index]) < 5e-7
     native_source_asset_cached.cache_clear()
     reader_calls = []
     original_run = subprocess.run

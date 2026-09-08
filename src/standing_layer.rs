@@ -35,7 +35,6 @@ use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::{velocity_yaw_deg, view_space_direction_angle_from_radians};
-use crate::gait_layer::AlsGaitBlend;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
@@ -112,20 +111,6 @@ const ROTATION_YAW_OFFSET_RIGHT: &str =
 const STANDING_SKELETON: &str = "skeletons/SKM_Als.skn.ron";
 const STOP_LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
 const STOP_RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
-const STANDING_MOVEMENT_CURVE_ASSETS: [&str; 12] = [
-    "animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Forward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Right_Forward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Right_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Left_Backward.gltf#AlsCurves",
-    "animations/Grounded/WalkRun/A_Als_Run_Left_Forward.gltf#AlsCurves",
-];
 const ROTATE_LEFT_CURVE_ASSET: &str =
     "animations/RotateInPlace/A_Als_Rotate_90_Left.gltf#AlsCurves";
 const ROTATE_RIGHT_CURVE_ASSET: &str =
@@ -153,7 +138,6 @@ pub(crate) struct StandingCurveHandles {
     forward_backward: Handle<CurveAsset>,
     left: Handle<CurveAsset>,
     right: Handle<CurveAsset>,
-    movement: Vec<Handle<AlsAnimCurves>>,
     rotate_left: Handle<AlsAnimCurves>,
     rotate_right: Handle<AlsAnimCurves>,
     turn_left_90: Handle<AlsAnimCurves>,
@@ -485,35 +469,6 @@ impl StandingMovementState {
         }
     }
 
-    fn cache_directions(self) -> [AlsMovementDirection; 4] {
-        match self {
-            Self::Forward => [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftForward,
-                AlsMovementDirection::RightForward,
-            ],
-            Self::Backward => [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftBackward,
-                AlsMovementDirection::RightBackward,
-            ],
-            Self::RightForward | Self::LeftBackward => [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftBackward,
-                AlsMovementDirection::RightForward,
-            ],
-            Self::RightBackward | Self::LeftForward => [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftForward,
-                AlsMovementDirection::RightBackward,
-            ],
-        }
-    }
-
     fn transition_index(
         self,
         target: Self,
@@ -788,7 +743,6 @@ struct StandingLayerRuntime {
     detail_transition_request: Option<f32>,
     detail_transition_request_remaining: f32,
     pivot_pending: bool,
-    movement_curve_time: f32,
     velocity_blend: VelocityBlend,
     lean: Vec2,
     sprint_time: f32,
@@ -916,10 +870,6 @@ fn load_standing_curve_assets(mut commands: Commands, assets: Res<AssetServer>) 
         forward_backward: assets.load(ROTATION_YAW_OFFSET_FORWARD_BACKWARD),
         left: assets.load(ROTATION_YAW_OFFSET_LEFT),
         right: assets.load(ROTATION_YAW_OFFSET_RIGHT),
-        movement: STANDING_MOVEMENT_CURVE_ASSETS
-            .into_iter()
-            .map(|path| assets.load(path))
-            .collect(),
         rotate_left: assets.load(ROTATE_LEFT_CURVE_ASSET),
         rotate_right: assets.load(ROTATE_RIGHT_CURVE_ASSET),
         turn_left_90: assets.load(TURN_LEFT_90_CURVE_ASSET),
@@ -1192,77 +1142,6 @@ fn source_hips_direction_index(direction: AlsMovementDirection) -> f32 {
         AlsMovementDirection::RightForward => 4.0,
         AlsMovementDirection::RightBackward => 5.0,
     }
-}
-
-fn movement_curve_index(gait: Gait, direction: AlsMovementDirection) -> usize {
-    let gait_offset = if gait == Gait::Walking { 0 } else { 6 };
-    gait_offset + direction_index(direction) as usize
-}
-
-fn sample_movement_curve(
-    handles: &StandingCurveHandles,
-    assets: &Assets<AlsAnimCurves>,
-    gait: Gait,
-    direction: AlsMovementDirection,
-    time: f32,
-    curve: &str,
-) -> f32 {
-    handles
-        .movement
-        .get(movement_curve_index(gait, direction))
-        .and_then(|handle| assets.get(handle))
-        .and_then(AlsAnimCurves::first)
-        .and_then(|curves| curves.sample(curve, time))
-        .unwrap_or(0.0)
-}
-
-fn sample_movement_state_curve(
-    handles: &StandingCurveHandles,
-    assets: &Assets<AlsAnimCurves>,
-    gait: Gait,
-    state: StandingMovementState,
-    blend: VelocityBlend,
-    time: f32,
-    curve: &str,
-) -> f32 {
-    let weights = [blend.forward, blend.backward, blend.left, blend.right];
-    let total = weights.iter().sum::<f32>();
-    if total <= f32::EPSILON {
-        return sample_movement_curve(handles, assets, gait, state.direction(), time, curve);
-    }
-    state
-        .cache_directions()
-        .into_iter()
-        .zip(weights)
-        .map(|(direction, weight)| {
-            sample_movement_curve(handles, assets, gait, direction, time, curve) * weight
-        })
-        .sum::<f32>()
-        / total
-}
-
-fn sample_foot_planted_amount(
-    handles: &StandingCurveHandles,
-    assets: &Assets<AlsAnimCurves>,
-    gait: Gait,
-    state: StandingMovementState,
-    blend: VelocityBlend,
-    time: f32,
-) -> f32 {
-    sample_movement_state_curve(handles, assets, gait, state, blend, time, "FootPlanted")
-        .clamp(-1.0, 1.0)
-}
-
-fn sample_feet_crossing_amount(
-    handles: &StandingCurveHandles,
-    assets: &Assets<AlsAnimCurves>,
-    gait: Gait,
-    state: StandingMovementState,
-    blend: VelocityBlend,
-    time: f32,
-) -> f32 {
-    sample_movement_state_curve(handles, assets, gait, state, blend, time, "FeetCrossing")
-        .clamp(0.0, 1.0)
 }
 
 fn stop_state_index_for_foot_planted_amount(foot_planted_amount: f32) -> f32 {
@@ -1687,6 +1566,7 @@ fn update_standing_inputs(
     curves: &Assets<CurveAsset>,
     animation_curves: &Assets<AlsAnimCurves>,
     curve_handles: &StandingCurveHandles,
+    source_context: Option<&AlsRootAnimationContext>,
 ) -> StandingGraphInputs {
     let velocity = actual_motion.world_velocity;
     let horizontal_speed = actual_motion.horizontal_speed;
@@ -1775,25 +1655,13 @@ fn update_standing_inputs(
         runtime.pivot_pending = true;
     }
     let pivot = runtime.pivot_pending;
-    if moving_smooth {
-        runtime.movement_curve_time += play_rate * delta_seconds.max(0.0);
-    }
-    let foot_planted_amount = sample_foot_planted_amount(
-        curve_handles,
-        animation_curves,
-        gait,
-        runtime.movement_state,
-        runtime.velocity_blend,
-        runtime.movement_curve_time,
-    );
-    let feet_crossing_amount = sample_feet_crossing_amount(
-        curve_handles,
-        animation_curves,
-        gait,
-        runtime.movement_state,
-        runtime.velocity_blend,
-        runtime.movement_curve_time,
-    );
+    let source_curve = |name| {
+        source_context
+            .and_then(|context| context.f32(name))
+            .unwrap_or(0.0)
+    };
+    let foot_planted_amount = source_curve("FootPlanted").clamp(-1.0, 1.0);
+    let feet_crossing_amount = source_curve("FeetCrossing").clamp(0.0, 1.0);
     runtime.movement_transition_remaining =
         (runtime.movement_transition_remaining - delta_seconds.max(0.0)).max(0.0);
     if runtime.movement_transition_remaining <= f32::EPSILON {
@@ -2447,7 +2315,6 @@ fn standing_layer_writer(
             &LocomotionState,
             &Stance,
             &Gait,
-            Option<&AlsGaitBlend>,
             &RotationMode,
             &AlsViewYaw,
             &AlsInputCommand,
@@ -2492,7 +2359,6 @@ fn standing_layer_writer(
             locomotion,
             stance,
             gait,
-            gait_blend,
             rotation_mode,
             view_yaw,
             command,
@@ -2524,19 +2390,12 @@ fn standing_layer_writer(
             .and_then(|state| state.f32("HipsDirectionLock"))
             .unwrap_or(0.0)
             .clamp(-1.0, 1.0);
-        let gait_running_amount = gait_blend
-            .map(|blend| blend.weights.running_amount())
-            .unwrap_or((gait != &Gait::Walking) as u8 as f32);
-        let gait_sprinting_amount = gait_blend
-            .map(|blend| blend.weights.sprint_w)
-            .unwrap_or((gait == &Gait::Sprinting) as u8 as f32);
-        let gait_amount = gait_blend
-            .map(|blend| blend.weights.move_w + blend.weights.run_w + blend.weights.sprint_w)
-            .unwrap_or(match *gait {
-                Gait::Walking => 1.0,
-                Gait::Running => 2.0,
-                Gait::Sprinting => 3.0,
-            });
+        let gait_amount = context
+            .and_then(|state| state.f32("PoseGait"))
+            .unwrap_or(0.0)
+            .clamp(0.0, 3.0);
+        let gait_running_amount = (gait_amount - 1.0).clamp(0.0, 1.0);
+        let gait_sprinting_amount = (gait_amount - 2.0).clamp(0.0, 1.0);
         let pose_grounded_amount = context
             .and_then(|state| state.f32("PoseGrounded"))
             .unwrap_or(0.0);
@@ -2578,6 +2437,7 @@ fn standing_layer_writer(
             &curves,
             &animation_curves,
             &curve_handles,
+            context,
         );
         let active_sprint = inputs.state_index == 1.0 && inputs.sprint_amount > 0.5;
         let event_clock = AlsStandingEventClock {
@@ -2620,9 +2480,18 @@ fn standing_layer_writer(
         write_standing_inputs(&mut player, inputs);
         write_stop_leg_masks(&mut player, &curve_handles);
         commands.entity(parent.parent()).insert(AlsFootLockInput {
-            left_lock_amount: inputs.foot_left_lock,
-            right_lock_amount: inputs.foot_right_lock,
-            allow_transitions: inputs.allow_transitions >= 1.0 - 1e-4,
+            left_lock_amount: context
+                .and_then(|state| state.f32("FootLeftLock"))
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0),
+            right_lock_amount: context
+                .and_then(|state| state.f32("FootRightLock"))
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0),
+            allow_transitions: context
+                .and_then(|state| state.f32("AllowTransitions"))
+                .unwrap_or(0.0)
+                >= 1.0 - 1e-4,
             moving_smooth: inputs.moving_smooth,
             foot_planted_amount: inputs.foot_planted_amount,
             feet_crossing_amount: inputs.feet_crossing_amount,
@@ -2631,8 +2500,12 @@ fn standing_layer_writer(
         commands
             .entity(parent.parent())
             .insert(AlsRotationAnimationState {
-                yaw_offset_degrees: inputs.rotation_yaw_offset,
-                yaw_speed_degrees: inputs.rotation_yaw_speed,
+                yaw_offset_degrees: context
+                    .and_then(|state| state.f32("RotationYawOffset"))
+                    .unwrap_or(0.0),
+                yaw_speed_degrees: context
+                    .and_then(|state| state.f32("RotationYawSpeed"))
+                    .unwrap_or(0.0),
             });
     }
 }
@@ -2731,46 +2604,6 @@ mod tests {
         assert_eq!(
             movement_state_index(AlsMovementDirection::LeftBackward),
             5.0
-        );
-    }
-
-    #[test]
-    fn movement_state_cache_directions_match_the_source_multiway_inputs() {
-        assert_eq!(
-            StandingMovementState::Forward.cache_directions(),
-            [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftForward,
-                AlsMovementDirection::RightForward,
-            ]
-        );
-        assert_eq!(
-            StandingMovementState::Backward.cache_directions(),
-            [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftBackward,
-                AlsMovementDirection::RightBackward,
-            ]
-        );
-        assert_eq!(
-            StandingMovementState::RightForward.cache_directions(),
-            [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftBackward,
-                AlsMovementDirection::RightForward,
-            ]
-        );
-        assert_eq!(
-            StandingMovementState::RightBackward.cache_directions(),
-            [
-                AlsMovementDirection::Forward,
-                AlsMovementDirection::Backward,
-                AlsMovementDirection::LeftForward,
-                AlsMovementDirection::RightBackward,
-            ]
         );
     }
 

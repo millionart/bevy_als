@@ -191,6 +191,7 @@ impl Default for SourceSequenceSynchronization {
 #[type_path = "als_ext"]
 pub struct SourceSequencePlayerNode {
     pub clip: Handle<GraphClip>,
+    pub curves: crate::als_curves::AlsPoseCurves,
     pub additive_reference: Option<Handle<GraphClip>>,
     pub additive_reference_position: f32,
     pub additive_mesh_space: bool,
@@ -215,6 +216,7 @@ impl Default for SourceSequencePlayerNode {
     fn default() -> Self {
         Self {
             clip: Default::default(),
+            curves: Default::default(),
             additive_reference: None,
             additive_reference_position: 0.0,
             additive_mesh_space: false,
@@ -363,6 +365,7 @@ impl NodeLike for SourceSequencePlayerNode {
             )
         };
         state.context = AnimationContextState {
+            curves: self.curves.sample_all(position),
             relevant_asset: Some(SourceRelevantAsset {
                 duration: clip.duration(),
                 position,

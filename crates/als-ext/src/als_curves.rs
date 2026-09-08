@@ -6,7 +6,7 @@ use bevy_gltf::extensions::{
     ErasedGltfExtensionHandler, GltfExtensionHandler, GltfExtensionHandlers,
 };
 use bevy_gltf::gltf::Animation;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const ALS_CURVES_EXTENSION: &str = "ALS_float_curves";
 pub const ALS_CURVES_LABEL: &str = "AlsCurves";
@@ -24,16 +24,24 @@ impl AlsAnimCurves {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Reflect, Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
+#[reflect(opaque, Default, Serialize, Deserialize)]
 pub struct AlsPoseCurves(pub HashMap<Box<str>, AlsFloatCurve>);
 
 impl AlsPoseCurves {
     pub fn sample(&self, curve: &str, t: f32) -> Option<f32> {
         self.0.get(curve).map(|c| c.sample(t))
     }
+
+    pub fn sample_all(&self, time: f32) -> bevy::platform::collections::HashMap<String, f32> {
+        self.0
+            .iter()
+            .map(|(name, curve)| (name.to_string(), curve.sample(time)))
+            .collect()
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlsExtrapolation {
     #[default]
     Constant,
@@ -43,7 +51,7 @@ pub enum AlsExtrapolation {
     Oscillate,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct AlsFloatCurve {
     pub times: Vec<f32>,
     pub values: Vec<f32>,
@@ -58,7 +66,7 @@ pub struct AlsFloatCurve {
     pub post_infinity: AlsExtrapolation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlsKeyInterp {
     #[default]
     Linear,
@@ -518,6 +526,236 @@ impl GltfExtensionHandler for AlsCurvesHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_graph_samples_curves_at_pose_time_and_blends_actual_weights() {
+        use crate::{
+            AnimationContextState, NormalizedBlendSpaceNode, NormalizedBlendSpacePoint,
+            SourceApplyAdditiveNode, SourceCurveModifyNode, SourceLayeredBoneBlendNode,
+            SourceSequenceEvaluatorNode, SourceSequencePlayerNode, SourceTwoWayBlendNode,
+        };
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap as GraphMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::{DataSpec, DataValue},
+            pose::Pose,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(
+            In(handle): In<Handle<AnimationGraph>>,
+            resources: SystemResources,
+        ) -> Vec<AnimationContextState> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = GraphMap::new();
+            let env = TestIoEnv::default();
+            let inputs = GraphMap::new();
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                Entity::PLACEHOLDER,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
+            graph
+                .query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                    context.clone(),
+                )
+                .unwrap();
+            [
+                "sequence",
+                "evaluator",
+                "blendspace",
+                "two_way",
+                "additive",
+                "layered",
+                "inactive_additive",
+                "scaled_missing",
+            ]
+            .map(|output| {
+                crate::animation_context::graph_output_context_state(graph, &context, output)
+                    .unwrap_or_default()
+            })
+            .to_vec()
+        }
+        let curves = parse_curves(
+            &serde_json::from_str(include_str!(
+                "../../../tools/animgraph_authoring/fixtures/ue_standing_walk_forward_curves.json"
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip {
+            duration: 1.0,
+            ..default()
+        });
+        let sequence = AnimationNode::new(
+            "sequence",
+            SourceSequencePlayerNode {
+                clip: clip.clone(),
+                curves: curves.clone(),
+                start_position: 0.1,
+                expose_play_rate_pin: false,
+                expose_start_position_pin: false,
+                ..default()
+            },
+        );
+        let evaluator = AnimationNode::new(
+            "evaluator",
+            SourceSequenceEvaluatorNode {
+                clip,
+                curves: curves.clone(),
+                explicit_frame: 21.0,
+                expose_explicit_frame_pin: false,
+                ..default()
+            },
+        );
+        let blendspace = AnimationNode::new(
+            "blendspace",
+            NormalizedBlendSpaceNode {
+                looped: true,
+                points: vec![
+                    NormalizedBlendSpacePoint {
+                        id: "a".into(),
+                        duration: 1.0,
+                        curves,
+                        ..default()
+                    },
+                    NormalizedBlendSpacePoint {
+                        id: "b".into(),
+                        duration: 1.0,
+                        point: Vec2::X,
+                        ..default()
+                    },
+                ],
+                ..default()
+            },
+        );
+        let two_way = AnimationNode::new(
+            "two_way",
+            SourceTwoWayBlendNode {
+                pin_default: 0.25,
+                ..default()
+            },
+        );
+        let additive = AnimationNode::new(
+            "additive",
+            SourceApplyAdditiveNode {
+                use_constant_alpha: true,
+                constant_alpha: 0.5,
+                ..default()
+            },
+        );
+        let layered = AnimationNode::new(
+            "layered",
+            SourceLayeredBoneBlendNode {
+                blend_weight: 0.5,
+                ..default()
+            },
+        );
+        let inactive_additive = AnimationNode::new(
+            "inactive_additive",
+            SourceApplyAdditiveNode {
+                use_constant_alpha: true,
+                constant_alpha: 0.0,
+                ..default()
+            },
+        );
+        let scaled_missing = AnimationNode::new(
+            "scaled_missing",
+            SourceCurveModifyNode {
+                curve_name: "Missing".into(),
+                pin_default: 2.0,
+                alpha: 1.0,
+                apply_mode: "Scale".into(),
+                ..default()
+            },
+        );
+        let mut graph = AnimationGraph::new();
+        for (name, value) in [
+            ("position", DataValue::Vec2(Vec2::new(0.5, 0.0))),
+            ("phase", DataValue::F32(0.12)),
+            ("sample", DataValue::Pose(Pose::default())),
+            ("alpha", DataValue::F32(0.25)),
+        ] {
+            graph.set_default_data(GraphInputPin::passthrough(name), value);
+        }
+        for (node, output) in [
+            (&sequence, "Pose"),
+            (&evaluator, "Pose"),
+            (&blendspace, "pose"),
+            (&two_way, "Pose"),
+            (&additive, "Pose"),
+            (&layered, "Pose"),
+            (&inactive_additive, "Pose"),
+            (&scaled_missing, "Pose"),
+        ] {
+            graph.add_node(node.clone());
+            graph.add_output_data(node.name.clone(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, output, node.name.clone());
+        }
+        for (input, pin) in [
+            ("position", "position"),
+            ("phase", "phase"),
+            ("sample", "pose_a"),
+            ("sample", "pose_b"),
+        ] {
+            graph.add_input_data_edge(GraphInputPin::passthrough(input), blendspace.id, pin);
+        }
+        graph.add_node_parameter_edge(sequence.id, "Pose", two_way.id, "A");
+        graph.add_input_data_edge(GraphInputPin::passthrough("alpha"), two_way.id, "Alpha");
+        graph.add_node_parameter_edge(evaluator.id, "Pose", two_way.id, "B");
+        graph.add_node_parameter_edge(two_way.id, "Pose", additive.id, "Base");
+        graph.add_node_parameter_edge(blendspace.id, "pose", additive.id, "Additive");
+        graph.add_node_parameter_edge(sequence.id, "Pose", layered.id, "BasePose");
+        graph.add_node_parameter_edge(evaluator.id, "Pose", layered.id, "BlendPoses_0");
+        graph.add_node_parameter_edge(sequence.id, "Pose", inactive_additive.id, "Base");
+        graph.add_node_parameter_edge(sequence.id, "Pose", scaled_missing.id, "Source Pose");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = world.run_system_once_with(query, handle).unwrap();
+        for (context, (foot, gait)) in actual.iter().zip([
+            (-0.7, 1.0),
+            (1.0, 1.0),
+            (-0.35, 0.5),
+            (-0.275, 1.0),
+            (-0.45, 1.25),
+            (1.0, 1.0),
+            (-0.7, 1.0),
+            (-0.7, 1.0),
+        ]) {
+            assert!(context.curves_are_authoritative);
+            assert!(
+                (context.curves["FootPlanted"] - foot).abs() < 2e-5,
+                "{:?}",
+                context.curves
+            );
+            assert!((context.curves["PoseGait"] - gait).abs() < 1e-6);
+        }
+        assert_eq!(actual[7].curves["Missing"], 0.0);
+    }
 
     const FIXTURE: &str = r#"{
         "curves": [

@@ -1,4 +1,6 @@
+import copy
 import json
+import math
 import sys
 import uuid
 from pathlib import Path
@@ -8,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 import generate_ue_transition_expression_graph as scalar_renderer
+from coordinate_basis import source_heading_yaw_degrees_to_runtime
 
 
 class PoseRenderError(ValueError):
@@ -206,6 +209,41 @@ def marker_ron(markers):
     return sync_marker_ron(markers)
 
 
+def pose_curves_ron(curves):
+    if not isinstance(curves, list):
+        raise PoseRenderError("source animation curves are unavailable")
+    entries = []
+    for curve in curves:
+        if curve.get("flags", 0) & 64:
+            continue
+        count = len(curve.get("times", []))
+        if not count or len(curve.get("values", [])) != count:
+            raise PoseRenderError("source animation curve keys are invalid")
+        if any(right <= left for left, right in zip(curve["times"], curve["times"][1:])):
+            raise PoseRenderError("source animation curve times are invalid")
+        fields = []
+        for name in ("times", "values", "tangent_modes", "weight_modes", "arrive_tangents", "leave_tangents", "arrive_weights", "leave_weights"):
+            values = curve.get(name, [0] * count)
+            if len(values) != count or any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) for value in values):
+                raise PoseRenderError("source animation curve values are invalid")
+            if curve["name"] == "RotationYawSpeed" and name in {"values", "arrive_tangents", "leave_tangents"}:
+                values = [source_heading_yaw_degrees_to_runtime(value) for value in values]
+            fields.append(name + ": [" + ", ".join(repr(value) for value in values) + "]")
+        modes = {"LINEAR": "Linear", "CONSTANT": "Constant", "CUBIC": "Cubic"}
+        interps = curve.get("interps", [])
+        if len(interps) != count or any(value not in modes for value in interps):
+            raise PoseRenderError("source animation curve interpolation is unsupported")
+        fields.append("interps: [" + ", ".join(modes[value] for value in interps) + "]")
+        modes = {"RCCE_Constant": "Constant", "RCCE_Linear": "Linear", "RCCE_Cycle": "Cycle", "RCCE_CycleWithOffset": "CycleWithOffset", "RCCE_Oscillate": "Oscillate", "RCCE_None": "Constant", 5: "Constant"}
+        for name in ("pre_infinity", "post_infinity"):
+            value = curve.get(name)
+            if value not in modes:
+                raise PoseRenderError("source animation curve extrapolation is unsupported")
+            fields.append(name + ": " + modes[value])
+        entries.append(quoted(curve["name"]) + ": (" + ", ".join(fields) + ")")
+    return "({" + ", ".join(entries) + "})"
+
+
 def sync_clock_fields(value):
     key = value.get("sync_phase_key")
     role = value.get("sync_group_role")
@@ -275,7 +313,8 @@ def blendspace_inner(value, player=False):
         points.append(
             "(id: "
             + quoted(f"sample_{index}")
-            + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: {duration!r}, markers: {markers})"
+            + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: {duration!r}, markers: {markers}"
+            + ", curves: " + pose_curves_ron(sample.get("source_curves", [])) + ")"
         )
     if not points:
         raise PoseRenderError("source blendspace samples are missing")
@@ -328,6 +367,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             raise PoseRenderError("source sequence property binding is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
+            field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
             field("play_rate", repr(value["play_rate"])),
@@ -358,6 +398,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             raise PoseRenderError("source sequence evaluator pin is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
+            field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
             field("explicit_frame", "0.0"),
             field("explicit_frame_key", quoted("")),
             field("explicit_frame_pin", quoted(explicit_frame_pin)),
@@ -1298,7 +1339,7 @@ def collapsed_links(graph_contract, ir_nodes, links=None):
     return result
 
 
-def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes):
+def validate_source_two_way_child_reset(graph_contract, ir_nodes):
     reset_nodes = {
         source_path
         for source_path, semantic in ir_nodes.items()
@@ -1326,19 +1367,11 @@ def source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes):
         ):
             raise PoseRenderError("source child reset requires one direct Sequence Player per A/B input")
         reset_inputs.setdefault(target_path, {})[pin] = source_semantic["source_node"]
-    edges = []
     for target_path in sorted(reset_nodes):
         inputs = reset_inputs.get(target_path, {})
         if set(inputs) != {"A", "B"} or inputs["A"] == inputs["B"]:
             raise PoseRenderError("source child reset requires distinct direct Sequence Players for A and B")
-        target_identifier = node_id(raw_nodes[target_path])
-        for pin in ("A", "B"):
-            source_path = inputs[pin]
-            source_identifier = node_id(raw_nodes[source_path])
-            edges.append(
-                f"NodeTime({quoted(target_identifier)}, {quoted(pin)}): NodeTime({quoted(source_identifier)})"
-            )
-    return edges
+
 
 
 def render(
@@ -1448,7 +1481,7 @@ def render(
         edges.append(
             f"NodeData({quoted(target_identifier)}, {quoted(target_pin_name)}): NodeData({quoted(source_identifier)}, {quoted(source_pin)})"
         )
-    edges.extend(source_two_way_child_reset_edges(graph_contract, ir_nodes, raw_nodes))
+    validate_source_two_way_child_reset(graph_contract, ir_nodes)
     for source_path, selector_id in linked_layer_selectors.items():
         identifier = node_id(raw_nodes[source_path])
         edges.append(
@@ -1594,6 +1627,25 @@ def fixture_graph():
 
 
 def run_self_test():
+    curves = json.loads((Path(__file__).parent / "fixtures" / "ue_standing_walk_forward_curves.json").read_text())["curves"]
+    raw = copy.deepcopy(curves)
+    rendered_curves = pose_curves_ron(curves)
+    assert '"FootPlanted"' in rendered_curves and '"PoseGait"' in rendered_curves
+    assert "interps: [Linear" in rendered_curves and curves == raw
+    yaw = copy.deepcopy(curves[0])
+    yaw["name"] = "RotationYawSpeed"
+    yaw["values"][0] = 90.0
+    assert "values: [-90.0," in pose_curves_ron([yaw])
+    yaw["flags"] |= 64
+    assert pose_curves_ron([yaw]) == "({})"
+    invalid = copy.deepcopy(curves)
+    invalid[0]["values"].pop()
+    try:
+        pose_curves_ron(invalid)
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("invalid source curve key arrays were accepted")
     graph_contract, graph_ir, assets = fixture_graph()
     order_contract, order_ir, order_assets = fixture_graph()
     order_contract["source_graph"]["nodes"][0]["node_guid"] = "ffffffff-0000-4000-8000-000000000001"
@@ -1657,8 +1709,8 @@ def run_self_test():
     graph_contract["links"][1]["source"]["node_object_path"] = reset_player_path
     text = render(graph_contract, graph_ir, assets)
     assert "reset_child_on_activation: true" in text
-    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A"): NodeTime("10000000-0000-4000-8000-000000000001")' in text
-    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "B"): NodeTime("10000000-0000-4000-8000-000000000006")' in text
+    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A")' not in text
+    assert 'NodeTime("10000000-0000-4000-8000-000000000002", "B")' not in text
     graph_ir["links"] = list(graph_contract["links"])
     unused_path = "/Asset:State.Unreachable"
     graph_contract["source_graph"]["nodes"].append(
