@@ -79,7 +79,7 @@ fn sample_curve(curve: &VariableCurve, time: f32) -> Option<CurveSample> {
     }
 }
 
-pub(crate) fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
+pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
     let mut pose = Pose {
         timestamp: time,
         skeleton: clip.skeleton.clone(),

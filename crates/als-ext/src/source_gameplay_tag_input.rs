@@ -12,7 +12,13 @@ use bevy_animation_graph::core::{
 };
 use bevy_gameplay_tag::GameplayTag;
 
-type GameplayTagInputs = HashMap<Entity, HashMap<String, GameplayTag>>;
+#[derive(Default)]
+struct SourceInputValues {
+    tags: HashMap<String, GameplayTag>,
+    slots: HashMap<String, crate::animation_context::AnimationContextState>,
+}
+
+type GameplayTagInputs = HashMap<Entity, SourceInputValues>;
 
 static INPUTS: OnceLock<RwLock<GameplayTagInputs>> = OnceLock::new();
 
@@ -26,7 +32,34 @@ pub fn set_gameplay_tag_input(entity: Entity, key: impl Into<String>, tag: Gamep
         .expect("gameplay tag input registry is poisoned")
         .entry(entity)
         .or_default()
+        .tags
         .insert(key.into(), tag);
+}
+
+pub fn set_slot_input_context(
+    entity: Entity,
+    key: &str,
+    context: Option<crate::animation_context::AnimationContextState>,
+) {
+    let mut values = inputs().write().expect("source input registry is poisoned");
+    let values = values.entry(entity).or_default();
+    if let Some(context) = context {
+        values.slots.insert(key.to_owned(), context);
+    } else {
+        values.slots.remove(key);
+    }
+}
+
+pub fn slot_input_context(
+    entity: Entity,
+    key: &str,
+) -> Option<crate::animation_context::AnimationContextState> {
+    inputs()
+        .read()
+        .expect("source input registry is poisoned")
+        .get(&entity)
+        .and_then(|values| values.slots.get(key))
+        .cloned()
 }
 
 pub(crate) fn clear_gameplay_tag_inputs(entity: Entity) {
@@ -41,7 +74,7 @@ pub(crate) fn gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTa
         .read()
         .expect("gameplay tag input registry is poisoned")
         .get(&entity)
-        .and_then(|values| values.get(key))
+        .and_then(|values| values.tags.get(key))
         .cloned()
 }
 
@@ -142,8 +175,11 @@ mod tests {
             ..node
         };
         assert_eq!(mismatch.value(entity), Ok(false));
+        set_slot_input_context(entity, "slot.pose", Some(Default::default()));
+        assert!(slot_input_context(entity, "slot.pose").is_some());
         clear_gameplay_tag_inputs(entity);
         assert!(gameplay_tag_input(entity, "get_parent.gait").is_none());
+        assert!(slot_input_context(entity, "slot.pose").is_none());
         let mut registry = TypeRegistry::default();
         registry.register::<SourceGameplayTagInputNode>();
         assert!(

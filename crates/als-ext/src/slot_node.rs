@@ -15,7 +15,7 @@ pub(crate) fn slot_blend_weight(value: Option<f32>) -> f32 {
         .clamp(0.0, 1.0)
 }
 
-pub(crate) fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f32>) -> Pose {
+pub fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f32>) -> Pose {
     let timestamp = base.timestamp;
     let weight = slot_blend_weight(weight);
     if weight > 0.0 {

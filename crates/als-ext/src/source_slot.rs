@@ -7,6 +7,8 @@ use bevy_animation_graph::core::{
 };
 
 use crate::slot_node::{blend_slot_pose, slot_blend_weight};
+use crate::source_gameplay_tag_input::slot_input_context;
+use crate::source_pose_nodes::blend_animation_contexts;
 use crate::{
     animation_context::{AnimationContextState, pose_input_context_state},
     mesh_space_additive::apply_mesh_space_additive,
@@ -26,6 +28,25 @@ pub struct SourceSlotNode {
 
 fn source_slot_additive_weight(slot_weight: f32, layer_weight: f32) -> f32 {
     slot_weight * layer_weight
+}
+
+fn slot_context(
+    base: Option<AnimationContextState>,
+    slot: Option<AnimationContextState>,
+    weight: f32,
+    additive: bool,
+) -> Option<AnimationContextState> {
+    let Some(slot) = slot else { return base };
+    if weight <= 0.0 {
+        return base;
+    }
+    Some(blend_animation_contexts([
+        (
+            base.unwrap_or_default(),
+            if additive { 1.0 } else { 1.0 - weight },
+        ),
+        (slot, weight),
+    ]))
 }
 
 impl Default for SourceSlotNode {
@@ -79,6 +100,14 @@ impl NodeLike for SourceSlotNode {
         } else {
             None
         };
+        let context = slot_context(
+            base_context,
+            overlay
+                .as_ref()
+                .and_then(|_| slot_input_context(ctx.graph_context.root_entity, &self.pose_key)),
+            slot_weight * layer_weight,
+            mesh_space_additive,
+        );
         let pose = if mesh_space_additive {
             let mut pose = base;
             if let Some(overlay) = overlay.as_ref() {
@@ -108,7 +137,7 @@ impl NodeLike for SourceSlotNode {
         };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        if let Some(context) = base_context {
+        if let Some(context) = context {
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         }
         Ok(())
@@ -130,6 +159,122 @@ mod tests {
     use super::*;
 
     #[test]
+    fn actual_graph_uses_the_same_slot_weight_for_pose_and_curves() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip},
+            animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            pose::{BonePose, Pose},
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(
+            In((handle, entity, base, overlay)): In<(Handle<AnimationGraph>, Entity, Pose, Pose)>,
+            resources: SystemResources,
+        ) -> (Pose, AnimationContextState) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let inputs = HashMap::from([
+                ("base".to_owned(), DataValue::Pose(base)),
+                ("slot_pose".to_owned(), DataValue::Pose(overlay)),
+                ("slot_weight".to_owned(), DataValue::F32(0.6)),
+                ("layer_slot_weight".to_owned(), DataValue::F32(1.0)),
+            ]);
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                entity,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
+            let pose = graph
+                .query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                    context.clone(),
+                )
+                .unwrap()
+                .remove("Pose")
+                .unwrap()
+                .into_pose()
+                .unwrap();
+            let curves =
+                crate::animation_context::graph_output_context_state(graph, &context, "Pose")
+                    .unwrap();
+            (pose, curves)
+        }
+        let mut world = World::new();
+        let entity = world.spawn_empty().id();
+        let mut graph = AnimationGraph::new();
+        let base_node = AnimationNode::new(
+            "base",
+            crate::GlobalPoseInputNode {
+                key: "base".to_owned(),
+                output: "Pose".to_owned(),
+            },
+        );
+        let slot_node = AnimationNode::new("slot", SourceSlotNode::default());
+        graph.add_node(base_node.clone());
+        graph.add_node(slot_node.clone());
+        graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        graph.add_node_parameter_edge(base_node.id, "Pose", slot_node.id, "Source");
+        graph.add_output_data_edge(slot_node.id, "Pose", "Pose");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let bone = EntityPath::default().child("pelvis").id();
+        let mut base = Pose::default();
+        base.add_bone(
+            BonePose {
+                translation: Some(Vec3::ZERO),
+                ..default()
+            },
+            bone,
+        );
+        let mut overlay = Pose::default();
+        overlay.add_bone(
+            BonePose {
+                translation: Some(Vec3::X * 2.0),
+                ..default()
+            },
+            bone,
+        );
+        let mut context = AnimationContextState {
+            curves_are_authoritative: true,
+            ..default()
+        };
+        context.curves.insert("FootLeftIk".to_owned(), 0.8);
+        crate::source_gameplay_tag_input::set_slot_input_context(
+            entity,
+            "slot_pose",
+            Some(context),
+        );
+        let (pose, context) = world
+            .run_system_cached_with(query, (handle, entity, base, overlay))
+            .unwrap();
+        assert!((pose.get_bone(bone).unwrap().translation.unwrap().x - 1.2).abs() < 1e-6);
+        assert!((context.curves["FootLeftIk"] - 0.48).abs() < 1e-6);
+        crate::source_gameplay_tag_input::clear_gameplay_tag_inputs(entity);
+    }
+
+    #[test]
     fn source_slot_preserves_source_visible_pin_names() {
         let node = SourceSlotNode::default();
         assert_eq!(node.slot_name, "DefaultSlot");
@@ -140,5 +285,21 @@ mod tests {
     #[test]
     fn source_slot_mesh_space_weight_preserves_both_source_stage_weights() {
         assert!((source_slot_additive_weight(0.8, 0.5) - 0.4).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn full_slot_weight_replaces_base_curves_including_an_empty_container() {
+        let mut base = AnimationContextState::default();
+        base.curves.insert("FootLeftIk".into(), 1.0);
+        base.curves_are_authoritative = true;
+        let empty = AnimationContextState {
+            curves_are_authoritative: true,
+            ..default()
+        };
+        let output = slot_context(Some(base.clone()), Some(empty.clone()), 1.0, false).unwrap();
+        assert_eq!(output.curves["FootLeftIk"], 0.0);
+        assert!(output.curves_are_authoritative);
+        let output = slot_context(Some(base), Some(empty), 0.5, false).unwrap();
+        assert_eq!(output.curves["FootLeftIk"], 0.5);
     }
 }

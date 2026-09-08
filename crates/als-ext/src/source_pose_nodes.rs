@@ -811,7 +811,7 @@ impl SourceGameplayTagBlendNode {
     }
 }
 
-fn blend_gameplay_tag_contexts(
+pub fn blend_animation_contexts(
     contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,
 ) -> AnimationContextState {
     let mut output = AnimationContextState::default();
@@ -875,7 +875,7 @@ impl NodeLike for SourceGameplayTagBlendNode {
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
         let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
-        state.context = blend_gameplay_tag_contexts(contexts);
+        state.context = blend_animation_contexts(contexts);
         Ok(())
     }
 
@@ -1472,10 +1472,10 @@ mod tests {
             curves_are_authoritative: true,
             ..default()
         };
-        let output = blend_gameplay_tag_contexts([(input, 0.25), (empty.clone(), 0.75)]);
+        let output = blend_animation_contexts([(input, 0.25), (empty.clone(), 0.75)]);
         assert!((output.curves["FootLeftIk"] - 0.25).abs() <= 1e-6);
         assert!(output.curves_are_authoritative);
-        let output = blend_gameplay_tag_contexts([(empty, 1.0)]);
+        let output = blend_animation_contexts([(empty, 1.0)]);
         assert!(output.curves_are_authoritative);
         assert!(output.curves.is_empty());
     }
