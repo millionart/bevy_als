@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -33,7 +34,10 @@ use crate::global_f32_input::global_f32_or_root_default;
 use crate::inertialization::{InertializationNode, inertial_alpha};
 use crate::profile_blend::{ProfiledBlendNode, transition_alpha};
 use crate::source_cached_pose::{SourceScopedCachedPoseUseNode, prewarm_scoped_cached_pose};
+use crate::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::state_label_event::state_label_index;
+
+static NOTIFICATION_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Reflect, Clone, Debug)]
 pub struct InterruptibleFsmSource {
@@ -436,6 +440,23 @@ impl InterruptibleFsmNode {
         }
     }
 
+    fn state_function_notifications(
+        machine: &LowLevelStateMachine,
+        state: StateId,
+        phase: &str,
+        graphs: &Assets<AnimationGraph>,
+    ) -> Result<Vec<SourceTransitionNotification>, GraphError> {
+        let state = machine.states.get(&LowLevelStateId::HlState(state))
+            .ok_or(GraphError::FSMCurrentStateMissing)?;
+        let graph = graphs.get(&state.graph).ok_or(GraphError::GraphAssetMissing)?;
+        Ok(graph.nodes.values().filter_map(|node| {
+            let node = node.try_inner_downcast_ref::<SourcePosePassthroughNode>()?;
+            (!node.source_function.is_empty() && node.call_site == phase).then(|| SourceTransitionNotification {
+                phase: phase.to_owned(), name: node.source_function.clone(),
+            })
+        }).collect())
+    }
+
     fn can_interrupt(
         machine: &LowLevelStateMachine,
         state: &InterruptibleFsmState,
@@ -662,6 +683,16 @@ impl InterruptibleFsmNode {
                             "TransitionStart"
                         },
                     );
+                }
+                if !ending && Self::source_condition_state(machine, &state.state) != Some(transition.hl_target) {
+                    if let Some(previous) = Self::source_condition_state(machine, &state.state) {
+                        state.transition_notifications.extend(Self::state_function_notifications(
+                            machine, previous, "StateExitFunction", &ctx.graph_context.resources.animation_graph_assets,
+                        )?);
+                    }
+                    state.transition_notifications.extend(Self::state_function_notifications(
+                        machine, transition.hl_target, "StateEntryFunction", &ctx.graph_context.resources.animation_graph_assets,
+                    )?);
                 }
                 Self::activate_transition(&mut state, transition, time, source_weights);
                 *remaining_transitions -= 1;
@@ -1198,7 +1229,12 @@ impl NodeLike for InterruptibleFsmNode {
             .state_mut_or_else(|| initial_state.clone())
             .map_err(|error| entry_error("state finalization", error))?;
         state.transition_notifications.clear();
-        state.notification_generation = state.notification_generation.wrapping_add(1);
+        state.notification_generation = NOTIFICATION_GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
+        if select_entry && let Some(entry) = Self::source_condition_state(machine, &state.state) {
+            state.transition_notifications.extend(Self::state_function_notifications(
+                machine, entry, "StateEntryFunction", &resources.animation_graph_assets,
+            )?);
+        }
         let external_events = self
             .driver_events(&mut ctx)
             .map_err(|error| entry_error("external event collection", error))?;
@@ -1633,7 +1669,7 @@ mod tests {
         animation_node::AnimationNode,
         context::{
             deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
-            graph_context_arena::GraphContextArena, new_context::GraphContext,
+            graph_context_arena::GraphContextArena, new_context::GraphContext, node_states::StateKey,
             system_resources::SystemResources,
         },
         edge_data::DataSpec,
@@ -1659,7 +1695,7 @@ mod tests {
     fn query_result_propagation(
         In((root, first, second)): In<(Handle<AnimationGraph>, Pose, Pose)>,
         resources: SystemResources,
-    ) -> Result<(Pose, Pose), GraphError> {
+    ) -> Result<(Pose, Pose, Vec<String>, u64), GraphError> {
         let graph = resources
             .animation_graph_assets
             .get(&root)
@@ -1728,11 +1764,15 @@ mod tests {
                 pin: "Pose".to_owned(),
             })?
             .into_pose()?;
-        Ok((first, second))
+        let fsm_node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<InterruptibleFsmNode>().is_some()).unwrap();
+        let state = arena.get_toplevel().node_states
+            .get::<InterruptibleFsmState>(fsm_node.id, StateKey::Default)?;
+        let notifications = state.transition_notifications().iter().map(|event| event.name.clone()).collect();
+        Ok((first, second, notifications, state.notification_generation()))
     }
 
     #[test]
-    fn state_result_pose_propagates_to_the_fsm_output_each_frame() {
+    fn state_result_pose_and_lifecycle_follow_the_actual_fsm_transition() {
         let mut world = World::new();
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut state_graph = AnimationGraph::new();
@@ -1761,6 +1801,8 @@ mod tests {
                 input: "Source".to_owned(),
                 output: "Result".to_owned(),
                 output_time: false,
+                source_function: "FixtureExit".to_owned(),
+                call_site: "StateExitFunction".to_owned(),
                 ..default()
             },
         );
@@ -1771,6 +1813,14 @@ mod tests {
         state_graph.add_node_parameter_edge(cached.id, "Pose", blend.id, "Poses_0");
         state_graph.add_node_parameter_edge(blend.id, "Pose", output.id, "Source");
         state_graph.add_output_data_edge(output.id, "Result", "Result");
+        let first_state_graph = graphs.add(state_graph.clone());
+        let mut entry_output = AnimationNode::new("fixture output", SourcePosePassthroughNode {
+            input: "Source".to_owned(), output: "Result".to_owned(), output_time: false,
+            source_function: "FixtureEntry".to_owned(), call_site: "StateEntryFunction".to_owned(),
+            ..default()
+        });
+        entry_output.id = output.id;
+        state_graph.add_node(entry_output);
         let state_graph = graphs.add(state_graph);
 
         let mut condition_graph = AnimationGraph::new();
@@ -1797,7 +1847,7 @@ mod tests {
         state_machine.add_state(State {
             id: state_id,
             label: "First".to_owned(),
-            graph: state_graph.clone(),
+            graph: first_state_graph,
             state_transition: None,
         });
         state_machine.add_state(State {
@@ -1872,15 +1922,21 @@ mod tests {
         world.insert_resource(state_machines);
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
-        let (first, second) = world
+        let (first, second, notifications, generation) = world
             .run_system_cached_with(
                 query_result_propagation,
-                (root, fixture_pose(1.0), fixture_pose(2.0)),
+                (root.clone(), fixture_pose(1.0), fixture_pose(2.0)),
             )
             .unwrap()
             .unwrap();
         assert_eq!(first.bones[0].translation, Some(Vec3::X));
         assert_eq!(second.bones[0].translation, Some(Vec3::new(2.0, 0.0, 0.0)));
+        assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
+        let (_, _, notifications, reinitialized_generation) = world
+            .run_system_cached_with(query_result_propagation, (root, fixture_pose(1.0), fixture_pose(2.0)))
+            .unwrap().unwrap();
+        assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
+        assert_ne!(generation, reinitialized_generation);
     }
 
     #[test]

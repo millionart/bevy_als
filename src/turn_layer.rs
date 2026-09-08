@@ -192,6 +192,7 @@ impl AlsTurnMontage {
 pub struct AlsTurnMontageStack {
     pub entries: Vec<AlsTurnMontage>,
     next_id: u64,
+    inertialization_pending: bool,
 }
 
 impl AlsTurnMontageStack {
@@ -220,7 +221,7 @@ impl AlsTurnMontageStack {
 
     fn advance(&mut self, delta_seconds: f32) -> bool {
         let delta_seconds = delta_seconds.max(0.0);
-        let mut natural_end = false;
+        let mut natural_end = std::mem::take(&mut self.inertialization_pending);
         for entry in &mut self.entries {
             if !entry.sampling_ready {
                 continue;
@@ -247,19 +248,15 @@ impl AlsTurnMontageStack {
     }
 
     pub fn request_stop(&mut self) {
-        for entry in &mut self.entries {
-            if entry.blend_out_elapsed.is_none() {
-                if entry.sampling_ready {
-                    entry.blend_out_start_weight = entry.weight();
-                    entry.blend_out_elapsed = Some(0.0);
-                } else {
-                    entry.blend_out_start_weight = 0.0;
-                    entry.blend_out_elapsed = Some(TURN_MONTAGE_BLEND_DURATION);
-                }
-            }
-        }
-        self.entries
-            .retain(|entry| entry.sampling_ready || entry.weight() > f32::EPSILON);
+        self.inertialization_pending |= self
+            .entries
+            .iter()
+            .any(|entry| entry.blend_out_elapsed.is_none());
+        self.entries.retain(|entry| {
+            entry.blend_out_elapsed.is_some()
+                && entry.sampling_ready
+                && entry.weight() > f32::EPSILON
+        });
     }
 
     fn latest_playing(&self) -> Option<&AlsTurnMontage> {
@@ -447,7 +444,7 @@ fn sampler_weight(montage: &AlsTurnMontage) -> f32 {
     }
 }
 
-fn request_natural_turn_inertialization(natural_end: bool, drive: &mut AlsTurnDrive) -> bool {
+fn request_turn_inertialization(natural_end: bool, drive: &mut AlsTurnDrive) -> bool {
     if !natural_end {
         return false;
     }
@@ -902,7 +899,7 @@ fn turn_pin_driver(
             let natural_end = stack.advance(dt);
             synchronize_turn_drive(&mut drive, &stack);
             drive.advance(dt);
-            if request_natural_turn_inertialization(natural_end, &mut drive) {
+            if request_turn_inertialization(natural_end, &mut drive) {
                 warn!(
                     "[TURN-SLOT][INERTIALIZATION-REQUEST] avatar={drive_entity:?} epoch={:.0} duration={TURN_INERTIALIZATION_DURATION:.3}",
                     drive.inertialization_request_epoch
@@ -1044,7 +1041,7 @@ mod tests {
         stack.entries[0].sampling_ready = true;
         stack.entries[0].elapsed = TURN_DUR_90 - 0.01;
         let mut drive = AlsTurnDrive::default();
-        assert!(request_natural_turn_inertialization(
+        assert!(request_turn_inertialization(
             stack.advance(0.02),
             &mut drive
         ));
@@ -1188,16 +1185,17 @@ mod tests {
     }
 
     #[test]
-    fn source_turn_stop_request_fades_the_crouching_slot_entry() {
+    fn source_turn_stop_request_uses_immediate_weight_and_inertialization() {
         let mut stack = AlsTurnMontageStack::default();
         stack.begin(1.0, true, CROUCH_TURN_DUR_180, 1.0, true);
         stack.entries[0].sampling_ready = true;
         stack.advance(TURN_MONTAGE_BLEND_DURATION);
         stack.request_stop();
-        stack.advance(TURN_MONTAGE_BLEND_DURATION * 0.5);
-        assert_eq!(stack.entries.len(), 1);
-        assert!(stack.entries[0].crouching);
-        assert!((stack.entries[0].weight() - 0.5).abs() < 1e-6);
+        assert!(stack.entries.is_empty());
+        let mut drive = AlsTurnDrive::default();
+        assert!(request_turn_inertialization(stack.advance(0.0), &mut drive));
+        assert_eq!(drive.inertialization_request_epoch, 1.0);
+        assert!(!stack.advance(0.0));
     }
 
     #[test]

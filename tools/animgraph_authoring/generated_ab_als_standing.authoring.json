@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_standing_motion_lifecycle",
+  "id": "generated_ab_als_standing_state_callbacks",
   "source_evidence": [
     {
       "path": "target/bf115_standing/actor/source/0036_AB_Als_Standing.ue.json",
@@ -1688,7 +1688,7 @@
         "--materialized-directory",
         "target/bf115_standing/actor/conversion",
         "--spec",
-        "target/bf115_standing/input_lifecycle/spec.json"
+        "target/bf115_standing/callbacks/spec.json"
       ]
     },
     {
@@ -1729,6 +1729,14 @@
         "python",
         "tools/import/gen_standing_curves.py",
         "--self-test"
+      ]
+    },
+    {
+      "label": "source_state_lifecycle",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_lifecycle.py"
       ]
     }
   ],

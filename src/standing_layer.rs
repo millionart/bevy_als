@@ -35,7 +35,7 @@ use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::view_space_direction_angle_from_radians;
 use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
-use crate::stop_link::{AlsQuickStopNotify, AlsTransitionKind, AlsTransitionPlayback};
+use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const VELOCITY_EPSILON: f32 = 0.01;
@@ -698,9 +698,6 @@ impl StandingOuterTransition {
         profile.duration
     }
 
-    fn starts_quick_stop(self) -> bool {
-        self == Self::MoveToIdleQuickStop
-    }
 }
 
 #[derive(Component, Clone, Debug, Default, PartialEq)]
@@ -724,7 +721,6 @@ struct StandingLayerRuntime {
     movement_transition_request: Option<f32>,
     movement_transition_remaining: f32,
     previous_movement_state: Option<u8>,
-    previous_stop_state: Option<u8>,
     outer_state: StandingOuterState,
     outer_transition_remaining: f32,
 }
@@ -783,8 +779,6 @@ struct StandingGraphInputs {
     moving_smooth: bool,
     stop_left_backward_weight: f32,
     stop_right_backward_weight: f32,
-    stop_transition_side: Option<f32>,
-    quick_stop_notify: bool,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -1433,14 +1427,6 @@ fn transition_curve_handle<'a>(
     }
 }
 
-fn stop_transition_side(previous: Option<u8>, current: Option<u8>) -> Option<f32> {
-    match current {
-        Some(4) if previous != current => Some(1.0),
-        Some(3) if previous != current => Some(0.0),
-        _ => None,
-    }
-}
-
 fn rotate_finished(drive: Option<&AlsTurnDrive>) -> bool {
     drive.is_some_and(|drive| {
         !drive.rotate_active
@@ -1752,10 +1738,6 @@ fn update_standing_inputs(
     } else {
         0.0
     };
-    let current_stop_state = stopping.then_some(stop_state_index as u8);
-    let stop_transition_side =
-        stop_transition_side(runtime.previous_stop_state, current_stop_state);
-    runtime.previous_stop_state = current_stop_state;
     let (quick_stop_index, quick_stop_weight, quick_stop_play_rate) = quick_stop_values(transition);
     let turn_index = turn.map_or(0.0, |drive| {
         if drive.is_180 {
@@ -1893,8 +1875,6 @@ fn update_standing_inputs(
         moving_smooth,
         stop_left_backward_weight,
         stop_right_backward_weight,
-        stop_transition_side,
-        quick_stop_notify: outer_transition.is_some_and(StandingOuterTransition::starts_quick_stop),
     }
 }
 
@@ -2303,7 +2283,6 @@ fn standing_layer_writer(
     skeletons: Res<Assets<Skeleton>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     mut event_clocks: Query<&mut AlsStandingEventClock>,
-    mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
 ) {
     let delta_seconds = time.delta_secs();
     update_stop_leg_masks(&mut curve_handles, &skeletons);
@@ -2430,16 +2409,6 @@ fn standing_layer_writer(
         }
         if pivot_request.is_some() {
             commands.entity(parent.parent()).remove::<AlsPivotRequest>();
-        }
-        if let Some(side) = inputs.stop_transition_side {
-            commands
-                .entity(parent.parent())
-                .insert(AlsTransitionPlayback::stop(side));
-        }
-        if inputs.quick_stop_notify {
-            quick_stop_notices.write(AlsQuickStopNotify {
-                character: parent.parent(),
-            });
         }
         write_standing_inputs(&mut player, inputs);
         write_stop_leg_masks(&mut player, &curve_handles);
@@ -2936,14 +2905,6 @@ mod tests {
         assert_eq!(stop_state_index_for_foot_planted_amount(0.0), 3.0);
         assert_eq!(stop_state_index_for_foot_planted_amount(-0.5), 1.0);
         assert_eq!(stop_state_index_for_foot_planted_amount(-0.1), 3.0);
-    }
-
-    #[test]
-    fn plant_state_entry_requests_the_matching_source_transition_side() {
-        assert_eq!(stop_transition_side(None, Some(4)), Some(1.0));
-        assert_eq!(stop_transition_side(None, Some(3)), Some(0.0));
-        assert_eq!(stop_transition_side(Some(4), Some(4)), None);
-        assert_eq!(stop_transition_side(Some(3), None), None);
     }
 
     #[test]

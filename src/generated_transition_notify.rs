@@ -13,6 +13,7 @@ use als_ext::{InterruptibleFsmNode, InterruptibleFsmState};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::standing_layer::AlsPivotNotify;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback};
+use crate::turn_layer::AlsTurnMontageStack;
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
 pub struct GeneratedTransitionNotifyTelemetry {
@@ -29,6 +30,13 @@ pub struct GeneratedTransitionNotifyTelemetry {
 #[derive(Resource, Default)]
 struct GeneratedTransitionNotifyCursor {
     generations: HashMap<(Entity, GraphContextId, NodeId), u64>,
+    queued_transitions: HashMap<Entity, AlsTransitionPlayback>,
+}
+
+impl GeneratedTransitionNotifyCursor {
+    fn take_transition(&mut self, character: Entity, stop_requested: bool) -> Option<AlsTransitionPlayback> {
+        if stop_requested { None } else { self.queued_transitions.remove(&character) }
+    }
 }
 
 pub struct GeneratedTransitionNotifyPlugin;
@@ -38,6 +46,9 @@ enum TransitionNotifyAction {
     ActivatePivot,
     StopQuick,
     LandToGrounded,
+    StopLeft,
+    StopRight,
+    StopAnimations,
 }
 
 fn transition_notify_action(name: &str) -> Option<TransitionNotifyAction> {
@@ -45,6 +56,9 @@ fn transition_notify_action(name: &str) -> Option<TransitionNotifyAction> {
         "ActivatePivot" => Some(TransitionNotifyAction::ActivatePivot),
         "StopQuick" => Some(TransitionNotifyAction::StopQuick),
         "LandToGrounded" => Some(TransitionNotifyAction::LandToGrounded),
+        "PlayStopLeftTransitionAnimation" => Some(TransitionNotifyAction::StopLeft),
+        "PlayStopRightTransitionAnimation" => Some(TransitionNotifyAction::StopRight),
+        "StopTransitionAndTurnInPlaceAnimations" => Some(TransitionNotifyAction::StopAnimations),
         _ => None,
     }
 }
@@ -81,15 +95,18 @@ fn ensure_generated_transition_notify_telemetry(
 
 fn dispatch_generated_transition_notifications(
     mut cursor: ResMut<GeneratedTransitionNotifyCursor>,
-    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     graphs: Res<Assets<AnimationGraph>>,
     mut telemetry: Query<&mut GeneratedTransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
+    mut playbacks: Query<&mut AlsTransitionPlayback>,
+    mut turn_stacks: Query<&mut AlsTurnMontageStack>,
     mut commands: Commands,
 ) {
-    for (avatar, instance) in &avatars {
+    for (avatar_entity, avatar, instance) in &avatars {
+        let mut stop_requested = false;
         let player_entity = instance.player_entity();
         let Ok(player) = players.get(player_entity) else {
             continue;
@@ -179,10 +196,33 @@ fn dispatch_generated_transition_notifications(
                                 .entity(avatar.character)
                                 .insert(AlsTransitionPlayback::standing_transition_right());
                         }
+                        Some(TransitionNotifyAction::StopLeft) => {
+                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::stop(0.0));
+                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                        }
+                        Some(TransitionNotifyAction::StopRight) => {
+                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::stop(1.0));
+                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                        }
+                        Some(TransitionNotifyAction::StopAnimations) => {
+                            stop_requested = true;
+                            info!("[SOURCE-STATE-CALL] function={} phase={} character={:?}", notification.name, notification.phase, avatar.character);
+                        }
                         None => {}
                     }
                 }
             }
+        }
+        if stop_requested {
+            if let Ok(mut playback) = playbacks.get_mut(avatar.character) {
+                playback.request_stop();
+            }
+            if let Ok(mut stack) = turn_stacks.get_mut(avatar_entity) {
+                stack.request_stop();
+            }
+        }
+        if let Some(playback) = cursor.take_transition(avatar.character, stop_requested) {
+            commands.entity(avatar.character).insert(playback);
         }
     }
 }
@@ -190,6 +230,22 @@ fn dispatch_generated_transition_notifications(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn state_function_transition_waits_until_the_source_stop_request_is_consumed() {
+        let character = Entity::PLACEHOLDER;
+        let mut cursor = GeneratedTransitionNotifyCursor::default();
+        cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(0.0));
+        cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(1.0));
+        assert!(cursor.take_transition(character, true).is_none());
+        let playback = cursor.take_transition(character, false).unwrap();
+        assert_eq!(playback.index, 1.0);
+        assert_eq!((playback.start_time, playback.play_rate, playback.blend_in, playback.blend_out), (0.4, 1.5, 0.2, 0.2));
+        assert!(cursor.take_transition(character, false).is_none());
+        assert_eq!(transition_notify_action("PlayStopLeftTransitionAnimation"), Some(TransitionNotifyAction::StopLeft));
+        assert_eq!(transition_notify_action("PlayStopRightTransitionAnimation"), Some(TransitionNotifyAction::StopRight));
+        assert_eq!(transition_notify_action("StopTransitionAndTurnInPlaceAnimations"), Some(TransitionNotifyAction::StopAnimations));
+    }
 
     #[test]
     fn source_transition_notify_names_use_only_verified_actions() {

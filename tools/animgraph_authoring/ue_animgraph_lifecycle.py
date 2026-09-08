@@ -28,13 +28,13 @@ TRANSITION_FUNCTIONS = {
         "call": "Play Transition Animation",
         "sequence": "A_Als_Stop_Left.A_Als_Stop_Left",
         "start_time": "0.400000",
-        "provider": "bevy_als::standing_layer::StandingLayerPlugin",
+        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
     },
     "PlayStopRightTransitionAnimation": {
         "call": "Play Transition Animation",
         "sequence": "A_Als_Stop_Right.A_Als_Stop_Right",
         "start_time": "0.400000",
-        "provider": "bevy_als::standing_layer::StandingLayerPlugin",
+        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
     },
     "PlayStopTransitionAnimation": {
         "call": "Play Transition Right Animation",
@@ -292,7 +292,7 @@ def resolve_lifecycle(source, function_dependencies):
                     "source_function": source_function,
                     "call_site": dependency.get("call_site"),
                     "source_node": source_node,
-                    "provider": "als_locomotion_exit_stop",
+                    "provider": TRANSITION_NOTIFY_PROVIDER,
                 }
             )
             continue
@@ -460,7 +460,7 @@ def run_self_test():
         ],
     )
     providers = {item["provider"] for item in plan["dispatches"]}
-    assert providers == {"als_locomotion_exit_stop", "als_locomotion_refresh_in_air"}
+    assert providers == {TRANSITION_NOTIFY_PROVIDER, "als_locomotion_refresh_in_air"}
     assert set(plan["handled_nodes"]) == {"/Asset:State.Result", entry, stop, parent}
     transition_source, transition_function, transition_entry, transition_parent, transition = fixture_transition_source()
     transition_plan = resolve_lifecycle(
@@ -480,7 +480,7 @@ def run_self_test():
             "source_function": transition_function,
             "call_site": "StateEntryFunction",
             "source_node": "/Asset:State.PlantLeft",
-            "provider": "bevy_als::standing_layer::StandingLayerPlugin",
+            "provider": TRANSITION_NOTIFY_PROVIDER,
         }
     ]
     assert set(transition_plan["handled_nodes"]) == {
