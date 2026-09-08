@@ -63,6 +63,7 @@ pub mod source_cached_pose;
 pub mod source_gameplay_tag_input;
 pub mod source_linked_input_pose;
 pub mod source_movement_nodes;
+pub mod source_physics_joint;
 pub mod source_pose_nodes;
 pub mod source_pose_passthrough;
 pub mod source_scalar_expression;
