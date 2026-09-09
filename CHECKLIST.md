@@ -163,7 +163,7 @@
   - 修复后运行前2026-09-09 11:35:14：target_game/play入口114.766s、声明式4.748s PASS；已有组合反例、332/311回归与fresh六向source闭环通过。以下公共standing_direction连续复验同一输入/状态序列，比较冻结段的实际sample-time推进和腿部运动，全部原有时序/骨架/性能阈值保留。
   - 本项及01b有限复开完成：实际结束2026-09-09 11:36:24，相对11:34预估+2m24s。42.886s公共方向Gate PASS、manual/validation exit0、2379帧连续trace、11窗口/19截图，issues/faults/graph_errors/temporal_anomalies为空；frame p95 16.0954ms/max69.5903ms、eval p95 0.0919ms、每render1步物理。四个典型切换首秒的主导播放器停滞帧由15/17/36/22变为全部0，root腿部角速度中位分别由0.921/1.293/0.776/1.213升至3.535/3.867/2.223/4.205rad/s；这项连续证据补足截图无法证明的播放推进。已确认实际按键/BS参数/六态选择保持源行为，仅修组相位反馈；移除重复子姿态日志后性能门槛也通过。下一步恢复Standing尚未开展的停步/转身/旋转/动态过渡Gate，不把本项当作整个Standing已完成。
 
-- [ ] BF115.01o 连续换向与停步恢复：开始2026-09-09 11:40:00、预估结束12:20:00。用户随后要求覆盖“左跑两秒立刻反向、持续WASD循环、松键后未恢复正常站姿”，本项优先复现该连续输入再核对Standing停步/quick-stop直接闭包。01n只证明同步时钟停滞已消除，不能作为所有滑步/延迟/停后姿态均已解决的结论。以当前62个Standing源子图、已闭合的回调/原生刷新/16条montage资产和现有公共场景为基础，记录实际state/clip/weight/lifecycle/Pose，再按首个source差异修复；不启动Crouching或其余图工作。估时仍按现有source/场景框架、增量构建与单场记录，出现额外根因则按规则复盘拆分。
+- [x] BF115.01o 连续换向与停步恢复：开始2026-09-09 11:40:00、预估结束12:20:00。用户随后要求覆盖“左跑两秒立刻反向、持续WASD循环、松键后未恢复正常站姿”，本项优先复现该连续输入再核对Standing停步/quick-stop直接闭包。01n只证明同步时钟停滞已消除，不能作为所有滑步/延迟/停后姿态均已解决的结论。以当前62个Standing源子图、已闭合的回调/原生刷新/16条montage资产和现有公共场景为基础，记录实际state/clip/weight/lifecycle/Pose，再按首个source差异修复；不启动Crouching或其余图工作。估时仍按现有source/场景框架、增量构建与单场记录，出现额外根因则按规则复盘拆分。
   - 新复现入口静态准备2026-09-09 12:00:00：按用户节奏新增公共standing_response：静置1.5秒、左2秒、无释放间隔切右2秒、W/A/S/D每0.25秒循环三轮、松键4秒，使用默认ViewDirection并保留原Playground。逐帧复用现有input/BS/FSM/root-Pose trace，追加Stop FSM、实际transition与脚部目标；末段单独采集idle-after姿态，并要求真实Standing Idle、PoseMoving=0及transition inactive。fresh PlayQuickStopAnimation确认非VelocityDirection固定左分支，源原生动作/图算法尚未改动；原35场景回归31.843s PASS，新增时序fixture验证2秒反转与释放阶段中。
   - 时序fixture与36场景回归2026-09-09 12:03:00通过（24.490s）；末段idle-after独立窗口确保记录等待结束的最终姿态。当前只新增复现与观测，未按猜测调整FSM中断或停止算法；同入口构建与静态后执行一次用户时序场景。
   - 用户时序运行前2026-09-09 12:05:04：target_game/play入口68.583s、声明式4.525s PASS，36项场景/时序fixture通过。以下公共standing_response完整记录2秒反转、快速循环和松键恢复，不使用此前3秒稳定方向窗口替代本次问题。
@@ -171,7 +171,7 @@
   - 补边界运行前2026-09-09 12:24:11：target同入口66.057s构建、36项回归及声明式Gate通过；UE同输入原场地对照已自动结束。以下target standing_response只补齐现有重播区间的门控/帧序，未改变动画行为；末段持续Idle判定已强化。
   - 首轮到界前复盘2026-09-09 12:34:00：开始11:40、预估12:20，目前未完成（偏差+14分钟）；剩余修复/回归及快速循环问题预计越过20分钟容差，暂停实现与新runtime并回读证据。21.320s补证据运行准确拒绝idle恢复；slot负一曲线与全权重门控正常，实际动画在约0.02秒后被request_stop，权重淡出结束再重启。逐一追踪所有request_stop调用后确认crouching_layer_writer在Standing且无CrouchingLayerRuntime时仍逐帧停止共享standing动画；fresh Crouching native35.395s表明源仅在Idle退出/Move进入事件调用停止，未有不相关时逐帧停止。先有限复开BF111.04的跨stance清理边界，保留已闭合curve/同步证据；再处理快速循环的连续姿态，不把一处时钟修复等同于全部响应完成。投入主要为补足用户实际节奏、纠正瞬时idle假通过、区分曲线门控与真正stop调用，未改物理/阈值。按上一估时窗口1.5倍拆为下面两项并自动继续。
     - [x] BF115.01o1 站立动画被Crouching清理打断：开始2026-09-09 12:34:00、预估结束13:04:00、实际结束12:45:36（偏差-18m24s）。最小清理事件反例、仅退出时清理、消融/回归/真实停后恢复Gate通过；不展开Crouching动作图。
-    - [ ] BF115.01o2 快速反向/循环连续姿态：开始2026-09-09 12:48:00、预估结束13:18:00。o1提前结束后按原终段窗口提前开始；沿用户2秒反转和0.25秒循环记录，对比source中断混合与实际root姿态推进，补足必要修复与动态Gate；正常停步/quick-stop剩余边界保持在此Standing闭包内。
+    - [x] BF115.01o2 快速反向/循环连续姿态：开始2026-09-09 12:48:00、预估结束13:18:00。o1提前结束后按原终段窗口提前开始；沿用户2秒反转和0.25秒循环记录，对比source中断混合与实际root姿态推进，补足必要修复与动态Gate；正常停步/quick-stop剩余边界保持在此Standing闭包内。
     - o1 source/最小修复闭环2026-09-09 12:39:43：fresh Crouching35.395s明确Idle StateExit/Move StateEntry两处停止调用。实际清理路径fixture27.340s先FAIL“inactive crouching stopped a standing montage”（首次测试调用私有构造函数的编译错误已改用公开SourceTurnRequest）；现在仅曾有Crouching runtime的退出执行共享停止/移除，保持Standing动态动画和turn stack，19项Crouching回归17.125s PASS，去掉事件守卫即复现失败。未改变Crouching图、停止时长、蒙太奇或输入；正在完整项目回归与同入口静态/编译后复验停后恢复。
     - o1运行前2026-09-09 12:44:44：313项目回归1.882s、声明式4.236s、实际target_game/play构建66.290s PASS。UE同输入对照60.217s自动结束，其有效移动记录在松键后速度0/PoseMoving0，末段两足组件高度约13.4cm恢复平齐；target旧记录右足仍抬起。以下同一standing_response验证清理事件修复和末段持续idle，不改其余行为。
     - o1最终结果2026-09-09 12:45:36：21.327s公共standing_response PASS，manual/validation exit0，末段持续idle与无活动transition通过；动态动画完整推进至1.533333秒并结束，不再约0.02秒中止/重启。末段双足世界高度0.13796/0.13840m并已人工确认正常落地站姿；faults/graph_errors/temporal_anomalies为空，frame p95 16.1489ms/max31.3982ms、eval p95 0.0857ms。BF111.04清理事件有限复开关闭；快速循环中的主观响应问题仍保留给o2，不以本次停止恢复通过替代。
@@ -187,12 +187,20 @@
 
     - 第四轮前全过程复盘2026-09-09 14:37:00：上一轮13:33→14:18到本次复盘仍未完整验收（偏差+19分钟），继续runtime与差异审查将越过20分钟容差，先暂停实现和新启动，回读o全程、当前source闭包、diff及实际工具报告。第一轮定位并修复跨stance共享停止，o1真实恢复已通过；第二轮真实位移动画暴露冻结历史Pose；第三轮追到完整FSM创建/更新与惯性consumer，消除了原先沿用目标固定时长、指数混合与无请求透传的假前提。漂移主因是最初把“同步时间前进”当作姿态连续性的充分条件，以及没有一次覆盖创建→求值→消费全生命周期；纠正后15组合三态动态fixture验证真实几何、曲线、重置、自动资产、同帧上限/清理与最短请求。当前645项回归70.378s、target_game/play两个实际入口构建123.838s、fresh spec2.389s、声明式4.753s均PASS；spec首次3.436s仅因未注入绝对asset root失败，纠正启动参数后通过，未修改资产路径。没有新的未定位静态故障；下一步只按现有原场地公共Gate与连续trace验收，失败时先读primary/source链，禁止以阈值/补偿掩盖。按上一窗口1.5倍重构为以下两个可独立验收的剩余项，自动继续同一完整任务。
       - [x] BF115.01o2-R4a 启动及用户节奏真实验收：开始2026-09-09 14:37:00、预估结束15:10:00。依赖全部通过的source/static/编译，执行startup与standing_response；检查原场地可见姿态、2秒立即反向、0.25秒循环全帧运动、松键持续Idle及严格temporal/性能Guard。通过后提交此次实现。
-      - [ ] BF115.01o2-R4b 同一改动的方向/冲刺回归与闭环：计划开始2026-09-09 15:10:00、预估结束15:44:30。R4a通过后同一二进制执行既有方向/冲刺场景并审查差异，关闭o2及有限复开，记录实际时间；不把它作为Standing剩余转身/停步动作已完成的证据。
+      - [x] BF115.01o2-R4b 同一改动的方向/冲刺回归与闭环：计划开始2026-09-09 15:10:00、预估结束15:44:30。R4a通过后同一二进制执行既有方向/冲刺场景并审查差异，关闭o2及有限复开，记录实际时间；不把它作为Standing剩余转身/停步动作已完成的证据。
     - R4a运行前2026-09-09 14:37:00：62源子图及FSM→最近惯性节点闭包已静态闭合，fresh spec和声明式通过，真实入口二进制已完成；以下先无驱动startup，再同一用户时序standing_response，所有既有运行阈值不变。
 
     - R4a startup结果/response运行前2026-09-09 14:40:51：startup manual/validation exit0、faults/graph_errors/temporal_anomalies为空，6张截图保留正常原场地站姿；frame p95 14.9788ms/max27.5956ms、eval p95 0.0870ms。以下同一二进制standing_response完整复验用户输入节奏和持续idle，继续检查所有帧而非仅稳定截图。
 
     - R4a完成2026-09-09 14:44:20：开始14:37、预估15:10、实际结束14:44:20（偏差-25m40s）。startup及standing_response均manual/validation exit0；response完整902帧，反向/循环/持续idle全部覆盖，faults/graph_errors/temporal_anomalies为空。快速循环区间6腿局部角速度RMS中位1.9408→4.3374rad/s、P10 0.4095→2.6418rad/s，相同0.3rad/s观测口径的低运动采样9/190→0/175；这用于连续运动对比，不改变任何Gate阈值。立即反向区间中位4.3534→4.5616rad/s；末段两足目标高度0.137941/0.137945m，动态动画完整结束，已查看循环与最终站姿截图。frame p95 17.8863ms/max33.1968ms、eval p95 0.0917ms。实现通过本项Gate并单独提交；R4b提前开始14:44:20、预估结束15:18:50，剩余既有方向/冲刺的同一二进制回归。
+
+    - R4b运行前2026-09-09 14:47:40：R4a实现已提交7888369，startup及用户连续输入/停止恢复通过；同一target_game/play二进制与fresh spec保持不变。以下既有standing_direction检查六向及不同view方向，随后sprint检查惯性入口、同步相位与稳定冲刺；静态Source闭包、645回归及所有阈值保持。
+
+    - R4b方向首验2026-09-09 14:50:39：manual exit0、六态mask111111与全部方向窗口通过，2370帧无fault/graph error/temporal anomaly；视觉exit1仅因max_frame75.3451ms超过75ms，p95 16.3754ms、CPU max71.3819ms、eval max0.1934ms/p95 0.0942ms。已读取分阶段统计，现有聚合证据不足以给该帧归因，未据此复开物理/Rig或修改阈值。先完成独立sprint回归，再在同一二进制/阈值下受控复核方向一次；若再次失败，保留失败并补齐该帧的实际阶段证据。
+
+    - R4b sprint通过/方向复核前2026-09-09 14:54:33：sprint manual/validation exit0，启动/稳定两分支、canonical phase及实际Pose链全部通过，faults/graph_errors/temporal_anomalies为空；frame p95 14.7219ms/max27.8914ms，eval p95 0.0937ms/max0.1370ms。前次方向的单帧超限没有对应持续动画求值升高，短进程采样也不能追溯归因；以下只做已声明的一次同二进制、同场景和同75ms阈值方向复核，保留首份失败记录。
+
+    - R4b及o完成2026-09-09 15:03:48：方向受控复核manual/validation exit0，2338帧、11窗口/19截图、六态mask111111；frame p95 16.5986ms/max71.5817ms、eval p95 0.0895ms，faults/graph_errors/temporal_anomalies为空。旋转view 90°的跑姿已人工检查；sprint两分支211/50样本、canonical phase距离0/0.002966，无源链失败。首份方向75.3451ms超限保留，未找出该单帧确切原因，也未通过修改算法、阈值或排除样本获得本次通过。R4b实际开始14:44:20、预估15:18:50、实际结束15:03:48（偏差-15m02s）；o2开始12:48、首估13:18、最终偏差+1h45m48s，o开始11:40、首估12:20、最终偏差+2h43m48s，中间复盘/拆分均保留。用户连续换向及停后恢复已完成本项验收，BF113.03c本轮活动源/时间/惯性请求有限复开关闭；实现为7888369。下一步仅补Standing仍未完整验收的正常停步、quick-stop、turn/rotate和动态过渡实际分支，尚不能开始Grounded。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
