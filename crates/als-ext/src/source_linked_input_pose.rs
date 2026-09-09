@@ -32,7 +32,12 @@ impl Default for SourceLinkedInputPoseNode {
 
 impl NodeLike for SourceLinkedInputPoseNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        crate::animation_context::write_linked_input_context(&mut ctx.graph_context, default())?;
+        let input = GraphInputPin::Passthrough(self.input.clone());
+        crate::animation_context::write_linked_input_context(
+            &mut ctx.graph_context,
+            input.clone(),
+            default(),
+        )?;
         let pose = ctx
             .graph_context
             .io
@@ -43,7 +48,7 @@ impl NodeLike for SourceLinkedInputPoseNode {
             .into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
-        let mut state = crate::animation_context::linked_input_context(&ctx.graph_context);
+        let mut state = crate::animation_context::linked_input_context(&ctx.graph_context, &input);
         if !self.context_curve_names.is_empty() {
             for curve in &self.context_curve_names {
                 let key = format!("{}{}", self.context_curve_prefix, curve);

@@ -243,6 +243,34 @@ mod tests {
                         .is_some_and(|node| node.synchronize_groups)
                 });
                 assert_eq!(observed.is_some(), synchronized);
+                let observed_players = crate::sync_group_phase::source_sync_players(
+                    &arena,
+                    &resources.animation_graph_assets,
+                    "group",
+                );
+                assert_eq!(observed_players.is_some(), synchronized);
+                if let Some(players) = observed_players {
+                    assert!(
+                        players
+                            .iter()
+                            .all(|player| player.phase == observed.unwrap())
+                    );
+                    let output = crate::animation_context::graph_output_context_state(
+                        graph, &context, "Pose",
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        players
+                            .iter()
+                            .map(|player| (player.identity, player.weight))
+                            .collect::<Vec<_>>(),
+                        output
+                            .sync_players
+                            .iter()
+                            .map(|player| (player.identity, player.weight))
+                            .collect::<Vec<_>>()
+                    );
+                }
                 result.push(
                     crate::animation_context::graph_output_context_state(graph, &context, "Pose")
                         .unwrap(),

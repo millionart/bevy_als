@@ -111,7 +111,7 @@ pub struct InterruptibleFsmState {
     recorded_machine_weight: f32,
     recorded_state_weights: Vec<SourceFsmStateWeight>,
     transition_source_weights: Vec<SourceFsmStateWeight>,
-    source_pose: Option<Pose>,
+    source_pose: Option<(Pose, AnimationContextState)>,
     last_pose: Option<Pose>,
     label_last_index: Option<usize>,
     first_update: bool,
@@ -179,7 +179,7 @@ fn became_relevant(previous_frame: Option<u64>, frame: u64) -> bool {
 
 impl InterruptibleFsmState {
     pub fn cached_source_pose(&self) -> Option<&Pose> {
-        self.source_pose.as_ref()
+        self.source_pose.as_ref().map(|(pose, _)| pose)
     }
 
     pub fn last_output_pose(&self) -> Option<&Pose> {
@@ -448,13 +448,22 @@ impl InterruptibleFsmNode {
     ) -> Result<Vec<SourceTransitionNotification>, GraphError> {
         let state = machine.states.get(&LowLevelStateId::HlState(state))
             .ok_or(GraphError::FSMCurrentStateMissing)?;
-        let graph = graphs.get(&state.graph).ok_or(GraphError::GraphAssetMissing)?;
-        Ok(graph.nodes.values().filter_map(|node| {
-            let node = node.try_inner_downcast_ref::<SourcePosePassthroughNode>()?;
-            (!node.source_function.is_empty() && node.call_site == phase).then(|| SourceTransitionNotification {
-                phase: phase.to_owned(), name: node.source_function.clone(),
+        let graph = graphs
+            .get(&state.graph)
+            .ok_or(GraphError::GraphAssetMissing)?;
+        Ok(graph
+            .nodes
+            .values()
+            .filter_map(|node| {
+                let node = node.try_inner_downcast_ref::<SourcePosePassthroughNode>()?;
+                (!node.source_function.is_empty() && node.call_site == phase).then(|| {
+                    SourceTransitionNotification {
+                        phase: phase.to_owned(),
+                        name: node.source_function.clone(),
+                    }
+                })
             })
-        }).collect())
+            .collect())
     }
 
     fn can_interrupt(
@@ -549,7 +558,10 @@ impl InterruptibleFsmNode {
                 state_entered_time: state.state_entered_time,
             });
             interrupted_sources.extend(state.interrupted_sources.iter().cloned());
-            state.last_pose.clone()
+            state
+                .last_pose
+                .clone()
+                .map(|pose| (pose, state.context.clone()))
         } else {
             None
         };
@@ -686,13 +698,23 @@ impl InterruptibleFsmNode {
                 }
                 if !ending && Self::source_condition_state(machine, &state.state) != Some(transition.hl_target) {
                     if let Some(previous) = Self::source_condition_state(machine, &state.state) {
-                        state.transition_notifications.extend(Self::state_function_notifications(
-                            machine, previous, "StateExitFunction", &ctx.graph_context.resources.animation_graph_assets,
-                        )?);
+                        state
+                            .transition_notifications
+                            .extend(Self::state_function_notifications(
+                                machine,
+                                previous,
+                                "StateExitFunction",
+                                &ctx.graph_context.resources.animation_graph_assets,
+                            )?);
                     }
-                    state.transition_notifications.extend(Self::state_function_notifications(
-                        machine, transition.hl_target, "StateEntryFunction", &ctx.graph_context.resources.animation_graph_assets,
-                    )?);
+                    state
+                        .transition_notifications
+                        .extend(Self::state_function_notifications(
+                            machine,
+                            transition.hl_target,
+                            "StateEntryFunction",
+                            &ctx.graph_context.resources.animation_graph_assets,
+                        )?);
                 }
                 Self::activate_transition(&mut state, transition, time, source_weights);
                 *remaining_transitions -= 1;
@@ -1356,7 +1378,7 @@ enum FsmRole {
 struct FsmStackFrame {
     state: LowLevelStateId,
     state_entered_time: f32,
-    source_pose: Option<Pose>,
+    source_pose: Option<(Pose, AnimationContextState)>,
     role: FsmRole,
 }
 
@@ -1368,7 +1390,7 @@ struct InterruptibleFsmIo<'a> {
     parent_time_update: TimeUpdate,
     state: LowLevelStateId,
     state_entered_time: f32,
-    source_pose: Option<Pose>,
+    source_pose: Option<(Pose, AnimationContextState)>,
     role: FsmRole,
     stack: VecDeque<FsmStackFrame>,
     state_pose_output: String,
@@ -1388,10 +1410,17 @@ impl<'a> InterruptibleFsmIo<'a> {
     }
 
     fn parent_data(&self, pin: &PinId, ctx: &GraphContext) -> Result<DataValue, GraphError> {
-        self.node_context
-            .clone()
-            .with_state_key(ctx.state_key)
-            .data_back(pin.clone())
+        let parent = self.node_context.clone().with_state_key(ctx.state_key);
+        let value = parent.data_back(pin.clone())?;
+        if matches!(value, DataValue::Pose(_)) {
+            crate::animation_context::write_linked_input_context(
+                &mut ctx.clone(),
+                GraphInputPin::Passthrough(pin.clone()),
+                crate::animation_context::pose_input_context_state(&parent, pin)
+                    .unwrap_or_default(),
+            )?;
+        }
+        Ok(value)
     }
 
     fn parent_duration(&self, pin: &PinId, ctx: &GraphContext) -> Result<DurationData, GraphError> {
@@ -1481,6 +1510,7 @@ impl<'a> InterruptibleFsmIo<'a> {
         state: LowLevelStateId,
         role: FsmRole,
         ctx: &GraphContext,
+        input: GraphInputPin,
     ) -> Result<DataValue, GraphError> {
         let (graph_handle, io) = self.nested_io(state.clone(), role, ctx)?;
         let graph = self
@@ -1496,6 +1526,13 @@ impl<'a> InterruptibleFsmIo<'a> {
             .with_state_key(ctx.state_key)
             .with_io(&io);
         let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
+        if matches!(&result, Ok(DataValue::Pose(_))) {
+            crate::animation_context::write_linked_input_context(
+                &mut ctx.clone(),
+                input,
+                graph_output_context_state(graph, &sub_ctx, &pin).unwrap_or_default(),
+            )?;
+        }
         let Err(error) = result else {
             return result;
         };
@@ -1540,7 +1577,7 @@ impl<'a> InterruptibleFsmIo<'a> {
 
     fn nested_time(&self, ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
         if matches!(self.role, FsmRole::Source) {
-            if let Some(pose) = &self.source_pose {
+            if let Some((pose, _)) = &self.source_pose {
                 return Ok(TimeUpdate::Absolute(pose.timestamp));
             }
         }
@@ -1597,9 +1634,18 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
         match pin {
             GraphInputPin::Passthrough(pin) => self.parent_data(&pin, &ctx),
             GraphInputPin::FromFsmSource(pin) => {
-                if let Some(pose) = &self.source_pose {
+                let input = GraphInputPin::FromFsmSource(pin.clone());
+                if let Some((pose, context)) = &self.source_pose {
                     if pin.to_string() == InterruptibleFsmNode::OUT_POSE {
+                        crate::animation_context::write_linked_input_context(
+                            &mut ctx.clone(),
+                            input,
+                            context.clone(),
+                        )?;
                         return Ok(DataValue::Pose(pose.clone()));
+                    }
+                    if let Some(value) = context.curves.get(&pin) {
+                        return Ok(DataValue::F32(*value));
                     }
                 }
                 self.source_state().and_then(|state| {
@@ -1608,16 +1654,17 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
                     } else {
                         pin
                     };
-                    self.state_data(state_pin, state, FsmRole::Source, &ctx)
+                    self.state_data(state_pin, state, FsmRole::Source, &ctx, input)
                 })
             }
             GraphInputPin::FromFsmTarget(pin) => self.target_state().and_then(|state| {
+                let input = GraphInputPin::FromFsmTarget(pin.clone());
                 let state_pin = if pin.to_string() == InterruptibleFsmNode::OUT_POSE {
                     self.state_pose_output_for(&state).to_owned()
                 } else {
                     pin
                 };
-                self.state_data(state_pin, state, FsmRole::Target, &ctx)
+                self.state_data(state_pin, state, FsmRole::Target, &ctx, input)
             }),
             GraphInputPin::FsmBuiltin(pin) => self.builtin(pin),
         }
@@ -1764,11 +1811,29 @@ mod tests {
                 pin: "Pose".to_owned(),
             })?
             .into_pose()?;
-        let fsm_node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<InterruptibleFsmNode>().is_some()).unwrap();
-        let state = arena.get_toplevel().node_states
+        let fsm_node = graph
+            .nodes
+            .values()
+            .find(|node| {
+                node.try_inner_downcast_ref::<InterruptibleFsmNode>()
+                    .is_some()
+            })
+            .unwrap();
+        let state = arena
+            .get_toplevel()
+            .node_states
             .get::<InterruptibleFsmState>(fsm_node.id, StateKey::Default)?;
-        let notifications = state.transition_notifications().iter().map(|event| event.name.clone()).collect();
-        Ok((first, second, notifications, state.notification_generation()))
+        let notifications = state
+            .transition_notifications()
+            .iter()
+            .map(|event| event.name.clone())
+            .collect();
+        Ok((
+            first,
+            second,
+            notifications,
+            state.notification_generation(),
+        ))
     }
 
     #[test]
@@ -1814,11 +1879,17 @@ mod tests {
         state_graph.add_node_parameter_edge(blend.id, "Pose", output.id, "Source");
         state_graph.add_output_data_edge(output.id, "Result", "Result");
         let first_state_graph = graphs.add(state_graph.clone());
-        let mut entry_output = AnimationNode::new("fixture output", SourcePosePassthroughNode {
-            input: "Source".to_owned(), output: "Result".to_owned(), output_time: false,
-            source_function: "FixtureEntry".to_owned(), call_site: "StateEntryFunction".to_owned(),
-            ..default()
-        });
+        let mut entry_output = AnimationNode::new(
+            "fixture output",
+            SourcePosePassthroughNode {
+                input: "Source".to_owned(),
+                output: "Result".to_owned(),
+                output_time: false,
+                source_function: "FixtureEntry".to_owned(),
+                call_site: "StateEntryFunction".to_owned(),
+                ..default()
+            },
+        );
         entry_output.id = output.id;
         state_graph.add_node(entry_output);
         let state_graph = graphs.add(state_graph);
@@ -1933,8 +2004,12 @@ mod tests {
         assert_eq!(second.bones[0].translation, Some(Vec3::new(2.0, 0.0, 0.0)));
         assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
         let (_, _, notifications, reinitialized_generation) = world
-            .run_system_cached_with(query_result_propagation, (root, fixture_pose(1.0), fixture_pose(2.0)))
-            .unwrap().unwrap();
+            .run_system_cached_with(
+                query_result_propagation,
+                (root, fixture_pose(1.0), fixture_pose(2.0)),
+            )
+            .unwrap()
+            .unwrap();
         assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
         assert_ne!(generation, reinitialized_generation);
     }
@@ -2149,7 +2224,12 @@ mod tests {
     #[test]
     fn source_transition_preserves_a_target_that_is_still_blending() {
         fn query(
-            In((root, player)): In<(Handle<AnimationGraph>, NodeId)>,
+            In((root, player, interrupt_frame, inertial)): In<(
+                Handle<AnimationGraph>,
+                NodeId,
+                usize,
+                bool,
+            )>,
             resources: SystemResources,
         ) -> f32 {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
@@ -2157,11 +2237,14 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
-            for frame in 0..4 {
+            for frame in 0..=interrupt_frame {
                 let inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(0.1)),
                     ("leave".to_owned(), DataValue::Bool(frame == 2)),
-                    ("return".to_owned(), DataValue::Bool(frame == 3)),
+                    (
+                        "return".to_owned(),
+                        DataValue::Bool(frame == interrupt_frame),
+                    ),
                 ]);
                 graph
                     .query_with_context(
@@ -2179,6 +2262,36 @@ mod tests {
                         ),
                     )
                     .unwrap();
+                let fsm = graph
+                    .nodes
+                    .values()
+                    .find(|node| {
+                        node.try_inner_downcast_ref::<InterruptibleFsmNode>()
+                            .is_some()
+                    })
+                    .unwrap();
+                let state = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<InterruptibleFsmState>(fsm.id, StateKey::Default)
+                    .unwrap();
+                assert_eq!(
+                    state.context.curves.get("Fixture"),
+                    Some(&1.0),
+                    "context frame={frame}"
+                );
+                let expected = if inertial {
+                    if frame < 2 || frame == interrupt_frame { 0.25 } else { 0.75 }
+                } else {
+                    let sample_frame = if frame == interrupt_frame { frame - 1 } else { frame };
+                    0.25 + 0.5 * (sample_frame.saturating_sub(2) as f32 * 0.1 / 0.5)
+                };
+                assert!(
+                    (state.context.curves["Choice"] - expected).abs() < 1e-6,
+                    "context frame={frame}, inertial={inertial}: {:?} != {expected}",
+                    state.context.curves
+                );
+                assert!(!state.context.sync_players.is_empty());
             }
             arena
                 .iter_context_ids()
@@ -2198,7 +2311,14 @@ mod tests {
                 })
                 .unwrap()
         }
-        for policy in [Some(false), Some(true), None] {
+        for (policy, interrupt_frame, inertial) in [Some(false), Some(true), None]
+            .into_iter()
+            .flat_map(|policy| {
+                [3, 5]
+                    .into_iter()
+                    .flat_map(move |frame| [false, true].map(|inertial| (policy, frame, inertial)))
+            })
+        {
             let mut graphs = Assets::<AnimationGraph>::default();
             let mut clips = Assets::<GraphClip>::default();
             let clip = clips.add(GraphClip {
@@ -2228,13 +2348,30 @@ mod tests {
                     crate::SourceSequencePlayerNode {
                         clip: clip.clone(),
                         start_position,
+                        sync_group: "fixture".to_owned(),
+                        synchronization: Some(crate::source_sequence_player::SourceSequenceSynchronization {
+                            key: "fixture".to_owned(), phase_duration: 2.0, delta_seconds_key: "delta".to_owned(), ..default()
+                        }),
                         ..default()
                     },
                 );
                 players.push(player.id);
                 graph.add_node(player.clone());
+                let curve = AnimationNode::new(
+                    "curve",
+                    crate::SourceCurveModifyNode {
+                        source_pose_pin: "SourcePose".to_owned(),
+                        curve_names: vec!["Fixture".to_owned(), "Choice".to_owned()],
+                        pin_defaults: vec![1.0, if index == 0 { 0.25 } else { 0.75 }],
+                        alpha: 1.0,
+                        apply_mode: "Blend".to_owned(),
+                        ..default()
+                    },
+                );
+                graph.add_node(curve.clone());
+                graph.add_node_parameter_edge(player.id, "Pose", curve.id, "SourcePose");
                 graph.add_output_data("pose".to_owned(), DataSpec::Pose);
-                graph.add_output_data_edge(player.id, "Pose", "pose");
+                graph.add_output_data_edge(curve.id, "Pose", "pose");
                 machine.add_state(State {
                     id: states[index],
                     label: index.to_string(),
@@ -2243,7 +2380,11 @@ mod tests {
                 });
             }
             let mut transition_graph = AnimationGraph::new();
-            let blend = AnimationNode::new("transition", ProfiledBlendNode::default());
+            let blend = if inertial {
+                AnimationNode::new("transition", InertializationNode::default())
+            } else {
+                AnimationNode::new("transition", ProfiledBlendNode::default())
+            };
             transition_graph.add_node(blend.clone());
             for (pin, input, spec) in [
                 (
@@ -2331,9 +2472,13 @@ mod tests {
             world.insert_resource(machines);
             world.insert_resource(Assets::<Skeleton>::default());
             let actual = world
-                .run_system_cached_with(query, (root, players[0]))
+                .run_system_cached_with(query, (root, players[0], interrupt_frame, inertial))
                 .unwrap();
-            let expected = if policy == Some(false) { 0.6 } else { 0.3 };
+            let expected = if policy == Some(false) {
+                0.2 + (interrupt_frame + 1) as f32 * 0.1
+            } else {
+                0.3
+            };
             assert!(
                 (actual - expected).abs() < 1e-6,
                 "reset policy {policy:?}: {actual} != {expected}"

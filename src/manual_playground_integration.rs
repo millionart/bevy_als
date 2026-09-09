@@ -20,6 +20,7 @@ use als_core::start_stop::{StartStopPhase, StartStopState};
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::{AlsDesiredStance, AlsStateRequest};
 use als_core::view::AlsViewPitch;
+use als_ext::source_instance::SourceInstanceProperties;
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfile,
     RagdollPhysicsProfileApplied,
@@ -30,7 +31,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId};
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
+use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
@@ -88,6 +91,8 @@ use crate::{
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(180);
 const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
+const SPRINT_START: Vec3 = Vec3::new(-45.0, 0.0, -26.0);
+const SPRINT_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const STATE_MACHINE_TURN_FIRST_START: f32 = 0.5;
@@ -181,6 +186,7 @@ pub struct ManualAnimationWindowEvidence {
     pub index: Option<usize>,
     pub settled: bool,
     pub capture_source_window: bool,
+    pub capture_every_frame: bool,
     pub requires_pre_rig_motion: bool,
     pub requires_final_pose_motion: bool,
     pub requires_non_reference_root_pose: bool,
@@ -280,6 +286,8 @@ pub struct ManualIntegrationGateReport {
     pub completed: bool,
     pub passed: Option<bool>,
     pub results: Vec<ManualIntegrationGateResult>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sprint_trace: Vec<serde_json::Value>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -908,6 +916,93 @@ fn state_machine_grounded_window(elapsed: f32) -> ManualAnimationWindowEvidence 
     }
 }
 
+fn sprint_window(
+    accelerating: bool,
+    phase: f32,
+    telemetry: &AlsStandingGraphTelemetry,
+) -> ManualAnimationWindowEvidence {
+    let (label, node) = if accelerating {
+        (
+            "sprint_acceleration",
+            "A_Als_Sprint_Acceleration\nSequence Player\nSync group Movement",
+        )
+    } else {
+        (
+            "sprint_steady",
+            "A_Als_Sprint\nSequence Player\nSync group Movement",
+        )
+    };
+    let mut source_pose_chain = generated_standing_source_pose_chain();
+    source_pose_chain.insert(0, ManualAnimationPoseBoundary {
+        label: "sprint_sequence",
+        graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+        node,
+        output: "Pose",
+        minimum_translation_span: 0.0,
+        minimum_rotation_span_radians: 0.05,
+    });
+    ManualAnimationWindowEvidence {
+        label: Some(label),
+        settled: true,
+        capture_source_window: true,
+        capture_every_frame: accelerating,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Standing/AnimGraph"),
+        source_state: Some(node),
+        source_pose_chain,
+        source_sync_group: Some("Movement"),
+        sync_phase_global: Some("sync_groups.ab_als_standing.movement.phase"),
+        canonical_sync_phase: Some(phase),
+        maximum_sync_phase_distance: 0.12,
+        direction_signature_group: Some("AB_Als_Standing/Sprint"),
+        required_direction_signature_members: 2,
+        minimum_direction_signature_rotation_radians: 0.01,
+        expected_runtime_state: Some(0),
+        observed_runtime_state: telemetry.actual_movement_state,
+        expected_direction: Some("Forward"),
+        observed_direction: telemetry
+            .actual_movement_state
+            .and_then(movement_direction_from_fsm_index)
+            .map(movement_direction_name),
+        observed_parent_runtime_state: telemetry.actual_standing_state,
+        observed_parent_transition_active: telemetry.actual_standing_transition_active,
+        ..default()
+    }
+}
+
+fn source_sprint_values(player: &AnimationGraphPlayer) -> Option<(f32, f32, bool)> {
+    let arena = player.get_context_arena()?;
+    let source = arena
+        .get_toplevel()
+        .node_states
+        .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .ok()?;
+    source_sprint_values_at_frame(source, arena.frame_index())
+}
+
+fn source_sprint_values_at_frame(
+    source: &SourceInstanceProperties,
+    frame: u64,
+) -> Option<(f32, f32, bool)> {
+    let updated = source.write_frames.get("standing_state.sprint_time") == Some(&frame);
+    Some((
+        source
+            .values
+            .get("standing_state.sprint_time")?
+            .as_f32()
+            .ok()?,
+        source
+            .values
+            .get("standing_state.sprint_acceleration_amount")?
+            .as_f32()
+            .ok()?,
+        updated,
+    ))
+}
+
 fn crouch_direction_source_pose_chain(
     direction: AlsMovementDirection,
 ) -> Vec<ManualAnimationPoseBoundary> {
@@ -1085,6 +1180,7 @@ fn crouch_rotate_window(
         index: None,
         settled: true,
         capture_source_window: active || !observed_lifecycle_stages.is_empty(),
+        capture_every_frame: false,
         requires_pre_rig_motion: active,
         requires_final_pose_motion: active,
         requires_non_reference_root_pose: active,
@@ -1168,6 +1264,7 @@ fn crouch_turn_window(
         index: None,
         settled: true,
         capture_source_window: active || !observed_lifecycle_stages.is_empty(),
+        capture_every_frame: false,
         requires_pre_rig_motion: active,
         requires_final_pose_motion: active,
         requires_non_reference_root_pose: active,
@@ -1623,6 +1720,8 @@ struct ManualIntegrationState {
     notify_roll_armed: bool,
     notify_mantle_armed: bool,
     direction_case_index: usize,
+    sprint_signature_phase: Option<f32>,
+    sprint_samples: [Option<(f32, f32)>; 2],
     crouch_direction_case_index: usize,
     crouch_stationary_validation: Option<CrouchStationaryValidation>,
     temporal_rebase_epoch: u64,
@@ -1720,6 +1819,8 @@ impl Default for ManualIntegrationState {
             notify_roll_armed: false,
             notify_mantle_armed: false,
             direction_case_index: usize::MAX,
+            sprint_signature_phase: None,
+            sprint_samples: [None; 2],
             crouch_direction_case_index: usize::MAX,
             crouch_stationary_validation: None,
             temporal_rebase_epoch: 0,
@@ -1785,6 +1886,7 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    graphs: Res<'w, Assets<AnimationGraph>>,
     rotation_mode: Query<'w, 's, &'static RotationMode, With<AlsCharacter>>,
     standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
     crouching_graph: Query<'w, 's, &'static AlsCrouchingGraphTelemetry, With<AlsCharacter>>,
@@ -2240,6 +2342,7 @@ fn drive_manual_integration(
                 settled: elapsed
                     >= case_index as f32 * DIRECTION_CASE_SECONDS + DIRECTION_CASE_SETTLE_SECONDS,
                 capture_source_window: true,
+                capture_every_frame: false,
                 requires_pre_rig_motion: true,
                 requires_final_pose_motion: true,
                 requires_non_reference_root_pose: true,
@@ -2356,6 +2459,11 @@ fn drive_manual_integration(
         }
         IntegrationPhase::Sprint => {
             if entering {
+                reinitialize_fixture_rotation_response(
+                    rotation_response,
+                    &mut aiming_yaw_constraint,
+                    rotation_animation,
+                );
                 reset_character(
                     &mut transform,
                     &mut position,
@@ -2363,24 +2471,32 @@ fn drive_manual_integration(
                     &mut velocity,
                     &mut view_yaw,
                     &mut view_pitch,
-                    fixture.locomotion_start,
-                    fixture.facing_yaw,
+                    SPRINT_START.with_y(fixture.locomotion_start.y),
+                    SPRINT_YAW,
                 );
-                *gait = Gait::Sprinting;
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "sprint_fixture");
+                *gait = Gait::Walking;
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::VelocityDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
-                request.gait = Some(Gait::Sprinting);
+                request.gait = Some(Gait::Walking);
                 request.rotation_mode = Some(RotationMode::VelocityDirection);
                 state.coverage.sprint_curve_relay = false;
+                state.sprint_signature_phase = None;
+                state.sprint_samples = [None; 2];
                 info!("[MANUAL-INTEGRATION][SPRINT] source-curve relay probe started");
             }
-            input.0.move_dir = Vec2::Y;
-            input.0.sprint_held = true;
+            let active = elapsed >= 1.5;
+            input.0.move_dir = if active { Vec2::Y } else { Vec2::ZERO };
+            input.0.sprint_held = active;
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Standing);
-            request.gait = Some(Gait::Sprinting);
+            request.gait = Some(if active {
+                Gait::Sprinting
+            } else {
+                Gait::Walking
+            });
             request.rotation_mode = Some(RotationMode::VelocityDirection);
             if elapsed >= 10.0 {
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -3203,6 +3319,7 @@ fn drive_manual_integration(
                         >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
                             + CROUCH_DIRECTION_CASE_SETTLE_SECONDS,
                     capture_source_window: true,
+                    capture_every_frame: false,
                     requires_pre_rig_motion: true,
                     requires_final_pose_motion: true,
                     requires_non_reference_root_pose: true,
@@ -5142,6 +5259,76 @@ fn observe_manual_integration(
             grounded_entry.is_some_and(|mode| *mode == AlsGroundedEntryMode::FromRoll);
     }
     if state.scenario == IntegrationScenario::Sprint && state.phase == IntegrationPhase::Sprint {
+        let native = source_sprint_values(player);
+        let arena = player.get_context_arena();
+        let phase = arena.and_then(|arena| {
+            als_ext::sync_group_phase::source_sync_phase(
+                arena,
+                &motion_probe.graphs,
+                "sync_groups.ab_als_standing.movement.phase",
+            )
+        });
+        let mut weights = [0.0_f32; 2];
+        let mut rates = [0.0_f32; 2];
+        if let Some(arena) = arena
+            && let Some(ticks) = als_ext::sync_group_phase::source_sync_players(
+                arena,
+                &motion_probe.graphs,
+                "sync_groups.ab_als_standing.movement.phase",
+            )
+        {
+            for tick in ticks {
+                let node = arena
+                    .get_context(tick.identity.0)
+                    .and_then(|context| motion_probe.graphs.get(context.get_graph_id()))
+                    .and_then(|graph| graph.nodes.get(&tick.identity.1));
+                let index = node.and_then(|node| match node.name.as_str() {
+                    "A_Als_Sprint\nSequence Player\nSync group Movement" => Some(0),
+                    "A_Als_Sprint_Acceleration\nSequence Player\nSync group Movement" => Some(1),
+                    _ => None,
+                });
+                if let Some(index) = index {
+                    weights[index] += tick.weight;
+                    rates[index] = tick.play_rate;
+                }
+            }
+        }
+        gate_report.sprint_trace.push(serde_json::json!({
+            "elapsed": state.phase_elapsed(), "native": native,
+            "actual_locomotion": format!("{locomotion:?}"), "actual_gait": format!("{gait:?}"),
+            "actual_stance": format!("{stance:?}"), "speed_y": velocity.y, "actor_y": transform.translation.y,
+            "grounded_state": grounded_graph.and_then(|state| state.actual_state),
+            "standing_state": standing_graph.and_then(|state| state.actual_standing_state),
+            "standing_transition": standing_graph.and_then(|state| state.actual_standing_transition_active),
+            "pose_moving": context.and_then(|value| value.f32("PoseMoving")),
+            "pose_grounded": context.and_then(|value| value.f32("PoseGrounded")),
+            "moving_smooth": player.get_global_input_data("locomotion_state.b_moving_smooth").and_then(|value| value.as_bool().ok()),
+            "gait_flag": graph_global_f32(player, "als_standing_gait_is_sprinting"),
+            "phase": phase, "weights": weights, "rates": rates, "speed": speed,
+            "play_rate": graph_global_f32(player, "standing_state.play_rate"),
+            "stride": graph_global_f32(player, "standing_state.stride_blend_amount"),
+            "gait_running": graph_global_f32(player, "pose_state.unweighted_gait_running_amount"),
+        }));
+        if *gait == Gait::Sprinting
+            && let Some((sprint_time, acceleration, true)) = native
+            && let Some(phase) = phase
+            && let Some(telemetry) = standing_graph
+        {
+            let accelerating = weights[1] > 1e-5;
+            let steady = weights[0] > 1e-5 && !accelerating;
+            if accelerating && sprint_time < 0.5 && acceleration > 0.0 {
+                state.sprint_signature_phase.get_or_insert(phase);
+                state.sprint_samples[0].get_or_insert((sprint_time, acceleration));
+            }
+            if steady && sprint_time >= 0.5 && acceleration == 0.0 {
+                state.sprint_samples[1].get_or_insert((sprint_time, acceleration));
+            }
+            if (accelerating || steady)
+                && let Some(canonical_phase) = state.sprint_signature_phase
+            {
+                **animation_window = sprint_window(accelerating, canonical_phase, telemetry);
+            }
+        }
         let standing_global = graph_global_f32(player, "als_standing_curve_pose_moving");
         let final_pose_moving = context.and_then(|value| value.f32("PoseMoving"));
         let final_left_ik = context.and_then(|value| value.f32("FootLeftIk"));
@@ -6427,6 +6614,11 @@ fn observe_manual_integration(
                 ("locomotion", coverage.locomotion),
                 ("gait_sprinting", coverage.sprinting),
                 ("sprint_curve_relay", coverage.sprint_curve_relay),
+                (
+                    "sprint_acceleration_branch",
+                    state.sprint_samples[0].is_some(),
+                ),
+                ("sprint_steady_branch", state.sprint_samples[1].is_some()),
             ],
             IntegrationScenario::ControlRig => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -6615,6 +6807,12 @@ fn observe_manual_integration(
                     format!(
                         "sampled_state_mask={:06b}; required=111111",
                         coverage.direction_source_states
+                    )
+                } else if matches!(*name, "sprint_acceleration_branch" | "sprint_steady_branch") {
+                    let index = usize::from(*name == "sprint_steady_branch");
+                    format!(
+                        "source_time_acceleration={:?}; canonical_phase={:?}",
+                        state.sprint_samples[index], state.sprint_signature_phase
                     )
                 } else if *covered {
                     "covered".to_owned()
@@ -6917,6 +7115,106 @@ mod tests {
         assert_eq!(chain[4].node, "Apply Additive");
         assert_eq!(chain[7].node, "Save cached pose 'Standing'");
         assert_eq!(chain[8].node, "Grounded States\nState Machine");
+    }
+
+    #[test]
+    fn sprint_fixture_has_continuous_original_floor_without_obstacles() {
+        use als_ext::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
+        let actors: Vec<PlaygroundActor> =
+            serde_json::from_str(include_str!("../assets/models/playground/playground.json"))
+                .unwrap();
+        let end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
+        let min = SPRINT_START.min(end) - Vec3::splat(0.35);
+        let max = SPRINT_START.max(end) + Vec3::splat(0.35);
+        let mut floors = Vec::new();
+        for actor in &actors {
+            if actor.mesh_path.is_none()
+                && actor
+                    .components
+                    .iter()
+                    .all(|component| component.mesh_path.is_none())
+            {
+                continue;
+            }
+            let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent) else {
+                continue;
+            };
+            let center = ue_point_to_bevy(Vec3::from(origin));
+            let extent = ue_extents_to_bevy(Vec3::from(extent));
+            let lower = center - extent;
+            let upper = center + extent;
+            if upper.y.abs() < 0.01 {
+                floors.push((lower, upper));
+            } else if upper.y > 0.01 && lower.y < 1.9 {
+                assert!(
+                    upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z,
+                    "Sprint corridor intersects {}",
+                    actor.name
+                );
+            }
+        }
+        for step in 0..=240 {
+            let point = SPRINT_START.lerp(end, step as f32 / 240.0);
+            for offset in [Vec3::new(-0.35, 0.0, -0.35), Vec3::new(0.35, 0.0, 0.35)] {
+                let point = point + offset;
+                assert!(
+                    floors.iter().any(|(min, max)| {
+                        point.x >= min.x && point.x <= max.x && point.z >= min.z && point.z <= max.z
+                    }),
+                    "Sprint corridor leaves the original floor at {point:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sprint_windows_follow_native_acceleration_and_share_the_actual_sync_phase() {
+        let telemetry = AlsStandingGraphTelemetry {
+            actual_movement_state: Some(0),
+            actual_standing_state: Some(1),
+            ..default()
+        };
+        let start = sprint_window(true, 0.37, &telemetry);
+        let steady = sprint_window(false, 0.37, &telemetry);
+        assert_eq!(start.label, Some("sprint_acceleration"));
+        assert!(start.capture_every_frame);
+        assert_eq!(
+            start.source_pose_chain[0].node,
+            "A_Als_Sprint_Acceleration\nSequence Player\nSync group Movement"
+        );
+        assert_eq!(steady.label, Some("sprint_steady"));
+        assert!(!steady.capture_every_frame);
+        assert_eq!(
+            steady.source_pose_chain[0].node,
+            "A_Als_Sprint\nSequence Player\nSync group Movement"
+        );
+        assert_eq!(start.canonical_sync_phase, steady.canonical_sync_phase);
+        assert_eq!(steady.observed_runtime_state, Some(0));
+        assert_eq!(steady.observed_direction, Some("Forward"));
+        assert!(source_sprint_values(&AnimationGraphPlayer::new(default())).is_none());
+    }
+
+    #[test]
+    fn sprint_reader_keeps_inactive_frame_values_and_marks_them_stale() {
+        let mut source = SourceInstanceProperties::default();
+        source
+            .values
+            .insert("standing_state.sprint_time".into(), DataValue::F32(0.25));
+        source.values.insert(
+            "standing_state.sprint_acceleration_amount".into(),
+            DataValue::F32(1.0),
+        );
+        source
+            .write_frames
+            .insert("standing_state.sprint_time".into(), 3);
+        assert_eq!(
+            source_sprint_values_at_frame(&source, 4),
+            Some((0.25, 1.0, false))
+        );
+        assert_eq!(
+            source_sprint_values_at_frame(&source, 3),
+            Some((0.25, 1.0, true))
+        );
     }
 
     #[test]

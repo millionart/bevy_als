@@ -117,6 +117,18 @@ pub fn source_sync_phase(
     graphs: &Assets<AnimationGraph>,
     key: &str,
 ) -> Option<f32> {
+    source_sync_players(arena, graphs, key)?
+        .iter()
+        .find(|player| player.key == key)
+        .map(|player| player.phase)
+        .filter(|phase| phase.is_finite())
+}
+
+pub fn source_sync_players<'a>(
+    arena: &'a GraphContextArena,
+    graphs: &Assets<AnimationGraph>,
+    key: &str,
+) -> Option<&'a [SourceSyncPlayerTick]> {
     for context_id in arena.iter_context_ids() {
         let context = arena.get_context(context_id)?;
         let Some(graph) = graphs.get(context.get_graph_id()) else {
@@ -136,8 +148,8 @@ pub fn source_sync_phase(
             else {
                 continue;
             };
-            if let Some(player) = state.sync_players.iter().find(|player| player.key == key) {
-                return player.phase.is_finite().then_some(player.phase);
+            if state.sync_players.iter().any(|player| player.key == key) {
+                return Some(&state.sync_players);
             }
         }
     }

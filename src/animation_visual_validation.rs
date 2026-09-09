@@ -575,6 +575,7 @@ struct SourcePoseBoundarySample {
 #[derive(Serialize, Clone)]
 struct SourcePoseBoundaryTraceSample {
     elapsed_seconds: f32,
+    pose_time: f32,
     bone_count: usize,
     maximum_local_translation_length: f32,
 }
@@ -1970,6 +1971,7 @@ fn record_source_pose_local_translation_extent(
     if boundary.trace.len() < 64 {
         boundary.trace.push(SourcePoseBoundaryTraceSample {
             elapsed_seconds,
+            pose_time: pose.timestamp,
             bone_count: pose.paths.len(),
             maximum_local_translation_length: extent,
         });
@@ -2568,6 +2570,17 @@ fn terminal_lifecycle_sample_required(evidence: &ManualAnimationWindowEvidence) 
                 *stage,
                 "sequence_completed" | "natural_completion" | "inertialization" | "settled"
             )
+        })
+}
+
+fn pose_sample_due(
+    now: Instant,
+    next: Instant,
+    evidence: Option<&ManualAnimationWindowEvidence>,
+) -> bool {
+    now >= next
+        || evidence.is_some_and(|evidence| {
+            evidence.settled && evidence.capture_source_window && evidence.capture_every_frame
         })
 }
 
@@ -3584,7 +3597,7 @@ fn collect_animation_visual_evidence(
     }
     let mut sampled = false;
     if let Some(next_pose_sample) = state.next_pose_sample {
-        if now >= next_pose_sample
+        if pose_sample_due(now, next_pose_sample, animation_window.as_deref())
             || fault_detected
             || teleport_detected
             || terminal_lifecycle_sample
@@ -4574,4 +4587,26 @@ mod tests {
         assert!(wrapped_phase_distance(0.98, 0.02) < 0.05);
         assert!((wrapped_phase_distance(0.25, 0.5) - 0.25).abs() < 1e-6);
     }
+}
+#[test]
+fn short_source_windows_are_sampled_on_each_active_frame() {
+    let now = Instant::now();
+    let next = now + Duration::from_millis(100);
+    let mut evidence = ManualAnimationWindowEvidence {
+        settled: true,
+        capture_source_window: true,
+        capture_every_frame: true,
+        ..default()
+    };
+    for elapsed in [0, 16, 32] {
+        assert!(pose_sample_due(
+            now + Duration::from_millis(elapsed),
+            next,
+            Some(&evidence)
+        ));
+    }
+    evidence.settled = false;
+    assert!(!pose_sample_due(now, next, Some(&evidence)));
+    assert!(!pose_sample_due(now, next, None));
+    assert!(pose_sample_due(next, next, None));
 }

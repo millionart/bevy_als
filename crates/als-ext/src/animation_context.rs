@@ -56,6 +56,9 @@ pub struct AnimationContextState {
     pub sync_players: Vec<crate::sync_group_phase::SourceSyncPlayerTick>,
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+struct InputPoseContexts(HashMap<GraphInputPin, AnimationContextState>);
+
 pub struct AnimationContextIoEnv<'a> {
     pub parent_ctx: NodeContext<'a>,
     pub data_values: HashMap<String, DataValue>,
@@ -85,12 +88,17 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
                         ))
                     })
                     .or_else(|_| {
-                        let parent_pin = self.input_aliases.get(&pin_id).cloned().unwrap_or(pin_id);
+                        let parent_pin = self
+                            .input_aliases
+                            .get(&pin_id)
+                            .cloned()
+                            .unwrap_or(pin_id.clone());
                         let parent = self.parent_ctx.clone().with_state_key(ctx.state_key);
                         let value = parent.data_back(parent_pin.clone())?;
                         if matches!(value, DataValue::Pose(_)) {
                             write_linked_input_context(
                                 &mut ctx,
+                                GraphInputPin::Passthrough(pin_id.clone()),
                                 pose_input_context_state(&parent, &parent_pin).unwrap_or_default(),
                             )?;
                         }
@@ -131,21 +139,26 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
 
 pub(crate) fn write_linked_input_context(
     ctx: &mut GraphContext,
+    pin: GraphInputPin,
     context: AnimationContextState,
 ) -> Result<(), GraphError> {
     let state_key = ctx.state_key;
-    *ctx.context_mut().node_states.get_mut_or_insert_with(
-        NodeId::default(),
-        state_key,
-        AnimationContextState::default,
-    )? = context;
+    ctx.context_mut()
+        .node_states
+        .get_mut_or_insert_with(NodeId::default(), state_key, InputPoseContexts::default)?
+        .0
+        .insert(pin, context);
     Ok(())
 }
 
-pub(crate) fn linked_input_context(ctx: &GraphContext) -> AnimationContextState {
+pub(crate) fn linked_input_context(
+    ctx: &GraphContext,
+    pin: &GraphInputPin,
+) -> AnimationContextState {
     ctx.node_states()
-        .get::<AnimationContextState>(NodeId::default(), ctx.state_key)
-        .cloned()
+        .get::<InputPoseContexts>(NodeId::default(), ctx.state_key)
+        .ok()
+        .and_then(|state| state.0.get(pin).cloned())
         .unwrap_or_default()
 }
 
@@ -208,8 +221,16 @@ pub fn pose_input_context_state(
     ctx: &NodeContext,
     pose_input: &str,
 ) -> Option<AnimationContextState> {
-    let source_node = source_node_for_pose_input(ctx, pose_input).ok()?;
-    node_context_state(&ctx.graph_context, source_node)
+    match ctx
+        .graph_context
+        .graph
+        .edges_inverted
+        .get(&TargetPin::NodeData(ctx.node_id, pose_input.to_owned()))?
+    {
+        SourcePin::NodeData(node, _) => node_context_state(&ctx.graph_context, *node),
+        SourcePin::InputData(pin) => Some(linked_input_context(&ctx.graph_context, pin)),
+        _ => None,
+    }
 }
 
 fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationContextState> {
@@ -228,6 +249,12 @@ fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationConte
     if let Ok(state) = ctx
         .node_states()
         .get::<SourceInertializationState>(node.clone(), ctx.state_key)
+    {
+        return Some(state.context.clone());
+    }
+    if let Ok(state) = ctx
+        .node_states()
+        .get::<crate::inertialization::InertializationState>(node, ctx.state_key)
     {
         return Some(state.context.clone());
     }

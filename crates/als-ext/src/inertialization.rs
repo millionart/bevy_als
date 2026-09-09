@@ -103,10 +103,11 @@ pub fn apply_inertial_residual(target: &Pose, residual: &Pose, weight: f32) -> P
 }
 
 #[derive(Reflect, Clone, Debug)]
-struct InertializationState {
+pub(crate) struct InertializationState {
     initialized: bool,
     previous_factor: f32,
     residual: Pose,
+    pub(crate) context: crate::AnimationContextState,
 }
 
 impl Default for InertializationState {
@@ -115,6 +116,7 @@ impl Default for InertializationState {
             initialized: false,
             previous_factor: 0.0,
             residual: Pose::default(),
+            context: default(),
         }
     }
 }
@@ -161,6 +163,8 @@ impl NodeLike for InertializationNode {
         let source = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(source.timestamp));
         let target = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        let context = crate::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
+            .unwrap_or_default();
         let factor = ctx.data_back(Self::FACTOR)?.as_f32()?.clamp(0.0, 1.0);
         let residual = {
             let state = ctx.state_mut::<InertializationState>()?;
@@ -179,6 +183,7 @@ impl NodeLike for InertializationNode {
         pose.timestamp = target.timestamp;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(Self::OUT_POSE, pose);
+        ctx.state_mut::<InertializationState>()?.context = context;
         Ok(())
     }
 

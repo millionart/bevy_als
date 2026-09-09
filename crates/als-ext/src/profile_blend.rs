@@ -161,6 +161,12 @@ impl NodeLike for ProfiledBlendNode {
         let mut source = ctx.data_back(Self::IN_POSE_A)?.into_pose()?;
         ctx.set_time_update_back(Self::IN_TIME_B, TimeUpdate::Absolute(source.timestamp));
         let target = ctx.data_back(Self::IN_POSE_B)?.into_pose()?;
+        let source_context =
+            crate::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_A)
+                .unwrap_or_default();
+        let target_context =
+            crate::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
+                .unwrap_or_default();
         let alpha = transition_alpha(
             ctx.data_back(Self::FACTOR)?.as_f32()?,
             self.alpha_blend_mode,
@@ -172,9 +178,17 @@ impl NodeLike for ProfiledBlendNode {
             .skeleton_assets
             .get(&source.skeleton);
         blend_pose(&mut source, &target, alpha, skeleton, &self.bone_scales);
+        let mut context = crate::source_pose_nodes::blend_animation_contexts([
+            (source_context, 1.0 - alpha),
+            (target_context, alpha),
+        ]);
         for curve in &self.curve_names {
             let source_value = ctx.data_back(curve_a_input(curve))?.as_f32()?;
             let target_value = ctx.data_back(curve_b_input(curve))?.as_f32()?;
+            context.curves.insert(
+                curve.clone(),
+                source_value + (target_value - source_value) * alpha,
+            );
             ctx.set_data_fwd(
                 curve.clone(),
                 source_value + (target_value - source_value) * alpha,
@@ -182,6 +196,7 @@ impl NodeLike for ProfiledBlendNode {
         }
         ctx.set_time(source.timestamp);
         ctx.set_data_fwd(Self::OUT_POSE, source);
+        *ctx.state_mut_or_else(crate::AnimationContextState::default)? = context;
         Ok(())
     }
 
