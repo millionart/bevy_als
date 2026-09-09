@@ -459,8 +459,11 @@ pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Op
         } else {
             "A_Als_Crouch_DynamicTransition_Right"
         }),
-        AlsTransitionKind::CrouchingStop if !left => Some("A_Als_Crouch_Transition_Right"),
-        _ => None,
+        AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => Some(if left {
+            "A_Als_Crouch_Transition_Left"
+        } else {
+            "A_Als_Crouch_Transition_Right"
+        }),
     }
 }
 
@@ -819,7 +822,10 @@ fn quick_stop_notify_system(
         let input = override_command.map_or(command, |value| &value.0);
         let target_yaw = rotation
             .filter(|rotation| rotation.initialized)
-            .map_or_else(|| world_forward_to_yaw(*body.forward()), |rotation| rotation.target_yaw);
+            .map_or_else(
+                || world_forward_to_yaw(*body.forward()),
+                |rotation| rotation.target_yaw,
+            );
         let (index, play_rate) =
             quick_stop_selection(*rotation_mode, input, view_yaw.0, body, target_yaw);
         let playback = if *stance == Stance::Crouching {
@@ -877,24 +883,35 @@ mod tests {
             let mut app = App::new();
             app.add_message::<AlsQuickStopNotify>()
                 .add_systems(Update, quick_stop_notify_system);
-            let character = app.world_mut().spawn((
-                als_core::character::AlsCharacter,
-                Transform::IDENTITY,
-                RotationMode::VelocityDirection,
-                Stance::Standing,
-                AlsViewYaw(0.0),
-                AlsInputCommand { move_dir: input, ..default() },
-                als_core::motion::AlsRotationResponseState {
-                    initialized: true,
-                    target_yaw: target_yaw.to_radians(),
-                    ..default()
-                },
-            )).id();
-            app.world_mut().write_message(AlsQuickStopNotify { character });
+            let character = app
+                .world_mut()
+                .spawn((
+                    als_core::character::AlsCharacter,
+                    Transform::IDENTITY,
+                    RotationMode::VelocityDirection,
+                    Stance::Standing,
+                    AlsViewYaw(0.0),
+                    AlsInputCommand {
+                        move_dir: input,
+                        ..default()
+                    },
+                    als_core::motion::AlsRotationResponseState {
+                        initialized: true,
+                        target_yaw: target_yaw.to_radians(),
+                        ..default()
+                    },
+                ))
+                .id();
+            app.world_mut()
+                .write_message(AlsQuickStopNotify { character });
             app.update();
             let playback = app.world().get::<AlsTransitionPlayback>(character).unwrap();
             assert_eq!(playback.index, index, "quick stop target yaw {target_yaw}");
-            assert!((playback.play_rate - rate).abs() < 1e-5, "quick stop rate {target_yaw}: {}", playback.play_rate);
+            assert!(
+                (playback.play_rate - rate).abs() < 1e-5,
+                "quick stop rate {target_yaw}: {}",
+                playback.play_rate
+            );
         }
     }
 
@@ -927,6 +944,23 @@ mod tests {
             source_transition_sequence(&quick_stop),
             Some("A_Als_Stand_Transition_Left")
         );
+        for (index, expected) in [
+            (0.0, "A_Als_Crouch_Transition_Left"),
+            (1.0, "A_Als_Crouch_Transition_Right"),
+        ] {
+            let playback = AlsTransitionPlayback::crouching_quick_stop(index, 1.75);
+            assert_eq!(source_transition_sequence(&playback), Some(expected));
+            assert_eq!(
+                crate::standing_source::MONTAGES[expected]
+                    .reference_clip
+                    .as_deref(),
+                Some("animations/Base/A_Als_Stand_Pose.anim.ron")
+            );
+            assert!(
+                (crate::standing_source::MONTAGES[expected].duration - playback.duration).abs()
+                    < 1e-6
+            );
+        }
         assert_eq!(
             source_transition_sequence(&AlsTransitionPlayback::stop(1.0)),
             Some("A_Als_Stop_Right")

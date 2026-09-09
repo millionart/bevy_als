@@ -4971,7 +4971,7 @@ fn observe_manual_integration(
             standing_graph.and_then(|value| value.actual_standing_transition_active);
     } else if state.phase == IntegrationPhase::CrouchDirectionRegression {
         animation_window.observed_runtime_state =
-            crouching_graph.and_then(|value| value.runtime_movement_state);
+            crouching_graph.and_then(|value| value.actual_movement_state);
         animation_window.observed_direction = animation_window
             .observed_runtime_state
             .and_then(movement_direction_from_fsm_index)
@@ -4981,9 +4981,9 @@ fn observe_manual_integration(
         animation_window.observed_parent_transition_active =
             crouching_graph.and_then(|value| value.actual_outer_transition_active);
         animation_window.observed_requested_parent_runtime_state =
-            crouching_graph.and_then(|value| value.requested_outer_state);
+            None;
         animation_window.observed_requested_parent_transition_active =
-            crouching_graph.and_then(|value| value.requested_outer_transition_active);
+            None;
     } else if state.scenario == IntegrationScenario::Grounded
         && state.phase == IntegrationPhase::Roll
     {
@@ -5090,7 +5090,7 @@ fn observe_manual_integration(
                     + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
             && let Some(case) = crouch_direction_regression_case(case_index)
             && let (Some(motion), Some(telemetry)) = (actual_motion, crouching_graph)
-            && let Some(state_index) = telemetry.runtime_movement_state
+            && let Some(state_index) = telemetry.actual_movement_state
             && state_index < 6
         {
             let expected_world =
@@ -5110,11 +5110,9 @@ fn observe_manual_integration(
             let graph_matches = telemetry.actual_outer_state == Some(1)
                 && telemetry.actual_outer_transition_active == Some(false)
                 && telemetry.actual_outer_pose_ready == Some(true)
-                && telemetry.runtime_movement_transition_active == Some(false)
+                && telemetry.actual_movement_transition_active == Some(false)
                 && state_index == movement_direction_fsm_index(case.expected_direction)
-                && telemetry
-                    .graph_movement_state_input
-                    .is_some_and(|value| (value - state_index as f32).abs() < 1e-4)
+                && telemetry.actual_movement_pose_ready == Some(true)
                 && movement_direction
                     .is_some_and(|value| value.direction == case.expected_direction);
             if source_ready
@@ -5126,11 +5124,11 @@ fn observe_manual_integration(
                 state.coverage.crouch_direction_cases[case_index] = true;
                 state.coverage.crouch_direction_state_mask |= 1 << state_index;
                 info!(
-                    "[MANUAL-INTEGRATION][CROUCH-DIRECTION] case={} expected={:?} state={:?} graph_input={:?} branch={:?} velocity=({:.3},{:.3}) world_align={:.3} local_align={:.3}",
+                    "[MANUAL-INTEGRATION][CROUCH-DIRECTION] case={} expected={:?} state={:?} pose_ready={:?} branch={:?} velocity=({:.3},{:.3}) world_align={:.3} local_align={:.3}",
                     case.name,
                     case.expected_direction,
-                    telemetry.runtime_movement_state,
-                    telemetry.graph_movement_state_input,
+                    telemetry.actual_movement_state,
+                    telemetry.actual_movement_pose_ready,
                     movement_direction.map(|value| value.direction),
                     motion.local_velocity.x,
                     motion.local_velocity.y,
@@ -5242,9 +5240,9 @@ fn observe_manual_integration(
                 animation_window.observed_parent_transition_active =
                     crouching_graph.and_then(|value| value.actual_outer_transition_active);
                 animation_window.observed_requested_parent_runtime_state =
-                    crouching_graph.and_then(|value| value.requested_outer_state);
+                    None;
                 animation_window.observed_requested_parent_transition_active =
-                    crouching_graph.and_then(|value| value.requested_outer_transition_active);
+                    None;
                 record_animation_window_trace(
                     &mut animation_window,
                     transform,
@@ -5302,9 +5300,9 @@ fn observe_manual_integration(
                 animation_window.observed_parent_transition_active =
                     crouching_graph.and_then(|value| value.actual_outer_transition_active);
                 animation_window.observed_requested_parent_runtime_state =
-                    crouching_graph.and_then(|value| value.requested_outer_state);
+                    None;
                 animation_window.observed_requested_parent_transition_active =
-                    crouching_graph.and_then(|value| value.requested_outer_transition_active);
+                    None;
                 record_animation_window_trace(
                     &mut animation_window,
                     transform,

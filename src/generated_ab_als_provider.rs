@@ -70,6 +70,22 @@ fn source_direction_inputs(
     }
 }
 
+fn source_crouching_movement_inputs(
+    speed: f32,
+    mesh_scale: f32,
+    animated_speed: f32,
+) -> [(&'static str, f32); 2] {
+    let speed = speed / mesh_scale;
+    let stride = crate::standing_source::standing_stride_amount(0.0, speed);
+    [
+        ("crouching_state.stride_blend_amount", stride),
+        (
+            "crouching_state.play_rate",
+            (speed / (animated_speed * stride)).clamp(1e-4, 2.0),
+        ),
+    ]
+}
+
 fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32) -> f32 {
     view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
 }
@@ -193,7 +209,9 @@ fn generated_ab_als_input_writer(
         (params_handle, dynamics),
     ) in &characters
     {
-        let Some(params) = params_assets.get(&params_handle.0) else { continue; };
+        let Some(params) = params_assets.get(&params_handle.0) else {
+            continue;
+        };
         for (parent, instance, avatar_transform) in &avatars {
             if parent.parent() != character {
                 continue;
@@ -241,14 +259,34 @@ fn generated_ab_als_input_writer(
                 .get_context_arena()
                 .is_none_or(|arena| arena.frame_index() == 0);
             player.set_global_input_data("animation.pending_update", pending_update);
-            player.set_global_input_data("locomotion_state.velocity_world_space", motion.world_velocity);
-            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", transform.rotation);
-            player.set_global_input_data("locomotion_state.acceleration_world_space",
-                if pending_update { Vec3::ZERO } else { motion.world_acceleration });
-            player.set_global_input_data("locomotion_state.max_acceleration",
-                dynamics.map_or(params.acceleration.max_acceleration, |value| value.0.acceleration));
-            player.set_global_input_data("locomotion_state.max_braking_deceleration",
-                dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration));
+            player.set_global_input_data(
+                "locomotion_state.velocity_world_space",
+                motion.world_velocity,
+            );
+            player.set_global_input_data(
+                "locomotion_state.rotation_quaternion_world_space",
+                transform.rotation,
+            );
+            player.set_global_input_data(
+                "locomotion_state.acceleration_world_space",
+                if pending_update {
+                    Vec3::ZERO
+                } else {
+                    motion.world_acceleration
+                },
+            );
+            player.set_global_input_data(
+                "locomotion_state.max_acceleration",
+                dynamics.map_or(params.acceleration.max_acceleration, |value| {
+                    value.0.acceleration
+                }),
+            );
+            player.set_global_input_data(
+                "locomotion_state.max_braking_deceleration",
+                dynamics.map_or(params.acceleration.braking_deceleration, |value| {
+                    value.0.braking_deceleration
+                }),
+            );
             for (key, value) in [
                 (
                     "locomotion_state.b_moving",
@@ -329,7 +367,11 @@ fn generated_ab_als_input_writer(
             ]
             .into_iter()
             .chain(source_pose_curve_inputs(context))
-            {
+            .chain(source_crouching_movement_inputs(
+                motion.horizontal_speed,
+                avatar_transform.to_scale_rotation_translation().0.y,
+                params.crouch.animated_crouch_speed,
+            )) {
                 player.set_global_input_data(key, value);
             }
             for (key, value) in [
@@ -354,6 +396,20 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn crouching_movement_uses_the_native_stride_curve_and_mesh_world_scale() {
+        let mesh = GlobalTransform::from(Transform::from_scale(Vec3::new(2.0, 3.0, 4.0)));
+        let inputs = source_crouching_movement_inputs(
+            0.583 * 3.0,
+            mesh.to_scale_rotation_translation().0.y,
+            1.5,
+        );
+        assert!((inputs[0].1 - 0.55).abs() < 1e-6, "{:?}", inputs);
+        assert!((inputs[1].1 - 0.583 / (1.5 * 0.55)).abs() < 1e-6);
+        assert_eq!(source_crouching_movement_inputs(0.0, 1.0, 1.5)[1].1, 1e-4);
+        assert_eq!(source_crouching_movement_inputs(10.0, 1.0, 1.5)[1].1, 2.0);
+    }
 
     #[test]
     fn source_has_input_uses_the_same_override_as_character_movement() {

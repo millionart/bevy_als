@@ -24,6 +24,7 @@ pub struct GeneratedTransitionNotifyTelemetry {
     pub land_to_grounded_count: u32,
     pub grounded_entry_reset_count: u32,
     pub roll_to_grounded_count: u32,
+    pub crouching_stop_count: u32,
     pub observed_named_fsm_state_ids: Vec<String>,
     pub active_named_source_state_count: u32,
     pub last_active_named_source_state_id: String,
@@ -63,7 +64,7 @@ enum TransitionNotifyAction {
     StopLeft,
     StopRight,
     StopAnimations,
-    RollToGrounded,
+    TransitionRight,
 }
 
 fn transition_notify_action(name: &str) -> Option<TransitionNotifyAction> {
@@ -74,15 +75,23 @@ fn transition_notify_action(name: &str) -> Option<TransitionNotifyAction> {
         "PlayStopLeftTransitionAnimation" => Some(TransitionNotifyAction::StopLeft),
         "PlayStopRightTransitionAnimation" => Some(TransitionNotifyAction::StopRight),
         "StopTransitionAndTurnInPlaceAnimations" => Some(TransitionNotifyAction::StopAnimations),
-        "PlayRollToGroundedTransitionAnimation" => Some(TransitionNotifyAction::RollToGrounded),
+        "PlayRollToGroundedTransitionAnimation" | "PlayStopTransitionAnimation" => {
+            Some(TransitionNotifyAction::TransitionRight)
+        }
         _ => None,
     }
 }
 
 fn grounded_entry_reset_requested(source: &SourceInstanceProperties, frame: u64) -> bool {
-    source.write_frames.get("grounded_entry_mode.reset_requested") == Some(&frame)
-        && source.values.get("grounded_entry_mode.reset_requested")
-            .and_then(|value| value.as_bool().ok()) == Some(true)
+    source
+        .write_frames
+        .get("grounded_entry_mode.reset_requested")
+        == Some(&frame)
+        && source
+            .values
+            .get("grounded_entry_mode.reset_requested")
+            .and_then(|value| value.as_bool().ok())
+            == Some(true)
 }
 
 impl Plugin for GeneratedTransitionNotifyPlugin {
@@ -264,12 +273,20 @@ fn dispatch_generated_transition_notifications(
                                 notification.name, notification.phase, avatar.character
                             );
                         }
-                        Some(TransitionNotifyAction::RollToGrounded) => {
+                        Some(TransitionNotifyAction::TransitionRight) => {
                             if let Ok(stance) = stances.get(avatar.character) {
-                                cursor.queued_transitions.insert(avatar.character,
-                                    AlsTransitionPlayback::roll_to_grounded_right(*stance == als_core::state::Stance::Crouching));
+                                cursor.queued_transitions.insert(
+                                    avatar.character,
+                                    AlsTransitionPlayback::roll_to_grounded_right(
+                                        *stance == als_core::state::Stance::Crouching,
+                                    ),
+                                );
                                 if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
-                                    telemetry.roll_to_grounded_count += 1;
+                                    if notification.name == "PlayStopTransitionAnimation" {
+                                        telemetry.crouching_stop_count += 1;
+                                    } else {
+                                        telemetry.roll_to_grounded_count += 1;
+                                    }
                                 }
                             }
                         }
@@ -294,8 +311,14 @@ fn dispatch_generated_transition_notifications(
                     .unwrap_or(false)
             };
             if grounded_entry_reset_requested(source, arena.frame_index()) {
-                commands.entity(avatar.character).insert(crate::grounded_layer::AlsGroundedEntryMode::None);
-                als_ext::set_gameplay_tag_input(player_entity, "grounded_entry_mode", bevy_gameplay_tag::GameplayTag::new(""));
+                commands
+                    .entity(avatar.character)
+                    .insert(crate::grounded_layer::AlsGroundedEntryMode::None);
+                als_ext::set_gameplay_tag_input(
+                    player_entity,
+                    "grounded_entry_mode",
+                    bevy_gameplay_tag::GameplayTag::new(""),
+                );
                 if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                     telemetry.grounded_entry_reset_count += 1;
                 }
@@ -411,15 +434,42 @@ mod tests {
     }
 
     #[test]
+    fn crouching_stop_entry_has_a_real_dispatch_action() {
+        assert!(transition_notify_action("PlayStopTransitionAnimation").is_some());
+    }
+
+    #[test]
     fn grounded_roll_exit_has_a_real_dispatch_action() {
-        assert_eq!(transition_notify_action("PlayRollToGroundedTransitionAnimation"), Some(TransitionNotifyAction::RollToGrounded));
+        assert_eq!(
+            transition_notify_action("PlayRollToGroundedTransitionAnimation"),
+            Some(TransitionNotifyAction::TransitionRight)
+        );
         for (stance, expected) in [
-            (als_core::state::Stance::Standing, "A_Als_Stand_Transition_Right"),
-            (als_core::state::Stance::Crouching, "A_Als_Crouch_Transition_Right"),
+            (
+                als_core::state::Stance::Standing,
+                "A_Als_Stand_Transition_Right",
+            ),
+            (
+                als_core::state::Stance::Crouching,
+                "A_Als_Crouch_Transition_Right",
+            ),
         ] {
-            let playback = AlsTransitionPlayback::roll_to_grounded_right(stance == als_core::state::Stance::Crouching);
-            assert_eq!(crate::stop_link::source_transition_sequence(&playback), Some(expected));
-            assert_eq!((playback.start_time, playback.play_rate, playback.blend_in, playback.blend_out), (0.2, 1.5, 0.2, 0.2));
+            let playback = AlsTransitionPlayback::roll_to_grounded_right(
+                stance == als_core::state::Stance::Crouching,
+            );
+            assert_eq!(
+                crate::stop_link::source_transition_sequence(&playback),
+                Some(expected)
+            );
+            assert_eq!(
+                (
+                    playback.start_time,
+                    playback.play_rate,
+                    playback.blend_in,
+                    playback.blend_out
+                ),
+                (0.2, 1.5, 0.2, 0.2)
+            );
             assert!(crate::standing_source::MONTAGES.contains_key(expected));
         }
     }

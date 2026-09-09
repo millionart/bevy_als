@@ -3,8 +3,8 @@
   "id": "generated_ab_als_crouching_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_crouching/converter_source/0001_AB_Als_Crouching.ue.json",
-      "sha256": "13da4a23c26364113cd3576c2ade999b2a1b272bbfb5c9e544ed7f0cb980a3ee"
+      "path": "target/bf115_crouching/actor_converter_source/0001_AB_Als_Crouching.ue.json",
+      "sha256": "79ac5669a9fc0f0da545c612629b6deb529898acad2e953fd2a464a7c9f7824e"
     },
     {
       "path": "target/bf115_crouching/source/AIS.default.fresh.ue.json",
@@ -1781,11 +1781,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_crouching/converter_source",
+        "target/bf115_crouching/actor_converter_source",
         "--materialized-directory",
-        "target/bf115_crouching/conversion",
+        "target/bf115_crouching/actor_conversion",
         "--spec",
-        "target/bf115_crouching/generated_spec.json"
+        "target/bf115_crouching/actor_spec.json"
       ]
     },
     {

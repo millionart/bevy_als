@@ -1,12 +1,6 @@
-use als_core::input_request::AlsFirstPersonView;
-use als_core::motion::AlsViewYaw;
-use als_core::orientation::world_forward_to_yaw;
-use als_core::rotate_in_place::{RotateInPlaceConfig, RotateInPlaceState, update_rotate_in_place};
-use als_core::state::{LocomotionState, RotationMode, Stance};
-use als_core::turn_in_place::{
-    TurnInPlaceConfig, TurnInPlaceDetector, TurnVariant, wrap_angle_degrees,
-};
-use avian3d::prelude::LinearVelocity;
+use als_core::rotate_in_place::RotateInPlaceState;
+use als_core::state::Stance;
+use als_core::turn_in_place::{TurnInPlaceConfig, TurnVariant, wrap_angle_degrees};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
@@ -235,10 +229,6 @@ impl AlsTurnMontageStack {
         natural_end
     }
 
-    fn clear(&mut self) {
-        self.entries.clear();
-    }
-
     pub fn request_stop(&mut self) {
         self.inertialization_pending |= self
             .entries
@@ -339,27 +329,6 @@ pub(crate) fn character_turn_angle_degrees(view_yaw_degrees: f32, body_yaw_degre
     -wrap_angle_degrees(view_yaw_degrees - body_yaw_degrees)
 }
 
-fn finish_rotate_loop(drive: &mut AlsTurnDrive) {
-    drive.rotate_finishing |= drive.rotate_active;
-    drive.rotate_active = false;
-}
-
-fn standing_rotate_allowed(rotation_mode: RotationMode, first_person: bool) -> bool {
-    rotation_mode == RotationMode::Aiming || first_person
-}
-
-fn standing_turn_allowed(rotation_mode: RotationMode, first_person: bool) -> bool {
-    rotation_mode == RotationMode::ViewDirection && !first_person
-}
-
-#[derive(Component, Default)]
-struct TurnDetectorComp(TurnInPlaceDetector);
-
-#[derive(Component, Default)]
-struct TurnYawSampler {
-    prev_view: Option<(f64, f32)>,
-}
-
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsStandingTurnSlotRuntime {
     pub active: bool,
@@ -440,17 +409,11 @@ fn turn_slot_index_for(is_180: bool, lr: f32) -> f32 {
     }
 }
 
+#[cfg(test)]
 fn source_turn_slot_is_active(stack: &AlsTurnMontageStack, crouching: bool) -> bool {
     stack.entries.iter().any(|entry| {
         entry.crouching == crouching && (entry.playing() || entry.weight() > f32::EPSILON)
     })
-}
-
-fn source_crouching_turn_slot_is_eligible(
-    outer_state: Option<u8>,
-    transition_active: Option<bool>,
-) -> bool {
-    outer_state == Some(0) && transition_active == Some(false)
 }
 
 fn request_turn_inertialization(natural_end: bool, drive: &mut AlsTurnDrive) -> bool {
@@ -641,221 +604,96 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, crou
 #[allow(clippy::type_complexity)]
 fn turn_pin_driver(
     time: Res<Time>,
-    mut commands: Commands,
-    mut q: Query<
-        (
-            Entity,
-            &Transform,
-            &AlsViewYaw,
-            &LinearVelocity,
-            &LocomotionState,
-            &Stance,
-            &RotationMode,
-            Option<&AlsFirstPersonView>,
-            Option<&mut TurnDetectorComp>,
-            Option<&mut TurnYawSampler>,
-        ),
-        With<als_core::character::AlsCharacter>,
-    >,
+    stances: Query<&Stance, With<als_core::character::AlsCharacter>>,
     mut drives: Query<
         (
             Entity,
-            &'static ChildOf,
-            &'static mut AlsTurnDrive,
-            &'static mut AlsTurnMontageStack,
+            &ChildOf,
+            &mut AlsTurnDrive,
+            &mut AlsTurnMontageStack,
         ),
         With<AlsCharacterAvatar>,
     >,
-    instances: Query<&'static AnimatedSceneInstance>,
-    crouching_graphs: Query<&crate::crouching_layer::AlsCrouchingGraphTelemetry>,
+    instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs().max(1e-4);
-    for (
-        char_entity,
-        body_tf,
-        view,
-        vel,
-        loco,
-        stance,
-        rotation_mode,
-        first_person,
-        detector,
-        sampler,
-    ) in &mut q
-    {
-        let (Some(mut detector), Some(mut sampler)) = (detector, sampler) else {
-            commands
-                .entity(char_entity)
-                .insert((TurnDetectorComp::default(), TurnYawSampler::default()));
+    for (entity, parent, mut drive, mut stack) in &mut drives {
+        let Ok(stance) = stances.get(parent.parent()) else {
             continue;
         };
-        let hspeed = Vec2::new(vel.x, vel.z).length();
-        let view_deg = view.0.to_degrees();
-        let fwd = body_tf.forward();
-        let body_deg = world_forward_to_yaw(*fwd).to_degrees();
-        let turn_angle_degrees = character_turn_angle_degrees(view_deg, body_deg);
-        let view_yaw_speed = sampler.update(view_deg, time.elapsed_secs_f64());
-
-        let crouching = *stance == Stance::Crouching;
-        let first_person = first_person.is_some();
-        let stationary = *loco == LocomotionState::Grounded && hspeed < TURN_GROUND_SPEED_EPS;
-        let rotate_allowed = stationary && standing_rotate_allowed(*rotation_mode, first_person);
-        let turn_allowed = stationary && standing_turn_allowed(*rotation_mode, first_person);
-
-        if crouching && rotate_allowed {
-            detector.0 = TurnInPlaceDetector::default();
-            let mut config = RotateInPlaceConfig::default();
-            if first_person && *rotation_mode != RotationMode::Aiming {
-                config.view_yaw_angle_threshold_degrees =
-                    config.first_person_view_yaw_angle_threshold_degrees;
-            }
-            for (_drive_entity, parent, mut drive, mut stack) in drives.iter_mut() {
-                if parent.parent() != char_entity {
-                    continue;
-                }
-                stack.clear();
-                synchronize_turn_drive(&mut drive, &stack);
-                update_rotate_in_place(
-                    &mut drive.rotate_state,
-                    false,
-                    true,
-                    turn_angle_degrees,
-                    view_yaw_speed,
-                    &config,
-                    false,
-                    dt,
-                );
-                match drive.rotate_state.side {
-                    Some(side) => {
-                        let rotate_lr = if side == als_core::rotate_in_place::RotateSide::Left {
-                            0.0
-                        } else {
-                            1.0
-                        };
-                        if !drive.rotate_active || drive.rotate_lr != rotate_lr {
-                            drive.rotate_clip_time = 0.0;
-                        }
-                        drive.rotate_active = true;
-                        drive.rotate_finishing = false;
-                        drive.rotate_lr = rotate_lr;
-                        drive.rotate_rate = drive.rotate_state.play_rate;
-                        drive.weight = 0.0;
-                        drive.elapsed = 0.0;
-                        drive.clip_time = 0.0;
-                        drive.rotate_weight = (drive.rotate_weight + TURN_WEIGHT_IN * dt).min(1.0);
-                    }
-                    None => {
-                        finish_rotate_loop(&mut drive);
-                        drive.rotate_rate = drive.rotate_state.play_rate;
-                        drive.rotate_weight = (drive.rotate_weight - TURN_WEIGHT_OUT * dt).max(0.0);
-                    }
-                }
-            }
-        } else if crouching {
-            for (_drive_entity, parent, mut drive, _stack) in drives.iter_mut() {
-                if parent.parent() != char_entity {
-                    continue;
-                }
-                drive.rotate_finishing |= drive.rotate_active;
-                drive.rotate_active = false;
-                if !drive.rotate_finishing {
-                    drive.rotate_rate = 0.0;
-                }
-                drive.rotate_weight = (drive.rotate_weight - TURN_WEIGHT_OUT * dt).max(0.0);
-            }
-            let crouching_turn_slot_eligible = !crouching
-                || drives.iter().any(|(_drive_entity, parent, _, _)| {
-                    parent.parent() == char_entity
-                        && crouching_graphs
-                            .get(parent.parent())
-                            .is_ok_and(|telemetry| {
-                                source_crouching_turn_slot_is_eligible(
-                                    telemetry.actual_outer_state,
-                                    telemetry.actual_outer_transition_active,
-                                )
-                            })
-                });
-            if crouching && !crouching_turn_slot_eligible {
-                detector.0 = TurnInPlaceDetector::default();
-            } else if let Some(ev) = detector.0.update(
-                turn_angle_degrees,
-                view_yaw_speed,
-                dt,
-                turn_allowed,
-                crouching,
-                &TurnInPlaceConfig::default(),
-            ) {
-                let (lr, is_180, duration) = variant_params(ev.variant, crouching);
-                for (_drive_entity, parent, mut drive, mut stack) in drives.iter_mut() {
-                    if parent.parent() != char_entity {
-                        continue;
-                    }
-                    if crouching
-                        && !crouching_graphs
-                            .get(parent.parent())
-                            .is_ok_and(|telemetry| {
-                                source_crouching_turn_slot_is_eligible(
-                                    telemetry.actual_outer_state,
-                                    telemetry.actual_outer_transition_active,
-                                )
-                            })
-                    {
-                        continue;
-                    }
-                    if source_turn_slot_is_active(&stack, crouching) {
-                        continue;
-                    }
-                    stack.begin(lr, is_180, duration, ev.play_rate, crouching);
-                    synchronize_turn_drive(&mut drive, &stack);
-                    drive.rotate_weight = 0.0;
-                }
-            }
+        let natural_end = stack.advance(dt);
+        synchronize_turn_drive(&mut drive, &stack);
+        drive.advance(dt);
+        if request_turn_inertialization(natural_end, &mut drive) {
+            warn!(
+                "[TURN-SLOT][INERTIALIZATION-REQUEST] avatar={entity:?} epoch={:.0} duration={TURN_INERTIALIZATION_DURATION:.3}",
+                drive.inertialization_request_epoch
+            );
         }
-
-        for (drive_entity, parent, mut drive, mut stack) in drives.iter_mut() {
-            if parent.parent() != char_entity {
-                continue;
-            }
-            let natural_end = stack.advance(dt);
-            synchronize_turn_drive(&mut drive, &stack);
-            drive.advance(dt);
-            if request_turn_inertialization(natural_end, &mut drive) {
-                warn!(
-                    "[TURN-SLOT][INERTIALIZATION-REQUEST] avatar={drive_entity:?} epoch={:.0} duration={TURN_INERTIALIZATION_DURATION:.3}",
-                    drive.inertialization_request_epoch
-                );
-            }
-            let pin_target = instances
-                .get(drive_entity)
-                .ok()
-                .and_then(|instance| players.get_mut(instance.player_entity()).ok());
-            if let Some(mut player) = pin_target {
-                write_turn_pins(&mut player, &drive, crouching);
-            }
+        if let Some(mut player) = instances
+            .get(entity)
+            .ok()
+            .and_then(|instance| players.get_mut(instance.player_entity()).ok())
+        {
+            write_turn_pins(&mut player, &drive, *stance == Stance::Crouching);
         }
-    }
-}
-
-impl TurnYawSampler {
-    fn update(&mut self, view_deg: f32, now: f64) -> f32 {
-        let sample_dt = match self.prev_view {
-            Some((pt, _)) => ((now - pt) as f32).max(1e-4),
-            None => 0.0,
-        };
-        let inst = match self.prev_view {
-            Some((_, pv)) if sample_dt > 1e-4 => wrap_angle_degrees(view_deg - pv) / sample_dt,
-            _ => 0.0,
-        };
-        self.prev_view = Some((now, view_deg));
-        inst.abs()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use als_core::rotate_in_place::RotateSide;
+    use als_core::motion::AlsViewYaw;
+    use als_core::rotate_in_place::{RotateInPlaceConfig, RotateSide, update_rotate_in_place};
+    use als_core::state::{LocomotionState, RotationMode};
+    use als_core::turn_in_place::TurnInPlaceDetector;
+    use avian3d::prelude::LinearVelocity;
+
+    #[test]
+    fn crouching_turn_driver_preserves_the_source_queued_montage() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .add_systems(Update, turn_pin_driver);
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.1));
+        let character = app
+            .world_mut()
+            .spawn((
+                als_core::character::AlsCharacter,
+                Transform::default(),
+                AlsViewYaw(0.0),
+                LinearVelocity::ZERO,
+                LocomotionState::Grounded,
+                Stance::Crouching,
+                RotationMode::Aiming,
+            ))
+            .id();
+        let mut stack = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: TurnVariant::Left90,
+            yaw: -90.0,
+            crouching: true,
+        }
+        .play(&mut stack);
+        stack.entries[0].sampling_ready = true;
+        let avatar = app
+            .world_mut()
+            .spawn((
+                AlsCharacterAvatar { character },
+                ChildOf(character),
+                AlsTurnDrive::default(),
+                stack,
+            ))
+            .id();
+        app.update();
+        app.update();
+        let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+        assert_eq!(stack.entries.len(), 1);
+        assert!(stack.entries[0].elapsed > 0.0);
+        assert!(stack.entries[0].blend_out_elapsed.is_none());
+    }
 
     #[test]
     fn native_turn_request_keeps_clip_rate_separate_and_allows_retrigger() {
@@ -881,20 +719,6 @@ mod tests {
             .play(&mut stack),
             1.2
         );
-    }
-
-    #[test]
-    fn standing_rotate_uses_aiming_or_first_person() {
-        assert!(standing_rotate_allowed(RotationMode::Aiming, false));
-        assert!(standing_rotate_allowed(RotationMode::ViewDirection, true));
-        assert!(!standing_rotate_allowed(RotationMode::ViewDirection, false));
-    }
-
-    #[test]
-    fn standing_turn_uses_third_person_view_direction_only() {
-        assert!(standing_turn_allowed(RotationMode::ViewDirection, false));
-        assert!(!standing_turn_allowed(RotationMode::Aiming, false));
-        assert!(!standing_turn_allowed(RotationMode::ViewDirection, true));
     }
 
     #[test]
@@ -952,38 +776,6 @@ mod tests {
     }
 
     #[test]
-    fn source_crouching_turn_slot_requires_a_stable_idle_owner_state() {
-        assert!(!source_crouching_turn_slot_is_eligible(None, None));
-        assert!(!source_crouching_turn_slot_is_eligible(
-            Some(1),
-            Some(false)
-        ));
-        assert!(!source_crouching_turn_slot_is_eligible(Some(0), Some(true)));
-        assert!(source_crouching_turn_slot_is_eligible(Some(0), Some(false)));
-    }
-
-    #[test]
-    fn crouching_turn_reads_owner_state_from_the_character_not_the_avatar() {
-        let mut world = World::new();
-        let character = world
-            .spawn(crate::crouching_layer::AlsCrouchingGraphTelemetry {
-                actual_outer_state: Some(0),
-                actual_outer_transition_active: Some(false),
-                ..Default::default()
-            })
-            .id();
-        let avatar = world.spawn(ChildOf(character)).id();
-        let owner_entity = world.get::<ChildOf>(avatar).unwrap().parent();
-        let mut telemetry = world.query::<&crate::crouching_layer::AlsCrouchingGraphTelemetry>();
-        let owner = telemetry.get(&world, owner_entity).unwrap();
-        assert!(source_crouching_turn_slot_is_eligible(
-            owner.actual_outer_state,
-            owner.actual_outer_transition_active,
-        ));
-        assert!(telemetry.get(&world, avatar).is_err());
-    }
-
-    #[test]
     fn natural_turn_end_requests_inertialization_and_removes_slot_weight() {
         let mut stack = AlsTurnMontageStack::default();
         stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
@@ -1034,31 +826,6 @@ mod tests {
         stack.advance(TURN_MONTAGE_BLEND_DURATION * 0.5);
         assert!((stack.entries[0].weight() - 0.5).abs() < 1e-6);
         assert!((stack.entries[1].weight() - 0.5).abs() < 1e-6);
-    }
-
-    #[test]
-    fn source_slot_relevance_blocks_crouching_turn_requeue_until_completion() {
-        let mut stack = AlsTurnMontageStack::default();
-        stack.begin(1.0, false, TURN_DUR_90, 1.2, true);
-        stack.entries[0].sampling_ready = true;
-        stack.advance(0.1);
-        assert!(source_turn_slot_is_active(&stack, true));
-        assert!(!source_turn_slot_is_active(&stack, false));
-        stack.entries[0].elapsed = TURN_DUR_90 - 0.01;
-        assert!(stack.advance(0.02));
-        assert!(!source_turn_slot_is_active(&stack, true));
-    }
-
-    #[test]
-    fn turn_requeue_ablation_restarts_an_active_crouching_slot() {
-        let mut stack = AlsTurnMontageStack::default();
-        stack.begin(1.0, false, TURN_DUR_90, 1.2, true);
-        stack.entries[0].sampling_ready = true;
-        stack.advance(0.1);
-        assert!(source_turn_slot_is_active(&stack, true));
-        stack.begin(1.0, false, TURN_DUR_90, 1.2, true);
-        assert_eq!(stack.entries.len(), 2);
-        assert!(stack.entries[0].blend_out_elapsed.is_some());
     }
 
     #[test]
@@ -1173,32 +940,5 @@ mod tests {
         assert_eq!(drive.rotate_clip_time, ROTATE_DUR);
         assert!(!drive.rotate_finishing);
         assert!(drive.rotate_completion_event);
-    }
-
-    #[test]
-    fn source_rotate_loop_keeps_finishing_until_the_sequence_ends() {
-        let mut drive = AlsTurnDrive {
-            rotate_active: true,
-            ..default()
-        };
-        finish_rotate_loop(&mut drive);
-        assert!(!drive.rotate_active);
-        assert!(drive.rotate_finishing);
-        finish_rotate_loop(&mut drive);
-        assert!(drive.rotate_finishing);
-    }
-
-    #[test]
-    fn turn_yaw_sampler_does_not_extend_stopped_view_speed() {
-        let mut sampler = TurnYawSampler::default();
-        let initial = sampler.update(0.0, 0.0);
-        let fast = sampler.update(40.0, 0.1);
-        let stopped = sampler.update(40.0, 0.2);
-        let passed = initial == 0.0 && (fast - 400.0).abs() < 1e-4 && stopped == 0.0;
-        let verdict = if passed { "PASS" } else { "FAIL" };
-        println!(
-            "[BF102.39][VERDICT] initial={initial:.1} fast={fast:.1} stopped={stopped:.1} -> {verdict}"
-        );
-        assert!(passed);
     }
 }
