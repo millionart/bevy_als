@@ -60,40 +60,39 @@ pub struct AlsFootLockTeleportTelemetry {
 
 #[derive(Component, Debug, Clone, Copy, Default)]
 struct SourcePoleState {
-    current: Vec3,
+    current_armature: Vec3,
     initialized: bool,
 }
 
 impl SourcePoleState {
     fn update(
         &mut self,
+        armature: &GlobalTransform,
         hip: Vec3,
         knee: Vec3,
         ankle: Vec3,
         delta_seconds: f32,
         profile: &CrAlsTargetProfile,
     ) -> Vec3 {
+        let hip = armature_point_from_world(armature, WorldPoint(hip)).0;
+        let knee = armature_point_from_world(armature, WorldPoint(knee)).0;
+        let ankle = armature_point_from_world(armature, WorldPoint(ankle)).0;
         let target = calculate_pole_vector(hip, knee, ankle)
             .map(|pole| knee + pole.direction * profile.foot_pole_distance_m);
         let Some(target) = target else {
-            return self.current;
+            return world_point_from_armature(armature, ArmaturePoint(self.current_armature)).0;
         };
         if !self.initialized {
             self.initialized = true;
-            self.current = target;
-            return target;
+            self.current_armature = target;
         }
         let alpha = 1.0
             - inv_exp_approx(
                 std::f32::consts::LN_2 * delta_seconds.max(0.0)
                     / profile.foot_pole_half_life_seconds.max(f32::EPSILON),
             );
-        self.current = self.current.lerp(target, alpha);
-        self.current
-    }
-
-    fn direction(&self, knee: Vec3) -> Vec3 {
-        (self.current - knee).normalize_or_zero()
+        self.current_armature = self.current_armature.lerp(target, alpha);
+        world_point_from_armature(armature, ArmaturePoint(self.current_armature)).0
     }
 }
 
@@ -1485,7 +1484,8 @@ fn foot_ik_apply_system(
                     let hip = thigh.translation() + pelvis_world_offset;
                     let knee = calf.translation() + pelvis_world_offset;
                     let ankle = ankle + pelvis_world_offset;
-                    let location = side_pole_state.update(hip, knee, ankle, dt, &profile.0.target);
+                    let location =
+                        side_pole_state.update(armature, hip, knee, ankle, dt, &profile.0.target);
                     (location, location - hip)
                 }
                 _ => (
@@ -1655,13 +1655,9 @@ fn foot_ik_post_apply_telemetry_system(
         With<als_core::character::AlsCharacter>,
     >,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
-    poles: Query<&FootIkPoleState, With<als_core::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootIkApplyTelemetry, With<als_core::character::AlsCharacter>>,
 ) {
     for (entity, bones, spaces, runtime, pose_base) in &characters {
-        let Ok(pole_state) = poles.get(entity) else {
-            continue;
-        };
         let Ok(mut entry) = telemetry.get_mut(entity) else {
             continue;
         };
@@ -1686,10 +1682,7 @@ fn foot_ik_post_apply_telemetry_system(
                 bone_globals.get(chain.foot),
             ) {
                 (Ok(hip), Ok(knee), Ok(foot)) => {
-                    let pole = match side {
-                        0 => pole_state.left.direction(knee.translation()),
-                        _ => pole_state.right.direction(knee.translation()),
-                    };
+                    let pole = (space.pole_location_world - knee.translation()).normalize_or_zero();
                     let target_axis =
                         (space.resolved_target_world - hip.translation()).normalize_or_zero();
                     let pole_sign = target_axis
@@ -2044,6 +2037,47 @@ fn source_pelvis_location_armature_y(
 mod tests {
     use super::*;
     use crate::control_rig_apply::{CR_ALS_RUNTIME_PROFILE, CrAlsRuntimeProfileDocument};
+
+    #[test]
+    fn pole_damper_keeps_rig_space_under_character_motion() {
+        let profile: CrAlsRuntimeProfileDocument =
+            serde_json::from_str(CR_ALS_RUNTIME_PROFILE).unwrap();
+        let mut reference = SourcePoleState::default();
+        let mut moving = SourcePoleState::default();
+        for frame in 0..3 {
+            let armature = GlobalTransform::from(Transform {
+                translation: Vec3::new(frame as f32 * 4.0, 0.0, frame as f32 * -3.0),
+                rotation: Quat::from_rotation_y(frame as f32 * 0.4),
+                scale: Vec3::splat(1.0 + frame as f32 * 0.1),
+            });
+            let points = [
+                Vec3::Y,
+                Vec3::new(0.1 + frame as f32 * 0.02, 0.5, 0.0),
+                Vec3::ZERO,
+            ];
+            let expected = reference.update(
+                &GlobalTransform::IDENTITY,
+                points[0],
+                points[1],
+                points[2],
+                0.016,
+                &profile.target,
+            );
+            let world = points.map(|point| armature.to_matrix().transform_point3(point));
+            let actual = moving.update(
+                &armature,
+                world[0],
+                world[1],
+                world[2],
+                0.016,
+                &profile.target,
+            );
+            assert!(
+                actual.distance(armature.to_matrix().transform_point3(expected)) < 1e-5,
+                "pole space frame={frame}"
+            );
+        }
+    }
 
     #[test]
     fn source_local_rotation_uses_the_updated_parent() {

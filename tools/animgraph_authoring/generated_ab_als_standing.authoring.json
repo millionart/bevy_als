@@ -93,6 +93,14 @@
     {
       "path": "target/bf115_standing/native_functions/acceleration_additive_source.json",
       "sha256": "7394ef1458ebed555020d026f5335f71c1c44bb0143f40f5fe4f5fec6eba240d"
+    },
+    {
+      "path": "target/bf115_standing/sprint/CR_Als.pole_space.ue.json",
+      "sha256": "25cd1b554fe16f0dd8e82fcea1a89a8331da132e01b1633299a8cdf338307c0d"
+    },
+    {
+      "path": "target/bf115_standing/sprint/CR_Als.pole_space.profile.json",
+      "sha256": "ed70c90bb4c40342987472321732da8cbd7ae974e6c377e7a0db17a8e3c92644"
     }
   ],
   "graphs": [
@@ -1767,6 +1775,19 @@
         "python",
         "tools/import/apply_additive_reference_deltas.py",
         "--self-test"
+      ]
+    },
+    {
+      "label": "standing_pole_rig_source",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/audit_cr_als.py",
+        "--source",
+        "target/bf115_standing/sprint/CR_Als.pole_space.ue.json",
+        "--profile",
+        "target/bf115_standing/sprint/CR_Als.pole_space.profile.json",
+        "--check"
       ]
     }
   ],
