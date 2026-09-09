@@ -260,6 +260,16 @@
 
   - p完成2026-09-09 17:25:45：方向受控复核manual0/validator0，六态111111、11窗口完整，frame p95 15.8884ms/max70.0931ms、eval p95 0.0860ms，fault/graph/temporal为空；最新方向与冲刺截图已人工检查。该Gate实际结束17:22:17（runner落盘），早于R2b估时17:02:55+20分钟界线；最终证据复核完成17:25:45。R2b2开始17:15:45/预估17:21:45/实际结束17:25:45（+4m）；R2b实际开始16:22:55/预估17:02:55/实际结束17:25:45（+22m50s，Gate在容差内通过）；p开始15:07:45/原预估15:57:45/实际结束17:25:45（+1h28m）。重估、拆分与失败均保留，额外时间源于真实状态事件漏接、惯性四元数语义及Guard时钟三项旧Gate漏检和新场景驱动问题。01j/01k/01o的本轮有限复开关闭；累计core238、ext333、项目317及新增33视觉回归/工具self-test，source/static、同入口编译、startup/response/7-stop/direction/sprint均完成适用Gate。首次方向p95超限和Sprint单帧84.1566ms保留，未证明外部原因，未改性能预算或动画算法进行性能补偿。Standing仍未全部完成：下一项为用户已指定的连续原地转身胯腿协调与montage速率，继续default Turn/Aiming Rotate及动态过渡实际分支，尚不进入Grounded。
 
+- [ ] BF115.01q 连续原地转身的胯腿协调与播放速率：用户2026-09-09 17:05/17:06明确选择，指出快速连续原地转身平衡感不足，并提出montage速率可能跟不上；仅作为待证假设，唯一标准仍为UE ALS-Refactored。以Standing现有62子图/23Pose图、4个Turn/2个Rotate资产、已闭合原生函数和Slot通道为起点，同时核对默认ViewDirection Turn与Aiming Rotate；不先加速、补偿或平滑，不提前进入Grounded。依据上一停止任务原50分钟实际138分钟且暴露多个旧Gate漏检，本轮先拆可独立验收的source/Actor静态与真实动作两段，不以一次截图或旧Actor输出验收。
+  - [x] BF115.01q1 转身源合同与Actor/Slot静态闭环：开始2026-09-09 17:29:00、预估结束18:09:00。重新提取Standing/AIS/相关Actor source，逐帧阶段比较RefreshTurnInPlace/RefreshRotateInPlace、montage选择/倍率/起点/重启与混合、RotationYawSpeed缩放、Actor朝向、骨盆/足锁坐标和输入生命周期。只修fresh source证实且能到达用户症状的差异；先最小反例、再复用已有Actor/Slot/转换器扩展，完成消融、focused/static与同入口编译后交q2实际验收。
+  - [ ] BF115.01q2 连续转身与平衡真实Gate：计划开始2026-09-09 18:09:00、预估结束18:59:00。依赖q1；沿原Playground真实鼠标/瞄准输入，覆盖左右90/180转身、连续快速转向和瞄准原地旋转，记录实际资产/clip时间/播放速率、曲线倍率、Actor角速度、骨盆运动与足锁，并检查pre-rig/final/temporal及性能。源合同闭合后才设计最小场景，已有Gate能力优先复用；仍保留Standing其余动态过渡完整分支的后续验收边界。
+
+  - q1源闭包/有限复开2026-09-09 17:37:00：MCP健康检查明确连接拒绝，fresh native Standing43.721s/AIS34.278s/CS34.899s通过。AIS四个Standing Turn均1.2倍、90/180度缩放开启；Rotate为50度触发、180–460度/秒映射1.15–3.0倍，与当前配置相同。UE Montage_PlayInternal以新BlendIn停止旧group，故现有接替线性混合没有证实差异。fresh Actor从当前身体yaw积分RotationYawSpeed并重置target/smooth target，静止松键ViewDirection随后保留该目标；当前共享rotation_response_system从旧smooth target累加且松键追新view，直接可脱离转身pose。BF102.11只按该消费者有限复开，旧Gate缺少身体/目标分离与松键持续转动视角反例；接着真实system最小失败，不改montage倍率或足锁。Standing闭包仍62源子图/23Pose，尚未运行q的runtime。
+
+  - q1静态闭环/startup前2026-09-09 17:46:10：真实rotation_response_system反例34.299s FAIL，零曲线/无输入仍产生0.009951rad旋转；按source先从身体积分，再重置目标平滑初值并执行该模式的目标选择，删除原曲线专用输出分支。正反曲线、blocked/unblocked、结束后视角变化及重新输入共享一个实际system fixture，旧实现为失败消融；最终239core（1ignored）16.138s、318项目44.889s、fresh闭包/声明式6.078s、target_game/play同入口构建140.968s全部通过。未新增运行时状态、倍率参数或足锁补偿，现有4Turn/2Rotate源资产与曲线绑定无新差异。现在同一二进制执行无驱动startup；q2仍需实际连续动作验收，BF102.11有限复开尚未关闭。
+
+  - q1完成/q2开始2026-09-09 17:48:00：同一二进制startup manual0/validator0，6图、842帧，frame p95 14.4894ms/max27.1573ms，faults/graph_errors/temporal_anomalies为空，原场地静止截图已检查。q1开始17:29、预估18:09、实际结束17:48（偏差-21m）；source/static、最小失败消融、239core/318项目及同入口构建完成，Actor静态修复单独提交，BF102.11仍待q2完整动作Gate。q2提前实际开始17:48、预估结束18:38，沿当前源闭包补齐四种Turn与两侧Rotate及快速连续输入，先场景focused检查，再同入口构建和一次完整公共Gate。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |

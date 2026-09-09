@@ -424,25 +424,43 @@ fn rotation_response_system(
         if moving || has_input {
             runtime.rotation_towards_last_input_direction_blocked = false;
         }
+        let curve_driven = !moving && animation.yaw_speed_degrees.abs() > f32::EPSILON;
+        let current_yaw = if curve_driven {
+            wrap_yaw_radians(current_yaw + animation.yaw_speed_degrees.to_radians() * delta_seconds)
+        } else {
+            current_yaw
+        };
+        let hold_rotation = stationary_view_direction_holds_rotation(
+            moving,
+            has_input,
+            runtime.rotation_towards_last_input_direction_blocked,
+            *rotation_mode,
+        );
+        if curve_driven || hold_rotation || !runtime.initialized {
+            runtime.smooth_target_yaw = current_yaw;
+        }
         let mut target_yaw = match *rotation_mode {
-            RotationMode::VelocityDirection => velocity_yaw.unwrap_or(if runtime.initialized {
-                runtime.target_yaw
-            } else {
-                current_yaw
-            }),
+            RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
+                if runtime.initialized
+                    && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
+                {
+                    runtime.target_yaw
+                } else {
+                    current_yaw
+                },
+            ),
             RotationMode::ViewDirection if moving && *gait == Gait::Sprinting => {
                 velocity_yaw.unwrap_or(current_yaw)
             }
-            RotationMode::ViewDirection
-                if stationary_view_direction_holds_rotation(
-                    moving,
-                    has_input,
-                    runtime.rotation_towards_last_input_direction_blocked,
-                    *rotation_mode,
-                ) =>
-            {
-                current_yaw
+            RotationMode::ViewDirection if hold_rotation => current_yaw,
+            RotationMode::ViewDirection if !moving && !has_input => {
+                if curve_driven || !runtime.initialized {
+                    current_yaw
+                } else {
+                    runtime.target_yaw
+                }
             }
+            RotationMode::ViewDirection if !moving => view_yaw.0,
             RotationMode::ViewDirection => {
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
             }
@@ -450,17 +468,10 @@ fn rotation_response_system(
         };
         let aiming = *rotation_mode == RotationMode::Aiming;
         let aiming_stationary = aiming && !moving && !has_input;
-        let curve_advanced_yaw = (!moving && animation.yaw_speed_degrees.abs() > f32::EPSILON)
-            .then(|| {
-                wrap_yaw_radians(
-                    current_yaw + animation.yaw_speed_degrees.to_radians() * delta_seconds,
-                )
-            })
-            .unwrap_or(current_yaw);
         if aiming {
             let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
                 view_yaw.0,
-                curve_advanced_yaw,
+                current_yaw,
                 params.cmc.aiming_yaw_angle_limit_degrees,
                 constraint.active_limit_degrees,
                 !constraint.applied_last_frame,
@@ -474,21 +485,9 @@ fn rotation_response_system(
             constraint.active_limit_degrees = 180.0;
             constraint.applied_last_frame = false;
         }
-        let curve_driven = !moving && !aiming && animation.yaw_speed_degrees.abs() > f32::EPSILON;
         if aiming_stationary {
             runtime.smooth_target_yaw = target_yaw;
-        } else if curve_driven {
-            if !runtime.initialized {
-                runtime.smooth_target_yaw = current_yaw;
-            }
-            runtime.smooth_target_yaw = wrap_yaw_radians(
-                runtime.smooth_target_yaw
-                    + animation.yaw_speed_degrees.to_radians() * delta_seconds,
-            );
         } else {
-            if !runtime.initialized {
-                runtime.smooth_target_yaw = current_yaw;
-            }
             runtime.smooth_target_yaw = advance_yaw(
                 runtime.smooth_target_yaw,
                 target_yaw,
@@ -505,7 +504,7 @@ fn rotation_response_system(
         } else {
             moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed)
         };
-        let next_yaw = if aiming_stationary || curve_driven {
+        let next_yaw = if aiming_stationary {
             runtime.smooth_target_yaw
         } else {
             damper_yaw(
@@ -581,6 +580,62 @@ mod rotation_cap_tests {
         assert!((response.target_yaw - target).abs() < 1e-6);
         let body = app.world().get::<Transform>(character).unwrap();
         assert!((world_forward_to_yaw(body.rotation * Vec3::NEG_Z) - target).abs() > 0.1);
+    }
+
+    #[test]
+    fn stationary_turn_curve_starts_at_actor_yaw_and_retains_its_target() {
+        for (blocked, curve) in [(false, 0.0_f32), (true, 120.0), (false, -120.0)] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_millis(16));
+            app.insert_resource(time)
+                .init_resource::<Assets<AlsMovementParams>>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let character = app.world_mut().spawn((
+                AlsCharacter,
+                Transform::IDENTITY,
+                Gait::Walking,
+                LocomotionState::Grounded,
+                RotationMode::ViewDirection,
+                AlsViewYaw(1.5),
+                AlsMovementParamsHandle(params),
+                LinearVelocity::ZERO,
+                AlsInputCommand::default(),
+                AlsRotationAnimationState { yaw_speed_degrees: curve, ..default() },
+                AlsRotationResponseState {
+                    initialized: true,
+                    smooth_target_yaw: if curve == 0.0 { 0.0 } else { 1.0 },
+                    target_yaw: if curve == 0.0 { 0.0 } else { 1.2 },
+                    previous_view_yaw: 1.5,
+                    previous_rotation_mode: Some(RotationMode::ViewDirection),
+                    rotation_towards_last_input_direction_blocked: blocked,
+                    ..default()
+                },
+            )).id();
+            app.update();
+            let expected = curve.to_radians() * 0.016;
+            let yaw = world_forward_to_yaw(app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z);
+            assert!((yaw - expected).abs() < 1e-6, "curve={curve}, blocked={blocked}, yaw={yaw}, expected={expected}");
+            let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            assert!((response.target_yaw - expected).abs() < 1e-6);
+            assert!((response.smooth_target_yaw - expected).abs() < 1e-6);
+            app.world_mut().entity_mut(character).insert((AlsViewYaw(-1.5), AlsRotationAnimationState::default()));
+            app.update();
+            let yaw = world_forward_to_yaw(app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z);
+            assert!((yaw - expected).abs() < 1e-6);
+            app.world_mut().entity_mut(character).insert((
+                AlsViewYaw(1.5),
+                AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                AlsRotationAnimationState { yaw_speed_degrees: 120.0, yaw_offset_degrees: 30.0 },
+            ));
+            app.update();
+            let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            assert!((response.target_yaw - 1.5).abs() < 1e-6);
+            let yaw = world_forward_to_yaw(app.world().get::<Transform>(character).unwrap().rotation * Vec3::NEG_Z);
+            assert!(yaw > expected + 120.0_f32.to_radians() * 0.016);
+        }
     }
 
     #[test]
