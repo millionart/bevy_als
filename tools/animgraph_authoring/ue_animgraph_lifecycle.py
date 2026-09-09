@@ -10,7 +10,7 @@ EXTERNAL_PROVIDERS = {
     "RefreshHead": "bevy_als::head_layer::HeadLayerPlugin",
     "InitializeGrounded": "bevy_als::grounded_layer::GroundedLayerPlugin",
     "RefreshGrounded": "bevy_als::actual_motion::AlsActualMotionPlugin + bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
-    "ResetGroundedEntryMode": "bevy_als::grounded_layer::GroundedLayerPlugin",
+    "ResetGroundedEntryMode": "als_ext::SourcePropertyWriteNode + crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
     "RefreshGroundedMovement": "bevy_als::standing_layer::StandingLayerPlugin + bevy_als::crouching_layer::CrouchingLayerPlugin",
     "InitializeStandingMovement": "als_ext::SourcePropertyWriteNode",
     "RefreshStandingMovement": "bevy_als::AlsSourceRefreshNode",
@@ -46,7 +46,7 @@ TRANSITION_FUNCTIONS = {
         "call": "Play Transition Right Animation",
         "sequence": None,
         "start_time": "0.200000",
-        "provider": "bevy_als::grounded_layer::GroundedLayerPlugin",
+        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
     },
 }
 TRANSITION_NOTIFY_FUNCTIONS = {

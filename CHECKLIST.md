@@ -306,7 +306,17 @@
 
   - 02b完成2026-09-09 19:54:00：复用现有安装器和AB_Als owner记录，只接入30个Grounded所属生成资产，实际diff为6个RON；没有修改原始导出或其它模块。旧安装数据在同次源审计0.800s失败作为移除/旧数据对照；新安装0.566s、30文件编辑器修复/复查零改动0.298s、6图fresh spec2.106s与新声明式Gate2.113s全部PASS，22源子图/24 Pose节点/16 Pose边/13条件完整匹配，位置与运行资产边界通过。12项SourceSequence回归39.563s、真实共享缓存/嵌套FSM初始化fixture1.310s PASS；沿用既有转换器能力，无新抽象/运行时分支。开始19:40、预估20:00、实际结束19:54（偏差-6m），结果为生成数据静态迁移完成、无拆分；未启动Grounded runtime，原生刷新和实际事件/观测仍是明确开放边界。
 
-- [ ] BF115.02c Grounded真实状态回调与观测：开始2026-09-09 19:54:00、预估结束20:34:00。依赖02b；以本轮8处函数依赖中的ResetGroundedEntryMode（3处OnBecomeRelevant）、两处stance-change entry Stop和Roll exit PlayTransitionRight为范围。先最小真实graph/dispatcher反例验证阶段、次数和执行时actual stance，复用实例属性/现有状态通知与Transition Slot，移除GroundedLayerRuntime对这些事件的独立推算；观测改读当前生成Grounded FSM，不以写入label回显。AIS明确指向的Standing/Crouching Right Transition仅作为该函数直接消费资产纳入，不展开Crouching内部图。估时依据为Standing已打通的公共状态通知/队列及现成Slot采样，仅补3种Grounded回调、两条右侧资产分支和当前graph reader；静态/消融/focused通过后提交，再闭合Grounded共享VelocityBlend/Lean原生刷新，全部静态完成后才真实Grounded Gate。
+  - 02b生成来源补充：c9c9e283未手工修改RON。曲线生成来自560d2856（pose_renderer的Sequence Player/Evaluator source_curves），状态重入策略来自b113e3c（fsm_contract/materializer/pose_renderer）。本次19:24:05通过公开ue_animgraph_converter.py的uasset入口重新读取并生成，80.039s完成；六个提交RON均与target/bf115_grounded/conversion内当次输出内容完全一致，安装器仅按现有owner接入生成结果。用户再次明确所有生成文件都须先修转换器再重新生成，后续保持该路径。
+
+- [x] BF115.02c Grounded真实状态回调与观测：开始2026-09-09 19:54:00、预估结束20:34:00。依赖02b；以本轮8处函数依赖中的ResetGroundedEntryMode（3处OnBecomeRelevant）、两处stance-change entry Stop和Roll exit PlayTransitionRight为范围。先最小真实graph/dispatcher反例验证阶段、次数和执行时actual stance，复用实例属性/现有状态通知与Transition Slot，移除GroundedLayerRuntime对这些事件的独立推算；观测改读当前生成Grounded FSM，不以写入label回显。AIS明确指向的Standing/Crouching Right Transition仅作为该函数直接消费资产纳入，不展开Crouching内部图。估时依据为Standing已打通的公共状态通知/队列及现成Slot采样，仅补3种Grounded回调、两条右侧资产分支和当前graph reader；静态/消融/focused通过后提交，再闭合Grounded共享VelocityBlend/Lean原生刷新，全部静态完成后才真实Grounded Gate。
+
+  - 02c有效失败2026-09-09 20:01:00：实际分发器对PlayRollToGroundedTransitionAnimation返回None，且观测器handle未指向当前根图引用的Grounded；新增两个最小断言在34.569s同轮测试稳定FAIL，另22项相关测试通过。转换器ResetGroundedEntryMode映射反例0.302s FAIL：输出仍为无作用Pose透传，源要求OnBecomeRelevant清空entry tag。旧Gate只验证手工状态推算、函数名和常量node title，未约束真实生成图引用/实际分发。接着复用SourcePropertyWrite帧标记和现有dispatcher，删除该Actor独立事件路径；不会手工修补生成RON。
+
+  - 02c静态进展2026-09-09 20:26:00：314项目测试40.224s PASS，Reset帧号消融22.431s稳定FAIL于提前/过期帧消费，已恢复当前帧条件。公开Grounded uasset转换86.155s零unsupported完成，新生成仅3个State的Reset节点变为SourcePropertyWrite；经原owner安装0.551s，不手改RON。CrouchingRight Transition按fresh AIS/CPP的直接资产由既有native montage生成器0.575s重新生成17条记录，原16条内容保持；新资产2.333333秒、源参考为Stand Pose首帧，遵守实际源设置。BF111.05只按已复现的新生成回调/reader边界有限复开，保留旧物理/desired stance边界；同入口构建和fresh静态正在收口，Grounded共享原生刷新与完整runtime仍未通过。
+
+  - 02c完成2026-09-09 20:30:00：Reset帧号恢复focused20.036s PASS；target_game/play双example构建75.060s、30文件编辑器修复/复查零改动0.293s、6图fresh spec3.133s、完整声明式/22源子图审计2.645s PASS。共314项目回归、两个旧入口失败及帧号消融均保留；生成器先改再公开uasset重生成，3个State的Reset节点已接入，CrouchingRight资产由源工具生成。GroundedLayer只保留当前生成图的实际观测，删除未被生成图消费的独立状态/时钟/曲线/回调推算及其镜像测试；实际回调统一走现有通知/队列，旧手工图与Roll物理/desired stance未改。开始19:54、预估20:34、实际结束20:30（偏差-4m），结果为回调/观测静态接入完成、无拆分。BF111.05本轮有限复开仍等待Grounded完整真实Gate，不因单元测试或source report ready提前关闭。
+
+- [ ] BF115.02d Grounded共享原生刷新与Actor输入：开始2026-09-09 20:30:00、预估结束21:20:00。依赖02c；按本轮C++/AIS已证明的InitializeGrounded→RefreshVelocityBlend/RefreshGroundedLean闭包，先核对Actor实际速度/加速度、坐标基、最大加速度/制动值、pending update和相关性重入阶段，建立站立/下蹲共享半衰期与离开再进入的最小失败。复用现有AlsSourceRefreshNode、SourcePropertyWriteNode和实例状态实现原生调用，输入来自真实Actor数据；再处理已证明重复的发布器/直接consumer，Standing或ControlRig完成范围只有出现具体source反例才有限复开，不扩展Crouching内部图。估时依据为2个原生函数、既有标量/向量数学与实例帧序fixture，参考Standing原生函数及本轮callbacks的实际记录；完成消融、focused/适用回归、公开uasset生成、同入口编译和声明式Gate后，再登记完整Grounded真实动作验收。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

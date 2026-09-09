@@ -2,7 +2,7 @@
     nodes: [
         (id: "f8a4a4f5-4549-fe7d-bbd6-9e8ce13376c6", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
         (id: "c7a5580a-4af8-d09c-e604-c4a48523aa7b", name: "Use cached pose 'Crouching'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Crouching'", cache_key: "ue-cache:fb541243-2204-57b4-ad16-8bc78f1d3f0c", context_defaults: []) }, should_debug: false),
-        (id: "c660432c-4f34-7575-77f8-4998a440820c", name: "ResetGroundedEntryMode\r\nOn Become Relevant", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "ResetGroundedEntryMode", call_site: "OnBecomeRelevant") }, should_debug: false),
+        (id: "c660432c-4f34-7575-77f8-4998a440820c", name: "ResetGroundedEntryMode\r\nOn Become Relevant", inner: { "als_ext::SourcePropertyWriteNode": (assignments: [(property: "grounded_entry_mode.reset_requested", value: Bool(true))], on_become_relevant: true) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("f8a4a4f5-4549-fe7d-bbd6-9e8ce13376c6", "Source"): NodeData("c660432c-4f34-7575-77f8-4998a440820c", "Pose"),

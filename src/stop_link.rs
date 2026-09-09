@@ -459,6 +459,7 @@ pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Op
         } else {
             "A_Als_Crouch_DynamicTransition_Right"
         }),
+        AlsTransitionKind::CrouchingStop if !left => Some("A_Als_Crouch_Transition_Right"),
         _ => None,
     }
 }
