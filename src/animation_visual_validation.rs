@@ -431,6 +431,7 @@ struct MotionWindowTracker {
     root_pose_reference: Option<Pose>,
     actor_yaw_sample_count: usize,
     actor_yaw_reference: Option<f32>,
+    actor_yaw_cumulative_delta: f32,
     actor_yaw_error_reference: Option<f32>,
     actor_yaw_trace: Vec<ActorYawTraceSample>,
     max_actor_yaw_delta_radians: f32,
@@ -2132,6 +2133,26 @@ fn wrapped_yaw_delta(reference: f32, current: f32) -> f32 {
         - std::f32::consts::PI
 }
 
+fn record_actor_yaw_delta(tracker: &mut MotionWindowTracker, actor_yaw: f32) {
+    tracker.actor_yaw_sample_count += 1;
+    if let Some(reference) = tracker.actor_yaw_reference {
+        tracker.actor_yaw_cumulative_delta += wrapped_yaw_delta(reference, actor_yaw);
+        let delta = tracker.actor_yaw_cumulative_delta;
+        tracker.max_actor_yaw_delta_radians =
+            tracker.max_actor_yaw_delta_radians.max(delta.abs());
+        if let Some(expected_sign) = tracker.expected_actor_yaw_delta_sign {
+            let signed_delta = delta * f32::from(expected_sign);
+            tracker.max_actor_yaw_signed_delta_radians = tracker
+                .max_actor_yaw_signed_delta_radians
+                .max(signed_delta.max(0.0));
+            tracker.max_actor_yaw_opposite_delta_radians = tracker
+                .max_actor_yaw_opposite_delta_radians
+                .max((-signed_delta).max(0.0));
+        }
+    }
+    tracker.actor_yaw_reference = Some(actor_yaw);
+}
+
 fn append_actor_yaw_trace(
     tracker: &mut MotionWindowTracker,
     evidence: &ManualAnimationWindowEvidence,
@@ -2431,23 +2452,7 @@ fn record_motion_window(
         .max_final_rotation_span_radians
         .max(final_rotation_span);
     if let Some(actor_yaw) = actor_yaw.filter(|value| value.is_finite()) {
-        tracker.actor_yaw_sample_count += 1;
-        if let Some(reference) = tracker.actor_yaw_reference {
-            let delta = wrapped_yaw_delta(reference, actor_yaw);
-            tracker.max_actor_yaw_delta_radians =
-                tracker.max_actor_yaw_delta_radians.max(delta.abs());
-            if let Some(expected_sign) = tracker.expected_actor_yaw_delta_sign {
-                let signed_delta = delta * f32::from(expected_sign);
-                tracker.max_actor_yaw_signed_delta_radians = tracker
-                    .max_actor_yaw_signed_delta_radians
-                    .max(signed_delta.max(0.0));
-                tracker.max_actor_yaw_opposite_delta_radians = tracker
-                    .max_actor_yaw_opposite_delta_radians
-                    .max((-signed_delta).max(0.0));
-            }
-        } else {
-            tracker.actor_yaw_reference = Some(actor_yaw);
-        }
+        record_actor_yaw_delta(tracker, actor_yaw);
         if let Some(view_yaw) = view_yaw.filter(|value| value.is_finite()) {
             let error = wrapped_yaw_distance(actor_yaw, view_yaw);
             if let Some(reference) = tracker.actor_yaw_error_reference {
@@ -3995,6 +4000,25 @@ mod tests {
         assert_eq!(value.p50_ms, 3.0);
         assert_eq!(value.p95_ms, 5.0);
         assert_eq!(value.max_ms, 5.0);
+    }
+
+    #[test]
+    fn actor_yaw_direction_tracks_multiple_turns_and_still_rejects_reversal() {
+        for direction in [-1.0_f32, 1.0] {
+            let mut tracker = MotionWindowTracker {
+                expected_actor_yaw_delta_sign: Some(1), actor_yaw_reference: Some(0.0), ..default()
+            };
+            for step in 0..=48 {
+                record_actor_yaw_delta(&mut tracker, wrapped_yaw_delta(0.0, direction * (step as f32 * 15.0).to_radians()));
+            }
+            let (expected, opposite) = if direction > 0.0 {
+                (tracker.max_actor_yaw_signed_delta_radians, tracker.max_actor_yaw_opposite_delta_radians)
+            } else {
+                (tracker.max_actor_yaw_opposite_delta_radians, tracker.max_actor_yaw_signed_delta_radians)
+            };
+            assert!((expected - 2.0 * std::f32::consts::TAU).abs() < 1e-5);
+            assert!(opposite < 1e-6);
+        }
     }
 
     #[test]

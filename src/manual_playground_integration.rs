@@ -188,6 +188,82 @@ const STANDING_STOP_CASES: [(&str, &str, Vec2, RotationMode, f32); 7] = [
     ("quick_stop_right", "Move to Idle", Vec2::X, RotationMode::VelocityDirection, 1.0),
 ];
 
+const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
+    ("turn_90_left", "A_Als_Turn_90_Left", 90.0),
+    ("turn_90_right", "A_Als_Turn_90_Right", -90.0),
+    ("turn_180_left", "A_Als_Turn_180_Left", 160.0),
+    ("turn_180_right", "A_Als_Turn_180_Right", -160.0),
+    ("rotate_left", "A_Als_Rotate_90_Left", 160.0),
+    ("rotate_right", "A_Als_Rotate_90_Right", -160.0),
+    ("turn_continuous", "", 0.0),
+    ("aim_continuous", "", 0.0),
+];
+
+#[derive(Default)]
+struct StandingTurnProbe {
+    idle_ready: bool,
+    started_at: Option<f32>,
+    base_yaw: f32,
+    active_seen: bool,
+    clip_peak: f32,
+    epoch_baseline: f32,
+    sides_mask: u8,
+    max_play_rate: f32,
+    invalid_rate: bool,
+    previous_yaw: Option<f32>,
+    yaw_travel: [f32; 2],
+}
+
+fn standing_turn_mouse_command(index: usize, elapsed: Option<f32>, base_yaw: f32, view_yaw: f32, current: RotationMode) -> als_core::input::AlsInputCommand {
+    let aiming = matches!(index, 4 | 5 | 7);
+    let offset = elapsed.map(|elapsed| {
+        if index == 7 {
+            if elapsed < 4.0 { 720.0 * elapsed }
+            else if elapsed < 8.0 { 720.0 * (8.0 - elapsed) }
+            else if elapsed < 12.0 { let phase = (elapsed - 8.0) % 0.5; 720.0 * phase.min(0.5 - phase) }
+            else { 0.0 }
+        } else if index == 6 {
+            [75.0_f32, -75.0, 75.0, -75.0, 75.0, -75.0, 0.0][((elapsed / 1.2) as usize).min(6)]
+        } else if aiming {
+            STANDING_TURN_CASES[index].2.signum() * (elapsed * 360.0).min(160.0)
+        } else {
+            STANDING_TURN_CASES[index].2
+        }
+    });
+    als_core::input::AlsInputCommand {
+        aim_held: aiming,
+        rotation_mode_pressed: !aiming && current == RotationMode::VelocityDirection,
+        look_delta: offset.map_or(Vec2::ZERO, |offset| Vec2::new(
+            -als_core::turn_in_place::wrap_angle_degrees((base_yaw - view_yaw).to_degrees() + offset).to_radians()
+                / als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT,
+            0.0,
+        )),
+        ..default()
+    }
+}
+
+fn standing_turn_completed(index: usize, probe: &StandingTurnProbe, idle: bool, slot_idle: bool, epoch: f32, elapsed: f32) -> bool {
+    probe.started_at.is_some() && probe.active_seen && !probe.invalid_rate && idle && slot_idle
+        && if index == 7 {
+            elapsed > 12.0 && probe.clip_peak > 0.9 && probe.max_play_rate > 2.9
+                && probe.sides_mask == 3 && probe.yaw_travel.iter().all(|angle| *angle > 6.0 * std::f32::consts::TAU)
+        } else if matches!(index, 4 | 5) {
+            probe.clip_peak > 0.9 && probe.max_play_rate > 1.3 && elapsed > 0.5
+        } else {
+            probe.clip_peak > 1.9 && epoch > probe.epoch_baseline
+                && (index != 6 || (elapsed > 7.2 && epoch - probe.epoch_baseline >= 3.0 && probe.sides_mask == 3))
+        }
+}
+
+fn standing_turn_rotation_settled(index: usize, yaw_error_degrees: f32, curve_speed: f32, rotate_active: bool) -> bool {
+    let threshold = if matches!(index, 4 | 5 | 7) {
+        als_core::rotate_in_place::RotateInPlaceConfig::default().view_yaw_angle_threshold_degrees
+    } else {
+        als_core::turn_in_place::TurnInPlaceConfig::default().view_yaw_angle_threshold_degrees
+    };
+    !rotate_active && curve_speed.abs() <= f32::EPSILON && yaw_error_degrees.abs() <= threshold
+}
+
 fn standing_stop_release_phase(index: usize, foot_planted: Option<f32>) -> bool {
     foot_planted.is_some_and(|value| match index {
         0 => value <= -0.75,
@@ -476,6 +552,7 @@ enum IntegrationPhase {
     DirectionRegression,
     StandingResponse,
     StandingStop,
+    StandingTurn,
     Sprint,
     FootIkNoHit,
     FootIkWeightRamp,
@@ -524,6 +601,7 @@ enum IntegrationScenario {
     StandingDirection,
     StandingResponse,
     StandingStop,
+    StandingTurn,
     Crouching,
     ControlRig,
     DefaultOverlay,
@@ -545,6 +623,7 @@ impl IntegrationScenario {
             Some("standing_direction") => Self::StandingDirection,
             Some("standing_response") => Self::StandingResponse,
             Some("standing_stop") => Self::StandingStop,
+            Some("standing_turn") => Self::StandingTurn,
             Some("crouching") => Self::Crouching,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
@@ -570,6 +649,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
         IntegrationScenario::StandingResponse => IntegrationPhase::StandingResponse,
         IntegrationScenario::StandingStop => IntegrationPhase::StandingStop,
+        IntegrationScenario::StandingTurn => IntegrationPhase::StandingTurn,
         IntegrationScenario::GeneratedTransitionNotify => {
             IntegrationPhase::GeneratedTransitionNotify
         }
@@ -1424,15 +1504,6 @@ fn crouch_stationary_animation_variant(left: bool, turn: bool) -> &'static str {
     }
 }
 
-fn crouch_turn_stack_animation_variant(left: bool, is_180: bool) -> &'static str {
-    match (is_180, left) {
-        (false, true) => "A_Als_Crouch_Turn_90_Left",
-        (false, false) => "A_Als_Crouch_Turn_90_Right",
-        (true, true) => "A_Als_Crouch_Turn_180_Left",
-        (true, false) => "A_Als_Crouch_Turn_180_Right",
-    }
-}
-
 fn record_animation_window_trace(
     window: &mut ManualAnimationWindowEvidence,
     transform: &Transform,
@@ -1486,10 +1557,7 @@ fn record_animation_window_trace(
                 .iter()
                 .filter(|entry| entry.crouching == crouching)
                 .map(|entry| ManualTurnStackEntryEvidence {
-                    animation_variant: crouch_turn_stack_animation_variant(
-                        entry.lr <= 0.5,
-                        entry.is_180,
-                    ),
+                    animation_variant: crate::turn_layer::source_turn_sequence(crouching, entry.is_180, entry.lr),
                     elapsed_seconds: entry.elapsed,
                     weight: entry.weight(),
                     play_rate: entry.play_rate,
@@ -1498,7 +1566,8 @@ fn record_animation_window_trace(
                 .collect()
         })
         .unwrap_or_default();
-    window.observed_animation_variant = animation_variant;
+    window.observed_animation_variant = animation_variant.or_else(|| turn_drive.map(|drive|
+        crate::turn_layer::source_turn_sequence(crouching, drive.is_180, drive.lr)));
 }
 
 fn crouch_stationary_source_precondition(
@@ -1745,6 +1814,7 @@ struct IntegrationCoverage {
     p1_turn: bool,
     generated_transition_stop_quick: bool,
     standing_stop: [bool; 7],
+    standing_turn: [bool; 8],
     turn_slot: bool,
     turn_inertialization: bool,
 }
@@ -1843,6 +1913,8 @@ struct ManualIntegrationState {
     stop_foot_planted: Option<f32>,
     stop_branch_seen: bool,
     stop_playback: Option<AlsTransitionPlayback>,
+    turn_case_index: usize,
+    turn_probe: StandingTurnProbe,
     grounded_roll_exit_diagnostic: String,
     timed_out: bool,
     final_logged: bool,
@@ -1946,6 +2018,8 @@ impl Default for ManualIntegrationState {
             stop_foot_planted: None,
             stop_branch_seen: false,
             stop_playback: None,
+            turn_case_index: 0,
+            turn_probe: StandingTurnProbe::default(),
             grounded_roll_exit_diagnostic: "not observed".to_owned(),
             timed_out: false,
             final_logged: false,
@@ -2438,6 +2512,34 @@ fn drive_manual_integration(
                 ..default()
             };
             if elapsed >= 12.5 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::StandingTurn => {
+            let index = state.turn_case_index;
+            if entering {
+                state.turn_probe = StandingTurnProbe::default();
+                if index == 0 {
+                    reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                }
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, STANDING_TURN_CASES[index].0);
+                *overlay = OverlayState::Default;
+            }
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Walking);
+            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none() {
+                state.turn_probe.started_at = Some(elapsed);
+                state.turn_probe.base_yaw = world_forward_to_yaw(*transform.forward());
+            }
+            let driven_elapsed = state.turn_probe.started_at.map(|started| elapsed - started);
+            input.0 = standing_turn_mouse_command(index, driven_elapsed, state.turn_probe.base_yaw, view_yaw.0, *rotation_mode);
+            if state.coverage.standing_turn[index] {
+                state.turn_case_index += 1;
+                begin_phase(&mut state, if index + 1 == STANDING_TURN_CASES.len() { IntegrationPhase::Finish } else { IntegrationPhase::StandingTurn });
+            } else if elapsed >= if index == 7 { 20.0 } else { 12.0 } {
+                state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -5482,13 +5584,15 @@ fn observe_manual_integration(
     }
     if matches!(
         state.scenario,
-        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop
+        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn
     ) && matches!(
         state.phase,
-        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop
-    ) && (state.scenario != IntegrationScenario::StandingStop || standing_stop_observation_active(state)) {
+        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn
+    ) && (state.scenario != IntegrationScenario::StandingStop || standing_stop_observation_active(state))
+      && (state.scenario != IntegrationScenario::StandingTurn || !state.entered) {
         let mut samples = Vec::new();
         let mut machines = Vec::new();
+        let mut rotate_sample = None;
         let arena = player.get_context_arena();
         if let Some(arena) = arena {
             if let Some(ticks) = als_ext::sync_group_phase::source_sync_players(
@@ -5531,6 +5635,25 @@ fn observe_manual_integration(
                 let Some(graph) = motion_probe.graphs.get(child.get_graph_id()) else {
                     continue;
                 };
+                if state.scenario == IntegrationScenario::StandingTurn {
+                    for node in graph.nodes.values() {
+                        let variant = match node.name.as_str() {
+                            "A_Als_Rotate_90_Left\nSequence Player" => "A_Als_Rotate_90_Left",
+                            "A_Als_Rotate_90_Right\nSequence Player" => "A_Als_Rotate_90_Right",
+                            _ => continue,
+                        };
+                        let expected = if state.turn_case_index == 7 {
+                            if turn_drive.is_some_and(|drive| drive.rotate_lr <= 0.5) { "A_Als_Rotate_90_Left" } else { "A_Als_Rotate_90_Right" }
+                        } else { STANDING_TURN_CASES[state.turn_case_index].1 };
+                        if variant != expected || !child.node_caches.is_updated(node.id, StateKey::Default) {
+                            continue;
+                        }
+                        if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>() {
+                            let position = child.node_states.get_time(node.id, StateKey::Default);
+                            rotate_sample = Some((variant, position, sequence.curves.sample_all(position).get("RotationYawSpeed").copied().unwrap_or(0.0)));
+                        }
+                    }
+                }
                 for node in graph.nodes.values().filter(|node| {
                     [
                         "Movement States\nState Machine",
@@ -5660,8 +5783,116 @@ fn observe_manual_integration(
                 ..default()
             };
         }
+        if state.scenario == IntegrationScenario::StandingTurn {
+            let index = state.turn_case_index;
+            let (mut label, expected_variant, yaw_degrees) = STANDING_TURN_CASES[index];
+            let rotating = matches!(index, 4 | 5 | 7);
+            let driven_elapsed = state.turn_probe.started_at.map_or(0.0, |started| state.phase_elapsed() - started);
+            if index == 7 {
+                label = if driven_elapsed < 4.0 { "aim_fast_left" } else if driven_elapsed < 8.0 { "aim_fast_right" } else { "aim_fast_reversals" };
+                if state.turn_probe.started_at.is_some() {
+                    let yaw = world_forward_to_yaw(*transform.forward());
+                    if let Some(previous) = state.turn_probe.previous_yaw {
+                        let delta = als_core::turn_in_place::wrap_angle_degrees((yaw - previous).to_degrees()).to_radians();
+                        state.turn_probe.yaw_travel[usize::from(delta < 0.0)] += delta.abs();
+                    }
+                    state.turn_probe.previous_yaw = Some(yaw);
+                }
+            }
+            let idle = standing_graph.is_some_and(|graph| graph.actual_standing_state == Some(0)
+                && graph.actual_standing_transition_active == Some(false) && graph.actual_standing_pose_ready == Some(true));
+            let slot_idle = turn_slot.is_some_and(|slot| !slot.active && slot.weight <= 0.05);
+            let epoch = turn_drive.map_or(0.0, |drive| drive.inertialization_request_epoch);
+            let mode_matches = motion_probe.rotation_mode.get(character).is_ok_and(|mode| *mode == if rotating { RotationMode::Aiming } else { RotationMode::ViewDirection });
+            let rotation_settled = standing_turn_rotation_settled(index,
+                crate::turn_layer::character_turn_angle_degrees(view_yaw.0.to_degrees(), world_forward_to_yaw(*transform.forward()).to_degrees()),
+                rotation_animation.map_or(f32::NAN, |animation| animation.yaw_speed_degrees),
+                turn_drive.is_none_or(|drive| drive.rotate_active));
+            if state.turn_probe.started_at.is_none() {
+                state.turn_probe.idle_ready = mode_matches && idle && slot_idle && speed <= 0.01 && rotation_settled
+                    && transition_playback.is_none_or(|playback| !playback.active);
+                state.turn_probe.epoch_baseline = epoch;
+            }
+            let entry = turn_stack.and_then(|stack| stack.entries.last()).filter(|entry| !entry.crouching && entry.sampling_ready);
+            let actual_variant = if rotating { rotate_sample.map(|sample| sample.0) }
+                else { entry.map(|entry| crate::turn_layer::source_turn_sequence(false, entry.is_180, entry.lr)) };
+            let clip_time = if rotating { rotate_sample.map(|sample| sample.1) } else { entry.map(|entry| entry.elapsed) };
+            let rate = if rotating { turn_drive.map(|drive| drive.rotate_rate) } else { entry.map(|entry| entry.play_rate) };
+            let expected_state = if rotating { if yaw_degrees > 0.0 { 3 } else { 4 } } else { 0 };
+            let active = state.turn_probe.started_at.is_some() && mode_matches
+                && standing_graph.is_some_and(|graph| graph.actual_standing_pose_ready == Some(true)
+                    && if index == 7 { matches!(graph.actual_standing_state, Some(3 | 4)) || graph.actual_standing_transition_active == Some(true) }
+                    else { graph.actual_standing_state == Some(expected_state) && graph.actual_standing_transition_active == Some(false) })
+                && if rotating { rotate_sample.is_some() } else { turn_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05) }
+                && actual_variant.is_some_and(|variant| index >= 6 || variant == expected_variant);
+            if active {
+                state.coverage.standing_graph = true;
+                state.turn_probe.active_seen = true;
+                state.turn_probe.clip_peak = state.turn_probe.clip_peak.max(clip_time.unwrap_or(0.0));
+                state.turn_probe.max_play_rate = state.turn_probe.max_play_rate.max(rate.unwrap_or(0.0));
+                state.turn_probe.invalid_rate |= rate.is_none_or(|rate| if rotating { !(1.15 - 1e-4..=3.0 + 1e-4).contains(&rate) } else { (rate - 1.2).abs() > 1e-6 });
+                if index == 7 {
+                    state.turn_probe.sides_mask |= if actual_variant.is_some_and(|variant| variant.ends_with("Left")) { 1 } else { 2 };
+                }
+                if let Some(entry) = entry.filter(|_| !rotating) {
+                    state.turn_probe.sides_mask |= if entry.lr <= 0.5 { 1 } else { 2 };
+                }
+            }
+            let completed = standing_turn_completed(index, &state.turn_probe,
+                idle && rotation_settled, slot_idle, epoch, driven_elapsed);
+            state.coverage.standing_turn[index] |= completed;
+            let mut chain = generated_stop_quick_source_pose_chain();
+            if rotating && index != 7 {
+                chain.insert(0, ManualAnimationPoseBoundary {
+                    label: "standing_rotate_sequence",
+                    graph: if yaw_degrees > 0.0 { "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S6_Rotate_Left.animgraph.ron" }
+                        else { "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron" },
+                    node: if yaw_degrees > 0.0 { "A_Als_Rotate_90_Left\nSequence Player" } else { "A_Als_Rotate_90_Right\nSequence Player" },
+                    output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                });
+            } else if !rotating {
+                chain.insert(0, ManualAnimationPoseBoundary {
+                    label: "standing_turn_slot",
+                    graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
+                    node: "Slot 'TurnInPlaceStanding'\nGroup 'Grounded'", output: "Pose",
+                    minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+                });
+            }
+            **animation_window = ManualAnimationWindowEvidence {
+                label: Some(label), settled: active || completed, capture_source_window: (active && (index != 7 || driven_elapsed >= 0.75)) || completed,
+                capture_every_frame: true, requires_pre_rig_motion: active, requires_final_pose_motion: active,
+                requires_non_reference_root_pose: active, requires_source_pose_chain: active,
+                requires_actor_yaw_motion: active, expected_actor_yaw_baseline: Some(state.turn_probe.base_yaw),
+                expected_actor_yaw_delta_sign: (index < 6).then_some(if yaw_degrees > 0.0 { 1 } else { -1 }),
+                minimum_actor_yaw_delta_radians: if index >= 6 { 0.5 } else { 1.4 },
+                minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05,
+                source_node: Some("AB_Als_Standing/Standing States"), source_state: Some(if rotating { "Rotate" } else { "Idle" }),
+                source_pose_chain: chain, expected_animation_variant: (index < 6).then_some(expected_variant),
+                expected_parent_runtime_state: (index != 7).then_some(expected_state),
+                observed_parent_runtime_state: standing_graph.and_then(|graph| graph.actual_standing_state),
+                observed_parent_transition_active: standing_graph.and_then(|graph| graph.actual_standing_transition_active),
+                observed_requested_parent_runtime_state: standing_graph.and_then(|graph| graph.actual_standing_state),
+                observed_requested_parent_transition_active: standing_graph.and_then(|graph| graph.actual_standing_transition_active),
+                expected_terminal_parent_runtime_state: (index != 7 || driven_elapsed >= 8.0).then_some(0), expected_terminal_parent_transition_active: (index != 7 || driven_elapsed >= 8.0).then_some(false),
+                expected_terminal_requested_parent_transition_active: (index != 7 || driven_elapsed >= 8.0).then_some(false),
+                expected_lifecycle_stages: if index == 7 && driven_elapsed < 8.0 { &["playing"] } else { &["playing", "settled"] },
+                observed_lifecycle_stages: if completed { &["settled"] } else if active { &["playing"] } else { &[] },
+                canonical_clip_time: (index < 6).then_some(if rotating { 0.5 } else { 0.6 }), maximum_clip_time_distance: 0.06,
+                direction_signature_group: match index { 0 | 1 => Some("standing_turn_90"), 2 | 3 => Some("standing_turn_180"), 4 | 5 => Some("standing_rotate"), _ => None },
+                required_direction_signature_members: 2, minimum_direction_signature_rotation_radians: 1e-4,
+                expected_direction: (index < 6).then_some(if yaw_degrees > 0.0 { "Left" } else { "Right" }),
+                observed_direction: actual_variant.map(|variant| if variant.ends_with("Left") { "Left" } else { "Right" }),
+                ..default()
+            };
+            record_animation_window_trace(&mut animation_window, transform, view_yaw.0, rotation_animation, None, turn_drive, turn_stack, false, actual_variant);
+            if let Some(clip_time) = clip_time { animation_window.observed_animation_clip_time = Some(clip_time); }
+            if let Some(rate) = rate { animation_window.observed_animation_play_rate = Some(rate); }
+            animation_window.observed_animation_weight = Some(if rotating { if active { 1.0 } else { 0.0 } } else { entry.map_or(0.0, |entry| entry.weight()) });
+            animation_window.observed_animation_curve_direct_yaw_speed_degrees = if rotating { rotate_sample.map(|sample| sample.2) }
+                else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(false, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied().unwrap_or(0.0)) };
+        }
         gate_report.direction_trace.push(serde_json::json!({
-            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
+            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
             "input": inputs.and_then(|(input, _)| input).map(|input| input.move_dir.to_array()),
             "override": inputs.and_then(|(_, input)| input).map(|input| input.0.move_dir.to_array()),
             "keys": ([KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD].map(|key| motion_probe.keys.pressed(key))),
@@ -5677,6 +5908,16 @@ fn observe_manual_integration(
             "allow_transitions": context.and_then(|context| context.f32("AllowTransitions")),
             "transitions_allowed": player.get_global_input_data("transitions_state.b_transitions_allowed").and_then(|value| value.as_bool().ok()),
             "slot_weight": graph_global_f32(player, "transition.weight"),
+            "turn_stack": turn_stack.map(|stack| stack.entries.iter().map(|entry| serde_json::json!({"id":entry.id,"variant":crate::turn_layer::source_turn_sequence(entry.crouching,entry.is_180,entry.lr),"clip":entry.elapsed,"rate":entry.play_rate,"weight":entry.weight(),"ready":entry.sampling_ready})).collect::<Vec<_>>()),
+            "turn_curve_rate": graph_global_f32(player, "turn_in_place_state.play_rate"),
+            "rotation_curve": context.and_then(|context| context.f32("RotationYawSpeed")),
+            "actor_rotation_curve": rotation_animation.map(|animation| animation.yaw_speed_degrees),
+            "rotate_sample": rotate_sample,
+            "rotate_rate": turn_drive.map(|drive| drive.rotate_rate),
+            "look_delta": inputs.and_then(|(_, input)| input).map(|input| input.0.look_delta.to_array()),
+            "turn_yaw_travel": (state.scenario == IntegrationScenario::StandingTurn).then_some(state.turn_probe.yaw_travel),
+            "leg_joints": foot_ik_data.get(character).ok().map(|(_, _, apply, _)| [(apply.left.hip_world.to_array(), apply.left.knee_world.to_array(), apply.left.ankle_world.to_array()), (apply.right.hip_world.to_array(), apply.right.knee_world.to_array(), apply.right.ankle_world.to_array())]),
+            "foot_locks": foot_lock.map(|feet| (feet.left.lock_amount,feet.left.lock_location.to_array(),feet.right.lock_amount,feet.right.lock_location.to_array())),
             "slot_allow_transitions": als_ext::source_gameplay_tag_input::slot_input_context(instance.player_entity(), "transition.pose").and_then(|context| context.curves.get("AllowTransitions").copied()),
             "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
                 arena.frame_index(),
@@ -6900,6 +7141,11 @@ fn observe_manual_integration(
             }
         }
         let results = match state.scenario {
+            IntegrationScenario::StandingTurn => {
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph)];
+                results.extend(STANDING_TURN_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_turn[index])));
+                results
+            }
             IntegrationScenario::StandingStop => {
                 let mut results = vec![
                     ("runtime_assembly", coverage.assembly),
@@ -7352,6 +7598,96 @@ mod tests {
             initial_phase(IntegrationScenario::GeneratedTransitionNotify),
             IntegrationPhase::GeneratedTransitionNotify
         );
+    }
+
+    #[test]
+    fn standing_turn_fixture_drives_actual_mouse_and_aim_inputs() {
+        for dt in [1.0_f32 / 30.0, 1.0 / 120.0] {
+            for (index, expected_degrees) in [90.0_f32, -90.0, 160.0, -160.0, 160.0, -160.0, -75.0, 0.0].into_iter().enumerate() {
+                let mut app = App::new();
+                let mut time = Time::<()>::default();
+                time.advance_by(Duration::from_secs_f32(dt));
+                app.insert_resource(time)
+                    .add_plugins(als_core::transition::AlsStateTransitionPlugin)
+                    .add_message::<als_core::aim::AimStateChanged>()
+                    .add_systems(Update, (
+                        als_core::input_request::input_state_request_system,
+                        als_core::aim::aim_rotation_mode_system,
+                        als_core::view::apply_view_input_system,
+                    ).chain().before(als_core::transition::state_transition_system));
+                let entity = app.world_mut().spawn((
+                    AlsCharacter, als_core::input::AlsInputCommand::default(),
+                    AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Walking),
+                    Stance::Standing, LocomotionState::Grounded, Gait::Walking,
+                    RotationMode::VelocityDirection, OverlayState::Default,
+                    als_core::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection),
+                    AlsStateRequest::default(), AlsViewYaw(0.3), AlsViewPitch::default(),
+                )).id();
+                let mut travel = [0.0_f32; 2];
+                let duration = if index == 7 { 12.5_f32 } else { 1.6 };
+                for frame in 0..(duration / dt).round() as usize {
+                    let view = app.world().get::<AlsViewYaw>(entity).unwrap().0;
+                    let mode = *app.world().get::<RotationMode>(entity).unwrap();
+                    let command = standing_turn_mouse_command(index, Some(frame as f32 * dt), 0.3, view, mode);
+                    assert_eq!(command.move_dir, Vec2::ZERO);
+                    app.world_mut().get_mut::<AlsInputOverride>(entity).unwrap().0 = command;
+                    app.update();
+                    let delta = app.world().get::<AlsViewYaw>(entity).unwrap().0 - view;
+                    travel[usize::from(delta < 0.0)] += delta.abs();
+                }
+                if index == 7 { assert!(travel.iter().all(|angle| *angle > 11.0 * std::f32::consts::TAU)); }
+                let view = app.world().get::<AlsViewYaw>(entity).unwrap().0;
+                assert!(als_core::turn_in_place::wrap_angle_degrees((view - 0.3).to_degrees() - expected_degrees).abs() < 1e-3);
+                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), if matches!(index, 4 | 5 | 7) { RotationMode::Aiming } else { RotationMode::ViewDirection });
+            }
+        }
+    }
+
+    #[test]
+    fn standing_turn_trace_keeps_the_actual_completed_variant() {
+        let mut window = ManualAnimationWindowEvidence::default();
+        let drive = AlsTurnDrive { lr: 1.0, is_180: true, play_rate: 1.2, ..default() };
+        record_animation_window_trace(&mut window, &Transform::IDENTITY, 0.0,
+            Some(&AlsRotationAnimationState::default()), None, Some(&drive), None, false, None);
+        assert_eq!(window.observed_animation_variant, Some("A_Als_Turn_180_Right"));
+        assert_eq!(window.observed_animation_clip_time, Some(0.0));
+        assert_eq!(window.observed_animation_weight, Some(0.0));
+        assert_eq!(window.observed_animation_play_rate, Some(1.2));
+    }
+
+    #[test]
+    fn standing_turn_settlement_waits_for_curve_consumption_and_pending_turns() {
+        assert!(!standing_turn_rotation_settled(6, 74.0, 0.0, false));
+        assert!(standing_turn_rotation_settled(6, 44.0, 0.0, false));
+        assert!(!standing_turn_rotation_settled(4, 49.0, -0.08568687, false));
+        assert!(!standing_turn_rotation_settled(4, 49.0, 0.0, true));
+        assert!(!standing_turn_rotation_settled(7, 51.0, 0.0, false));
+        assert!(standing_turn_rotation_settled(7, 49.0, 0.0, false));
+    }
+
+    #[test]
+    fn standing_turn_completion_requires_playback_end_and_actual_idle() {
+        let mut probe = StandingTurnProbe {
+            started_at: Some(0.0), active_seen: true, clip_peak: 1.95,
+            epoch_baseline: 2.0, sides_mask: 3,
+            max_play_rate: 3.0, yaw_travel: [7.0 * std::f32::consts::TAU; 2], ..default()
+        };
+        for index in 0..STANDING_TURN_CASES.len() {
+            assert!(standing_turn_completed(index, &probe, true, true, 5.0, 14.0));
+            assert!(!standing_turn_completed(index, &probe, false, true, 5.0, 14.0));
+            assert!(!standing_turn_completed(index, &probe, true, false, 5.0, 14.0));
+            probe.active_seen = false;
+            assert!(!standing_turn_completed(index, &probe, true, true, 5.0, 14.0));
+            probe.active_seen = true;
+        }
+        assert!(!standing_turn_completed(0, &probe, true, true, 2.0, 14.0));
+        probe.yaw_travel[1] = 5.0 * std::f32::consts::TAU;
+        assert!(!standing_turn_completed(7, &probe, true, true, 5.0, 14.0));
+        assert!(!standing_turn_completed(6, &probe, true, true, 4.0, 14.0));
+        probe.clip_peak = 0.5;
+        assert!(!standing_turn_completed(0, &probe, true, true, 5.0, 14.0));
+        assert!(!standing_turn_completed(4, &probe, true, true, 5.0, 14.0));
+        assert_eq!(initial_phase(IntegrationScenario::StandingTurn), IntegrationPhase::StandingTurn);
     }
 
     #[test]

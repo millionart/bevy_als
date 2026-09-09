@@ -322,7 +322,7 @@ impl SourceTurnRequest {
     }
 }
 
-fn source_turn_sequence(crouching: bool, is_180: bool, lr: f32) -> &'static str {
+pub(crate) fn source_turn_sequence(crouching: bool, is_180: bool, lr: f32) -> &'static str {
     match (crouching, is_180, lr <= 0.5) {
         (false, false, true) => "A_Als_Turn_90_Left",
         (false, false, false) => "A_Als_Turn_90_Right",
