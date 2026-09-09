@@ -129,6 +129,10 @@
     {
       "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Right_Forward.fresh.ue.json",
       "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/Crouching.cleanup.fresh.ue.json",
+      "sha256": "7d6b39ed643e2d5df5ee6aaf382e2a1b27c2190718840e160e06141008db27e8"
     }
   ],
   "graphs": [

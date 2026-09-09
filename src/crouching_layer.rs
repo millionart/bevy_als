@@ -1632,13 +1632,13 @@ fn crouching_layer_writer(
             continue;
         };
         if *stance != Stance::Crouching {
-            if let Some(turn_stack) = turn_stack.as_deref_mut() {
-                turn_stack.request_stop();
+            if cleanup_crouching_runtime(
+                current_runtime.is_some(),
+                turn_stack.as_deref_mut(),
+                transition.as_deref_mut(),
+            ) {
+                commands.entity(avatar).remove::<CrouchingLayerRuntime>();
             }
-            if let Some(transition) = transition.as_deref_mut() {
-                transition.request_stop();
-            }
-            commands.entity(avatar).remove::<CrouchingLayerRuntime>();
             continue;
         }
         let Some(movement_params) = params.get(handle.id()) else {
@@ -1716,6 +1716,23 @@ fn crouching_layer_writer(
     }
 }
 
+fn cleanup_crouching_runtime(
+    was_active: bool,
+    turn_stack: Option<&mut AlsTurnMontageStack>,
+    transition: Option<&mut AlsTransitionPlayback>,
+) -> bool {
+    if !was_active {
+        return false;
+    }
+    if let Some(stack) = turn_stack {
+        stack.request_stop();
+    }
+    if let Some(transition) = transition {
+        transition.request_stop();
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1751,6 +1768,36 @@ mod tests {
             right_leg_mask: None,
             stop_legs_mask: None,
         }
+    }
+
+    #[test]
+    fn crouching_cleanup_stops_shared_animations_only_on_exit() {
+        let mut playback = AlsTransitionPlayback::standing_dynamic(0.0);
+        playback.advance(0.1);
+        let mut stack = AlsTurnMontageStack::default();
+        crate::turn_layer::SourceTurnRequest {
+            variant: als_core::turn_in_place::TurnVariant::Left90,
+            yaw: 90.0,
+            crouching: false,
+        }
+        .play(&mut stack);
+        let removed = cleanup_crouching_runtime(false, Some(&mut stack), Some(&mut playback));
+        assert!(
+            playback.stop_elapsed.is_none(),
+            "inactive crouching stopped a standing montage"
+        );
+        assert_eq!(stack.entries.len(), 1);
+        assert!(!removed);
+        assert!(cleanup_crouching_runtime(
+            true,
+            Some(&mut stack),
+            Some(&mut playback)
+        ));
+        assert!(playback.stop_elapsed.is_some());
+        assert!(stack.entries.is_empty());
+        playback = AlsTransitionPlayback::standing_dynamic(1.0);
+        assert!(!cleanup_crouching_runtime(false, None, Some(&mut playback)));
+        assert!(playback.stop_elapsed.is_none());
     }
 
     #[test]

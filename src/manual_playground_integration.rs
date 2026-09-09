@@ -428,6 +428,7 @@ enum IntegrationPhase {
     #[default]
     Await,
     DirectionRegression,
+    StandingResponse,
     Sprint,
     FootIkNoHit,
     FootIkWeightRamp,
@@ -474,6 +475,7 @@ enum IntegrationScenario {
     Base,
     Grounded,
     StandingDirection,
+    StandingResponse,
     Crouching,
     ControlRig,
     DefaultOverlay,
@@ -493,6 +495,7 @@ impl IntegrationScenario {
         match std::env::var("ALS_MANUAL_INTEGRATION_CASE").ok().as_deref() {
             Some("grounded") => Self::Grounded,
             Some("standing_direction") => Self::StandingDirection,
+            Some("standing_response") => Self::StandingResponse,
             Some("crouching") => Self::Crouching,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
@@ -516,6 +519,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         | IntegrationScenario::StandingDirection
         | IntegrationScenario::StateMachine
         | IntegrationScenario::FootIk => IntegrationPhase::DirectionRegression,
+        IntegrationScenario::StandingResponse => IntegrationPhase::StandingResponse,
         IntegrationScenario::GeneratedTransitionNotify => {
             IntegrationPhase::GeneratedTransitionNotify
         }
@@ -712,6 +716,27 @@ fn direction_regression_case(index: usize) -> Option<DirectionRegressionCase> {
             direction_signature_group: None,
         }),
         _ => None,
+    }
+}
+
+fn standing_response_step(elapsed: f32) -> (&'static str, Vec2) {
+    if elapsed < 1.5 {
+        ("response_idle_before", Vec2::ZERO)
+    } else if elapsed < 3.5 {
+        ("response_left", Vec2::NEG_X)
+    } else if elapsed < 5.5 {
+        ("response_reverse_right", Vec2::X)
+    } else if elapsed < 8.5 {
+        [
+            ("response_cycle_w", Vec2::Y),
+            ("response_cycle_a", Vec2::NEG_X),
+            ("response_cycle_s", Vec2::NEG_Y),
+            ("response_cycle_d", Vec2::X),
+        ][((elapsed - 5.5) / 0.25) as usize % 4]
+    } else if elapsed < 11.5 {
+        ("response_stop", Vec2::ZERO)
+    } else {
+        ("response_idle_after", Vec2::ZERO)
     }
 }
 
@@ -1554,6 +1579,9 @@ fn foot_ik_baseline_bit(index: usize) -> Option<u8> {
 
 #[derive(Default)]
 struct IntegrationCoverage {
+    response_reverse: bool,
+    response_cycle: bool,
+    response_idle: bool,
     assembly: bool,
     graph: bool,
     locomotion: bool,
@@ -2311,6 +2339,49 @@ fn drive_manual_integration(
 
     match state.phase {
         IntegrationPhase::Await => {}
+        IntegrationPhase::StandingResponse => {
+            if entering {
+                state.coverage.response_idle = true;
+                reinitialize_fixture_rotation_response(
+                    rotation_response,
+                    &mut aiming_yaw_constraint,
+                    rotation_animation,
+                );
+                reset_character(
+                    &mut transform,
+                    &mut position,
+                    rotation,
+                    &mut velocity,
+                    &mut view_yaw,
+                    &mut view_pitch,
+                    fixture.locomotion_start,
+                    fixture.facing_yaw,
+                );
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "standing_response");
+                *overlay = OverlayState::Default;
+            }
+            let (label, direction) = standing_response_step(elapsed);
+            *rotation_mode = RotationMode::ViewDirection;
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Running);
+            request.rotation_mode = Some(RotationMode::ViewDirection);
+            input.0.move_dir = direction;
+            *animation_window = ManualAnimationWindowEvidence {
+                label: Some(label),
+                settled: elapsed > 0.75,
+                capture_source_window: true,
+                requires_pre_rig_motion: direction != Vec2::ZERO,
+                requires_final_pose_motion: direction != Vec2::ZERO,
+                requires_non_reference_root_pose: true,
+                source_node: Some("AB_Als_Standing/Standing States"),
+                source_state: Some("Standing input response"),
+                ..default()
+            };
+            if elapsed >= 12.5 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
         IntegrationPhase::DirectionRegression => {
             if entering {
                 state.direction_case_index = usize::MAX;
@@ -5288,9 +5359,13 @@ fn observe_manual_integration(
         state.coverage.notify_grounded_entry |=
             grounded_entry.is_some_and(|mode| *mode == AlsGroundedEntryMode::FromRoll);
     }
-    if state.scenario == IntegrationScenario::StandingDirection
-        && state.phase == IntegrationPhase::DirectionRegression
-    {
+    if matches!(
+        state.scenario,
+        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse
+    ) && matches!(
+        state.phase,
+        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse
+    ) {
         let mut samples = Vec::new();
         let mut machines = Vec::new();
         let arena = player.get_context_arena();
@@ -5340,6 +5415,7 @@ fn observe_manual_integration(
                         "Movement States\nState Machine",
                         "Movement Details States\nState Machine",
                         "Standing States\nState Machine",
+                        "Stop States\nState Machine",
                     ]
                     .contains(&node.name.as_str())
                 }) {
@@ -5388,7 +5464,7 @@ fn observe_manual_integration(
         ]
         .map(|key| (key, graph_global_f32(player, key)));
         gate_report.direction_trace.push(serde_json::json!({
-            "elapsed": state.phase_elapsed(), "case": direction_regression_case(state.direction_case_index).map(|case| case.name),
+            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
             "input": inputs.and_then(|(input, _)| input).map(|input| input.move_dir.to_array()),
             "override": inputs.and_then(|(_, input)| input).map(|input| input.0.move_dir.to_array()),
             "keys": ([KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD].map(|key| motion_probe.keys.pressed(key))),
@@ -5398,7 +5474,31 @@ fn observe_manual_integration(
             "pose_moving": context.and_then(|context| context.f32("PoseMoving")),
             "pose": pose.map(|pose| movement_pose_sample(pose, &motion_probe.skeletons)),
             "samples": samples, "machines": machines,
+            "transition": transition_playback.map(|value| (format!("{:?}", value.kind), value.active, value.clip_time, value.weight)),
+            "allow_transitions": context.and_then(|context| context.f32("AllowTransitions")),
+            "transitions_allowed": player.get_global_input_data("transitions_state.b_transitions_allowed").and_then(|value| value.as_bool().ok()),
+            "slot_weight": graph_global_f32(player, "transition.weight"),
+            "slot_allow_transitions": als_ext::source_gameplay_tag_input::slot_input_context(instance.player_entity(), "transition.pose").and_then(|context| context.curves.get("AllowTransitions").copied()),
+            "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
+                arena.frame_index(),
+                source.values.get("dynamic_transitions_state.frame_delay").and_then(|value| value.as_f32().ok()),
+                source.write_frames.get("dynamic_transitions.queued_sequence").copied()
+            ))),
+            "feet": foot_ik_data.get(character).ok().map(|(_, spaces, _, _)| (spaces.left.trace_target_world.to_array(), spaces.left.target_world.to_array(), spaces.right.trace_target_world.to_array(), spaces.right.target_world.to_array())),
         }));
+        if state.scenario == IntegrationScenario::StandingResponse {
+            let elapsed = state.phase_elapsed();
+            state.coverage.response_reverse |= (4.5..5.5).contains(&elapsed) && speed > 0.1;
+            state.coverage.response_cycle |= (8.0..8.5).contains(&elapsed) && speed > 0.1;
+            if elapsed >= 11.5 {
+                state.coverage.response_idle &= standing_graph.is_some_and(|graph| {
+                    graph.actual_standing_state == Some(0)
+                        && graph.actual_standing_transition_active == Some(false)
+                })
+                && context.and_then(|context| context.f32("PoseMoving")) == Some(0.0)
+                && transition_playback.is_none_or(|value| !value.active);
+            }
+        }
     }
     if state.scenario == IntegrationScenario::Sprint && state.phase == IntegrationPhase::Sprint {
         let native = source_sprint_values(player);
@@ -6601,6 +6701,14 @@ fn observe_manual_integration(
             }
         }
         let results = match state.scenario {
+            IntegrationScenario::StandingResponse => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("standing_graph", coverage.standing_graph),
+                ("response_reverse", coverage.response_reverse),
+                ("response_cycle", coverage.response_cycle),
+                ("response_idle", coverage.response_idle),
+            ],
             IntegrationScenario::StandingDirection => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -7257,6 +7365,28 @@ mod tests {
         assert_eq!(chain[4].node, "Apply Additive");
         assert_eq!(chain[7].node, "Save cached pose 'Standing'");
         assert_eq!(chain[8].node, "Grounded States\nState Machine");
+    }
+
+    #[test]
+    fn response_timeline_reverses_without_release_then_waits_for_idle() {
+        for (time, expected) in [
+            (1.5, Vec2::NEG_X),
+            (3.49, Vec2::NEG_X),
+            (3.5, Vec2::X),
+            (5.49, Vec2::X),
+            (5.5, Vec2::Y),
+            (5.75, Vec2::NEG_X),
+            (6.0, Vec2::NEG_Y),
+            (6.25, Vec2::X),
+            (8.5, Vec2::ZERO),
+        ] {
+            assert_eq!(standing_response_step(time).1, expected);
+        }
+        assert_eq!(standing_response_step(11.5).0, "response_idle_after");
+        assert_eq!(
+            initial_phase(IntegrationScenario::StandingResponse),
+            IntegrationPhase::StandingResponse
+        );
     }
 
     #[test]
