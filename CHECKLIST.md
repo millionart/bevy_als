@@ -285,6 +285,8 @@
 
   - q完成2026-09-09 18:48:20：停止恢复standing_response同一二进制manual0/validator0，反向/快速循环/持续Idle全部覆盖，frame p95 17.5678ms/max35.005ms、eval p95 0.0859ms，fault/graph/temporal为空；末段站姿截图已检查。q2实际开始17:48、预估18:38、实际结束18:48:20（+10m20s）；新增q2a开始18:17、预估18:37、实际结束18:48:20（+11m20s），均在容差内完成，额外工作为用户指定的持续极限输入和旧公共yaw/末态观测漏检修复。四种Turn、左右Rotate、三次完整连续Turn、720度/秒Aiming持续多圈/快速反向及停止恢复全通过；BF102.11 Actor和BF111.04公共signed观测的本轮有限复开关闭。Actor修复7f818a5，最终保留source的1.2倍Turn与1.15–3.0倍Rotate，没有新增速率补偿或IK平滑。Standing仍剩动态过渡左右完整分支验收，随后才进入Grounded；原完整移植目标继续。
 
+- [x] BF115.01r Standing左右动态过渡完整分支：开始2026-09-09 18:54:00、预估结束19:29:00。q的正常/持续Turn和Aiming极限已完成，继续Standing最后尚未完整验收的Standing Dynamic Left/Right；原完整移植顺序保持。估时依据为当前62源子图/23Pose闭包、已有RefreshDynamicTransitions/native队列/两条montage采样和真实Slot入口，参考p的7停止动作与q的8转身动作实际记录；复用现有场景/报告后，仅核对两分支的源触发、选择优先级、倍率/起点/混合/完整结束及足锁恢复。先重新提取Standing/AIS及必要CPP事实，核对FootLock与当前足目标坐标/生命周期；只扩展source直接证明的producer或consumer，已完成IK/图不因猜测复开。用原Playground实际输入产生左右动态过渡，不直接发通知或强制montage，先focused/static及同入口构建，再公共Gate。该项完成前不开始Grounded。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
@@ -307,3 +309,11 @@
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
+  - r源闭包2026-09-09 19:02:00：MCP连接拒绝后fresh Standing47.808s/AIS33.746s通过，62可达源子图/23Pose闭包保持；Idle的RefreshDynamicTransitions直接读取世界空间足锁/足目标，source阈值8cm、FrameDelay2、倍率1.5、起点0、混合0.2。目标native选择/队列/Slot与该设置一致；原极限Aiming报告两侧Dynamic均出现但约0.5秒被Rotate打断，不能充当完整结束证明。新增原场地输入场景以持续Aiming转动产生源队列，观察目标侧排队后松Aim并切换VelocityDirection，保留实际身体/足锁连续，等待真实Slot完整结束和该脚重锁；不改动画、足锁或阈值。当前先完成输入/完成判定focused与fresh静态，尚未启动本项runtime。
+  - r静态闭环2026-09-09 19:09:00：两条Dynamic uasset由既有工具0.303s重读，生成记录与当前target逐项一致（1.533333秒、Stand Pose首帧mesh-space additive）；所选脚FootLock在0.466667–0.5秒为-1的additive曲线，0.533333恢复0，AllowTransitions同段-1，故检查解锁→重锁及8cm恢复边界。324项目测试31.053s和fresh静态4.521s PASS；禁用场景的RotationMode切换后focused21.126s稳定FAIL于ViewDirection而应为VelocityDirection，证实仅松Aim不能让该完整动作在正确前提下结束。恢复后正在focused复验/同入口target_game/play构建；源consumer仅延伸到CPP明确的AB_Als根Transition Slot，不展开其余根图。
+  - r运行前2026-09-09 19:12:25：输入消融恢复focused17.960s PASS，同入口target_game/play构建66.207s通过；canonical截图时间按源解锁阶段定为0.4秒，增量构建63.870s通过。native源闭包/编辑器/位置/运行资产边界及全部声明命令已通过，生产动画/Actor/IK未改。即将沿run_manual.bat执行无驱动startup及standing_dynamic两分支，要求源队列选择、实际Slot完整播放、Idle和所选脚解锁→重锁/距离恢复，12秒单分支固定上限，公共temporal/性能Guard不变。
+  - r startup完成2026-09-09 19:13:30：manual0/validator0，809帧/6截图，frame p95 17.1416ms/max27.2793ms、eval p95 0.0779ms，fault/graph/temporal为空；原地站姿截图已检查。继续同一二进制的左右dynamic完整动作Gate。
+  - r首轮真实失败2026-09-09 19:15:00：manual91/validator1在首case12秒上限退出，1095帧、frame p95 13.147ms/max34.8196ms、eval p95 0.0818ms，fault/graph/temporal为空。16次实际源队列均选择Left，触发时Left距离平方约0.06–0.085m²大于Right，选择符合source；场景只按旋转方向等待Right，未到松Aim步骤。旧极限报告中的首个Right来自不同足锁历史，不能据旋转方向指定脚侧。去掉此fixture假设，输入改为每2秒反向、源选择目标侧后才松Aim；30/120FPS检查覆盖两个方向累计转角，保留12秒上限与所有完成/视觉要求。无生产实现或已完成条目复开。
+  - r复验前2026-09-09 19:18:15：交替输入focused26.390s PASS（30/120FPS每方向四圈），同入口构建64.673s通过；源/图/生产实现保持刚通过startup的版本，复用本轮fresh静态。继续standing_dynamic，同一12秒上限、完整播放/重锁及公共Guard，无阈值放宽。
+  - r完成2026-09-09 19:20:00：交替输入真实Gate manual0/validator0，683帧、2个完整source窗口/9截图，frame p95 13.5144ms/max16.3948ms、eval p95 0.0827ms，fault/graph/temporal为空。Right/Left分别4.0608/4.0741秒完成，实际montage均自然推进到1.533333秒、无stop请求；所选脚LockAmount均降到0再回1，末态偏差约2.64/2.59mm，实际Idle/Slot结束，0.4秒canonical误差0.003623/0.002965秒，左右pre-rig签名和根Transition Slot运动通过，截图已检查。开始18:54、预估19:29、实际结束19:20（偏差-9m），结果完成，无拆分；本项仅新增公共输入/观测场景，未修改source对应算法、曲线或阈值。
+  - Standing模块闭合：01a–01r已覆盖62个可达source子图/23个Pose图，完成转换器通用执行/缓存/惯性、Actor方向/曲线/停止/转向、六向Walk/Run、Sprint、正常/quick-stop、左右90/180 Turn、Rotate/720度每秒持续Aiming及左右Dynamic的适用静态/真实Gate。原source记录保持不变；此前失败与旧Gate有限复开已分别闭合。此处结束Standing工作，按用户顺序进入AB_Als_Grounded，不提前展开Crouching或其余模块。

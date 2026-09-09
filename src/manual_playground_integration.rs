@@ -199,6 +199,31 @@ const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
     ("aim_continuous", "", 0.0),
 ];
 
+const STANDING_DYNAMIC_CASES: [(&str, f32, f32); 2] = [
+    ("dynamic_right", 1.0, 720.0),
+    ("dynamic_left", 0.0, -720.0),
+];
+
+fn standing_dynamic_command(index: usize, elapsed: Option<f32>, released: bool, base_yaw: f32, body_yaw: f32, view_yaw: f32, current: RotationMode) -> als_core::input::AlsInputCommand {
+    let target = if released { body_yaw } else {
+        let phase = elapsed.unwrap_or(0.0) % 4.0;
+        base_yaw + phase.min(4.0 - phase) * STANDING_DYNAMIC_CASES[index].2.to_radians()
+    };
+    als_core::input::AlsInputCommand {
+        aim_held: !released,
+        rotation_mode_pressed: released && current != RotationMode::VelocityDirection,
+        look_delta: Vec2::new(-als_core::motion::wrap_yaw_radians(target - view_yaw)
+            / als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT, 0.0),
+        ..default()
+    }
+}
+
+fn standing_dynamic_foot_restored(unlocked: bool, foot: Option<&als_core::foot_ik::AlsFootLockFootState>, scale: f32) -> bool {
+    unlocked && foot.is_some_and(|foot| foot.lock_amount >= 1.0 - 1e-5
+        && foot.target_location.distance_squared(foot.lock_location)
+            <= (als_core::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS * scale).powi(2))
+}
+
 #[derive(Default)]
 struct StandingTurnProbe {
     idle_ready: bool,
@@ -553,6 +578,7 @@ enum IntegrationPhase {
     StandingResponse,
     StandingStop,
     StandingTurn,
+    StandingDynamic,
     Sprint,
     FootIkNoHit,
     FootIkWeightRamp,
@@ -602,6 +628,7 @@ enum IntegrationScenario {
     StandingResponse,
     StandingStop,
     StandingTurn,
+    StandingDynamic,
     Crouching,
     ControlRig,
     DefaultOverlay,
@@ -624,6 +651,7 @@ impl IntegrationScenario {
             Some("standing_response") => Self::StandingResponse,
             Some("standing_stop") => Self::StandingStop,
             Some("standing_turn") => Self::StandingTurn,
+            Some("standing_dynamic") => Self::StandingDynamic,
             Some("crouching") => Self::Crouching,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
@@ -650,6 +678,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::StandingResponse => IntegrationPhase::StandingResponse,
         IntegrationScenario::StandingStop => IntegrationPhase::StandingStop,
         IntegrationScenario::StandingTurn => IntegrationPhase::StandingTurn,
+        IntegrationScenario::StandingDynamic => IntegrationPhase::StandingDynamic,
         IntegrationScenario::GeneratedTransitionNotify => {
             IntegrationPhase::GeneratedTransitionNotify
         }
@@ -1815,6 +1844,7 @@ struct IntegrationCoverage {
     generated_transition_stop_quick: bool,
     standing_stop: [bool; 7],
     standing_turn: [bool; 8],
+    standing_dynamic: [bool; 2],
     turn_slot: bool,
     turn_inertialization: bool,
 }
@@ -1915,6 +1945,8 @@ struct ManualIntegrationState {
     stop_playback: Option<AlsTransitionPlayback>,
     turn_case_index: usize,
     turn_probe: StandingTurnProbe,
+    dynamic_unlocked: bool,
+    dynamic_selection_valid: bool,
     grounded_roll_exit_diagnostic: String,
     timed_out: bool,
     final_logged: bool,
@@ -2020,6 +2052,8 @@ impl Default for ManualIntegrationState {
             stop_playback: None,
             turn_case_index: 0,
             turn_probe: StandingTurnProbe::default(),
+            dynamic_unlocked: false,
+            dynamic_selection_valid: true,
             grounded_roll_exit_diagnostic: "not observed".to_owned(),
             timed_out: false,
             final_logged: false,
@@ -2539,6 +2573,38 @@ fn drive_manual_integration(
                 state.turn_case_index += 1;
                 begin_phase(&mut state, if index + 1 == STANDING_TURN_CASES.len() { IntegrationPhase::Finish } else { IntegrationPhase::StandingTurn });
             } else if elapsed >= if index == 7 { 20.0 } else { 12.0 } {
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::StandingDynamic => {
+            let index = state.stop_case_index;
+            if entering {
+                state.turn_probe = StandingTurnProbe::default();
+                state.stop_playback = None;
+                state.stop_branch_seen = false;
+                state.dynamic_unlocked = false;
+                state.dynamic_selection_valid = true;
+                if index == 0 {
+                    reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                }
+                state.turn_probe.base_yaw = world_forward_to_yaw(*transform.forward());
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, STANDING_DYNAMIC_CASES[index].0);
+                *overlay = OverlayState::Default;
+            }
+            request.locomotion_state = Some(LocomotionState::Grounded);
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Walking);
+            if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none() {
+                state.turn_probe.started_at = Some(elapsed);
+            }
+            input.0 = standing_dynamic_command(index, state.turn_probe.started_at.map(|start| elapsed - start),
+                state.stop_branch_seen, state.turn_probe.base_yaw, world_forward_to_yaw(*transform.forward()), view_yaw.0, *rotation_mode);
+            if state.coverage.standing_dynamic[index] {
+                state.stop_case_index += 1;
+                begin_phase(&mut state, if index + 1 == STANDING_DYNAMIC_CASES.len() { IntegrationPhase::Finish } else { IntegrationPhase::StandingDynamic });
+            } else if elapsed >= 12.0 {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -5584,12 +5650,12 @@ fn observe_manual_integration(
     }
     if matches!(
         state.scenario,
-        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn
+        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic
     ) && matches!(
         state.phase,
-        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn
+        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic
     ) && (state.scenario != IntegrationScenario::StandingStop || standing_stop_observation_active(state))
-      && (state.scenario != IntegrationScenario::StandingTurn || !state.entered) {
+      && (!matches!(state.scenario, IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic) || !state.entered) {
         let mut samples = Vec::new();
         let mut machines = Vec::new();
         let mut rotate_sample = None;
@@ -5783,6 +5849,78 @@ fn observe_manual_integration(
                 ..default()
             };
         }
+        if state.scenario == IntegrationScenario::StandingDynamic {
+            let index = state.stop_case_index;
+            let (label, right, _) = STANDING_DYNAMIC_CASES[index];
+            let scale = graph_global_f32(player, "locomotion_state.scale_world_space").unwrap_or(1.0);
+            let idle = standing_graph.is_some_and(|graph| graph.actual_standing_state == Some(0)
+                && graph.actual_standing_transition_active == Some(false) && graph.actual_standing_pose_ready == Some(true));
+            state.turn_probe.idle_ready = idle && speed <= 0.01
+                && transition_playback.is_none_or(|playback| !playback.active);
+            if let Some(arena) = arena
+                && let Ok(source) = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                && source.write_frames.get("dynamic_transitions.queued_sequence") == Some(&arena.frame_index())
+            {
+                let distance = ["left", "right"].map(|side| graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared")).unwrap_or(0.0));
+                let allowed = ["left", "right"].map(|side| graph_global_f32(player, &format!("feet_state.{side}.lock_amount")).unwrap_or(0.0) > 1e-5);
+                let threshold = (als_core::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS * scale).powi(2);
+                let allowed = [allowed[0] && distance[0] > threshold, allowed[1] && distance[1] > threshold];
+                let expected = if !allowed[0] || (allowed[1] && distance[1] > distance[0]) { 1.0 } else { 0.0 };
+                let queued = source.values.get("dynamic_transitions.queued_sequence").and_then(|value| value.as_f32().ok());
+                state.dynamic_selection_valid &= (allowed[0] || allowed[1]) && queued == Some(expected)
+                    && player.get_global_input_data("transitions_state.b_transitions_allowed").and_then(|value| value.as_bool().ok()) == Some(true);
+                state.stop_branch_seen |= queued == Some(right) && state.turn_probe.started_at.is_some();
+            }
+            let observed = transition_playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.index == right);
+            let slot_ready = root_transition_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
+            if let Some(playback) = observed.filter(|playback| playback.active && slot_ready && state.stop_branch_seen) {
+                if playback.start_time == 0.0 && playback.play_rate == 1.5 && playback.blend_in == 0.2 && playback.blend_out == 0.2 {
+                    state.stop_playback = Some(*playback);
+                    state.coverage.standing_graph |= idle;
+                }
+            }
+            let foot = foot_lock.map(|feet| if right > 0.5 { &feet.right } else { &feet.left });
+            state.dynamic_unlocked |= state.stop_playback.is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
+            let restored = standing_dynamic_foot_restored(state.dynamic_unlocked, foot, scale);
+            let completed = state.dynamic_selection_valid && restored && idle
+                && standing_stop_completed(state.stop_branch_seen, state.stop_playback.as_ref(), observed, standing_graph)
+                && root_transition_slot.is_some_and(|slot| !slot.active);
+            state.coverage.standing_dynamic[index] |= completed;
+            let capture = state.stop_playback.is_some();
+            let expected_variant = if right > 0.5 { "A_Als_Stand_DynamicTransition_Right" } else { "A_Als_Stand_DynamicTransition_Left" };
+            let mut chain = generated_stop_quick_source_pose_chain();
+            chain.push(ManualAnimationPoseBoundary {
+                label: "root_transition_slot", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                node: "Slot 'Transition'\nGroup 'Grounded'", output: "Pose",
+                minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+            });
+            **animation_window = ManualAnimationWindowEvidence {
+                label: Some(label), settled: capture, capture_source_window: capture, capture_every_frame: capture,
+                requires_pre_rig_motion: true, requires_final_pose_motion: true,
+                requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+                source_node: Some("AB_Als_Standing/Idle/RefreshDynamicTransitions"), source_state: Some("Idle"),
+                source_pose_chain: chain, expected_animation_variant: Some(expected_variant),
+                observed_animation_variant: observed.and_then(crate::stop_link::source_transition_sequence),
+                observed_animation_clip_time: observed.map(|playback| playback.clip_time),
+                observed_animation_weight: observed.map(|playback| playback.weight),
+                observed_animation_play_rate: observed.map(|playback| playback.play_rate),
+                expected_lifecycle_stages: &["playing", "completed", "foot_relocked", "settled"],
+                observed_lifecycle_stages: if completed { &["completed", "foot_relocked", "settled"] }
+                    else if slot_ready { &["playing"] } else { &[] },
+                expected_terminal_parent_runtime_state: Some(0), expected_terminal_parent_transition_active: Some(false),
+                expected_terminal_requested_parent_transition_active: Some(false),
+                observed_parent_runtime_state: standing_graph.and_then(|graph| graph.actual_standing_state),
+                observed_parent_transition_active: standing_graph.and_then(|graph| graph.actual_standing_transition_active),
+                observed_requested_parent_runtime_state: standing_graph.and_then(|graph| graph.actual_standing_state),
+                observed_requested_parent_transition_active: standing_graph.and_then(|graph| graph.actual_standing_transition_active),
+                canonical_clip_time: Some(0.4), maximum_clip_time_distance: 0.06,
+                expected_direction: Some(if right > 0.5 { "Right" } else { "Left" }),
+                observed_direction: observed.map(|playback| if playback.index > 0.5 { "Right" } else { "Left" }),
+                direction_signature_group: Some("standing_dynamic"), required_direction_signature_members: 2,
+                minimum_direction_signature_rotation_radians: 1e-4,
+                ..default()
+            };
+        }
         if state.scenario == IntegrationScenario::StandingTurn {
             let index = state.turn_case_index;
             let (mut label, expected_variant, yaw_degrees) = STANDING_TURN_CASES[index];
@@ -5892,7 +6030,7 @@ fn observe_manual_integration(
                 else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(false, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied().unwrap_or(0.0)) };
         }
         gate_report.direction_trace.push(serde_json::json!({
-            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
+            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else if state.scenario == IntegrationScenario::StandingDynamic { Some(STANDING_DYNAMIC_CASES[state.stop_case_index].0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
             "input": inputs.and_then(|(input, _)| input).map(|input| input.move_dir.to_array()),
             "override": inputs.and_then(|(_, input)| input).map(|input| input.0.move_dir.to_array()),
             "keys": ([KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD].map(|key| motion_probe.keys.pressed(key))),
@@ -5918,6 +6056,8 @@ fn observe_manual_integration(
             "turn_yaw_travel": (state.scenario == IntegrationScenario::StandingTurn).then_some(state.turn_probe.yaw_travel),
             "leg_joints": foot_ik_data.get(character).ok().map(|(_, _, apply, _)| [(apply.left.hip_world.to_array(), apply.left.knee_world.to_array(), apply.left.ankle_world.to_array()), (apply.right.hip_world.to_array(), apply.right.knee_world.to_array(), apply.right.ankle_world.to_array())]),
             "foot_locks": foot_lock.map(|feet| (feet.left.lock_amount,feet.left.lock_location.to_array(),feet.right.lock_amount,feet.right.lock_location.to_array())),
+            "dynamic_inputs": (["left", "right"].map(|side| (graph_global_f32(player, &format!("feet_state.{side}.lock_amount")), graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared"))))),
+            "dynamic_probe": (state.scenario == IntegrationScenario::StandingDynamic).then_some((state.stop_branch_seen, state.dynamic_selection_valid, state.dynamic_unlocked)),
             "slot_allow_transitions": als_ext::source_gameplay_tag_input::slot_input_context(instance.player_entity(), "transition.pose").and_then(|context| context.curves.get("AllowTransitions").copied()),
             "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
                 arena.frame_index(),
@@ -7141,6 +7281,11 @@ fn observe_manual_integration(
             }
         }
         let results = match state.scenario {
+            IntegrationScenario::StandingDynamic => {
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph)];
+                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])));
+                results
+            }
             IntegrationScenario::StandingTurn => {
                 let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph)];
                 results.extend(STANDING_TURN_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_turn[index])));
@@ -7727,6 +7872,66 @@ mod tests {
         state.stop_case_index += 1;
         begin_phase(&mut state, IntegrationPhase::StandingStop);
         assert!(!standing_stop_observation_active(&state));
+    }
+
+    #[test]
+    fn standing_dynamic_inputs_release_aim_and_require_foot_recovery() {
+        for index in 0..2 {
+            for fps in [30, 120] {
+                let mut view = 0.3;
+                let mut travel = [0.0; 2];
+                for frame in 0..=4 * fps {
+                    let command = standing_dynamic_command(index, Some(frame as f32 / fps as f32), false, 0.3, 0.4, view, RotationMode::Aiming);
+                    let delta = -command.look_delta.x * als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT;
+                    travel[usize::from(delta < 0.0)] += delta.abs();
+                    view += delta;
+                }
+                assert!(travel.iter().all(|angle| *angle > 3.99 * std::f32::consts::TAU));
+            }
+            let mut app = App::new();
+            app.add_plugins(als_core::transition::AlsStateTransitionPlugin)
+                .add_message::<als_core::aim::AimStateChanged>()
+                .add_systems(Update, (
+                    als_core::input_request::input_state_request_system,
+                    als_core::aim::aim_rotation_mode_system,
+                ).chain().before(als_core::transition::state_transition_system));
+            let entity = app.world_mut().spawn((
+                AlsCharacter, als_core::input::AlsInputCommand::default(),
+                AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Running),
+                Stance::Standing, LocomotionState::Grounded, Gait::Walking,
+                RotationMode::ViewDirection, OverlayState::Default,
+                als_core::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsStateRequest::default(),
+            )).id();
+            for released in [false, true, true] {
+                let current = *app.world().get::<RotationMode>(entity).unwrap();
+                let command = standing_dynamic_command(index, Some(0.1), released, 0.3, 0.4, 0.3, current);
+                assert_eq!(command.move_dir, Vec2::ZERO);
+                let expected_yaw = if released { 0.4 } else { 0.3 + 0.1 * STANDING_DYNAMIC_CASES[index].2.to_radians() };
+                assert!((0.3 - command.look_delta.x * als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT - expected_yaw).abs() < 1e-5);
+                app.world_mut().get_mut::<AlsInputOverride>(entity).unwrap().0 = command;
+                app.update();
+                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), if released { RotationMode::VelocityDirection } else { RotationMode::Aiming });
+            }
+        }
+        let mut foot = als_core::foot_ik::AlsFootLockFootState { lock_amount: 1.0, ..default() };
+        assert!(standing_dynamic_foot_restored(true, Some(&foot), 1.0));
+        assert!(!standing_dynamic_foot_restored(false, Some(&foot), 1.0));
+        assert!(!standing_dynamic_foot_restored(true, None, 1.0));
+        foot.lock_amount = 0.5;
+        assert!(!standing_dynamic_foot_restored(true, Some(&foot), 1.0));
+        foot.lock_amount = 1.0;
+        foot.target_location = Vec3::X * 0.09;
+        assert!(!standing_dynamic_foot_restored(true, Some(&foot), 1.0));
+        assert!(standing_dynamic_foot_restored(true, Some(&foot), 2.0));
+        let mut playing = AlsTransitionPlayback::standing_dynamic(0.0);
+        playing.advance(0.6);
+        let mut finished = playing;
+        finished.advance(2.0);
+        let idle = AlsStandingGraphTelemetry { actual_standing_state: Some(0), actual_standing_transition_active: Some(false), ..default() };
+        assert!(standing_stop_completed(true, Some(&playing), Some(&finished), Some(&idle)));
+        assert!(!standing_stop_completed(true, Some(&playing), Some(&playing), Some(&idle)));
+        assert!(!standing_stop_completed(false, Some(&playing), Some(&finished), Some(&idle)));
+        assert_eq!(initial_phase(IntegrationScenario::StandingDynamic), IntegrationPhase::StandingDynamic);
     }
 
     #[test]
