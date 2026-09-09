@@ -101,6 +101,34 @@
     {
       "path": "target/bf115_standing/sprint/CR_Als.pole_space.profile.json",
       "sha256": "ed70c90bb4c40342987472321732da8cbd7ae974e6c377e7a0db17a8e3c92644"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/Standing.fresh.ue.json",
+      "sha256": "d59bfb4f2ba5cfe36403483181cee63ff8986d67190d26aa6af876b9c0f6aeeb"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Backward.fresh.ue.json",
+      "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Forward.fresh.ue.json",
+      "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Left_Backward.fresh.ue.json",
+      "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Left_Forward.fresh.ue.json",
+      "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Right_Backward.fresh.ue.json",
+      "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
+    },
+    {
+      "path": "target/bf115_standing/direction_dynamic/BS_Als_WalkRun_Right_Forward.fresh.ue.json",
+      "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
     }
   ],
   "graphs": [

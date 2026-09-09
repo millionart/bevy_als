@@ -2224,10 +2224,11 @@ mod tests {
     #[test]
     fn source_transition_preserves_a_target_that_is_still_blending() {
         fn query(
-            In((root, player, interrupt_frame, inertial)): In<(
+            In((root, player, interrupt_frame, inertial, sync)): In<(
                 Handle<AnimationGraph>,
                 NodeId,
                 usize,
+                bool,
                 bool,
             )>,
             resources: SystemResources,
@@ -2237,7 +2238,7 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
-            for frame in 0..=interrupt_frame {
+            for frame in 0..=interrupt_frame + usize::from(sync) * 2 {
                 let inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(0.1)),
                     ("leave".to_owned(), DataValue::Bool(frame == 2)),
@@ -2286,12 +2287,16 @@ mod tests {
                     let sample_frame = if frame == interrupt_frame { frame - 1 } else { frame };
                     0.25 + 0.5 * (sample_frame.saturating_sub(2) as f32 * 0.1 / 0.5)
                 };
-                assert!(
+                if !sync { assert!(
                     (state.context.curves["Choice"] - expected).abs() < 1e-6,
                     "context frame={frame}, inertial={inertial}: {:?} != {expected}",
                     state.context.curves
-                );
+                ); }
                 assert!(!state.context.sync_players.is_empty());
+                if sync {
+                    let phase = crate::sync_group_phase::source_sync_phase(&arena, &resources.animation_graph_assets, "fixture").unwrap();
+                    assert!((phase - (0.15 + frame as f32 * 0.05)).abs() < 1e-6, "group phase frame={frame}: {phase}");
+                }
             }
             arena
                 .iter_context_ids()
@@ -2311,13 +2316,13 @@ mod tests {
                 })
                 .unwrap()
         }
-        for (policy, interrupt_frame, inertial) in [Some(false), Some(true), None]
+        for (policy, interrupt_frame, inertial, sync) in [Some(false), Some(true), None]
             .into_iter()
             .flat_map(|policy| {
                 [3, 5]
                     .into_iter()
-                    .flat_map(move |frame| [false, true].map(|inertial| (policy, frame, inertial)))
-            })
+                    .flat_map(move |frame| [false, true].map(|inertial| (policy, frame, inertial, false)))
+            }).chain([(Some(false), 5, false, true)])
         {
             let mut graphs = Assets::<AnimationGraph>::default();
             let mut clips = Assets::<GraphClip>::default();
@@ -2464,7 +2469,16 @@ mod tests {
             );
             root.add_node(node.clone());
             root.add_output_data("Pose".to_owned(), DataSpec::Pose);
-            root.add_output_data_edge(node.id, "pose", "Pose");
+            if sync {
+                let scope = AnimationNode::new("sync scope", SourcePosePassthroughNode {
+                    synchronize_groups: true, output_time: false, ..default()
+                });
+                root.add_node(scope.clone());
+                root.add_node_parameter_edge(node.id, "pose", scope.id, "Source");
+                root.add_output_data_edge(scope.id, "Pose", "Pose");
+            } else {
+                root.add_output_data_edge(node.id, "pose", "Pose");
+            }
             let root = graphs.add(root);
             let mut world = World::new();
             world.insert_resource(graphs);
@@ -2472,10 +2486,10 @@ mod tests {
             world.insert_resource(machines);
             world.insert_resource(Assets::<Skeleton>::default());
             let actual = world
-                .run_system_cached_with(query, (root, players[0], interrupt_frame, inertial))
+                .run_system_cached_with(query, (root, players[0], interrupt_frame, inertial, sync))
                 .unwrap();
             let expected = if policy == Some(false) {
-                0.2 + (interrupt_frame + 1) as f32 * 0.1
+                0.2 + (interrupt_frame + 1 + usize::from(sync) * 2) as f32 * 0.1
             } else {
                 0.3
             };

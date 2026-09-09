@@ -720,6 +720,46 @@ mod tests {
     }
 
     #[test]
+    fn movement_keys_remain_live_while_holding_and_changing_direction() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::input::InputPlugin,
+            EnhancedInputPlugin,
+            AlsInputPlugin,
+        ));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        spawn_als_actions(
+            &mut app.world_mut().commands(),
+            player,
+            &AlsInputMap::default(),
+        );
+        app.update();
+        for (frame, (pressed, expected)) in [
+            (vec![KeyCode::KeyW], Vec2::Y),
+            (vec![KeyCode::KeyW], Vec2::Y),
+            (vec![KeyCode::KeyW, KeyCode::KeyD], Vec2::ONE),
+            (vec![KeyCode::KeyD], Vec2::X),
+            (vec![KeyCode::KeyS], Vec2::NEG_Y),
+            (vec![KeyCode::KeyA], Vec2::NEG_X),
+            (vec![], Vec2::ZERO),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.release_all();
+            for key in pressed {
+                keys.press(key);
+            }
+            app.update();
+            let actual = app.world().get::<AlsInputCommand>(player).unwrap().move_dir;
+            assert_eq!(actual, expected, "movement input frame={frame}");
+        }
+    }
+
+    #[test]
     fn full_chain_from_action_mock_to_command() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)

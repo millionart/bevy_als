@@ -31,12 +31,15 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId};
+use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin};
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
+use bevy_animation_graph::core::{
+    pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
+};
 use bevy_tnua::TnuaToggle;
 use serde::Serialize;
 
@@ -288,6 +291,8 @@ pub struct ManualIntegrationGateReport {
     pub results: Vec<ManualIntegrationGateResult>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub sprint_trace: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub direction_trace: Vec<serde_json::Value>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1887,6 +1892,18 @@ struct InterfaceProbe<'w, 's> {
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
     graphs: Res<'w, Assets<AnimationGraph>>,
+    skeletons: Res<'w, Assets<Skeleton>>,
+    machines: Res<'w, Assets<StateMachine>>,
+    keys: Res<'w, ButtonInput<KeyCode>>,
+    inputs: Query<
+        'w,
+        's,
+        (
+            Option<&'static als_core::input::AlsInputCommand>,
+            Option<&'static AlsInputOverride>,
+        ),
+        With<AlsCharacter>,
+    >,
     rotation_mode: Query<'w, 's, &'static RotationMode, With<AlsCharacter>>,
     standing: Query<'w, 's, &'static AlsStandingGraphTelemetry, With<AlsCharacter>>,
     crouching_graph: Query<'w, 's, &'static AlsCrouchingGraphTelemetry, With<AlsCharacter>>,
@@ -4363,6 +4380,19 @@ fn manual_gate_exit_ready(
     timed_out || visual_progress.map_or(true, |progress| progress.evidence_ready)
 }
 
+fn movement_pose_sample(pose: &Pose, skeletons: &Assets<Skeleton>) -> Vec<serde_json::Value> {
+    let Some(skeleton) = skeletons.get(&pose.skeleton) else {
+        return Vec::new();
+    };
+    skeleton.iter_bones().filter_map(|id| {
+        let path = skeleton.id_to_path(id)?;
+        let name = path.parts.last()?.as_str();
+        if !["pelvis", "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].contains(&name) { return None; }
+        let bone = pose.get_bone(id)?;
+        Some(serde_json::json!({ "name": name, "rotation": bone.rotation.map(|value| value.to_array()), "translation": bone.translation.map(|value| value.to_array()) }))
+    }).collect()
+}
+
 #[allow(clippy::type_complexity)]
 fn observe_manual_integration(
     fixture: Option<Res<ManualIntegrationFixture>>,
@@ -5257,6 +5287,118 @@ fn observe_manual_integration(
             .is_some_and(|state| state.active && state.blend_out_duration > 0.0);
         state.coverage.notify_grounded_entry |=
             grounded_entry.is_some_and(|mode| *mode == AlsGroundedEntryMode::FromRoll);
+    }
+    if state.scenario == IntegrationScenario::StandingDirection
+        && state.phase == IntegrationPhase::DirectionRegression
+    {
+        let mut samples = Vec::new();
+        let mut machines = Vec::new();
+        let arena = player.get_context_arena();
+        if let Some(arena) = arena {
+            if let Some(ticks) = als_ext::sync_group_phase::source_sync_players(
+                arena,
+                &motion_probe.graphs,
+                "sync_groups.ab_als_standing.movement.phase",
+            ) {
+                for tick in ticks {
+                    let Some(child) = arena.get_context(tick.identity.0) else {
+                        continue;
+                    };
+                    let Some(graph) = motion_probe.graphs.get(child.get_graph_id()) else {
+                        continue;
+                    };
+                    let Some(node) = graph.nodes.get(&tick.identity.1) else {
+                        continue;
+                    };
+                    let position = match graph
+                        .edges_inverted
+                        .get(&TargetPin::NodeData(node.id, "position".into()))
+                    {
+                        Some(SourcePin::NodeData(input, pin)) => child
+                            .node_caches
+                            .get_output_data(*input, StateKey::Default, pin.clone())
+                            .and_then(|value| value.as_vec2().ok()),
+                        _ => None,
+                    };
+                    samples.push(serde_json::json!({
+                        "node": node.name, "weight": tick.weight, "phase": tick.phase, "previous_phase": tick.previous_phase,
+                        "duration": tick.duration, "play_rate": tick.play_rate, "delta_seconds": tick.delta_seconds,
+                        "position": position.map(|value| value.to_array()),
+                        "sample_time": child.node_caches.get_output_data(node.id, StateKey::Default, "sample_time".into()).and_then(|value| value.as_f32().ok()),
+                    }));
+                }
+            }
+            for id in arena.iter_context_ids() {
+                let Some(child) = arena.get_context(id) else {
+                    continue;
+                };
+                let Some(graph) = motion_probe.graphs.get(child.get_graph_id()) else {
+                    continue;
+                };
+                for node in graph.nodes.values().filter(|node| {
+                    [
+                        "Movement States\nState Machine",
+                        "Movement Details States\nState Machine",
+                        "Standing States\nState Machine",
+                    ]
+                    .contains(&node.name.as_str())
+                }) {
+                    if !child.node_caches.is_updated(node.id, StateKey::Default) {
+                        continue;
+                    }
+                    let Some(fsm) = node.try_inner_downcast_ref::<als_ext::InterruptibleFsmNode>()
+                    else {
+                        continue;
+                    };
+                    let Some(machine) = motion_probe.machines.get(&fsm.fsm) else {
+                        continue;
+                    };
+                    let Ok(runtime) = child
+                        .node_states
+                        .get::<als_ext::InterruptibleFsmState>(node.id, StateKey::Default)
+                    else {
+                        continue;
+                    };
+                    let weights = machine
+                        .states
+                        .values()
+                        .map(|state| {
+                            (
+                                state.label.clone(),
+                                runtime.recorded_state_weight(&state.id.uuid().to_string()),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    machines.push(serde_json::json!({"node": node.name, "state": format!("{:?}", runtime.state), "weights": weights, "snapshot": runtime.cached_source_pose().is_some()}));
+                }
+            }
+        }
+        let inputs = motion_probe.inputs.get(character).ok();
+        let pose = player.get_default_output_pose();
+        let values = [
+            "standing_state.play_rate",
+            "standing_state.walk_run_blend_amount",
+            "standing_state.stride_blend_amount",
+            "grounded_state.velocity_blend.forward_amount",
+            "grounded_state.velocity_blend.backward_amount",
+            "grounded_state.velocity_blend.left_amount",
+            "grounded_state.velocity_blend.right_amount",
+            "pose_state.unweighted_gait_running_amount",
+            "animation.delta_seconds",
+        ]
+        .map(|key| (key, graph_global_f32(player, key)));
+        gate_report.direction_trace.push(serde_json::json!({
+            "elapsed": state.phase_elapsed(), "case": direction_regression_case(state.direction_case_index).map(|case| case.name),
+            "input": inputs.and_then(|(input, _)| input).map(|input| input.move_dir.to_array()),
+            "override": inputs.and_then(|(_, input)| input).map(|input| input.0.move_dir.to_array()),
+            "keys": ([KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD].map(|key| motion_probe.keys.pressed(key))),
+            "speed": speed, "velocity": velocity.0.to_array(), "view_yaw": view_yaw.0, "body_yaw": world_forward_to_yaw(*transform.forward()),
+            "gait": format!("{gait:?}"), "locomotion": format!("{locomotion:?}"), "values": values,
+            "rotation_mode": motion_probe.rotation_mode.get(character).ok().map(|mode| format!("{mode:?}")),
+            "pose_moving": context.and_then(|context| context.f32("PoseMoving")),
+            "pose": pose.map(|pose| movement_pose_sample(pose, &motion_probe.skeletons)),
+            "samples": samples, "machines": machines,
+        }));
     }
     if state.scenario == IntegrationScenario::Sprint && state.phase == IntegrationPhase::Sprint {
         let native = source_sprint_values(player);
@@ -7115,6 +7257,36 @@ mod tests {
         assert_eq!(chain[4].node, "Apply Additive");
         assert_eq!(chain[7].node, "Save cached pose 'Standing'");
         assert_eq!(chain[8].node, "Grounded States\nState Machine");
+    }
+
+    #[test]
+    fn movement_pose_reader_keeps_the_actual_leg_transform() {
+        use bevy_animation_graph::core::{animation_clip::EntityPath, pose::BonePose};
+        let path = EntityPath::default().child("root").child("thigh_r");
+        let id = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(id);
+        skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        let mut skeletons = Assets::<Skeleton>::default();
+        let mut pose = Pose {
+            skeleton: skeletons.add(skeleton),
+            ..default()
+        };
+        pose.add_bone(
+            BonePose::from_transform(Transform::from_translation(Vec3::X)),
+            id,
+        );
+        let sampled = movement_pose_sample(&pose, &skeletons);
+        assert_eq!(sampled.len(), 1);
+        assert_eq!(sampled[0]["name"], "thigh_r");
+        assert_eq!(
+            sampled[0]["translation"],
+            serde_json::json!([1.0, 0.0, 0.0])
+        );
+        assert_eq!(
+            sampled[0]["rotation"],
+            serde_json::json!([0.0, 0.0, 0.0, 1.0])
+        );
     }
 
     #[test]

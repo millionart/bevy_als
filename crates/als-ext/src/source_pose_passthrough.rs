@@ -97,7 +97,17 @@ impl NodeLike for SourcePosePassthroughNode {
         let pose = source_ctx.data_back(self.input.clone())?.into_pose()?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
-        if let Some(context) = pose_input_context_state(&source_ctx, &self.input) {
+        if let Some(mut context) = pose_input_context_state(&source_ctx, &self.input) {
+            if self.synchronize_groups {
+                for player in &mut context.sync_players {
+                    if let Some(phase) = crate::sync_group_phase::resolved_source_sync_phase(
+                        &source_ctx,
+                        &player.key,
+                    )? {
+                        player.phase = phase;
+                    }
+                }
+            }
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         }
         if self.output_time {
