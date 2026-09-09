@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "44bd7d1f-78c5-5845-9693-624890459c52", name: "Standing Alias to Crouching To Standing", inner: { "als_ext::InertializationNode": (transition_duration: 0.3, half_life: 0.075) }, should_debug: false),
+        (id: "44bd7d1f-78c5-5845-9693-624890459c52", name: "Standing Alias to Crouching To Standing", inner: { "als_ext::InertializationNode": (transition_duration: 0.3) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("44bd7d1f-78c5-5845-9693-624890459c52", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

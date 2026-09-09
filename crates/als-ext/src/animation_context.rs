@@ -49,11 +49,19 @@ pub struct SourceRelevantAsset {
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
+pub struct SourceInertializationRequest {
+    pub frame: u64,
+    pub duration: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
 pub struct AnimationContextState {
     pub curves: HashMap<String, f32>,
     pub relevant_asset: Option<SourceRelevantAsset>,
     pub curves_are_authoritative: bool,
     pub sync_players: Vec<crate::sync_group_phase::SourceSyncPlayerTick>,
+    pub inertialization_request: Option<SourceInertializationRequest>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -320,6 +328,19 @@ pub fn merge_missing_context_curves(
     }
     target.curves_are_authoritative |= source.curves_are_authoritative;
     merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
+    merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
+}
+
+pub(crate) fn merge_inertialization_request(
+    target: &mut Option<SourceInertializationRequest>,
+    source: Option<&SourceInertializationRequest>,
+) {
+    let Some(source) = source else { return; };
+    match target {
+        Some(current) if current.frame == source.frame => current.duration = current.duration.min(source.duration),
+        Some(current) if current.frame > source.frame => {}
+        _ => *target = Some(source.clone()),
+    }
 }
 
 pub fn merge_sync_players(
@@ -349,6 +370,7 @@ pub fn merge_linked_input_context(
     target: &mut AnimationContextState,
     source: &AnimationContextState,
 ) {
+    merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
     if !target.curves_are_authoritative {
         merge_missing_context_curves(target, source);
     }
@@ -473,6 +495,17 @@ pub fn capture_context_curve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inertial_requests_merge_by_frame_and_shortest_duration() {
+        let mut request = None;
+        for (frame, duration) in [(2, 0.4), (2, 0.2), (1, 0.1), (2, 0.3)] {
+            merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame, duration }));
+        }
+        assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((2, 0.2)));
+        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame: 3, duration: 0.5 }));
+        assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((3, 0.5)));
+    }
 
     #[test]
     fn context_curve_prefix_hides_only_declared_float_inputs() {

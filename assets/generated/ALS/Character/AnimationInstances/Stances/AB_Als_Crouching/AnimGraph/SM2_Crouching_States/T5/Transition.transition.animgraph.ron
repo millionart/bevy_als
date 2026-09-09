@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "020e2e36-a552-5e25-8ac2-0dccfc026159", name: "Rotate Right", inner: { "als_ext::InertializationNode": (transition_duration: 0.2, half_life: 0.05) }, should_debug: false),
+        (id: "020e2e36-a552-5e25-8ac2-0dccfc026159", name: "Rotate Right", inner: { "als_ext::InertializationNode": (transition_duration: 0.2) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("020e2e36-a552-5e25-8ac2-0dccfc026159", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

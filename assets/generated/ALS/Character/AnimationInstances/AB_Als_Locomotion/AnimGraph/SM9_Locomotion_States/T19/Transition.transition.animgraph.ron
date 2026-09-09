@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "338f1e77-293f-5e58-9cbc-4469b8e23898", name: "In Air Alias to Jump", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "338f1e77-293f-5e58-9cbc-4469b8e23898", name: "In Air Alias to Jump", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("338f1e77-293f-5e58-9cbc-4469b8e23898", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

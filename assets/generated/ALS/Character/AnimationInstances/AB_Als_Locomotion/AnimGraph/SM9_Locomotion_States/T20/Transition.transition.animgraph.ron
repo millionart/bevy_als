@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "5ec8f4ff-6b0f-59a2-a572-9bdc3f6286e4", name: "In Air Alias to Fall", inner: { "als_ext::InertializationNode": (transition_duration: 0.6, half_life: 0.15) }, should_debug: false),
+        (id: "5ec8f4ff-6b0f-59a2-a572-9bdc3f6286e4", name: "In Air Alias to Fall", inner: { "als_ext::InertializationNode": (transition_duration: 0.6) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("5ec8f4ff-6b0f-59a2-a572-9bdc3f6286e4", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

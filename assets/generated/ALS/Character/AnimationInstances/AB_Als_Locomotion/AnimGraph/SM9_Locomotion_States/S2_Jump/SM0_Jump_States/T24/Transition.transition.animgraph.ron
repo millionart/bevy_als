@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "ef53086c-addd-55e5-91be-aaff53d79378", name: "Left Foot to Loop", inner: { "als_ext::InertializationNode": (transition_duration: 0.2, half_life: 0.05) }, should_debug: false),
+        (id: "ef53086c-addd-55e5-91be-aaff53d79378", name: "Left Foot to Loop", inner: { "als_ext::InertializationNode": (transition_duration: 0.2) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("ef53086c-addd-55e5-91be-aaff53d79378", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

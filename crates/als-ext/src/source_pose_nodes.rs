@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::animation_context::{
-    AnimationContextState, merge_sync_players, pose_input_context_state, select_relevant_asset,
+    AnimationContextState, merge_inertialization_request, merge_sync_players, pose_input_context_state, select_relevant_asset,
 };
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
@@ -665,6 +665,9 @@ fn blend_source_curve_context(
     blend_mode: SourceCurvesBlendMode,
 ) -> AnimationContextState {
     merge_sync_players(&mut base.sync_players, &curve.sync_players, blend_amount);
+    if blend_amount > 1e-5 {
+        merge_inertialization_request(&mut base.inertialization_request, curve.inertialization_request.as_ref());
+    }
     match blend_mode {
         SourceCurvesBlendMode::Accumulate => {
             for (name, value) in &curve.curves {
@@ -682,6 +685,7 @@ fn blend_source_curve_context(
             relevant_asset: curve.relevant_asset.clone(),
             curves_are_authoritative: curve.curves_are_authoritative,
             sync_players: base.sync_players,
+            inertialization_request: base.inertialization_request,
         },
     }
 }
@@ -811,6 +815,9 @@ pub fn blend_animation_contexts(
     let mut relevant_assets = Vec::new();
     for (context, weight) in contexts {
         let weight = weight.max(0.0);
+        if weight > 1e-5 {
+            merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());
+        }
         merge_sync_players(&mut output.sync_players, &context.sync_players, weight);
         output.curves_are_authoritative |= context.curves_are_authoritative;
         for (name, value) in context.curves {

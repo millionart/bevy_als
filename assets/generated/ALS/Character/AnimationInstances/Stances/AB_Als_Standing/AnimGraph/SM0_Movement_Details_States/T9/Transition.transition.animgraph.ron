@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "745ddf1d-17bc-5478-943a-96cd48e66288", name: "Walk to Run Start From Walk", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "745ddf1d-17bc-5478-943a-96cd48e66288", name: "Walk to Run Start From Walk", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("745ddf1d-17bc-5478-943a-96cd48e66288", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

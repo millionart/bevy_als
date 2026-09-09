@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "151b0000-0000-4000-8000-000000000001", name: "standing inertial rotate exit", inner: { "als_ext::InertializationNode": (transition_duration: 0.2, half_life: 0.05) }, should_debug: false),
+        (id: "151b0000-0000-4000-8000-000000000001", name: "standing inertial rotate exit", inner: { "als_ext::InertializationNode": (transition_duration: 0.2) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("151b0000-0000-4000-8000-000000000001", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

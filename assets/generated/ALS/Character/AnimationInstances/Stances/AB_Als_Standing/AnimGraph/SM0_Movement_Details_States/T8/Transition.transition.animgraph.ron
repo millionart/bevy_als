@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "e531cbfa-90a9-5e3f-9730-1c14e8fc0d03", name: "Walk to Run Start", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "e531cbfa-90a9-5e3f-9730-1c14e8fc0d03", name: "Walk to Run Start", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("e531cbfa-90a9-5e3f-9730-1c14e8fc0d03", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "58d63d10-68b8-525b-ac81-1c9f6ec62d08", name: "Land Conduct to Land Movement", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "58d63d10-68b8-525b-ac81-1c9f6ec62d08", name: "Land Conduct to Land Movement", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("58d63d10-68b8-525b-ac81-1c9f6ec62d08", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

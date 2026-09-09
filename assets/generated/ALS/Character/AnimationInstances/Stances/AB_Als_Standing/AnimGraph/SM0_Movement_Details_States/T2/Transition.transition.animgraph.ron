@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", name: "Switch Pivot", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", name: "Switch Pivot", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("c97d7cdd-7f8f-52fe-bff2-ada7094ecb01", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

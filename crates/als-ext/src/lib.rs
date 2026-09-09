@@ -137,10 +137,7 @@ pub use ik_space::{
     parent_point_from_world, world_direction_from_armature, world_point_from_armature,
     world_point_from_bone_local, world_point_from_parent, world_rotation_from_armature,
 };
-pub use inertialization::{
-    InertializationNode, apply_inertial_residual, capture_inertial_residual, inertial_alpha,
-    inertial_residual_weight,
-};
+pub use inertialization::InertializationNode;
 pub use inertialization_passthrough::InertializationPassthroughNode;
 pub use inertialized_linked_anim_layer::{
     GlobalDataInput, InertializedLinkedAnimLayerNode, InertializedLinkedLayerActivation,

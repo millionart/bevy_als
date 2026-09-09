@@ -272,7 +272,7 @@ def transition_graph_text(source_asset, transition):
     duration = render["duration"]
     if render["logic"] == "inertialization":
         node_type = "als_ext::InertializationNode"
-        inner = f"(transition_duration: {duration!r}, half_life: {(duration / 4.0)!r})"
+        inner = f"(transition_duration: {duration!r})"
     else:
         profile = render["blend_profile"]
         scales = profile.get("bone_scales", [])
@@ -912,6 +912,7 @@ def run_self_test():
     }
     assert "ProfiledBlendNode" in transition_graph_text("/Asset", standard)
     assert "InertializationNode" in transition_graph_text("/Asset", inertial)
+    assert "half_life" not in transition_graph_text("/Asset", inertial)
     custom = {
         "id": "10000000-0000-4000-8000-000000000003",
         "title": "Custom",

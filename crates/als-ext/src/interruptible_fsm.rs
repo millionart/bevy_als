@@ -31,8 +31,8 @@ use crate::animation_context::{
     merge_missing_context_curves,
 };
 use crate::global_f32_input::global_f32_or_root_default;
-use crate::inertialization::{InertializationNode, inertial_alpha};
-use crate::profile_blend::{ProfiledBlendNode, transition_alpha};
+use crate::inertialization::InertializationNode;
+use crate::profile_blend::{AlphaBlendMode, ProfiledBlendNode, transition_alpha};
 use crate::source_cached_pose::{SourceScopedCachedPoseUseNode, prewarm_scoped_cached_pose};
 use crate::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::state_label_event::state_label_index;
@@ -43,6 +43,8 @@ static NOTIFICATION_GENERATION: AtomicU64 = AtomicU64::new(0);
 pub struct InterruptibleFsmSource {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
+    context_slot: usize,
+    blend_duration: Option<f32>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -106,11 +108,12 @@ pub struct SourceTransitionCondition {
 pub struct InterruptibleFsmState {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
+    context_slot: usize,
+    blend_duration: Option<f32>,
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
     pub context: AnimationContextState,
     recorded_machine_weight: f32,
     recorded_state_weights: Vec<SourceFsmStateWeight>,
-    transition_source_weights: Vec<SourceFsmStateWeight>,
     source_pose: Option<(Pose, AnimationContextState)>,
     last_pose: Option<Pose>,
     label_last_index: Option<usize>,
@@ -144,16 +147,24 @@ fn timed_transition_progress(elapsed: f32, duration: Option<f32>) -> Option<f32>
     })
 }
 
-fn source_automatic_transition_matches(
+fn source_transition_duration(duration: f32, target_weight: f32, adjustment: f32, mode: AlphaBlendMode) -> f32 {
+    let fraction = (1.0 - target_weight).clamp(0.0, 1.0);
+    let scale = if mode == AlphaBlendMode::HermiteCubic {
+        fraction * fraction * fraction * (4.0 / 3.0) - fraction * fraction * 2.0 + fraction * (5.0 / 3.0)
+    } else { fraction };
+    (duration - adjustment).max(0.0) * scale
+}
+
+fn source_automatic_transition_adjustment(
     relevant_asset: Option<&SourceRelevantAsset>,
     trigger_time: f32,
     transition_duration: f32,
-) -> bool {
+) -> Option<f32> {
     let Some(relevant_asset) = relevant_asset else {
-        return false;
+        return None;
     };
     if relevant_asset.weight <= 0.0 || relevant_asset.duration <= f32::EPSILON {
-        return false;
+        return None;
     }
     let mut remaining = relevant_asset.duration - relevant_asset.position;
     if relevant_asset.looping
@@ -170,7 +181,8 @@ fn source_automatic_transition_matches(
     } else {
         transition_duration
     };
-    trigger - remaining >= 0.0
+    let adjustment = trigger - remaining;
+    (adjustment >= 0.0).then_some(adjustment)
 }
 
 fn became_relevant(previous_frame: Option<u64>, frame: u64) -> bool {
@@ -548,39 +560,68 @@ impl InterruptibleFsmNode {
         state: &mut InterruptibleFsmState,
         transition: &LowLevelTransition,
         time: f32,
-        source_weights: Vec<SourceFsmStateWeight>,
+        blend_duration: Option<f32>,
     ) {
         let interrupted = state.state != transition.source;
         let mut interrupted_sources = Vec::new();
-        let source_pose = if interrupted {
+        if interrupted && matches!(transition.target, LowLevelStateId::HlTransition(_)) {
             interrupted_sources.push(InterruptibleFsmSource {
                 state: state.state.clone(),
                 state_entered_time: state.state_entered_time,
+                context_slot: state.context_slot,
+                blend_duration: state.blend_duration,
             });
             interrupted_sources.extend(state.interrupted_sources.iter().cloned());
-            state
-                .last_pose
-                .clone()
-                .map(|pose| (pose, state.context.clone()))
-        } else {
-            None
-        };
+        }
+        state.context_slot = (0..)
+            .find(|slot| {
+                !interrupted_sources
+                    .iter()
+                    .any(|source| source.state == transition.target && source.context_slot == *slot)
+            })
+            .unwrap();
         state.state = transition.target.clone();
         state.state_entered_time = time;
+        state.blend_duration = blend_duration;
         state.interrupted_sources = interrupted_sources;
-        state.source_pose = source_pose;
-        state.transition_source_weights = if matches!(state.state, LowLevelStateId::HlTransition(_))
-        {
-            source_weights
-        } else {
-            vec![SourceFsmStateWeight {
-                state_id: transition.hl_target.uuid().to_string(),
-                value: 1.0,
-            }]
-        };
-        if !matches!(state.state, LowLevelStateId::HlTransition(_)) {
-            state.source_pose = None;
+        state.source_pose = None;
+    }
+
+    fn prepare_transition_duration(
+        &self,
+        machine: &LowLevelStateMachine,
+        transition: &LowLevelTransition,
+        state: &mut InterruptibleFsmState,
+        source_weights: &[SourceFsmStateWeight],
+        ctx: &NodeContext,
+    ) -> Result<Option<f32>, GraphError> {
+        let Some(target) = machine.states.get(&transition.target) else { return Ok(None); };
+        let Some(duration) = target.hl_transition.as_ref().and_then(|data| data.timed) else { return Ok(None); };
+        let graph = ctx.graph_context.resources.animation_graph_assets.get(&target.graph)
+            .ok_or(GraphError::FSMGraphAssetMissing)?;
+        if let Some(node) = graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<InertializationNode>()) {
+            crate::animation_context::merge_inertialization_request(
+                &mut state.context.inertialization_request,
+                Some(&crate::animation_context::SourceInertializationRequest {
+                    frame: ctx.graph_context.frame_index(),
+                    duration: node.transition_duration,
+                }),
+            );
+            return Ok(Some(0.0));
         }
+        let profile = graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<ProfiledBlendNode>())
+            .ok_or_else(|| Self::state_weight_error(ctx, "source transition blend mode is unavailable"))?;
+        let target_weight = source_weights.iter().find(|weight| weight.state_id == transition.hl_target.uuid().to_string())
+            .map_or(0.0, |weight| weight.value);
+        let context = self.source_target_context(machine, state, ctx)?;
+        let adjustment = Self::transition_id(transition).and_then(|id| match id {
+            TransitionId::Direct(id) => self.source_transition_conditions.iter()
+                .find(|condition| condition.transition_id == id.uuid().to_string()),
+            _ => None,
+        }).and_then(|condition| condition.automatic_trigger_time.and_then(|trigger|
+            source_automatic_transition_adjustment(context.as_ref().and_then(|value| value.relevant_asset.as_ref()), trigger, condition.transition_duration)))
+            .unwrap_or(0.0);
+        Ok(Some(source_transition_duration(duration, target_weight, adjustment, profile.alpha_blend_mode)))
     }
 
     fn event_start_index(event_count: usize, max_requests: usize) -> usize {
@@ -612,10 +653,10 @@ impl InterruptibleFsmNode {
             0
         };
         for sampled in events.events.into_iter().skip(start) {
-            if *remaining_transitions == 0 {
+            let ending = matches!(&sampled.event, AnimationEvent::EndTransition);
+            if *remaining_transitions == 0 && !ending {
                 break;
             }
-            let ending = matches!(&sampled.event, AnimationEvent::EndTransition);
             let transition = match sampled.event {
                 AnimationEvent::TransitionToState(target) => {
                     if let LowLevelStateId::HlState(source) = state.state.clone() {
@@ -653,7 +694,7 @@ impl InterruptibleFsmNode {
                 _ => None,
             };
             if let Some(transition) = transition {
-                let source_weights = Self::state_weight_values(machine, &state, ctx, time)?;
+                let source_weights = state.recorded_state_weights.clone();
                 let always_reset = Self::transition_id(transition)
                     .and_then(|id| match id {
                         TransitionId::Direct(id) => self
@@ -716,8 +757,12 @@ impl InterruptibleFsmNode {
                             &ctx.graph_context.resources.animation_graph_assets,
                         )?);
                 }
-                Self::activate_transition(&mut state, transition, time, source_weights);
-                *remaining_transitions -= 1;
+                let blend_duration = self.prepare_transition_duration(machine, transition, &mut state, &source_weights, ctx)?;
+                Self::activate_transition(&mut state, transition,
+                    if blend_duration.is_some() { ctx.prev_time() } else { time }, blend_duration);
+                if !ending {
+                    *remaining_transitions -= 1;
+                }
             }
         }
         let default_state = state.clone();
@@ -752,6 +797,19 @@ impl InterruptibleFsmNode {
         }))
     }
 
+    fn source_target_context(
+        &self,
+        machine: &LowLevelStateMachine,
+        state: &InterruptibleFsmState,
+        ctx: &NodeContext,
+    ) -> Result<Option<AnimationContextState>, GraphError> {
+        let Some(target) = Self::source_condition_state(machine, &state.state) else { return Ok(None); };
+        let target = LowLevelStateId::HlState(target);
+        let (state_data, graph) = Self::active_graph(machine, &target, ctx)?;
+        let sub_ctx = ctx.create_child_context(state_data.graph.id(), graph, Some(target.clone()));
+        Ok(graph_output_context_state(graph, &sub_ctx, self.state_pose_output_for(&target)))
+    }
+
     fn source_transition_event(
         &self,
         machine: &LowLevelStateMachine,
@@ -762,16 +820,17 @@ impl InterruptibleFsmNode {
         let Some(active_state) = Self::source_condition_state(machine, &state.state) else {
             return Ok(None);
         };
+        let context = self.source_target_context(machine, &state, ctx)?;
         for condition in &self.source_transition_conditions {
             if condition.source_state_id != active_state.uuid().to_string() {
                 continue;
             }
             let matched = if let Some(trigger_time) = condition.automatic_trigger_time {
-                source_automatic_transition_matches(
-                    state.context.relevant_asset.as_ref(),
+                source_automatic_transition_adjustment(
+                    context.as_ref().and_then(|value| value.relevant_asset.as_ref()),
                     trigger_time,
                     condition.transition_duration,
-                )
+                ).is_some()
             } else {
                 self.source_condition_graph_matches(
                     machine,
@@ -807,6 +866,10 @@ impl InterruptibleFsmNode {
                     node: ctx.node_id,
                     error: "source transition condition target is unavailable".to_owned(),
                 })?;
+            if self.direct_transition(machine, &state, transition)
+                .is_some_and(|transition| transition.hl_target == active_state) {
+                continue;
+            }
             return Ok(Some(transition));
         }
         Ok(None)
@@ -835,6 +898,8 @@ impl InterruptibleFsmNode {
             parent_time_update,
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
+            context_slot: state.context_slot,
+            blend_duration: state.blend_duration,
             source_pose: state.source_pose.clone(),
             role: FsmRole::Root,
             stack: VecDeque::new(),
@@ -980,11 +1045,12 @@ impl InterruptibleFsmNode {
         InterruptibleFsmState {
             state,
             state_entered_time: time,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: AnimationContextState::default(),
             recorded_machine_weight: 1.0,
-            recorded_state_weights: initial_weights.clone(),
-            transition_source_weights: initial_weights,
+            recorded_state_weights: initial_weights,
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -1001,62 +1067,72 @@ impl InterruptibleFsmNode {
         ctx: &NodeContext,
         time: f32,
     ) -> Result<Vec<SourceFsmStateWeight>, GraphError> {
-        let LowLevelStateId::HlTransition(_) = &state.state else {
-            return Ok(Self::initial_state_weights(&state.state));
+        let current = InterruptibleFsmSource {
+            state: state.state.clone(),
+            state_entered_time: state.state_entered_time,
+            context_slot: state.context_slot,
+            blend_duration: state.blend_duration,
         };
-        let state_data = machine
-            .states
-            .get(&state.state)
-            .ok_or(GraphError::FSMCurrentStateMissing)?;
-        let transition = state_data
-            .hl_transition
-            .as_ref()
-            .ok_or(GraphError::FSMCurrentStateMissing)?;
-        let duration = transition.timed.unwrap_or_default().max(0.0);
-        let factor = if duration <= f32::EPSILON {
-            1.0
-        } else {
-            ((time - state.state_entered_time) / duration).clamp(0.0, 1.0)
-        };
-        let graph = ctx
-            .graph_context
-            .resources
-            .animation_graph_assets
-            .get(&state_data.graph)
-            .ok_or(GraphError::FSMGraphAssetMissing)?;
-        let profiled = graph
-            .nodes
-            .values()
-            .filter_map(|node| node.try_inner_downcast_ref::<ProfiledBlendNode>())
-            .collect::<Vec<_>>();
-        let inertial = graph
-            .nodes
-            .values()
-            .filter_map(|node| node.try_inner_downcast_ref::<InertializationNode>())
-            .collect::<Vec<_>>();
-        let alpha = match (profiled.as_slice(), inertial.as_slice()) {
-            ([node], []) => transition_alpha(factor, node.alpha_blend_mode, &node.custom_curve),
-            ([], [node]) => inertial_alpha(factor, node.transition_duration, node.half_life),
-            _ => {
-                return Err(Self::state_weight_error(
-                    ctx,
-                    "source transition weight is unavailable",
-                ));
+        let mut weights = Vec::new();
+        for source in state
+            .interrupted_sources
+            .iter()
+            .rev()
+            .chain(std::iter::once(&current))
+        {
+            if matches!(source.state, LowLevelStateId::HlState(_)) {
+                weights = Self::initial_state_weights(&source.state);
+                continue;
             }
-        };
-        let mut weights = if state.transition_source_weights.is_empty() {
-            vec![SourceFsmStateWeight {
-                state_id: transition.source.uuid().to_string(),
-                value: 1.0,
-            }]
-        } else {
-            state.transition_source_weights.clone()
-        };
-        for entry in &mut weights {
-            entry.value = (entry.value * (1.0 - alpha)).clamp(0.0, 1.0);
+            let state_data = machine
+                .states
+                .get(&source.state)
+                .ok_or(GraphError::FSMCurrentStateMissing)?;
+            let transition = state_data
+                .hl_transition
+                .as_ref()
+                .ok_or(GraphError::FSMCurrentStateMissing)?;
+            let duration = source.blend_duration.or(transition.timed).unwrap_or_default().max(0.0);
+            let factor = if duration <= f32::EPSILON {
+                1.0
+            } else {
+                ((time - source.state_entered_time) / duration).clamp(0.0, 1.0)
+            };
+            let graph = ctx
+                .graph_context
+                .resources
+                .animation_graph_assets
+                .get(&state_data.graph)
+                .ok_or(GraphError::FSMGraphAssetMissing)?;
+            let profiled = graph
+                .nodes
+                .values()
+                .filter_map(|node| node.try_inner_downcast_ref::<ProfiledBlendNode>())
+                .collect::<Vec<_>>();
+            let inertial = graph
+                .nodes
+                .values()
+                .filter_map(|node| node.try_inner_downcast_ref::<InertializationNode>())
+                .collect::<Vec<_>>();
+            let alpha = match (profiled.as_slice(), inertial.as_slice()) {
+                ([node], []) => transition_alpha(factor, node.alpha_blend_mode, &node.custom_curve),
+                ([], [_]) => 1.0,
+                _ => {
+                    return Err(Self::state_weight_error(
+                        ctx,
+                        "source transition weight is unavailable",
+                    ));
+                }
+            };
+            if weights.is_empty() {
+                weights = Self::initial_state_weights(&LowLevelStateId::HlState(transition.source));
+            }
+            for entry in &mut weights {
+                entry.value = (entry.value * (1.0 - alpha)).clamp(0.0, 1.0);
+            }
+            Self::add_state_weight(&mut weights, transition.target, alpha);
+            weights.retain(|entry| entry.value > f32::EPSILON);
         }
-        Self::add_state_weight(&mut weights, transition.target, alpha);
-        weights.retain(|entry| entry.value > f32::EPSILON);
         Ok(weights)
     }
 
@@ -1118,7 +1194,59 @@ impl InterruptibleFsmNode {
         parent_time_update: TimeUpdate,
         ctx: &mut NodeContext,
     ) -> Result<EventQueue, GraphError> {
-        let state = ctx.state::<InterruptibleFsmState>()?.clone();
+        let mut state = ctx.state::<InterruptibleFsmState>()?.clone();
+        if let Some(completed) = state.interrupted_sources.iter().position(|source| {
+            machine
+                .states
+                .get(&source.state)
+                .and_then(|state| state.hl_transition.as_ref())
+                .and_then(|transition| {
+                    timed_transition_progress(
+                        ctx.time() - source.state_entered_time,
+                        source.blend_duration.or(transition.timed),
+                    )
+                })
+                .is_some_and(|progress| progress >= 1.0)
+        }) {
+            state.interrupted_sources.truncate(completed);
+        }
+        let mut source_pose = None;
+        for source in state.interrupted_sources.iter().rev() {
+            Self::prewarm_active_state_caches(machine, &source.state, ctx)?;
+            let (source_data, source_graph) = Self::active_graph(machine, &source.state, ctx)?;
+            let io = InterruptibleFsmIo {
+                node_context: ctx.clone(),
+                machine,
+                current_time: ctx.time(),
+                parent_time_update: parent_time_update.clone(),
+                state: source.state.clone(),
+                state_entered_time: source.state_entered_time,
+                context_slot: source.context_slot,
+                blend_duration: source.blend_duration,
+                source_pose,
+                role: FsmRole::Root,
+                stack: VecDeque::new(),
+                state_pose_output: self.state_pose_output.clone(),
+                state_pose_outputs: self.state_pose_outputs.clone(),
+            };
+            let sub_ctx = state_graph_context(ctx, source_data, source_graph, source.context_slot)
+                .with_io(&io);
+            let output = source_graph
+                .io_spec
+                .iter_output_data()
+                .find(|(_, spec)| **spec == DataSpec::Pose)
+                .map(|(output, _)| output.clone())
+                .ok_or(GraphError::FSMGraphAssetMissing)?;
+            let pose = source_graph
+                .get_data(TargetPin::OutputData(output.clone()), sub_ctx.clone())?
+                .into_pose()?;
+            source_pose = Some((
+                pose,
+                graph_output_context_state(source_graph, &sub_ctx, &output).unwrap_or_default(),
+            ));
+        }
+        state.source_pose = source_pose;
+        *ctx.state_mut_or_else(|| state.clone())? = state.clone();
         Self::prewarm_active_state_caches(machine, &state.state, ctx)?;
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
         let elapsed = (ctx.time() - state.state_entered_time).max(0.0);
@@ -1129,15 +1257,15 @@ impl InterruptibleFsmNode {
             parent_time_update,
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
+            context_slot: state.context_slot,
+            blend_duration: state.blend_duration,
             source_pose: state.source_pose.clone(),
             role: FsmRole::Root,
             stack: VecDeque::new(),
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
         };
-        let sub_ctx = ctx
-            .create_child_context(state_data.graph.id(), graph, Some(state.state.clone()))
-            .with_io(&io);
+        let sub_ctx = state_graph_context(ctx, state_data, graph, state.context_slot).with_io(&io);
         let mut internal_events = EventQueue::default();
         let mut latest_pose = None;
         let mut pose_output = None;
@@ -1174,6 +1302,8 @@ impl InterruptibleFsmNode {
         {
             merge_missing_context_curves(&mut context_state, &context);
         }
+        crate::animation_context::merge_inertialization_request(
+            &mut context_state.inertialization_request, state.context.inertialization_request.as_ref());
         let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
         ctx.state_mut_or_else(|| snapshot)?.context = context_state;
         self.record_state_weights(machine, ctx)?;
@@ -1181,7 +1311,7 @@ impl InterruptibleFsmNode {
             .states
             .get(&state.state)
             .and_then(|state| state.hl_transition.as_ref())
-            .and_then(|transition| timed_transition_progress(elapsed, transition.timed))
+            .and_then(|transition| timed_transition_progress(elapsed, state.blend_duration.or(transition.timed)))
             .is_some_and(|progress| progress >= 1.0)
         {
             internal_events.add_instant_event(AnimationEvent::EndTransition);
@@ -1251,6 +1381,7 @@ impl NodeLike for InterruptibleFsmNode {
             .state_mut_or_else(|| initial_state.clone())
             .map_err(|error| entry_error("state finalization", error))?;
         state.transition_notifications.clear();
+        state.context.inertialization_request = None;
         state.notification_generation = NOTIFICATION_GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
         if select_entry && let Some(entry) = Self::source_condition_state(machine, &state.state) {
             state.transition_notifications.extend(Self::state_function_notifications(
@@ -1269,7 +1400,7 @@ impl NodeLike for InterruptibleFsmNode {
             &mut ctx,
         )
         .map_err(|error| entry_error("external event processing", error))?;
-        if remaining_transitions > 0
+        while remaining_transitions > 0
             && let Some(transition) = self
                 .source_transition_event(machine, update.clone(), &mut ctx)
                 .map_err(|error| entry_error("source transition selection", error))?
@@ -1374,10 +1505,33 @@ enum FsmRole {
     Root,
 }
 
+fn state_graph_context<'a>(
+    ctx: &NodeContext<'a>,
+    state: &LowLevelState,
+    graph: &'a AnimationGraph,
+    slot: usize,
+) -> GraphContext<'a> {
+    let context = ctx.create_child_context(state.graph.id(), graph, Some(state.id.clone()));
+    if slot == 0 {
+        return context;
+    }
+    context
+        .create_node_context(ctx.node_id)
+        .create_child_context(
+            state.graph.id(),
+            graph,
+            Some(LowLevelStateId::HlState(StateId::from(
+                bevy::asset::uuid::Uuid::from_u128(slot as u128),
+            ))),
+        )
+}
+
 #[derive(Clone)]
 struct FsmStackFrame {
     state: LowLevelStateId,
     state_entered_time: f32,
+    context_slot: usize,
+    blend_duration: Option<f32>,
     source_pose: Option<(Pose, AnimationContextState)>,
     role: FsmRole,
 }
@@ -1390,6 +1544,8 @@ struct InterruptibleFsmIo<'a> {
     parent_time_update: TimeUpdate,
     state: LowLevelStateId,
     state_entered_time: f32,
+    context_slot: usize,
+    blend_duration: Option<f32>,
     source_pose: Option<(Pose, AnimationContextState)>,
     role: FsmRole,
     stack: VecDeque<FsmStackFrame>,
@@ -1457,7 +1613,7 @@ impl<'a> InterruptibleFsmIo<'a> {
                 .states
                 .get(&self.state)
                 .and_then(|state| state.hl_transition.as_ref())
-                .and_then(|transition| timed_transition_progress(elapsed, transition.timed))
+                .and_then(|transition| timed_transition_progress(elapsed, self.blend_duration.or(transition.timed)))
                 .map(DataValue::F32)
                 .ok_or_else(|| GraphError::UnknownErrorNode {
                     graph: self.node_context.graph_context.context_id,
@@ -1484,6 +1640,8 @@ impl<'a> InterruptibleFsmIo<'a> {
         stack.push_back(FsmStackFrame {
             state: self.state.clone(),
             state_entered_time: self.state_entered_time,
+            context_slot: self.context_slot,
+            blend_duration: self.blend_duration,
             source_pose: self.source_pose.clone(),
             role: self.role,
         });
@@ -1494,6 +1652,8 @@ impl<'a> InterruptibleFsmIo<'a> {
             parent_time_update: self.parent_time_update.clone(),
             state,
             state_entered_time: self.state_entered_time,
+            context_slot: self.context_slot,
+            blend_duration: self.blend_duration,
             source_pose: None,
             role,
             stack,
@@ -1576,11 +1736,6 @@ impl<'a> InterruptibleFsmIo<'a> {
     }
 
     fn nested_time(&self, ctx: &GraphContext) -> Result<TimeUpdate, GraphError> {
-        if matches!(self.role, FsmRole::Source) {
-            if let Some((pose, _)) = &self.source_pose {
-                return Ok(TimeUpdate::Absolute(pose.timestamp));
-            }
-        }
         let mut stack = self.stack.clone();
         let Some(frame) = stack.pop_back() else {
             return self.parent_time(ctx);
@@ -1605,15 +1760,17 @@ impl<'a> InterruptibleFsmIo<'a> {
             parent_time_update: self.parent_time_update.clone(),
             state: frame.state.clone(),
             state_entered_time: frame.state_entered_time,
+            context_slot: frame.context_slot,
+            blend_duration: frame.blend_duration,
             source_pose: frame.source_pose,
             role: frame.role,
             stack,
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
         };
-        let sub_ctx = self
-            .node_context
-            .create_child_context(graph_handle.id(), graph, Some(frame.state))
+        let state_data = self.machine.states.get(&frame.state)
+            .ok_or(GraphError::FSMCurrentStateMissing)?;
+        let sub_ctx = state_graph_context(&self.node_context, state_data, graph, frame.context_slot)
             .with_state_key(ctx.state_key)
             .with_io(&io);
         let input = match self.role {
@@ -2223,11 +2380,13 @@ mod tests {
 
     #[test]
     fn source_transition_preserves_a_target_that_is_still_blending() {
+        use bevy::animation::animated_field;
         fn query(
-            In((root, player, interrupt_frame, inertial, sync)): In<(
+            In((root, player, interrupt_frame, inertial, sync, repeat)): In<(
                 Handle<AnimationGraph>,
                 NodeId,
                 usize,
+                bool,
                 bool,
                 bool,
             )>,
@@ -2238,16 +2397,31 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
-            for frame in 0..=interrupt_frame + usize::from(sync) * 2 {
+            let mut context_count = None;
+            let mut simultaneous_reentry = false;
+            for frame in 0..=if repeat {
+                46
+            } else {
+                interrupt_frame + usize::from(sync) * 2
+            } {
                 let inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(0.1)),
-                    ("leave".to_owned(), DataValue::Bool(frame == 2)),
+                    ("third".to_owned(), DataValue::Bool(repeat && (frame == 2 || (frame >= 4 && frame <= 40 && frame % 3 == 1)))),
+                    (
+                        "leave".to_owned(),
+                        DataValue::Bool(
+                            frame == 2 || (repeat && frame <= 40 && frame > 2 && frame % 3 == 2),
+                        ),
+                    ),
                     (
                         "return".to_owned(),
-                        DataValue::Bool(frame == interrupt_frame),
+                        DataValue::Bool(
+                            if repeat { frame == 2 || (frame >= 3 && frame <= 40 && frame % 3 == 0) }
+                            else { frame == interrupt_frame },
+                        ),
                     ),
                 ]);
-                graph
+                let outputs = graph
                     .query_with_context(
                         QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
                         GraphContext::new(
@@ -2263,6 +2437,25 @@ mod tests {
                         ),
                     )
                     .unwrap();
+                if inertial && !sync && frame == 2 {
+                    let bone = bevy::animation::AnimationTargetId::from_name(&Name::new("moving")).into();
+                    let position = outputs["Pose"].clone().into_pose().unwrap()
+                        .get_bone(bone).unwrap().translation.unwrap().x;
+                    assert!(position > 0.4 && position < 1.1, "inertial request output: {position}");
+                    let node = graph.nodes.values().find(|node| node.name == "inertializer").unwrap();
+                    let context = &arena.get_toplevel().node_states
+                        .get::<crate::inertialization_passthrough::SourceInertializationState>(node.id, StateKey::Default).unwrap().context;
+                    assert!(context.curves["Choice"] > 0.25 && context.curves["Choice"] < 0.75,
+                        "inertial curve: {}", context.curves["Choice"]);
+                    assert_eq!(context.curves["Filtered"], 0.75);
+                    assert!(context.inertialization_request.is_none());
+                }
+                if inertial && repeat && frame == 2 {
+                    let bone = bevy::animation::AnimationTargetId::from_name(&Name::new("moving")).into();
+                    let position = outputs["Pose"].clone().into_pose().unwrap()
+                        .get_bone(bone).unwrap().translation.unwrap().x;
+                    assert!((position - 0.48125).abs() < 1e-5, "minimum inertial request: {position}");
+                }
                 let fsm = graph
                     .nodes
                     .values()
@@ -2281,23 +2474,81 @@ mod tests {
                     Some(&1.0),
                     "context frame={frame}"
                 );
-                let expected = if inertial {
-                    if frame < 2 || frame == interrupt_frame { 0.25 } else { 0.75 }
-                } else {
-                    let sample_frame = if frame == interrupt_frame { frame - 1 } else { frame };
-                    0.25 + 0.5 * (sample_frame.saturating_sub(2) as f32 * 0.1 / 0.5)
-                };
-                if !sync { assert!(
+                let mut expected = if frame < 2 || frame >= interrupt_frame { 0.25 } else { 0.75 };
+                if !inertial && !repeat {
+                    expected = match frame {
+                        0 | 1 => 0.25,
+                        2 => 0.35,
+                        _ if interrupt_frame == 3 => 0.25,
+                        3 => 0.45,
+                        4 => 0.55,
+                        5 => 0.51666665,
+                        6 => 0.41666666,
+                        _ => 0.25,
+                    };
+                }
+                let weighted = state.recorded_state_weight("10000000-0000-4000-8000-000000000001") * 0.25
+                    + state.recorded_state_weight("10000000-0000-4000-8000-000000000002") * 0.75
+                    + state.recorded_state_weight("10000000-0000-4000-8000-000000000003") * 0.5;
+                if repeat { expected = weighted; }
+                assert!(
                     (state.context.curves["Choice"] - expected).abs() < 1e-6,
                     "context frame={frame}, inertial={inertial}: {:?} != {expected}",
                     state.context.curves
-                ); }
+                );
+                if !inertial {
+                    assert!(
+                        (weighted - expected).abs() < 1e-6,
+                        "state weight frame={frame}: {weighted} != {expected}"
+                    );
+                }
                 assert!(!state.context.sync_players.is_empty());
                 if sync {
-                    let phase = crate::sync_group_phase::source_sync_phase(&arena, &resources.animation_graph_assets, "fixture").unwrap();
-                    assert!((phase - (0.15 + frame as f32 * 0.05)).abs() < 1e-6, "group phase frame={frame}: {phase}");
+                    let phase = crate::sync_group_phase::source_sync_phase(
+                        &arena,
+                        &resources.animation_graph_assets,
+                        "fixture",
+                    )
+                    .unwrap();
+                    assert!(
+                        (phase - ((0.3 + frame as f32 * 0.1) / if repeat { 20.0 } else { 2.0 }))
+                            .abs()
+                            < 1e-6,
+                        "group phase frame={frame}: {phase}"
+                    );
+                    let bone =
+                        bevy::animation::AnimationTargetId::from_name(&Name::new("moving")).into();
+                    let position = state
+                        .last_output_pose()
+                        .unwrap()
+                        .get_bone(bone)
+                        .unwrap()
+                        .translation
+                        .unwrap()
+                        .x;
+                    assert!(
+                        (position - (0.3 + frame as f32 * 0.1)).abs() < 1e-5,
+                        "moving pose frame={frame}: {position}"
+                    );
+                }
+                if repeat {
+                    if frame == 2 {
+                        assert_eq!(state.active_state_id().as_deref(), Some("10000000-0000-4000-8000-000000000001"));
+                    }
+                    assert!(state.interrupted_sources.len() <= 5);
+                    simultaneous_reentry |= state.interrupted_sources.iter().any(|source| source.state == state.state);
+                    if frame == 20 {
+                        context_count = Some(arena.iter_context_ids().count());
+                    }
+                    if frame > 20 {
+                        assert_eq!(Some(arena.iter_context_ids().count()), context_count);
+                    }
+                    if frame == 46 {
+                        assert!(state.interrupted_sources.is_empty());
+                    }
                 }
             }
+            if repeat && !inertial { assert!(simultaneous_reentry); }
             arena
                 .iter_context_ids()
                 .find_map(|context| {
@@ -2316,25 +2567,42 @@ mod tests {
                 })
                 .unwrap()
         }
-        for (policy, interrupt_frame, inertial, sync) in [Some(false), Some(true), None]
+        for (policy, interrupt_frame, inertial, sync, repeat) in [Some(false), Some(true), None]
             .into_iter()
             .flat_map(|policy| {
-                [3, 5]
-                    .into_iter()
-                    .flat_map(move |frame| [false, true].map(|inertial| (policy, frame, inertial, false)))
-            }).chain([(Some(false), 5, false, true)])
+                [3, 5].into_iter().flat_map(move |frame| {
+                    [false, true].map(|inertial| (policy, frame, inertial, false, false))
+                })
+            })
+            .chain([
+                (Some(false), 5, false, true, false),
+                (Some(false), 4, false, true, true),
+                (Some(false), 4, true, true, true),
+            ])
         {
             let mut graphs = Assets::<AnimationGraph>::default();
             let mut clips = Assets::<GraphClip>::default();
-            let clip = clips.add(GraphClip {
-                duration: 2.0,
-                ..default()
-            });
-            let states = [1, 2].map(|id| {
+            let duration = if repeat { 20.0 } else { 2.0 };
+            let mut animation = bevy::animation::AnimationClip::default();
+            animation.add_curve_to_target(
+                bevy::animation::AnimationTargetId::from_name(&Name::new("moving")),
+                AnimatableCurve::new(
+                    animated_field!(Transform::translation),
+                    UnevenSampleAutoCurve::new([(0.0, Vec3::ZERO), (duration, Vec3::X * duration)])
+                        .unwrap(),
+                ),
+            );
+            let clip = clips.add(GraphClip::from_bevy_clip(
+                animation,
+                default(),
+                default(),
+                None,
+            ));
+            let states = [1, 2, 3].map(|id| {
                 serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\""))
                     .unwrap()
             });
-            let transitions = [1, 2].map(|id| {
+            let transitions = [1, 2, 3].map(|id| {
                 serde_json::from_str::<DirectTransitionId>(&format!(
                     "\"20000000-0000-4000-8000-{id:012}\""
                 ))
@@ -2346,7 +2614,7 @@ mod tests {
                 .node_spec
                 .add_output_data("pose".to_owned(), DataSpec::Pose);
             let mut players = Vec::new();
-            for (index, start_position) in [0.2, 1.0].into_iter().enumerate() {
+            for (index, start_position) in [0.2, 1.0, 1.4].into_iter().take(if repeat { 3 } else { 2 }).enumerate() {
                 let mut graph = AnimationGraph::new();
                 let player = AnimationNode::new(
                     "player",
@@ -2354,9 +2622,14 @@ mod tests {
                         clip: clip.clone(),
                         start_position,
                         sync_group: "fixture".to_owned(),
-                        synchronization: Some(crate::source_sequence_player::SourceSequenceSynchronization {
-                            key: "fixture".to_owned(), phase_duration: 2.0, delta_seconds_key: "delta".to_owned(), ..default()
-                        }),
+                        synchronization: Some(
+                            crate::source_sequence_player::SourceSequenceSynchronization {
+                                key: "fixture".to_owned(),
+                                phase_duration: duration,
+                                delta_seconds_key: "delta".to_owned(),
+                                ..default()
+                            },
+                        ),
                         ..default()
                     },
                 );
@@ -2366,8 +2639,8 @@ mod tests {
                     "curve",
                     crate::SourceCurveModifyNode {
                         source_pose_pin: "SourcePose".to_owned(),
-                        curve_names: vec!["Fixture".to_owned(), "Choice".to_owned()],
-                        pin_defaults: vec![1.0, if index == 0 { 0.25 } else { 0.75 }],
+                        curve_names: vec!["Fixture".to_owned(), "Choice".to_owned(), "Filtered".to_owned()],
+                        pin_defaults: vec![1.0, [0.25, 0.75, 0.5][index], [0.25, 0.75, 0.5][index]],
                         alpha: 1.0,
                         apply_mode: "Blend".to_owned(),
                         ..default()
@@ -2424,7 +2697,7 @@ mod tests {
             transition_graph.add_output_data_edge(blend.id, "pose", "pose");
             let transition_graph = graphs.add(transition_graph);
             let mut conditions = Vec::new();
-            for (index, key) in ["leave", "return"].into_iter().enumerate() {
+            for (index, key) in ["leave", "return", "third"].into_iter().take(if repeat { 3 } else { 2 }).enumerate() {
                 let mut graph = AnimationGraph::new();
                 let condition = AnimationNode::new(
                     "condition",
@@ -2442,13 +2715,22 @@ mod tests {
                     output: key.to_owned(),
                     context_state: states[index],
                     always_reset_target_on_entry: policy,
+                    automatic_trigger_time: (index == 1 && !inertial && !repeat && interrupt_frame == 3).then_some(1.0),
                     ..default()
                 });
+                let runtime_graph = if inertial && repeat {
+                    let mut graph = graphs.get(&transition_graph).unwrap().clone();
+                    graph.add_node(AnimationNode {
+                        id: blend.id,
+                        ..AnimationNode::new("transition", InertializationNode { transition_duration: [0.5, 0.2, 0.4][index] })
+                    });
+                    graphs.add(graph)
+                } else { transition_graph.clone() };
                 machine.add_transition_unchecked(DirectTransition {
-                id: transitions[index], source: states[index], target: states[1-index],
+                id: transitions[index], source: states[index], target: states[if repeat { (index + 1) % 3 } else { 1-index }],
                 data: TransitionData {
                     kind: bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph {
-                        graph: transition_graph.clone(), timed: Some(0.5),
+                        graph: runtime_graph, timed: Some(0.5),
                     }, reset_target_state: true, ..default()
                 },
             });
@@ -2469,15 +2751,30 @@ mod tests {
             );
             root.add_node(node.clone());
             root.add_output_data("Pose".to_owned(), DataSpec::Pose);
-            if sync {
-                let scope = AnimationNode::new("sync scope", SourcePosePassthroughNode {
-                    synchronize_groups: true, output_time: false, ..default()
+            let output_node = if inertial {
+                let inertializer = AnimationNode::new("inertializer", crate::InertializationPassthroughNode {
+                    internalize_time: true,
+                    filtered_curves: vec!["Filtered".to_owned()],
+                    ..default()
                 });
+                root.add_node(inertializer.clone());
+                root.add_node_parameter_edge(node.id, "pose", inertializer.id, "Source");
+                inertializer.id
+            } else { node.id };
+            if sync {
+                let scope = AnimationNode::new(
+                    "sync scope",
+                    SourcePosePassthroughNode {
+                        synchronize_groups: true,
+                        output_time: false,
+                        ..default()
+                    },
+                );
                 root.add_node(scope.clone());
-                root.add_node_parameter_edge(node.id, "pose", scope.id, "Source");
+                root.add_node_parameter_edge(output_node, "pose", scope.id, "Source");
                 root.add_output_data_edge(scope.id, "Pose", "Pose");
             } else {
-                root.add_output_data_edge(node.id, "pose", "Pose");
+                root.add_output_data_edge(output_node, "pose", "Pose");
             }
             let root = graphs.add(root);
             let mut world = World::new();
@@ -2486,16 +2783,23 @@ mod tests {
             world.insert_resource(machines);
             world.insert_resource(Assets::<Skeleton>::default());
             let actual = world
-                .run_system_cached_with(query, (root, players[0], interrupt_frame, inertial, sync))
+                .run_system_cached_with(
+                    query,
+                    (root, players[0], interrupt_frame, inertial, sync, repeat),
+                )
                 .unwrap();
-            let expected = if policy == Some(false) {
-                0.2 + (interrupt_frame + 1 + usize::from(sync) * 2) as f32 * 0.1
+            let expected = if (policy == Some(false) && !inertial) || repeat {
+                0.2 + if repeat {
+                    4.7
+                } else {
+                    (interrupt_frame + 1 + usize::from(sync) * 2) as f32 * 0.1
+                }
             } else {
                 0.3
             };
             assert!(
-                (actual - expected).abs() < 1e-6,
-                "reset policy {policy:?}: {actual} != {expected}"
+                (actual - expected).abs() < 1e-5,
+                "reset policy {policy:?}, inertial={inertial}, repeat={repeat}: {actual} != {expected}"
             );
         }
     }
@@ -2519,11 +2823,12 @@ mod tests {
         let runtime = InterruptibleFsmState {
             state,
             state_entered_time: 0.0,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
             recorded_state_weights: default(),
-            transition_source_weights: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -2600,6 +2905,14 @@ mod tests {
     }
 
     #[test]
+    fn transition_duration_uses_source_inverse_blend_and_automatic_overshoot() {
+        assert!((source_transition_duration(0.4, 0.75, 0.0, AlphaBlendMode::HermiteCubic) - 0.125).abs() < 1e-6);
+        assert!((source_transition_duration(0.4, 0.25, 0.0, AlphaBlendMode::HermiteCubic) - 0.275).abs() < 1e-6);
+        assert!((source_transition_duration(0.4, 0.75, 0.1, AlphaBlendMode::Linear) - 0.075).abs() < 1e-6);
+        assert_eq!(source_transition_duration(0.1, 0.0, 0.2, AlphaBlendMode::Cubic), 0.0);
+    }
+
+    #[test]
     fn automatic_transition_uses_relevant_asset_remaining_time() {
         let asset = SourceRelevantAsset {
             duration: 1.0,
@@ -2607,8 +2920,8 @@ mod tests {
             weight: 1.0,
             ..default()
         };
-        assert!(source_automatic_transition_matches(Some(&asset), -1.0, 0.2));
-        assert!(!source_automatic_transition_matches(Some(&asset), 0.1, 0.0));
+        assert!((source_automatic_transition_adjustment(Some(&asset), -1.0, 0.2).unwrap() - 0.05).abs() < 1e-6);
+        assert_eq!(source_automatic_transition_adjustment(Some(&asset), 0.1, 0.0), None);
         let wrapped = SourceRelevantAsset {
             position: 0.1,
             previous_position: 0.9,
@@ -2617,11 +2930,7 @@ mod tests {
             looping: true,
             ..asset.clone()
         };
-        assert!(source_automatic_transition_matches(
-            Some(&wrapped),
-            0.0,
-            0.0
-        ));
+        assert_eq!(source_automatic_transition_adjustment(Some(&wrapped), 0.0, 0.0), Some(0.0));
     }
 
     #[test]
@@ -2644,11 +2953,12 @@ mod tests {
         let runtime = InterruptibleFsmState {
             state: LowLevelStateId::HlState(member),
             state_entered_time: 0.0,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
             recorded_state_weights: default(),
-            transition_source_weights: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -2690,11 +3000,12 @@ mod tests {
         let mut runtime = InterruptibleFsmState {
             state: source,
             state_entered_time: 0.0,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
             recorded_state_weights: default(),
-            transition_source_weights: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -2709,7 +3020,7 @@ mod tests {
             let transition = InterruptibleFsmNode::default()
                 .direct_transition(&machine, &runtime, transition_id)
                 .unwrap();
-            InterruptibleFsmNode::activate_transition(&mut runtime, transition, 0.25, Vec::new());
+            InterruptibleFsmNode::activate_transition(&mut runtime, transition, 0.25, None);
             deliveries += 1;
         }
         if take_direct_transition_edge(&mut previous, 0.0, 1).is_some() {
@@ -2997,6 +3308,8 @@ mod tests {
         let state = InterruptibleFsmState {
             state: LowLevelStateId::HlState(StateId::default()),
             state_entered_time: 0.0,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 0.75,
@@ -3004,7 +3317,6 @@ mod tests {
                 state_id: state_id.clone(),
                 value: 0.25,
             }],
-            transition_source_weights: Vec::new(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -3049,11 +3361,12 @@ mod tests {
         let mut runtime = InterruptibleFsmState {
             state: active_state.clone(),
             state_entered_time: 1.0,
+            context_slot: 0,
+            blend_duration: None,
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
             recorded_state_weights: default(),
-            transition_source_weights: default(),
             source_pose: None,
             last_pose: None,
             label_last_index: None,
@@ -3068,7 +3381,7 @@ mod tests {
             &runtime,
             &transition,
         ));
-        InterruptibleFsmNode::activate_transition(&mut runtime, &transition, 1.1, Vec::new());
+        InterruptibleFsmNode::activate_transition(&mut runtime, &transition, 1.1, None);
 
         assert_eq!(runtime.state, target_state);
         assert_eq!(runtime.state_entered_time, 1.1);

@@ -1732,7 +1732,7 @@
         "--materialized-directory",
         "target/bf115_standing/additive_curves/conversion",
         "--spec",
-        "target/bf115_standing/additive_curves/spec.json"
+        "target/bf115_standing/direction_dynamic/inertial_spec.json"
       ]
     },
     {
@@ -1820,6 +1820,14 @@
         "--profile",
         "target/bf115_standing/sprint/CR_Als.pole_space.profile.json",
         "--check"
+      ]
+    },
+    {
+      "label": "inertial_transition_materialization",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_materializer.py"
       ]
     }
   ],

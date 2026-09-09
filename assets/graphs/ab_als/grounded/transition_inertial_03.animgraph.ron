@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "17100000-0000-4000-8000-000000000001", name: "grounded inertial pose", inner: { "als_ext::InertializationNode": (transition_duration: 0.3, half_life: 0.075) }, should_debug: false),
+        (id: "17100000-0000-4000-8000-000000000001", name: "grounded inertial pose", inner: { "als_ext::InertializationNode": (transition_duration: 0.3) }, should_debug: false),
         (id: "17100000-0000-4000-8000-000000000002", name: "grounded inertial curves", inner: { "als_ext::CurveBlendNode": (curve_names: ["PoseStanding", "PoseCrouching", "PoseMoving", "RotationYawOffset", "FootLeftLock", "FootRightLock", "AllowTransitions", "RotationYawSpeed"], input_count: 2, normalize_weights: false) }, should_debug: false),
         (id: "17100000-0000-4000-8000-000000000003", name: "grounded inertial curve alpha", inner: { "als_ext::CurveDrivenValueNode": (mode: Smooth, keys: [(t: 0.0, v: 0.0), (t: 1.0, v: 1.0)], scale: 1.0, bias: 0.0) }, should_debug: false),
         (id: "17100000-0000-4000-8000-000000000004", name: "grounded inertial one", inner: { "als_ext::ConstantF32Node": (value: 1.0) }, should_debug: false),

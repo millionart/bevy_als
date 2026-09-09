@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
@@ -79,6 +79,8 @@ pub(crate) struct SourceInertializationState {
     deficit: f32,
     active: bool,
     bones: Vec<SourceInertialBone>,
+    previous_curves: HashMap<String, f32>,
+    curve_differences: HashMap<String, (f32, f32)>,
     pub(crate) context: AnimationContextState,
 }
 
@@ -273,7 +275,7 @@ fn begin_source_inertialization(
         .clone()
         .unwrap_or_else(|| previous.clone());
     let applied_deficit = if state.active && state.deficit > 0.0 {
-        state.deficit
+        (state.duration - state.elapsed).max(0.0)
     } else {
         0.0
     };
@@ -320,14 +322,22 @@ impl NodeLike for InertializationPassthroughNode {
             ctx.set_time_update_back("source_time", time_update.clone());
         }
         let source_pose = ctx.data_back("Source")?.into_pose()?;
-        let source_context = pose_input_context_state(&ctx, "Source").unwrap_or_default();
+        let mut source_context = pose_input_context_state(&ctx, "Source").unwrap_or_default();
+        let context_curves = if self.capture_context {
+            resolve_named_context_curves(&ctx, "Source", &self.curve_names, self.missing_curve_value)?
+        } else { default() };
+        for curve in &self.curve_names {
+            let value = if self.capture_context {
+                *context_curves.get(curve).ok_or(GraphError::MissingStateValue)?
+            } else { ctx.data_back(format!("source_{curve}"))?.as_f32()? };
+            source_context.curves.insert(curve.clone(), value);
+        }
         let delta = source_delta(&time_update);
         let request_epoch = optional_global_f32(&ctx, &self.request_epoch_key);
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
-        let pose = if self.request_epoch_key.is_empty() {
-            source_pose
-        } else {
-            let frame = ctx.graph_context.frame_index();
+        let frame = ctx.graph_context.frame_index();
+        let graph_request = source_context.inertialization_request.take().filter(|request| request.frame == frame);
+        let pose = {
             let state = ctx.state_mut_or_else(SourceInertializationState::default)?;
             if self.reset_on_becoming_relevant && became_relevant(state.last_update_frame, frame) {
                 state.previous = None;
@@ -338,15 +348,42 @@ impl NodeLike for InertializationPassthroughNode {
                 state.deficit = 0.0;
                 state.active = false;
                 state.bones.clear();
+                state.previous_curves.clear();
+                state.curve_differences.clear();
+                state.context = default();
             }
             state.last_update_frame = Some(frame);
+            let mut duration = graph_request.map(|request| request.duration);
             if request_epoch > state.last_request_epoch + f32::EPSILON {
                 state.last_request_epoch = request_epoch;
-                begin_source_inertialization(state, &source_pose, request_duration);
+                duration = Some(duration.map_or(request_duration, |value| value.min(request_duration)));
+            }
+            if let Some(duration) = duration {
+                let has_history = state.previous.is_some();
+                begin_source_inertialization(state, &source_pose, duration);
+                state.curve_differences.clear();
+                if has_history {
+                    state.curve_differences = source_context.curves.keys().chain(state.context.curves.keys())
+                        .filter(|name| !self.filtered_curves.contains(name))
+                        .map(|name| {
+                            let target = source_context.curves.get(name).copied().unwrap_or(0.0);
+                            let difference = state.context.curves.get(name).copied().unwrap_or(0.0) - target;
+                            let derivative = if state.previous_delta > 1e-4 {
+                                (difference - target - state.previous_curves.get(name).copied().unwrap_or(0.0)) / state.previous_delta
+                            } else { 0.0 };
+                            (name.clone(), (difference, derivative))
+                        }).collect();
+                    state.active |= state.duration > f32::EPSILON && state.curve_differences.values()
+                        .any(|(difference, _)| difference.abs() > f32::EPSILON);
+                }
             }
             let output = if state.active {
                 state.elapsed += delta;
                 let output = apply_source_inertialization(&source_pose, state);
+                for (name, (difference, derivative)) in &state.curve_differences {
+                    *source_context.curves.entry(name.clone()).or_default() +=
+                        source_inertial_float(*difference, *derivative, state.elapsed, state.duration);
+                }
                 if state.elapsed >= state.duration {
                     state.active = false;
                     state.deficit = 0.0;
@@ -358,32 +395,15 @@ impl NodeLike for InertializationPassthroughNode {
                 source_pose
             };
             record_source_inertial_history(state, &output, delta);
+            state.previous_curves = state.context.curves.clone();
             output
         };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
-        let context_curves = if self.capture_context {
-            resolve_named_context_curves(
-                &ctx,
-                "Source",
-                &self.curve_names,
-                self.missing_curve_value,
-            )?
-        } else {
-            default()
-        };
-        let mut context = source_context;
+        let context = source_context;
         for curve in &self.curve_names {
-            let value = if self.capture_context {
-                *context_curves
-                    .get(curve)
-                    .ok_or(GraphError::MissingStateValue)?
-            } else {
-                ctx.data_back(format!("source_{curve}"))?.as_f32()?
-            };
-            context.curves.insert(curve.clone(), value);
             if self.expose_output(curve) {
-                ctx.set_data_fwd(curve.clone(), value);
+                ctx.set_data_fwd(curve.clone(), context.curves[curve]);
             }
         }
         ctx.state_mut_or_else(SourceInertializationState::default)?
@@ -459,6 +479,12 @@ mod tests {
         let final_pose = apply_source_inertialization(&target, &state);
         let final_rotation = final_pose.get_bone(bone).unwrap().rotation.unwrap();
         assert!(final_rotation.dot(Quat::IDENTITY).abs() > 0.9999);
+        state.active = true;
+        state.duration = 0.5;
+        state.elapsed = 0.1;
+        state.deficit = 0.3;
+        begin_source_inertialization(&mut state, &target, 0.5);
+        assert!((state.duration - 0.1).abs() < 1e-6);
     }
 
     #[test]

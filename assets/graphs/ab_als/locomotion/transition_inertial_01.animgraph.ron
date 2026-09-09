@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "18200000-0000-4000-8000-000000000001", name: "locomotion inertial pose", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "18200000-0000-4000-8000-000000000001", name: "locomotion inertial pose", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
         (id: "18200000-0000-4000-8000-000000000002", name: "locomotion inertial curves", inner: { "als_ext::CurveBlendNode": (curve_names: ["PoseStanding", "PoseCrouching", "PoseMoving", "RotationYawOffset", "FootLeftLock", "FootRightLock", "AllowTransitions", "RotationYawSpeed", "PoseGrounded", "FootLeftIk", "FootRightIk", "PoseInAir"], input_count: 2, normalize_weights: false) }, should_debug: false),
         (id: "18200000-0000-4000-8000-000000000003", name: "locomotion inertial curve alpha", inner: { "als_ext::CurveDrivenValueNode": (mode: Smooth, keys: [(t: 0.0, v: 0.0), (t: 1.0, v: 1.0)], scale: 1.0, bias: 0.0) }, should_debug: false),
         (id: "18200000-0000-4000-8000-000000000004", name: "locomotion inertial one", inner: { "als_ext::ConstantF32Node": (value: 1.0) }, should_debug: false),

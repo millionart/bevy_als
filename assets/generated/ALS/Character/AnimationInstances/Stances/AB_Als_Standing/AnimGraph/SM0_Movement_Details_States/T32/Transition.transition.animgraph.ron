@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "fc2fe13c-cbc3-5d60-b2fa-0af67dbf64f9", name: "Run to First Pivot", inner: { "als_ext::InertializationNode": (transition_duration: 0.1, half_life: 0.025) }, should_debug: false),
+        (id: "fc2fe13c-cbc3-5d60-b2fa-0af67dbf64f9", name: "Run to First Pivot", inner: { "als_ext::InertializationNode": (transition_duration: 0.1) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("fc2fe13c-cbc3-5d60-b2fa-0af67dbf64f9", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
