@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "857d9dd2-46c7-57c0-7ede-f2a538d03d73", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "StopTransitionAndTurnInPlaceAnimations", call_site: "OnStateEntry") }, should_debug: false),
+        (id: "857d9dd2-46c7-57c0-7ede-f2a538d03d73", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "StopTransitionAndTurnInPlaceAnimations", call_site: "OnStateEntry", synchronize_groups: false) }, should_debug: false),
         (id: "0599b3a2-445b-f688-af60-7da449fac51c", name: "Use cached pose 'Movement'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Movement'", cache_key: "ue-cache:13b84eb1-6df5-55b3-8bec-4848c1fa999c", context_defaults: []) }, should_debug: false),
     ],
     edges_inverted: {

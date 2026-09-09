@@ -1,0 +1,1851 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_crouching_assets",
+  "source_evidence": [
+    {
+      "path": "target/bf115_crouching/converter_source/0001_AB_Als_Crouching.ue.json",
+      "sha256": "13da4a23c26364113cd3576c2ade999b2a1b272bbfb5c9e544ed7f0cb980a3ee"
+    },
+    {
+      "path": "target/bf115_crouching/source/AIS.default.fresh.ue.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf115_crouching/source/StrideWalk.fresh.ue.json",
+      "sha256": "571e9eb958aec32e694dcca0cac722c724d21cd6616765b2f5eb1a7bfd9d967f"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "c9344046-46d9-20be-6c6b-e0801ae2fa01",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8e13d7c0-48ef-6b82-49c3-fb80067b5fb8",
+          "name": "Save cached pose 'Movement'",
+          "position": [
+            0.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "8b7db095-4b05-acd5-8224-c8b448ea2d98",
+          "name": "Modify Curve",
+          "position": [
+            -496.0,
+            64.0
+          ]
+        },
+        {
+          "id": "8fad4481-4fb4-8cb8-3a00-c9a0ed54da4b",
+          "name": "Crouching States\nState Machine",
+          "position": [
+            -880.0,
+            48.0
+          ]
+        },
+        {
+          "id": "775987a1-4d86-2895-5e2a-9f9aee85b9d0",
+          "name": "Inertialization",
+          "position": [
+            -688.0,
+            64.0
+          ]
+        },
+        {
+          "id": "0b4ecc82-4ac7-9fc8-2e13-a6a57ad53cc5",
+          "name": "Modify Curve",
+          "position": [
+            -800.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "de167886-47ee-0d7f-ce4d-20b2dfcf637b",
+          "name": "A_Als_Crouch_Walk_Forward\nSequence Player\nSync group Movement",
+          "position": [
+            -1568.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "6745c537-42a8-d9bf-2323-43b5c106def9",
+          "name": "A_Als_Crouch_Walk_Backward\nSequence Player\nSync group Movement",
+          "position": [
+            -1568.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "a6ed182a-4b7d-b394-1e28-2d9938ba5672",
+          "name": "A_Als_Crouch_Walk_Left_Backward\nSequence Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "1235b360-402d-5018-1cc0-139419e6c310",
+          "name": "A_Als_Crouch_Walk_Right_Forward\nSequence Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "d02cdb2e-41fb-b799-64ec-92a2696d3c70",
+          "name": "A_Als_Crouch_Walk_Right_Backward\nSequence Player\nSync group Movement",
+          "position": [
+            -384.0,
+            -576.0
+          ]
+        },
+        {
+          "id": "e596b2a4-4434-0337-f6d7-e4bd8baa7403",
+          "name": "A_Als_Crouch_Walk_Left_Forward\nSequence Player\nSync group Movement",
+          "position": [
+            -992.0,
+            -736.0
+          ]
+        },
+        {
+          "id": "24b82098-4886-6608-4765-fca31205b08e",
+          "name": "Apply Additive",
+          "position": [
+            -992.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "364a7469-42fb-6eea-33aa-809c7ce409a8",
+          "name": "Two Way Blend",
+          "position": [
+            -1712.0,
+            -336.0
+          ]
+        },
+        {
+          "id": "1dca773b-47f2-52f1-0a5d-d0a42157faa7",
+          "name": "A_Als_Crouch_Walk_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -2000.0,
+            -400.0
+          ]
+        },
+        {
+          "id": "dd9fd2cc-404b-2c8c-96cc-1aac48fc516f",
+          "name": "Save cached pose 'Move Forward'",
+          "position": [
+            -1184.0,
+            -704.0
+          ]
+        },
+        {
+          "id": "ef938a16-419c-50a9-3f3b-5faa8f28dd8d",
+          "name": "Save cached pose 'Move Left Forward'",
+          "position": [
+            -608.0,
+            -704.0
+          ]
+        },
+        {
+          "id": "35c6cf7f-45a9-860e-2d7f-b7ab3759f59a",
+          "name": "Save cached pose 'Move Right Forward'",
+          "position": [
+            0.0,
+            -704.0
+          ]
+        },
+        {
+          "id": "5f371cc1-4956-6cbc-dd90-708e4eea6484",
+          "name": "Save cached pose 'Move Backward'",
+          "position": [
+            -1184.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "4b7e6251-48fe-ecaa-d228-34bb7fcf0636",
+          "name": "Save cached pose 'Move Left Backward'",
+          "position": [
+            -608.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "dd332394-4d65-bd10-2e12-cb8472327cac",
+          "name": "Save cached pose 'Move Right Backward'",
+          "position": [
+            0.0,
+            -544.0
+          ]
+        },
+        {
+          "id": "401d9604-4068-fa8a-fbb8-10b958b51313",
+          "name": "Movement States\nState Machine",
+          "position": [
+            -1904.0,
+            -272.0
+          ]
+        },
+        {
+          "id": "a8ea1c66-4206-5429-eed6-8e84a89fec5e",
+          "name": "BS_Als_Lean\nBlendspace Evaluator",
+          "position": [
+            -1376.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "52aee5af-bdcc-507e-aac5-05207108044d",
+          "name": "Blendspace position",
+          "position": [
+            -1472.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "c20494bb-74f4-52ff-a230-fbf017d3cee9",
+          "name": "Blendspace normalized time",
+          "position": [
+            -1472.0,
+            -160.0
+          ]
+        },
+        {
+          "id": "19c82aa8-5aac-5270-b2cb-ca6443c65088",
+          "name": "Blendspace X binding",
+          "position": [
+            -1568.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "350794e8-1aae-5b9c-b15a-e8af55ce85cd",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1568.0,
+            -208.0
+          ]
+        },
+        {
+          "id": "83e8497e-c025-5403-aca5-437ba35989dc",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1568.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "c70ef8ae-60de-5775-92d6-a174278199aa",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1568.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "a65319bf-770e-569d-9819-d7cfb288c26d",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1568.0,
+            32.0
+          ]
+        },
+        {
+          "id": "194eb73e-053b-5c85-bfd3-7c287d23bdfa",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1568.0,
+            96.0
+          ]
+        },
+        {
+          "id": "dad0a2da-6bc4-52fc-8e2d-fde86c97e7eb",
+          "name": "Blendspace sample 4",
+          "position": [
+            -1568.0,
+            160.0
+          ]
+        },
+        {
+          "id": "09e57d08-48bf-049d-7281-33ba6d58c445",
+          "name": "RefreshRotateInPlace\r\nOn Update",
+          "position": [
+            -224.0,
+            48.0
+          ]
+        },
+        {
+          "id": "fdfba514-4558-a0e5-4fc8-9394e8903240",
+          "name": "RefreshCrouchingMovement\r\nOn Update",
+          "position": [
+            -544.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "8eeec3db-412c-6519-a340-8a856046215c",
+          "name": "RefreshGroundedMovement\r\nOn Update",
+          "position": [
+            -272.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "9768470b-6a14-5e6b-8602-2351cde4a432",
+          "name": "additive difference Blendspace sample 0",
+          "position": [
+            -1472.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "df92fe7f-a5ef-5684-a740-cee5fb43aa96",
+          "name": "additive difference Blendspace sample 1",
+          "position": [
+            -1472.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "344f113f-33da-5ff5-9dc2-efc54b893cfd",
+          "name": "additive difference Blendspace sample 2",
+          "position": [
+            -1472.0,
+            32.0
+          ]
+        },
+        {
+          "id": "db9be7d3-e490-5934-9d30-fd7b90ab1541",
+          "name": "additive difference Blendspace sample 3",
+          "position": [
+            -1472.0,
+            96.0
+          ]
+        },
+        {
+          "id": "fe4c92da-15a9-565e-a198-da61f2ddd019",
+          "name": "additive difference Blendspace sample 4",
+          "position": [
+            -1472.0,
+            160.0
+          ]
+        },
+        {
+          "id": "3aa702e5-fd80-564a-9018-7f2394960a36",
+          "name": "additive reference A_Als_Lean_Pose 83e8497e clip",
+          "position": [
+            -1856.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "966bddff-b7b9-5a3f-a2cf-f400db258cba",
+          "name": "additive reference A_Als_Lean_Pose 83e8497e evaluator",
+          "position": [
+            -1760.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "883c2633-1ffe-5110-911c-6f76dcb6e299",
+          "name": "additive reference A_Als_Lean_Pose 83e8497e frame",
+          "position": [
+            -1856.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "57bd0416-f89b-58a6-a951-94bf0864b047",
+          "name": "additive reference A_Als_Lean_Pose c70ef8ae clip",
+          "position": [
+            -1856.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e",
+          "name": "additive reference A_Als_Lean_Pose c70ef8ae evaluator",
+          "position": [
+            -1760.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "cf57bb7f-1ed0-5e4c-80b4-b5ed29857780",
+          "name": "additive reference A_Als_Lean_Pose c70ef8ae frame",
+          "position": [
+            -1856.0,
+            16.0
+          ]
+        },
+        {
+          "id": "c09fea91-a296-5e56-8d84-42c0f0d9095b",
+          "name": "additive reference A_Als_Lean_Pose a65319bf clip",
+          "position": [
+            -1856.0,
+            32.0
+          ]
+        },
+        {
+          "id": "6cf3ef33-e464-54a8-946c-af80f68b13ab",
+          "name": "additive reference A_Als_Lean_Pose a65319bf evaluator",
+          "position": [
+            -1760.0,
+            32.0
+          ]
+        },
+        {
+          "id": "6efa4713-5c9d-5722-9cf0-07f6c867cf1e",
+          "name": "additive reference A_Als_Lean_Pose a65319bf frame",
+          "position": [
+            -1856.0,
+            80.0
+          ]
+        },
+        {
+          "id": "6a75ffd7-3679-5292-a1e8-a02f7b151a7c",
+          "name": "additive reference A_Als_Lean_Pose 194eb73e clip",
+          "position": [
+            -1856.0,
+            96.0
+          ]
+        },
+        {
+          "id": "e5bbb816-c020-53e6-b524-7bc2052e4843",
+          "name": "additive reference A_Als_Lean_Pose 194eb73e evaluator",
+          "position": [
+            -1760.0,
+            96.0
+          ]
+        },
+        {
+          "id": "6fafd321-9adf-54d4-a0d7-eaaef1963381",
+          "name": "additive reference A_Als_Lean_Pose 194eb73e frame",
+          "position": [
+            -1856.0,
+            144.0
+          ]
+        },
+        {
+          "id": "7edc25cd-28dd-57bb-89e7-323a568e5311",
+          "name": "additive reference A_Als_Lean_Pose dad0a2da clip",
+          "position": [
+            -1856.0,
+            160.0
+          ]
+        },
+        {
+          "id": "98476c0b-cba3-506b-8d43-b37a72f36cc0",
+          "name": "additive reference A_Als_Lean_Pose dad0a2da evaluator",
+          "position": [
+            -1760.0,
+            160.0
+          ]
+        },
+        {
+          "id": "577a4e26-f7ef-523c-ad10-39b05d416497",
+          "name": "additive reference A_Als_Lean_Pose dad0a2da frame",
+          "position": [
+            -1856.0,
+            208.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"364a7469-42fb-6eea-33aa-809c7ce409a8\", \"B\")",
+          "source": "NodeData(\"401d9604-4068-fa8a-fbb8-10b958b51313\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"dd332394-4d65-bd10-2e12-cb8472327cac\", \"Pose\")",
+          "source": "NodeData(\"d02cdb2e-41fb-b799-64ec-92a2696d3c70\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0b4ecc82-4ac7-9fc8-2e13-a6a57ad53cc5\", \"SourcePose\")",
+          "source": "NodeData(\"24b82098-4886-6608-4765-fca31205b08e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c9344046-46d9-20be-6c6b-e0801ae2fa01\", \"Source\")",
+          "source": "NodeData(\"09e57d08-48bf-049d-7281-33ba6d58c445\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"35c6cf7f-45a9-860e-2d7f-b7ab3759f59a\", \"Pose\")",
+          "source": "NodeData(\"1235b360-402d-5018-1cc0-139419e6c310\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8b7db095-4b05-acd5-8224-c8b448ea2d98\", \"SourcePose\")",
+          "source": "NodeData(\"775987a1-4d86-2895-5e2a-9f9aee85b9d0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8eeec3db-412c-6519-a340-8a856046215c\", \"Source\")",
+          "source": "NodeData(\"fdfba514-4558-a0e5-4fc8-9394e8903240\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"fdfba514-4558-a0e5-4fc8-9394e8903240\", \"Source\")",
+          "source": "NodeData(\"0b4ecc82-4ac7-9fc8-2e13-a6a57ad53cc5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"775987a1-4d86-2895-5e2a-9f9aee85b9d0\", \"Source\")",
+          "source": "NodeData(\"8fad4481-4fb4-8cb8-3a00-c9a0ed54da4b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"4b7e6251-48fe-ecaa-d228-34bb7fcf0636\", \"Pose\")",
+          "source": "NodeData(\"a6ed182a-4b7d-b394-1e28-2d9938ba5672\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"dd9fd2cc-404b-2c8c-96cc-1aac48fc516f\", \"Pose\")",
+          "source": "NodeData(\"de167886-47ee-0d7f-ce4d-20b2dfcf637b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"24b82098-4886-6608-4765-fca31205b08e\", \"Additive\")",
+          "source": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"ef938a16-419c-50a9-3f3b-5faa8f28dd8d\", \"Pose\")",
+          "source": "NodeData(\"e596b2a4-4434-0337-f6d7-e4bd8baa7403\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5f371cc1-4956-6cbc-dd90-708e4eea6484\", \"Pose\")",
+          "source": "NodeData(\"6745c537-42a8-d9bf-2323-43b5c106def9\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"364a7469-42fb-6eea-33aa-809c7ce409a8\", \"A\")",
+          "source": "NodeData(\"1dca773b-47f2-52f1-0a5d-d0a42157faa7\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8e13d7c0-48ef-6b82-49c3-fb80067b5fb8\", \"Pose\")",
+          "source": "NodeData(\"8eeec3db-412c-6519-a340-8a856046215c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"09e57d08-48bf-049d-7281-33ba6d58c445\", \"Source\")",
+          "source": "NodeData(\"8b7db095-4b05-acd5-8224-c8b448ea2d98\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"24b82098-4886-6608-4765-fca31205b08e\", \"Base\")",
+          "source": "NodeData(\"364a7469-42fb-6eea-33aa-809c7ce409a8\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"position\")",
+          "source": "NodeData(\"52aee5af-bdcc-507e-aac5-05207108044d\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"phase\")",
+          "source": "NodeData(\"c20494bb-74f4-52ff-a230-fbf017d3cee9\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"52aee5af-bdcc-507e-aac5-05207108044d\", \"x\")",
+          "source": "NodeData(\"19c82aa8-5aac-5270-b2cb-ca6443c65088\", \"lean_state.right_amount\")"
+        },
+        {
+          "target": "NodeData(\"52aee5af-bdcc-507e-aac5-05207108044d\", \"y\")",
+          "source": "NodeData(\"350794e8-1aae-5b9c-b15a-e8af55ce85cd\", \"lean_state.forward_amount\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose_sample_0\")",
+          "source": "NodeData(\"9768470b-6a14-5e6b-8602-2351cde4a432\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"time_sample_0\")",
+          "source": "NodeTime(\"9768470b-6a14-5e6b-8602-2351cde4a432\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose_sample_1\")",
+          "source": "NodeData(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"time_sample_1\")",
+          "source": "NodeTime(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose_sample_2\")",
+          "source": "NodeData(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"time_sample_2\")",
+          "source": "NodeTime(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose_sample_3\")",
+          "source": "NodeData(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"time_sample_3\")",
+          "source": "NodeTime(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\")"
+        },
+        {
+          "target": "NodeData(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"pose_sample_4\")",
+          "source": "NodeData(\"fe4c92da-15a9-565e-a198-da61f2ddd019\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"a8ea1c66-4206-5429-eed6-8e84a89fec5e\", \"time_sample_4\")",
+          "source": "NodeTime(\"fe4c92da-15a9-565e-a198-da61f2ddd019\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"c9344046-46d9-20be-6c6b-e0801ae2fa01\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9768470b-6a14-5e6b-8602-2351cde4a432\", \"reference_pose\")",
+          "source": "NodeData(\"966bddff-b7b9-5a3f-a2cf-f400db258cba\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9768470b-6a14-5e6b-8602-2351cde4a432\", \"reference_time\")",
+          "source": "NodeTime(\"966bddff-b7b9-5a3f-a2cf-f400db258cba\")"
+        },
+        {
+          "target": "NodeData(\"9768470b-6a14-5e6b-8602-2351cde4a432\", \"target_pose\")",
+          "source": "NodeData(\"83e8497e-c025-5403-aca5-437ba35989dc\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9768470b-6a14-5e6b-8602-2351cde4a432\", \"target_time\")",
+          "source": "NodeTime(\"83e8497e-c025-5403-aca5-437ba35989dc\")"
+        },
+        {
+          "target": "NodeData(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\", \"reference_pose\")",
+          "source": "NodeData(\"ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\", \"reference_time\")",
+          "source": "NodeTime(\"ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e\")"
+        },
+        {
+          "target": "NodeData(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\", \"target_pose\")",
+          "source": "NodeData(\"c70ef8ae-60de-5775-92d6-a174278199aa\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"df92fe7f-a5ef-5684-a740-cee5fb43aa96\", \"target_time\")",
+          "source": "NodeTime(\"c70ef8ae-60de-5775-92d6-a174278199aa\")"
+        },
+        {
+          "target": "NodeData(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\", \"reference_pose\")",
+          "source": "NodeData(\"6cf3ef33-e464-54a8-946c-af80f68b13ab\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\", \"reference_time\")",
+          "source": "NodeTime(\"6cf3ef33-e464-54a8-946c-af80f68b13ab\")"
+        },
+        {
+          "target": "NodeData(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\", \"target_pose\")",
+          "source": "NodeData(\"a65319bf-770e-569d-9819-d7cfb288c26d\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"344f113f-33da-5ff5-9dc2-efc54b893cfd\", \"target_time\")",
+          "source": "NodeTime(\"a65319bf-770e-569d-9819-d7cfb288c26d\")"
+        },
+        {
+          "target": "NodeData(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\", \"reference_pose\")",
+          "source": "NodeData(\"e5bbb816-c020-53e6-b524-7bc2052e4843\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\", \"reference_time\")",
+          "source": "NodeTime(\"e5bbb816-c020-53e6-b524-7bc2052e4843\")"
+        },
+        {
+          "target": "NodeData(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\", \"target_pose\")",
+          "source": "NodeData(\"194eb73e-053b-5c85-bfd3-7c287d23bdfa\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"db9be7d3-e490-5934-9d30-fd7b90ab1541\", \"target_time\")",
+          "source": "NodeTime(\"194eb73e-053b-5c85-bfd3-7c287d23bdfa\")"
+        },
+        {
+          "target": "NodeData(\"fe4c92da-15a9-565e-a198-da61f2ddd019\", \"reference_pose\")",
+          "source": "NodeData(\"98476c0b-cba3-506b-8d43-b37a72f36cc0\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"fe4c92da-15a9-565e-a198-da61f2ddd019\", \"reference_time\")",
+          "source": "NodeTime(\"98476c0b-cba3-506b-8d43-b37a72f36cc0\")"
+        },
+        {
+          "target": "NodeData(\"fe4c92da-15a9-565e-a198-da61f2ddd019\", \"target_pose\")",
+          "source": "NodeData(\"dad0a2da-6bc4-52fc-8e2d-fde86c97e7eb\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"fe4c92da-15a9-565e-a198-da61f2ddd019\", \"target_time\")",
+          "source": "NodeTime(\"dad0a2da-6bc4-52fc-8e2d-fde86c97e7eb\")"
+        },
+        {
+          "target": "NodeData(\"966bddff-b7b9-5a3f-a2cf-f400db258cba\", \"position\")",
+          "source": "NodeData(\"883c2633-1ffe-5110-911c-6f76dcb6e299\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"966bddff-b7b9-5a3f-a2cf-f400db258cba\", \"pose\")",
+          "source": "NodeData(\"3aa702e5-fd80-564a-9018-7f2394960a36\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"966bddff-b7b9-5a3f-a2cf-f400db258cba\", \"time\")",
+          "source": "NodeTime(\"3aa702e5-fd80-564a-9018-7f2394960a36\")"
+        },
+        {
+          "target": "NodeData(\"ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e\", \"position\")",
+          "source": "NodeData(\"cf57bb7f-1ed0-5e4c-80b4-b5ed29857780\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e\", \"pose\")",
+          "source": "NodeData(\"57bd0416-f89b-58a6-a951-94bf0864b047\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"ac4c82b8-a0b3-5357-a49b-267a4a2c8f5e\", \"time\")",
+          "source": "NodeTime(\"57bd0416-f89b-58a6-a951-94bf0864b047\")"
+        },
+        {
+          "target": "NodeData(\"6cf3ef33-e464-54a8-946c-af80f68b13ab\", \"position\")",
+          "source": "NodeData(\"6efa4713-5c9d-5722-9cf0-07f6c867cf1e\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"6cf3ef33-e464-54a8-946c-af80f68b13ab\", \"pose\")",
+          "source": "NodeData(\"c09fea91-a296-5e56-8d84-42c0f0d9095b\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6cf3ef33-e464-54a8-946c-af80f68b13ab\", \"time\")",
+          "source": "NodeTime(\"c09fea91-a296-5e56-8d84-42c0f0d9095b\")"
+        },
+        {
+          "target": "NodeData(\"e5bbb816-c020-53e6-b524-7bc2052e4843\", \"position\")",
+          "source": "NodeData(\"6fafd321-9adf-54d4-a0d7-eaaef1963381\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"e5bbb816-c020-53e6-b524-7bc2052e4843\", \"pose\")",
+          "source": "NodeData(\"6a75ffd7-3679-5292-a1e8-a02f7b151a7c\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"e5bbb816-c020-53e6-b524-7bc2052e4843\", \"time\")",
+          "source": "NodeTime(\"6a75ffd7-3679-5292-a1e8-a02f7b151a7c\")"
+        },
+        {
+          "target": "NodeData(\"98476c0b-cba3-506b-8d43-b37a72f36cc0\", \"position\")",
+          "source": "NodeData(\"577a4e26-f7ef-523c-ad10-39b05d416497\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"98476c0b-cba3-506b-8d43-b37a72f36cc0\", \"pose\")",
+          "source": "NodeData(\"7edc25cd-28dd-57bb-89e7-323a568e5311\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"98476c0b-cba3-506b-8d43-b37a72f36cc0\", \"time\")",
+          "source": "NodeTime(\"7edc25cd-28dd-57bb-89e7-323a568e5311\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S7_Rotate_Right.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "9f574b78-433a-528d-ea20-44aa545083d3",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e06e9f7b-4283-17cf-8109-11b5e75f17ab",
+          "name": "Modify Curve",
+          "position": [
+            -336.0,
+            0.0
+          ]
+        },
+        {
+          "id": "daa2102f-46eb-065b-6be0-fcafce852599",
+          "name": "A_Als_Crouch_Rotate_90_Right\nSequence Player",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"e06e9f7b-4283-17cf-8109-11b5e75f17ab\", \"SourcePose\")",
+          "source": "NodeData(\"daa2102f-46eb-065b-6be0-fcafce852599\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9f574b78-433a-528d-ea20-44aa545083d3\", \"Source\")",
+          "source": "NodeData(\"e06e9f7b-4283-17cf-8109-11b5e75f17ab\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"9f574b78-433a-528d-ea20-44aa545083d3\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S3_Rotate_Left.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "58694679-4eb2-92bf-a62a-1f96ef4e1cc7",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "84e4db32-4ff9-ea6a-7a81-9e925bd5e755",
+          "name": "Modify Curve",
+          "position": [
+            -336.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6e77d5b3-48e8-f838-89e3-f2b3f7a3020c",
+          "name": "A_Als_Crouch_Rotate_90_Left\nSequence Player",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"58694679-4eb2-92bf-a62a-1f96ef4e1cc7\", \"Source\")",
+          "source": "NodeData(\"84e4db32-4ff9-ea6a-7a81-9e925bd5e755\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"84e4db32-4ff9-ea6a-7a81-9e925bd5e755\", \"SourcePose\")",
+          "source": "NodeData(\"6e77d5b3-48e8-f838-89e3-f2b3f7a3020c\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"58694679-4eb2-92bf-a62a-1f96ef4e1cc7\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S6_Move.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "857d9dd2-46c7-57c0-7ede-f2a538d03d73",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "0599b3a2-445b-f688-af60-7da449fac51c",
+          "name": "Use cached pose 'Movement'",
+          "position": [
+            -272.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"857d9dd2-46c7-57c0-7ede-f2a538d03d73\", \"Source\")",
+          "source": "NodeData(\"0599b3a2-445b-f688-af60-7da449fac51c\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"857d9dd2-46c7-57c0-7ede-f2a538d03d73\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S4_Move_Left_Forward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "f004a02b-43ff-7c21-c9cc-35a9ac0a84f7",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "49587d5b-42bf-e139-0a29-d8b4f92941f3",
+          "name": "Use cached pose 'Move Left Forward'",
+          "position": [
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "5f4fdf29-4c87-b5ef-252a-b2889c811ddb",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "d4625801-42dd-776c-a9af-ea98ba649054",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "1154781a-4f2d-8693-4a27-458d91259547",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "70828e3a-418f-0335-817c-ecbf434846dd",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "215fc7b9-4417-84b6-8166-48b73fc35330",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "30a67806-4304-ead1-0d06-76803daba74c",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"30a67806-4304-ead1-0d06-76803daba74c\", \"Poses_3\")",
+          "source": "NodeData(\"5f4fdf29-4c87-b5ef-252a-b2889c811ddb\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"70828e3a-418f-0335-817c-ecbf434846dd\", \"SourcePose\")",
+          "source": "NodeData(\"30a67806-4304-ead1-0d06-76803daba74c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"30a67806-4304-ead1-0d06-76803daba74c\", \"Poses_0\")",
+          "source": "NodeData(\"d4625801-42dd-776c-a9af-ea98ba649054\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"30a67806-4304-ead1-0d06-76803daba74c\", \"Poses_2\")",
+          "source": "NodeData(\"49587d5b-42bf-e139-0a29-d8b4f92941f3\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"30a67806-4304-ead1-0d06-76803daba74c\", \"Poses_1\")",
+          "source": "NodeData(\"1154781a-4f2d-8693-4a27-458d91259547\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f004a02b-43ff-7c21-c9cc-35a9ac0a84f7\", \"Source\")",
+          "source": "NodeData(\"215fc7b9-4417-84b6-8166-48b73fc35330\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"215fc7b9-4417-84b6-8166-48b73fc35330\", \"Source\")",
+          "source": "NodeData(\"70828e3a-418f-0335-817c-ecbf434846dd\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"f004a02b-43ff-7c21-c9cc-35a9ac0a84f7\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S3_Move_Right_Backward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "25b65e5f-43f0-ed0e-16ff-fd8e763b707c",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "81ecd1a0-41f6-1201-697f-d8a2cdd55a35",
+          "name": "Use cached pose 'Move Left Forward'",
+          "position": [
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "1b56cd72-4b60-c439-f8a8-6a8d60352733",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "e1584a84-4025-287f-4c0c-0ea85d448c46",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "af55c0dc-402f-9133-b96c-6a8acb698b7b",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "3da2aa8b-4dd8-8716-7ff6-55a495052429",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "dfa3ea8a-499e-e815-7821-cb88a9731012",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "441952cf-4342-3155-f4cc-a59210078f2d",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"441952cf-4342-3155-f4cc-a59210078f2d\", \"Poses_3\")",
+          "source": "NodeData(\"1b56cd72-4b60-c439-f8a8-6a8d60352733\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"25b65e5f-43f0-ed0e-16ff-fd8e763b707c\", \"Source\")",
+          "source": "NodeData(\"dfa3ea8a-499e-e815-7821-cb88a9731012\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"dfa3ea8a-499e-e815-7821-cb88a9731012\", \"Source\")",
+          "source": "NodeData(\"3da2aa8b-4dd8-8716-7ff6-55a495052429\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"441952cf-4342-3155-f4cc-a59210078f2d\", \"Poses_1\")",
+          "source": "NodeData(\"af55c0dc-402f-9133-b96c-6a8acb698b7b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"441952cf-4342-3155-f4cc-a59210078f2d\", \"Poses_2\")",
+          "source": "NodeData(\"81ecd1a0-41f6-1201-697f-d8a2cdd55a35\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"441952cf-4342-3155-f4cc-a59210078f2d\", \"Poses_0\")",
+          "source": "NodeData(\"e1584a84-4025-287f-4c0c-0ea85d448c46\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"3da2aa8b-4dd8-8716-7ff6-55a495052429\", \"SourcePose\")",
+          "source": "NodeData(\"441952cf-4342-3155-f4cc-a59210078f2d\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"25b65e5f-43f0-ed0e-16ff-fd8e763b707c\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S2_Move_Right_Forward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "f0be8326-4658-4e9d-0710-e1b362ad0c9f",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "88f4e7a4-4b1f-06fe-4431-5ba6a0c32cc2",
+          "name": "Use cached pose 'Move Right Forward'",
+          "position": [
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "a71e0c18-4ca4-28da-61d4-77a30e9cd1ba",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "0b4d34d7-47e3-8b48-8c1c-0d8d738f5fad",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "73b53c3b-4587-106c-11e6-8cb1373ff2f2",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "5d0f49e9-4186-c1cd-9c8b-4a80d9a8f219",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "0d16bb96-4de5-c98c-d0d4-f9876dac792f",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "1a7bd1a0-401c-e54c-4d73-8297c3b47899",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"0d16bb96-4de5-c98c-d0d4-f9876dac792f\", \"Poses_2\")",
+          "source": "NodeData(\"a71e0c18-4ca4-28da-61d4-77a30e9cd1ba\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5d0f49e9-4186-c1cd-9c8b-4a80d9a8f219\", \"SourcePose\")",
+          "source": "NodeData(\"0d16bb96-4de5-c98c-d0d4-f9876dac792f\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"1a7bd1a0-401c-e54c-4d73-8297c3b47899\", \"Source\")",
+          "source": "NodeData(\"5d0f49e9-4186-c1cd-9c8b-4a80d9a8f219\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0d16bb96-4de5-c98c-d0d4-f9876dac792f\", \"Poses_1\")",
+          "source": "NodeData(\"73b53c3b-4587-106c-11e6-8cb1373ff2f2\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0d16bb96-4de5-c98c-d0d4-f9876dac792f\", \"Poses_3\")",
+          "source": "NodeData(\"88f4e7a4-4b1f-06fe-4431-5ba6a0c32cc2\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0d16bb96-4de5-c98c-d0d4-f9876dac792f\", \"Poses_0\")",
+          "source": "NodeData(\"0b4d34d7-47e3-8b48-8c1c-0d8d738f5fad\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f0be8326-4658-4e9d-0710-e1b362ad0c9f\", \"Source\")",
+          "source": "NodeData(\"1a7bd1a0-401c-e54c-4d73-8297c3b47899\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"f0be8326-4658-4e9d-0710-e1b362ad0c9f\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S5_Move_Left_Backward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "49dcc72b-4734-73ce-4f0c-0f866c06cb46",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "244f99b6-481a-3a61-7a1a-e59c2d45d819",
+          "name": "Use cached pose 'Move Right Forward'",
+          "position": [
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "b0724c8f-4aec-d13b-16ae-5b881083cc6a",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "e75d6eef-421b-6005-a7b0-cf8999b0f0e5",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "f721148e-45fb-0688-4056-fcb81da6de7b",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "0e179a00-44d6-e025-aebe-d38742a8842f",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f0e068e9-49c8-5dfd-8404-44909dd2b6df",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"f0e068e9-49c8-5dfd-8404-44909dd2b6df\", \"Source\")",
+          "source": "NodeData(\"0e179a00-44d6-e025-aebe-d38742a8842f\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e\", \"Poses_1\")",
+          "source": "NodeData(\"f721148e-45fb-0688-4056-fcb81da6de7b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0e179a00-44d6-e025-aebe-d38742a8842f\", \"SourcePose\")",
+          "source": "NodeData(\"6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e\", \"Poses_3\")",
+          "source": "NodeData(\"244f99b6-481a-3a61-7a1a-e59c2d45d819\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e\", \"Poses_0\")",
+          "source": "NodeData(\"e75d6eef-421b-6005-a7b0-cf8999b0f0e5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"49dcc72b-4734-73ce-4f0c-0f866c06cb46\", \"Source\")",
+          "source": "NodeData(\"f0e068e9-49c8-5dfd-8404-44909dd2b6df\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ddf5e96-4197-3d0e-dd6e-46bf21d8d22e\", \"Poses_2\")",
+          "source": "NodeData(\"b0724c8f-4aec-d13b-16ae-5b881083cc6a\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"49dcc72b-4734-73ce-4f0c-0f866c06cb46\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S1_Move_Backward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "058c706d-4bcc-3927-43d4-a1b8251d422b",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e3384940-41ea-2cce-4b20-9182a73556ce",
+          "name": "Use cached pose 'Move Right Backward'",
+          "position": [
+            -1360.0,
+            176.0
+          ]
+        },
+        {
+          "id": "9df1b0d3-4952-d0cf-6186-c6b6cc07414d",
+          "name": "Use cached pose 'Move Left Backward'",
+          "position": [
+            -1344.0,
+            80.0
+          ]
+        },
+        {
+          "id": "7160c3da-4097-cb81-fb30-8599c16cd34f",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "02dd8f98-453d-faf0-bfb5-ab8f7651554e",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "2b1c8f48-4f7b-5b92-af4b-2588a00b2867",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "09655ca4-4ec4-c5a7-bebd-dab331b56c8a",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c9388f3e-4e7f-4276-b5f9-b5a01ca4c990",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"09655ca4-4ec4-c5a7-bebd-dab331b56c8a\", \"Poses_0\")",
+          "source": "NodeData(\"7160c3da-4097-cb81-fb30-8599c16cd34f\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"09655ca4-4ec4-c5a7-bebd-dab331b56c8a\", \"Poses_1\")",
+          "source": "NodeData(\"02dd8f98-453d-faf0-bfb5-ab8f7651554e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"058c706d-4bcc-3927-43d4-a1b8251d422b\", \"Source\")",
+          "source": "NodeData(\"c9388f3e-4e7f-4276-b5f9-b5a01ca4c990\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"09655ca4-4ec4-c5a7-bebd-dab331b56c8a\", \"Poses_3\")",
+          "source": "NodeData(\"e3384940-41ea-2cce-4b20-9182a73556ce\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"09655ca4-4ec4-c5a7-bebd-dab331b56c8a\", \"Poses_2\")",
+          "source": "NodeData(\"9df1b0d3-4952-d0cf-6186-c6b6cc07414d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2b1c8f48-4f7b-5b92-af4b-2588a00b2867\", \"SourcePose\")",
+          "source": "NodeData(\"09655ca4-4ec4-c5a7-bebd-dab331b56c8a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c9388f3e-4e7f-4276-b5f9-b5a01ca4c990\", \"Source\")",
+          "source": "NodeData(\"2b1c8f48-4f7b-5b92-af4b-2588a00b2867\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"058c706d-4bcc-3927-43d4-a1b8251d422b\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM1_Movement_States/S0_Move_Forward.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "ff473cd6-413c-6abd-996b-529fd68ab761",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "02d1394f-4324-703c-1202-fd83e201a6f1",
+          "name": "Modify Curve",
+          "position": [
+            -672.0,
+            0.0
+          ]
+        },
+        {
+          "id": "eae01011-4575-2902-7e87-b49bf49987fe",
+          "name": "Use cached pose 'Move Forward'",
+          "position": [
+            -1312.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "19e26f89-423a-8bf9-07d4-adb0698faed5",
+          "name": "Use cached pose 'Move Backward'",
+          "position": [
+            -1312.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "440bc546-4905-d3f1-b9e1-a58e9713d932",
+          "name": "Use cached pose 'Move Left Forward'",
+          "position": [
+            -1328.0,
+            80.0
+          ]
+        },
+        {
+          "id": "e6b75755-47d8-1fbb-992f-7fa6b790d5c1",
+          "name": "Use cached pose 'Move Right Forward'",
+          "position": [
+            -1344.0,
+            176.0
+          ]
+        },
+        {
+          "id": "f9677cbb-4ca3-165a-474b-9ab5e3363bbb",
+          "name": "Blend Multi",
+          "position": [
+            -1008.0,
+            0.0
+          ]
+        },
+        {
+          "id": "aa468e8c-4c9e-4536-b281-cdacd2525637",
+          "name": "SetHipsDirection\r\nOn Become Relevant",
+          "position": [
+            -336.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"ff473cd6-413c-6abd-996b-529fd68ab761\", \"Source\")",
+          "source": "NodeData(\"aa468e8c-4c9e-4536-b281-cdacd2525637\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"aa468e8c-4c9e-4536-b281-cdacd2525637\", \"Source\")",
+          "source": "NodeData(\"02d1394f-4324-703c-1202-fd83e201a6f1\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f9677cbb-4ca3-165a-474b-9ab5e3363bbb\", \"Poses_1\")",
+          "source": "NodeData(\"19e26f89-423a-8bf9-07d4-adb0698faed5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"02d1394f-4324-703c-1202-fd83e201a6f1\", \"SourcePose\")",
+          "source": "NodeData(\"f9677cbb-4ca3-165a-474b-9ab5e3363bbb\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f9677cbb-4ca3-165a-474b-9ab5e3363bbb\", \"Poses_3\")",
+          "source": "NodeData(\"e6b75755-47d8-1fbb-992f-7fa6b790d5c1\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f9677cbb-4ca3-165a-474b-9ab5e3363bbb\", \"Poses_2\")",
+          "source": "NodeData(\"440bc546-4905-d3f1-b9e1-a58e9713d932\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f9677cbb-4ca3-165a-474b-9ab5e3363bbb\", \"Poses_0\")",
+          "source": "NodeData(\"eae01011-4575-2902-7e87-b49bf49987fe\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"ff473cd6-413c-6abd-996b-529fd68ab761\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S0_Stop.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "911b35d7-41d4-0759-b9bb-8cb6f47f8ec7",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "65c98345-4e47-077e-f1a4-45ab3dea2923",
+          "name": "Layered blend per bone",
+          "position": [
+            -512.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b903af20-1e92-56bc-9e51-295a524b6e0d",
+          "name": "Layered blend BlendWeights_0 default",
+          "position": [
+            -608.0,
+            96.0
+          ]
+        },
+        {
+          "id": "8f8acc26-8150-5fb5-ac12-91b43e775333",
+          "name": "Layered blend BlendWeights_1 default",
+          "position": [
+            -608.0,
+            144.0
+          ]
+        },
+        {
+          "id": "ef50c518-46a4-fe19-6278-00895832014f",
+          "name": "A_Als_Crouch_Walk_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -800.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63dd9295-48f8-99eb-f7bb-aab75724bc37",
+          "name": "A_Als_Crouch_Walk_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -800.0,
+            128.0
+          ]
+        },
+        {
+          "id": "a5570475-4843-e7c9-c711-e6a92d4d56b0",
+          "name": "Modify Curve",
+          "position": [
+            -272.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fbd4b7de-4e7a-d6bc-8579-84b894f06ddf",
+          "name": "Use cached pose 'Movement'",
+          "position": [
+            -784.0,
+            -96.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"BasePose\")",
+          "source": "NodeData(\"fbd4b7de-4e7a-d6bc-8579-84b894f06ddf\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"911b35d7-41d4-0759-b9bb-8cb6f47f8ec7\", \"Source\")",
+          "source": "NodeData(\"a5570475-4843-e7c9-c711-e6a92d4d56b0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"BlendPoses_1\")",
+          "source": "NodeData(\"63dd9295-48f8-99eb-f7bb-aab75724bc37\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"BlendPoses_0\")",
+          "source": "NodeData(\"ef50c518-46a4-fe19-6278-00895832014f\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"a5570475-4843-e7c9-c711-e6a92d4d56b0\", \"SourcePose\")",
+          "source": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"BlendWeights_0\")",
+          "source": "NodeData(\"b903af20-1e92-56bc-9e51-295a524b6e0d\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"65c98345-4e47-077e-f1a4-45ab3dea2923\", \"BlendWeights_1\")",
+          "source": "NodeData(\"8f8acc26-8150-5fb5-ac12-91b43e775333\", \"value\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"911b35d7-41d4-0759-b9bb-8cb6f47f8ec7\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "40ece1be-4bc0-6f67-d222-198c56804515",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "22d365b0-4943-1d45-c504-39a068e30860",
+          "name": "A_Als_Crouch_Pose\nSequence Evaluator (by frame)",
+          "position": [
+            -1888.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "855d6538-4c2f-1107-128d-80897198c03d",
+          "name": "Modify Curve",
+          "position": [
+            -1600.0,
+            0.0
+          ]
+        },
+        {
+          "id": "09f8104c-4581-e693-2add-918e4fb0118a",
+          "name": "Modify Curve",
+          "position": [
+            -1056.0,
+            0.0
+          ]
+        },
+        {
+          "id": "d90b6a73-476d-f7c2-010a-2bba0dcd06cc",
+          "name": "Slot 'TurnInPlaceCrouching'\nGroup 'Grounded'",
+          "position": [
+            -1328.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "85dc9203-417f-00b8-5aa2-5e9ecbe72cb1",
+          "name": "InitializeTurnInPlace\r\nOn Become Relevant",
+          "position": [
+            -496.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "5f8c9d8f-4773-c91c-5601-1ba1069d93fe",
+          "name": "RefreshTurnInPlace\r\nOn Update",
+          "position": [
+            -720.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "d6d25a2d-48c1-9cb8-e907-22934e2b5874",
+          "name": "RefreshDynamicTransitions\r\nOn Update",
+          "position": [
+            -272.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"855d6538-4c2f-1107-128d-80897198c03d\", \"SourcePose\")",
+          "source": "NodeData(\"22d365b0-4943-1d45-c504-39a068e30860\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"09f8104c-4581-e693-2add-918e4fb0118a\", \"SourcePose\")",
+          "source": "NodeData(\"d90b6a73-476d-f7c2-010a-2bba0dcd06cc\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"40ece1be-4bc0-6f67-d222-198c56804515\", \"Source\")",
+          "source": "NodeData(\"d6d25a2d-48c1-9cb8-e907-22934e2b5874\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d6d25a2d-48c1-9cb8-e907-22934e2b5874\", \"Source\")",
+          "source": "NodeData(\"85dc9203-417f-00b8-5aa2-5e9ecbe72cb1\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5f8c9d8f-4773-c91c-5601-1ba1069d93fe\", \"Source\")",
+          "source": "NodeData(\"09f8104c-4581-e693-2add-918e4fb0118a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d90b6a73-476d-f7c2-010a-2bba0dcd06cc\", \"Source\")",
+          "source": "NodeData(\"855d6538-4c2f-1107-128d-80897198c03d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"85dc9203-417f-00b8-5aa2-5e9ecbe72cb1\", \"Source\")",
+          "source": "NodeData(\"5f8c9d8f-4773-c91c-5601-1ba1069d93fe\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"40ece1be-4bc0-6f67-d222-198c56804515\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_crouching_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf115_crouching/converter_source",
+        "--materialized-directory",
+        "target/bf115_crouching/conversion",
+        "--spec",
+        "target/bf115_crouching/generated_spec.json"
+      ]
+    },
+    {
+      "label": "crouching_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching"
+      ]
+    },
+    {
+      "label": "crouching_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "source_pose_mapping",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_renderer.py"
+      ]
+    },
+    {
+      "label": "source_state_lifecycle",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_lifecycle.py"
+      ]
+    },
+    {
+      "label": "source_state_materialization",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_materializer.py"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "crouching"
+  }
+}

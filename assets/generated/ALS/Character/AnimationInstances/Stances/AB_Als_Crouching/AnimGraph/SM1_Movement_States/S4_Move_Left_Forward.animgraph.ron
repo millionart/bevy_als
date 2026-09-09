@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "f004a02b-43ff-7c21-c9cc-35a9ac0a84f7", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "f004a02b-43ff-7c21-c9cc-35a9ac0a84f7", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
         (id: "49587d5b-42bf-e139-0a29-d8b4f92941f3", name: "Use cached pose 'Move Left Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Left Forward'", cache_key: "ue-cache:2ed3c689-24ea-5c27-b5ca-1f8923f6e21f", context_defaults: []) }, should_debug: false),
         (id: "5f4fdf29-4c87-b5ef-252a-b2889c811ddb", name: "Use cached pose 'Move Right Backward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Right Backward'", cache_key: "ue-cache:7c867a8f-7f6a-55cd-8dd5-f404649cee9f", context_defaults: []) }, should_debug: false),
         (id: "d4625801-42dd-776c-a9af-ea98ba649054", name: "Use cached pose 'Move Forward'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Move Forward'", cache_key: "ue-cache:ccb3b83f-725e-52ad-8121-b637a3d83426", context_defaults: []) }, should_debug: false),
