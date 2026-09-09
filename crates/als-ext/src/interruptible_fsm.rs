@@ -402,7 +402,6 @@ impl InterruptibleFsmNode {
 
     fn source_condition_transition_id(
         machine: &LowLevelStateMachine,
-        source_state: StateId,
         condition: &SourceTransitionCondition,
     ) -> Option<TransitionId> {
         machine
@@ -411,7 +410,7 @@ impl InterruptibleFsmNode {
             .find_map(|transition| match &transition.id {
                 LowLevelTransitionId::Start(TransitionId::Direct(id))
                 | LowLevelTransitionId::Immediate(TransitionId::Direct(id))
-                    if transition.hl_source == source_state
+                    if transition.hl_source.uuid().to_string() == condition.source_state_id
                         && id.uuid().to_string() == condition.transition_id =>
                 {
                     Some(TransitionId::Direct(*id))
@@ -822,7 +821,13 @@ impl InterruptibleFsmNode {
         };
         let context = self.source_target_context(machine, &state, ctx)?;
         for condition in &self.source_transition_conditions {
-            if condition.source_state_id != active_state.uuid().to_string() {
+            let transition = Self::source_condition_transition_id(machine, condition)
+                .ok_or_else(|| GraphError::UnknownErrorNode {
+                    graph: ctx.graph_context.context_id,
+                    node: ctx.node_id,
+                    error: "source transition condition target is unavailable".to_owned(),
+                })?;
+            if self.direct_transition(machine, &state, transition).is_none() {
                 continue;
             }
             let matched = if let Some(trigger_time) = condition.automatic_trigger_time {
@@ -860,12 +865,6 @@ impl InterruptibleFsmNode {
             if !gates_match {
                 continue;
             }
-            let transition = Self::source_condition_transition_id(machine, active_state, condition)
-                .ok_or_else(|| GraphError::UnknownErrorNode {
-                    graph: ctx.graph_context.context_id,
-                    node: ctx.node_id,
-                    error: "source transition condition target is unavailable".to_owned(),
-                })?;
             if self.direct_transition(machine, &state, transition)
                 .is_some_and(|transition| transition.hl_target == active_state) {
                 continue;
@@ -1995,6 +1994,7 @@ mod tests {
 
     #[test]
     fn state_result_pose_and_lifecycle_follow_the_actual_fsm_transition() {
+        for (through_alias, member_matches) in [(false, true), (true, true), (true, false)] {
         let mut world = World::new();
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut state_graph = AnimationGraph::new();
@@ -2075,7 +2075,7 @@ mod tests {
         state_machine.add_state(State {
             id: state_id,
             label: "First".to_owned(),
-            graph: first_state_graph,
+            graph: first_state_graph.clone(),
             state_transition: None,
         });
         state_machine.add_state(State {
@@ -2084,9 +2084,18 @@ mod tests {
             graph: state_graph,
             state_transition: None,
         });
+        let edge_source = if through_alias { StateId::default() } else { state_id };
+        if through_alias {
+            state_machine.add_state(State {
+                id: edge_source,
+                label: "Alias".to_owned(),
+                graph: first_state_graph,
+                state_transition: None,
+            });
+        }
         state_machine.add_transition_unchecked(DirectTransition {
             id: transition_id,
-            source: state_id,
+            source: edge_source,
             target: second_state_id,
             data: TransitionData::default(),
         });
@@ -2114,9 +2123,13 @@ mod tests {
                 fsm,
                 state_pose_output: "Result".to_owned(),
                 outer_pose_output: "Pose".to_owned(),
+                state_aliases: if through_alias { vec![StateAliasBinding {
+                    state_id: edge_source.uuid().to_string(),
+                    member_state_ids: vec![if member_matches { state_id } else { second_state_id }.uuid().to_string()],
+                }] } else { Vec::new() },
                 source_transition_conditions: vec![SourceTransitionCondition {
                     transition_id: transition_id.uuid().to_string(),
-                    source_state_id: state_id.uuid().to_string(),
+                    source_state_id: edge_source.uuid().to_string(),
                     condition: condition_graph,
                     output: "left".to_owned(),
                     context_state: serde_json::from_str("\"10000000-0000-4000-8000-000000000003\"")
@@ -2159,7 +2172,8 @@ mod tests {
             .unwrap();
         assert_eq!(first.bones[0].translation, Some(Vec3::X));
         assert_eq!(second.bones[0].translation, Some(Vec3::new(2.0, 0.0, 0.0)));
-        assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
+        let expected = if member_matches { vec!["FixtureExit", "FixtureEntry"] } else { Vec::new() };
+        assert_eq!(notifications, expected);
         let (_, _, notifications, reinitialized_generation) = world
             .run_system_cached_with(
                 query_result_propagation,
@@ -2167,8 +2181,9 @@ mod tests {
             )
             .unwrap()
             .unwrap();
-        assert_eq!(notifications, ["FixtureExit", "FixtureEntry"]);
-        assert_ne!(generation, reinitialized_generation);
+        assert_eq!(notifications, expected);
+        if member_matches { assert_ne!(generation, reinitialized_generation); }
+        }
     }
 
     #[test]
@@ -2899,7 +2914,7 @@ mod tests {
             Some(target)
         );
         assert_eq!(
-            InterruptibleFsmNode::source_condition_transition_id(&machine, target, &condition,),
+            InterruptibleFsmNode::source_condition_transition_id(&machine, &condition),
             Some(TransitionId::Direct(interrupting_transition))
         );
     }

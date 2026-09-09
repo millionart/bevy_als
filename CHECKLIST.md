@@ -353,6 +353,25 @@
 
 - [ ] BF115.03d Crouching真实片段观测与Playground Gate：开始2026-09-09 22:30:00、预估结束23:20:00。依赖03c；沿既有Crouching公共场景核对六向移动、Stop/QuickStop、左右Rotate、Turn/Dynamic的source分支及真实片段/相位/生命周期读数，修复已因迁入生成执行图而失效的旧驱动观测；先最小fixture、同入口增量预构建与静态闭合，再运行startup及一次连贯可见Playground场景。使用原地形/角色/相机，证明实际FSM、根/局部/final姿态、源clip/curve/weight、带符号yaw及时间守卫；失败只沿首个已证实源链差异修复。估时依据为已闭合的33源子图、两FSM/一个Movement组、既有公共场景、67秒增量构建与Standing同类Gate记录；未引入其它模块实现，完成后恢复02e联合验收用户报告的下蹲后Standing异常。
 
+  - 03d场景静态闭包2026-09-09 22:40:00：真实场景最小fixture24.706s稳定拒绝旧手工图路径；已把六向移动、两侧Rotate/90°Turn的观测链改接生成节点、实际Sequence时间和原生FSM退出，去掉requested镜像终态；移动改按源Movement相位0.25比较六个方向，转身/旋转按实际clip time0.5比较两侧。原场景直接写view_yaw，现改经真实look input输入。完整审读确认现有case未独立覆盖Stop/QuickStop、180°Turn和两侧Dynamic；本轮03d先验收现有12个窗口的完整真实消费链，上述剩余源分支拆入03e，Crouching整体仍需两段均通过后才恢复Grounded。拆分结果为原50分钟段仅保留已有驱动/观测的迁移，避免把新场景设计与首轮真实执行混在一起；未启动runtime。
+
+  - 03d真实Gate前2026-09-09 22:48:00：23项Crouching focused 20.790s、33源图/66文件声明式合同2.650s、同一target_game/play入口构建63.735s全部PASS；观测链、真实片段时间和终态最小失败均已闭合。下面先运行无驱动startup，再运行现有六向移动/两侧Rotate/90°Turn的12窗口；03e补齐剩余源动作，Grounded联合回归继续后置。
+
+  - 03d startup完成/动作Gate前2026-09-09 22:49:00：公共startup runner19.361s PASS，6张截图、18个必需骨骼齐全、frame P95=13.509ms、eval P95=0.073ms；已视觉核对原Playground地形、角色和相机，未出现图错误或参考姿态风险。继续同一生成树的Crouching动作Gate，不改阈值或场景环境。
+
+  - 03d真实失败2026-09-09 22:52:00：动作runner72.479s FAIL/exit91，按要求审计了非零退出报告；graph_errors/faults/temporal_anomalies均为空、watchdog未触发，失败为场景超时和Crouching状态覆盖缺失。逐窗口实际trace证明全过程仍执行Standing FSM，Crouching节点完全不可用，不能据此修改Crouching姿态或放宽时间阈值。
+  - 03d入口根因/02c有限复开2026-09-09 22:58:00：当前Grounded源与目标均把站蹲入口挂在两个State Alias上；InterruptibleFsm的手动direct_transition已能匹配alias成员，但source_transition_event及source_condition_transition_id仍要求源ID直接等于当前真实状态ID，因此自动条件从Standing永远跳过Crouching Alias。复开02c仅补此自动条件入口与回调；旧Gate漏检原因是alias fixture只调用手动direct_transition。先重新提取本地Grounded合同、扩充现有真实FSM求值fixture证明失败，再复用现有alias匹配修复；Standing和Grounded数值算法不动，完整Grounded联合验收仍按用户要求后置。
+
+  - 03d alias修复静态闭环2026-09-09 23:09:00：MCP仍拒绝连接2.653s，公开Grounded uasset/曲线92.378s重新提取，30个生成RON与安装值一致；因此不改RON。扩展既有真实FSM求值fixture后82.588s稳定FAIL（alias分支没有进入/退出事件）；修复仅删除自动条件对真实状态ID的重复限制，并复用现有direct_transition的alias成员匹配。加入非成员拒绝路径，27项FSM回归61.373s、337项als-ext回归20.512s与288项项目回归39.674s PASS。另实际trace确认旧场景未持续aim_held，已修复输入并把实际Aiming加入六向验收；没有更改角色旋转算法。当前同入口重建中，完成fresh spec/声明式后再启动；02c有限复开待Crouching真实入口证明后关闭，Grounded完整Gate仍后置。
+
+  - 03d alias修复真实Gate前2026-09-09 23:13:00：target_game/play双example110.836s、18图fresh spec3.182s、Grounded/Crouching完整声明式合同2.897s/3.149s PASS。源22/33子图、30/66 RON未变化；本次真实运行只验证已修的自动alias入口及Crouching既有12窗口，不启动独立Grounded或Standing场景。继续startup后执行Crouching，保留首轮失败证据。
+
+  - 03d alias startup后/动作前2026-09-09 23:15:00：新二进制公共startup19.541s PASS，原场景根姿态/骨骼/截图与时间守卫通过；接着运行Crouching以验证实际alias切换和动作窗口。
+
+  - 03d第二次真实结果/02c复开关闭2026-09-09 23:34:00：Crouching runner39.333s完成，未超时；真实Crouching节点、两侧Rotate和90°Turn的活动/完成/Idle终态全部出现，证明alias自动条件入口已修复。02c这次有限复开开始22:58、随03d预估23:20、实际收口23:34（偏差+14m），结果为自动alias条件与成员/非成员/回调Gate通过；完整Grounded依然待02e。Crouching整体未通过：两条侧后固定方向期望仍与源图不符，且Rotate/Turn链错误要求未执行的Movement Apply Additive；另一次final右腿突变发生在Rotate输入开始附近，pre-rig无异常，继续沿真实输入/脚锁链定位，不调整公共守卫阈值。源新核对明确侧后状态是通往侧前的过渡分支，需用Backward→Right/Left历史及实际混合权重验收，不能把135度输入当稳定侧后FSM状态。
+
+- [ ] BF115.03e Crouching剩余源动作分支Gate：计划开始2026-09-09 23:20:00、预估结束2026-09-10 00:10:00；依赖03d，实际开始时按已完成事实更新时点。补齐Crouching Stop进入Right、QuickStop三种源选择路径、两侧180°Turn及两侧Dynamic，以既有原生通知、直接montage和公共观测结构实现最小输入驱动；旧源事实已包含这些C++/AIS调用与18条montage资产，新增fixture不得手工注入动画状态。静态/最小fixture/实际入口构建后，在同一原Playground证明真实片段/曲线/权重、状态及完成生命周期，按失败源边界修复。估时依据为剩余8个独立动作窗口、已经验证的源播放器和Standing同类输入驱动；通过后Crouching整体完成，恢复02e包含下蹲后Standing恢复的联合Gate。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |

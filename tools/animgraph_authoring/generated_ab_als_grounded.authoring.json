@@ -19,11 +19,11 @@
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
     },
     {
-      "path": "target/bf115_grounded/converter_source/0007_AB_Als_Grounded.ue.json",
-      "sha256": "510de58d5e4b01976d73a3fdd8fd2ebe02d7779fc299cebf08279064fa816530"
+      "path": "target/bf115_crouching/alias_converter_source/0001_AB_Als_Grounded.ue.json",
+      "sha256": "731efcab91704762b0d80ecf1dbb7e16a3412756d433f4495f5be5119eeb0795"
     },
     {
-      "path": "target/bf115_grounded/converter_source/0008_CF_Als_StanceChange.ue.json",
+      "path": "target/bf115_crouching/alias_converter_source/0002_CF_Als_StanceChange.ue.json",
       "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
     },
     {
@@ -414,11 +414,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_grounded/converter_source",
+        "target/bf115_crouching/alias_converter_source",
         "--materialized-directory",
-        "target/bf115_grounded/native_grounded_conversion",
+        "target/bf115_crouching/alias_grounded_conversion",
         "--spec",
-        "target/bf115_grounded/native_node_spec.json"
+        "target/bf115_crouching/alias_spec.json"
       ]
     },
     {

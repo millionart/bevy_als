@@ -1785,7 +1785,7 @@
         "--materialized-directory",
         "target/bf115_crouching/actor_conversion",
         "--spec",
-        "target/bf115_crouching/actor_spec.json"
+        "target/bf115_crouching/alias_spec.json"
       ]
     },
     {
