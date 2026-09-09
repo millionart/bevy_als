@@ -74,6 +74,15 @@ def node_property(node, name):
     return values[0]
 
 
+def node_struct_fields(node, name):
+    fields = parse_struct(node_property(node, name))
+    record = next(value for value in node["properties"] if value.get("name") == name)
+    for value in record.get("fields", []):
+        if int(value.get("flags", "0"), 0) & 1:
+            fields.setdefault(value["name"], value["exported_text"])
+    return fields
+
+
 def visible_input_names(node):
     return [
         pin.get("name")
@@ -206,7 +215,7 @@ def alpha_contract(node, renderer, fields, base_inputs):
 
 def sequence_player_contract(node):
     renderer = "sequence_player"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1472,6 +1481,14 @@ def run_self_test():
     contract, _ = pose_contract(sequence, "sequence_player")
     assert contract["sync_group_role"] == "CanBeLeader"
     assert contract["play_rate"] == 1.2
+    sequence["properties"][0]["exported_text"] = sequence["properties"][0]["exported_text"].replace(",bLoopAnimation=True", "")
+    sequence["properties"][0]["fields"] = [
+        {"name": "bLoopAnimation", "exported_text": "False", "flags": "0x201"},
+        {"name": "BlendWeight", "exported_text": "0.000000", "flags": "0x2204"},
+    ]
+    contract, issues = pose_contract(sequence, "sequence_player")
+    assert not contract["loop_animation"]
+    assert [value["kind"] for value in issues] == ["source_sync_group_unsupported"]
     curve = fixture_node(
         "modify_curve",
         "Node",
@@ -1789,6 +1806,7 @@ def run_self_test():
         "two_way_alpha_mapping_contract_parsed": "PASS",
         "two_way_child_reset_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
+        "sequence_reflected_default_fields_preserved": "PASS",
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "modify_curve_property_binding_paths_preserved": "PASS",
         "state_result_lifecycle_blocked": "PASS",

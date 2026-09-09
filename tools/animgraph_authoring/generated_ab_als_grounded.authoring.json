@@ -45,6 +45,18 @@
     {
       "path": "target/bf115_grounded/source/AlsMath.aiming.h",
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
+    },
+    {
+      "path": "target/bf115_grounded/stance_source/0001_AB_Als_Grounded.ue.json",
+      "sha256": "8899a53cbf989576880d0c919c86e138f7692b0175775cd0704758f09b005541"
+    },
+    {
+      "path": "target/bf115_grounded/stance_source/0002_CF_Als_StanceChange.ue.json",
+      "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
+    },
+    {
+      "path": "target/bf115_grounded/source/B_Als_Character.joint.ue.json",
+      "sha256": "7aaf825581969e1dd9ddc0ecd25440eee82acff1955d4eb4504a2fe073863066"
     }
   ],
   "graphs": [
@@ -430,11 +442,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_grounded/joint_source",
+        "target/bf115_grounded/stance_source",
         "--materialized-directory",
-        "target/bf115_grounded/joint_conversion",
+        "target/bf115_grounded/stance_conversion",
         "--spec",
-        "target/bf115_grounded/joint_spec.json"
+        "target/bf115_grounded/stance_loop_spec.json"
       ]
     },
     {
@@ -490,6 +502,24 @@
       "argv": [
         "python",
         "tools/animgraph_authoring/ue_animgraph_materializer.py"
+      ]
+    },
+    {
+      "label": "source_reflected_sequence_properties",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_contract.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "source_locomotion_thresholds",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/gen_locomotion_thresholds.py",
+        "--self-test"
       ]
     }
   ],

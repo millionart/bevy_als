@@ -55,6 +55,21 @@ pub fn avatar_transform() -> Transform {
         .with_rotation(Quat::from_rotation_y(AVATAR_FORWARD_YAW))
 }
 
+pub(crate) fn sync_avatar_stance_offset(
+    params_assets: Res<Assets<AlsMovementParams>>,
+    characters: Query<(Ref<als_core::state::Stance>, &als_core::character::AlsMovementParamsHandle), With<als_core::character::AlsCharacter>>,
+    mut avatars: Query<(Ref<AlsCharacterAvatar>, &ChildOf, &mut Transform)>,
+) {
+    for (avatar, parent, mut transform) in &mut avatars {
+        let Ok((stance, handle)) = characters.get(parent.parent()) else { continue };
+        if !avatar.is_added() && !stance.is_changed() { continue; }
+        let Some(params) = params_assets.get(handle.id()) else { continue };
+        transform.translation.y = AVATAR_CAPSULE_BOTTOM_OFFSET + if *stance == als_core::state::Stance::Crouching {
+            params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height
+        } else { 0.0 };
+    }
+}
+
 pub fn attach_avatar(
     commands: &mut Commands,
     assets: &AssetServer,
@@ -368,6 +383,42 @@ mod tests {
         let transform = avatar_transform();
         assert!((transform.translation.y - AVATAR_CAPSULE_BOTTOM_OFFSET).abs() < f32::EPSILON);
         assert!((AVATAR_MESH_ROOT_WORLD_Y - (-0.02)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn stance_changes_preserve_the_mesh_world_origin() {
+        use als_core::{character::AlsCharacter, state::Stance};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::transform::TransformPlugin, crate::stance_layer::StanceLayerPlugin))
+            .init_resource::<Assets<AlsMovementParams>>();
+        let params = AlsMovementParams::default();
+        let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
+        let actors = [0.0, 2.0].map(|floor| {
+            let character = app.world_mut().spawn((
+                AlsCharacter, Stance::Standing,
+                als_core::character::AlsMovementParamsHandle(handle.clone()),
+                Transform::from_xyz(floor, floor + params.crouch.standing_capsule_half_height, 0.0),
+            )).id();
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character), avatar_transform())).id();
+            (character, avatar, floor)
+        });
+        for stance in [Stance::Standing, Stance::Crouching, Stance::Standing, Stance::Crouching] {
+            for (character, _, floor) in actors {
+                app.world_mut().entity_mut(character).insert(stance);
+                app.world_mut().get_mut::<Transform>(character).unwrap().translation.y = floor + match stance {
+                    Stance::Standing => params.crouch.standing_capsule_half_height,
+                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
+                };
+            }
+            app.update();
+            let observed = actors.map(|(_, avatar, floor)| app.world().get::<GlobalTransform>(avatar).unwrap().translation().y - floor);
+            assert!(observed.iter().all(|height| (*height - AVATAR_MESH_ROOT_WORLD_Y).abs() < 1e-6), "{stance:?}: {observed:?}");
+        }
+        let avatar = actors[0].1;
+        let original = app.world().get::<Transform>(avatar).unwrap().translation;
+        app.world_mut().get_mut::<Transform>(avatar).unwrap().translation.y += 0.2;
+        app.update();
+        assert!((app.world().get::<Transform>(avatar).unwrap().translation.y - original.y - 0.2).abs() < 1e-6);
     }
 
     #[test]

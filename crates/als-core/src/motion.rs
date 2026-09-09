@@ -415,8 +415,10 @@ fn rotation_response_system(
             world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
         });
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
-        let moving = horizontal_speed > 0.05;
-        let velocity_yaw = moving.then(|| world_forward_to_yaw(velocity.0));
+        let (has_speed_threshold, moving_speed_threshold): (f32, f32) = include!("../data/locomotion_thresholds.rs");
+        let has_velocity = horizontal_speed >= has_speed_threshold;
+        let moving = (has_input && has_velocity) || horizontal_speed > moving_speed_threshold;
+        let velocity_yaw = has_velocity.then(|| world_forward_to_yaw(velocity.0));
         let animation = animation.copied().unwrap_or_default();
         if runtime.initialized
             && (runtime.previous_locomotion == LocomotionState::Air
@@ -560,6 +562,37 @@ mod rotation_cap_tests {
     use super::*;
 
     #[test]
+    fn grounded_rotation_uses_source_input_and_velocity_thresholds() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_systems(Update, rotation_response_system);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let alpha = 1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.016);
+        for stance in [Stance::Standing, Stance::Crouching] {
+            for (input, speed, moving) in [(false, 0.1, false), (false, 0.5, false),
+                (false, 0.5001, true), (true, 0.009, false), (true, 0.01, true), (true, 0.05, true)] {
+                let character = app.world_mut().spawn((
+                    AlsCharacter, stance, Transform::IDENTITY, Gait::Walking,
+                    LocomotionState::Grounded, RotationMode::Aiming, AlsViewYaw(30.0_f32.to_radians()),
+                    AlsMovementParamsHandle(params.clone()), LinearVelocity(Vec3::NEG_Z * speed),
+                    AlsInputCommand { move_dir: if input { Vec2::Y } else { Vec2::ZERO }, ..default() },
+                    AlsRotationAnimationState { yaw_speed_degrees: 60.0, ..default() },
+                )).id();
+                app.update();
+                let curve_yaw = if moving { 0.0 } else { 60.0_f32.to_radians() * 0.016 };
+                let expected = curve_yaw + if moving || input { 16.0_f32.to_radians() * alpha } else { 0.0 };
+                let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+                assert!((yaw - expected).abs() < 1e-6, "{stance:?}, input={input}, speed={speed}: {yaw} != {expected}");
+                app.world_mut().despawn(character);
+            }
+        }
+    }
+
+    #[test]
     fn moving_aiming_follows_view_before_constraining_in_both_stances() {
         let mut app = App::new();
         let mut time = Time::<()>::default();
@@ -642,7 +675,7 @@ mod rotation_cap_tests {
             RotationMode::VelocityDirection,
             AlsViewYaw(0.0),
             AlsMovementParamsHandle(params),
-            LinearVelocity(Vec3::X),
+            LinearVelocity(Vec3::X * 0.1),
             AlsInputCommand::default(),
         )).id();
         app.update();
