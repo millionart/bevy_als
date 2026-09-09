@@ -266,6 +266,7 @@ struct TemporalSkeletonAnomaly {
     rate_threshold: Option<f32>,
     elapsed_secs: f64,
     frame_ms: f64,
+    animation_delta_seconds: f32,
     direction_case: Option<String>,
     phase: Option<String>,
 }
@@ -350,6 +351,13 @@ struct LocalMotionBoneSample {
 #[derive(Resource, Default)]
 struct AnimationVisualPreRigPose {
     bones: BTreeMap<String, LocalBonePose>,
+    delta_seconds: f32,
+}
+
+impl AnimationVisualPreRigPose {
+    fn temporal_delta_seconds(&self) -> f32 {
+        self.delta_seconds.max(1e-4)
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -1094,6 +1102,7 @@ fn record_temporal_metrics(
     stage: &str,
     elapsed_secs: f64,
     frame_ms: f64,
+    animation_delta_seconds: f32,
     direction_case: Option<&str>,
     phase: Option<&str>,
 ) -> bool {
@@ -1130,6 +1139,7 @@ fn record_temporal_metrics(
                 rate_threshold: metric.rate_threshold,
                 elapsed_secs,
                 frame_ms,
+                animation_delta_seconds,
                 direction_case: direction_case.map(str::to_owned),
                 phase: phase.map(str::to_owned),
             });
@@ -1405,6 +1415,7 @@ fn collect_local_motion_bones(
 }
 
 fn capture_animation_visual_pre_rig_pose(
+    time: Res<Time>,
     mut pre_rig: ResMut<AnimationVisualPreRigPose>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     children: Query<&Children>,
@@ -1415,6 +1426,7 @@ fn capture_animation_visual_pre_rig_pose(
     };
     pre_rig.bones =
         collect_local_motion_bones(instance.player_entity(), &children, &named_transforms);
+    pre_rig.delta_seconds = time.delta_secs();
 }
 
 fn rotation_delta_radians(previous: Quat, current: Quat) -> f32 {
@@ -3521,7 +3533,7 @@ fn collect_animation_visual_evidence(
         }
     }
     let avatar_position = avatar_transform.translation();
-    let frame_seconds = (frame_ms / 1000.0).max(1e-4) as f32;
+    let frame_seconds = pre_rig.temporal_delta_seconds();
     let segments = segment_lengths(&bones);
     let (pre_rig_metrics, final_metrics) = if temporal_observable {
         let pre_rig = state.temporal_pre_rig_guard.observe(
@@ -3545,6 +3557,7 @@ fn collect_animation_visual_evidence(
             "pre_rig",
             elapsed.as_secs_f64(),
             frame_ms,
+            frame_seconds,
             direction_case.as_deref(),
             phase,
         );
@@ -3554,6 +3567,7 @@ fn collect_animation_visual_evidence(
             "final",
             elapsed.as_secs_f64(),
             frame_ms,
+            frame_seconds,
             direction_case.as_deref(),
             phase,
         );
@@ -3851,6 +3865,7 @@ mod tests {
                         scale: Vec3::ONE,
                     },
                 )]),
+                ..default()
             };
             record_motion_window(
                 &mut state,
@@ -4152,6 +4167,27 @@ mod tests {
                 (Vec3::ZERO, Quat::IDENTITY, Vec3::ONE, Vec3::ONE),
             ),
         ])
+    }
+
+    #[test]
+    fn temporal_guard_uses_the_animation_step_after_a_collection_stall() {
+        for (angle, animation_delta, expected_spike) in [
+            (0.76698923, 0.0854492, false),
+            (1.2263747, 0.0148859, true),
+        ] {
+            let pre_rig = AnimationVisualPreRigPose {
+                delta_seconds: animation_delta,
+                ..default()
+            };
+            let delta = pre_rig.temporal_delta_seconds();
+            let mut guard = TemporalSkeletonGuard::default();
+            let bones = temporal_bones(0.25);
+            guard.observe(&temporal_local_pose(Quat::IDENTITY), &bones, Vec3::ZERO, delta);
+            let observation = guard.observe(
+                &temporal_local_pose(Quat::from_rotation_x(angle)), &bones, Vec3::ZERO, delta,
+            );
+            assert_eq!(observation.metrics.iter().any(|metric| metric.kind == "local_rotation_spike"), expected_spike);
+        }
     }
 
     #[test]

@@ -744,7 +744,7 @@ impl InterruptibleFsmNode {
                             .extend(Self::state_function_notifications(
                                 machine,
                                 previous,
-                                "StateExitFunction",
+                                "OnStateExit",
                                 &ctx.graph_context.resources.animation_graph_assets,
                             )?);
                     }
@@ -753,7 +753,7 @@ impl InterruptibleFsmNode {
                         .extend(Self::state_function_notifications(
                             machine,
                             transition.hl_target,
-                            "StateEntryFunction",
+                            "OnStateEntry",
                             &ctx.graph_context.resources.animation_graph_assets,
                         )?);
                 }
@@ -1385,7 +1385,7 @@ impl NodeLike for InterruptibleFsmNode {
         state.notification_generation = NOTIFICATION_GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
         if select_entry && let Some(entry) = Self::source_condition_state(machine, &state.state) {
             state.transition_notifications.extend(Self::state_function_notifications(
-                machine, entry, "StateEntryFunction", &resources.animation_graph_assets,
+                machine, entry, "OnStateEntry", &resources.animation_graph_assets,
             )?);
         }
         let external_events = self
@@ -2024,7 +2024,7 @@ mod tests {
                 output: "Result".to_owned(),
                 output_time: false,
                 source_function: "FixtureExit".to_owned(),
-                call_site: "StateExitFunction".to_owned(),
+                call_site: "OnStateExit".to_owned(),
                 ..default()
             },
         );
@@ -2043,7 +2043,7 @@ mod tests {
                 output: "Result".to_owned(),
                 output_time: false,
                 source_function: "FixtureEntry".to_owned(),
-                call_site: "StateEntryFunction".to_owned(),
+                call_site: "OnStateEntry".to_owned(),
                 ..default()
             },
         );

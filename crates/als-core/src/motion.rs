@@ -425,7 +425,11 @@ fn rotation_response_system(
             runtime.rotation_towards_last_input_direction_blocked = false;
         }
         let mut target_yaw = match *rotation_mode {
-            RotationMode::VelocityDirection if moving => velocity_yaw.unwrap_or(current_yaw),
+            RotationMode::VelocityDirection => velocity_yaw.unwrap_or(if runtime.initialized {
+                runtime.target_yaw
+            } else {
+                current_yaw
+            }),
             RotationMode::ViewDirection if moving && *gait == Gait::Sprinting => {
                 velocity_yaw.unwrap_or(current_yaw)
             }
@@ -443,7 +447,6 @@ fn rotation_response_system(
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
             }
             RotationMode::Aiming => view_yaw.0,
-            _ => current_yaw,
         };
         let aiming = *rotation_mode == RotationMode::Aiming;
         let aiming_stationary = aiming && !moving && !has_input;
@@ -545,6 +548,40 @@ mod rotation_cap_tests {
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
+
+    #[test]
+    fn velocity_direction_retains_rotation_target_after_velocity_stops() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_systems(Update, rotation_response_system);
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((
+            AlsCharacter,
+            Transform::IDENTITY,
+            Gait::Running,
+            LocomotionState::Grounded,
+            RotationMode::VelocityDirection,
+            AlsViewYaw(0.0),
+            AlsMovementParamsHandle(params),
+            LinearVelocity(Vec3::X),
+            AlsInputCommand::default(),
+        )).id();
+        app.update();
+        let target = app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw;
+        assert!((target + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        app.world_mut().entity_mut(character).insert(LinearVelocity::ZERO);
+        app.update();
+        let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+        assert!((response.target_yaw - target).abs() < 1e-6);
+        let body = app.world().get::<Transform>(character).unwrap();
+        assert!((world_forward_to_yaw(body.rotation * Vec3::NEG_Z) - target).abs() > 0.1);
+    }
 
     #[test]
     fn stationary_view_direction_holds_actor_yaw_until_animation_curve_drives_it() {

@@ -148,15 +148,31 @@ fn rotation_difference(
     else {
         return (Vec3::ZERO, 0.0, 0.0);
     };
+    let unwind = |angle: f32| {
+        if angle > std::f32::consts::PI {
+            angle - std::f32::consts::TAU
+        } else if angle < -std::f32::consts::PI {
+            angle + std::f32::consts::TAU
+        } else {
+            angle
+        }
+    };
     let difference = (previous * target.inverse()).normalize();
-    let (axis, angle) = difference.to_axis_angle();
+    let (mut axis, mut angle) = difference.to_axis_angle();
+    angle = unwind(angle);
+    if angle < 0.0 {
+        axis = -axis;
+        angle = -angle;
+    }
     if !axis.is_finite() || !angle.is_finite() || angle <= f32::EPSILON {
         return (Vec3::ZERO, 0.0, 0.0);
     }
     let previous_difference = (previous_previous * target.inverse()).normalize();
-    let previous_angle = previous_difference.to_scaled_axis().dot(axis);
-    let speed = if delta > f32::EPSILON {
-        (angle - previous_angle) / delta
+    let previous_angle = unwind(2.0 * Vec3::new(
+        previous_difference.x, previous_difference.y, previous_difference.z,
+    ).dot(axis).atan2(previous_difference.w));
+    let speed = if delta > 1e-4 && angle > 1e-4 {
+        unwind(angle - previous_angle) / delta
     } else {
         0.0
     };
@@ -433,6 +449,36 @@ impl NodeLike for InertializationPassthroughNode {
 mod tests {
     use super::*;
     use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn source_rotation_difference_uses_short_arc_and_twist_velocity() {
+        let angle = std::f32::consts::FRAC_PI_2;
+        for target_sign in [1.0, -1.0] {
+            for previous_sign in [1.0, -1.0] {
+                for older_sign in [1.0, -1.0] {
+                    let (axis, difference, speed) = rotation_difference(
+                        Some(Quat::IDENTITY * target_sign),
+                        Some(Quat::from_rotation_y(angle) * previous_sign),
+                        Some(Quat::from_rotation_y(angle) * older_sign),
+                        0.02,
+                    );
+                    assert!((axis - Vec3::Y).length() < 1e-5);
+                    assert!((difference - angle).abs() < 1e-5);
+                    assert!(speed.abs() < 1e-4);
+                }
+            }
+        }
+        let (_, _, speed) = rotation_difference(
+            Some(Quat::IDENTITY), Some(Quat::from_rotation_y(0.2)),
+            Some(Quat::from_rotation_y(0.3) * Quat::from_rotation_x(1.0)), 0.02,
+        );
+        assert!((speed + 5.0).abs() < 1e-4);
+        let (_, _, speed) = rotation_difference(
+            Some(Quat::IDENTITY), Some(Quat::from_rotation_y(179.0_f32.to_radians())),
+            Some(Quat::from_rotation_y(-179.0_f32.to_radians())), 0.02,
+        );
+        assert!((speed + 2.0_f32.to_radians() / 0.02).abs() < 1e-4);
+    }
 
     #[test]
     fn node_registers_node_like_dispatch_key() {

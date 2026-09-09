@@ -133,6 +133,18 @@
     {
       "path": "target/bf115_standing/direction_dynamic/Crouching.cleanup.fresh.ue.json",
       "sha256": "7d6b39ed643e2d5df5ee6aaf382e2a1b27c2190718840e160e06141008db27e8"
+    },
+    {
+      "path": "target/bf115_standing/stop_actions/Standing.fresh.ue.json",
+      "sha256": "26d83469a6211511c4ec5bdea1a189b501d0bd490ed3934a50c70a4ced014d0a"
+    },
+    {
+      "path": "target/bf115_standing/stop_actions/AIS.fresh.ue.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf115_standing/stop_actions/CS.fresh.ue.json",
+      "sha256": "8cfc0c7fe95320dd1bc1e13f3643ef3bae227bf5c9b0599ac0de768502225cc0"
     }
   ],
   "graphs": [
@@ -1728,7 +1740,7 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_standing/additive_curves/source",
+        "target/bf115_standing/stop_actions",
         "--materialized-directory",
         "target/bf115_standing/additive_curves/conversion",
         "--spec",
@@ -1833,6 +1845,6 @@
   ],
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
-    "manual_case": "standing_direction"
+    "manual_case": "standing_stop"
   }
 }

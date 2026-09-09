@@ -135,7 +135,7 @@ pub fn select_quick_stop(
     }
     let remaining_yaw_degrees =
         remap_counterclockwise_degrees(unwind_degrees(target_yaw_degrees - actor_yaw_degrees));
-    let rate_alpha = (remaining_yaw_degrees.abs() / 180.0).clamp(0.0, 1.0);
+    let rate_alpha = remaining_yaw_degrees.abs() / 180.0;
     QuickStopSelection {
         right: remaining_yaw_degrees > 0.0,
         play_rate: config.quick_stop_min_play_rate
@@ -230,6 +230,8 @@ mod tests {
         let counterclockwise =
             select_quick_stop(RotationMode::VelocityDirection, 0.0, 180.0, &config);
         assert!(!counterclockwise.right && (counterclockwise.play_rate - 3.0).abs() < 1e-6);
+        let remapped = select_quick_stop(RotationMode::VelocityDirection, 0.0, 176.0, &config);
+        assert!(!remapped.right && (remapped.play_rate - 3.0277777).abs() < 1e-5);
     }
 
     #[test]

@@ -202,6 +202,64 @@
 
     - R4b及o完成2026-09-09 15:03:48：方向受控复核manual/validation exit0，2338帧、11窗口/19截图、六态mask111111；frame p95 16.5986ms/max71.5817ms、eval p95 0.0895ms，faults/graph_errors/temporal_anomalies为空。旋转view 90°的跑姿已人工检查；sprint两分支211/50样本、canonical phase距离0/0.002966，无源链失败。首份方向75.3451ms超限保留，未找出该单帧确切原因，也未通过修改算法、阈值或排除样本获得本次通过。R4b实际开始14:44:20、预估15:18:50、实际结束15:03:48（偏差-15m02s）；o2开始12:48、首估13:18、最终偏差+1h45m48s，o开始11:40、首估12:20、最终偏差+2h43m48s，中间复盘/拆分均保留。用户连续换向及停后恢复已完成本项验收，BF113.03c本轮活动源/时间/惯性请求有限复开关闭；实现为7888369。下一步仅补Standing仍未完整验收的正常停步、quick-stop、turn/rotate和动态过渡实际分支，尚不能开始Grounded。
 
+- [x] BF115.01p Standing正常停步与quick-stop实际分支：开始2026-09-09 15:07:45、预估结束15:57:45。o已完成后继续原Standing未验收范围；估时依据为已有62源子图、四个Lock/Plant回调、两条Stop和两条Standing Transition资产、已构建真实入口及既有transition_notify场景。重新读取当前Standing/设置与PlayQuickStop相关源事实，比较真实条件/通知、左右资产选择、起点/倍率/混合/结束和Slot实际Pose；沿源FootPlanted与输入产生左右分支，不手工发通知或强制montage。先静态闭环和最小实际读数/驱动检查，再原Playground公共Gate；不展开Turn/Rotate或下一模块，也不把早先provider/纯采样测试当作这些完整动作已验收。
+
+  - p源差异及有限复开2026-09-09 15:30:00：fresh Standing78.755s/AIS34.255s通过；Stop分支按FootPlantedAmount的-0.5/0/0.5分区选Lock/Plant，四个entry调用左右Stop，参数0.4起点/1.5倍/0.2混合；QuickStop设置0.1/0.2混合、1.75–3.0倍率、0.3起点。fresh CPP1575–1610在无输入时使用TargetYawAngle，并按source yaw左右及175°反向修正规则选择；实际quick_stop_notify_system的唯一选择器却在无输入时使用身体yaw，且将Bevy yaw直接当source yaw，导致转角归零/左右反向。旧01k只测试无输入且目标与身体同向及资产采样，未覆盖真实保留目标；01k仅按此QuickStop消费者/必要旋转输入边界复开，先建立真实消息→播放反例。复用既有RotationResponseState、目标坐标基转换和core选择函数，不添加影子朝向。
+
+  - p最小失败/配置闭环2026-09-09 15:39:34：实际消息→quick_stop_notify_system→AlsTransitionPlayback fixture在已松键、Bevy目标yaw=-90°时2.671s稳定FAIL（index0而应1）；包含仍按键优先、左右与176°的其余组合将随修复验证。core选择函数新增176°源反例125.018s FAIL于倍率截断：源remap后-184°，无clamp的Lerp应3.0277777而非3。首次组合cargo在core失败后未继续项目测试，已单独执行实际消息反例。fresh CS58.429s确认DesiredVelocity旋转=True、继承基座旋转=False、静止ViewDirection自动旋转=True。另沿必要输入看到UE静止VelocityDirection仍使用已保留目标/DesiredVelocityYaw，当前rotation_response_system静止分支回到current_yaw；下一步只核实该直接producer并建立最小测试，再合并调用已有选择与坐标基工具。此时尚未修改生产算法或启动本项runtime。
+
+  - p修复/static闭环2026-09-09 15:57:30：必要producer的真实rotation_response_system反例43.041s FAIL于松键停速后目标丢失；现保留既有target_yaw，删除重复quick-stop公式并按UE↔Bevy符号调用core选择器，移除源不存在的倍率clamp。最小消息/选择回归58.650s PASS，完整als-core238项21.386s PASS；旧实现即上述失败消融，未增加旋转状态。fresh源确认Move满权重且!bMovingSmooth优先Move→Stop，否则Move→Idle发QuickStop；停止内部按FootPlanted四分支。新增standing_stop公共场景用实际Idle/Move与曲线释放输入、读真实Stop FSM/消息产生的播放/Slot，验证4正常+3quick分支和完整结束，不强制动画。项目测试首次仅因observer ResMut赋值层级编译失败，已修正；最终focused/声明式Gate及同入口构建尚待通过，尚未启动runtime。当前源闭包仍62子图/23Pose图，直接consumer仅QuickStop及必要目标朝向。
+
+  - p runtime准备2026-09-09 15:59:30：项目315项31.079s PASS，新增真实分支/完整播放/Idle完成判定focused24.826s PASS，移除分支或播放观测即失败消融；同次Standing native重新审计源闭包/当前安装树及其余声明命令4.260s PASS（fresh导出只读，旧pin临时ID不同由既有合同审计处理）。场景没有新增影子FSM；当前7秒单分支超时复用公共进展watchdog。初次预构建误用了--bin，0.787s被cargo拒绝而未构建；按run_manual.bat实际--example manual_playground、target_game/play、jobs2已纠正，等待同入口构建后startup→standing_stop。
+
+  - p真实Gate前2026-09-09 16:03:50：同入口构建145.781s PASS；编译期间补齐公共collector要求的settled末态标记后再次增量构建62.853s PASS，当前target_game/play与源码一致。全部source/static和适用focused已通过，现在按公共顺序执行无驱动startup，再standing_stop，7分支各自7秒固定上限；保留原Playground和25ms p95/75ms max阈值，尚未宣告停止功能完成。
+
+  - p startup通过/停止Gate前2026-09-09 16:04:30：startup manual/validator exit0，6幅原Playground截图、root Pose与公共Guard通过。已检查静止姿态，接着同一二进制运行standing_stop；首次真实动作结果仍待出具，未开展后续Turn/Rotate。
+
+  - p首个runtime失败及01j有限复开2026-09-09 16:08:00：standing_stop在首分支7秒固定上限退出，manual91/validator1；575帧证明1.522s进入实际Stop/Lock Left Foot，但全程无Stop playback，随后只有StandingDynamic，故非释放相位问题。无fault/graph_error/temporal异常，frame p95 13.683ms/max22.3797ms。fresh StateResult.StateEntryFunction绑定PlayStopLeftTransitionAnimation；converter已正确归一为OnStateEntry，runtime state_function_notifications却仅匹配StateEntryFunction/StateExitFunction。旧01j实际FSM fixture同样用了旧名，漏检生成契约；仅该通用状态回调匹配有限复开，先把既有实际FSM测试改为生成名确认失败，再统一消费者。安装树13处入口/退出均使用OnStateEntry/OnStateExit，无旧命名资产；相邻图仅承受同一事件契约修复，不展开功能调研。另新场景的末态观察缺少公共collector要求的requested字段，按已有真实生成状态补齐，不改变视觉阈值。
+
+  - p状态事件静态闭环2026-09-09 16:11:30：当次UE AnimNode_StateMachine.cpp SetState先调用旧StateExit、初始化目标后调用StateEntry；生成图的OnStateEntry/OnStateExit为正确target规范。既有实际FSM fixture改用生成名称后36.574s FAIL，通知为空；runtime三处统一名称后als-ext332+项目315项32.944s PASS，source/static4.476s PASS，旧命名即失败消融。无新事件类型或兼容分支，使用生成器已有规范；公共视觉末态按真实稳定FSM填写requested/actual并包含settled。正在同入口重建，接着startup及停止完整分支复验。
+
+  - p状态事件修复runtime前2026-09-09 16:13:35：同入口构建115.245s PASS；当前修复及末态报告字段已完整编入target_game/play。按公开startup→standing_stop重新验证，首轮失败保留，7秒上限与视觉/性能阈值不变。
+
+  - p回调修复startup通过/停止Gate前2026-09-09 16:14:10：startup manual0/validator0、6图，faults/graph_errors/temporal为空，frame p95 13.720ms/max26.5818ms；同一二进制继续standing_stop，尚不关闭01j/01k有限复开。
+
+  - p第二次runtime/超时复盘2026-09-09 16:17:45：回调修复后四种正常Stop均在对应实际状态启动左右动画并播放至2.333333、回到Idle，default QuickStop也完成；manual仍91/validator1，quick_left被仅1帧上一案例的完成读数错误勾选，quick_right实际RotationMode一直ViewDirection而选Left1.75，因此不接受左右分支通过。trace证明driver在begin_phase后同帧observer读新index+旧probe，另direct RotationMode/request被aim_rotation_mode_system按aim_held/LastFree覆盖；此前实际direction fixture已有对应输入范式，新的场景未复用。无fault/graph_error/temporal，frame p95 14.0431ms/max41.4442ms。初轮开始15:07:45、预估15:57:45、实际复盘16:17:45（偏差+20m，未完成），耗时包含native3资产、选择/目标/入口事件三处根因修复及两次真实Gate；剩余仅场景case交接/真实模式输入和复验，当前暂停新的runtime与生产实现，按原50分钟窗口的1.5倍拆分下一轮。
+    - [x] BF115.01p-R2a 停止场景真实输入与交接：开始2026-09-09 16:17:45、预估结束16:52:45。以实际报告的pending-entry旧probe和当前input_state_request_system/aim_rotation_mode_system为边界，复用既有输入命令/模式切换，先最小失败fixture再修驱动与完成读取。只修场景，不修改动画/物理；focused/static及同入口构建通过后独立完成。
+    - [x] BF115.01p-R2b 停止完整验收与回调回归：计划开始2026-09-09 16:52:45、预估结束17:32:45。依赖R2a，提前完成则顺延提前开始；沿刚通过startup的同一生产实现复验7分支standing_stop及受回调影响的standing_response，审查全部视觉/生命周期/性能证据，完成后关闭01j/01k有限复开和p并提交。该拆分不缩小原Standing目标，不提前转入Turn或Grounded。
+
+  - p-R2a完成/真实Gate前2026-09-09 16:22:55：两处场景最小反例24.287s FAIL（pending-entry被当活动案例、实际模式View而非Aim）；输入命令补aim_held和现有rotation_mode_pressed、删direct模式赋值/请求，observer只读本case完成entry后的帧，并要求实际模式与case一致。三项真实输入/交接/足相fixture20.549s PASS，旧输入/去掉entry边界即失败消融，声明式4.223s和同入口构建65.305s PASS。R2a开始16:17:45、预估16:52:45、实际结束16:22:55（偏差-29m50s）；R2b提前实际开始16:22:55、预估结束17:02:55，保留终段窗口。生产运动/动画代码自16:14 startup通过后未改，复用该无驱动Gate；现在只重新运行standing_stop，然后standing_response回调回归。
+
+  - p-R2b运行边界复盘2026-09-09 16:27:20：input修复后的真实报告4正常+默认/左Quick完整通过，右Quick确实选Right且2.529132倍播放到约1.35s，但被StandingDynamic接替而未完整结束，故manual91/validator1；全部公共姿态/性能Guard通过（frame p95 14.4133/max46.6613ms）。右case初始仍无输入时已在0.067s、0.454s排入Dynamic；之前左case结束body yaw约+0.781，driver随后强制重置为-0.785，而新case首实际读数为-0.331。fresh RefreshDynamicTransitions仅在AllowTransitions且足锁/目标距离超过source阈值时排队，不能禁用它或放宽完成判定。当前删除案例之间非必要的角色/旋转状态重置，只在首case定位原场地；后续保持自然停止姿态，把view参考对齐当前实际body yaw以生成相对左右输入。此为fixture重置步骤消融，不修改任何动画、Dynamic、足锁或物理算法；三项fixture与同入口构建后复验，旧失败保留。
+
+  - p-R2b连续姿态Gate前2026-09-09 16:30:00：删除后续case重复定位/朝向重置后，三项输入/交接fixture20.575s、同入口构建65.669s PASS；该改动只影响standing_stop驱动，沿用已通过的生产source/static/startup。现在以原场地连续角色生命周期复验7分支，仍要求每个自身正确资产/倍率、真实Slot姿态、完整结束及Idle；未禁用Dynamic或提高任何阈值。
+
+  - p-R2b停止Gate通过/回调回归前2026-09-09 16:31:15：连续角色standing_stop manual0/validator0，1367帧、7窗口、14截图；4个Lock/Plant与默认/左右Quick全部实际播放完成并回到Idle，左右Quick2.354919/2.359717倍率、0.8s canonical距离0.010749/0.009504，方向签名及source pose链通过。frame p95 13.8828ms/max16.7462ms，eval p95 0.0821ms，faults/graph_errors/temporal为空；左右截图已检查。删除后续案例重置即保留全部目标信号并消除夹入的Dynamic，故永久删除该工具步骤，没有改Runtime Dynamic。现在同一二进制执行既有standing_response，验证刚恢复的状态回调对用户2秒反向/0.25秒循环及持续Idle的影响；该回归完成后关闭p。
+
+  - p-R2b回调回归失败/01o有限复开2026-09-09 16:39:40：standing_response manual0但validator1，2秒反转/循环/持续Idle均覆盖，phase3.681712（render4.667710）pre-rig thigh_r单帧1.226375rad、86.55643rad/s并引发final手/脚异常；frame p95 17.6115/max31.8561ms，无graph_error。该帧没有任何Stop/Quick montage，不能归因新回调。actual Run→FirstPivot在3.654296触发；fresh Standing该边明确0.1s惯性，UE AnimNode_Inertialization.cpp905–918将RotationAngle Unwind并改轴号，以PrevQ.GetTwistAngle和再次Unwind算速度；当前rotation_difference直接采用0..2π轴角、scaled-axis投影和未wrap角速度，存在反号四元数长路径差异。01o/o2仅按该实际惯性旋转边界复开；旧单骨骼fixture只有正号90°、FSM运动fixture主要平移，未覆盖q/-q和±π速度边界，前次真实通过没有触及该表示。BlendSpace的Pose.linear_add已做同半球累加，排除后不改它，不展开IK/物理或相邻图。
+      - [x] BF115.01p-R2b1 惯性旋转最短角与twist速度：开始2026-09-09 16:39:40、预估结束16:59:40。以当次source的两处旋转公式、现有惯性fixture和这条真实Pivot输入为边界，建立反号/跨π/mixed-axis最小失败，修复共享rotation_difference后focused/static及同入口构建，再同源startup/response与必要停止回归，保留原Guard。估时依据为已完整定位的单函数差异、约半分钟测试和2分钟同入口构建，以及当前现成真实场景；不以该子项复开整个运动架构。
+
+  - p-R2b1旋转静态闭环2026-09-09 16:48:40：旋转反号/角速度最小fixture33.152s FAIL于等价历史的非零速度，局部函数按source Unwind→正角/轴反向→TwistAngle→速度Unwind修复；四项惯性测试19.529s、333ext+317项目37.967s PASS，原实现即失败消融。尝试把两个Rust反例加入authoring verification_commands被其仅允许Python/tools脚本的合同拒绝（0.269s，随后main的缺pass触发KeyError）；已删除这两个额外步骤，反例仍由现有cargo测试与本项Gate执行，不新增包装器或修改静态工具。重跑既有声明式Gate后再同入口构建，尚未启动新的runtime。
+
+  - p-R2b1真实Gate前2026-09-09 16:51:40：声明式4.527s、同入口target_game/play构建117.027s PASS，650回归此前通过；现在startup后优先standing_response复验phase3.681712的Pivot跳变，再停止实际分支回归。除共享惯性旋转的源差异外，未更改任何图/clip/FSM状态规则、IK/物理或Guard阈值。
+
+  - p-R2b1 startup通过/反向Gate前2026-09-09 16:53:35：startup manual0/validator0、6图，frame p95 13.5591ms/max23.5086ms，fault/graph/temporal为空；过程中记录4次Turn slot惯性请求，Turn实际分支尚未验收，不把本项视作Turn完成。现在同一二进制执行standing_response，优先检查原Pivot旋转跳变。
+
+  - p-R2b1反向通过/停止回归前2026-09-09 16:55:45：short_arc standing_response manual0/validator0，716帧，反向/循环/持续Idle全部通过；faults/graph_errors/temporal为空，frame p95 20.1415ms/max33.8209ms。源最短角/twist修复已通过真实同节奏反例；继续同一二进制standing_stop及既有方向/冲刺，覆盖共享惯性函数的直接调用范围，不展开新模块。
+
+  - p-R2b1完成/方向回归前2026-09-09 16:57:45：惯性修复后的standing_stop再次manual0/validator0，4正常+3Quick全部完整播放/Idle、源pose链和方向签名通过，fault/graph/temporal为空。R2b1开始16:39:40、预估16:59:40、实际结束16:57:45（偏差-1m55s）；650回归与声明式、startup/response/stop共同闭合最短角差异。R2b继续同一二进制既有standing_direction及sprint回归，保留所有此前失败；不重复或改变已经通过的姿态阈值。
+
+  - p最终方向性能边界/用户后续选项2026-09-09 17:05:10：short_arc standing_direction manual0、六态111111及全部姿态/源链通过，validator1仅因frame p95 27.7571>25ms（max45.4107）；CPU p95 23.1177ms、eval p95 0.1465ms，物理区间/ControlRig主要占用，步数恒1；短系统采样见浏览器负载但不能追溯归因。停止/反向已通过，先既有独立sprint，再做且仅做一次相同二进制/场景/阈值的受控方向复核，保留此次失败，不猜测优化。用户随后明确指出连续原地转身的胯部/腿部平衡不自然，并提出montage速率可能跟不上快速转身；作为p收口后的下一选定Standing任务，按source核对实际montage速率、RotationYawSpeed倍率、Actor角速度、骨盆与足锁，不先提高速率或加平滑。
+
+  - p-R2b冲刺失败/测量时钟闭环2026-09-09 17:15:45：sprint manual0、启动/稳定分支通过，validator1保留max84.1566ms性能失败，以及pre-rig脚/腿速率40.3434/40.2748rad/s。后者所在两帧phase elapsed5.2565503→5.3419995（动画步长85.4492ms），collector wall elapsed6.3194023→6.3384139（19.0115ms）；实际Guard分母取后者。fresh本地Bevy time_system从render time receiver更新Time，generated_ab_als_provider以Time.delta_secs写animation.delta_seconds；收集时刻受CPU阶段位置影响，不能作为该姿态的动画步长。已有恒定dt Guard fixture漏检该时间偏移，01o已有限复开的验收边界扩至此测量consumer；不改变动画时钟、速率或性能阈值。新增已记录0.766989/85.4492ms应正常、此前真实惯性1.226375/14.8859ms仍应拒绝的同一Guard反例，先确认失败再修正采样。
+      - [x] BF115.01p-R2b2 公共Guard姿态时间：开始2026-09-09 17:15:45、预估结束17:21:45。只在已有pre-rig快照携带实际Time.delta_secs，用于pre/final速率；墙钟frame耗时继续独立执行25/75ms预算。沿真实Guard做反例/消融及回归、同入口构建，然后既有sprint和一次方向复核；估时依据为单个采样字段/消费者、已读取时钟源码、约20秒focused及1分钟增量构建。
+
+  - p-R2b2静态通过/冲刺复核前2026-09-09 17:20:05：原墙钟分母fixture39.761s FAIL误报；已有pre-rig快照携带Time.delta_secs，pre/final Guard使用该同帧步长，删除无关的wall参数，异常JSON另记animation_delta_seconds。33项视觉回归21.619s、证据工具自测0.527s、同入口构建65.429s PASS；原真实惯性跳变仍拒绝。生产图/动画/物理不变，已有startup/response/stop继续有效；现在sprint复核及首次且唯一受控方向性能复核，25/75ms性能门槛不变。
+
+  - p-R2b2冲刺通过/方向受控复核前2026-09-09 17:21:20：pose_clock sprint manual0/validator0，启动/稳定、源curve/pose/sync全部通过，fault/graph/temporal为空；frame p95 14.1017ms/max20.3638ms，eval p95 0.0828ms。先前84.1566ms性能失败保留且未改25/75预算。现在只做已声明的一次相同生产实现、相同方向场景/阈值的受控复核；测量修复仅使姿态速率使用真实动画时间，墙钟性能测量不变。
+
+  - p完成2026-09-09 17:25:45：方向受控复核manual0/validator0，六态111111、11窗口完整，frame p95 15.8884ms/max70.0931ms、eval p95 0.0860ms，fault/graph/temporal为空；最新方向与冲刺截图已人工检查。该Gate实际结束17:22:17（runner落盘），早于R2b估时17:02:55+20分钟界线；最终证据复核完成17:25:45。R2b2开始17:15:45/预估17:21:45/实际结束17:25:45（+4m）；R2b实际开始16:22:55/预估17:02:55/实际结束17:25:45（+22m50s，Gate在容差内通过）；p开始15:07:45/原预估15:57:45/实际结束17:25:45（+1h28m）。重估、拆分与失败均保留，额外时间源于真实状态事件漏接、惯性四元数语义及Guard时钟三项旧Gate漏检和新场景驱动问题。01j/01k/01o的本轮有限复开关闭；累计core238、ext333、项目317及新增33视觉回归/工具self-test，source/static、同入口编译、startup/response/7-stop/direction/sprint均完成适用Gate。首次方向p95超限和Sprint单帧84.1566ms保留，未证明外部原因，未改性能预算或动画算法进行性能补偿。Standing仍未全部完成：下一项为用户已指定的连续原地转身胯腿协调与montage速率，继续default Turn/Aiming Rotate及动态过渡实际分支，尚不进入Grounded。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
