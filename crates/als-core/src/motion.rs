@@ -222,6 +222,7 @@ pub fn constrained_aiming_yaw(
     delta_seconds: f32,
     apply_secondary_constraint: bool,
 ) -> (f32, f32) {
+    let tolerance = 1e-4_f32.to_radians();
     let minimum_limit = minimum_limit_degrees.clamp(0.0, 180.0).to_radians();
     let mut limit = if reset {
         std::f32::consts::PI
@@ -231,38 +232,43 @@ pub fn constrained_aiming_yaw(
             .to_radians()
     };
     let mut view_space_yaw = wrap_yaw_radians(view_yaw - actor_yaw);
-    if view_space_yaw.abs() <= minimum_limit {
+    if view_space_yaw.abs() <= minimum_limit + tolerance {
         limit = minimum_limit;
         return (actor_yaw, limit.to_degrees());
     }
+    view_space_yaw = counterclockwise_yaw_delta(view_space_yaw);
     if apply_secondary_constraint {
         let target = view_space_yaw.clamp(-minimum_limit, minimum_limit);
-        let delta = wrap_yaw_radians(target - view_space_yaw);
-        if delta.abs() <= f32::EPSILON {
-            view_space_yaw = target;
-        } else {
-            let alpha = 1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / 0.1);
-            view_space_yaw = wrap_yaw_radians(view_space_yaw + delta * alpha);
-        }
+        view_space_yaw = damper_yaw(view_space_yaw, target, delta_seconds, 0.1);
     }
-    if view_space_yaw.abs() <= limit {
+    if view_space_yaw.abs() > limit + tolerance {
+        view_space_yaw = view_space_yaw.clamp(-limit, limit);
+    } else {
         limit = view_space_yaw.abs().max(minimum_limit);
     }
-    let constrained = view_space_yaw.clamp(-limit, limit);
-    (wrap_yaw_radians(view_yaw - constrained), limit.to_degrees())
+    (wrap_yaw_radians(view_yaw - view_space_yaw), limit.to_degrees())
+}
+
+fn counterclockwise_yaw_delta(delta: f32) -> f32 {
+    -crate::transitions::remap_counterclockwise_degrees(-wrap_yaw_radians(delta).to_degrees()).to_radians()
 }
 
 fn damper_yaw(current: f32, target: f32, delta_seconds: f32, half_life: f32) -> f32 {
-    if half_life <= f32::EPSILON {
+    let delta = wrap_yaw_radians(target - current);
+    if delta.abs() <= 1e-4_f32.to_radians() {
         return target;
     }
-    let alpha = 1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / half_life);
-    wrap_yaw_radians(current + wrap_yaw_radians(target - current) * alpha)
+    let alpha = 1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * delta_seconds);
+    wrap_yaw_radians(current + counterclockwise_yaw_delta(delta) * alpha)
 }
 
 fn advance_yaw(current: f32, target: f32, speed_degrees: f32, delta_seconds: f32) -> f32 {
-    let max_delta = speed_degrees.max(0.0).to_radians() * delta_seconds.max(0.0);
-    wrap_yaw_radians(current + wrap_yaw_radians(target - current).clamp(-max_delta, max_delta))
+    let delta = wrap_yaw_radians(target - current);
+    let max_delta = speed_degrees.to_radians() * delta_seconds;
+    if speed_degrees <= 0.0 || delta.abs() <= max_delta {
+        return target;
+    }
+    wrap_yaw_radians(current + counterclockwise_yaw_delta(delta).signum() * max_delta)
 }
 
 fn moving_rotation_half_life(
@@ -424,7 +430,7 @@ fn rotation_response_system(
         if moving || has_input {
             runtime.rotation_towards_last_input_direction_blocked = false;
         }
-        let curve_driven = !moving && animation.yaw_speed_degrees.abs() > f32::EPSILON;
+        let curve_driven = *locomotion == LocomotionState::Grounded && !moving && animation.yaw_speed_degrees.abs() > f32::EPSILON;
         let current_yaw = if curve_driven {
             wrap_yaw_radians(current_yaw + animation.yaw_speed_degrees.to_radians() * delta_seconds)
         } else {
@@ -439,7 +445,7 @@ fn rotation_response_system(
         if curve_driven || hold_rotation || !runtime.initialized {
             runtime.smooth_target_yaw = current_yaw;
         }
-        let mut target_yaw = match *rotation_mode {
+        let target_yaw = wrap_yaw_radians(match *rotation_mode {
             RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
                 if runtime.initialized
                     && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
@@ -465,27 +471,10 @@ fn rotation_response_system(
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
             }
             RotationMode::Aiming => view_yaw.0,
-        };
+        });
         let aiming = *rotation_mode == RotationMode::Aiming;
-        let aiming_stationary = aiming && !moving && !has_input;
-        if aiming {
-            let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
-                view_yaw.0,
-                current_yaw,
-                params.cmc.aiming_yaw_angle_limit_degrees,
-                constraint.active_limit_degrees,
-                !constraint.applied_last_frame,
-                delta_seconds,
-                aiming_stationary,
-            );
-            target_yaw = constrained_yaw;
-            constraint.active_limit_degrees = active_limit_degrees;
-            constraint.applied_last_frame = true;
-        } else {
-            constraint.active_limit_degrees = 180.0;
-            constraint.applied_last_frame = false;
-        }
-        if aiming_stationary {
+        let aiming_stationary = aiming && *locomotion == LocomotionState::Grounded && !moving && !has_input;
+        if aiming_stationary || (aiming && *locomotion == LocomotionState::Air) {
             runtime.smooth_target_yaw = target_yaw;
         } else {
             runtime.smooth_target_yaw = advance_yaw(
@@ -504,8 +493,8 @@ fn rotation_response_system(
         } else {
             moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed)
         };
-        let next_yaw = if aiming_stationary {
-            runtime.smooth_target_yaw
+        let mut next_yaw = if aiming_stationary {
+            current_yaw
         } else {
             damper_yaw(
                 current_yaw,
@@ -514,6 +503,28 @@ fn rotation_response_system(
                 half_life,
             )
         };
+        if aiming {
+            let (constrained_yaw, active_limit_degrees) = constrained_aiming_yaw(
+                view_yaw.0,
+                next_yaw,
+                params.cmc.aiming_yaw_angle_limit_degrees,
+                constraint.active_limit_degrees,
+                !constraint.applied_last_frame,
+                delta_seconds,
+                aiming_stationary,
+            );
+            if *locomotion == LocomotionState::Grounded && !aiming_stationary
+                && wrap_yaw_radians(constrained_yaw - next_yaw).abs() > 1e-4_f32.to_radians()
+            {
+                runtime.smooth_target_yaw = target_yaw;
+            }
+            next_yaw = constrained_yaw;
+            constraint.active_limit_degrees = active_limit_degrees;
+            constraint.applied_last_frame = true;
+        } else {
+            constraint.active_limit_degrees = 180.0;
+            constraint.applied_last_frame = false;
+        }
         let next_rotation = Quat::from_rotation_y(next_yaw);
         transform.rotation = next_rotation;
         if let Some(mut rotation) = rotation {
@@ -547,6 +558,69 @@ mod rotation_cap_tests {
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
+
+    #[test]
+    fn moving_aiming_follows_view_before_constraining_in_both_stances() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_plugins(crate::transition::AlsStateTransitionPlugin)
+            .add_message::<crate::aim::AimStateChanged>()
+            .add_systems(Update, (crate::input_request::input_state_request_system, crate::aim::aim_rotation_mode_system)
+                .chain().before(crate::transition::state_transition_system))
+            .add_systems(Update, rotation_response_system.after(crate::transition::state_transition_system));
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let characters = [Stance::Standing, Stance::Crouching].map(|stance| app.world_mut().spawn((
+            AlsCharacter, stance, Transform::IDENTITY, Rotation::IDENTITY, Gait::Running,
+            LocomotionState::Grounded, RotationMode::ViewDirection, AlsViewYaw(0.0),
+            AlsMovementParamsHandle(params.clone()), LinearVelocity::ZERO, AlsMaxAllowedGait(Gait::Running),
+            crate::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+            OverlayState::Default, AlsStateRequest::default(),
+            AlsInputCommand { aim_held: true, ..default() },
+        )).id());
+        app.update();
+        for character in characters {
+            assert_eq!(*app.world().get::<RotationMode>(character).unwrap(), RotationMode::Aiming);
+            app.world_mut().entity_mut(character).insert((
+                AlsInputCommand { aim_held: true, move_dir: Vec2::Y, ..default() },
+                LinearVelocity(Vec3::NEG_Z * 1.75), AlsViewYaw(30.0_f32.to_radians()),
+            ));
+        }
+        app.update();
+        let observed = characters.map(|character| (
+            world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward()),
+            app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw,
+        ));
+        let expected_yaw = 16.0_f32.to_radians() * (1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.016));
+        assert!(observed.iter().all(|(body, target)| (*body - expected_yaw).abs() < 1e-6 && (*target - 30.0_f32.to_radians()).abs() < 1e-6), "{observed:?}");
+        for character in characters {
+            app.world_mut().entity_mut(character).insert(AlsViewYaw(160.0_f32.to_radians()));
+        }
+        app.update();
+        for character in characters {
+            let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            assert!((yaw - 90.0_f32.to_radians()).abs() < 1e-5);
+            assert!((response.target_yaw - 160.0_f32.to_radians()).abs() < 1e-6);
+            assert!((response.smooth_target_yaw - response.target_yaw).abs() < 1e-6);
+            assert!(app.world().get::<Transform>(character).unwrap().rotation.dot(app.world().get::<Rotation>(character).unwrap().0).abs() > 1.0 - 1e-6);
+        }
+        let character = characters[0];
+        app.world_mut().entity_mut(character).insert((
+            LocomotionState::Air, Transform::IDENTITY, Rotation::IDENTITY,
+            AlsInputCommand { aim_held: true, ..default() }, LinearVelocity(Vec3::Y),
+            AlsViewYaw(30.0_f32.to_radians()), AlsRotationResponseState::default(),
+            AlsRotationAnimationState { yaw_speed_degrees: 120.0, ..default() },
+        ));
+        app.update();
+        let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+        let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+        assert!((yaw - expected_yaw * 30.0 / 16.0).abs() < 1e-6);
+        assert!((response.target_yaw - 30.0_f32.to_radians()).abs() < 1e-6);
+        assert!((response.smooth_target_yaw - response.target_yaw).abs() < 1e-6);
+    }
 
     #[test]
     fn velocity_direction_retains_rotation_target_after_velocity_stops() {
@@ -837,16 +911,19 @@ mod rotation_cap_tests {
     fn stationary_aiming_secondary_constraint_matches_the_source_half_life() {
         let (yaw, limit) =
             constrained_aiming_yaw(100.0_f32.to_radians(), 0.0, 70.0, 70.0, true, 0.1, true);
-        assert!((yaw - 15.0_f32.to_radians()).abs() < 1e-5);
-        assert!((limit - 85.0).abs() < 1e-5);
+        assert!((yaw - 15.00338_f32.to_radians()).abs() < 1e-5);
+        assert!((limit - 84.99662).abs() < 1e-5);
     }
 
     #[test]
     fn rotation_response_uses_half_life_and_target_speed_settings() {
         let half = damper_yaw(0.0, std::f32::consts::FRAC_PI_2, 0.1, 0.1);
-        assert!((half - std::f32::consts::FRAC_PI_4).abs() < 1e-5);
+        assert!((half - 45.01014_f32.to_radians()).abs() < 1e-5);
         let advanced = advance_yaw(0.0, std::f32::consts::FRAC_PI_2, 500.0, 0.1);
         assert!((advanced - 50.0_f32.to_radians()).abs() < 1e-5);
+        assert!((advance_yaw(0.0, -176.0_f32.to_radians(), 500.0, 0.1) - advanced).abs() < 1e-5);
+        assert!((damper_yaw(0.0, -176.0_f32.to_radians(), 0.1, 0.1) - half * 184.0 / 90.0).abs() < 1e-5);
+        assert_eq!(advance_yaw(0.0, 1.0, 0.0, 0.1), 1.0);
         let params = AlsMovementParams::default();
         let normal = moving_rotation_half_life(
             &params,
