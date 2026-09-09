@@ -302,7 +302,11 @@
   - 当前安装反例：首个spec因未传实际asset root而在2.996s明确失败，修正参数后6图fresh spec2.131s PASS；同次源闭包审计0.800s稳定FAIL于6个已安装RON。三条Sequence缺少当前源曲线，Grounded边缺少source bAlwaysResetOnEntry=false策略，其余为同步字段显式默认值；原始导出不变，当前生成仅写隔离staging。native Initialize/Refresh/Reset仍为Pose透传，Actor独立GroundedLayerRuntime推算重置/退出；真实观测仍加载旧手工Grounded图handle，不能据其label回显验收当前生成树。这些源调用/消费者差异保留为下一修复边界，不把转换report ready当行为通过。
   - 本段开始19:22、预估20:02、实际结束19:40（偏差-22m），结果为完整源闭包与可重复安装差异，未执行Grounded runtime；拆分为下一段生成数据迁移，随后分别闭合原生共享刷新、实际状态回调/观测和真实Gate。Standing已完成功能仅在必要共享输入有source反例时有限复开，Crouching内部移动图不在本段。
 
-- [ ] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
+- [x] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
+
+  - 02b完成2026-09-09 19:54:00：复用现有安装器和AB_Als owner记录，只接入30个Grounded所属生成资产，实际diff为6个RON；没有修改原始导出或其它模块。旧安装数据在同次源审计0.800s失败作为移除/旧数据对照；新安装0.566s、30文件编辑器修复/复查零改动0.298s、6图fresh spec2.106s与新声明式Gate2.113s全部PASS，22源子图/24 Pose节点/16 Pose边/13条件完整匹配，位置与运行资产边界通过。12项SourceSequence回归39.563s、真实共享缓存/嵌套FSM初始化fixture1.310s PASS；沿用既有转换器能力，无新抽象/运行时分支。开始19:40、预估20:00、实际结束19:54（偏差-6m），结果为生成数据静态迁移完成、无拆分；未启动Grounded runtime，原生刷新和实际事件/观测仍是明确开放边界。
+
+- [ ] BF115.02c Grounded真实状态回调与观测：开始2026-09-09 19:54:00、预估结束20:34:00。依赖02b；以本轮8处函数依赖中的ResetGroundedEntryMode（3处OnBecomeRelevant）、两处stance-change entry Stop和Roll exit PlayTransitionRight为范围。先最小真实graph/dispatcher反例验证阶段、次数和执行时actual stance，复用实例属性/现有状态通知与Transition Slot，移除GroundedLayerRuntime对这些事件的独立推算；观测改读当前生成Grounded FSM，不以写入label回显。AIS明确指向的Standing/Crouching Right Transition仅作为该函数直接消费资产纳入，不展开Crouching内部图。估时依据为Standing已打通的公共状态通知/队列及现成Slot采样，仅补3种Grounded回调、两条右侧资产分支和当前graph reader；静态/消融/focused通过后提交，再闭合Grounded共享VelocityBlend/Lean原生刷新，全部静态完成后才真实Grounded Gate。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

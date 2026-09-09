@@ -1,0 +1,468 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_grounded_assets",
+  "source_evidence": [
+    {
+      "path": "target/bf115_grounded/converter_source/0001_AB_Als_Grounded.ue.json",
+      "sha256": "8495cd4ce34ef02416cbf98d0cadb61629907c409bccf9a631fe4a74bb21d5a1"
+    },
+    {
+      "path": "target/bf115_grounded/converter_source/0002_CF_Als_StanceChange.ue.json",
+      "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
+    },
+    {
+      "path": "target/bf115_grounded/source/AIS.fresh.ue.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "9602c3f3-4b98-80f4-e3e4-58b04c36b44c",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "cca5a5fa-48ce-5d72-faf1-379e33213f9e",
+          "name": "Input Pose\nStanding Input",
+          "position": [
+            0.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "505fc20c-4c04-188f-0bc4-02bf188fc947",
+          "name": "Input Pose\nCrouching Input",
+          "position": [
+            0.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "5dc6c914-4509-0867-468f-e2811486c249",
+          "name": "Save cached pose 'Standing'",
+          "position": [
+            176.0,
+            -224.0
+          ]
+        },
+        {
+          "id": "8a3b6567-48d0-e50f-5641-548ae1398bed",
+          "name": "Save cached pose 'Crouching'",
+          "position": [
+            176.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "138d3a1a-40c3-262b-04cd-4198be666790",
+          "name": "Grounded States\nState Machine",
+          "position": [
+            -1072.0,
+            48.0
+          ]
+        },
+        {
+          "id": "7b9a4f8b-4921-81f9-086c-a5938bb6de50",
+          "name": "Modify Curve",
+          "position": [
+            -688.0,
+            64.0
+          ]
+        },
+        {
+          "id": "f877e20e-464d-fc50-5bc3-74932690d4b2",
+          "name": "Inertialization",
+          "position": [
+            -880.0,
+            64.0
+          ]
+        },
+        {
+          "id": "74f5c4c5-443b-85dc-123b-5f80f77250f5",
+          "name": "InitializeGrounded\r\nOn Become Relevant",
+          "position": [
+            -208.0,
+            48.0
+          ]
+        },
+        {
+          "id": "18c00b87-478a-29b9-7505-1daa6d305742",
+          "name": "RefreshGrounded\r\nOn Update",
+          "position": [
+            -416.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"18c00b87-478a-29b9-7505-1daa6d305742\", \"Source\")",
+          "source": "NodeData(\"7b9a4f8b-4921-81f9-086c-a5938bb6de50\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8a3b6567-48d0-e50f-5641-548ae1398bed\", \"Pose\")",
+          "source": "NodeData(\"505fc20c-4c04-188f-0bc4-02bf188fc947\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5dc6c914-4509-0867-468f-e2811486c249\", \"Pose\")",
+          "source": "NodeData(\"cca5a5fa-48ce-5d72-faf1-379e33213f9e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f877e20e-464d-fc50-5bc3-74932690d4b2\", \"Source\")",
+          "source": "NodeData(\"138d3a1a-40c3-262b-04cd-4198be666790\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"7b9a4f8b-4921-81f9-086c-a5938bb6de50\", \"SourcePose\")",
+          "source": "NodeData(\"f877e20e-464d-fc50-5bc3-74932690d4b2\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9602c3f3-4b98-80f4-e3e4-58b04c36b44c\", \"Source\")",
+          "source": "NodeData(\"74f5c4c5-443b-85dc-123b-5f80f77250f5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"74f5c4c5-443b-85dc-123b-5f80f77250f5\", \"Source\")",
+          "source": "NodeData(\"18c00b87-478a-29b9-7505-1daa6d305742\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"9602c3f3-4b98-80f4-e3e4-58b04c36b44c\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "Standing Input": "Pose",
+          "Crouching Input": "Pose"
+        },
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/S3_Crouching_To_Standing.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "0204443c-461b-c26e-f1b8-d2837b4f1596",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f1e3ae15-4859-f0d6-c543-ae9bf1c12a36",
+          "name": "A_Als_CrouchToStand\nSequence Player",
+          "position": [
+            -272.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"0204443c-461b-c26e-f1b8-d2837b4f1596\", \"Source\")",
+          "source": "NodeData(\"f1e3ae15-4859-f0d6-c543-ae9bf1c12a36\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"0204443c-461b-c26e-f1b8-d2837b4f1596\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/S6_Roll.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "72b09c4e-4d27-50d7-bcb2-0c8476d4bee5",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c4cdec9f-41a4-98d8-4a56-60bcc11e13ed",
+          "name": "A_Als_Roll\nSequence Evaluator (by frame)",
+          "position": [
+            -816.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "b4354689-47f1-0544-010b-7eb4cc3a09ad",
+          "name": "Modify Curve",
+          "position": [
+            -528.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a403aab5-4384-5a3d-eb2b-c18f7be24f30",
+          "name": "ResetGroundedEntryMode\r\nOn Become Relevant",
+          "position": [
+            -256.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"b4354689-47f1-0544-010b-7eb4cc3a09ad\", \"SourcePose\")",
+          "source": "NodeData(\"c4cdec9f-41a4-98d8-4a56-60bcc11e13ed\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"a403aab5-4384-5a3d-eb2b-c18f7be24f30\", \"Source\")",
+          "source": "NodeData(\"b4354689-47f1-0544-010b-7eb4cc3a09ad\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"72b09c4e-4d27-50d7-bcb2-0c8476d4bee5\", \"Source\")",
+          "source": "NodeData(\"a403aab5-4384-5a3d-eb2b-c18f7be24f30\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"72b09c4e-4d27-50d7-bcb2-0c8476d4bee5\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/S1_Standing.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "2771b521-404e-7e9b-aee6-908eef5a05b5",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2ffa7e0b-4e27-79f5-eddd-b3b6b55bd96a",
+          "name": "Use cached pose 'Standing'",
+          "position": [
+            -512.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2ba23ca1-42b8-b36c-e590-4e9c25e1a775",
+          "name": "ResetGroundedEntryMode\r\nOn Become Relevant",
+          "position": [
+            -256.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"2ba23ca1-42b8-b36c-e590-4e9c25e1a775\", \"Source\")",
+          "source": "NodeData(\"2ffa7e0b-4e27-79f5-eddd-b3b6b55bd96a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2771b521-404e-7e9b-aee6-908eef5a05b5\", \"Source\")",
+          "source": "NodeData(\"2ba23ca1-42b8-b36c-e590-4e9c25e1a775\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"2771b521-404e-7e9b-aee6-908eef5a05b5\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/S4_Standing_To_Crouching.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "4a165da1-4592-bc5d-21b0-04b63e2da114",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8a6d093e-4c1e-469c-b2f8-089b5069add8",
+          "name": "A_Als_StandToCrouch\nSequence Player",
+          "position": [
+            -272.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"4a165da1-4592-bc5d-21b0-04b63e2da114\", \"Source\")",
+          "source": "NodeData(\"8a6d093e-4c1e-469c-b2f8-089b5069add8\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"4a165da1-4592-bc5d-21b0-04b63e2da114\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/S2_Crouching.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "f8a4a4f5-4549-fe7d-bbd6-9e8ce13376c6",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c7a5580a-4af8-d09c-e604-c4a48523aa7b",
+          "name": "Use cached pose 'Crouching'",
+          "position": [
+            -528.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c660432c-4f34-7575-77f8-4998a440820c",
+          "name": "ResetGroundedEntryMode\r\nOn Become Relevant",
+          "position": [
+            -256.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"f8a4a4f5-4549-fe7d-bbd6-9e8ce13376c6\", \"Source\")",
+          "source": "NodeData(\"c660432c-4f34-7575-77f8-4998a440820c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c660432c-4f34-7575-77f8-4998a440820c\", \"Source\")",
+          "source": "NodeData(\"c7a5580a-4af8-d09c-e604-c4a48523aa7b\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"f8a4a4f5-4549-fe7d-bbd6-9e8ce13376c6\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_generated_grounded_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf115_grounded/converter_source",
+        "--materialized-directory",
+        "target/bf115_grounded/conversion",
+        "--spec",
+        "target/bf115_grounded/installed_spec.json"
+      ]
+    },
+    {
+      "label": "grounded_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded"
+      ]
+    },
+    {
+      "label": "grounded_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/AB_Als_Grounded"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "source_pose_mapping",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_renderer.py"
+      ]
+    },
+    {
+      "label": "source_state_lifecycle",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_lifecycle.py"
+      ]
+    },
+    {
+      "label": "source_state_materialization",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_materializer.py"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "grounded"
+  }
+}

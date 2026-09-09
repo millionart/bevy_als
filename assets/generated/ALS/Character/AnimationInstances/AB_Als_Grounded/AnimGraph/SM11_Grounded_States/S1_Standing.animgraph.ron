@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "2771b521-404e-7e9b-aee6-908eef5a05b5", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "2771b521-404e-7e9b-aee6-908eef5a05b5", name: "Output Animation Pose", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
         (id: "2ffa7e0b-4e27-79f5-eddd-b3b6b55bd96a", name: "Use cached pose 'Standing'", inner: { "als_ext::SourceScopedCachedPoseUseNode": (cache_node: "Save cached pose 'Standing'", cache_key: "ue-cache:9398b169-da93-558b-a56c-e29d9320e49e", context_defaults: []) }, should_debug: false),
         (id: "2ba23ca1-42b8-b36c-e590-4e9c25e1a775", name: "ResetGroundedEntryMode\r\nOn Become Relevant", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "ResetGroundedEntryMode", call_site: "OnBecomeRelevant") }, should_debug: false),
     ],
