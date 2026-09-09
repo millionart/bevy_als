@@ -59,6 +59,12 @@ def props(entries):
     return {entry["name"]: entry["exported_text"] for entry in entries}
 
 
+def foot_rotation_follows_ik(chain_source):
+    return (0 <= chain_source.find("source_basic_ik_writeback(")
+            < chain_source.find("source_foot_rotation(")
+            < chain_source.find("source_local_transform("))
+
+
 def pin_default(node, suffix):
     values = [pin["default_value"] for pin in node["pins"] if pin["name"].endswith(suffix)]
     if len(values) != 1:
@@ -299,6 +305,8 @@ def validate_profile(source, profile, runtime, control_source, foot_source, diff
             differences.append("control rig foot ik side call axes")
         if "source_basic_ik_writeback" not in chain_source:
             differences.append("control rig foot ik global writeback")
+        if not foot_rotation_follows_ik(chain_source):
+            differences.append("control rig foot rotation must follow the blended basic ik writeback")
         if "source_local_transform" not in foot_source:
             differences.append("control rig foot ik hierarchy writeback")
     coverage = []
@@ -432,6 +440,9 @@ def self_test():
         raise AssertionError("right call primary axis")
     if APPLY_CHAIN_PATTERN.search("fn apply_chain_target()\n{\n}\n\nfn source_foot_ik_axes") is None:
         raise AssertionError("foot ik writeback boundary")
+    assert foot_rotation_follows_ik("source_basic_ik_writeback( source_foot_rotation( source_local_transform(")
+    assert not foot_rotation_follows_ik("source_foot_rotation( source_basic_ik_writeback( source_local_transform(")
+    assert not foot_rotation_follows_ik("source_basic_ik_writeback( source_local_transform(")
 
 
 def main():

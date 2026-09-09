@@ -351,7 +351,7 @@
   - 03c完成2026-09-09 22:30:00：Crouching Actor删除私有FSM/marker时钟/曲线采样/Lean与动态检测，只保留真实Root曲线到脚锁/旋转的投影；纯stride/play-rate输入复用已有源Walk曲线并使用mesh world scale，动作由当前生成图的原生回调和通知分发。实际reader绑定源完整标题，读取两个FSM的当帧缓存、真实源同步相位及共享实例；场景已去除私有movement回显验收。旧Turn驱动清空源请求的反例由FAIL转PASS，删除无消费者的检测状态与镜像测试；未新增依赖或runtime层。CrouchingStop进入分发按执行stance选择Right，新增独立计数；QuickStop左右均用原始uasset经既有工具生成的直接montage记录，新增Left、其余17条重新提取不变，参考均按源设置，工具0.562s通过。
   - 验证：8项focused32.255s、288项项目回归18.821s（含18个montage真实79骨姿态与曲线采样）、lifecycle自测0.294s PASS；公开uasset47.539s重新生成，66 RON无差异，installer0.551s。target_game/play两个example67.836s、12图fresh spec1.858s、编辑器66文件零修复0.295s、完整33源图/66文件及声明式合同2.386s PASS。中间spec调用漏设资产根、editor参数误用，分别exit8/2，读报告纠正后通过，未把调用错误归为图故障。开始22:00、预估22:50、实际结束22:30（偏差-20m）；结果为Actor/原生消费静态闭合，尚未运行真实Crouching或Grounded。下一段完成实际片段/场景观测并执行Crouching公共Gate；下蹲后Standing恢复仍由后置Grounded联合Gate验收。
 
-- [ ] BF115.03d Crouching真实片段观测与Playground Gate：开始2026-09-09 22:30:00、预估结束23:20:00。依赖03c；沿既有Crouching公共场景核对六向移动、Stop/QuickStop、左右Rotate、Turn/Dynamic的source分支及真实片段/相位/生命周期读数，修复已因迁入生成执行图而失效的旧驱动观测；先最小fixture、同入口增量预构建与静态闭合，再运行startup及一次连贯可见Playground场景。使用原地形/角色/相机，证明实际FSM、根/局部/final姿态、源clip/curve/weight、带符号yaw及时间守卫；失败只沿首个已证实源链差异修复。估时依据为已闭合的33源子图、两FSM/一个Movement组、既有公共场景、67秒增量构建与Standing同类Gate记录；未引入其它模块实现，完成后恢复02e联合验收用户报告的下蹲后Standing异常。
+- [x] BF115.03d Crouching真实片段观测与Playground Gate：开始2026-09-09 22:30:00、预估结束23:20:00。依赖03c；沿既有Crouching公共场景核对六向移动、Stop/QuickStop、左右Rotate、Turn/Dynamic的source分支及真实片段/相位/生命周期读数，修复已因迁入生成执行图而失效的旧驱动观测；先最小fixture、同入口增量预构建与静态闭合，再运行startup及一次连贯可见Playground场景。使用原地形/角色/相机，证明实际FSM、根/局部/final姿态、源clip/curve/weight、带符号yaw及时间守卫；失败只沿首个已证实源链差异修复。估时依据为已闭合的33源子图、两FSM/一个Movement组、既有公共场景、67秒增量构建与Standing同类Gate记录；未引入其它模块实现，完成后恢复02e联合验收用户报告的下蹲后Standing异常。
 
   - 03d场景静态闭包2026-09-09 22:40:00：真实场景最小fixture24.706s稳定拒绝旧手工图路径；已把六向移动、两侧Rotate/90°Turn的观测链改接生成节点、实际Sequence时间和原生FSM退出，去掉requested镜像终态；移动改按源Movement相位0.25比较六个方向，转身/旋转按实际clip time0.5比较两侧。原场景直接写view_yaw，现改经真实look input输入。完整审读确认现有case未独立覆盖Stop/QuickStop、180°Turn和两侧Dynamic；本轮03d先验收现有12个窗口的完整真实消费链，上述剩余源分支拆入03e，Crouching整体仍需两段均通过后才恢复Grounded。拆分结果为原50分钟段仅保留已有驱动/观测的迁移，避免把新场景设计与首轮真实执行混在一起；未启动runtime。
 
@@ -370,7 +370,35 @@
 
   - 03d第二次真实结果/02c复开关闭2026-09-09 23:34:00：Crouching runner39.333s完成，未超时；真实Crouching节点、两侧Rotate和90°Turn的活动/完成/Idle终态全部出现，证明alias自动条件入口已修复。02c这次有限复开开始22:58、随03d预估23:20、实际收口23:34（偏差+14m），结果为自动alias条件与成员/非成员/回调Gate通过；完整Grounded依然待02e。Crouching整体未通过：两条侧后固定方向期望仍与源图不符，且Rotate/Turn链错误要求未执行的Movement Apply Additive；另一次final右腿突变发生在Rotate输入开始附近，pre-rig无异常，继续沿真实输入/脚锁链定位，不调整公共守卫阈值。源新核对明确侧后状态是通往侧前的过渡分支，需用Backward→Right/Left历史及实际混合权重验收，不能把135度输入当稳定侧后FSM状态。
 
-- [ ] BF115.03e Crouching剩余源动作分支Gate：计划开始2026-09-09 23:20:00、预估结束2026-09-10 00:10:00；依赖03d，实际开始时按已完成事实更新时点。补齐Crouching Stop进入Right、QuickStop三种源选择路径、两侧180°Turn及两侧Dynamic，以既有原生通知、直接montage和公共观测结构实现最小输入驱动；旧源事实已包含这些C++/AIS调用与18条montage资产，新增fixture不得手工注入动画状态。静态/最小fixture/实际入口构建后，在同一原Playground证明真实片段/曲线/权重、状态及完成生命周期，按失败源边界修复。估时依据为剩余8个独立动作窗口、已经验证的源播放器和Standing同类输入驱动；通过后Crouching整体完成，恢复02e包含下蹲后Standing恢复的联合Gate。
+  - 03d超时复盘 2026-09-09 23:42:03：原开始2026-09-09 22:30:00、预估23:20:00，本轮在此结束复盘，已超过误差上限且Gate未完成。回读当前条目、22/33源闭包、两次runtime及新fixture证据：主要漂移是必须先修Grounded自动alias入口，以及旧场景把侧后状态当稳定方向、要求非活动Additive链、直接跳变视角。alias已独立关闭；当前只余新场景输入/权重观测的真实闭环，final突变仍由公共守卫验证，后续8个源动作仍为既定闭包。方向/链路反例30.397s FAIL后，新24项Crouching测试24.201s PASS；复用既有源方向历史和连续鼠标驱动，删除旧瞬时视角工具，未改IK算法。
+  - 纠正与重估：本轮暂停新的runtime并完成上述复盘；按上一窗口1.5倍规划Crouching剩余总窗口，开始2026-09-09 23:42:03、预估结束2026-09-10 00:57:03。为保持每段可独立验收，拆为03d现有窗口真实Gate（开始2026-09-09 23:42:03、预估结束2026-09-10 00:17:03）与03e剩余8个源动作（计划开始2026-09-10 00:17:03、预估结束2026-09-10 00:57:03）；通过前不进入Grounded联合Gate。当前构建结束后重跑声明式合同，再继续同一Crouching验收。
+
+  - 03d新分段真实Gate前2026-09-09 23:43:00：源方向历史/活动状态权重/连续鼠标输入已接入，24项focused24.201s、同入口构建63.980s与完整声明式合同2.403s PASS。生产动画算法沿用已通过alias startup的版本，本次只变更场景与只读观测；复用本轮已通过startup，执行修订的12个Crouching窗口，仍检查公共final守卫和原阈值。
+
+  - 03d新分段进展2026-09-10 00:01:00：第三次真实runner40.207s FAIL但faults/temporal_anomalies均为空，连续look输入已消除final突变；所有Rotate/90°Turn完成，剩余左侧移动窗口在固定结束时尚差一帧到达完整状态。实际clip权重证明源过渡仍在推进，现改为按实际FSM就绪后完成原采样窗口再推进case，保留总watchdog。Rotate原观测忽略有权重的退出过渡，且固定目标convergence不适用于移动视角；最小反例23.374s FAIL后，改读实际状态权重与sequence时间，完整覆盖退出混合，保留signed yaw幅度并用源角度阈值/Idle/curve0验证终态。24项Crouching回归19.455s PASS；未改生产动画/IK或公共数值守卫，构建与下一轮真实验收继续。
+
+  - 03d窗口复验前2026-09-10 00:04:15：实际FSM就绪窗口及退出混合观测24项focused19.455s PASS，同入口target_game/play构建61.026s、完整33源图/66文件声明式2.375s PASS。沿用当前生产版本已通过的alias startup；现在执行相同12窗口的Crouching公共Gate，保留总场景超时与全部源片段/姿态/时间守卫，未新增生产分支。
+
+  - 03d窗口结果/公共观测有限复开2026-09-10 00:09:00：runner47.004s，manual0且12窗口全部覆盖、faults/graph_errors/temporal为空，独立validator1。当前生成树只存在实际FSM读数，旧validator仍强制已删除的Actor requested镜像；BF111.04仅该报告合同有限复开，旧Gate没有覆盖无镜像的原生执行树，最小self-test0.306s稳定FAIL。实际Rotate trace另证明100ms稀疏采样跨过0.5秒canonical、已Idle但未settled的尾帧被计入活动窗口、退出后被清空的clip字段丢失终态证据；修复只复用逐帧采样、实际Sequence缓存时钟和settled边界。当前33源图/66文件合同仍PASS，不改动画、IK、姿态阈值或角色速度。
+
+  - 03d观测修复Gate前2026-09-10 00:17:00：validator保留实际FSM强制检查，requested仅在显式存在时校验，self-test0.555s PASS；Rotate复用节点最终时钟与当帧updated标记，只有真实活动或settled帧参与窗口，Turn/Rotate使用现有逐帧canonical采样。截图复核发现旧settled恒真使Turn截图拍到动作前定位下降帧，最小fixture17.315s FAIL后改为实际活动/结束；最终24项focused18.623s、同入口构建63.113s及完整声明式2.376s PASS。源算法和生产树沿用已通过startup的版本，继续同一12窗口真实复验；不以运行内覆盖PASS替代独立报告与视觉结果。
+
+  - 03d本轮真实失败/直接Rig边界2026-09-10 00:28:00：runner46.982s，12窗口与全部报告合同通过，frame p95 14.597ms/max33.159ms；唯一失败为CrouchingDynamic淡出→Rotate Left接入时final右脚局部旋转1.243rad/42.640rad/s，pre-rig连续。MCP2.639s连接拒绝后fresh CR_Als36.155s及本地CPP确认ApplyFootOffsetLocation→Basic IK→ApplyFootOffsetRotation→Set Rotation；target在Basic IK之前用旧calf计算脚旋转，违反同帧读数顺序。BF109.10既有有限复开追加此直接消费者，旧Gate仅检查函数存在和局部写回，没有约束完整执行顺序；先实际调用fixture验证，再移动现有计算，不新增IK平滑或阈值。两条CrouchingDynamic uasset重新读取0.303s，StandPose参考与当前记录一致，不改资产。第一次CR路径少一层挂载导致49.993s/exit3，读日志后按已有asset_path纠正，不计为source证据。
+
+  - 03d脚旋转静态闭环/Gate前2026-09-10 00:35:30：新增source顺序审计0.554s拒绝旧实现，现将现有角度计算移到混合后的Basic IK写回后，并按source最终Set Rotation权重应用；无新增solver或平滑状态。实际ECS调用在移除当帧脚/小腿读数后24.318s稳定FAIL于半权重，恢复后13项foot focused17.316s与288项目回归28.008s PASS。fresh Rig导出经原生成器0.557s在隔离目录生成源合同，runtime配置逐字相同；旧profile源快照不重写，fresh合同下133节点/1407pin/160link/79骨审计0.565s PASS，并纳入Crouching声明式。target_game/play构建64.447s已通过；现在按生产修改重新执行startup，再复验相同Crouching输入与原公共守卫，实际突变是否消除仍待结果。
+
+  - 03d第二轮超时复盘2026-09-10 00:37:40：第二轮开始2026-09-09 23:42:03、预估结束2026-09-10 00:17:03、实际复盘结束00:37:40（偏差+20m37s），结果未通过真实Gate，无依赖项启动。已暂停新的runtime并回读33源子图、两份完整真实报告、当次Rig/CPP事实和focused结果：报告镜像/采样/截图迁移已闭合，新增漂移是动态过渡与Rotate重叠揭露旧Rig执行顺序；现在仅余该源顺序修复的真实证明及共享Standing转向回归。startup19.769s、6图和完整声明式2.644s均PASS，原场地站姿已检查。此轮未通过不能被内部12窗口覆盖替代，原源动作范围不缩减。
+  - 第三轮纠正估时：按上一03d窗口1.5倍推导，开始2026-09-10 00:37:40、预估结束01:30:10。先用当前已闭合的静态/同入口二进制复验Crouching，若出现剩余首个差异则沿现有报告完成最小反例；随后做该共享Rig边界必要的Standing转向回归，不展开其它Standing实现。03e保留原八个动作与独立Gate，计划时点随依赖移到01:30:10–02:10:10，实际开始仍按当前事实更新。现在恢复同一03d动作Gate；若第三轮仍失败，第四轮前按规则重审整个过程、拆分与验证路径。
+
+  - 03d连续输入边界2026-09-10 00:46:00：脚顺序修复后的runner46.232s仍只有同阶段final右脚42.462rad/s失败，故不把该已证实顺序差异称为完整根因。复核完整scene driver发现每个stationary case都会直接重置Actor身体/视角和rotation response；实际trace从Rotate Right末态-2.993rad到Left首帧-0.992rad，而look input为零，脚锁仍保持前一朝向的世界位置。fresh C++的脚锁瞬移依赖实际teleport事件；场景此次同位置改yaw没有走该生命周期。最小场景fixture24.355s稳定FAIL于该重置。现删stationary重置与逐帧强制零速度，延续移动结束后的实际身体/脚锁历史；Rotate鼠标起点取实际view，身体yaw只作旋转量基线。复用原输入函数、速率、完整结束和所有守卫，不添加脚锁补偿；接着focused/static和同入口增量后再验收。
+
+  - 03d连续场景Gate前2026-09-10 00:49:00：删去stationary三类重置后，24项Crouching focused20.491s、33源图/66文件及当次Rig顺序声明式2.629s、同入口构建62.609s PASS。source Pole/Basic IK数学复核无新差异，停止扩张；本次只改场景输入/观测，复用该生产版本已通过的19.769s startup，执行相同动作范围与全部公共守卫。
+
+  - 03d Crouching通过/共享回归前2026-09-10 00:50:30：连续场景runner48.080s、manual0/validator0，12窗口/22截图，frame p95 13.919ms/max27.926ms、eval p95 0.081ms，faults/graph_errors/temporal为空。四个Rotate/90°Turn的canonical误差0.001331–0.004086秒，实际父FSM、完整结束和signed yaw均通过；移动、Turn和Rotate截图已核对。删除case间直接Actor重置后右脚突变消失；真实输入与身体/脚锁历史连续。下一步同一二进制执行standing_turn，覆盖共享Rig顺序修改影响的正常90/180、Rotate及持续极限输入；不扩展Standing图或算法。03d与BF111.04公共观测有限复开待这次必要回归后共同提交，BF109.10其余Grounded边界仍留02e。
+
+  - 03d完成2026-09-10 00:53:00：Standing完整声明式6.316s、同一二进制standing_turn45.149s均PASS，8-case/10窗口/17截图，frame p95 13.162ms/max24.808ms、eval p95 0.080ms，faults/graph_errors/temporal为空；180°与高速反转截图已核对。BF111.04本次公共观测复开及BF109.10新追加的脚旋转顺序边界关闭，Grounded共享输入原有边界继续留给02e。第三轮开始00:37:40、预估01:30:10、实际结束00:53:00（偏差-37m10s）；03d从最初22:30到此完成，对首轮23:20预估偏差+1h33m，前两轮失败/拆分已记录。耗时主要来自已独立关闭的Grounded alias入口、旧镜像/稀疏采样合同迁移、源Rig顺序漏检与场景身体重置；未新增补偿、平滑、依赖或source资产修改。现有12窗口完成并单独提交，Crouching整体仍待03e八个剩余动作，之后才恢复02e联合验收。
+
+- [ ] BF115.03e Crouching剩余源动作分支Gate：计划开始2026-09-10 01:30:10、预估结束2026-09-10 02:10:10；依赖03d，实际开始时按已完成事实更新时点。补齐Crouching Stop进入Right、QuickStop三种源选择路径、两侧180°Turn及两侧Dynamic，以既有原生通知、直接montage和公共观测结构实现最小输入驱动；旧源事实已包含这些C++/AIS调用与18条montage资产，新增fixture不得手工注入动画状态。静态/最小fixture/实际入口构建后，在同一原Playground证明真实片段/曲线/权重、状态及完成生命周期，按失败源边界修复。估时依据为剩余8个独立动作窗口、已经验证的源播放器和Standing同类输入驱动；通过后Crouching整体完成，恢复02e包含下蹲后Standing恢复的联合Gate。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

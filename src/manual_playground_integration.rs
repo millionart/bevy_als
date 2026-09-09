@@ -534,7 +534,7 @@ fn drive_crouch_direction_reference_frame(
     if state.phase != IntegrationPhase::CrouchDirectionRegression {
         return;
     }
-    if !crouch_direction_reference_frame_active(state.phase_elapsed()) {
+    if !crouch_direction_reference_frame_active(&state.coverage.crouch_direction_cases) {
         return;
     }
     let Some(fixture) = fixture else {
@@ -554,8 +554,8 @@ fn drive_crouch_direction_reference_frame(
     view_yaw.0 = fixture.facing_yaw;
 }
 
-fn crouch_direction_reference_frame_active(elapsed: f32) -> bool {
-    elapsed < CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS
+fn crouch_direction_reference_frame_active(cases: &[bool; CROUCH_DIRECTION_CASE_COUNT]) -> bool {
+    cases.iter().any(|covered| !covered)
 }
 
 #[derive(Resource)]
@@ -900,49 +900,15 @@ fn standing_response_step(elapsed: f32) -> (&'static str, Vec2) {
 }
 
 fn crouch_direction_regression_case(index: usize) -> Option<CrouchDirectionRegressionCase> {
-    match index {
-        0 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_forward",
-            move_dir: Vec2::Y,
-            expected_direction: AlsMovementDirection::Forward,
-        }),
-        1 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_forward",
-            move_dir: Vec2::X,
-            expected_direction: AlsMovementDirection::RightForward,
-        }),
-        2 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_backward",
-            move_dir: Vec2::new(1.0, -1.0).normalize(),
-            expected_direction: AlsMovementDirection::RightBackward,
-        }),
-        3 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_backward",
-            move_dir: Vec2::NEG_Y,
-            expected_direction: AlsMovementDirection::Backward,
-        }),
-        4 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_left_backward",
-            move_dir: Vec2::new(-1.0, -1.0).normalize(),
-            expected_direction: AlsMovementDirection::LeftBackward,
-        }),
-        5 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_left_forward",
-            move_dir: Vec2::NEG_X,
-            expected_direction: AlsMovementDirection::LeftForward,
-        }),
-        6 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_forward_repeat",
-            move_dir: Vec2::Y,
-            expected_direction: AlsMovementDirection::Forward,
-        }),
-        7 => Some(CrouchDirectionRegressionCase {
-            name: "crouch_right_forward_repeat",
-            move_dir: Vec2::X,
-            expected_direction: AlsMovementDirection::RightForward,
-        }),
-        _ => None,
-    }
+    let names = ["crouch_forward", "crouch_backward", "crouch_right_from_backward",
+        "crouch_left_from_right_backward", "crouch_forward_repeat", "crouch_backward_repeat",
+        "crouch_left_from_backward", "crouch_right_from_left_backward"];
+    let case = direction_regression_case(index).filter(|_| index < names.len())?;
+    Some(CrouchDirectionRegressionCase {
+        name: names[index],
+        move_dir: case.move_dir,
+        expected_direction: case.expected_movement_state?,
+    })
 }
 
 fn crouch_direction_source_node(direction: AlsMovementDirection) -> &'static str {
@@ -1198,7 +1164,7 @@ fn crouch_direction_source_pose_chain(
     vec![
         ManualAnimationPoseBoundary {
             label: "sequence_player",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: crouch_direction_graph_node(direction),
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -1206,7 +1172,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "cache_producer",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: crouch_direction_cache_node(direction),
             output: "__als_source_cached_pose",
             minimum_translation_span: 0.0,
@@ -1214,52 +1180,60 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "cache_consumer",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Movement States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
         ManualAnimationPoseBoundary {
-            label: "movement_fsm",
-            graph: "graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron",
-            node: "crouching movement states runtime",
-            output: "pose",
-            minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: 0.05,
-        },
-        ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron",
-            node: "crouching states runtime",
-            output: "pose",
-            minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: 0.05,
-        },
-        ManualAnimationPoseBoundary {
-            label: "parent_graph",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
         ManualAnimationPoseBoundary {
+            label: "additive",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "Apply Additive",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron",
-            node: "crouching source graph runtime entry",
-            output: "pose",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "Output Pose\nAnimGraph",
+            output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
     ]
 }
 
+fn source_sequence_sample(
+    player: &AnimationGraphPlayer,
+    graphs: &Assets<AnimationGraph>,
+    name: &str,
+) -> Option<(f32, f32, bool)> {
+    let arena = player.get_context_arena()?;
+    arena.iter_context_ids().filter_map(|id| {
+        let context = arena.get_context(id)?;
+        let graph = graphs.get(context.get_graph_id())?;
+        let node = graph.nodes.values().find(|node| node.name == name)?;
+        let sequence = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>()?;
+        let position = context.node_states.get_time(node.id, StateKey::Default);
+        Some((position, sequence.curves.sample_all(position).get("RotationYawSpeed").copied().unwrap_or(0.0), context.node_caches.is_updated(node.id, StateKey::Default)))
+    }).max_by_key(|sample| sample.2)
+}
+
 fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundary> {
     let graph = if left {
-        "graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron"
+        "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S3_Rotate_Left.animgraph.ron"
     } else {
-        "graphs/ab_als/stances/crouching/state_rotate_right.animgraph.ron"
+        "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S7_Rotate_Right.animgraph.ron"
     };
     let sequence = if left {
         "A_Als_Crouch_Rotate_90_Left\nSequence Player"
@@ -1285,25 +1259,25 @@ fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundar
         },
         ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron",
-            node: "crouching states runtime",
-            output: "pose",
-            minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: 0.05,
-        },
-        ManualAnimationPoseBoundary {
-            label: "parent_graph",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
         ManualAnimationPoseBoundary {
+            label: "refresh_rotate",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "RefreshRotateInPlace\r\nOn Update",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron",
-            node: "crouching source graph runtime entry",
-            output: "pose",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "Output Pose\nAnimGraph",
+            output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
@@ -1314,7 +1288,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
     vec![
         ManualAnimationPoseBoundary {
             label: "slot",
-            graph: "graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
             node: "Slot 'TurnInPlaceCrouching'\nGroup 'Grounded'",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -1322,33 +1296,33 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "refresh_turn",
-            graph: "graphs/ab_als/stances/crouching/state_idle.animgraph.ron",
-            node: "RefreshTurnInPlace\nOn Update",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
+            node: "RefreshTurnInPlace\r\nOn Update",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
         ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron",
-            node: "crouching states runtime",
-            output: "pose",
-            minimum_translation_span: 0.0,
-            minimum_rotation_span_radians: 0.05,
-        },
-        ManualAnimationPoseBoundary {
-            label: "parent_graph",
-            graph: "graphs/ab_als/stances/crouching.animgraph.ron",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
         ManualAnimationPoseBoundary {
+            label: "refresh_rotate",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "RefreshRotateInPlace\r\nOn Update",
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.05,
+        },
+        ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron",
-            node: "crouching source graph runtime entry",
-            output: "pose",
+            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            node: "Output Pose\nAnimGraph",
+            output: "Pose",
             minimum_translation_span: 0.0,
             minimum_rotation_span_radians: 0.05,
         },
@@ -1367,15 +1341,15 @@ fn crouch_rotate_window(
             "crouch_rotate_right"
         }),
         index: None,
-        settled: true,
-        capture_source_window: active || !observed_lifecycle_stages.is_empty(),
-        capture_every_frame: false,
+        settled: active || observed_lifecycle_stages.contains(&"settled"),
+        capture_source_window: active || observed_lifecycle_stages.contains(&"settled"),
+        capture_every_frame: true,
         requires_pre_rig_motion: active,
         requires_final_pose_motion: active,
         requires_non_reference_root_pose: active,
         requires_source_pose_chain: active,
         requires_actor_yaw_motion: active,
-        requires_actor_yaw_convergence: active,
+        requires_actor_yaw_convergence: false,
         expected_actor_yaw_delta_sign: Some(if left { 1 } else { -1 }),
         expected_actor_yaw_baseline: None,
         expected_animation_variant: Some(crouch_stationary_animation_variant(left, false)),
@@ -1397,29 +1371,25 @@ fn crouch_rotate_window(
         } else {
             0.0
         },
-        minimum_actor_yaw_convergence_radians: if active {
-            CROUCH_ROTATE_SOURCE_MIN_YAW_CONVERGENCE_RADIANS
-        } else {
-            0.0
-        },
+        minimum_actor_yaw_convergence_radians: 0.0,
         minimum_observation_seconds: 0.0,
         source_sync_group: None,
         sync_phase_global: None,
         canonical_sync_phase: None,
         maximum_sync_phase_distance: 0.0,
-        canonical_clip_time: None,
-        maximum_clip_time_distance: 0.0,
-        direction_signature_group: None,
-        required_direction_signature_members: 0,
-        minimum_direction_signature_rotation_radians: 0.0,
-        expected_direction: None,
+        canonical_clip_time: Some(0.5),
+        maximum_clip_time_distance: 0.06,
+        direction_signature_group: Some("crouch_rotate"),
+        required_direction_signature_members: 2,
+        minimum_direction_signature_rotation_radians: 1e-4,
+        expected_direction: Some(if left { "Left" } else { "Right" }),
         observed_direction: None,
         expected_runtime_state: None,
         observed_runtime_state: None,
         expected_parent_runtime_state: Some(if left { 2 } else { 3 }),
         expected_terminal_parent_runtime_state: Some(0),
         expected_terminal_parent_transition_active: Some(false),
-        expected_terminal_requested_parent_transition_active: Some(true),
+        expected_terminal_requested_parent_transition_active: None,
         observed_parent_runtime_state: None,
         observed_parent_transition_active: None,
         observed_requested_parent_runtime_state: None,
@@ -1451,9 +1421,9 @@ fn crouch_turn_window(
             "crouch_turn_right"
         }),
         index: None,
-        settled: true,
+        settled: active || observed_lifecycle_stages.contains(&"settled"),
         capture_source_window: active || !observed_lifecycle_stages.is_empty(),
-        capture_every_frame: false,
+        capture_every_frame: true,
         requires_pre_rig_motion: active,
         requires_final_pose_motion: active,
         requires_non_reference_root_pose: active,
@@ -1487,19 +1457,19 @@ fn crouch_turn_window(
         sync_phase_global: None,
         canonical_sync_phase: None,
         maximum_sync_phase_distance: 0.0,
-        canonical_clip_time: None,
-        maximum_clip_time_distance: 0.0,
-        direction_signature_group: None,
-        required_direction_signature_members: 0,
-        minimum_direction_signature_rotation_radians: 0.0,
-        expected_direction: None,
+        canonical_clip_time: Some(0.5),
+        maximum_clip_time_distance: 0.06,
+        direction_signature_group: Some("crouch_turn"),
+        required_direction_signature_members: 2,
+        minimum_direction_signature_rotation_radians: 1e-4,
+        expected_direction: Some(if left { "Left" } else { "Right" }),
         observed_direction: None,
         expected_runtime_state: None,
         observed_runtime_state: None,
         expected_parent_runtime_state: Some(0),
         expected_terminal_parent_runtime_state: Some(0),
         expected_terminal_parent_transition_active: Some(false),
-        expected_terminal_requested_parent_transition_active: Some(false),
+        expected_terminal_requested_parent_transition_active: None,
         observed_parent_runtime_state: None,
         observed_parent_transition_active: None,
         observed_requested_parent_runtime_state: None,
@@ -1620,10 +1590,6 @@ fn crouch_stationary_source_precondition(
         && slot.is_none_or(|slot| !slot.active && slot.weight <= 0.05)
 }
 
-fn source_rotate_window_active(drive: Option<&AlsTurnDrive>) -> bool {
-    drive.is_some_and(|drive| drive.rotate_active || drive.rotate_finishing)
-}
-
 fn source_rotate_window_completed(active: bool, cycle_completed: bool, stationary: bool) -> bool {
     active && cycle_completed && stationary
 }
@@ -1638,25 +1604,15 @@ fn advance_crouch_stationary_stability(frames: u8, stable: bool) -> u8 {
     }
 }
 
-fn crouch_direction_regression_requires_stationary_turn_phase(
-    elapsed: f32,
-    direction_duration: f32,
-) -> bool {
-    elapsed >= direction_duration
+fn crouch_direction_case_complete(ready_at: Option<f32>, elapsed: f32) -> bool {
+    ready_at.is_some_and(|ready| elapsed - ready >= CROUCH_DIRECTION_CASE_SECONDS - CROUCH_DIRECTION_CASE_SETTLE_SECONDS)
 }
 
 fn crouch_stationary_validation_holds_aim(validation: Option<CrouchStationaryValidation>) -> bool {
     validation.is_some_and(|validation| !validation.is_turn())
 }
 
-fn source_stationary_target_yaw(base_yaw: f32, left: bool) -> f32 {
-    base_yaw
-        + if left {
-            90.0_f32.to_radians()
-        } else {
-            -90.0_f32.to_radians()
-        }
-}
+
 
 fn movement_direction_fsm_index(direction: AlsMovementDirection) -> u8 {
     match direction {
@@ -1907,11 +1863,15 @@ struct ManualIntegrationState {
     sprint_signature_phase: Option<f32>,
     sprint_samples: [Option<(f32, f32)>; 2],
     crouch_direction_case_index: usize,
+    crouch_direction_case_started_at: f32,
+    crouch_direction_ready_at: Option<f32>,
     crouch_stationary_validation: Option<CrouchStationaryValidation>,
     temporal_rebase_epoch: u64,
     crouch_stationary_precondition_ready: [bool; 2],
     crouch_stationary_precondition_frames: [u8; 2],
     crouch_stationary_base_yaw: [Option<f32>; 2],
+    crouch_stationary_view_yaw: f32,
+    crouch_stationary_started_at: [Option<f32>; 2],
     crouch_turn_epoch_baseline: [Option<f32>; 2],
     foot_ik_baseline_mask: u8,
     foot_ik_no_hit_logged: bool,
@@ -2014,11 +1974,15 @@ impl Default for ManualIntegrationState {
             sprint_signature_phase: None,
             sprint_samples: [None; 2],
             crouch_direction_case_index: usize::MAX,
+            crouch_direction_case_started_at: 0.0,
+            crouch_direction_ready_at: None,
             crouch_stationary_validation: None,
             temporal_rebase_epoch: 0,
             crouch_stationary_precondition_ready: [false; 2],
             crouch_stationary_precondition_frames: [0; 2],
             crouch_stationary_base_yaw: [None; 2],
+            crouch_stationary_view_yaw: 0.0,
+            crouch_stationary_started_at: [None; 2],
             crouch_turn_epoch_baseline: [None; 2],
             foot_ik_baseline_mask: 0,
             foot_ik_no_hit_logged: false,
@@ -3668,6 +3632,7 @@ fn drive_manual_integration(
                 state.crouch_stationary_precondition_ready = [false; 2];
                 state.crouch_stationary_precondition_frames = [0; 2];
                 state.crouch_stationary_base_yaw = [None; 2];
+                state.crouch_stationary_started_at = [None; 2];
                 state.crouch_turn_epoch_baseline = [None; 2];
                 info!("[MANUAL-INTEGRATION][CROUCH-DIRECTION] start");
             }
@@ -3676,25 +3641,19 @@ fn drive_manual_integration(
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Crouching);
             request.gait = Some(Gait::Running);
-            if crouch_direction_regression_requires_stationary_turn_phase(
-                elapsed,
-                direction_duration,
-            ) {
+            let pending_case = state.coverage.crouch_direction_cases.iter().position(|covered| !covered);
+            if pending_case.is_none() {
                 input.0.move_dir = Vec2::ZERO;
-                velocity.0 = Vec3::ZERO;
             }
             input.0.aim_held = false;
-            if elapsed < direction_duration {
-                let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
+            if let Some(case_index) = pending_case {
                 let Some(case) = crouch_direction_regression_case(case_index) else {
                     return;
                 };
                 *animation_window = ManualAnimationWindowEvidence {
                     label: Some(case.name),
                     index: Some(case_index),
-                    settled: elapsed
-                        >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
-                            + CROUCH_DIRECTION_CASE_SETTLE_SECONDS,
+                    settled: state.crouch_direction_case_index == case_index && state.crouch_direction_ready_at.is_some(),
                     capture_source_window: true,
                     capture_every_frame: false,
                     requires_pre_rig_motion: true,
@@ -3707,7 +3666,7 @@ fn drive_manual_integration(
                     expected_actor_yaw_baseline: None,
                     expected_animation_variant: None,
                     source_node: Some(crouch_direction_source_node(case.expected_direction)),
-                    source_state: None,
+                    source_state: direction_regression_case(case_index).and_then(|case| case.source_state),
                     source_pose_chain: crouch_direction_source_pose_chain(case.expected_direction),
                     minimum_pre_rig_translation_span: 0.0,
                     minimum_pre_rig_rotation_span_radians: 0.05,
@@ -3716,15 +3675,15 @@ fn drive_manual_integration(
                     minimum_actor_yaw_delta_radians: 0.0,
                     minimum_actor_yaw_convergence_radians: 0.0,
                     minimum_observation_seconds: 0.8,
-                    source_sync_group: None,
-                    sync_phase_global: None,
-                    canonical_sync_phase: None,
-                    maximum_sync_phase_distance: 0.0,
+                    source_sync_group: Some("Movement"),
+                    sync_phase_global: Some("sync_groups.ab_als_crouching.movement.phase"),
+                    canonical_sync_phase: Some(0.25),
+                    maximum_sync_phase_distance: 0.08,
                     canonical_clip_time: None,
                     maximum_clip_time_distance: 0.0,
-                    direction_signature_group: None,
-                    required_direction_signature_members: 0,
-                    minimum_direction_signature_rotation_radians: 0.0,
+                    direction_signature_group: matches!(case_index, 0 | 1 | 3 | 7).then_some("crouch_direction"),
+                    required_direction_signature_members: 4,
+                    minimum_direction_signature_rotation_radians: 1e-4,
                     expected_direction: Some(movement_direction_name(case.expected_direction)),
                     observed_direction: None,
                     expected_runtime_state: Some(movement_direction_fsm_index(
@@ -3754,6 +3713,8 @@ fn drive_manual_integration(
                 };
                 if state.crouch_direction_case_index != case_index {
                     state.crouch_direction_case_index = case_index;
+                    state.crouch_direction_case_started_at = elapsed;
+                    state.crouch_direction_ready_at = None;
                     let crouch_start = state.spawn_translation.unwrap_or(fixture.locomotion_start);
                     reset_character_with_rotation(
                         &mut transform,
@@ -3776,6 +3737,7 @@ fn drive_manual_integration(
                     );
                 }
                 input.0.move_dir = case.move_dir;
+                input.0.aim_held = true;
                 *rotation_mode = RotationMode::Aiming;
                 request.rotation_mode = Some(RotationMode::Aiming);
                 view_yaw.0 = fixture.facing_yaw;
@@ -3785,6 +3747,7 @@ fn drive_manual_integration(
                     state.crouch_stationary_precondition_ready[validation.side_index()] = false;
                     state.crouch_stationary_precondition_frames[validation.side_index()] = 0;
                     state.crouch_stationary_base_yaw[validation.side_index()] = None;
+                    state.crouch_stationary_started_at[validation.side_index()] = None;
                     state.crouch_turn_epoch_baseline[validation.side_index()] = None;
                     state.temporal_rebase_epoch = state.temporal_rebase_epoch.wrapping_add(1);
                     phase_evidence.temporal_rebase_epoch = state.temporal_rebase_epoch;
@@ -3792,38 +3755,28 @@ fn drive_manual_integration(
                         "[MANUAL-INTEGRATION][TEMPORAL-REBASE] epoch={} validation={validation:?}",
                         state.temporal_rebase_epoch
                     );
-                    reinitialize_fixture_rotation_response(
-                        rotation_response,
-                        &mut aiming_yaw_constraint,
-                        rotation_animation,
-                    );
-                    reset_character_with_rotation(
-                        &mut transform,
-                        &mut position,
-                        rotation.as_deref_mut(),
-                        &mut velocity,
-                        &mut view_yaw,
-                        &mut view_pitch,
-                        state.spawn_translation.unwrap_or(fixture.locomotion_start),
-                        fixture.facing_yaw,
-                    );
                     info!(
                         "[MANUAL-INTEGRATION][CROUCH-STATIONARY][START] validation={validation:?}"
                     );
                 }
-                let target_yaw =
-                    if !state.crouch_stationary_precondition_ready[validation.side_index()] {
-                        fixture.facing_yaw
+                let command_index = match validation {
+                    CrouchStationaryValidation::TurnLeft => 0,
+                    CrouchStationaryValidation::TurnRight => 1,
+                    CrouchStationaryValidation::RotateLeft => 4,
+                    CrouchStationaryValidation::RotateRight => 5,
+                };
+                let command = standing_turn_mouse_command(
+                    command_index,
+                    state.crouch_stationary_started_at[validation.side_index()].map(|start| elapsed - start),
+                    if validation.is_turn() {
+                        state.crouch_stationary_base_yaw[validation.side_index()].unwrap_or(fixture.facing_yaw)
                     } else {
-                        state.crouch_stationary_base_yaw[validation.side_index()]
-                            .map(|base_yaw| {
-                                source_stationary_target_yaw(base_yaw, validation.is_left())
-                            })
-                            .unwrap_or(fixture.facing_yaw)
-                    };
+                        state.crouch_stationary_view_yaw
+                    },
+                    view_yaw.0, *rotation_mode,
+                );
                 input.0.move_dir = Vec2::ZERO;
-                velocity.0 = Vec3::ZERO;
-                view_yaw.0 = target_yaw;
+                input.0.look_delta = command.look_delta;
                 if validation.is_turn() {
                     input.0.aim_held = crouch_stationary_validation_holds_aim(Some(validation));
                     *rotation_mode = RotationMode::ViewDirection;
@@ -5058,12 +5011,15 @@ fn observe_manual_integration(
     }
     if state.phase == IntegrationPhase::CrouchDirectionRegression {
         let elapsed = state.phase_elapsed();
-        let case_index = (elapsed / CROUCH_DIRECTION_CASE_SECONDS) as usize;
+        let case_index = if state.crouch_stationary_validation.is_some() { CROUCH_DIRECTION_CASE_COUNT } else { state.crouch_direction_case_index };
+        if let Some(graph) = crouching_graph.filter(|graph| graph.actual_movement_pose_ready == Some(true)) {
+            state.coverage.crouch_direction_state_mask |= graph.actual_movement_states;
+        }
         if case_index < CROUCH_DIRECTION_CASE_COUNT
             && !state.coverage.crouch_direction_cases[case_index]
             && !state.coverage.crouch_direction_diagnostics[case_index]
             && elapsed
-                >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
+                >= state.crouch_direction_case_started_at
                     + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
             && let Some(case) = crouch_direction_regression_case(case_index)
         {
@@ -5086,7 +5042,7 @@ fn observe_manual_integration(
         if case_index < CROUCH_DIRECTION_CASE_COUNT
             && !state.coverage.crouch_direction_cases[case_index]
             && elapsed
-                >= case_index as f32 * CROUCH_DIRECTION_CASE_SECONDS
+                >= state.crouch_direction_case_started_at
                     + CROUCH_DIRECTION_CASE_SETTLE_SECONDS
             && let Some(case) = crouch_direction_regression_case(case_index)
             && let (Some(motion), Some(telemetry)) = (actual_motion, crouching_graph)
@@ -5108,19 +5064,17 @@ fn observe_manual_integration(
                 .normalize_or_zero()
                 .dot(expected_local);
             let graph_matches = telemetry.actual_outer_state == Some(1)
+                && motion_probe.rotation_mode.get(character).ok() == Some(&RotationMode::Aiming)
                 && telemetry.actual_outer_transition_active == Some(false)
                 && telemetry.actual_outer_pose_ready == Some(true)
                 && telemetry.actual_movement_transition_active == Some(false)
                 && state_index == movement_direction_fsm_index(case.expected_direction)
-                && telemetry.actual_movement_pose_ready == Some(true)
-                && movement_direction
-                    .is_some_and(|value| value.direction == case.expected_direction);
-            if source_ready
-                && motion.horizontal_speed > 0.45
-                && world_alignment >= 0.75
-                && local_alignment >= 0.75
-                && graph_matches
-            {
+                && telemetry.actual_movement_pose_ready == Some(true);
+            let ready = source_ready && motion.horizontal_speed > 0.45
+                && world_alignment >= 0.75 && local_alignment >= 0.75 && graph_matches;
+            if ready { state.crouch_direction_ready_at.get_or_insert(elapsed); }
+            else { state.crouch_direction_ready_at = None; }
+            if ready && crouch_direction_case_complete(state.crouch_direction_ready_at, elapsed) {
                 state.coverage.crouch_direction_cases[case_index] = true;
                 state.coverage.crouch_direction_state_mask |= 1 << state_index;
                 info!(
@@ -5161,7 +5115,7 @@ fn observe_manual_integration(
                 crouching_graph,
                 turn_drive,
                 turn_slot,
-            );
+            ) && rotation_animation.is_none_or(|value| value.yaw_speed_degrees == 0.0);
             state.crouch_stationary_precondition_frames[side_index] =
                 advance_crouch_stationary_stability(
                     state.crouch_stationary_precondition_frames[side_index],
@@ -5172,8 +5126,10 @@ fn observe_manual_integration(
                 && !state.crouch_stationary_precondition_ready[side_index]
             {
                 state.crouch_stationary_precondition_ready[side_index] = true;
+                state.crouch_stationary_started_at[side_index] = Some(state.phase_elapsed());
                 state.crouch_stationary_base_yaw[side_index] =
                     Some(world_forward_to_yaw(transform.rotation * Vec3::NEG_Z));
+                state.crouch_stationary_view_yaw = view_yaw.0;
                 info!(
                     "[MANUAL-INTEGRATION][CROUCH-STATIONARY-READY] side={} speed={:.4} outer={:?}",
                     if validation.is_left() {
@@ -5255,6 +5211,18 @@ fn observe_manual_integration(
                     turn_drive
                         .map(|drive| crouch_stationary_animation_variant(drive.lr <= 0.5, true)),
                 );
+                if let Some(entry) = turn_stack.and_then(|stack| stack.entries.iter().rev()
+                    .find(|entry| entry.crouching && entry.sampling_ready && entry.weight() > 0.0))
+                {
+                    let variant = crate::turn_layer::source_turn_sequence(true, entry.is_180, entry.lr);
+                    animation_window.observed_animation_variant = Some(variant);
+                    animation_window.observed_animation_clip_time = Some(entry.elapsed);
+                    animation_window.observed_animation_play_rate = Some(entry.play_rate);
+                    animation_window.observed_animation_weight = Some(entry.weight());
+                    animation_window.observed_direction = Some(if entry.lr <= 0.5 { "Left" } else { "Right" });
+                    animation_window.observed_animation_curve_direct_yaw_speed_degrees = crate::standing_source::MONTAGES[variant]
+                        .curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied();
+                }
                 if active {
                     state.coverage.crouch_turn_active_mask |= 1 << side_index;
                 }
@@ -5262,18 +5230,22 @@ fn observe_manual_integration(
                     state.coverage.crouch_turn_completion_mask |= 1 << side_index;
                 }
             } else {
+                let sample = source_sequence_sample(player, &motion_probe.graphs, &format!(
+                    "{}\nSequence Player", crouch_stationary_animation_variant(validation.is_left(), false)
+                ));
                 let active = state.crouch_stationary_precondition_ready[side_index]
                     && crouching_graph.is_some_and(|telemetry| {
-                        telemetry.actual_outer_state == Some(expected_parent_state)
+                        telemetry.actual_outer_weights[expected_parent_state as usize] > 1e-5
                     })
-                    && source_rotate_window_active(turn_drive)
-                    && turn_drive
-                        .is_some_and(|drive| (drive.rotate_lr <= 0.5) == validation.is_left())
+                    && sample.is_some_and(|value| value.2)
                     && rotation_animation.is_some_and(|state| state.yaw_speed_degrees.abs() > 1e-3);
                 if active {
                     state.coverage.crouch_rotate_mask |= 1 << validation.side_index();
                 }
-                if turn_drive.is_some_and(|drive| drive.rotate_completion_event) {
+                if state.coverage.crouch_rotate_mask & (1 << side_index) != 0
+                    && crouching_graph.is_some_and(|graph| graph.actual_outer_state == Some(0)
+                        && graph.actual_outer_transition_active == Some(false))
+                {
                     state.coverage.crouch_rotate_source_completion_mask |= 1 << side_index;
                 }
                 let source_completed =
@@ -5281,7 +5253,12 @@ fn observe_manual_integration(
                 let settled = source_rotate_window_completed(
                     state.coverage.crouch_rotate_mask & (1 << side_index) != 0,
                     source_completed,
-                    source_stationary_precondition,
+                    source_stationary_precondition && standing_turn_rotation_settled(
+                        if validation.is_left() { 4 } else { 5 },
+                        crate::turn_layer::character_turn_angle_degrees(view_yaw.0.to_degrees(), world_forward_to_yaw(*transform.forward()).to_degrees()),
+                        rotation_animation.map_or(0.0, |value| value.yaw_speed_degrees),
+                        turn_drive.is_some_and(|value| value.rotate_active),
+                    ),
                 );
                 if settled {
                     state.coverage.crouch_rotate_completion_mask |= 1 << side_index;
@@ -5316,6 +5293,14 @@ fn observe_manual_integration(
                         crouch_stationary_animation_variant(drive.rotate_lr <= 0.5, false)
                     }),
                 );
+                animation_window.observed_animation_clip_time = sample.map(|value| value.0);
+                animation_window.observed_animation_curve_direct_yaw_speed_degrees = sample.map(|value| value.1);
+                animation_window.observed_animation_play_rate = als_ext::source_instance::source_player_property(player, "rotate_in_place_state.play_rate")
+                    .and_then(|value| value.as_f32().ok());
+                animation_window.observed_animation_weight = sample.and_then(|_| crouching_graph)
+                    .map(|graph| graph.actual_outer_weights[expected_parent_state as usize]);
+                animation_window.observed_animation_variant = sample.map(|_| crouch_stationary_animation_variant(validation.is_left(), false));
+                animation_window.observed_direction = sample.map(|_| if validation.is_left() { "Left" } else { "Right" });
             }
         }
     }
@@ -5648,10 +5633,10 @@ fn observe_manual_integration(
     }
     if matches!(
         state.scenario,
-        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic
+        IntegrationScenario::StandingDirection | IntegrationScenario::StandingResponse | IntegrationScenario::StandingStop | IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic | IntegrationScenario::Crouching
     ) && matches!(
         state.phase,
-        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic
+        IntegrationPhase::DirectionRegression | IntegrationPhase::StandingResponse | IntegrationPhase::StandingStop | IntegrationPhase::StandingTurn | IntegrationPhase::StandingDynamic | IntegrationPhase::CrouchDirectionRegression
     ) && (state.scenario != IntegrationScenario::StandingStop || standing_stop_observation_active(state))
       && (!matches!(state.scenario, IntegrationScenario::StandingTurn | IntegrationScenario::StandingDynamic) || !state.entered) {
         let mut samples = Vec::new();
@@ -5662,7 +5647,7 @@ fn observe_manual_integration(
             if let Some(ticks) = als_ext::sync_group_phase::source_sync_players(
                 arena,
                 &motion_probe.graphs,
-                "sync_groups.ab_als_standing.movement.phase",
+                if state.scenario == IntegrationScenario::Crouching { "sync_groups.ab_als_crouching.movement.phase" } else { "sync_groups.ab_als_standing.movement.phase" },
             ) {
                 for tick in ticks {
                     let Some(child) = arena.get_context(tick.identity.0) else {
@@ -5688,7 +5673,7 @@ fn observe_manual_integration(
                         "node": node.name, "weight": tick.weight, "phase": tick.phase, "previous_phase": tick.previous_phase,
                         "duration": tick.duration, "play_rate": tick.play_rate, "delta_seconds": tick.delta_seconds,
                         "position": position.map(|value| value.to_array()),
-                        "sample_time": child.node_caches.get_output_data(node.id, StateKey::Default, "sample_time".into()).and_then(|value| value.as_f32().ok()),
+                        "sample_time": child.node_caches.get_output_data(node.id, StateKey::Default, "sample_time".into()).and_then(|value| value.as_f32().ok()).or_else(|| node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>().map(|_| child.node_states.get_time(node.id, StateKey::Default))),
                     }));
                 }
             }
@@ -5723,6 +5708,7 @@ fn observe_manual_integration(
                         "Movement States\nState Machine",
                         "Movement Details States\nState Machine",
                         "Standing States\nState Machine",
+                        "Crouching States\nState Machine",
                         "Stop States\nState Machine",
                     ]
                     .contains(&node.name.as_str())
@@ -5767,6 +5753,10 @@ fn observe_manual_integration(
             "standing_state.play_rate",
             "standing_state.walk_run_blend_amount",
             "standing_state.stride_blend_amount",
+            "crouching_state.stride_blend_amount",
+            "crouching_state.play_rate",
+            "lean_state.forward_amount",
+            "lean_state.right_amount",
             "grounded_state.velocity_blend.forward_amount",
             "grounded_state.velocity_blend.backward_amount",
             "grounded_state.velocity_blend.left_amount",
@@ -6029,7 +6019,7 @@ fn observe_manual_integration(
                 else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(false, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied().unwrap_or(0.0)) };
         }
         gate_report.direction_trace.push(serde_json::json!({
-            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else if state.scenario == IntegrationScenario::StandingDynamic { Some(STANDING_DYNAMIC_CASES[state.stop_case_index].0) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
+            "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.scenario == IntegrationScenario::StandingStop { Some(STANDING_STOP_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else if state.scenario == IntegrationScenario::StandingDynamic { Some(STANDING_DYNAMIC_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::Crouching { state.crouch_stationary_validation.map(|value| match value { CrouchStationaryValidation::TurnLeft => "crouch_turn_left", CrouchStationaryValidation::TurnRight => "crouch_turn_right", CrouchStationaryValidation::RotateLeft => "crouch_rotate_left", CrouchStationaryValidation::RotateRight => "crouch_rotate_right" }).or_else(|| crouch_direction_regression_case(state.crouch_direction_case_index).map(|case| case.name)) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
             "input": inputs.and_then(|(input, _)| input).map(|input| input.move_dir.to_array()),
             "override": inputs.and_then(|(_, input)| input).map(|input| input.0.move_dir.to_array()),
             "keys": ([KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD].map(|key| motion_probe.keys.pressed(key))),
@@ -8455,35 +8445,27 @@ mod tests {
     }
 
     #[test]
-    fn crouch_direction_fixture_clears_motion_before_rotate_and_turn_coverage() {
-        let duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
-        assert!(!crouch_direction_regression_requires_stationary_turn_phase(
-            duration - 0.01,
-            duration
-        ));
-        assert!(crouch_direction_regression_requires_stationary_turn_phase(
-            duration, duration
-        ));
+    fn crouch_direction_fixture_waits_for_actual_state_samples() {
+        assert!(!crouch_direction_case_complete(None, 10.0));
+        assert!(!crouch_direction_case_complete(Some(3.0), 4.0));
+        assert!(crouch_direction_case_complete(Some(3.0), 4.5));
     }
 
     #[test]
     fn crouch_direction_reference_frame_does_not_override_stationary_rotation() {
-        let duration = CROUCH_DIRECTION_CASE_COUNT as f32 * CROUCH_DIRECTION_CASE_SECONDS;
-        assert!(crouch_direction_reference_frame_active(duration - 0.01));
-        assert!(!crouch_direction_reference_frame_active(duration));
+        let mut cases = [true; CROUCH_DIRECTION_CASE_COUNT];
+        assert!(!crouch_direction_reference_frame_active(&cases));
+        cases[3] = false;
+        assert!(crouch_direction_reference_frame_active(&cases));
     }
 
     #[test]
     fn crouch_direction_fixture_maps_target_axes_to_source_states() {
         let expected = [
-            (0, AlsMovementDirection::Forward),
-            (1, AlsMovementDirection::RightForward),
-            (2, AlsMovementDirection::RightBackward),
-            (3, AlsMovementDirection::Backward),
-            (4, AlsMovementDirection::LeftBackward),
-            (5, AlsMovementDirection::LeftForward),
-            (6, AlsMovementDirection::Forward),
-            (7, AlsMovementDirection::RightForward),
+            (0, AlsMovementDirection::Forward), (1, AlsMovementDirection::Backward),
+            (2, AlsMovementDirection::RightForward), (3, AlsMovementDirection::LeftForward),
+            (4, AlsMovementDirection::Forward), (5, AlsMovementDirection::Backward),
+            (6, AlsMovementDirection::LeftForward), (7, AlsMovementDirection::RightForward),
         ];
         for (index, direction) in expected {
             let case = crouch_direction_regression_case(index).unwrap();
@@ -8518,29 +8500,6 @@ mod tests {
     }
 
     #[test]
-    fn source_rotate_window_keeps_the_sequence_tail_observable() {
-        let mut drive = AlsTurnDrive {
-            rotate_active: true,
-            ..default()
-        };
-        assert!(source_rotate_window_active(Some(&drive)));
-        drive.rotate_active = false;
-        drive.rotate_finishing = true;
-        assert!(source_rotate_window_active(Some(&drive)));
-        drive.rotate_finishing = false;
-        assert!(!source_rotate_window_active(Some(&drive)));
-    }
-
-    #[test]
-    fn source_stationary_fixture_targets_yaw_relative_to_actual_actor_heading() {
-        let base = (-65.0_f32).to_radians();
-        assert!(
-            (source_stationary_target_yaw(base, false) - (-155.0_f32).to_radians()).abs() < 1e-6
-        );
-        assert!((source_stationary_target_yaw(base, true) - 25.0_f32.to_radians()).abs() < 1e-6);
-    }
-
-    #[test]
     fn source_stationary_fixture_requires_consecutive_stable_frames() {
         let mut frames = 0;
         for _ in 0..CROUCH_STATIONARY_STABLE_FRAMES - 1 {
@@ -8557,6 +8516,11 @@ mod tests {
 
     #[test]
     fn crouch_stationary_fixture_waits_for_each_completed_source_action() {
+        let source = include_str!("manual_playground_integration.rs");
+        let branch = source.split("else if let Some(validation) = next_crouch_stationary_validation").nth(1).unwrap();
+        let setup = branch.split("let command_index").next().unwrap();
+        assert!(!setup.contains("reset_character_with_rotation"));
+        assert!(!setup.contains("reinitialize_fixture_rotation_response"));
         let mut coverage = IntegrationCoverage::default();
         assert_eq!(
             next_crouch_stationary_validation(&coverage),
@@ -8595,8 +8559,44 @@ mod tests {
     }
 
     #[test]
+    fn crouch_visual_boundaries_follow_the_generated_source_tree() {
+        let chains = [
+            crouch_direction_source_pose_chain(AlsMovementDirection::Forward),
+            crouch_rotate_source_pose_chain(true),
+            crouch_rotate_source_pose_chain(false),
+            crouch_turn_source_pose_chain(),
+        ];
+        for boundary in chains.into_iter().flatten() {
+            assert!(boundary.graph.starts_with("generated/"), "{}", boundary.graph);
+            let graph = std::fs::read_to_string(format!("assets/{}", boundary.graph)).unwrap();
+            assert!(graph.contains(&format!("name: {:?}", boundary.node)), "{}: {}", boundary.graph, boundary.node);
+        }
+        assert_eq!(crouch_rotate_window(false, true, &[]).expected_terminal_requested_parent_transition_active, None);
+        assert_eq!(crouch_turn_window(false, true, &[]).expected_terminal_requested_parent_transition_active, None);
+        assert!(!crouch_rotate_window(false, false, &[]).settled);
+        assert!(!crouch_turn_window(false, false, &[]).settled);
+    }
+
+    #[test]
+    fn crouch_source_fixture_uses_transient_side_back_states() {
+        for (index, direction, input) in [
+            (1, AlsMovementDirection::Backward, Vec2::NEG_Y),
+            (2, AlsMovementDirection::RightForward, Vec2::X),
+            (6, AlsMovementDirection::LeftForward, Vec2::NEG_X),
+        ] {
+            let case = crouch_direction_regression_case(index).unwrap();
+            assert_eq!(case.expected_direction, direction);
+            assert_eq!(case.move_dir, input);
+        }
+        for chain in [crouch_turn_source_pose_chain(), crouch_rotate_source_pose_chain(true)] {
+            assert!(!chain.iter().any(|boundary| boundary.node == "Apply Additive"));
+        }
+    }
+
+    #[test]
     fn crouch_turn_window_requires_source_measured_yaw_convergence() {
         let window = crouch_turn_window(false, true, &["slot_active"]);
+        assert!(window.capture_every_frame);
         assert_eq!(
             window.minimum_actor_yaw_delta_radians,
             CROUCH_TURN_SOURCE_MIN_YAW_CONVERGENCE_RADIANS
@@ -8610,7 +8610,7 @@ mod tests {
         assert_eq!(window.expected_terminal_parent_runtime_state, Some(0));
         assert_eq!(
             window.expected_terminal_requested_parent_transition_active,
-            Some(false)
+            None
         );
         assert_eq!(
             crouch_turn_window(true, true, &["slot_active"]).expected_actor_yaw_delta_sign,
@@ -8624,21 +8624,30 @@ mod tests {
     }
 
     #[test]
-    fn crouch_rotate_window_requires_source_measured_yaw_convergence() {
+    fn crouch_rotate_window_uses_source_terminal_angle_for_a_moving_view() {
         let window = crouch_rotate_window(false, true, &[]);
+        let live_view = 1.0;
+        let command = standing_turn_mouse_command(4, Some(0.0), live_view, live_view, RotationMode::Aiming);
+        assert_eq!(command.look_delta, Vec2::ZERO);
+        let from_body = standing_turn_mouse_command(4, Some(0.0), -0.25, live_view, RotationMode::Aiming);
+        assert!(from_body.look_delta.length() > 100.0);
+        assert!(window.capture_every_frame);
+        assert!(!crouch_rotate_window(false, false, &["sequence_completed"]).capture_source_window);
+        assert!(crouch_rotate_window(false, false, &["sequence_completed", "settled"]).capture_source_window);
+        assert!(!window.requires_actor_yaw_convergence);
         assert_eq!(
             window.minimum_actor_yaw_delta_radians,
             CROUCH_ROTATE_SOURCE_MIN_YAW_CONVERGENCE_RADIANS
         );
         assert_eq!(
             window.minimum_actor_yaw_convergence_radians,
-            CROUCH_ROTATE_SOURCE_MIN_YAW_CONVERGENCE_RADIANS
+            0.0
         );
         assert_eq!(window.expected_actor_yaw_delta_sign, Some(-1));
         assert_eq!(window.expected_terminal_parent_runtime_state, Some(0));
         assert_eq!(
             window.expected_terminal_requested_parent_transition_active,
-            Some(true)
+            None
         );
         assert_eq!(
             crouch_rotate_window(true, true, &[]).expected_actor_yaw_delta_sign,

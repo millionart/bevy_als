@@ -43,9 +43,11 @@ struct CrouchingGraphHandle(Handle<AnimationGraph>);
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsCrouchingGraphTelemetry {
     pub actual_outer_state: Option<u8>,
+    pub actual_outer_weights: [f32; 6],
     pub actual_outer_transition_active: Option<bool>,
     pub actual_outer_pose_ready: Option<bool>,
     pub actual_movement_state: Option<u8>,
+    pub actual_movement_states: u8,
     pub actual_movement_transition_active: Option<bool>,
     pub actual_movement_pose_ready: Option<bool>,
     pub graph_stride_amount: Option<f32>,
@@ -123,7 +125,7 @@ fn actual_crouching_fsm(
     state_machines: &Assets<StateMachine>,
     title: &str,
     state_index: fn(&str) -> Option<u8>,
-) -> Option<(Option<u8>, bool, bool)> {
+) -> Option<(Option<u8>, bool, bool, [f32; 6])> {
     let node = graph.nodes.values().find(|node| node.name == title)?;
     let fsm = node.try_inner_downcast_ref::<InterruptibleFsmNode>()?;
     let state_machine = state_machines.get(&fsm.fsm)?;
@@ -147,10 +149,17 @@ fn actual_crouching_fsm(
                 .and_then(|state| state_index(&state.label)),
             LowLevelStateId::HlTransition(_) => None,
         };
+        let mut weights = [0.0; 6];
+        for (id, entry) in &state_machine.states {
+            if let Some(index) = state_index(&entry.label) {
+                weights[index as usize] = state.recorded_state_weight(&id.uuid().to_string());
+            }
+        }
         Some((
             actual_state,
             matches!(state.state, LowLevelStateId::HlTransition(_)),
             true,
+            weights,
         ))
     })
 }
@@ -193,9 +202,18 @@ fn capture_crouching_graph_telemetry(
         let total = weights.iter().sum::<f32>();
         let telemetry = AlsCrouchingGraphTelemetry {
             actual_outer_state: outer.and_then(|value| value.0),
+            actual_outer_weights: outer.map_or([0.0; 6], |value| value.3),
             actual_outer_transition_active: outer.map(|value| value.1),
             actual_outer_pose_ready: outer.map(|value| value.2),
             actual_movement_state: movement.and_then(|value| value.0),
+            actual_movement_states: movement.map_or(0, |value| {
+                value
+                    .3
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, weight)| **weight > 1e-5)
+                    .fold(0, |mask, (index, _)| mask | (1 << index))
+            }),
             actual_movement_transition_active: movement.map(|value| value.1),
             actual_movement_pose_ready: movement.map(|value| value.2),
             graph_stride_amount: player

@@ -1447,30 +1447,6 @@ fn foot_ik_apply_system(
                 .get(chain.foot)
                 .ok()
                 .map(|(_, foot_global, child)| (foot_global.translation(), child.0));
-            let (Ok(current_foot), Ok(current_calf)) =
-                (bone_globals.get(chain.foot), bone_globals.get(chain.calf))
-            else {
-                continue;
-            };
-            let foot_world_rotation = world_rotation_from_armature(
-                armature,
-                ArmatureRotation(source_foot_rotation(
-                    armature_rotation_from_world(armature, WorldRotation(current_foot.rotation()))
-                        .0,
-                    armature_rotation_from_world(armature, WorldRotation(current_calf.rotation()))
-                        .0,
-                    armature_rotation_from_world(
-                        armature,
-                        WorldRotation(foot_state.final_rotation),
-                    )
-                    .0,
-                    offset_normal_armature,
-                    side,
-                    pose_moving,
-                    &profile.0.target,
-                )),
-            )
-            .0;
             let side_pole_state = match side {
                 0 => &mut pole_state.left,
                 _ => &mut pole_state.right,
@@ -1601,11 +1577,16 @@ fn foot_ik_apply_system(
                 &chain,
                 target_world.0,
                 pole_location,
-                foot_world_rotation,
+                foot_state.final_rotation,
                 applied_ik_weight,
                 pelvis_world_offset,
                 primary_axis,
                 secondary_axis,
+                armature,
+                offset_normal_armature,
+                side,
+                pose_moving,
+                &profile.0.target,
                 &mut bone_locals,
                 &bone_globals,
             );
@@ -1773,11 +1754,16 @@ fn apply_chain_target(
     chain: &als_core::foot_ik::FootChain,
     target_world: Vec3,
     pole_location: Vec3,
-    foot_world_rotation: Quat,
+    foot_target_rotation: Quat,
     weight: f32,
     pelvis_world_offset: Vec3,
     primary_axis: Vec3,
     secondary_axis: Vec3,
+    armature: &GlobalTransform,
+    offset_normal_armature: Vec3,
+    side: usize,
+    pose_moving: f32,
+    profile: &CrAlsTargetProfile,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
     bone_globals: &Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
 ) -> Option<ResolvedFootTarget> {
@@ -1842,14 +1828,27 @@ fn apply_chain_target(
         rotation: foot_g.rotation(),
         scale: foot_scale,
     };
-    let writeback = source_basic_ik_writeback(
+    let mut writeback = source_basic_ik_writeback(
         current_thigh,
         current_calf,
         current_foot,
         solve,
-        foot_world_rotation,
+        foot_target_rotation,
         weight,
     )?;
+    let foot_rotation = world_rotation_from_armature(
+        armature,
+        ArmatureRotation(source_foot_rotation(
+            armature_rotation_from_world(armature, WorldRotation(writeback.foot.rotation)).0,
+            armature_rotation_from_world(armature, WorldRotation(writeback.calf.rotation)).0,
+            armature_rotation_from_world(armature, WorldRotation(foot_target_rotation)).0,
+            offset_normal_armature,
+            side,
+            pose_moving,
+            profile,
+        )),
+    ).0;
+    writeback.foot.rotation = blend_ik_rotation(writeback.foot.rotation, foot_rotation, weight);
     let thigh_parent = bone_locals.get(chain.thigh).ok()?.2.0;
     let calf_parent = bone_locals.get(chain.calf).ok()?.2.0;
     let foot_parent = bone_locals.get(chain.foot).ok()?.2.0;
@@ -2240,6 +2239,55 @@ mod tests {
             state.animation_base[0],
             animated
         ));
+    }
+
+    #[test]
+    fn foot_rotation_reads_the_blended_ik_calf_before_local_writeback() {
+        use bevy::ecs::system::SystemState;
+
+        let profile: CrAlsRuntimeProfileDocument =
+            serde_json::from_str(CR_ALS_RUNTIME_PROFILE).unwrap();
+        for weight in [0.5, 1.0] {
+            let mut world = World::new();
+            let parent = world.spawn((Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+            let current_thigh = Transform::IDENTITY;
+            let current_calf = Transform::from_translation(Vec3::X * 0.45);
+            let current_foot = Transform::from_translation(Vec3::X * 0.90)
+                .with_rotation(Quat::from_rotation_z(0.1));
+            let thigh = world.spawn((current_thigh, GlobalTransform::from(current_thigh), ChildOf(parent))).id();
+            let calf = world.spawn((current_calf, GlobalTransform::from(current_calf), ChildOf(thigh))).id();
+            let foot = world.spawn((Transform::from_translation(Vec3::X * 0.45).with_rotation(current_foot.rotation), GlobalTransform::from(current_foot), ChildOf(calf))).id();
+            let chain = als_core::foot_ik::FootChain { thigh, calf, foot };
+            let target = Vec3::new(0.67, -0.52, 0.05);
+            let pole = Vec3::new(0.0, -1.0, 0.5);
+            let rotation = Quat::from_rotation_y(0.8);
+            let normal = Vec3::new(0.3, 0.94, 0.0).normalize();
+            let (primary, secondary) = source_foot_ik_axes(1, &profile.target);
+            let solve = solve_basic_two_bone_ik(
+                current_thigh.translation, current_thigh.rotation, current_calf.translation,
+                target, pole, 0.45, 0.45, primary, secondary, 1.0,
+            ).unwrap();
+            let basic = source_basic_ik_writeback(
+                current_thigh, current_calf, current_foot, solve, rotation, weight,
+            ).unwrap();
+            let expected = blend_ik_rotation(
+                basic.foot.rotation,
+                source_foot_rotation(basic.foot.rotation, basic.calf.rotation, rotation, normal, 1, 0.0, &profile.target),
+                weight,
+            );
+            let mut queries = SystemState::<(
+                Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AnimationPlayer>>,
+                Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
+            )>::new(&mut world);
+            let (mut locals, globals) = queries.get_mut(&mut world).unwrap();
+            assert!(apply_chain_target(
+                &chain, target, pole, rotation, weight, Vec3::ZERO, primary, secondary,
+                &GlobalTransform::IDENTITY, normal, 1, 0.0, &profile.target, &mut locals, &globals,
+            ).is_some());
+            let actual = locals.get(thigh).unwrap().0.rotation
+                * locals.get(calf).unwrap().0.rotation * locals.get(foot).unwrap().0.rotation;
+            assert!(actual.dot(expected).abs() > 1.0 - 1e-5, "foot rotation weight={weight}");
+        }
     }
 
     #[test]

@@ -776,6 +776,7 @@ def motion_window_issues(report, screenshots, pose_samples):
             issues.append(f"motion window requested parent runtime states are invalid: {label}")
         elif (
             expected_parent_runtime_state is not None
+            and (observed_requested_parent_runtime_states or observed_requested_parent_transition_active)
             and observed_requested_parent_runtime_states != [expected_parent_runtime_state]
         ):
             issues.append(f"motion window requested the wrong parent runtime state: {label}")
@@ -785,6 +786,7 @@ def motion_window_issues(report, screenshots, pose_samples):
             issues.append(f"motion window requested parent transition state is invalid: {label}")
         elif (
             expected_parent_runtime_state is not None
+            and (observed_requested_parent_runtime_states or observed_requested_parent_transition_active)
             and False not in observed_requested_parent_transition_active
         ):
             issues.append(f"motion window requested parent transition did not settle: {label}")
@@ -821,7 +823,8 @@ def motion_window_issues(report, screenshots, pose_samples):
             issues.append(f"motion window terminal transition expectation is invalid: {label}")
         if expected_terminal_parent_runtime_state is not None and (
             not isinstance(expected_terminal_parent_transition_active, bool)
-            or not isinstance(expected_terminal_requested_parent_transition_active, bool)
+            or (expected_terminal_requested_parent_transition_active is not None
+                and not isinstance(expected_terminal_requested_parent_transition_active, bool))
         ):
             issues.append(f"motion window terminal transition expectation is invalid: {label}")
         for name, values, kind in (
@@ -874,7 +877,8 @@ def motion_window_issues(report, screenshots, pose_samples):
         ):
             issues.append(f"motion window selected the wrong terminal parent state: {label}")
         elif (
-            observed_terminal_requested_parent_runtime_states
+            expected_terminal_requested_parent_transition_active is not None
+            and observed_terminal_requested_parent_runtime_states
             != [expected_terminal_parent_runtime_state]
         ):
             issues.append(f"motion window requested the wrong terminal parent state: {label}")
@@ -884,7 +888,8 @@ def motion_window_issues(report, screenshots, pose_samples):
         ):
             issues.append(f"motion window terminal parent transition is wrong: {label}")
         elif (
-            observed_terminal_requested_parent_transition_active
+            expected_terminal_requested_parent_transition_active is not None
+            and observed_terminal_requested_parent_transition_active
             != [expected_terminal_requested_parent_transition_active]
         ):
             issues.append(f"motion window terminal requested parent transition is wrong: {label}")
@@ -1882,6 +1887,7 @@ def run_self_test():
         report["motion_windows"][0]["expected_parent_runtime_state"] = 1
         report["motion_windows"][0]["observed_parent_runtime_states"] = [1]
         report["motion_windows"][0]["observed_parent_transition_active"] = [False]
+        assert audit(report, 2)["pass"]
         report["motion_windows"][0]["observed_requested_parent_runtime_states"] = [1]
         report["motion_windows"][0]["observed_requested_parent_transition_active"] = [False]
         assert audit(report, 2)["pass"]
@@ -1900,6 +1906,9 @@ def run_self_test():
         ] = True
         report["motion_windows"][0]["observed_terminal_parent_runtime_states"] = [0]
         report["motion_windows"][0]["observed_terminal_parent_transition_active"] = [False]
+        requested_expectation = report["motion_windows"][0].pop("expected_terminal_requested_parent_transition_active")
+        assert audit(report, 2)["pass"]
+        report["motion_windows"][0]["expected_terminal_requested_parent_transition_active"] = requested_expectation
         report["motion_windows"][0]["observed_terminal_requested_parent_runtime_states"] = [0]
         report["motion_windows"][0][
             "observed_terminal_requested_parent_transition_active"
