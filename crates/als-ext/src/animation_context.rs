@@ -68,7 +68,7 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
     fn get_data_back(
         &self,
         pin_id: GraphInputPin,
-        ctx: GraphContext,
+        mut ctx: GraphContext,
     ) -> Result<DataValue, GraphError> {
         match pin_id {
             GraphInputPin::Passthrough(pin_id) => {
@@ -86,10 +86,15 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
                     })
                     .or_else(|_| {
                         let parent_pin = self.input_aliases.get(&pin_id).cloned().unwrap_or(pin_id);
-                        self.parent_ctx
-                            .clone()
-                            .with_state_key(ctx.state_key)
-                            .data_back(parent_pin)
+                        let parent = self.parent_ctx.clone().with_state_key(ctx.state_key);
+                        let value = parent.data_back(parent_pin.clone())?;
+                        if matches!(value, DataValue::Pose(_)) {
+                            write_linked_input_context(
+                                &mut ctx,
+                                pose_input_context_state(&parent, &parent_pin).unwrap_or_default(),
+                            )?;
+                        }
+                        Ok(value)
                     })
             }
             other => Err(GraphError::InvalidGraphInputPinType(other)),
@@ -122,6 +127,26 @@ impl<'a> GraphIoEnv for AnimationContextIoEnv<'a> {
             .with_state_key(ctx.state_key)
             .time_update_fwd()
     }
+}
+
+pub(crate) fn write_linked_input_context(
+    ctx: &mut GraphContext,
+    context: AnimationContextState,
+) -> Result<(), GraphError> {
+    let state_key = ctx.state_key;
+    *ctx.context_mut().node_states.get_mut_or_insert_with(
+        NodeId::default(),
+        state_key,
+        AnimationContextState::default,
+    )? = context;
+    Ok(())
+}
+
+pub(crate) fn linked_input_context(ctx: &GraphContext) -> AnimationContextState {
+    ctx.node_states()
+        .get::<AnimationContextState>(NodeId::default(), ctx.state_key)
+        .cloned()
+        .unwrap_or_default()
 }
 
 pub fn context_time_update(ctx: &NodeContext) -> Result<TimeUpdate, GraphError> {
