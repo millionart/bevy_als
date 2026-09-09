@@ -87,7 +87,6 @@ fn main() {
             AlsExtPlugin,
         ))
         .insert_resource(DumpAssetRoot(asset_root))
-        .register_type::<bevy_als::standing_source::AlsSourceRefreshNode>()
         .insert_resource(Deadline(Instant::now() + Duration::from_secs(60)))
         .add_systems(Startup, load)
         .add_systems(Update, (dump, timeout))

@@ -61,6 +61,15 @@ pub fn source_input_data(ctx: &NodeContext, key: &str) -> Option<DataValue> {
         .cloned()
 }
 
+pub fn source_player_property<'a>(
+    player: &'a bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    key: &str,
+) -> Option<&'a DataValue> {
+    player.get_context_arena()?.get_toplevel().node_states
+        .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .ok()?.values.get(key)
+}
+
 pub fn set_source_property(
     ctx: &NodeContext,
     key: &str,

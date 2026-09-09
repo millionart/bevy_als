@@ -144,12 +144,7 @@ pub fn unwind_degrees(mut angle: f32) -> f32 {
     angle
 }
 
-pub fn inv_exp_approx(value: f32) -> f32 {
-    1.0 / (1.0
-        + 1.00746054 * value
-        + 0.45053901 * value * value
-        + 0.25724632 * value * value * value)
-}
+pub use als_core::animation::inv_exp_approx;
 
 pub fn damper_exact_angle(current: f32, target: f32, delta_seconds: f32, half_life: f32) -> f32 {
     let mut delta = unwind_degrees(target - current);

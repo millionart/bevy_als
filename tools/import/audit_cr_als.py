@@ -284,7 +284,7 @@ def validate_profile(source, profile, runtime, control_source, foot_source, diff
     for name in ("source_point_to_runtime", "source_direction_to_runtime", "source_rotation_to_runtime"):
         if name in control_source or name in foot_source:
             differences.append(f"runtime coordinate bridge {name}")
-    if "AlsGroundedVelocityBlend" not in control_source:
+    if not grounded_velocity_input_is_shared(control_source):
         differences.append("control rig grounded velocity blend source")
     chain_match = APPLY_CHAIN_PATTERN.search(foot_source)
     if chain_match is None:
@@ -323,6 +323,17 @@ def validate_profile(source, profile, runtime, control_source, foot_source, diff
             }
         )
     return coverage
+
+
+def grounded_velocity_input_is_shared(source):
+    return "AlsGroundedVelocityBlend" not in source and all(anchor in source for anchor in [
+        "source_player_property(player,",
+        '"grounded_state.velocity_blend.{direction}"',
+        '"forward_amount"',
+        '"backward_amount"',
+        "velocity_blend_forward_amount: velocity_blend[0]",
+        "velocity_blend_backward_amount: velocity_blend[1]",
+    ])
 
 
 def validate_skeleton(mesh, gltf, differences):
@@ -365,6 +376,16 @@ def validate_skeleton(mesh, gltf, differences):
 
 
 def self_test():
+    velocity_input = '''
+    let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
+        source_player_property(player, &format!("grounded_state.velocity_blend.{direction}"))
+    });
+    velocity_blend_forward_amount: velocity_blend[0],
+    velocity_blend_backward_amount: velocity_blend[1],
+    '''
+    assert grounded_velocity_input_is_shared(velocity_input)
+    assert not grounded_velocity_input_is_shared(velocity_input.replace("source_player_property", "get_global_input_data"))
+    assert not grounded_velocity_input_is_shared(velocity_input + " AlsGroundedVelocityBlend")
     if source_point_to_runtime([100.0, 200.0, 300.0]) != [1.0, 3.0, 2.0]:
         raise AssertionError("point conversion")
     if source_direction_to_runtime([1.0, 2.0, 3.0]) != [1.0, 3.0, 2.0]:

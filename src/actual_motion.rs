@@ -4,11 +4,10 @@ use als_core::orientation::world_forward_to_yaw;
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
 use bevy::prelude::*;
 
-pub const GROUNDED_VELOCITY_BLEND_HALF_LIFE_SECONDS: f32 = 0.1;
-
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualMotion {
     pub world_velocity: Vec3,
+    pub world_acceleration: Vec3,
     pub local_velocity: Vec2,
     pub horizontal_speed: f32,
     pub velocity_yaw_degrees: f32,
@@ -16,21 +15,11 @@ pub struct AlsActualMotion {
     pub velocity_blend: HorizontalVelocityBlend,
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-pub struct AlsGroundedVelocityBlend {
-    pub value: HorizontalVelocityBlend,
-    initialized: bool,
-}
-
 impl AlsActualMotion {
     fn from_physics_velocity(world_velocity: Vec3, character_rotation: Quat) -> Self {
         let motion = horizontal_motion_from_world_velocity(world_velocity, character_rotation);
-        let local = character_rotation.inverse() * world_velocity;
-        let direction = if local.length_squared() > 1e-12 {
-            local / local.abs().element_sum()
-        } else {
-            Vec3::ZERO
-        };
+        let direction =
+            als_core::animation::velocity_blend_direction(world_velocity, character_rotation);
         Self {
             world_velocity,
             local_velocity: motion.local_velocity,
@@ -43,15 +32,13 @@ impl AlsActualMotion {
                 left: (-direction.x).max(0.0),
                 right: direction.x.max(0.0),
             },
+            ..default()
         }
     }
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsActualMotionSet;
-
-#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AlsGroundedVelocityBlendSet;
 
 pub struct AlsActualMotionPlugin;
 
@@ -66,68 +53,12 @@ impl Plugin for AlsActualMotionPlugin {
         .add_systems(
             PostUpdate,
             snapshot_actual_motion_system.in_set(AlsActualMotionSet),
-        )
-        .configure_sets(PostUpdate, AlsGroundedVelocityBlendSet)
-        .add_systems(
-            PostUpdate,
-            refresh_grounded_velocity_blend_system.in_set(AlsGroundedVelocityBlendSet),
         );
     }
 }
 
-fn grounded_velocity_blend_alpha(delta_seconds: f32) -> f32 {
-    1.0 - 2.0_f32
-        .powf(-delta_seconds.max(0.0) / GROUNDED_VELOCITY_BLEND_HALF_LIFE_SECONDS.max(f32::EPSILON))
-}
-
-fn damp_grounded_velocity_blend(
-    current: HorizontalVelocityBlend,
-    target: HorizontalVelocityBlend,
-    alpha: f32,
-) -> HorizontalVelocityBlend {
-    HorizontalVelocityBlend {
-        forward: current.forward.lerp(target.forward, alpha),
-        backward: current.backward.lerp(target.backward, alpha),
-        left: current.left.lerp(target.left, alpha),
-        right: current.right.lerp(target.right, alpha),
-    }
-}
-
-fn refresh_grounded_velocity_blend_system(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut characters: Query<
-        (
-            Entity,
-            &AlsActualMotion,
-            Option<&mut AlsGroundedVelocityBlend>,
-        ),
-        With<AlsCharacter>,
-    >,
-) {
-    for (entity, motion, current) in &mut characters {
-        let target = motion.velocity_blend;
-        if let Some(mut current) = current {
-            current.value = if current.initialized {
-                damp_grounded_velocity_blend(
-                    current.value,
-                    target,
-                    grounded_velocity_blend_alpha(time.delta_secs()),
-                )
-            } else {
-                current.initialized = true;
-                target
-            };
-        } else {
-            commands.entity(entity).insert(AlsGroundedVelocityBlend {
-                value: target,
-                initialized: true,
-            });
-        }
-    }
-}
-
 fn snapshot_actual_motion_system(
+    time: Res<Time>,
     mut commands: Commands,
     mut characters: Query<
         (
@@ -142,6 +73,10 @@ fn snapshot_actual_motion_system(
     for (entity, velocity, transform, current) in &mut characters {
         let mut next =
             AlsActualMotion::from_physics_velocity(velocity.world_velocity, transform.rotation);
+        if let Some(previous) = current.as_deref().filter(|_| time.delta_secs() > 1e-8) {
+            next.world_acceleration =
+                (next.world_velocity - previous.world_velocity) / time.delta_secs();
+        }
         if next.horizontal_speed < 0.01 {
             next.velocity_yaw_degrees = current
                 .as_deref()
@@ -222,26 +157,80 @@ mod tests {
     }
 
     #[test]
-    fn grounded_velocity_blend_uses_source_initialization_and_half_life() {
-        let target = HorizontalVelocityBlend {
-            forward: 1.0,
-            ..Default::default()
-        };
-        let initial = AlsGroundedVelocityBlend {
-            value: HorizontalVelocityBlend::default(),
-            initialized: false,
-        };
-        let initialized = if initial.initialized {
-            damp_grounded_velocity_blend(initial.value, target, grounded_velocity_blend_alpha(0.1))
-        } else {
-            target
-        };
-        assert_eq!(initialized, target);
-        let next = damp_grounded_velocity_blend(
-            HorizontalVelocityBlend::default(),
-            target,
-            grounded_velocity_blend_alpha(0.1),
+    fn animation_acceleration_uses_actual_velocity_and_ignores_base_rotation() {
+        use als_core::dynamics::AlsMovementBaseDynamicsState;
+        use avian3d::prelude::Rotation;
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_systems(PostUpdate, snapshot_actual_motion_system);
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.1));
+        let base = app.world_mut().spawn(Rotation::default()).id();
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::default(),
+                AlsActualVelocity {
+                    world_velocity: Vec3::NEG_Z,
+                    horizontal_speed: 1.0,
+                },
+                AlsMovementBaseDynamicsState {
+                    entity: Some(base),
+                    ..default()
+                },
+            ))
+            .id();
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(
+            app.world()
+                .get::<AlsActualMotion>(character)
+                .unwrap()
+                .world_acceleration,
+            Vec3::ZERO
         );
-        assert!((next.forward - 0.5).abs() < 1e-6);
+        app.world_mut().get_mut::<Rotation>(base).unwrap().0 =
+            Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(
+            app.world()
+                .get::<AlsActualMotion>(character)
+                .unwrap()
+                .world_acceleration
+                .length()
+                < 1e-5
+        );
+        app.world_mut()
+            .get_mut::<AlsActualVelocity>(character)
+            .unwrap()
+            .world_velocity = Vec3::NEG_X * 0.5;
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(
+            (app.world()
+                .get::<AlsActualMotion>(character)
+                .unwrap()
+                .world_acceleration
+                - Vec3::new(-5.0, 0.0, 10.0))
+            .length()
+                < 1e-5
+        );
+        let next_base = app.world_mut().spawn(Rotation::default()).id();
+        app.world_mut()
+            .get_mut::<AlsMovementBaseDynamicsState>(character)
+            .unwrap()
+            .entity = Some(next_base);
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(
+            app.world()
+                .get::<AlsActualMotion>(character)
+                .unwrap()
+                .world_acceleration,
+            Vec3::ZERO
+        );
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::ZERO);
+        app.world_mut().get_mut::<AlsActualVelocity>(character).unwrap().world_velocity = Vec3::Y;
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_acceleration, Vec3::ZERO);
     }
 }

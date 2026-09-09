@@ -64,6 +64,7 @@ pub mod source_gameplay_tag_input;
 pub mod source_instance;
 pub mod source_linked_input_pose;
 pub mod source_movement_nodes;
+pub mod source_native_refresh;
 pub mod source_physics_joint;
 pub mod source_pose_nodes;
 pub mod source_pose_passthrough;
@@ -362,6 +363,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceMultiWayBlendNode>()
             .register_type::<SourceSetHipsDirectionNode>()
             .register_type::<source_instance::SourcePropertyWriteNode>()
+            .register_type::<source_native_refresh::AlsSourceRefreshNode>()
             .register_type::<SourcePosePassthroughNode>()
             .register_type::<SourceScalarDataType>()
             .register_type::<SourceScalarExpressionNode>()

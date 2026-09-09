@@ -3382,8 +3382,7 @@ fn collect_animation_visual_evidence(
         "right_amount",
     ]
     .map(|direction| {
-        player
-            .get_global_input_data(format!("grounded_state.velocity_blend.{direction}"))
+        als_ext::source_instance::source_player_property(player, &format!("grounded_state.velocity_blend.{direction}"))
             .and_then(|value| value.as_f32().ok())
             .unwrap_or_default()
     });

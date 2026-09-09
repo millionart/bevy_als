@@ -1,10 +1,12 @@
 use als_core::{
-    character::AlsCharacter,
+    character::{AlsCharacter, AlsMovementParamsHandle},
+    dynamics::AlsGroundedDynamics,
     foot_ik::AlsFootLockState,
     input::AlsInputCommand,
     input_request::AlsFirstPersonView,
     motion::{AlsInputOverride, AlsViewYaw},
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
+    params::AlsMovementParams,
     state::{Gait, LocomotionState, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
@@ -82,29 +84,6 @@ fn source_has_input(
         .is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON)
 }
 
-fn source_velocity_blend(
-    player: &AnimationGraphPlayer,
-    use_standing_runtime: bool,
-    fallback: als_ext::HorizontalVelocityBlend,
-) -> als_ext::HorizontalVelocityBlend {
-    if !use_standing_runtime {
-        return fallback;
-    }
-    let value = |key, fallback| {
-        player
-            .get_global_input_data(key)
-            .and_then(|value| value.as_f32().ok())
-            .filter(|value| value.is_finite())
-            .unwrap_or(fallback)
-    };
-    als_ext::HorizontalVelocityBlend {
-        forward: value("als_standing_velocity_forward_amount", fallback.forward),
-        backward: value("als_standing_velocity_backward_amount", fallback.backward),
-        left: value("als_standing_velocity_left_amount", fallback.left),
-        right: value("als_standing_velocity_right_amount", fallback.right),
-    }
-}
-
 fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 7] {
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     [
@@ -172,6 +151,7 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 #[allow(clippy::type_complexity)]
 fn generated_ab_als_input_writer(
     time: Res<Time>,
+    params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
         (
             Entity,
@@ -188,6 +168,7 @@ fn generated_ab_als_input_writer(
             &Transform,
             Option<&AlsFirstPersonView>,
             Option<&AlsFootLockState>,
+            (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>),
         ),
         With<AlsCharacter>,
     >,
@@ -209,8 +190,10 @@ fn generated_ab_als_input_writer(
         transform,
         first_person,
         feet,
+        (params_handle, dynamics),
     ) in &characters
     {
+        let Some(params) = params_assets.get(&params_handle.0) else { continue; };
         for (parent, instance, avatar_transform) in &avatars {
             if parent.parent() != character {
                 continue;
@@ -258,6 +241,14 @@ fn generated_ab_als_input_writer(
                 .get_context_arena()
                 .is_none_or(|arena| arena.frame_index() == 0);
             player.set_global_input_data("animation.pending_update", pending_update);
+            player.set_global_input_data("locomotion_state.velocity_world_space", motion.world_velocity);
+            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", transform.rotation);
+            player.set_global_input_data("locomotion_state.acceleration_world_space",
+                if pending_update { Vec3::ZERO } else { motion.world_acceleration });
+            player.set_global_input_data("locomotion_state.max_acceleration",
+                dynamics.map_or(params.acceleration.max_acceleration, |value| value.0.acceleration));
+            player.set_global_input_data("locomotion_state.max_braking_deceleration",
+                dynamics.map_or(params.acceleration.braking_deceleration, |value| value.0.braking_deceleration));
             for (key, value) in [
                 (
                     "locomotion_state.b_moving",
@@ -303,11 +294,6 @@ fn generated_ab_als_input_writer(
             }
             let has_relative_location =
                 movement_base.is_some_and(|state| state.has_relative_location);
-            let velocity_blend = source_velocity_blend(
-                &player,
-                *stance == Stance::Standing && *locomotion == LocomotionState::Grounded,
-                motion.velocity_blend,
-            );
             let hips_direction_lock = context
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)
@@ -325,22 +311,6 @@ fn generated_ab_als_input_writer(
             );
             for (key, value) in [
                 ("animation.delta_seconds", time.delta_secs()),
-                (
-                    "grounded_state.velocity_blend.forward_amount",
-                    velocity_blend.forward,
-                ),
-                (
-                    "grounded_state.velocity_blend.backward_amount",
-                    velocity_blend.backward,
-                ),
-                (
-                    "grounded_state.velocity_blend.left_amount",
-                    velocity_blend.left,
-                ),
-                (
-                    "grounded_state.velocity_blend.right_amount",
-                    velocity_blend.right,
-                ),
                 (
                     "grounded_state.rotation_yaw_offsets.forward_angle",
                     yaw_forward,
@@ -480,22 +450,6 @@ mod tests {
             source_direction_inputs(RotationMode::Aiming, Gait::Sprinting, 180.0),
             (true, false, false, false)
         );
-    }
-
-    #[test]
-    fn source_velocity_blend_uses_standing_runtime_only_for_standing_grounded() {
-        let mut player = AnimationGraphPlayer::new(default());
-        player.set_global_input_data("als_standing_velocity_forward_amount", 0.75_f32);
-        player.set_global_input_data("als_standing_velocity_right_amount", 0.25_f32);
-        let fallback = als_ext::HorizontalVelocityBlend {
-            backward: 1.0,
-            ..default()
-        };
-        let standing = source_velocity_blend(&player, true, fallback);
-        assert_eq!(standing.forward, 0.75);
-        assert_eq!(standing.right, 0.25);
-        assert_eq!(standing.backward, 1.0);
-        assert_eq!(source_velocity_blend(&player, false, fallback), fallback);
     }
 
     #[test]

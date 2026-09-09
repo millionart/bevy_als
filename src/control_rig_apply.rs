@@ -5,6 +5,7 @@ use als_core::motion::AlsViewYaw;
 use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{LocomotionState, RotationMode};
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
+use als_ext::source_instance::source_player_property;
 use als_ext::ik_space::{
     WorldPoint, WorldRotation, armature_point_from_world, armature_rotation_from_world,
 };
@@ -17,9 +18,6 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
 
-use crate::actual_motion::{
-    AlsActualMotion, AlsGroundedVelocityBlend, AlsGroundedVelocityBlendSet,
-};
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::foot_ik_apply::FootIkApplySet;
@@ -182,8 +180,7 @@ impl Plugin for ControlRigApplyPlugin {
                     .after(TransformSystems::Propagate),
                 AlsControlRigConstructionSet.after(AlsControlRigDiscoverySet),
                 AlsControlRigInputSet
-                    .after(AlsControlRigConstructionSet)
-                    .after(AlsGroundedVelocityBlendSet),
+                    .after(AlsControlRigConstructionSet),
                 AlsControlRigSet.after(AlsControlRigInputSet),
                 AlsControlRigPrePropagationSet.after(AlsControlRigSet),
                 AlsControlRigHandSet.after(FootIkApplySet::Propagate),
@@ -825,8 +822,6 @@ fn refresh_control_rig_input(
         (
             Entity,
             &AlsControlRigConstruction,
-            Option<&AlsActualMotion>,
-            Option<&AlsGroundedVelocityBlend>,
             Option<&AlsFootLockState>,
             Option<&AlsGroundPredictionState>,
             Option<&AlsControlRigState>,
@@ -841,8 +836,6 @@ fn refresh_control_rig_input(
     for (
         entity,
         construction,
-        motion,
-        grounded_velocity_blend,
         foot_lock,
         ground_prediction,
         state,
@@ -867,10 +860,11 @@ fn refresh_control_rig_input(
                     )
                 });
         let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
-        let velocity_blend = grounded_velocity_blend
-            .map(|blend| blend.value)
-            .or_else(|| motion.map(|motion| motion.velocity_blend))
-            .unwrap_or_default();
+        let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
+            players.get(instance.player_entity()).ok()
+                .and_then(|(player, _)| source_player_property(player, &format!("grounded_state.velocity_blend.{direction}")))
+                .and_then(|value| value.as_f32().ok()).unwrap_or(0.0)
+        });
         let (
             foot_transforms_valid,
             foot_left_location_armature,
@@ -909,8 +903,8 @@ fn refresh_control_rig_input(
             use_hand_ik_bones: construction.use_hand_ik_bones,
             use_foot_ik_bones: construction.use_foot_ik_bones,
             foot_transforms_valid,
-            velocity_blend_forward_amount: velocity_blend.forward,
-            velocity_blend_backward_amount: velocity_blend.backward,
+            velocity_blend_forward_amount: velocity_blend[0],
+            velocity_blend_backward_amount: velocity_blend[1],
             spine_yaw_angle_degrees: state.map_or(0.0, |state| state.final_yaw_angle),
             pelvis_offset_amount: (pose_grounded + pose_in_air * ground_prediction).clamp(0.0, 1.0),
             foot_left_location_armature,

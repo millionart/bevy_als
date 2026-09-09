@@ -1,4 +1,5 @@
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use als_core::animation::acceleration_amount;
 use als_core::dynamics::AlsGroundedDynamics;
 use als_core::foot_ik::AlsFootLockInput;
 use als_core::input::AlsInputCommand;
@@ -804,7 +805,6 @@ pub struct StandingLayerPlugin;
 
 impl Plugin for StandingLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<crate::standing_source::AlsSourceRefreshNode>();
         app.add_systems(Startup, crate::standing_source::load_source_montage_assets);
         app.configure_sets(
             PostUpdate,
@@ -877,12 +877,6 @@ pub fn damper_exact_alpha(delta_seconds: f32, half_life: f32) -> f32 {
     }
 }
 
-fn local_horizontal(vector: Vec3, transform: &Transform) -> Vec2 {
-    let forward = transform.rotation * Vec3::NEG_Z;
-    let right = transform.rotation * Vec3::X;
-    Vec2::new(vector.dot(forward), vector.dot(right))
-}
-
 fn animation_world_scale(transform: &GlobalTransform) -> f32 {
     transform
         .to_scale_rotation_translation()
@@ -911,24 +905,6 @@ fn damp_velocity_blend(current: VelocityBlend, target: VelocityBlend, alpha: f32
         right: current.right.lerp(target.right, alpha),
         left: current.left.lerp(target.left, alpha),
     }
-}
-
-fn acceleration_amount(
-    acceleration: Vec3,
-    velocity: Vec3,
-    transform: &Transform,
-    maximum_acceleration: f32,
-    maximum_braking_deceleration: f32,
-) -> Vec2 {
-    let maximum = if acceleration.dot(velocity) >= 0.0 {
-        maximum_acceleration
-    } else {
-        maximum_braking_deceleration
-    };
-    if maximum <= 1e-6 {
-        return Vec2::ZERO;
-    }
-    local_horizontal((acceleration / maximum).clamp_length_max(1.0), transform)
 }
 
 pub fn standing_play_rate(
@@ -1546,7 +1522,7 @@ fn update_standing_inputs(
     let target_lean = acceleration_amount(
         acceleration,
         velocity,
-        transform,
+        transform.rotation,
         maximum_acceleration,
         maximum_braking_deceleration,
     );
@@ -2652,7 +2628,7 @@ mod tests {
     #[test]
     fn standing_source_acceleration_clamps_before_planar_projection() {
         let velocity = Vec3::new(0.0, 3.0, -4.0);
-        let amount = acceleration_amount(velocity, velocity, &Transform::default(), 1.0, 1.0);
+        let amount = acceleration_amount(velocity, velocity, Quat::IDENTITY, 1.0, 1.0);
         assert!(amount.distance(Vec2::new(0.8, 0.0)) < 1e-6, "{amount:?}");
     }
 
@@ -2691,8 +2667,8 @@ mod tests {
         let transform = Transform::default();
         let acceleration = Vec3::NEG_X * 5.0;
         let velocity = Vec3::X;
-        let current = acceleration_amount(acceleration, velocity, &transform, 20.0, 5.0);
-        let static_params = acceleration_amount(acceleration, velocity, &transform, 20.0, 15.0);
+        let current = acceleration_amount(acceleration, velocity, transform.rotation, 20.0, 5.0);
+        let static_params = acceleration_amount(acceleration, velocity, transform.rotation, 20.0, 15.0);
         let passed = (current.length() - 1.0).abs() < 1e-6
             && (static_params.length() - 1.0 / 3.0).abs() < 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };

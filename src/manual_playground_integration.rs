@@ -5776,7 +5776,8 @@ fn observe_manual_integration(
             "pose_state.unweighted_gait_running_amount",
             "animation.delta_seconds",
         ]
-        .map(|key| (key, graph_global_f32(player, key)));
+        .map(|key| (key, als_ext::source_instance::source_player_property(player, key)
+            .and_then(|value| value.as_f32().ok()).or_else(|| graph_global_f32(player, key))));
         if state.scenario == IntegrationScenario::StandingStop {
             let index = state.stop_case_index;
             let (label, branch, _, mode, right) = STANDING_STOP_CASES[index];
