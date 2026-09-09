@@ -17,7 +17,7 @@
 
 用户于2026-09-08补充真实症状：转换版下蹲、跳跃、攀爬、冲刺不可用，站立六向移动存在跛足与滑步；ragdoll流程已手动确认还原良好，相机视角和距离另有问题。UE ALS-Refactored是唯一事实标准；旧手工图与当前Bevy Actor只能作为待审查实现和差异定位线索，二者一致不能证明正确，也不能决定转换器的目标语义。
 
-执行顺序固定为 `AB_Als_Standing → AB_Als_Grounded → AB_Als_Crouching → AB_Als_Locomotion → AB_Als_Layering → AB_Als_Head → CR_Als → AB_Als`。每项同时修复通用转换器及其对应Actor消费者；上一图自身Gate通过并提交后才开始下一图。相机剩余视角/距离问题保留在Actor集成闭包；在有新source证据前，不把它归因于已通过的ragdoll物理流程。
+执行顺序按2026-09-09用户补充调整为 `AB_Als_Standing → AB_Als_Grounded静态接入 → AB_Als_Crouching → Grounded真实Playground验收 → AB_Als_Locomotion → AB_Als_Layering → AB_Als_Head → CR_Als → AB_Als`。每项同时修复通用转换器及其对应Actor消费者；Grounded因消费Crouching输出，真实Gate明确后置，其余仍按自身Gate和依赖顺序提交后继续。相机剩余视角/距离问题保留在Actor集成闭包；在有新source证据前，不把它归因于已通过的ragdoll物理流程。
 
 - [x] BF115.01a Standing六向症状与source链取证：计划开始：2026-09-08 20:30:00 +08:00；预估结束：2026-09-08 21:20:00 +08:00。估时依据为当前已完整提取的Standing 62个可达source subgraph、现有六向真实场景和旧手工实现；先稳定复现跛足/滑步，比较实际状态、clip/phase/curve、pose混合与Actor速度/步幅消费者，定位首个source差异。未定位前不以平滑、速度倍率或换回手工图作为修复；后续实现按证实的最小闭包另立不超过60分钟的验收段。
   - 依赖实际完成后登记开始：2026-09-08 20:50:00 +08:00；预估结束：2026-09-08 21:40:00 +08:00。此前计划时间为等待ragdoll依赖，并未提前开展Standing；本轮只核对已选Standing source/runtime闭包。
@@ -325,8 +325,12 @@
 
   - 02d静态完成2026-09-09 21:24:00：迁入als-ext后的4项原生图fixture31.612s、310项目回归68.130s PASS，真实速度差分/忽略底座旋转/零Delta最终fixture27.410s PASS；C++数学原样归入als-core供Actor和节点共同使用，无新增依赖。公开Grounded/Standing重生成83.504s/292.961s，138文件逐一对照确认本次类型迁移仅3个RON变化，安装1.351s；生成树已无bevy_als::引用。实际target_game/play双example142.104s、29图独立spec加载3.168s、编辑器255文件零修复0.574s、Grounded/Standing声明式及22/62源闭包5.491s/5.574s全部PASS。旧CR审计要求独立组件，已改为共享实例字段读数，并由自测拒绝raw global/旧组件；源姿态算法未改。删除不适用的底座状态、重复Actor blend和3个项目注册点，撤掉无必要的manifest图列表扩张；原生refresh/initialize消融仍保留。开始20:30、预估21:20、实际结束21:24（偏差+4m），结果为共享刷新/Actor输入静态接入完成；本段未启动runtime，BF111.05与BF109.10有限复开仍待下面真实Gate。
 
-- [ ] BF115.02e Grounded真实分支与生命周期Gate：开始2026-09-09 21:24:00、预估结束22:14:00。依赖02d；以当前22可达source graph、6 Pose图、Standing/Crouching/两条stance-change/Roll、Reset/Stop/Roll-exit事件和共享VelocityBlend/Lean为完整Grounded闭包。先核对既有grounded公共场景是否读取当前生成FSM、实际实例及source片段，修复场景中已证明过时的mirror读数；用最小fixture验证驱动/覆盖后，经静态审计与实际入口预构建运行startup和一次连贯Grounded场景。必须覆盖站蹲往返、移动条件、Roll退出按执行时stance选择右侧片段、重置/停止次数及最终稳定姿态，并记录root/局部/final pose、共享读数、曲线/clip/weight和时间守卫。估时依据为已闭合的源/静态合同、既有grounded场景和source窗口/trace/watchdog，参考Standing动作Gate的增量构建及场景收口记录；未通过时只修首个source链差异，不把Crouching内部运动或CR其它算法提前并入。
+- [ ] BF115.02e Grounded真实分支与生命周期Gate（后置至AB_Als_Crouching之后）：原准备开始2026-09-09 21:24:00、原预估结束22:14:00。依赖02d及Crouching模块Gate；恢复时重新登记开始/预估结束，不沿用本轮时间点。以当前22可达source graph、6 Pose图、Standing/Crouching/两条stance-change/Roll、Reset/Stop/Roll-exit事件和共享VelocityBlend/Lean为完整Grounded闭包。先核对既有grounded公共场景是否读取当前生成FSM、实际实例及source片段，修复场景中已证明过时的mirror读数；用最小fixture验证驱动/覆盖后，经静态审计与实际入口预构建运行startup和一次连贯Grounded场景。必须覆盖站蹲往返、移动条件、Roll退出按执行时stance选择右侧片段、重置/停止次数及最终稳定姿态，并记录root/局部/final pose、共享读数、曲线/clip/weight和时间守卫。估时依据为已闭合的源/静态合同、既有grounded场景和source窗口/trace/watchdog，参考Standing动作Gate的增量构建及场景收口记录；未通过时只修首个source链差异，不把Crouching内部运动或CR其它算法提前并入。
   - 新段前复盘：19:22起四段分别完成源闭包、生成数据、实际回调/观测与共享原生刷新；旧Gate主要漏检生成图实际执行与Actor镜像分离，另两项错误前提已由真实角色默认值和用户的包归属反馈纠正。当前剩余是现有场景能否证明同一生成图中的源分支与事件，不再新增状态机或运行时补偿；先闭合驱动/读数再真实运行，避免用反复试跑探索算法。
+
+  - 用户顺序调整2026-09-09 21:28:00：Grounded真实Playground验收移到AB_Als_Crouching之后。当前只完成现有driver/reader入口定位，未修改场景或启动runtime；Grounded静态结果1598c52保留，BF111.05及BF109.10有限复开仍未关闭。原准备开始21:24、原预估22:14、本轮准备结束21:28（偏差-46m），结果为用户要求的依赖后置，Gate仍待验收；接着进入Crouching，之后再恢复本项。
+
+- [ ] BF115.03a Crouching源闭包与首个转换/Actor差异：开始2026-09-09 21:31:00、预估结束22:21:00。依赖已完成Standing与Grounded静态02d，按用户新顺序执行；先从本地AB_Als_Crouching uasset公开重新读取完整递归图及所需BlendSpace/sequence、C++和AIS事实，对比当前生成资产与Actor的输入、曲线、时钟、状态/回调及真实读数。只把当前源证明的差异纳入后续实现，不沿用旧手工图或Actor结论。估时依据为已归档同图30项递归合同、当前66个生成RON/2个FSM、已有共享时钟/实例节点以及Standing同类公开转换约293秒；本项先交付完整源/静态差异与可重复的最小失败，具体修复按闭包另立不超过60分钟的验收段。Crouching完成后返回02e执行Grounded真实Gate，再继续Locomotion；已通过的Standing清理/Turn/曲线和Grounded共享刷新不因猜测复开。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
