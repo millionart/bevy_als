@@ -330,7 +330,15 @@
 
   - 用户顺序调整2026-09-09 21:28:00：Grounded真实Playground验收移到AB_Als_Crouching之后。当前只完成现有driver/reader入口定位，未修改场景或启动runtime；Grounded静态结果1598c52保留，BF111.05及BF109.10有限复开仍未关闭。原准备开始21:24、原预估22:14、本轮准备结束21:28（偏差-46m），结果为用户要求的依赖后置，Gate仍待验收；接着进入Crouching，之后再恢复本项。
 
-- [ ] BF115.03a Crouching源闭包与首个转换/Actor差异：开始2026-09-09 21:31:00、预估结束22:21:00。依赖已完成Standing与Grounded静态02d，按用户新顺序执行；先从本地AB_Als_Crouching uasset公开重新读取完整递归图及所需BlendSpace/sequence、C++和AIS事实，对比当前生成资产与Actor的输入、曲线、时钟、状态/回调及真实读数。只把当前源证明的差异纳入后续实现，不沿用旧手工图或Actor结论。估时依据为已归档同图30项递归合同、当前66个生成RON/2个FSM、已有共享时钟/实例节点以及Standing同类公开转换约293秒；本项先交付完整源/静态差异与可重复的最小失败，具体修复按闭包另立不超过60分钟的验收段。Crouching完成后返回02e执行Grounded真实Gate，再继续Locomotion；已通过的Standing清理/Turn/曲线和Grounded共享刷新不因猜测复开。
+- [x] BF115.03a Crouching源闭包与首个转换/Actor差异：开始2026-09-09 21:31:00、预估结束22:21:00。依赖已完成Standing与Grounded静态02d，按用户新顺序执行；先从本地AB_Als_Crouching uasset公开重新读取完整递归图及所需BlendSpace/sequence、C++和AIS事实，对比当前生成资产与Actor的输入、曲线、时钟、状态/回调及真实读数。只把当前源证明的差异纳入后续实现，不沿用旧手工图或Actor结论。估时依据为已归档同图30项递归合同、当前66个生成RON/2个FSM、已有共享时钟/实例节点以及Standing同类公开转换约293秒；本项先交付完整源/静态差异与可重复的最小失败，具体修复按闭包另立不超过60分钟的验收段。Crouching完成后返回02e执行Grounded真实Gate，再继续Locomotion；已通过的Standing清理/Turn/曲线和Grounded共享刷新不因猜测复开。
+
+  - 用户补充2026-09-09 21:34:00：已确认按下蹲后Standing表现异常，并明确要求继续AB_Als_Crouching，完成后在02e一起验收。因此02e必测“下蹲→恢复站立→移动”的Standing回归，记录实际FSM/clip/phase、共享VelocityBlend/Lean与退出清理；当前只定位相关writer/driver入口，未单独展开Standing修复或运行场景，Crouching仍为当前任务。
+
+  - 03a源/差异闭环2026-09-09 21:54:00：MCP健康检查2.661s明确拒绝连接，公开Crouching uasset转换48.195s完成、unsupported=0；147 raw graph中可达33项（12 Pose图/2 FSM/16条件/3函数）、217节点，source审计覆盖96 Pose节点/76 Pose边，66个生成RON。12图当前spec加载3.274s通过，同次源审计1.068s稳定FAIL于12个已安装Pose图：旧Actor同步相位/缺少当前曲线与初始化策略、以及Idle原生刷新仍未迁入最新通用节点；全部新输出仍在隔离目录。可达播放资产包括六条1.133333秒Crouch Walk、Walk Pose、Crouch Pose、左右1秒Rotate及共享Lean BlendSpace（5个additive样本），不把ExecuteUbergraph镜像重复计入。
+  - 原生/Actor边界：fresh AIS_Als_Default34.962s和Walk曲线34.529s确认AnimatedCrouchSpeed=1.5m/s、Stride使用同一CF_Als_StrideBlendAmount_Walk；现有生成曲线逐字段0.297s一致（0/0.583/1.5m/s对应0.2/0.55/1.0），可直接复用。前两次AIS读取使用错误的资产名/位置，均exit3且无source输出；已根据实际asset_path纠正，失败未充当事实。C++ RefreshCrouchingMovement按mesh world scale归一speed、采样源曲线、play rate限1e-4..2；当前Actor使用独立采样表、角色Transform scale、私有FSM/phase/curve/turn与dynamic推算。16个函数调用点包含六处SetHipsDirection、两个Movement刷新、Move进入/Idle退出Stop、Stop进入PlayStopTransitionAnimation、StopQuick及Idle/Rotate原生调用。实际观测仍读取手工graph handle和简称；Crouching rotate bool被写为F32；PlayStopTransitionAnimation dispatcher未注册；CrouchingQuickStop仍走旧slot采样。以上为后续输入/生命周期/直接资产消费核对边界，尚未判定其中哪项导致用户的下蹲后Standing回归，不据猜测修Standing。
+  - 本段开始21:31、预估22:21、实际结束21:54（偏差-27m）；结果为完整源闭包与可重复安装差异，未实现Actor或启动runtime。先接入同次converter生成数据，再闭合Actor/原生函数/实际读数；Crouching之后按用户要求执行包含下蹲后Standing回归的Grounded联合Gate。
+
+- [ ] BF115.03b Crouching生成执行数据静态接入：开始2026-09-09 21:54:00、预估结束22:24:00。依赖03a；同次公开converter已应用Standing/Grounded阶段修复，可直接生成完整66文件闭包，仅安装此scope的12个差异，保留原始导出和原AB_Als owner，不手改RON。验证同帧序列/曲线/组时钟、bAlwaysResetOnEntry和原生节点类型，建立当前Crouching生成树的声明式manifest，完成编辑器/位置/fresh spec/完整源编译一致性及适用focused Gate。估时依据为已得到的48秒公开转换输出、12个文件差异和此前Grounded资产接入记录；本段只做生成数据静态迁移，Actor发布/回调/实际观测继续下一段，真实运行仍待静态闭环。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
