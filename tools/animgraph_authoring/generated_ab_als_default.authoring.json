@@ -307,7 +307,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_component_spec.json"
+        "target/bf115_overlays/default_pelvis_spec.json"
       ]
     },
     {
@@ -488,7 +488,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf115_overlays/default_component_regression.watchdog.json"
+      "evidence": "target/bf115_overlays/default_pelvis_input_pass.watchdog.json"
     }
   ]
 }

@@ -813,6 +813,12 @@ fn apply_spine_rotation(
     }
 }
 
+fn source_pelvis_offset_amount(player: &AnimationGraphPlayer, ground_prediction: f32) -> f32 {
+    let amount = |field| player.get_global_input_data(field)
+        .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
+    (amount("pose_state.grounded_amount") + amount("pose_state.in_air_amount") * ground_prediction).clamp(0.0, 1.0)
+}
+
 #[allow(clippy::type_complexity)]
 fn refresh_control_rig_input(
     mut characters: Query<
@@ -847,15 +853,9 @@ fn refresh_control_rig_input(
         else {
             continue;
         };
-        let (pose_grounded, pose_in_air) =
-            players
-                .get(instance.player_entity())
-                .map_or((0.0, 0.0), |(player, _)| {
-                    let amount = |field| source_player_property(player, field)
-                        .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
-                    (amount("pose_state.grounded_amount"), amount("pose_state.in_air_amount"))
-                });
         let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
+        let pelvis_offset_amount = players.get(instance.player_entity())
+            .map_or(0.0, |(player, _)| source_pelvis_offset_amount(player, ground_prediction));
         let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
             players.get(instance.player_entity()).ok()
                 .and_then(|(player, _)| source_player_property(player, &format!("grounded_state.velocity_blend.{direction}")))
@@ -868,7 +868,7 @@ fn refresh_control_rig_input(
             velocity_blend_forward_amount: velocity_blend[0],
             velocity_blend_backward_amount: velocity_blend[1],
             spine_yaw_angle_degrees: state.map_or(0.0, |state| state.final_yaw_angle),
-            pelvis_offset_amount: (pose_grounded + pose_in_air * ground_prediction).clamp(0.0, 1.0),
+            pelvis_offset_amount,
             ..*current_input
         };
         *current_input = input;
@@ -1046,6 +1046,20 @@ fn control_rig_hand_apply_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pelvis_offset_reads_the_prepared_actor_pose_inputs() {
+        let mut player = AnimationGraphPlayer::default();
+        for (grounded, in_air, prediction, expected) in [
+            (1.0_f32, 0.0_f32, 0.0_f32, 1.0_f32),
+            (0.25, 0.75, 0.4, 0.55),
+            (0.0, 1.0, 0.0, 0.0),
+        ] {
+            player.set_global_input_data("pose_state.grounded_amount", grounded);
+            player.set_global_input_data("pose_state.in_air_amount", in_air);
+            assert!((source_pelvis_offset_amount(&player, prediction) - expected).abs() < 1e-6);
+        }
+    }
 
     #[test]
     fn diagonal_scaling_matches_the_control_rig_formula() {

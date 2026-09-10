@@ -674,6 +674,18 @@
 
   - 05d3a完成/05d3b运行前2026-09-10 19:49:00：保留真实物理顺序的调度环反例25.820s FAIL；删去多余after(RotationResponse)后，组件输入未准备反例36.390s FAIL，现直接把当次FinalLocation/Rotation转换并保存到已有RigInput，图后只保留这些字段，26.652s PASS。304项目22.655s PASS，原source目标一致性消融保持；同入口67.495s、19图fresh spec3.142s、十命令source/图/编辑器/当前Rig审计4.528s PASS。仅增加一个已有SystemSet阶段并移动原足锁逻辑，复用TransformHelper与原输入字段，无新逐帧缓存/求解器/平滑。开始19:35、预估20:10、实际完成19:49（偏差-21m），静态子项闭合；公共startup后再完整Default、grounded/locomotion及站蹲直接回归，仍未宣称数值突变消除。
 
+
+  - 05d3b startup通过/完整Default动作前2026-09-10 19:52:48：c6f1bc8公共startup15.749s PASS，frame p95 18.5099ms/max23.6924ms、eval p95 0.0834ms；fault/graph/temporal为空、0截图。304回归、真实物理顺序fixture、19图fresh spec和十命令静态已通过；当前开始完整Default六窗口及两次跳跃，不以startup替代此前小腿故障的验收。
+
+
+  - 05d3b Default复验结果2026-09-10 19:54:40：18.608s manual0，全部14 coverage/六窗口通过，新trace与solve同目标合同逐帧通过、source errors为空；frame p95 23.3812ms/max28.5083ms、eval p95 0.0819ms通过，0截图。公共时间守卫仍捕获第一次起跳final calf_r：0.79758775rad/0.016706s=47.742596rad/s，elapsed9.2916026；pre-rig无异常。输入阶段/组件字段修复已通过自身合同，但不足以关闭整个Default；保留当前/前帧实际参数，先复算余下源参数与位置限制，不重复启动或放宽40rad/s。共享case尚未开始。
+
+
+  - 05d3b输入reader反例/05d3a有限复开2026-09-10 20:00:41：新失败帧复算pre-solver局部变化25.9181rad/s、给定参数BasicIK后47.7428rad/s，与实际一致；改用源初始骨长的受控对照仍47.1407rad/s，不能把该相邻差异当成根因。实际pelvis_write_delta=0且trace有负offset，追踪我本轮改动发现PoseState由provider写普通global input，而source_player_property只读原生状态/source_frame_input命名空间，导致准备好的PoseGrounded/InAir全读0。此前304回归漏了这两个输入到实际reader的正值组合；05d3a仅此读数边界取消勾选，先补实际player输入1/0与0.25/0.75/预测0.4的最小失败。目标仍读取源更新阶段PoseState，不退回当前帧曲线；不改BasicIK长度或阈值。
+
+
+  - 05d3a reader有限复开关闭/05d3b再运行前2026-09-10 20:09:16：实际player输入正值反例32.643s FAIL（错误命名空间返回0）；改用已有普通图输入读取，305项目25.279s PASS，覆盖grounded=1、0.25+0.75×0.4=0.55及全空中无预测=0。旧reader即消融失败；同时删除移动函数时重复的lint属性。最终同入口68.295s、19图fresh spec3.182s、十命令静态4.522s PASS。源PoseState准备阶段与组件空间足目标合同保留，未改Rig数学、长度或守卫。本次有限复开从20:00到20:08完成，仍在原20:10静态终点之前；下面新startup再完整Default，旧47.7426rad/s尚未认定消除。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |

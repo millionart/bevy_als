@@ -1082,7 +1082,6 @@ fn source_apply_foot_offset_location(
 }
 
 #[allow(clippy::type_complexity)]
-#[allow(clippy::type_complexity)]
 fn refresh_foot_lock_inputs(
     time: Res<Time>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
