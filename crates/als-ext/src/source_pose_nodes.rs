@@ -34,8 +34,9 @@ pub(crate) struct SourceBlendState {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
-pub(crate) struct SourceTwoWayBlendState {
+pub struct SourceTwoWayBlendState {
     alpha: SourceBlendState,
+    pub blend_alpha: f32,
     a_is_relevant: bool,
     b_is_relevant: bool,
     pub(crate) context: AnimationContextState,
@@ -268,6 +269,7 @@ impl NodeLike for SourceTwoWayBlendNode {
             );
             let (a_is_relevant, b_is_relevant, reset_a, reset_b) =
                 source_two_way_child_relevancy(state, alpha);
+            state.blend_alpha = alpha;
             (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
         };
         if self.reset_child_on_activation {
@@ -1110,6 +1112,8 @@ mod tests {
                     .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context)
                     .unwrap();
                 positions.push(output["Pose"].clone().into_pose().unwrap().timestamp);
+                let blend = graph.nodes.values().find(|node| node.name == "blend").unwrap();
+                assert_eq!(arena.get_toplevel().node_states.get::<SourceTwoWayBlendState>(blend.id, bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap().blend_alpha, alpha);
             }
             positions
         }

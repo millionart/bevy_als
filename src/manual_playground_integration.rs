@@ -97,6 +97,7 @@ const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const SPRINT_START: Vec3 = Vec3::new(-45.0, 0.0, -26.0);
 const SPRINT_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 const GROUNDED_START: Vec3 = Vec3::new(-45.0, 0.0, -28.0);
+const LOCOMOTION_DROP_HEIGHT: f32 = 30.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const STATE_MACHINE_TURN_FIRST_START: f32 = 0.5;
@@ -632,6 +633,7 @@ enum IntegrationPhase {
     Platform,
     Roll,
     GroundedJoint,
+    LocomotionActions,
     Ragdoll,
     Camera,
     Interface,
@@ -665,6 +667,7 @@ enum IntegrationScenario {
     StandingDynamic,
     Crouching,
     CrouchingActions,
+    LocomotionActions,
     ControlRig,
     DefaultOverlay,
     StateMachine,
@@ -689,6 +692,7 @@ impl IntegrationScenario {
             Some("standing_dynamic") => Self::StandingDynamic,
             Some("crouching") => Self::Crouching,
             Some("crouching_actions") => Self::CrouchingActions,
+            Some("locomotion") => Self::LocomotionActions,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
             Some("state_machine") => Self::StateMachine,
@@ -719,6 +723,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
             IntegrationPhase::GeneratedTransitionNotify
         }
         IntegrationScenario::Grounded => IntegrationPhase::Roll,
+        IntegrationScenario::LocomotionActions => IntegrationPhase::LocomotionActions,
         IntegrationScenario::Sprint => IntegrationPhase::Sprint,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
@@ -728,6 +733,333 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
+}
+
+const LOCOMOTION_ROOT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
+const LOCOMOTION_JUMP: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
+const LOCOMOTION_FALL: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
+const LOCOMOTION_LAND: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron";
+const LOCOMOTION_LAND_MOVEMENT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron";
+const LOCOMOTION_WINDOW_LABELS: [&str; 14] = [
+    "jump_walk_left", "jump_walk_right", "jump_run_left", "jump_run_right",
+    "jump_loop", "jump_flail", "fall_fast", "fall", "fall_flail",
+    "ground_prediction", "land_light", "land_mixed", "land_movement", "land_complete",
+];
+const LOCOMOTION_CLIPS: [(&str, &str); 13] = [
+    ("A_Als_Jump_Walk_Left", "A_Als_Jump_Walk_Left\nSequence Player\nSync group Jump"),
+    ("A_Als_Jump_Walk_Right", "A_Als_Jump_Walk_Right\nSequence Player\nSync group Jump"),
+    ("A_Als_Jump_Run_Left", "A_Als_Jump_Run_Left\nSequence Player\nSync group Jump"),
+    ("A_Als_Jump_Run_Right", "A_Als_Jump_Run_Right\nSequence Player\nSync group Jump"),
+    ("A_Als_Jump_Loop", "A_Als_Jump_Loop\nSequence Player\nSync group Flail"),
+    ("A_Als_Flail", "A_Als_Flail\nSequence Player\nSync group Flail"),
+    ("A_Als_Fall_Fast", "A_Als_Fall_Fast\nSequence Player\nSync group Fall"),
+    ("A_Als_Fall", "A_Als_Fall\nSequence Player\nSync group Fall"),
+    ("A_Als_Flail", "A_Als_Flail\nSequence Player"),
+    ("A_Als_Land_Light", "A_Als_Land_Light\nSequence Player\nSync group Land"),
+    ("A_Als_Land_Heavy", "A_Als_Land_Heavy\nSequence Player\nSync group Land"),
+    ("A_Als_Land_Light_Additive", "A_Als_Land_Light_Additive\nSequence Player\nSync group Land"),
+    ("A_Als_Land_Heavy_Additive", "A_Als_Land_Heavy_Additive\nSequence Player\nSync group Land"),
+];
+
+#[derive(Clone, Copy, Debug, Serialize)]
+struct LocomotionClipSample {
+    index: usize,
+    time: f32,
+    duration: f32,
+    weight: f32,
+    phase: Option<f32>,
+    play_rate: f32,
+    looping: bool,
+}
+
+#[derive(Default, Debug, Serialize)]
+struct LocomotionGraphSample {
+    outer: Option<u8>,
+    jump: Option<u8>,
+    outer_transition: Option<bool>,
+    outer_weights: [f32; 5],
+    jump_weights: [f32; 4],
+    clips: Vec<LocomotionClipSample>,
+    blends: Vec<(String, f32)>,
+    vertical: Option<f32>,
+    foot_planted: Option<f32>,
+    prediction: Option<f32>,
+    prediction_pose_ready: bool,
+}
+
+#[derive(Default)]
+struct LocomotionActionProbe {
+    case_index: usize,
+    sample: LocomotionGraphSample,
+    triggered: bool,
+    completed: bool,
+    valid: bool,
+    airborne_seen: bool,
+    ready_since: Option<f64>,
+    landed_since: Option<f64>,
+    land_notify_start: u32,
+    covered: [bool; 14],
+    canonical_seen: [bool; 14],
+    window_seconds: [f32; 14],
+}
+
+impl LocomotionActionProbe {
+    fn record_window(&mut self, index: usize, window: &ManualAnimationWindowEvidence, sample: LocomotionClipSample, delta: f32) {
+        self.window_seconds[index] += delta;
+        self.canonical_seen[index] |= locomotion_window_canonical(window, sample);
+        self.covered[index] |= self.window_seconds[index] >= 0.18 && self.canonical_seen[index];
+    }
+}
+
+fn locomotion_state_index(title: &str, label: &str) -> Option<u8> {
+    let labels: &[&str] = match title {
+        "Locomotion States\nState Machine" => &["Grounded", "Fall", "Jump", "Land", "Land Movement"],
+        "Jump States\nState Machine" => &["Left Foot", "Right Foot", "Loop", "Flail"],
+        _ => return None,
+    };
+    labels.iter().position(|candidate| *candidate == label).map(|index| index as u8)
+}
+
+fn locomotion_source_scalar(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
+    als_ext::source_instance::source_player_property(player, key).and_then(|value| value.as_f32().ok())
+        .or_else(|| graph_global_f32(player, key))
+}
+
+fn locomotion_actions_should_timeout(probe: &LocomotionActionProbe, elapsed: f32) -> bool {
+    !probe.completed && elapsed >= 12.0
+}
+
+fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -> LocomotionGraphSample {
+    let scalar = |key| locomotion_source_scalar(player, key);
+    let mut output = LocomotionGraphSample {
+        vertical: scalar("in_air_state.vertical_velocity_world_space"),
+        foot_planted: scalar("feet_state.foot_planted_amount"),
+        prediction: scalar("in_air_state.ground_prediction_amount"),
+        ..default()
+    };
+    let Some(arena) = player.get_context_arena() else { return output; };
+    let ticks = ["jump", "fall", "flail", "land"].iter().find_map(|group| {
+        als_ext::sync_group_phase::source_sync_players(arena, &probe.graphs, &format!("sync_groups.ab_als_locomotion.{group}.phase"))
+    });
+    let mut flail_alpha = None;
+    let mut prediction_alpha = None;
+    for id in arena.iter_context_ids() {
+        let Some(child) = arena.get_context(id) else { continue; };
+        let Some(path) = probe.asset_server.get_path(child.get_graph_id()) else { continue; };
+        if !path.path().starts_with("generated/ALS/Character/AnimationInstances/AB_Als_Locomotion") { continue; }
+        let Some(graph) = probe.graphs.get(child.get_graph_id()) else { continue; };
+        for node in graph.nodes.values() {
+            if !child.node_caches.is_updated(node.id, StateKey::Default) { continue; }
+            if let Some(fsm) = node.try_inner_downcast_ref::<als_ext::InterruptibleFsmNode>() {
+                let Some(machine) = probe.machines.get(&fsm.fsm) else { continue; };
+                let Ok(mut states) = child.node_states.get_all_upcoming_states::<als_ext::InterruptibleFsmState>(node.id) else { continue; };
+                let Some(state) = states.find(|state| state.last_output_pose().is_some()) else { continue; };
+                let actual = match &state.state {
+                    bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(id) => machine.states.get(id).and_then(|value| locomotion_state_index(&node.name, &value.label)),
+                    _ => None,
+                };
+                let weights = if node.name == "Locomotion States\nState Machine" {
+                    output.outer = actual;
+                    output.outer_transition = Some(matches!(state.state, bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlTransition(_)));
+                    &mut output.outer_weights[..]
+                } else if node.name == "Jump States\nState Machine" {
+                    output.jump = actual;
+                    &mut output.jump_weights[..]
+                } else { continue; };
+                for entry in machine.states.values() {
+                    if let Some(index) = locomotion_state_index(&node.name, &entry.label) {
+                        weights[index as usize] = state.recorded_state_weight(&entry.id.uuid().to_string());
+                    }
+                }
+            }
+            if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceTwoWayBlendNode>()
+                && let Ok(state) = child.node_states.get::<als_ext::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) {
+                output.blends.push((node.id.uuid().to_string(), state.blend_alpha));
+                if path.path() == std::path::Path::new(LOCOMOTION_FALL) {
+                    if blend.alpha_key == "in_air_state.ground_prediction_amount" { prediction_alpha = Some(state.blend_alpha); }
+                    if blend.alpha_key == "in_air_state.vertical_velocity_world_space" && blend.mapping.input_min == -5.0 && blend.mapping.input_max == -30.0 { flail_alpha = Some(state.blend_alpha); }
+                }
+            }
+            if node.name.ends_with("Sequence Evaluator (by frame)") && node.name.starts_with("A_Als_Land_") {
+                output.prediction_pose_ready |= child.node_caches.get_output_data(node.id, StateKey::Default, "Pose".into()).is_some_and(|value| value.as_pose().is_ok_and(|pose| !pose.bones.is_empty()));
+            }
+            let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>() else { continue; };
+            let Some(index) = LOCOMOTION_CLIPS.iter().position(|(_, title)| *title == node.name) else { continue; };
+            let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
+            let tick = ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (id, node.id)));
+            output.clips.push(LocomotionClipSample {
+                index, time: child.node_states.get_time(node.id, StateKey::Default), duration: clip.duration,
+                weight: tick.map_or(0.0, |tick| tick.weight), phase: tick.map(|tick| tick.phase),
+                play_rate: tick.map_or(sequence.play_rate, |tick| tick.play_rate), looping: sequence.loop_animation,
+            });
+        }
+    }
+    for sample in &mut output.clips {
+        if sample.index == 8 {
+            sample.weight = flail_alpha.unwrap_or(0.0) * (1.0 - prediction_alpha.unwrap_or(0.0)) * output.outer_weights[1];
+        }
+    }
+    output
+}
+
+fn locomotion_jump_ready(index: usize, outer: Option<u8>, speed: f32, foot: Option<f32>) -> bool {
+    outer == Some(0)
+        && if index < 2 { (1.0..=2.0).contains(&speed) } else { speed >= 3.6 }
+        && foot.is_some_and(|value| if index % 2 == 0 { value < -0.5 } else { value > 0.5 })
+}
+
+fn locomotion_jump_weights_match(clips: &[LocomotionClipSample], speed: f32) -> bool {
+    for (walk, run) in [(0, 2), (1, 3)] {
+        let weight = |index| clips.iter().filter(|sample| sample.index == index).map(|sample| sample.weight).sum::<f32>();
+        let total = weight(walk) + weight(run);
+        if total > 0.05 && (weight(run) / total - ((speed - 2.0) / 3.0).clamp(0.0, 1.0)).abs() > 0.015 { return false; }
+    }
+    true
+}
+
+fn locomotion_clip_graph(index: usize) -> &'static str {
+    match index {
+        0 | 2 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
+        1 | 3 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
+        4 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
+        5 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
+        6..=8 => LOCOMOTION_FALL,
+        9 | 10 => LOCOMOTION_LAND,
+        _ => LOCOMOTION_LAND_MOVEMENT,
+    }
+}
+
+fn locomotion_window_canonical(window: &ManualAnimationWindowEvidence, sample: LocomotionClipSample) -> bool {
+    if let Some(target) = window.canonical_sync_phase {
+        sample.phase.is_some_and(|phase| {
+            let distance = (phase - target).abs();
+            distance.min(1.0 - distance) <= window.maximum_sync_phase_distance
+        })
+    } else {
+        window.canonical_clip_time.is_none_or(|target| (sample.time - target).abs() <= window.maximum_clip_time_distance)
+    }
+}
+
+fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &LocomotionGraphSample) -> ManualAnimationWindowEvidence {
+    let graph = locomotion_clip_graph(sample.index);
+    let group = match sample.index {
+        0..=3 => Some(("Jump", "sync_groups.ab_als_locomotion.jump.phase")),
+        4..=5 => Some(("Flail", "sync_groups.ab_als_locomotion.flail.phase")),
+        6..=7 => Some(("Fall", "sync_groups.ab_als_locomotion.fall.phase")),
+        9..=12 => Some(("Land", "sync_groups.ab_als_locomotion.land.phase")),
+        _ => None,
+    };
+    let mut chain = vec![ManualAnimationPoseBoundary {
+        label: "sequence_player", graph, node: LOCOMOTION_CLIPS[sample.index].1, output: "Pose",
+        minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
+    }];
+    if sample.index <= 5 {
+        chain.push(ManualAnimationPoseBoundary { label: "jump_fsm", graph: LOCOMOTION_JUMP, node: "Jump States\nState Machine", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05 });
+    }
+    chain.push(ManualAnimationPoseBoundary { label: "locomotion_fsm", graph: LOCOMOTION_ROOT, node: "Locomotion States\nState Machine", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05 });
+    ManualAnimationWindowEvidence {
+        label: Some(LOCOMOTION_WINDOW_LABELS[index]), index: Some(index), settled: true, capture_source_window: true,
+        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Locomotion/Locomotion States"), source_state: Some(if sample.index <= 5 { "Jump" } else if sample.index <= 8 { "Fall" } else if sample.index <= 10 { "Land" } else { "Land Movement" }),
+        source_pose_chain: chain, minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05, minimum_observation_seconds: 0.12,
+        source_sync_group: group.map(|value| value.0), sync_phase_global: group.map(|value| value.1),
+        canonical_sync_phase: (sample.index <= 7).then_some(if sample.index <= 3 { 0.35 } else { 0.65 }), maximum_sync_phase_distance: 0.04,
+        canonical_clip_time: (sample.index >= 8).then_some(0.2), maximum_clip_time_distance: 0.04,
+        direction_signature_group: if index <= 3 { Some("jump_starts") } else if matches!(index, 6 | 7) { Some("fall_sources") } else { None }, required_direction_signature_members: if index <= 3 { 4 } else if matches!(index, 6 | 7) { 2 } else { 0 }, minimum_direction_signature_rotation_radians: if index <= 3 || matches!(index, 6 | 7) { 0.05 } else { 0.0 },
+        expected_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[index]), observed_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[sample.index]),
+        expected_runtime_state: if index <= 3 { Some((index % 2) as u8) } else if matches!(index, 6 | 7) { Some(1) } else { None }, observed_runtime_state: if index <= 3 { actual.jump } else if matches!(index, 6 | 7) { actual.outer } else { None },
+        expected_parent_runtime_state: (!(6..=8).contains(&sample.index)).then_some(if sample.index <= 5 { 2 } else if sample.index <= 10 { 3 } else { 4 }), observed_parent_runtime_state: actual.outer,
+        expected_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0), observed_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0),
+        observed_animation_clip_time: Some(sample.time), observed_animation_weight: Some(sample.weight), observed_animation_play_rate: Some(sample.play_rate),
+        ..default()
+    }
+}
+
+fn observe_locomotion_actions(
+    state: &mut ManualIntegrationState,
+    window: &mut ManualAnimationWindowEvidence,
+    report: &mut ManualIntegrationGateReport,
+    player: &AnimationGraphPlayer,
+    context: Option<&AlsRootAnimationContext>,
+    motion: &MotionProbe,
+    character: Entity,
+    transform: &Transform,
+    locomotion: LocomotionState,
+    stance: Stance,
+) {
+    let actual = locomotion_graph_sample(player, motion);
+    let speed = graph_global_f32(player, "locomotion_state.speed").unwrap_or(0.0);
+    let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
+    let notify = motion.generated_transition_notify.get(character).ok().flatten().map_or(0, |value| value.land_to_grounded_count);
+    let probe = &mut state.locomotion_probe;
+    let index = probe.case_index;
+    if actual.outer == Some(0) && actual.outer_transition == Some(false) && locomotion == LocomotionState::Grounded && stance == Stance::Standing {
+        probe.ready_since.get_or_insert(state.game_time_seconds);
+    } else {
+        probe.ready_since = None;
+    }
+    if !probe.airborne_seen { probe.land_notify_start = notify; }
+    probe.airborne_seen |= locomotion == LocomotionState::Air && (actual.outer_weights[1] > 0.05 || actual.outer_weights[2] > 0.05);
+    probe.valid &= locomotion_jump_weights_match(&actual.clips, speed);
+    let clip = |index| actual.clips.iter().copied().filter(|sample| sample.index == index && sample.weight > 0.05).max_by(|a, b| a.weight.total_cmp(&b.weight));
+    let mut selection = None;
+    if index < 4 && actual.outer == Some(2) && actual.jump == Some((index % 2) as u8) {
+        selection = clip(index).map(|sample| (index, sample));
+    } else if index == 4 && actual.outer == Some(2) {
+        let target = if !probe.covered[4] { 4 } else { 5 };
+        selection = clip(target).map(|sample| (target, sample));
+        probe.completed = probe.covered[4] && probe.covered[5] && actual.jump == Some(3);
+    } else if index == 5 {
+        let target = (6..=8).find(|target| !probe.covered[*target]);
+        if let Some(target) = target {
+            selection = clip(target).filter(|_| target != 7 || actual.vertical.is_some_and(|value| value <= -10.0)).map(|sample| (target, sample));
+        }
+        if target.is_none() && actual.prediction.is_some_and(|amount| amount > 0.05) && actual.prediction_pose_ready && actual.outer == Some(1) {
+            *window = ManualAnimationWindowEvidence {
+                label: Some(LOCOMOTION_WINDOW_LABELS[9]), settled: true, capture_source_window: true,
+                requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+                source_node: Some("AB_Als_Locomotion/Fall/GroundPrediction"), source_state: Some("Fall"),
+                source_pose_chain: vec![ManualAnimationPoseBoundary { label: "predicted_land_pose", graph: LOCOMOTION_FALL, node: "A_Als_Land_Heavy\nSequence Evaluator (by frame)", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }],
+                expected_runtime_state: Some(1), observed_runtime_state: actual.outer,
+                minimum_observation_seconds: 0.06,
+                ..default()
+            };
+            probe.window_seconds[9] += delta;
+            probe.covered[9] |= probe.window_seconds[9] >= 0.08;
+            probe.completed = probe.covered[9];
+        }
+    }
+    if locomotion == LocomotionState::Grounded && probe.airborne_seen {
+        if matches!(actual.outer, Some(3 | 4)) {
+            probe.landed_since.get_or_insert(state.game_time_seconds);
+            if index == 0 && actual.outer == Some(3) { selection = clip(9).map(|sample| (10, sample)); }
+            if index == 6 && actual.outer == Some(3) { selection = clip(10).map(|sample| (11, sample)); }
+            if index == 2 && actual.outer == Some(4) { selection = clip(11).map(|sample| (12, sample)); }
+        }
+        if actual.outer == Some(0) && actual.outer_transition == Some(false)
+            && probe.landed_since.is_some_and(|since| state.game_time_seconds - since >= 0.35) && notify > probe.land_notify_start {
+            probe.completed = true;
+            if index == 0 {
+                probe.covered[13] = true;
+                *window = ManualAnimationWindowEvidence { label: Some(LOCOMOTION_WINDOW_LABELS[13]), settled: true, capture_source_window: true,
+                    requires_non_reference_root_pose: true, source_node: Some("AB_Als_Locomotion/AnimNotify_LandToGrounded"), source_state: Some("Grounded"),
+                    expected_runtime_state: Some(0), observed_runtime_state: actual.outer, expected_lifecycle_stages: &["complete"], observed_lifecycle_stages: &["complete"], ..default() };
+            }
+        }
+    }
+    if let Some((target, selected)) = selection {
+        *window = locomotion_window(target, selected, &actual);
+        probe.record_window(target, window, selected, delta);
+    }
+    let curves = ["PoseStanding", "PoseGrounded", "PoseInAir", "GroundPredictionBlock", "FootLeftIk", "FootRightIk", "FootLeftLock", "FootRightLock"].map(|key| (key, context.and_then(|value| value.f32(key))));
+    report.direction_trace.push(serde_json::json!({
+        "case": index, "elapsed": state.game_time_seconds - state.phase_started_seconds,
+        "position": transform.translation.to_array(), "speed": speed, "locomotion": format!("{locomotion:?}"),
+        "triggered": probe.triggered, "completed": probe.completed, "valid": probe.valid, "covered": probe.covered,
+        "land_to_grounded_count": notify, "source": actual,
+        "curves": curves,
+    }));
+    probe.sample = actual;
 }
 
 const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 8] = [
@@ -2050,6 +2382,7 @@ struct ManualIntegrationState {
     grounded_roll_exit_diagnostic: String,
     grounded_roll_playback: Option<AlsTransitionPlayback>,
     grounded_joint_probe: GroundedJointProbe,
+    locomotion_probe: LocomotionActionProbe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -2163,6 +2496,7 @@ impl Default for ManualIntegrationState {
             grounded_roll_exit_diagnostic: "not observed".to_owned(),
             grounded_roll_playback: None,
             grounded_joint_probe: default(),
+            locomotion_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -2194,6 +2528,7 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    asset_server: Res<'w, AssetServer>,
     graphs: Res<'w, Assets<AnimationGraph>>,
     clips: Res<'w, Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
     avatar_space:
@@ -2389,7 +2724,7 @@ fn spawn_manual_integration_fixture(
             Name::new("manual_integration_platform"),
             ManualIntegrationPlatform,
             RigidBody::Kinematic,
-            Collider::cuboid(3.0, 0.25, 3.0),
+            Collider::cuboid(6.0, 0.5, 6.0),
             LinearVelocity(Vec3::X * 1.5),
             Transform::from_translation(platform_home),
             Mesh3d(meshes.add(Mesh::from(Cuboid::new(6.0, 0.5, 6.0)))),
@@ -2622,6 +2957,62 @@ fn drive_manual_integration(
 
     match state.phase {
         IntegrationPhase::Await => {}
+        IntegrationPhase::LocomotionActions => {
+            let index = state.locomotion_probe.case_index;
+            if entering {
+                let covered = state.locomotion_probe.covered;
+                let canonical_seen = state.locomotion_probe.canonical_seen;
+                let window_seconds = state.locomotion_probe.window_seconds;
+                let valid = index == 0 || state.locomotion_probe.valid;
+                state.locomotion_probe = LocomotionActionProbe { case_index: index, covered, canonical_seen, window_seconds, triggered: index == 6, valid, ..default() };
+                if let Ok((mut platform, platform_position, mut platform_velocity)) = platforms.get_mut(fixture.platform) {
+                    platform.translation = if matches!(index, 4 | 5) { GROUNDED_START.with_y(LOCOMOTION_DROP_HEIGHT) } else { fixture.platform_home };
+                    if let Some(mut position) = platform_position { position.0 = platform.translation; }
+                    platform_velocity.0 = Vec3::ZERO;
+                }
+                let start = if matches!(index, 4 | 5) {
+                    GROUNDED_START.with_y(LOCOMOTION_DROP_HEIGHT + 0.25 + fixture.locomotion_start.y)
+                } else {
+                    GROUNDED_START.with_y(fixture.locomotion_start.y)
+                        + if index == 6 { Vec3::Y * (6.2 * 6.2 / (2.0 * 9.81 * params_assets.get(params_handle.id()).unwrap().jump.gravity_scale)) } else { Vec3::ZERO }
+                };
+                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, start, SPRINT_YAW);
+                reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "locomotion_actions");
+                request.stance = Some(Stance::Standing);
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+            }
+            request.gait = Some(if matches!(index, 2..=4) { Gait::Running } else { Gait::Walking });
+            if index < 4 {
+                let jumped = state.locomotion_probe.triggered;
+                input.0.move_dir = if !jumped || index >= 2 || !state.locomotion_probe.covered[index] { Vec2::Y } else { Vec2::ZERO };
+                if !jumped && locomotion_jump_ready(index, state.locomotion_probe.sample.outer, Vec2::new(velocity.x, velocity.z).length(), state.locomotion_probe.sample.foot_planted) {
+                    input.0.jump_pressed = true;
+                    state.locomotion_probe.triggered = true;
+                }
+            } else if index <= 5 {
+                let ready = state.locomotion_probe.ready_since.is_some_and(|since| state.game_time_seconds - since >= 0.3);
+                if !state.locomotion_probe.triggered && ready && (index == 5 || Vec2::new(velocity.x, velocity.z).length() >= 3.6) {
+                    state.locomotion_probe.triggered = true;
+                    input.0.jump_pressed = index == 4;
+                }
+                if (ready || state.locomotion_probe.triggered) && transform.translation.x < GROUNDED_START.x + 4.0 {
+                    input.0.move_dir = Vec2::Y;
+                }
+            }
+            if state.locomotion_probe.completed {
+                if index < 6 {
+                    state.locomotion_probe.case_index += 1;
+                    begin_phase(&mut state, IntegrationPhase::LocomotionActions);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                }
+            } else if locomotion_actions_should_timeout(&state.locomotion_probe, elapsed) {
+                state.timed_out = true;
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
         IntegrationPhase::StandingResponse => {
             if entering {
                 state.coverage.response_idle = true;
@@ -5190,6 +5581,9 @@ fn observe_manual_integration(
     }
     if !source_ready {
         state.coverage.graph = false;
+    }
+    if state.scenario == IntegrationScenario::LocomotionActions && state.phase == IntegrationPhase::LocomotionActions && !state.entered {
+        observe_locomotion_actions(state, &mut animation_window, gate_report, player, context, &motion_probe, character, transform, *locomotion, *stance);
     }
     if state.scenario == IntegrationScenario::Grounded && !state.entered {
         let notify = motion_probe
@@ -7851,6 +8245,16 @@ fn observe_manual_integration(
             }
         }
         let results = match state.scenario {
+            IntegrationScenario::LocomotionActions => {
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": state.locomotion_probe.case_index, "no_progress_limit_seconds": 12.0, "current_conditions": state.locomotion_probe.sample}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(LOCOMOTION_WINDOW_LABELS.iter().enumerate().map(|(index, label)| (*label, state.locomotion_probe.covered[index])));
+                results.push(("locomotion_lifecycles", state.locomotion_probe.case_index == 6 && state.locomotion_probe.completed));
+                results.push(("locomotion_source_blends", state.locomotion_probe.valid));
+                results
+            }
             IntegrationScenario::CrouchingActions => {
                 let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("crouching", coverage.crouching),
                 ];
@@ -8296,6 +8700,108 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn locomotion_source_inputs_and_watchdog_keep_missing_values_visible() {
+        let mut player = AnimationGraphPlayer::new(default());
+        assert_eq!(locomotion_source_scalar(&player, "feet_state.foot_planted_amount"), None);
+        player.set_global_input_data("feet_state.foot_planted_amount", 0.75_f32);
+        assert_eq!(locomotion_source_scalar(&player, "feet_state.foot_planted_amount"), Some(0.75));
+        let mut probe = LocomotionActionProbe::default();
+        assert!(!locomotion_actions_should_timeout(&probe, 11.99));
+        assert!(locomotion_actions_should_timeout(&probe, 12.0));
+        probe.completed = true;
+        assert!(!locomotion_actions_should_timeout(&probe, 12.0));
+        let sample = LocomotionClipSample { index: 6, time: 0.2, duration: 1.0, weight: 0.5, phase: Some(0.2), play_rate: 1.0, looping: true };
+        let window = locomotion_window(6, sample, &LocomotionGraphSample { outer: Some(1), ..default() });
+        assert!(!locomotion_window_canonical(&window, sample));
+        assert!(locomotion_window_canonical(&window, LocomotionClipSample { phase: Some(0.65), ..sample }));
+        let land = LocomotionClipSample { index: 9, looping: false, ..sample };
+        let window = locomotion_window(10, land, &LocomotionGraphSample { outer: Some(3), ..default() });
+        probe.record_window(10, &window, land, 0.1);
+        assert!(!probe.covered[10]);
+        probe.record_window(10, &window, LocomotionClipSample { time: 0.3, ..land }, 0.1);
+        assert!(probe.covered[10]);
+    }
+
+    #[test]
+    fn locomotion_fixture_waits_for_source_feet_and_checks_continuous_jump_weights() {
+        for index in 0..4 {
+            let speed = if index < 2 { 1.8 } else { 4.2 };
+            let foot = if index % 2 == 0 { -1.0 } else { 1.0 };
+            assert!(locomotion_jump_ready(index, Some(0), speed, Some(foot)));
+            assert!(!locomotion_jump_ready(index, Some(2), speed, Some(foot)));
+            assert!(!locomotion_jump_ready(index, Some(0), speed, Some(-foot)));
+            assert!(!locomotion_jump_ready(index, Some(0), speed, None));
+            let run = ((speed - 2.0) / 3.0_f32).clamp(0.0, 1.0);
+            let mut clips = vec![
+                LocomotionClipSample { index: index % 2, time: 0.2, duration: 1.0, weight: (1.0 - run) * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
+                LocomotionClipSample { index: index % 2 + 2, time: 0.2, duration: 1.0, weight: run * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
+            ];
+            assert!(locomotion_jump_weights_match(&clips, speed));
+            clips[1].weight += 0.1;
+            assert!(!locomotion_jump_weights_match(&clips, speed));
+        }
+    }
+
+    #[test]
+    fn locomotion_observation_binds_both_generated_state_machines_and_all_source_clips() {
+        assert_eq!(initial_phase(IntegrationScenario::LocomotionActions), IntegrationPhase::LocomotionActions);
+        for (path, title, label, expected) in [
+            (LOCOMOTION_ROOT, "Locomotion States\nState Machine", "Land Movement", 4),
+            (LOCOMOTION_JUMP, "Jump States\nState Machine", "Flail", 3),
+        ] {
+            let graph = std::fs::read_to_string(format!("assets/{path}")).unwrap();
+            assert!(graph.contains(&format!("name: {:?}", title)));
+            assert_eq!(locomotion_state_index(title, label), Some(expected));
+            assert_eq!(locomotion_state_index("Locomotion States", label), None);
+        }
+        for (index, (variant, title)) in LOCOMOTION_CLIPS.iter().enumerate() {
+            let graph = std::fs::read_to_string(format!("assets/{}", locomotion_clip_graph(index))).unwrap();
+            assert!(graph.contains(&format!("name: {:?}", title)), "{variant}");
+        }
+        let root = include_str!("../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+        assert!(root.contains(LOCOMOTION_ROOT));
+    }
+
+    #[test]
+    fn locomotion_long_air_fixture_stays_above_the_original_floor_for_the_source_transition() {
+        use als_ext::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
+        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../assets/models/playground/playground.json")).unwrap();
+        for offset in [Vec3::ZERO, Vec3::X * 12.0] {
+            let point = GROUNDED_START + offset;
+            assert!(actors.iter().any(|actor| {
+                let (Some(origin), Some(extent)) = (actor.bounds_origin, actor.bounds_extent) else { return false; };
+                let center = ue_point_to_bevy(Vec3::from(origin));
+                let extent = ue_extents_to_bevy(Vec3::from(extent));
+                (center.y + extent.y).abs() < 0.01 && (point.x - center.x).abs() + 0.3 < extent.x && (point.z - center.z).abs() + 0.3 < extent.z
+            }));
+        }
+        let params = AlsMovementParams::default();
+        let source_duration = 1.666667 / 1.2 + 0.2 + 1.0 + 0.2;
+        let fallen = 0.5 * 9.81 * params.jump.gravity_scale * source_duration * source_duration - params.jump.jump_z_velocity * source_duration;
+        assert!(LOCOMOTION_DROP_HEIGHT > fallen);
+        assert!(18.0 < fallen);
+    }
+
+    #[test]
+    fn locomotion_platform_physics_matches_its_visible_support_surface() {
+        use avian3d::prelude::SimpleCollider;
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<Assets<Mesh>>();
+        world.init_resource::<Assets<StandardMaterial>>();
+        world.run_system_once(|mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
+            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0);
+        }).unwrap();
+        let entity = world.entity(world.resource::<ManualIntegrationFixture>().platform);
+        let transform = entity.get::<Transform>().unwrap();
+        let aabb = entity.get::<Collider>().unwrap().aabb(transform.translation, transform.rotation);
+        let meshes = world.resource::<Assets<Mesh>>();
+        let points = meshes.get(&entity.get::<Mesh3d>().unwrap().0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
+        let (min, max) = points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)));
+        assert!(aabb.min.distance(min) < 1e-5 && aabb.max.distance(max) < 1e-5, "physical={aabb:?} visible=({min:?}, {max:?})");
+    }
 
     #[test]
     fn get_up_fixture_covers_both_source_facing_branches() {

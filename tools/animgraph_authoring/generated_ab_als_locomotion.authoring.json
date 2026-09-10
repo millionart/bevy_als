@@ -53,6 +53,10 @@
     {
       "path": "target/bf115_locomotion/source/TnuaController.rs",
       "sha256": "d8a5dd266e718568d26bef4de92adebadcab163cb4222bec58b085c00476ea8f"
+    },
+    {
+      "path": "target/bf115_locomotion/source/CS_Als_Default.actions.ue.json",
+      "sha256": "8cfc0c7fe95320dd1bc1e13f3643ef3bae227bf5c9b0599ac0de768502225cc0"
     }
   ],
   "graphs": [
@@ -1851,7 +1855,7 @@
         "--materialized-directory",
         "target/bf115_locomotion/native_call_conversion",
         "--spec",
-        "target/bf115_locomotion/native_call_spec.json"
+        "target/bf115_locomotion/observation_spec.json"
       ]
     },
     {
@@ -1939,7 +1943,7 @@
   ],
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
-    "manual_case": "base"
+    "manual_case": "locomotion"
   },
   "focused_tests": [
     {
@@ -1997,6 +2001,34 @@
         "air_jump_layer::tests"
       ],
       "evidence": "target/bf115_locomotion/source/native_regression_retry.watchdog.json"
+    },
+    {
+      "label": "locomotion_action_observation",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "manual_playground_integration::tests"
+      ],
+      "evidence": "target/bf115_locomotion/source/observation_final.watchdog.json"
+    },
+    {
+      "label": "actual_source_blend_alpha",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-ext",
+        "source_pose_nodes::tests::source_two_way_reinitializes_players_and_advances_the_activation_frame"
+      ],
+      "evidence": "target/bf115_locomotion/source/observation_regression_pass.watchdog.json"
     }
   ]
 }
