@@ -482,7 +482,11 @@
 
   - 04a完成2026-09-10 10:00:00：公开uasset转换43.548s、unsupported 0；147 raw graph中32可达项（10 Pose图/2 FSM/18条件/2函数）、153节点，46生成RON，Fall/Jump/Flail/Land四同步组。当前二进制10图fresh spec2.910s通过；source审计0.834s稳定FAIL于10张已安装Pose图，覆盖64源Pose节点/50边，差异为旧Actor同步时钟、缺少当前曲线/非循环/活动状态重返策略及Land原生Rotate节点。输出仍全部隔离。fresh C++还确认OnJumped→Jump请求→NativeUpdate锁存→相关Jump/Fall的RefreshInAir消费；target将bJumped写为F32、按向上Air切换猜测跳跃，并由1150行旧Actor FSM/phase/curve推算替代图执行，InitializeLean/RefreshInAir仍只是Pose转发。只把这些直接输入/函数/资产纳入下一阶段；本项完成源清单和失败证据，不宣称动画行为已通过。开始09:47:00、预估10:37:00、实际10:00:00（偏差-37m）。
 
-- [ ] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
+- [x] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
+
+  - 04b完成2026-09-10 10:13:00：bJumped类型反例32.357s FAIL（None对Some(true)），按源Bool写入后15项Locomotion回归21.340s PASS。十张生成图由公开输出安装，保持原AB_Als owner的256文件集合，未手改RON或原始导出；46文件与编译输出逐字一致。编辑器修复0项（0.295s），target_game/play双example63.832s、十图fresh spec2.583s、完整声明式2.385s均PASS，源32子图/64 Pose节点/50边/两FSM/18条件闭合。旧生成时钟/缺失属性路径即静态失败对照；未增加新状态或依赖。开始10:00:00、预估10:25:00、实际10:13:00（偏差-12m）；只完成生成/ABI接入，Jump事件、InitializeLean/RefreshInAir执行及旧Actor推算清理仍未通过，不启动runtime。
+
+- [ ] BF115.04c Locomotion源InAir设置、曲线与标量单位合同：开始2026-09-10 10:13:00、预估11:08:00。依赖04b，沿同次32图及fresh RefreshInAir/RefreshGroundPrediction/RefreshInAirLean读取父AIS的InAir/General字段、两条曲线与实际图中的速度标量链；核对单位、坐标空间、输入/输出区间和时机，先最小反例后复用离线工具生成独立target数据，必要的通用转换器修复必须保留source fixture并公开uasset重新生成。估时依据为两条曲线、四个同步组与三条已知速度消费者，复用已完成Standing的CurveFloat导入/单位合同；本段不复制旧Actor公式作为标准。图相关的刷新与真实Jump事件随后另立不超过60分钟的实现段，全部静态闭合后再做原Playground无截图Gate。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

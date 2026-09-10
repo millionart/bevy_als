@@ -877,8 +877,8 @@ fn write_globals(
     ] {
         player.set_global_input_data(key, value);
     }
+    player.set_global_input_data("in_air_state.b_jumped", jumped);
     for (key, value) in [
-        ("in_air_state.b_jumped", jumped as u8 as f32),
         ("in_air_state.ground_prediction_amount", ground_prediction),
         ("in_air_state.jump_play_rate", jump_play_rate),
         (
@@ -1420,7 +1420,7 @@ mod tests {
     }
 
     #[test]
-    fn source_jump_signal_is_written_before_the_local_fsm_consumes_it() {
+    fn source_jump_signal_is_boolean_before_the_local_fsm_consumes_it() {
         let mut player = AnimationGraphPlayer::new(default());
         write_globals(
             &mut player,
@@ -1435,8 +1435,8 @@ mod tests {
         assert_eq!(
             player
                 .get_global_input_data("in_air_state.b_jumped")
-                .and_then(|value| value.as_f32().ok()),
-            Some(1.0)
+                .and_then(|value| value.as_bool().ok()),
+            Some(true)
         );
     }
 

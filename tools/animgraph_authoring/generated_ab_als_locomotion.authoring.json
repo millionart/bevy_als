@@ -1,0 +1,1894 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_locomotion_assets",
+  "source_evidence": [
+    {
+      "path": "target/bf115_locomotion/native_source/0001_AB_Als_Locomotion.ue.json",
+      "sha256": "6203ad228396f8154eed1c6e0f0a4564d1a86d56a81a50a76f0ed5727911ac03"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsInAirState.h",
+      "sha256": "69c0dd8621295de4a1dd7882687806948b4037d520c5834c254e261f49e44e1e"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "a20c1f65-41f3-77bd-3254-0693a57f07bc",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "7f9a031b-4cc0-2f3b-68ab-45b2c3c9e294",
+          "name": "Input Pose\nGrounded Input",
+          "position": [
+            0.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "5bc4c720-4332-206f-c647-d7a8d8d1b31a",
+          "name": "Save cached pose 'Grounded'",
+          "position": [
+            176.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "da8d3812-4196-b3f8-6407-069545d07db8",
+          "name": "Inertialization",
+          "position": [
+            -400.0,
+            64.0
+          ]
+        },
+        {
+          "id": "12f708ed-482a-c21c-6ba1-efa436b1ee7b",
+          "name": "Locomotion States\nState Machine",
+          "position": [
+            -608.0,
+            48.0
+          ]
+        },
+        {
+          "id": "c7f5549b-43b6-aeef-e32e-6db47c87ce04",
+          "name": "InitializeLean\r\nOn Become Relevant",
+          "position": [
+            -208.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"c7f5549b-43b6-aeef-e32e-6db47c87ce04\", \"Source\")",
+          "source": "NodeData(\"da8d3812-4196-b3f8-6407-069545d07db8\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"da8d3812-4196-b3f8-6407-069545d07db8\", \"Source\")",
+          "source": "NodeData(\"12f708ed-482a-c21c-6ba1-efa436b1ee7b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5bc4c720-4332-206f-c647-d7a8d8d1b31a\", \"Pose\")",
+          "source": "NodeData(\"7f9a031b-4cc0-2f3b-68ab-45b2c3c9e294\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"a20c1f65-41f3-77bd-3254-0693a57f07bc\", \"Source\")",
+          "source": "NodeData(\"c7f5549b-43b6-aeef-e32e-6db47c87ce04\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"a20c1f65-41f3-77bd-3254-0693a57f07bc\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "Grounded Input": "Pose"
+        },
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "9b849580-4a9e-f04c-de1e-3b968379bd41",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "16ac96bb-4b96-e4a7-38ea-a4af5a3419be",
+          "name": "Jump States\nState Machine",
+          "position": [
+            -1648.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "64f6adc0-4dd5-472e-70b7-578beb8adf86",
+          "name": "Apply Additive",
+          "position": [
+            -1296.0,
+            -192.0
+          ]
+        },
+        {
+          "id": "2055cda9-4c58-ee11-0697-a19830a3e1b3",
+          "name": "Two Way Blend",
+          "position": [
+            -1104.0,
+            0.0
+          ]
+        },
+        {
+          "id": "31aafb47-4ad1-948c-6cda-ed80e2f05146",
+          "name": "A_Als_Land_Heavy\nSequence Evaluator (by frame)",
+          "position": [
+            -1776.0,
+            144.0
+          ]
+        },
+        {
+          "id": "f89d13d3-43c1-48d9-a7c0-e7a6c75568f0",
+          "name": "A_Als_Land_Light\nSequence Evaluator (by frame)",
+          "position": [
+            -1776.0,
+            272.0
+          ]
+        },
+        {
+          "id": "6df19b3b-4c55-7ff2-0baa-f69ab1a07123",
+          "name": "Two Way Blend",
+          "position": [
+            -1488.0,
+            208.0
+          ]
+        },
+        {
+          "id": "fc0fe387-4e80-b993-b166-8597e1f6332b",
+          "name": "Modify Curve",
+          "position": [
+            -432.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6e07e2de-49ff-2ae6-3fc8-8694d38d50c2",
+          "name": "Inertialization",
+          "position": [
+            -1488.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "23ac76e7-4632-ee1b-c7b4-5caa8af45c96",
+          "name": "BS_Als_Air_Lean\nBlendspace Evaluator",
+          "position": [
+            -1680.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "16f1709e-903c-57c8-9ce3-bea0c8cca0dd",
+          "name": "Blendspace position",
+          "position": [
+            -1776.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "5823046f-bdfe-56ff-90ac-e40175c8d48a",
+          "name": "Blendspace normalized time",
+          "position": [
+            -1776.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "735e67f7-2069-5181-8528-e4ef590582b9",
+          "name": "Blendspace X binding",
+          "position": [
+            -1872.0,
+            -144.0
+          ]
+        },
+        {
+          "id": "f4e2371d-e632-5966-b430-10350c72716a",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1872.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "8b9c0ff5-5a21-59d6-85d6-1edf1bf50985",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1872.0,
+            16.0
+          ]
+        },
+        {
+          "id": "96deadd2-cd55-57a0-a69a-d46d32ccb51c",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1872.0,
+            80.0
+          ]
+        },
+        {
+          "id": "3e419973-cbc4-5478-9796-40c7593c6d8f",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1872.0,
+            144.0
+          ]
+        },
+        {
+          "id": "626fc76c-ddef-5069-95a3-1ff750198351",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1872.0,
+            208.0
+          ]
+        },
+        {
+          "id": "3fb5a42a-9a51-53cf-a4cc-3cca452f71fc",
+          "name": "Blendspace sample 4",
+          "position": [
+            -1872.0,
+            272.0
+          ]
+        },
+        {
+          "id": "6b8386a0-400c-9fd3-ede6-69b5b2f89011",
+          "name": "RefreshInAir\r\nOn Update",
+          "position": [
+            -176.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "68c883c5-4265-9848-19f4-2b82819a58c2",
+          "name": "Modify Curve",
+          "position": [
+            -768.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07",
+          "name": "additive difference Blendspace sample 0",
+          "position": [
+            -1776.0,
+            16.0
+          ]
+        },
+        {
+          "id": "7ffb61de-1770-5606-88df-37a73f2bfa5a",
+          "name": "additive difference Blendspace sample 1",
+          "position": [
+            -1776.0,
+            80.0
+          ]
+        },
+        {
+          "id": "d026af2b-3b47-5f99-9f27-a7a308635a59",
+          "name": "additive difference Blendspace sample 2",
+          "position": [
+            -1744.0,
+            176.0
+          ]
+        },
+        {
+          "id": "fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3",
+          "name": "additive difference Blendspace sample 3",
+          "position": [
+            -1776.0,
+            208.0
+          ]
+        },
+        {
+          "id": "9dda5f6d-3a37-5f2d-859c-90bb0b9b5713",
+          "name": "additive difference Blendspace sample 4",
+          "position": [
+            -1744.0,
+            304.0
+          ]
+        },
+        {
+          "id": "d44e9239-1aa8-5881-b806-bbdc40eee915",
+          "name": "additive reference A_Als_Fall 8b9c0ff5 clip",
+          "position": [
+            -2160.0,
+            16.0
+          ]
+        },
+        {
+          "id": "81859972-c9bd-5f71-ab59-404862d183b9",
+          "name": "additive reference A_Als_Fall 8b9c0ff5 evaluator",
+          "position": [
+            -2064.0,
+            16.0
+          ]
+        },
+        {
+          "id": "7d44b912-831c-5610-ad4c-9fb893fe0f2f",
+          "name": "additive reference A_Als_Fall 8b9c0ff5 frame",
+          "position": [
+            -2160.0,
+            64.0
+          ]
+        },
+        {
+          "id": "cb9aed60-e208-5823-bb32-db67d50c6e5e",
+          "name": "additive reference A_Als_Fall 96deadd2 clip",
+          "position": [
+            -2160.0,
+            80.0
+          ]
+        },
+        {
+          "id": "632e933e-af05-5a4c-a15e-99231bcd8b99",
+          "name": "additive reference A_Als_Fall 96deadd2 evaluator",
+          "position": [
+            -2064.0,
+            80.0
+          ]
+        },
+        {
+          "id": "56360aac-8f3b-538d-ac42-42ef57a36b24",
+          "name": "additive reference A_Als_Fall 96deadd2 frame",
+          "position": [
+            -2160.0,
+            128.0
+          ]
+        },
+        {
+          "id": "25b12caf-209c-535c-9c27-fee0b2fcfd14",
+          "name": "additive reference A_Als_Fall 3e419973 clip",
+          "position": [
+            -2160.0,
+            144.0
+          ]
+        },
+        {
+          "id": "24e051d4-1c7f-5bde-8acc-c502ec9305b2",
+          "name": "additive reference A_Als_Fall 3e419973 evaluator",
+          "position": [
+            -2064.0,
+            144.0
+          ]
+        },
+        {
+          "id": "44b2108f-e824-53ae-af18-9faae10c2128",
+          "name": "additive reference A_Als_Fall 3e419973 frame",
+          "position": [
+            -2160.0,
+            192.0
+          ]
+        },
+        {
+          "id": "e79ba929-7ba6-5e29-866e-a769a24bad11",
+          "name": "additive reference A_Als_Fall 626fc76c clip",
+          "position": [
+            -2160.0,
+            208.0
+          ]
+        },
+        {
+          "id": "5f5d9174-518b-5664-88b0-02529623f3cb",
+          "name": "additive reference A_Als_Fall 626fc76c evaluator",
+          "position": [
+            -2064.0,
+            208.0
+          ]
+        },
+        {
+          "id": "9bfd0253-4445-5e8c-9342-8b88b0655f82",
+          "name": "additive reference A_Als_Fall 626fc76c frame",
+          "position": [
+            -2160.0,
+            256.0
+          ]
+        },
+        {
+          "id": "d1d86ab7-bb4e-5b80-a104-dde88f3a50e3",
+          "name": "additive reference A_Als_Fall 3fb5a42a clip",
+          "position": [
+            -2160.0,
+            272.0
+          ]
+        },
+        {
+          "id": "d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35",
+          "name": "additive reference A_Als_Fall 3fb5a42a evaluator",
+          "position": [
+            -2064.0,
+            272.0
+          ]
+        },
+        {
+          "id": "cda65fe5-e4d6-55be-b77f-d88dabdf3a29",
+          "name": "additive reference A_Als_Fall 3fb5a42a frame",
+          "position": [
+            -2160.0,
+            320.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"9b849580-4a9e-f04c-de1e-3b968379bd41\", \"Source\")",
+          "source": "NodeData(\"6b8386a0-400c-9fd3-ede6-69b5b2f89011\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2055cda9-4c58-ee11-0697-a19830a3e1b3\", \"B\")",
+          "source": "NodeData(\"6df19b3b-4c55-7ff2-0baa-f69ab1a07123\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6b8386a0-400c-9fd3-ede6-69b5b2f89011\", \"Source\")",
+          "source": "NodeData(\"fc0fe387-4e80-b993-b166-8597e1f6332b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6df19b3b-4c55-7ff2-0baa-f69ab1a07123\", \"A\")",
+          "source": "NodeData(\"31aafb47-4ad1-948c-6cda-ed80e2f05146\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6df19b3b-4c55-7ff2-0baa-f69ab1a07123\", \"B\")",
+          "source": "NodeData(\"f89d13d3-43c1-48d9-a7c0-e7a6c75568f0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2055cda9-4c58-ee11-0697-a19830a3e1b3\", \"A\")",
+          "source": "NodeData(\"64f6adc0-4dd5-472e-70b7-578beb8adf86\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"fc0fe387-4e80-b993-b166-8597e1f6332b\", \"SourcePose\")",
+          "source": "NodeData(\"68c883c5-4265-9848-19f4-2b82819a58c2\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"68c883c5-4265-9848-19f4-2b82819a58c2\", \"SourcePose\")",
+          "source": "NodeData(\"2055cda9-4c58-ee11-0697-a19830a3e1b3\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6e07e2de-49ff-2ae6-3fc8-8694d38d50c2\", \"Source\")",
+          "source": "NodeData(\"16ac96bb-4b96-e4a7-38ea-a4af5a3419be\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"64f6adc0-4dd5-472e-70b7-578beb8adf86\", \"Base\")",
+          "source": "NodeData(\"6e07e2de-49ff-2ae6-3fc8-8694d38d50c2\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"64f6adc0-4dd5-472e-70b7-578beb8adf86\", \"Additive\")",
+          "source": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"position\")",
+          "source": "NodeData(\"16f1709e-903c-57c8-9ce3-bea0c8cca0dd\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"phase\")",
+          "source": "NodeData(\"5823046f-bdfe-56ff-90ac-e40175c8d48a\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"16f1709e-903c-57c8-9ce3-bea0c8cca0dd\", \"x\")",
+          "source": "NodeData(\"735e67f7-2069-5181-8528-e4ef590582b9\", \"lean_state.right_amount\")"
+        },
+        {
+          "target": "NodeData(\"16f1709e-903c-57c8-9ce3-bea0c8cca0dd\", \"y\")",
+          "source": "NodeData(\"f4e2371d-e632-5966-b430-10350c72716a\", \"lean_state.forward_amount\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose_sample_0\")",
+          "source": "NodeData(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"time_sample_0\")",
+          "source": "NodeTime(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose_sample_1\")",
+          "source": "NodeData(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"time_sample_1\")",
+          "source": "NodeTime(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose_sample_2\")",
+          "source": "NodeData(\"d026af2b-3b47-5f99-9f27-a7a308635a59\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"time_sample_2\")",
+          "source": "NodeTime(\"d026af2b-3b47-5f99-9f27-a7a308635a59\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose_sample_3\")",
+          "source": "NodeData(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"time_sample_3\")",
+          "source": "NodeTime(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\")"
+        },
+        {
+          "target": "NodeData(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"pose_sample_4\")",
+          "source": "NodeData(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"23ac76e7-4632-ee1b-c7b4-5caa8af45c96\", \"time_sample_4\")",
+          "source": "NodeTime(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"9b849580-4a9e-f04c-de1e-3b968379bd41\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\", \"reference_pose\")",
+          "source": "NodeData(\"81859972-c9bd-5f71-ab59-404862d183b9\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\", \"reference_time\")",
+          "source": "NodeTime(\"81859972-c9bd-5f71-ab59-404862d183b9\")"
+        },
+        {
+          "target": "NodeData(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\", \"target_pose\")",
+          "source": "NodeData(\"8b9c0ff5-5a21-59d6-85d6-1edf1bf50985\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"c4c64ff1-cdbe-5c3f-b96f-9c57d8a61a07\", \"target_time\")",
+          "source": "NodeTime(\"8b9c0ff5-5a21-59d6-85d6-1edf1bf50985\")"
+        },
+        {
+          "target": "NodeData(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\", \"reference_pose\")",
+          "source": "NodeData(\"632e933e-af05-5a4c-a15e-99231bcd8b99\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\", \"reference_time\")",
+          "source": "NodeTime(\"632e933e-af05-5a4c-a15e-99231bcd8b99\")"
+        },
+        {
+          "target": "NodeData(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\", \"target_pose\")",
+          "source": "NodeData(\"96deadd2-cd55-57a0-a69a-d46d32ccb51c\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"7ffb61de-1770-5606-88df-37a73f2bfa5a\", \"target_time\")",
+          "source": "NodeTime(\"96deadd2-cd55-57a0-a69a-d46d32ccb51c\")"
+        },
+        {
+          "target": "NodeData(\"d026af2b-3b47-5f99-9f27-a7a308635a59\", \"reference_pose\")",
+          "source": "NodeData(\"24e051d4-1c7f-5bde-8acc-c502ec9305b2\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"d026af2b-3b47-5f99-9f27-a7a308635a59\", \"reference_time\")",
+          "source": "NodeTime(\"24e051d4-1c7f-5bde-8acc-c502ec9305b2\")"
+        },
+        {
+          "target": "NodeData(\"d026af2b-3b47-5f99-9f27-a7a308635a59\", \"target_pose\")",
+          "source": "NodeData(\"3e419973-cbc4-5478-9796-40c7593c6d8f\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"d026af2b-3b47-5f99-9f27-a7a308635a59\", \"target_time\")",
+          "source": "NodeTime(\"3e419973-cbc4-5478-9796-40c7593c6d8f\")"
+        },
+        {
+          "target": "NodeData(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\", \"reference_pose\")",
+          "source": "NodeData(\"5f5d9174-518b-5664-88b0-02529623f3cb\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\", \"reference_time\")",
+          "source": "NodeTime(\"5f5d9174-518b-5664-88b0-02529623f3cb\")"
+        },
+        {
+          "target": "NodeData(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\", \"target_pose\")",
+          "source": "NodeData(\"626fc76c-ddef-5069-95a3-1ff750198351\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"fa6bb39b-2d8f-51ec-8d8b-4dbdf05199c3\", \"target_time\")",
+          "source": "NodeTime(\"626fc76c-ddef-5069-95a3-1ff750198351\")"
+        },
+        {
+          "target": "NodeData(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\", \"reference_pose\")",
+          "source": "NodeData(\"d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\", \"reference_time\")",
+          "source": "NodeTime(\"d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35\")"
+        },
+        {
+          "target": "NodeData(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\", \"target_pose\")",
+          "source": "NodeData(\"3fb5a42a-9a51-53cf-a4cc-3cca452f71fc\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9dda5f6d-3a37-5f2d-859c-90bb0b9b5713\", \"target_time\")",
+          "source": "NodeTime(\"3fb5a42a-9a51-53cf-a4cc-3cca452f71fc\")"
+        },
+        {
+          "target": "NodeData(\"81859972-c9bd-5f71-ab59-404862d183b9\", \"position\")",
+          "source": "NodeData(\"7d44b912-831c-5610-ad4c-9fb893fe0f2f\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"81859972-c9bd-5f71-ab59-404862d183b9\", \"pose\")",
+          "source": "NodeData(\"d44e9239-1aa8-5881-b806-bbdc40eee915\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"81859972-c9bd-5f71-ab59-404862d183b9\", \"time\")",
+          "source": "NodeTime(\"d44e9239-1aa8-5881-b806-bbdc40eee915\")"
+        },
+        {
+          "target": "NodeData(\"632e933e-af05-5a4c-a15e-99231bcd8b99\", \"position\")",
+          "source": "NodeData(\"56360aac-8f3b-538d-ac42-42ef57a36b24\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"632e933e-af05-5a4c-a15e-99231bcd8b99\", \"pose\")",
+          "source": "NodeData(\"cb9aed60-e208-5823-bb32-db67d50c6e5e\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"632e933e-af05-5a4c-a15e-99231bcd8b99\", \"time\")",
+          "source": "NodeTime(\"cb9aed60-e208-5823-bb32-db67d50c6e5e\")"
+        },
+        {
+          "target": "NodeData(\"24e051d4-1c7f-5bde-8acc-c502ec9305b2\", \"position\")",
+          "source": "NodeData(\"44b2108f-e824-53ae-af18-9faae10c2128\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"24e051d4-1c7f-5bde-8acc-c502ec9305b2\", \"pose\")",
+          "source": "NodeData(\"25b12caf-209c-535c-9c27-fee0b2fcfd14\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"24e051d4-1c7f-5bde-8acc-c502ec9305b2\", \"time\")",
+          "source": "NodeTime(\"25b12caf-209c-535c-9c27-fee0b2fcfd14\")"
+        },
+        {
+          "target": "NodeData(\"5f5d9174-518b-5664-88b0-02529623f3cb\", \"position\")",
+          "source": "NodeData(\"9bfd0253-4445-5e8c-9342-8b88b0655f82\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"5f5d9174-518b-5664-88b0-02529623f3cb\", \"pose\")",
+          "source": "NodeData(\"e79ba929-7ba6-5e29-866e-a769a24bad11\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"5f5d9174-518b-5664-88b0-02529623f3cb\", \"time\")",
+          "source": "NodeTime(\"e79ba929-7ba6-5e29-866e-a769a24bad11\")"
+        },
+        {
+          "target": "NodeData(\"d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35\", \"position\")",
+          "source": "NodeData(\"cda65fe5-e4d6-55be-b77f-d88dabdf3a29\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35\", \"pose\")",
+          "source": "NodeData(\"d1d86ab7-bb4e-5b80-a104-dde88f3a50e3\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"d3d19bf7-34ff-5bd2-b9ab-0172d7de0e35\", \"time\")",
+          "source": "NodeTime(\"d1d86ab7-bb4e-5b80-a104-dde88f3a50e3\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "43f089f4-422c-61e8-aa15-018f8b69117c",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "094c33df-4759-a6db-2a11-489ab06d37a0",
+          "name": "A_Als_Jump_Walk_Left\nSequence Player\nSync group Jump",
+          "position": [
+            -832.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "5c126b2a-4844-4dd1-09e1-7c8838cc5bd4",
+          "name": "A_Als_Jump_Run_Left\nSequence Player\nSync group Jump",
+          "position": [
+            -832.0,
+            80.0
+          ]
+        },
+        {
+          "id": "053441fe-4188-55ce-06dd-6fbdcb3eeed8",
+          "name": "Two Way Blend",
+          "position": [
+            -448.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"053441fe-4188-55ce-06dd-6fbdcb3eeed8\", \"A\")",
+          "source": "NodeData(\"094c33df-4759-a6db-2a11-489ab06d37a0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"43f089f4-422c-61e8-aa15-018f8b69117c\", \"Source\")",
+          "source": "NodeData(\"053441fe-4188-55ce-06dd-6fbdcb3eeed8\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"053441fe-4188-55ce-06dd-6fbdcb3eeed8\", \"B\")",
+          "source": "NodeData(\"5c126b2a-4844-4dd1-09e1-7c8838cc5bd4\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"43f089f4-422c-61e8-aa15-018f8b69117c\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "a872bb0f-4923-17cf-95cd-dea48692e448",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6a6e536c-4f81-706e-2557-6bbe2a9fbeb6",
+          "name": "A_Als_Jump_Walk_Right\nSequence Player\nSync group Jump",
+          "position": [
+            -832.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "be09ce09-4cb0-b6e2-0340-d6bf8ea51053",
+          "name": "A_Als_Jump_Run_Right\nSequence Player\nSync group Jump",
+          "position": [
+            -832.0,
+            80.0
+          ]
+        },
+        {
+          "id": "662711db-4df7-f909-b5fd-b38ade9abdcd",
+          "name": "Two Way Blend",
+          "position": [
+            -448.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"a872bb0f-4923-17cf-95cd-dea48692e448\", \"Source\")",
+          "source": "NodeData(\"662711db-4df7-f909-b5fd-b38ade9abdcd\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"662711db-4df7-f909-b5fd-b38ade9abdcd\", \"A\")",
+          "source": "NodeData(\"6a6e536c-4f81-706e-2557-6bbe2a9fbeb6\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"662711db-4df7-f909-b5fd-b38ade9abdcd\", \"B\")",
+          "source": "NodeData(\"be09ce09-4cb0-b6e2-0340-d6bf8ea51053\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"a872bb0f-4923-17cf-95cd-dea48692e448\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "5eb27f77-4fa2-3bad-a274-69bfe4c2932b",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbe75733-41f9-b4d2-8582-1bacf5719d4e",
+          "name": "A_Als_Jump_Loop\nSequence Player\nSync group Flail",
+          "position": [
+            -384.0,
+            -32.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"5eb27f77-4fa2-3bad-a274-69bfe4c2932b\", \"Source\")",
+          "source": "NodeData(\"bbe75733-41f9-b4d2-8582-1bacf5719d4e\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"5eb27f77-4fa2-3bad-a274-69bfe4c2932b\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "53ea3d31-4abd-63b0-31d9-0bbb75e921b5",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e0be1996-4bd3-9d2b-9aab-408156e7c8c0",
+          "name": "A_Als_Flail\nSequence Player\nSync group Flail",
+          "position": [
+            -272.0,
+            -32.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"53ea3d31-4abd-63b0-31d9-0bbb75e921b5\", \"Source\")",
+          "source": "NodeData(\"e0be1996-4bd3-9d2b-9aab-408156e7c8c0\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"53ea3d31-4abd-63b0-31d9-0bbb75e921b5\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "a5acc3f7-47c7-8eb4-27e1-c992441f1ecf",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e4c8873d-4f22-f13d-e7f6-0f957ed9e2fe",
+          "name": "Two Way Blend",
+          "position": [
+            -1760.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "e05783a4-41ad-2058-2718-588e1cff2f19",
+          "name": "A_Als_Flail\nSequence Player",
+          "position": [
+            -1952.0,
+            -224.0
+          ]
+        },
+        {
+          "id": "17a3fe0e-495e-f0ba-8226-84a79b1e7030",
+          "name": "A_Als_Fall\nSequence Player\nSync group Fall",
+          "position": [
+            -2400.0,
+            -368.0
+          ]
+        },
+        {
+          "id": "2b65b93c-4bb7-8e91-8150-5aa3fa3f0247",
+          "name": "A_Als_Fall_Fast\nSequence Player\nSync group Fall",
+          "position": [
+            -2400.0,
+            -512.0
+          ]
+        },
+        {
+          "id": "361c3e78-4e3d-a5aa-4491-c0ae06f6c670",
+          "name": "Two Way Blend",
+          "position": [
+            -2208.0,
+            -416.0
+          ]
+        },
+        {
+          "id": "0da7875d-4bb1-39c7-69b6-5c9c18763b40",
+          "name": "Modify Curve",
+          "position": [
+            -432.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2a5f8b5f-4b4c-020e-c4c6-92a8b366637b",
+          "name": "Two Way Blend",
+          "position": [
+            -1104.0,
+            0.0
+          ]
+        },
+        {
+          "id": "1aeb59ef-4902-be7f-6d8f-55943716f2f5",
+          "name": "A_Als_Land_Heavy\nSequence Evaluator (by frame)",
+          "position": [
+            -1776.0,
+            160.0
+          ]
+        },
+        {
+          "id": "f24ab0c6-4154-f328-4c51-378bd057ed39",
+          "name": "A_Als_Land_Light\nSequence Evaluator (by frame)",
+          "position": [
+            -1776.0,
+            288.0
+          ]
+        },
+        {
+          "id": "10be798e-43e2-1f53-a3b6-6aaf258498ff",
+          "name": "Two Way Blend",
+          "position": [
+            -1488.0,
+            224.0
+          ]
+        },
+        {
+          "id": "796cad25-4642-e426-0536-fe9ec6ef289b",
+          "name": "Apply Additive",
+          "position": [
+            -1296.0,
+            -224.0
+          ]
+        },
+        {
+          "id": "74e43e7f-4756-311b-9a8d-5ea7e82bf746",
+          "name": "BS_Als_Air_Lean\nBlendspace Evaluator",
+          "position": [
+            -1680.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "8689bbe8-c82c-5f91-8564-b5b707c01be4",
+          "name": "Blendspace position",
+          "position": [
+            -1776.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "bd19bc08-5ee9-5331-b123-29f965ddfd56",
+          "name": "Blendspace normalized time",
+          "position": [
+            -1776.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "7272bc6a-90ec-5f24-ad92-d626c29ce93b",
+          "name": "Blendspace X binding",
+          "position": [
+            -1872.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "544f72e6-f55c-52dd-ab01-1d84ba134c57",
+          "name": "Blendspace Y binding",
+          "position": [
+            -1872.0,
+            -80.0
+          ]
+        },
+        {
+          "id": "d2057218-a1b4-5beb-bd24-a01fbb9f35f0",
+          "name": "Blendspace sample 0",
+          "position": [
+            -1872.0,
+            32.0
+          ]
+        },
+        {
+          "id": "c6d1a21d-a420-5f65-a508-9a729f8a26e4",
+          "name": "Blendspace sample 1",
+          "position": [
+            -1872.0,
+            96.0
+          ]
+        },
+        {
+          "id": "7da8f574-7e86-58bc-abc4-261c1e2637c3",
+          "name": "Blendspace sample 2",
+          "position": [
+            -1872.0,
+            160.0
+          ]
+        },
+        {
+          "id": "2a27c8a4-9b2f-5185-af45-21c903f69eb2",
+          "name": "Blendspace sample 3",
+          "position": [
+            -1872.0,
+            224.0
+          ]
+        },
+        {
+          "id": "8df9f1cf-843e-50ce-bcf3-17acf06c7673",
+          "name": "Blendspace sample 4",
+          "position": [
+            -1872.0,
+            288.0
+          ]
+        },
+        {
+          "id": "993e2a9f-4965-cc9b-3368-9eac1c7f0fbb",
+          "name": "RefreshInAir\r\nOn Update",
+          "position": [
+            -176.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "9c75f3c2-4016-b519-60a8-00acd8dc7495",
+          "name": "Modify Curve",
+          "position": [
+            -768.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6e4493cb-e4e0-5e7b-bafb-99e07066917a",
+          "name": "additive difference Blendspace sample 0",
+          "position": [
+            -1776.0,
+            32.0
+          ]
+        },
+        {
+          "id": "534c492a-d2fd-5d26-9d22-b6095b89bf97",
+          "name": "additive difference Blendspace sample 1",
+          "position": [
+            -1776.0,
+            96.0
+          ]
+        },
+        {
+          "id": "83119495-5640-5b7c-b624-206553d572ca",
+          "name": "additive difference Blendspace sample 2",
+          "position": [
+            -1744.0,
+            192.0
+          ]
+        },
+        {
+          "id": "4d852a9e-51e7-564b-9db0-2f8526029e41",
+          "name": "additive difference Blendspace sample 3",
+          "position": [
+            -1776.0,
+            224.0
+          ]
+        },
+        {
+          "id": "9133d199-fd3c-5071-b543-0cfb62f8dd51",
+          "name": "additive difference Blendspace sample 4",
+          "position": [
+            -1744.0,
+            320.0
+          ]
+        },
+        {
+          "id": "144c33e9-5d23-53f6-82b0-9abeafd70572",
+          "name": "additive reference A_Als_Fall d2057218 clip",
+          "position": [
+            -2160.0,
+            32.0
+          ]
+        },
+        {
+          "id": "04c8854d-6072-50fb-a188-9aec5fc5745e",
+          "name": "additive reference A_Als_Fall d2057218 evaluator",
+          "position": [
+            -2064.0,
+            32.0
+          ]
+        },
+        {
+          "id": "90b25661-aead-51c0-9298-d77f6e97ec6b",
+          "name": "additive reference A_Als_Fall d2057218 frame",
+          "position": [
+            -2160.0,
+            80.0
+          ]
+        },
+        {
+          "id": "e100213d-4b87-5713-994e-4c7e1ba62be7",
+          "name": "additive reference A_Als_Fall c6d1a21d clip",
+          "position": [
+            -2160.0,
+            96.0
+          ]
+        },
+        {
+          "id": "0fcab492-12e6-5acb-96f2-8fbcdc76d9df",
+          "name": "additive reference A_Als_Fall c6d1a21d evaluator",
+          "position": [
+            -2064.0,
+            96.0
+          ]
+        },
+        {
+          "id": "60800afb-8a55-5825-b46f-7b084aaaba57",
+          "name": "additive reference A_Als_Fall c6d1a21d frame",
+          "position": [
+            -2160.0,
+            144.0
+          ]
+        },
+        {
+          "id": "1c0542d7-1136-5573-9f87-c580cbc15992",
+          "name": "additive reference A_Als_Fall 7da8f574 clip",
+          "position": [
+            -2160.0,
+            160.0
+          ]
+        },
+        {
+          "id": "91b5c2d0-3304-5024-a5f8-05726e6eabe2",
+          "name": "additive reference A_Als_Fall 7da8f574 evaluator",
+          "position": [
+            -2064.0,
+            160.0
+          ]
+        },
+        {
+          "id": "2fe0df7f-64b0-52b6-93f7-0e5dcb2330ba",
+          "name": "additive reference A_Als_Fall 7da8f574 frame",
+          "position": [
+            -2160.0,
+            208.0
+          ]
+        },
+        {
+          "id": "7ba85b80-a5b7-5dee-aec0-36f59c86b558",
+          "name": "additive reference A_Als_Fall 2a27c8a4 clip",
+          "position": [
+            -2160.0,
+            224.0
+          ]
+        },
+        {
+          "id": "4fe2e9cc-4c28-51af-a540-6d08c8b8adf2",
+          "name": "additive reference A_Als_Fall 2a27c8a4 evaluator",
+          "position": [
+            -2064.0,
+            224.0
+          ]
+        },
+        {
+          "id": "5fc3be1a-9d46-54d0-8204-a8bc7fbb3de1",
+          "name": "additive reference A_Als_Fall 2a27c8a4 frame",
+          "position": [
+            -2160.0,
+            272.0
+          ]
+        },
+        {
+          "id": "5fe19b9b-c320-58bf-a5e0-e1fd076dd668",
+          "name": "additive reference A_Als_Fall 8df9f1cf clip",
+          "position": [
+            -2160.0,
+            288.0
+          ]
+        },
+        {
+          "id": "918c4579-1f87-5a95-8c19-961ebe981d5f",
+          "name": "additive reference A_Als_Fall 8df9f1cf evaluator",
+          "position": [
+            -2064.0,
+            288.0
+          ]
+        },
+        {
+          "id": "a47cae58-12d0-53c1-bfeb-e389ac045373",
+          "name": "additive reference A_Als_Fall 8df9f1cf frame",
+          "position": [
+            -2160.0,
+            336.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"a5acc3f7-47c7-8eb4-27e1-c992441f1ecf\", \"Source\")",
+          "source": "NodeData(\"993e2a9f-4965-cc9b-3368-9eac1c7f0fbb\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0da7875d-4bb1-39c7-69b6-5c9c18763b40\", \"SourcePose\")",
+          "source": "NodeData(\"9c75f3c2-4016-b519-60a8-00acd8dc7495\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"e4c8873d-4f22-f13d-e7f6-0f957ed9e2fe\", \"B\")",
+          "source": "NodeData(\"e05783a4-41ad-2058-2718-588e1cff2f19\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"10be798e-43e2-1f53-a3b6-6aaf258498ff\", \"B\")",
+          "source": "NodeData(\"f24ab0c6-4154-f328-4c51-378bd057ed39\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"e4c8873d-4f22-f13d-e7f6-0f957ed9e2fe\", \"A\")",
+          "source": "NodeData(\"361c3e78-4e3d-a5aa-4491-c0ae06f6c670\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2a5f8b5f-4b4c-020e-c4c6-92a8b366637b\", \"B\")",
+          "source": "NodeData(\"10be798e-43e2-1f53-a3b6-6aaf258498ff\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"796cad25-4642-e426-0536-fe9ec6ef289b\", \"Base\")",
+          "source": "NodeData(\"e4c8873d-4f22-f13d-e7f6-0f957ed9e2fe\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"10be798e-43e2-1f53-a3b6-6aaf258498ff\", \"A\")",
+          "source": "NodeData(\"1aeb59ef-4902-be7f-6d8f-55943716f2f5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2a5f8b5f-4b4c-020e-c4c6-92a8b366637b\", \"A\")",
+          "source": "NodeData(\"796cad25-4642-e426-0536-fe9ec6ef289b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"993e2a9f-4965-cc9b-3368-9eac1c7f0fbb\", \"Source\")",
+          "source": "NodeData(\"0da7875d-4bb1-39c7-69b6-5c9c18763b40\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9c75f3c2-4016-b519-60a8-00acd8dc7495\", \"SourcePose\")",
+          "source": "NodeData(\"2a5f8b5f-4b4c-020e-c4c6-92a8b366637b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"796cad25-4642-e426-0536-fe9ec6ef289b\", \"Additive\")",
+          "source": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose\")"
+        },
+        {
+          "target": "NodeData(\"361c3e78-4e3d-a5aa-4491-c0ae06f6c670\", \"B\")",
+          "source": "NodeData(\"17a3fe0e-495e-f0ba-8226-84a79b1e7030\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"361c3e78-4e3d-a5aa-4491-c0ae06f6c670\", \"A\")",
+          "source": "NodeData(\"2b65b93c-4bb7-8e91-8150-5aa3fa3f0247\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"position\")",
+          "source": "NodeData(\"8689bbe8-c82c-5f91-8564-b5b707c01be4\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"phase\")",
+          "source": "NodeData(\"bd19bc08-5ee9-5331-b123-29f965ddfd56\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"8689bbe8-c82c-5f91-8564-b5b707c01be4\", \"x\")",
+          "source": "NodeData(\"7272bc6a-90ec-5f24-ad92-d626c29ce93b\", \"lean_state.right_amount\")"
+        },
+        {
+          "target": "NodeData(\"8689bbe8-c82c-5f91-8564-b5b707c01be4\", \"y\")",
+          "source": "NodeData(\"544f72e6-f55c-52dd-ab01-1d84ba134c57\", \"lean_state.forward_amount\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose_sample_0\")",
+          "source": "NodeData(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"time_sample_0\")",
+          "source": "NodeTime(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose_sample_1\")",
+          "source": "NodeData(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"time_sample_1\")",
+          "source": "NodeTime(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose_sample_2\")",
+          "source": "NodeData(\"83119495-5640-5b7c-b624-206553d572ca\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"time_sample_2\")",
+          "source": "NodeTime(\"83119495-5640-5b7c-b624-206553d572ca\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose_sample_3\")",
+          "source": "NodeData(\"4d852a9e-51e7-564b-9db0-2f8526029e41\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"time_sample_3\")",
+          "source": "NodeTime(\"4d852a9e-51e7-564b-9db0-2f8526029e41\")"
+        },
+        {
+          "target": "NodeData(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"pose_sample_4\")",
+          "source": "NodeData(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"74e43e7f-4756-311b-9a8d-5ea7e82bf746\", \"time_sample_4\")",
+          "source": "NodeTime(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"a5acc3f7-47c7-8eb4-27e1-c992441f1ecf\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\", \"reference_pose\")",
+          "source": "NodeData(\"04c8854d-6072-50fb-a188-9aec5fc5745e\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\", \"reference_time\")",
+          "source": "NodeTime(\"04c8854d-6072-50fb-a188-9aec5fc5745e\")"
+        },
+        {
+          "target": "NodeData(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\", \"target_pose\")",
+          "source": "NodeData(\"d2057218-a1b4-5beb-bd24-a01fbb9f35f0\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"6e4493cb-e4e0-5e7b-bafb-99e07066917a\", \"target_time\")",
+          "source": "NodeTime(\"d2057218-a1b4-5beb-bd24-a01fbb9f35f0\")"
+        },
+        {
+          "target": "NodeData(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\", \"reference_pose\")",
+          "source": "NodeData(\"0fcab492-12e6-5acb-96f2-8fbcdc76d9df\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\", \"reference_time\")",
+          "source": "NodeTime(\"0fcab492-12e6-5acb-96f2-8fbcdc76d9df\")"
+        },
+        {
+          "target": "NodeData(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\", \"target_pose\")",
+          "source": "NodeData(\"c6d1a21d-a420-5f65-a508-9a729f8a26e4\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"534c492a-d2fd-5d26-9d22-b6095b89bf97\", \"target_time\")",
+          "source": "NodeTime(\"c6d1a21d-a420-5f65-a508-9a729f8a26e4\")"
+        },
+        {
+          "target": "NodeData(\"83119495-5640-5b7c-b624-206553d572ca\", \"reference_pose\")",
+          "source": "NodeData(\"91b5c2d0-3304-5024-a5f8-05726e6eabe2\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"83119495-5640-5b7c-b624-206553d572ca\", \"reference_time\")",
+          "source": "NodeTime(\"91b5c2d0-3304-5024-a5f8-05726e6eabe2\")"
+        },
+        {
+          "target": "NodeData(\"83119495-5640-5b7c-b624-206553d572ca\", \"target_pose\")",
+          "source": "NodeData(\"7da8f574-7e86-58bc-abc4-261c1e2637c3\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"83119495-5640-5b7c-b624-206553d572ca\", \"target_time\")",
+          "source": "NodeTime(\"7da8f574-7e86-58bc-abc4-261c1e2637c3\")"
+        },
+        {
+          "target": "NodeData(\"4d852a9e-51e7-564b-9db0-2f8526029e41\", \"reference_pose\")",
+          "source": "NodeData(\"4fe2e9cc-4c28-51af-a540-6d08c8b8adf2\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"4d852a9e-51e7-564b-9db0-2f8526029e41\", \"reference_time\")",
+          "source": "NodeTime(\"4fe2e9cc-4c28-51af-a540-6d08c8b8adf2\")"
+        },
+        {
+          "target": "NodeData(\"4d852a9e-51e7-564b-9db0-2f8526029e41\", \"target_pose\")",
+          "source": "NodeData(\"2a27c8a4-9b2f-5185-af45-21c903f69eb2\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"4d852a9e-51e7-564b-9db0-2f8526029e41\", \"target_time\")",
+          "source": "NodeTime(\"2a27c8a4-9b2f-5185-af45-21c903f69eb2\")"
+        },
+        {
+          "target": "NodeData(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\", \"reference_pose\")",
+          "source": "NodeData(\"918c4579-1f87-5a95-8c19-961ebe981d5f\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\", \"reference_time\")",
+          "source": "NodeTime(\"918c4579-1f87-5a95-8c19-961ebe981d5f\")"
+        },
+        {
+          "target": "NodeData(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\", \"target_pose\")",
+          "source": "NodeData(\"8df9f1cf-843e-50ce-bcf3-17acf06c7673\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"9133d199-fd3c-5071-b543-0cfb62f8dd51\", \"target_time\")",
+          "source": "NodeTime(\"8df9f1cf-843e-50ce-bcf3-17acf06c7673\")"
+        },
+        {
+          "target": "NodeData(\"04c8854d-6072-50fb-a188-9aec5fc5745e\", \"position\")",
+          "source": "NodeData(\"90b25661-aead-51c0-9298-d77f6e97ec6b\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"04c8854d-6072-50fb-a188-9aec5fc5745e\", \"pose\")",
+          "source": "NodeData(\"144c33e9-5d23-53f6-82b0-9abeafd70572\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"04c8854d-6072-50fb-a188-9aec5fc5745e\", \"time\")",
+          "source": "NodeTime(\"144c33e9-5d23-53f6-82b0-9abeafd70572\")"
+        },
+        {
+          "target": "NodeData(\"0fcab492-12e6-5acb-96f2-8fbcdc76d9df\", \"position\")",
+          "source": "NodeData(\"60800afb-8a55-5825-b46f-7b084aaaba57\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"0fcab492-12e6-5acb-96f2-8fbcdc76d9df\", \"pose\")",
+          "source": "NodeData(\"e100213d-4b87-5713-994e-4c7e1ba62be7\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"0fcab492-12e6-5acb-96f2-8fbcdc76d9df\", \"time\")",
+          "source": "NodeTime(\"e100213d-4b87-5713-994e-4c7e1ba62be7\")"
+        },
+        {
+          "target": "NodeData(\"91b5c2d0-3304-5024-a5f8-05726e6eabe2\", \"position\")",
+          "source": "NodeData(\"2fe0df7f-64b0-52b6-93f7-0e5dcb2330ba\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"91b5c2d0-3304-5024-a5f8-05726e6eabe2\", \"pose\")",
+          "source": "NodeData(\"1c0542d7-1136-5573-9f87-c580cbc15992\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"91b5c2d0-3304-5024-a5f8-05726e6eabe2\", \"time\")",
+          "source": "NodeTime(\"1c0542d7-1136-5573-9f87-c580cbc15992\")"
+        },
+        {
+          "target": "NodeData(\"4fe2e9cc-4c28-51af-a540-6d08c8b8adf2\", \"position\")",
+          "source": "NodeData(\"5fc3be1a-9d46-54d0-8204-a8bc7fbb3de1\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"4fe2e9cc-4c28-51af-a540-6d08c8b8adf2\", \"pose\")",
+          "source": "NodeData(\"7ba85b80-a5b7-5dee-aec0-36f59c86b558\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"4fe2e9cc-4c28-51af-a540-6d08c8b8adf2\", \"time\")",
+          "source": "NodeTime(\"7ba85b80-a5b7-5dee-aec0-36f59c86b558\")"
+        },
+        {
+          "target": "NodeData(\"918c4579-1f87-5a95-8c19-961ebe981d5f\", \"position\")",
+          "source": "NodeData(\"a47cae58-12d0-53c1-bfeb-e389ac045373\", \"value\")"
+        },
+        {
+          "target": "NodeData(\"918c4579-1f87-5a95-8c19-961ebe981d5f\", \"pose\")",
+          "source": "NodeData(\"5fe19b9b-c320-58bf-a5e0-e1fd076dd668\", \"pose\")"
+        },
+        {
+          "target": "NodeTime(\"918c4579-1f87-5a95-8c19-961ebe981d5f\", \"time\")",
+          "source": "NodeTime(\"5fe19b9b-c320-58bf-a5e0-e1fd076dd668\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b0e001c7-4721-4b97-e639-96800193d75d",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "34286b36-4e88-de52-d11f-5a984021765a",
+          "name": "A_Als_Land_Heavy\nSequence Player\nSync group Land",
+          "position": [
+            -1088.0,
+            48.0
+          ]
+        },
+        {
+          "id": "8afd0158-43ba-e5aa-9cc6-958c2a41c710",
+          "name": "A_Als_Land_Light\nSequence Player\nSync group Land",
+          "position": [
+            -1088.0,
+            -96.0
+          ]
+        },
+        {
+          "id": "9da73476-42d4-1aaf-bffc-6e8be841e606",
+          "name": "Two Way Blend",
+          "position": [
+            -880.0,
+            0.0
+          ]
+        },
+        {
+          "id": "201df718-4e78-a968-9e2a-63a5a5ebb72c",
+          "name": "Modify Curve",
+          "position": [
+            -496.0,
+            0.0
+          ]
+        },
+        {
+          "id": "5c114428-4565-ab1c-44c0-0c8ce920990b",
+          "name": "RefreshRotateInPlace\r\nOn Update",
+          "position": [
+            -224.0,
+            -16.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"5c114428-4565-ab1c-44c0-0c8ce920990b\", \"Source\")",
+          "source": "NodeData(\"201df718-4e78-a968-9e2a-63a5a5ebb72c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"201df718-4e78-a968-9e2a-63a5a5ebb72c\", \"SourcePose\")",
+          "source": "NodeData(\"9da73476-42d4-1aaf-bffc-6e8be841e606\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"b0e001c7-4721-4b97-e639-96800193d75d\", \"Source\")",
+          "source": "NodeData(\"5c114428-4565-ab1c-44c0-0c8ce920990b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9da73476-42d4-1aaf-bffc-6e8be841e606\", \"B\")",
+          "source": "NodeData(\"34286b36-4e88-de52-d11f-5a984021765a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9da73476-42d4-1aaf-bffc-6e8be841e606\", \"A\")",
+          "source": "NodeData(\"8afd0158-43ba-e5aa-9cc6-958c2a41c710\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"b0e001c7-4721-4b97-e639-96800193d75d\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "6e963845-455f-f687-8d4f-509471e6a4f3",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "9fce565d-4e82-86d5-3d0f-8db7d81dd006",
+          "name": "A_Als_Land_Light_Additive\nSequence Player\nSync group Land",
+          "position": [
+            -1568.0,
+            32.0
+          ]
+        },
+        {
+          "id": "1582e7d5-42ae-976e-c548-fab8e36b1648",
+          "name": "A_Als_Land_Heavy_Additive\nSequence Player\nSync group Land",
+          "position": [
+            -1568.0,
+            176.0
+          ]
+        },
+        {
+          "id": "be0a083e-4b01-2e80-a622-8cbd910fe14e",
+          "name": "Two Way Blend",
+          "position": [
+            -1296.0,
+            128.0
+          ]
+        },
+        {
+          "id": "9db7c09d-4714-e893-5eb5-fc972388b3bc",
+          "name": "Use cached pose 'Grounded'",
+          "position": [
+            -1168.0,
+            32.0
+          ]
+        },
+        {
+          "id": "f437d492-46eb-68a4-96c1-8e8218ced47d",
+          "name": "Apply Mesh Space Additive",
+          "position": [
+            -896.0,
+            64.0
+          ]
+        },
+        {
+          "id": "2bffd40c-4642-bddd-cdba-969f1bc71c68",
+          "name": "Two Way Blend",
+          "position": [
+            -448.0,
+            0.0
+          ]
+        },
+        {
+          "id": "9869b431-4b0d-d548-930b-72ab2a4d6278",
+          "name": "Use cached pose 'Grounded'",
+          "position": [
+            -720.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "c7b14bfb-4928-f814-ca22-e8964d5ef3dc",
+          "name": "Property Access",
+          "position": [
+            -1712.0,
+            320.0
+          ]
+        },
+        {
+          "id": "cf04e8f4-46bc-6882-4f63-06a2cf6e12c0",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -1424.0,
+            320.0
+          ]
+        },
+        {
+          "id": "9caa35c1-443e-7952-f6c2-90af7137cfe5",
+          "name": "To Float (Boolean)",
+          "position": [
+            -1072.0,
+            336.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"cf04e8f4-46bc-6882-4f63-06a2cf6e12c0\", \"A\")",
+          "source": "NodeData(\"c7b14bfb-4928-f814-ca22-e8964d5ef3dc\", \"Value\")"
+        },
+        {
+          "target": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"A\")",
+          "source": "NodeData(\"9869b431-4b0d-d548-930b-72ab2a4d6278\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9caa35c1-443e-7952-f6c2-90af7137cfe5\", \"InBool\")",
+          "source": "NodeData(\"cf04e8f4-46bc-6882-4f63-06a2cf6e12c0\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Alpha\")",
+          "source": "NodeData(\"9caa35c1-443e-7952-f6c2-90af7137cfe5\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"6e963845-455f-f687-8d4f-509471e6a4f3\", \"Source\")",
+          "source": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Additive\")",
+          "source": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Base\")",
+          "source": "NodeData(\"9db7c09d-4714-e893-5eb5-fc972388b3bc\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"B\")",
+          "source": "NodeData(\"1582e7d5-42ae-976e-c548-fab8e36b1648\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"B\")",
+          "source": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"A\")",
+          "source": "NodeData(\"9fce565d-4e82-86d5-3d0f-8db7d81dd006\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"6e963845-455f-f687-8d4f-509471e6a4f3\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S0_Grounded.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "32956701-4bf4-fdd3-8cc0-4ab2479e13de",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "7793a0c9-4330-d6ee-c84e-97a5ae3997e2",
+          "name": "Use cached pose 'Grounded'",
+          "position": [
+            -272.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"32956701-4bf4-fdd3-8cc0-4ab2479e13de\", \"Source\")",
+          "source": "NodeData(\"7793a0c9-4330-d6ee-c84e-97a5ae3997e2\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"32956701-4bf4-fdd3-8cc0-4ab2479e13de\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_locomotion_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf115_locomotion/native_source",
+        "--materialized-directory",
+        "target/bf115_locomotion/conversion",
+        "--spec",
+        "target/bf115_locomotion/installed_spec.json"
+      ]
+    },
+    {
+      "label": "locomotion_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion"
+      ]
+    },
+    {
+      "label": "locomotion_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/AB_Als_Locomotion"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "source_pose_mapping",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_renderer.py"
+      ]
+    },
+    {
+      "label": "source_state_lifecycle",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_lifecycle.py"
+      ]
+    },
+    {
+      "label": "source_state_materialization",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_materializer.py"
+      ]
+    },
+    {
+      "label": "source_reflected_sequence_properties",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_contract.py",
+        "--self-test"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "base"
+  }
+}
