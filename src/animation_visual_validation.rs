@@ -1894,6 +1894,10 @@ enum SourcePoseOutputOrigin {
     LastFsmOutput,
 }
 
+fn source_pose_node(graph: &AnimationGraph, identity: &str) -> Option<NodeId> {
+    graph.nodes.values().find(|node| node.name == identity || node.id.uuid().to_string() == identity).map(|node| node.id)
+}
+
 fn source_pose_boundary_output(
     player: &AnimationGraphPlayer,
     asset_server: &AssetServer,
@@ -1912,7 +1916,7 @@ fn source_pose_boundary_output(
         let Some(graph) = graphs.get(context.get_graph_id()) else {
             continue;
         };
-        let Some(node) = graph.nodes.values().find(|node| node.name == boundary.node) else {
+        let Some(node) = source_pose_node(graph, boundary.node).and_then(|id| graph.nodes.get(&id)) else {
             continue;
         };
         if boundary.output == "Pose"
@@ -3851,6 +3855,19 @@ fn collect_animation_visual_evidence(
 mod tests {
     use super::*;
     use bevy::ecs::system::In;
+
+    #[test]
+    fn source_pose_node_selects_repeated_titles_by_source_identity() {
+        use bevy_animation_graph::core::animation_node::AnimationNode;
+        let mut graph = AnimationGraph::new();
+        let nodes = [0.0, 1.0].map(|explicit_frame| AnimationNode::new("Sequence Evaluator", als_ext::SourceSequenceEvaluatorNode { explicit_frame, ..default() }));
+        for node in &nodes { graph.add_node(node.clone()); }
+        for node in &nodes {
+            assert_eq!(source_pose_node(&graph, &node.id.uuid().to_string()), Some(node.id));
+        }
+        assert!(source_pose_node(&graph, "Sequence Evaluator").is_some());
+        assert_eq!(source_pose_node(&graph, "absent"), None);
+    }
 
     #[test]
     fn canonical_clip_signature_uses_nearest_real_clip_sample_without_fsm_or_sync_group() {

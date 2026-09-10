@@ -738,6 +738,210 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
 const LOCOMOTION_ROOT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
 const LOCOMOTION_JUMP: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
 const LOCOMOTION_FALL: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
+const DEFAULT_OVERLAY_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
+const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.ab_als_default.secondary_motion.phase";
+const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
+    "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234", "3890697f-4347-5dd1-f323-f28f64443083",
+    "560a6265-48e4-0f6a-f34a-dbb080a5c73a", "8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0",
+    "75971f25-4595-b9cd-095b-82b4a661595d",
+];
+const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = ["default_idle", "default_walk", "default_crouch", "default_air", "default_prediction", "default_return"];
+
+#[derive(Default, Debug, Serialize)]
+struct DefaultOverlayGraphSample {
+    ready: bool,
+    inputs: [Option<f32>; 4],
+    evaluator_times: [Option<f32>; 5],
+    expected_times: [Option<f32>; 5],
+    prediction_input: Option<f32>,
+    prediction_alpha: Option<f32>,
+    prediction_expected: Option<f32>,
+    idle_time: Option<f32>,
+    idle_phase: Option<f32>,
+    idle_weight: Option<f32>,
+    idle_rate: Option<f32>,
+    additive_alpha: Option<f32>,
+    additive_effect: Option<f32>,
+    errors: Vec<String>,
+}
+
+#[derive(Default)]
+struct DefaultOverlayProbe {
+    case_index: usize,
+    sample: DefaultOverlayGraphSample,
+    covered: [bool; 6],
+    seconds: [f32; 6],
+    canonical_seen: [bool; 3],
+    evaluators_seen: [bool; 5],
+    valid: bool,
+    curves_seen: bool,
+    additive_seen: bool,
+    prediction_previous: Option<f32>,
+    prediction_increased: bool,
+    prediction_decreased: bool,
+    jump_started_at: Option<f64>,
+    airborne_seen: bool,
+    jump_completed: bool,
+}
+
+fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
+    if actual.paths.len() != expected.paths.len() { return None; }
+    let mut error = 0.0_f32;
+    for (id, index) in &expected.paths {
+        let actual = actual.get_bone(*id)?;
+        let expected = expected.bones.get(*index)?;
+        for (a, b) in [(actual.translation, expected.translation), (actual.scale, expected.scale)] {
+            match (a, b) {
+                (Some(a), Some(b)) if a.is_finite() && b.is_finite() => error = error.max(a.distance(b)),
+                (None, None) => {},
+                _ => return None,
+            }
+        }
+        match (actual.rotation, expected.rotation) {
+            (Some(a), Some(b)) if a.is_finite() && b.is_finite() => error = error.max((a - b).length().min((a + b).length())),
+            (None, None) => {},
+            _ => return None,
+        }
+    }
+    Some(error)
+}
+
+fn default_overlay_prediction_alpha(previous: Option<f32>, raw: f32, delta: f32, mapping: &als_ext::source_pose_nodes::SourceAlphaMapping) -> f32 {
+    previous.map_or(raw, |previous| als_ext::f_interp_to(previous, raw, delta,
+        if raw >= previous { mapping.interpolate_speed_increasing } else { mapping.interpolate_speed_decreasing }))
+}
+
+fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
+    use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator}};
+    let scalar = |key| locomotion_source_scalar(player, key);
+    let mut sample = DefaultOverlayGraphSample {
+        inputs: ["pose_state.standing_amount", "pose_state.crouching_amount", "pose_state.gait_walking_amount", "pose_state.in_air_amount"].map(scalar),
+        prediction_input: scalar("in_air_state.ground_prediction_amount"),
+        ..default()
+    };
+    let Some(arena) = player.get_context_arena() else { return sample; };
+    let ticks = als_ext::sync_group_phase::source_sync_players(arena, &probe.graphs, DEFAULT_OVERLAY_SYNC);
+    for context_id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(context_id) else { continue; };
+        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(DEFAULT_OVERLAY_GRAPH)) { continue; }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
+        let pose = |id| {
+            context.node_caches.is_updated(id, StateKey::Default).then(|| context.node_caches.get_output_data(id, StateKey::Default, "Pose".into()))
+                .flatten().and_then(|value| value.into_pose().ok())
+        };
+        let input = |id, pin: &str| match graph.edges_inverted.get(&TargetPin::NodeData(id, pin.into())) {
+            Some(SourcePin::NodeData(source, output)) if output == "Pose" => pose(*source),
+            _ => None,
+        };
+        let check = |errors: &mut Vec<String>, label: &str, actual: &Pose, expected: &Pose| {
+            if default_overlay_pose_error(actual, expected).is_none_or(|error| error > 2e-5) { errors.push(format!("{label}: pose mismatch")); }
+        };
+        for node in graph.nodes.values() {
+            let Some(actual) = pose(node.id) else { continue; };
+            if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
+                let Some(index) = DEFAULT_OVERLAY_EVALUATORS.iter().position(|id| *id == node.id.uuid().to_string()) else { continue; };
+                let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
+                let expected_time = (sequence.explicit_frame / sequence.frames_per_second).clamp(0.0, clip.duration);
+                sample.evaluator_times[index] = Some(actual.timestamp);
+                sample.expected_times[index] = Some(expected_time);
+                if (actual.timestamp - expected_time).abs() > 1e-5 { sample.errors.push(format!("evaluator_{index}: sample time mismatch")); }
+                check(&mut sample.errors, DEFAULT_OVERLAY_EVALUATORS[index], &actual, &als_ext::source_sequence_player::sample_pose(clip, expected_time));
+            }
+            if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceTwoWayBlendNode>() {
+                let Ok(state) = context.node_states.get::<als_ext::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
+                let alpha = state.blend_alpha;
+                let Some(raw) = scalar(&blend.alpha_key) else { sample.errors.push(format!("{}: missing source input", blend.alpha_key)); continue; };
+                let expected_alpha = if blend.mapping.interpolate_result {
+                    let expected = default_overlay_prediction_alpha(previous_prediction, raw, scalar("animation.delta_seconds").unwrap_or(0.0), &blend.mapping);
+                    sample.prediction_alpha = Some(alpha);
+                    sample.prediction_expected = Some(expected);
+                    expected
+                } else { raw.clamp(0.0, 1.0) };
+                if (alpha - expected_alpha).abs() > 1e-4 { sample.errors.push(format!("{}: source alpha mismatch", blend.alpha_key)); }
+                let expected = if alpha <= 1e-5 { input(node.id, "A") }
+                    else if alpha >= 1.0 - 1e-5 { input(node.id, "B") }
+                    else { input(node.id, "A").zip(input(node.id, "B")).map(|(a, b)| {
+                        let mut expected = a;
+                        LinearInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &b, alpha);
+                        expected
+                    }) };
+                if let Some(expected) = expected { check(&mut sample.errors, &node.id.uuid().to_string(), &actual, &expected); }
+                else { sample.errors.push(format!("{}: missing blend input pose", node.id.uuid())); }
+            }
+            if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceMultiWayBlendNode>() {
+                let weights: Vec<f32> = blend.desired_alpha_keys.iter().filter_map(|key| scalar(key)).collect();
+                let total = weights.iter().sum::<f32>();
+                if weights.len() != 2 || total <= 0.0 { continue; }
+                let alpha = weights[1] / total;
+                let expected = if alpha <= f32::EPSILON { input(node.id, "Poses_0") }
+                    else if alpha >= 1.0 - f32::EPSILON { input(node.id, "Poses_1") }
+                    else { input(node.id, "Poses_0").zip(input(node.id, "Poses_1")).map(|(a, b)| {
+                        let mut expected = a;
+                        LinearInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &b, alpha);
+                        expected
+                    }) };
+                if let Some(expected) = expected { check(&mut sample.errors, "stance blend", &actual, &expected); }
+                else { sample.errors.push("stance blend: missing input pose".into()); }
+            }
+            if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>() {
+                let tick = ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (context_id, node.id)));
+                sample.idle_time = Some(actual.timestamp);
+                sample.idle_phase = tick.map(|tick| tick.phase);
+                sample.idle_weight = tick.map(|tick| tick.weight);
+                sample.idle_rate = tick.map(|tick| tick.play_rate);
+                if tick.is_none_or(|tick| (actual.timestamp - tick.phase * tick.duration).abs() > 1e-4) { sample.errors.push("idle: sync time mismatch".into()); }
+                if let Some(clip) = probe.clips.get(&sequence.clip)
+                    && let Some(reference) = sequence.additive_reference.as_ref().and_then(|handle| probe.clips.get(handle))
+                    && let Some(skeleton) = probe.skeletons.get(&reference.skeleton) {
+                    let expected = als_ext::reference_local_difference::make_local_difference(
+                        &als_ext::source_sequence_player::sample_pose(reference, sequence.additive_reference_position),
+                        &als_ext::source_sequence_player::sample_pose(clip, actual.timestamp), skeleton);
+                    check(&mut sample.errors, "idle additive sequence", &actual, &expected);
+                }
+            }
+            if let Some(additive) = node.try_inner_downcast_ref::<als_ext::SourceApplyAdditiveNode>() {
+                sample.additive_alpha = Some(additive.constant_alpha);
+                if let Some((base, delta)) = input(node.id, "Base").zip(input(node.id, "Additive")) {
+                    let mut expected = base.clone();
+                    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, additive.constant_alpha);
+                    check(&mut sample.errors, "apply additive", &actual, &expected);
+                    sample.additive_effect = default_overlay_pose_error(&actual, &base);
+                    sample.ready = !actual.bones.is_empty();
+                }
+            }
+        }
+    }
+    sample.ready &= sample.inputs.iter().all(Option::is_some) && sample.idle_phase.is_some();
+    sample
+}
+
+fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> ManualAnimationWindowEvidence {
+    let evaluator = DEFAULT_OVERLAY_EVALUATORS[if index == 5 { 0 } else { index }];
+    ManualAnimationWindowEvidence {
+        label: Some(DEFAULT_OVERLAY_WINDOWS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
+        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Default/Overlay"), source_state: Some(DEFAULT_OVERLAY_WINDOWS[index]),
+        source_pose_chain: vec![
+            ManualAnimationPoseBoundary { label: "source_reference_frame", graph: DEFAULT_OVERLAY_GRAPH, node: evaluator, output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
+            ManualAnimationPoseBoundary { label: "secondary_motion", graph: DEFAULT_OVERLAY_GRAPH, node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
+            ManualAnimationPoseBoundary { label: "apply_additive", graph: DEFAULT_OVERLAY_GRAPH, node: "Apply Additive", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
+            ManualAnimationPoseBoundary { label: "overlay_output", graph: DEFAULT_OVERLAY_GRAPH, node: "Output Pose\nOverlay", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
+        ],
+        minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001,
+        minimum_observation_seconds: if index < 3 || index == 5 { 0.3 } else { 0.06 },
+        source_sync_group: Some("Secondary Motion"), sync_phase_global: Some(DEFAULT_OVERLAY_SYNC),
+        canonical_sync_phase: (index < 3).then_some(0.35), maximum_sync_phase_distance: 0.04,
+        direction_signature_group: (index < 3).then_some("default_ground_poses"), required_direction_signature_members: if index < 3 { 3 } else { 0 },
+        minimum_direction_signature_rotation_radians: if index < 3 { 0.01 } else { 0.0 },
+        expected_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]), observed_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]),
+        expected_animation_variant: Some("A_Als_Idle"), observed_animation_variant: Some("A_Als_Idle"),
+        observed_animation_clip_time: sample.idle_time, observed_animation_weight: sample.additive_alpha, observed_animation_play_rate: sample.idle_rate,
+        ..default()
+    }
+}
+
+fn default_overlay_should_timeout(covered: bool, elapsed: f32) -> bool { !covered && elapsed >= 12.0 }
+
 const LOCOMOTION_LAND: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron";
 const LOCOMOTION_LAND_MOVEMENT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron";
 const LOCOMOTION_WINDOW_LABELS: [&str; 14] = [
@@ -2177,11 +2381,6 @@ struct IntegrationCoverage {
     backward: bool,
     sideways: bool,
     standing_graph: bool,
-    default_overlay_idle: bool,
-    default_overlay_moving: bool,
-    default_overlay_crouching: bool,
-    default_overlay_air: bool,
-    default_overlay_curves: bool,
     direction_cases: [bool; DIRECTION_CASE_COUNT],
     direction_source_states: u8,
     crouch_transaction: bool,
@@ -2399,6 +2598,7 @@ struct ManualIntegrationState {
     grounded_roll_playback: Option<AlsTransitionPlayback>,
     grounded_joint_probe: GroundedJointProbe,
     locomotion_probe: LocomotionActionProbe,
+    default_overlay_probe: DefaultOverlayProbe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -2513,6 +2713,7 @@ impl Default for ManualIntegrationState {
             grounded_roll_playback: None,
             grounded_joint_probe: default(),
             locomotion_probe: default(),
+            default_overlay_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -3662,17 +3863,11 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::DefaultOverlay => {
-            if entering {
-                reset_character(
-                    &mut transform,
-                    &mut position,
-                    rotation,
-                    &mut velocity,
-                    &mut view_yaw,
-                    &mut view_pitch,
-                    fixture.locomotion_start,
-                    fixture.facing_yaw,
-                );
+            let index = state.default_overlay_probe.case_index;
+            if entering && index == 0 {
+                state.default_overlay_probe = DefaultOverlayProbe { valid: true, ..default() };
+                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "default_overlay_start");
                 *gait = Gait::Walking;
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::Aiming;
@@ -3680,23 +3875,32 @@ fn drive_manual_integration(
             request.overlay_state = Some(OverlayState::Default);
             request.rotation_mode = Some(RotationMode::Aiming);
             request.gait = Some(Gait::Walking);
-            if elapsed < 1.2 {
-                request.locomotion_state = Some(LocomotionState::Grounded);
-                request.stance = Some(Stance::Standing);
-            } else if elapsed < 2.8 {
-                request.locomotion_state = Some(LocomotionState::Grounded);
-                request.stance = Some(Stance::Standing);
-                input.0.move_dir = Vec2::Y;
-            } else if elapsed < 4.4 {
-                request.locomotion_state = Some(LocomotionState::Grounded);
-                request.stance = Some(Stance::Crouching);
-                input.0.move_dir = Vec2::Y;
-            } else {
-                request.stance = Some(Stance::Standing);
-                input.0.jump_pressed = (4.7..4.9).contains(&elapsed);
-                input.0.jump_held = (4.7..5.4).contains(&elapsed);
+            request.stance = Some(if index == 2 { Stance::Crouching } else { Stance::Standing });
+            if index == 1 || index == 2 { input.0.move_dir = Vec2::Y; }
+            if index == 3 || index == 4 {
+                let probe = &state.default_overlay_probe;
+                let ready = *stance == Stance::Standing && *locomotion == LocomotionState::Grounded
+                    && velocity.0.xz().length() < 0.1 && probe.sample.ready
+                    && probe.sample.inputs[0].is_some_and(|value| value > 0.99)
+                    && probe.sample.inputs[3].is_some_and(|value| value < 0.01);
+                if probe.jump_started_at.is_none() && ready {
+                    state.default_overlay_probe.jump_started_at = Some(state.game_time_seconds);
+                    input.0.jump_pressed = true;
+                }
+                input.0.jump_held = state.default_overlay_probe.jump_started_at.is_some_and(|start| state.game_time_seconds - start < 0.2);
             }
-            if elapsed >= 8.0 {
+            let completed = if index == 3 { state.default_overlay_probe.jump_completed }
+                else if index == 4 { state.default_overlay_probe.jump_completed && state.default_overlay_probe.covered[3..5].iter().all(|value| *value)
+                    && state.default_overlay_probe.prediction_increased && state.default_overlay_probe.prediction_decreased }
+                else { state.default_overlay_probe.covered[index] };
+            if completed {
+                state.default_overlay_probe.case_index += 1;
+                state.default_overlay_probe.jump_started_at = None;
+                state.default_overlay_probe.airborne_seen = false;
+                state.default_overlay_probe.jump_completed = false;
+                begin_phase(&mut state, if index == 5 { IntegrationPhase::Finish } else { IntegrationPhase::DefaultOverlay });
+            } else if default_overlay_should_timeout(completed, elapsed) {
+                state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -5915,44 +6119,57 @@ fn observe_manual_integration(
             "joint_valid": state.grounded_joint_probe.valid, "joint_sequence_completed": state.grounded_joint_probe.sequence_completed,
         }));
     }
-    if state.scenario == IntegrationScenario::DefaultOverlay {
-        let default_active = *overlay == OverlayState::Default
-            && overlay_index.is_some_and(|value| value.abs() < 1e-4)
-            && source_ready;
-        let curves_ready = default_active && default_overlay_curves_ready(context);
-        let ground_prediction = graph_global_f32(player, "als_overlay_ground_prediction_amount");
-        let idle_ready = curves_ready
-            && *stance == Stance::Standing
-            && *locomotion == LocomotionState::Grounded
-            && speed <= 0.1;
-        let moving_ready = curves_ready
-            && *stance == Stance::Standing
-            && *locomotion == LocomotionState::Grounded
-            && speed > 0.5;
-        let crouching_ready = curves_ready && *stance == Stance::Crouching && speed > 0.1;
-        let air_ready = curves_ready
-            && *locomotion == LocomotionState::Air
-            && ground_prediction.is_some_and(f32::is_finite);
-        if idle_ready && !state.coverage.default_overlay_idle {
-            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=grounded_idle curves=true -> PASS");
+    if state.scenario == IntegrationScenario::DefaultOverlay && state.phase == IntegrationPhase::DefaultOverlay && !state.entered {
+        let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
+        let now = state.game_time_seconds;
+        let probe = &mut state.default_overlay_probe;
+        let sample = default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
+        let active = *overlay == OverlayState::Default && overlay_index.is_some_and(|value| value.abs() < 1e-4) && source_ready && sample.ready;
+        if active {
+            probe.valid &= sample.errors.is_empty();
+            probe.curves_seen |= default_overlay_curves_ready(context);
+            probe.additive_seen |= sample.additive_effect.is_some_and(|value| value > 1e-4);
+            for (index, time) in sample.evaluator_times.iter().enumerate() { probe.evaluators_seen[index] |= time.is_some(); }
+            if let Some(alpha) = sample.prediction_alpha {
+                if let Some(previous) = probe.prediction_previous {
+                    probe.prediction_increased |= alpha > previous + 1e-4;
+                    probe.prediction_decreased |= alpha < previous - 1e-4;
+                }
+                probe.prediction_previous = Some(alpha);
+            }
         }
-        if moving_ready && !state.coverage.default_overlay_moving {
-            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=grounded_walk curves=true -> PASS");
+        let standing = sample.inputs[0].is_some_and(|value| value > 0.99);
+        let crouching = sample.inputs[1].is_some_and(|value| value > 0.99);
+        let walking = sample.inputs[2];
+        let air = sample.inputs[3].is_some_and(|value| value > 0.95);
+        let grounded = sample.inputs[3].is_some_and(|value| value < 0.01) && *locomotion == LocomotionState::Grounded;
+        let index = probe.case_index;
+        probe.airborne_seen |= probe.jump_started_at.is_some() && *locomotion == LocomotionState::Air;
+        probe.jump_completed |= probe.airborne_seen && standing && grounded && speed < 0.1;
+        let selection = if !active || !probe.valid { None }
+            else if index == 0 && grounded && standing && speed < 0.1 && walking.is_some_and(|value| value < 0.01) { Some(0) }
+            else if index == 1 && grounded && standing && speed > 0.5 && walking.is_some_and(|value| value > 0.99) { Some(1) }
+            else if index == 2 && grounded && crouching && speed > 0.1 { Some(2) }
+            else if (index == 3 || index == 4) && probe.airborne_seen && air {
+                if !probe.covered[3] && sample.prediction_alpha.is_some_and(|value| value < 0.1) { Some(3) }
+                else if sample.prediction_alpha.is_some_and(|value| value > 0.1 && value < 0.99) { Some(4) }
+                else { None }
+            }
+            else if index == 5 && standing && grounded && speed < 0.1 { Some(5) }
+            else { None };
+        if let Some(selected) = selection {
+            **animation_window = default_overlay_window(selected, &sample);
+            probe.seconds[selected] += delta;
+            if selected < 3 {
+                probe.canonical_seen[selected] |= sample.idle_phase.is_some_and(|phase| (phase - 0.35).abs() <= 0.04);
+            }
+            let enough = probe.seconds[selected] >= if selected < 3 || selected == 5 { 0.5 } else { 0.1 };
+            probe.covered[selected] |= enough && (selected >= 3 || probe.canonical_seen[selected]);
         }
-        if crouching_ready && !state.coverage.default_overlay_crouching {
-            info!("[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=crouching curves=true -> PASS");
-        }
-        if air_ready && !state.coverage.default_overlay_air {
-            info!(
-                "[MANUAL-INTEGRATION][DEFAULT-OVERLAY] state=air ground_prediction={:.6} curves=true -> PASS",
-                ground_prediction.unwrap_or_default(),
-            );
-        }
-        state.coverage.default_overlay_idle |= idle_ready;
-        state.coverage.default_overlay_moving |= moving_ready;
-        state.coverage.default_overlay_crouching |= crouching_ready;
-        state.coverage.default_overlay_air |= air_ready;
-        state.coverage.default_overlay_curves |= curves_ready;
+        gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
+            "airborne": probe.airborne_seen, "jump_completed": probe.jump_completed, "prediction_increased": probe.prediction_increased,
+            "prediction_decreased": probe.prediction_decreased, "curves": default_overlay_curves_ready(context), "source": sample}));
+        probe.sample = sample;
     }
     let standing_graph_live = standing_graph.is_some_and(|telemetry| {
         (telemetry.actual_movement_state.is_some()
@@ -8500,18 +8717,22 @@ fn observe_manual_integration(
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),
             ],
-            IntegrationScenario::DefaultOverlay => vec![
-                ("runtime_assembly", coverage.assembly),
-                ("animation_graph", coverage.graph),
-                ("default_overlay_idle", coverage.default_overlay_idle),
-                ("default_overlay_moving", coverage.default_overlay_moving),
-                (
-                    "default_overlay_crouching",
-                    coverage.default_overlay_crouching,
-                ),
-                ("default_overlay_air", coverage.default_overlay_air),
-                ("default_overlay_curves", coverage.default_overlay_curves),
-            ],
+            IntegrationScenario::DefaultOverlay => {
+                let probe = &state.default_overlay_probe;
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": probe.case_index,
+                        "no_progress_limit_seconds": 12.0, "current_conditions": probe.sample}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(DEFAULT_OVERLAY_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
+                results.extend([
+                    ("default_source_poses", probe.valid && probe.evaluators_seen.iter().all(|value| *value)),
+                    ("default_additive_applied", probe.additive_seen), ("default_overlay_curves", probe.curves_seen),
+                    ("default_prediction_increase", probe.prediction_increased), ("default_prediction_decrease", probe.prediction_decreased),
+                    ("default_complete", probe.case_index == 6),
+                ]);
+                results
+            }
             IntegrationScenario::FootIk => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -8716,6 +8937,51 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_overlay_pose_check_rejects_lost_frames_and_additive_weight() {
+        use bevy_animation_graph::core::{pose::BonePose, edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator};
+        let mut base = Pose::default();
+        base.add_bone(BonePose { translation: Some(Vec3::X), rotation: Some(Quat::from_rotation_y(0.4)), scale: Some(Vec3::ONE), ..default() }, default());
+        let mut additive = Pose::default();
+        additive.add_bone(BonePose { translation: Some(Vec3::Y * 0.2), rotation: Some(Quat::from_rotation_x(0.2)), scale: Some(Vec3::ZERO), ..default() }, default());
+        let mut expected = base.clone();
+        AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &additive, 0.75);
+        assert_eq!(default_overlay_pose_error(&expected, &expected), Some(0.0));
+        let mut old_weight = base.clone();
+        AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut old_weight, &additive, 1.0);
+        assert!(default_overlay_pose_error(&old_weight, &expected).unwrap() > 0.01);
+        let mut wrong_frame = expected.clone();
+        wrong_frame.bones[0].rotation = Some(Quat::IDENTITY);
+        assert!(default_overlay_pose_error(&wrong_frame, &expected).unwrap() > 0.01);
+        let mut missing = expected.clone();
+        missing.bones[0].rotation = None;
+        assert_eq!(default_overlay_pose_error(&missing, &expected), None);
+        missing.bones[0].rotation = Some(Quat::from_xyzw(f32::NAN, 0.0, 0.0, 1.0));
+        assert_eq!(default_overlay_pose_error(&missing, &expected), None);
+    }
+
+    #[test]
+    fn default_overlay_windows_bind_all_source_frames_and_bound_progress() {
+        let graph = std::fs::read_to_string(format!("assets/{DEFAULT_OVERLAY_GRAPH}")).unwrap();
+        for index in 0..6 {
+            let window = default_overlay_window(index, &default());
+            let identity = window.source_pose_chain[0].node;
+            assert!(graph.contains(&format!("id: {identity:?}")));
+            assert!(window.capture_every_frame && window.requires_source_pose_chain);
+            assert_eq!(window.canonical_sync_phase.is_some(), index < 3);
+        }
+        assert!(!default_overlay_should_timeout(false, 11.99));
+        assert!(default_overlay_should_timeout(false, 12.0));
+        assert!(!default_overlay_should_timeout(true, 12.0));
+        let mut mapping = als_ext::source_pose_nodes::SourceAlphaMapping { interpolate_speed_increasing: 20.0, interpolate_speed_decreasing: 5.0, ..default() };
+        assert_eq!(default_overlay_prediction_alpha(None, 0.8, 0.01, &mapping), 0.8);
+        assert!((default_overlay_prediction_alpha(Some(0.0), 1.0, 0.01, &mapping) - 0.2).abs() < 1e-6);
+        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() < 1e-6);
+        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6);
+        mapping.interpolate_speed_decreasing = 20.0;
+        assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1);
+    }
 
     #[test]
     fn locomotion_landing_completion_follows_the_observed_source_exit() {

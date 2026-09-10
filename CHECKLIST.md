@@ -621,7 +621,15 @@
 
   - 05b4/共享有限复开完成2026-09-10 17:12:00：公共locomotion30.518s PASS，manual0/validator0、十四窗口/全部coverage，frame p95 21.6861ms/max31.1493ms、eval p95 0.0959ms；missing bones/fault/graph/temporal为空、0截图。连同startup15.000s和grounded九窗口42.653s，当前56源子图/78RON及340/296回归全部闭合。02b仅Roll末帧/根锁/同图原生排序、04b仅两处Run Jump起播值的有限复开关闭；05b2、05b3、05b4及05b静态目标完成。05b4开始16:47、预估17:14:30、实际结束17:12（偏差-2m30s）；05b首次开始15:21、原预估16:06、最终17:12（偏差+1h6m），超时复盘和拆分记录保留。Default自身姿态/叠加/同步/预测仍未以真实窗口验收，继续下一段，不用共享结果替代。
 
-- [ ] BF115.05c Default实际分支观测与场景静态闭环：开始2026-09-10 17:15:00、预估18:05:00。依赖05b；沿已公开提取的AnimGraph/Overlay两图、五个固定采样节点、Idle源叠加和SecondaryMotion同步组、父Pose/Gait/预测输入，替换旧场景只看Actor状态与固定曲线的验收。复用现有真实图cache reader、窗口collector与原Playground，覆盖Standing/Walking/Crouching/InAir/预测回落的实际权重、采样时间、叠加及同步时钟，以最小失败证明旧零帧或错误Alpha不能通过，再做设计消融、适用测试、同入口和声明式静态。估时依据为两图十四Pose节点已全部生成、既有Locomotion完整观测及窗口工具、此前同类观测静态约30–58分钟；本段不启动runtime，完成后单列不超过60分钟的零截图startup/default_overlay公共Gate。其余12 overlay及Layering/Head/CR内部不在本段。
+- [x] BF115.05c Default实际分支观测与场景静态闭环：开始2026-09-10 17:15:00、预估18:05:00。依赖05b；沿已公开提取的AnimGraph/Overlay两图、五个固定采样节点、Idle源叠加和SecondaryMotion同步组、父Pose/Gait/预测输入，替换旧场景只看Actor状态与固定曲线的验收。复用现有真实图cache reader、窗口collector与原Playground，覆盖Standing/Walking/Crouching/InAir/预测回落的实际权重、采样时间、叠加及同步时钟，以最小失败证明旧零帧或错误Alpha不能通过，再做设计消融、适用测试、同入口和声明式静态。估时依据为两图十四Pose节点已全部生成、既有Locomotion完整观测及窗口工具、此前同类观测静态约30–58分钟；本段不启动runtime，完成后单列不超过60分钟的零截图startup/default_overlay公共Gate。其余12 overlay及Layering/Head/CR内部不在本段。
+
+  - 05c观测/消融进展2026-09-10 17:34:00：两图与全部五个父输入保持fresh source闭合；本轮再逐字段读到预测插值上升20/s、回落5/s，原始Idle旋转跨度0.2124rad、Default参考姿态跨度2.2096rad。重复标题节点的公共reader按源ID读取反例36.846s稳定FAIL，现沿原选择函数增加ID匹配；Default只读当前图cache，逐个比较实际采样时间/pose、三处TwoWay与stance混合、Idle源reference delta、实际同步phase和最终additive结果。六窗口沿既有平地依次站立/行走/下蹲/两次跳跃/返回，第二次起跳验证保留状态后的预测回落，不用Actor状态回显替代源分支。初次编译12.129s及后续10.327s分别暴露新观测调用了正向边表/缺少BonePose字段、缓存返回值所有权错误，已修正；两项focused35.819s PASS。关闭pose比较的消融23.177s稳定FAIL于旧1.0叠加权重，已恢复；非零帧、缺失/非有限通道、20/5差异及12秒进展watchdog的最小检查保留。未修改生产图、Actor或源资产，当前进行299项目回归和同入口/static，尚无Default runtime结论。
+
+  - 05c恢复/静态进展2026-09-10 17:36:00：关闭姿态比较的消融失败后，首次复制恢复保留旧文件时间，Cargo在2.143s沿用消融二进制而再次报同一预期失败；确认源码已恢复后刷新文件时间，299项目29.695s PASS，包含源ID reader与非零帧/权重/插值/watchdog反例。两条原始clip均为79骨骼/237通道，实际比较不依赖固定骨骼payload。场景复用已验收的Grounded平地与+X方向，六窗口只保留必须的进展、预测历史和一次跳跃记录，无新生产动画状态。正在实际target_game/play预构建，随后fresh spec与原两图声明式；未启动runtime。
+
+  - 05c完成2026-09-10 17:39:00：最终299项目29.695s、公共数值validator自测0.574s、target_game/play双example67.578s、19图fresh spec3.168s及Default完整两图声明式九命令4.267s PASS，编辑器两文件零修复0.305s。第一次编辑器调用误用不存在的--repair参数，在0.312s明确退出；读usage后改用原--fix，未改审计器。源图/十四Pose节点/原始资产保持，新增观测只运行于manual case；旧曲线/Actor模式五个coverage已替换为实际六窗口及采样/叠加/预测合同。开始17:15、预估18:05、实际结束17:39（偏差-26m），结果为观测与场景静态闭合，无runtime结论；本段独立提交后进行05d。
+
+- [ ] BF115.05d Default完整无截图公共Gate：开始2026-09-10 17:40:00、预估18:10:00。依赖05c；使用同一已构建target_game/play，先startup再default_overlay六窗口，两次真实跳跃覆盖预测上升/回落，逐节点核对五个源采样帧、实际混合、Idle reference delta/同步phase与叠加输出，并保留公共Root/pre-rig/final/时间/性能和进展守卫。估时依据为三Grounded窗口稳定采样各至少0.5秒加当前Idle2.666667秒同步周期、两次原跳跃和既有startup约15秒、当前增量构建约68秒；保留首个观测或source链失败的最小诊断/修复时间。CaptureCount=0，所有原阈值保持；通过后关闭Default模块并沿原顺序进入Layering，另外12个overlay继续按用户要求保留待办，不在本轮执行。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
