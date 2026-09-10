@@ -302,7 +302,7 @@
   - 当前安装反例：首个spec因未传实际asset root而在2.996s明确失败，修正参数后6图fresh spec2.131s PASS；同次源闭包审计0.800s稳定FAIL于6个已安装RON。三条Sequence缺少当前源曲线，Grounded边缺少source bAlwaysResetOnEntry=false策略，其余为同步字段显式默认值；原始导出不变，当前生成仅写隔离staging。native Initialize/Refresh/Reset仍为Pose透传，Actor独立GroundedLayerRuntime推算重置/退出；真实观测仍加载旧手工Grounded图handle，不能据其label回显验收当前生成树。这些源调用/消费者差异保留为下一修复边界，不把转换report ready当行为通过。
   - 本段开始19:22、预估20:02、实际结束19:40（偏差-22m），结果为完整源闭包与可重复安装差异，未执行Grounded runtime；拆分为下一段生成数据迁移，随后分别闭合原生共享刷新、实际状态回调/观测和真实Gate。Standing已完成功能仅在必要共享输入有source反例时有限复开，Crouching内部移动图不在本段。
 
-- [ ] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
+- [x] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
 
   - 2026-09-10 15:55:00有限复开：用户追加全部同类来源常量审计后，已安装Roll evaluator仍为frame0；重新读取本地Grounded45.945s，确认同一节点可见pin与Node均为frame45。旧Gate检查了曲线、Roll montage和退出生命周期，遗漏静态参考帧的独立source比较。仅复开02b的该生成常量及其真实回归，执行/估时见05b2；其余算法、回调和已完成窗口保持，不按猜测重开。
 
@@ -484,7 +484,7 @@
 
   - 04a完成2026-09-10 10:00:00：公开uasset转换43.548s、unsupported 0；147 raw graph中32可达项（10 Pose图/2 FSM/18条件/2函数）、153节点，46生成RON，Fall/Jump/Flail/Land四同步组。当前二进制10图fresh spec2.910s通过；source审计0.834s稳定FAIL于10张已安装Pose图，覆盖64源Pose节点/50边，差异为旧Actor同步时钟、缺少当前曲线/非循环/活动状态重返策略及Land原生Rotate节点。输出仍全部隔离。fresh C++还确认OnJumped→Jump请求→NativeUpdate锁存→相关Jump/Fall的RefreshInAir消费；target将bJumped写为F32、按向上Air切换猜测跳跃，并由1150行旧Actor FSM/phase/curve推算替代图执行，InitializeLean/RefreshInAir仍只是Pose转发。只把这些直接输入/函数/资产纳入下一阶段；本项完成源清单和失败证据，不宣称动画行为已通过。开始09:47:00、预估10:37:00、实际10:00:00（偏差-37m）。
 
-- [ ] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
+- [x] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
 
   - 2026-09-10 16:17:00有限复开：用户要求并修同类来源值遗漏，公开Locomotion重新读取46.943s确认左右Run Jump播放器可见StartPosition均0.12，旧target为0。旧Gate验证了连续同步/状态及canonical中段，没有独立对比可见pin与初始化位置。46份新编译输出仅两条起播值改变；仅该数据边界取消勾选，执行与真实回归并入05b2，不重开已通过的物理模式、跳跃输入、脚锁或其它Actor算法。
 
@@ -589,7 +589,7 @@
 
   - 05a完成2026-09-10 15:21:00：两图全部节点/直接资产和五个父属性输入已核对，Default_Poses原生帧率30、4keys/0.1s；父AB只读36.987s确认默认实例Default及直连Overlay输出。对同次source与原生成RON的六项最小检查0.300s稳定FAIL，三处非零frame被抹为0、Alpha合同1对0.75；CDO验证可见pin确实是生效常量。Parent/RefreshPose的先更新再求图与现有provider相符；同步迁移只需删除Default生成组的旧Actor注入，通用legacy时钟仍有其它已存消费者，维持不动。开始15:08、预估15:38、实际结束15:21（偏差-17m），结果为source及失败闭环完成，功能尚未验收。
 
-- [ ] BF115.05b Default常量、同步和生成资产静态闭合：开始2026-09-10 15:21:00、预估16:06:00。依赖05a；按两个已证实默认值边界、既有可见pin读取helper及两份RON范围，先扩充通用contract/renderer最小反例，保留显式帧、可见Alpha及动态绑定/连接语义，复用现有运行节点字段。公开uasset重读后只安装原owner内Default两文件，移除该生成组Actor时钟注入，完成source审计、实际节点fixture、同入口编译和声明式静态；实际Default分支姿势、0.75叠加与预测插值验收另列05c零截图Gate。估时依据为本段源闭包13分钟、native读取约37–78秒、此前单边运行合同与静态收口约16–24分钟；不展开其余12 overlay或后续图。
+- [x] BF115.05b Default常量、同步和生成资产静态闭合：开始2026-09-10 15:21:00、预估16:06:00。依赖05a；按两个已证实默认值边界、既有可见pin读取helper及两份RON范围，先扩充通用contract/renderer最小反例，保留显式帧、可见Alpha及动态绑定/连接语义，复用现有运行节点字段。公开uasset重读后只安装原owner内Default两文件，移除该生成组Actor时钟注入，完成source审计、实际节点fixture、同入口编译和声明式静态；实际Default分支姿势、0.75叠加与预测插值验收另列05c零截图Gate。估时依据为本段源闭包13分钟、native读取约37–78秒、此前单边运行合同与静态收口约16–24分钟；不展开其余12 overlay或后续图。
 
   - 05b首次静态修复2026-09-10 15:31:00：contract/renderer反例0.302/0.261s FAIL后，复用可见pin读取与现有explicit_frame/constant_alpha字段，四个转换自测PASS；两图公开重新读取38.420s、仅覆盖原owner内Default两RON，六个来源常量检查0.272s PASS。339 als-ext实际节点/曲线回归52.666s、同入口构建126.121s PASS；旧实现即消融失败，动态Alpha连边/属性绑定和隐藏默认值对照保留。尚未跑runtime。用户要求并修全部同类来源值问题，因此先沿转换器已支持节点和元数据公共路径追加05b1，不把本次两图数值正确当成转换器全面正确。
 
@@ -599,7 +599,7 @@
 
   - 05b1完成2026-09-10 15:55:00：来源pin、19处参数结构反射读取、分数帧率及明确支持边界的自测闭合；默认/隐藏/ignored/绑定/连边和60、30000/1001fps都有独立预期，末帧真实节点与339回归PASS。开始15:34、预估16:19、实际结束15:55（偏差-24m），结果为通用转换/采样合同完成，直接生成数据和实际入口分别由05b、05b2收口。仅提交通用工具与采样修复，生成Default和Grounded数据按各自Gate独立提交。
 
-  - [ ] BF115.05b2 Grounded Roll常量有限迁移与回归：开始2026-09-10 15:55:00、预估16:45:00。依赖05b1通用修复，沿fresh Grounded Roll frame45单一source链，公开重新生成Grounded22源子图/30RON，比较每项新差异并仅安装对应owner已有范围，补可复跑静态常量检查；再同入口构建/fresh spec/原声明式Gate与零截图startup、完整grounded九窗口回归。估时按native45.945s、既往完整转换约82秒、增量构建约126秒、原grounded Gate约43秒及本轮参数解析闭环，保留源反射字段差异的维护时间。Standing/Crouching/Locomotion只审计同一常量消费，不重做已通过功能；其余12 overlay和后续图仍待原顺序。本项通过并关闭02b后恢复05b/Default，未将已发现差异转为未授权待办。
+  - [x] BF115.05b2 Grounded Roll常量有限迁移与回归：开始2026-09-10 15:55:00、预估16:45:00。依赖05b1通用修复，沿fresh Grounded Roll frame45单一source链，公开重新生成Grounded22源子图/30RON，比较每项新差异并仅安装对应owner已有范围，补可复跑静态常量检查；再同入口构建/fresh spec/原声明式Gate与零截图startup、完整grounded九窗口回归。估时按native45.945s、既往完整转换约82秒、增量构建约126秒、原grounded Gate约43秒及本轮参数解析闭环，保留源反射字段差异的维护时间。Standing/Crouching/Locomotion只审计同一常量消费，不重做已通过功能；其余12 overlay和后续图仍待原顺序。本项通过并关闭02b后恢复05b/Default，未将已发现差异转为未授权待办。
 
   - 05b2生成/新增直接边界2026-09-10 16:17:00：Grounded重读先因当次反射的DefaultBlendProfile=None/FilteredBones空数组拒绝82.744s；fresh UE确认空默认无额外行为，最小反例0.314s FAIL后保留空容器语义、显式拒绝未实现非空profile/bone过滤，0.307/0.532s自测PASS，完整公开转换90.174s通过。30RON仅Roll frame45和同一Grounded FSM的原生transition/entry排序改变，排序来自已修复的通用native reader，原逻辑和值保持；02b范围补充这一同图排序差异。四模块另外七个未连接来源值候选检查发现两个Run Jump StartPosition遗漏，fresh Locomotion46.943s证实0.12对0，04b仅此边界复开，加入本项完整14窗口回归。
 
@@ -609,9 +609,19 @@
 
   - [x] BF115.05b3 来源根锁与三图生成/静态收口：开始2026-09-10 16:27:00、预估17:07:00。接续上述复盘；完成源RefPose/AnimFirstFrame/Zero及additive scale的最小对照，复用runtime skeleton默认TRS，不新增位移补偿。公开重读Default/Grounded/Locomotion，按56源子图/78RON完整编译与原owner安装，核对源常量/原生排序/根锁元数据、同入口构建/fresh spec与声明式静态后独立提交；不启动真实运行。估时依据为339回归39.613s、最近三次公开读取约46/90/47秒、同入口148.312s，以及已有审计/manifest基座。
 
-  - [ ] BF115.05b4 三图静态后的共享真实回归：实际开始2026-09-10 16:47:00、预估17:14:30；05b3提前完成，沿原27分30秒窗口登记。用同一完整入口零截图startup、grounded九窗口及locomotion十四窗口，保留原全部公共守卫/曲线/事件/时钟/源pose chain，补读Roll固定末帧和Jump实际起播来源值；通过后关闭02b/04b有限复开、05b2及05b，单独提交对应数据/消费者。Default自身分支与0.75叠加/预测窗口仍由后续05c完整验收，不用共享回归替代。以上两个窗口合计来自本轮重估，不能自行顺延或删减失败窗口。
+  - [x] BF115.05b4 三图静态后的共享真实回归：实际开始2026-09-10 16:47:00、预估17:14:30；05b3提前完成，沿原27分30秒窗口登记。用同一完整入口零截图startup、grounded九窗口及locomotion十四窗口，保留原全部公共守卫/曲线/事件/时钟/源pose chain，补读Roll固定末帧和Jump实际起播来源值；通过后关闭02b/04b有限复开、05b2及05b，单独提交对应数据/消费者。Default自身分支与0.75叠加/预测窗口仍由后续05c完整验收，不用共享回归替代。以上两个窗口合计来自本轮重估，不能自行顺延或删减失败窗口。
 
   - 05b3完成/05b4运行前2026-09-10 16:47:00：340 als-ext（含三根锁模式、additive scale、关闭锁定与实际节点）38.908s、296项目107.113s、同入口target_game/play168.075s PASS。三图公开重读53.919/81.497/58.961s、56源子图/78RON完全支持；只通过原owner更新数据，256文件清单原文不变，启用根锁的唯一当前片段为Roll，其余源资产明确未启用。19图实际spec2.411s、78文件编辑器修复/复查零变化，Default/Grounded/Locomotion声明式9/14/12命令6.591/8.438/6.855s全PASS，9个frame与7个可见常量输入复查均无差异。最初spec误用相对asset root导致查找exe旁目录3.802s失败，已改为参数注入真实asset root；Grounded清单替换源记录时的重复路径已去重，未放宽审计。开始16:27、预估17:07、实际结束16:47（偏差-20m），静态Gate完成并独立提交；下一步当前版本startup、grounded与locomotion，CaptureCount=0，源姿态及公共阈值保持。
+
+  - 05b4 startup结果/受控复查前2026-09-10 17:05:00：16:49启动的公共startup17.047s退出，manual0/validator1，仅wall frame p95 26.404ms高于25，max72.341ms仍在75内；CPU p95 16.784ms、eval p95 0.1181ms，missing bones/graph errors/fault/temporal均为空、0截图。任务中断后已确认原进程结束并读取报告，没有重启未确认终态的进程；当前无game/UE/cargo/rustc。未找到与本次算法变化对应的持续开销证据，不改代码或阈值，以同一已构建版本做一次startup稳定性复查，之后才运行共享动作。
+
+  - 05b4 startup通过/共享动作前2026-09-10 17:07:00：相同二进制、相同阈值的公共startup复查15.000s PASS，manual0/validator0、issues为空、0截图；未进行性能补偿或改变算法。56源子图/78RON、340/296回归与三图声明式保持闭合，开始完整grounded九窗口，然后locomotion十四窗口，验证本轮Roll末帧/根锁和Run Jump起播值。
+
+  - 05b4 Grounded通过/Locomotion前2026-09-10 17:11:00：公共grounded42.653s PASS，manual0/validator0、全部九窗口、issues为空、0截图；Roll末帧/根锁与同图原生排序已通过真实入口回归。静态与340/296保持闭合，继续完整locomotion十四窗口，起播0.12来自fresh源pin，维持原canonical/时间/姿态要求。
+
+  - 05b4/共享有限复开完成2026-09-10 17:12:00：公共locomotion30.518s PASS，manual0/validator0、十四窗口/全部coverage，frame p95 21.6861ms/max31.1493ms、eval p95 0.0959ms；missing bones/fault/graph/temporal为空、0截图。连同startup15.000s和grounded九窗口42.653s，当前56源子图/78RON及340/296回归全部闭合。02b仅Roll末帧/根锁/同图原生排序、04b仅两处Run Jump起播值的有限复开关闭；05b2、05b3、05b4及05b静态目标完成。05b4开始16:47、预估17:14:30、实际结束17:12（偏差-2m30s）；05b首次开始15:21、原预估16:06、最终17:12（偏差+1h6m），超时复盘和拆分记录保留。Default自身姿态/叠加/同步/预测仍未以真实窗口验收，继续下一段，不用共享结果替代。
+
+- [ ] BF115.05c Default实际分支观测与场景静态闭环：开始2026-09-10 17:15:00、预估18:05:00。依赖05b；沿已公开提取的AnimGraph/Overlay两图、五个固定采样节点、Idle源叠加和SecondaryMotion同步组、父Pose/Gait/预测输入，替换旧场景只看Actor状态与固定曲线的验收。复用现有真实图cache reader、窗口collector与原Playground，覆盖Standing/Walking/Crouching/InAir/预测回落的实际权重、采样时间、叠加及同步时钟，以最小失败证明旧零帧或错误Alpha不能通过，再做设计消融、适用测试、同入口和声明式静态。估时依据为两图十四Pose节点已全部生成、既有Locomotion完整观测及窗口工具、此前同类观测静态约30–58分钟；本段不启动runtime，完成后单列不超过60分钟的零截图startup/default_overlay公共Gate。其余12 overlay及Layering/Head/CR内部不在本段。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
