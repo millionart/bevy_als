@@ -82,13 +82,8 @@ impl NodeLike for SourceSequenceEvaluatorNode {
             ctx.set_data_fwd("Pose", DataValue::Pose(default()));
             return Ok(());
         };
-        let mut time = frame_to_time(self.explicit_frame_value(&ctx)?, self.frames_per_second);
-        let duration = clip.duration().max(f32::EPSILON);
-        time = if self.should_loop {
-            time.rem_euclid(duration)
-        } else {
-            time.clamp(0.0, duration)
-        };
+        let time = frame_to_time(self.explicit_frame_value(&ctx)?, self.frames_per_second)
+            .clamp(0.0, clip.duration().max(0.0));
         let pose = sample_pose(clip, time);
         *ctx.state_mut_or_else(crate::AnimationContextState::default)? =
             crate::AnimationContextState {
@@ -119,10 +114,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_explicit_frame_uses_the_exported_thirty_fps_rate() {
+    fn source_explicit_frame_uses_the_configured_source_rate() {
         assert!((frame_to_time(21.0, 30.0) - 0.7).abs() < 1e-6);
         assert!((frame_to_time(24.0, 30.0) - 0.8).abs() < 1e-6);
         assert!((frame_to_time(23.0, 30.0) - 23.0 / 30.0).abs() < 1e-6);
+        assert_eq!(frame_to_time(15.0, 60.0), 0.25);
+        assert!((frame_to_time(15.0, 30000.0 / 1001.0) - 0.5005).abs() < 1e-6);
     }
 
     #[test]

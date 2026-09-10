@@ -260,6 +260,20 @@ def source_curve_float(content_root, mount, source_path, source_reader=None):
     return curve_float_contract(native_source_asset(source_path, source_reader))
 
 
+def sampling_frame_rate(value):
+    if isinstance(value, str):
+        fields = parse_struct(value)
+    elif isinstance(value, dict):
+        fields = value.get("__tagged__", value)
+    else:
+        raise AssetResolutionError("source sampling frame rate is unavailable")
+    numerator = parse_number(str(fields.get("Numerator")))
+    denominator = parse_number(str(fields.get("Denominator", 1)))
+    if not numerator.is_integer() or not denominator.is_integer() or numerator <= 0 or denominator <= 0:
+        raise AssetResolutionError("source sampling frame rate is invalid")
+    return numerator / denominator
+
+
 def sequence_timing_contract(source):
     if (
         not isinstance(source, dict)
@@ -269,6 +283,7 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence is invalid")
     try:
         duration = parse_number(asset_property(source, "SequenceLength"))
+        frames_per_second = sampling_frame_rate(asset_property(source, "SamplingFrameRate"))
         raw_markers = asset_property(source, "AuthoredSyncMarkers")
         markers = []
         for raw_marker in parse_list(raw_markers) if raw_markers else []:
@@ -284,7 +299,7 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence properties are unreadable") from error
     if duration <= 0.0 or any(not marker["name"] for marker in markers):
         raise AssetResolutionError("source animation sequence duration or markers are invalid")
-    return {"duration": duration, "markers": markers}
+    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second}
 
 
 def source_sequence_timing(content_root, mount, source_path, source_reader=None):
@@ -317,7 +332,11 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
         if not isinstance(marker_name, str) or not isinstance(time, (int, float)) or isinstance(time, bool):
             raise AssetResolutionError("source animation sync marker fields are invalid")
         markers.append({"name": marker_name, "time": float(time)})
-    return {"duration": float(duration), "markers": markers}
+    try:
+        frames_per_second = sampling_frame_rate(properties.get("SamplingFrameRate"))
+    except (AssetResolutionError, ExportedTextError):
+        return sequence_timing_contract(native_source_asset(source_path, source_reader))
+    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second}
 
 
 def source_sequence_curves(content_root, mount, source_path):
@@ -1007,6 +1026,16 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    for value in ("(Numerator=30000,Denominator=1001)", {"Numerator": 30000, "Denominator": 1001}, {"__tagged__": {"Numerator": 30000, "Denominator": 1001}}):
+        assert sampling_frame_rate(value) == 30000.0 / 1001.0
+    assert sampling_frame_rate({"Numerator": 60}) == 60.0
+    for value in (None, {}, {"Numerator": 30, "Denominator": 0}, {"Numerator": 0}, {"Numerator": True}):
+        try:
+            sampling_frame_rate(value)
+        except (AssetResolutionError, ExportedTextError):
+            pass
+        else:
+            raise AssertionError("invalid source sampling frame rate was accepted")
     fixture_root = Path(__file__).parent / "fixtures"
     for fixture in ("ue_standing_walk_forward_curves", "ue_standing_rotate_left_curves"):
         curves = json.loads((fixture_root / f"{fixture}.json").read_text())["curves"]
@@ -1336,6 +1365,7 @@ def run_self_test():
         "asset_class": "/Script/Engine.AnimSequence",
         "asset_properties": [
             {"name": "SequenceLength", "exported_text": "0.800000"},
+            {"name": "SamplingFrameRate", "exported_text": "(Numerator=30000,Denominator=1001)"},
             {
                 "name": "AuthoredSyncMarkers",
                 "exported_text": '((MarkerName="Left",Time=0.033333,TrackIndex=1,Guid=00000000),(MarkerName="Right",Time=0.433333,TrackIndex=1,Guid=00000001))',
@@ -1344,6 +1374,7 @@ def run_self_test():
     }
     assert sequence_timing_contract(sequence_source) == {
         "duration": 0.8,
+        "frames_per_second": 30000.0 / 1001.0,
         "markers": [
             {"name": "Left", "time": 0.033333},
             {"name": "Right", "time": 0.433333},

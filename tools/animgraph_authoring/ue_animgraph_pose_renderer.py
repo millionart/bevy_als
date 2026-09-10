@@ -406,11 +406,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
-            field("explicit_frame", "0.0"),
+            field("explicit_frame", repr(value["explicit_frame"])),
             field("explicit_frame_key", quoted("")),
             field("explicit_frame_pin", quoted(explicit_frame_pin)),
             field("expose_explicit_frame_pin", bool_ron(explicit_frame_pin in pins)),
-            field("frames_per_second", "30.0"),
+            field("frames_per_second", repr(asset_by_node[semantic["source_node"]]["source_timing"]["frames_per_second"])),
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
             field("reinitialization_behavior", quoted(value["reinitialization_behavior"])),
@@ -814,11 +814,16 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         alpha_key = value.get("alpha_key")
         if not isinstance(alpha_key, str):
             raise PoseRenderError("source additive property binding is unavailable")
+        alpha_is_linked = any(
+            link.get("target", {}).get("node_object_path") == semantic["source_node"]
+            and link.get("target", {}).get("pin_name") == "Alpha"
+            for link in graph_contract.get("links", [])
+        )
         fields = [
             field("alpha_key", quoted(alpha_key)),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron("Alpha" in pins)),
-            field("use_constant_alpha", bool_ron("Alpha" not in pins)),
+            field("use_constant_alpha", bool_ron(not alpha_key and not alpha_is_linked)),
             field("constant_alpha", repr(value["alpha_default"] * scalar_renderer.source_property_runtime_scale(alpha_key))),
             field("mapping", mapping_ron(value["alpha_mapping"], alpha_key)),
             field("alpha_scale", repr(value["alpha_scale_bias"]["scale"])),
@@ -1679,6 +1684,32 @@ def run_self_test():
     else:
         raise AssertionError("invalid source curve key arrays were accepted")
     graph_contract, graph_ir, assets = fixture_graph()
+    constant_raw = graph_contract["source_graph"]["nodes"][1]
+    constant_semantic = copy.deepcopy(graph_ir["nodes"][1])
+    constant_semantic["semantic"]["alpha_default"] = 0.75
+    for renderer in ("apply_additive", "apply_mesh_space_additive"):
+        constant_semantic["renderer"] = renderer
+        _, inner = rendered_inner(graph_contract, constant_raw, constant_semantic, {}, {})
+        assert "use_constant_alpha: true" in inner and "constant_alpha: 0.75" in inner
+        constant_semantic["semantic"]["alpha_key"] = "animation.alpha"
+        _, inner = rendered_inner(graph_contract, constant_raw, constant_semantic, {}, {})
+        assert "use_constant_alpha: false" in inner
+        constant_semantic["semantic"]["alpha_key"] = ""
+        linked_constant = copy.deepcopy(graph_contract)
+        linked_constant["links"].append({"target": {"node_object_path": constant_raw["object_path"], "pin_name": "Alpha"}})
+        _, inner = rendered_inner(linked_constant, constant_raw, constant_semantic, {}, {})
+        assert "use_constant_alpha: false" in inner
+    evaluator = {
+        "source_node": assets[0]["source_node"], "renderer": "sequence_evaluator",
+        "semantic": {"input_pins": ["ExplicitFrame"], "explicit_frame_pin": "ExplicitFrame",
+                     "explicit_frame": 2.0, "loop": True, "teleport_to_explicit_time": True,
+                     "reinitialization_behavior": "ExplicitTime"},
+    }
+    evaluator_assets = copy.deepcopy(assets)
+    evaluator_assets[0]["source_timing"]["frames_per_second"] = 60.0
+    _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})
+    assert "explicit_frame: 2.0" in inner and "expose_explicit_frame_pin: true" in inner
+    assert "frames_per_second: 60.0" in inner
     unit_contract, unit_ir, unit_assets = fixture_graph()
     unit_blend = unit_ir["nodes"][1]["semantic"]
     unit_blend["alpha_key"] = "in_air_state.vertical_velocity_world_space"
@@ -2472,6 +2503,7 @@ def run_self_test():
     assert player_positions["Blendspace cubic axis filter"] == (-160.0, 0.0)
     assert player_positions["Blendspace X binding"] == (-352.0, 0.0)
     return {
+        "source_visible_constants_and_sampling_rate_are_rendered": "PASS",
         "pose_leaf_graph_rendered": "PASS",
         "source_node_identity_and_pin_names_preserved": "PASS",
         "source_node_order_preserved": "PASS",

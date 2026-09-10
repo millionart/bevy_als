@@ -572,12 +572,13 @@ mod tests {
                 &mut gizmos,
                 &inputs,
             );
-            graph
+            let output = graph
                 .query_with_context(
                     QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
                     context.clone(),
                 )
                 .unwrap();
+            assert_eq!(output["evaluator"].as_pose().unwrap().timestamp, 1.0);
             [
                 "sequence",
                 "evaluator",
@@ -622,8 +623,7 @@ mod tests {
             SourceSequenceEvaluatorNode {
                 clip,
                 curves: curves.clone(),
-                explicit_frame: 21.0,
-                expose_explicit_frame_pin: false,
+                explicit_frame: 30.0,
                 ..default()
             },
         );
@@ -738,11 +738,11 @@ mod tests {
         let actual = world.run_system_once_with(query, handle).unwrap();
         for (context, (foot, gait)) in actual.iter().zip([
             (-0.7, 1.0),
-            (1.0, 1.0),
+            (-0.25, 1.0),
             (-0.35, 0.5),
-            (-0.275, 1.0),
-            (-0.45, 1.25),
-            (1.0, 1.0),
+            (-0.5875, 1.0),
+            (-0.7625, 1.25),
+            (-0.25, 1.0),
             (-0.7, 1.0),
             (-0.7, 1.0),
         ]) {

@@ -302,7 +302,9 @@
   - 当前安装反例：首个spec因未传实际asset root而在2.996s明确失败，修正参数后6图fresh spec2.131s PASS；同次源闭包审计0.800s稳定FAIL于6个已安装RON。三条Sequence缺少当前源曲线，Grounded边缺少source bAlwaysResetOnEntry=false策略，其余为同步字段显式默认值；原始导出不变，当前生成仅写隔离staging。native Initialize/Refresh/Reset仍为Pose透传，Actor独立GroundedLayerRuntime推算重置/退出；真实观测仍加载旧手工Grounded图handle，不能据其label回显验收当前生成树。这些源调用/消费者差异保留为下一修复边界，不把转换report ready当行为通过。
   - 本段开始19:22、预估20:02、实际结束19:40（偏差-22m），结果为完整源闭包与可重复安装差异，未执行Grounded runtime；拆分为下一段生成数据迁移，随后分别闭合原生共享刷新、实际状态回调/观测和真实Gate。Standing已完成功能仅在必要共享输入有source反例时有限复开，Crouching内部移动图不在本段。
 
-- [x] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
+- [ ] BF115.02b Grounded生成曲线与状态初始化策略迁移：开始2026-09-09 19:40:00、预估结束20:00:00。依赖02a；估时依据为公开转换已在隔离区得到30资产、仅6个安装差异，以及fresh spec约2秒/源审计约1秒和既有source Sequence/可中断FSM回归。仅通过既有converter/materializer安装本次Grounded所属数据，保留两条站蹲片段及Roll曲线、source目标状态重入策略，建立旧数据不能通过的focused合同和消融，完成fresh spec、声明式/编辑器/位置/资产边界及适用测试。该段只完成生成数据静态接入；native Grounded刷新、Reset/Roll实际回调和当前图观测尚未闭合，全部静态闭环前不启动Grounded真实场景。
+
+  - 2026-09-10 15:55:00有限复开：用户追加全部同类来源常量审计后，已安装Roll evaluator仍为frame0；重新读取本地Grounded45.945s，确认同一节点可见pin与Node均为frame45。旧Gate检查了曲线、Roll montage和退出生命周期，遗漏静态参考帧的独立source比较。仅复开02b的该生成常量及其真实回归，执行/估时见05b2；其余算法、回调和已完成窗口保持，不按猜测重开。
 
   - 02b完成2026-09-09 19:54:00：复用现有安装器和AB_Als owner记录，只接入30个Grounded所属生成资产，实际diff为6个RON；没有修改原始导出或其它模块。旧安装数据在同次源审计0.800s失败作为移除/旧数据对照；新安装0.566s、30文件编辑器修复/复查零改动0.298s、6图fresh spec2.106s与新声明式Gate2.113s全部PASS，22源子图/24 Pose节点/16 Pose边/13条件完整匹配，位置与运行资产边界通过。12项SourceSequence回归39.563s、真实共享缓存/嵌套FSM初始化fixture1.310s PASS；沿用既有转换器能力，无新抽象/运行时分支。开始19:40、预估20:00、实际结束19:54（偏差-6m），结果为生成数据静态迁移完成、无拆分；未启动Grounded runtime，原生刷新和实际事件/观测仍是明确开放边界。
 
@@ -586,6 +588,16 @@
   - 05a完成2026-09-10 15:21:00：两图全部节点/直接资产和五个父属性输入已核对，Default_Poses原生帧率30、4keys/0.1s；父AB只读36.987s确认默认实例Default及直连Overlay输出。对同次source与原生成RON的六项最小检查0.300s稳定FAIL，三处非零frame被抹为0、Alpha合同1对0.75；CDO验证可见pin确实是生效常量。Parent/RefreshPose的先更新再求图与现有provider相符；同步迁移只需删除Default生成组的旧Actor注入，通用legacy时钟仍有其它已存消费者，维持不动。开始15:08、预估15:38、实际结束15:21（偏差-17m），结果为source及失败闭环完成，功能尚未验收。
 
 - [ ] BF115.05b Default常量、同步和生成资产静态闭合：开始2026-09-10 15:21:00、预估16:06:00。依赖05a；按两个已证实默认值边界、既有可见pin读取helper及两份RON范围，先扩充通用contract/renderer最小反例，保留显式帧、可见Alpha及动态绑定/连接语义，复用现有运行节点字段。公开uasset重读后只安装原owner内Default两文件，移除该生成组Actor时钟注入，完成source审计、实际节点fixture、同入口编译和声明式静态；实际Default分支姿势、0.75叠加与预测插值验收另列05c零截图Gate。估时依据为本段源闭包13分钟、native读取约37–78秒、此前单边运行合同与静态收口约16–24分钟；不展开其余12 overlay或后续图。
+
+  - 05b首次静态修复2026-09-10 15:31:00：contract/renderer反例0.302/0.261s FAIL后，复用可见pin读取与现有explicit_frame/constant_alpha字段，四个转换自测PASS；两图公开重新读取38.420s、仅覆盖原owner内Default两RON，六个来源常量检查0.272s PASS。339 als-ext实际节点/曲线回归52.666s、同入口构建126.121s PASS；旧实现即消融失败，动态Alpha连边/属性绑定和隐藏默认值对照保留。尚未跑runtime。用户要求并修全部同类来源值问题，因此先沿转换器已支持节点和元数据公共路径追加05b1，不把本次两图数值正确当成转换器全面正确。
+
+  - [x] BF115.05b1 通用来源常量与帧率读取审计：开始2026-09-10 15:34:00、预估16:19:00。用户明确追加的转换器scope，作为05b静态Gate前置。fresh UE通用pin编译规则与Default编译CDO证明未连接可见pin覆盖旧结构值；SequenceEvaluator以Sequence.GetSamplingFrameRate().AsSeconds(Frame)求时，FFrameRate使用分子/分母。当前已发现固定30fps、叠加raw元数据仅读分子，以及Sequence起播/循环、ModifyCurve Alpha、MultiWay/Enum/Layered权重或时间的pin覆盖遗漏；逐项最小反例后复用读取helper，保留动态连边/绑定和明确unsupported边界。此项审计公共转换代码，不重开或安装其余12 overlay、已完成图及后续图。估时依据为已定位两类公共读取边界、既有解析/renderer测试和本轮13分钟源闭合及十分钟修复；完成后重新生成Default并继续原静态及零截图Gate。
+
+  - 05b1修复/直接消费者检查2026-09-10 15:55:00：四个来源读取反例0.294/0.265/0.268/0.268s FAIL；复用pin helper处理数值/Bool、绑定/连边/ignored值，采样与叠加共享分数帧率读取，已声明参数结构读取当次可编辑反射默认值，六个工具自测PASS。反射移除消融0.314s FAIL；UE显式采样先Clamp的源边还揭示末帧回绕，现有实际节点fixture在timestamp0对1稳定FAIL32.347s，删除回绕后339回归35.240s PASS。公开Default最终读取45.999s、unsupported为空，两RON与当前安装完全一致；可见常量值均来自当次source。更宽的反射尝试暴露了链接引用节点的继承通知字段，已消融掉这两处无采样参数的扩展，保留原严格引用合同；显式Evaluator的非teleport/sync/relevancy路径明确拒绝，未伪装支持。四个已完成模块的九个已记录evaluator读数比较，仅Grounded Roll候选不符；fresh source已证实frame45对0，02b按唯一链有限复开，单列05b2处理生成数据和真实回归。
+
+  - 05b1完成2026-09-10 15:55:00：来源pin、19处参数结构反射读取、分数帧率及明确支持边界的自测闭合；默认/隐藏/ignored/绑定/连边和60、30000/1001fps都有独立预期，末帧真实节点与339回归PASS。开始15:34、预估16:19、实际结束15:55（偏差-24m），结果为通用转换/采样合同完成，直接生成数据和实际入口分别由05b、05b2收口。仅提交通用工具与采样修复，生成Default和Grounded数据按各自Gate独立提交。
+
+  - [ ] BF115.05b2 Grounded Roll常量有限迁移与回归：开始2026-09-10 15:55:00、预估16:45:00。依赖05b1通用修复，沿fresh Grounded Roll frame45单一source链，公开重新生成Grounded22源子图/30RON，比较每项新差异并仅安装对应owner已有范围，补可复跑静态常量检查；再同入口构建/fresh spec/原声明式Gate与零截图startup、完整grounded九窗口回归。估时按native45.945s、既往完整转换约82秒、增量构建约126秒、原grounded Gate约43秒及本轮参数解析闭环，保留源反射字段差异的维护时间。Standing/Crouching/Locomotion只审计同一常量消费，不重做已通过功能；其余12 overlay和后续图仍待原顺序。本项通过并关闭02b后恢复05b/Default，未将已发现差异转为未授权待办。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

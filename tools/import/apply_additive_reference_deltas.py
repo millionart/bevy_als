@@ -16,6 +16,7 @@ from uasset_reader import PropReader
 import ue_animation_asset_resolver as source_resolver
 from ue_animation_asset_resolver import (
     native_source_asset,
+    sampling_frame_rate,
     source_asset_name,
     source_object_path,
 )
@@ -57,15 +58,6 @@ def leaf(value):
     return str(value).rsplit("/", 1)[-1] if value else "None"
 
 
-def numerator(value):
-    if isinstance(value, dict):
-        if "Numerator" in value:
-            return float(value["Numerator"])
-        if "__tagged__" in value:
-            return numerator(value["__tagged__"])
-    return 0.0
-
-
 def native_property(source, name):
     values = [
         value.get("exported_text")
@@ -85,11 +77,6 @@ def native_animation_metadata(source, source_path):
     ):
         raise ValueError("source native animation asset is invalid")
     try:
-        frame_rate = parse_struct(native_property(source, "SamplingFrameRate"))
-        numerator_value = parse_number(struct_field(frame_rate, "Numerator"))
-        denominator_value = parse_number(struct_field(frame_rate, "Denominator"))
-        if denominator_value <= 0.0:
-            raise ValueError("source native sample rate denominator is invalid")
         reference = native_property(source, "RefPoseSeq")
         reference_asset = (
             source_asset_name(source_object_path(reference))
@@ -102,7 +89,7 @@ def native_animation_metadata(source, source_path):
             "reference_asset": reference_asset,
             "reference_frame": int(parse_number(native_property(source, "RefFrameIndex"))),
             "sequence_length": parse_number(native_property(source, "SequenceLength")),
-            "sample_rate": numerator_value / denominator_value,
+            "sample_rate": sampling_frame_rate(native_property(source, "SamplingFrameRate")),
             "frame_count": int(parse_number(native_property(source, "NumFrames"))),
             "source": source_path,
         }
@@ -130,7 +117,7 @@ def raw_animation_metadata(path):
         "reference_asset": leaf(props.get("RefPoseSeq")),
         "reference_frame": int(props.get("RefFrameIndex", 0)),
         "sequence_length": float(props.get("SequenceLength", 0.0)),
-        "sample_rate": numerator(props.get("SamplingFrameRate", 0.0)),
+        "sample_rate": sampling_frame_rate(props.get("SamplingFrameRate")),
         "frame_count": int(props.get("NumFrames", 0)),
         "source": path.as_posix(),
     }
@@ -188,7 +175,7 @@ def source_animation_assets(source_root, names=None, source_prefix=None, source_
                 "reference_asset": leaf(props.get("RefPoseSeq")),
                 "reference_frame": int(props.get("RefFrameIndex", 0)),
                 "sequence_length": float(props.get("SequenceLength", 0.0)),
-                "sample_rate": numerator(props.get("SamplingFrameRate", 0.0)),
+                "sample_rate": sampling_frame_rate(props.get("SamplingFrameRate")),
                 "frame_count": int(props.get("NumFrames", 0)),
                 "source": path.relative_to(source_root).as_posix(),
             }
@@ -593,6 +580,7 @@ def markdown(rows):
 
 
 def run_self_test():
+    assert sampling_frame_rate({"__tagged__": {"Numerator": 30000, "Denominator": 1001}}) == 30000.0 / 1001.0
     def native_sequence(path, additive_type="AAT_None", reference="None"):
         return {
             "format": "ue_asset_source_v1",

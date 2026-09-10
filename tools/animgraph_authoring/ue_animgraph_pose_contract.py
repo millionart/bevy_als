@@ -99,15 +99,23 @@ def visible_output_names(node):
     ]
 
 
-def visible_input_default(node, name):
-    values = [
-        pin.get("default_value")
+def visible_input_default(node, name, default=None, parser=parse_number):
+    pins = [
+        pin
         for pin in node.get("pins", [])
         if pin.get("direction") == "Input" and not pin.get("hidden") and pin.get("name") == name
     ]
-    if len(values) != 1:
+    if not pins and default is not None:
+        return default
+    if len(pins) != 1:
         raise PoseContractError(f"source input pin is missing or ambiguous: {name}")
-    return parse_number(values[0])
+    if default is not None and (
+        pins[0].get("default_value_ignored")
+        or input_is_linked(node, name)
+        or name in property_binding_paths(node)
+    ):
+        return default
+    return parser(pins[0].get("default_value"))
 
 
 def property_binding_paths(node):
@@ -203,10 +211,11 @@ def alpha_contract(node, renderer, fields, base_inputs):
     alpha_path = property_binding_paths(node).get("Alpha", "")
     if alpha_path and "Alpha" in names and input_is_linked(node, "Alpha"):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "Alpha"))
+    alpha_default = visible_input_default(node, "Alpha", parse_number(field(fields, "Alpha", "0.0")))
     return {
         "input_pins": names,
         "alpha_visible": "Alpha" in names,
-        "alpha_default": parse_number(field(fields, "Alpha", "0.0")),
+        "alpha_default": alpha_default,
         "alpha_scale_bias": parse_scale_bias(field(fields, "AlphaScaleBias", "()")),
         "alpha_mapping": parse_scale_bias_clamp(field(fields, "AlphaScaleBiasClamp", "()")),
         "alpha_path": alpha_path,
@@ -264,9 +273,7 @@ def sequence_player_contract(node):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "PlayRate"))
     if loop_animation_path and "bLoopAnimation" in names and input_is_linked(node, "bLoopAnimation"):
         issues.append(issue(node, renderer, "source_property_binding_link_unsupported", "bLoopAnimation"))
-    play_rate = parse_number(field(fields, "PlayRate", "1.0"))
-    if "PlayRate" in names and not input_is_linked(node, "PlayRate"):
-        play_rate = visible_input_default(node, "PlayRate")
+    play_rate = visible_input_default(node, "PlayRate", parse_number(field(fields, "PlayRate", "1.0")))
     return {
         "renderer": renderer,
         "input_pins": names,
@@ -278,9 +285,9 @@ def sequence_player_contract(node):
         "play_rate_mapping": parse_scale_bias_clamp(
             field(fields, "PlayRateScaleBiasClampConstants", "()")
         ),
-        "start_position": parse_number(field(fields, "StartPosition", "0.0")),
+        "start_position": visible_input_default(node, "StartPosition", parse_number(field(fields, "StartPosition", "0.0"))),
         "start_position_pin": "StartPosition",
-        "loop_animation": parse_bool(field(fields, "bLoopAnimation", "True")),
+        "loop_animation": visible_input_default(node, "bLoopAnimation", parse_bool(field(fields, "bLoopAnimation", "True")), parse_bool),
         "loop_animation_path": loop_animation_path,
         "loop_animation_pin": "bLoopAnimation",
         "sync_group": group,
@@ -294,11 +301,16 @@ def sequence_player_contract(node):
 
 def sequence_evaluator_contract(node):
     renderer = "sequence_evaluator"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
             "Sequence",
+            "GroupName",
+            "GroupRole",
+            "Method",
+            "StartPosition",
+            "bIgnoreForRelevancyTest",
             "ExplicitTime",
             "ExplicitFrame",
             "bUseExplicitFrame",
@@ -324,24 +336,31 @@ def sequence_evaluator_contract(node):
         issues.append(issue(node, renderer, "source_evaluator_time_mode_unsupported", "ExplicitTime"))
     if "ExplicitTime" in names:
         issues.append(issue(node, renderer, "source_evaluator_time_pin_unsupported", "ExplicitTime"))
+    teleport = parse_bool(field(fields, "bTeleportToExplicitTime", "True"))
+    if not teleport:
+        issues.append(issue(node, renderer, "source_evaluator_tick_unsupported", "bTeleportToExplicitTime"))
+    if parse_name(field(fields, "GroupName", "None")) != "None" or parse_name(field(fields, "Method", "DoNotSync")) != "DoNotSync":
+        issues.append(issue(node, renderer, "source_evaluator_sync_unsupported", "GroupName/Method"))
+    if parse_bool(field(fields, "bIgnoreForRelevancyTest", "False")):
+        issues.append(issue(node, renderer, "source_evaluator_relevancy_unsupported", "bIgnoreForRelevancyTest"))
+    explicit_frame = visible_input_default(node, "ExplicitFrame", parse_number(field(fields, "ExplicitFrame", "0.0")))
     return {
         "renderer": renderer,
         "input_pins": names,
         "sequence": parse_quoted(field(fields, "Sequence")),
         "use_explicit_frame": use_explicit_frame,
         "loop": parse_bool(field(fields, "bShouldLoop", "True")),
-        "teleport_to_explicit_time": parse_bool(
-            field(fields, "bTeleportToExplicitTime", "True")
-        ),
+        "teleport_to_explicit_time": teleport,
         "reinitialization_behavior": parse_name(
             field(fields, "ReinitializationBehavior", "ExplicitTime")
         ),
         "explicit_frame_pin": "ExplicitFrame",
+        "explicit_frame": explicit_frame,
     }, issues
 
 
 def blend_contract(node, renderer, property_name, base_inputs, extra_fields=()):
-    fields = parse_struct(node_property(node, property_name))
+    fields = node_struct_fields(node, property_name)
     reject_unknown_fields(
         fields,
         {
@@ -397,7 +416,7 @@ def apply_additive_contract(node, mesh_space):
         ("bRootSpaceAdditive",) if mesh_space else (),
     )
     if mesh_space:
-        fields = parse_struct(node_property(node, "Node"))
+        fields = node_struct_fields(node, "Node")
         if parse_bool(field(fields, "bRootSpaceAdditive", "False")):
             issues.append(issue(node, renderer, "source_root_space_additive_unsupported", "bRootSpaceAdditive"))
     return contract, issues
@@ -405,7 +424,7 @@ def apply_additive_contract(node, mesh_space):
 
 def make_dynamic_additive_contract(node):
     renderer = "make_dynamic_additive"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -439,7 +458,7 @@ def make_dynamic_additive_contract(node):
 
 def curves_blend_contract(node):
     renderer = "curves_blend"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -481,7 +500,7 @@ def curves_blend_contract(node):
 
 def modify_curve_contract(node):
     renderer = "modify_curve"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -516,12 +535,8 @@ def modify_curve_contract(node):
         issues.append(issue(node, renderer, "source_curve_value_count_mismatch", "CurveValues"))
     if field(fields, "CurveMap", "()") != "()":
         issues.append(issue(node, renderer, "source_curve_map_unsupported", "CurveMap"))
-    alpha = parse_number(field(fields, "Alpha", "1.0"))
+    alpha = visible_input_default(node, "Alpha", parse_number(field(fields, "Alpha", "1.0")))
     alpha_visible = "Alpha" in input_names
-    if alpha_visible:
-        pin_alpha = visible_input_default(node, "Alpha")
-        if abs(pin_alpha - alpha) > 1.0e-6:
-            issues.append(issue(node, renderer, "source_curve_alpha_default_mismatch", "Alpha"))
     bindings = property_binding_paths(node)
     curve_pins = {f"CurveValues_{index}" for index in range(len(names))}
     unknown_bindings = sorted(set(bindings) - curve_pins - {"Alpha"})
@@ -535,8 +550,7 @@ def modify_curve_contract(node):
         path = bindings.get(pin, "")
         if path and input_is_linked(node, pin):
             issues.append(issue(node, renderer, "source_property_binding_link_unsupported", pin))
-        if not input_is_linked(node, pin):
-            values[index] = visible_input_default(node, pin)
+        values[index] = visible_input_default(node, pin, values[index])
         curve_value_paths.append(path)
     alpha_path = bindings.get("Alpha", "")
     if alpha_path and input_is_linked(node, "Alpha"):
@@ -557,7 +571,7 @@ def modify_curve_contract(node):
 
 def multi_way_blend_contract(node):
     renderer = "multi_way_blend"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -581,11 +595,7 @@ def multi_way_blend_contract(node):
     inputs, issues = validate_inputs(node, renderer, required)
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
-    for index, value in enumerate(alphas):
-        if abs(visible_input_default(node, f"DesiredAlphas_{index}") - value) > 1.0e-6:
-            issues.append(
-                issue(node, renderer, "source_multi_way_alpha_default_mismatch", str(index))
-            )
+    alphas = [visible_input_default(node, f"DesiredAlphas_{index}", value) for index, value in enumerate(alphas)]
     scale_bias = parse_scale_bias(field(fields, "AlphaScaleBias", "()"))
     if abs(scale_bias["bias"]) > 1.0e-6:
         issues.append(issue(node, renderer, "source_multi_way_alpha_bias_unsupported", "AlphaScaleBias"))
@@ -632,7 +642,7 @@ def multi_way_blend_contract(node):
 
 def set_hips_direction_contract(node):
     renderer = "set_hips_direction"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -692,7 +702,7 @@ def set_hips_direction_contract(node):
 
 def enum_pose_blend_contract(node):
     renderer = "enum_pose_blend"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -766,8 +776,8 @@ def enum_pose_blend_contract(node):
         "selected_enum_entry": selected_entry,
         "active_enum_path": active_enum_path,
         "active_enum_default": visible_input_default(node, "ActiveEnumValue"),
-        "default_blend_time": times[0],
-        "selected_blend_time": times[1],
+        "default_blend_time": visible_input_default(node, "BlendTime_0", times[0]),
+        "selected_blend_time": visible_input_default(node, "BlendTime_1", times[1]),
         "default_pose_pin": "BlendPose_0",
         "selected_pose_pin": "BlendPose_1",
         "default_blend_time_pin": "BlendTime_0",
@@ -779,7 +789,7 @@ def enum_pose_blend_contract(node):
 
 def layered_bone_blend_contract(node):
     renderer = "layered_bone_blend"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -847,7 +857,7 @@ def layered_bone_blend_contract(node):
         "renderer": renderer,
         "input_pins": inputs,
         "branch_filter_layers": branch_filter_layers,
-        "blend_weights": weights,
+        "blend_weights": [visible_input_default(node, f"BlendWeights_{index}", value) for index, value in enumerate(weights)],
         "blend_weight_pins": [f"BlendWeights_{index}" for index in range(len(poses))],
         "mesh_space_rotation_blend": parse_bool(
             field(fields, "bMeshSpaceRotationBlend", "False")
@@ -863,7 +873,7 @@ def layered_bone_blend_contract(node):
 
 def gameplay_tag_blend_contract(node):
     renderer = "gameplay_tag_blend"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -937,7 +947,7 @@ def cached_pose_contract(node, renderer):
 
 def linked_input_pose_contract(node):
     renderer = "linked_input_pose"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1062,7 +1072,7 @@ def linked_anim_layer_contract(node):
 
 def control_rig_contract(node):
     renderer = "control_rig"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1095,7 +1105,7 @@ def control_rig_contract(node):
     if not rig_class:
         raise PoseContractError("control rig class is unavailable")
     rig_class = rig_class.rsplit(".", 1)[-1]
-    alpha_enabled = parse_bool(field(fields, "bAlphaBoolEnabled", "True"))
+    alpha_enabled = visible_input_default(node, "bAlphaBoolEnabled", parse_bool(field(fields, "bAlphaBoolEnabled", "True")), parse_bool)
     transfer_input_pose = parse_bool(field(fields, "bTransferInputPose", "True"))
     transfer_input_curves = parse_bool(field(fields, "bTransferInputCurves", "True"))
     transfer_pose_in_global_space = parse_bool(
@@ -1147,7 +1157,7 @@ def control_rig_contract(node):
 
 def inertialization_contract(node):
     renderer = "inertialization"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1186,7 +1196,7 @@ def inertialization_contract(node):
 
 def pose_lifecycle_call_contract(node):
     renderer = "pose_lifecycle_call"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1263,7 +1273,7 @@ def slot_contract(node):
 
 def state_result_contract(node):
     renderer = "state_result"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1343,7 +1353,7 @@ def state_result_contract(node):
 
 def pose_snapshot_contract(node):
     renderer = "pose_snapshot"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
@@ -1461,6 +1471,52 @@ def output_pin(name):
 
 
 def run_self_test():
+    additive = fixture_node(
+        "apply_additive", "Node", "(Base=(),Additive=(),Alpha=1.000000)",
+        [input_pin("Base"), input_pin("Additive"), input_pin("Alpha")],
+    )
+    additive["pins"][2]["default_value"] = "0.750000"
+    constant, issues = pose_contract(additive, "apply_additive")
+    assert not issues and constant["alpha_default"] == 0.75
+    additive["pins"][2]["hidden"] = True
+    constant, issues = pose_contract(additive, "apply_additive")
+    assert not issues and constant["alpha_default"] == 1.0
+    additive["pins"][2]["hidden"] = False
+    additive["pins"][2]["default_value"] = "ignored"
+    for flags in ({"default_value_ignored": True}, {"linked_to": [{"node_object_path": "/Asset:AnimGraph.Input"}]}):
+        pin = additive["pins"][2].copy()
+        additive["pins"][2].update(flags)
+        constant, issues = pose_contract(additive, "apply_additive")
+        assert not issues and constant["alpha_default"] == 1.0
+        additive["pins"][2] = pin
+    additive["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("Alpha",(PropertyName="Alpha",PathAsText="GetParent.PoseState.InAirAmount",bIsBound=True)))'}]}
+    constant, issues = pose_contract(additive, "apply_additive")
+    assert not issues and constant["alpha_default"] == 1.0 and constant["alpha_path"] == "PoseState.InAirAmount"
+    evaluator = fixture_node(
+        "sequence_evaluator", "Node",
+        '(Sequence="/Asset/A.A",bUseExplicitFrame=True,ExplicitFrame=2)',
+        [input_pin("ExplicitFrame")],
+    )
+    constant, issues = pose_contract(evaluator, "sequence_evaluator")
+    assert not issues and constant["explicit_frame"] == 1.0
+    evaluator["pins"][0]["hidden"] = True
+    constant, issues = pose_contract(evaluator, "sequence_evaluator")
+    assert not issues and constant["explicit_frame"] == 2.0
+    evaluator["properties"][0]["fields"] = [{"name": "bShouldLoop", "exported_text": "False", "flags": "0x201"}]
+    constant, issues = pose_contract(evaluator, "sequence_evaluator")
+    assert not issues and not constant["loop"]
+    evaluator["properties"][0]["fields"].extend([
+        {"name": "GroupName", "exported_text": "None", "flags": "0x201"},
+        {"name": "GroupRole", "exported_text": "CanBeLeader", "flags": "0x201"},
+        {"name": "Method", "exported_text": "DoNotSync", "flags": "0x201"},
+        {"name": "StartPosition", "exported_text": "0.25", "flags": "0x201"},
+        {"name": "bIgnoreForRelevancyTest", "exported_text": "False", "flags": "0x201"},
+    ])
+    constant, issues = pose_contract(evaluator, "sequence_evaluator")
+    assert not issues and constant["explicit_frame"] == 2.0
+    evaluator["properties"][0]["fields"].append({"name": "bTeleportToExplicitTime", "exported_text": "False", "flags": "0x201"})
+    _, issues = pose_contract(evaluator, "sequence_evaluator")
+    assert issues[0]["kind"] == "source_evaluator_tick_unsupported"
     two_way = fixture_node(
         "two_way_blend",
         "BlendNode",
@@ -1483,6 +1539,13 @@ def run_self_test():
     contract, _ = pose_contract(sequence, "sequence_player")
     assert contract["sync_group_role"] == "CanBeLeader"
     assert contract["play_rate"] == 1.2
+    sequence["pins"].extend([
+        input_pin("StartPosition") | {"default_value": "0.375"},
+        input_pin("bLoopAnimation") | {"default_value": "False"},
+    ])
+    contract, _ = pose_contract(sequence, "sequence_player")
+    assert contract["start_position"] == 0.375 and not contract["loop_animation"]
+    sequence["pins"] = sequence["pins"][:1]
     sequence["properties"][0]["exported_text"] = sequence["properties"][0]["exported_text"].replace(",bLoopAnimation=True", "")
     sequence["properties"][0]["fields"] = [
         {"name": "bLoopAnimation", "exported_text": "False", "flags": "0x201"},
@@ -1516,8 +1579,8 @@ def run_self_test():
         "",
     ]
     curve["pins"][-1]["default_value"] = "0.500000"
-    _, issues = pose_contract(curve, "modify_curve")
-    assert issues[-1]["kind"] == "source_curve_alpha_default_mismatch"
+    contract, issues = pose_contract(curve, "modify_curve")
+    assert not issues and contract["alpha"] == 0.5
     multi = fixture_node(
         "multi_way_blend",
         "Node",
@@ -1541,6 +1604,10 @@ def run_self_test():
         "GroundedState.VelocityBlend.ForwardAmount",
         "GroundedState.VelocityBlend.BackwardAmount",
     ]
+    multi.pop("binding")
+    multi["pins"][2]["default_value"] = "0.4"
+    multi_contract, issues = pose_contract(multi, "multi_way_blend")
+    assert not issues and multi_contract["desired_alpha_defaults"] == [0.4, 0.75]
     hips = fixture_node(
         "set_hips_direction",
         "Node",
@@ -1590,6 +1657,8 @@ def run_self_test():
     assert not issues
     assert enum_blend_contract["selected_enum_entry"] == "LeftBackward"
     assert enum_blend_contract["active_enum_path"] == "GroundedState.HipsDirection"
+    assert enum_blend_contract["default_blend_time"] == 1.0
+    assert enum_blend_contract["selected_blend_time"] == 1.0
     gameplay_tag_blend = fixture_node(
         "gameplay_tag_blend",
         "Node",
@@ -1648,6 +1717,7 @@ def run_self_test():
     layered_contract, issues = pose_contract(layered, "layered_bone_blend")
     assert not issues
     assert [item[0]["blend_depth"] for item in layered_contract["branch_filter_layers"]] == [3, -1]
+    assert layered_contract["blend_weights"] == [1.0, 1.0]
     slot = fixture_node(
         "slot",
         "Node",
@@ -1751,11 +1821,16 @@ def run_self_test():
             }
         ]
     }
+    control_rig["pins"][1]["default_value"] = "True"
     control_rig_contract_value, issues = pose_contract(control_rig, "control_rig")
     assert not issues
     assert control_rig_contract_value["rig_class"] == "CR_Als"
     assert control_rig_contract_value["rig_input_binding_pin"] == "__CustomProperty_RigInput"
     assert control_rig_contract_value["rig_input_binding_path"] == "GetControlRigInput"
+    control_rig["pins"][1]["default_value"] = "False"
+    _, issues = pose_contract(control_rig, "control_rig")
+    assert issues[0]["kind"] == "source_control_rig_alpha_unsupported"
+    control_rig["pins"][1]["default_value"] = "True"
     control_rig["properties"][0]["exported_text"] = control_rig["properties"][0]["exported_text"].replace("CR_Als", "CR_Unknown")
     _, issues = pose_contract(control_rig, "control_rig")
     assert issues[0]["kind"] == "source_control_rig_class_unsupported"
@@ -1812,6 +1887,7 @@ def run_self_test():
     assert not issues
     assert lifecycle_contract["source_function"] == "RefreshInAir"
     return {
+        "source_visible_and_hidden_constant_defaults_preserved": "PASS",
         "two_way_alpha_mapping_contract_parsed": "PASS",
         "two_way_child_reset_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
