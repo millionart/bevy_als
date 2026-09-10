@@ -73,18 +73,6 @@ def bool_condition_contract(source, suffix):
     return value
 
 
-def ordered_outgoing(transitions):
-    values = {}
-    for transition in transitions:
-        values.setdefault(transition["source"], []).append(transition)
-    for entries in values.values():
-        entries.sort(key=lambda item: (item["priority"], item["source_order"], item["id"]))
-    return {
-        source: [entry["id"] for entry in entries]
-        for source, entries in sorted(values.items())
-    }
-
-
 def profile_plan(transition, source_content_root, source_mount, source_reader=None, curve_cache=None):
     if transition["blend_mode"] not in {
         "Linear",
@@ -229,19 +217,13 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None, sou
         "conduit_conditions": conduit_conditions,
         "conditions": conditions,
         "transitions": transitions,
-        "outgoing_order": ordered_outgoing(transitions),
+        "runtime_transition_order": value["runtime_transition_order"],
         "runtime": runtime,
         "unsupported": unsupported,
     }
 
 
 def run_self_test():
-    transitions = [
-        {"id": "late", "source": "State", "priority": 2, "source_order": 0},
-        {"id": "first", "source": "State", "priority": 1, "source_order": 1},
-        {"id": "second", "source": "State", "priority": 1, "source_order": 2},
-    ]
-    assert ordered_outgoing(transitions) == {"State": ["first", "second", "late"]}
     standard = {
         "blend_mode": "Cubic",
         "logic_type": "TLT_StandardBlend",

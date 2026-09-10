@@ -3,15 +3,15 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_locomotion/native_call_source/0001_AB_Als_Locomotion.ue.json",
-      "sha256": "588cde8e0368d0f4f23a38315199f72aa82260c005f7d126fe730b9459e8ae2e"
+      "path": "target/bf115_locomotion/order_source/0002_AB_Als_Locomotion.ue.json",
+      "sha256": "b4450fe8afd8b5a9e0034182a123677d8a609a5df13c23ea32c3f13ff98d5499"
     },
     {
-      "path": "target/bf115_locomotion/source/AlsAnimationInstance.cpp",
+      "path": "target/bf115_locomotion/source/mode_AlsAnimationInstance.cpp",
       "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
     },
     {
-      "path": "target/bf115_locomotion/source/AlsCharacter.cpp",
+      "path": "target/bf115_locomotion/source/mode_AlsCharacter.cpp",
       "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
     },
     {
@@ -57,6 +57,42 @@
     {
       "path": "target/bf115_locomotion/source/CS_Als_Default.actions.ue.json",
       "sha256": "8cfc0c7fe95320dd1bc1e13f3643ef3bae227bf5c9b0599ac0de768502225cc0"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_AnimGraphNode_StateMachineBase.cpp",
+      "sha256": "0ee854d784cbdfec1e4ed283be683f00795d8f75a13d8d04289202bbc425af43"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_AnimStateNodeBase.cpp",
+      "sha256": "cb27c5bfeca5f6cef4936fdf13daf8b013a1eb6e4c1990fb63812a3a8fad69c8"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_IntroSort.h",
+      "sha256": "91060226c90321e20f4c0391ce79c6b86576933a819f2fe8d3d7f60f135f35dc"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_MovementComponent.cpp",
+      "sha256": "7fb9f39a98ae2e6769f7aed5a593ec6afe71512268d2597bbf1410bcb36c5757"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_AnimNode_CallFunction.cpp",
+      "sha256": "20e16f71b0123c07252c20af6e5707f16f64e5fcd95b825095b67446a7c65526"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_AnimNode_StateMachine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf115_locomotion/source/UE_CharacterMovementComponent.cpp",
+      "sha256": "fcf827d7c5adaa73a4f272a716a53b03f66fc7352f3eacc1be4d51cc9b3e15a8"
+    },
+    {
+      "path": "target/bf115_locomotion/source/TnuaBuiltinWalk.rs",
+      "sha256": "4fca71b82733286bab728d0ff3de5810ee9e393aab7736544dce97d1b85b4e7d"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsFeetState.h",
+      "sha256": "422bedd78a8c8856d91c9ce408f20fdcf4c2c95d82ad09669e4cb541ad52e714"
     }
   ],
   "graphs": [
@@ -1851,11 +1887,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_locomotion/native_call_source",
+        "target/bf115_locomotion/order_source",
         "--materialized-directory",
-        "target/bf115_locomotion/native_call_conversion",
+        "target/bf115_locomotion/order_final_conversion",
         "--spec",
-        "target/bf115_locomotion/schedule_spec.json"
+        "target/bf115_locomotion/foot_final_spec.json"
       ]
     },
     {
@@ -1939,6 +1975,22 @@
         "tools/import/gen_in_air_settings.py",
         "--self-test"
       ]
+    },
+    {
+      "label": "native_fsm_contract",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_fsm_contract.py"
+      ]
+    },
+    {
+      "label": "native_fsm_renderer",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_fsm_renderer.py"
+      ]
     }
   ],
   "runtime_gate": {
@@ -2014,7 +2066,7 @@
         "bevy_als",
         "manual_playground_integration::tests"
       ],
-      "evidence": "target/bf115_locomotion/source/observation_final.watchdog.json"
+      "evidence": "target/bf115_locomotion/source/landing_rebound_regression.watchdog.json"
     },
     {
       "label": "actual_source_blend_alpha",
@@ -2043,6 +2095,32 @@
         "locomotion_layer::tests::generated_air_inputs_initialize_with_their_actual_neighbor_plugins"
       ],
       "evidence": "target/bf115_locomotion/source/schedule_regression_pass.watchdog.json"
+    },
+    {
+      "label": "current_physical_locomotion_mode",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-core",
+        "physical_locomotion_matches_the_current_controller"
+      ],
+      "evidence": "target/bf115_locomotion/source/landing_rebound_regression.watchdog.json"
+    },
+    {
+      "label": "foot_lock_previous_final_space",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "foot_ik_apply::tests"
+      ],
+      "evidence": "target/bf115_locomotion/source/foot_final_pass.watchdog.json"
     }
   ]
 }

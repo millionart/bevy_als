@@ -492,13 +492,13 @@
 
   - 04c完成2026-09-10 10:37:00：公开AIS/两曲线生成109.871s、Locomotion重新生成42.411s PASS；实际九个混合区间及650→6.5阈值由七个RON安装，46文件保持原256文件owner。旧安装source审计0.830s稳定FAIL于这七项；新十图fresh spec2.868s和完整32图/46文件声明式2.628s PASS，编辑器46文件零修复0.275s。Lean原线性重采样在源关键点得到-0.4660967，最小实际调用26.687s FAIL；换为离线目标RichCurve后16项Locomotion回归23.585s PASS，删除两个旧CurveAsset加载、运行时乘100及缺失曲线回退。两条原始导出保持不变；复用既有曲线类型、转换和LazyLock，不新增runtime适配层。标量适配消融0.301s、混合0.277s、converter/materializer/共享Curve自测0.561/0.264/0.274s PASS；target_game/play双example63.891s PASS。第一次公开调用因隔离安装目录未创建而0.298s退出，读报告后补目录，不计为source失败。开始10:13、预估11:08、实际结束10:37（偏差-31m）；本段数据与单位合同完成，原生刷新、实际Jump和Actor影子逻辑仍待04d，未运行场景。
 
-- [x] BF115.04d Locomotion原生刷新、Jump事件与Actor消费者：开始2026-09-10 10:37:00、预估11:32:00。依赖04c；沿已提取32子图、InitializeLean/RefreshInAir、OnJumped→Jump请求和AIS预测/Lean合同，复用已有共享SourceInstance、原生节点及Tnua实际动作事件，实现按实际活动节点刷新与jump请求锁存/消费。预测只纳入源证明的当前capsule、mesh scale、walkable normal和AIS过滤边界；先最小失败再修复，不改变其它trace算法。删除旧Actor FSM/phase/手工曲线和向上速度猜测；对仍有真实消费者的输出改接实际生成树。估时依据为已完成七项数据迁移、Grounded/Crouching同类原生调用约半小时的记录与现有节点/事件框架；完成focused、消融、公开重新生成和同入口静态后，再独立登记真实动作观测及无截图Playground Gate。本段不启动runtime，也不展开Default或后续模块。
+- [ ] BF115.04d Locomotion原生刷新、Jump事件与Actor消费者：开始2026-09-10 10:37:00、预估11:32:00。依赖04c；沿已提取32子图、InitializeLean/RefreshInAir、OnJumped→Jump请求和AIS预测/Lean合同，复用已有共享SourceInstance、原生节点及Tnua实际动作事件，实现按实际活动节点刷新与jump请求锁存/消费。预测只纳入源证明的当前capsule、mesh scale、walkable normal和AIS过滤边界；先最小失败再修复，不改变其它trace算法。删除旧Actor FSM/phase/手工曲线和向上速度猜测；对仍有真实消费者的输出改接实际生成树。估时依据为已完成七项数据迁移、Grounded/Crouching同类原生调用约半小时的记录与现有节点/事件框架；完成focused、消融、公开重新生成和同入口静态后，再独立登记真实动作观测及无截图Playground Gate。本段不启动runtime，也不展开Default或后续模块。
 
   - 04d原生/Actor闭环进展2026-09-10 11:12:00：连续两次请求的共享属性反例39.288s FAIL；复用既有write_frames增加显式当帧输入，保留其余持久属性和实例隔离，不修改依赖私有arena。InitializeLean/RefreshInAir映射0.292s FAIL→0.304s PASS；真实图fixture覆盖活动/非活动、落地速度保留、两次请求、pending/零半衰期及重新相关，分别移除刷新和初始化都改变结果。fresh AlsMath证明Damper使用InvExpApprox；C++九个标量和两曲线经公开入口114.570s重新生成。原预测扫掠最小实物理fixture52.961s FAIL（mesh scale 3仍未触及地面）；新路径读取实际Collider、mesh scale和Tnua实际坡度限制，并排除源Pawn/PhysicsBody对应的角色及ragdoll collider，保留初始穿透接触。预测准备属于ECS物理读输入，只有实际图调用才提交InAirState；C++ GetControlRigInput直接证明Root/Rig需要该状态，现从图后投影既有组件，不改Rig算法。旧Locomotion私有FSM/时钟/手工曲线已删除；另确认AirJumpLayer只给旧入口pin和manual变体观测写入交替左右猜测，现改读当前源Jump同步组四个实际Sequence及权重，完整外/内FSM观测仍由下一段覆盖。首次组合测试61.037s因新fixture浮点类型及旧phase读数Option误用编译失败，修正后native与曲线focused通过；新增过滤消融fixture暂用引用临时值导致5.545s编译失败，已改为局部绑定，回归进行中。未启动runtime。
 
   - 04d完成2026-09-10 11:27:00：339项als-ext与285项项目回归25.230s PASS，包含真实节点调用、当帧Bool请求、零/普通/pending Lean、落地值保留、实际物理扫掠及过滤/mesh scale/capsule消融；删除旧Actor镜像测试，保留新失败边界。公开Locomotion uasset78.187s、unsupported 0，三张调用图由原owner安装，其余43文件不变；target_game/play双example120.860s、十图fresh spec3.635s、46文件编辑器零修复0.271s与完整32图/64 Pose节点/50边/两FSM/18条件声明式4.204s PASS。manifest曾将Cargo测试误列为只读命令而0.274s失败，按原schema分离为已执行的focused_tests证据，Python只读审计保持原入口；未修改审计器或增加包装器。Actor现在只准备真实物理/曲线输入，InAirState和Lean由生成节点按源位置/生命周期写入，两个手工FSM、四个时钟及虚假transition receipt全部删除；Jump变体与phase读取实际播放器。开始10:37、预估11:32、实际结束11:27（偏差-5m）；结果为生产执行静态闭合，尚未启动Locomotion真实场景，下一段补完整动作观测/fixture后再进行公共数值Gate。
 
-- [x] BF115.04e Locomotion完整动作观测与场景静态闭环：开始2026-09-10 11:27:00、预估12:22:00。依赖04d，沿32源子图/两FSM/18条件及九个速度混合区间，为左右Jump Walk/Run、Jump Loop/Flail、Fall/Fast/Flail、预测和Land/Land Movement建立真实状态、clip/weight/phase、曲线与生命周期读数及源前提驱动。复用既有Playground场地、输入、逐帧采样、canonical和watchdog；不能用Actor猜测、固定时间推进或请求值充当实际状态。先读完整条件/分支和既有公共case，做最小场景/reader fixture、设计消融与同入口静态；完成后另立不超过60分钟的无截图startup及动作Gate。估时依据为已完成实际执行和数据闭包、Standing/Crouching场景迁移记录及现有零截图公共runner；本段只制作/验证场景与观测，不启动runtime、不展开后续模块。
+- [ ] BF115.04e Locomotion完整动作观测与场景静态闭环：开始2026-09-10 11:27:00、预估12:22:00。依赖04d，沿32源子图/两FSM/18条件及九个速度混合区间，为左右Jump Walk/Run、Jump Loop/Flail、Fall/Fast/Flail、预测和Land/Land Movement建立真实状态、clip/weight/phase、曲线与生命周期读数及源前提驱动。复用既有Playground场地、输入、逐帧采样、canonical和watchdog；不能用Actor猜测、固定时间推进或请求值充当实际状态。先读完整条件/分支和既有公共case，做最小场景/reader fixture、设计消融与同入口静态；完成后另立不超过60分钟的无截图startup及动作Gate。估时依据为已完成实际执行和数据闭包、Standing/Crouching场景迁移记录及现有零截图公共runner；本段只制作/验证场景与观测，不启动runtime、不展开后续模块。
 
   - 04e源/场景前提2026-09-10 11:52:00：同次32图/两FSM/18条件已逐项回读：脚底曲线≤0选Left、>0选Right，Jump速度2–5m/s连续混合；起跳片段完整结束后自动进入Loop，再以源恒true条件用1秒过渡到Flail，不能要求Loop长时间稳定。Fall的Fast/Fall/Flail按三条实际混合边取证，不按片段名称猜测速度。CS_Als_Default直接native重读33.960s确认默认落地7m/s翻滚、10m/s Ragdoll；高台长空中段仅验到已发生的Loop/Flail及落地预测，随后显式fixture重置，低落差单独验证Land/Land Movement和完整Grounded回调，不能把默认动作接管当动画故障或禁用其算法。重落地additive在默认翻滚阈值之前权重为0，其7.5–15m/s混合合同仍由完整源/生成数据与标量fixture验收，不伪称默认场景实际完整播放。原Playground18米高台及原平地保持，新增两个FSM/13片段/实际blend alpha只读观测，无私有动画状态机。新场景首次编译16.302s在JSON数组表达式失败、第二次11.902s在NodeId显示格式失败，均为新观测调用错误，已修正后继续focused验证；未启动runtime。
 
@@ -515,6 +515,63 @@
   - 04f重跑startup前2026-09-10 12:44:30：最终同入口62.866s、十图fresh spec2.606s和完整32源子图/46RON声明式2.684s PASS，291项目回归与实际插件顺序反例保留。源图、单位、Pose算法均未新增差异，当前仅删除已证实过时的输入阶段依赖；先重新确认应用初始化与Root数值状态，再执行完整七段动作。CaptureCount=0，未降低任何窗口/姿态/时间守卫。
 
   - 04f startup通过/动作Gate前2026-09-10 12:46:00：公共startup15.174s PASS，manual0/validator0、0截图/0PNG，faults/graph_errors/temporal为空；七真实插件回归与实际入口共同确认调度环消除，04d仅本轮调度依赖复开边界关闭。32图/46RON、291项目、fresh spec和声明式合同均保持通过，提交此最小修复后，同一二进制执行完整七段/十四窗口，尚无动作结论。
+
+  - 04f首轮动作结果/出口顺序闭包2026-09-10 13:08:00：runner18.886s失败（manual91/validator1），首个Walk Left实际Jump、源连续权重及canonical通过，但1.027s落地后经Grounded Alias直接回Grounded，未出现Land或LandToGrounded回调，12秒case watchdog正常结束。公共pose pass=true，faults/graph_errors/temporal为空、0截图。回读全部源落地条件与bDisabled均确认入口true且未禁用；本地UE5.8 StateMachineBase按具体状态先汇总alias/direct出口，再调用GetTransitionList(priority sort)，IntroSort同优先级不保序；target仅对各source组按priority/pin顺序稳定排序后拼接，未保留这种混合出口次序。当前仅为取证增加native实际顺序输出，读取器构建78.050s PASS，公开uasset重新提取进行中；未据假设修改图、算法或验收目标。需先以fresh原生顺序证明首条分歧，再做转换器最小反例/修复与重生成。
+
+  - 04f原生顺序证据/04b有限复开2026-09-10 13:25:00：公开uasset提取57.537s确认Jump/Fall的Land Conduct入口先于Grounded Alias，Land Conduct先判断Land Movement再默认Land，正好解释首轮直接回Grounded。原01源排序使用priority/pin顺序在各source组内排序，缺少UE汇总alias/direct后的实际次序；旧生成一致性Gate只证明与同一转换器一致，未覆盖引擎排序语义。04b仅FSM执行顺序取消勾选，原Bool ABI/其它迁移保持。原生读取器直接复用UE GetTransitionList与同一alias MultiFind，避免手写不稳定排序；工具fixture0.300s稳定FAIL，删除旧排序后用Python标准库拓扑排序合并各状态顺序，0.307s PASS，冲突顺序显式拒绝，未加runtime调度层。contract/renderer自测0.312/0.303s PASS。第一次隔离转换误把完整路径当namespace，输出未安装且原生证据有效；正式重新生成使用generated命名空间，并保留旧原始记录。当前尚未安装新资产或重跑runtime。
+
+  - 04f原生顺序静态闭合/运行前2026-09-10 13:37:00：最终公开uasset重新生成44.826s，native导出保留具体状态与conduit的实际出口次序；32源子图/46RON中四项顺序差异安装，原owner和原始记录保持。旧四资产审计1.099s稳定FAIL；新十图fresh spec1.877s、编辑器46文件零修复0.299s、完整声明式12命令3.197s和同入口增量3.729s PASS，converter/materializer及冲突顺序反例通过。当前只验证已证实的Jump/Fall→Land优先次序与Jump入口次序，下一步公共startup和完整七段十四窗口，CaptureCount=0；尚无新动作结果。
+
+  - 04f顺序修复startup通过/动作Gate前2026-09-10 13:38:00：公共startup14.703s PASS、CaptureCount=0；新四资产已通过真实入口启动，完整source/static和原姿态守卫保持。接着运行相同原Playground的七段动作/十四窗口，验证真实Land与后续分支，当前不提前关闭04b执行顺序边界。
+
+  - 04f首轮超时复盘2026-09-10 13:40:00：本轮开始12:25、预估13:20、当前13:40（已耗75m、偏差+20m），完整Gate未通过；先暂停实现及新的runtime启动，回读32源子图、四资产顺序差异和两次运行证据。新startup14.703s通过；动作25.751s失败于case2 watchdog，普通左右Jump→Land→LandToGrounded→完整Grounded已实际通过，Run Left→Land Movement→完整Grounded也发生，fault/graph/temporal为空、0截图。native T3普通Land出口有LandToGrounded，T2移动Land出口没有通知；场景却给所有落地统一要求该回调，导致真实已完成仍等待。公共collector另显示Land片段canonical读数缺失与一次终态窗口零采样，需要先最小fixture核对时钟/采样链，不能放宽阈值或改生产图迎合错误预期。04e仅这些已证实观测边界有限复开，04b顺序边界继续待完整运行；其它闭包不复开。
+  - 纠正与拆分：按上一55m估时窗口1.5倍，下一轮开始13:40:00、预估15:02:30，拆为04f1源动作验收条件与采样静态收口（13:40–14:25）和04f2完整无截图Gate（计划14:25–15:02:30）。剩余工作依据为native已证明的通知区别、一次短窗口采样与已有真实状态轨迹，先修最小观测根因，再复用现有构建/声明式流程；保留全部十四窗口、Loop/Flail/Fall/预测/两类落地目标及后续模块顺序，自动继续，不以超时停止任务。
+
+  - [x] BF115.04f1 源动作验收条件与采样静态收口：开始2026-09-10 13:40:00、预估14:25:00。只沿已证明的移动落地无通知、Land实际clip time读取和短终态窗口采样边界补最小失败，修复真实公共观测链，完成消融、适用回归、同入口及静态合同；本段不启动runtime。
+  - [x] BF115.04f2 完整无截图Locomotion Gate：实际开始2026-09-10 13:55:00、预估14:32:30（沿原37m30s窗口提前开始）。依赖04f1，保留原场景全部七段十四窗口和source/public守卫，实际start/motion通过后关闭04b/04e有限复开并提交。
+  - 04f1观测根因静态闭合2026-09-10 13:52:00：实际无通知移动落地与短窗口两个反例32.529s稳定FAIL；按最近实际Land/Land Movement状态保留源通知差异，父FSM过渡字段接入已有读数，复用逐帧采样并用已有Grounded就绪时间保留终态窗口，293项目25.102s PASS。同一失败轨迹的首个blend无效帧再核对fresh左右TwoWayBlend，均有200–500cm/s映射及5/s插值、映射本身不预夹紧；原验收瞬时速度公式20.574s FAIL。现比较实际节点alpha和两片段归一权重，源插值函数以该速度变化复算，去掉插值的消融仍被拒绝，294项目23.178s PASS。未改生产运动/混合算法或放宽阈值。首次测试误用了target_game/debug而非已缓存target/debug，确认本次进程/目录后中止102.508s编译并改正；实际入口预构建仍使用target_game/play。下面完成同入口与声明式静态，再登记运行。
+
+  - 04f1完成/04f2运行前2026-09-10 13:55:00：最终294项目23.178s、公共数值validator自测0.838s、target_game/play双example68.418s、十图fresh spec3.399s和完整32源图/46RON声明式12命令3.426s PASS，编辑器零修复合同保持。开始13:40、预估14:25、实际13:55（偏差-30m）；结果为观测静态闭合，保留14窗口和原阈值，未改生产动画算法或新增时钟。04f2提前开始，先当前版本startup，再完整七段动作，CaptureCount=0；顺序和观察的有限复开仍以最终实际结果收口。
+
+  - 04f2 startup通过/完整动作前2026-09-10 13:56:00：公共零截图startup15.245s PASS；当前观测修复已进入实际入口，Root/公共守卫通过。32源子图、46RON与294项目回归保持闭合，开始完整七段十四窗口，不跳过上轮尚未执行的Run Right/Loop/Flail/Fall/预测/混合落地。
+
+  - 04f2动作结果2026-09-10 13:57:00：公共motion26.319s完成但FAIL（manual91/validator1），九窗口全部public数值/状态/源chain/canonical通过，四Jump、Loop/Flail、普通及移动落地、完整Grounded和源权重PASS；frame p95 14.622ms/max26.299ms、eval p95 0.0831ms，无fault/graph/temporal、零截图。Fall高台case5在fixture重置首帧看到上一Jump→Land，未触发新动作即满足通用落地完成并跳过，04f1仅此场景触发边界有限复开；源图不得改成忽略真实落地。case6实际完成低落差Land，但InAir垂直速度在入Land前已近零，未覆盖混合重落地；下一步沿已提取RefreshInAir、实际物理速度/模式发布核对首条差异，尚未据此复开生产算法。其余已通过九窗口保持，不提前勾选全Locomotion。
+
+  - 04f2物理模式source闭包/04d有限复开2026-09-10 14:08:00：直接回读本地AlsCharacter、AlsAnimationInstance及UE MovementComponent，bTickBeforeOwner使Movement先于Actor，Mesh又显式依赖Actor；OnMovementModeChanged立即发布模式，动画随后读取同次角色模式/速度。target的locomotion_state_sync→refresh_gait→grounded_dynamics约束在Tnua Logic之前，动画速度却采集当前motor，导致最后一个Air帧读取已修正的近零速度。04d只取消此物理模式发布边界勾选；原节点算法、数据、Jump请求与曲线合同不复开。同步回读UE CallFunction和StateMachine确认OnUpdate与先转移后求值，未发现应增加RefreshInAir条件分支的source依据，不做速度锁存补偿。真实Tnua最小物理测试进行中，用当前controller.is_airborne对照实际LocomotionState，下一步修顺序与原事件出口。高台触发反例25.887s FAIL→22.435s九项PASS，仅记录新动作触发后的Air状态，尚未重跑runtime。
+
+  - 04f2模式发布静态修复2026-09-10 14:13:00：真实Tnua/实际Motion插件120帧fixture在第3帧Grounded对Air稳定FAIL（26.437s），改为Logic后提交物理模式并发送原StateTransitionEvent，移除gait的旧反向依赖；landing friction和既有Air消费者明确随后读取，不新增状态或快照。20.062s focused PASS；加入恰好一次模式事件/原from-to与Ragdoll请求保护，删除落地friction的冗余after Logic边，core/ext/项目完整回归68.714s PASS（243/339/295，1项既有ignored）。此前测试只分别验证Mode请求与速度，没有在同次真实controller更新后比较两者。下一步同入口构建、Locomotion及共享已完成图的静态回归，再无截图startup/完整Locomotion；图算法、物理参数、原始资产保持不变。
+
+  - 04f1补充收口/04f2运行前2026-09-10 14:18:00：新动作触发后的Air记录反例及模式发布/事件回归均通过，core243（1既有ignored）/ext339/项目295保持PASS；同入口target_game/play136.170s、十图fresh spec2.899s、Locomotion完整32源图/46RON声明式3.157s PASS，Standing/Grounded/Crouching共享静态8.456/8.984/4.798s PASS。04f1原开始13:40、预估14:25、补充实际结束14:18（偏差-7m），本段仅观测静态有限复开关闭；04d物理模式和04b/04e运行结论继续待真实Gate。下面先startup，再完整七段十四窗口，全部CaptureCount=0，原source/public阈值保持。
+
+  - 04f2模式修复startup通过/动作前2026-09-10 14:19:00：公共startup15.440s PASS、validator issues为空、零截图；完整实际插件与新的物理模式阶段共同通过，32源图/46RON静态与243/339/295回归保持。接着完整七段十四窗口，重点核对新触发的高台Fall与低落差混合落地，不降低其余已通过九窗口要求。
+
+  - 04f2十三窗口通过/落地回弹边界2026-09-10 14:26:00：完整motion30.559s FAIL，仅land_mixed未完整覆盖；其余十三窗口、源连续权重/状态/完整Grounded均PASS，无fault/graph/temporal、零截图。新模式发布使低落差以-6.057m/s进入Land，Light/Heavy权重0.789/0.211正确；随后实际物理向上约1.3m/s、再次Air，Land按源规则中断，不能把短中断窗口判成完整混合落地或放宽canonical。直接回读UE MaintainHorizontalGroundVelocity/AdjustFloorHeight及当前Tnua Walk：UE消去地面竖直速度后独立调整地板间距，Tnua默认spring_dampening=1.2把竖直相对速度按120%反向boost，已明确产生回弹的算法差异。04d当前物理落地边界继续打开；沿同一个120帧真实Tnua fixture补“无输入落地后不再次Air”的失败，再用现有config约束抵消比例，不加状态、门限或动画补偿。
+
+  - 04f2回弹最小修复2026-09-10 14:30:00：同一真实Tnua fixture新增落地后不再次Air断言，27.454s在第42帧稳定FAIL；按source消去地面竖直速度的语义，把已有spring_dampening设为1.0（恰好抵消相对速度），仅一行配置，无新状态/阈值/组件。原1.2设置即失败消融；加入8.3/16.7/33.3/50ms交替步长后21.120s PASS，243 core/339 ext/295项目回归51.687s PASS（1既有ignored）。接着同入口构建与fresh spec/static，之后完整Locomotion及共享模式的Grounded/Standing/Crouching真实回归，全部零截图。当前十三窗口通过事实保留，混合落地仍未标完成。
+
+  - 04f2最终静态闭合/运行前2026-09-10 14:34:00：243 core/339 ext/295项目（1既有ignored）、回弹负例与变动步长正例保持PASS；同入口135.382s、十图fresh spec3.209s、完整32源图/46RON声明式12命令3.409s PASS。只使用Tnua现有竖直阻尼字段消去已证明的速度反转，未改变spring强度、cling范围、物理时钟或验收目标。启动当前版本startup及完整Locomotion，之后用既有Grounded/Standing/Crouching场景回归共享模式/地面接触边界，CaptureCount=0。
+
+  - 04f2最终startup通过/动作前2026-09-10 14:35:00：公共startup15.508s PASS、零截图；最终物理模式与阻尼配置已通过完整入口初始化和Root数值检查。32源图/46RON、fresh spec/static与243/339/295回归保持，通过后继续完整七段十四窗口，未只挑最后失败的混合落地。
+
+  - 04f2十四动作通过/公共时间守卫待解2026-09-10 14:37:00：完整motion30.272s manual通过，十四窗口/全部生命周期/source blends都PASS，混合Land持续1.155s、canonical误差0.0000694，原回弹消除。但validator因一次final calf_l local_rotation_spike拒绝（0.77984rad/0.0140262s，55.599rad/s，高于40），pre-rig及graph无同类异常、零截图。故整体仍未勾选。该帧位于case4高台fixture重置后0.494s的Grounded启动移动阶段，前一采样左脚solver_reference在Y22.596而当前foot在Y30.407，随后恢复同空间；先沿当次CPP脚锁teleport及target空间读数检查首个失配，未展开CR图或按猜测修改IK/阈值。此前十四动作结果保留，共享场景真实回归仍待公共守卫通过。
+
+  - 04f2脚锁source闭包/BF102.43有限复开2026-09-10 14:43:00：fresh RefreshFootLock把上一帧FinalLocation/Rotation作为component-space缓存，新锁脚用当前ComponentTransform转成world；target的同名缓存是world-space，却仅在teleport窗口且旧lock相关时重投影。case4传送时未锁定的左脚在首个满权重帧因此锁住旧地面坐标，随后释放时引发末端突跳；常规组件位移也属于同一空间合同。BF102.43仅该缓存边界取消勾选并记录旧测试只覆盖已锁定rebase的漏检；使用既有helper和状态，在普通/传送、旋转/scale最小fixture中先复现，不更改锁定规则、source Release速度或CR求解器。
+
+  - 04f2脚锁空间静态修复2026-09-10 14:46:00：未锁定脚在普通位移/30m传送及旋转、scale变化后首次锁定的真实helper+refresh反例31.181s FAIL；现每帧重投影上一帧final缓存，锁定点只按原teleport/相关性条件重投影，保留原world-space消费ABI和已有previous transform，不新增缓存或状态。合并左右重复块，旧条件路径即消融失败；296项目21.183s PASS，原已锁定传送/骨骼恢复测试保持。下面更新同入口及完整声明式，再执行公共Gate；BF102.43仍待真实时间守卫通过后关闭，不涉及CR图或求解器改动。
+
+  - 04f2脚锁修复运行前2026-09-10 14:49:00：296项目21.183s、同入口63.390s、十图fresh spec2.859s、完整32源图/46RON声明式12命令3.178s PASS；当前脚锁缓存空间修复不改变锁定/释放条件、状态机或曲线。先startup再完整十四窗口，验证高台准备阶段final守卫，随后完成共享场景回归，全部零截图。
+
+  - 04f2脚锁修复startup通过/动作前2026-09-10 14:50:00：公共startup15.263s PASS、零截图，当前脚锁缓存修复已通过真实入口；完整32源图/46RON、296项目及fresh spec/static保持。开始完整七段十四窗口，公共final时间守卫仍启用原40rad/s阈值，不增加场景重置或采样豁免。
+
+  - 04f2完整Locomotion通过2026-09-10 14:51:26：公共motion29.956s PASS，manual0/validator0、十四窗口和全部生命周期/source blends通过，fault/graph/temporal为空、零截图；高台准备阶段脚锁final异常消除，混合落地持续播放与canonical通过。开始13:55、预估14:32:30、实际结束14:51:26（偏差+18m56s），结果为完整Locomotion动作及公共守卫Gate完成。04f父项仍保留共享模式/地面接触/脚锁消费者回归；该新增共享边界单列04f3，未将后续模块或未通过项删除。
+
+- [ ] BF115.04f3 共享模式与脚锁真实回归及提交收口：开始2026-09-10 14:53:00、预估15:23:00。依赖04f2已通过；使用同一已验证二进制，在原Playground依次跑既有grounded、standing_response、crouching公共case，检查角色模式、落地接触与上一帧final空间修复的直接消费者。三图声明式与243/339/296回归已闭合；估时依据为此前三case共三十窗口约两分钟、当前14窗口29.956s、无需再次构建/导入，保留首个source链回归失败的诊断空间。全部CaptureCount=0，守卫及旧目标保持；通过后分别关闭04b/04d/04e和BF102.43有限复开并按修复scope独立提交，再继续Default。
+
+  - 04f3 Grounded通过/Standing运行前2026-09-10 14:55:00：公共grounded42.757s PASS，manual0/validator0，9窗口、零截图，fault/graph/temporal为空；物理模式/接触及脚锁空间修复未破坏既有Roll和切换/瞄准终态。当前源码/同入口/声明式保持，接着standing_response，再crouching，不改两者场景目标。
+
+  - 04f3 Standing通过/Crouching运行前2026-09-10 14:57:00：公共standing_response19.928s PASS，manual0/validator0，9窗口、零截图，无fault/graph/temporal；当前脚锁component-space缓存与模式发布保持原运动响应。相同已构建入口继续crouching，全部原阈值及source/static合同保持。
+
+  - 04f3共享Gate通过/04b关闭2026-09-10 14:59:00：公共crouching40.336s PASS，12窗口、零截图；连同grounded9窗口42.757s、standing_response9窗口19.928s，三十共享窗口全部manual0/validator0，无fault/graph/temporal。Locomotion十四窗口29.956s同样PASS，frame p95 14.9085ms/max28.3111ms、eval p95 0.0875ms。32源图/46RON、完整源码/单位/生命周期和296项目（另243 core/339 ext）证据闭合；04b本轮原生FSM排序边界关闭，先独立提交native读取器/转换器与四份生成执行数据，再分别收口物理模式、观测和脚锁修复。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

@@ -280,6 +280,12 @@ def fsm_contract(source, suffix):
     for alias in aliases:
         if any(f"{source['asset_path']}:{member}" not in nodes for member in alias["members"]):
             raise FsmContractError("source FSM alias member is unavailable")
+    runtime_order = {}
+    for state in [*states, *conduits]:
+        order = nodes[state["source_node"]].get("runtime_transition_order")
+        if not isinstance(order, list) or any(not isinstance(path, str) or nodes.get(path, {}).get("class_path") != TRANSITION_CLASS for path in order) or len(set(order)) != len(order):
+            raise FsmContractError("source native state transition order is unavailable or invalid")
+        runtime_order[state["source_node"]] = order
     return {
         "format": "ue_animgraph_fsm_contract_v1",
         "source_graph": suffix,
@@ -288,6 +294,7 @@ def fsm_contract(source, suffix):
         "aliases": sorted(aliases, key=lambda item: item["id"]),
         "conduits": sorted(conduits, key=lambda item: item["id"]),
         "transitions": sorted(transitions, key=lambda item: item["id"]),
+        "runtime_transition_order": runtime_order,
         "runtime": state_machine_runtime(source, suffix),
     }
 
@@ -313,6 +320,7 @@ def fixture_source():
             "position_y": 0,
             "properties": [{"name": key, "exported_text": value} for key, value in props.items()],
             "pins": pins,
+            **({"runtime_transition_order": [transition]} if class_path == STATE_CLASS else {}),
         }
     def output(name, target, target_pin):
         return {"name": name, "direction": "Output", "linked_to": [{"node_object_path": target, "pin_name": target_pin}]}

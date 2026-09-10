@@ -4,6 +4,9 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "AnimStateAliasNode.h"
+#include "AnimStateNodeBase.h"
+#include "AnimStateTransitionNode.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
@@ -196,6 +199,36 @@ TSharedRef<FJsonObject> CaptureNode(const UEdGraphNode* Node, int32 Index)
         }
     }
     Value->SetArrayField(TEXT("pins"), Pins);
+    UAnimStateNodeBase* State = Cast<UAnimStateNodeBase>(const_cast<UEdGraphNode*>(Node));
+    if (State != nullptr && !State->IsA<UAnimStateAliasNode>() && !State->IsA<UAnimStateTransitionNode>() && State->Pins.Num() >= 2)
+    {
+        TMultiMap<UAnimStateNodeBase*, UAnimStateAliasNode*> AliasMap;
+        for (UEdGraphNode* Peer : State->GetGraph()->Nodes)
+        {
+            UAnimStateAliasNode* Alias = Cast<UAnimStateAliasNode>(Peer);
+            if (Alias != nullptr && (Alias->bGlobalAlias || Alias->GetAliasedStates().Contains(State)))
+            {
+                AliasMap.Add(State, Alias);
+            }
+        }
+        TArray<UAnimStateAliasNode*> Aliases;
+        AliasMap.MultiFind(State, Aliases);
+        TArray<UAnimStateTransitionNode*> Transitions;
+        for (const UAnimStateAliasNode* Alias : Aliases)
+        {
+            Alias->GetTransitionList(Transitions, false);
+        }
+        State->GetTransitionList(Transitions, true);
+        TArray<TSharedPtr<FJsonValue>> Order;
+        for (const UAnimStateTransitionNode* Transition : Transitions)
+        {
+            if (!Transition->bDisabled)
+            {
+                Order.Add(MakeShared<FJsonValueString>(ObjectPath(Transition)));
+            }
+        }
+        Value->SetArrayField(TEXT("runtime_transition_order"), Order);
+    }
     return Value;
 }
 

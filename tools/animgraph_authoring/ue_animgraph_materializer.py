@@ -2,6 +2,7 @@ import json
 import re
 import sys
 import uuid
+from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 
 
@@ -334,13 +335,27 @@ def condition_context_config(source_asset, condition, scope):
     }
 
 
+def ordered_fsm_transitions(plan):
+    transitions = {entry["source_node"]: entry for entry in plan["transitions"]}
+    orders = plan.get("runtime_transition_order")
+    if not isinstance(orders, dict) or any(not isinstance(order, list) for order in orders.values()):
+        raise MaterializationError("source native transition order is unavailable")
+    if {path for order in orders.values() for path in order} != transitions.keys():
+        raise MaterializationError("source native transition order does not cover the transition set")
+    ordering = TopologicalSorter({path: [] for path in transitions})
+    for order in orders.values():
+        for previous, current in zip(order, order[1:]):
+            ordering.add(current, previous)
+    try:
+        return [transitions[path] for path in ordering.static_order()]
+    except CycleError as error:
+        raise MaterializationError("source transition order requires per-state runtime dispatch") from error
+
+
 def resolved_fsm_transitions(source, plan, namespace):
     source_asset = source["asset_path"]
     conduits = {item["source_node"]: item for item in plan["conduits"]}
-    transitions = sorted(
-        plan["transitions"],
-        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
-    )
+    transitions = ordered_fsm_transitions(plan)
     outgoing = {}
     for transition in transitions:
         outgoing.setdefault(transition["source"], []).append(transition)
@@ -414,10 +429,7 @@ def resolved_fsm_transitions(source, plan, namespace):
 def resolved_entry_conditions(source, plan, namespace):
     source_asset = source["asset_path"]
     conduits = {item["source_node"]: item for item in plan["conduits"]}
-    transitions = sorted(
-        plan["transitions"],
-        key=lambda item: (item["source"], item["priority"], item["source_order"], item["id"]),
-    )
+    transitions = ordered_fsm_transitions(plan)
     outgoing = {}
     for transition in transitions:
         outgoing.setdefault(transition["source"], []).append(transition)
@@ -852,6 +864,11 @@ def conduit_fixture():
         "aliases": [],
         "conduits": [{"source_node": conduit, "id": "10000000-0000-4000-8000-000000000003", "title": "Conduit", "position": [0.5, 0.0], "graph": conduit_condition}],
         "conduit_conditions": {conduit: conduit_condition},
+        "runtime_transition_order": {
+            source: [f"{fsm}.Transition0"],
+            target: [],
+            conduit: [f"{fsm}.Transition1"],
+        },
         "transitions": [
             transition("AnimGraph.FSM.Source", "AnimGraph.FSM.Conduit", 0, source_condition, True),
             transition("AnimGraph.FSM.Conduit", "AnimGraph.FSM.Target", 1, target_condition),
@@ -866,6 +883,30 @@ def conduit_fixture():
 
 
 def run_self_test():
+    order_plan = {
+        "transitions": [
+            {"source_node": path, "source": source, "priority": 1, "source_order": index, "id": path}
+            for index, (path, source) in enumerate([
+                ("alias", "Alias"), ("jump_land", "Jump"), ("fall_land", "Fall"),
+                ("land", "Conduit"), ("land_movement", "Conduit"),
+            ])
+        ],
+        "runtime_transition_order": {
+            "Jump": ["jump_land", "alias"], "Fall": ["fall_land", "alias"],
+            "Conduit": ["land_movement", "land"],
+        },
+    }
+    actual_order = [entry["source_node"] for entry in ordered_fsm_transitions(order_plan)]
+    assert actual_order.index("jump_land") < actual_order.index("alias")
+    assert actual_order.index("fall_land") < actual_order.index("alias")
+    assert actual_order.index("land_movement") < actual_order.index("land")
+    order_plan["runtime_transition_order"]["conflicting"] = ["alias", "jump_land"]
+    try:
+        ordered_fsm_transitions(order_plan)
+    except MaterializationError:
+        pass
+    else:
+        raise AssertionError("conflicting state orders were accepted")
     assert animation_getter_bindings(
         {
             "graphs": [
