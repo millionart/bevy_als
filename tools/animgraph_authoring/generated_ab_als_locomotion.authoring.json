@@ -3,8 +3,8 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_locomotion/unit_source/0001_AB_Als_Locomotion.ue.json",
-      "sha256": "83178424975ad7dab39840b38bda853aa7d10ec6457a72a66fa67c212cc0b40a"
+      "path": "target/bf115_locomotion/native_call_source/0001_AB_Als_Locomotion.ue.json",
+      "sha256": "588cde8e0368d0f4f23a38315199f72aa82260c005f7d126fe730b9459e8ae2e"
     },
     {
       "path": "target/bf115_locomotion/source/AlsAnimationInstance.cpp",
@@ -35,16 +35,24 @@
       "sha256": "7d44ffd8041ab5a0448234f415fe3d2dd0a79c5cee95e8283c2e208b2ed20ac9"
     },
     {
-      "path": "target/bf115_locomotion/source/AIS_Als_Default.ue.json",
+      "path": "target/bf115_locomotion/native_source/0008_AIS_Als_Default.ue.json",
       "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
     },
     {
-      "path": "target/bf115_locomotion/source/CF_Als_LeanAmount_Air.ue.json",
+      "path": "target/bf115_locomotion/native_source/0009_CF_Als_LeanAmount_Air.ue.json",
       "sha256": "97db23a4a76cb4d0ca1693584cd7909274bfebd8cfd66c53eed640f7a219de59"
     },
     {
-      "path": "target/bf115_locomotion/source/CF_Als_GroundPredictionAmount.ue.json",
+      "path": "target/bf115_locomotion/native_source/0010_CF_Als_GroundPredictionAmount.ue.json",
       "sha256": "7ada912587749856d7ad3cb145c762f6c0fbf222e2973d147770a82a4b1634ba"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsMath.h",
+      "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
+    },
+    {
+      "path": "target/bf115_locomotion/source/TnuaController.rs",
+      "sha256": "d8a5dd266e718568d26bef4de92adebadcab163cb4222bec58b085c00476ea8f"
     }
   ],
   "graphs": [
@@ -1839,11 +1847,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_locomotion/unit_source",
+        "target/bf115_locomotion/native_call_source",
         "--materialized-directory",
-        "target/bf115_locomotion/units_conversion",
+        "target/bf115_locomotion/native_call_conversion",
         "--spec",
-        "target/bf115_locomotion/units_spec.json"
+        "target/bf115_locomotion/native_call_spec.json"
       ]
     },
     {
@@ -1932,5 +1940,63 @@
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
     "manual_case": "base"
-  }
+  },
+  "focused_tests": [
+    {
+      "label": "native_in_air_lifecycle",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-ext",
+        "in_air_source_calls_latch_landing_values_consume_jumps_and_reset_lean_on_reentry"
+      ],
+      "evidence": "target/bf115_locomotion/source/native_regression_retry.watchdog.json"
+    },
+    {
+      "label": "native_frame_input",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-ext",
+        "frame_input_can_request_another_jump_after_the_previous_request_was_consumed"
+      ],
+      "evidence": "target/bf115_locomotion/source/native_regression_retry.watchdog.json"
+    },
+    {
+      "label": "locomotion_actor_inputs",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "locomotion_layer::tests"
+      ],
+      "evidence": "target/bf115_locomotion/source/native_regression_retry.watchdog.json"
+    },
+    {
+      "label": "actual_jump_variant_reader",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "air_jump_layer::tests"
+      ],
+      "evidence": "target/bf115_locomotion/source/native_regression_retry.watchdog.json"
+    }
+  ]
 }

@@ -5134,8 +5134,11 @@ fn observe_manual_integration(
     let actual_motion = motion_probe.actual.get(character).ok();
     let gait_state = motion_probe.gait.get(character).ok();
     let direction = graph_f32(player, "direction_angle");
-    let jump_phase = graph_global_f32(player, "als_locomotion_jump_phase");
-    let land_phase = graph_global_f32(player, "als_locomotion_land_phase");
+    let locomotion_phase = |key| player.get_context_arena().and_then(|arena| {
+        als_ext::sync_group_phase::source_sync_phase(arena, &motion_probe.graphs, key)
+    });
+    let jump_phase = locomotion_phase("sync_groups.ab_als_locomotion.jump.phase");
+    let land_phase = locomotion_phase("sync_groups.ab_als_locomotion.land.phase");
     let overlay_index = graph_global_f32(player, "als_root_overlay_index");
     let source_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
         && player.get_error().is_none();

@@ -1,5 +1,14 @@
 {
   "lean_interpolation_half_life": 0.2,
+  "jump_reference_speed": 6.0,
+  "jump_min_play_rate": 1.2,
+  "jump_max_play_rate": 1.5,
+  "lean_reference_speed": 3.5,
+  "prediction_velocity_threshold": -2.0,
+  "prediction_min_velocity": -40.0,
+  "prediction_max_velocity": -2.0,
+  "prediction_min_distance": 1.5,
+  "prediction_max_distance": 20.0,
   "lean": {
     "times": [
       -40.0,

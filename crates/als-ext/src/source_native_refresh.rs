@@ -13,6 +13,7 @@ use bevy_animation_graph::core::{
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub enum AlsSourceRefreshFunction {
+    RefreshInAir,
     RefreshGrounded,
     #[default]
     RefreshStandingMovement,
@@ -29,6 +30,36 @@ pub struct AlsSourceRefreshNode {
 }
 
 impl AlsSourceRefreshNode {
+    fn refresh_in_air(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+        let scalar = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
+        let boolean = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());
+        if boolean("in_air_state.b_jumped", false)? {
+            set_source_property(ctx, "in_air_state.b_jumped", false)?;
+            set_source_property(ctx, "in_air_state.jump_play_rate", scalar("in_air_source.jump_play_rate", 1.0)?)?;
+        }
+        let velocity = source_input_data(ctx, "locomotion_state.velocity_world_space")
+            .map_or(Ok(Vec3::ZERO), |value| value.as_vec3())?;
+        set_source_property(ctx, "in_air_state.vertical_velocity_world_space", velocity.y)?;
+        set_source_property(ctx, "in_air_state.ground_prediction_amount", scalar("in_air_source.ground_prediction_amount", 0.0)?)?;
+        let target = source_input_data(ctx, "in_air_source.lean_target")
+            .map_or(Ok(Vec2::ZERO), |value| value.as_vec2())?;
+        let half_life = scalar("in_air_source.lean_interpolation_half_life", 0.0)?;
+        let alpha = if boolean("animation.pending_update", true)? || half_life <= 0.0 {
+            1.0
+        } else {
+            1.0 - als_core::animation::inv_exp_approx(
+                std::f32::consts::LN_2 / (half_life + 1e-8) * scalar("animation.delta_seconds", 0.0)?,
+            )
+        };
+        for (key, target) in [
+            ("lean_state.forward_amount", target.x),
+            ("lean_state.right_amount", target.y),
+        ] {
+            set_source_property(ctx, key, scalar(key, 0.0)?.lerp(target, alpha))?;
+        }
+        Ok(())
+    }
+
     fn refresh_grounded(&self, ctx: &NodeContext) -> Result<(), GraphError> {
         let scalar =
             |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
@@ -149,6 +180,7 @@ impl AlsSourceRefreshNode {
         let boolean =
             |key, default| source_input_data(ctx, key).map_or(Ok(default), |v| v.as_bool());
         let key = match self.function {
+            AlsSourceRefreshFunction::RefreshInAir => return self.refresh_in_air(ctx),
             AlsSourceRefreshFunction::RefreshGrounded => return self.refresh_grounded(ctx),
             AlsSourceRefreshFunction::RefreshStandingMovement => return self.refresh_standing(ctx),
             AlsSourceRefreshFunction::RefreshRotateInPlace => {
@@ -280,6 +312,7 @@ impl AlsSourceRefreshNode {
                 }
             }
             AlsSourceRefreshFunction::RefreshStandingMovement
+            | AlsSourceRefreshFunction::RefreshInAir
             | AlsSourceRefreshFunction::RefreshGrounded => unreachable!(),
         }
         Ok(())
@@ -332,6 +365,102 @@ mod tests {
         state_machine::high_level::StateMachine,
         utils::testing::TestIoEnv,
     };
+
+    #[test]
+    fn in_air_source_calls_latch_landing_values_consume_jumps_and_reset_lean_on_reentry() {
+        fn query(In(root): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<[f32; 5]> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut values = Vec::new();
+            for frame in 0..7 {
+                let target = match frame {
+                    0 => Vec2::new(1.0, 2.0),
+                    4 => Vec2::new(-1.0, 0.5),
+                    5 => Vec2::new(0.5, 0.0),
+                    6 => Vec2::new(0.2, 0.3),
+                    _ => Vec2::ZERO,
+                };
+                let inputs = HashMap::from([
+                    ("fixture".to_owned(), DataValue::Pose(default())),
+                    ("active".to_owned(), DataValue::F32(if matches!(frame, 2 | 3) { 0.0 } else { 1.0 })),
+                    ("animation.delta_seconds".to_owned(), DataValue::F32(0.2)),
+                    ("animation.pending_update".to_owned(), DataValue::Bool(frame == 0 || frame == 6)),
+                    ("source_frame_input.in_air_state.b_jumped".to_owned(), DataValue::Bool(matches!(frame, 1 | 3 | 4))),
+                    ("locomotion_state.velocity_world_space".to_owned(), DataValue::Vec3(Vec3::NEG_Y * (frame + 1) as f32)),
+                    ("in_air_source.ground_prediction_amount".to_owned(), DataValue::F32(frame as f32 * 0.1)),
+                    ("in_air_source.jump_play_rate".to_owned(), DataValue::F32(if frame == 4 { 1.5 } else { 1.35 })),
+                    ("in_air_source.lean_target".to_owned(), DataValue::Vec2(target)),
+                    ("in_air_source.lean_interpolation_half_life".to_owned(), DataValue::F32(if frame == 5 { 0.0 } else { 0.2 })),
+                ]);
+                graph.query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.2)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                        Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs),
+                ).unwrap();
+                let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+                values.push([
+                    "in_air_state.jump_play_rate", "in_air_state.vertical_velocity_world_space",
+                    "in_air_state.ground_prediction_amount", "lean_state.forward_amount", "lean_state.right_amount",
+                ].map(|key| state.values.get(key).and_then(|value| value.as_f32().ok()).unwrap_or(if key.ends_with("jump_play_rate") { 1.0 } else { 0.0 })));
+            }
+            values
+        }
+        let alpha = 1.0 - als_core::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * 0.2);
+        let expected = [
+            [1.0, -1.0, 0.0, 1.0, 2.0],
+            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.35, -2.0, 0.1, 1.0 - alpha, 2.0 * (1.0 - alpha)],
+            [1.5, -5.0, 0.4, -alpha, 0.5 * alpha],
+            [1.5, -6.0, 0.5, 0.5, 0.0],
+            [1.5, -7.0, 0.6, 0.2, 0.3],
+        ];
+        for (execute, initialize_enabled) in [(true, true), (false, true), (true, false)] {
+            let mut graph = AnimationGraph::new();
+            let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "fixture".to_owned(), output: "Pose".to_owned() });
+            let refresh = if execute {
+                AnimationNode::new("refresh", AlsSourceRefreshNode { function: AlsSourceRefreshFunction::RefreshInAir })
+            } else {
+                AnimationNode::new("refresh", SourcePosePassthroughNode { output_time: false, ..default() })
+            };
+            let initialize = AnimationNode::new("initialize", SourcePropertyWriteNode {
+                assignments: if initialize_enabled {
+                    ["lean_state.forward_amount", "lean_state.right_amount"].map(|property| SourcePropertyAssignment {
+                        property: property.to_owned(), value: DataValue::F32(0.0),
+                    }).to_vec()
+                } else { vec![] },
+                on_become_relevant: true,
+            });
+            let active = AnimationNode::new("active", SourceTwoWayBlendNode { alpha_key: "active".to_owned(), ..default() });
+            let scope = AnimationNode::new("scope", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+            for node in [&pose, &refresh, &initialize, &active, &scope] { graph.add_node(node.clone()); }
+            graph.add_node_parameter_edge(pose.id, "Pose", refresh.id, "Source");
+            graph.add_node_parameter_edge(refresh.id, "Pose", initialize.id, "Source");
+            graph.add_node_parameter_edge(initialize.id, "Pose", active.id, "B");
+            graph.add_node_parameter_edge(pose.id, "Pose", active.id, "A");
+            graph.add_node_parameter_edge(active.id, "Pose", scope.id, "Source");
+            graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(scope.id, "Pose", "Pose");
+            let mut graphs = Assets::<AnimationGraph>::default();
+            let root = graphs.add(graph);
+            let mut world = World::new();
+            world.insert_resource(graphs);
+            world.insert_resource(Assets::<GraphClip>::default());
+            world.insert_resource(Assets::<Skeleton>::default());
+            world.insert_resource(Assets::<StateMachine>::default());
+            let actual = world.run_system_cached_with(query, root).unwrap();
+            if execute && initialize_enabled {
+                for (frame, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+                    for (field, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+                        assert!((actual - expected).abs() < 1e-5, "frame {frame}, field {field}: {actual} != {expected}");
+                    }
+                }
+            } else { assert_ne!(actual[4], expected[4]); }
+        }
+    }
 
     #[test]
     fn source_idle_calls_share_frame_guards_and_keep_the_source_reentry_order() {

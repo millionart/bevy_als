@@ -1,26 +1,12 @@
-use als_core::air_jump::{JumpStartVariant, select_jump_start_variant};
-use als_core::state::LocomotionState;
-use bevy::ecs::hierarchy::ChildOf;
+use als_core::air_jump::JumpStartVariant;
+use als_ext::{SourceSequencePlayerNode, sync_group_phase::source_sync_players};
 use bevy::prelude::*;
-use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
-use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::edge_data::DataValue;
+use bevy_animation_graph::core::{
+    animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
+    animation_graph_player::AnimationGraphPlayer, plugin::AnimationGraphSet,
+};
 
 use crate::character_assembly::AlsCharacterAvatar;
-
-fn is_left(variant: JumpStartVariant) -> bool {
-    matches!(
-        variant,
-        JumpStartVariant::WalkLeft | JumpStartVariant::RunLeft
-    )
-}
-
-fn is_run(variant: JumpStartVariant) -> bool {
-    matches!(
-        variant,
-        JumpStartVariant::RunLeft | JumpStartVariant::RunRight
-    )
-}
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsJumpVariantState {
@@ -32,88 +18,66 @@ pub struct AirJumpLayerPlugin;
 
 impl Plugin for AirJumpLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, air_jump_pin_driver);
+        app.add_systems(
+            PostUpdate,
+            capture_jump_variant.after(AnimationGraphSet::PrePhysics),
+        );
     }
 }
 
-fn next_jump_variant_state(
-    current: Option<AlsJumpVariantState>,
-    params: &als_core::params::AlsMovementParams,
-    gait: als_core::state::Gait,
-    horizontal_speed: f32,
-    airborne: bool,
-) -> AlsJumpVariantState {
-    match current {
-        Some(current) if airborne && !current.airborne => AlsJumpVariantState {
-            variant: select_jump_start_variant(
-                params,
-                gait,
-                horizontal_speed,
-                is_left(current.variant),
-            ),
-            airborne,
-        },
-        Some(current) => AlsJumpVariantState {
-            airborne,
-            ..current
-        },
-        None => AlsJumpVariantState {
-            variant: select_jump_start_variant(params, gait, horizontal_speed, false),
-            airborne,
-        },
+fn source_jump_variant(path: &str) -> Option<JumpStartVariant> {
+    match path {
+        "animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron" => Some(JumpStartVariant::WalkLeft),
+        "animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron" => Some(JumpStartVariant::WalkRight),
+        "animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron" => Some(JumpStartVariant::RunLeft),
+        "animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron" => Some(JumpStartVariant::RunRight),
+        _ => None,
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn air_jump_pin_driver(
+fn actual_jump_variant(
+    player: &AnimationGraphPlayer,
+    graphs: &Assets<AnimationGraph>,
+) -> Option<JumpStartVariant> {
+    let arena = player.get_context_arena()?;
+    source_sync_players(arena, graphs, "sync_groups.ab_als_locomotion.jump.phase")?
+        .iter()
+        .filter(|tick| tick.key == "sync_groups.ab_als_locomotion.jump.phase" && tick.weight > 1e-5)
+        .filter_map(|tick| {
+            let context = arena.get_context(tick.identity.0)?;
+            let node = graphs
+                .get(context.get_graph_id())?
+                .nodes
+                .get(&tick.identity.1)?;
+            let sequence = node.try_inner_downcast_ref::<SourceSequencePlayerNode>()?;
+            Some((
+                source_jump_variant(sequence.clip.path()?.path().to_str()?)?,
+                tick.weight,
+            ))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(variant, _)| variant)
+}
+
+fn capture_jump_variant(
     mut commands: Commands,
-    characters: Query<
-        (
-            &als_core::state::Gait,
-            &LocomotionState,
-            &avian3d::prelude::LinearVelocity,
-            &als_core::character::AlsMovementParamsHandle,
-        ),
-        With<als_core::character::AlsCharacter>,
-    >,
     avatars: Query<
-        (
-            Entity,
-            &'static ChildOf,
-            &'static AnimatedSceneInstance,
-            Option<&'static AlsJumpVariantState>,
-        ),
+        (Entity, &AnimatedSceneInstance, Option<&AlsJumpVariantState>),
         With<AlsCharacterAvatar>,
     >,
-    mut players: Query<&mut AnimationGraphPlayer>,
-    params_assets: Res<Assets<als_core::params::AlsMovementParams>>,
+    players: Query<&AnimationGraphPlayer>,
+    graphs: Res<Assets<AnimationGraph>>,
 ) {
-    for (entity, child_of, instance, state) in avatars.iter() {
-        let Ok((gait, locomotion, vel, handle)) = characters.get(child_of.parent()) else {
+    for (entity, instance, previous) in &avatars {
+        let Ok(player) = players.get(instance.player_entity()) else {
             continue;
         };
-        let Some(p) = params_assets.get(&handle.0) else {
-            continue;
-        };
-        let hspeed = Vec2::new(vel.x, vel.z).length();
-        let airborne = *locomotion == LocomotionState::Air;
-        let next = next_jump_variant_state(state.copied(), p, *gait, hspeed, airborne);
-        if Some(next) != state.copied() {
-            commands.entity(entity).insert(next);
-        }
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-            player.set_input_data(
-                "jump_left_weight",
-                DataValue::from(if is_left(next.variant) {
-                    1.0f32
-                } else {
-                    0.0f32
-                }),
-            );
-            player.set_input_data(
-                "jump_run_weight",
-                DataValue::from(if is_run(next.variant) { 1.0f32 } else { 0.0f32 }),
-            );
+        let actual = actual_jump_variant(player, &graphs);
+        if let Some(variant) = actual.or_else(|| previous.map(|state| state.variant)) {
+            commands.entity(entity).insert(AlsJumpVariantState {
+                variant,
+                airborne: actual.is_some(),
+            });
         }
     }
 }
@@ -123,42 +87,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn variant_latches_for_the_entire_airborne_interval() {
-        let params = als_core::params::AlsMovementParams::default();
-        let initial =
-            next_jump_variant_state(None, &params, als_core::state::Gait::Running, 3.75, false);
-        assert_eq!(initial.variant, JumpStartVariant::RunLeft);
-        let takeoff = next_jump_variant_state(
-            Some(initial),
-            &params,
-            als_core::state::Gait::Running,
-            3.75,
-            true,
+    fn observed_jump_variants_use_only_the_actual_source_jump_sequences() {
+        for variant in [
+            JumpStartVariant::WalkLeft,
+            JumpStartVariant::WalkRight,
+            JumpStartVariant::RunLeft,
+            JumpStartVariant::RunRight,
+        ] {
+            assert_eq!(source_jump_variant(variant.clip_path()), Some(variant));
+        }
+        assert_eq!(
+            source_jump_variant("animations/Air/Fall/A_Als_Fall.anim.ron"),
+            None
         );
-        assert_eq!(takeoff.variant, JumpStartVariant::RunRight);
-        let airborne = next_jump_variant_state(
-            Some(takeoff),
-            &params,
-            als_core::state::Gait::Running,
-            3.75,
-            true,
+        assert_eq!(
+            actual_jump_variant(&AnimationGraphPlayer::new(default()), &Assets::default()),
+            None
         );
-        assert_eq!(airborne.variant, JumpStartVariant::RunRight);
-        let landed = next_jump_variant_state(
-            Some(airborne),
-            &params,
-            als_core::state::Gait::Running,
-            3.75,
-            false,
-        );
-        assert_eq!(landed.variant, JumpStartVariant::RunRight);
-        let next_takeoff = next_jump_variant_state(
-            Some(landed),
-            &params,
-            als_core::state::Gait::Running,
-            3.75,
-            true,
-        );
-        assert_eq!(next_takeoff.variant, JumpStartVariant::RunLeft);
     }
 }

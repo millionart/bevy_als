@@ -49,25 +49,62 @@ pub fn source_instance_properties<'a>(
 }
 
 pub fn source_input_data(ctx: &NodeContext, key: &str) -> Option<DataValue> {
-    ctx.graph_context
-        .context_arena
-        .get_ref()
+    let arena = ctx.graph_context.context_arena.get_ref();
+    let state = arena
         .get_toplevel()
         .node_states
         .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
-        .ok()
-        .and_then(|state| state.values.get(key))
-        .or_else(|| ctx.graph_context.global_input_data.get(key))
-        .cloned()
+        .ok();
+    source_property_value(
+        state,
+        ctx.graph_context.frame_index(),
+        key,
+        ctx.graph_context
+            .global_input_data
+            .get(&format!("source_frame_input.{key}")),
+    )
+    .or_else(|| ctx.graph_context.global_input_data.get(key))
+    .cloned()
+}
+
+fn source_property_value<'a>(
+    state: Option<&'a SourceInstanceProperties>,
+    frame: u64,
+    key: &str,
+    input: Option<&'a DataValue>,
+) -> Option<&'a DataValue> {
+    if state.is_none_or(|state| state.write_frames.get(key) != Some(&frame)) && input.is_some() {
+        return input;
+    }
+    state.and_then(|state| state.values.get(key)).or(input)
+}
+
+pub fn set_source_frame_input(
+    player: &mut bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    key: &str,
+    value: impl Into<DataValue>,
+) {
+    player.set_global_input_data(format!("source_frame_input.{key}"), value);
 }
 
 pub fn source_player_property<'a>(
     player: &'a bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
     key: &str,
 ) -> Option<&'a DataValue> {
-    player.get_context_arena()?.get_toplevel().node_states
-        .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
-        .ok()?.values.get(key)
+    let arena = player.get_context_arena();
+    let state = arena.and_then(|arena| {
+        arena
+            .get_toplevel()
+            .node_states
+            .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+            .ok()
+    });
+    source_property_value(
+        state,
+        arena.map_or(0, |arena| arena.frame_index()),
+        key,
+        player.get_global_input_data(format!("source_frame_input.{key}")),
+    )
 }
 
 pub fn set_source_property(
@@ -128,5 +165,35 @@ impl NodeLike for SourcePropertyWriteNode {
 
     fn display_name(&self) -> String {
         "Source Property Write".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frame_input_can_request_another_jump_after_the_previous_request_was_consumed() {
+        let key = "in_air_state.b_jumped";
+        let input = DataValue::Bool(true);
+        let mut state = SourceInstanceProperties::default();
+        assert_eq!(
+            source_property_value(Some(&state), 1, key, Some(&input)),
+            Some(&input)
+        );
+        state.values.insert(key.to_owned(), DataValue::Bool(false));
+        state.write_frames.insert(key.to_owned(), 1);
+        assert_eq!(
+            source_property_value(Some(&state), 1, key, Some(&input)),
+            Some(&DataValue::Bool(false))
+        );
+        assert_eq!(
+            source_property_value(Some(&state), 2, key, Some(&input)),
+            Some(&input)
+        );
+        assert_eq!(
+            source_property_value(Some(&state), 2, key, None),
+            Some(&DataValue::Bool(false))
+        );
     }
 }
