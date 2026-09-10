@@ -6180,6 +6180,9 @@ fn observe_manual_integration(
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
             "airborne": probe.airborne_seen, "jump_completed": probe.jump_completed, "prediction_increased": probe.prediction_increased,
             "prediction_decreased": probe.prediction_decreased, "curves": default_overlay_curves_ready(context), "source": sample,
+            "standing_graph": standing_graph.map(|value| (value.actual_standing_state, value.actual_standing_transition_active, value.actual_movement_state)),
+            "transition_playback": transition_playback.map(|value| (crate::stop_link::source_transition_sequence(value), value.active, value.clip_time, value.weight)),
+            "layering": [graph_global_f32(player, "layering_state.pelvis_blend_amount"), graph_global_f32(player, "layering_state.legs_blend_amount")],
             "foot_solve_inputs": foot_ik_data.get(character).ok().map(|(_, spaces, _, _)| [spaces.left.solve_input, spaces.right.solve_input])}));
         probe.sample = sample;
     }

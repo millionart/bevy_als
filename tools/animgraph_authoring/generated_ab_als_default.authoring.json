@@ -81,6 +81,18 @@
     {
       "path": "target/bf115_overlays/source/UE_TwoBoneIK.cpp",
       "sha256": "249fb20269a254329c326e881d20e9664a5619d1e955c3bb2f3e96476169d5e4"
+    },
+    {
+      "path": "target/bf115_overlays/default_layering_input_source.ue.json",
+      "sha256": "d9ec3cde72077b0e1a10ba344bfce8a95128bbe02e4a5b8f1e0b98ea83d255a6"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimationRuntime.cpp",
+      "sha256": "34c8a0c17a16e0fb3f22944072d862a5c00a20d29ec9a723fa22172357b63b65"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimationRuntime.ispc",
+      "sha256": "2da79abf44f4d82720ccdaac5048a9c4a66c6d157fcc9fd7b816651fd018e375"
     }
   ],
   "graphs": [
@@ -307,7 +319,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_pelvis_spec.json"
+        "target/bf115_overlays/default_mesh_spec.json"
       ]
     },
     {
@@ -489,6 +501,21 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/default_pelvis_input_pass.watchdog.json"
+    },
+    {
+      "label": "mesh_space_zero_weight_child_rotation",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "-p",
+        "bevy_als",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_mesh_regression.watchdog.json"
     }
   ]
 }

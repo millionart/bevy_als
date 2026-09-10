@@ -109,11 +109,7 @@ pub fn apply_mesh_space_layered_blend(
         let mask_weight = bone_mask.bone_weight(&bone).clamp(0.0, 1.0);
         let weight = (alpha * mask_weight).clamp(0.0, 1.0);
         let rotation = if weight <= WEIGHT_THRESHOLD {
-            skeleton
-                .parent(&bone)
-                .and_then(|parent| output_mesh.get(&parent).copied())
-                .map(|parent| parent * local)
-                .unwrap_or(local)
+            source_mesh.get(&bone).copied().unwrap_or(local)
         } else {
             let source_rotation = source_mesh.get(&bone).copied().unwrap_or(local);
             let overlay_rotation = overlay_mesh.get(&bone).copied().unwrap_or(source_rotation);
@@ -124,6 +120,9 @@ pub fn apply_mesh_space_layered_blend(
         if weight <= WEIGHT_THRESHOLD
             && !base.paths.contains_key(&bone)
             && !overlay.paths.contains_key(&bone)
+            && skeleton.parent(&bone).is_none_or(|parent| {
+                output_mesh.get(&parent) == source_mesh.get(&parent)
+            })
         {
             continue;
         }
@@ -287,6 +286,35 @@ mod tests {
 
         let output = base.get_bone(child).and_then(|bone| bone.rotation).unwrap();
         assert!(close_rotation(output, source));
+    }
+
+    #[test]
+    fn unselected_child_preserves_mesh_rotation_when_its_parent_is_blended() {
+        let (skeleton, root, child) = skeleton();
+        for explicit_child in [false, true] {
+            for alpha in [0.25, 1.0] {
+                let parent_rotation = Quat::from_rotation_y(0.2);
+                let child_rotation = if explicit_child { Quat::from_rotation_z(0.4) } else { Quat::IDENTITY };
+                let mut base = Pose::default();
+                base.add_bone(BonePose { rotation: Some(parent_rotation), ..default() }, root);
+                if explicit_child {
+                    base.add_bone(BonePose { rotation: Some(child_rotation), ..default() }, child);
+                }
+                let mut overlay = base.clone();
+                let index = overlay.paths[&root];
+                overlay.bones[index].rotation = Some(Quat::from_rotation_x(1.1));
+                let mut mask = BoneMask::none();
+                mask.add_bone_weight(root, skeleton.id_to_path(root).unwrap().clone(), 1.0);
+                apply_mesh_space_layered_blend(&mut base, &overlay, alpha, &mask, &skeleton);
+                let parent = local_rotation(&base, &skeleton, root);
+                let child = local_rotation(&base, &skeleton, child);
+                assert!(close_rotation(parent * child, parent_rotation * child_rotation),
+                    "unselected mesh rotation: explicit_child={explicit_child} alpha={alpha}");
+            }
+        }
+        let mut empty = Pose::default();
+        apply_mesh_space_layered_blend(&mut empty, &Pose::default(), 1.0, &BoneMask::none(), &skeleton);
+        assert!(empty.paths.is_empty());
     }
 
     #[test]

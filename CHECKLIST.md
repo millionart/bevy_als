@@ -686,6 +686,23 @@
 
   - 05d3a reader有限复开关闭/05d3b再运行前2026-09-10 20:09:16：实际player输入正值反例32.643s FAIL（错误命名空间返回0）；改用已有普通图输入读取，305项目25.279s PASS，覆盖grounded=1、0.25+0.75×0.4=0.55及全空中无预测=0。旧reader即消融失败；同时删除移动函数时重复的lint属性。最终同入口68.295s、19图fresh spec3.182s、十命令静态4.522s PASS。源PoseState准备阶段与组件空间足目标合同保留，未改Rig数学、长度或守卫。本次有限复开从20:00到20:08完成，仍在原20:10静态终点之前；下面新startup再完整Default，旧47.7426rad/s尚未认定消除。
 
+
+  - 05d3b pelvis reader修复startup通过/动作前2026-09-10 20:10:54：0b6abe5公共startup15.536s PASS，frame p95 17.5789ms/max24.3286ms、eval p95 0.0732ms，fault/graph/temporal为空、0截图。305回归及当前source/static保持；继续原完整Default六窗口，逐帧检查准备目标、实际采样/叠加/预测与全部公共守卫。
+
+
+  - 05d3b pelvis正值恢复后的完整结果2026-09-10 20:14:10：18.652s manual0/全部六窗口及coverage通过，frame p95 21.4322ms/max25.5170ms、eval p95 0.0766ms通过，0截图、无graph/source错误；第一次起跳final calf_r仍0.7773805rad/0.0162968s=47.70142rad/s，公共validator拒绝。此前错误reader已用正值反例修正，但不是该突变的充分根因。给定实际参数的BasicIK复算与输出一致，下一步沿已有AB_Als中Default→Layering→Rig直接Pose/曲线连接核对实际输入，先只读该消费者边界；未证明的Layering内部、Head或其他Rig算法不展开，不放宽阈值或开始共享动作回归。
+
+
+  - 05d3b Layering直接输入闭包2026-09-10 20:25:00：本地Layering公开只读75.821s得到fresh五图，当前只沿Default/Locomotion输入→腿部重组→骨盆骨骼mask→输出曲线两节点分析。腿/骨盆叠加Alpha=1、最终曲线Accumulate→Override与目标一致；不据此扩展其他区域。骨盆LayeredBlend的source过滤为pelvis depth0、thigh_l/r depth-1并开启mesh-space。UE AnimationRuntime的普通/ISPC路径对零权重骨保存SourceRotations，并以混合后parent逆旋转回local；target共享apply_mesh_space_layered_blend却使用混合后parent×旧local，让排除双腿继承骨盆旋转。该函数由生成SourceLayeredBoneBlendNode实际调用，位于当前Rig输入链；BF109.05仅此mesh-space零权重边界取消勾选，旧fixture从未改变未选child的parent，漏检该不变量。下一步用同一个两骨fixture覆盖父骨部分/满权重、child显式/缺省旋转，先FAIL后最小修复。
+
+  - [x] BF115.05d3c 当前Layering零权重子骨静态闭环：开始2026-09-10 20:21:00、预估20:42:30。仅修fresh source证实的共享mesh-space零权重语义，复用已有Skeleton/rotation缓存与父级转local路径，完成最小失败/消融、全部实际调用者适用回归、同入口和声明式；不改变图、mask、Alpha、曲线或求解器。本段完成后恢复05d3b原全部真实case，仍使用第三轮终点，若到容差上限尚未完成则执行第四轮前全过程复盘。估时依据为单个共享函数、已有两骨fixture、约30秒底层/项目回归、约110秒共享crate入口构建及当前source已完整读取。
+
+
+  - 05d3c共享mesh-space静态进展2026-09-10 20:43:00：父骨旋转/零权重child反例35.546s FAIL；目标改为保留已有source_mesh旋转，仍沿原parent逆旋转回local，25.046s PASS。稀疏Pose在父骨变化时必须写入补偿：单独移除此条件23.173s FAIL；恢复后342底层/305项目45.626s PASS，空输入/空mask仍为空、未制造参考Pose通道。普通/ISPC两条UE分支均确认相同语义。生产修改只替换零权重旋转来源及必要的稀疏child写入条件，图/mask/Alpha/曲线和Rig数学不变；当前同入口构建中。复用已有reader给Default原trace补实际Standing状态、Transition播放器与pelvis/legs权重，下一次完整运行可判定首次起跳时该输入边的实际参与，不改动作或守卫。
+
+
+  - 05d3c静态完成/05d3b恢复运行前2026-09-10 20:48:25：342底层/305项目45.626s、最终同入口134.201s、19图fresh spec3.227s及十命令声明式6.347s PASS。父部分/满权重、child显式/稀疏与空Pose边界均通过；单独移除稀疏补偿条件的23.173s失败已恢复。fresh Layering与UE普通/ISPC源记录纳入当前manifest；未修改Layering图/mask/Alpha或其他区域。开始20:21、预估20:42:30、实际静态完成20:47:25（偏差+4m55s）。以下新startup再完整Default，并读取新增的实际上游状态；BF109.05的有限复开与整个Default仍待真实Gate，不以共享函数正确替代故障消除。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
