@@ -4,6 +4,7 @@ import json
 import re
 import tempfile
 from pathlib import Path
+from coordinate_basis import SOURCE_LENGTH_TO_RUNTIME_SCALE
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -375,6 +376,15 @@ def property_access_key(node):
     return ""
 
 
+def source_property_runtime_scale(key):
+    if key and source_property_key(key) in {
+        "locomotion_state.speed",
+        "in_air_state.vertical_velocity_world_space",
+    }:
+        return SOURCE_LENGTH_TO_RUNTIME_SCALE
+    return 1.0
+
+
 def pin_payload(contract, node, pin, bindings):
     data_type, _ = scalar_type(pin)
     f32_default, bool_default, source_default = scalar_defaults(pin)
@@ -383,6 +393,16 @@ def pin_payload(contract, node, pin, bindings):
         pin["name"],
         source_property_key(access_key) if access_key else "",
     )
+    if data_type == "F32":
+        scale = source_property_runtime_scale(access_key)
+        if contract and pin.get("direction") == "Input" and node.get("class_path", "").endswith("K2Node_PromotableOperator"):
+            for other in AUDIT.visible_pins(node, "Input"):
+                source = linked_source(contract, node, other)
+                if source:
+                    scale = source_property_runtime_scale(property_access_key(node_for_path(contract, source["node_object_path"])))
+                    if scale != 1.0:
+                        break
+        f32_default *= scale
     if AUDIT.source_pin_type(pin) == "GameplayTag":
         if pin.get("direction") != "Input":
             raise ValueError("source GameplayTag output must use the dedicated adapter node")
@@ -1077,6 +1097,18 @@ def run_self_test():
         }
         assert property_access_key(access) == "GetParent.PoseState.GroundedAmount"
         assert 'global_key: "pose_state.grounded_amount"' in node_inner(None, access)
+        speed_contract = fixture_contract()
+        speed_access = dict(access, object_path="/Asset:AnimGraph.Speed")
+        speed_access["properties"] = [{"name": "TextPath", "exported_text": "GetParent.LocomotionState.Speed"}]
+        speed_contract["source_graph"]["nodes"].append(speed_access)
+        compare = speed_contract["source_graph"]["nodes"][1]
+        compare["pins"][1]["default_value"] = "650.0"
+        speed_contract["links"].append({
+            "source": {"node_object_path": speed_access["object_path"], "pin_name": "Value"},
+            "target": {"node_object_path": compare["object_path"], "pin_name": "A"},
+        })
+        threshold = pin_payload(speed_contract, compare, compare["pins"][1], {})
+        assert threshold["f32_default"] == 6.5 and threshold["source_default"] == "650.0", threshold
         assert operation(
             {
                 "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",

@@ -3,8 +3,8 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_locomotion/native_source/0001_AB_Als_Locomotion.ue.json",
-      "sha256": "6203ad228396f8154eed1c6e0f0a4564d1a86d56a81a50a76f0ed5727911ac03"
+      "path": "target/bf115_locomotion/unit_source/0001_AB_Als_Locomotion.ue.json",
+      "sha256": "83178424975ad7dab39840b38bda853aa7d10ec6457a72a66fa67c212cc0b40a"
     },
     {
       "path": "target/bf115_locomotion/source/AlsAnimationInstance.cpp",
@@ -21,6 +21,30 @@
     {
       "path": "target/bf115_locomotion/source/AlsInAirState.h",
       "sha256": "69c0dd8621295de4a1dd7882687806948b4037d520c5834c254e261f49e44e1e"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsAnimationInstance.h",
+      "sha256": "588e40347fe4b694cff4542550bfbc24202830a24a245d5fcbc9aa28331e41f1"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsInAirSettings.h",
+      "sha256": "e8abe9072ec9d5ed50348e0dd18f03662afc44f7c8af68b0980b16e71b8daa4b"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AlsAnimationInstanceSettings.h",
+      "sha256": "7d44ffd8041ab5a0448234f415fe3d2dd0a79c5cee95e8283c2e208b2ed20ac9"
+    },
+    {
+      "path": "target/bf115_locomotion/source/AIS_Als_Default.ue.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf115_locomotion/source/CF_Als_LeanAmount_Air.ue.json",
+      "sha256": "97db23a4a76cb4d0ca1693584cd7909274bfebd8cfd66c53eed640f7a219de59"
+    },
+    {
+      "path": "target/bf115_locomotion/source/CF_Als_GroundPredictionAmount.ue.json",
+      "sha256": "7ada912587749856d7ad3cb145c762f6c0fbf222e2973d147770a82a4b1634ba"
     }
   ],
   "graphs": [
@@ -1815,11 +1839,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_locomotion/native_source",
+        "target/bf115_locomotion/unit_source",
         "--materialized-directory",
-        "target/bf115_locomotion/conversion",
+        "target/bf115_locomotion/units_conversion",
         "--spec",
-        "target/bf115_locomotion/installed_spec.json"
+        "target/bf115_locomotion/units_spec.json"
       ]
     },
     {
@@ -1883,6 +1907,24 @@
       "argv": [
         "python",
         "tools/animgraph_authoring/ue_animgraph_pose_contract.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "source_scalar_input_units",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/generate_ue_transition_expression_graph.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "in_air_settings_conversion",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/gen_in_air_settings.py",
         "--self-test"
       ]
     }

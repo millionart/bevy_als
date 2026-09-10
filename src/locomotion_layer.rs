@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::LazyLock;
 
 use als_core::air::AlsAirState;
 use als_core::air::ground_prediction_sweep;
@@ -11,7 +12,7 @@ use als_core::input::AlsInputCommand;
 use als_core::motion::AlsInputOverride;
 use als_core::params::AlsMovementParams;
 use als_core::state::{LocomotionState, RotationMode, Stance};
-use als_ext::{AlsAnimCurves, CurveAsset, SyncPhaseInput, SyncPhaseState, advance_sync_phase};
+use als_ext::{AlsAnimCurves, SyncPhaseInput, SyncPhaseState, advance_sync_phase};
 use avian3d::prelude::{LinearVelocity, SpatialQuery};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -34,11 +35,18 @@ const FALL_DURATION: f32 = 1.0;
 const JUMP_DURATION: f32 = 1.666667;
 const FLAIL_DURATION: f32 = 0.666667;
 const AIR_LEAN_REFERENCE_SPEED: f32 = 3.5;
-const LEAN_HALF_LIFE: f32 = 0.2;
-const AIR_LEAN_CURVE: &str =
-    "curves/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.curve.ron";
-const GROUND_PREDICTION_CURVE: &str =
-    "curves/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.curve.ron";
+
+#[derive(serde::Deserialize)]
+struct InAirSettings {
+    lean_interpolation_half_life: f32,
+    lean: als_ext::als_curves::AlsFloatCurve,
+    ground_prediction: als_ext::als_curves::AlsFloatCurve,
+}
+
+static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../assets/character/als_in_air_settings.json"))
+        .expect("generated in-air settings are valid")
+});
 const JUMP_WALK_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Left.gltf#AlsCurves";
 const JUMP_RUN_LEFT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Run_Left.gltf#AlsCurves";
 const JUMP_WALK_RIGHT_CURVES: &str = "animations/Air/Jump/A_Als_Jump_Walk_Right.gltf#AlsCurves";
@@ -279,8 +287,6 @@ pub struct AlsLocomotionTransitionReceipt {
 
 #[derive(Resource)]
 struct LocomotionCurveHandles {
-    air_lean: Handle<CurveAsset>,
-    ground_prediction: Handle<CurveAsset>,
     jump_walk_left: Handle<AlsAnimCurves>,
     jump_run_left: Handle<AlsAnimCurves>,
     jump_walk_right: Handle<AlsAnimCurves>,
@@ -355,8 +361,6 @@ impl Plugin for LocomotionLayerPlugin {
 
 fn load_locomotion_curve_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(LocomotionCurveHandles {
-        air_lean: assets.load(AIR_LEAN_CURVE),
-        ground_prediction: assets.load(GROUND_PREDICTION_CURVE),
         jump_walk_left: assets.load(JUMP_WALK_LEFT_CURVES),
         jump_run_left: assets.load(JUMP_RUN_LEFT_CURVES),
         jump_walk_right: assets.load(JUMP_WALK_RIGHT_CURVES),
@@ -547,7 +551,6 @@ fn ground_prediction_amount(
     velocity: Vec3,
     params: Option<&AlsMovementParams>,
     stance: Stance,
-    curve: Option<&CurveAsset>,
     allowance: f32,
 ) -> f32 {
     let (capsule_half_height, capsule_radius) =
@@ -563,7 +566,7 @@ fn ground_prediction_amount(
     let Some(time) = prediction.hit_fraction else {
         return 0.0;
     };
-    curve.map(|curve| curve.sample(time)).unwrap_or(time) * allowance.clamp(0.0, 1.0)
+    IN_AIR_SETTINGS.ground_prediction.sample(time) * allowance.clamp(0.0, 1.0)
 }
 
 fn scaled_ground_prediction_capsule(
@@ -669,16 +672,13 @@ fn update_air_lean(
     delta_seconds: f32,
     velocity: Vec3,
     transform: &Transform,
-    curve: Option<&CurveAsset>,
 ) -> Vec2 {
     let forward = transform.rotation * Vec3::NEG_Z;
     let right = transform.rotation * Vec3::X;
     let local = Vec2::new(velocity.dot(forward), velocity.dot(right));
-    let multiplier = curve
-        .map(|curve| curve.sample(velocity.y * 100.0))
-        .unwrap_or(0.0);
+    let multiplier = IN_AIR_SETTINGS.lean.sample(velocity.y);
     let target = local / AIR_LEAN_REFERENCE_SPEED * multiplier;
-    current.lerp(target, damp_alpha(delta_seconds, LEAN_HALF_LIFE))
+    current.lerp(target, damp_alpha(delta_seconds, IN_AIR_SETTINGS.lean_interpolation_half_life))
 }
 
 fn air_curve_values() -> LocomotionCurves {
@@ -939,7 +939,6 @@ fn locomotion_layer_writer(
         ),
         With<AlsCharacterAvatar>,
     >,
-    curve_assets: Res<Assets<CurveAsset>>,
     animation_curves: Res<Assets<AlsAnimCurves>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     handles: Res<LocomotionCurveHandles>,
@@ -1032,7 +1031,6 @@ fn locomotion_layer_writer(
             velocity.0,
             params_assets.get(params_handle.0.id()),
             *stance,
-            curve_assets.get(&handles.ground_prediction),
             jump_ground_prediction_allowance(&runtime, speed, &animation_curves, &handles),
         );
         runtime.air_lean = update_air_lean(
@@ -1040,7 +1038,6 @@ fn locomotion_layer_writer(
             delta_seconds,
             velocity.0,
             transform,
-            curve_assets.get(&handles.air_lean),
         );
         let additive_target = if *rotation_mode == RotationMode::Aiming {
             0.5
@@ -1438,6 +1435,20 @@ mod tests {
                 .and_then(|value| value.as_bool().ok()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn in_air_lean_samples_the_native_key_in_runtime_velocity_units() {
+        let amount = update_air_lean(
+            Vec2::ZERO,
+            0.2,
+            Vec3::new(0.0, -22.519_31, -3.5),
+            &Transform::IDENTITY,
+        );
+        assert!((amount.x + 0.466_12).abs() < 1e-6, "{amount:?}");
+        assert_eq!(amount.y, 0.0);
+        assert_eq!(IN_AIR_SETTINGS.ground_prediction.sample(0.0), 1.0);
+        assert_eq!(IN_AIR_SETTINGS.ground_prediction.sample(1.0), 0.0);
     }
 
     #[test]

@@ -132,7 +132,7 @@ def bool_ron(value):
     return "true" if value else "false"
 
 
-def mapping_ron(mapping):
+def mapping_ron(mapping, input_key=""):
     required = (
         "source_semantics",
         "map_range",
@@ -151,6 +151,13 @@ def mapping_ron(mapping):
     )
     if not isinstance(mapping, dict) or any(name not in mapping for name in required):
         raise PoseRenderError("source alpha mapping is invalid")
+    mapping = dict(mapping)
+    scale = scalar_renderer.source_property_runtime_scale(input_key)
+    if mapping["map_range"]:
+        mapping["input_min"] *= scale
+        mapping["input_max"] *= scale
+    else:
+        mapping["scale"] /= scale
     values = [
         field("source_semantics", bool_ron(mapping["source_semantics"])),
         field("map_range", bool_ron(mapping["map_range"])),
@@ -370,12 +377,12 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
-            field("play_rate", repr(value["play_rate"])),
+            field("play_rate", repr(value["play_rate"] * scalar_renderer.source_property_runtime_scale(play_rate_key))),
             field("play_rate_key", quoted(play_rate_key)),
             field("play_rate_pin", quoted(play_rate_pin)),
             field("expose_play_rate_pin", bool_ron(play_rate_pin in pins)),
             field("play_rate_basis", repr(value["play_rate_basis"])),
-            field("play_rate_mapping", mapping_ron(value["play_rate_mapping"])),
+            field("play_rate_mapping", mapping_ron(value["play_rate_mapping"], play_rate_key)),
             field("start_position", repr(value["start_position"])),
             field("start_position_pin", quoted(start_position_pin)),
             field("expose_start_position_pin", bool_ron(start_position_pin in pins)),
@@ -792,9 +799,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("alpha_key", quoted(alpha_key)),
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron("Alpha" in pins)),
-            field("pin_default", repr(value["alpha_default"])),
+            field("pin_default", repr(value["alpha_default"] * scalar_renderer.source_property_runtime_scale(alpha_key))),
             field("mapping_max", "0.0"),
-            field("mapping", mapping_ron(value["alpha_mapping"])),
+            field("mapping", mapping_ron(value["alpha_mapping"], alpha_key)),
             field("alpha_scale", repr(value["alpha_scale_bias"]["scale"])),
             field("alpha_bias", repr(value["alpha_scale_bias"]["bias"])),
             field("increasing_speed", "0.0"),
@@ -812,8 +819,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("alpha_pin", quoted("Alpha")),
             field("expose_alpha_pin", bool_ron("Alpha" in pins)),
             field("use_constant_alpha", bool_ron("Alpha" not in pins)),
-            field("constant_alpha", repr(value["alpha_default"])),
-            field("mapping", mapping_ron(value["alpha_mapping"])),
+            field("constant_alpha", repr(value["alpha_default"] * scalar_renderer.source_property_runtime_scale(alpha_key))),
+            field("mapping", mapping_ron(value["alpha_mapping"], alpha_key)),
             field("alpha_scale", repr(value["alpha_scale_bias"]["scale"])),
             field("alpha_bias", repr(value["alpha_scale_bias"]["bias"])),
             field("minimum_alpha", "0.0"),
@@ -1670,6 +1677,16 @@ def run_self_test():
     else:
         raise AssertionError("invalid source curve key arrays were accepted")
     graph_contract, graph_ir, assets = fixture_graph()
+    unit_contract, unit_ir, unit_assets = fixture_graph()
+    unit_blend = unit_ir["nodes"][1]["semantic"]
+    unit_blend["alpha_key"] = "in_air_state.vertical_velocity_world_space"
+    unit_blend["alpha_mapping"] = dict(unit_blend["alpha_mapping"], map_range=True, input_min=-500.0, input_max=-3000.0)
+    raw_unit_ir = copy.deepcopy(unit_ir)
+    unit_text = render(unit_contract, unit_ir, unit_assets)
+    assert "input_min: -5.0, input_max: -30.0" in unit_text
+    assert unit_ir == raw_unit_ir
+    assert "input_min: -500.0, input_max: -3000.0" in mapping_ron(unit_blend["alpha_mapping"])
+    assert "scale: 100.0" in mapping_ron(dict(unit_blend["alpha_mapping"], map_range=False), "locomotion_state.speed")
     order_contract, order_ir, order_assets = fixture_graph()
     order_contract["source_graph"]["nodes"][0]["node_guid"] = "ffffffff-0000-4000-8000-000000000001"
     order_text = render(order_contract, order_ir, order_assets).split("edges_inverted:", 1)[0]

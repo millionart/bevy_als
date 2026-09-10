@@ -1,0 +1,110 @@
+{
+  "lean_interpolation_half_life": 0.2,
+  "lean": {
+    "times": [
+      -40.0,
+      -32.77683105,
+      -22.51930908,
+      -12.47548828,
+      0.0
+    ],
+    "values": [
+      0.0,
+      -0.122851,
+      -0.93224,
+      -0.794192,
+      1.0
+    ],
+    "interps": [
+      "Cubic",
+      "Cubic",
+      "Cubic",
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      0.0,
+      -0.05330000000000001,
+      -0.0466,
+      0.0858,
+      0.0
+    ],
+    "leave_tangents": [
+      0.0,
+      -0.05330000000000001,
+      -0.0466,
+      0.0858,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  },
+  "ground_prediction": {
+    "times": [
+      0.0,
+      1.0
+    ],
+    "values": [
+      1.0,
+      0.0
+    ],
+    "interps": [
+      "Cubic",
+      "Linear"
+    ],
+    "tangent_modes": [
+      1,
+      0
+    ],
+    "weight_modes": [
+      0,
+      0
+    ],
+    "arrive_tangents": [
+      -2.066087,
+      0.0
+    ],
+    "leave_tangents": [
+      -2.066088,
+      0.0
+    ],
+    "arrive_weights": [
+      0.0,
+      0.0
+    ],
+    "leave_weights": [
+      0.0,
+      0.0
+    ],
+    "pre_infinity": "Constant",
+    "post_infinity": "Constant"
+  }
+}
