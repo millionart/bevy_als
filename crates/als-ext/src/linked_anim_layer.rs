@@ -12,7 +12,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
 };
 
-use crate::animation_context::context_time_update;
+use crate::animation_context::{AnimationContextState, context_time_update, graph_output_context_state};
 
 pub const ALS_LAYER_CURVE_NAMES: [&str; 18] = [
     "LayerArmLeft",
@@ -169,6 +169,10 @@ impl NodeLike for LinkedAnimLayerNode {
 
         for (id, data_spec) in output_data {
             let value = graph.get_data(TargetPin::OutputData(id.clone()), sub_ctx.clone())?;
+            if data_spec == DataSpec::Pose {
+                *ctx.state_mut_or_else(AnimationContextState::default)? =
+                    graph_output_context_state(graph, &sub_ctx, &id).unwrap_or_default();
+            }
             if source_pose_output_alias(&id, &data_spec) {
                 ctx.set_data_fwd("Pose", value.clone());
             }
@@ -238,5 +242,65 @@ mod tests {
         assert!(source_pose_output_alias("Result", &DataSpec::Pose));
         assert!(!source_pose_output_alias("Pose", &DataSpec::Pose));
         assert!(!source_pose_output_alias("Result", &DataSpec::F32));
+    }
+
+    #[test]
+    fn linked_output_retains_source_curves_and_sync_ticks() {
+        use bevy::{platform::collections::HashMap, prelude::*};
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([("delta".into(), DataValue::F32(0.1))]);
+            for expected_phase in [0.05, 0.1, 0.15] {
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
+                let output = crate::animation_context::graph_output_context_state(graph, &context, "Result").expect("linked context must exist");
+                assert_eq!(output.curves.get("LayerSpine"), Some(&0.7));
+                assert!(output.curves_are_authoritative);
+                assert_eq!(output.sync_players.len(), 1);
+                assert!((output.sync_players[0].phase - expected_phase).abs() < 1e-5);
+            }
+        }
+        let mut world = World::new();
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip { duration: 2.0, ..default() });
+        let sequence = AnimationNode::new("Sequence", crate::SourceSequencePlayerNode {
+            clip, expose_play_rate_pin: false,
+            curves: crate::AlsPoseCurves(std::collections::HashMap::from([("LayerSpine".into(), crate::AlsFloatCurve { times: vec![0.0], values: vec![0.7], ..default() })])),
+            synchronization: Some(crate::source_sequence_player::SourceSequenceSynchronization {
+                key: "secondary".into(), delta_seconds_key: "delta".into(), phase_duration: 2.0, ..default()
+            }), ..default()
+        });
+        let mut child = AnimationGraph::new();
+        child.add_node(sequence.clone());
+        child.add_output_data("Result".into(), DataSpec::Pose);
+        child.add_output_data_edge(sequence.id, "Pose", "Result");
+        let child = graphs.add(child);
+        let mut graph = AnimationGraph::new();
+        let selection = AnimationNode::new("Selection", crate::ConstantF32Node { value: 0.0 });
+        let linked = AnimationNode::new("Linked", LinkedAnimLayerNode { interface: child.clone(), implementations: vec![child], ..default() });
+        let root = AnimationNode::new("Root", crate::SourcePosePassthroughNode { output_time: false, synchronize_groups: true, ..default() });
+        for node in [&selection, &linked, &root] { graph.add_node(node.clone()); }
+        graph.add_node_parameter_edge(selection.id, "value", linked.id, "layer_index");
+        graph.add_node_parameter_edge(linked.id, "Pose", root.id, "Source");
+        graph.add_output_data("Result".into(), DataSpec::Pose);
+        graph.add_output_data_edge(root.id, "Pose", "Result");
+        let handle = graphs.add(graph);
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.run_system_cached_with(query, handle).unwrap();
     }
 }
