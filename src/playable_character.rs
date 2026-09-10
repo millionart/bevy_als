@@ -42,6 +42,26 @@ impl Plugin for AlsPlayableCharacterPlugin {
             AlsExtPlugin,
             AlsCharacterRuntimePlugin,
             AlsCameraPlugin,
-        ));
+        )).add_plugins(als_ext::post_physics_animation::PostPhysicsAnimationPlugin);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn playable_character_animation_phases_initialize_with_the_real_physics_schedule() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy::input::InputPlugin, bevy::gizmos::GizmoPlugin))
+            .init_asset::<bevy::world_serialization::WorldAsset>()
+            .init_asset::<Mesh>().init_asset::<Image>()
+            .add_plugins(AlsPlayableCharacterPlugin);
+        app.finish();
+        app.cleanup();
+        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
+            schedule.initialize(world).expect("playable character animation phases must initialize");
+        });
     }
 }

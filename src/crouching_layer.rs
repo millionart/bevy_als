@@ -70,7 +70,7 @@ impl Plugin for CrouchingLayerPlugin {
             AlsCrouchingLayerSet
                 .after(crate::standing_layer::AlsStandingLayerSet)
                 .before(AlsRotationResponseSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .configure_sets(
             PostUpdate,

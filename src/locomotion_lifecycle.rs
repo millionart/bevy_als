@@ -2,7 +2,6 @@ use als_core::character::AlsCharacter;
 use als_core::state::LocomotionState;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::locomotion_layer::AlsLocomotionLayerSet;
@@ -22,7 +21,7 @@ impl Plugin for LocomotionLifecyclePlugin {
             PostUpdate,
             stop_transition_and_turn_on_locomotion_exit
                 .after(AlsLocomotionLayerSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         );
     }
 }

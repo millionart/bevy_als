@@ -6196,6 +6196,7 @@ fn observe_manual_integration(
             "standing_graph": standing_graph.map(|value| (value.actual_standing_state, value.actual_standing_transition_active, value.actual_movement_state)),
             "transition_playback": transition_playback.map(|value| (crate::stop_link::source_transition_sequence(value), value.active, value.clip_time, value.weight)),
             "layering": [graph_global_f32(player, "layering_state.pelvis_blend_amount"), graph_global_f32(player, "layering_state.legs_blend_amount")],
+            "evaluation_frame": player.get_context_arena().map(|arena| arena.frame_index()),
             "foot_solve_inputs": foot_ik_data.get(character).ok().map(|(_, spaces, _, _)| [spaces.left.solve_input, spaces.right.solve_input])}));
         probe.sample = sample;
     }

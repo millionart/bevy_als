@@ -30,6 +30,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                         .before(PhysicsSystems::First),
                     SourcePhysicsTimingSet::Restore
                         .after(PhysicsSystems::Last)
+                        .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs)
                         .before(AnimationGraphSet::PostPhysics),
                 ),
             )

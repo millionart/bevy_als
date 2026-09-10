@@ -6,7 +6,6 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::skeleton::Skeleton;
 
 use crate::animation_context_projection::AlsRootAnimationContext;
@@ -189,7 +188,7 @@ impl Plugin for LayeringLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsLayeringLayerSet.before(AnimationGraphSet::PrePhysics),
+            AlsLayeringLayerSet.before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(Startup, load_layering_masks)
         .add_systems(

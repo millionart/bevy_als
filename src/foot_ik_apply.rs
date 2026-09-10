@@ -482,7 +482,8 @@ impl Plugin for FootIkApplyPlugin {
                     .after(crate::crouching_layer::AlsCrouchingLayerSet)
                     .after(crate::character_assembly::sync_avatar_stance_offset)
                     .before(crate::generated_ab_als_provider::GeneratedAbAlsProviderSet)
-                    .before(AnimationGraphSet::PrePhysics),
+                    .after(als_core::motion::AlsRotationResponseSet)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 FootIkApplySet::Restore
                     .after(apply_animation_to_targets)
                     .after(AlsRootAnimationContextSet)
@@ -2599,6 +2600,9 @@ mod tests {
             AnimationGraphSet::PrePhysics.before(avian3d::prelude::PhysicsSystems::First),
             avian3d::prelude::PhysicsSystems::Last.after(avian3d::prelude::PhysicsSystems::First),
             als_core::motion::AlsRotationResponseSet.after(avian3d::prelude::PhysicsSystems::Last),
+            als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs
+                .after(avian3d::prelude::PhysicsSystems::Last)
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         ));
         let character = app.world_mut().spawn((
             als_core::character::AlsCharacter, Transform::from_xyz(2.0, 0.0, 0.0),
@@ -2622,20 +2626,24 @@ mod tests {
             left_thigh: thigh, left_calf: calf, left: foot, left_target: Some(foot), left_virtual_target: None,
             right_thigh: thigh, right_calf: calf, right: foot, right_target: Some(foot), right_virtual_target: None,
         });
+        app.add_systems(PostUpdate, (move |mut transforms: Query<&mut Transform>| {
+            transforms.get_mut(character).unwrap().translation.y += 0.1;
+        }).in_set(avian3d::prelude::PhysicsSystems::First));
         let mut frame = 0;
         app.add_systems(PostUpdate, (move |world: &mut World| {
             let feet = *world.get::<AlsFootLockState>(character).unwrap();
             assert!(feet.valid, "foot inputs must be prepared before graph evaluation");
-            let expected = if frame == 0 { Vec3::new(2.0, 0.1, 0.0) } else { Vec3::new(3.0, 0.4, 0.0) };
+            let expected = if frame == 0 { Vec3::new(2.0, 0.2, 0.0) } else { Vec3::new(3.0, 0.6, 0.0) };
             assert!(feet.left.target_location.distance(expected) < 1e-5);
             assert_eq!(feet.left.lock_amount, if frame == 0 { 1.0 } else { 0.0 });
             let rig = world.get::<AlsControlRigInput>(character).unwrap();
             assert!(rig.foot_transforms_valid);
-            assert!(rig.foot_left_location_armature.distance(Vec3::new(0.0, expected.y, 0.0)) < 1e-5);
+            let expected_armature = expected - world.get::<Transform>(character).unwrap().translation;
+            assert!(rig.foot_left_location_armature.distance(expected_armature) < 1e-5);
             world.get_mut::<Transform>(foot).unwrap().translation.y = -0.1;
             world.get_mut::<AlsFootLockInput>(character).unwrap().left_lock_amount = 0.0;
             frame += 1;
-        }).in_set(AnimationGraphSet::PrePhysics));
+        }).in_set(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
         app.update();
         let feet = app.world().get::<AlsFootLockState>(character).unwrap();
         assert_eq!(feet.left.lock_amount, 1.0, "evaluation must not refresh foot lock again");

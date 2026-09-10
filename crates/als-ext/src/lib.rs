@@ -2,6 +2,7 @@
 
 pub mod als_curves;
 pub mod animation_context;
+pub mod post_physics_animation;
 pub mod blend_space_1d;
 pub mod crouch_transaction;
 pub mod curve;

@@ -43,7 +43,7 @@ impl Plugin for GeneratedAbAlsProviderPlugin {
                 .after(AlsRootGraphSet)
                 .after(AlsRagdollingLayerSet)
                 .after(AlsStandingLayerSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(
             PostUpdate,
@@ -503,7 +503,7 @@ mod tests {
             (
                 GeneratedAbAlsProviderSet
                     .after(crate::gait_layer::AlsGaitLayerSet)
-                    .before(AnimationGraphSet::PrePhysics),
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
                 PhysicsSystems::First.before(PhysicsSystems::Last),
             ),

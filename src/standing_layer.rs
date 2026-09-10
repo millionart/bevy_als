@@ -810,7 +810,7 @@ impl Plugin for StandingLayerPlugin {
             PostUpdate,
             AlsStandingLayerSet
                 .after(crate::gait_layer::AlsGaitLayerSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_message::<AlsPivotNotify>()
         .add_systems(Startup, load_standing_curve_assets)

@@ -39,7 +39,7 @@ pub struct GroundedLayerPlugin;
 impl Plugin for GroundedLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(PostUpdate, AlsGroundedLayerSet
-            .after(AlsCrouchingLayerSet).before(AnimationGraphSet::PrePhysics))
+            .after(AlsCrouchingLayerSet).before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
             .add_systems(Startup, load_grounded_graph)
             .add_systems(PostUpdate, capture_grounded_graph_telemetry.after(AnimationGraphSet::Final));
     }

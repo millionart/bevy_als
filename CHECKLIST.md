@@ -737,6 +737,24 @@
 
   - 05d4d通道有限复开关闭/4b运行前2026-09-10 21:55:00：343/306回归36.846s、最终同入口118.344s、19图fresh spec3.418s及十命令声明式4.473s PASS。三实际资产覆盖两种base采样、三处Idle时间，原79通道不变；稀疏输入仅补1条叠加必需通道，整套预填已消融删除。有限复开开始21:46、原预估21:57、实际静态完成21:54:34（偏差-2m26s），05c/4d静态重新闭合；下面先单独startup，确认通过才启动完整Default。
 
+  - 05d4b通道修复后startup通过/完整动作前2026-09-10 21:55:45：405529e入口startup15.397s PASS，Root/pre-rig/final/图/时间/性能通过，fault与graph错误为空，0截图；此前约1.1秒卡顿未重现。343/306及新真实资产通道反例、19图fresh spec与十命令静态均闭合。已单独检查startup成功结果，现在才启动原完整Default六窗口和两次跳跃。
+
+  - 05d4b最新完整结果2026-09-10 21:57:00：405529e Default18.530s manual0，全部14coverage/六窗口通过，逐帧source errors为空；frame p95 22.2437ms/max36.6679ms、eval p95 0.0814ms通过，0截图/graph错误。首次起跳final calf_r仍0.82149166rad/0.0171461s=47.911285rad/s，公共Gate未通过。时钟推进、输入准备、mesh-space排除子骨和普通/局部叠加均有独立源反例，但仍未充分解释此时间异常。后续只读失败帧直接相关的角色移动→原生输入→图求值→Rig阶段，与UE Character/CMC/Mesh的实际tick依赖核对；不展开新动作或放宽守卫。
+
+  - 05d4b超时复盘2026-09-10 22:06:06：开始21:10:13、预估21:45:13，当前55m53s、偏差+20m53s，结果未完成。已暂停实现与新runtime，回读同一源闭包和所有本轮报告：停止时钟已推进；普通/局部叠加误用slerp及多余参考骨预填分别修复，343/306和源静态通过；正确前置startup与全部Default自身窗口通过，但最终右小腿仍47.911285rad/s。一次startup性能失败后误启动动作的执行错误已明确作废，后续已恢复逐步确认，未计为成功。主要漂移是连续定位到独立真实差异，却未证明原故障的充分原因；本轮后续先验证完整输入的执行时序，不继续列举下游数学候选。fresh ACharacter强制Mesh在CMC之后、ALS再强制Mesh在Actor之后；CMC只在有效root-motion路径提前TickCharacterPose。目标Tnua逻辑/马达在Update、图在PostUpdate的PrePhysics、骨骼写入/Rig在physics之后，需先核对当前Transition是否启用root motion和各阶段实际值，不能因名称推断源例外或直接改变全局物理时钟。
+  - 05d4b第二轮估时：按原35分钟窗口1.5倍，开始2026-09-10 22:06:06、预估22:58:36。分成两个独立闭环：22:06:06→22:31:06核清当前root-motion前提及组件/足锁/动画时间的跨阶段最小反例；22:31:06→22:58:36仅修首个已证实源输入边界、完成匹配回归/同入口/静态并正确顺序复验。第四轮父项原22:39:49终点不变，若到其22:59:49容差仍未完成，先执行父项复盘再继续；共享四case和后续全移植目标保持。
+
+  - 05d4b时序前提确认2026-09-10 22:10:00：公开只读Transition提取72.397s PASS，当前A_Als_Stand_Transition_Right为mesh-space additive、bEnableRootMotion=False；AB_Als为RootMotionFromMontagesOnly，不能走CMC提前TickCharacterPose的root-motion例外。本地Character→Mesh和ALS Actor→Mesh依赖明确要求普通动画在移动完成之后；目标图输入仍在Avian积分前，而Rig在积分后。旧足输入fixture只在两帧之间手改Actor变换，没有在物理阶段移动Actor，漏掉了准备与执行之间组件变换改变的边界。先扩展这一现有fixture，用物理阶段的0.1米运动检查图前锁脚准备与组件空间值，不修改生产调度或启动新runtime。
+
+  - 05d4b时序反例/公开接口方案2026-09-10 22:28:00：在既有足输入fixture的Physics阶段加入0.1米移动后34.454s稳定FAIL于图前目标坐标；此前夹在两帧外的手动位移不能覆盖这一边界。已确认Bevy公开Schedule.remove_systems_in_set可替换默认求值system，依赖公开run_animation_player保留原图求值/错误/时钟处理，set_animation切换和暂停方案均不采用。先在als-ext建立按player标记的物理前/后求值与实际单次计数fixture，未改依赖或全局物理时钟；项目只将角色主图及相关输入移到移动之后，独立montage/root-motion sampler保持物理前，随后扩展已声明共享case覆盖生命周期影响。当前先验证这一公开扩展点，再接入Actor；不据源阶段名称直接改物理tick。
+
+  - 05d4b公开调度接入静态进展2026-09-10 22:42:00：公开接口fixture16.882s PASS（主图物理后值/采样器物理前值、各自frame_index每帧仅+1、root motion当前值）；补齐fixture的真实Children和默认pose输出ABI后获得该结果，没有修改依赖。角色主图由AnimatedSceneInstance新增事件对应的一次标记选择后阶段；既有ActualMotion、Gait、Standing/Crouching、Grounded、Layering/Head、Root、Locomotion及Foot输入按同一父set在Physics之后求值，源通知/当前图观测随后读取，原独立montage/roll/mantle采样和驱动保持前阶段。源0.1米物理移动反例修复后41.312s PASS，骨目标与组件坐标一致，物理时钟原clamp/restore数值未改。当前用完整Playable插件DAG和344/307预期回归检查跨模块顺序，尚未启动runtime；旧Stage名字在测试中的假设同步按源依赖更新。
+  - 05d4c排期/覆盖说明：旧预定22:08:34→22:39:49因4b未闭合而未启动，实际开始/预估结束在4b通过后登记；父项22:39:49及22:59:49复盘界线未更改。当前改动仅为源证实的公共输入/主图阶段，Standing/Grounded/Crouching/Locomotion的源图、状态机和动作算法不扩展；除原grounded、locomotion、standing_turn、crouching，还需standing_direction及ragdoll/get_up验证被该公共阶段直接影响的现有消费者。
+
+  - 05d4b阶段接入回归2026-09-10 22:49:00：完整Playable插件DAG、344底层/307项目42.957s PASS；保持依赖原并行方式后focused29.207s PASS，移除player后阶段标记的受控路径只得到旧值，单次frame_index仍保持，证明标记用于阶段选择而非补跑。原源图/参数/骨骼求解与物理delta clamp算法不变，复用公开remove_systems_in_set和run_animation_player，无依赖改动；Default原trace增加实际根图evaluation_frame以验证真实入口每帧一次。当前同入口构建中，随后19图spec/声明式与startup→Default完整动作，阶段调整尚未作为运行时成功结论。
+
+  - 05d4b本轮source/static闭合与运行前2026-09-10 22:54:00：本轮源时序前提和跨阶段最小反例已于22:12:09取得；阶段接入的完整Playable DAG、344/307回归42.957s、并行/单次求值及移除标记消融29.207s PASS。同入口114.400s、19图fresh spec3.156s、十命令声明式4.500s PASS。采用公开schedule替换和原run_animation_player，保留原并行更新、错误处理与montage/root-motion采样前阶段；Actor主图及其输入改为物理后，原80/79通道和所有数值守卫仍保持。当前源码含两条仅test使用的import编译warning，不影响该构建结果。本轮整个4b原预估22:58:36及父项22:59:49复盘界线不变；先独立startup，再原完整Default，尚未将输入时序修复认定为故障已消除。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |

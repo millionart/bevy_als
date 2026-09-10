@@ -12,7 +12,6 @@ use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
@@ -124,12 +123,12 @@ impl Plugin for HeadLayerPlugin {
             PostUpdate,
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
         .add_systems(
             PostUpdate,
-            bridge_head_curve_states.after(AnimationGraphSet::PrePhysics),
+            bridge_head_curve_states.after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         );
     }
 }

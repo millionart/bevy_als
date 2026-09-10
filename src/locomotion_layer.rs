@@ -64,7 +64,7 @@ impl Plugin for LocomotionLayerPlugin {
             PostUpdate,
             AlsLocomotionLayerSet
                 .after(GeneratedAbAlsProviderSet)
-                .before(AnimationGraphSet::PrePhysics),
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(
             PostUpdate,
@@ -73,7 +73,7 @@ impl Plugin for LocomotionLayerPlugin {
         .add_systems(
             PostUpdate,
             project_in_air_state
-                .after(AnimationGraphSet::PrePhysics)
+                .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                 .before(AlsRootAnimationContextSet),
         );
     }

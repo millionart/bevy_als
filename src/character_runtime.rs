@@ -77,7 +77,33 @@ impl Plugin for AlsCharacterRuntimePlugin {
                 ensure_start_stop_state,
                 start_stop_detector_system.after(ensure_start_stop_state),
             ),
-        );
+        )
+        .configure_sets(PostUpdate, (
+            crate::actual_motion::AlsActualMotionSet,
+            crate::gait_layer::AlsGaitLayerSet,
+            crate::standing_layer::AlsStandingLayerSet,
+            crate::crouching_layer::AlsCrouchingLayerSet,
+            crate::grounded_layer::AlsGroundedLayerSet,
+            crate::ab_als_root::AlsRootGraphSet,
+            crate::generated_ab_als_provider::GeneratedAbAlsProviderSet,
+            crate::locomotion_layer::AlsLocomotionLayerSet,
+            crate::layering_layer::AlsLayeringLayerSet,
+            crate::head_layer::AlsHeadLayerSet,
+            crate::ragdolling_layer::AlsRagdollingLayerSet,
+            crate::foot_ik_apply::FootIkApplySet::UpdateInputs,
+        ).in_set(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs))
+        .add_systems(PostUpdate, mark_character_animation_phase
+            .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));
+    }
+}
+
+fn mark_character_animation_phase(
+    mut commands: Commands,
+    avatars: Query<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance,
+        (With<crate::character_assembly::AlsCharacterAvatar>, Added<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>)>,
+) {
+    for instance in &avatars {
+        commands.entity(instance.player_entity()).insert(als_ext::post_physics_animation::PostPhysicsAnimation);
     }
 }
 

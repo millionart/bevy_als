@@ -1,7 +1,6 @@
 use als_core::character::AlsCharacter;
 use als_core::gait::{AlsGaitAmount, GaitWeights};
 use bevy::prelude::*;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use crate::character_assembly::AlsCharacterAvatar;
 
@@ -23,7 +22,7 @@ impl Plugin for GaitLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsGaitLayerSet.before(AnimationGraphSet::PrePhysics),
+            AlsGaitLayerSet.before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(PostUpdate, gait_blend_driver.in_set(AlsGaitLayerSet));
     }

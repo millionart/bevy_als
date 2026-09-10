@@ -3,7 +3,7 @@ use als_ext::{SourceSequencePlayerNode, sync_group_phase::source_sync_players};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
-    animation_graph_player::AnimationGraphPlayer, plugin::AnimationGraphSet,
+    animation_graph_player::AnimationGraphPlayer,
 };
 
 use crate::character_assembly::AlsCharacterAvatar;
@@ -20,7 +20,7 @@ impl Plugin for AirJumpLayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PostUpdate,
-            capture_jump_variant.after(AnimationGraphSet::PrePhysics),
+            capture_jump_variant.after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         );
     }
 }

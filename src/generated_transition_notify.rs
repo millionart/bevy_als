@@ -103,7 +103,7 @@ impl Plugin for GeneratedTransitionNotifyPlugin {
             .add_systems(
                 PostUpdate,
                 dispatch_generated_transition_notifications
-                    .after(AnimationGraphSet::PrePhysics)
+                    .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                     .before(AnimationGraphSet::PostPhysics),
             );
     }
