@@ -255,6 +255,8 @@ fn crouching_curve_outputs(
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     (
         AlsFootLockInput {
+            left_ik_amount: curve("FootLeftIk").clamp(0.0, 1.0),
+            right_ik_amount: curve("FootRightIk").clamp(0.0, 1.0),
             left_lock_amount: curve("FootLeftLock").clamp(0.0, 1.0),
             right_lock_amount: curve("FootRightLock").clamp(0.0, 1.0),
             allow_transitions: curve("AllowTransitions") >= 1.0 - 1e-4,
@@ -334,6 +336,8 @@ mod tests {
     fn crouching_curve_consumers_use_the_evaluated_root_curves() {
         let context = AlsRootAnimationContext {
             curves: [
+                ("FootLeftIk".into(), 0.6),
+                ("FootRightIk".into(), 1.4),
                 ("FootLeftLock".into(), 0.4),
                 ("FootRightLock".into(), 0.7),
                 ("FootPlanted".into(), -0.5),
@@ -346,6 +350,7 @@ mod tests {
             .collect(),
         };
         let (feet, rotation) = crouching_curve_outputs(Some(&context), true);
+        assert_eq!((feet.left_ik_amount, feet.right_ik_amount), (0.6, 1.0));
         assert_eq!((feet.left_lock_amount, feet.right_lock_amount), (0.4, 0.7));
         assert_eq!(
             (feet.foot_planted_amount, feet.feet_crossing_amount),

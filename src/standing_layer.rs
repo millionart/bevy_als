@@ -2402,6 +2402,8 @@ fn standing_layer_writer(
         write_standing_inputs(&mut player, inputs);
         write_stop_leg_masks(&mut player, &curve_handles);
         commands.entity(parent.parent()).insert(AlsFootLockInput {
+            left_ik_amount: context.and_then(|state| state.f32("FootLeftIk")).unwrap_or(0.0).clamp(0.0, 1.0),
+            right_ik_amount: context.and_then(|state| state.f32("FootRightIk")).unwrap_or(0.0).clamp(0.0, 1.0),
             left_lock_amount: context
                 .and_then(|state| state.f32("FootLeftLock"))
                 .unwrap_or(0.0)

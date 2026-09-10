@@ -648,11 +648,31 @@
   - 05d超时复盘2026-09-10 18:30:00：开始17:39:16、原预估18:09:16，本轮实际结束18:30（已耗50m44s，偏差+20m44s，Gate未完成）。暂停实现及新的runtime后，回读两图/十四Pose节点、341/300回归与两次实际运行：Linked context丢失已以5行复用转交修复，第二轮六窗口及全部Default来源值/混合/曲线/时钟/预测通过；仅同一次final calf_r突变和无FSM签名元数据未闭合。签名已复用既有clip-time能力，以实际Idle时长乘0.35对齐同一phase，不新增验收模式；旧元数据32.908s FAIL，新元数据30.802s PASS，同一保存报告的等价时间对照也通过。突变后公开CR只读79.248s得到fresh native，分析仅到当前FootIK的直接三个函数及UE BasicIK/ALS偏移CPP；部分权重写回、射线启用阈值与组件空间pole缓存已确认相符，尚未证实应改的姿态算法。已定位报告applied_weight取旧AlsFootIkRuntime平滑权重，而实际求解使用当前曲线，两者在失败帧为0.466782/0.209299；先纠正该读数并保存实际求解TRS，避免继续凭不完整数值推断。原6+9+14窗口及后续模块顺序全部保留，不复开无source证明的已完成算法。
   - 纠正与拆分：按原30分钟估时窗口1.5倍，下一轮开始18:30:00、预估19:15:00。拆成下列数据/静态及完整运行两个独立Gate；依据为Default已完成实际分支、唯一右小腿失败帧和fresh源求解输入闭包，先建立可复算数据再沿首个实际分歧修复，不能用重复运行或放宽阈值代替定位。
   - [x] BF115.05d1 实际IK读数与可复算输入静态闭环：开始2026-09-10 18:30:00、预估18:55:00。只修正当前Gate已证实的权重观测来源，复用现有telemetry记录每次实际BasicIK的输入TRS/目标/权重，保留无FSM clip-time修复；完成最小失败/消融、适用回归、同入口及source/static合同。本段不改未经证明的动画/足锁/求解器，也不启动runtime。
-  - [ ] BF115.05d2 完整Default与直接消费者公共Gate：计划开始2026-09-10 18:55:00、预估19:15:00。依赖05d1；用同一入口startup、完整Default六窗口及已声明grounded九/locomotion十四窗口。若仍失败，使用实际输入复算源/target首个分歧后最小修复和回归；保留全部守卫及0截图，不提前进入后续模块。
+  - [ ] BF115.05d2 完整Default与直接消费者公共Gate：实际开始2026-09-10 18:57:01、预估19:15:00（沿用原终点）。依赖05d1；用同一入口startup、完整Default六窗口及已声明grounded九/locomotion十四窗口。若仍失败，使用实际输入复算源/target首个分歧后最小修复和回归；保留全部守卫及0截图，不提前进入后续模块。
 
   - 05d1读数/输入静态进展2026-09-10 18:40:00：实际post-IK telemetry反例36.280s稳定FAIL（旧读数0对本次实际weight0.20929879）；移除其AlsFootIkRuntime依赖，改读实际执行返回记录，未执行时为0，301项目26.577s PASS。每次BasicIK返回同次输入的armature/thigh/calf/foot世界TRS、目标/旋转、pole、骨骼本地轴、实际长度和weight，复用现有space telemetry保留相邻两帧，未将这些记录回喂动画算法。旧平滑权重路径即消融失败；新增邻帧JSON导出/未执行null检查后完成同入口和静态。当前只改观测与证据载荷，源FootLock、Offset与BasicIK数学保持不动，仍未启动新runtime。
 
   - 05d1完成/05d2运行前2026-09-10 18:54:44：301项目26.577s与新增邻帧JSON导出26.855s PASS（共302项已验证），最终同入口64.959s、19图fresh spec3.208s及Default完整声明式九命令4.521s PASS。六窗口使用实际Idle时长换算的clip-time对齐，仍记录实际同步组，不伪造FSM；05c本轮元数据静态复开关闭。输入记录在现有space中每帧只保留当前/上一执行，跳过求解为null；Default原逐帧trace同时保存当前输入，异常落在稳定窗口之外也可复算。求解器、足锁、偏移、曲线与40rad/s守卫均未改。开始18:30、预估18:55、实际结束18:54:44（偏差-16s），本段静态完成并提交；接着同一入口startup和完整Default，物理异常是否重现仍是开放边界。
+
+  - 05d2 startup通过/完整动作前2026-09-10 18:59:00：新入口1921adc公共startup17.107s PASS，frame p95 21.6546ms/max27.8623ms、eval p95 0.1416ms；fault/graph/temporal为空、0截图。301全量和新增邻帧导出、19图fresh spec及完整声明式通过；开始原六窗口Default，当前/前帧实际IK参数及逐帧输入随同原数值报告保留，不改变角色输入、姿态算法或守卫。未提前认定此前右小腿突变已修复。
+
+
+  - 05d2完整动作结果2026-09-10 19:04:00：Default19.259s manual0，六窗口、五源采样帧、实际叠加/同步/曲线及预测升降全部通过，source errors逐帧为空，无FSM签名问题已消失；公共validator仍失败。第一次恢复站立后起跳的final calf_r在0.0159496s转0.9080184rad（56.9305rad/s），pre-rig无异常；已得到同次与上一帧完整求解输入，权重分别0.257388/0.544095。frame p95 26.1172ms/max193.0519ms也超预算，CPU p95 23.4558ms/max34.7292ms，eval p95 0.1165ms；0截图。当前先复算UE BasicIK与实际target参数的首个差异，不重启场景，不放宽原守卫；grounded/locomotion直接消费者仍待该边界闭合。
+
+
+  - 05d2源输入时序闭包2026-09-10 19:14:34：用保存参数逐式复算本地UE BasicIK，前后帧局部差0.908025rad，与实际结果误差1.84e-6rad；因此不改solver数学。fresh AnimInstanceProxy先NativeThreadSafeUpdate、后节点Update/Evaluate，GetCurveValue读取上一完成的属性曲线；ALS RefreshFeetOnGameThread读取已有骨骼，RefreshFeet准备锁脚Final，GetControlRigInput再交给Rig。fresh CR RefreshFootOffset/RefreshFootIk都读取同一RigInput.FootLocation，Weight读取Rig当前曲线。target却在求值后重算FootLock且射线另取新IK骨，已准备的AlsControlRigInput足部字段未被消费。BF109.10只按该输入阶段/consumer边界取消勾选，旧Gate仅验存在/阶段mask和单帧数学，未验证前后两帧生产顺序。接着复用现有FootLockInput、FootLockState和RigInput，把锁脚准备移到新图之前，并让trace/solve读取同一准备值；不新增姿态平滑/阈值，不展开其余Rig模块。
+
+
+  - 05d2输入阶段静态闭合/运行前2026-09-10 19:31:10：真实ECS顺序反例36.860s稳定FAIL，现将既有足锁准备移到图前、由TransformHelper读取当前组件变换下已有骨骼，保留原缓存/传送/constraint算法；26.618s PASS，并扩为两帧，确认当前图的新骨骼/曲线只供下一次准备。Standing/Crouching既有FootLockInput补全IK曲线，Rig消费同一准备位置/旋转，pelvis读取已更新的源PoseState。304项目27.649s PASS；首轮唯一失败为旧传送fixture只写GlobalTransform，按真实Transform层级补齐后原阈值通过。关闭目标一致性观测22.952s FAIL、恢复22.903s PASS。fresh CR独立生成0.567s，runtime参数逐字不变；133node/1407pin/160link/79骨静态0.584s及最终十命令6.103s PASS。同入口76.435s、19图fresh spec3.238s通过。以下先startup，再完整Default及原grounded九/locomotion十四窗口；当前只宣称静态闭合，原小腿突变和帧时仍待真实复验。
+
+
+  - 05d第二轮超时复盘2026-09-10 19:35:00：本轮开始18:30、预估19:15，实际复盘19:35（耗65m，偏差+20m，未通过）。暂停实现/新的runtime，回读两图/十四Pose节点、直接三函数与UE执行阶段及完整报告：六Default窗口来源合同已通过；旧最终小腿参数复算数学相符，源差异为足锁准备阶段和Rig目标绕读。新增图前准备、同一目标消费与304回归通过，但startup5.229s在调度初始化失败、无report.json；公共runner正确拒绝进程101。原因是新增after(AlsRotationResponseSet)实际在Physics Last之后，而现有图求值在PrePhysics，形成环，旧最小fixture未带真实物理顺序边。补相同First→Last→RotationResponse边后25.820s稳定FAIL于该环；需删除这条多余顺序约束，保留在现有图更新阶段内准备。进一步按source FinalLocation=ComponentInverse(FinalWorld)确认组件空间值应在准备时固定，不能由图后变化过的组件坐标再次推算；继续复用现有RigInput足部字段保存，不新增状态。BasicIK、曲线/动画资产、物理时钟及所有守卫不改；只有当前输入链，BF109.10尚未关闭。
+  - 纠正与拆分：按上一轮45分钟窗口1.5倍，下一轮开始19:35:00、预估20:42:30，拆成下列两个独立Gate，剩余估时基于25秒focused/约76秒同入口和三次主要真实case约两分钟，并保留当前组件快照反例与首个源链失败定位。此为同项第三轮预估；若仍需第四轮，先重审全过程和拆分，不沿用本轮验证路径。
+  - [x] BF115.05d3a 图前组件空间足输入闭环：开始2026-09-10 19:35:00、预估20:10:00。在已证明的调度环与RigInput坐标边界上补最小跨帧失败、删多余顺序约束并复用现有输入字段；适用消融/回归、source/static及同入口闭合后单独提交。本段不启动runtime。
+  - [ ] BF115.05d3b 全部Default与直接消费者Gate：实际开始2026-09-10 19:49:00、预估20:42:30（保留本轮终点）。依赖05d3a；startup→完整Default六窗口→grounded九/locomotion十四窗口，保留图/Root/pre-rig/final/时间/性能与watchdog、0截图。足输入阶段修改直接影响旋转约束和站蹲writer，另用既有standing_turn与crouching完整case复验该消费者；不展开新的相邻图或后续模块。
+
+
+  - 05d3a完成/05d3b运行前2026-09-10 19:49:00：保留真实物理顺序的调度环反例25.820s FAIL；删去多余after(RotationResponse)后，组件输入未准备反例36.390s FAIL，现直接把当次FinalLocation/Rotation转换并保存到已有RigInput，图后只保留这些字段，26.652s PASS。304项目22.655s PASS，原source目标一致性消融保持；同入口67.495s、19图fresh spec3.142s、十命令source/图/编辑器/当前Rig审计4.528s PASS。仅增加一个已有SystemSet阶段并移动原足锁逻辑，复用TransformHelper与原输入字段，无新逐帧缓存/求解器/平滑。开始19:35、预估20:10、实际完成19:49（偏差-21m），静态子项闭合；公共startup后再完整Default、grounded/locomotion及站蹲直接回归，仍未宣称数值突变消除。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

@@ -6,9 +6,6 @@ use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{LocomotionState, RotationMode};
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use als_ext::source_instance::source_player_property;
-use als_ext::ik_space::{
-    WorldPoint, WorldRotation, armature_point_from_world, armature_rotation_from_world,
-};
 use bevy::animation::AnimationTargetId;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -844,7 +841,7 @@ fn refresh_control_rig_input(
     ) in &mut characters
     {
         current_trace.stage_mask = 0;
-        let Some((_, instance, armature)) = avatars
+        let Some((_, instance, _)) = avatars
             .iter()
             .find(|(parent, _, _)| parent.parent() == entity)
         else {
@@ -853,11 +850,10 @@ fn refresh_control_rig_input(
         let (pose_grounded, pose_in_air) =
             players
                 .get(instance.player_entity())
-                .map_or((0.0, 0.0), |(_, context)| {
-                    (
-                        output_f32(context, "PoseGrounded"),
-                        output_f32(context, "PoseInAir"),
-                    )
+                .map_or((0.0, 0.0), |(player, _)| {
+                    let amount = |field| source_player_property(player, field)
+                        .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
+                    (amount("pose_state.grounded_amount"), amount("pose_state.in_air_amount"))
                 });
         let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
         let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
@@ -865,52 +861,15 @@ fn refresh_control_rig_input(
                 .and_then(|(player, _)| source_player_property(player, &format!("grounded_state.velocity_blend.{direction}")))
                 .and_then(|value| value.as_f32().ok()).unwrap_or(0.0)
         });
-        let (
-            foot_transforms_valid,
-            foot_left_location_armature,
-            foot_left_rotation_armature,
-            foot_right_location_armature,
-            foot_right_rotation_armature,
-        ) = foot_lock.filter(|state| state.valid).map_or_else(
-            || {
-                (
-                    false,
-                    Vec3::ZERO,
-                    Quat::IDENTITY,
-                    Vec3::ZERO,
-                    Quat::IDENTITY,
-                )
-            },
-            |state| {
-                (
-                    true,
-                    armature_point_from_world(armature, WorldPoint(state.left.final_location)).0,
-                    armature_rotation_from_world(
-                        armature,
-                        WorldRotation(state.left.final_rotation),
-                    )
-                    .0,
-                    armature_point_from_world(armature, WorldPoint(state.right.final_location)).0,
-                    armature_rotation_from_world(
-                        armature,
-                        WorldRotation(state.right.final_rotation),
-                    )
-                    .0,
-                )
-            },
-        );
         let input = AlsControlRigInput {
             use_hand_ik_bones: construction.use_hand_ik_bones,
             use_foot_ik_bones: construction.use_foot_ik_bones,
-            foot_transforms_valid,
+            foot_transforms_valid: foot_lock.is_some_and(|state| state.valid) && current_input.foot_transforms_valid,
             velocity_blend_forward_amount: velocity_blend[0],
             velocity_blend_backward_amount: velocity_blend[1],
             spine_yaw_angle_degrees: state.map_or(0.0, |state| state.final_yaw_angle),
             pelvis_offset_amount: (pose_grounded + pose_in_air * ground_prediction).clamp(0.0, 1.0),
-            foot_left_location_armature,
-            foot_left_rotation_armature,
-            foot_right_location_armature,
-            foot_right_rotation_armature,
+            ..*current_input
         };
         *current_input = input;
     }

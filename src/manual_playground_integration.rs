@@ -812,6 +812,11 @@ fn default_overlay_prediction_alpha(previous: Option<f32>, raw: f32, delta: f32,
         if raw >= previous { mapping.interpolate_speed_increasing } else { mapping.interpolate_speed_decreasing }))
 }
 
+fn default_overlay_foot_targets_ready(spaces: &AlsFootIkSpaceState) -> bool {
+    [spaces.left, spaces.right].iter().all(|side| side.solve_input.is_none()
+        || side.trace_target_world.distance(side.solver_reference_world) < 1e-5)
+}
+
 fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
     use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator}};
     let scalar = |key| locomotion_source_scalar(player, key);
@@ -6125,7 +6130,11 @@ fn observe_manual_integration(
         let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
         let now = state.game_time_seconds;
         let probe = &mut state.default_overlay_probe;
-        let sample = default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
+        let mut sample = default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
+        if let Ok((_, spaces, _, _)) = foot_ik_data.get(character)
+            && !default_overlay_foot_targets_ready(spaces) {
+            sample.errors.push("foot_trace_and_solver_must_consume_the_same_prepared_rig_target".into());
+        }
         let active = *overlay == OverlayState::Default && overlay_index.is_some_and(|value| value.abs() < 1e-4) && source_ready && sample.ready;
         if active {
             probe.valid &= sample.errors.is_empty();
@@ -8985,6 +8994,19 @@ mod tests {
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6);
         mapping.interpolate_speed_decreasing = 20.0;
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1);
+    }
+
+    #[test]
+    fn default_overlay_foot_targets_reject_a_separate_current_pose_trace() {
+        let mut spaces = AlsFootIkSpaceState::default();
+        spaces.right.solve_input = Some(crate::foot_ik_apply::FootIkSolveInput::default());
+        spaces.right.trace_target_world = Vec3::new(-37.139523, 0.67141116, -27.877008);
+        spaces.right.solver_reference_world = Vec3::new(-37.141247, 0.5346371, -27.864655);
+        assert!(!default_overlay_foot_targets_ready(&spaces));
+        spaces.right.trace_target_world = spaces.right.solver_reference_world;
+        assert!(default_overlay_foot_targets_ready(&spaces));
+        spaces.right.trace_target_world.y = f32::NAN;
+        assert!(!default_overlay_foot_targets_ready(&spaces));
     }
 
     #[test]

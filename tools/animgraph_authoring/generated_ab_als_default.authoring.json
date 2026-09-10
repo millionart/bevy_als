@@ -53,6 +53,34 @@
     {
       "path": "target/bf115_overlays/default_cr_foot_source.ue.json",
       "sha256": "3338c0f900ef4c9a3656ee4599d7357fa9a09d29af60a745f66725d139fbd766"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimInstanceProxy.cpp",
+      "sha256": "4bd27d49a6e26a32be81a31906634785d8c6c2516acc76f0ce22d9eafef2b5ea"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimInstance.cpp",
+      "sha256": "d593fff1143b0a6f49eac8456bbcb119702d6bd211cfc5f17c2f2b683c6915d2"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_SkinnedMeshComponent.cpp",
+      "sha256": "8e6aee6dce3e382080deadaaf6bdaf92a32e981d446f7d7eb5b74d876747dc3e"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_SkeletalMeshComponent.cpp",
+      "sha256": "06179d38ebff3138b6412fe14b14331c0a9e8c1623b760801ba6276602223378"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_ControlRigMathLibrary.cpp",
+      "sha256": "521c8ea39039d9edd3cb3f921ea48f90048c378d89fcf5692296273f1cd9e382"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_RigUnit_TwoBoneIKSimple.cpp",
+      "sha256": "4e5789e33a0414d93edd18c54fa7f2d1e39e68492bde6a5b97665c5460ec5437"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_TwoBoneIK.cpp",
+      "sha256": "249fb20269a254329c326e881d20e9664a5619d1e955c3bb2f3e96476169d5e4"
     }
   ],
   "graphs": [
@@ -279,7 +307,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_diagnostic_spec.json"
+        "target/bf115_overlays/default_component_spec.json"
       ]
     },
     {
@@ -354,6 +382,19 @@
         "python",
         "tools/import/apply_additive_reference_deltas.py",
         "--self-test"
+      ]
+    },
+    {
+      "label": "prepared_rig_foot_source_contract",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/audit_cr_als.py",
+        "--source",
+        "target/bf115_overlays/default_cr_foot_source.ue.json",
+        "--profile",
+        "target/bf115_overlays/default_foot_phase_cr.profile.json",
+        "--check"
       ]
     }
   ],
@@ -437,6 +478,17 @@
         "foot_ik_sample_preserves_adjacent_actual_solver_inputs"
       ],
       "evidence": "target/bf115_overlays/default_adjacent_input_test.watchdog.json"
+    },
+    {
+      "label": "prepared_foot_inputs_and_current_rig_weights",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_component_regression.watchdog.json"
     }
   ]
 }
