@@ -84,6 +84,10 @@ pub fn damper_exact_angle(
 }
 
 impl AlsRollState {
+    pub fn root_motion_active(&self) -> bool {
+        self.active && self.time < ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS
+    }
+
     pub fn start_from_landing(
         &mut self,
         landing_speed: f32,

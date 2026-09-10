@@ -1,7 +1,7 @@
 use als_core::character::AlsCharacter;
-use als_core::motion::{AlsActualVelocity, AlsActualVelocitySet, AlsRotationResponseSet};
 use als_core::orientation::world_forward_to_yaw;
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
+use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
@@ -46,9 +46,7 @@ impl Plugin for AlsActualMotionPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsActualMotionSet
-                .after(AlsActualVelocitySet)
-                .after(AlsRotationResponseSet),
+            AlsActualMotionSet.before(crate::gait_layer::AlsGaitLayerSet),
         )
         .add_systems(
             PostUpdate,
@@ -63,7 +61,7 @@ fn snapshot_actual_motion_system(
     mut characters: Query<
         (
             Entity,
-            &AlsActualVelocity,
+            &LinearVelocity,
             &Transform,
             Option<&mut AlsActualMotion>,
         ),
@@ -72,7 +70,7 @@ fn snapshot_actual_motion_system(
 ) {
     for (entity, velocity, transform, current) in &mut characters {
         let mut next =
-            AlsActualMotion::from_physics_velocity(velocity.world_velocity, transform.rotation);
+            AlsActualMotion::from_physics_velocity(velocity.0, transform.rotation);
         if let Some(previous) = current.as_deref().filter(|_| time.delta_secs() > 1e-8) {
             next.world_acceleration =
                 (next.world_velocity - previous.world_velocity) / time.delta_secs();
@@ -114,10 +112,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::default(),
-                AlsActualVelocity {
-                    world_velocity: Vec3::NEG_Z,
-                    horizontal_speed: 1.0,
-                },
+                LinearVelocity(Vec3::NEG_Z),
             ))
             .id();
         let second = app
@@ -125,10 +120,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
-                AlsActualVelocity {
-                    world_velocity: Vec3::NEG_X,
-                    horizontal_speed: 1.0,
-                },
+                LinearVelocity(Vec3::NEG_X),
             ))
             .id();
 
@@ -143,7 +135,7 @@ mod tests {
 
         app.world_mut()
             .entity_mut(first)
-            .insert(AlsActualVelocity::default());
+            .insert(LinearVelocity::default());
         app.world_mut().run_schedule(FixedPostUpdate);
 
         let stopped_motion = *app.world().get::<AlsActualMotion>(first).unwrap();
@@ -172,10 +164,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::default(),
-                AlsActualVelocity {
-                    world_velocity: Vec3::NEG_Z,
-                    horizontal_speed: 1.0,
-                },
+                LinearVelocity(Vec3::NEG_Z),
                 AlsMovementBaseDynamicsState {
                     entity: Some(base),
                     ..default()
@@ -202,9 +191,9 @@ mod tests {
                 < 1e-5
         );
         app.world_mut()
-            .get_mut::<AlsActualVelocity>(character)
+            .get_mut::<LinearVelocity>(character)
             .unwrap()
-            .world_velocity = Vec3::NEG_X * 0.5;
+            .0 = Vec3::NEG_X * 0.5;
         app.world_mut().run_schedule(PostUpdate);
         assert!(
             (app.world()
@@ -229,7 +218,7 @@ mod tests {
             Vec3::ZERO
         );
         app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::ZERO);
-        app.world_mut().get_mut::<AlsActualVelocity>(character).unwrap().world_velocity = Vec3::Y;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::Y;
         app.world_mut().run_schedule(PostUpdate);
         assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_acceleration, Vec3::ZERO);
     }

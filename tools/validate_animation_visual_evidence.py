@@ -397,7 +397,7 @@ def source_pose_chain_issues(window, label):
     return issues
 
 
-def motion_window_issues(report, screenshots, pose_samples):
+def motion_window_issues(report, screenshots, pose_samples, require_screenshots=True):
     issues = []
     windows = report.get("motion_windows")
     if not isinstance(windows, list):
@@ -508,6 +508,23 @@ def motion_window_issues(report, screenshots, pose_samples):
                 and (final_rotation_floor <= MOTION_EPSILON or final_rotation_delta < final_rotation_floor)
             ):
                 issues.append(f"motion window is below its source-derived final floor: {label}")
+        if not window.get("direction_signature_group") and window.get("canonical_clip_time") is not None:
+            target = window["canonical_clip_time"]
+            distance = window.get("canonical_clip_time_distance")
+            maximum = window.get("maximum_clip_time_distance")
+            if not finite(target) or target < 0.0 or not finite(maximum) or maximum <= MOTION_EPSILON:
+                issues.append(f"motion window canonical clip target is invalid: {label}")
+            if not finite(distance) or distance < 0.0 or not finite(maximum) or distance > maximum:
+                issues.append(f"motion window canonical clip sample is missing or outside tolerance: {label}")
+            issues.extend(local_motion_pose_issues(window.get("canonical_pre_rig_pose"), label))
+        actor_yaw_driver = window.get("actor_yaw_driver") or "animation_curve"
+        if actor_yaw_driver not in ("animation_curve", "locomotion"):
+            issues.append(f"motion window actor yaw driver is invalid: {label}")
+        if actor_yaw_driver == "locomotion" and (
+            not isinstance(window.get("expected_runtime_state"), int)
+            or not window.get("source_state")
+        ):
+            issues.append(f"motion window locomotion yaw state is missing: {label}")
         actor_yaw_sample_count = window.get("actor_yaw_sample_count")
         actor_yaw_delta = window.get("max_actor_yaw_delta_radians")
         actor_yaw_signed_delta = window.get("max_actor_yaw_signed_delta_radians")
@@ -532,7 +549,7 @@ def motion_window_issues(report, screenshots, pose_samples):
             issues.append(f"motion window actor yaw sign is invalid: {label}")
         if actor_yaw_sign is not None and not finite(actor_yaw_baseline):
             issues.append(f"motion window actor yaw baseline is invalid: {label}")
-        if actor_yaw_sign is not None and (
+        if actor_yaw_sign is not None and actor_yaw_driver == "animation_curve" and (
             not isinstance(expected_animation_variant, str) or not expected_animation_variant
         ):
             issues.append(f"motion window expected animation variant is invalid: {label}")
@@ -570,6 +587,10 @@ def motion_window_issues(report, screenshots, pose_samples):
                             issues.append(f"motion window actor yaw trace curve is invalid: {label}")
                         elif abs(curve) > MOTION_EPSILON:
                             has_curve_sample = True
+                    if actor_yaw_driver == "locomotion":
+                        if not finite(view) or not finite(curve) or abs(curve) > MOTION_EPSILON:
+                            issues.append(f"motion window locomotion yaw inputs are invalid: {label}")
+                        continue
                     if (
                         finite(curve_stack_weight)
                         and curve_stack_weight > MOTION_EPSILON
@@ -638,7 +659,7 @@ def motion_window_issues(report, screenshots, pose_samples):
                         and animation_variant != expected_animation_variant
                     ):
                         issues.append(f"motion window selected the wrong animation variant: {label}")
-                if not has_curve_sample:
+                if actor_yaw_driver == "animation_curve" and not has_curve_sample:
                     issues.append(f"motion window actor yaw trace has no animation curve: {label}")
         if requires_actor_yaw_motion is True and (
             not isinstance(actor_yaw_sample_count, int)
@@ -912,7 +933,7 @@ def motion_window_issues(report, screenshots, pose_samples):
             and value.get("kind") == "direction"
             and value.get("direction_case") == label
         ]
-        if not matching_screenshots:
+        if require_screenshots and not matching_screenshots:
             issues.append(f"motion window screenshot is missing: {label}")
         matching_samples = [
             value
@@ -1089,12 +1110,13 @@ def primary_failure_issues(report):
         "captured",
         "capture_not_materialized_before_exit",
         "unavailable_no_camera",
+        "disabled_by_configuration",
     }
     if status not in allowed_status:
         issues.append("primary failure screenshot status is invalid")
-    elif status == "unavailable_no_camera" and failure.get("screenshot_path") is not None:
+    elif status in ("unavailable_no_camera", "disabled_by_configuration") and failure.get("screenshot_path") is not None:
         issues.append("primary failure unavailable screenshot has a path")
-    elif status != "unavailable_no_camera" and not isinstance(failure.get("screenshot_path"), str):
+    elif status not in ("unavailable_no_camera", "disabled_by_configuration") and not isinstance(failure.get("screenshot_path"), str):
         issues.append("primary failure screenshot path is missing")
     candidate_locations = [
         f"{candidate.get('graph_path') or candidate.get('graph_asset_id')}:{candidate.get('node_name')}"
@@ -1338,7 +1360,7 @@ def audit(report, min_screenshots):
         }
         missing_screenshots = sorted(STATE_MACHINE_DIRECTION_CASES - direction_screenshots)
         missing_samples = sorted(STATE_MACHINE_DIRECTION_CASES - direction_samples)
-        if missing_screenshots:
+        if min_screenshots > 0 and missing_screenshots:
             issues.append("state machine direction screenshots are missing: " + ", ".join(missing_screenshots))
         if missing_samples:
             issues.append("state machine direction foot ik samples are missing: " + ", ".join(missing_samples))
@@ -1376,7 +1398,7 @@ def audit(report, min_screenshots):
             and isinstance(sample.get("foot_ik", {}).get("teleport"), dict)
             and sample.get("foot_ik", {}).get("teleport", {}).get("detected_count", 0) > 0
         ]
-        if not teleport_screenshots:
+        if min_screenshots > 0 and not teleport_screenshots:
             issues.append("foot ik teleport screenshot is missing")
         if not teleport_samples:
             issues.append("foot ik teleport pose sample is missing")
@@ -1408,7 +1430,7 @@ def audit(report, min_screenshots):
             for sample in sprint_samples
         ):
             issues.append("sprint source curve relay is missing")
-    issues.extend(motion_window_issues(report, screenshots, pose_samples))
+    issues.extend(motion_window_issues(report, screenshots, pose_samples, min_screenshots > 0))
     issues = list(dict.fromkeys(issues))
     return {"pass": not issues, "issues": issues, "images": images}
 
@@ -1871,6 +1893,18 @@ def run_self_test():
         add_dynamic_window_samples(report, ["dynamic"])
         report["motion_windows"] = [fixture_motion_window()]
         assert audit(report, 2)["pass"]
+        report["screenshots"] = []
+        assert audit(report, 0)["pass"]
+        assert not audit(report, 2)["pass"]
+        report["pose_samples"][0]["root_pose"]["active_channel_count"] = 0
+        assert not audit(report, 0)["pass"]
+        report = fixture_report([])
+        report["graph_errors"] = ["fixture"]
+        report["primary_failure"] = fixture_graph_failure()
+        report["primary_failure"]["screenshot_status"] = "disabled_by_configuration"
+        diagnosis = audit(report, 0)
+        assert not diagnosis["pass"]
+        assert not any("screenshot" in issue for issue in diagnosis["issues"])
         report = fixture_report(paths)
         report["required_motion_windows"] = ["missing_dynamic"]
         assert not audit(report, 2)["pass"]
@@ -2052,6 +2086,33 @@ def run_self_test():
                 }
             ]
         assert audit(report, 2)["pass"]
+        native = copy.deepcopy(report)
+        window = native["motion_windows"][0]
+        window["actor_yaw_driver"] = "locomotion"
+        window["expected_animation_variant"] = None
+        window["source_node"] = "Source/ActorResponse"
+        window["source_state"] = "Grounded"
+        window["expected_runtime_state"] = 0
+        window["observed_runtime_states"] = [0]
+        for sample in window["actor_yaw_trace"]:
+            for key in list(sample):
+                if key.startswith("animation_"):
+                    del sample[key]
+            sample["animation_yaw_speed_degrees"] = 0.0
+        assert audit(native, 2)["pass"], audit(native, 2)["issues"]
+        window["canonical_clip_time"] = 0.6
+        window["maximum_clip_time_distance"] = 0.05
+        window["canonical_pre_rig_pose"] = fixture_canonical_pose()
+        assert not audit(native, 2)["pass"]
+        window["canonical_clip_time_distance"] = 0.01
+        assert audit(native, 2)["pass"]
+        window["canonical_clip_time_distance"] = 0.1
+        assert not audit(native, 2)["pass"]
+        window["canonical_clip_time_distance"] = 0.01
+        window["actor_yaw_trace"][0]["animation_yaw_speed_degrees"] = 45.0
+        assert not audit(native, 2)["pass"]
+        window["actor_yaw_driver"] = "unknown"
+        assert not audit(native, 2)["pass"]
         report["motion_windows"][0]["actor_yaw_trace"][1]["animation_curve_stack_entries"] = []
         assert not audit(report, 2)["pass"]
         report["motion_windows"][0]["actor_yaw_trace"][1]["animation_curve_stack_entries"] = [
@@ -2300,15 +2361,15 @@ def run_self_test():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path)
-    parser.add_argument("--min-screenshots", type=int, default=6)
+    parser.add_argument("--min-screenshots", type=int, default=0)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         print(json.dumps(run_self_test(), ensure_ascii=False, indent=2))
         return 0
-    if args.report is None or not args.check or args.min_screenshots < 1:
-        raise ValueError("report, --check, and a positive min-screenshots are required")
+    if args.report is None or not args.check or args.min_screenshots < 0:
+        raise ValueError("report, --check, and nonnegative min-screenshots are required")
     if not args.report.is_file():
         raise ValueError("visual report is missing")
     result = audit(read_json(args.report), args.min_screenshots)

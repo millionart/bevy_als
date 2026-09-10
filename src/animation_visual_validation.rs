@@ -135,7 +135,10 @@ impl AnimationVisualValidationConfig {
             directory,
             case: std::env::var("ALS_MANUAL_INTEGRATION_CASE")
                 .unwrap_or_else(|_| "base".to_owned()),
-            capture_count: env_usize("ALS_ANIMATION_VISUAL_CAPTURE_COUNT", 6),
+            capture_count: std::env::var("ALS_ANIMATION_VISUAL_CAPTURE_COUNT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(0),
             capture_interval: Duration::from_secs_f32(env_f32(
                 "ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS",
                 1.5,
@@ -404,6 +407,7 @@ struct MotionWindowTracker {
     requires_source_pose_chain: bool,
     requires_actor_yaw_motion: bool,
     requires_actor_yaw_convergence: bool,
+    actor_yaw_driver: Option<&'static str>,
     expected_actor_yaw_delta_sign: Option<i8>,
     expected_actor_yaw_baseline: Option<f32>,
     expected_animation_variant: Option<&'static str>,
@@ -510,6 +514,7 @@ struct MotionWindowSample {
     requires_source_pose_chain: bool,
     requires_actor_yaw_motion: bool,
     requires_actor_yaw_convergence: bool,
+    actor_yaw_driver: Option<&'static str>,
     expected_actor_yaw_delta_sign: Option<i8>,
     expected_actor_yaw_baseline: Option<f32>,
     expected_animation_variant: Option<&'static str>,
@@ -1198,12 +1203,13 @@ fn evidence_capture_complete(
             .screenshots
             .iter()
             .all(|screenshot| Path::new(&screenshot.path).is_file())
-        && state.required_motion_windows.iter().all(|label| {
-            state.screenshots.iter().any(|screenshot| {
-                screenshot.kind == "direction"
-                    && screenshot.direction_case.as_deref() == Some(label.as_str())
-            })
-        })
+        && (config.capture_count == 0
+            || state.required_motion_windows.iter().all(|label| {
+                state.screenshots.iter().any(|screenshot| {
+                    screenshot.kind == "direction"
+                        && screenshot.direction_case.as_deref() == Some(label.as_str())
+                })
+            }))
 }
 
 fn update_animation_visual_progress(
@@ -2207,6 +2213,7 @@ fn record_motion_window_metadata(
     if tracker.source_state.is_empty() {
         tracker.source_state = evidence.source_state.unwrap_or_default().to_owned();
     }
+    tracker.actor_yaw_driver = evidence.actor_yaw_driver;
     if tracker.expected_actor_yaw_delta_sign.is_none() {
         tracker.expected_actor_yaw_delta_sign = evidence.expected_actor_yaw_delta_sign;
     }
@@ -2506,8 +2513,7 @@ fn record_motion_window(
                 )
             })
     };
-    if !tracker.direction_signature_group.is_empty()
-        && let Some((distance, maximum_distance, selected_distance)) = canonical_sample
+    if let Some((distance, maximum_distance, selected_distance)) = canonical_sample
         && distance.is_finite()
         && distance <= maximum_distance
         && selected_distance.is_none_or(|current| distance < current)
@@ -3005,6 +3011,7 @@ fn write_report(
                 requires_source_pose_chain: tracker.requires_source_pose_chain,
                 requires_actor_yaw_motion: tracker.requires_actor_yaw_motion,
                 requires_actor_yaw_convergence: tracker.requires_actor_yaw_convergence,
+                actor_yaw_driver: tracker.actor_yaw_driver,
                 expected_actor_yaw_delta_sign: tracker.expected_actor_yaw_delta_sign,
                 expected_actor_yaw_baseline: tracker.expected_actor_yaw_baseline,
                 expected_animation_variant: tracker.expected_animation_variant,
@@ -3161,7 +3168,9 @@ fn record_graph_evaluation_failure(
         rotation_mode.map(str::to_owned),
         state.started.is_none(),
     );
-    if has_camera {
+    if config.capture_count == 0 {
+        failure.screenshot_status = "disabled_by_configuration".to_owned();
+    } else if has_camera {
         let path = config.directory.join("graph_error.png");
         commands
             .spawn(Screenshot::primary_window())
@@ -3702,7 +3711,8 @@ fn collect_animation_visual_evidence(
             }
         }
     }
-    if nonfault_capture_allowed(
+    if config.capture_count > 0
+        && nonfault_capture_allowed(
         fault_detected,
         scheduled_capture_allowed(direction_settled, teleport_detected),
     ) && state.capture_index < config.capture_count
@@ -3735,7 +3745,8 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if nonfault_capture_allowed(
+    if config.capture_count > 0
+        && nonfault_capture_allowed(
         fault_detected,
         direction_capture_allowed(direction_settled, teleport_detected),
     ) && let Some(direction_case) = direction_case.as_ref()
@@ -3766,7 +3777,8 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if nonfault_capture_allowed(fault_detected, teleport_detected)
+    if config.capture_count > 0
+        && nonfault_capture_allowed(fault_detected, teleport_detected)
         && state.teleport_captures < 4
         && let Some(camera) = cameras.iter().next()
     {
@@ -3793,7 +3805,7 @@ fn collect_animation_visual_evidence(
         state.skip_frame_samples = state.skip_frame_samples.max(3);
         let _ = camera;
     }
-    if fault_detected && state.fault_captures < 4 {
+    if config.capture_count > 0 && fault_detected && state.fault_captures < 4 {
         let path = config
             .directory
             .join(format!("fault_{:02}.png", state.fault_captures));
@@ -3854,7 +3866,7 @@ mod tests {
                 settled: true,
                 capture_source_window: true,
                 requires_pre_rig_motion: true,
-                direction_signature_group: Some("Slot variants"),
+                direction_signature_group: None,
                 canonical_clip_time: Some(0.6),
                 maximum_clip_time_distance: 0.1,
                 observed_animation_clip_time: Some(time),
@@ -4476,6 +4488,53 @@ mod tests {
             Some(Instant::now()),
         );
         assert_eq!(stages.samples["physics_step"].len(), 1);
+    }
+
+    #[test]
+    fn zero_screenshot_readiness_still_requires_numeric_samples() {
+        let mut config = AnimationVisualValidationConfig {
+            directory: PathBuf::new(),
+            case: "fixture".to_owned(),
+            capture_count: 0,
+            capture_interval: Duration::from_secs(1),
+            min_pose_samples: 1,
+            warmup: Duration::ZERO,
+            max_frame_p95_ms: 1.0,
+            max_frame_ms: 1.0,
+            max_eval_p95_ms: 1.0,
+            max_physics_steps_per_render: 1.0,
+        };
+        let mut state = AnimationVisualValidationState {
+            started: Some(Instant::now()),
+            frame_ms: vec![1.0],
+            eval_ms: vec![1.0],
+            required_motion_windows: BTreeSet::from(["fixture".to_owned()]),
+            ..default()
+        };
+        state.pose_samples.push(snapshot(
+            1.0,
+            1.0,
+            &BTreeMap::new(),
+            Some("fixture"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            RootPoseActivity::default(),
+        ));
+        let mut stages = AnimationVisualStageTiming::default();
+        assert!(!evidence_capture_complete(&config, &state, &stages));
+        stages.physics_steps_per_render.push(1.0);
+        assert!(evidence_capture_complete(&config, &state, &stages));
+        config.capture_count = 1;
+        assert!(!evidence_capture_complete(&config, &state, &stages));
+        config.capture_count = 0;
+        state.pose_samples.clear();
+        assert!(!evidence_capture_complete(&config, &state, &stages));
     }
 
     #[test]

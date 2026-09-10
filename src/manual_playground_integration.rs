@@ -96,6 +96,7 @@ const GATE_TIMEOUT: Duration = Duration::from_secs(180);
 const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const SPRINT_START: Vec3 = Vec3::new(-45.0, 0.0, -26.0);
 const SPRINT_YAW: f32 = -std::f32::consts::FRAC_PI_2;
+const GROUNDED_START: Vec3 = Vec3::new(-45.0, 0.0, -28.0);
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
 const STATE_MACHINE_TURN_FIRST_START: f32 = 0.5;
@@ -374,6 +375,7 @@ pub struct ManualAnimationWindowEvidence {
     pub requires_source_pose_chain: bool,
     pub requires_actor_yaw_motion: bool,
     pub requires_actor_yaw_convergence: bool,
+    pub actor_yaw_driver: Option<&'static str>,
     pub expected_actor_yaw_delta_sign: Option<i8>,
     pub expected_actor_yaw_baseline: Option<f32>,
     pub expected_animation_variant: Option<&'static str>,
@@ -728,7 +730,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
     }
 }
 
-const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 6] = [
+const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 8] = [
     ("grounded_stand_to_crouch", Stance::Crouching, false, false),
     ("grounded_crouch_to_stand", Stance::Standing, false, false),
     ("grounded_moving_to_crouch", Stance::Crouching, true, false),
@@ -745,6 +747,8 @@ const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 6] = [
         false,
         true,
     ),
+    ("grounded_standing_rapid_aim_stop", Stance::Standing, false, true),
+    ("grounded_crouching_rapid_aim_stop", Stance::Crouching, false, true),
 ];
 
 #[derive(Default)]
@@ -786,6 +790,9 @@ fn grounded_joint_command(
     base_yaw: f32,
     view_yaw: f32,
 ) -> als_core::input::AlsInputCommand {
+    if index >= 6 {
+        return standing_turn_mouse_command(7, elapsed.map(|time| time + 8.0), base_yaw, view_yaw, RotationMode::Aiming);
+    }
     let (_, _, moving, aiming) = GROUNDED_JOINT_CASES[index];
     let elapsed = elapsed.unwrap_or(-1.0);
     let target = base_yaw
@@ -1463,6 +1470,7 @@ fn crouch_rotate_window(
     observed_lifecycle_stages: &'static [&'static str],
 ) -> ManualAnimationWindowEvidence {
     ManualAnimationWindowEvidence {
+        actor_yaw_driver: None,
         label: Some(if left {
             "crouch_rotate_left"
         } else {
@@ -1543,6 +1551,7 @@ fn crouch_turn_window(
     observed_lifecycle_stages: &'static [&'static str],
 ) -> ManualAnimationWindowEvidence {
     ManualAnimationWindowEvidence {
+        actor_yaw_driver: None,
         label: Some(if left {
             "crouch_turn_left"
         } else {
@@ -1890,7 +1899,7 @@ struct IntegrationCoverage {
     grounded_roll_exit_transition: bool,
     grounded_roll_completed: bool,
     grounded_stop_callback: bool,
-    grounded_joint: [bool; 6],
+    grounded_joint: [bool; 8],
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
     ragdoll_follow: bool,
@@ -2836,6 +2845,7 @@ fn drive_manual_integration(
                 return;
             };
             *animation_window = ManualAnimationWindowEvidence {
+                actor_yaw_driver: None,
                 label: Some(case.name),
                 index: Some(case_index),
                 settled: elapsed
@@ -3809,6 +3819,7 @@ fn drive_manual_integration(
                     return;
                 };
                 *animation_window = ManualAnimationWindowEvidence {
+                    actor_yaw_driver: None,
                     label: Some(case.name),
                     index: Some(case_index),
                     settled: state.crouch_direction_case_index == case_index && state.crouch_direction_ready_at.is_some(),
@@ -4128,7 +4139,7 @@ fn drive_manual_integration(
                     &mut view_yaw,
                     &mut view_pitch,
                     if state.scenario == IntegrationScenario::Grounded {
-                        SPRINT_START.with_y(fixture.roll_start.y)
+                        GROUNDED_START.with_y(fixture.roll_start.y)
                     } else {
                         fixture.roll_start
                     },
@@ -5301,6 +5312,8 @@ fn observe_manual_integration(
                     } else {
                         &[]
                     },
+                    expected_terminal_parent_runtime_state: requested_stance.map(|stance| if stance == Stance::Crouching { 2 } else { 1 }),
+                    expected_terminal_parent_transition_active: Some(false),
                     observed_parent_runtime_state: actual_state,
                     observed_parent_transition_active: transition_active,
                     canonical_clip_time: Some(0.8),
@@ -5369,12 +5382,17 @@ fn observe_manual_integration(
                 let yaw = world_forward_to_yaw(*transform.forward());
                 let following = motion_probe.rotation_mode.get(character).ok()
                     == Some(&RotationMode::Aiming)
-                    && speed > 0.5
-                    && als_core::motion::wrap_yaw_radians(yaw - probe.base_yaw)
-                        * if index == 4 { -1.0 } else { 1.0 }
-                        > 0.5
-                    && als_core::motion::wrap_yaw_radians(view_yaw.0 - yaw).abs()
-                        < 3.0_f32.to_radians();
+                    && if index >= 6 {
+                        elapsed >= 4.5 && speed < 0.01
+                            && standing_turn_rotation_settled(7, als_core::motion::wrap_yaw_radians(view_yaw.0 - yaw).to_degrees(),
+                                rotation_animation.map_or(f32::NAN, |value| value.yaw_speed_degrees),
+                                turn_drive.is_none_or(|value| value.rotate_active))
+                    } else {
+                        speed > 0.5
+                            && als_core::motion::wrap_yaw_radians(yaw - probe.base_yaw)
+                                * if index == 4 { -1.0 } else { 1.0 } > 0.5
+                            && als_core::motion::wrap_yaw_radians(view_yaw.0 - yaw).abs() < 3.0_f32.to_radians()
+                    };
                 let completed = probe.valid
                     && terminal
                     && elapsed >= if aiming { 3.2 } else { 1.5 }
@@ -5453,11 +5471,9 @@ fn observe_manual_integration(
                     }),
                     minimum_direction_signature_rotation_radians: 1e-4,
                     requires_actor_yaw_motion: aiming,
-                    expected_actor_yaw_delta_sign: aiming.then_some(if index == 4 {
-                        -1
-                    } else {
-                        1
-                    }),
+                    actor_yaw_driver: (aiming && index < 6).then_some("locomotion"),
+                    observed_animation_yaw_speed_degrees: rotation_animation.map(|value| value.yaw_speed_degrees),
+                    expected_actor_yaw_delta_sign: (aiming && index < 6).then_some(if index == 4 { -1 } else { 1 }),
                     expected_actor_yaw_baseline: aiming.then_some(base_yaw),
                     minimum_actor_yaw_delta_radians: if aiming { 0.5 } else { 0.0 },
                     observed_actor_yaw: Some(yaw),
@@ -5478,6 +5494,10 @@ fn observe_manual_integration(
             "rotation_mode": motion_probe.rotation_mode.get(character).ok().map(|value|format!("{value:?}")),
             "reset_count": notify.map(|value|value.grounded_entry_reset_count), "stop_count": notify.map(|value|value.stop_animations_count),
             "roll_request_count": notify.map(|value|value.roll_to_grounded_count), "roll_request_stance": notify.and_then(|value|value.roll_to_grounded_stance).map(|value|format!("{value:?}")),
+            "root_motion_active": roll.map(AlsRollState::root_motion_active),
+            "moving_smooth": player.get_global_input_data("locomotion_state.b_moving_smooth").and_then(|value|value.as_bool().ok()),
+            "rotation_yaw_speed": rotation_animation.map(|value|value.yaw_speed_degrees),
+            "rotate_active": turn_drive.map(|value|value.rotate_active),
             "roll": roll.map(|value|(value.active,value.time)), "playback": transition_playback.map(|value|(crate::stop_link::source_transition_sequence(value),value.active,value.clip_time,value.weight)),
             "joint_valid": state.grounded_joint_probe.valid, "joint_sequence_completed": state.grounded_joint_probe.sequence_completed,
         }));
@@ -7971,6 +7991,8 @@ fn observe_manual_integration(
                 (GROUNDED_JOINT_CASES[3].0, coverage.grounded_joint[3]),
                 (GROUNDED_JOINT_CASES[4].0, coverage.grounded_joint[4]),
                 (GROUNDED_JOINT_CASES[5].0, coverage.grounded_joint[5]),
+                (GROUNDED_JOINT_CASES[6].0, coverage.grounded_joint[6]),
+                (GROUNDED_JOINT_CASES[7].0, coverage.grounded_joint[7]),
                 (
                     "grounded_roll_exit_transition",
                     coverage.grounded_roll_exit_transition,
@@ -8326,6 +8348,14 @@ mod tests {
                     && rotating.move_dir == Vec2::Y
                     && rotating.look_delta.x * if index == 4 { -1.0 } else { 1.0 } < 0.0
             );
+        }
+        for index in [6, 7] {
+            let right = grounded_joint_command(index, Some(0.125), 0.0, 0.0);
+            let left = grounded_joint_command(index, Some(0.375), 0.0, std::f32::consts::PI);
+            let stopped = grounded_joint_command(index, Some(4.5), 0.0, 0.0);
+            assert!(right.aim_held && left.aim_held && stopped.aim_held);
+            assert!(right.look_delta.x < 0.0 && left.look_delta.x > 0.0 && stopped.look_delta == Vec2::ZERO);
+            assert_eq!([right.move_dir, left.move_dir, stopped.move_dir], [Vec2::ZERO; 3]);
         }
         assert_eq!(grounded_joint_command(2, None, 0.0, 0.0).move_dir, Vec2::Y);
         assert_eq!(
@@ -8941,6 +8971,21 @@ mod tests {
         let actors: Vec<PlaygroundActor> =
             serde_json::from_str(include_str!("../assets/models/playground/playground.json"))
                 .unwrap();
+        use bevy::ecs::system::RunSystemOnce;
+        let start = actors.iter().find(|actor| actor.class == "PlayerStart").unwrap();
+        let origin = ue_point_to_bevy(Vec3::from(start.location));
+        let yaw = als_ext::playground::ue_yaw_to_bevy_quat(start.rotation_yaw).to_euler(EulerRot::YXZ).0;
+        let mut world = World::new();
+        world.init_resource::<Assets<Mesh>>();
+        world.init_resource::<Assets<StandardMaterial>>();
+        world.run_system_once(move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
+            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, origin, yaw);
+        }).unwrap();
+        let extra_bounds: Vec<(Vec3, Vec3)> = world.query::<(&Mesh3d, &Transform)>().iter(&world).map(|(mesh, transform)| {
+            let meshes = world.resource::<Assets<Mesh>>();
+            let points = meshes.get(&mesh.0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
+            points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)))
+        }).collect();
         let sprint_end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
         for (min, max) in [
             (
@@ -8951,8 +8996,11 @@ mod tests {
                 Vec3::new(-45.35, 0.0, -26.35),
                 Vec3::new(-23.0, 0.0, -25.65),
             ),
-            (Vec3::new(-25.0, 0.0, -27.0), Vec3::new(-6.0, 0.0, -16.0)),
+            (Vec3::new(-26.0, 0.0, -28.5), Vec3::new(-6.0, 0.0, -21.0)),
         ] {
+            for (lower, upper) in &extra_bounds {
+                assert!(upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z, "Movement path intersects an attached integration fixture");
+            }
             let mut floors = Vec::new();
         for actor in &actors {
             if actor.mesh_path.is_none()

@@ -48,6 +48,31 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn roll_blend_out_releases_root_motion_while_the_pose_keeps_playing() {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let character = world.spawn((
+            als_core::character::AlsCharacter,
+            AlsRollState { active: true, time: 0.83, ..default() },
+            LocomotionState::Grounded, Stance::Standing, AlsViewYaw::default(),
+            Transform::default(), LinearVelocity(Vec3::X), AlsInputCommand::default(),
+        )).id();
+        world.spawn((
+            AlsRollSlotSampler { character, target_player: character, reported_unready: false },
+            RootMotionOutput { translation_delta: Vec3::NEG_Z * 0.05, ..default() },
+        ));
+        world.run_system_once(roll_drive_system).unwrap();
+        assert!(world.get::<LinearVelocity>(character).unwrap().distance(Vec3::Z) < 1e-5);
+        world.entity_mut(character).insert(LinearVelocity(Vec3::X * 0.5));
+        world.run_system_once(roll_drive_system).unwrap();
+        assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), LinearVelocity(Vec3::X * 0.5));
+        let roll = world.get::<AlsRollState>(character).unwrap();
+        assert!(roll.active && roll_weight_at(roll.time) > 0.0);
+    }
+
+    #[test]
     fn get_up_input_block_prevents_an_automatic_landing_roll() {
         let mut world = World::new();
         let mut time = Time::<()>::default();
@@ -78,6 +103,7 @@ mod tests {
             .remove::<als_core::motion::AlsMovementInputBlocked>();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(world.get::<AlsRollState>(character).unwrap().active);
+        assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), LinearVelocity::ZERO);
     }
 
     #[test]
@@ -463,16 +489,20 @@ fn roll_drive_system(
             continue;
         }
 
-        let lifecycle = roll.update(&effective, view, loco, stance, dt);
+        let root_motion_active = roll.root_motion_active();
+        let mut lifecycle = roll.update(&effective, view, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
             && !blocked.contains(character)
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
         {
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-            roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
+            lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
         if !roll.active || *loco == LocomotionState::Ragdolling || dt <= 1e-5 {
+            continue;
+        }
+        if !root_motion_active && !lifecycle.started {
             continue;
         }
 

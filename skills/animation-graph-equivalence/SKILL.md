@@ -53,6 +53,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 6. The common temporal guard runs independently of project algorithms at pre-rig and final stages. It rejects non-finite values, scale/segment failures, local spikes, position spikes, and limb-plane flips. Rebase only at an explicit source fixture boundary.
 7. For signed turn/rotate behavior, prove target-space yaw sign as well as magnitude, asset variant, and lifecycle. A correct-looking clip with reversed physical yaw fails.
 8. When the visual collector is active, a manual scenario verdict must wait for its required frames and source-window captures to be written. Fast scenario completion may not produce a partial report; keep a focused readiness regression.
+   When screenshots are disabled, run the public runner with `-CaptureCount 0`. This disables scheduled, action, teleport, fault and graph-error images while preserving every numeric, pose, lifecycle, graph-error and progress check. A graph failure records `disabled_by_configuration` with no screenshot path. The runner defaults to this mode; never request screenshots against the user's explicit preference.
 9. A completed manual scenario whose visual capture count no longer advances must be ended by a fixed-progress watchdog. Its JSON report records the count, required count, wait and reason; test both continued capture after settlement and watchdog termination.
 
 ## Failure reports and repair

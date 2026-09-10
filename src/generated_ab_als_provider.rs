@@ -468,7 +468,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 Transform::default(),
-                als_core::motion::AlsActualVelocity::default(),
+                avian3d::prelude::LinearVelocity::default(),
             ))
             .id();
         for (velocity, view_yaw, expected) in [
@@ -480,10 +480,7 @@ mod tests {
         ] {
             app.world_mut()
                 .entity_mut(entity)
-                .insert(als_core::motion::AlsActualVelocity {
-                    world_velocity: velocity,
-                    horizontal_speed: Vec2::new(velocity.x, velocity.z).length(),
-                });
+                .insert(avian3d::prelude::LinearVelocity(velocity));
             app.update();
             let motion = app.world().get::<AlsActualMotion>(entity).unwrap();
             assert_eq!(motion.world_velocity, velocity);
@@ -493,6 +490,47 @@ mod tests {
                 "velocity={velocity:?} view={view_yaw} angle={actual} expected={expected}"
             );
         }
+    }
+
+    #[test]
+    fn generated_locomotion_observes_the_current_motor_velocity_before_graph_update() {
+        use als_core::motion::AlsActualVelocity;
+        use avian3d::prelude::{LinearVelocity, PhysicsSystems};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, crate::actual_motion::AlsActualMotionPlugin));
+        app.configure_sets(
+            PostUpdate,
+            (
+                GeneratedAbAlsProviderSet
+                    .after(crate::gait_layer::AlsGaitLayerSet)
+                    .before(AnimationGraphSet::PrePhysics),
+                AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
+                PhysicsSystems::First.before(PhysicsSystems::Last),
+            ),
+        );
+        app.world_mut().spawn((
+            AlsCharacter,
+            Transform::default(),
+            LinearVelocity(Vec3::NEG_Z * 1.315),
+            AlsActualVelocity {
+                world_velocity: Vec3::NEG_Z * 1.689,
+                horizontal_speed: 1.689,
+            },
+            AlsActualMotion {
+                world_velocity: Vec3::NEG_Z * 1.689,
+                horizontal_speed: 1.689,
+                ..default()
+            },
+        ));
+        app.add_systems(
+            PostUpdate,
+            (|motion: Query<&AlsActualMotion>| {
+                let motion = motion.single().unwrap();
+                assert!((motion.horizontal_speed - 1.315).abs() < 1e-5);
+                assert!(!source_locomotion_flags(false, motion.horizontal_speed)[1].1);
+            }).in_set(GeneratedAbAlsProviderSet),
+        );
+        app.update();
     }
 
     #[test]

@@ -440,7 +440,7 @@ pub fn grounded_dynamics_motor_system(
             continue;
         };
         if *locomotion != LocomotionState::Grounded
-            || roll.is_some_and(|state| state.active)
+            || roll.is_some_and(AlsRollState::root_motion_active)
             || mantle.is_some_and(|state| state.active)
         {
             continue;
@@ -530,6 +530,31 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn roll_blend_out_restores_the_grounded_velocity_motor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut params = Assets::<AlsMovementParams>::default();
+        let handle = params.add(AlsMovementParams::default());
+        world.insert_resource(params);
+        let character = world.spawn((
+            AlsCharacter, LocomotionState::Grounded, Stance::Standing, RotationMode::ViewDirection,
+            AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
+            AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(Vec3::X),
+            AlsMovementParamsHandle(handle), TnuaController::<AlsControlScheme>::default(),
+            TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+            AlsRollState { active: true, time: 0.8, ..default() },
+        )).id();
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert_eq!(world.get::<TnuaMotor>(character).unwrap().lin.boost, Vec3::ZERO);
+        world.get_mut::<AlsRollState>(character).unwrap().time = 0.9;
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        assert!(world.get::<TnuaMotor>(character).unwrap().lin.boost.x < 0.0);
+    }
 
     #[test]
     fn max_allowed_speed_consumes_direction_dependent_thresholds() {

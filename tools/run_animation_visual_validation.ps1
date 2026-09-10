@@ -3,7 +3,7 @@ param(
     [ValidateSet("startup", "base", "grounded", "standing_direction", "standing_response", "standing_stop", "standing_turn", "standing_dynamic", "crouching", "crouching_actions", "control_rig", "default_overlay", "state_machine", "transition_notify", "foot_ik", "sprint", "ragdoll", "get_up", "camera", "interface", "notify")]
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
-    [int]$CaptureCount = 6,
+    [int]$CaptureCount = 0,
     [double]$CaptureIntervalSeconds = 1.5,
     [double]$MaxFrameP95Ms = 25.0,
     [double]$MaxFrameMs = 75.0,
@@ -11,8 +11,8 @@ param(
     [int]$MaxPhysicsStepsPerRender = 3
 )
 
-if ($CaptureCount -lt 1 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1) {
-    throw "Visual validation arguments must be positive."
+if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1) {
+    throw "CaptureCount must be nonnegative and other validation arguments must be positive."
 }
 
 $workspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
