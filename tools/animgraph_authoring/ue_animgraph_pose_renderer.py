@@ -431,6 +431,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(keys[2])
             + ", mesh_space_additive_key: "
             + quoted(keys[3])
+            + (", always_update_source_pose: true" if value.get("always_update_source_pose", False) else "")
             + ")",
         )
     if renderer == "gameplay_tag_blend":
@@ -2209,6 +2210,17 @@ def run_self_test():
     assert 'slot_name: "TurnInPlaceStanding"' in slot_inner
     assert 'pose_key: "turn_in_place_standing.pose"' in slot_inner
     assert 'mesh_space_additive_key: "turn_in_place_standing.mesh_space_additive"' in slot_inner
+    assert "always_update_source_pose" not in slot_inner
+    _, always_slot_inner = rendered_inner(
+        graph_contract, {},
+        {"renderer": "slot", "semantic": {
+            "slot_name": "DefaultSlot", "group_name": "DefaultGroup", "always_update_source_pose": True,
+            "pose_key": "slot.pose", "weight_key": "slot.weight", "layer_weight_key": "slot.layer_weight",
+            "mesh_space_additive_key": "slot.mesh_space_additive",
+        }},
+        {}, {},
+    )
+    assert "always_update_source_pose: true" in always_slot_inner
     for mesh_space in (False, True):
         node_type, inner = rendered_inner(
             graph_contract,

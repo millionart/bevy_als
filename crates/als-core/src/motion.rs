@@ -271,6 +271,16 @@ fn advance_yaw(current: f32, target: f32, speed_degrees: f32, delta_seconds: f32
     wrap_yaw_radians(current + counterclockwise_yaw_delta(delta).signum() * max_delta)
 }
 
+pub fn locomotion_movement_flags(has_input: bool, horizontal_speed: f32) -> (bool, bool) {
+    let (has_speed_threshold, moving_speed_threshold): (f32, f32) =
+        include!("../data/locomotion_thresholds.rs");
+    let has_velocity = horizontal_speed >= has_speed_threshold;
+    (
+        has_velocity,
+        (has_input && has_velocity) || horizontal_speed > moving_speed_threshold,
+    )
+}
+
 fn moving_rotation_half_life(
     params: &AlsMovementParams,
     gait: Gait,
@@ -415,9 +425,7 @@ fn rotation_response_system(
             world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
         });
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
-        let (has_speed_threshold, moving_speed_threshold): (f32, f32) = include!("../data/locomotion_thresholds.rs");
-        let has_velocity = horizontal_speed >= has_speed_threshold;
-        let moving = (has_input && has_velocity) || horizontal_speed > moving_speed_threshold;
+        let (has_velocity, moving) = locomotion_movement_flags(has_input, horizontal_speed);
         let velocity_yaw = has_velocity.then(|| world_forward_to_yaw(velocity.0));
         let animation = animation.copied().unwrap_or_default();
         if runtime.initialized

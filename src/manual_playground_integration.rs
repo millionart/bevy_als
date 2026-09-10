@@ -629,6 +629,7 @@ enum IntegrationPhase {
     Mantle,
     Platform,
     Roll,
+    GroundedJoint,
     Ragdoll,
     Camera,
     Interface,
@@ -725,6 +726,100 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
+}
+
+const GROUNDED_JOINT_CASES: [(&str, Stance, bool, bool); 6] = [
+    ("grounded_stand_to_crouch", Stance::Crouching, false, false),
+    ("grounded_crouch_to_stand", Stance::Standing, false, false),
+    ("grounded_moving_to_crouch", Stance::Crouching, true, false),
+    ("grounded_moving_to_stand", Stance::Standing, true, false),
+    (
+        "grounded_standing_moving_aim",
+        Stance::Standing,
+        false,
+        true,
+    ),
+    (
+        "grounded_crouching_moving_aim",
+        Stance::Crouching,
+        false,
+        true,
+    ),
+];
+
+#[derive(Default)]
+struct GroundedJointProbe {
+    case_index: usize,
+    ready_since: Option<f64>,
+    triggered_at: Option<f64>,
+    base_yaw: f32,
+    last_sequence_time: Option<f32>,
+    sequence_completed: bool,
+    valid: bool,
+    state_mask: u8,
+    reset_start: u32,
+}
+
+impl GroundedJointProbe {
+    fn record(
+        &mut self,
+        mesh_base_offset: Option<f32>,
+        sequence: Option<(f32, f32, bool, f32)>,
+        delta: f32,
+    ) {
+        self.valid &= mesh_base_offset.is_some_and(|value| {
+            (value - crate::character_assembly::AVATAR_MESH_ROOT_WORLD_Y).abs() < 1e-5
+        });
+        if let Some((position, duration, looping, rate)) = sequence {
+            self.valid &= !looping
+                && position.is_finite()
+                && self.last_sequence_time.is_none_or(|last| position >= last);
+            self.last_sequence_time = Some(position);
+            self.sequence_completed |= position + delta * rate + 1e-5 >= duration;
+        }
+    }
+}
+
+fn grounded_joint_command(
+    index: usize,
+    elapsed: Option<f32>,
+    base_yaw: f32,
+    view_yaw: f32,
+) -> als_core::input::AlsInputCommand {
+    let (_, _, moving, aiming) = GROUNDED_JOINT_CASES[index];
+    let elapsed = elapsed.unwrap_or(-1.0);
+    let target = base_yaw
+        + if aiming {
+            ((elapsed - 1.2).clamp(0.0, 1.0) * if index == 4 { -45.0_f32 } else { 45.0 })
+                .to_radians()
+        } else {
+            0.0
+        };
+    als_core::input::AlsInputCommand {
+        aim_held: aiming,
+        move_dir: if moving || (aiming && elapsed >= 0.5) {
+            Vec2::Y
+        } else {
+            Vec2::ZERO
+        },
+        look_delta: if aiming {
+            Vec2::new(
+                -als_core::motion::wrap_yaw_radians(target - view_yaw)
+                    / als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT,
+                0.0,
+            )
+        } else {
+            Vec2::ZERO
+        },
+        ..default()
+    }
+}
+
+fn grounded_joint_source_chain() -> Vec<ManualAnimationPoseBoundary> {
+    generated_standing_source_pose_chain()
+        .into_iter()
+        .filter(|boundary| boundary.label == "grounded_fsm")
+        .collect()
 }
 
 #[derive(Clone, Copy)]
@@ -1793,6 +1888,9 @@ struct IntegrationCoverage {
     roll_started: bool,
     roll_slot: bool,
     grounded_roll_exit_transition: bool,
+    grounded_roll_completed: bool,
+    grounded_stop_callback: bool,
+    grounded_joint: [bool; 6],
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
     ragdoll_follow: bool,
@@ -1941,6 +2039,8 @@ struct ManualIntegrationState {
     dynamic_unlocked: bool,
     dynamic_selection_valid: bool,
     grounded_roll_exit_diagnostic: String,
+    grounded_roll_playback: Option<AlsTransitionPlayback>,
+    grounded_joint_probe: GroundedJointProbe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -2052,6 +2152,8 @@ impl Default for ManualIntegrationState {
             dynamic_unlocked: false,
             dynamic_selection_valid: true,
             grounded_roll_exit_diagnostic: "not observed".to_owned(),
+            grounded_roll_playback: None,
+            grounded_joint_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -2084,6 +2186,9 @@ struct InterfaceProbe<'w, 's> {
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
     graphs: Res<'w, Assets<AnimationGraph>>,
+    clips: Res<'w, Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
+    avatar_space:
+        Query<'w, 's, (&'static Transform, &'static GlobalTransform), With<AlsCharacterAvatar>>,
     skeletons: Res<'w, Assets<Skeleton>>,
     machines: Res<'w, Assets<StateMachine>>,
     keys: Res<'w, ButtonInput<KeyCode>>,
@@ -4022,31 +4127,98 @@ fn drive_manual_integration(
                     &mut velocity,
                     &mut view_yaw,
                     &mut view_pitch,
-                    fixture.roll_start,
-                    fixture.facing_yaw,
+                    if state.scenario == IntegrationScenario::Grounded {
+                        SPRINT_START.with_y(fixture.roll_start.y)
+                    } else {
+                        fixture.roll_start
+                    },
+                    if state.scenario == IntegrationScenario::Grounded {
+                        SPRINT_YAW
+                    } else {
+                        fixture.facing_yaw
+                    },
                 );
+                if state.scenario == IntegrationScenario::Grounded {
+                    rebase_temporal_fixture(
+                        &mut state,
+                        &mut phase_evidence,
+                        "grounded_original_floor_start",
+                    );
+                }
                 *gait = Gait::Running;
                 *overlay = OverlayState::Default;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
-            input.0.move_dir = Vec2::Y;
+            input.0.move_dir = if state.scenario != IntegrationScenario::Grounded || elapsed < 1.25
+            {
+                Vec2::Y
+            } else {
+                Vec2::ZERO
+            };
             input.0.roll_pressed = (1.0..1.2).contains(&elapsed);
-            if state.scenario == IntegrationScenario::Grounded {
-                *animation_window = ManualAnimationWindowEvidence {
-                    label: Some("grounded_roll_exit_standing"),
-                    settled: elapsed >= 3.0,
-                    capture_source_window: true,
-                    requires_pre_rig_motion: true,
-                    requires_final_pose_motion: true,
-                    requires_non_reference_root_pose: true,
-                    source_node: Some("AB_Als_Grounded/Grounded States"),
-                    source_state: Some("Roll"),
-                    expected_runtime_state: Some(1),
+            if elapsed >= 5.5 {
+                let next = if state.scenario == IntegrationScenario::Grounded {
+                    IntegrationPhase::GroundedJoint
+                } else {
+                    IntegrationPhase::Finish
+                };
+                begin_phase(&mut state, next);
+            }
+        }
+        IntegrationPhase::GroundedJoint => {
+            if entering {
+                let index = state.grounded_joint_probe.case_index;
+                state.grounded_joint_probe = GroundedJointProbe {
+                    case_index: index,
+                    base_yaw: view_yaw.0,
+                    valid: true,
                     ..default()
                 };
+                *gait = Gait::Walking;
+                *overlay = OverlayState::Default;
             }
-            if elapsed >= 5.5 {
+            let index = state.grounded_joint_probe.case_index;
+            let (_, target_stance, _, aiming) = GROUNDED_JOINT_CASES[index];
+            let trigger_elapsed = state
+                .grounded_joint_probe
+                .triggered_at
+                .map(|start| (state.game_time_seconds - start) as f32);
+            input.0 = grounded_joint_command(
+                index,
+                trigger_elapsed,
+                state.grounded_joint_probe.base_yaw,
+                view_yaw.0,
+            );
+            if trigger_elapsed.is_none() {
+                request.stance = Some(if aiming {
+                    target_stance
+                } else if target_stance == Stance::Crouching {
+                    Stance::Standing
+                } else {
+                    Stance::Crouching
+                });
+                if state
+                    .grounded_joint_probe
+                    .ready_since
+                    .is_some_and(|since| state.game_time_seconds - since >= 0.4)
+                {
+                    request.stance = None;
+                    input.0.crouch_pressed = !aiming;
+                    state.grounded_joint_probe.triggered_at = Some(state.game_time_seconds);
+                }
+            }
+            if state.coverage.grounded_joint[index]
+                && trigger_elapsed.is_some_and(|elapsed| elapsed >= if aiming { 3.4 } else { 1.8 })
+            {
+                if index + 1 < GROUNDED_JOINT_CASES.len() {
+                    state.grounded_joint_probe.case_index += 1;
+                    begin_phase(&mut state, IntegrationPhase::GroundedJoint);
+                } else {
+                    begin_phase(&mut state, IntegrationPhase::Finish);
+                }
+            } else if elapsed >= 12.0 {
+                state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -4660,16 +4832,22 @@ fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bo
 
 fn grounded_roll_exit_transition_matches_source(
     phase: IntegrationPhase,
+    requested_stance: Option<Stance>,
     roll: Option<&AlsRollState>,
     playback: Option<&AlsTransitionPlayback>,
     slot: Option<&AlsRootTransitionSlotRuntime>,
     grounded: Option<&AlsGroundedGraphTelemetry>,
 ) -> bool {
+    let Some(stance) = requested_stance else {
+        return false;
+    };
+    let expected = AlsTransitionPlayback::roll_to_grounded_right(stance == Stance::Crouching);
     phase == IntegrationPhase::Roll
         && roll.is_some_and(|roll| !roll.active)
         && playback.is_some_and(|playback| {
             playback.active
-                && playback.kind == AlsTransitionKind::StandingTransitionRight
+                && playback.kind == expected.kind
+                && playback.index == expected.index
                 && (playback.blend_in - STOP_TRANSITION_BLEND_IN).abs() <= 1e-6
                 && (playback.blend_out - STOP_TRANSITION_BLEND_OUT).abs() <= 1e-6
                 && (playback.play_rate - STOP_TRANSITION_PLAY_RATE).abs() <= 1e-6
@@ -4677,7 +4855,7 @@ fn grounded_roll_exit_transition_matches_source(
         })
         && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 1e-4)
         && grounded.is_some_and(|grounded| {
-            grounded.actual_state == Some(1)
+            matches!(grounded.actual_state, Some(1 | 2))
                 && grounded.transition_active == Some(false)
                 && grounded.pose_ready == Some(true)
         })
@@ -4998,6 +5176,311 @@ fn observe_manual_integration(
     }
     if !source_ready {
         state.coverage.graph = false;
+    }
+    if state.scenario == IntegrationScenario::Grounded && !state.entered {
+        let notify = motion_probe
+            .generated_transition_notify
+            .get(character)
+            .ok()
+            .flatten();
+        let mut sequences = Vec::new();
+        let mut weights = Vec::new();
+        if let Some(arena) = player.get_context_arena() {
+            for id in arena.iter_context_ids() {
+                let Some(child) = arena.get_context(id) else {
+                    continue;
+                };
+                let Some(graph) = motion_probe.graphs.get(child.get_graph_id()) else {
+                    continue;
+                };
+                for node in graph.nodes.values() {
+                    if !child.node_caches.is_updated(node.id, StateKey::Default) {
+                        continue;
+                    }
+                    let variant = match node.name.as_str() {
+                        "A_Als_StandToCrouch\nSequence Player" => Some("A_Als_StandToCrouch"),
+                        "A_Als_CrouchToStand\nSequence Player" => Some("A_Als_CrouchToStand"),
+                        _ => None,
+                    };
+                    if let Some(variant) = variant
+                        && let Some(sequence) =
+                            node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>()
+                        && let Some(clip) = motion_probe.clips.get(&sequence.clip)
+                    {
+                        let position = child.node_states.get_time(node.id, StateKey::Default);
+                        sequences.push((
+                            variant,
+                            position,
+                            clip.duration(),
+                            sequence.loop_animation,
+                            sequence.play_rate,
+                            sequence
+                                .curves
+                                .sample_all(position)
+                                .get("PoseCrouching")
+                                .copied(),
+                        ));
+                    }
+                    if node.name == "Grounded States\nState Machine"
+                        && let Some(fsm) =
+                            node.try_inner_downcast_ref::<als_ext::InterruptibleFsmNode>()
+                        && let Some(machine) = motion_probe.machines.get(&fsm.fsm)
+                        && let Ok(runtime) = child
+                            .node_states
+                            .get::<als_ext::InterruptibleFsmState>(node.id, StateKey::Default)
+                    {
+                        weights.extend(machine.states.values().map(|entry| {
+                            (
+                                entry.label.clone(),
+                                runtime.recorded_state_weight(&entry.id.uuid().to_string()),
+                            )
+                        }));
+                    }
+                }
+            }
+        }
+        let avatar_space = state
+            .avatar
+            .and_then(|avatar| motion_probe.avatar_space.get(avatar).ok());
+        let mesh_base_offset = avatar_space
+            .zip(crouch_transaction)
+            .map(|((local, _), capsule)| local.translation.y + capsule.collider_half_height);
+        let actual_state = grounded_graph.and_then(|value| value.actual_state);
+        let transition_active = grounded_graph.and_then(|value| value.transition_active);
+        state.coverage.grounded_stop_callback |=
+            notify.is_some_and(|value| value.stop_animations_count > 0);
+        if state.phase == IntegrationPhase::Roll {
+            let requested_stance = notify.and_then(|value| value.roll_to_grounded_stance);
+            let active = grounded_roll_exit_transition_matches_source(
+                state.phase,
+                requested_stance,
+                roll,
+                transition_playback,
+                root_transition_slot,
+                grounded_graph,
+            );
+            if active {
+                state.grounded_roll_playback = transition_playback.copied();
+            }
+            let completed = state.grounded_roll_playback.is_some()
+                && roll.is_some_and(|value| !value.active)
+                && transition_playback.is_some_and(|value| !value.active)
+                && matches!(actual_state, Some(1 | 2))
+                && transition_active == Some(false);
+            state.coverage.grounded_roll_completed |= completed;
+            if let Some(recorded) = state.grounded_roll_playback {
+                let mut chain = grounded_joint_source_chain();
+                for boundary in &mut chain {
+                    boundary.minimum_rotation_span_radians = 0.0;
+                }
+                **animation_window = ManualAnimationWindowEvidence {
+                    label: Some("grounded_roll_exit"),
+                    settled: true,
+                    capture_source_window: active || completed,
+                    capture_every_frame: true,
+                    requires_pre_rig_motion: true,
+                    requires_final_pose_motion: true,
+                    requires_non_reference_root_pose: true,
+                    requires_source_pose_chain: true,
+                    source_node: Some("AB_Als_Grounded/PlayRollToGroundedTransitionAnimation"),
+                    source_state: Some("Roll exit"),
+                    source_pose_chain: chain,
+                    expected_animation_variant: crate::stop_link::source_transition_sequence(
+                        &recorded,
+                    ),
+                    observed_animation_variant: transition_playback
+                        .and_then(crate::stop_link::source_transition_sequence),
+                    observed_animation_clip_time: transition_playback.map(|value| value.clip_time),
+                    observed_animation_weight: transition_playback.map(|value| value.weight),
+                    observed_animation_play_rate: transition_playback.map(|value| value.play_rate),
+                    expected_lifecycle_stages: &["playing", "completed", "settled"],
+                    observed_lifecycle_stages: if completed {
+                        &["completed", "settled"]
+                    } else if active {
+                        &["playing"]
+                    } else {
+                        &[]
+                    },
+                    observed_parent_runtime_state: actual_state,
+                    observed_parent_transition_active: transition_active,
+                    canonical_clip_time: Some(0.8),
+                    maximum_clip_time_distance: 0.06,
+                    ..default()
+                };
+            }
+        } else if state.phase == IntegrationPhase::GroundedJoint {
+            let index = state.grounded_joint_probe.case_index;
+            let (label, target, moving, aiming) = GROUNDED_JOINT_CASES[index];
+            let target_state = if target == Stance::Crouching { 2 } else { 1 };
+            let initial = if aiming {
+                target
+            } else if target == Stance::Crouching {
+                Stance::Standing
+            } else {
+                Stance::Crouching
+            };
+            let initial_state = if initial == Stance::Crouching { 2 } else { 1 };
+            let native_moving = player
+                .get_global_input_data("locomotion_state.b_moving")
+                .and_then(|value| value.as_bool().ok());
+            let resets = notify.map_or(0, |value| value.grounded_entry_reset_count);
+            let game_time = state.game_time_seconds;
+            if state.grounded_joint_probe.triggered_at.is_none() {
+                let ready = *stance == initial
+                    && actual_state == Some(initial_state)
+                    && transition_active == Some(false)
+                    && native_moving == Some(moving)
+                    && if moving { speed > 0.5 } else { speed < 0.01 };
+                if ready {
+                    state
+                        .grounded_joint_probe
+                        .ready_since
+                        .get_or_insert(game_time);
+                } else {
+                    state.grounded_joint_probe.ready_since = None;
+                }
+                state.grounded_joint_probe.reset_start = resets;
+            } else {
+                let elapsed = (game_time - state.grounded_joint_probe.triggered_at.unwrap()) as f32;
+                let probe = &mut state.grounded_joint_probe;
+                if let Some(actual) = actual_state {
+                    probe.state_mask |= 1 << actual;
+                }
+                let expected_variant = (index < 2).then_some(if index == 0 {
+                    "A_Als_StandToCrouch"
+                } else {
+                    "A_Als_CrouchToStand"
+                });
+                let sample = sequences
+                    .iter()
+                    .find(|value| Some(value.0) == expected_variant);
+                probe.record(
+                    mesh_base_offset,
+                    sample.map(|value| (value.1, value.2, value.3, value.4)),
+                    interface.virtual_time.delta_secs(),
+                );
+                if moving {
+                    probe.valid &=
+                        sequences.is_empty() && probe.state_mask & ((1 << 3) | (1 << 4)) == 0;
+                }
+                let terminal = *stance == target
+                    && actual_state == Some(target_state)
+                    && transition_active == Some(false);
+                let yaw = world_forward_to_yaw(*transform.forward());
+                let following = motion_probe.rotation_mode.get(character).ok()
+                    == Some(&RotationMode::Aiming)
+                    && speed > 0.5
+                    && als_core::motion::wrap_yaw_radians(yaw - probe.base_yaw)
+                        * if index == 4 { -1.0 } else { 1.0 }
+                        > 0.5
+                    && als_core::motion::wrap_yaw_radians(view_yaw.0 - yaw).abs()
+                        < 3.0_f32.to_radians();
+                let completed = probe.valid
+                    && terminal
+                    && elapsed >= if aiming { 3.2 } else { 1.5 }
+                    && if aiming {
+                        following
+                    } else {
+                        resets > probe.reset_start && (moving || probe.sequence_completed)
+                    };
+                let base_yaw = probe.base_yaw;
+                state.coverage.grounded_joint[index] |= completed;
+                let capture = sample.is_some() || moving || (aiming && elapsed >= 0.5) || completed;
+                **animation_window = ManualAnimationWindowEvidence {
+                    label: Some(label),
+                    index: Some(index),
+                    settled: true,
+                    capture_source_window: capture,
+                    capture_every_frame: true,
+                    requires_pre_rig_motion: true,
+                    requires_final_pose_motion: true,
+                    requires_non_reference_root_pose: true,
+                    requires_source_pose_chain: true,
+                    source_node: Some("AB_Als_Grounded/Grounded States"),
+                    source_state: Some(if index == 0 {
+                        "Standing To Crouching"
+                    } else if index == 1 {
+                        "Crouching To Standing"
+                    } else if target == Stance::Crouching {
+                        "Crouching"
+                    } else {
+                        "Standing"
+                    }),
+                    source_pose_chain: grounded_joint_source_chain(),
+                    expected_animation_variant: expected_variant,
+                    observed_animation_variant: sample.map(|value| value.0),
+                    observed_animation_clip_time: sample.map(|value| value.1),
+                    observed_animation_play_rate: sample.map(|value| value.4),
+                    expected_runtime_state: if index < 2 {
+                        Some(if index == 0 { 3 } else { 4 })
+                    } else {
+                        Some(target_state)
+                    },
+                    observed_runtime_state: if index < 2 {
+                        sample.and(
+                            actual_state.filter(|value| *value == if index == 0 { 3 } else { 4 }),
+                        )
+                    } else {
+                        actual_state.filter(|value| *value == target_state)
+                    },
+                    expected_terminal_parent_runtime_state: Some(target_state),
+                    expected_terminal_parent_transition_active: Some(false),
+                    observed_parent_runtime_state: actual_state,
+                    observed_parent_transition_active: transition_active,
+                    expected_lifecycle_stages: &["active", "settled"],
+                    observed_lifecycle_stages: if completed {
+                        &["settled"]
+                    } else if capture {
+                        &["active"]
+                    } else {
+                        &[]
+                    },
+                    canonical_clip_time: (index < 2).then_some(0.4),
+                    maximum_clip_time_distance: 0.04,
+                    direction_signature_group: (index < 2).then_some("grounded_stance_changes"),
+                    required_direction_signature_members: 2,
+                    expected_direction: (index < 2).then_some(if target == Stance::Crouching {
+                        "Crouching"
+                    } else {
+                        "Standing"
+                    }),
+                    observed_direction: sample.map(|_| {
+                        if target == Stance::Crouching {
+                            "Crouching"
+                        } else {
+                            "Standing"
+                        }
+                    }),
+                    minimum_direction_signature_rotation_radians: 1e-4,
+                    requires_actor_yaw_motion: aiming,
+                    expected_actor_yaw_delta_sign: aiming.then_some(if index == 4 {
+                        -1
+                    } else {
+                        1
+                    }),
+                    expected_actor_yaw_baseline: aiming.then_some(base_yaw),
+                    minimum_actor_yaw_delta_radians: if aiming { 0.5 } else { 0.0 },
+                    observed_actor_yaw: Some(yaw),
+                    observed_view_yaw: Some(view_yaw.0),
+                    ..default()
+                };
+            }
+        }
+        gate_report.direction_trace.push(serde_json::json!({
+            "elapsed": state.phase_elapsed(), "phase": format!("{:?}",state.phase), "case": state.grounded_joint_probe.case_index,
+            "stance": format!("{stance:?}"), "locomotion": format!("{locomotion:?}"), "desired_stance": desired_stance.map(|value|format!("{:?}",value.0)),
+            "actor_position": transform.translation.to_array(), "grounded_entry": grounded_entry.map(|value|format!("{value:?}")),
+            "state": actual_state, "transition_active": transition_active, "state_weights": weights, "sequences": sequences,
+            "speed": speed, "actor_y": transform.translation.y, "mesh_y": avatar_space.map(|(_,global)|global.translation().y),
+            "mesh_local_y": avatar_space.map(|(local,_)|local.translation.y), "capsule_half_height": crouch_transaction.map(|value|value.collider_half_height),
+            "mesh_base_offset": mesh_base_offset, "body_yaw": world_forward_to_yaw(*transform.forward()), "view_yaw": view_yaw.0,
+            "input": motion_probe.inputs.get(character).ok().and_then(|(_,value)|value).map(|value|(value.0.aim_held,value.0.move_dir.to_array(),value.0.look_delta.to_array())),
+            "rotation_mode": motion_probe.rotation_mode.get(character).ok().map(|value|format!("{value:?}")),
+            "reset_count": notify.map(|value|value.grounded_entry_reset_count), "stop_count": notify.map(|value|value.stop_animations_count),
+            "roll_request_count": notify.map(|value|value.roll_to_grounded_count), "roll_request_stance": notify.and_then(|value|value.roll_to_grounded_stance).map(|value|format!("{value:?}")),
+            "roll": roll.map(|value|(value.active,value.time)), "playback": transition_playback.map(|value|(crate::stop_link::source_transition_sequence(value),value.active,value.clip_time,value.weight)),
+            "joint_valid": state.grounded_joint_probe.valid, "joint_sequence_completed": state.grounded_joint_probe.sequence_completed,
+        }));
     }
     if state.scenario == IntegrationScenario::DefaultOverlay {
         let default_active = *overlay == OverlayState::Default
@@ -6925,6 +7408,12 @@ fn observe_manual_integration(
     }
     if grounded_roll_exit_transition_matches_source(
         state.phase,
+        motion_probe
+            .generated_transition_notify
+            .get(character)
+            .ok()
+            .flatten()
+            .and_then(|value| value.roll_to_grounded_stance),
         roll,
         transition_playback,
         root_transition_slot,
@@ -6933,7 +7422,13 @@ fn observe_manual_integration(
     {
         let playback = transition_playback.unwrap();
         info!(
-            "[MANUAL-INTEGRATION][GROUNDED-ROLL-EXIT] stance=Standing kind={:?} blend_in={:.3} blend_out={:.3} play_rate={:.3} start_time={:.3} slot_weight={:.3} -> PASS",
+            "[MANUAL-INTEGRATION][GROUNDED-ROLL-EXIT] requested_stance={:?} kind={:?} blend_in={:.3} blend_out={:.3} play_rate={:.3} start_time={:.3} slot_weight={:.3} -> PASS",
+            motion_probe
+                .generated_transition_notify
+                .get(character)
+                .ok()
+                .flatten()
+                .and_then(|value| value.roll_to_grounded_stance),
             playback.kind,
             playback.blend_in,
             playback.blend_out,
@@ -7334,20 +7829,29 @@ fn observe_manual_integration(
         }
         let results = match state.scenario {
             IntegrationScenario::CrouchingActions => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("crouching", coverage.crouching)];
-                results.extend(CROUCHING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])));
-                results.extend((2..4).map(|index| (STANDING_TURN_CASES[index].0, coverage.standing_turn[index])));
-                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])));
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("crouching", coverage.crouching),
+                ];
+                results.extend(CROUCHING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])),
+                );
+                results.extend((2..4).map(|index| {
+                        (STANDING_TURN_CASES[index].0, coverage.standing_turn[index])
+                    }));
+                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
+                );
                 results
             }
             IntegrationScenario::StandingDynamic => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph)];
-                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])));
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph),
+                ];
+                results.extend(STANDING_DYNAMIC_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_dynamic[index])),
+                );
                 results
             }
             IntegrationScenario::StandingTurn => {
-                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph)];
-                results.extend(STANDING_TURN_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_turn[index])));
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph), ("standing_graph", coverage.standing_graph),
+                ];
+                results.extend(STANDING_TURN_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_turn[index])),
+                );
                 results
             }
             IntegrationScenario::StandingStop => {
@@ -7356,7 +7860,8 @@ fn observe_manual_integration(
                     ("animation_graph", coverage.graph),
                     ("standing_graph", coverage.standing_graph),
                 ];
-                results.extend(STANDING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])));
+                results.extend(STANDING_STOP_CASES.iter().enumerate().map(|(index, case)| (case.0, coverage.standing_stop[index])),
+                );
                 results
             }
             IntegrationScenario::StandingResponse => vec![
@@ -7458,6 +7963,14 @@ fn observe_manual_integration(
                 ("animation_graph", coverage.graph),
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
+                ("grounded_roll_completed", coverage.grounded_roll_completed),
+                ("grounded_stop_callback", coverage.grounded_stop_callback),
+                (GROUNDED_JOINT_CASES[0].0, coverage.grounded_joint[0]),
+                (GROUNDED_JOINT_CASES[1].0, coverage.grounded_joint[1]),
+                (GROUNDED_JOINT_CASES[2].0, coverage.grounded_joint[2]),
+                (GROUNDED_JOINT_CASES[3].0, coverage.grounded_joint[3]),
+                (GROUNDED_JOINT_CASES[4].0, coverage.grounded_joint[4]),
+                (GROUNDED_JOINT_CASES[5].0, coverage.grounded_joint[5]),
                 (
                     "grounded_roll_exit_transition",
                     coverage.grounded_roll_exit_transition,
@@ -7797,6 +8310,56 @@ mod tests {
     }
 
     #[test]
+    fn grounded_joint_input_holds_aim_before_moving_and_rotating() {
+        for index in [4, 5] {
+            let first = grounded_joint_command(index, None, 0.0, 0.0);
+            assert!(
+                first.aim_held && first.move_dir == Vec2::ZERO && first.look_delta == Vec2::ZERO
+            );
+            let moving = grounded_joint_command(index, Some(0.8), 0.0, 0.0);
+            assert!(
+                moving.aim_held && moving.move_dir == Vec2::Y && moving.look_delta == Vec2::ZERO
+            );
+            let rotating = grounded_joint_command(index, Some(1.7), 0.0, 0.0);
+            assert!(
+                rotating.aim_held
+                    && rotating.move_dir == Vec2::Y
+                    && rotating.look_delta.x * if index == 4 { -1.0 } else { 1.0 } < 0.0
+            );
+        }
+        assert_eq!(grounded_joint_command(2, None, 0.0, 0.0).move_dir, Vec2::Y);
+        assert_eq!(
+            grounded_joint_command(0, None, 0.0, 0.0).move_dir,
+            Vec2::ZERO
+        );
+    }
+
+    #[test]
+    fn grounded_joint_probe_rejects_height_drop_looping_and_time_rewind() {
+        let mut probe = GroundedJointProbe {
+            valid: true,
+            ..default()
+        };
+        probe.record(Some(-0.02), Some((0.4, 0.9, false, 1.2)), 0.016);
+        assert!(probe.valid && !probe.sequence_completed);
+        probe.record(Some(-0.02), Some((0.89, 0.9, false, 1.2)), 0.016);
+        assert!(probe.valid && probe.sequence_completed);
+        for (height, position, looping) in [
+            (-0.36, 0.89, false),
+            (-0.02, 0.89, true),
+            (-0.02, 0.01, false),
+        ] {
+            let mut failed = GroundedJointProbe {
+                valid: true,
+                last_sequence_time: Some(0.8),
+                ..default()
+            };
+            failed.record(Some(height), Some((position, 0.9, looping, 1.2)), 0.016);
+            assert!(!failed.valid);
+        }
+    }
+
+    #[test]
     fn generated_transition_notify_starts_at_the_source_stop_window() {
         assert_eq!(
             initial_phase(IntegrationScenario::GeneratedTransitionNotify),
@@ -8131,6 +8694,7 @@ mod tests {
         };
         assert!(grounded_roll_exit_transition_matches_source(
             IntegrationPhase::Roll,
+            Some(Stance::Standing),
             Some(&roll),
             Some(&playback),
             Some(&slot),
@@ -8138,6 +8702,7 @@ mod tests {
         ));
         assert!(!grounded_roll_exit_transition_matches_source(
             IntegrationPhase::Roll,
+            Some(Stance::Standing),
             Some(&roll),
             Some(&playback),
             None,
@@ -8145,8 +8710,38 @@ mod tests {
         ));
         assert!(!grounded_roll_exit_transition_matches_source(
             IntegrationPhase::Locomotion,
+            Some(Stance::Standing),
             Some(&roll),
             Some(&playback),
+            Some(&slot),
+            Some(&grounded),
+        ));
+        let crouching = AlsTransitionPlayback::roll_to_grounded_right(true);
+        let grounded = AlsGroundedGraphTelemetry {
+            actual_state: Some(2),
+            ..grounded
+        };
+        assert!(grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Crouching),
+            Some(&roll),
+            Some(&crouching),
+            Some(&slot),
+            Some(&grounded),
+        ));
+        assert!(!grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Standing),
+            Some(&roll),
+            Some(&crouching),
+            Some(&slot),
+            Some(&grounded),
+        ));
+        assert!(!grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            None,
+            Some(&roll),
+            Some(&crouching),
             Some(&slot),
             Some(&grounded),
         ));
@@ -8341,15 +8936,24 @@ mod tests {
     }
 
     #[test]
-    fn sprint_fixture_has_continuous_original_floor_without_obstacles() {
+    fn sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles() {
         use als_ext::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
         let actors: Vec<PlaygroundActor> =
             serde_json::from_str(include_str!("../assets/models/playground/playground.json"))
                 .unwrap();
-        let end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
-        let min = SPRINT_START.min(end) - Vec3::splat(0.35);
-        let max = SPRINT_START.max(end) + Vec3::splat(0.35);
-        let mut floors = Vec::new();
+        let sprint_end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
+        for (min, max) in [
+            (
+                SPRINT_START.min(sprint_end) - Vec3::splat(0.35),
+                SPRINT_START.max(sprint_end) + Vec3::splat(0.35),
+            ),
+            (
+                Vec3::new(-45.35, 0.0, -26.35),
+                Vec3::new(-23.0, 0.0, -25.65),
+            ),
+            (Vec3::new(-25.0, 0.0, -27.0), Vec3::new(-6.0, 0.0, -16.0)),
+        ] {
+            let mut floors = Vec::new();
         for actor in &actors {
             if actor.mesh_path.is_none()
                 && actor
@@ -8371,21 +8975,20 @@ mod tests {
             } else if upper.y > 0.01 && lower.y < 1.9 {
                 assert!(
                     upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z,
-                    "Sprint corridor intersects {}",
+                        "Movement path intersects {}",
                     actor.name
                 );
             }
         }
-        for step in 0..=240 {
-            let point = SPRINT_START.lerp(end, step as f32 / 240.0);
-            for offset in [Vec3::new(-0.35, 0.0, -0.35), Vec3::new(0.35, 0.0, 0.35)] {
-                let point = point + offset;
+        for x in 0..=240 {
+                for z in 0..=32 {
+                    let point =
+                        min + (max - min) * Vec3::new(x as f32 / 240.0, 0.0, z as f32 / 32.0);
                 assert!(
-                    floors.iter().any(|(min, max)| {
-                        point.x >= min.x && point.x <= max.x && point.z >= min.z && point.z <= max.z
-                    }),
-                    "Sprint corridor leaves the original floor at {point:?}"
-                );
+                    floors.iter().any(|(min, max)| point.x >= min.x && point.x <= max.x && point.z >= min.z && point.z <= max.z),
+                        "Movement path leaves the original floor: {point:?}"
+                    );
+                }
             }
         }
     }

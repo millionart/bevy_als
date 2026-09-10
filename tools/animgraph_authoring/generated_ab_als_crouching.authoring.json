@@ -1802,7 +1802,7 @@
         "--materialized-directory",
         "target/bf115_crouching/actions_final_conversion",
         "--spec",
-        "target/bf115_crouching/actions_spec.json"
+        "target/bf115_grounded/slot_spec.json"
       ]
     },
     {

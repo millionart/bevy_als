@@ -29,8 +29,8 @@ def reachable_pair(edges, start, end, originals):
                 pending.append(target)
     return False
 
-def compiled_asset_differences(output, assets_root):
-    paths = list(output.rglob("*.ron"))
+def compiled_asset_differences(output, assets_root, paths=None):
+    paths = list(output.rglob("*.ron")) if paths is None else paths
     failures = []
     for path in paths:
         relative = path.relative_to(output)
@@ -39,7 +39,7 @@ def compiled_asset_differences(output, assets_root):
             failures.append({"kind": "compiled_asset_drift", "asset": relative.as_posix()})
     return len(paths), failures
 
-def audit(source_directory, output, spec_path, assets_root):
+def audit(source_directory, output, spec_path, assets_root, source_asset=None):
     specs = json.loads(spec_path.read_text(encoding="utf-8"))
     sources = {}
     for path in source_directory.glob("*.ue.json"):
@@ -59,7 +59,15 @@ def audit(source_directory, output, spec_path, assets_root):
         raise ValueError("native source closure is incomplete")
     sources = {asset: sources[asset] for asset in expected_sources}
     root_asset = conversion["source"]["package_path"]
-    totals["compiled_assets"], compiled_failures = compiled_asset_differences(output, assets_root)
+    paths = None
+    if source_asset is not None:
+        if source_asset not in sources:
+            raise ValueError("requested source asset is outside the complete conversion closure")
+        sources = {source_asset: sources[source_asset]}
+        manifest_path = output / ("materialization.manifest.json" if source_asset == root_asset else "linked_manifests/" + source_identifier_key(source_asset) + ".json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        paths = list((output / Path(manifest["root_graph"]).parent).rglob("*.ron"))
+    totals["compiled_assets"], compiled_failures = compiled_asset_differences(output, assets_root, paths)
     failures.extend(compiled_failures)
     for asset, source in sources.items():
         manifest_path = output / ("materialization.manifest.json" if asset == root_asset else "linked_manifests/" + source_identifier_key(asset) + ".json")
@@ -115,7 +123,7 @@ def audit(source_directory, output, spec_path, assets_root):
             rows.append({"source_asset": asset, "source_graph": suffix, "target_graph": target_path, "nodes": len(selected)})
         totals["fsms"] += len(manifest["fsms"])
         totals["condition_graphs"] += len(manifest["conditions"])
-    result = {"pass": not failures, "source_assets": len(sources), **totals, "failures": failures, "graphs": rows}
+    result = {"pass": not failures, "source_assets": len(sources), "source_scope": source_asset, **totals, "failures": failures, "graphs": rows}
     return result
 
 def main():
@@ -124,6 +132,7 @@ def main():
     parser.add_argument("--materialized-directory", type=Path)
     parser.add_argument("--spec", type=Path)
     parser.add_argument("--assets-root", type=Path, default=root / "assets")
+    parser.add_argument("--source-asset")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
@@ -143,6 +152,9 @@ def main():
             assert compiled_asset_differences(compiled, installed)[1]
             (installed / "state.fsm.ron").write_text("source", encoding="utf-8")
             assert compiled_asset_differences(compiled, installed) == (1, [])
+            (compiled / "other.animgraph.ron").write_text("other owner", encoding="utf-8")
+            assert compiled_asset_differences(compiled, installed)[1]
+            assert compiled_asset_differences(compiled, installed, [compiled / "state.fsm.ron"]) == (1, [])
             (installed / "state.fsm.ron").write_text("changed", encoding="utf-8")
             assert compiled_asset_differences(compiled, installed)[1]
             (path / "spec.json").write_text("{}", encoding="utf-8")
@@ -159,7 +171,7 @@ def main():
     try:
         if not all((args.source_directory, args.materialized_directory, args.spec)):
             raise ValueError("source directory, materialized directory and spec are required")
-        result = audit(args.source_directory, args.materialized_directory, args.spec, args.assets_root)
+        result = audit(args.source_directory, args.materialized_directory, args.spec, args.assets_root, args.source_asset)
     except (OSError, ValueError, KeyError, StopIteration) as error:
         result = {"pass": False, "failures": [{"kind": type(error).__name__, "detail": str(error)}]}
     if args.output:

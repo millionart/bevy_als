@@ -24,6 +24,8 @@ pub struct GeneratedTransitionNotifyTelemetry {
     pub land_to_grounded_count: u32,
     pub grounded_entry_reset_count: u32,
     pub roll_to_grounded_count: u32,
+    pub roll_to_grounded_stance: Option<als_core::state::Stance>,
+    pub stop_animations_count: u32,
     pub crouching_stop_count: u32,
     pub observed_named_fsm_state_ids: Vec<String>,
     pub active_named_source_state_count: u32,
@@ -268,6 +270,9 @@ fn dispatch_generated_transition_notifications(
                         }
                         Some(TransitionNotifyAction::StopAnimations) => {
                             stop_requested = true;
+                            if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
+                                telemetry.stop_animations_count += 1;
+                            }
                             info!(
                                 "[SOURCE-STATE-CALL] function={} phase={} character={:?}",
                                 notification.name, notification.phase, avatar.character
@@ -286,6 +291,7 @@ fn dispatch_generated_transition_notifications(
                                         telemetry.crouching_stop_count += 1;
                                     } else {
                                         telemetry.roll_to_grounded_count += 1;
+                                        telemetry.roll_to_grounded_stance = Some(*stance);
                                     }
                                 }
                             }

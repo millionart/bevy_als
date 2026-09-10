@@ -24,6 +24,7 @@ pub struct SourceSlotNode {
     pub weight_key: String,
     pub layer_weight_key: String,
     pub mesh_space_additive_key: String,
+    pub always_update_source_pose: bool,
 }
 
 fn source_slot_additive_weight(slot_weight: f32, layer_weight: f32) -> f32 {
@@ -58,14 +59,13 @@ impl Default for SourceSlotNode {
             weight_key: "slot_weight".to_owned(),
             layer_weight_key: "layer_slot_weight".to_owned(),
             mesh_space_additive_key: String::new(),
+            always_update_source_pose: false,
         }
     }
 }
 
 impl NodeLike for SourceSlotNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let base = ctx.data_back("Source")?.into_pose()?;
-        let base_context = pose_input_context_state(&ctx, "Source");
         let slot_weight = slot_blend_weight(
             ctx.graph_context
                 .global_input_data
@@ -100,6 +100,25 @@ impl NodeLike for SourceSlotNode {
         } else {
             None
         };
+        if !self.always_update_source_pose
+            && !mesh_space_additive
+            && slot_weight * layer_weight >= 1.0 - 1e-5
+            && let Some(pose) = overlay.as_ref()
+        {
+            let context = slot_context(
+                pose_input_context_state(&ctx, "Source"),
+                slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
+                1.0,
+                false,
+            )
+            .unwrap_or_default();
+            ctx.set_time(pose.timestamp);
+            ctx.set_data_fwd("Pose", pose.clone());
+            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            return Ok(());
+        }
+        let base = ctx.data_back("Source")?.into_pose()?;
+        let base_context = pose_input_context_state(&ctx, "Source");
         let context = slot_context(
             base_context,
             overlay
@@ -177,16 +196,22 @@ mod tests {
             utils::testing::TestIoEnv,
         };
         fn query(
-            In((handle, entity, base, overlay)): In<(Handle<AnimationGraph>, Entity, Pose, Pose)>,
+            In((handle, entity, base, overlay, weight)): In<(
+                Handle<AnimationGraph>,
+                Entity,
+                Pose,
+                Pose,
+                f32,
+            )>,
             resources: SystemResources,
-        ) -> (Pose, AnimationContextState) {
+        ) -> (Pose, AnimationContextState, bool) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let inputs = HashMap::from([
                 ("base".to_owned(), DataValue::Pose(base)),
                 ("slot_pose".to_owned(), DataValue::Pose(overlay)),
-                ("slot_weight".to_owned(), DataValue::F32(0.6)),
+                ("slot_weight".to_owned(), DataValue::F32(weight)),
                 ("layer_slot_weight".to_owned(), DataValue::F32(1.0)),
             ]);
             let entities = HashMap::new();
@@ -215,7 +240,17 @@ mod tests {
             let curves =
                 crate::animation_context::graph_output_context_state(graph, &context, "Pose")
                     .unwrap();
-            (pose, curves)
+            let base_id = graph
+                .nodes
+                .values()
+                .find(|node| node.name == "base")
+                .unwrap()
+                .id;
+            let updated = arena.get_toplevel().node_caches.is_updated(
+                base_id,
+                bevy_animation_graph::core::context::node_states::StateKey::Default,
+            );
+            (pose, curves, updated)
         }
         let mut world = World::new();
         let entity = world.spawn_empty().id();
@@ -233,8 +268,19 @@ mod tests {
         graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
         graph.add_node_parameter_edge(base_node.id, "Pose", slot_node.id, "Source");
         graph.add_output_data_edge(slot_node.id, "Pose", "Pose");
+        let mut always_graph = graph.clone();
+        let mut always_slot = AnimationNode::new(
+            "slot",
+            SourceSlotNode {
+                always_update_source_pose: true,
+                ..default()
+            },
+        );
+        always_slot.id = slot_node.id;
+        always_graph.add_node(always_slot);
         let mut graphs = Assets::<AnimationGraph>::default();
         let handle = graphs.add(graph);
+        let always_handle = graphs.add(always_graph);
         world.insert_resource(graphs);
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
@@ -266,11 +312,34 @@ mod tests {
             "slot_pose",
             Some(context),
         );
-        let (pose, context) = world
-            .run_system_cached_with(query, (handle, entity, base, overlay))
-            .unwrap();
-        assert!((pose.get_bone(bone).unwrap().translation.unwrap().x - 1.2).abs() < 1e-6);
-        assert!((context.curves["FootLeftIk"] - 0.48).abs() < 1e-6);
+        for (handle, always_update, weight) in [
+            (handle.clone(), false, 0.6),
+            (handle.clone(), false, 1.0),
+            (handle, false, 0.6),
+            (always_handle, true, 1.0),
+        ] {
+            let (pose, context, source_updated) = world
+                .run_system_cached_with(
+                    query,
+                    (
+                        handle.clone(),
+                        entity,
+                        base.clone(),
+                        overlay.clone(),
+                        weight,
+                    ),
+                )
+                .unwrap();
+            assert!(
+                (pose.get_bone(bone).unwrap().translation.unwrap().x - 2.0 * weight).abs() < 1e-6
+            );
+            assert!((context.curves["FootLeftIk"] - 0.8 * weight).abs() < 1e-6);
+            assert_eq!(
+                source_updated,
+                always_update || weight < 1.0,
+                "slot_weight={weight}, always_update={always_update}"
+            );
+        }
         crate::source_gameplay_tag_input::clear_gameplay_tag_inputs(entity);
     }
 
@@ -280,6 +349,7 @@ mod tests {
         assert_eq!(node.slot_name, "DefaultSlot");
         assert_eq!(node.group_name, "DefaultGroup");
         assert!(node.mesh_space_additive_key.is_empty());
+        assert!(!node.always_update_source_pose);
     }
 
     #[test]

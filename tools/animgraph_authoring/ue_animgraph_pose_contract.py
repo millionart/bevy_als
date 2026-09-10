@@ -1220,12 +1220,13 @@ def pose_lifecycle_call_contract(node):
 
 def slot_contract(node):
     renderer = "slot"
-    fields = parse_struct(node_property(node, "Node"))
+    fields = node_struct_fields(node, "Node")
     reject_unknown_fields(
         fields,
         {
             "Source",
             "SlotName",
+            "bAlwaysUpdateSourcePose",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
@@ -1256,6 +1257,7 @@ def slot_contract(node):
         "output_pins": outputs,
         "slot_name": slot_name,
         "group_name": match.group(2),
+        "always_update_source_pose": parse_bool(field(fields, "bAlwaysUpdateSourcePose", "False")),
     }, issues
 
 
@@ -1656,7 +1658,14 @@ def run_self_test():
     slot_contract, issues = pose_contract(slot, "slot")
     assert not issues
     assert slot_contract["slot_name"] == "TurnInPlaceStanding"
+    assert not slot_contract["always_update_source_pose"]
     assert slot_contract["group_name"] == "Grounded"
+    slot["properties"][0]["fields"] = [
+        {"name": "bAlwaysUpdateSourcePose", "exported_text": "True", "flags": "0x18001040000205"},
+    ]
+    slot_contract, issues = pose_contract(slot, "slot")
+    assert not issues
+    assert slot_contract["always_update_source_pose"]
     state = fixture_node(
         "state_result",
         "Node",

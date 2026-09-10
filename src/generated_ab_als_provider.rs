@@ -100,6 +100,19 @@ fn source_has_input(
         .is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON)
 }
 
+fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {
+    [
+        (
+            "locomotion_state.b_moving",
+            als_core::motion::locomotion_movement_flags(has_input, speed).1,
+        ),
+        (
+            "locomotion_state.b_moving_smooth",
+            source_moving_smooth(has_input, speed),
+        ),
+    ]
+}
+
 fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 7] {
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     [
@@ -226,7 +239,6 @@ fn generated_ab_als_input_writer(
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
             let has_input = source_has_input(input, input_override);
-            let moving_smooth = source_moving_smooth(has_input, motion.horizontal_speed);
             let view_degrees = als_core::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
                 .get_global_input_data("view_state.rotation_yaw")
@@ -288,10 +300,6 @@ fn generated_ab_als_input_writer(
                 }),
             );
             for (key, value) in [
-                (
-                    "locomotion_state.b_moving",
-                    (has_input && motion.horizontal_speed >= 0.01) || motion.horizontal_speed > 1.5,
-                ),
                 (
                     "rotate_in_place.allowed",
                     *rotation_mode == RotationMode::Aiming || first_person.is_some(),
@@ -379,13 +387,15 @@ fn generated_ab_als_input_writer(
                 ("grounded_state.movement_direction.b_backward", backward),
                 ("grounded_state.movement_direction.b_left", left),
                 ("grounded_state.movement_direction.b_right", right),
-                ("locomotion_state.b_moving_smooth", moving_smooth),
                 ("locomotion_state.b_has_input", has_input),
                 (
                     "movement_base.b_has_relative_location",
                     has_relative_location,
                 ),
-            ] {
+            ]
+            .into_iter()
+            .chain(source_locomotion_flags(has_input, motion.horizontal_speed))
+            {
                 player.set_global_input_data(key, value);
             }
             set_source_slot_defaults(&mut player);
@@ -396,6 +406,25 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_locomotion_flags_keep_moving_and_moving_smooth_distinct() {
+        assert_eq!(
+            source_locomotion_flags(false, 0.75),
+            [
+                ("locomotion_state.b_moving", true),
+                ("locomotion_state.b_moving_smooth", false),
+            ]
+        );
+        assert_eq!(
+            source_locomotion_flags(false, 0.5).map(|(_, value)| value),
+            [false, false]
+        );
+        assert_eq!(
+            source_locomotion_flags(true, 0.01).map(|(_, value)| value),
+            [true, true]
+        );
+    }
 
     #[test]
     fn crouching_movement_uses_the_native_stride_curve_and_mesh_world_scale() {
