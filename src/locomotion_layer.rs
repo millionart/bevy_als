@@ -233,6 +233,27 @@ mod tests {
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce};
 
     #[test]
+    fn generated_air_inputs_initialize_with_their_actual_neighbor_plugins() {
+        let mut app = App::new();
+        app.add_plugins((
+            LocomotionLayerPlugin,
+            crate::locomotion_lifecycle::LocomotionLifecyclePlugin,
+            crate::layering_layer::LayeringLayerPlugin,
+            crate::head_layer::HeadLayerPlugin,
+            crate::ragdolling_layer::RagdollingLayerPlugin,
+            crate::ab_als_root::AlsRootGraphPlugin,
+            crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin,
+        ))
+        .configure_sets(
+            PostUpdate,
+            (AnimationGraphSet::PrePhysics, AnimationGraphSet::PostPhysics, AnimationGraphSet::Final).chain(),
+        );
+        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
+            schedule.initialize(world).expect("source input schedule must initialize");
+        });
+    }
+
+    #[test]
     fn source_jump_signal_comes_from_the_accepted_action_and_latches_until_consumed() {
         use AlsControlSchemeActionDiscriminant::{Crouch, Jump};
         use TnuaActionFlowStatus::*;

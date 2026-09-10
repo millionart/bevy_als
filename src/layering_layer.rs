@@ -11,7 +11,6 @@ use bevy_animation_graph::core::skeleton::Skeleton;
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::locomotion_layer::AlsLocomotionLayerSet;
 use crate::stance_layer::AlsStanceBlend;
 
 const SKELETON_ASSET: &str = "skeletons/SKM_Als.skn.ron";
@@ -190,9 +189,7 @@ impl Plugin for LayeringLayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            AlsLayeringLayerSet
-                .after(AlsLocomotionLayerSet)
-                .before(AnimationGraphSet::PrePhysics),
+            AlsLayeringLayerSet.before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(Startup, load_layering_masks)
         .add_systems(

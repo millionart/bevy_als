@@ -1855,7 +1855,7 @@
         "--materialized-directory",
         "target/bf115_locomotion/native_call_conversion",
         "--spec",
-        "target/bf115_locomotion/observation_spec.json"
+        "target/bf115_locomotion/schedule_spec.json"
       ]
     },
     {
@@ -2029,6 +2029,20 @@
         "source_pose_nodes::tests::source_two_way_reinitializes_players_and_advances_the_activation_frame"
       ],
       "evidence": "target/bf115_locomotion/source/observation_regression_pass.watchdog.json"
+    },
+    {
+      "label": "source_input_plugin_schedule",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "locomotion_layer::tests::generated_air_inputs_initialize_with_their_actual_neighbor_plugins"
+      ],
+      "evidence": "target/bf115_locomotion/source/schedule_regression_pass.watchdog.json"
     }
   ]
 }

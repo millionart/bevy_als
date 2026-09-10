@@ -508,6 +508,14 @@
 
 - [ ] BF115.04f Locomotion无截图startup及完整动作Gate：开始2026-09-10 12:25:00、预估13:20:00。依赖04e，使用已构建同一target_game/play入口先startup，再七段连续动作与十四数值窗口；强制实际两FSM、四Jump变体同相位、Loop/Flail、Fall/Fast/Flail、预测、普通/混合落地及移动落地、自然结束回调和完整Grounded终态，保留公共root/pre-rig/final、canonical、时间与性能守卫。高坠落按默认CS动作边界只验收空中闭包并显式重置，重落地additive完整混合范围由已通过的source/标量合同验证，不用请求状态或Actor影子数据充当执行证据。估时依据为已完成生成/Actor/场景静态、52场景回归、当前源7段输入与此前Grounded三个场景真实耗时约数分钟；预留首个源链失败的最小诊断与修复闭环。所有截图关闭，失败先读完整报告再沿已证实边界处理，不展开Default或其它后续模块绕过Gate。
 
+  - 04f首次startup/04d有限复开2026-09-10 12:29:00：公共零截图startup5.228s失败，manual101，尚未进入首帧/图求值；runner保存缺少report事实，stderr完整指出Locomotion→Layering→Head→Ragdolling→GeneratedProvider→Locomotion的调度环。此前focused仅初始化独立节点/系统，未把实际插件顺序组合初始化，故编译/spec/静态无法发现。04d仅调度依赖边界取消勾选；回读所有Locomotion set调用点和真实writer，Layering只读stance与上一动画Root曲线、并不消费新InAir输入，旧after Locomotion边来自已删除的Actor阶段。当前只补实际插件调度反例并删除该过时顺序，不展开Layering/Head图或算法。
+
+  - 04f调度静态修复2026-09-10 12:39:00：七个真实相邻插件组合初始化35.213s稳定FAIL于同一调度环；fresh C++ RefreshLayering及target writer确认仅读曲线/stance，stance在Update已发布，删除其过时after Locomotion约束和导入，不增加替代顺序。去边后测试19.599s暴露fixture错误：把整个Schedules移出world再初始化会触发Bevy重新插入资源；改用原生schedule_scope后291项目回归20.653s PASS。图/算法/原始资产未变，61.302s生产预构建已通过；最终test入口变更后刷新同入口和spec，再跑startup及动作，无新增runtime探索。
+
+  - 04f重跑startup前2026-09-10 12:44:30：最终同入口62.866s、十图fresh spec2.606s和完整32源子图/46RON声明式2.684s PASS，291项目回归与实际插件顺序反例保留。源图、单位、Pose算法均未新增差异，当前仅删除已证实过时的输入阶段依赖；先重新确认应用初始化与Root数值状态，再执行完整七段动作。CaptureCount=0，未降低任何窗口/姿态/时间守卫。
+
+  - 04f startup通过/动作Gate前2026-09-10 12:46:00：公共startup15.174s PASS，manual0/validator0、0截图/0PNG，faults/graph_errors/temporal为空；七真实插件回归与实际入口共同确认调度环消除，04d仅本轮调度依赖复开边界关闭。32图/46RON、291项目、fresh spec和声明式合同均保持通过，提交此最小修复后，同一二进制执行完整七段/十四窗口，尚无动作结论。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
