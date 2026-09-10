@@ -101,6 +101,22 @@
     {
       "path": "target/bf115_overlays/source/UE_AnimNode_Slot.cpp",
       "sha256": "eb59616fb262756bc458cf4210ff1c63c8984e5f6e6c0c51a15024733876d525"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimationRuntime.h",
+      "sha256": "6a07b801c7fc0f3ba910b551642f38da9b11ee2ecca88c2e7141de9dc7364ba8"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_TwoWayBlend.cpp",
+      "sha256": "ceb70f3bc79619796bdac851e2a751977c3a663670e938453dcf3c374d44229d"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_MultiWayBlend.cpp",
+      "sha256": "f209e1399e3461bb1c8e14be0ade86717c678ab23915b4d23784c775a0e20c19"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_TransformVectorized.h",
+      "sha256": "e788f59596803558db4dc7585ef36e08791e7c645c8fe48c54bd2a345b00f219"
     }
   ],
   "graphs": [
@@ -327,7 +343,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_stop_clock_spec.json"
+        "target/bf115_overlays/default_pose_blend_spec.json"
       ]
     },
     {
@@ -535,6 +551,21 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/default_stop_clock_pass.watchdog.json"
+    },
+    {
+      "label": "source_weighted_pose_and_local_additive_blends",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "-p",
+        "bevy_als",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_pose_blend_regression2.watchdog.json"
     }
   ]
 }

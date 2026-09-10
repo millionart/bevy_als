@@ -818,7 +818,7 @@ fn default_overlay_foot_targets_ready(spaces: &AlsFootIkSpaceState) -> bool {
 }
 
 fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
-    use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator}};
+    use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator};
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut sample = DefaultOverlayGraphSample {
         inputs: ["pose_state.standing_amount", "pose_state.crouching_amount", "pose_state.gait_walking_amount", "pose_state.in_air_amount"].map(scalar),
@@ -867,9 +867,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
                 let expected = if alpha <= 1e-5 { input(node.id, "A") }
                     else if alpha >= 1.0 - 1e-5 { input(node.id, "B") }
                     else { input(node.id, "A").zip(input(node.id, "B")).map(|(a, b)| {
-                        let mut expected = a;
-                        LinearInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &b, alpha);
-                        expected
+                        a.scalar_mult(1.0 - alpha).linear_add(&b.scalar_mult(alpha)).normalize_quat()
                     }) };
                 if let Some(expected) = expected { check(&mut sample.errors, &node.id.uuid().to_string(), &actual, &expected); }
                 else { sample.errors.push(format!("{}: missing blend input pose", node.id.uuid())); }
@@ -882,9 +880,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
                 let expected = if alpha <= f32::EPSILON { input(node.id, "Poses_0") }
                     else if alpha >= 1.0 - f32::EPSILON { input(node.id, "Poses_1") }
                     else { input(node.id, "Poses_0").zip(input(node.id, "Poses_1")).map(|(a, b)| {
-                        let mut expected = a;
-                        LinearInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &b, alpha);
-                        expected
+                        a.scalar_mult(1.0 - alpha).linear_add(&b.scalar_mult(alpha)).normalize_quat()
                     }) };
                 if let Some(expected) = expected { check(&mut sample.errors, "stance blend", &actual, &expected); }
                 else { sample.errors.push("stance blend: missing input pose".into()); }
@@ -910,7 +906,20 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
                 sample.additive_alpha = Some(additive.constant_alpha);
                 if let Some((base, delta)) = input(node.id, "Base").zip(input(node.id, "Additive")) {
                     let mut expected = base.clone();
-                    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, additive.constant_alpha);
+                    let alpha = additive.constant_alpha;
+                    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, alpha);
+                    for (bone, delta_index) in &delta.paths {
+                        let Some(source) = base.get_bone(*bone) else { continue; };
+                        let Some(index) = expected.paths.get(bone).copied() else { continue; };
+                        let delta_bone = &delta.bones[*delta_index];
+                        if let (Some(rotation), Some(delta_rotation)) = (source.rotation, delta_bone.rotation) {
+                            let sign = if delta_rotation.w < 0.0 { -1.0 } else { 1.0 };
+                            expected.bones[index].rotation = Some(((Quat::IDENTITY * (sign * (1.0 - alpha)) + delta_rotation * alpha).normalize() * rotation).normalize());
+                        }
+                        if let (Some(scale), Some(delta_scale)) = (source.scale, delta_bone.scale) {
+                            expected.bones[index].scale = Some(scale * (Vec3::ONE + delta_scale * alpha));
+                        }
+                    }
                     check(&mut sample.errors, "apply additive", &actual, &expected);
                     sample.additive_effect = default_overlay_pose_error(&actual, &base);
                     sample.ready = !actual.bones.is_empty();

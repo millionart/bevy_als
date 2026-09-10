@@ -711,10 +711,23 @@
   - 第四轮前全过程复盘2026-09-10 20:58:34：第三轮开始19:35、预估20:42:30，到本次复盘仍未完成（偏差16.1分钟）；暂停实现与新runtime，重读05a–05d、原source闭包、输入参数和各失败报告。Default转换值/固定帧/叠加/曲线/同步/预测已实际闭合，Linked context与无FSM签名分别由组合fixture修正；之后独立数学复算排除BasicIK给定输入的求解误差。足锁准备/组件空间/同目标消费是确证差异，迁移中错误的PoseState reader已用正值fixture修正；共享mesh-space排除骨语义也有独立source反例，但都未充分解释首次起跳故障，不能宣称故障已修复。主要验证缺口是最早只记录Rig结果，未同时保存实际Slot播放器生命周期，直至本轮才能看到满权重抑制底图和淡出时钟冻结。源骨长受控替换仍超过47rad/s，不作为当前修复。此次从真正参与失败帧的单一播放器停止路径开始，先证明时间推进，再核对原Default整段和共享生命周期；保留原所有动作与阈值，不改场景等待来回避重叠。
   - 纠正拆分：按上一67分30秒窗口的1.5倍，第四轮开始2026-09-10 20:58:34、预估2026-09-10 22:39:49。剩余被拆为三个各不超过60分钟的独立Gate：源停止时钟静态、Default完整场景、原共享回归。估时以单个共享advance函数及现成source停止fixture、约25秒项目回归/约70秒同入口、完整Default约19秒及其余四case记录为依据，余量用于首个仍未闭合的实际源输入链；不再无证据扩展骨骼算法。
   - [x] BF115.05d4a 停止请求后的播放时钟：开始2026-09-10 20:58:34、预估2026-09-10 21:33:34。沿fresh UE Stop/Advance和当前实际Transition更新→采样唯一消费者，扩展旧停止fixture使其先拒绝冻结时间，再把既有时间推进放到淡出分支之前，保持权重/结束/夹末帧逻辑。适用回归、同入口/source/static通过后单独提交。本段不启动runtime。
-  - [ ] BF115.05d4b Default全部原输入：实际开始2026-09-10 21:11:00、预估2026-09-10 21:46:00。依赖4a；新startup及完整六窗口、两次跳跃，保留首次起跳与过渡动画的真实重叠，确认停止后的实际clip_time推进及公共Root/pre-rig/final/时钟/性能守卫。CaptureCount=0。
+  - [ ] BF115.05d4b Default全部原输入：实际开始2026-09-10 21:10:13、预估2026-09-10 21:45:13。依赖4a；新startup及完整六窗口、两次跳跃，保留首次起跳与过渡动画的真实重叠，确认停止后的实际clip_time推进及公共Root/pre-rig/final/时钟/性能守卫。CaptureCount=0。
   - [ ] BF115.05d4c 共享动作与Default收口：预定开始2026-09-10 22:08:34、预估2026-09-10 22:39:49。依赖4b；原grounded九/locomotion十四及已登记standing_turn、crouching完整回归，关闭相关有限复开和Default；全目标随后仍进入Layering→Head→CR→AB_Als，其余12 overlays留待用户另行安排。
 
   - 05d4a静态完成/4b运行前2026-09-10 21:11:00：扩展既有站立/下蹲停止fixture后33.474s稳定FAIL于冻结clip_time；将已有elapsed/clip_time推进移到停止淡出分支之前，305项目21.020s PASS。半程/结束权重、正淡出期间采样时间及停止后的静止时钟均覆盖，旧顺序即失败消融；无新状态、参数或分支。最终同入口67.499s、19图fresh spec2.898s、十命令声明式4.520s PASS，fresh UE Stop/Advance和Slot源记录匹配。开始20:58:34、预估21:33:34、实际静态完成21:09:28（偏差-24m06s），该静态子项闭合；下面提前开始4b新startup及原完整Default，停止时钟的实际推进和小腿公共守卫仍待真实验证，相关归档有限复开保持。
+
+  - 05d4b startup通过/完整动作前2026-09-10 21:10:45：96b8613新入口startup15.469s PASS，Root/图/时间/性能守卫通过，fault与graph错误为空、0截图。305项目回归、19图fresh spec与十命令静态均已通过；接着原Default完整六窗口及两次跳跃，检查实际Stop淡出时间推进并保留既有全部守卫。
+
+  - 05d4b完整动作结果2026-09-10 21:12:00：96b8613 Default18.665s manual0，六窗口和全部14coverage通过；frame p95 22.9514ms/max32.9712ms、eval p95 0.0811ms通过，0截图/graph错误。首次起跳final calf_r仍0.79880106rad/0.0166967s=47.84185rad/s，公共validator失败。停止淡出时钟已通过最小反例，但不是全部故障的充分原因；保留本次逐帧实际Slot、Layering、源输入与相邻求解参数，先读取首个实际输入差异，不重复运行或放宽守卫。共享四case仍依赖此边界。
+
+  - 05d4b输入混合源闭包/05c有限复开2026-09-10 21:22:00：fresh本地TwoWayBlend→BlendTwoPosesTogether→BlendTransform及MultiWayBlend→BlendPosesTogether均对姿态四元数加权累加后归一化；当前SourceTwoWayBlendNode与SourceMultiWayBlendNode却调用依赖LinearInterpolator的slerp。实际Default及Layering腿链的TwoWay和Base Poses的Multi均为直接消费者；现有Default逐帧检查也复用同一个目标插值器，无法拒绝该差异，因此05c仅普通混合算法观测边界取消勾选。复用依赖已有Pose.scalar_mult/linear_add/normalize_quat和项目已有root-motion加权函数，不改依赖源码、图资产、Alpha、曲线、BasicIK或守卫。此前对满权重Slot抑制Standing的推断纠正：当前Transition采样为mesh additive，Standing不可见不能归因于普通Slot早退；Grounded输入在Locomotion空中分支下不相关才是应核对的边。停止时钟修复本身仍由UE Stop/Advance独立证明。
+  - [x] BF115.05d4d 当前普通姿态混合source/static闭环：开始2026-09-10 21:22:00、预估2026-09-10 21:57:00。依赖4a；在原4b预算内先补两输入/三输入、非归一化权重与四元数等价符号的实际图反例，修改两类生成节点的共享加权消费与Default observer，完成消融、适用回归、同入口和source/static后再恢复4b。估时依据为两个调用类、现成Pose线性代数和约46秒回归/135秒入口构建；第四轮总终点22:39:49不变，4b原终点未顺延。
+
+  - 05d4d普通混合反例2026-09-10 21:28:00：首个fixture因未提供Alpha而失败，修正实际图输入前提后20.533s在两输入/三输入及0.6总权重上稳定FAIL；复用已有Pose加权累加及root-motion函数后24.976s PASS。fresh同次AnimationRuntime及TransformVectorized进一步证明Default的0.75 ApplyAdditive使用BlendFromIdentityAndAccumulate（归一化线性旋转、乘法缩放）；目标依赖AdditiveInterpolator为slerp且加法scale，Default observer同样复用目标算法。该节点已在Default十四Pose闭包，4d纳入其直接局部叠加消费；复用已验证mesh additive的旋转与非旋转运算，不改资产、Idle倍率或Alpha。
+
+  - 05d4d回归/消融闭合2026-09-10 21:36:00：局部叠加0.25/0.75和非单位base scale反例27.890s FAIL，复用既有mesh-additive的归一化旋转/乘法scale运算后26.846s PASS；不增加速率或权重状态。普通混合保留现成root-motion加权路径，单独移除该路径20.605s FAIL，恢复后343底层/305项目49.768s PASS。首轮共享回归唯一失败是旧FSM fixture只填bones而无paths；补一条实际骨索引后原状态/生命周期断言通过，无FSM算法改动。Default普通混合和局部叠加的observer改按源加权公式计算预期，已知wrong-slerp生产反例和root步骤消融均不能通过。当前同入口构建中，原完整Default和共享四case仍未关闭。
+
+  - 05d4d完成/4b恢复运行前2026-09-10 21:40:15：343底层/305项目49.768s、同入口154.944s、19图fresh spec3.425s及十命令声明式8.791s全部PASS。普通两/三输入的四元数加权、原始非归一化权重、局部叠加0.25/0.75与非单位base scale、等价四元数符号及root motion均由同一个实际图fixture覆盖；原slerp/scale与移除root处理均稳定失败。两普通节点复用既有Pose加权API与现成root函数，局部叠加复用已有mesh-additive的旋转及非旋转运算；未新增运行时状态、参数、资产或依赖。开始21:22、预估21:57、实际静态完成21:39:59（偏差-17m01s），4d与05c本次观测有限复开关闭。接着新startup再完整Default，原首次起跳时间异常尚待验证。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

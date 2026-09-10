@@ -2,15 +2,14 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, bone_mask::BoneMask},
+    edge_data::DataSpec,
     errors::GraphError,
-    interpolation::linear::LinearInterpolator,
     pose::Pose,
 };
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::global_f32_input::global_f32_or_root_default;
-use crate::source_pose_nodes::blend_animation_contexts;
+use crate::source_pose_nodes::{blend_animation_contexts, blend_source_poses};
 
 fn node_error(ctx: &NodeContext, message: String) -> GraphError {
     GraphError::UnknownErrorNode {
@@ -105,8 +104,7 @@ impl NodeLike for SourceMultiWayBlendNode {
                 active.push((index, weight));
             }
         }
-        let mut accumulated_weight = 0.0;
-        let mut output = None;
+        let mut poses = Vec::with_capacity(active.len());
         let mut contexts = Vec::new();
         for (index, raw_weight) in active {
             let weight = if self.normalize_alpha {
@@ -118,20 +116,12 @@ impl NodeLike for SourceMultiWayBlendNode {
             if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {
                 contexts.push((context, weight));
             }
-            if let Some(base) = output.as_mut() {
-                let factor = weight / (accumulated_weight + weight);
-                LinearInterpolator {
-                    bone_mask: BoneMask::all(),
-                }
-                .interpolate_pose(base, &pose, factor);
-            } else {
-                output = Some(pose);
-            }
-            accumulated_weight += weight;
+            poses.push((pose, weight));
         }
-        let output = match output {
-            Some(output) => output,
-            None => source_reference_pose(&ctx.data_back(self.pose_input(0))?.into_pose()?),
+        let output = if poses.is_empty() {
+            source_reference_pose(&ctx.data_back(self.pose_input(0))?.into_pose()?)
+        } else {
+            blend_source_poses(&poses)
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);

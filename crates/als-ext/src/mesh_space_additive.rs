@@ -159,6 +159,26 @@ fn merge_root_motion(
     }
 }
 
+pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {
+    if alpha.abs() <= ALPHA_THRESHOLD { return; }
+    materialize_missing_reference_bones(base, skeleton);
+    for (bone, additive_index) in &additive.paths {
+        let Some(base_index) = base.paths.get(bone).copied() else { continue; };
+        let additive_bone = &additive.bones[*additive_index];
+        let base_rotation = base_local_rotation(base, skeleton, *bone);
+        let base_bone = &mut base.bones[base_index];
+        if let Some(rotation) = additive_bone.rotation {
+            base_bone.rotation = Some(blend_additive_rotation(base_rotation, rotation, alpha));
+        }
+        merge_non_rotation(base_bone, additive_bone, alpha);
+    }
+    if let Some(additive_motion) = &additive.root_motion {
+        let motion = base.root_motion.get_or_insert_with(RootMotionDelta::default);
+        motion.translation += additive_motion.translation * alpha;
+        motion.rotation = blend_additive_rotation(motion.rotation, additive_motion.rotation, alpha);
+    }
+}
+
 pub fn apply_mesh_space_additive(
     base: &mut Pose,
     additive: &Pose,

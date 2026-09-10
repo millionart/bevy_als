@@ -5,7 +5,8 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::{DataSpec, bone_mask::BoneMask},
     errors::GraphError,
-    interpolation::{additive::AdditiveInterpolator, linear::LinearInterpolator},
+    interpolation::linear::LinearInterpolator,
+    pose::Pose,
 };
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ use crate::animation_context::{
 };
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
-use crate::mesh_space_additive::{apply_mesh_space_additive, materialize_missing_reference_bones};
+use crate::mesh_space_additive::{apply_local_space_additive, apply_mesh_space_additive, materialize_missing_reference_bones};
 use crate::mesh_space_difference::make_mesh_space_difference;
 use crate::reference_local_difference::make_local_difference;
 use crate::{
@@ -302,10 +303,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         };
         if b_is_relevant && a_is_relevant {
             let overlay = ctx.data_back("B")?.into_pose()?;
-            LinearInterpolator {
-                bone_mask: BoneMask::all(),
-            }
-            .interpolate_pose(&mut base, &overlay, alpha);
+            base = blend_source_poses(&[(base, 1.0 - alpha), (overlay, alpha)]);
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
@@ -416,10 +414,9 @@ impl NodeLike for SourceApplyAdditiveNode {
         let additive_is_relevant = alpha > 1e-5;
         if additive_is_relevant {
             let additive = ctx.data_back("Additive")?.into_pose()?;
-            AdditiveInterpolator {
-                bone_mask: BoneMask::all(),
-            }
-            .interpolate_pose(&mut base, &additive, alpha);
+            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            apply_local_space_additive(&mut base, &additive, alpha, skeleton);
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
@@ -810,6 +807,17 @@ impl SourceGameplayTagBlendNode {
     }
 }
 
+pub fn blend_source_poses(poses: &[(Pose, f32)]) -> Pose {
+    let mut output = poses.iter()
+        .map(|(pose, weight)| pose.scalar_mult(*weight))
+        .reduce(|accumulator, pose| accumulator.linear_add(&pose))
+        .unwrap_or_default().normalize_quat();
+    output.root_motion = crate::normalized_blendspace::blend_normalized_root_motion(
+        &poses.iter().map(|(pose, weight)| (pose.root_motion.clone(), *weight)).collect::<Vec<_>>(),
+    );
+    output
+}
+
 pub fn blend_animation_contexts(
     contexts: impl IntoIterator<Item = (AnimationContextState, f32)>,
 ) -> AnimationContextState {
@@ -1064,6 +1072,94 @@ impl NodeLike for SourceCurveModifyNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_pose_blends_accumulate_weighted_quaternions_before_normalizing() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::AnimationGraph,
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources},
+            edge_data::DataValue, pose::{BonePose, Pose, RootMotionDelta}, skeleton::Skeleton,
+            state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, inputs)): In<(Handle<AnimationGraph>, HashMap<String, DataValue>)>, resources: SystemResources) -> Pose {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap()
+        }
+        let mut world = World::new();
+        world.insert_resource(Assets::<AnimationGraph>::default());
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+        let rotations = [Quat::from_rotation_y(0.2), Quat::from_rotation_x(2.4), Quat::from_rotation_z(-1.7)];
+        let mut errors = Vec::new();
+        for (kind, weights) in [("two", vec![0.75, 0.25]), ("multi", vec![0.75, 0.25]), ("multi", vec![0.4, 0.3, 0.3]), ("multi", vec![0.2, 0.3, 0.1]), ("additive", vec![1.0, 0.25]), ("additive", vec![1.0, 0.75])] {
+            let multi = kind == "multi";
+            let additive = kind == "additive";
+            for sign in [1.0, -1.0] {
+                let mut graph = AnimationGraph::new();
+                let blend = if multi {
+                    AnimationNode::new("blend", crate::SourceMultiWayBlendNode {
+                        pose_count: weights.len(), normalize_alpha: false,
+                        desired_alpha_keys: vec![String::new(); weights.len()],
+                        desired_alpha_defaults: weights.clone(), pose_pin_prefix: "Poses_".into(), ..default()
+                    })
+                } else if additive {
+                    AnimationNode::new("blend", SourceApplyAdditiveNode { use_constant_alpha: true, constant_alpha: weights[1], ..default() })
+                } else {
+                    AnimationNode::new("blend", SourceTwoWayBlendNode { alpha_key: "alpha".into(), expose_alpha_pin: false, ..default() })
+                };
+                graph.add_node(blend.clone());
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(blend.id, "Pose", "Pose");
+                let mut inputs = HashMap::from([("alpha".into(), DataValue::F32(weights[1]))]);
+                let mut expected_rotation = Quat::from_xyzw(0.0, 0.0, 0.0, 0.0);
+                let mut expected_translation = Vec3::ZERO;
+                for (index, weight) in weights.iter().copied().enumerate() {
+                    let key = format!("pose_{index}");
+                    let node = AnimationNode::new(&key, crate::GlobalPoseInputNode { key: key.clone(), output: "Pose".into() });
+                    graph.add_node(node.clone());
+                    let pin = if multi { format!("Poses_{index}") } else if additive { if index == 0 { "Base".into() } else { "Additive".into() } } else if index == 0 { "A".into() } else { "B".into() };
+                    graph.add_node_parameter_edge(node.id, "Pose", blend.id, pin);
+                    let translation = Vec3::new(index as f32, 1.0, 0.0);
+                    let rotation = rotations[index] * if index == 1 { sign } else { 1.0 };
+                    let mut pose = Pose { skeleton: skeleton.clone(), timestamp: 2.5, root_motion: Some(RootMotionDelta { translation, rotation }), ..default() };
+                    pose.add_bone(BonePose { translation: Some(translation), rotation: Some(rotation), scale: Some(Vec3::splat(if additive && index == 0 { 2.0 } else { 1.0 })), ..default() }, default());
+                    inputs.insert(key, DataValue::Pose(pose));
+                    expected_rotation += rotations[index] * weight;
+                    expected_translation += translation * weight;
+                }
+                let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                let output = world.run_system_cached_with(query, (handle, inputs)).unwrap();
+                let bone = output.get_bone(default()).unwrap();
+                let expected_rotation = if additive {
+                    ((Quat::IDENTITY * (1.0 - weights[1]) + rotations[1] * weights[1]).normalize() * rotations[0]).normalize()
+                } else { expected_rotation.normalize() };
+                let expected_scale = Vec3::splat(weights.iter().sum::<f32>() * if additive { 2.0 } else { 1.0 });
+                let root_motion = output.root_motion.as_ref().unwrap();
+                if 1.0 - bone.rotation.unwrap().dot(expected_rotation).abs() > 1e-6
+                    || bone.translation.unwrap().distance(expected_translation) > 1e-6
+                    || bone.scale.unwrap().distance(expected_scale) > 1e-6
+                    || 1.0 - root_motion.rotation.dot(expected_rotation).abs() > 1e-6
+                    || root_motion.translation.distance(expected_translation) > 1e-6
+                    || output.timestamp != 2.5 {
+                    errors.push(format!("kind={kind}, weights={weights:?}, sign={sign}: {bone:?}, root={root_motion:?}"));
+                }
+            }
+        }
+        assert!(errors.is_empty(), "{}", errors.join("\n"));
+    }
 
     #[test]
     fn source_two_way_reinitializes_players_and_advances_the_activation_frame() {

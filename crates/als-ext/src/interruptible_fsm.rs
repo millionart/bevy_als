@@ -1884,6 +1884,7 @@ mod tests {
 
     fn fixture_pose(x: f32) -> Pose {
         Pose {
+            paths: HashMap::from([(default(), 0)]),
             bones: vec![BonePose {
                 translation: Some(Vec3::new(x, 0.0, 0.0)),
                 rotation: Some(Quat::IDENTITY),
