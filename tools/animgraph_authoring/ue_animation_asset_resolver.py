@@ -274,6 +274,20 @@ def sampling_frame_rate(value):
     return numerator / denominator
 
 
+def sequence_root_lock(forced, mode):
+    forced = parse_bool(forced) if isinstance(forced, str) else forced
+    if not isinstance(forced, bool):
+        raise AssetResolutionError("source force root lock is invalid")
+    if not forced:
+        return None
+    if isinstance(mode, dict):
+        mode = mode.get("value", mode.get("enum_name"))
+    mode = mode.rsplit("::", 1)[-1] if isinstance(mode, str) else mode
+    if mode not in {"RefPose", "AnimFirstFrame", "Zero"}:
+        raise AssetResolutionError("source root lock mode is unsupported")
+    return mode
+
+
 def sequence_timing_contract(source):
     if (
         not isinstance(source, dict)
@@ -284,6 +298,8 @@ def sequence_timing_contract(source):
     try:
         duration = parse_number(asset_property(source, "SequenceLength"))
         frames_per_second = sampling_frame_rate(asset_property(source, "SamplingFrameRate"))
+        properties = {row["name"]: row["exported_text"] for row in source["asset_properties"]}
+        root_lock = sequence_root_lock(properties.get("bForceRootLock", "False"), properties.get("RootMotionRootLock", "RefPose"))
         raw_markers = asset_property(source, "AuthoredSyncMarkers")
         markers = []
         for raw_marker in parse_list(raw_markers) if raw_markers else []:
@@ -299,7 +315,7 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence properties are unreadable") from error
     if duration <= 0.0 or any(not marker["name"] for marker in markers):
         raise AssetResolutionError("source animation sequence duration or markers are invalid")
-    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second}
+    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock}
 
 
 def source_sequence_timing(content_root, mount, source_path, source_reader=None):
@@ -334,9 +350,10 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
         markers.append({"name": marker_name, "time": float(time)})
     try:
         frames_per_second = sampling_frame_rate(properties.get("SamplingFrameRate"))
+        root_lock = sequence_root_lock(properties.get("bForceRootLock", False), properties.get("RootMotionRootLock", "RefPose"))
     except (AssetResolutionError, ExportedTextError):
         return sequence_timing_contract(native_source_asset(source_path, source_reader))
-    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second}
+    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock}
 
 
 def source_sequence_curves(content_root, mount, source_path):
@@ -1026,6 +1043,10 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    for mode in ("RefPose", "AnimFirstFrame", "Zero"):
+        assert sequence_root_lock("True", mode) == mode
+        assert sequence_root_lock(True, {"value": "ERootMotionRootLock::" + mode}) == mode
+        assert sequence_root_lock(False, mode) is None
     for value in ("(Numerator=30000,Denominator=1001)", {"Numerator": 30000, "Denominator": 1001}, {"__tagged__": {"Numerator": 30000, "Denominator": 1001}}):
         assert sampling_frame_rate(value) == 30000.0 / 1001.0
     assert sampling_frame_rate({"Numerator": 60}) == 60.0
@@ -1366,6 +1387,8 @@ def run_self_test():
         "asset_properties": [
             {"name": "SequenceLength", "exported_text": "0.800000"},
             {"name": "SamplingFrameRate", "exported_text": "(Numerator=30000,Denominator=1001)"},
+            {"name": "bForceRootLock", "exported_text": "True"},
+            {"name": "RootMotionRootLock", "exported_text": "Zero"},
             {
                 "name": "AuthoredSyncMarkers",
                 "exported_text": '((MarkerName="Left",Time=0.033333,TrackIndex=1,Guid=00000000),(MarkerName="Right",Time=0.433333,TrackIndex=1,Guid=00000001))',
@@ -1375,6 +1398,7 @@ def run_self_test():
     assert sequence_timing_contract(sequence_source) == {
         "duration": 0.8,
         "frames_per_second": 30000.0 / 1001.0,
+        "root_lock": "Zero",
         "markers": [
             {"name": "Left", "time": 0.033333},
             {"name": "Right", "time": 0.433333},

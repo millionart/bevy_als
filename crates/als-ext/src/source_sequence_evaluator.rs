@@ -20,6 +20,7 @@ fn frame_to_time(frame: f32, frames_per_second: f32) -> f32 {
 pub struct SourceSequenceEvaluatorNode {
     pub clip: Handle<GraphClip>,
     pub curves: crate::als_curves::AlsPoseCurves,
+    pub root_lock: Option<crate::source_sequence_player::SourceRootLock>,
     pub explicit_frame: f32,
     pub explicit_frame_key: String,
     pub explicit_frame_pin: String,
@@ -35,6 +36,7 @@ impl Default for SourceSequenceEvaluatorNode {
         Self {
             clip: default(),
             curves: default(),
+            root_lock: None,
             explicit_frame: 0.0,
             explicit_frame_key: default(),
             explicit_frame_pin: "Explicit Frame".to_owned(),
@@ -84,7 +86,13 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         };
         let time = frame_to_time(self.explicit_frame_value(&ctx)?, self.frames_per_second)
             .clamp(0.0, clip.duration().max(0.0));
-        let pose = sample_pose(clip, time);
+        let mut pose = sample_pose(clip, time);
+        if let Some(mode) = self.root_lock {
+            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&clip.skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            crate::source_sequence_player::apply_source_root_lock(&mut pose, clip, skeleton, mode, false)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        }
         *ctx.state_mut_or_else(crate::AnimationContextState::default)? =
             crate::AnimationContextState {
                 curves: self.curves.sample_all(time),

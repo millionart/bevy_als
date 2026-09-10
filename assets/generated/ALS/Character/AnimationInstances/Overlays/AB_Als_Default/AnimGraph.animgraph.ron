@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "f5da4b55-4b5f-b6be-be66-2091b0ab63cb", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "") }, should_debug: false),
+        (id: "f5da4b55-4b5f-b6be-be66-2091b0ab63cb", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: true) }, should_debug: false),
         (id: "c30d8227-4ca8-0947-b0b7-398d7a5c1d84", name: "ALI_Overlay - Overlay\nLinked Anim Layer", inner: { "als_ext::LinkedAnimLayerNode": (interface: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron", implementations: ["generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron"], selector: "layer_index") }, should_debug: false),
         (id: "2dabdcc0-7353-52ae-bb76-c9a6feb49249", name: "Linked layer selection", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
     ],

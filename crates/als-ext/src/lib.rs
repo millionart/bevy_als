@@ -369,6 +369,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceScalarExpressionNode>()
             .register_type::<SourceScalarPin>()
             .register_type::<SourceSequenceEvaluatorNode>()
+            .register_type::<source_sequence_player::SourceRootLock>()
             .register_type::<SourceSequencePlayerNode>()
             .register_type::<SourceSlotNode>()
             .register_type::<SourceEnumPoseBlendNode>()

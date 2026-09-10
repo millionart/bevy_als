@@ -380,10 +380,6 @@ fn root_graph_writer(
             ] {
                 player.set_global_input_data(key, value);
             }
-            player.set_global_input_data(
-                "sync_groups.ab_als_default.secondary_motion.phase",
-                secondary_motion_phase,
-            );
             if has_input {
                 player.set_global_input_data("als_root_has_input", 1.0_f32);
             } else {

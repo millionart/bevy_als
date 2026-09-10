@@ -79,7 +79,10 @@ def node_struct_fields(node, name):
     record = next(value for value in node["properties"] if value.get("name") == name)
     for value in record.get("fields", []):
         if int(value.get("flags", "0"), 0) & 1:
-            fields.setdefault(value["name"], value["exported_text"])
+            text = value["exported_text"]
+            if not text and value.get("property_class") in {"ArrayProperty", "SetProperty", "MapProperty"}:
+                text = "()"
+            fields.setdefault(value["name"], text)
     return fields
 
 
@@ -1162,6 +1165,8 @@ def inertialization_contract(node):
         fields,
         {
             "Source",
+            "DefaultBlendProfile",
+            "FilteredBones",
             "FilteredCurves",
             "bResetOnBecomingRelevant",
             "bForwardRequestsThroughSkippedCachedPoseNodes",
@@ -1171,6 +1176,10 @@ def inertialization_contract(node):
         },
     )
     inputs, issues = validate_inputs(node, renderer, ("Source",))
+    if field(fields, "DefaultBlendProfile", "None") != "None":
+        issues.append(issue(node, renderer, "source_inertialization_profile_unsupported", "DefaultBlendProfile"))
+    if parse_list(field(fields, "FilteredBones", "()")):
+        issues.append(issue(node, renderer, "source_inertialization_bones_unsupported", "FilteredBones"))
     outputs = visible_output_names(node)
     if outputs != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
@@ -1876,6 +1885,17 @@ def run_self_test():
     inertial_contract, issues = pose_contract(inertial, "inertialization")
     assert not issues
     assert inertial_contract["filtered_curves"] == ["RotationYawSpeed"]
+    inertial["properties"][0]["exported_text"] = "(Source=())"
+    inertial["properties"][0]["fields"] = [
+        {"name": "DefaultBlendProfile", "exported_text": "None", "property_class": "ObjectProperty", "flags": "0x201"},
+        {"name": "FilteredCurves", "exported_text": "", "property_class": "ArrayProperty", "flags": "0x201"},
+        {"name": "FilteredBones", "exported_text": "", "property_class": "ArrayProperty", "flags": "0x201"},
+    ]
+    inertial_contract, issues = pose_contract(inertial, "inertialization")
+    assert not issues and inertial_contract["filtered_curves"] == []
+    inertial["properties"][0]["fields"][0]["exported_text"] = "/Asset.Profile"
+    _, issues = pose_contract(inertial, "inertialization")
+    assert issues[0]["kind"] == "source_inertialization_profile_unsupported"
     lifecycle = fixture_node(
         "pose_lifecycle_call",
         "Node",

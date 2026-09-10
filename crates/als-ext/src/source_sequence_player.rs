@@ -16,6 +16,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     id::BoneId,
     pose::{BonePose, Pose},
+    skeleton::Skeleton,
 };
 
 use crate::global_f32_input::global_f32_or_root_default;
@@ -192,6 +193,7 @@ impl Default for SourceSequenceSynchronization {
 pub struct SourceSequencePlayerNode {
     pub clip: Handle<GraphClip>,
     pub curves: crate::als_curves::AlsPoseCurves,
+    pub root_lock: Option<SourceRootLock>,
     pub additive_reference: Option<Handle<GraphClip>>,
     pub additive_reference_position: f32,
     pub additive_mesh_space: bool,
@@ -217,6 +219,7 @@ impl Default for SourceSequencePlayerNode {
         Self {
             clip: Default::default(),
             curves: Default::default(),
+            root_lock: None,
             additive_reference: None,
             additive_reference_position: 0.0,
             additive_mesh_space: false,
@@ -237,6 +240,45 @@ impl Default for SourceSequencePlayerNode {
             synchronization: None,
         }
     }
+}
+
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceRootLock {
+    RefPose,
+    AnimFirstFrame,
+    Zero,
+}
+
+pub(crate) fn apply_source_root_lock(
+    pose: &mut Pose,
+    clip: &GraphClip,
+    skeleton: &Skeleton,
+    mode: SourceRootLock,
+    additive: bool,
+) -> Option<()> {
+    let root = crate::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
+    let reference = skeleton.default_transforms(root)?.local;
+    let mut transform = match mode {
+        SourceRootLock::RefPose => reference,
+        SourceRootLock::Zero => Transform::IDENTITY,
+        SourceRootLock::AnimFirstFrame => {
+            let first = sample_pose(clip, 0.0);
+            let bone = first.get_bone(root)?;
+            Transform {
+                translation: bone.translation.unwrap_or(reference.translation),
+                rotation: bone.rotation.unwrap_or(reference.rotation),
+                scale: bone.scale.unwrap_or(reference.scale),
+            }
+        }
+    };
+    if additive && mode != SourceRootLock::AnimFirstFrame {
+        transform.scale -= bevy::math::Vec3::ONE;
+    }
+    let index = *pose.paths.get(&root)?;
+    pose.bones[index].translation = Some(transform.translation);
+    pose.bones[index].rotation = Some(transform.rotation);
+    pose.bones[index].scale = Some(transform.scale);
+    Some(())
 }
 
 impl NodeLike for SourceSequencePlayerNode {
@@ -380,7 +422,7 @@ impl NodeLike for SourceSequencePlayerNode {
             ..Default::default()
         };
         let target = sample_pose(clip, position);
-        let pose = if let Some(reference_handle) = &self.additive_reference {
+        let mut pose = if let Some(reference_handle) = &self.additive_reference {
             let reference_clip = ctx
                 .graph_context
                 .resources
@@ -408,6 +450,12 @@ impl NodeLike for SourceSequencePlayerNode {
         } else {
             target
         };
+        if let Some(mode) = self.root_lock {
+            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&pose.skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            apply_source_root_lock(&mut pose, clip, skeleton, mode, self.additive_reference.is_some())
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        }
         ctx.set_time(position);
         ctx.set_data_fwd("Pose", pose);
         Ok(())
@@ -435,6 +483,46 @@ impl NodeLike for SourceSequencePlayerNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::prelude::*;
+
+    #[test]
+    fn source_root_lock_uses_reference_first_frame_and_additive_scale() {
+        use bevy::animation::animated_field;
+        use bevy_animation_graph::core::{animation_clip::EntityPath, pose::RootMotionDelta};
+        let path = EntityPath::default().child("root");
+        let root = path.id();
+        let reference = Transform::from_translation(Vec3::Y * 0.2)
+            .with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.25));
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(path, reference, reference);
+        let mut animation = bevy::animation::AnimationClip::default();
+        animation.add_curve_to_target(root.animation_target_id(), AnimatableCurve::new(
+            animated_field!(Transform::translation),
+            UnevenSampleAutoCurve::new([(0.0, Vec3::X * 0.4), (1.0, Vec3::Z * 2.75)]).unwrap(),
+        ));
+        let clip = GraphClip::from_bevy_clip(animation, default(), default(), None);
+        let raw = sample_pose(&clip, 1.0);
+        assert_eq!(raw.get_bone(root).unwrap().translation, Some(Vec3::Z * 2.75));
+        for additive in [false, true] {
+            for (mode, mut expected) in [
+                (SourceRootLock::RefPose, reference),
+                (SourceRootLock::AnimFirstFrame, reference.with_translation(Vec3::X * 0.4)),
+                (SourceRootLock::Zero, Transform::IDENTITY),
+            ] {
+                let mut pose = raw.clone();
+                pose.root_motion = Some(RootMotionDelta { translation: Vec3::X, ..default() });
+                apply_source_root_lock(&mut pose, &clip, &skeleton, mode, additive).unwrap();
+                if additive && mode != SourceRootLock::AnimFirstFrame { expected.scale -= Vec3::ONE; }
+                let bone = pose.get_bone(root).unwrap();
+                assert_eq!(bone.translation, Some(expected.translation));
+                assert_eq!(bone.rotation, Some(expected.rotation));
+                assert_eq!(bone.scale, Some(expected.scale));
+                assert_eq!(pose.timestamp, 1.0);
+                assert_eq!(pose.root_motion.unwrap().translation, Vec3::X);
+            }
+        }
+    }
 
     #[test]
     fn source_sequence_player_applies_start_position_and_rate() {

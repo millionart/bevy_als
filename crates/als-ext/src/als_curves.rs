@@ -529,6 +529,7 @@ mod tests {
 
     #[test]
     fn source_graph_samples_curves_at_pose_time_and_blends_actual_weights() {
+        use bevy::animation::animated_field;
         use crate::{
             AnimationContextState, NormalizedBlendSpaceNode, NormalizedBlendSpacePoint,
             SourceApplyAdditiveNode, SourceCurveModifyNode, SourceLayeredBoneBlendNode,
@@ -537,7 +538,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::platform::collections::HashMap as GraphMap;
         use bevy_animation_graph::core::{
-            animation_clip::GraphClip,
+            animation_clip::{EntityPath, GraphClip},
             animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
             animation_node::AnimationNode,
             context::{
@@ -579,6 +580,10 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(output["evaluator"].as_pose().unwrap().timestamp, 1.0);
+            let root = EntityPath::default().child("root").id();
+            for name in ["sequence", "evaluator"] {
+                assert_eq!(output[name].as_pose().unwrap().get_bone(root).unwrap().translation, Some(Vec3::Z * 0.2));
+            }
             [
                 "sequence",
                 "evaluator",
@@ -603,15 +608,23 @@ mod tests {
         )
         .unwrap();
         let mut clips = Assets::<GraphClip>::default();
-        let clip = clips.add(GraphClip {
-            duration: 1.0,
-            ..default()
-        });
+        let mut skeletons = Assets::<Skeleton>::default();
+        let root_path = EntityPath::default().child("root");
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root_path.id());
+        skeleton.add_bone(root_path.clone(), Transform::from_translation(Vec3::Z * 0.2), Transform::from_translation(Vec3::Z * 0.2));
+        let mut animation = bevy::animation::AnimationClip::default();
+        animation.add_curve_to_target(root_path.id().animation_target_id(), AnimatableCurve::new(
+            animated_field!(Transform::translation),
+            UnevenSampleAutoCurve::new([(0.0, Vec3::ZERO), (1.0, Vec3::Z * 2.75)]).unwrap(),
+        ));
+        let clip = clips.add(GraphClip::from_bevy_clip(animation, skeletons.add(skeleton), default(), None));
         let sequence = AnimationNode::new(
             "sequence",
             SourceSequencePlayerNode {
                 clip: clip.clone(),
                 curves: curves.clone(),
+                root_lock: Some(crate::source_sequence_player::SourceRootLock::RefPose),
                 start_position: 0.1,
                 expose_play_rate_pin: false,
                 expose_start_position_pin: false,
@@ -623,6 +636,7 @@ mod tests {
             SourceSequenceEvaluatorNode {
                 clip,
                 curves: curves.clone(),
+                root_lock: Some(crate::source_sequence_player::SourceRootLock::RefPose),
                 explicit_frame: 30.0,
                 ..default()
             },
@@ -733,7 +747,7 @@ mod tests {
         let mut world = World::new();
         world.insert_resource(graphs);
         world.insert_resource(clips);
-        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(skeletons);
         world.insert_resource(Assets::<StateMachine>::default());
         let actual = world.run_system_once_with(query, handle).unwrap();
         for (context, (foot, gait)) in actual.iter().zip([

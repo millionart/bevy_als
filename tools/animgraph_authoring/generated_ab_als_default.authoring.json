@@ -1,0 +1,381 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_default_assets",
+  "source_evidence": [
+    {
+      "path": "target/bf115_overlays/native_source/0012_AB_Als_Default.ue.json",
+      "sha256": "d94445a33971a628977b14ad39a04cf5e94903c28bcec781370f0c2f51937402"
+    },
+    {
+      "path": "target/bf115_overlays/native_source/0002_AB_Als.ue.json",
+      "sha256": "e116720a6dca124cbc3683f7d9de884ab3a87397d7fcc194ba67b1b81e3d6442"
+    },
+    {
+      "path": "target/bf115_overlays/source/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    },
+    {
+      "path": "target/bf115_overlays/source/AlsLinkedAnimationInstance.cpp",
+      "sha256": "1ac10233195b489e6ad6abdb151511a29318eea9696a8087f2fda4e3c8fb4d6a"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimBlueprintExtension_Base.cpp",
+      "sha256": "85a5d5edeb804a4950fc4b7e21c47d15acdd4e5af1865735628df66fb611571b"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_FrameRate.h",
+      "sha256": "ff251f7ed8a098cd719cc25bf53b98d67f9ff9886a41b8edf19c21a083ce8737"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_SequenceEvaluator.cpp",
+      "sha256": "38f0bffce84384d63ad82270a7a073b5f58322855237bbd42a85239ae98a9f1b"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimCompressionTypes.h",
+      "sha256": "7b1570b6083e92dea51fd2404ff915c00b3515bbad8460e78b24f0c3e3432e1e"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_Inertialization.h",
+      "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "f5da4b55-4b5f-b6be-be66-2091b0ab63cb",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c30d8227-4ca8-0947-b0b7-398d7a5c1d84",
+          "name": "ALI_Overlay - Overlay\nLinked Anim Layer",
+          "position": [
+            -192.0,
+            48.0
+          ]
+        },
+        {
+          "id": "2dabdcc0-7353-52ae-bb76-c9a6feb49249",
+          "name": "Linked layer selection",
+          "position": [
+            -288.0,
+            144.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"f5da4b55-4b5f-b6be-be66-2091b0ab63cb\", \"Source\")",
+          "source": "NodeData(\"c30d8227-4ca8-0947-b0b7-398d7a5c1d84\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c30d8227-4ca8-0947-b0b7-398d7a5c1d84\", \"layer_index\")",
+          "source": "NodeData(\"2dabdcc0-7353-52ae-bb76-c9a6feb49249\", \"value\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"f5da4b55-4b5f-b6be-be66-2091b0ab63cb\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "4443c628-4115-9b8c-5c21-f58f9ec43ad2",
+          "name": "Output Pose\nOverlay",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "67ab4097-46de-1ab4-e8e9-7eb9f79d6505",
+          "name": "Apply Additive",
+          "position": [
+            -224.0,
+            64.0
+          ]
+        },
+        {
+          "id": "78acff87-4662-4469-d30e-80b5c9a53754",
+          "name": "Two Way Blend",
+          "position": [
+            -2192.0,
+            144.0
+          ]
+        },
+        {
+          "id": "bc1e6b63-4cf5-9bb2-bece-bbbd447852fb",
+          "name": "Two Way Blend",
+          "position": [
+            -848.0,
+            96.0
+          ]
+        },
+        {
+          "id": "adf49347-4a01-b4bd-6434-518242a029cb",
+          "name": "Two Way Blend",
+          "position": [
+            -1184.0,
+            176.0
+          ]
+        },
+        {
+          "id": "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234",
+          "name": "A_Als_Default_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -2480.0,
+            80.0
+          ]
+        },
+        {
+          "id": "3890697f-4347-5dd1-f323-f28f64443083",
+          "name": "A_Als_Default_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -2480.0,
+            208.0
+          ]
+        },
+        {
+          "id": "560a6265-48e4-0f6a-f34a-dbb080a5c73a",
+          "name": "A_Als_Default_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -2144.0,
+            336.0
+          ]
+        },
+        {
+          "id": "8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0",
+          "name": "A_Als_Default_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1472.0,
+            112.0
+          ]
+        },
+        {
+          "id": "75971f25-4595-b9cd-095b-82b4a661595d",
+          "name": "A_Als_Default_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1472.0,
+            240.0
+          ]
+        },
+        {
+          "id": "95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e",
+          "name": "A_Als_Idle\nSequence Player\nSync group Secondary Motion",
+          "position": [
+            -480.0,
+            112.0
+          ]
+        },
+        {
+          "id": "d67a612b-4973-cec8-fec9-24bf5b3bf269",
+          "name": "Blend Multi",
+          "position": [
+            -1856.0,
+            240.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"adf49347-4a01-b4bd-6434-518242a029cb\", \"B\")",
+          "source": "NodeData(\"75971f25-4595-b9cd-095b-82b4a661595d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"bc1e6b63-4cf5-9bb2-bece-bbbd447852fb\", \"A\")",
+          "source": "NodeData(\"d67a612b-4973-cec8-fec9-24bf5b3bf269\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", \"Base\")",
+          "source": "NodeData(\"bc1e6b63-4cf5-9bb2-bece-bbbd447852fb\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d67a612b-4973-cec8-fec9-24bf5b3bf269\", \"Poses_1\")",
+          "source": "NodeData(\"560a6265-48e4-0f6a-f34a-dbb080a5c73a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"bc1e6b63-4cf5-9bb2-bece-bbbd447852fb\", \"B\")",
+          "source": "NodeData(\"adf49347-4a01-b4bd-6434-518242a029cb\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"adf49347-4a01-b4bd-6434-518242a029cb\", \"A\")",
+          "source": "NodeData(\"8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d67a612b-4973-cec8-fec9-24bf5b3bf269\", \"Poses_0\")",
+          "source": "NodeData(\"78acff87-4662-4469-d30e-80b5c9a53754\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"78acff87-4662-4469-d30e-80b5c9a53754\", \"B\")",
+          "source": "NodeData(\"3890697f-4347-5dd1-f323-f28f64443083\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"78acff87-4662-4469-d30e-80b5c9a53754\", \"A\")",
+          "source": "NodeData(\"b8f30b3f-4d30-eab1-ce6b-6bb9ec868234\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", \"Additive\")",
+          "source": "NodeData(\"95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"4443c628-4115-9b8c-5c21-f58f9ec43ad2\", \"Source\")",
+          "source": "NodeData(\"67ab4097-46de-1ab4-e8e9-7eb9f79d6505\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"4443c628-4115-9b8c-5c21-f58f9ec43ad2\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      }
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_default_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf115_overlays/native_source",
+        "--materialized-directory",
+        "target/bf115_overlays/locked_default_conversion",
+        "--spec",
+        "target/bf115_overlays/locked_spec.json"
+      ]
+    },
+    {
+      "label": "default_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
+      ]
+    },
+    {
+      "label": "default_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "source_constants",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_contract.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "source_constants_rendering",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_pose_renderer.py"
+      ]
+    },
+    {
+      "label": "source_materialization",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_materializer.py"
+      ]
+    },
+    {
+      "label": "source_conversion",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/ue_animgraph_converter.py",
+        "--self-test"
+      ]
+    },
+    {
+      "label": "source_additive_reference",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/apply_additive_reference_deltas.py",
+        "--self-test"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "default_overlay"
+  },
+  "focused_tests": [
+    {
+      "label": "visible_evaluator_defaults_and_additive_curves",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "--jobs",
+        "2",
+        "source_graph_samples_curves_at_pose_time_and_blends_actual_weights"
+      ],
+      "evidence": "target/bf115_overlays/ext_regression.watchdog.json"
+    },
+    {
+      "label": "source_root_lock_and_sampling_boundaries",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/root_lock_modes_pass.watchdog.json"
+    }
+  ]
+}

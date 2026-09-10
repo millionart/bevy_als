@@ -356,6 +356,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         and not isinstance(value, dict)
     ):
         raise PoseRenderError("source renderer semantic is unavailable")
+    if renderer in {"sequence_player", "sequence_evaluator"}:
+        root_lock = asset_by_node[semantic["source_node"]].get("source_timing", {}).get("root_lock")
+        if root_lock not in {None, "RefPose", "AnimFirstFrame", "Zero"}:
+            raise PoseRenderError("source root lock mode is unsupported")
+        root_lock = "None" if root_lock is None else f"Some({root_lock})"
     if renderer == "sequence_player":
         pins = input_names(value)
         play_rate_key = value.get("play_rate_key")
@@ -391,6 +396,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("loop_animation_pin", quoted(loop_animation_pin)),
             field("expose_loop_animation_pin", bool_ron(loop_animation_pin in pins)),
             field("sync_group", quoted(value["sync_group"])),
+            field("root_lock", root_lock),
         ]
         if value["sync_group"] != "None":
             synchronization = sync_clock_fields(value)
@@ -414,6 +420,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
             field("reinitialization_behavior", quoted(value["reinitialization_behavior"])),
+            field("root_lock", root_lock),
         ]
         return "als_ext::SourceSequenceEvaluatorNode", "(" + ", ".join(fields) + ")"
     if renderer == "blendspace_evaluator":
@@ -1707,9 +1714,13 @@ def run_self_test():
     }
     evaluator_assets = copy.deepcopy(assets)
     evaluator_assets[0]["source_timing"]["frames_per_second"] = 60.0
+    evaluator_assets[0]["source_timing"]["root_lock"] = "RefPose"
     _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})
     assert "explicit_frame: 2.0" in inner and "expose_explicit_frame_pin: true" in inner
     assert "frames_per_second: 60.0" in inner
+    assert "root_lock: Some(RefPose)" in inner
+    _, inner = rendered_inner(graph_contract, {}, graph_ir["nodes"][0], asset_index(evaluator_assets), {})
+    assert "root_lock: Some(RefPose)" in inner
     unit_contract, unit_ir, unit_assets = fixture_graph()
     unit_blend = unit_ir["nodes"][1]["semantic"]
     unit_blend["alpha_key"] = "in_air_state.vertical_velocity_world_space"

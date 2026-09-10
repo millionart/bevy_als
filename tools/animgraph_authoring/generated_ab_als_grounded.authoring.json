@@ -19,8 +19,8 @@
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
     },
     {
-      "path": "target/bf115_grounded/joint_source/0001_AB_Als_Grounded.ue.json",
-      "sha256": "496fb780316ae366d73330d3fc4d134a2cbfa78e0d68f8d9cd615f36950b55fc"
+      "path": "target/bf115_overlays/native_source/0013_AB_Als_Grounded.ue.json",
+      "sha256": "2c67d969612d9042d43ba8003681ece866d465197acc37ee9fc66fb27079e4b1"
     },
     {
       "path": "target/bf115_grounded/joint_source/0002_CF_Als_StanceChange.ue.json",
@@ -45,10 +45,6 @@
     {
       "path": "target/bf115_grounded/source/AlsMath.aiming.h",
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
-    },
-    {
-      "path": "target/bf115_grounded/stance_source/0001_AB_Als_Grounded.ue.json",
-      "sha256": "8899a53cbf989576880d0c919c86e138f7692b0175775cd0704758f09b005541"
     },
     {
       "path": "target/bf115_grounded/stance_source/0002_CF_Als_StanceChange.ue.json",
@@ -109,6 +105,30 @@
     {
       "path": "target/bf115_grounded/source/TnuaAvian.frame.rs",
       "sha256": "08859d437f9406e975c1acd88da839e77121bbe0422bc7aec4075b299d5fdbe9"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimBlueprintExtension_Base.cpp",
+      "sha256": "85a5d5edeb804a4950fc4b7e21c47d15acdd4e5af1865735628df66fb611571b"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_FrameRate.h",
+      "sha256": "ff251f7ed8a098cd719cc25bf53b98d67f9ff9886a41b8edf19c21a083ce8737"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_SequenceEvaluator.cpp",
+      "sha256": "38f0bffce84384d63ad82270a7a073b5f58322855237bbd42a85239ae98a9f1b"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimCompressionTypes.h",
+      "sha256": "7b1570b6083e92dea51fd2404ff915c00b3515bbad8460e78b24f0c3e3432e1e"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_Inertialization.h",
+      "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
     }
   ],
   "graphs": [
@@ -595,56 +615,56 @@
       ],
       "expected_edges": [
         {
-          "source": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"Pose\")",
-          "target": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Source\")"
+          "target": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Source\")",
+          "source": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"012331fb-4799-2546-d5fa-c5b06e65e8e9\", \"Pose\")",
-          "target": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Source\")"
+          "target": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Source\")",
+          "source": "NodeData(\"012331fb-4799-2546-d5fa-c5b06e65e8e9\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Pose\")",
-          "target": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Source\")"
+          "target": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Source\")",
+          "source": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Pose\")",
-          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Locomotion Input\")"
+          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Locomotion Input\")",
+          "source": "NodeData(\"ccaab6a2-424d-b00d-6794-f3a705d6f8c2\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Pose\")",
-          "target": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Grounded Input\")"
+          "target": "NodeData(\"5b8f6ccb-4375-69e2-303f-7980cbb0e327\", \"Grounded Input\")",
+          "source": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Pose\")",
-          "target": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"View Input\")"
+          "target": "NodeData(\"e4f33e44-4019-9bac-8e0a-dcbc0e3ae178\", \"View Input\")",
+          "source": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"ba68267b-4da2-3440-7107-6baed4b27a24\", \"Pose\")",
-          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Crouching Input\")"
+          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Crouching Input\")",
+          "source": "NodeData(\"ba68267b-4da2-3440-7107-6baed4b27a24\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Pose\")",
-          "target": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Source\")"
+          "target": "NodeData(\"99688c67-43aa-bd26-2097-3d8fbfb6019a\", \"Source\")",
+          "source": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"5ed8c6bf-4e3e-5315-045e-e8a415a9fad5\", \"Pose\")",
-          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Standing Input\")"
+          "target": "NodeData(\"878efe04-4d03-e9c2-1d34-689bd7ad2f4d\", \"Standing Input\")",
+          "source": "NodeData(\"5ed8c6bf-4e3e-5315-045e-e8a415a9fad5\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Pose\")",
-          "target": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Source\")"
+          "target": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Source\")",
+          "source": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Pose\")",
-          "target": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Ragdolling Input\")"
+          "target": "NodeData(\"01dbd86a-4d37-d1df-d0f4-65a458a965ab\", \"Ragdolling Input\")",
+          "source": "NodeData(\"5514524f-4eea-c42c-19cd-349ea6f99e36\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Pose\")",
-          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Overlay Input\")"
+          "target": "NodeData(\"47121ad2-4d8e-11a8-1fd5-c199e70a792c\", \"Overlay Input\")",
+          "source": "NodeData(\"c110a89c-40f7-3718-2348-e3b3de41f939\", \"Pose\")"
         },
         {
-          "source": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Pose\")",
-          "target": "OutputData(\"Result\")"
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"8191c2ea-49e5-bd21-ee33-86bd87b2f93c\", \"Pose\")"
         }
       ],
       "expected_io": {
@@ -665,11 +685,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_grounded/stance_source",
+        "target/bf115_overlays/native_source",
         "--materialized-directory",
-        "target/bf115_grounded/stance_conversion",
+        "target/bf115_overlays/locked_grounded_conversion",
         "--spec",
-        "target/bf115_grounded/slot_spec.json"
+        "target/bf115_overlays/locked_spec.json"
       ]
     },
     {
@@ -756,7 +776,7 @@
         "--materialized-directory",
         "target/bf115_grounded/slot_resume_conversion",
         "--spec",
-        "target/bf115_grounded/slot_spec.json",
+        "target/bf115_overlays/locked_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AB_Als.AB_Als"
       ]
@@ -803,5 +823,20 @@
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
     "manual_case": "grounded"
-  }
+  },
+  "focused_tests": [
+    {
+      "label": "source_root_lock_and_sampling_boundaries",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/root_lock_modes_pass.watchdog.json"
+    }
+  ]
 }
