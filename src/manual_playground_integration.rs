@@ -817,8 +817,26 @@ fn default_overlay_foot_targets_ready(spaces: &AlsFootIkSpaceState) -> bool {
         || side.trace_target_world.distance(side.solver_reference_world) < 1e-5)
 }
 
-fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
+fn default_overlay_additive_pose(base: &Pose, delta: &Pose, alpha: f32) -> Pose {
     use bevy_animation_graph::core::{edge_data::bone_mask::BoneMask, interpolation::additive::AdditiveInterpolator};
+    let mut expected = base.clone();
+    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, alpha);
+    for (bone, delta_index) in &delta.paths {
+        let Some(source) = base.get_bone(*bone) else { continue; };
+        let Some(index) = expected.paths.get(bone).copied() else { continue; };
+        let delta_bone = &delta.bones[*delta_index];
+        if let (Some(rotation), Some(delta_rotation)) = (source.rotation, delta_bone.rotation) {
+            let sign = if delta_rotation.w < 0.0 { -1.0 } else { 1.0 };
+            expected.bones[index].rotation = Some(((Quat::IDENTITY * (sign * (1.0 - alpha)) + delta_rotation * alpha).normalize() * rotation).normalize());
+        }
+        if let (Some(scale), Some(delta_scale)) = (source.scale, delta_bone.scale) {
+            expected.bones[index].scale = Some(scale * (Vec3::ONE + delta_scale * alpha));
+        }
+    }
+    expected
+}
+
+fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut sample = DefaultOverlayGraphSample {
         inputs: ["pose_state.standing_amount", "pose_state.crouching_amount", "pose_state.gait_walking_amount", "pose_state.in_air_amount"].map(scalar),
@@ -905,21 +923,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
             if let Some(additive) = node.try_inner_downcast_ref::<als_ext::SourceApplyAdditiveNode>() {
                 sample.additive_alpha = Some(additive.constant_alpha);
                 if let Some((base, delta)) = input(node.id, "Base").zip(input(node.id, "Additive")) {
-                    let mut expected = base.clone();
-                    let alpha = additive.constant_alpha;
-                    AdditiveInterpolator { bone_mask: BoneMask::all() }.interpolate_pose(&mut expected, &delta, alpha);
-                    for (bone, delta_index) in &delta.paths {
-                        let Some(source) = base.get_bone(*bone) else { continue; };
-                        let Some(index) = expected.paths.get(bone).copied() else { continue; };
-                        let delta_bone = &delta.bones[*delta_index];
-                        if let (Some(rotation), Some(delta_rotation)) = (source.rotation, delta_bone.rotation) {
-                            let sign = if delta_rotation.w < 0.0 { -1.0 } else { 1.0 };
-                            expected.bones[index].rotation = Some(((Quat::IDENTITY * (sign * (1.0 - alpha)) + delta_rotation * alpha).normalize() * rotation).normalize());
-                        }
-                        if let (Some(scale), Some(delta_scale)) = (source.scale, delta_bone.scale) {
-                            expected.bones[index].scale = Some(scale * (Vec3::ONE + delta_scale * alpha));
-                        }
-                    }
+                    let expected = default_overlay_additive_pose(&base, &delta, additive.constant_alpha);
                     check(&mut sample.errors, "apply additive", &actual, &expected);
                     sample.additive_effect = default_overlay_pose_error(&actual, &base);
                     sample.ready = !actual.bones.is_empty();
@@ -8961,6 +8965,69 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_overlay_additive_matches_loaded_source_pose_channels() {
+        use bevy_animation_graph::core::{animation_clip::{GraphClip, loader::GraphClipLoader}, pose::BonePose, skeleton::{Skeleton, loader::SkeletonLoader}};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
+            .init_asset::<bevy::world_serialization::WorldAsset>()
+            .init_asset::<bevy::animation::AnimationClip>()
+            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+            .init_asset::<Mesh>().init_asset::<Image>()
+            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>()
+            .init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
+            .add_plugins(als_ext::AlsExtPlugin);
+        app.finish();
+        app.cleanup();
+        let server = app.world().resource::<AssetServer>();
+        let handles: [Handle<GraphClip>; 3] = [
+            "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+            "animations/Base/A_Als_Idle.anim.ron",
+            "animations/Base/A_Als_Stand_Pose.anim.ron",
+        ].map(|path| server.load(path));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let mut previous = 0;
+        loop {
+            app.update();
+            let clips = app.world().resource::<Assets<GraphClip>>();
+            let skeletons = app.world().resource::<Assets<Skeleton>>();
+            let loaded = handles.iter().filter(|handle| clips.get(*handle).is_some_and(|clip| skeletons.get(&clip.skeleton).is_some())).count();
+            if loaded != previous { eprintln!("Default additive assets loaded {loaded}/3"); previous = loaded; }
+            if loaded == handles.len() { break; }
+            assert!(std::time::Instant::now() < deadline, "Default additive assets did not load within 30 seconds: {loaded}");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let clips = app.world().resource::<Assets<GraphClip>>();
+        let skeletons = app.world().resource::<Assets<Skeleton>>();
+        let base_clip = clips.get(&handles[0]).unwrap();
+        let idle_clip = clips.get(&handles[1]).unwrap();
+        let reference = als_ext::source_sequence_player::sample_pose(clips.get(&handles[2]).unwrap(), 0.0);
+        let skeleton = skeletons.get(&reference.skeleton).unwrap();
+        for base_time in [0.0, base_clip.duration * 0.5] {
+            for idle_time in [0.0, 0.8, 1.6] {
+                let base = als_ext::source_sequence_player::sample_pose(base_clip, base_time);
+                let delta = als_ext::reference_local_difference::make_local_difference(&reference,
+                    &als_ext::source_sequence_player::sample_pose(idle_clip, idle_time), skeleton);
+                let expected = default_overlay_additive_pose(&base, &delta, 0.75);
+                let mut actual = base;
+                als_ext::mesh_space_additive::apply_local_space_additive(&mut actual, &delta, 0.75, skeleton);
+                assert!(default_overlay_pose_error(&actual, &expected).is_some_and(|error| error <= 2e-5),
+                    "Default additive channels differ at base={base_time}, idle={idle_time}: actual={}, expected={}, difference={:?}",
+                    actual.paths.len(), expected.paths.len(), default_overlay_pose_error(&actual, &expected));
+            }
+        }
+        let bone = skeleton.iter_bones().find(|bone| *bone != skeleton.root()).unwrap();
+        let mut reference = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
+        reference.add_bone(BonePose::from_transform(skeleton.default_transforms(bone).unwrap().local), bone);
+        let mut delta = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
+        delta.add_bone(BonePose { translation: Some(Vec3::Y * 0.2), rotation: Some(Quat::from_rotation_x(0.4)), scale: Some(Vec3::splat(0.1)), ..default() }, bone);
+        let expected = default_overlay_additive_pose(&reference, &delta, 0.75);
+        let mut sparse = Pose { skeleton: base_clip.skeleton.clone(), ..default() };
+        als_ext::mesh_space_additive::apply_local_space_additive(&mut sparse, &delta, 0.75, skeleton);
+        assert_eq!(sparse.paths.len(), 1);
+        assert!(default_overlay_pose_error(&sparse, &expected).is_some_and(|error| error <= 2e-5));
+    }
 
     #[test]
     fn default_overlay_pose_check_rejects_lost_frames_and_additive_weight() {

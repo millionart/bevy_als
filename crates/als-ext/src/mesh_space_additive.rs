@@ -161,8 +161,11 @@ fn merge_root_motion(
 
 pub fn apply_local_space_additive(base: &mut Pose, additive: &Pose, alpha: f32, skeleton: &Skeleton) {
     if alpha.abs() <= ALPHA_THRESHOLD { return; }
-    materialize_missing_reference_bones(base, skeleton);
     for (bone, additive_index) in &additive.paths {
+        if !base.paths.contains_key(bone)
+            && let Some(transform) = skeleton.default_transforms(*bone) {
+            base.add_bone(BonePose::from_transform(transform.local), *bone);
+        }
         let Some(base_index) = base.paths.get(bone).copied() else { continue; };
         let additive_bone = &additive.bones[*additive_index];
         let base_rotation = base_local_rotation(base, skeleton, *bone);
