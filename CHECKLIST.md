@@ -492,7 +492,7 @@
 
   - 04c完成2026-09-10 10:37:00：公开AIS/两曲线生成109.871s、Locomotion重新生成42.411s PASS；实际九个混合区间及650→6.5阈值由七个RON安装，46文件保持原256文件owner。旧安装source审计0.830s稳定FAIL于这七项；新十图fresh spec2.868s和完整32图/46文件声明式2.628s PASS，编辑器46文件零修复0.275s。Lean原线性重采样在源关键点得到-0.4660967，最小实际调用26.687s FAIL；换为离线目标RichCurve后16项Locomotion回归23.585s PASS，删除两个旧CurveAsset加载、运行时乘100及缺失曲线回退。两条原始导出保持不变；复用既有曲线类型、转换和LazyLock，不新增runtime适配层。标量适配消融0.301s、混合0.277s、converter/materializer/共享Curve自测0.561/0.264/0.274s PASS；target_game/play双example63.891s PASS。第一次公开调用因隔离安装目录未创建而0.298s退出，读报告后补目录，不计为source失败。开始10:13、预估11:08、实际结束10:37（偏差-31m）；本段数据与单位合同完成，原生刷新、实际Jump和Actor影子逻辑仍待04d，未运行场景。
 
-- [ ] BF115.04d Locomotion原生刷新、Jump事件与Actor消费者：开始2026-09-10 10:37:00、预估11:32:00。依赖04c；沿已提取32子图、InitializeLean/RefreshInAir、OnJumped→Jump请求和AIS预测/Lean合同，复用已有共享SourceInstance、原生节点及Tnua实际动作事件，实现按实际活动节点刷新与jump请求锁存/消费。预测只纳入源证明的当前capsule、mesh scale、walkable normal和AIS过滤边界；先最小失败再修复，不改变其它trace算法。删除旧Actor FSM/phase/手工曲线和向上速度猜测；对仍有真实消费者的输出改接实际生成树。估时依据为已完成七项数据迁移、Grounded/Crouching同类原生调用约半小时的记录与现有节点/事件框架；完成focused、消融、公开重新生成和同入口静态后，再独立登记真实动作观测及无截图Playground Gate。本段不启动runtime，也不展开Default或后续模块。
+- [x] BF115.04d Locomotion原生刷新、Jump事件与Actor消费者：开始2026-09-10 10:37:00、预估11:32:00。依赖04c；沿已提取32子图、InitializeLean/RefreshInAir、OnJumped→Jump请求和AIS预测/Lean合同，复用已有共享SourceInstance、原生节点及Tnua实际动作事件，实现按实际活动节点刷新与jump请求锁存/消费。预测只纳入源证明的当前capsule、mesh scale、walkable normal和AIS过滤边界；先最小失败再修复，不改变其它trace算法。删除旧Actor FSM/phase/手工曲线和向上速度猜测；对仍有真实消费者的输出改接实际生成树。估时依据为已完成七项数据迁移、Grounded/Crouching同类原生调用约半小时的记录与现有节点/事件框架；完成focused、消融、公开重新生成和同入口静态后，再独立登记真实动作观测及无截图Playground Gate。本段不启动runtime，也不展开Default或后续模块。
 
   - 04d原生/Actor闭环进展2026-09-10 11:12:00：连续两次请求的共享属性反例39.288s FAIL；复用既有write_frames增加显式当帧输入，保留其余持久属性和实例隔离，不修改依赖私有arena。InitializeLean/RefreshInAir映射0.292s FAIL→0.304s PASS；真实图fixture覆盖活动/非活动、落地速度保留、两次请求、pending/零半衰期及重新相关，分别移除刷新和初始化都改变结果。fresh AlsMath证明Damper使用InvExpApprox；C++九个标量和两曲线经公开入口114.570s重新生成。原预测扫掠最小实物理fixture52.961s FAIL（mesh scale 3仍未触及地面）；新路径读取实际Collider、mesh scale和Tnua实际坡度限制，并排除源Pawn/PhysicsBody对应的角色及ragdoll collider，保留初始穿透接触。预测准备属于ECS物理读输入，只有实际图调用才提交InAirState；C++ GetControlRigInput直接证明Root/Rig需要该状态，现从图后投影既有组件，不改Rig算法。旧Locomotion私有FSM/时钟/手工曲线已删除；另确认AirJumpLayer只给旧入口pin和manual变体观测写入交替左右猜测，现改读当前源Jump同步组四个实际Sequence及权重，完整外/内FSM观测仍由下一段覆盖。首次组合测试61.037s因新fixture浮点类型及旧phase读数Option误用编译失败，修正后native与曲线focused通过；新增过滤消融fixture暂用引用临时值导致5.545s编译失败，已改为局部绑定，回归进行中。未启动runtime。
 
@@ -572,6 +572,8 @@
   - 04f3 Standing通过/Crouching运行前2026-09-10 14:57:00：公共standing_response19.928s PASS，manual0/validator0，9窗口、零截图，无fault/graph/temporal；当前脚锁component-space缓存与模式发布保持原运动响应。相同已构建入口继续crouching，全部原阈值及source/static合同保持。
 
   - 04f3共享Gate通过/04b关闭2026-09-10 14:59:00：公共crouching40.336s PASS，12窗口、零截图；连同grounded9窗口42.757s、standing_response9窗口19.928s，三十共享窗口全部manual0/validator0，无fault/graph/temporal。Locomotion十四窗口29.956s同样PASS，frame p95 14.9085ms/max28.3111ms、eval p95 0.0875ms。32源图/46RON、完整源码/单位/生命周期和296项目（另243 core/339 ext）证据闭合；04b本轮原生FSM排序边界关闭，先独立提交native读取器/转换器与四份生成执行数据，再分别收口物理模式、观测和脚锁修复。
+
+  - 04d物理模式/接触有限复开关闭2026-09-10 15:01:00：当前controller模式同帧发布、原事件恰好一次、Ragdoll请求保护及无反弹落地的最小物理反例均PASS；243 core/339 ext/296项目、十四Locomotion和三十共享窗口全通过。仅改实际模式提交阶段、直接消费者顺序与现有阻尼的速度抵消比例，没有新增物理时钟、状态、动画锁存或阈值；该scope独立提交，原04d其它已通过内容保持。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

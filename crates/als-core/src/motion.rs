@@ -162,6 +162,7 @@ pub fn apply_als_control_scheme_config(
     config.basis.turning_angvel = turn_angvel(rotation_mode);
     config.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
     config.basis.cling_distance = WALK_CLING_DISTANCE;
+    config.basis.spring_dampening = 1.0;
     let gravity_scale = params.jump.gravity_scale.max(1e-3);
     config.jump.height =
         params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
@@ -1942,9 +1943,11 @@ impl Plugin for AlsMotionPlugin {
             .add_systems(
                 Update,
                 (
-                    locomotion_state_sync_system,
+                    locomotion_state_sync_system
+                        .after(TnuaPipelineSystems::Logic)
+                        .after(crate::transition::state_transition_system)
+                        .before(TnuaPipelineSystems::Motors),
                     crate::gait::refresh_gait_system
-                        .after(locomotion_state_sync_system)
                         .after(crate::gait::gait_request_system),
                     tnua_config_sync_system
                         .after(crate::gait::refresh_gait_system)
@@ -2583,19 +2586,20 @@ fn step_up_assist_system(
     }
 }
 
-fn locomotion_state_sync_system(
+pub(crate) fn locomotion_state_sync_system(
+    mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<
         (
             Entity,
             &TnuaController<AlsControlScheme>,
-            &LocomotionState,
-            &mut AlsStateRequest,
+            &mut LocomotionState,
+            &AlsStateRequest,
             Has<AlsRagdollAirExit>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, controller, current, mut request, ragdoll_air_exit) in &mut q {
+    for (entity, controller, mut current, request, ragdoll_air_exit) in &mut q {
         if *current == LocomotionState::Ragdolling || ragdoll_air_exit {
             continue;
         }
@@ -2612,7 +2616,13 @@ fn locomotion_state_sync_system(
                 "[MOTION] entity={entity:?} locomotion sync {:?} -> {:?}",
                 current, target
             );
-            request.locomotion_state = Some(target);
+            transitions.write(StateTransitionEvent {
+                entity,
+                dimension: Dimension::LocomotionState,
+                from: StateValue::LocomotionState(*current),
+                to: StateValue::LocomotionState(target),
+            });
+            *current = target;
         }
     }
 }
@@ -2620,6 +2630,60 @@ fn locomotion_state_sync_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn physical_locomotion_matches_the_current_controller_before_animation() {
+        use crate::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::transition::AlsStateTransitionPlugin;
+        use avian3d::prelude::{PhysicsPlugins, RigidBody};
+        use bevy::asset::AssetEvent;
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform = Transform::from_xyz(0.0, 3.0, 0.0);
+        let character = app.world_mut().spawn(bundle).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        let mut seen = [false; 2];
+        let mut landed = false;
+        for frame in 0..120 {
+            *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32([1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.05][frame % 4]));
+            let previous = *app.world().get::<LocomotionState>(character).unwrap();
+            app.update();
+            if let Ok(airborne) = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().is_airborne() {
+                landed |= !airborne && seen[1];
+                assert!(!landed || !airborne, "landing rebounded at frame={frame}");
+                let expected = if airborne { LocomotionState::Air } else { LocomotionState::Grounded };
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected, "frame={frame}");
+                let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                    .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState).collect();
+                assert_eq!(events.len(), usize::from(previous != expected));
+                if let Some(event) = events.first() {
+                    assert_eq!(event.from, StateValue::LocomotionState(previous));
+                    assert_eq!(event.to, StateValue::LocomotionState(expected));
+                }
+                seen[usize::from(airborne)] = true;
+            }
+        }
+        assert_eq!(seen, [true, true]);
+        app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
+        app.update();
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Ragdolling));
+    }
 
     #[test]
     fn blocked_movement_keeps_the_original_command_and_view_controls() {

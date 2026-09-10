@@ -319,7 +319,7 @@ impl Plugin for AlsAirPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (ensure_air_state, air_state_system.after(ensure_air_state)),
+            (ensure_air_state, air_state_system.after(ensure_air_state).after(crate::motion::locomotion_state_sync_system)),
         )
         .add_systems(
             Update,

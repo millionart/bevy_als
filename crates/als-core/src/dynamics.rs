@@ -516,7 +516,7 @@ impl Plugin for AlsGroundedDynamicsPlugin {
                     .after(crate::gait::refresh_gait_system)
                     .before(TnuaPipelineSystems::Logic),
                 landing_braking_friction_system
-                    .after(TnuaPipelineSystems::Logic)
+                    .after(crate::motion::locomotion_state_sync_system)
                     .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
                     .after(refresh_grounded_dynamics_system)
