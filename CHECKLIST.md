@@ -579,6 +579,14 @@
 
   - 04f3/Locomotion完成2026-09-10 15:02:00：最后crouching12窗口PASS（frame p95 18.1825ms/max26.3996ms、eval p95 0.0961ms）；全部44动作窗口与当前startup均通过、0截图，图错误/根Pose/空间/时间/性能守卫无遗漏。BF102.43上一帧final缓存空间的有限复开关闭并独立提交；04b/04d/04e已分别关闭。04f3开始14:53、预估15:23、实际结束15:02（偏差-21m）；04f首次开始12:25、预估13:20到最终15:02偏差+1h42，原超时/重估/拆分与每轮最小失败保留。主要纠正为native FSM次序、source观测条件、同帧物理模式、速度抵消与脚锁component-space缓存，未引入动画补偿或阈值豁免。Locomotion完整迁移闭合，随后按清单顺序进入AB_Als_Default。
 
+- [x] BF115.05a AB_Als_Default源闭包与首个转换/Actor差异：开始2026-09-10 15:08:00、预估15:38:00。依赖已完成并提交的Locomotion。按用户最新范围，此步仅处理AB_Als_Default，其余12个overlay留待用户以后安排。本项从本地Default uasset公开重读完整图/直接动画资产、继承输入和实际Actor消费/挂接事实，比较当前生成资产和执行链，保留所有源差异及最小失败，再按证据登记实现和零截图公共Gate。估时按已定位Default两份生成RON、已归档同图公开转换与本轮native单资源33–45秒记录收敛；先前13项扩展估时撤销，尚未提取或实现其余12项。本轮不展开Layering/Head/CR，所有读取继续使用公开uasset/native commandlet。
+
+  - 05a源闭包进展2026-09-10 15:19:00：Default公开转换77.518s、unsupported为空，闭包为AnimGraph和Overlay两图、十四个源Pose节点；直接uasset已读取Default_Poses及Idle的曲线/时长。fresh可见pin与编译CDO共同确认五个采样帧0/1/2/1/0、Idle叠加Alpha=0.75；当前生成器丢失采样帧和可见常量默认值，旧验收只看Actor模式及固定曲线，未验证分支姿势/叠加权重。GetParent绑定的Standing/Crouching/InAir/GaitWalking与GroundPrediction输入，沿fresh LinkedAnimationInstance初始化和RefreshPose核对既有provider；另只读取父AB到Default的直接挂接边，不展开父图或Layering/Head/CR内部。现固定最小失败与同步时钟消费边界，再登记实现。
+
+  - 05a完成2026-09-10 15:21:00：两图全部节点/直接资产和五个父属性输入已核对，Default_Poses原生帧率30、4keys/0.1s；父AB只读36.987s确认默认实例Default及直连Overlay输出。对同次source与原生成RON的六项最小检查0.300s稳定FAIL，三处非零frame被抹为0、Alpha合同1对0.75；CDO验证可见pin确实是生效常量。Parent/RefreshPose的先更新再求图与现有provider相符；同步迁移只需删除Default生成组的旧Actor注入，通用legacy时钟仍有其它已存消费者，维持不动。开始15:08、预估15:38、实际结束15:21（偏差-17m），结果为source及失败闭环完成，功能尚未验收。
+
+- [ ] BF115.05b Default常量、同步和生成资产静态闭合：开始2026-09-10 15:21:00、预估16:06:00。依赖05a；按两个已证实默认值边界、既有可见pin读取helper及两份RON范围，先扩充通用contract/renderer最小反例，保留显式帧、可见Alpha及动态绑定/连接语义，复用现有运行节点字段。公开uasset重读后只安装原owner内Default两文件，移除该生成组Actor时钟注入，完成source审计、实际节点fixture、同入口编译和声明式静态；实际Default分支姿势、0.75叠加与预测插值验收另列05c零截图Gate。估时依据为本段源闭包13分钟、native读取约37–78秒、此前单边运行合同与静态收口约16–24分钟；不展开其余12 overlay或后续图。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
