@@ -850,21 +850,24 @@ fn foot_bones_are_valid(
     })
 }
 
-fn rebase_foot_lock_after_teleport(
+fn refresh_previous_foot_lock_transform(
     state: &mut als_core::foot_ik::AlsFootLockFootState,
     previous_character_transform: &Transform,
     current_character_transform: &Transform,
+    rebase_lock: bool,
 ) {
     let previous_inverse = previous_character_transform.to_matrix().inverse();
     let current_matrix = current_character_transform.to_matrix();
-    state.lock_location =
-        current_matrix.transform_point3(previous_inverse.transform_point3(state.lock_location));
     state.final_location =
         current_matrix.transform_point3(previous_inverse.transform_point3(state.final_location));
     let rotation_delta =
         current_character_transform.rotation * previous_character_transform.rotation.conjugate();
-    state.lock_rotation = (rotation_delta * state.lock_rotation).normalize();
     state.final_rotation = (rotation_delta * state.final_rotation).normalize();
+    if rebase_lock {
+        state.lock_location =
+            current_matrix.transform_point3(previous_inverse.transform_point3(state.lock_location));
+        state.lock_rotation = (rotation_delta * state.lock_rotation).normalize();
+    }
 }
 
 fn reset_foot_ik_runtime(
@@ -1193,28 +1196,19 @@ fn foot_ik_apply_system(
                 .entity
                 .and_then(|entity| foot_lock_movement_base(entity, &bone_globals))
         });
-        if lifecycle.teleport_remaining > 0.0 && !became_valid {
-            if let Some(previous_character_transform) = lifecycle.previous_character_transform {
-                if is_relevant_animation_weight(left_ik_amount * lock_state.left.lock_amount) {
-                    rebase_foot_lock_after_teleport(
-                        &mut lock_state.left,
-                        &previous_character_transform,
-                        &current_character_transform,
-                    );
-                    capture_foot_lock_movement_base(&mut lock_state.left, current_base);
+        if let Some(previous_character_transform) = lifecycle.previous_character_transform {
+            for (side, ik_amount) in [left_ik_amount, right_ik_amount].into_iter().enumerate() {
+                let foot_state = if side == 0 { &mut lock_state.left } else { &mut lock_state.right };
+                let rebase_lock = lifecycle.teleport_remaining > 0.0 && !became_valid
+                    && is_relevant_animation_weight(ik_amount * foot_state.lock_amount);
+                refresh_previous_foot_lock_transform(
+                    foot_state, &previous_character_transform, &current_character_transform, rebase_lock,
+                );
+                if rebase_lock {
+                    capture_foot_lock_movement_base(foot_state, current_base);
                     if let Ok(mut value) = telemetry.p1().get_mut(entity) {
-                        value.left_rebase_count = value.left_rebase_count.saturating_add(1);
-                    }
-                }
-                if is_relevant_animation_weight(right_ik_amount * lock_state.right.lock_amount) {
-                    rebase_foot_lock_after_teleport(
-                        &mut lock_state.right,
-                        &previous_character_transform,
-                        &current_character_transform,
-                    );
-                    capture_foot_lock_movement_base(&mut lock_state.right, current_base);
-                    if let Ok(mut value) = telemetry.p1().get_mut(entity) {
-                        value.right_rebase_count = value.right_rebase_count.saturating_add(1);
+                        let count = if side == 0 { &mut value.left_rebase_count } else { &mut value.right_rebase_count };
+                        *count = count.saturating_add(1);
                     }
                 }
             }
@@ -2353,10 +2347,11 @@ mod tests {
             final_rotation: previous_character_transform.rotation * local_rotation,
             ..Default::default()
         };
-        rebase_foot_lock_after_teleport(
+        refresh_previous_foot_lock_transform(
             &mut foot_state,
             &previous_character_transform,
             &current_character_transform,
+            true,
         );
         let expected_location = current_character_transform
             .to_matrix()
@@ -2470,6 +2465,27 @@ mod tests {
             "[BF102.43][VERDICT] teleport_location_error={teleport_location_error:.6} teleport_rotation_alignment={teleport_rotation_alignment:.6} recovery_fresh={recovery_fresh} reload_reset={reload_reset} teleport_message={teleport_message} -> {verdict}"
         );
         assert!(passed);
+    }
+
+    #[test]
+    fn new_foot_lock_uses_previous_final_pose_in_the_current_component_space() {
+        let previous = Transform::from_xyz(2.0, 0.9, -1.0).with_rotation(Quat::from_rotation_y(0.3));
+        let local = Vec3::new(0.2, -0.8, 0.3);
+        let local_rotation = Quat::from_rotation_x(0.2);
+        for translation in [Vec3::new(2.3, 0.9, -1.0), Vec3::new(-3.0, 30.9, 4.0)] {
+            let current = Transform::from_translation(translation)
+                .with_rotation(Quat::from_rotation_y(-0.6)).with_scale(Vec3::splat(1.2));
+            let mut state = als_core::foot_ik::AlsFootLockFootState {
+                final_location: previous.to_matrix().transform_point3(local),
+                final_rotation: previous.rotation * local_rotation,
+                ..default()
+            };
+            refresh_previous_foot_lock_transform(&mut state, &previous, &current, false);
+            let target = current.to_matrix().transform_point3(local + Vec3::X * 0.1);
+            refresh_foot_lock(&mut state, target, current.rotation, 1.0, 1.0, true, false, true, false, 1.0 / 60.0);
+            assert!(state.lock_location.distance(current.to_matrix().transform_point3(local)) < 1e-5);
+            assert!(state.lock_rotation.dot(current.rotation * local_rotation).abs() > 0.99999);
+        }
     }
 
     #[test]

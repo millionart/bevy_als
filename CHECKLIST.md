@@ -506,7 +506,7 @@
 
   - 04e完成2026-09-10 12:25:00：target_game/play双example114.245s、十图fresh spec3.129s、46文件编辑器零修复0.594s、公共数值验收器自测0.844s及完整32源子图/46RON声明式2.663s PASS。实际状态/权重/片段/曲线读取使用当前角色的生成上下文，新增源alpha读数只记录已求值结果；不增加生产动画分支。开始11:27、预估12:22、实际12:25（偏差+3m），结果为七段场景/十四窗口的静态闭合，尚无runtime结论；本段独立提交后开始04f公共运行。
 
-- [ ] BF115.04f Locomotion无截图startup及完整动作Gate：开始2026-09-10 12:25:00、预估13:20:00。依赖04e，使用已构建同一target_game/play入口先startup，再七段连续动作与十四数值窗口；强制实际两FSM、四Jump变体同相位、Loop/Flail、Fall/Fast/Flail、预测、普通/混合落地及移动落地、自然结束回调和完整Grounded终态，保留公共root/pre-rig/final、canonical、时间与性能守卫。高坠落按默认CS动作边界只验收空中闭包并显式重置，重落地additive完整混合范围由已通过的source/标量合同验证，不用请求状态或Actor影子数据充当执行证据。估时依据为已完成生成/Actor/场景静态、52场景回归、当前源7段输入与此前Grounded三个场景真实耗时约数分钟；预留首个源链失败的最小诊断与修复闭环。所有截图关闭，失败先读完整报告再沿已证实边界处理，不展开Default或其它后续模块绕过Gate。
+- [x] BF115.04f Locomotion无截图startup及完整动作Gate：开始2026-09-10 12:25:00、预估13:20:00。依赖04e，使用已构建同一target_game/play入口先startup，再七段连续动作与十四数值窗口；强制实际两FSM、四Jump变体同相位、Loop/Flail、Fall/Fast/Flail、预测、普通/混合落地及移动落地、自然结束回调和完整Grounded终态，保留公共root/pre-rig/final、canonical、时间与性能守卫。高坠落按默认CS动作边界只验收空中闭包并显式重置，重落地additive完整混合范围由已通过的source/标量合同验证，不用请求状态或Actor影子数据充当执行证据。估时依据为已完成生成/Actor/场景静态、52场景回归、当前源7段输入与此前Grounded三个场景真实耗时约数分钟；预留首个源链失败的最小诊断与修复闭环。所有截图关闭，失败先读完整报告再沿已证实边界处理，不展开Default或其它后续模块绕过Gate。
 
   - 04f首次startup/04d有限复开2026-09-10 12:29:00：公共零截图startup5.228s失败，manual101，尚未进入首帧/图求值；runner保存缺少report事实，stderr完整指出Locomotion→Layering→Head→Ragdolling→GeneratedProvider→Locomotion的调度环。此前focused仅初始化独立节点/系统，未把实际插件顺序组合初始化，故编译/spec/静态无法发现。04d仅调度依赖边界取消勾选；回读所有Locomotion set调用点和真实writer，Layering只读stance与上一动画Root曲线、并不消费新InAir输入，旧after Locomotion边来自已删除的Actor阶段。当前只补实际插件调度反例并删除该过时顺序，不展开Layering/Head图或算法。
 
@@ -565,7 +565,7 @@
 
   - 04f2完整Locomotion通过2026-09-10 14:51:26：公共motion29.956s PASS，manual0/validator0、十四窗口和全部生命周期/source blends通过，fault/graph/temporal为空、零截图；高台准备阶段脚锁final异常消除，混合落地持续播放与canonical通过。开始13:55、预估14:32:30、实际结束14:51:26（偏差+18m56s），结果为完整Locomotion动作及公共守卫Gate完成。04f父项仍保留共享模式/地面接触/脚锁消费者回归；该新增共享边界单列04f3，未将后续模块或未通过项删除。
 
-- [ ] BF115.04f3 共享模式与脚锁真实回归及提交收口：开始2026-09-10 14:53:00、预估15:23:00。依赖04f2已通过；使用同一已验证二进制，在原Playground依次跑既有grounded、standing_response、crouching公共case，检查角色模式、落地接触与上一帧final空间修复的直接消费者。三图声明式与243/339/296回归已闭合；估时依据为此前三case共三十窗口约两分钟、当前14窗口29.956s、无需再次构建/导入，保留首个source链回归失败的诊断空间。全部CaptureCount=0，守卫及旧目标保持；通过后分别关闭04b/04d/04e和BF102.43有限复开并按修复scope独立提交，再继续Default。
+- [x] BF115.04f3 共享模式与脚锁真实回归及提交收口：开始2026-09-10 14:53:00、预估15:23:00。依赖04f2已通过；使用同一已验证二进制，在原Playground依次跑既有grounded、standing_response、crouching公共case，检查角色模式、落地接触与上一帧final空间修复的直接消费者。三图声明式与243/339/296回归已闭合；估时依据为此前三case共三十窗口约两分钟、当前14窗口29.956s、无需再次构建/导入，保留首个source链回归失败的诊断空间。全部CaptureCount=0，守卫及旧目标保持；通过后分别关闭04b/04d/04e和BF102.43有限复开并按修复scope独立提交，再继续Default。
 
   - 04f3 Grounded通过/Standing运行前2026-09-10 14:55:00：公共grounded42.757s PASS，manual0/validator0，9窗口、零截图，fault/graph/temporal为空；物理模式/接触及脚锁空间修复未破坏既有Roll和切换/瞄准终态。当前源码/同入口/声明式保持，接着standing_response，再crouching，不改两者场景目标。
 
@@ -576,6 +576,8 @@
   - 04d物理模式/接触有限复开关闭2026-09-10 15:01:00：当前controller模式同帧发布、原事件恰好一次、Ragdoll请求保护及无反弹落地的最小物理反例均PASS；243 core/339 ext/296项目、十四Locomotion和三十共享窗口全通过。仅改实际模式提交阶段、直接消费者顺序与现有阻尼的速度抵消比例，没有新增物理时钟、状态、动画锁存或阈值；该scope独立提交，原04d其它已通过内容保持。
 
   - 04e观测有限复开关闭2026-09-10 15:01:00：移动落地按实际Land Movement出口验收，短窗口逐帧采样、父FSM状态、已插值alpha与片段权重、重置后新动作触发都由最小失败约束；全部十四实际窗口和完整生命周期已通过公共验收。复用原collector、现有计时与真实图缓存，未增加Actor镜像或降低canonical/姿态/时间阈值；观测scope独立提交。
+
+  - 04f3/Locomotion完成2026-09-10 15:02:00：最后crouching12窗口PASS（frame p95 18.1825ms/max26.3996ms、eval p95 0.0961ms）；全部44动作窗口与当前startup均通过、0截图，图错误/根Pose/空间/时间/性能守卫无遗漏。BF102.43上一帧final缓存空间的有限复开关闭并独立提交；04b/04d/04e已分别关闭。04f3开始14:53、预估15:23、实际结束15:02（偏差-21m）；04f首次开始12:25、预估13:20到最终15:02偏差+1h42，原超时/重估/拆分与每轮最小失败保留。主要纠正为native FSM次序、source观测条件、同帧物理模式、速度抵消与脚锁component-space缓存，未引入动画补偿或阈值豁免。Locomotion完整迁移闭合，随后按清单顺序进入AB_Als_Default。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
