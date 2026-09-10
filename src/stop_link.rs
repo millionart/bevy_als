@@ -235,6 +235,9 @@ impl AlsTransitionPlayback {
         if !self.active {
             return;
         }
+        self.elapsed += delta_seconds.max(0.0);
+        let play_rate = self.play_rate.max(f32::EPSILON);
+        self.clip_time = (self.start_time + self.elapsed * play_rate).min(self.duration);
         if let Some(stop_elapsed) = &mut self.stop_elapsed {
             *stop_elapsed += delta_seconds.max(0.0);
             let duration = self.blend_out.max(f32::EPSILON);
@@ -245,10 +248,7 @@ impl AlsTransitionPlayback {
             }
             return;
         }
-        self.elapsed += delta_seconds.max(0.0);
-        let play_rate = self.play_rate.max(f32::EPSILON);
         let playback_duration = (self.duration - self.start_time).max(0.0) / play_rate;
-        self.clip_time = (self.start_time + self.elapsed * play_rate).min(self.duration);
         self.weight = transition_weight(
             self.elapsed,
             self.duration,
@@ -1021,14 +1021,21 @@ mod tests {
 
     #[test]
     fn source_stop_request_fades_the_active_transition_with_its_source_blend_out() {
-        let mut playback = AlsTransitionPlayback::crouching_stop_right();
-        playback.advance(STOP_TRANSITION_BLEND_IN);
-        assert_eq!(playback.weight, 1.0);
-        playback.request_stop();
-        playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
-        assert!((playback.weight - 0.5).abs() < 1e-6);
-        playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
-        assert!(!playback.active);
-        assert_eq!(playback.weight, 0.0);
+        for mut playback in [AlsTransitionPlayback::standing_transition_right(), AlsTransitionPlayback::crouching_stop_right()] {
+            playback.advance(STOP_TRANSITION_BLEND_IN);
+            assert_eq!(playback.weight, 1.0);
+            let start = playback.clip_time;
+            playback.request_stop();
+            playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
+            assert!((playback.weight - 0.5).abs() < 1e-6);
+            assert!((playback.clip_time - start - STOP_TRANSITION_BLEND_OUT * 0.5 * playback.play_rate).abs() < 1e-6);
+            playback.advance(STOP_TRANSITION_BLEND_OUT * 0.5);
+            assert!(!playback.active);
+            assert_eq!(playback.weight, 0.0);
+            assert!((playback.clip_time - start - STOP_TRANSITION_BLEND_OUT * playback.play_rate).abs() < 1e-6);
+            let end = playback.clip_time;
+            playback.advance(1.0);
+            assert_eq!(playback.clip_time, end);
+        }
     }
 }

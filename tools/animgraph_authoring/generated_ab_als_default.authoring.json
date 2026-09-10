@@ -93,6 +93,14 @@
     {
       "path": "target/bf115_overlays/source/UE_AnimationRuntime.ispc",
       "sha256": "2da79abf44f4d82720ccdaac5048a9c4a66c6d157fcc9fd7b816651fd018e375"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimMontage.cpp",
+      "sha256": "fc1ab305be72785401c0ad873558008145125f691cc41670dfebe982fbd61842"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_Slot.cpp",
+      "sha256": "eb59616fb262756bc458cf4210ff1c63c8984e5f6e6c0c51a15024733876d525"
     }
   ],
   "graphs": [
@@ -319,7 +327,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_mesh_spec.json"
+        "target/bf115_overlays/default_stop_clock_spec.json"
       ]
     },
     {
@@ -516,6 +524,17 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/default_mesh_regression.watchdog.json"
+    },
+    {
+      "label": "transition_stop_advances_sampling_time_during_fade",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_stop_clock_pass.watchdog.json"
     }
   ]
 }

@@ -703,6 +703,19 @@
 
   - 05d3c静态完成/05d3b恢复运行前2026-09-10 20:48:25：342底层/305项目45.626s、最终同入口134.201s、19图fresh spec3.227s及十命令声明式6.347s PASS。父部分/满权重、child显式/稀疏与空Pose边界均通过；单独移除稀疏补偿条件的23.173s失败已恢复。fresh Layering与UE普通/ISPC源记录纳入当前manifest；未修改Layering图/mask/Alpha或其他区域。开始20:21、预估20:42:30、实际静态完成20:47:25（偏差+4m55s）。以下新startup再完整Default，并读取新增的实际上游状态；BF109.05的有限复开与整个Default仍待真实Gate，不以共享函数正确替代故障消除。
 
+
+  - 05d3b mesh-space修复startup通过/完整动作前2026-09-10 20:52:04：bc1fb22公共startup15.503s PASS，frame p95 17.9241ms/max21.3746ms、eval p95 0.0676ms；fault/graph/temporal为空、0截图。342/305回归、134.201s同入口、fresh spec与十命令静态闭合；以下完整Default保留原动作和全部守卫，并记录已声明的上游状态。
+
+
+  - 05d3b最新完整结果与真实冻结输入2026-09-10 20:58:34：bc1fb22 Default18.634s manual0，六窗口及全部自身coverage通过、frame p95 21.87ms/max39.1809ms、0截图；时间守卫仍拒绝final calf_r 0.7693371rad/0.0152335s=50.50298rad/s。新增实际读数证明首次起跳正在播放A_Als_Stand_Transition_Right，满权重时Standing底图未求值；本地UE Slot默认bAlwaysUpdateSourcePose=false且满权重跳过Source，与目标相符，不修改。停止后播放器clip_time持续冻结于1.20329547，而weight依次0.9366/0.8653/0.7989/0.7227；fresh FAnimMontageInstance::Stop仅在BlendTime<=0时设置bPlaying=false，Advance在正常淡出仍推进Position。target AlsTransitionPlayback::advance在stop_elapsed分支提前return、没有推进elapsed/clip_time，构成当次实际帧序列的明确源差异。
+  - 第四轮前全过程复盘2026-09-10 20:58:34：第三轮开始19:35、预估20:42:30，到本次复盘仍未完成（偏差16.1分钟）；暂停实现与新runtime，重读05a–05d、原source闭包、输入参数和各失败报告。Default转换值/固定帧/叠加/曲线/同步/预测已实际闭合，Linked context与无FSM签名分别由组合fixture修正；之后独立数学复算排除BasicIK给定输入的求解误差。足锁准备/组件空间/同目标消费是确证差异，迁移中错误的PoseState reader已用正值fixture修正；共享mesh-space排除骨语义也有独立source反例，但都未充分解释首次起跳故障，不能宣称故障已修复。主要验证缺口是最早只记录Rig结果，未同时保存实际Slot播放器生命周期，直至本轮才能看到满权重抑制底图和淡出时钟冻结。源骨长受控替换仍超过47rad/s，不作为当前修复。此次从真正参与失败帧的单一播放器停止路径开始，先证明时间推进，再核对原Default整段和共享生命周期；保留原所有动作与阈值，不改场景等待来回避重叠。
+  - 纠正拆分：按上一67分30秒窗口的1.5倍，第四轮开始2026-09-10 20:58:34、预估2026-09-10 22:39:49。剩余被拆为三个各不超过60分钟的独立Gate：源停止时钟静态、Default完整场景、原共享回归。估时以单个共享advance函数及现成source停止fixture、约25秒项目回归/约70秒同入口、完整Default约19秒及其余四case记录为依据，余量用于首个仍未闭合的实际源输入链；不再无证据扩展骨骼算法。
+  - [x] BF115.05d4a 停止请求后的播放时钟：开始2026-09-10 20:58:34、预估2026-09-10 21:33:34。沿fresh UE Stop/Advance和当前实际Transition更新→采样唯一消费者，扩展旧停止fixture使其先拒绝冻结时间，再把既有时间推进放到淡出分支之前，保持权重/结束/夹末帧逻辑。适用回归、同入口/source/static通过后单独提交。本段不启动runtime。
+  - [ ] BF115.05d4b Default全部原输入：实际开始2026-09-10 21:11:00、预估2026-09-10 21:46:00。依赖4a；新startup及完整六窗口、两次跳跃，保留首次起跳与过渡动画的真实重叠，确认停止后的实际clip_time推进及公共Root/pre-rig/final/时钟/性能守卫。CaptureCount=0。
+  - [ ] BF115.05d4c 共享动作与Default收口：预定开始2026-09-10 22:08:34、预估2026-09-10 22:39:49。依赖4b；原grounded九/locomotion十四及已登记standing_turn、crouching完整回归，关闭相关有限复开和Default；全目标随后仍进入Layering→Head→CR→AB_Als，其余12 overlays留待用户另行安排。
+
+  - 05d4a静态完成/4b运行前2026-09-10 21:11:00：扩展既有站立/下蹲停止fixture后33.474s稳定FAIL于冻结clip_time；将已有elapsed/clip_time推进移到停止淡出分支之前，305项目21.020s PASS。半程/结束权重、正淡出期间采样时间及停止后的静止时钟均覆盖，旧顺序即失败消融；无新状态、参数或分支。最终同入口67.499s、19图fresh spec2.898s、十命令声明式4.520s PASS，fresh UE Stop/Advance和Slot源记录匹配。开始20:58:34、预估21:33:34、实际静态完成21:09:28（偏差-24m06s），该静态子项闭合；下面提前开始4b新startup及原完整Default，停止时钟的实际推进和小腿公共守卫仍待真实验证，相关归档有限复开保持。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
