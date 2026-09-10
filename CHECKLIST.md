@@ -498,7 +498,7 @@
 
   - 04d完成2026-09-10 11:27:00：339项als-ext与285项项目回归25.230s PASS，包含真实节点调用、当帧Bool请求、零/普通/pending Lean、落地值保留、实际物理扫掠及过滤/mesh scale/capsule消融；删除旧Actor镜像测试，保留新失败边界。公开Locomotion uasset78.187s、unsupported 0，三张调用图由原owner安装，其余43文件不变；target_game/play双example120.860s、十图fresh spec3.635s、46文件编辑器零修复0.271s与完整32图/64 Pose节点/50边/两FSM/18条件声明式4.204s PASS。manifest曾将Cargo测试误列为只读命令而0.274s失败，按原schema分离为已执行的focused_tests证据，Python只读审计保持原入口；未修改审计器或增加包装器。Actor现在只准备真实物理/曲线输入，InAirState和Lean由生成节点按源位置/生命周期写入，两个手工FSM、四个时钟及虚假transition receipt全部删除；Jump变体与phase读取实际播放器。开始10:37、预估11:32、实际结束11:27（偏差-5m）；结果为生产执行静态闭合，尚未启动Locomotion真实场景，下一段补完整动作观测/fixture后再进行公共数值Gate。
 
-- [ ] BF115.04e Locomotion完整动作观测与场景静态闭环：开始2026-09-10 11:27:00、预估12:22:00。依赖04d，沿32源子图/两FSM/18条件及九个速度混合区间，为左右Jump Walk/Run、Jump Loop/Flail、Fall/Fast/Flail、预测和Land/Land Movement建立真实状态、clip/weight/phase、曲线与生命周期读数及源前提驱动。复用既有Playground场地、输入、逐帧采样、canonical和watchdog；不能用Actor猜测、固定时间推进或请求值充当实际状态。先读完整条件/分支和既有公共case，做最小场景/reader fixture、设计消融与同入口静态；完成后另立不超过60分钟的无截图startup及动作Gate。估时依据为已完成实际执行和数据闭包、Standing/Crouching场景迁移记录及现有零截图公共runner；本段只制作/验证场景与观测，不启动runtime、不展开后续模块。
+- [x] BF115.04e Locomotion完整动作观测与场景静态闭环：开始2026-09-10 11:27:00、预估12:22:00。依赖04d，沿32源子图/两FSM/18条件及九个速度混合区间，为左右Jump Walk/Run、Jump Loop/Flail、Fall/Fast/Flail、预测和Land/Land Movement建立真实状态、clip/weight/phase、曲线与生命周期读数及源前提驱动。复用既有Playground场地、输入、逐帧采样、canonical和watchdog；不能用Actor猜测、固定时间推进或请求值充当实际状态。先读完整条件/分支和既有公共case，做最小场景/reader fixture、设计消融与同入口静态；完成后另立不超过60分钟的无截图startup及动作Gate。估时依据为已完成实际执行和数据闭包、Standing/Crouching场景迁移记录及现有零截图公共runner；本段只制作/验证场景与观测，不启动runtime、不展开后续模块。
 
   - 04e源/场景前提2026-09-10 11:52:00：同次32图/两FSM/18条件已逐项回读：脚底曲线≤0选Left、>0选Right，Jump速度2–5m/s连续混合；起跳片段完整结束后自动进入Loop，再以源恒true条件用1秒过渡到Flail，不能要求Loop长时间稳定。Fall的Fast/Fall/Flail按三条实际混合边取证，不按片段名称猜测速度。CS_Als_Default直接native重读33.960s确认默认落地7m/s翻滚、10m/s Ragdoll；高台长空中段仅验到已发生的Loop/Flail及落地预测，随后显式fixture重置，低落差单独验证Land/Land Movement和完整Grounded回调，不能把默认动作接管当动画故障或禁用其算法。重落地additive在默认翻滚阈值之前权重为0，其7.5–15m/s混合合同仍由完整源/生成数据与标量fixture验收，不伪称默认场景实际完整播放。原Playground18米高台及原平地保持，新增两个FSM/13片段/实际blend alpha只读观测，无私有动画状态机。新场景首次编译16.302s在JSON数组表达式失败、第二次11.902s在NodeId显示格式失败，均为新观测调用错误，已修正后继续focused验证；未启动runtime。
 
@@ -574,6 +574,8 @@
   - 04f3共享Gate通过/04b关闭2026-09-10 14:59:00：公共crouching40.336s PASS，12窗口、零截图；连同grounded9窗口42.757s、standing_response9窗口19.928s，三十共享窗口全部manual0/validator0，无fault/graph/temporal。Locomotion十四窗口29.956s同样PASS，frame p95 14.9085ms/max28.3111ms、eval p95 0.0875ms。32源图/46RON、完整源码/单位/生命周期和296项目（另243 core/339 ext）证据闭合；04b本轮原生FSM排序边界关闭，先独立提交native读取器/转换器与四份生成执行数据，再分别收口物理模式、观测和脚锁修复。
 
   - 04d物理模式/接触有限复开关闭2026-09-10 15:01:00：当前controller模式同帧发布、原事件恰好一次、Ragdoll请求保护及无反弹落地的最小物理反例均PASS；243 core/339 ext/296项目、十四Locomotion和三十共享窗口全通过。仅改实际模式提交阶段、直接消费者顺序与现有阻尼的速度抵消比例，没有新增物理时钟、状态、动画锁存或阈值；该scope独立提交，原04d其它已通过内容保持。
+
+  - 04e观测有限复开关闭2026-09-10 15:01:00：移动落地按实际Land Movement出口验收，短窗口逐帧采样、父FSM状态、已插值alpha与片段权重、重置后新动作触发都由最小失败约束；全部十四实际窗口和完整生命周期已通过公共验收。复用原collector、现有计时与真实图缓存，未增加Actor镜像或降低canonical/姿态/时间阈值；观测scope独立提交。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

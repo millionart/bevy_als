@@ -779,6 +779,7 @@ struct LocomotionGraphSample {
     outer_transition: Option<bool>,
     outer_weights: [f32; 5],
     jump_weights: [f32; 4],
+    jump_run_alpha: [Option<f32>; 2],
     clips: Vec<LocomotionClipSample>,
     blends: Vec<(String, f32)>,
     vertical: Option<f32>,
@@ -796,7 +797,7 @@ struct LocomotionActionProbe {
     valid: bool,
     airborne_seen: bool,
     ready_since: Option<f64>,
-    landed_since: Option<f64>,
+    landed_since: Option<(f64, u8)>,
     land_notify_start: u32,
     covered: [bool; 14],
     canonical_seen: [bool; 14],
@@ -804,6 +805,17 @@ struct LocomotionActionProbe {
 }
 
 impl LocomotionActionProbe {
+    fn record_airborne(&mut self, actual: &LocomotionGraphSample, locomotion: LocomotionState) {
+        self.airborne_seen |= self.triggered && locomotion == LocomotionState::Air
+            && (actual.outer_weights[1] > 0.05 || actual.outer_weights[2] > 0.05);
+    }
+
+    fn landing_completed(&self, actual: &LocomotionGraphSample, time: f64, notify: u32) -> bool {
+        actual.outer == Some(0) && actual.outer_transition == Some(false)
+            && self.landed_since.is_some_and(|(since, state)| time - since >= 0.35
+                && (state == 4 || notify > self.land_notify_start))
+    }
+
     fn record_window(&mut self, index: usize, window: &ManualAnimationWindowEvidence, sample: LocomotionClipSample, delta: f32) {
         self.window_seconds[index] += delta;
         self.canonical_seen[index] |= locomotion_window_canonical(window, sample);
@@ -875,6 +887,10 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
             if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceTwoWayBlendNode>()
                 && let Ok(state) = child.node_states.get::<als_ext::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) {
                 output.blends.push((node.id.uuid().to_string(), state.blend_alpha));
+                if blend.alpha_key == "locomotion_state.speed"
+                    && let Some(side) = (0..2).find(|side| path.path() == std::path::Path::new(locomotion_clip_graph(*side))) {
+                    output.jump_run_alpha[side] = Some(state.blend_alpha);
+                }
                 if path.path() == std::path::Path::new(LOCOMOTION_FALL) {
                     if blend.alpha_key == "in_air_state.ground_prediction_amount" { prediction_alpha = Some(state.blend_alpha); }
                     if blend.alpha_key == "in_air_state.vertical_velocity_world_space" && blend.mapping.input_min == -5.0 && blend.mapping.input_max == -30.0 { flail_alpha = Some(state.blend_alpha); }
@@ -908,11 +924,11 @@ fn locomotion_jump_ready(index: usize, outer: Option<u8>, speed: f32, foot: Opti
         && foot.is_some_and(|value| if index % 2 == 0 { value < -0.5 } else { value > 0.5 })
 }
 
-fn locomotion_jump_weights_match(clips: &[LocomotionClipSample], speed: f32) -> bool {
+fn locomotion_jump_weights_match(clips: &[LocomotionClipSample], run_alpha: [Option<f32>; 2]) -> bool {
     for (walk, run) in [(0, 2), (1, 3)] {
         let weight = |index| clips.iter().filter(|sample| sample.index == index).map(|sample| sample.weight).sum::<f32>();
         let total = weight(walk) + weight(run);
-        if total > 0.05 && (weight(run) / total - ((speed - 2.0) / 3.0).clamp(0.0, 1.0)).abs() > 0.015 { return false; }
+        if total > 0.05 && run_alpha[walk].is_none_or(|alpha| !alpha.is_finite() || (weight(run) / total - alpha).abs() > 0.015) { return false; }
     }
     true
 }
@@ -958,7 +974,7 @@ fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &Locomo
     }
     chain.push(ManualAnimationPoseBoundary { label: "locomotion_fsm", graph: LOCOMOTION_ROOT, node: "Locomotion States\nState Machine", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05 });
     ManualAnimationWindowEvidence {
-        label: Some(LOCOMOTION_WINDOW_LABELS[index]), index: Some(index), settled: true, capture_source_window: true,
+        label: Some(LOCOMOTION_WINDOW_LABELS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
         requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
         source_node: Some("AB_Als_Locomotion/Locomotion States"), source_state: Some(if sample.index <= 5 { "Jump" } else if sample.index <= 8 { "Fall" } else if sample.index <= 10 { "Land" } else { "Land Movement" }),
         source_pose_chain: chain, minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05, minimum_observation_seconds: 0.12,
@@ -968,7 +984,7 @@ fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &Locomo
         direction_signature_group: if index <= 3 { Some("jump_starts") } else if matches!(index, 6 | 7) { Some("fall_sources") } else { None }, required_direction_signature_members: if index <= 3 { 4 } else if matches!(index, 6 | 7) { 2 } else { 0 }, minimum_direction_signature_rotation_radians: if index <= 3 || matches!(index, 6 | 7) { 0.05 } else { 0.0 },
         expected_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[index]), observed_direction: (index <= 3 || matches!(index, 6 | 7)).then_some(LOCOMOTION_WINDOW_LABELS[sample.index]),
         expected_runtime_state: if index <= 3 { Some((index % 2) as u8) } else if matches!(index, 6 | 7) { Some(1) } else { None }, observed_runtime_state: if index <= 3 { actual.jump } else if matches!(index, 6 | 7) { actual.outer } else { None },
-        expected_parent_runtime_state: (!(6..=8).contains(&sample.index)).then_some(if sample.index <= 5 { 2 } else if sample.index <= 10 { 3 } else { 4 }), observed_parent_runtime_state: actual.outer,
+        expected_parent_runtime_state: (!(6..=8).contains(&sample.index)).then_some(if sample.index <= 5 { 2 } else if sample.index <= 10 { 3 } else { 4 }), observed_parent_runtime_state: actual.outer, observed_parent_transition_active: actual.outer_transition,
         expected_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0), observed_animation_variant: Some(LOCOMOTION_CLIPS[sample.index].0),
         observed_animation_clip_time: Some(sample.time), observed_animation_weight: Some(sample.weight), observed_animation_play_rate: Some(sample.play_rate),
         ..default()
@@ -999,8 +1015,8 @@ fn observe_locomotion_actions(
         probe.ready_since = None;
     }
     if !probe.airborne_seen { probe.land_notify_start = notify; }
-    probe.airborne_seen |= locomotion == LocomotionState::Air && (actual.outer_weights[1] > 0.05 || actual.outer_weights[2] > 0.05);
-    probe.valid &= locomotion_jump_weights_match(&actual.clips, speed);
+    probe.record_airborne(&actual, locomotion);
+    probe.valid &= locomotion_jump_weights_match(&actual.clips, actual.jump_run_alpha);
     let clip = |index| actual.clips.iter().copied().filter(|sample| sample.index == index && sample.weight > 0.05).max_by(|a, b| a.weight.total_cmp(&b.weight));
     let mut selection = None;
     if index < 4 && actual.outer == Some(2) && actual.jump == Some((index % 2) as u8) {
@@ -1016,7 +1032,7 @@ fn observe_locomotion_actions(
         }
         if target.is_none() && actual.prediction.is_some_and(|amount| amount > 0.05) && actual.prediction_pose_ready && actual.outer == Some(1) {
             *window = ManualAnimationWindowEvidence {
-                label: Some(LOCOMOTION_WINDOW_LABELS[9]), settled: true, capture_source_window: true,
+                label: Some(LOCOMOTION_WINDOW_LABELS[9]), settled: true, capture_source_window: true, capture_every_frame: true,
                 requires_non_reference_root_pose: true, requires_source_pose_chain: true,
                 source_node: Some("AB_Als_Locomotion/Fall/GroundPrediction"), source_state: Some("Fall"),
                 source_pose_chain: vec![ManualAnimationPoseBoundary { label: "predicted_land_pose", graph: LOCOMOTION_FALL, node: "A_Als_Land_Heavy\nSequence Evaluator (by frame)", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }],
@@ -1030,20 +1046,20 @@ fn observe_locomotion_actions(
         }
     }
     if locomotion == LocomotionState::Grounded && probe.airborne_seen {
-        if matches!(actual.outer, Some(3 | 4)) {
-            probe.landed_since.get_or_insert(state.game_time_seconds);
+        if let Some(landed_state @ (3 | 4)) = actual.outer {
+            probe.landed_since.get_or_insert((state.game_time_seconds, landed_state)).1 = landed_state;
             if index == 0 && actual.outer == Some(3) { selection = clip(9).map(|sample| (10, sample)); }
             if index == 6 && actual.outer == Some(3) { selection = clip(10).map(|sample| (11, sample)); }
             if index == 2 && actual.outer == Some(4) { selection = clip(11).map(|sample| (12, sample)); }
         }
-        if actual.outer == Some(0) && actual.outer_transition == Some(false)
-            && probe.landed_since.is_some_and(|since| state.game_time_seconds - since >= 0.35) && notify > probe.land_notify_start {
-            probe.completed = true;
+        if probe.landing_completed(&actual, state.game_time_seconds, notify) {
+            probe.completed = probe.ready_since.is_some_and(|since| state.game_time_seconds - since >= 0.12);
             if index == 0 {
-                probe.covered[13] = true;
-                *window = ManualAnimationWindowEvidence { label: Some(LOCOMOTION_WINDOW_LABELS[13]), settled: true, capture_source_window: true,
+                probe.covered[13] |= probe.completed;
+                *window = ManualAnimationWindowEvidence { label: Some(LOCOMOTION_WINDOW_LABELS[13]), settled: true, capture_source_window: true, capture_every_frame: true,
                     requires_non_reference_root_pose: true, source_node: Some("AB_Als_Locomotion/AnimNotify_LandToGrounded"), source_state: Some("Grounded"),
-                    expected_runtime_state: Some(0), observed_runtime_state: actual.outer, expected_lifecycle_stages: &["complete"], observed_lifecycle_stages: &["complete"], ..default() };
+                    expected_runtime_state: Some(0), observed_runtime_state: actual.outer, minimum_observation_seconds: 0.06,
+                    expected_lifecycle_stages: &["complete"], observed_lifecycle_stages: &["complete"], ..default() };
             }
         }
     }
@@ -8702,6 +8718,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn locomotion_landing_completion_follows_the_observed_source_exit() {
+        let mut probe = LocomotionActionProbe { landed_since: Some((0.0, 4)), land_notify_start: 2, ..default() };
+        let mut actual = LocomotionGraphSample { outer: Some(0), outer_transition: Some(false), ..default() };
+        assert!(probe.landing_completed(&actual, 1.0, 2));
+        probe.landed_since = Some((0.0, 3));
+        assert!(!probe.landing_completed(&actual, 1.0, 2));
+        assert!(probe.landing_completed(&actual, 1.0, 3));
+        actual.outer_transition = Some(true);
+        assert!(!probe.landing_completed(&actual, 1.0, 3));
+        actual.outer_transition = Some(false);
+        actual.outer = Some(3);
+        assert!(!probe.landing_completed(&actual, 1.0, 3));
+    }
+
+    #[test]
+    fn locomotion_fixture_reset_does_not_claim_the_previous_air_action() {
+        let mut probe = LocomotionActionProbe::default();
+        let actual = LocomotionGraphSample { outer: Some(2), outer_weights: [0.0, 0.0, 1.0, 0.0, 0.0], ..default() };
+        probe.record_airborne(&actual, LocomotionState::Air);
+        assert!(!probe.airborne_seen);
+        probe.triggered = true;
+        probe.record_airborne(&actual, LocomotionState::Air);
+        assert!(probe.airborne_seen);
+    }
+
+    #[test]
+    fn locomotion_source_windows_preserve_short_samples_and_actual_parent_transition() {
+        let sample = LocomotionClipSample { index: 9, time: 0.2, duration: 1.0, weight: 1.0, phase: Some(0.2), play_rate: 1.0, looping: false };
+        let actual = LocomotionGraphSample { outer: Some(3), outer_transition: Some(false), ..default() };
+        let window = locomotion_window(10, sample, &actual);
+        assert!(window.capture_every_frame);
+        assert_eq!(window.observed_parent_transition_active, Some(false));
+        assert_eq!(window.observed_animation_clip_time, Some(0.2));
+    }
+
+    #[test]
     fn locomotion_source_inputs_and_watchdog_keep_missing_values_visible() {
         let mut player = AnimationGraphPlayer::new(default());
         assert_eq!(locomotion_source_scalar(&player, "feet_state.foot_planted_amount"), None);
@@ -8738,10 +8790,29 @@ mod tests {
                 LocomotionClipSample { index: index % 2, time: 0.2, duration: 1.0, weight: (1.0 - run) * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
                 LocomotionClipSample { index: index % 2 + 2, time: 0.2, duration: 1.0, weight: run * 0.3, phase: Some(0.35), play_rate: 1.3, looping: false },
             ];
-            assert!(locomotion_jump_weights_match(&clips, speed));
+            assert!(locomotion_jump_weights_match(&clips, [Some(run); 2]));
+            assert!(!locomotion_jump_weights_match(&clips, [None; 2]));
             clips[1].weight += 0.1;
-            assert!(!locomotion_jump_weights_match(&clips, speed));
+            assert!(!locomotion_jump_weights_match(&clips, [Some(run); 2]));
         }
+    }
+
+    #[test]
+    fn locomotion_jump_weights_keep_source_alpha_interpolation_on_speed_changes() {
+        use als_ext::source_pose_nodes::{SourceAlphaMapping, SourceInputScaleBiasClampState, apply_source_input_scale_bias_clamp};
+        let mut mapping = SourceAlphaMapping { source_semantics: true, map_range: true, input_min: 2.0, input_max: 5.0, interpolate_result: true, interpolate_speed_increasing: 5.0, interpolate_speed_decreasing: 5.0, ..default() };
+        let mut state = SourceInputScaleBiasClampState::default();
+        apply_source_input_scale_bias_clamp(&mut state, 3.75, &mapping, 0.0132349);
+        let alpha = apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349).clamp(0.0, 1.0);
+        assert!((alpha - 0.5349207).abs() < 1e-5);
+        let clips = [
+            LocomotionClipSample { index: 0, time: 1.1970694, duration: 1.6666665, weight: 0.12463666, phase: Some(0.7182417), play_rate: 1.3875, looping: false },
+            LocomotionClipSample { index: 2, time: 1.1970694, duration: 1.6666665, weight: 0.14335346, phase: Some(0.7182417), play_rate: 1.3875, looping: false },
+        ];
+        assert!(locomotion_jump_weights_match(&clips, [Some(alpha), None]));
+        mapping.interpolate_result = false;
+        let unfiltered = apply_source_input_scale_bias_clamp(&mut state, 1.5552317, &mapping, 0.0132349).clamp(0.0, 1.0);
+        assert!(!locomotion_jump_weights_match(&clips, [Some(unfiltered), None]));
     }
 
     #[test]
