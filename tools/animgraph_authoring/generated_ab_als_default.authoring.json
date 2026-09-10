@@ -363,7 +363,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_movement_phase_spec.json"
+        "target/bf115_overlays/default_air_capture_spec.json"
       ]
     },
     {
@@ -630,6 +630,18 @@
         "marked_players_evaluate_once_after_physics_while_samplers_stay_before_it"
       ],
       "evidence": "target/bf115_overlays/default_phase_parallel.watchdog.json"
+    },
+    {
+      "label": "default_air_capture_continues_after_coverage",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "--jobs",
+        "2",
+        "default_overlay_"
+      ],
+      "evidence": "target/bf115_overlays/default_air_capture_pass.watchdog.json"
     }
   ]
 }

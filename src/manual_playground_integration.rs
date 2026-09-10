@@ -785,6 +785,15 @@ struct DefaultOverlayProbe {
     jump_completed: bool,
 }
 
+impl DefaultOverlayProbe {
+    fn air_window(&self, prediction: Option<f32>) -> Option<usize> {
+        if !self.airborne_seen || !(self.case_index == 3 || self.case_index == 4) { return None; }
+        if prediction.is_some_and(|value| value < 0.1) { Some(3) }
+        else if prediction.is_some_and(|value| value > 0.1 && value < 0.99) { Some(4) }
+        else { None }
+    }
+}
+
 fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
     if actual.paths.len() != expected.paths.len() { return None; }
     let mut error = 0.0_f32;
@@ -6174,11 +6183,7 @@ fn observe_manual_integration(
             else if index == 0 && grounded && standing && speed < 0.1 && walking.is_some_and(|value| value < 0.01) { Some(0) }
             else if index == 1 && grounded && standing && speed > 0.5 && walking.is_some_and(|value| value > 0.99) { Some(1) }
             else if index == 2 && grounded && crouching && speed > 0.1 { Some(2) }
-            else if (index == 3 || index == 4) && probe.airborne_seen && air {
-                if !probe.covered[3] && sample.prediction_alpha.is_some_and(|value| value < 0.1) { Some(3) }
-                else if sample.prediction_alpha.is_some_and(|value| value > 0.1 && value < 0.99) { Some(4) }
-                else { None }
-            }
+            else if air { probe.air_window(sample.prediction_alpha) }
             else if index == 5 && standing && grounded && speed < 0.1 { Some(5) }
             else { None };
         if let Some(selected) = selection {
@@ -9055,6 +9060,15 @@ mod tests {
 
     #[test]
     fn default_overlay_windows_bind_all_source_frames_and_bound_progress() {
+        let mut probe = DefaultOverlayProbe { case_index: 3, airborne_seen: true, ..default() };
+        for covered in [false, true] {
+            probe.covered[3] = covered;
+            assert_eq!(probe.air_window(Some(0.0)), Some(3));
+            assert_eq!(probe.air_window(Some(0.5)), Some(4));
+        }
+        assert_eq!(probe.air_window(None), None);
+        probe.case_index = 5;
+        assert_eq!(probe.air_window(Some(0.0)), None);
         let graph = std::fs::read_to_string(format!("assets/{DEFAULT_OVERLAY_GRAPH}")).unwrap();
         for index in 0..6 {
             let window = default_overlay_window(index, &DefaultOverlayGraphSample { idle_duration: Some(2.666667), ..default() });

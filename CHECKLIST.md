@@ -711,7 +711,7 @@
   - 第四轮前全过程复盘2026-09-10 20:58:34：第三轮开始19:35、预估20:42:30，到本次复盘仍未完成（偏差16.1分钟）；暂停实现与新runtime，重读05a–05d、原source闭包、输入参数和各失败报告。Default转换值/固定帧/叠加/曲线/同步/预测已实际闭合，Linked context与无FSM签名分别由组合fixture修正；之后独立数学复算排除BasicIK给定输入的求解误差。足锁准备/组件空间/同目标消费是确证差异，迁移中错误的PoseState reader已用正值fixture修正；共享mesh-space排除骨语义也有独立source反例，但都未充分解释首次起跳故障，不能宣称故障已修复。主要验证缺口是最早只记录Rig结果，未同时保存实际Slot播放器生命周期，直至本轮才能看到满权重抑制底图和淡出时钟冻结。源骨长受控替换仍超过47rad/s，不作为当前修复。此次从真正参与失败帧的单一播放器停止路径开始，先证明时间推进，再核对原Default整段和共享生命周期；保留原所有动作与阈值，不改场景等待来回避重叠。
   - 纠正拆分：按上一67分30秒窗口的1.5倍，第四轮开始2026-09-10 20:58:34、预估2026-09-10 22:39:49。剩余被拆为三个各不超过60分钟的独立Gate：源停止时钟静态、Default完整场景、原共享回归。估时以单个共享advance函数及现成source停止fixture、约25秒项目回归/约70秒同入口、完整Default约19秒及其余四case记录为依据，余量用于首个仍未闭合的实际源输入链；不再无证据扩展骨骼算法。
   - [x] BF115.05d4a 停止请求后的播放时钟：开始2026-09-10 20:58:34、预估2026-09-10 21:33:34。沿fresh UE Stop/Advance和当前实际Transition更新→采样唯一消费者，扩展旧停止fixture使其先拒绝冻结时间，再把既有时间推进放到淡出分支之前，保持权重/结束/夹末帧逻辑。适用回归、同入口/source/static通过后单独提交。本段不启动runtime。
-  - [ ] BF115.05d4b Default全部原输入：实际开始2026-09-10 21:10:13、预估2026-09-10 21:45:13。依赖4a；新startup及完整六窗口、两次跳跃，保留首次起跳与过渡动画的真实重叠，确认停止后的实际clip_time推进及公共Root/pre-rig/final/时钟/性能守卫。CaptureCount=0。
+  - [x] BF115.05d4b Default全部原输入：实际开始2026-09-10 21:10:13、预估2026-09-10 21:45:13。依赖4a；新startup及完整六窗口、两次跳跃，保留首次起跳与过渡动画的真实重叠，确认停止后的实际clip_time推进及公共Root/pre-rig/final/时钟/性能守卫。CaptureCount=0。
   - [ ] BF115.05d4c 共享动作与Default收口：预定开始2026-09-10 22:08:34、预估2026-09-10 22:39:49。依赖4b；原grounded九/locomotion十四及已登记standing_turn、crouching完整回归，关闭相关有限复开和Default；全目标随后仍进入Layering→Head→CR→AB_Als，其余12 overlays留待用户另行安排。
 
   - 05d4a静态完成/4b运行前2026-09-10 21:11:00：扩展既有站立/下蹲停止fixture后33.474s稳定FAIL于冻结clip_time；将已有elapsed/clip_time推进移到停止淡出分支之前，305项目21.020s PASS。半程/结束权重、正淡出期间采样时间及停止后的静止时钟均覆盖，旧顺序即失败消融；无新状态、参数或分支。最终同入口67.499s、19图fresh spec2.898s、十命令声明式4.520s PASS，fresh UE Stop/Advance和Slot源记录匹配。开始20:58:34、预估21:33:34、实际静态完成21:09:28（偏差-24m06s），该静态子项闭合；下面提前开始4b新startup及原完整Default，停止时钟的实际推进和小腿公共守卫仍待真实验证，相关归档有限复开保持。
@@ -754,6 +754,21 @@
   - 05d4b阶段接入回归2026-09-10 22:49:00：完整Playable插件DAG、344底层/307项目42.957s PASS；保持依赖原并行方式后focused29.207s PASS，移除player后阶段标记的受控路径只得到旧值，单次frame_index仍保持，证明标记用于阶段选择而非补跑。原源图/参数/骨骼求解与物理delta clamp算法不变，复用公开remove_systems_in_set和run_animation_player，无依赖改动；Default原trace增加实际根图evaluation_frame以验证真实入口每帧一次。当前同入口构建中，随后19图spec/声明式与startup→Default完整动作，阶段调整尚未作为运行时成功结论。
 
   - 05d4b本轮source/static闭合与运行前2026-09-10 22:54:00：本轮源时序前提和跨阶段最小反例已于22:12:09取得；阶段接入的完整Playable DAG、344/307回归42.957s、并行/单次求值及移除标记消融29.207s PASS。同入口114.400s、19图fresh spec3.156s、十命令声明式4.500s PASS。采用公开schedule替换和原run_animation_player，保留原并行更新、错误处理与montage/root-motion采样前阶段；Actor主图及其输入改为物理后，原80/79通道和所有数值守卫仍保持。当前源码含两条仅test使用的import编译warning，不影响该构建结果。本轮整个4b原预估22:58:36及父项22:59:49复盘界线不变；先独立startup，再原完整Default，尚未将输入时序修复认定为故障已消除。
+
+  - 05d4b物理后求值startup通过/完整动作前2026-09-10 22:56:20：cf202f8 startup15.219s PASS，frame p95 14.1943ms/max27.288ms，图/Root/pre-rig/final/时间守卫均通过，0截图。344/307、实际物理移动fixture、并行单次求值消融、19图spec和十命令静态均通过；现在原完整Default六窗口、两次跳跃及Stop重叠，验证实际evaluation_frame与公共数值边界。
+
+  - 05d第四轮父项复盘/下一轮登记2026-09-10 23:02:34：第四轮开始20:58:34、预估22:39:49，到22:59:49容差未完成；实现及新runtime已暂停。cf202f8完整Default18.091s的运行时数值判定为PASS，原右小腿突变消失，fault/temporal/graph为空、frame p95 20.6375ms/max26.7664ms；六窗口/14coverage/source公式全部通过。公共validator只拒绝default_air观测0.0510219秒低于原0.06秒。原因已定位为场景在covered[3]达标后停止记录仍然满足源条件的Air窗口；真实trace此后仍有约0.5秒合法Air数据，当前不是角色/动画缺陷。首尾interval与累计delta的不同使首次帧时偏大时五个采样提前完成，旧测试只验窗口声明，未验完成后继续采集。此次余下先删除这个多余采集截止条件，再复用原条件完成公共窗口及七项共享动作回归；不再修改已验证的姿态算法、原动作/Stop重叠、帧时或时间阈值。
+  - 第五轮依据剩余边界重分：按上一101m15s窗口1.5倍推导，本轮开始2026-09-10 23:02:34、预估2026-09-11 01:34:26，实际完成即收口，不消耗剩余窗口。拆为三个均不超过60分钟的独立Gate：当前Air采集连续性静态/完整Default；原grounded、locomotion、standing_turn、crouching、standing_direction；阶段直接影响的ragdoll/get_up及相关有限复开收口。各子项实际开始时按约25秒focused、约70秒同入口和既有case记录登记独立起止；总目标仍为全部移植，Default之后继续Layering→Head→CR→AB_Als，其余12 overlays按用户延期。
+
+  - [x] BF115.05d5a Air窗口连续采集与完整Default收口：开始2026-09-10 23:04:23、预估2026-09-10 23:29:23。依赖已通过的源时序/同入口static；保留原0.06秒要求，先用覆盖标记已为true但Air源条件仍有效的最小反例，再删除提前停止采集条件，做适用测试、同入口/spec/声明式和startup→Default。估时依据为已定位的一处场景条件、约30秒focused与约70秒增量入口，原Default约18秒；不改actor或动画算法。
+
+  - 05d5a采集反例闭合2026-09-10 23:12:00：既有窗口fixture增加covered=true但Air源条件仍有效的路径，62.905s稳定FAIL于None/Some(3)；删除提前截止条件后5项Default focused23.146s PASS，覆盖前后均连续采集Air/Prediction，未知预测值和非跳跃case仍不采集。保留原动作、完成时刻、0.06秒窗口要求和全部Actor算法；新增方法仅提取原选择表达式供同一个fixture调用。两个仅test使用的导入移到cfg(test)，同入口增量构建中，随后fresh spec/声明式与逐项检查的startup→Default。
+
+  - 05d5a真实入口前2026-09-10 23:13:00：5项Default23.146s、同入口62.688s、19图fresh spec2.863s及十命令声明式4.235s全部PASS；源闭包和Actor物理后求值保持已验证实现。以下先独立startup，通过后才启动完整Default，保留六窗口/两次跳跃和所有公共数值守卫，CaptureCount=0。
+
+  - 05d5a startup通过/完整动作前2026-09-10 23:14:00：新入口startup15.224s PASS，公共validator issues为空、0截图；5项focused、19图spec和十命令静态均已闭合。已单独检查startup终态，下面运行原完整Default以验Air持续观测、源六窗口和原Stop重叠，不改变阈值或场景动作。
+
+  - 05d5a及4b完成2026-09-10 23:14:05：公共Default18.109s PASS，manual/validation均0、issues为空，六窗口/全部14coverage及source逐帧公式通过。Air由5帧/0.051秒恢复为70帧/1.51596秒，原0.06秒要求不变；frame p95 19.8318ms/max27.7456ms、eval p95 0.037ms，fault/temporal/graph为空、0截图，原final calf_r突变未重现。两次跳跃、原过渡重叠与停止后的采样时钟均保留。5a开始23:04:23、预估23:29:23、实际23:14:05（偏差-15m18s），修复及Gate完成；4b开始21:10:13、首预估21:45:13、第二轮预估22:58:36，实际23:14:05（对第二轮+15m29s），原完整Default边界关闭。整个Default及足输入/mesh-space/停止时钟的有限复开仍待下一项共享动作回归，不提前勾选父项。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

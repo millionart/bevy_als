@@ -1,3 +1,5 @@
+#[cfg(test)]
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use als_core::{
     character::{AlsCharacter, AlsMovementParamsHandle},
     dynamics::AlsGroundedDynamics,
@@ -13,7 +15,6 @@ use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
-    plugin::AnimationGraphSet,
 };
 use bevy_gameplay_tag::GameplayTag;
 

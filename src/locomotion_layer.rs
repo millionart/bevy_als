@@ -1,3 +1,5 @@
+#[cfg(test)]
+use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use std::sync::LazyLock;
 
 use als_core::{
@@ -11,7 +13,7 @@ use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQuery, SpatialQueryFilt
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
-    plugin::AnimationGraphSet, ragdoll::definition::ColliderLabel,
+    ragdoll::definition::ColliderLabel,
 };
 use bevy_tnua::{TnuaConfig, TnuaController, controller::TnuaActionFlowStatus};
 
