@@ -476,6 +476,14 @@
 
   - 03e完成2026-09-10 04:42:31：公共八动作runner27.105s、manual0/validator0，8窗口/15截图全部PASS；两侧Dynamic解锁→完整播放→重锁、Stop/三种QuickStop自然结束/Idle、两侧180°canonical及有符号转角通过（3.137717/3.081694rad）。frame p95 13.386ms/max27.810ms、eval p95 0.085ms，faults/graph_errors/temporal为空；两侧Dynamic与180°截图已核对。第二轮04:10:36开始、预估05:10:36、实际04:42:31（偏差-28m05s），相对首轮01:38预估总偏差+3h04m31s；前两次失败是未满足source前提的fixture和新观测编码漏配，原始动画及生产算法未改。已登记的Crouching 20个窗口（03d十二项+本项八项）闭合并单独提交；用户追加的切换/共享移动瞄准症状继续按02e联合闭包处理，不能用这些独立动作PASS替代该验收。
 
+- [x] BF115.04a Locomotion源闭包与首个转换/Actor差异：开始2026-09-10 09:47:00、预估结束10:37:00。依赖已提交Grounded联合Gate（337dcd9）和Standing/Crouching。以本地AB_Als_Locomotion uasset公开重读、完整递归图/FSM/动画/C++输入事实为唯一标准，逐项对比当前生成树与对应Actor状态/输入/生命周期；先交付可重复的首个差异与完整闭包清单，再按source证明登记后续最小实现和无截图真实Gate。估时依据为已归档同图30项递归闭包、现有全量converter与刚完成的62/22/33图审计流程；公开提取约数分钟，剩余用于源/目标合同及失败fixture，不将旧手工图或Actor输出当标准。不得展开Layering/Head/CR/Root或未经该source依赖证明的其它动作；原始导出不可变，所有新增转换仍从公开uasset入口生成。
+
+  - 用户指定读取路径2026-09-10：直接读取本地uasset，不再通过Editor/MCP。此前健康检查曾成功，但OpenEditor调用未完成，随后连接拒绝；不将这些调用当作源图事实。当前已按公开uasset入口启动新一轮有界native提取/转换并保留不可变原始记录，输出仅写隔离目录。
+
+  - 04a完成2026-09-10 10:00:00：公开uasset转换43.548s、unsupported 0；147 raw graph中32可达项（10 Pose图/2 FSM/18条件/2函数）、153节点，46生成RON，Fall/Jump/Flail/Land四同步组。当前二进制10图fresh spec2.910s通过；source审计0.834s稳定FAIL于10张已安装Pose图，覆盖64源Pose节点/50边，差异为旧Actor同步时钟、缺少当前曲线/非循环/活动状态重返策略及Land原生Rotate节点。输出仍全部隔离。fresh C++还确认OnJumped→Jump请求→NativeUpdate锁存→相关Jump/Fall的RefreshInAir消费；target将bJumped写为F32、按向上Air切换猜测跳跃，并由1150行旧Actor FSM/phase/curve推算替代图执行，InitializeLean/RefreshInAir仍只是Pose转发。只把这些直接输入/函数/资产纳入下一阶段；本项完成源清单和失败证据，不宣称动画行为已通过。开始09:47:00、预估10:37:00、实际10:00:00（偏差-37m）。
+
+- [ ] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
+
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 
 | ALS | bevy_als | 理由 |
