@@ -138,6 +138,24 @@ pub struct AlsFootIkSpaceSide {
     pub normal_world: Vec3,
     pub normal_armature_local: Vec3,
     pub raw_offset: f32,
+    pub solve_input: Option<FootIkSolveInput>,
+    pub previous_solve_input: Option<FootIkSolveInput>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, serde::Serialize)]
+pub struct FootIkSolveInput {
+    pub armature_world_trs: ([f32; 3], [f32; 4], [f32; 3]),
+    pub thigh_world_trs: ([f32; 3], [f32; 4], [f32; 3]),
+    pub calf_world_trs: ([f32; 3], [f32; 4], [f32; 3]),
+    pub foot_world_trs: ([f32; 3], [f32; 4], [f32; 3]),
+    pub target_world: [f32; 3],
+    pub target_rotation_world: [f32; 4],
+    pub pole_world: [f32; 3],
+    pub primary_axis: [f32; 3],
+    pub secondary_axis: [f32; 3],
+    pub upper_length: f32,
+    pub lower_length: f32,
+    pub weight: f32,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
@@ -213,6 +231,7 @@ struct CrAlsFootRigState {
 struct ResolvedFootTarget {
     target_world: Vec3,
     knee_world: Vec3,
+    input: FootIkSolveInput,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1152,9 +1171,11 @@ fn foot_ik_apply_system(
             }
             continue;
         }
-        if let Ok(mut space_state) = space_states.get_mut(entity) {
+        let previous_solve_inputs = if let Ok(mut space_state) = space_states.get_mut(entity) {
+            let previous = [space_state.left.solve_input, space_state.right.solve_input];
             *space_state = AlsFootIkSpaceState::default();
-        }
+            previous
+        } else { [None; 2] };
         let Ok(mut pole_state) = poles.get_mut(entity) else {
             continue;
         };
@@ -1499,6 +1520,8 @@ fn foot_ik_apply_system(
                 target_bone_local,
                 normal_world: trace.normal_world.0,
                 normal_armature_local: trace.normal_armature.0,
+                solve_input: None,
+                previous_solve_input: previous_solve_inputs[side],
                 raw_offset: if trace.has_ground_hit {
                     trace.raw_offset
                 } else {
@@ -1593,13 +1616,10 @@ fn foot_ik_apply_system(
             if let Some(resolved_target) = resolved_target
                 && let Ok(mut space_state) = space_states.get_mut(entity)
             {
-                if side == 0 {
-                    space_state.left.resolved_target_world = resolved_target.target_world;
-                    space_state.left.resolved_knee_world = resolved_target.knee_world;
-                } else {
-                    space_state.right.resolved_target_world = resolved_target.target_world;
-                    space_state.right.resolved_knee_world = resolved_target.knee_world;
-                }
+                let side = if side == 0 { &mut space_state.left } else { &mut space_state.right };
+                side.resolved_target_world = resolved_target.target_world;
+                side.resolved_knee_world = resolved_target.knee_world;
+                side.solve_input = Some(resolved_target.input);
             }
         }
         if let Ok(mut trace) = control_rig_traces.get_mut(entity) {
@@ -1624,7 +1644,6 @@ fn foot_ik_post_apply_telemetry_system(
             Entity,
             &AlsFootBones,
             &AlsFootIkSpaceState,
-            &AlsFootIkRuntime,
             &FootIkPoseBaseState,
         ),
         With<als_core::character::AlsCharacter>,
@@ -1632,11 +1651,10 @@ fn foot_ik_post_apply_telemetry_system(
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootIkApplyTelemetry, With<als_core::character::AlsCharacter>>,
 ) {
-    for (entity, bones, spaces, runtime, pose_base) in &characters {
+    for (entity, bones, spaces, pose_base) in &characters {
         let Ok(mut entry) = telemetry.get_mut(entity) else {
             continue;
         };
-        let (left_weight, right_weight) = runtime.ik_weights();
         entry.restore_translation_delta_m = pose_base.restore_translation_delta_m;
         entry.restore_rotation_delta_radians = pose_base.restore_rotation_delta_radians;
         entry.solver_translation_delta_m = pose_base.solver_translation_delta_m;
@@ -1647,10 +1665,7 @@ fn foot_ik_post_apply_telemetry_system(
                 0 => spaces.left,
                 _ => spaces.right,
             };
-            let applied_weight = match side {
-                0 => left_weight,
-                _ => right_weight,
-            };
+            let applied_weight = space.solve_input.map_or(0.0, |input| input.weight);
             let value = match (
                 bone_globals.get(chain.thigh),
                 bone_globals.get(chain.calf),
@@ -1872,9 +1887,16 @@ fn apply_chain_target(
         return None;
     };
     *foot_local = foot_local_target;
+    let trs = |value: Transform| (value.translation.to_array(), value.rotation.to_array(), value.scale.to_array());
     Some(ResolvedFootTarget {
         target_world: writeback.foot.translation,
         knee_world: writeback.calf.translation,
+        input: FootIkSolveInput {
+            armature_world_trs: trs(armature.compute_transform()),
+            thigh_world_trs: trs(current_thigh), calf_world_trs: trs(current_calf), foot_world_trs: trs(current_foot),
+            target_world: target.to_array(), target_rotation_world: foot_target_rotation.to_array(), pole_world: pole_location.to_array(),
+            primary_axis: primary_axis.to_array(), secondary_axis: secondary_axis.to_array(), upper_length: upper_len, lower_length: lower_len, weight,
+        },
     })
 }
 
@@ -2562,6 +2584,27 @@ mod tests {
             (above_threshold.remaining_seconds - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6
         );
         assert!((lifecycle.teleport_remaining - FOOT_LOCK_TELEPORT_WINDOW_SECONDS).abs() < 1e-6);
+    }
+
+    #[test]
+    fn applied_ik_telemetry_reports_the_actual_solver_weight() {
+        let mut app = App::new();
+        app.add_systems(Update, foot_ik_post_apply_telemetry_system);
+        let bones = [1.0, 0.6, 0.2].map(|height| app.world_mut().spawn(GlobalTransform::from_translation(Vec3::Y * height)).id());
+        let input = FootIkSolveInput { weight: 0.20929879, upper_length: 0.4, lower_length: 0.4, target_world: [0.0, 0.2, 0.0], ..default() };
+        let entity = app.world_mut().spawn((als_core::character::AlsCharacter,
+            AlsFootBones { left_thigh: bones[0], left_calf: bones[1], left: bones[2], left_target: None, left_virtual_target: None,
+                right_thigh: bones[0], right_calf: bones[1], right: bones[2], right_target: None, right_virtual_target: None },
+            AlsFootIkSpaceState { left: AlsFootIkSpaceSide { solve_input: Some(input), ..default() }, right: default() },
+            AlsFootIkRuntime::default(), FootIkPoseBaseState::default(), AlsFootIkApplyTelemetry::default(),
+        )).id();
+        app.update();
+        let actual = app.world().get::<AlsFootIkApplyTelemetry>(entity).unwrap();
+        assert_eq!(actual.left.applied_weight, input.weight);
+        assert_eq!(actual.right.applied_weight, 0.0);
+        let serialized = serde_json::to_value(app.world().get::<AlsFootIkSpaceState>(entity).unwrap().left.solve_input).unwrap();
+        assert_eq!(serialized["weight"].as_f64().unwrap() as f32, input.weight);
+        assert_eq!(serialized["target_world"], serde_json::json!([0.0, 0.2_f32, 0.0]));
     }
 
     #[test]

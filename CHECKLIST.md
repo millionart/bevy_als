@@ -629,7 +629,30 @@
 
   - 05c完成2026-09-10 17:39:00：最终299项目29.695s、公共数值validator自测0.574s、target_game/play双example67.578s、19图fresh spec3.168s及Default完整两图声明式九命令4.267s PASS，编辑器两文件零修复0.305s。第一次编辑器调用误用不存在的--repair参数，在0.312s明确退出；读usage后改用原--fix，未改审计器。源图/十四Pose节点/原始资产保持，新增观测只运行于manual case；旧曲线/Actor模式五个coverage已替换为实际六窗口及采样/叠加/预测合同。开始17:15、预估18:05、实际结束17:39（偏差-26m），结果为观测与场景静态闭合，无runtime结论；本段独立提交后进行05d。
 
-- [ ] BF115.05d Default完整无截图公共Gate：开始2026-09-10 17:40:00、预估18:10:00。依赖05c；使用同一已构建target_game/play，先startup再default_overlay六窗口，两次真实跳跃覆盖预测上升/回落，逐节点核对五个源采样帧、实际混合、Idle reference delta/同步phase与叠加输出，并保留公共Root/pre-rig/final/时间/性能和进展守卫。估时依据为三Grounded窗口稳定采样各至少0.5秒加当前Idle2.666667秒同步周期、两次原跳跃和既有startup约15秒、当前增量构建约68秒；保留首个观测或source链失败的最小诊断/修复时间。CaptureCount=0，所有原阈值保持；通过后关闭Default模块并沿原顺序进入Layering，另外12个overlay继续按用户要求保留待办，不在本轮执行。
+- [ ] BF115.05d Default完整无截图公共Gate：开始2026-09-10 17:39:16、预估18:09:16。依赖05c；使用同一已构建target_game/play，先startup再default_overlay六窗口，两次真实跳跃覆盖预测上升/回落，逐节点核对五个源采样帧、实际混合、Idle reference delta/同步phase与叠加输出，并保留公共Root/pre-rig/final/时间/性能和进展守卫。估时依据为三Grounded窗口稳定采样各至少0.5秒加当前Idle2.666667秒同步周期、两次原跳跃和既有startup约15秒、当前增量构建约68秒；保留首个观测或source链失败的最小诊断/修复时间。CaptureCount=0，所有原阈值保持；通过后关闭Default模块并沿原顺序进入Layering，另外12个overlay继续按用户要求保留待办，不在本轮执行。
+
+  - 05d startup通过/Default动作前2026-09-10 17:40:00：公共startup15.520s PASS，manual0/validator0、0截图，missing bones/fault/graph/temporal为空；当前入口5150ef1、两图/十四Pose节点、299项目与完整声明式保持通过。开始原Playground六窗口Default场景，核对所有源节点采样、叠加/同步及两次跳跃的预测插值，全部公共阈值保持。
+
+  - 05d首轮结果/05b有限复开2026-09-10 17:46:00：Default19.445s manual91/validator1，case0在12秒上限自动结束、六窗口尚未产生；公共pose pass=true，无fault/graph/temporal、0截图。实际站立frame0与0.75叠加结果均存在，唯同步reader始终无Secondary Motion；核对组名与源/生成完全相同。fresh UE FAnimNode_LinkedAnimGraph::Evaluate_AnyThread把完整FPoseContext交给linked root并原样返回；target Default AnimGraph里的LinkedAnimLayerNode只转发Pose数据，未保存子图AnimationContextState，导致十二条层曲线、同步tick等在唯一当前generated调用点被丢弃。此前测试只约束pin alias/selector与直接Root同步，没有组合linked layer和隐式context，静态spec也不验证这条执行边。05b仅此当前Default直接链接输出合同取消勾选；先为真实Linked→Root组合补最小失败，复用现有graph_output_context_state保存当前输出，不增加Actor曲线回填或时钟。Layering只作为父图已有直接consumer记录，不展开其内部算法。
+
+  - 05d直接曲线观测边界2026-09-10 17:49:00：上述实际Linked→Root fixture34.933s稳定FAIL于context缺失，生产修复仅把子Pose输出对应的既有AnimationContextState转交到当前linked节点。进一步读本地UE GetCurveValue及ALS既有曲线getter，均明确缺失曲线返回0；Default资产只含十二条值1的层曲线，另六条是源缺失值。旧Default曲线观测要求全部十八条显式存在，属于同一当前输出链的错误验收前提；05c仅此观测条件有限复开，补十二条存在/六条缺失与必要曲线丢失的最小对照，不向生产数据注入六条假曲线。下一步恢复完整static后再startup/default，不根据一次场景失败重做其它overlay或Layering内部。
+
+  - 05d链接/曲线修复静态进展2026-09-10 17:55:00：Linked→Root真实三帧合同34.933s FAIL→22.674s PASS，保留隐式LayerSpine、authoritative标记及0.05/0.10/0.15同步phase；实现只增加现有context的输出转交，旧无context路径即消融。Default缺失曲线反例42.669s FAIL；按源getter以0读取缺失值，仍拒绝必要层曲线缺失、错误数值及NaN，341 ext/300项目36.564s PASS。只改当前唯一generated LinkedAnimLayer调用的通用输出行为和Default观测，不改生成资产、输入ABI或时钟；当前完成同入口重建后刷新spec/static，再执行公共startup与六窗口。
+
+  - 05d链接修复静态闭合/运行前2026-09-10 17:59:00：341 ext/300项目36.564s、同入口双example114.555s、19图fresh spec3.199s和完整Default声明式九命令4.008s PASS。05b仅Linked输出合同、05c仅源缺失曲线读取的静态有限复开关闭；完整Default运行仍待05d。当前两图数据不变，root-linked输出恢复来源曲线与同步，先startup再六窗口Default；随后复用原grounded九窗口与locomotion十四窗口检查父图接收这些层曲线的直接影响，不展开已完成模块的新source或其它overlay。全部CaptureCount=0，原曲线/pose/时间/性能守卫保持。
+
+  - 05d链接修复startup通过/动作前2026-09-10 18:00:00：公共startup15.517s PASS，frame p95 13.8107ms/max23.4446ms、eval p95 0.0859ms，0截图且missing bones/fault/graph/temporal为空。新Linked输出在真实入口初始化通过；341/300回归、两图fresh静态保持。当前执行完整六窗口Default，随后两个已声明直接消费者回归，不只重跑旧失败的站立窗口。
+
+  - 05d六窗口通过/公共边界2026-09-10 18:10:00：第二轮Default18.353s manual0全部十六coverage通过，六窗口/五采样帧、0.75实际叠加、十二曲线与同步、两次跳跃的预测升降全部正确，source逐帧errors为空；validator仍拒绝。其一是现有方向签名把同步phase模式统一要求FSM，而fresh Default两图无FSM；05c仅对齐元数据复开，已用同一报告在focused对照中证明，将0.35 phase等价换算为Idle源时长的clip time后原验收器全部签名通过，接着复用其既有clip-time路径，实际状态继续为空。其二是第一次从下蹲恢复后的起跳，final calf_r在0.0201296s转1.0502765rad（52.1757rad/s），pre-rig无异常；当帧脚IK权重正在回落，足锁/trace和源BasicIK写回是当前唯一待定位链。尚未证明算法差异，不复开已完成FootIK条目或放宽40rad/s；先沿当次样本与本地对应源函数比较。0截图，两个共享case仍待此Gate闭合。
+
+  - 05d超时复盘2026-09-10 18:30:00：开始17:39:16、原预估18:09:16，本轮实际结束18:30（已耗50m44s，偏差+20m44s，Gate未完成）。暂停实现及新的runtime后，回读两图/十四Pose节点、341/300回归与两次实际运行：Linked context丢失已以5行复用转交修复，第二轮六窗口及全部Default来源值/混合/曲线/时钟/预测通过；仅同一次final calf_r突变和无FSM签名元数据未闭合。签名已复用既有clip-time能力，以实际Idle时长乘0.35对齐同一phase，不新增验收模式；旧元数据32.908s FAIL，新元数据30.802s PASS，同一保存报告的等价时间对照也通过。突变后公开CR只读79.248s得到fresh native，分析仅到当前FootIK的直接三个函数及UE BasicIK/ALS偏移CPP；部分权重写回、射线启用阈值与组件空间pole缓存已确认相符，尚未证实应改的姿态算法。已定位报告applied_weight取旧AlsFootIkRuntime平滑权重，而实际求解使用当前曲线，两者在失败帧为0.466782/0.209299；先纠正该读数并保存实际求解TRS，避免继续凭不完整数值推断。原6+9+14窗口及后续模块顺序全部保留，不复开无source证明的已完成算法。
+  - 纠正与拆分：按原30分钟估时窗口1.5倍，下一轮开始18:30:00、预估19:15:00。拆成下列数据/静态及完整运行两个独立Gate；依据为Default已完成实际分支、唯一右小腿失败帧和fresh源求解输入闭包，先建立可复算数据再沿首个实际分歧修复，不能用重复运行或放宽阈值代替定位。
+  - [x] BF115.05d1 实际IK读数与可复算输入静态闭环：开始2026-09-10 18:30:00、预估18:55:00。只修正当前Gate已证实的权重观测来源，复用现有telemetry记录每次实际BasicIK的输入TRS/目标/权重，保留无FSM clip-time修复；完成最小失败/消融、适用回归、同入口及source/static合同。本段不改未经证明的动画/足锁/求解器，也不启动runtime。
+  - [ ] BF115.05d2 完整Default与直接消费者公共Gate：计划开始2026-09-10 18:55:00、预估19:15:00。依赖05d1；用同一入口startup、完整Default六窗口及已声明grounded九/locomotion十四窗口。若仍失败，使用实际输入复算源/target首个分歧后最小修复和回归；保留全部守卫及0截图，不提前进入后续模块。
+
+  - 05d1读数/输入静态进展2026-09-10 18:40:00：实际post-IK telemetry反例36.280s稳定FAIL（旧读数0对本次实际weight0.20929879）；移除其AlsFootIkRuntime依赖，改读实际执行返回记录，未执行时为0，301项目26.577s PASS。每次BasicIK返回同次输入的armature/thigh/calf/foot世界TRS、目标/旋转、pole、骨骼本地轴、实际长度和weight，复用现有space telemetry保留相邻两帧，未将这些记录回喂动画算法。旧平滑权重路径即消融失败；新增邻帧JSON导出/未执行null检查后完成同入口和静态。当前只改观测与证据载荷，源FootLock、Offset与BasicIK数学保持不动，仍未启动新runtime。
+
+  - 05d1完成/05d2运行前2026-09-10 18:54:44：301项目26.577s与新增邻帧JSON导出26.855s PASS（共302项已验证），最终同入口64.959s、19图fresh spec3.208s及Default完整声明式九命令4.521s PASS。六窗口使用实际Idle时长换算的clip-time对齐，仍记录实际同步组，不伪造FSM；05c本轮元数据静态复开关闭。输入记录在现有space中每帧只保留当前/上一执行，跳过求解为null；Default原逐帧trace同时保存当前输入，异常落在稳定窗口之外也可复算。求解器、足锁、偏移、曲线与40rad/s守卫均未改。开始18:30、预估18:55、实际结束18:54:44（偏差-16s），本段静态完成并提交；接着同一入口startup和完整Default，物理异常是否重现仍是开放边界。
 
 ## 附录 A：与 ALS 的刻意差异（非缺陷）
 

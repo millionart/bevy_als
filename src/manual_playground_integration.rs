@@ -757,6 +757,7 @@ struct DefaultOverlayGraphSample {
     prediction_alpha: Option<f32>,
     prediction_expected: Option<f32>,
     idle_time: Option<f32>,
+    idle_duration: Option<f32>,
     idle_phase: Option<f32>,
     idle_weight: Option<f32>,
     idle_rate: Option<f32>,
@@ -886,6 +887,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
             if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>() {
                 let tick = ticks.and_then(|ticks| ticks.iter().find(|tick| tick.identity == (context_id, node.id)));
                 sample.idle_time = Some(actual.timestamp);
+                sample.idle_duration = tick.map(|tick| tick.duration);
                 sample.idle_phase = tick.map(|tick| tick.phase);
                 sample.idle_weight = tick.map(|tick| tick.weight);
                 sample.idle_rate = tick.map(|tick| tick.play_rate);
@@ -930,7 +932,8 @@ fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> M
         minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001,
         minimum_observation_seconds: if index < 3 || index == 5 { 0.3 } else { 0.06 },
         source_sync_group: Some("Secondary Motion"), sync_phase_global: Some(DEFAULT_OVERLAY_SYNC),
-        canonical_sync_phase: (index < 3).then_some(0.35), maximum_sync_phase_distance: 0.04,
+        canonical_clip_time: sample.idle_duration.filter(|_| index < 3).map(|duration| duration * 0.35),
+        maximum_clip_time_distance: sample.idle_duration.unwrap_or(0.0) * 0.04,
         direction_signature_group: (index < 3).then_some("default_ground_poses"), required_direction_signature_members: if index < 3 { 3 } else { 0 },
         minimum_direction_signature_rotation_radians: if index < 3 { 0.01 } else { 0.0 },
         expected_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]), observed_direction: (index < 3).then_some(DEFAULT_OVERLAY_WINDOWS[index]),
@@ -5445,11 +5448,10 @@ fn default_overlay_curve_value(name: &str) -> f32 {
 }
 
 fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bool {
-    ALS_LAYER_CURVE_NAMES.iter().all(|name| {
-        context
-            .and_then(|context| context.f32(name))
-            .is_some_and(|value| (value - default_overlay_curve_value(name)).abs() < 1e-4)
-    })
+    context.is_some_and(|context| ALS_LAYER_CURVE_NAMES.iter().all(|name| {
+        let value = context.curves.get(*name).copied().unwrap_or(0.0);
+        (value - default_overlay_curve_value(name)).abs() < 1e-4
+    }))
 }
 
 fn grounded_roll_exit_transition_matches_source(
@@ -6168,7 +6170,8 @@ fn observe_manual_integration(
         }
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
             "airborne": probe.airborne_seen, "jump_completed": probe.jump_completed, "prediction_increased": probe.prediction_increased,
-            "prediction_decreased": probe.prediction_decreased, "curves": default_overlay_curves_ready(context), "source": sample}));
+            "prediction_decreased": probe.prediction_decreased, "curves": default_overlay_curves_ready(context), "source": sample,
+            "foot_solve_inputs": foot_ik_data.get(character).ok().map(|(_, spaces, _, _)| [spaces.left.solve_input, spaces.right.solve_input])}));
         probe.sample = sample;
     }
     let standing_graph_live = standing_graph.is_some_and(|telemetry| {
@@ -8965,11 +8968,12 @@ mod tests {
     fn default_overlay_windows_bind_all_source_frames_and_bound_progress() {
         let graph = std::fs::read_to_string(format!("assets/{DEFAULT_OVERLAY_GRAPH}")).unwrap();
         for index in 0..6 {
-            let window = default_overlay_window(index, &default());
+            let window = default_overlay_window(index, &DefaultOverlayGraphSample { idle_duration: Some(2.666667), ..default() });
             let identity = window.source_pose_chain[0].node;
             assert!(graph.contains(&format!("id: {identity:?}")));
             assert!(window.capture_every_frame && window.requires_source_pose_chain);
-            assert_eq!(window.canonical_sync_phase.is_some(), index < 3);
+            assert_eq!(window.canonical_clip_time.is_some(), index < 3);
+            assert_eq!(window.canonical_sync_phase, None);
         }
         assert!(!default_overlay_should_timeout(false, 11.99));
         assert!(default_overlay_should_timeout(false, 12.0));
@@ -8981,6 +8985,23 @@ mod tests {
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6);
         mapping.interpolate_speed_decreasing = 20.0;
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1);
+    }
+
+    #[test]
+    fn default_overlay_missing_source_curves_have_unreal_zero_semantics() {
+        let mut context = AlsRootAnimationContext { curves: [
+            "LayerArmLeft", "LayerArmLeftAdditive", "LayerArmLeftLocalSpace", "LayerArmRight", "LayerArmRightAdditive",
+            "LayerArmRightLocalSpace", "LayerHead", "LayerHeadAdditive", "LayerLegs", "LayerPelvis", "LayerSpine", "LayerSpineAdditive",
+        ].map(|name| (name.to_owned(), 1.0)).into() };
+        assert!(default_overlay_curves_ready(Some(&context)));
+        assert!(!default_overlay_curves_ready(None));
+        context.curves.remove("LayerSpine");
+        assert!(!default_overlay_curves_ready(Some(&context)));
+        context.curves.insert("LayerSpine".into(), 1.0);
+        context.curves.insert("HandLeftIk".into(), 0.5);
+        assert!(!default_overlay_curves_ready(Some(&context)));
+        context.curves.insert("HandLeftIk".into(), f32::NAN);
+        assert!(!default_overlay_curves_ready(Some(&context)));
     }
 
     #[test]

@@ -41,6 +41,18 @@
     {
       "path": "target/bf115_overlays/source/UE_AnimNode_Inertialization.h",
       "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNode_LinkedAnimGraph.cpp",
+      "sha256": "44d73de6bb1c99d1071591dde94fe9a93f1b7746582e73756e8f5fe01fc51018"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_AnimNodeBase.h",
+      "sha256": "73d5bdb25a4b33db5e762f0671a7e9e6777ec33b654d258bc4ce6bb3c8e014d3"
+    },
+    {
+      "path": "target/bf115_overlays/default_cr_foot_source.ue.json",
+      "sha256": "3338c0f900ef4c9a3656ee4599d7357fa9a09d29af60a745f66725d139fbd766"
     }
   ],
   "graphs": [
@@ -267,7 +279,7 @@
         "--materialized-directory",
         "target/bf115_overlays/locked_default_conversion",
         "--spec",
-        "target/bf115_overlays/default_probe_spec.json"
+        "target/bf115_overlays/default_diagnostic_spec.json"
       ]
     },
     {
@@ -387,6 +399,44 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/default_project_regression2.watchdog.json"
+    },
+    {
+      "label": "linked_layer_context_and_missing_curve_semantics",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "-p",
+        "als-ext",
+        "-p",
+        "bevy_als",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_linked_regression.watchdog.json"
+    },
+    {
+      "label": "actual_ik_telemetry_and_default_signature",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/default_diagnostic_regression.watchdog.json"
+    },
+    {
+      "label": "adjacent_ik_input_serialization",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "--jobs",
+        "2",
+        "foot_ik_sample_preserves_adjacent_actual_solver_inputs"
+      ],
+      "evidence": "target/bf115_overlays/default_adjacent_input_test.watchdog.json"
     }
   ]
 }

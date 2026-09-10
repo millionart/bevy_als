@@ -665,6 +665,8 @@ struct FootIkSideSample {
     pole_sign: f32,
     knee_error: f32,
     effector_error: f32,
+    solve_input: Option<crate::foot_ik_apply::FootIkSolveInput>,
+    previous_solve_input: Option<crate::foot_ik_apply::FootIkSolveInput>,
 }
 
 #[derive(Serialize, Clone)]
@@ -2679,6 +2681,8 @@ fn foot_ik_side_sample(
         pole_sign: safe(apply.pole_sign),
         knee_error: safe(apply.knee_error),
         effector_error: safe(apply.effector_error),
+        solve_input: space.solve_input,
+        previous_solve_input: space.previous_solve_input,
     }
 }
 
@@ -3855,6 +3859,18 @@ fn collect_animation_visual_evidence(
 mod tests {
     use super::*;
     use bevy::ecs::system::In;
+
+    #[test]
+    fn foot_ik_sample_preserves_adjacent_actual_solver_inputs() {
+        let previous = crate::foot_ik_apply::FootIkSolveInput { weight: 0.46678212, target_world: [1.0, 0.4, 2.0], ..default() };
+        let current = crate::foot_ik_apply::FootIkSolveInput { weight: 0.20929879, target_world: [1.0, 0.7, 2.0], ..previous };
+        let space = AlsFootIkSpaceSide { solve_input: Some(current), previous_solve_input: Some(previous), ..default() };
+        let sample = serde_json::to_value(foot_ik_side_sample(&space, &default())).unwrap();
+        assert_eq!(sample["solve_input"], serde_json::to_value(current).unwrap());
+        assert_eq!(sample["previous_solve_input"], serde_json::to_value(previous).unwrap());
+        let skipped = AlsFootIkSpaceSide { solve_input: None, ..space };
+        assert!(serde_json::to_value(foot_ik_side_sample(&skipped, &default())).unwrap()["solve_input"].is_null());
+    }
 
     #[test]
     fn source_pose_node_selects_repeated_titles_by_source_identity() {
