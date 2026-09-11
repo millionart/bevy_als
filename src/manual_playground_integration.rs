@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsMovementBaseDynamicsState;
-use als_core::foot_ik::{AlsFootLockState, AlsFootProbe};
+use als_core::foot_ik::AlsFootLockState;
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::{AlsMantleControlSettings, AlsMantleState};
@@ -52,7 +52,7 @@ use crate::animation_events::{
 use crate::animation_visual_validation::AnimationVisualValidationProgress;
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::{
-    AlsControlRigConstruction, AlsControlRigInput, AlsControlRigSet, AlsControlRigStageTrace,
+    AlsControlRigExecution, AlsControlRigInput, AlsControlRigSet,
     AlsControlRigState,
 };
 use crate::crouching_layer::{AlsCrouchingGraphTelemetry, AlsCrouchingTelemetrySet};
@@ -3369,7 +3369,7 @@ fn initialize_manual_integration(
     state.initial_view_yaw = Some(view_yaw.0);
     state.initial_view_pitch = Some(view_pitch.0);
     state.initialized = true;
-    foot_ik_telemetry_enabled.0 = state.scenario == IntegrationScenario::FootIk;
+    foot_ik_telemetry_enabled.0 = true;
     foot_ik_weight_override.left = None;
     foot_ik_weight_override.right = None;
     state.coverage.assembly = true;
@@ -5958,9 +5958,8 @@ fn observe_manual_integration(
     mut state_requests: Query<&mut AlsStateRequest, With<AlsCharacter>>,
     control_rig_runtime: Query<
         (
-            &AlsControlRigConstruction,
+            &AlsControlRigExecution,
             &AlsControlRigInput,
-            &AlsControlRigStageTrace,
         ),
         With<AlsCharacter>,
     >,
@@ -5979,7 +5978,6 @@ fn observe_manual_integration(
             Option<&AlsMantleState>,
             Option<&AlsRollState>,
             Option<&AlsRollSlotRuntime>,
-            Option<&AlsFootProbe>,
             Option<&AlsFootLockState>,
             Option<&AlsMovementBaseDynamicsState>,
             Option<&AlsRagdollGroundFollow>,
@@ -6075,7 +6073,6 @@ fn observe_manual_integration(
         mantle,
         roll,
         roll_slot,
-        foot_probe,
         foot_lock,
         movement_base,
         ragdoll_follow,
@@ -8029,7 +8026,7 @@ fn observe_manual_integration(
         }
     }
     state.coverage.control_rig |= control_rig_ready;
-    if let Ok((construction, input, trace)) = control_rig_runtime.get(character) {
+    if let Ok((construction, input)) = control_rig_runtime.get(character) {
         let input_ready = input.use_hand_ik_bones
             && input.use_foot_ik_bones
             && input.velocity_blend_forward_amount.is_finite()
@@ -8044,10 +8041,8 @@ fn observe_manual_integration(
                 || input.velocity_blend_forward_amount.abs() > 1e-3
                 || input.velocity_blend_backward_amount.abs() > 1e-3
                 || input.spine_yaw_angle_degrees.abs() > 1e-3);
-        let stage_ready = trace.construction_complete
-            && trace.initialization_count == 1
-            && trace.stage_mask == AlsControlRigStageTrace::COMPLETE
-            && trace.completed_frames > 0;
+        let stage_ready = construction.initialization_count == 1
+            && construction.executed_steps > 0 && construction.frame > 0;
         let foot_targets_ready = foot_ik_data
             .get(character)
             .is_ok_and(|(_, space, apply, _)| {
@@ -8064,8 +8059,8 @@ fn observe_manual_integration(
             });
         if stage_ready && !state.coverage.control_rig_stages {
             info!(
-                "[MANUAL-INTEGRATION][CR-ALS-STAGES] construction_count={} runtime_mask={:07b} completed_frames={} -> PASS",
-                trace.initialization_count, trace.stage_mask, trace.completed_frames,
+                "[MANUAL-INTEGRATION][CR-ALS-STAGES] construction_count={} vm_steps={} graph_frame={} -> PASS",
+                construction.initialization_count, construction.executed_steps, construction.frame,
             );
         }
         if input_ready && !state.coverage.control_rig_input {
@@ -8109,8 +8104,8 @@ fn observe_manual_integration(
         }
         state.mantle_was_active = mantle.active;
     }
-    if let Some(probe) = foot_probe {
-        state.coverage.foot_probe |= probe.left.is_some() && probe.right.is_some();
+    if let Ok((_, space, _, _)) = foot_ik_data.get(character) {
+        state.coverage.foot_probe |= space.left.has_ground_hit && space.right.has_ground_hit;
     }
     if let Some(lock) = foot_lock {
         state.coverage.foot_lock |= lock.valid;

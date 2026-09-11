@@ -16,8 +16,8 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use bevy_als::animation_context_projection::AlsRootAnimationContext;
 use bevy_als::control_rig_apply::{
-    AlsControlRigConstruction, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigSet,
-    AlsControlRigStageTrace, AlsControlRigState,
+    AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigSet,
+    AlsControlRigState,
 };
 use bevy_als::foot_ik_apply::AlsFootIkSpaceState;
 use bevy_als::playable_character::{
@@ -53,6 +53,7 @@ fn main() {
         AlsPlayableCharacterPlugin,
     ))
     .init_resource::<GateState>()
+    .insert_resource(bevy_als::foot_ik_apply::AlsFootIkTelemetryEnabled(true))
     .insert_resource(Deadline(Instant::now() + Duration::from_secs(12)))
     .add_systems(Startup, setup)
     .add_systems(Update, timeout)
@@ -177,9 +178,8 @@ fn observe(
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     rigs: Query<&AlsControlRigState, With<AlsCharacter>>,
-    constructions: Query<&AlsControlRigConstruction, With<AlsCharacter>>,
+    constructions: Query<&AlsControlRigExecution, With<AlsCharacter>>,
     rig_inputs: Query<&AlsControlRigInput, With<AlsCharacter>>,
-    stage_traces: Query<&AlsControlRigStageTrace, With<AlsCharacter>>,
     foot_spaces: Query<&AlsFootIkSpaceState, With<AlsCharacter>>,
     children_q: Query<&Children>,
     names: Query<&Name>,
@@ -234,7 +234,7 @@ fn observe(
     let Ok(rig) = rigs.get(character) else {
         return;
     };
-    let stage = stage_traces.get(character).ok();
+    let stage = constructions.get(character).ok();
     let construction = constructions.get(character).ok();
     let rig_input = rig_inputs.get(character).ok();
     let foot_space = foot_spaces.get(character).ok();
@@ -252,10 +252,9 @@ fn observe(
     state.max_spine_yaw = state.max_spine_yaw.max(rig.final_yaw_angle.abs());
     let state_ready = rig.spine_rotation_allowed && state.max_spine_yaw > 1.0;
     state.stage_complete |= stage.is_some_and(|stage| {
-        stage.construction_complete
-            && stage.initialization_count == 1
-            && stage.stage_mask == AlsControlRigStageTrace::COMPLETE
-            && stage.completed_frames > 0
+        stage.initialization_count == 1
+            && stage.executed_steps > 0
+            && stage.frame > 0
     });
     let construction_ready = construction.is_some_and(|construction| {
         construction.foot_height_m.is_finite()
@@ -284,17 +283,17 @@ fn observe(
     state.observations += 1;
     if state.observations % 60 == 0 {
         info!(
-            "[CONTROL-RIG-CONTRACT][PROBE] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_allowed={} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} foot_scale=({:.3},{:.3},{:.3}) hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3} construction_complete={} construction_count={} stage_mask={} completed_frames={} construction_ready={} input_ready={} foot_targets_ready={}",
+            "[CONTROL-RIG-CONTRACT][PROBE] pose_moving={pose_moving:.3} pose_aiming={pose_aiming:.3} spine_allowed={} spine_yaw={:.3} spine_peak={:.3} spine_changed={spine_changed} diagonal_scaled={diagonal_scaled} foot_scale=({:.3},{:.3},{:.3}) hand_left={hand_left_weight:.3} hand_right={hand_right_weight:.3} construction_complete={} construction_count={} vm_steps={} graph_frame={} construction_ready={} input_ready={} foot_targets_ready={}",
             rig.spine_rotation_allowed,
             rig.final_yaw_angle,
             state.max_spine_yaw,
             foot_root.scale.x,
             foot_root.scale.y,
             foot_root.scale.z,
-            stage.is_some_and(|stage| stage.construction_complete),
+            stage.is_some_and(|stage| stage.initialization_count > 0),
             stage.map_or(0, |stage| stage.initialization_count),
-            stage.map_or(0, |stage| stage.stage_mask),
-            stage.map_or(0, |stage| stage.completed_frames),
+            stage.map_or(0, |stage| stage.executed_steps),
+            stage.map_or(0, |stage| stage.frame),
             construction_ready,
             state.input_ready,
             state.foot_targets_ready,

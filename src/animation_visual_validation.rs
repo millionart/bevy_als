@@ -693,13 +693,6 @@ struct FootIkSample {
     source_feet_crossing_amount: f32,
     velocity_blend_forward_amount: f32,
     velocity_blend_backward_amount: f32,
-    restore_translation_delta_m: f32,
-    restore_rotation_delta_radians: f32,
-    solver_translation_delta_m: f32,
-    solver_rotation_delta_radians: f32,
-    pelvis_write_delta_m: f32,
-    left_chain_write_delta_m: f32,
-    right_chain_write_delta_m: f32,
     teleport: FootLockTeleportSample,
 }
 
@@ -774,6 +767,7 @@ impl Plugin for AnimationVisualValidationPlugin {
             return;
         };
         app.insert_resource(config)
+            .insert_resource(crate::foot_ik_apply::AlsFootIkTelemetryEnabled(true))
             .init_resource::<AnimationVisualValidationState>()
             .init_resource::<AnimationVisualStageTiming>()
             .init_resource::<AnimationVisualValidationProgress>()
@@ -2716,13 +2710,6 @@ fn foot_ik_sample(
         source_feet_crossing_amount: safe(source_feet_crossing_amount),
         velocity_blend_forward_amount: safe(input.velocity_blend_forward_amount),
         velocity_blend_backward_amount: safe(input.velocity_blend_backward_amount),
-        restore_translation_delta_m: safe(apply.restore_translation_delta_m),
-        restore_rotation_delta_radians: safe(apply.restore_rotation_delta_radians),
-        solver_translation_delta_m: safe(apply.solver_translation_delta_m),
-        solver_rotation_delta_radians: safe(apply.solver_rotation_delta_radians),
-        pelvis_write_delta_m: safe(apply.pelvis_write_delta_m),
-        left_chain_write_delta_m: safe(apply.left_chain_write_delta_m),
-        right_chain_write_delta_m: safe(apply.right_chain_write_delta_m),
         teleport: FootLockTeleportSample {
             detected_count: teleport.detected_count,
             left_rebase_count: teleport.left_rebase_count,

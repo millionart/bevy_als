@@ -41,7 +41,6 @@ impl Plugin for AlsCharacterRuntimePlugin {
         .add_plugins(AlsActualMotionPlugin)
         .add_plugins(SourcePhysicsTimingPlugin)
         .add_plugins((
-            als_core::foot_ik::AlsFootProbePlugin,
             ControlRigApplyPlugin,
             FootIkApplyPlugin,
             GaitLayerPlugin,
@@ -71,6 +70,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             AlsRagdollLinkPlugin,
             crate::get_up::AlsGetUpPlugin,
         ))
+        .add_systems(PostUpdate, als_core::foot_ik::foot_bone_map_system.after(bevy::transform::TransformSystems::Propagate))
         .add_systems(
             Update,
             (

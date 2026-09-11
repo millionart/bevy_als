@@ -80,6 +80,33 @@ impl ControlRigNodeState {
     }
 }
 
+pub fn current_control_rig<'a>(
+    player: &'a bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+    graphs: &'a Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+) -> Option<(
+    &'a bevy_animation_graph::core::context::graph_context::GraphState,
+    &'a bevy_animation_graph::core::animation_node::AnimationNode,
+    &'a ControlRigNodeState,
+)> {
+    use bevy_animation_graph::core::context::node_states::StateKey;
+    let arena = player.get_context_arena()?;
+    let mut found = None;
+    for id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(id) else { continue; };
+        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+        for node in graph.nodes.values() {
+            if node.try_inner_downcast_ref::<ControlRigBoundaryNode>().is_some()
+                && context.node_caches.is_updated(node.id, StateKey::Default)
+                && let Ok(state) = context.node_states.get::<ControlRigNodeState>(node.id, StateKey::Default)
+            {
+                if found.is_some() { return None; }
+                found = Some((context, node, state));
+            }
+        }
+    }
+    found
+}
+
 fn rig_transform(transform: Transform) -> RigTransform {
     RigTransform {
         rotation: transform.rotation.as_dquat(),

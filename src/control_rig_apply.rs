@@ -100,10 +100,12 @@ impl Default for AlsControlRigSettings {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
-pub struct AlsControlRigConstruction {
-    pub use_hand_ik_bones: bool,
-    pub use_foot_ik_bones: bool,
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
+pub struct AlsControlRigExecution {
+    pub initialization_count: u64,
+    pub executed_steps: usize,
+    pub frame: u64,
+    pub elapsed_seconds: f64,
     pub foot_height_m: f32,
     pub leg_length_m: f32,
 }
@@ -139,29 +141,6 @@ impl Default for AlsControlRigInput {
             foot_right_rotation_armature: Quat::IDENTITY,
         }
     }
-}
-
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct AlsControlRigStageTrace {
-    pub construction_complete: bool,
-    pub initialization_count: u64,
-    pub stage_mask: u8,
-    pub completed_frames: u64,
-}
-
-impl AlsControlRigStageTrace {
-    pub const DIAGONAL_SCALING: u8 = 1 << 0;
-    pub const SPINE_ROTATION: u8 = 1 << 1;
-    pub const FOOT_OFFSET: u8 = 1 << 2;
-    pub const PELVIS_OFFSET: u8 = 1 << 3;
-    pub const FOOT_IK: u8 = 1 << 4;
-    pub const HAND_IK: u8 = 1 << 5;
-    pub const COMPLETE: u8 = Self::DIAGONAL_SCALING
-        | Self::SPINE_ROTATION
-        | Self::FOOT_OFFSET
-        | Self::PELVIS_OFFSET
-        | Self::FOOT_IK
-        | Self::HAND_IK;
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
@@ -401,6 +380,7 @@ fn publish_control_rig_inputs(
     transforms: TransformHelper,
     trees: Option<Res<ColliderTrees>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+    capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
     let mut ignored: Vec<_> = characters.iter().map(|(entity, _)| entity).collect();
     for (_, parent, instance) in &avatars {
@@ -434,6 +414,7 @@ fn publish_control_rig_inputs(
             set_source_frame_input(&mut player, &format!("control_rig_input.{field}"), value);
         }
         set_source_frame_input(&mut player, als_ext::root_graph_boundaries::RIG_GAME_WORLD_KEY, true);
+        set_source_frame_input(&mut player, als_ext::root_graph_boundaries::RIG_CAPTURE_KEY, capture.as_ref().is_some_and(|capture| capture.0));
         let context = if input.foot_transforms_valid {
             trees.as_ref().and_then(|trees| transforms.compute_global_transform(avatar).ok().map(|transform| {
                 let world = world.get_or_insert_with(|| Arc::new(RigQueryWorld {
@@ -567,8 +548,7 @@ mod tests {
         let initialized = app.world().get::<AlsControlRigInput>(unloaded).unwrap();
         assert!(!initialized.use_hand_ik_bones && !initialized.use_foot_ik_bones && !initialized.foot_transforms_valid);
         assert!(!app.world().get::<AlsFootTargetSelection>(unloaded).unwrap().use_ik_bones);
-        assert!(app.world().get::<AlsControlRigConstruction>(unloaded).is_none());
-        assert!(app.world().get::<AlsControlRigStageTrace>(unloaded).is_none());
+        assert!(app.world().get::<AlsControlRigExecution>(unloaded).is_none());
         app.world_mut().get_mut::<AlsControlRigInput>(unloaded).unwrap().pelvis_offset_amount = 0.75;
         app.world_mut().get_mut::<AlsControlRigInput>(actor).unwrap().foot_transforms_valid = false;
         app.world_mut().run_schedule(PostUpdate);
