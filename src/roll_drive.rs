@@ -48,6 +48,42 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn roll_sampling_and_velocity_share_the_current_frame_duration() {
+        for initial_time in [Some(0.4_f32), None] {
+        let mut app = App::new();
+        app.add_plugins(AlsRollDrivePlugin)
+            .insert_resource(Time::<()>::default())
+            .insert_resource(RollSlotCurveHandle(default()))
+            .init_resource::<Assets<AlsAnimCurves>>();
+        let character = app.world_mut().spawn((
+            als_core::character::AlsCharacter,
+            AlsRollState { active: initial_time.is_some(), time: initial_time.unwrap_or_default(), ..default() },
+            LocomotionState::Grounded, Stance::Standing, AlsViewYaw::default(),
+            Transform::IDENTITY, LinearVelocity::ZERO, AlsInputCommand { roll_pressed: initial_time.is_none(), ..default() },
+            AnimationGraphPlayer::new(default()),
+        )).id();
+        app.world_mut().spawn((
+            AlsRollSlotSampler { character, target_player: character, reported_unready: true },
+            AnimationGraphPlayer::new(default()), RootMotionOutput::default(),
+        ));
+        let mut previous = initial_time.unwrap_or_default();
+        app.add_systems(PostUpdate, (move |mut samplers: Query<(&AnimationGraphPlayer, &mut RootMotionOutput), With<AlsRollSlotSampler>>| {
+            for (player, mut output) in &mut samplers {
+                let current = player.get_global_input_data(ROLL_SLOT_TIME_KEY).unwrap().as_f32().unwrap() / ROLL_PLAY_RATE;
+                output.translation_delta = Vec3::NEG_Z * (current - previous);
+                previous = current;
+            }
+        }).in_set(AnimationGraphSet::PrePhysics));
+        for delta in [0.013_f32, 0.025, 0.011, 0.033] {
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut().run_schedule(PostUpdate);
+            assert!(app.world().get::<LinearVelocity>(character).unwrap().distance(Vec3::Z) < 1e-4,
+                "a constant-speed root track must stay constant across frame durations: delta={delta}");
+        }
+        }
+    }
+
+    #[test]
     fn roll_blend_out_releases_root_motion_while_the_pose_keeps_playing() {
         let mut world = World::new();
         let mut time = Time::<()>::default();
@@ -63,9 +99,11 @@ mod tests {
             AlsRollSlotSampler { character, target_player: character, reported_unready: false },
             RootMotionOutput { translation_delta: Vec3::NEG_Z * 0.05, ..default() },
         ));
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(world.get::<LinearVelocity>(character).unwrap().distance(Vec3::Z) < 1e-5);
         world.entity_mut(character).insert(LinearVelocity(Vec3::X * 0.5));
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), LinearVelocity(Vec3::X * 0.5));
         let roll = world.get::<AlsRollState>(character).unwrap();
@@ -96,11 +134,13 @@ mod tests {
                 AlsInputCommand::default(),
             ))
             .id();
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(!world.get::<AlsRollState>(character).unwrap().active);
         world
             .entity_mut(character)
             .remove::<als_core::motion::AlsMovementInputBlocked>();
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(world.get::<AlsRollState>(character).unwrap().active);
         assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), LinearVelocity::ZERO);
@@ -133,11 +173,13 @@ mod tests {
                 AlsInputCommand::default(),
             ))
             .id();
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert_eq!(*world.get::<Transform>(character).unwrap(), transform);
         assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), velocity);
         assert!((world.get::<AlsRollBlendOut>(character).unwrap().weight() - 0.5).abs() < 1e-5);
         assert!(world.get::<AlsRollState>(character).unwrap().active);
+        world.run_system_once(advance_rolls).unwrap();
         world.run_system_once(roll_drive_system).unwrap();
         assert!(!world.get::<AlsRollState>(character).unwrap().active);
         assert!(world.get::<AlsRollBlendOut>(character).is_none());
@@ -195,6 +237,7 @@ impl Plugin for AlsRollDrivePlugin {
             .add_systems(
                 PostUpdate,
                 (
+                    advance_rolls.after(ensure_roll_state).before(prepare_roll_slot_samples),
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
                     ensure_roll_state,
@@ -432,7 +475,7 @@ fn bridge_roll_slot_samples(
 }
 
 #[allow(clippy::type_complexity)]
-fn roll_drive_system(
+fn advance_rolls(
     time: Res<Time>,
     mut commands: Commands,
     blocked: Query<(), With<als_core::motion::AlsMovementInputBlocked>>,
@@ -444,19 +487,14 @@ fn roll_drive_system(
             &LocomotionState,
             &Stance,
             &AlsViewYaw,
-            &mut Transform,
-            Option<&mut Rotation>,
-            &mut LinearVelocity,
+            &Transform,
+            &LinearVelocity,
             Option<&AlsAirState>,
-            Option<&AlsNotifyRootMotionScale>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
         ),
         With<als_core::character::AlsCharacter>,
     >,
-    sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
-    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
     for (
@@ -465,11 +503,9 @@ fn roll_drive_system(
         loco,
         stance,
         view,
-        mut transform,
-        rotation,
-        mut vel,
+        transform,
+        vel,
         air,
-        notify_root_scale,
         cmd,
         ovr,
     ) in &mut q
@@ -489,7 +525,6 @@ fn roll_drive_system(
             continue;
         }
 
-        let root_motion_active = roll.root_motion_active();
         let mut lifecycle = roll.update(&effective, view, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
@@ -499,10 +534,25 @@ fn roll_drive_system(
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
             lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
-        if !roll.active || *loco == LocomotionState::Ragdolling || dt <= 1e-5 {
-            continue;
+        if lifecycle.started {
+            roll.time = dt;
         }
-        if !root_motion_active && !lifecycle.started {
+    }
+}
+
+fn roll_drive_system(
+    time: Res<Time>,
+    blend_outs: Query<(), With<AlsRollBlendOut>>,
+    mut q: Query<(Entity, &AlsRollState, &LocomotionState, &mut Transform, Option<&mut Rotation>,
+        &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>), With<als_core::character::AlsCharacter>>,
+    sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+) {
+    let dt = time.delta_secs();
+    for (character, roll, loco, mut transform, rotation, mut vel, notify_root_scale) in &mut q {
+        if !roll.active || *loco == LocomotionState::Ragdolling || dt <= 1e-5 || blend_outs.contains(character)
+            || roll.time - dt >= als_core::roll::ROLL_DURATION_SECS - als_core::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
         }
 
