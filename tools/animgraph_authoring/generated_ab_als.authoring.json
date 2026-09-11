@@ -359,7 +359,7 @@
         "--materialized-directory",
         "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/layered_spec.json"
+        "target/bf115_layering_full/actor_spec.json"
       ]
     },
     {

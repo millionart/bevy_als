@@ -524,6 +524,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                 PostUpdate,
                 observe_manual_integration
                     .after(AlsCameraSet)
+                    .after(crate::animation_context_projection::AlsRootAnimationContextSet)
                     .after(AlsCrouchingTelemetrySet)
                     .after(AlsTurnSlotBridgeSet)
                     .after(FootIkApplySet::Telemetry)
@@ -740,6 +741,15 @@ const LOCOMOTION_ROOT: &str = "generated/ALS/Character/AnimationInstances/AB_Als
 const LOCOMOTION_JUMP: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
 const LOCOMOTION_FALL: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
 const DEFAULT_OVERLAY_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
+const LAYERING_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
+const LAYERING_BOUNDARIES: [(&str, &str); 11] = [
+    ("layering_locomotion", "Input Pose\nLocomotion Input"), ("layering_overlay", "Input Pose\nOverlay Input"),
+    ("layering_base_poses", "Save cached pose 'Base Poses'"), ("layering_legs", "Save cached pose 'Legs'"),
+    ("layering_pelvis", "Save cached pose 'Pelvis'"), ("layering_spine", "Save cached pose 'Spine'"),
+    ("layering_head", "Save cached pose 'Head'"), ("layering_arm_left", "Save cached pose 'Arm Left'"),
+    ("layering_arm_right", "Save cached pose 'Arm Right'"), ("layering_fingers", "d650094f-41a3-2706-67fb-b5a5994b2139"),
+    ("layering_output", "Output Pose\nAnimGraph"),
+];
 const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.ab_als_default.secondary_motion.phase";
 const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
     "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234", "3890697f-4347-5dd1-f323-f28f64443083",
@@ -764,6 +774,7 @@ struct DefaultOverlayGraphSample {
     idle_rate: Option<f32>,
     additive_alpha: Option<f32>,
     additive_effect: Option<f32>,
+    layering: LayeringGraphSample,
     errors: Vec<String>,
 }
 
@@ -779,6 +790,7 @@ struct DefaultOverlayProbe {
     curves_seen: bool,
     additive_seen: bool,
     prediction_previous: Option<f32>,
+    previous_layering: Option<(u64, AlsLayeringState)>,
     prediction_increased: bool,
     prediction_decreased: bool,
     jump_started_at: Option<f64>,
@@ -815,6 +827,114 @@ fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
         }
     }
     Some(error)
+}
+
+#[derive(Default, Debug, Serialize)]
+struct LayeringGraphSample {
+    ready: bool,
+    input_curve_frame: Option<u64>,
+    evaluation_frame: Option<u64>,
+    inputs: std::collections::BTreeMap<String, (Option<f32>, f32)>,
+    boundaries: Vec<&'static str>,
+    base_evaluators: usize,
+    curve_operators: usize,
+    errors: Vec<String>,
+}
+
+fn layering_input_sample(player: &AnimationGraphPlayer, previous: AlsLayeringState) -> std::collections::BTreeMap<String, (Option<f32>, f32)> {
+    crate::layering_layer::layering_state_inputs(previous).into_iter()
+        .map(|(key, expected)| (key.into(), (locomotion_source_scalar(player, key), expected))).collect()
+}
+
+fn layering_curve_error(actual: &bevy::platform::collections::HashMap<String, f32>, expected: &bevy::platform::collections::HashMap<String, f32>) -> Option<f32> {
+    if actual.len() != expected.len() { return None; }
+    expected.iter().try_fold(0.0_f32, |error, (name, expected)| {
+        let actual = actual.get(name)?;
+        (actual.is_finite() && expected.is_finite()).then_some(error.max((actual - expected).abs()))
+    })
+}
+
+fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsLayeringState)>) -> LayeringGraphSample {
+    let mut sample = LayeringGraphSample::default();
+    let Some(arena) = player.get_context_arena() else { return sample; };
+    sample.evaluation_frame = Some(arena.frame_index());
+    if let Some((frame, previous)) = previous.filter(|(frame, _)| *frame + 1 == arena.frame_index()) {
+        sample.input_curve_frame = Some(*frame);
+        sample.inputs = layering_input_sample(player, *previous);
+        for (key, (actual, expected)) in &sample.inputs {
+            if actual.is_none_or(|actual| (actual - expected).abs() > 1e-5) {
+                sample.errors.push(format!("{key}: previous curve input mismatch"));
+            }
+        }
+    }
+    let mut contexts = 0;
+    for context_id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(context_id) else { continue; };
+        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(LAYERING_GRAPH)) { continue; }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
+        let pose = |id| context.node_caches.is_updated(id, StateKey::Default)
+            .then(|| context.node_caches.get_output_data(id, StateKey::Default, "Pose".into()))
+            .flatten().and_then(|value| value.into_pose().ok());
+        let input_id = |id, pin: &str| match graph.edges_inverted.get(&TargetPin::NodeData(id, pin.into())) {
+            Some(SourcePin::NodeData(source, _)) => Some(*source), _ => None,
+        };
+        if graph.nodes.values().find(|node| node.name == "Output Pose\nAnimGraph").and_then(|node| pose(node.id)).is_none() { continue; }
+        contexts += 1;
+        for (label, name) in LAYERING_BOUNDARIES {
+            if graph.nodes.values().find(|node| node.name == name || node.id.uuid().to_string() == name)
+                .and_then(|node| pose(node.id)).is_some_and(|pose| !pose.paths.is_empty()) { sample.boundaries.push(label); }
+        }
+        for node in graph.nodes.values() {
+            let Some(actual) = pose(node.id) else { continue; };
+            if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
+                if let Some(clip) = probe.clips.get(&sequence.clip) {
+                    let time = (sequence.explicit_frame / sequence.frames_per_second).clamp(0.0, clip.duration);
+                    let expected = als_ext::source_sequence_player::sample_pose(clip, time);
+                    if (actual.timestamp - time).abs() > 1e-5 || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
+                        sample.errors.push(format!("{}: source base pose frame mismatch", node.id.uuid()));
+                    }
+                    sample.base_evaluators += 1;
+                }
+            }
+            if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceTwoWayBlendNode>()
+                && !blend.alpha_key.is_empty() {
+                if let Ok(state) = context.node_states.get::<als_ext::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) {
+                    if locomotion_source_scalar(player, &blend.alpha_key).is_none_or(|value| (value - state.input_alpha).abs() > 1e-5) {
+                        sample.errors.push(format!("{}: consumed alpha mismatch", blend.alpha_key));
+                    }
+                } else { sample.errors.push(format!("{}: missing consumed alpha", blend.alpha_key)); }
+            }
+            let modify = node.try_inner_downcast_ref::<als_ext::SourceCurveModifyNode>();
+            let blend = node.try_inner_downcast_ref::<als_ext::SourceCurvesBlendNode>();
+            if modify.is_none() && blend.is_none() { continue; }
+            let base_pin = modify.map_or("BasePose", |node| node.source_pose_pin.as_str());
+            let Some(base_id) = input_id(node.id, base_pin) else { sample.errors.push("missing curve base edge".into()); continue; };
+            let Some(base) = pose(base_id) else { sample.errors.push("missing curve base pose".into()); continue; };
+            if default_overlay_pose_error(&actual, &base).is_none_or(|error| error > 2e-5) { sample.errors.push("curve operator changed its source pose".into()); }
+            let Ok(base_context) = context.node_states.get::<als_ext::AnimationContextState>(base_id, StateKey::Default) else { sample.errors.push("missing base curve context".into()); continue; };
+            let Ok(output_context) = context.node_states.get::<als_ext::AnimationContextState>(node.id, StateKey::Default) else { sample.errors.push("missing output curve context".into()); continue; };
+            let mut expected = base_context.curves.clone();
+            if let Some(modify) = modify {
+                for (name, value) in modify.curve_names.iter().zip(&modify.pin_defaults) {
+                    let base = expected.get(name).copied().unwrap_or(0.0);
+                    expected.insert(name.clone(), base + (*value - base) * modify.alpha);
+                }
+            }
+            if let Some(blend) = blend {
+                let Some(curve_id) = input_id(node.id, "CurvePose") else { sample.errors.push("missing curve input edge".into()); continue; };
+                let Ok(curve_context) = context.node_states.get::<als_ext::AnimationContextState>(curve_id, StateKey::Default) else { sample.errors.push("missing source curve context".into()); continue; };
+                if blend.blend_mode == als_ext::source_pose_nodes::SourceCurvesBlendMode::Override { expected.clear(); }
+                for (name, value) in &curve_context.curves { *expected.entry(name.clone()).or_default() += value * blend.blend_amount; }
+            }
+            if layering_curve_error(&output_context.curves, &expected).is_none_or(|error| error > 1e-5) {
+                sample.errors.push(format!("{}: source curve arithmetic mismatch", node.id.uuid()));
+            }
+            sample.curve_operators += 1;
+        }
+    }
+    sample.ready = contexts == 1 && sample.input_curve_frame.is_some() && sample.boundaries.len() == LAYERING_BOUNDARIES.len()
+        && sample.base_evaluators > 0 && sample.curve_operators == 3;
+    sample
 }
 
 fn default_overlay_prediction_alpha(previous: Option<f32>, raw: f32, delta: f32, mapping: &als_ext::source_pose_nodes::SourceAlphaMapping) -> f32 {
@@ -956,7 +1076,10 @@ fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> M
             ManualAnimationPoseBoundary { label: "secondary_motion", graph: DEFAULT_OVERLAY_GRAPH, node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "apply_additive", graph: DEFAULT_OVERLAY_GRAPH, node: "Apply Additive", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "overlay_output", graph: DEFAULT_OVERLAY_GRAPH, node: "Output Pose\nOverlay", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-        ],
+        ].into_iter().chain(LAYERING_BOUNDARIES.iter().map(|(label, node)| ManualAnimationPoseBoundary {
+            label, graph: LAYERING_GRAPH, node, output: "Pose", minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: if *label == "layering_output" { 0.001 } else { 0.0 },
+        })).collect(),
         minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001,
         minimum_observation_seconds: if index < 3 || index == 5 { 0.3 } else { 0.06 },
         source_sync_group: Some("Secondary Motion"), sync_phase_global: Some(DEFAULT_OVERLAY_SYNC),
@@ -1070,6 +1193,10 @@ fn locomotion_state_index(title: &str, label: &str) -> Option<u8> {
 fn locomotion_source_scalar(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
     als_ext::source_instance::source_player_property(player, key).and_then(|value| value.as_f32().ok())
         .or_else(|| graph_global_f32(player, key))
+}
+
+fn layering_crouching_input_ready(player: &AnimationGraphPlayer) -> bool {
+    locomotion_source_scalar(player, "pose_state.crouching_amount").is_some_and(|value| value > 1e-4)
 }
 
 fn locomotion_actions_should_timeout(probe: &LocomotionActionProbe, elapsed: f32) -> bool {
@@ -6162,13 +6289,17 @@ fn observe_manual_integration(
         let now = state.game_time_seconds;
         let probe = &mut state.default_overlay_probe;
         let mut sample = default_overlay_graph_sample(player, &motion_probe, probe.prediction_previous);
+        sample.layering = layering_graph_sample(player, &motion_probe, probe.previous_layering.as_ref());
+        if let Some(frame) = player.get_context_arena().map(|arena| arena.frame_index()) {
+            probe.previous_layering = Some((frame, crate::layering_layer::refresh_state_from_curves(context)));
+        }
         if let Ok((_, spaces, _, _)) = foot_ik_data.get(character)
             && !default_overlay_foot_targets_ready(spaces) {
             sample.errors.push("foot_trace_and_solver_must_consume_the_same_prepared_rig_target".into());
         }
-        let active = *overlay == OverlayState::Default && overlay_index.is_some_and(|value| value.abs() < 1e-4) && source_ready && sample.ready;
+        let active = *overlay == OverlayState::Default && overlay_index.is_some_and(|value| value.abs() < 1e-4) && source_ready && sample.ready && sample.layering.ready;
         if active {
-            probe.valid &= sample.errors.is_empty();
+            probe.valid &= sample.errors.is_empty() && sample.layering.errors.is_empty();
             probe.curves_seen |= default_overlay_curves_ready(context);
             probe.additive_seen |= sample.additive_effect.is_some_and(|value| value > 1e-4);
             for (index, time) in sample.evaluator_times.iter().enumerate() { probe.evaluators_seen[index] |= time.is_some(); }
@@ -7439,8 +7570,7 @@ fn observe_manual_integration(
     });
     state.coverage.layering |= *stance == Stance::Crouching
         && layering.is_some()
-        && graph_global_f32(player, "als_layering_crouching_amount")
-            .is_some_and(|value| value > 1e-4);
+        && layering_crouching_input_ready(player);
     state.coverage.overlay_object |= overlay_object.is_some_and(|object| {
         object.visible
             && object.applied_overlay == Some(OverlayState::Rifle)
@@ -8772,6 +8902,9 @@ fn observe_manual_integration(
                     ("default_source_poses", probe.valid && probe.evaluators_seen.iter().all(|value| *value)),
                     ("default_additive_applied", probe.additive_seen), ("default_overlay_curves", probe.curves_seen),
                     ("default_prediction_increase", probe.prediction_increased), ("default_prediction_decrease", probe.prediction_decreased),
+                    ("layering_source_regions", probe.sample.layering.boundaries.len() == LAYERING_BOUNDARIES.len()),
+                    ("layering_curve_operators", probe.sample.layering.curve_operators == 3 && probe.valid),
+                    ("layering_previous_curve_inputs", probe.sample.layering.ready && probe.valid),
                     ("default_complete", probe.case_index == 6),
                 ]);
                 results
@@ -9122,6 +9255,42 @@ mod tests {
         assert!(default_overlay_foot_targets_ready(&spaces));
         spaces.right.trace_target_world.y = f32::NAN;
         assert!(!default_overlay_foot_targets_ready(&spaces));
+    }
+
+    #[test]
+    fn layering_coverage_reads_the_generated_pose_input() {
+        let mut player = AnimationGraphPlayer::new(default());
+        for (legacy, source, expected) in [(1.0, 0.0, false), (0.0, 0.4, true)] {
+            player.set_global_input_data("als_layering_crouching_amount", legacy);
+            player.set_global_input_data("pose_state.crouching_amount", source);
+            assert_eq!(layering_crouching_input_ready(&player), expected);
+        }
+    }
+
+    #[test]
+    fn layering_observer_distinguishes_previous_inputs_and_preserves_curve_presence() {
+        let mut previous = AlsRootAnimationContext::default();
+        previous.curves.insert("LayerHead".into(), 0.25);
+        let previous_state = crate::layering_layer::refresh_state_from_curves(Some(&previous));
+        let mut player = AnimationGraphPlayer::new(default());
+        for (key, value) in crate::layering_layer::layering_state_inputs(previous_state) { player.set_global_input_data(key, value); }
+        let matches = |pairs: &std::collections::BTreeMap<String, (Option<f32>, f32)>|
+            pairs.values().all(|(actual, expected)| actual.is_some_and(|actual| (actual - expected).abs() <= 1e-5));
+        assert!(matches(&layering_input_sample(&player, previous_state)));
+        previous.curves.insert("LayerHead".into(), 0.75);
+        assert!(!matches(&layering_input_sample(&player, crate::layering_layer::refresh_state_from_curves(Some(&previous)))));
+        assert!(!matches(&layering_input_sample(&AnimationGraphPlayer::new(default()), previous_state)));
+        let expected = bevy::platform::collections::HashMap::from_iter([("LayerHead".into(), 0.25), ("LayerHeadSlot".into(), 0.0)]);
+        let mut actual = expected.clone();
+        assert_eq!(layering_curve_error(&actual, &expected), Some(0.0));
+        actual.insert("LayerHead".into(), 0.75);
+        assert_eq!(layering_curve_error(&actual, &expected), Some(0.5));
+        actual.remove("LayerHeadSlot");
+        assert_eq!(layering_curve_error(&actual, &expected), None);
+        let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
+        for (label, node) in LAYERING_BOUNDARIES {
+            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.graph == LAYERING_GRAPH));
+        }
     }
 
     #[test]
