@@ -24,6 +24,22 @@ const SOURCE_TIME: &str = "source_time";
 const OUT_POSE: &str = "Pose";
 const LEGACY_OUT_POSE: &str = "pose";
 pub const RIG_GAME_WORLD_KEY: &str = "control_rig.game_world";
+pub const RIG_CAPTURE_KEY: &str = "control_rig.capture";
+
+#[derive(Clone, Debug)]
+pub struct RigCallSample {
+    pub instruction: usize,
+    pub arguments: Vec<RigValue>,
+    pub bones_before: Vec<(usize, RigTransform)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RigTraceSample {
+    pub instruction: usize,
+    pub start: bevy::math::DVec3,
+    pub end: bevy::math::DVec3,
+    pub hit: Option<(bevy::math::DVec3, bevy::math::DVec3)>,
+}
 
 #[derive(Reflect, Clone, Debug)]
 pub struct RigInputBinding {
@@ -44,8 +60,24 @@ pub struct ControlRigNodeState {
     pub context: AnimationContextState,
     pub initialization_count: u64,
     pub executed_steps: usize,
+    pub to_world: RigTransform,
+    pub elapsed_seconds: f64,
+    #[reflect(ignore)]
+    pub calls: Vec<RigCallSample>,
+    #[reflect(ignore)]
+    pub traces: Vec<RigTraceSample>,
     #[reflect(ignore)]
     runtime: Option<ControlRigRuntime>,
+}
+
+impl ControlRigNodeState {
+    pub fn value(&self, reference: &RigValueRef) -> Result<RigValue, String> {
+        reference.read(&self.runtime.as_ref().ok_or("rig is not initialized")?.values)
+    }
+
+    pub fn snapshot_hierarchy(&self) -> Option<RigHierarchy> {
+        self.runtime.as_ref().map(|runtime| runtime.hierarchy.clone())
+    }
 }
 
 fn rig_transform(transform: Transform) -> RigTransform {
@@ -151,8 +183,12 @@ impl ControlRigBoundaryNode {
         delta_seconds: f64,
         to_world: RigTransform,
         query: Option<&crate::control_rig_query::RigQueryContext>,
+        capture: bool,
     ) -> Result<(), String> {
         state.executed_steps = 0;
+        state.to_world = to_world;
+        state.calls.clear();
+        state.traces.clear();
         if state.runtime.is_none() {
             state.runtime = Some(ControlRigRuntime {
                 hierarchy: RigHierarchy::new(
@@ -175,11 +211,19 @@ impl ControlRigBoundaryNode {
                 value.clone(),
             )?;
         }
-        let execute = |runtime: &mut ControlRigRuntime, entry: &str| {
+        let calls = &mut state.calls;
+        let traces = &mut state.traces;
+        let mut execute = |runtime: &mut ControlRigRuntime, entry: &str| {
+            let capture = capture && entry == "Forwards Solve";
+            let instruction = std::cell::Cell::new(0);
             let mut trace = |start, end, channel: &str, complex| {
-                query
+                let hit = query
                     .ok_or_else(|| "rig line trace is unavailable".to_owned())?
-                    .trace(start, end, channel, complex)
+                    .trace(start, end, channel, complex)?;
+                if capture {
+                    traces.push(RigTraceSample { instruction: instruction.get(), start, end, hit });
+                }
+                Ok(hit)
             };
             let mut context = RigUnitContext {
                 hierarchy: &mut runtime.hierarchy,
@@ -194,8 +238,24 @@ impl ControlRigBoundaryNode {
             };
             definition
                 .program
-                .execute(entry, &mut runtime.values, |name, args| {
-                    context.call(name, args)
+                .execute(entry, &mut runtime.values, |pc, name, args| {
+                    let bones_before = if capture {
+                        instruction.set(pc);
+                        let indices = args.iter().filter_map(|value| context.hierarchy.item_index(value).ok().flatten()).collect::<Vec<_>>();
+                        if indices.is_empty() {
+                            Vec::new()
+                        } else {
+                            let mut snapshot = context.hierarchy.clone();
+                            indices.into_iter().filter_map(|index| Some((index, snapshot.transform(index, RigSpace::Global, false).ok()?))).collect()
+                        }
+                    } else {
+                        Vec::new()
+                    };
+                    let result = context.call(name, args);
+                    if capture {
+                        calls.push(RigCallSample { instruction: pc, arguments: args.to_vec(), bones_before });
+                    }
+                    result
                 })
                 .map_err(|error| {
                     format!(
@@ -337,6 +397,10 @@ impl NodeLike for ControlRigBoundaryNode {
             Some(value) => value.as_bool()?,
             None => false,
         };
+        let capture = match source_input_data(&ctx, RIG_CAPTURE_KEY) {
+            Some(value) => value.as_bool()?,
+            None => false,
+        };
         let delta_seconds =
             crate::global_f32_input::global_f32_or_root_default(&ctx, &self.delta_seconds_key)?
                 as f64;
@@ -407,7 +471,8 @@ impl NodeLike for ControlRigBoundaryNode {
             });
         let node_state = ctx.state_mut::<ControlRigNodeState>()?;
         node_state.context = state;
-        self.solve(
+        let started = capture.then(std::time::Instant::now);
+        let result = self.solve(
             definition,
             node_state,
             &mut pose,
@@ -417,8 +482,10 @@ impl NodeLike for ControlRigBoundaryNode {
             delta_seconds,
             to_world,
             query.as_ref(),
-        )
-        .map_err(failure)?;
+            capture,
+        );
+        node_state.elapsed_seconds = started.map_or(0.0, |start| start.elapsed().as_secs_f64());
+        result.map_err(failure)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(OUT_POSE, pose.clone());
         ctx.set_data_fwd(LEGACY_OUT_POSE, pose);
@@ -536,6 +603,8 @@ mod tests {
             {
                 for (instance, arena) in arenas.iter_mut().enumerate() {
                     let mut inputs = inputs.clone();
+                    let capture = instance == 0 && frame % 2 == 0;
+                    inputs.insert(RIG_CAPTURE_KEY.into(), DataValue::Bool(capture));
                     let mut pose = inputs["source"].clone().into_pose().unwrap();
                     pose.timestamp += frame as f32;
                     let index = pose.paths[&foot_root];
@@ -578,10 +647,13 @@ mod tests {
                         .unwrap();
                     assert_eq!(state.initialization_count, 1);
                     assert!(state.executed_steps > 50);
+                    assert_eq!(!state.calls.is_empty(), capture);
+                    assert_eq!(state.elapsed_seconds > 0.0, capture);
+                    assert!(state.traces.is_empty());
                     let mut value = definition.externals["RigInput"].clone();
                     value.path.push(3);
                     assert_eq!(
-                        value.read(&state.runtime.as_ref().unwrap().values).unwrap(),
+                        state.value(&value).unwrap(),
                         RigValue::F32(forward)
                     );
                     assert_eq!(state.context.curves["PoseMoving"], 1.0);
@@ -594,9 +666,7 @@ mod tests {
                         .translation
                         .y;
                     assert_eq!(
-                        definition.externals["FootHeight"]
-                            .read(&state.runtime.as_ref().unwrap().values)
-                            .unwrap(),
+                        state.value(&definition.externals["FootHeight"]).unwrap(),
                         RigValue::F64(foot_height)
                     );
                     let amount = if instance == 0 { 0.4 } else { 0.2 };
@@ -677,22 +747,42 @@ mod tests {
             );
             let mut inputs = inputs.clone();
             inputs.insert("rig.foot_valid".into(), DataValue::Bool(true));
-            let mut arena = GraphContextArena::new(handle.id());
-            let context = GraphContext::new(
-                arena.get_toplevel_id(),
-                graph,
-                &mut arena,
-                &resources,
-                &env,
-                query_root,
-                &entities,
-                &mut gizmos,
-                &inputs,
-            );
-            let output =
-                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context);
+            let mut outcomes = Vec::new();
+            for capture in [true, false] {
+                inputs.insert(RIG_CAPTURE_KEY.into(), DataValue::Bool(capture));
+                let mut arena = GraphContextArena::new(handle.id());
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, query_root, &entities, &mut gizmos, &inputs);
+                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                    .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+                let captured = arena.get_toplevel().node_states.get::<ControlRigNodeState>(rig_node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
+                assert_eq!(captured.traces.len(), usize::from(capture));
+                assert_eq!(captured.elapsed_seconds > 0.0, capture);
+                if capture {
+                    let trace = &captured.traces[0];
+                    assert!(trace.hit.is_none());
+                    assert_eq!(trace.start.y, 0.5);
+                    assert_eq!(trace.end.y, -(0.8_f32 as f64));
+                    let call = captured.calls.iter().find(|call| call.instruction == trace.instruction).unwrap();
+                    assert_eq!(call.arguments[6], RigValue::Bool(true));
+                    let branches = captured.calls.iter().filter_map(|call| {
+                        let crate::control_rig_program::RigInstruction::Call { function, .. } = &definition.program.instructions[call.instruction] else { return None; };
+                        (function == "FAlsRigVMFunction_IsGameWorld::Execute").then(|| call.arguments[0].clone())
+                    }).collect::<Vec<_>>();
+                    assert_eq!(branches, vec![RigValue::Name("True".into()), RigValue::Name("Completed".into())]);
+                    assert!(captured.calls.iter().flat_map(|call| &call.bones_before).any(|(index, before)| {
+                        captured.snapshot_hierarchy().unwrap().transform(*index, RigSpace::Global, false).unwrap() != *before
+                    }));
+                } else {
+                    assert!(captured.calls.is_empty());
+                }
+                outcomes.push((captured.runtime.as_ref().unwrap().values.clone(), format!("{:?}", captured.runtime.as_ref().unwrap().hierarchy), output.paths.clone(),
+                    output.bones.iter().map(|bone| (bone.translation, bone.rotation, bone.scale, bone.weights.clone())).collect::<Vec<_>>(),
+                    output.timestamp, output.root_motion));
+            }
+            assert!(outcomes[0] == outcomes[1], "capture changed rig values, hierarchy caches, or output pose");
             crate::source_gameplay_tag_input::set_rig_query_context(query_root, None);
-            assert!(output.is_ok(), "{output:?}");
             assert!(crate::source_gameplay_tag_input::rig_query_context(query_root).is_none());
             outputs
         }
@@ -826,6 +916,7 @@ mod tests {
             ("foot_curve".to_owned(), DataValue::F32(1.0)),
             ("animation.delta_seconds".to_owned(), DataValue::F32(0.02)),
             (RIG_GAME_WORLD_KEY.to_owned(), DataValue::Bool(true)),
+            (RIG_CAPTURE_KEY.to_owned(), DataValue::Bool(true)),
         ]);
         let outputs = world
             .run_system_cached_with(query, (handle, inputs, foot_root))

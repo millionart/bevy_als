@@ -745,7 +745,7 @@ mod tests {
             instructions: vec![call, RigInstruction::Exit],
         };
         program
-            .execute("Forwards Solve", &mut arguments, |function, values| {
+            .execute("Forwards Solve", &mut arguments, |_, function, values| {
                 rig.call_transform_unit(function, values, false)
             })
             .unwrap();

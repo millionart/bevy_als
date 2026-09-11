@@ -169,7 +169,7 @@ impl RigProgram {
         &self,
         entry: &str,
         values: &mut [RigValue],
-        mut call_unit: impl FnMut(&str, &mut [RigValue]) -> Result<(), String>,
+        mut call_unit: impl FnMut(usize, &str, &mut [RigValue]) -> Result<(), String>,
     ) -> Result<usize, RigExecutionError> {
         let failure = |instruction, executed_steps, reason| RigExecutionError {
             entry: entry.to_owned(),
@@ -214,7 +214,7 @@ impl RigProgram {
                             .iter()
                             .map(|input| input.read(values))
                             .collect::<Result<Vec<_>, _>>()?;
-                        call_unit(function, &mut arguments_values)?;
+                        call_unit(pc, function, &mut arguments_values)?;
                         for &output in outputs {
                             let binding =
                                 arguments.get(output).ok_or("rig call output is invalid")?;
@@ -270,7 +270,7 @@ mod tests {
         }
     }
 
-    fn branch(function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
+    fn branch(_instruction: usize, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
         if function != "Branch" {
             return Err("unknown fixture unit".to_owned());
         }
@@ -412,8 +412,8 @@ mod tests {
 
         let mut mixed_case = program.initial_values.clone();
         program
-            .execute("solve", &mut mixed_case, |name, arguments| {
-                branch(name, arguments)?;
+            .execute("solve", &mut mixed_case, |pc, name, arguments| {
+                branch(pc, name, arguments)?;
                 if let Name(block) = &mut arguments[1] {
                     *block = block.to_ascii_lowercase();
                 }
@@ -560,7 +560,7 @@ mod tests {
             };
             assert_eq!(
                 program
-                    .execute("Construction", &mut values, |name, args| context
+                    .execute("Construction", &mut values, |_, name, args| context
                         .call(name, args))
                     .unwrap(),
                 15
@@ -659,7 +659,7 @@ mod tests {
             };
             assert!(
                 program
-                    .execute("Forwards Solve", &mut values, |name, args| context
+                    .execute("Forwards Solve", &mut values, |_, name, args| context
                         .call(name, args))
                     .unwrap()
                     > 140
@@ -717,14 +717,14 @@ mod tests {
         };
         assert!(
             program
-                .execute("Forwards Solve", &mut values, |name, args| context
+                .execute("Forwards Solve", &mut values, |_, name, args| context
                     .call(name, args))
                 .unwrap()
                 < 10
         );
         context.game_world = true;
         let failure = program
-            .execute("Forwards Solve", &mut values, |name, args| {
+            .execute("Forwards Solve", &mut values, |_, name, args| {
                 context.call(name, args)
             })
             .unwrap_err();
@@ -746,7 +746,7 @@ mod tests {
         };
         for entry in ["Construction", "Forwards Solve"] {
             program
-                .execute(entry, &mut independent_values, |name, args| {
+                .execute(entry, &mut independent_values, |_, name, args| {
                     context.call(name, args)
                 })
                 .unwrap();

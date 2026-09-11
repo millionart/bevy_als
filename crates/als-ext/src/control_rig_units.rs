@@ -837,7 +837,7 @@ mod tests {
         let mut values = program.initial_values.clone();
         let run = |context: &mut RigUnitContext, values: &mut Vec<RigValue>| {
             program
-                .execute("Trace", values, |function, arguments| {
+                .execute("Trace", values, |_, function, arguments| {
                     context.call(function, arguments)
                 })
                 .unwrap();
@@ -884,7 +884,7 @@ mod tests {
         context.line_trace = None;
         values[6] = Bool(true);
         let error = program
-            .execute("Trace", &mut values, |function, arguments| {
+            .execute("Trace", &mut values, |_, function, arguments| {
                 context.call(function, arguments)
             })
             .unwrap_err();
@@ -1118,7 +1118,7 @@ mod tests {
         let run = |context: &mut RigUnitContext, values: &mut Vec<RigValue>| {
             assert_eq!(
                 program
-                    .execute("Solve", values, |function, arguments| context
+                    .execute("Solve", values, |_, function, arguments| context
                         .call(function, arguments))
                     .unwrap(),
                 2
@@ -1598,7 +1598,7 @@ mod tests {
         let mut values = program.initial_values.clone();
         let run = |context: &mut RigUnitContext, values: &mut Vec<RigValue>| {
             program
-                .execute("Solve", values, |function, arguments| {
+                .execute("Solve", values, |_, function, arguments| {
                     context.call(function, arguments)
                 })
                 .unwrap();
@@ -1680,7 +1680,7 @@ mod tests {
         assert_eq!(fresh[9], F32((0.2_f32 as f64 + 7.0 / 3.0) as f32));
         fresh[11] = List(vec![List(vec![])]);
         let error = program
-            .execute("Solve", &mut fresh, |function, arguments| {
+            .execute("Solve", &mut fresh, |_, function, arguments| {
                 context.call(function, arguments)
             })
             .unwrap_err();
@@ -1828,7 +1828,7 @@ mod tests {
         for condition in [true, false] {
             values[5] = Bool(condition);
             program
-                .execute("Construction", &mut values, |function, arguments| {
+                .execute("Construction", &mut values, |_, function, arguments| {
                     context.call(function, arguments)
                 })
                 .unwrap();
@@ -1836,7 +1836,7 @@ mod tests {
             assert_eq!(values[9], item(if condition { "Bone0" } else { "Bone3" }));
             assert_eq!(values[6], Name("Completed".to_owned()));
             program
-                .execute("Forwards Solve", &mut values, |function, arguments| {
+                .execute("Forwards Solve", &mut values, |_, function, arguments| {
                     context.call(function, arguments)
                 })
                 .unwrap();
@@ -1848,7 +1848,7 @@ mod tests {
         context.game_world = false;
         values[3] = F32(-1.0);
         program
-            .execute("Forwards Solve", &mut values, |function, arguments| {
+            .execute("Forwards Solve", &mut values, |_, function, arguments| {
                 context.call(function, arguments)
             })
             .unwrap();
