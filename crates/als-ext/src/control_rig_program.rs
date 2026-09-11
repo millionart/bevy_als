@@ -72,7 +72,7 @@ impl RigValueRef {
         )
     }
 
-    fn write(
+    pub fn write(
         &self,
         values: &mut [RigValue],
         literal_count: usize,
