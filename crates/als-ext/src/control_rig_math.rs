@@ -5,6 +5,53 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 
+pub fn rig_damper_alpha(delta_seconds: f32, half_life: f32) -> f32 {
+    1.0 - inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * delta_seconds)
+}
+
+pub fn rig_clamp01(value: f32) -> f32 {
+    if value > 0.0 {
+        if value < 1.0 { value } else { 1.0 }
+    } else {
+        0.0
+    }
+}
+
+pub fn rig_quaternion(euler: DVec3) -> DQuat {
+    DQuat::from_euler(
+        EulerRot::YZX,
+        (euler.y % 360.0).to_radians(),
+        (euler.z % 360.0).to_radians(),
+        (euler.x % 360.0).to_radians(),
+    )
+}
+
+pub fn rig_euler(rotation: DQuat) -> DVec3 {
+    let DQuat { x, y, z, w } = rotation;
+    let singularity = x * y + w * z;
+    if singularity.abs() > 0.4999995 {
+        let sign = if singularity < 0.0 { -1.0 } else { 1.0 };
+        let mut yaw = (-sign * 2.0 * x.atan2(w)).to_degrees() % 360.0;
+        if yaw < 0.0 {
+            yaw += 360.0;
+        }
+        if yaw > 180.0 {
+            yaw -= 360.0;
+        }
+        DVec3::new(0.0, -yaw, sign * 90.0)
+    } else {
+        DVec3::new(
+            (2.0 * (w * x - y * z))
+                .atan2(1.0 - 2.0 * (x * x + z * z))
+                .to_degrees(),
+            -(2.0 * (x * z - w * y))
+                .atan2(1.0 - 2.0 * (z * z + y * y))
+                .to_degrees(),
+            (2.0 * singularity).asin().to_degrees(),
+        )
+    }
+}
+
 pub fn rig_sin_cos(value: f32) -> (f32, f32) {
     let quotient = (std::f32::consts::FRAC_1_PI * 0.5) * value;
     let quotient = (if value >= 0.0 {
@@ -129,11 +176,7 @@ impl RigMathOp {
             (Self::F32Add, [F32(a), F32(b)]) => F32(a + b),
             (Self::F32Mul, [F32(a), F32(b)]) => F32(a * b),
             (Self::F32Min, [F32(a), F32(b)]) => F32(if a < b { *a } else { *b }),
-            (Self::F32Clamp01, [F32(value)]) => F32(if *value > 0.0 {
-                if *value < 1.0 { *value } else { 1.0 }
-            } else {
-                0.0
-            }),
+            (Self::F32Clamp01, [F32(value)]) => F32(rig_clamp01(*value)),
             (Self::F64Add, [F64(a), F64(b)]) => F64(a + b),
             (Self::F64Sub, [F64(a), F64(b)]) => F64(a - b),
             (Self::F64Mul, [F64(a), F64(b)]) => F64(a * b),
@@ -146,12 +189,9 @@ impl RigMathOp {
             (Self::F64GreaterEqual, [F64(a), F64(b)]) => Bool(a >= b),
             (Self::VectorAdd, [Vector(a), Vector(b)]) => Vector(*a + *b),
             (Self::VectorScale, [Vector(value), F32(factor)]) => Vector(*value * *factor as f64),
-            (Self::QuaternionFromEulerYzx, [EulerDegrees(value)]) => Quaternion(DQuat::from_euler(
-                EulerRot::YZX,
-                (value.y % 360.0).to_radians(),
-                (value.z % 360.0).to_radians(),
-                (value.x % 360.0).to_radians(),
-            )),
+            (Self::QuaternionFromEulerYzx, [EulerDegrees(value)]) => {
+                Quaternion(rig_quaternion(*value))
+            }
             _ => {
                 return Err(format!(
                     "control rig {self:?} input types or arity do not match"
@@ -165,6 +205,45 @@ impl RigMathOp {
 mod tests {
     use super::*;
     use RigMathOp::*;
+
+    #[test]
+    fn control_rig_euler_preserves_double_singularities_and_target_angles() {
+        for value in [
+            DVec3::new(21.0, 83.0, 37.0),
+            DVec3::new(30.0, -70.0, 89.9),
+            DVec3::new(30.0, -70.0, -89.9),
+        ] {
+            assert!(rig_euler(rig_quaternion(value)).distance(value) < 1e-8);
+        }
+        for (input, expected) in [
+            (DVec3::new(30.0, -70.0, 90.0), DVec3::new(0.0, -40.0, 90.0)),
+            (
+                DVec3::new(30.0, -70.0, -90.0),
+                DVec3::new(0.0, -100.0, -90.0),
+            ),
+        ] {
+            let quaternion = rig_quaternion(input);
+            for quaternion in [quaternion, -quaternion] {
+                assert!(rig_euler(quaternion).distance(expected) < 1e-12);
+            }
+        }
+        for pitch in [-89.95, 89.95] {
+            let actual = rig_euler(rig_quaternion(DVec3::new(30.0, -70.0, pitch)));
+            assert_eq!(actual.x, 0.0);
+            assert_eq!(actual.z, 90.0_f64.copysign(pitch));
+        }
+        let actual = rig_euler(DQuat::from_xyzw(0.0, 0.0, 0.1, 1.0));
+        assert_eq!(actual, DVec3::new(0.0, 0.0, 0.2_f64.asin().to_degrees()));
+        assert_eq!(
+            rig_euler(DQuat::from_xyzw(
+                std::f64::consts::FRAC_1_SQRT_2,
+                std::f64::consts::FRAC_1_SQRT_2,
+                0.0,
+                0.0
+            )),
+            DVec3::new(0.0, -180.0, 90.0)
+        );
+    }
     use RigValue::*;
 
     #[test]

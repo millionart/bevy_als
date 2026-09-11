@@ -71,7 +71,11 @@ impl RigTransform {
     }
 
     pub fn inverse_transform_point(self, point: DVec3) -> DVec3 {
-        (self.rotation.conjugate() * (point - self.translation)) * self.scale_reciprocal()
+        self.inverse_transform_vector(point - self.translation)
+    }
+
+    pub fn inverse_transform_vector(self, vector: DVec3) -> DVec3 {
+        (self.rotation.conjugate() * vector) * self.scale_reciprocal()
     }
 
     pub fn value(self) -> RigValue {

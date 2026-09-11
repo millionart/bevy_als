@@ -47,9 +47,13 @@ impl RigGeometry {
         self.basis[0].dot(self.basis[1].cross(self.basis[2]))
     }
 
-    fn between_normals(&self, a: DVec3, b: DVec3) -> DQuat {
-        let w = 1.0 + a.dot(b);
-        let (axis, w) = if w >= 1e-6_f32 as f64 {
+    pub fn between_vectors(&self, a: DVec3, b: DVec3) -> DQuat {
+        self.between(a, b, (a.length_squared() * b.length_squared()).sqrt())
+    }
+
+    fn between(&self, a: DVec3, b: DVec3, norm_ab: f64) -> DQuat {
+        let w = norm_ab + a.dot(b);
+        let (axis, w) = if w >= 1e-6_f32 as f64 * norm_ab {
             (a.cross(b), w)
         } else {
             let magnitudes = self.basis.map(|axis| a.dot(axis).abs());
@@ -173,7 +177,7 @@ impl RigGeometry {
                 fully_extended = (base.dot(target) - 1.0).abs() < 1e-4_f32 as f64;
             }
             bones[index].rotation =
-                rig_normalize(self.between_normals(axis, target) * bones[index].rotation);
+                rig_normalize(self.between(axis, target, 1.0) * bones[index].rotation);
             if secondary_weight <= 1e-8 {
                 continue;
             }
@@ -190,7 +194,7 @@ impl RigGeometry {
             }
             secondary_target -= secondary_target.dot(target) * target;
             secondary_target = safe_normal(secondary_target, self.normalize_squared);
-            let mut rotation = self.between_normals(axis, secondary_target);
+            let mut rotation = self.between(axis, secondary_target, 1.0);
             if (secondary_weight - 1.0).abs() > 1e-8 {
                 let vector = DVec3::new(rotation.x, rotation.y, rotation.z);
                 let axis = if vector.length_squared() >= 1e-8 {

@@ -1,10 +1,20 @@
-use bevy::{math::DQuat, platform::collections::HashMap};
+use bevy::{
+    math::{DQuat, DVec3},
+    platform::collections::HashMap,
+};
 
 use crate::{
-    control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform, rig_quat_near, rig_slerp},
+    control_rig_hierarchy::{
+        RigHierarchy, RigSpace, RigTransform, rig_normalize, rig_quat_near, rig_slerp,
+    },
     control_rig_ik::RigGeometry,
-    control_rig_math::{RigValue, rig_spring_damper},
+    control_rig_math::{
+        RigValue, rig_clamp01, rig_damper_alpha, rig_euler, rig_quaternion, rig_spring_damper,
+    },
 };
+
+pub type RigLineTrace<'a> =
+    dyn FnMut(DVec3, DVec3, &str, bool) -> Result<Option<(DVec3, DVec3)>, String> + 'a;
 
 pub struct RigUnitContext<'a> {
     pub hierarchy: &'a mut RigHierarchy,
@@ -13,6 +23,8 @@ pub struct RigUnitContext<'a> {
     pub construction: bool,
     pub delta_seconds: f64,
     pub geometry: &'a RigGeometry,
+    pub to_world: RigTransform,
+    pub line_trace: Option<&'a mut RigLineTrace<'a>>,
 }
 
 fn branch_label(condition: bool, label: &mut String) {
@@ -22,6 +34,17 @@ fn branch_label(condition: bool, label: &mut String) {
         "Completed"
     }
     .to_owned();
+}
+
+fn constrained_angle(current: f64, target: f64, interval: &[RigValue]) -> Result<f64, String> {
+    let [RigValue::F32(minimum), RigValue::F32(maximum)] = interval else {
+        return Err("rig angle interval layout is invalid".to_owned());
+    };
+    let current = current as f32;
+    Ok((target as f32).clamp(
+        current.min(*minimum).min(*maximum),
+        current.max(*minimum).max(*maximum),
+    ) as f64)
 }
 
 impl RigUnitContext<'_> {
@@ -54,6 +77,207 @@ impl RigUnitContext<'_> {
     pub fn call(&mut self, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
         use RigValue::*;
         match (function, arguments) {
+            (
+                "FAlsRigUnit_FootOffsetTrace::Execute",
+                [
+                    Vector(foot),
+                    Name(channel),
+                    F32(upward),
+                    F32(downward),
+                    F32(walkable_angle),
+                    F32(height),
+                    Bool(enabled),
+                    Bool(_debug),
+                    F32(offset),
+                    Vector(normal),
+                ],
+            ) => {
+                let up = self.geometry.basis[2];
+                let hit = if *enabled {
+                    let horizontal = *foot - up * foot.dot(up);
+                    let start = self
+                        .to_world
+                        .transform_point(horizontal + up * *upward as f64);
+                    let end = self
+                        .to_world
+                        .transform_point(horizontal - up * *downward as f64);
+                    let trace = self
+                        .line_trace
+                        .as_deref_mut()
+                        .ok_or("rig line trace is unavailable")?;
+                    trace(start, end, channel, true)?
+                } else {
+                    None
+                };
+                let Some((point, hit_normal)) = hit else {
+                    *offset = 0.0;
+                    *normal = up;
+                    return Ok(());
+                };
+                let hit_normal = self.to_world.inverse_transform_vector(hit_normal);
+                let slope_cos = hit_normal.dot(up);
+                if slope_cos < walkable_angle.to_radians().cos() as f64 {
+                    *offset = 0.0;
+                    *normal = up;
+                    return Ok(());
+                }
+                let point = self.to_world.inverse_transform_point(point);
+                let slope_cos = slope_cos as f32;
+                let correction = if slope_cos > 1e-8 {
+                    *height / slope_cos - *height
+                } else {
+                    0.0
+                };
+                *offset = (point.dot(up) + correction as f64) as f32;
+                *normal = hit_normal;
+            }
+            (
+                "FAlsRigUnit_ApplyFootOffsetLocation::Execute",
+                [
+                    pelvis,
+                    thigh,
+                    Vector(target),
+                    F32(foot_offset),
+                    F32(pelvis_offset),
+                    F32(length),
+                    F32(pelvis_distance),
+                    F32(stretch),
+                    F32(frequency),
+                    F32(damping),
+                    F32(target_velocity_amount),
+                    Bool(initialized),
+                    _cached_pelvis,
+                    _cached_thigh,
+                    List(state),
+                    F32(offset),
+                    Vector(location),
+                ],
+            ) => {
+                let Some(pelvis) = self.hierarchy.item_index(pelvis)? else {
+                    return Ok(());
+                };
+                let Some(thigh) = self.hierarchy.item_index(thigh)? else {
+                    return Ok(());
+                };
+                let [F32(velocity), F32(previous), Bool(valid)] = state.as_mut_slice() else {
+                    return Err("rig offset spring state layout is invalid".to_owned());
+                };
+                let up = self.geometry.basis[2];
+                let pelvis = self
+                    .hierarchy
+                    .transform(pelvis, RigSpace::Global, false)?
+                    .translation
+                    .dot(up) as f32;
+                let thigh = self
+                    .hierarchy
+                    .transform(thigh, RigSpace::Global, false)?
+                    .translation;
+                let maximum = pelvis - *pelvis_distance - target.dot(up) as f32;
+                let target_offset = foot_offset.min(maximum).max(*pelvis_offset);
+                if !*initialized {
+                    *initialized = true;
+                    *velocity = 0.0;
+                    *previous = 0.0;
+                    *valid = false;
+                    *offset = target_offset;
+                } else {
+                    let delta_seconds = self.delta_seconds as f32;
+                    if delta_seconds > 1e-8 {
+                        if !*valid {
+                            *velocity = 0.0;
+                            *previous = target_offset;
+                            *valid = true;
+                            *offset = target_offset;
+                        } else {
+                            let target_velocity = (target_offset - *previous)
+                                * rig_clamp01(*target_velocity_amount)
+                                / delta_seconds;
+                            rig_spring_damper(
+                                offset,
+                                velocity,
+                                target_offset,
+                                target_velocity,
+                                delta_seconds,
+                                *frequency,
+                                *damping,
+                            );
+                            *previous = target_offset;
+                        }
+                    }
+                }
+                let leg = *target + up * *offset as f64 - thigh;
+                let maximum = (*length * *stretch) as f64;
+                let leg = if maximum < self.geometry.near_zero {
+                    DVec3::ZERO
+                } else if leg.length_squared() > maximum * maximum {
+                    leg * (maximum / leg.length())
+                } else {
+                    leg
+                };
+                *location = thigh + leg;
+            }
+            (
+                "FAlsRigUnit_ApplyFootOffsetRotation::Execute",
+                [
+                    calf,
+                    foot,
+                    Quaternion(target),
+                    Vector(normal),
+                    List(swing_y),
+                    List(swing_z),
+                    List(twist_x),
+                    F32(half_life),
+                    Bool(initialized),
+                    _cached_calf,
+                    _cached_foot,
+                    Vector(offset_normal),
+                    Quaternion(rotation),
+                    Quaternion(initial_rotation),
+                ],
+            ) => {
+                let Some(calf) = self.hierarchy.item_index(calf)? else {
+                    return Ok(());
+                };
+                let Some(foot) = self.hierarchy.item_index(foot)? else {
+                    return Ok(());
+                };
+                if !*initialized {
+                    *initialized = true;
+                    *offset_normal = *normal;
+                    let calf = self
+                        .hierarchy
+                        .transform(calf, RigSpace::Global, true)?
+                        .rotation;
+                    let foot = self
+                        .hierarchy
+                        .transform(foot, RigSpace::Global, true)?
+                        .rotation;
+                    *initial_rotation = calf.conjugate() * foot;
+                }
+                *offset_normal += (*normal - *offset_normal)
+                    * rig_damper_alpha(self.delta_seconds as f32, *half_life) as f64;
+                let offset_rotation = self
+                    .geometry
+                    .between_vectors(self.geometry.basis[2], *offset_normal);
+                let calf = self
+                    .hierarchy
+                    .transform(calf, RigSpace::Global, false)?
+                    .rotation;
+                let foot = self
+                    .hierarchy
+                    .transform(foot, RigSpace::Global, false)?
+                    .rotation;
+                let current = rig_euler(calf.conjugate() * foot * initial_rotation.conjugate());
+                let target = rig_euler(
+                    calf.conjugate() * (offset_rotation * *target) * initial_rotation.conjugate(),
+                );
+                let euler = DVec3::new(
+                    constrained_angle(current.x, target.x, twist_x)?,
+                    constrained_angle(current.y, target.y, swing_y)?,
+                    constrained_angle(current.z, target.z, swing_z)?,
+                );
+                *rotation = rig_normalize(calf * (rig_quaternion(euler) * *initial_rotation));
+            }
             (
                 "FAlsRigUnit_CalculatePoleVector::Execute",
                 [
@@ -227,10 +451,7 @@ impl RigUnitContext<'_> {
                     *initialized = true;
                     *current = *target;
                 }
-                let alpha = 1.0
-                    - als_core::animation::inv_exp_approx(
-                        std::f32::consts::LN_2 / (*half_life + 1e-8) * self.delta_seconds as f32,
-                    );
+                let alpha = rig_damper_alpha(self.delta_seconds as f32, *half_life);
                 *current += (*target - *current) * alpha as f64;
             }
             (
@@ -412,6 +633,378 @@ mod tests {
     }
 
     #[test]
+    fn control_rig_foot_location_preserves_two_stage_spring_and_final_leg_limit() {
+        use RigValue::*;
+        let mut hierarchy = hierarchy();
+        let input = [
+            DVec3::Y * 2.0,
+            DVec3::NEG_Y * 0.4,
+            DVec3::NEG_Y,
+            DVec3::ZERO,
+        ]
+        .map(|translation| RigTransform {
+            translation,
+            ..Default::default()
+        });
+        hierarchy.set_input_pose(&input).unwrap();
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        let mut args = [
+            item("Bone0"),
+            item("Bone1"),
+            Vector(DVec3::ZERO),
+            F32(3.0),
+            F32(-0.2),
+            F32(2.0),
+            F32(0.5),
+            F32(1.0),
+            F32(1.0),
+            F32(1.0),
+            F32(0.0),
+            Bool(false),
+            List(vec![]),
+            List(vec![]),
+            List(vec![F32(8.0), F32(9.0), Bool(true)]),
+            F32(9.0),
+            Vector(DVec3::splat(9.0)),
+        ];
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[11], Bool(true));
+        assert_eq!(args[14], List(vec![F32(0.0), F32(0.0), Bool(false)]));
+        assert_eq!(args[15], F32(1.5));
+        assert_eq!(args[16], Vector(DVec3::Y * 1.5));
+        args[3] = F32(0.4);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[15], F32(1.5));
+        context.delta_seconds = 0.1;
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[15], F32(0.4));
+        assert_eq!(args[14], List(vec![F32(0.0), F32(0.4), Bool(true)]));
+        args[3] = F32(0.0);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        let expected = (0.4 + std::f32::consts::TAU * 0.4 * 0.1)
+            * als_core::animation::inv_exp_approx(std::f32::consts::TAU * 0.1);
+        let F32(actual) = args[15] else {
+            panic!("foot offset is missing");
+        };
+        assert!((actual - expected).abs() < 1e-7);
+        context.delta_seconds = 0.0;
+        args[5] = F32(0.5);
+        args[7] = F32(0.8);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        let Vector(location) = args[16] else {
+            panic!("foot location is missing");
+        };
+        assert!(location.distance(DVec3::Y * (1.6 - (0.5_f32 * 0.8) as f64)) < 1e-12);
+        assert_eq!(args[15], F32(actual));
+        let mut unclamped = args.clone();
+        unclamped[3] = F32(1.0);
+        unclamped[10] = F32(1.0);
+        args[3] = F32(1.0);
+        args[10] = F32(2.0);
+        context.delta_seconds = 0.1;
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        context
+            .call(
+                "FAlsRigUnit_ApplyFootOffsetLocation::Execute",
+                &mut unclamped,
+            )
+            .unwrap();
+        assert_eq!(&args[14..17], &unclamped[14..17]);
+        args[11] = Bool(false);
+        args[4] = F32(2.0);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[15], F32(2.0));
+        args[5] = F32(0.0);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[16], Vector(DVec3::Y * 1.6));
+        args[0] = item("Missing");
+        args[11] = Bool(false);
+        args[14] = List(vec![]);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[11], Bool(false));
+        args[0] = item("Bone0");
+        assert!(
+            context
+                .call("FAlsRigUnit_ApplyFootOffsetLocation::Execute", &mut args)
+                .unwrap_err()
+                .contains("spring state layout")
+        );
+    }
+
+    #[test]
+    fn control_rig_foot_trace_preserves_query_spaces_normals_and_slope_offset() {
+        use RigValue::*;
+        use std::cell::Cell;
+        let to_world = RigTransform {
+            rotation: DQuat::from_rotation_z(0.4),
+            translation: DVec3::new(3.0, 4.0, 5.0),
+            scale: DVec3::new(2.0, 0.5, 3.0),
+        };
+        let hit = Cell::new(Some((
+            to_world.translation + to_world.rotation * DVec3::new(2.0, 0.1, 6.0),
+            to_world.rotation * DVec3::new(0.0, 0.8, 0.6),
+        )));
+        let count = Cell::new(0);
+        let mut query = |start: DVec3, end: DVec3, channel: &str, complex: bool| {
+            if count.get() == 0 {
+                assert!(
+                    start.distance(
+                        to_world.translation + to_world.rotation * DVec3::new(2.0, 0.25, 6.0)
+                    ) < 1e-12
+                );
+                assert!(
+                    end.distance(
+                        to_world.translation
+                            + to_world.rotation * DVec3::new(2.0, -0.8_f32 as f64 * 0.5, 6.0)
+                    ) < 1e-12
+                );
+            }
+            assert_eq!(channel, "Visibility");
+            assert!(complex);
+            count.set(count.get() + 1);
+            Ok(hit.get())
+        };
+        let mut hierarchy = hierarchy();
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.1,
+            geometry: &geometry(),
+            to_world,
+            line_trace: Some(&mut query),
+        };
+        let args = [
+            Vector(DVec3::new(1.0, 10.0, 2.0)),
+            Name("Visibility".to_owned()),
+            F32(0.5),
+            F32(0.8),
+            F32(45.0),
+            F32(0.135),
+            Bool(true),
+            Bool(false),
+            F32(9.0),
+            Vector(DVec3::splat(9.0)),
+        ];
+        let program = RigProgram {
+            initial_values: args.into(),
+            literal_count: 0,
+            entries: [("Trace".to_owned(), 0)].into(),
+            instructions: vec![
+                RigInstruction::Call {
+                    function: "FAlsRigUnit_FootOffsetTrace::Execute".to_owned(),
+                    arguments: (0..10)
+                        .map(|register| RigValueRef {
+                            register,
+                            path: vec![],
+                        })
+                        .collect(),
+                    outputs: vec![8, 9],
+                },
+                RigInstruction::Exit,
+            ],
+        };
+        let mut values = program.initial_values.clone();
+        let run = |context: &mut RigUnitContext, values: &mut Vec<RigValue>| {
+            program
+                .execute("Trace", values, |function, arguments| {
+                    context.call(function, arguments)
+                })
+                .unwrap();
+        };
+        run(&mut context, &mut values);
+        let F32(offset) = values[8] else {
+            panic!("trace offset is missing");
+        };
+        let Vector(normal) = values[9] else {
+            panic!("trace normal is missing");
+        };
+        assert!((offset - (0.2 + (0.135_f32 / 1.6 - 0.135) as f64) as f32).abs() < 1e-7);
+        assert!(normal.distance(DVec3::new(0.0, 1.6, 0.2)) < 1e-12);
+        hit.set(None);
+        run(&mut context, &mut values);
+        assert_eq!(values[8], F32(0.0));
+        assert_eq!(values[9], Vector(DVec3::Y));
+        context.to_world = RigTransform::default();
+        let cosine = 45_f32.to_radians().cos() as f64;
+        hit.set(Some((
+            DVec3::ZERO,
+            DVec3::new(0.0, cosine, (1.0 - cosine * cosine).sqrt()),
+        )));
+        run(&mut context, &mut values);
+        let F32(offset) = values[8] else {
+            panic!("trace offset is missing");
+        };
+        assert!(offset > 0.0);
+        hit.set(Some((DVec3::ZERO, DVec3::new(0.0, cosine - 1e-6, 0.0))));
+        run(&mut context, &mut values);
+        assert_eq!(values[8], F32(0.0));
+        assert_eq!(values[9], Vector(DVec3::Y));
+        hit.set(Some((DVec3::Y * 0.25, DVec3::new(1.0, -1e-8, 0.0))));
+        values[4] = F32(90.0);
+        run(&mut context, &mut values);
+        assert_eq!(values[8], F32(0.25));
+        assert_eq!(values[9], Vector(DVec3::new(1.0, -1e-8, 0.0)));
+        let before = count.get();
+        values[6] = Bool(false);
+        run(&mut context, &mut values);
+        assert_eq!(count.get(), before);
+        assert_eq!(values[8], F32(0.0));
+        assert_eq!(values[9], Vector(DVec3::Y));
+        context.line_trace = None;
+        values[6] = Bool(true);
+        let error = program
+            .execute("Trace", &mut values, |function, arguments| {
+                context.call(function, arguments)
+            })
+            .unwrap_err();
+        assert_eq!(error.instruction, 0);
+        assert_eq!(error.reason, "rig line trace is unavailable");
+    }
+
+    #[test]
+    fn control_rig_foot_rotation_preserves_initial_space_animation_limits_and_normal_state() {
+        use RigValue::*;
+        let mut hierarchy = hierarchy();
+        let calf = DQuat::from_rotation_y(0.7);
+        let mut input = [RigTransform::default(); 4];
+        input[1].rotation = calf;
+        input[2].rotation = rig_quaternion(DVec3::new(12.0, -50.0, 45.0));
+        hierarchy.set_input_pose(&input).unwrap();
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        let mut args = [
+            item("Bone1"),
+            item("Bone2"),
+            Quaternion(calf * rig_quaternion(DVec3::new(30.0, -70.0, 60.0))),
+            Vector(DVec3::Y),
+            List(vec![F32(-40.0), F32(20.0)]),
+            List(vec![F32(-15.0), F32(5.0)]),
+            List(vec![F32(0.0), F32(0.0)]),
+            F32(0.1),
+            Bool(false),
+            List(vec![]),
+            List(vec![]),
+            Vector(DVec3::ZERO),
+            Quaternion(DQuat::IDENTITY),
+            Quaternion(DQuat::from_rotation_x(1.0)),
+        ];
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[8], Bool(true));
+        assert_eq!(args[11], Vector(DVec3::Y));
+        assert_eq!(args[13], Quaternion(DQuat::IDENTITY));
+        let Quaternion(actual) = args[12] else {
+            panic!("foot rotation is missing");
+        };
+        assert!(rig_quat_near(actual, calf * input[2].rotation, 1e-12));
+        context
+            .hierarchy
+            .set_transform(
+                2,
+                RigSpace::Global,
+                true,
+                RigTransform {
+                    rotation: DQuat::from_rotation_x(0.4),
+                    ..Default::default()
+                },
+                true,
+            )
+            .unwrap();
+        args[3] = Vector(DVec3::Z);
+        context.delta_seconds = 0.1;
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[13], Quaternion(DQuat::IDENTITY));
+        let Vector(normal) = args[11] else {
+            panic!("foot normal is missing");
+        };
+        assert_eq!(
+            normal,
+            DVec3::Y + (DVec3::Z - DVec3::Y) * 0.5001126527786255
+        );
+        assert!(normal.length() < 0.8);
+        let inverse_reference = DQuat::from_rotation_x(0.4);
+        context.delta_seconds = 0.0;
+        args[8] = Bool(false);
+        args[3] = Vector(DVec3::Y);
+        args[2] = Quaternion(calf * input[2].rotation);
+        for index in 4..7 {
+            args[index] = List(vec![F32(-180.0), F32(180.0)]);
+        }
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[13], Quaternion(inverse_reference));
+        let Quaternion(actual) = args[12] else {
+            panic!("foot rotation is missing");
+        };
+        assert!(rig_quat_near(actual, calf * input[2].rotation, 1e-6));
+        context
+            .hierarchy
+            .set_transform(2, RigSpace::Global, true, RigTransform::default(), true)
+            .unwrap();
+        input[1].rotation = DQuat::IDENTITY;
+        input[2].rotation = DQuat::IDENTITY;
+        context.hierarchy.set_input_pose(&input).unwrap();
+        args[2] = Quaternion(DQuat::IDENTITY);
+        args[3] = Vector(DVec3::Z * 1e-8);
+        args[8] = Bool(false);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[12], Quaternion(DQuat::IDENTITY));
+        assert_eq!(args[11], Vector(DVec3::Z * 1e-8));
+        args[0] = item("Missing");
+        args[8] = Bool(false);
+        context
+            .call("FAlsRigUnit_ApplyFootOffsetRotation::Execute", &mut args)
+            .unwrap();
+        assert_eq!(args[8], Bool(false));
+    }
+
+    #[test]
     fn control_rig_ik_units_preserve_pole_history_and_solve_current_hierarchy() {
         use RigValue::*;
         let mut hierarchy = hierarchy();
@@ -423,6 +1016,8 @@ mod tests {
             construction: false,
             delta_seconds: 0.0,
             geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
         };
         let mut pole = [
             item("Bone0"),
@@ -936,6 +1531,8 @@ mod tests {
             construction: false,
             delta_seconds: 0.0,
             geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
         };
         let first = DVec3::new(1.0000000001, 2.5, -4.25);
         let next = DVec3::new(5.0000000001, -1.5, 3.75);
@@ -1142,6 +1739,8 @@ mod tests {
             construction: false,
             delta_seconds: 0.0,
             geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
         };
         let reference = |register| RigValueRef {
             register,
@@ -1287,6 +1886,8 @@ mod tests {
             construction: false,
             delta_seconds: 0.0,
             geometry: &geometry(),
+            to_world: RigTransform::default(),
+            line_trace: None,
         };
         let mut length = [
             item("Bone0"),
