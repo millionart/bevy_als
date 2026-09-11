@@ -1057,3 +1057,11 @@
   - 07d2 Crouching完成2026-09-11 21:43:00：公共crouching45.422s PASS，manual/validator均exit0，原方向、姿态和切换窗口通过；剩余共享Gate仅locomotion，继续使用同一已验收二进制。
 
   - 07d2完成2026-09-11 21:45:00：公共locomotion32.094s PASS，14窗口/18覆盖全部通过。五场公共运行均manual/validator exit0、fault/temporal/graph-error均0、截图0；Standing方向11窗口/5覆盖、Crouching12窗口/7覆盖也已核对，未改性能/时间/姿态守卫。本段开始21:36、预估22:11、实际21:45（偏差-26m），结果Head及共享运行Gate完成，无新增修复或拆分。Head源转换、图回调、Actor输入/投影和实际输出已闭环；01c/03b/04b的五文件有限迁移据此分别勾选提交，下一任务为CR_Als源边界取证。
+
+- [x] BF115.08a CR_Als源闭包与求值边界取证：开始2026-09-11 21:48:00、预估22:28:00。依赖已完成Head；依据Root已保留的一个Control Rig入口及Pose/Curve/local传递合同、现有六段Rig阶段和此前CR单资产native读取36.155s记录估时。重新读取CR_Als、Root控制节点、GetControlRigInput及直接RigUnit源码，列出Construction/Forward Solve递归函数、输入/状态生命周期、骨骼坐标空间和当前实际执行位置。已知目标ControlRigBoundary仍为透传，外部Rig在Ragdolling图混合后运行；末尾物理readback的正确顺序保持。先稳定记录最小source-target差异，再按已证实闭包拆出各自不超过60分钟的转换/执行/Actor/Gate子项；旧手工Rig不能充当事实标准，已完成FootLock/物理等范围只在fresh source链证明根因后有限复开。本段只做源事实与失败合同，不启动游戏或截图，12个其它overlays仍延期。
+
+  - 08a当次源事实2026-09-11 22:10:00：CR native41.496s、Root35.621s、AIS33.506s全部通过；10图/133可见node/1015可见pin/1407模型pin/160模型link，59个RigUnit实例含32种ResolvedFunctionName，8个本地函数定义和10次引用均已取得。Construction与Forward Solve分离，游戏中顺序为Diagonal→Spine→FootOffset→PelvisOffset→FootIk→HandIk；FootOffset/FootIk分别再调用TraceFootOffset/ApplyFootIk。fresh ControlRig.Update先传播RigInput再Source.Update，Evaluate先接收当前SourcePose/曲线再执行Rig并输出，故输入快照与当前求解曲线属于不同时点。当前外部reader在图后读取Grounded/InAir，Spine使用runtime yaw及当轮曲线后算后用；对角缩放还使用构建scale，而源GetTransform的local/bInitial=false读取当帧输入。旧profile生成器将多数Rig常量和执行顺序写死、Root转换只登记外部provider，未编译Rig执行依赖。BF109.10已按上述边界有限取消勾选；下一步最小当前scale反例和完整源数据/生命周期分段，不启动runtime。
+
+  - 08a完成2026-09-11 22:14:00：AIS General确认手/足IK骨均True；UE GetTransform本地默认bInitial=false与源local-space节点再次核实。直接调用当前对角缩放系统的最小World fixture在37.576s稳定FAIL：构建scale1、当帧动画scale2、forward0.5/PoseMoving1时，目标仍输出(1.4,1,1.4)，源链要求(2.4,2,2.4)。旧测试反复传入同一构建参考，漏掉了动画输入变化。开始21:48、预估22:28、实际22:14（偏差-14m），结果源闭包/差异与失败复现完成；CR功能未通过。剩余按当帧scale消融、RigInput/Spine准备、完整Rig源编译、Pose求值与物理输入、公共运行依赖拆分；各段开始时登记自身Gate与估时，保持原Root末尾物理readback及既有足锁准备。
+
+- [ ] BF115.08b1 CR对角缩放的当前输入与参考消融：开始2026-09-11 22:14:00、预估22:34:00。依赖08a；按已失败的真实系统fixture读取当帧local scale，删除独立构建scale缓存及失效测试，以连续注入不同动画scale检查不累计。依据单一函数/三个缓存引用、已完成fresh GetTransform/模型常量和近期20–40秒项目增量测试估时；Gate为该反例、相关Rig测试和必要编译，完整真实CR Gate后置至源执行边界闭合。仅修已证明的scale基准，不提前改Spine、足锁、物理、图权重或生成资产。
