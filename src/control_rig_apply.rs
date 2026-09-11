@@ -306,11 +306,6 @@ pub struct AlsControlRigConstruction {
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
-struct AlsControlRigDiagonalScaleReference {
-    scale: Vec3,
-}
-
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct AlsControlRigInput {
     pub use_hand_ik_bones: bool,
     pub use_foot_ik_bones: bool,
@@ -636,7 +631,6 @@ fn initialize_control_rig(
         (With<AlsCharacter>, Added<AlsControlRigBones>),
     >,
     profile: Res<CrAlsRuntimeProfileTemplate>,
-    bone_transforms: Query<&Transform, Without<AlsCharacter>>,
 ) {
     for (entity, bones, configured_settings, existing) in &characters {
         if existing.is_some() || !bones.ready() {
@@ -674,15 +668,6 @@ fn initialize_control_rig(
                 completed_frames: 0,
             },
         ));
-        if let Some(foot_root) = bones.foot_root(settings.use_foot_ik_bones)
-            && let Ok(transform) = bone_transforms.get(foot_root)
-        {
-            commands
-                .entity(foot_root)
-                .insert(AlsControlRigDiagonalScaleReference {
-                    scale: transform.scale,
-                });
-        }
     }
 }
 
@@ -697,7 +682,6 @@ fn apply_diagonal_scaling(
     pose_moving: f32,
     scale_delta: Vec3,
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
-    scale_references: &Query<&AlsControlRigDiagonalScaleReference>,
 ) {
     let Some(foot_root) = foot_root else {
         return;
@@ -705,16 +689,9 @@ fn apply_diagonal_scaling(
     let Ok((mut local, _, _)) = bone_locals.get_mut(foot_root) else {
         return;
     };
-    let Ok(reference) = scale_references.get(foot_root) else {
-        return;
-    };
     let amount =
         diagonal_scale_factor(forward_amount, backward_amount) * pose_moving.clamp(0.0, 1.0);
-    local.scale = diagonal_scale(reference.scale, scale_delta, amount);
-}
-
-fn diagonal_scale(reference: Vec3, delta: Vec3, amount: f32) -> Vec3 {
-    reference + delta * amount.clamp(0.0, 1.0)
+    local.scale += scale_delta * amount;
 }
 
 fn apply_arm_ik(
@@ -902,7 +879,6 @@ fn control_rig_pre_apply_system(
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut bone_locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
     bone_globals: Query<&GlobalTransform, Without<AlsCharacter>>,
-    scale_references: Query<&AlsControlRigDiagonalScaleReference>,
     mut traces: Query<&mut AlsControlRigStageTrace>,
 ) {
     for (
@@ -960,7 +936,6 @@ fn control_rig_pre_apply_system(
             output_f32(context, "PoseMoving"),
             Vec3::from(profile.0.target.diagonal_scale_delta),
             &mut bone_locals,
-            &scale_references,
         );
         apply_spine_rotation(
             bones.spine,
@@ -1073,12 +1048,24 @@ mod tests {
     }
 
     #[test]
-    fn diagonal_scaling_is_relative_to_construction_scale() {
-        let reference = Vec3::splat(1.0);
-        let first = diagonal_scale(reference, Vec3::splat(0.25), 1.0);
-        let second = diagonal_scale(reference, Vec3::splat(0.25), 1.0);
-        assert_eq!(first, second);
-        assert_eq!(first, Vec3::splat(1.25));
+    fn diagonal_scaling_consumes_the_current_source_pose_scale() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn apply(
+            In(bone): In<Entity>,
+            mut locals: Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
+        ) {
+            apply_diagonal_scaling(Some(bone), 0.5, 0.0, 1.0, Vec3::new(0.4, 0.0, 0.4), &mut locals);
+        }
+        let mut world = World::new();
+        let parent = world.spawn_empty().id();
+        let bone = world.spawn((
+            Transform::from_scale(Vec3::splat(2.0)), GlobalTransform::default(), ChildOf(parent),
+        )).id();
+        for input_scale in [2.0, 1.0, 3.0, 1.0] {
+            world.get_mut::<Transform>(bone).unwrap().scale = Vec3::splat(input_scale);
+            world.run_system_once_with(apply, bone).unwrap();
+            assert_eq!(world.get::<Transform>(bone).unwrap().scale, Vec3::new(input_scale + 0.4, input_scale, input_scale + 0.4));
+        }
     }
 
     #[test]
