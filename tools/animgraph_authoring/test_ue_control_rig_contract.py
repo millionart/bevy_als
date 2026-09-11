@@ -118,6 +118,26 @@ def self_test():
     assert result["graphs"][0]["nodes"][2]["variable"] == {"name": "Height", "access": "write"}
     assert result["graphs"][0]["nodes"][3]["variable"] == {"name": "Height", "access": "read"}
     assert not result["runtime_ready"] and len(result["unimplemented_functions"]) == 2
+    assert not result["unit_defaults_complete"]
+    with_defaults = copy.deepcopy(source)
+    with_defaults["rig_unit_defaults"] = []
+    for value in source["asset_objects"]:
+        if value["class_path"] != VM + "RigVMUnitNode":
+            continue
+        function = next(row["exported_text"] for row in value["properties"] if row["name"] == "ResolvedFunctionName")
+        with_defaults["rig_unit_defaults"].append({"object_path": value["object_path"],
+            "script_struct": "/Script/Fixture." + function.split("::")[0][1:], "method": "Execute",
+            "constructor_properties": [{"name": "B", "cpp_type": "float", "exported_text": "1.000000"}],
+            "authored_properties": [{"name": "B", "cpp_type": "float", "exported_text": "2.000000"}],
+            "event": "None", "control_flow_blocks": [], "constant": False, "varying": False, "pure": True})
+        root_members = [(item["object_path"].rsplit(".", 1)[-1], next(row["exported_text"] for row in item["properties"] if row["name"] == "CPPType"))
+            for item in source["asset_objects"] if item["class_path"] == VM + "RigVMPin" and item["object_path"].rsplit(".", 1)[0] == value["object_path"]]
+        for category in ("constructor_properties", "authored_properties"):
+            with_defaults["rig_unit_defaults"][-1][category].extend({"name": name, "cpp_type": cpp, "exported_text": ""}
+                for name, cpp in root_members if name != "B")
+    typed = compile_contract(with_defaults)
+    assert typed["unit_defaults_complete"]
+    assert typed["graphs"][2]["nodes"][1]["native_unit"]["authored_properties"][0]["exported_text"] == "2.000000"
     renamed = json.loads(json.dumps(source).replace("/Fixture/Example.Example", "/Another/Renamed.Renamed")
         .replace("Main", "DifferentRoot").replace("Multiply", "RenamedNode").replace("Compute", "OtherFunction"))
     for view in renamed["graphs"]:
@@ -158,6 +178,15 @@ def self_test():
         (mutate("Main.Call.Amount", "Direction", "Output"), "link direction"),
         (mutate(":Functions", "ModelNodePath", "UnknownNamespace"), "visible graph model"),
     ]
+    missing_default = copy.deepcopy(with_defaults)
+    missing_default["rig_unit_defaults"].pop()
+    failures.append((missing_default, "default closure"))
+    wrong_default = copy.deepcopy(with_defaults)
+    wrong_default["rig_unit_defaults"][0]["method"] = "DifferentMethod"
+    failures.append((wrong_default, "default signature"))
+    no_authored = copy.deepcopy(with_defaults)
+    del no_authored["rig_unit_defaults"][0]["authored_properties"]
+    failures.append((no_authored, "default schema"))
     unknown = copy.deepcopy(source)
     next(item for item in unknown["asset_objects"] if item["object_path"].endswith("Main.Begin"))["class_path"] = VM + "UnknownNode"
     failures.append((unknown, "node type"))
@@ -214,6 +243,17 @@ def main():
             "injection_objects": len({value["source"]["path"] for graph in result["graphs"] for node in graph["nodes"] for pin in node["pins"] for value in pin["injections"]}),
             "visible_pins": sum(len(node["source"]["pins"]) for view in result["views"] for node in view["nodes"]),
             "native_identity_independence": "PASS"}
+        if "rig_unit_defaults" in source:
+            assert result["unit_defaults_complete"]
+            units = [node["native_unit"] for graph in result["graphs"] for node in graph["nodes"] if node["kind"] == "unit"]
+            assert len(units) == len(source["rig_unit_defaults"])
+            getters = [unit for unit in units if unit["script_struct"] == "/Script/ControlRig.RigUnit_GetTransform"]
+            assert getters and all(next(field["exported_text"] for field in unit["constructor_properties"] if field["name"] == "bInitial") == "False" for unit in getters)
+            assert {next(field["exported_text"] for field in unit["authored_properties"] if field["name"] == "bInitial") for unit in getters} == {"False", "True"}
+            traces = [unit for unit in units if unit["script_struct"] == "/Script/ALS.AlsRigUnit_FootOffsetTrace"]
+            assert traces and all(next(field for field in unit["authored_properties"] if field["name"] == "TraceDistanceUpward")["metadata"]["ForceUnits"] == "cm" for unit in traces)
+            assert {unit["event"] for unit in units if unit["event"] != "None"} == {"Construction", "Forwards Solve"}
+            report["native"]["unit_defaults"] = len(units)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

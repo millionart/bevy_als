@@ -22,6 +22,7 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Rigs/RigHierarchy.h"
+#include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
@@ -31,6 +32,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
+#include "UObject/StructOnScope.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAlsGraphSourceReader, Log, All);
 
@@ -83,7 +85,7 @@ TSharedRef<FJsonObject> CaptureTransform(const FTransform& Transform)
     return Value;
 }
 
-TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const void* Data, UObject* Parent)
+TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const void* Data, UObject* Parent, bool bIncludeUnitMetadata = false)
 {
     TArray<TSharedPtr<FJsonValue>> Values;
 
@@ -104,9 +106,23 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             Entry->SetStringField(TEXT("cpp_type"), Property->GetCPPType());
             Entry->SetStringField(TEXT("flags"), FString::Printf(TEXT("0x%llX"), Property->GetPropertyFlags()));
             Entry->SetStringField(TEXT("exported_text"), ExportedText);
+            if (bIncludeUnitMetadata)
+            {
+                TSharedRef<FJsonObject> Metadata = MakeShared<FJsonObject>();
+                for (const FName Key : {FName(TEXT("Input")), FName(TEXT("Output")), FName(TEXT("Constant")),
+                    FName(TEXT("Singleton")), FName(TEXT("ForceUnits")), FName(TEXT("ClampMin")), FName(TEXT("ClampMax"))})
+                {
+                    if (Property->HasMetaData(Key))
+                    {
+                        Metadata->SetStringField(Key.ToString(), Property->GetMetaData(Key));
+                    }
+                }
+                Entry->SetObjectField(TEXT("metadata"), Metadata);
+                Entry->SetBoolField(TEXT("transient"), Property->HasAnyPropertyFlags(CPF_Transient));
+            }
             if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
             {
-                Entry->SetArrayField(TEXT("fields"), CaptureProperties(StructProperty->Struct, Value, Parent));
+                Entry->SetArrayField(TEXT("fields"), CaptureProperties(StructProperty->Struct, Value, Parent, bIncludeUnitMetadata));
             }
             Values.Add(MakeShared<FJsonValueObject>(Entry));
         }
@@ -726,6 +742,45 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         AssetObjectValues.Add(MakeShared<FJsonValueObject>(CaptureObject(AssetObjects[ObjectIndex], ObjectIndex)));
     }
     Root->SetArrayField(TEXT("asset_objects"), AssetObjectValues);
+
+    TArray<TSharedPtr<FJsonValue>> RigUnitDefaults;
+    for (UObject* Object : AssetObjects)
+    {
+        const URigVMUnitNode* Unit = Cast<URigVMUnitNode>(Object);
+        if (Unit == nullptr)
+        {
+            continue;
+        }
+        const UScriptStruct* Struct = Unit->GetScriptStruct();
+        const TSharedPtr<FStructOnScope> Constructor = Unit->ConstructStructInstance(true);
+        const TSharedPtr<FStructOnScope> Authored = Unit->ConstructStructInstance(false);
+        if (Struct == nullptr || !Constructor.IsValid() || !Authored.IsValid())
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Rig unit defaults are unavailable: %s."), *Unit->GetPathName());
+            return 6;
+        }
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("object_path"), Unit->GetPathName());
+        Entry->SetStringField(TEXT("script_struct"), Struct->GetPathName());
+        Entry->SetStringField(TEXT("method"), Unit->GetMethodName().ToString());
+        Entry->SetStringField(TEXT("event"), Unit->GetEventName().ToString());
+        Entry->SetBoolField(TEXT("pure"), Unit->IsPure());
+        Entry->SetBoolField(TEXT("constant"), Unit->IsDefinedAsConstant());
+        Entry->SetBoolField(TEXT("varying"), Unit->IsDefinedAsVarying());
+        TArray<TSharedPtr<FJsonValue>> Blocks;
+        for (const FName Block : Unit->GetControlFlowBlocks())
+        {
+            Blocks.Add(MakeShared<FJsonValueString>(Block.ToString()));
+        }
+        Entry->SetArrayField(TEXT("control_flow_blocks"), Blocks);
+        Entry->SetArrayField(TEXT("constructor_properties"), CaptureProperties(Struct, Constructor->GetStructMemory(), Object, true));
+        Entry->SetArrayField(TEXT("authored_properties"), CaptureProperties(Struct, Authored->GetStructMemory(), Object, true));
+        RigUnitDefaults.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    if (!RigUnitDefaults.IsEmpty())
+    {
+        Root->SetArrayField(TEXT("rig_unit_defaults"), RigUnitDefaults);
+    }
 
     TArray<TSharedPtr<FJsonValue>> GraphValues;
     for (int32 GraphIndex = 0; GraphIndex < Graphs.Num(); ++GraphIndex)

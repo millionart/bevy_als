@@ -71,6 +71,21 @@ def compile_contract(source):
             raise ControlRigContractError("source object is duplicated: " + path)
         objects[path] = record
     asset_fields = {value["name"]: value["exported_text"] for value in source["asset_properties"]}
+    unit_defaults = {}
+    for value in source.get("rig_unit_defaults", []):
+        path = value["object_path"]
+        if path in unit_defaults:
+            raise ControlRigContractError("native unit defaults are duplicated: " + path)
+        if any(not isinstance(value.get(key), list) for key in ("constructor_properties", "authored_properties")):
+            raise ControlRigContractError("native unit default schema is incomplete: " + path)
+        constructor_fields = {(field["name"], field.get("array_index", 0)) for field in value["constructor_properties"]}
+        authored_fields = {(field["name"], field.get("array_index", 0)) for field in value["authored_properties"]}
+        if constructor_fields != authored_fields:
+            raise ControlRigContractError("native unit default member sets differ: " + path)
+        unit_defaults[path] = value
+    unit_paths = {path for path, value in objects.items() if value["class_path"] == VM + "RigVMUnitNode"}
+    if "rig_unit_defaults" in source and unit_defaults.keys() != unit_paths:
+        raise ControlRigContractError("native unit default closure is incomplete")
     client = parse_struct(asset_fields["RigVMClient"])
     graphs, graph_ids, node_ids, pin_ids, injection_owners, link_ids = [], {}, {}, {}, {}, set()
     root_paths = [object_reference(value, asset) for value in parse_list(client["Models"])]
@@ -171,6 +186,15 @@ def compile_contract(source):
                     raise ControlRigContractError("source unit function is unresolved: " + node_path)
                 node["function"] = function
                 node["template"] = node_fields.get("TemplateNotation", "None")
+                if kind == "unit" and node_path in unit_defaults:
+                    defaults = unit_defaults[node_path]
+                    signature = "F" + defaults["script_struct"].rsplit(".", 1)[-1] + "::" + defaults["method"]
+                    if signature != function:
+                        raise ControlRigContractError("native unit default signature does not match its node: " + node_path)
+                    members = {value["name"] for value in defaults["authored_properties"]}
+                    if any(value["name"] not in members for value in node["pins"] if value["parent"] is None):
+                        raise ControlRigContractError("native unit default pin member is missing: " + node_path)
+                    node["native_unit"] = copy.deepcopy({key: value for key, value in defaults.items() if key != "object_path"})
             elif kind == "variable":
                 roots = {value["name"]: value for value in node["pins"] if value["parent"] is None}
                 if not roots.get("Variable", {}).get("default_text") or "Value" not in roots:
@@ -296,6 +320,7 @@ def compile_contract(source):
     return {"format": FORMAT, "source_asset": asset, "roots": roots, "function_library": library,
         "graphs": graphs, "views": views, "variables": variables,
         "rig_hierarchy": copy.deepcopy(source.get("rig_hierarchy", {})),
+        "unit_defaults_complete": unit_defaults.keys() == unit_paths,
         "runtime_ready": False, "unimplemented_functions": functions}
 
 
@@ -318,6 +343,7 @@ def main():
         result = compile_contract(source)
         write_json(args.output, result)
         report = {"format": REPORT_FORMAT, "success": True, "runtime_ready": False,
+            "unit_defaults_complete": result["unit_defaults_complete"],
             "graphs": len(result["graphs"]), "nodes": sum(len(graph["nodes"]) for graph in result["graphs"]),
             "unimplemented_functions": result["unimplemented_functions"]}
     except (ConversionError, KeyError, OSError, ValueError) as error:
