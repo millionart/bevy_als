@@ -13,6 +13,29 @@
 - ALS-Refactored 关键结构：4 模块（ALS / ALSCamera / ALSExtras / ALSEditor）；状态体系用 GameplayTags（非枚举）；自定义 AnimNode_CurvesBlend；ControlRig 输入结构 `AlsControlRigInput`；IK 相关骨骼 `foot_l/foot_r`、`ik_foot_l/ik_foot_r`、`VB foot_l/VB foot_r`；关键曲线名 `LayerHandLeft/Right`、`HandLeftIk/HandRightIk`、`FootLeftIk/FootLeftLock/FootRightIk/...`；动画资产分组：Grounded / Air / Actions / Transitions / TurnInPlace / RotateInPlace / Overlays / View / Base。
 - 本地环境路径、引擎版本等隐私信息见 `docs/env.md`（已 gitignore）。
 
+## 附录 A：与 ALS 的刻意差异（非缺陷）
+
+| ALS | bevy_als | 理由 |
+|---|---|---|
+| AnimBP 状态机 | 显式 system 路由 + animation graph RON | ECS 数据流，无隐藏图执行 |
+| GameplayTags | `bevy_gameplay_tag` 的真实层级 Tag | 保留 UE Tag identity 与 exact/hierarchical query 语义 |
+| ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
+| Root Motion | 图内 `RootMotionMode` 提取 + `RootMotionOutput` 驱动位移（M8.8；数据经 M8.6 回填） | fork 已支持提取，M0.5 导出缺根轨道由 M8.6 离线回填，不再用曲线等价物 |
+| Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
+| w_als_hud Overlay 菜单世界锚定头顶骨骼 | 菜单停靠 HUD 面板左侧（BF6b 用户决策 2026-08-25） | 解除 UI 对骨骼/相机投影的耦合 |
+| W_Als_Hud 使用 Roboto 字体 | Bevy 默认字体（BF6b 用户决策 2026-08-25） | 字体非功能项，不移植 |
+| L_Als_Playground TextRender 使用 RobotoDistanceField 与描边材质 | Bevy 默认字体布局/atlas 生成的 `Mesh3d` 世界字形四边形（BF-Scene 用户决策 2026-08-26） | 不带入字体资产；保留文字内容、颜色、世界锚点与固定朝向，不做相机 billboard |
+| S_Als_UI_Click 菜单点击音 | 不复刻（BF6b 用户决策 2026-08-25） | WAV 解码需 bevy `wav` feature（hound 依赖），用户否决新增依赖 |
+
+## 附录 B：风险与后置项
+
+- **资产格式决策（2026-08-21）**：Bevy 官方推荐 glTF；M0.5/M0.6 管线定为 UE → glTF（Interchange 导出）→ bevy_animation_graph 自带的 glTF 导入器（GraphClip/Skeleton）。**不引入 bevy_ufbx**：其 v0.19.0（bevy 0.19 兼容）虽支持蒙皮数据，但动画曲线未接入 Bevy 动画系统、无社区验证，且 FBX 中转对 ALS 曲线/虚骨/单位换算风险更大；仅当未来需要直接加载 FBX 时再评估。
+
+- bevy_animation_graph additive/mask 语义若与 ALS layering 不完全一致，在 M6 前验证并决定扩展方式（优先 als-ext 扩展点）。（已于 M6.1 验证通过，记录备查）
+- Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
+- ALSExtras（AI 控制器示例）不在范围内。
+- 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
+
 ## BF115 按用户指定顺序恢复转换图与Actor功能
 
 用户于2026-09-08补充真实症状：转换版下蹲、跳跃、攀爬、冲刺不可用，站立六向移动存在跛足与滑步；ragdoll流程已手动确认还原良好，相机视角和距离另有问题。UE ALS-Refactored是唯一事实标准；旧手工图与当前Bevy Actor只能作为待审查实现和差异定位线索，二者一致不能证明正确，也不能决定转换器的目标语义。
@@ -488,11 +511,13 @@
 
   - 04a完成2026-09-10 10:00:00：公开uasset转换43.548s、unsupported 0；147 raw graph中32可达项（10 Pose图/2 FSM/18条件/2函数）、153节点，46生成RON，Fall/Jump/Flail/Land四同步组。当前二进制10图fresh spec2.910s通过；source审计0.834s稳定FAIL于10张已安装Pose图，覆盖64源Pose节点/50边，差异为旧Actor同步时钟、缺少当前曲线/非循环/活动状态重返策略及Land原生Rotate节点。输出仍全部隔离。fresh C++还确认OnJumped→Jump请求→NativeUpdate锁存→相关Jump/Fall的RefreshInAir消费；target将bJumped写为F32、按向上Air切换猜测跳跃，并由1150行旧Actor FSM/phase/curve推算替代图执行，InitializeLean/RefreshInAir仍只是Pose转发。只把这些直接输入/函数/资产纳入下一阶段；本项完成源清单和失败证据，不宣称动画行为已通过。开始09:47:00、预估10:37:00、实际10:00:00（偏差-37m）。
 
-- [ ] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
+- [x] BF115.04b Locomotion生成树与输入ABI静态接入：开始2026-09-10 10:00:00、预估10:25:00。依赖04a，按同次公开converter输出仅安装该owner已有范围的十张变化图；修复bJumped Bool ABI并保留源类型最小失败，完成实际46文件加载/spec、编辑器/位置、源闭包一致性与适用focused Gate。估时依据为已完成43秒转换、46文件明确diff和Standing/Crouching同类接入记录。本段不运行真实场景；后续另立源InAir数据/实际图刷新与Jump事件闭环，删除旧影子FSM/时钟后才进行完整Locomotion Gate。
 
   - 2026-09-10 16:17:00有限复开：用户要求并修同类来源值遗漏，公开Locomotion重新读取46.943s确认左右Run Jump播放器可见StartPosition均0.12，旧target为0。旧Gate验证了连续同步/状态及canonical中段，没有独立对比可见pin与初始化位置。46份新编译输出仅两条起播值改变；仅该数据边界取消勾选，执行与真实回归并入05b2，不重开已通过的物理模式、跳跃输入、脚锁或其它Actor算法。
 
   - 04b完成2026-09-10 10:13:00：bJumped类型反例32.357s FAIL（None对Some(true)），按源Bool写入后15项Locomotion回归21.340s PASS。十张生成图由公开输出安装，保持原AB_Als owner的256文件集合，未手改RON或原始导出；46文件与编译输出逐字一致。编辑器修复0项（0.295s），target_game/play双example63.832s、十图fresh spec2.583s、完整声明式2.385s均PASS，源32子图/64 Pose节点/50边/两FSM/18条件闭合。旧生成时钟/缺失属性路径即静态失败对照；未增加新状态或依赖。开始10:00:00、预估10:25:00、实际10:13:00（偏差-12m）；只完成生成/ABI接入，Jump事件、InitializeLean/RefreshInAir执行及旧Actor推算清理仍未通过，不启动runtime。
+
+  - Head共享迁移闭环（2026-09-11 21:46:00）：Locomotion Jump/Fall两个AirLean Evaluator的原生拓扑/teleport数据已随07b全量生成安装。07d2公共locomotion的14窗口/18覆盖及原Guard全部PASS，有限迁移关闭。当次247 fresh spec与对应manifest通过；有限复开的开始/预估沿07b和07d2分段记录，实际结束21:46。
 
 - [x] BF115.04c Locomotion源InAir设置、曲线与标量单位合同：开始2026-09-10 10:13:00、预估11:08:00。依赖04b，沿同次32图及fresh RefreshInAir/RefreshGroundPrediction/RefreshInAirLean读取父AIS的InAir/General字段、两条曲线与实际图中的速度标量链；核对单位、坐标空间、输入/输出区间和时机，先最小反例后复用离线工具生成独立target数据，必要的通用转换器修复必须保留source fixture并公开uasset重新生成。估时依据为两条曲线、四个同步组与三条已知速度消费者，复用已完成Standing的CurveFloat导入/单位合同；本段不复制旧Actor公式作为标准。图相关的刷新与真实Jump事件随后另立不超过60分钟的实现段，全部静态闭合后再做原Playground无截图Gate。
 
@@ -854,29 +879,6 @@
 
   - 用户扩大并固定全量转换Gate2026-09-11 13:35:00：用户进一步要求检查全部已生成AnimBP，包含所有历史批次遗漏，并规定以后每次修复转换器都执行全量AnimBP转换确认影响范围。当前已安装完整基线为AB_Als、Standing、Crouching、Grounded、Locomotion、Layering、Head、Ragdolling、Default九个AnimBP及256个RON；所有节点/参数/绑定/FSM/生命周期产物都纳入重生成比较，不以先前55个节点名单筛选。当前公共AB_Als根入口正在提取完整依赖闭包，复用本次已取得的七份原生记录并读取其余源资产；未安装任何不完整产物。AGENTS与领域skill已将每次修复后的全量转换、完整diff及适用回归设为必需Gate。
   - 05d5b3全量source/static进展及重估2026-09-11 13:50:00：完整九AnimBP/六BlendSpace及相关第十六份源记录均已取得，保持原记录不可变。省略默认字段使BlendList、LayeredBoneBlend和ControlRig旧合同拒绝；四类真实字段反例0.293s FAIL，公共解析修复0.305s及五工具自测PASS，图名/节点ID替换保持语义、字段false→true改变对应产物。UE通用LayeredBoneBlend默认先更新overlay再base，当前反序；Enum Blend源为定时线性权重且只更新相关分支，当前指数逼近且始终更新两支，实际图/权重fixture54.839s稳定两项FAIL。复用已有BlendList权重与图缓存修复中，不新增图专用算法。全量第二次转换24.521s拒绝最后Ragdolling SnapshotName默认字段，零RON安装；下一步补该合同后完整重生成、256文件diff及所有owner审计，再同入口运行。原5b3开始13:11:20、预估13:31:20，本轮复盘13:50（偏差+18m40s），结果未完成；范围由单Standing七记录扩大为全量十六记录与共享运行时语义，剩余拆成静态闭环和原5b2 runtime两段。5b3第二轮开始13:50、预估14:20，按原窗口1.5倍推导；5b2本轮开始12:57、预估13:30:45、实际复盘13:50（偏差+19m15s），因该静态前置未通过尚未继续runtime，第二轮开始13:50、预估14:40:38，按原窗口1.5倍并包含前置收口；父项原14:18:02复盘界线保留。
-
-## 附录 A：与 ALS 的刻意差异（非缺陷）
-
-| ALS | bevy_als | 理由 |
-|---|---|---|
-| AnimBP 状态机 | 显式 system 路由 + animation graph RON | ECS 数据流，无隐藏图执行 |
-| GameplayTags | `bevy_gameplay_tag` 的真实层级 Tag | 保留 UE Tag identity 与 exact/hierarchical query 语义 |
-| ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
-| Root Motion | 图内 `RootMotionMode` 提取 + `RootMotionOutput` 驱动位移（M8.8；数据经 M8.6 回填） | fork 已支持提取，M0.5 导出缺根轨道由 M8.6 离线回填，不再用曲线等价物 |
-| Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
-| w_als_hud Overlay 菜单世界锚定头顶骨骼 | 菜单停靠 HUD 面板左侧（BF6b 用户决策 2026-08-25） | 解除 UI 对骨骼/相机投影的耦合 |
-| W_Als_Hud 使用 Roboto 字体 | Bevy 默认字体（BF6b 用户决策 2026-08-25） | 字体非功能项，不移植 |
-| L_Als_Playground TextRender 使用 RobotoDistanceField 与描边材质 | Bevy 默认字体布局/atlas 生成的 `Mesh3d` 世界字形四边形（BF-Scene 用户决策 2026-08-26） | 不带入字体资产；保留文字内容、颜色、世界锚点与固定朝向，不做相机 billboard |
-| S_Als_UI_Click 菜单点击音 | 不复刻（BF6b 用户决策 2026-08-25） | WAV 解码需 bevy `wav` feature（hound 依赖），用户否决新增依赖 |
-
-## 附录 B：风险与后置项
-
-- **资产格式决策（2026-08-21）**：Bevy 官方推荐 glTF；M0.5/M0.6 管线定为 UE → glTF（Interchange 导出）→ bevy_animation_graph 自带的 glTF 导入器（GraphClip/Skeleton）。**不引入 bevy_ufbx**：其 v0.19.0（bevy 0.19 兼容）虽支持蒙皮数据，但动画曲线未接入 Bevy 动画系统、无社区验证，且 FBX 中转对 ALS 曲线/虚骨/单位换算风险更大；仅当未来需要直接加载 FBX 时再评估。
-
-- bevy_animation_graph additive/mask 语义若与 ALS layering 不完全一致，在 M6 前验证并决定扩展方式（优先 als-ext 扩展点）。（已于 M6.1 验证通过，记录备查）
-- Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
-- ALSExtras（AI 控制器示例）不在范围内。
-- 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
 
   - 05d5b3全量产物闭环/03b有限复开2026-09-11 13:58:00：公开根入口29.208s成功，九AnimBP/256RON完整生成，安装owner清单不变；全量比较25文件变化（Standing15、Crouching7、Layering/Head/Ragdolling各1），其余231文件完全一致。新旧节点ID、条件表达式和六FSM全部出口条目相同，只有原生执行顺序迁移；另有Standing两false、12 Plant帧、16起播点（八0.25/四0.1/四0.15）和六Enum时间旧值遗漏，Crouching一处source PlayRate默认0、左右Rotate RefPose root lock未迁入；十Layered节点记录当前源更新顺序，剩余为已有runtime默认字段显式化。03b仅这七份旧生成数据取消勾选，旧Gate在后续通用修复后没有全量重生成，不能证明当前源等价。Layering/Head/Ragdolling仅本轮全部生成数据迁移，不提前宣告后续Actor任务完成。四类字段/身份变体、PoseSnapshot字段反例与共享实际图五帧初始化/瞬时旧分支/零权重路径均已验证；345 ext回归27.823s PASS，旧指数/更新次序54.839s、移除瞬时旧分支26.963s均FAIL。下一步安装完整产物、fresh全图spec与全部owner声明式，然后同入口无截图Gate。
 
