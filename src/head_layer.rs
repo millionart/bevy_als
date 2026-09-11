@@ -1,56 +1,27 @@
+use als_camera::AlsCameraCustomTimeDilation;
+use als_core::character::AlsCharacter;
+use als_core::head::AlsHeadUpdateInput as HeadUpdateInput;
+#[cfg(test)]
+use als_core::head::update_head_state;
 pub use als_core::head::{
     AlsHeadSettings, AlsHeadState, critical_spring_damper, damper_exact_angle, inv_exp_approx,
     unwind_degrees,
 };
-use als_core::head::{AlsHeadUpdateInput as HeadUpdateInput, update_head_state};
-
-use als_camera::AlsCameraCustomTimeDilation;
-use als_core::character::AlsCharacter;
-use als_core::input::AlsInputCommand;
 use als_core::input_request::AlsFirstPersonView;
-use als_core::motion::{AlsInputOverride, AlsViewYaw, view_relative_move_direction};
+use als_core::motion::AlsRotationResponseState;
 use als_core::orientation::world_forward_to_yaw;
-use als_core::state::RotationMode;
-use als_core::view::AlsViewSmoothed;
-use als_ext::unscaled_delta_seconds;
-use bevy::ecs::hierarchy::ChildOf;
+use als_core::state::{LocomotionState, RotationMode};
+use als_core::view::AlsViewPitch;
+use als_ext::{source_instance::source_player_property, unscaled_delta_seconds};
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
-use crate::animation_context_projection::AlsRootAnimationContext;
+use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
+use crate::generated_ab_als_provider::GeneratedAbAlsProviderSet;
 use crate::layering_layer::AlsLayeringLayerSet;
-
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
-pub struct AlsHeadCurveState {
-    pub view_block_amount: f32,
-    pub pose_aiming_amount: f32,
-}
-
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
-pub struct AlsHeadMovementBaseState {
-    pub has_relative_rotation: bool,
-    pub delta_yaw_degrees: f32,
-}
-
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
-struct HeadRuntime {
-    initialized_body_yaw: bool,
-    previous_body_yaw: f32,
-    previous_global_time_dilation: f32,
-}
-
-impl Default for HeadRuntime {
-    fn default() -> Self {
-        Self {
-            initialized_body_yaw: false,
-            previous_body_yaw: 0.0,
-            previous_global_time_dilation: 1.0,
-        }
-    }
-}
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsHeadLayerSet;
@@ -63,187 +34,218 @@ impl Plugin for HeadLayerPlugin {
             PostUpdate,
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
+                .after(GeneratedAbAlsProviderSet)
                 .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))
         .add_systems(
             PostUpdate,
-            bridge_head_curve_states
-                .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+            project_head_state
+                .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
+                .before(AlsRootAnimationContextSet),
         );
     }
+}
+
+fn player_scalar(player: &AnimationGraphPlayer, key: &str, default: f32) -> f32 {
+    player
+        .get_global_input_data(key)
+        .and_then(|value| value.as_f32().ok())
+        .unwrap_or(default)
 }
 
 fn body_yaw_degrees(transform: &Transform) -> f32 {
-    let forward = transform.rotation * Vec3::NEG_Z;
-    world_forward_to_yaw(forward).to_degrees()
+    world_forward_to_yaw(*transform.forward()).to_degrees()
 }
 
-fn input_yaw_degrees(input: &AlsInputCommand, view_yaw: f32, fallback: f32) -> f32 {
-    if input.move_dir.length_squared() <= 1e-6 {
-        fallback
-    } else {
-        world_forward_to_yaw(view_relative_move_direction(input.move_dir, view_yaw)).to_degrees()
-    }
+pub(crate) fn head_blend_amount(context: Option<&AlsRootAnimationContext>) -> f32 {
+    let curve = |key| {
+        context
+            .and_then(|context| context.f32(key))
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0)
+    };
+    (1.0 - curve("ViewBlock")) * (1.0 - curve("PoseAiming"))
 }
 
-fn head_blend_amount(curves: AlsHeadCurveState) -> f32 {
-    (1.0 - curves.view_block_amount.clamp(0.0, 1.0))
-        * (1.0 - curves.pose_aiming_amount.clamp(0.0, 1.0))
-}
-
-fn head_curve_state_from_values(
-    view_block: Option<f32>,
-    pose_aiming: Option<f32>,
-) -> AlsHeadCurveState {
-    AlsHeadCurveState {
-        view_block_amount: view_block.unwrap_or(0.0).clamp(0.0, 1.0),
-        pose_aiming_amount: pose_aiming.unwrap_or(0.0).clamp(0.0, 1.0),
-    }
-}
-
-fn bridge_head_curve_states(
-    mut commands: Commands,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
-    mut characters: Query<Option<&mut AlsHeadCurveState>, With<AlsCharacter>>,
-) {
-    for (parent, instance) in &avatars {
-        let Ok((_, context)) = players.get(instance.player_entity()) else {
-            continue;
-        };
-        let Ok(current) = characters.get_mut(parent.parent()) else {
-            continue;
-        };
-        let curves = head_curve_state_from_values(
-            context.and_then(|context| context.f32("ViewBlock")),
-            context.and_then(|context| context.f32("PoseAiming")),
-        );
-        if let Some(mut current) = current {
-            *current = curves;
+#[allow(clippy::too_many_arguments)]
+fn head_frame_inputs(
+    player: &AnimationGraphPlayer,
+    transform: &Transform,
+    response: Option<&AlsRotationResponseState>,
+    pitch_radians: f32,
+    timing: (f32, f32),
+    rotation_mode: RotationMode,
+    first_person: bool,
+    action_active: bool,
+) -> HeadUpdateInput {
+    let body_yaw = -body_yaw_degrees(transform);
+    let previous_body_yaw = player_scalar(player, "locomotion_state.rotation_yaw", body_yaw);
+    let pending_update = player
+        .get_global_input_data("animation.pending_update")
+        .and_then(|value| value.as_bool().ok())
+        .unwrap_or(true);
+    let forward = transform.forward();
+    let body_pitch = forward
+        .y
+        .atan2(Vec2::new(forward.x, forward.z).length())
+        .to_degrees();
+    HeadUpdateInput {
+        delta_seconds: timing.0,
+        delta_seconds_without_time_dilation: timing.1,
+        first_person,
+        rotation_mode,
+        has_input: player
+            .get_global_input_data("locomotion_state.b_has_input")
+            .and_then(|value| value.as_bool().ok())
+            .unwrap_or(false),
+        input_yaw_world: player_scalar(player, "locomotion_state.input_yaw_angle_world_space", 0.0),
+        target_yaw_world: response
+            .filter(|response| response.initialized)
+            .map_or(body_yaw, |response| -response.target_yaw.to_degrees()),
+        body_yaw_world: body_yaw,
+        body_yaw_velocity_world: if !pending_update && timing.0 > 1e-8 {
+            unwind_degrees(body_yaw - previous_body_yaw) / timing.0
         } else {
-            commands.entity(parent.parent()).insert(curves);
-        }
+            0.0
+        },
+        view_yaw_angle: player_scalar(player, "view_state.yaw_angle", 0.0),
+        view_pitch_angle: if action_active {
+            player_scalar(player, "view_state.pitch_angle", 0.0)
+        } else {
+            unwind_degrees(pitch_radians.to_degrees() - body_pitch)
+        },
+        movement_base_relative_yaw: 0.0,
     }
 }
 
-fn write_globals(
+fn write_head_inputs(
     player: &mut AnimationGraphPlayer,
-    state: AlsHeadState,
-    curves: AlsHeadCurveState,
+    input: HeadUpdateInput,
+    context: Option<&AlsRootAnimationContext>,
 ) {
     for (key, value) in [
-        ("head_state.pitch_angle", state.pitch_angle),
-        ("head_state.yaw_amount", state.yaw_amount),
-        ("view_state.head_blend_amount", head_blend_amount(curves)),
+        (
+            "animation.delta_seconds_without_time_dilation",
+            input.delta_seconds_without_time_dilation,
+        ),
+        (
+            "locomotion_state.input_yaw_angle_world_space",
+            input.input_yaw_world,
+        ),
+        (
+            "locomotion_state.target_yaw_angle_world_space",
+            input.target_yaw_world,
+        ),
+        ("locomotion_state.rotation_yaw", input.body_yaw_world),
+        (
+            "locomotion_state.yaw_velocity_world_space",
+            input.body_yaw_velocity_world,
+        ),
+        ("view_state.pitch_angle", input.view_pitch_angle),
+        ("view_state.head_blend_amount", head_blend_amount(context)),
     ] {
         player.set_global_input_data(key, value);
     }
+    player.set_global_input_data("view_mode.first_person", input.first_person);
+    player.set_global_input_data(
+        "rotation_mode.velocity_direction",
+        input.rotation_mode == RotationMode::VelocityDirection,
+    );
 }
 
 #[allow(clippy::type_complexity)]
 fn head_layer_writer(
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
-    mut commands: Commands,
-    mut characters: Query<
+    characters: Query<
         (
-            Entity,
             &Transform,
-            &AlsViewYaw,
-            Option<&AlsViewSmoothed>,
+            Option<&AlsViewPitch>,
             &RotationMode,
-            &AlsInputCommand,
-            Option<&AlsInputOverride>,
+            &LocomotionState,
+            Option<&AlsRotationResponseState>,
             Has<AlsFirstPersonView>,
             Option<&AlsCameraCustomTimeDilation>,
-            Option<&AlsHeadCurveState>,
-            Option<&AlsHeadMovementBaseState>,
-            Option<&mut AlsHeadState>,
-            Option<&mut HeadRuntime>,
         ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
-    let delta_seconds = virtual_time.delta_secs();
-    for (
-        entity,
-        transform,
-        view_yaw,
-        view_pitch,
-        rotation_mode,
-        command,
-        override_command,
-        first_person,
-        custom_time_dilation,
-        curve_state,
-        movement_base,
-        current_state,
-        current_runtime,
-    ) in &mut characters
-    {
-        let effective = override_command.map_or(command, |value| &value.0);
-        let mut state = current_state.as_deref().copied().unwrap_or_default();
-        let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
-        let body_yaw = body_yaw_degrees(transform);
-        let body_yaw_velocity = if runtime.initialized_body_yaw && delta_seconds > 1e-6 {
-            unwind_degrees(body_yaw - runtime.previous_body_yaw) / delta_seconds
-        } else {
-            0.0
+    for (parent, instance) in &avatars {
+        let Ok((
+            transform,
+            pitch,
+            rotation_mode,
+            locomotion,
+            response,
+            first_person,
+            custom_dilation,
+        )) = characters.get(parent.parent())
+        else {
+            continue;
         };
-        runtime.initialized_body_yaw = true;
-        runtime.previous_body_yaw = body_yaw;
-        let delta_seconds_without_time_dilation = unscaled_delta_seconds(
-            &mut runtime.previous_global_time_dilation,
-            delta_seconds,
+        let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
+            continue;
+        };
+        let mut previous_dilation =
+            player_scalar(&player, "animation.previous_global_time_dilation", 1.0);
+        let unscaled = unscaled_delta_seconds(
+            &mut previous_dilation,
+            virtual_time.delta_secs(),
             real_time.delta_secs(),
             virtual_time.effective_speed(),
-            custom_time_dilation.map_or(1.0, |dilation| dilation.0),
+            custom_dilation.map_or(1.0, |value| value.0),
         );
-        let curves = curve_state.copied().unwrap_or_default();
-        let movement_base = movement_base.copied().unwrap_or_default();
-        let input_yaw = input_yaw_degrees(effective, view_yaw.0, body_yaw);
-        update_head_state(
-            &mut state,
-            HeadUpdateInput {
-                delta_seconds,
-                delta_seconds_without_time_dilation,
-                first_person,
-                rotation_mode: *rotation_mode,
-                has_input: effective.move_dir.length_squared() > 1e-6,
-                input_yaw_world: input_yaw,
-                target_yaw_world: body_yaw,
-                body_yaw_world: body_yaw,
-                body_yaw_velocity_world: body_yaw_velocity,
-                view_yaw_angle: unwind_degrees(view_yaw.0.to_degrees() - body_yaw),
-                view_pitch_angle: view_pitch.map_or(0.0, |value| value.0.to_degrees()),
-                movement_base_relative_yaw: if movement_base.has_relative_rotation {
-                    movement_base.delta_yaw_degrees
-                } else {
-                    0.0
-                },
-            },
-            AlsHeadSettings::default(),
+        player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
+        let action_active = *locomotion == LocomotionState::Ragdolling
+            || player_scalar(&player, "als_overlay_locomotion_action_index", 0.0) != 0.0;
+        let input = head_frame_inputs(
+            &player,
+            transform,
+            response,
+            pitch.map_or(0.0, |value| value.0),
+            (virtual_time.delta_secs(), unscaled),
+            *rotation_mode,
+            first_person,
+            action_active,
         );
-        if let Some(mut current_state) = current_state {
-            *current_state = state;
-        } else {
-            commands.entity(entity).insert(state);
-        }
-        if let Some(mut current_runtime) = current_runtime {
-            *current_runtime = runtime;
-        } else {
-            commands.entity(entity).insert(runtime);
-        }
-        for (parent, instance) in &avatars {
-            if parent.parent() != entity {
-                continue;
-            }
-            if let Ok(mut player) = players.get_mut(instance.player_entity()) {
-                write_globals(&mut player, state, curves);
-            }
+        write_head_inputs(&mut player, input, context);
+    }
+}
+
+pub(crate) fn head_state_from_player(player: &AnimationGraphPlayer) -> AlsHeadState {
+    let scalar = |key, default| {
+        source_player_property(player, key)
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(default)
+    };
+    let boolean = |key, default| {
+        source_player_property(player, key)
+            .and_then(|value| value.as_bool().ok())
+            .unwrap_or(default)
+    };
+    AlsHeadState {
+        initialization_required: boolean("head_state.b_initialization_required", true),
+        switching_look_sides: boolean("head_state.b_switching_look_sides", false),
+        pitch_angle: scalar("head_state.pitch_angle", 0.0),
+        yaw_angle: scalar("head_state.yaw_angle", 0.0),
+        yaw_velocity: scalar("head_state.yaw_velocity", 0.0),
+        yaw_amount: scalar("head_state.yaw_amount", 0.5),
+    }
+}
+
+fn project_head_state(
+    mut commands: Commands,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
+) {
+    for (parent, instance) in &avatars {
+        if let Ok(player) = players.get(instance.player_entity()) {
+            commands
+                .entity(parent.parent())
+                .insert(head_state_from_player(player));
         }
     }
 }
@@ -251,17 +253,49 @@ fn head_layer_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use als_core::{input::AlsInputCommand, motion::AlsViewYaw};
+
+    #[test]
+    fn actor_input_publication_does_not_refresh_an_unevaluated_head() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_systems(PostUpdate, head_layer_writer);
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .advance_by(std::time::Duration::from_secs_f32(0.1));
+        let state = AlsHeadState::default();
+        let entity = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                Transform::default(),
+                AlsViewYaw(90.0_f32.to_radians()),
+                RotationMode::ViewDirection,
+                AlsInputCommand::default(),
+                state,
+            ))
+            .id();
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(*app.world().get::<AlsHeadState>(entity).unwrap(), state);
+    }
 
     #[test]
     fn source_view_and_aiming_curves_gate_head_blend() {
-        let neutral = head_curve_state_from_values(None, None);
-        let blocked = head_curve_state_from_values(Some(1.0), Some(0.0));
-        let aiming = head_curve_state_from_values(Some(0.0), Some(1.0));
-        let mixed = head_curve_state_from_values(Some(0.25), Some(0.5));
-        assert_eq!(head_blend_amount(neutral), 1.0);
-        assert_eq!(head_blend_amount(blocked), 0.0);
-        assert_eq!(head_blend_amount(aiming), 0.0);
-        assert!((head_blend_amount(mixed) - 0.375).abs() < 1e-6);
+        assert_eq!(head_blend_amount(None), 1.0);
+        for (view, aiming, expected) in [
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.25, 0.5, 0.375),
+            (-2.0, -1.0, 1.0),
+            (2.0, 0.0, 0.0),
+        ] {
+            let context = AlsRootAnimationContext {
+                curves: [("ViewBlock".into(), view), ("PoseAiming".into(), aiming)]
+                    .into_iter()
+                    .collect(),
+            };
+            assert_eq!(head_blend_amount(Some(&context)), expected);
+        }
     }
 
     #[test]
@@ -312,15 +346,92 @@ mod tests {
     }
 
     #[test]
-    fn head_yaw_uses_the_same_world_forward_convention_as_view_yaw() {
-        let transform =
-            Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
-        assert!((body_yaw_degrees(&transform) - 90.0).abs() < 1e-4);
-        let input = AlsInputCommand {
-            move_dir: Vec2::Y,
+    fn head_actor_inputs_use_source_coordinates_raw_pitch_retained_target_and_action_latch() {
+        let mut player = AnimationGraphPlayer::new(default());
+        player.set_global_input_data("animation.pending_update", false);
+        player.set_global_input_data("locomotion_state.rotation_yaw", -20.0_f32);
+        player.set_global_input_data("locomotion_state.b_has_input", true);
+        player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -80.0_f32);
+        player.set_global_input_data("view_state.yaw_angle", -45.0_f32);
+        let mut response = AlsRotationResponseState {
+            initialized: true,
+            input_yaw: Some(12.0_f32.to_radians()),
+            target_yaw: 55.0_f32.to_radians(),
             ..default()
         };
-        assert!((input_yaw_degrees(&input, std::f32::consts::FRAC_PI_2, 0.0) - 90.0).abs() < 1e-4);
+        let transform = Transform::from_rotation(Quat::from_rotation_y(30.0_f32.to_radians()));
+        let input = head_frame_inputs(
+            &player,
+            &transform,
+            Some(&response),
+            65.0_f32.to_radians(),
+            (0.1, 0.2),
+            RotationMode::VelocityDirection,
+            false,
+            false,
+        );
+        for (actual, expected) in [
+            (input.body_yaw_world, -30.0),
+            (input.input_yaw_world, -80.0),
+            (input.target_yaw_world, -55.0),
+            (input.body_yaw_velocity_world, -100.0),
+            (input.view_yaw_angle, -45.0),
+            (input.view_pitch_angle, 65.0),
+        ] {
+            assert!((actual - expected).abs() < 1e-4, "{actual} != {expected}");
+        }
+        assert!(input.has_input);
+        let context = AlsRootAnimationContext {
+            curves: [("ViewBlock".into(), 0.25), ("PoseAiming".into(), 0.5)]
+                .into_iter()
+                .collect(),
+        };
+        write_head_inputs(&mut player, input, Some(&context));
+        assert_eq!(
+            player_scalar(&player, "view_state.head_blend_amount", -1.0),
+            0.375
+        );
+        assert!(
+            player
+                .get_global_input_data("head_state.pitch_angle")
+                .is_none()
+        );
+        assert!(
+            player
+                .get_global_input_data("head_state.yaw_amount")
+                .is_none()
+        );
+        assert_eq!(head_state_from_player(&player), AlsHeadState::default());
+        response.input_yaw = None;
+        player.set_global_input_data("locomotion_state.b_has_input", false);
+        let action = head_frame_inputs(
+            &player,
+            &transform,
+            Some(&response),
+            -85.0_f32.to_radians(),
+            (0.1, 0.2),
+            RotationMode::ViewDirection,
+            true,
+            true,
+        );
+        assert_eq!(action.view_pitch_angle, input.view_pitch_angle);
+        assert_eq!(action.input_yaw_world, input.input_yaw_world);
+        assert_eq!(action.target_yaw_world, input.target_yaw_world);
+        assert_eq!(action.delta_seconds_without_time_dilation, 0.2);
+        let rotated = transform.with_rotation(Quat::from_rotation_y(60.0_f32.to_radians()));
+        player.set_global_input_data("animation.pending_update", true);
+        let pending = head_frame_inputs(
+            &player,
+            &rotated,
+            Some(&response),
+            -85.0_f32.to_radians(),
+            (0.1, 0.2),
+            RotationMode::ViewDirection,
+            true,
+            false,
+        );
+        assert_eq!(pending.body_yaw_velocity_world, 0.0);
+        assert!((pending.view_pitch_angle + 85.0).abs() < 1e-5);
     }
 
     #[test]

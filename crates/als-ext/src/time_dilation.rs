@@ -6,7 +6,7 @@ pub fn unscaled_delta_seconds(
     custom_time_dilation: f32,
 ) -> f32 {
     let time_dilation = *previous_global_time_dilation * custom_time_dilation;
-    let delta_seconds = if time_dilation > f32::EPSILON {
+    let delta_seconds = if time_dilation > 1e-8 {
         virtual_delta_seconds / time_dilation
     } else {
         real_delta_seconds
@@ -31,5 +31,12 @@ mod tests {
             "[BF102.57][VERDICT] delta={delta_seconds:.6} previous_global={previous_global_time_dilation:.3} -> {verdict}",
         );
         assert!(passed);
+        let mut previous = 1e-7;
+        assert!((unscaled_delta_seconds(&mut previous, 1e-8, 0.2, 1.0, 1.0) - 0.1).abs() < 1e-6);
+        let mut previous = 1e-8;
+        assert_eq!(
+            unscaled_delta_seconds(&mut previous, 1e-8, 0.2, 1.0, 1.0),
+            0.2
+        );
     }
 }

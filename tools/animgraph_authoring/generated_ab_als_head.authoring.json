@@ -27,6 +27,10 @@
       "sha256": "588e40347fe4b694cff4542550bfbc24202830a24a245d5fcbc9aa28331e41f1"
     },
     {
+      "path": "target/bf115_head/source_cpp/AlsCameraComponent.cpp",
+      "sha256": "55cebe93625b590ad74704511ae959822e1eb9a849d4b39297a57be965754614"
+    },
+    {
       "path": "target/bf115_head/source_cpp/AlsCharacter.cpp",
       "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
     },
@@ -57,6 +61,10 @@
     {
       "path": "target/bf115_head/source_cpp/AlsRotation.h",
       "sha256": "29e2d3dd3253acb915a48085dabd703823fdde2f0f1271da6df24c12b679c560"
+    },
+    {
+      "path": "target/bf115_head/source_cpp/AlsViewAnimationState.h",
+      "sha256": "604497a5b2b63ab68b5ff581cc5c9f5b77c8f746f1574dad03c27f35d5be9cf2"
     },
     {
       "path": "target/bf115_head/source_cpp/AnimNode_BlendSpaceEvaluator.cpp",

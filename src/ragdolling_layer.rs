@@ -10,7 +10,6 @@ use bevy_animation_graph::core::pose::Pose;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::head_layer::AlsHeadLayerSet;
 
 const PELVIS_LABEL: &str = "pelvis";
 const REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
@@ -37,7 +36,7 @@ pub struct RagdollingLayerPlugin;
 
 impl Plugin for RagdollingLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(PostUpdate, AlsRagdollingLayerSet.after(AlsHeadLayerSet))
+        app.configure_sets(PostUpdate, AlsRagdollingLayerSet.before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
             .add_systems(
                 PostUpdate,
                 ragdolling_layer_writer.in_set(AlsRagdollingLayerSet),

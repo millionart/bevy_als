@@ -101,6 +101,18 @@ fn source_has_input(
         .is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON)
 }
 
+fn source_input_yaw(
+    input: Option<&AlsInputCommand>,
+    input_override: Option<&AlsInputOverride>,
+    view_yaw: f32,
+) -> Option<f32> {
+    if !source_has_input(input, input_override) { return None; }
+    let input = input_override.map(|value| &value.0).or(input)?;
+    Some(-als_core::orientation::world_forward_to_yaw(
+        als_core::motion::view_relative_move_direction(input.move_dir, view_yaw),
+    ).to_degrees())
+}
+
 fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {
     [
         (
@@ -254,6 +266,11 @@ fn generated_ab_als_input_writer(
             player.set_global_input_data("view_state.rotation_yaw", view_degrees);
             let body_degrees =
                 als_core::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
+            if let Some(yaw) = source_input_yaw(input, input_override, view_yaw.0) {
+                player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", yaw);
+            } else if player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").is_none() {
+                player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -body_degrees);
+            }
             let action = player
                 .get_global_input_data("als_overlay_locomotion_action_index")
                 .and_then(|value| value.as_f32().ok())
@@ -407,6 +424,15 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_input_yaw_uses_current_control_input_and_the_native_yaw_basis() {
+        let input = AlsInputCommand { move_dir: Vec2::Y, ..default() };
+        assert!((source_input_yaw(Some(&input), None, 45.0_f32.to_radians()).unwrap() + 45.0).abs() < 1e-5);
+        let override_input = AlsInputOverride(AlsInputCommand { move_dir: Vec2::X, ..default() });
+        assert!((source_input_yaw(Some(&input), Some(&override_input), 0.0).unwrap() - 90.0).abs() < 1e-5);
+        assert!(source_input_yaw(Some(&AlsInputCommand::default()), None, 1.0).is_none());
+    }
 
     #[test]
     fn source_locomotion_flags_keep_moving_and_moving_smooth_distinct() {
