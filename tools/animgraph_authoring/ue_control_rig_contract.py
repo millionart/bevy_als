@@ -86,6 +86,161 @@ def scalar_default(cpp_type, raw):
     return raw if cpp_type == "FName" else parse_number(raw)
 
 
+def compile_vm(vm, asset, graphs, variables):
+    if not vm.get("capture_complete") or vm.get("callable_count") != 0 or vm.get("predicate_count") != 0:
+        raise ControlRigContractError("native RigVM instruction capture is incomplete")
+
+    def cpp_type(value):
+        value = re.sub(r"\s+", "", value)
+        match = re.fullmatch(r"TEnumAsByte<(.+)>", value)
+        return match[1] if match else value
+
+    memories = {}
+    for bank in ("Literal", "Work"):
+        rows = sorted(vm[bank.lower()]["properties"], key=lambda row: row["index"])
+        if [row["index"] for row in rows] != list(range(len(rows))):
+            raise ControlRigContractError("native RigVM memory indices are incomplete")
+        memories[bank] = [{"cpp_type": row["cpp_type"], "default_text": row["exported_text"],
+            "fields": copy.deepcopy(row.get("fields", [])), "elements": copy.deepcopy(row.get("elements", [])),
+            "source": {"name": row["name"]}} for row in rows]
+    defaults = {row["name"]: row["default"] for row in variables}
+    external = vm["external_variables"]
+    if len({row["name"] for row in external}) != len(external) or any(row["name"] not in defaults for row in external):
+        raise ControlRigContractError("native RigVM external variable binding is incomplete")
+    memories["External"] = [{"name": row["name"], "cpp_type": row["cpp_type"],
+        "default_text": defaults[row["name"]]["exported_text"], "fields": copy.deepcopy(defaults[row["name"]].get("fields", []))}
+        for row in external]
+    nodes = {asset + ":" + node["source"]["path"]: (graph["id"], node["id"], node) for graph in graphs for node in graph["nodes"]}
+
+    def reference(value, expected=None, writable=False, private=False):
+        bank, index, offset = value["memory"], value["register"], value["offset"]
+        if bank not in memories or type(index) is not int or not 0 <= index < len(memories[bank]) or type(offset) is not int or offset < -1:
+            raise ControlRigContractError("native RigVM operand is invalid")
+        if writable and bank == "Literal":
+            raise ControlRigContractError("native RigVM writes to literal memory")
+        row = memories[bank][index]
+        result = {"memory": bank, "register": index, "path": []}
+        actual = cpp_type(row["cpp_type"])
+        if offset >= 0:
+            paths = vm["external_paths"] if bank == "External" else vm[bank.lower()]["paths"]
+            if offset >= len(paths):
+                raise ControlRigContractError("native RigVM property path is missing")
+            path = paths[offset]
+            if cpp_type(path["head_cpp_type"]) != actual or bank == "External" and path["register"] != index:
+                raise ControlRigContractError("native RigVM property path owner does not match")
+            fields = row["fields"]
+            for name in path["path"].split("."):
+                selected = [field for field in fields if field["name"] == name]
+                if len(selected) != 1:
+                    raise ControlRigContractError("native RigVM property path field is missing")
+                field = selected[0]
+                actual = cpp_type(field["cpp_type"])
+                fields = field.get("fields", [])
+                result["path"].append(name)
+            if actual != cpp_type(path.get("tail_cpp_type", "")):
+                raise ControlRigContractError("native RigVM property path type does not match")
+        if expected is not None and actual != cpp_type(expected):
+            if private and bank == "Work" and not result["path"] and actual == "TArray<" + cpp_type(expected) + ">":
+                result["slice"] = 0
+                actual = cpp_type(expected)
+            else:
+                raise ControlRigContractError("native RigVM operand type does not match: " + actual + " -> " + expected)
+        return result, actual
+
+    functions = [{"name": row["name"], "arguments": [{"name": arg["name"], "cpp_type": arg["cpp_type"]} for arg in row["arguments"]]}
+        for row in vm["functions"]]
+    if len({row["name"] for row in functions}) != len(functions):
+        raise ControlRigContractError("native RigVM function is duplicated")
+    native_ops = vm["instructions"]
+    if not native_ops or [row["index"] for row in native_ops] != list(range(len(native_ops))):
+        raise ControlRigContractError("native RigVM instruction indices are incomplete")
+
+    def instruction_index(value):
+        if type(value) is not int or not 0 <= value < len(native_ops):
+            raise ControlRigContractError("native RigVM jump or entry is invalid")
+        return value
+
+    instructions = []
+    edges = []
+    for index, native in enumerate(native_ops):
+        opcode = native["opcode"]
+        row = {"opcode": opcode}
+        successors = [index + 1]
+        model = nodes.get(native["subject"])
+        if native["subject"] != "None" and model is None:
+            raise ControlRigContractError("native RigVM source model is missing")
+        row["model"] = list(model[:2]) if model else None
+        row["source"] = {"call_path": native["call_path"]}
+        if opcode == "Execute":
+            function_index = native["function"]
+            if type(function_index) is not int or not 0 <= function_index < len(functions) or native.get("predicate_count") != 0:
+                raise ControlRigContractError("native RigVM function invocation is invalid")
+            function = functions[function_index]
+            if model is None or model[2].get("function") != function["name"] or len(native["operands"]) != len(function["arguments"]):
+                raise ControlRigContractError("native RigVM function ABI does not match its model")
+            pins = {pin["name"]: pin for pin in model[2]["pins"] if pin["parent"] is None}
+            operands = []
+            for argument, operand in zip(function["arguments"], native["operands"]):
+                pin = pins.get(argument["name"])
+                if pin is None or cpp_type(pin["cpp_type"]) != cpp_type(argument["cpp_type"]):
+                    raise ControlRigContractError("native RigVM function argument does not match its model")
+                value, _ = reference(operand, argument["cpp_type"], pin["direction"] in {"Output", "IO", "Hidden"}, pin["direction"] == "Hidden")
+                operands.append(value)
+            row.update(function=function_index, operands=operands)
+        elif opcode == "Copy":
+            read, read_type = reference(native["source"])
+            write, write_type = reference(native["target"], writable=True)
+            if read_type != write_type and {read_type, write_type} != {"float", "double"}:
+                raise ControlRigContractError("native RigVM copy conversion is unsupported: " + read_type + " -> " + write_type)
+            row.update(input=read, output=write)
+        elif opcode == "Zero":
+            value, value_type = reference(native["target"], writable=True)
+            if value_type not in {"FName", "int32"}:
+                raise ControlRigContractError("native RigVM zero type is unsupported")
+            row["output"] = value
+        elif opcode in {"JumpAbsolute", "JumpForward", "JumpBackward"}:
+            offset = native["jump_offset"]
+            target = offset if opcode == "JumpAbsolute" else index + offset * (-1 if opcode == "JumpBackward" else 1)
+            row.update(opcode="Jump", instruction=instruction_index(target))
+            successors = [target]
+        elif opcode == "JumpToBranch":
+            row["selector"], _ = reference(native["selector"], "FName")
+            start = native["first_branch"]
+            branches = vm["branches"]
+            if type(start) is not int or not 0 <= start < len(branches) or branches[start]["instruction"] != index:
+                raise ControlRigContractError("native RigVM branch range is invalid")
+            targets = {}
+            for branch in branches[start:]:
+                if branch["instruction"] != index:
+                    break
+                if branch["label"] in targets or branch["argument"] != -1 or not branch["first"] - 1 <= branch["last"] < len(native_ops):
+                    raise ControlRigContractError("native RigVM branch contract is invalid")
+                targets[branch["label"]] = instruction_index(branch["first"])
+            if "Completed" not in targets:
+                raise ControlRigContractError("native RigVM completed branch is missing")
+            row["branches"] = targets
+            successors = list(targets.values())
+        elif opcode == "Exit":
+            successors = []
+        else:
+            raise ControlRigContractError("native RigVM opcode is unsupported: " + opcode)
+        edges.append([instruction_index(value) for value in successors])
+        instructions.append(row)
+    entries = {row["name"]: instruction_index(row["instruction"]) for row in vm["entries"]}
+    if not entries or len(entries) != len(vm["entries"]):
+        raise ControlRigContractError("native RigVM entries are missing or duplicated")
+    pending = list(entries.values())
+    reached = set()
+    while pending:
+        index = pending.pop()
+        if index not in reached:
+            reached.add(index)
+            pending.extend(edges[index])
+    if len(reached) != len(instructions):
+        raise ControlRigContractError("native RigVM has unreachable instructions")
+    return {"memories": memories, "functions": functions, "instructions": instructions, "entries": entries}
+
+
 def compile_contract(source):
     if source.get("asset_class") != "/Script/ControlRigDeveloper.ControlRigBlueprint":
         raise ControlRigContractError("source asset is not a Control Rig blueprint")
@@ -346,11 +501,15 @@ def compile_contract(source):
     variables = [{"name": parse_quoted(value["VarName"]), "type": parse_struct(value["VarType"]),
         "default": cdo[parse_quoted(value["VarName"])]} for value in declared]
     functions = sorted({node["function"] for model in graphs for node in model["nodes"] if "function" in node and "math" not in node})
-    return {"format": FORMAT, "source_asset": asset, "roots": roots, "function_library": library,
+    result = {"format": FORMAT, "source_asset": asset, "roots": roots, "function_library": library,
         "graphs": graphs, "views": views, "variables": variables,
         "rig_hierarchy": copy.deepcopy(source.get("rig_hierarchy", {})),
         "unit_defaults_complete": unit_defaults.keys() == unit_paths,
         "runtime_ready": False, "unimplemented_functions": functions}
+    if "rig_vm" in source:
+        result["program"] = compile_vm(source["rig_vm"], asset, graphs, variables)
+    result["execution_contract_complete"] = "program" in result
+    return result
 
 
 def main():
@@ -373,6 +532,8 @@ def main():
         write_json(args.output, result)
         report = {"format": REPORT_FORMAT, "success": True, "runtime_ready": False,
             "unit_defaults_complete": result["unit_defaults_complete"],
+            "execution_contract_complete": result["execution_contract_complete"],
+            "instructions": len(result.get("program", {}).get("instructions", [])),
             "graphs": len(result["graphs"]), "nodes": sum(len(graph["nodes"]) for graph in result["graphs"]),
             "unimplemented_functions": result["unimplemented_functions"]}
     except (ConversionError, KeyError, OSError, ValueError) as error:

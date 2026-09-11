@@ -21,6 +21,7 @@ public class AlsGraphSourceReader : ModuleRules
             "Kismet",
             "AnimGraph",
             "ControlRig",
+            "RigVM",
             "RigVMDeveloper",
             "Json",
             "JsonUtilities"

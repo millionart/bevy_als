@@ -8,7 +8,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from ue_control_rig_contract import VM, REPORT_FORMAT, MATH_OPERATIONS, ControlRigContractError, compile_contract, compile_math_operation, main as contract_main, scalar_default
+from ue_control_rig_contract import VM, REPORT_FORMAT, MATH_OPERATIONS, ControlRigContractError, compile_contract, compile_math_operation, compile_vm, main as contract_main, scalar_default
 
 
 def fixture():
@@ -102,7 +102,101 @@ def semantic(value):
     return value
 
 
+def program_self_test():
+    asset = "/Fixture/Program.Program"
+
+    def field(name, cpp, text, **extra):
+        return {"name": name, "cpp_type": cpp, "exported_text": text, **extra}
+
+    def operand(bank, index, offset=-1):
+        return {"memory": bank, "register": index, "offset": offset}
+
+    signatures = [
+        ("FRigVMFunction_ControlFlowBranch::Execute", [("Condition", "bool", "Input"), ("BlockToRun", "FName", "Hidden")]),
+        ("FRigVMFunction_MathFloatMul::Execute", [("A", "float", "Input"), ("B", "float", "Input"), ("Result", "float", "Output")]),
+        ("FFixtureCache::Execute", [("Items", "TArray<FRigElementKey>", "Hidden")]),
+    ]
+    nodes = [{"id": index, "function": signature, "source": {"path": "Body.Node" + str(index)}, "pins": [
+        {"name": name, "cpp_type": cpp, "direction": direction, "parent": None} for name, cpp, direction in pins]}
+        for index, (signature, pins) in enumerate(signatures)]
+    literal = [field("Enabled", "bool", "True", index=0), field("Factor", "float", "2.0", index=1)]
+    work = [field("Block", "FName", "None", index=0), field("Result", "float", "0.0", index=1),
+        field("Cache", "TArray<TArray<FRigElementKey> >", "", index=2, elements=[]),
+        field("Frame", "FTransform", "()", index=3, fields=[field("Translation", "FVector", "(X=1,Y=2,Z=3)",
+            fields=[field(axis, "double", str(index + 1)) for index, axis in enumerate("XYZ")])])]
+    vm = {"capture_complete": True, "callable_count": 0, "predicate_count": 0,
+        "literal": {"properties": literal, "paths": []},
+        "work": {"properties": list(reversed(work)), "paths": [{"path": "Translation.X", "head_cpp_type": "FTransform", "tail_cpp_type": "double"}]},
+        "external_variables": [{"name": "Height", "cpp_type": "float"}], "external_paths": [],
+        "functions": [{"name": signature, "arguments": [{"name": name, "cpp_type": cpp, "direction": "Input"} for name, cpp, _ in pins]}
+            for signature, pins in signatures], "entries": [{"name": "Solve", "instruction": 0}],
+        "branches": [{"instruction": 2, "argument": -1, "label": label, "first": first, "last": last}
+            for label, first, last in [("True", 3, 5), ("False", 6, 6), ("Completed", 7, 6)]]}
+    w0, w1, w2, height = operand("Work", 0), operand("Work", 1), operand("Work", 2), operand("External", 0)
+    operations = [
+        {"opcode": "Zero", "target": w0},
+        {"opcode": "Execute", "function": 0, "operands": [operand("Literal", 0), w0]},
+        {"opcode": "JumpToBranch", "selector": w0, "first_branch": 0},
+        {"opcode": "Execute", "function": 1, "operands": [height, operand("Literal", 1), w1]},
+        {"opcode": "Copy", "source": w1, "target": height},
+        {"opcode": "JumpBackward", "jump_offset": 4},
+        {"opcode": "JumpBackward", "jump_offset": 5},
+        {"opcode": "Copy", "source": operand("Work", 3, 0), "target": height},
+        {"opcode": "Execute", "function": 2, "operands": [w2]},
+        {"opcode": "Exit"},
+    ]
+    for index, row in enumerate(operations):
+        row.update(index=index, call_path="Body::|Node", subject=asset + ":Body.Node" + str(row["function"]) if row["opcode"] == "Execute" else "None")
+        if row["opcode"] == "Execute":
+            row["predicate_count"] = 0
+    vm["instructions"] = operations
+    variables = [{"name": "Height", "default": field("Height", "float", "4.0")}]
+    graphs = [{"id": 0, "nodes": nodes}]
+    result = compile_vm(vm, asset, graphs, variables)
+    assert result["instructions"][5]["instruction"] == 1
+    assert result["instructions"][2]["branches"] == {"True": 3, "False": 6, "Completed": 7}
+    assert result["instructions"][7]["input"]["path"] == ["Translation", "X"]
+    assert result["instructions"][8]["operands"][0]["slice"] == 0
+    omitted = copy.deepcopy(vm)
+    for function in omitted["functions"]:
+        for argument in function["arguments"]:
+            del argument["direction"]
+    assert semantic(compile_vm(omitted, asset, graphs, variables)) == semantic(result)
+    renamed = json.loads(json.dumps(vm).replace(asset, "/Fixture/Renamed.Renamed").replace("Body", "OtherBody"))
+    for bank in ("literal", "work"):
+        for row in renamed[bank]["properties"]:
+            row["name"] = "Other_" + row["name"]
+    renamed_graphs = json.loads(json.dumps(graphs).replace("Body", "OtherBody"))
+    assert semantic(compile_vm(renamed, "/Fixture/Renamed.Renamed", renamed_graphs, variables)) == semantic(result)
+    changed = copy.deepcopy(vm)
+    changed["literal"]["properties"][1]["exported_text"] = "3.0"
+    assert semantic(compile_vm(changed, asset, graphs, variables)) != semantic(result)
+    mutations = [
+        (("capture_complete",), False), (("instructions", 1, "function"), 99),
+        (("instructions", 3, "operands", 2, "memory"), "Literal"),
+        (("instructions", 7, "source", "offset"), 99),
+        (("work", "paths", 0, "path"), "Translation.Missing"),
+        (("work", "paths", 0, "tail_cpp_type"), "float"),
+        (("instructions", 5, "jump_offset"), 99), (("branches", 2, "label"), "Absent"),
+        (("instructions", 2, "first_branch"), 2), (("instructions", 6, "opcode"), "Unknown"),
+        (("work", "properties", 0, "index"), 1), (("functions", 1, "arguments", 2, "cpp_type"), "double"),
+    ]
+    for path, value in mutations:
+        changed = copy.deepcopy(vm)
+        target = changed
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+        try:
+            compile_vm(changed, asset, graphs, variables)
+        except ControlRigContractError:
+            pass
+        else:
+            raise AssertionError("invalid VM contract was accepted: " + str(path))
+
+
 def self_test():
+    program_self_test()
     assert scalar_default("uint8", "False") == 0
     assert scalar_default("uint8", "True") == 1
     source = fixture()
@@ -260,6 +354,13 @@ def main():
             "native_identity_independence": "PASS"}
         report["native"]["math_operations"] = len({node["math"]["operation"] for node in math_nodes})
         report["native"]["math_nodes"] = len(math_nodes)
+        if "rig_vm" in source:
+            assert result["execution_contract_complete"]
+            program = result["program"]
+            assert len(program["instructions"]) == len(source["rig_vm"]["instructions"])
+            assert set(program["entries"]) == {"Construction", "Forwards Solve"}
+            report["native"]["program_instructions"] = len(program["instructions"])
+            report["native"]["program_registers"] = {bank: len(rows) for bank, rows in program["memories"].items()}
         if "rig_unit_defaults" in source:
             assert result["unit_defaults_complete"]
             units = [node["native_unit"] for graph in result["graphs"] for node in graph["nodes"] if node["kind"] == "unit"]

@@ -22,6 +22,8 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Rigs/RigHierarchy.h"
+#include "ControlRig.h"
+#include "RigVMCore/RigVM.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -129,6 +131,209 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
     }
 
     return Values;
+}
+
+TSharedRef<FJsonObject> CaptureRigOperand(const FRigVMOperand& Operand)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetStringField(TEXT("memory"), StaticEnum<ERigVMMemoryType>()->GetNameStringByValue(static_cast<int64>(Operand.GetMemoryType())));
+    Value->SetNumberField(TEXT("register"), Operand.GetRegisterIndex());
+    Value->SetNumberField(TEXT("offset"), Operand.GetRegisterOffset());
+    return Value;
+}
+
+FString RigPropertyCPPType(const FProperty* Property)
+{
+    FString ExtendedType;
+    const FString BaseType = Property->GetCPPType(&ExtendedType);
+    return BaseType + ExtendedType;
+}
+
+TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory, UObject* Parent)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    TArray<TSharedPtr<FJsonValue>> Properties;
+    if (Memory.Num() > 0)
+    {
+        Properties = CaptureProperties(Memory.GetStruct(), Memory.GetValue().GetMemory(), Parent, true);
+        for (const TSharedPtr<FJsonValue>& Row : Properties)
+        {
+            const TSharedPtr<FJsonObject> Entry = Row->AsObject();
+            const int32 Index = Memory.GetPropertyIndexByName(FName(*Entry->GetStringField(TEXT("name"))));
+            const FProperty* Property = Memory.GetProperty(Index);
+            Entry->SetNumberField(TEXT("index"), Index);
+            Entry->SetStringField(TEXT("cpp_type"), RigPropertyCPPType(Property));
+            if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+            {
+                FScriptArrayHelper Array(ArrayProperty, Memory.GetData<uint8>(Index));
+                TArray<TSharedPtr<FJsonValue>> Elements;
+                for (int32 ElementIndex = 0; ElementIndex < Array.Num(); ++ElementIndex)
+                {
+                    TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();
+                    FString Text;
+                    ArrayProperty->Inner->ExportTextItem_Direct(Text, Array.GetRawPtr(ElementIndex), nullptr, Parent, PPF_None);
+                    Element->SetStringField(TEXT("exported_text"), Text);
+                    if (const FStructProperty* InnerStruct = CastField<FStructProperty>(ArrayProperty->Inner))
+                    {
+                        Element->SetArrayField(TEXT("fields"), CaptureProperties(InnerStruct->Struct, Array.GetRawPtr(ElementIndex), Parent, true));
+                    }
+                    Elements.Add(MakeShared<FJsonValueObject>(Element));
+                }
+                Entry->SetArrayField(TEXT("elements"), Elements);
+            }
+        }
+    }
+    Value->SetArrayField(TEXT("properties"), Properties);
+    TArray<TSharedPtr<FJsonValue>> Paths;
+    for (const FRigVMPropertyPath& Path : Memory.GetPropertyPaths())
+    {
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("path"), Path.ToString());
+        Entry->SetStringField(TEXT("head_cpp_type"), Path.GetHeadCPPType());
+        Entry->SetStringField(TEXT("tail_cpp_type"), RigPropertyCPPType(Path.GetTailProperty()));
+        Paths.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("paths"), Paths);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CaptureRigVM(const URigVM& VM, UObject* Parent)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    const FRigVMByteCode& Code = VM.GetByteCode();
+    const FRigVMInstructionArray Instructions = Code.GetInstructions();
+    bool bComplete = Instructions.Num() > 0 && !VM.IsNativized() && Code.NumCallables() == 0 && Code.NumPredicateBranches() == 0;
+    Value->SetStringField(TEXT("object_path"), VM.GetPathName());
+    Value->SetObjectField(TEXT("literal"), CaptureRigMemory(VM.GetDefaultLiteralMemory(), Parent));
+    Value->SetObjectField(TEXT("work"), CaptureRigMemory(VM.GetDefaultWorkMemory(), Parent));
+    Value->SetNumberField(TEXT("callable_count"), Code.NumCallables());
+    Value->SetNumberField(TEXT("predicate_count"), Code.NumPredicateBranches());
+    TArray<TSharedPtr<FJsonValue>> Functions;
+    for (int32 Index = 0; Index < VM.GetFunctionNames().Num(); ++Index)
+    {
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("name"), VM.GetFunctionNames()[Index].ToString());
+        const FRigVMFunction* Function = VM.GetFunctions().IsValidIndex(Index) ? VM.GetFunctions()[Index] : nullptr;
+        TArray<TSharedPtr<FJsonValue>> Arguments;
+        if (Function != nullptr)
+        {
+            for (const FRigVMFunctionArgument& Argument : Function->GetArguments())
+            {
+                TSharedRef<FJsonObject> ArgumentValue = MakeShared<FJsonObject>();
+                ArgumentValue->SetStringField(TEXT("name"), Argument.Name);
+                ArgumentValue->SetStringField(TEXT("cpp_type"), Argument.Type);
+                Arguments.Add(MakeShared<FJsonValueObject>(ArgumentValue));
+            }
+        }
+        else
+        {
+            bComplete = false;
+        }
+        Entry->SetArrayField(TEXT("arguments"), Arguments);
+        Functions.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("functions"), Functions);
+    TArray<TSharedPtr<FJsonValue>> ExternalVariables;
+    for (const FRigVMExternalVariableDef& Variable : VM.GetExternalVariableDefs())
+    {
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("name"), Variable.GetName().ToString());
+        Entry->SetStringField(TEXT("cpp_type"), Variable.GetExtendedCPPType().ToString());
+        Entry->SetStringField(TEXT("type_object"), ObjectPath(Variable.GetCPPTypeObject()));
+        ExternalVariables.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("external_variables"), ExternalVariables);
+    TArray<TSharedPtr<FJsonValue>> ExternalPaths;
+    for (const FRigVMPropertyPathDescription& Path : VM.ExternalPropertyPathDescriptions)
+    {
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetNumberField(TEXT("register"), Path.PropertyIndex);
+        Entry->SetStringField(TEXT("head_cpp_type"), Path.HeadCPPType);
+        Entry->SetStringField(TEXT("path"), Path.SegmentPath);
+        const FRigVMPropertyPath Resolved(VM.GetExternalVariableDefs()[Path.PropertyIndex].GetProperty(), Path.SegmentPath);
+        Entry->SetStringField(TEXT("tail_cpp_type"), RigPropertyCPPType(Resolved.GetTailProperty()));
+        ExternalPaths.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("external_paths"), ExternalPaths);
+    TArray<TSharedPtr<FJsonValue>> Entries;
+    for (int32 Index = 0; Index < Code.NumEntries(); ++Index)
+    {
+        const FRigVMByteCodeEntry& Entry = Code.GetEntry(Index);
+        TSharedRef<FJsonObject> EntryValue = MakeShared<FJsonObject>();
+        EntryValue->SetStringField(TEXT("name"), Entry.Name.ToString());
+        EntryValue->SetNumberField(TEXT("instruction"), Entry.InstructionIndex);
+        Entries.Add(MakeShared<FJsonValueObject>(EntryValue));
+    }
+    Value->SetArrayField(TEXT("entries"), Entries);
+    TArray<TSharedPtr<FJsonValue>> Branches;
+    for (int32 Index = 0; Index < Code.NumBranches(); ++Index)
+    {
+        const FRigVMBranchInfo& Branch = Code.GetBranch(Index);
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("label"), Branch.Label.ToString());
+        Entry->SetNumberField(TEXT("instruction"), Branch.InstructionIndex);
+        Entry->SetNumberField(TEXT("argument"), Branch.ArgumentIndex);
+        Entry->SetNumberField(TEXT("first"), Branch.FirstInstruction);
+        Entry->SetNumberField(TEXT("last"), Branch.LastInstruction);
+        Branches.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("branches"), Branches);
+    TArray<TSharedPtr<FJsonValue>> Ops;
+    for (const FRigVMInstruction& Instruction : Instructions)
+    {
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetNumberField(TEXT("index"), Instruction.Index);
+        Entry->SetStringField(TEXT("opcode"), StaticEnum<ERigVMOpCode>()->GetNameStringByValue(static_cast<int64>(Instruction.OpCode)));
+        Entry->SetStringField(TEXT("call_path"), Code.GetCallPathForInstruction(Instruction.Index));
+        Entry->SetStringField(TEXT("subject"), ObjectPath(Code.GetSubjectForInstruction(Instruction.Index)));
+        switch (Instruction.OpCode)
+        {
+        case ERigVMOpCode::Execute:
+        {
+            const FRigVMExecuteOp& Op = Code.GetOpAt<FRigVMExecuteOp>(Instruction);
+            Entry->SetNumberField(TEXT("function"), Op.CallableIndex);
+            Entry->SetNumberField(TEXT("predicate_count"), Op.PredicateCount);
+            TArray<TSharedPtr<FJsonValue>> Operands;
+            for (const FRigVMOperand& Operand : Code.GetOperandsForCallableOp(Instruction))
+            {
+                Operands.Add(MakeShared<FJsonValueObject>(CaptureRigOperand(Operand)));
+            }
+            Entry->SetArrayField(TEXT("operands"), Operands);
+            break;
+        }
+        case ERigVMOpCode::Copy:
+        {
+            const FRigVMCopyOp& Op = Code.GetOpAt<FRigVMCopyOp>(Instruction);
+            Entry->SetObjectField(TEXT("source"), CaptureRigOperand(Op.Source));
+            Entry->SetObjectField(TEXT("target"), CaptureRigOperand(Op.Target));
+            break;
+        }
+        case ERigVMOpCode::Zero:
+            Entry->SetObjectField(TEXT("target"), CaptureRigOperand(Code.GetOpAt<FRigVMUnaryOp>(Instruction).Arg));
+            break;
+        case ERigVMOpCode::JumpAbsolute:
+        case ERigVMOpCode::JumpForward:
+        case ERigVMOpCode::JumpBackward:
+            Entry->SetNumberField(TEXT("jump_offset"), Code.GetOpAt<FRigVMJumpOp>(Instruction).InstructionIndex);
+            break;
+        case ERigVMOpCode::JumpToBranch:
+        {
+            const FRigVMJumpToBranchOp& Op = Code.GetOpAt<FRigVMJumpToBranchOp>(Instruction);
+            Entry->SetObjectField(TEXT("selector"), CaptureRigOperand(Op.Arg));
+            Entry->SetNumberField(TEXT("first_branch"), Op.FirstBranchInfoIndex);
+            break;
+        }
+        case ERigVMOpCode::Exit:
+            break;
+        default:
+            bComplete = false;
+            break;
+        }
+        Ops.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Value->SetArrayField(TEXT("instructions"), Ops);
+    Value->SetBoolField(TEXT("capture_complete"), bComplete);
+    return Value;
 }
 
 TSharedRef<FJsonObject> CapturePinReference(const UEdGraphPin* Pin)
@@ -780,6 +985,16 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (!RigUnitDefaults.IsEmpty())
     {
         Root->SetArrayField(TEXT("rig_unit_defaults"), RigUnitDefaults);
+        UControlRig* Rig = Blueprint != nullptr && Blueprint->GeneratedClass != nullptr
+            ? Cast<UControlRig>(Blueprint->GeneratedClass->GetDefaultObject()) : nullptr;
+        const FObjectPropertyBase* VMProperty = Rig != nullptr ? FindFProperty<FObjectPropertyBase>(Rig->GetClass(), TEXT("VM")) : nullptr;
+        const URigVM* VM = VMProperty != nullptr ? Cast<URigVM>(VMProperty->GetObjectPropertyValue_InContainer(Rig)) : nullptr;
+        if (VM == nullptr)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Compiled RigVM is unavailable."));
+            return 7;
+        }
+        Root->SetObjectField(TEXT("rig_vm"), CaptureRigVM(*VM, Rig));
     }
 
     TArray<TSharedPtr<FJsonValue>> GraphValues;
