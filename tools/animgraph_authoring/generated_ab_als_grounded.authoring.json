@@ -839,6 +839,18 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/root_lock_modes_pass.watchdog.json"
+    },
+    {
+      "label": "source_roll_entry_uses_existing_playground_wall",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "grounded_roll_reaches_an_existing_playground_wall_before_reentry",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/grounded_roll_wall_pass.watchdog.json"
     }
   ]
 }

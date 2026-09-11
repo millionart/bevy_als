@@ -893,3 +893,14 @@
   - 05d5b4 startup后/Default前2026-09-11 15:08:30：最终入口公共startup15.350s PASS，root Pose/数值/性能通过、无graph error、零截图。接着运行原完整Default，比较原Alpha检查与首跳IK失败点。
 
   - 05d5b4完成/Locomotion前2026-09-11 15:09:33：公共Default17.899s PASS，六窗口与14coverage全部通过，fault/temporal/graph均为空、零截图；实际消费Alpha观测不再误判，源初始参考长度修复后首跳calf_r异常未再出现，原40rad/s与性能守卫全部保持。347 ext/307项目、原生层级及133节点Rig审计、247图spec和全部生成source/static证据闭合；本轮开始14:34、预估15:09、实际15:09:33（偏差+33s），结果完成，无新增拆分。下面同一入口继续原Locomotion与Grounded，再执行Standing/Crouching直接消费者；Default父项与此前有限复开仍待这些共享Gate收口。
+
+  - 05d5b2 Locomotion后/Grounded前2026-09-11 15:11:24：795d4d2同入口Locomotion31.542s PASS，14窗口、全部动作覆盖和原姿态/性能守卫通过，零截图。接着原Grounded九窗口，验证先前Roll出口及站蹲转换；没有改输入driver、动作顺序或1.5m/s源条件。
+
+  - 05d5b2 Grounded后/源分支前提纠正2026-09-11 15:21:00：公共Grounded41.757s仅两项Roll出口/完成coverage失败；数值pass=true、八个站蹲窗口、13/15coverage与全部姿态/性能守卫通过，fault/temporal/graph为空、零截图。实际roll.time0.8548418重入时speed1.602745m/s、MovingSmooth=true，源T2要求FromRoll且非MovingSmooth/RotateLeft/RotateRight，因此正确进入Standing并清tag，下一帧1.435888m/s也不能回补入口。旧fixture向空地跑滚，退出前提随采样相位变化，不能保证专门的Roll分支；不得改源1.5阈值或强行指定FSM。原Playground清单确认(-40,1,-30)m现有墙体、半尺寸(10,1,0.25)m，当前原点(-45,0,-28)m朝-Z可自然阻挡root motion；按该真实输入覆盖低速Roll分支，随后重置到原平地/Yaw做既有站蹲八窗口，不添加场景物体。
+  - [x] BF115.05d5b5 Grounded Roll正分支真实前提：开始2026-09-11 15:21:00、预估15:41:00。依据为已通过全部数值与八窗口、源T2精确条件、原场景墙体和现有reset/rebase工具；最小fixture先拒绝旧朝向不接触该墙，再仅调整Grounded Roll朝向及后续平地重置，用同入口验证实际MovingSmooth=false、Roll回调/Slot/完整退出，之后恢复其它已列共享动作。预计只有约20秒focused、约60秒入口和一次约42秒原case；固定watchdog/场景内容/源逻辑/全部阈值保持，超时仍按当前父项界线复盘。
+
+  - 05d5b5静态/运行前2026-09-11 15:26:09：原朝向的真实场景墙体前提fixture34.473s FAIL，新朝-Z朝向与后续原平地重置后308项目回归24.711s PASS，同入口61.658s PASS。仅Grounded driver使用现有墙面产生自然低速条件，八个后续动作使用原位置和原朝向；原场景资产、Actor运动/速度、FSM条件、montage和所有守卫未改。接着声明式与startup，再原Grounded检查真实低速重入、回调/Slot及退出完成。
+
+  - 05d5b5 startup后/Grounded前2026-09-11 15:27:25：Grounded声明式6.308s和公共startup15.081s PASS，零截图/graph error。以下同入口完整Grounded，以真实墙体碰撞提供低速入口，读取实际Roll状态、回调、Slot和全部后续窗口。
+
+  - 05d5b5完成/Grounded通过2026-09-11 15:28:50：公共Grounded41.605s PASS，九窗口与全部15coverage通过，真实低速Roll重入、源回调、Root Slot和退出完成均已发生；原13/15失败记录保留为高速源分支对照。fault/temporal/graph为空、零截图，308回归与几何前提断言通过；场景资产和源条件均未改，消融旧朝向稳定无法满足已有墙体前提。开始15:21、预估15:41、实际15:28:50（偏差-12m10s），结果完成，无拆分。以下同一入口继续standing_stop、standing_response、standing_turn、crouching、crouching_actions、standing_direction，验证全量迁移及参考长度的直接消费者。

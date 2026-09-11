@@ -97,6 +97,7 @@ const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const SPRINT_START: Vec3 = Vec3::new(-45.0, 0.0, -26.0);
 const SPRINT_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 const GROUNDED_START: Vec3 = Vec3::new(-45.0, 0.0, -28.0);
+const GROUNDED_ROLL_YAW: f32 = 0.0;
 const LOCOMOTION_DROP_HEIGHT: f32 = 30.0;
 const DIRECTION_CASE_SECONDS: f32 = 3.0;
 const DIRECTION_CASE_SETTLE_SECONDS: f32 = 1.6;
@@ -4785,7 +4786,7 @@ fn drive_manual_integration(
                         fixture.roll_start
                     },
                     if state.scenario == IntegrationScenario::Grounded {
-                        SPRINT_YAW
+                        GROUNDED_ROLL_YAW
                     } else {
                         fixture.facing_yaw
                     },
@@ -4821,6 +4822,14 @@ fn drive_manual_integration(
         IntegrationPhase::GroundedJoint => {
             if entering {
                 let index = state.grounded_joint_probe.case_index;
+                if index == 0 {
+                    reset_character(
+                        &mut transform, &mut position, rotation, &mut velocity,
+                        &mut view_yaw, &mut view_pitch,
+                        GROUNDED_START.with_y(fixture.roll_start.y), SPRINT_YAW,
+                    );
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "grounded_joint_floor_start");
+                }
                 state.grounded_joint_probe = GroundedJointProbe {
                     case_index: index,
                     base_yaw: view_yaw.0,
@@ -9088,6 +9097,18 @@ mod tests {
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.0, &mapping) - 0.8).abs() < 1e-6);
         mapping.interpolate_speed_decreasing = 20.0;
         assert!((default_overlay_prediction_alpha(Some(0.8), 0.0, 0.01, &mapping) - 0.76).abs() > 0.1);
+    }
+
+    #[test]
+    fn grounded_roll_reaches_an_existing_playground_wall_before_reentry() {
+        let manifest: als_ext::playground::PlaygroundManifest = ron::from_str(include_str!("../assets/models/playground/playground_scene.ron")).unwrap();
+        let wall = manifest.actors.iter().find(|actor| actor.bounds_origin == Some([-4000.0, -3000.0, 100.0]) && actor.bounds_extent == Some([1000.0, 25.0, 100.0])).unwrap();
+        let center = als_ext::playground::ue_point_to_bevy(Vec3::from(wall.bounds_origin.unwrap()));
+        let extent = als_ext::playground::ue_extents_to_bevy(Vec3::from(wall.bounds_extent.unwrap()));
+        let forward = Quat::from_rotation_y(GROUNDED_ROLL_YAW) * Vec3::NEG_Z;
+        let ahead = GROUNDED_START.with_y(1.0) + forward * 2.0;
+        assert!((ahead - center).abs().cmple(extent).all());
+        assert!((GROUNDED_START.with_y(1.0) - center).abs().cmpgt(extent + Vec3::splat(0.35)).any());
     }
 
     #[test]
