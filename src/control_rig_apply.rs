@@ -12,6 +12,10 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
+use std::sync::Arc;
+use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, Position, Rotation, SpatialQueryFilter}};
+use als_ext::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryContext, RigQueryWorld},
+    source_gameplay_tag_input::set_rig_query_context, source_instance::set_source_frame_input};
 
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
@@ -199,7 +203,7 @@ impl Plugin for ControlRigApplyPlugin {
         )
         .add_systems(
             PostUpdate,
-            refresh_control_rig_input.in_set(AlsControlRigInputSet),
+            (refresh_control_rig_input, publish_control_rig_inputs).chain().in_set(AlsControlRigInputSet),
         )
         .add_systems(
             PostUpdate,
@@ -863,6 +867,61 @@ fn refresh_control_rig_input(
     }
 }
 
+fn publish_control_rig_inputs(
+    characters: Query<(Entity, &AlsControlRigInput), With<AlsCharacter>>,
+    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+    transforms: TransformHelper,
+    trees: Option<Res<ColliderTrees>>,
+    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+) {
+    let mut ignored: Vec<_> = characters.iter().map(|(entity, _)| entity).collect();
+    for (_, parent, instance) in &avatars {
+        if characters.contains(parent.parent())
+            && let Ok(player) = players.get(instance.player_entity())
+            && let Some(ragdoll) = player.get_spawned_ragdoll() {
+            ignored.extend(ragdoll.bodies.values().copied());
+            ignored.extend(ragdoll.colliders.values().copied());
+        }
+    }
+    let filter = SpatialQueryFilter::from_excluded_entities(ignored);
+    let mut world: Option<Arc<RigQueryWorld>> = None;
+    for (entity, input) in &characters {
+        let Some((avatar, _, instance)) = avatars.iter().find(|(_, parent, _)| parent.parent() == entity) else { continue; };
+        let root = instance.player_entity();
+        let Ok(mut player) = players.get_mut(root) else { continue; };
+        use bevy_animation_graph::core::edge_data::DataValue;
+        for (field, value) in [
+            ("b_use_hand_ik_bones", DataValue::Bool(input.use_hand_ik_bones)),
+            ("b_use_foot_ik_bones", DataValue::Bool(input.use_foot_ik_bones)),
+            ("b_foot_transforms_valid", DataValue::Bool(input.foot_transforms_valid)),
+            ("velocity_blend_forward_amount", DataValue::F32(input.velocity_blend_forward_amount)),
+            ("velocity_blend_backward_amount", DataValue::F32(input.velocity_blend_backward_amount)),
+            ("spine_yaw_angle", DataValue::F32(-input.spine_yaw_angle_degrees)),
+            ("pelvis_offset_amount", DataValue::F32(input.pelvis_offset_amount)),
+            ("foot_left_location", DataValue::Vec3(input.foot_left_location_armature)),
+            ("foot_left_rotation", DataValue::Quat(input.foot_left_rotation_armature)),
+            ("foot_right_location", DataValue::Vec3(input.foot_right_location_armature)),
+            ("foot_right_rotation", DataValue::Quat(input.foot_right_rotation_armature)),
+        ] {
+            set_source_frame_input(&mut player, &format!("control_rig_input.{field}"), value);
+        }
+        set_source_frame_input(&mut player, als_ext::root_graph_boundaries::RIG_GAME_WORLD_KEY, true);
+        let context = if input.foot_transforms_valid {
+            trees.as_ref().and_then(|trees| transforms.compute_global_transform(avatar).ok().map(|transform| {
+                let world = world.get_or_insert_with(|| Arc::new(RigQueryWorld {
+                    trees: (**trees).clone(), colliders: colliders.iter().map(|(entity, position, rotation, collider)|
+                        (entity, (*position, *rotation, collider.clone()))).collect(),
+                })).clone();
+                let transform = transform.compute_transform();
+                RigQueryContext { world, filter: filter.clone(), channel: "ECC_Visibility".to_owned(),
+                    to_world: RigTransform { translation: transform.translation.as_dvec3(), rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
+            }))
+        } else { None };
+        set_rig_query_context(root, context);
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn control_rig_pre_apply_system(
     characters: Query<
@@ -1024,7 +1083,8 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
-            bevy_animation_graph::AnimationGraphPlugin::default()));
+            bevy_animation_graph::AnimationGraphPlugin::default()))
+            .init_resource::<ColliderTrees>();
         let actor = app.world_mut().spawn((
             AlsCharacter, LocomotionState::Grounded, RotationMode::Aiming,
             Transform::default(), AlsViewYaw(60.0_f32.to_radians()),
@@ -1043,6 +1103,9 @@ mod tests {
         )).id();
         let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
             AnimatedSceneHandle::default(), ChildOf(actor))).id();
+        let avatar_transform = Transform::from_xyz(4.0, 1.0, 2.0)
+            .with_rotation(Quat::from_rotation_y(0.4)).with_scale(Vec3::new(0.5, 2.0, 3.0));
+        app.world_mut().entity_mut(avatar).insert(avatar_transform);
         let player = app.world_mut().spawn((AnimationGraphPlayer::default(),
             AlsRootAnimationContext::default(), Transform::default(), ChildOf(avatar))).id();
         let mut parent = avatar;
@@ -1093,6 +1156,16 @@ mod tests {
             assert!((input.spine_yaw_angle_degrees - view_angle * 0.375).abs() < 1e-6, "{input:?}");
             assert_eq!(input.foot_left_location_armature, Vec3::new(1.0, 2.0, 3.0));
             assert!(input.foot_transforms_valid);
+            let published = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert_eq!(source_player_property(published, "control_rig_input.velocity_blend_forward_amount").and_then(|value| value.as_f32().ok()), Some(0.25));
+            assert_eq!(source_player_property(published, "control_rig_input.foot_left_location").and_then(|value| value.as_vec3().ok()), Some(Vec3::new(1.0, 2.0, 3.0)));
+            assert_eq!(source_player_property(published, "control_rig_input.spine_yaw_angle").and_then(|value| value.as_f32().ok()), Some(-input.spine_yaw_angle_degrees));
+            let query = als_ext::source_gameplay_tag_input::rig_query_context(player).unwrap();
+            let avatar_world = GlobalTransform::from(avatar_transform).compute_transform();
+            assert_eq!(query.to_world.translation, avatar_world.translation.as_dvec3());
+            assert_eq!(query.to_world.rotation, avatar_world.rotation.as_dquat());
+            assert_eq!(query.to_world.scale, avatar_world.scale.as_dvec3());
+            assert!(query.filter.excluded_entities.contains(&actor));
             assert_eq!(app.world().get::<AlsControlRigState>(actor).unwrap().final_yaw_angle,
                 input.spine_yaw_angle_degrees);
             let expected = if locomotion == LocomotionState::Ragdolling { Quat::IDENTITY }
@@ -1100,6 +1173,9 @@ mod tests {
             let actual = app.world().get::<Transform>(spine[0].unwrap()).unwrap().rotation;
             assert!(actual.abs_diff_eq(expected, 1e-6), "{locomotion:?}: {actual:?} != {expected:?}");
         }
+        app.world_mut().get_mut::<AlsControlRigInput>(actor).unwrap().foot_transforms_valid = false;
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(als_ext::source_gameplay_tag_input::rig_query_context(player).is_none());
     }
 
     #[test]

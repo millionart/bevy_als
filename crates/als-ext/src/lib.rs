@@ -13,6 +13,7 @@ pub mod control_rig_program;
 pub mod control_rig_hierarchy;
 pub mod control_rig_ik;
 pub mod control_rig_units;
+pub mod control_rig_query;
 pub mod direct_transition_event;
 pub mod distance_match;
 pub mod event_lifecycle;

@@ -104,7 +104,10 @@ fn evaluate_players<F: QueryFilter>(
     resources: SystemResources,
 ) {
     players.par_iter_mut().for_each(|(entity, player)| run_animation_player(entity, player, &time, &resources));
-    players.par_iter_mut().for_each(|(_, player)| debug_draw_animation_players(player, &resources));
+    players.par_iter_mut().for_each(|(entity, player)| {
+        debug_draw_animation_players(player, &resources);
+        crate::source_gameplay_tag_input::set_rig_query_context(entity, None);
+    });
 }
 
 fn extract_late_root_motion(
@@ -167,8 +170,15 @@ mod tests {
         app.finish();
         app.cleanup();
         for frame in 1..=2 {
+            for entity in [sampler, character] {
+                crate::source_gameplay_tag_input::set_rig_query_context(entity, Some(crate::control_rig_query::RigQueryContext {
+                    world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld { trees: default(), colliders: default() }),
+                    to_world: default(), channel: "Visibility".into(), filter: default(),
+                }));
+            }
             app.world_mut().run_schedule(PostUpdate);
             for (entity, expected) in [(sampler, (frame - 1) as f32), (character, frame as f32)] {
+                assert!(crate::source_gameplay_tag_input::rig_query_context(entity).is_none());
                 let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
                 assert_eq!(player.get_default_output_pose().unwrap().timestamp, expected);
                 assert_eq!(player.get_context_arena().unwrap().frame_index(), frame);

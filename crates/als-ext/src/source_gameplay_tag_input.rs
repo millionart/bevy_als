@@ -16,6 +16,7 @@ use bevy_gameplay_tag::GameplayTag;
 struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::animation_context::AnimationContextState>,
+    rig_query: Option<crate::control_rig_query::RigQueryContext>,
 }
 
 type GameplayTagInputs = HashMap<Entity, SourceInputValues>;
@@ -24,6 +25,20 @@ static INPUTS: OnceLock<RwLock<GameplayTagInputs>> = OnceLock::new();
 
 fn inputs() -> &'static RwLock<GameplayTagInputs> {
     INPUTS.get_or_init(Default::default)
+}
+
+pub fn set_rig_query_context(entity: Entity, context: Option<crate::control_rig_query::RigQueryContext>) {
+    let mut inputs = inputs().write().expect("source input registry is poisoned");
+    if context.is_some() {
+        inputs.entry(entity).or_default().rig_query = context;
+    } else if let Some(values) = inputs.get_mut(&entity) {
+        values.rig_query = None;
+    }
+}
+
+pub fn rig_query_context(entity: Entity) -> Option<crate::control_rig_query::RigQueryContext> {
+    inputs().read().expect("source input registry is poisoned").get(&entity)
+        .and_then(|values| values.rig_query.clone())
 }
 
 pub fn set_gameplay_tag_input(entity: Entity, key: impl Into<String>, tag: GameplayTag) {
@@ -177,7 +192,19 @@ mod tests {
         assert_eq!(mismatch.value(entity), Ok(false));
         set_slot_input_context(entity, "slot.pose", Some(Default::default()));
         assert!(slot_input_context(entity, "slot.pose").is_some());
+        let query = crate::control_rig_query::RigQueryContext {
+            world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld {
+                trees: default(), colliders: default(),
+            }), to_world: default(), channel: "Visibility".into(), filter: default(),
+        };
+        set_rig_query_context(entity, Some(query.clone()));
+        assert!(rig_query_context(entity).is_some());
+        set_rig_query_context(entity, None);
+        assert!(rig_query_context(entity).is_none());
+        assert!(slot_input_context(entity, "slot.pose").is_some());
+        set_rig_query_context(entity, Some(query));
         clear_gameplay_tag_inputs(entity);
+        assert!(rig_query_context(entity).is_none());
         assert!(gameplay_tag_input(entity, "get_parent.gait").is_none());
         assert!(slot_input_context(entity, "slot.pose").is_none());
         let mut registry = TypeRegistry::default();

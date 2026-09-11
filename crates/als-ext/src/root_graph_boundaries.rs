@@ -4,7 +4,7 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::{DataSpec, DataValue},
     errors::GraphError,
-    pose::{BoneId, BonePose, Pose},
+    pose::{BonePose, Pose},
     skeleton::Skeleton,
 };
 
@@ -150,6 +150,7 @@ impl ControlRigBoundaryNode {
         game_world: bool,
         delta_seconds: f64,
         to_world: RigTransform,
+        query: Option<&crate::control_rig_query::RigQueryContext>,
     ) -> Result<(), String> {
         state.executed_steps = 0;
         if state.runtime.is_none() {
@@ -175,6 +176,11 @@ impl ControlRigBoundaryNode {
             )?;
         }
         let execute = |runtime: &mut ControlRigRuntime, entry: &str| {
+            let mut trace = |start, end, channel: &str, complex| {
+                query
+                    .ok_or_else(|| "rig line trace is unavailable".to_owned())?
+                    .trace(start, end, channel, complex)
+            };
             let mut context = RigUnitContext {
                 hierarchy: &mut runtime.hierarchy,
                 curves: &runtime.curves,
@@ -183,7 +189,8 @@ impl ControlRigBoundaryNode {
                 delta_seconds,
                 geometry: &definition.geometry,
                 to_world,
-                line_trace: None,
+                line_trace: query
+                    .map(|_| &mut trace as &mut crate::control_rig_units::RigLineTrace<'_>),
             };
             definition
                 .program
@@ -333,6 +340,8 @@ impl NodeLike for ControlRigBoundaryNode {
         let delta_seconds =
             crate::global_f32_input::global_f32_or_root_default(&ctx, &self.delta_seconds_key)?
                 as f64;
+        let query =
+            crate::source_gameplay_tag_input::rig_query_context(ctx.graph_context.root_entity);
         let update = if self.internalize_time {
             context_time_update(&ctx)?
         } else {
@@ -385,13 +394,17 @@ impl NodeLike for ControlRigBoundaryNode {
             .skeleton_assets
             .get(&pose.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let to_world = ctx
-            .graph_context
-            .resources
-            .transform_query
-            .get(ctx.graph_context.root_entity)
-            .map(|(_, transform)| rig_transform(transform.compute_transform()))
-            .unwrap_or_default();
+        let to_world = query
+            .as_ref()
+            .map(|query| query.to_world)
+            .unwrap_or_else(|| {
+                ctx.graph_context
+                    .resources
+                    .transform_query
+                    .get(ctx.graph_context.root_entity)
+                    .map(|(_, transform)| rig_transform(transform.compute_transform()))
+                    .unwrap_or_default()
+            });
         let node_state = ctx.state_mut::<ControlRigNodeState>()?;
         node_state.context = state;
         self.solve(
@@ -403,6 +416,7 @@ impl NodeLike for ControlRigBoundaryNode {
             game_world,
             delta_seconds,
             to_world,
+            query.as_ref(),
         )
         .map_err(failure)?;
         ctx.set_time(pose.timestamp);
@@ -480,7 +494,7 @@ mod tests {
                 system_resources::SystemResources,
             },
             edge_data::DataValue,
-            pose::{BonePose, Pose, RootMotionDelta},
+            pose::{BoneId, BonePose, Pose, RootMotionDelta},
             skeleton::Skeleton,
             state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
@@ -648,6 +662,38 @@ mod tests {
                     );
                 }
             }
+            let query_root = Entity::from_raw_u32(812907).unwrap();
+            crate::source_gameplay_tag_input::set_rig_query_context(
+                query_root,
+                Some(crate::control_rig_query::RigQueryContext {
+                    world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld {
+                        trees: default(),
+                        colliders: default(),
+                    }),
+                    to_world: default(),
+                    channel: "ECC_Visibility".into(),
+                    filter: default(),
+                }),
+            );
+            let mut inputs = inputs.clone();
+            inputs.insert("rig.foot_valid".into(), DataValue::Bool(true));
+            let mut arena = GraphContextArena::new(handle.id());
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                query_root,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
+            let output =
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context);
+            crate::source_gameplay_tag_input::set_rig_query_context(query_root, None);
+            assert!(output.is_ok(), "{output:?}");
+            assert!(crate::source_gameplay_tag_input::rig_query_context(query_root).is_none());
             outputs
         }
         let definition: RigDefinition = serde_json::from_str(include_str!(
