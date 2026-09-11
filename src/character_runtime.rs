@@ -92,6 +92,8 @@ impl Plugin for AlsCharacterRuntimePlugin {
             crate::ragdolling_layer::AlsRagdollingLayerSet,
             crate::foot_ik_apply::FootIkApplySet::UpdateInputs,
         ).in_set(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs))
+        .configure_sets(PostUpdate, als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs
+            .after(als_core::motion::AlsActualVelocitySet))
         .add_systems(PostUpdate, mark_character_animation_phase
             .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));
     }

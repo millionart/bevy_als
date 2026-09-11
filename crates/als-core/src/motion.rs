@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
+    Collider, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
     SpatialQuery, SpatialQueryFilter,
 };
 use bevy::asset::Assets;
@@ -8,6 +8,7 @@ use bevy_tnua::builtins::{
     TnuaBuiltinCrouch, TnuaBuiltinJump, TnuaBuiltinWalk, TnuaBuiltinWalkHeadroom,
 };
 use bevy_tnua::controller::TnuaConfig;
+use bevy_tnua::basis_capabilities::TnuaBasisWithDisplacement;
 use bevy_tnua::{TnuaController, TnuaGravity, TnuaPipelineSystems, TnuaRigidBodyTracker};
 
 use crate::character::{
@@ -15,7 +16,7 @@ use crate::character::{
     ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsEffectiveGravity, AlsMovementParamsHandle,
     als_character_capsule,
 };
-use crate::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use crate::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
 use crate::input::AlsInputCommand;
 use crate::mantle::{
@@ -1943,10 +1944,6 @@ impl Plugin for AlsMotionPlugin {
             .add_systems(
                 Update,
                 (
-                    locomotion_state_sync_system
-                        .after(TnuaPipelineSystems::Logic)
-                        .after(crate::transition::state_transition_system)
-                        .before(TnuaPipelineSystems::Motors),
                     crate::gait::refresh_gait_system
                         .after(crate::gait::gait_request_system),
                     tnua_config_sync_system
@@ -1978,7 +1975,8 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                snapshot_actual_velocity_system.in_set(AlsActualVelocitySet),
+                (locomotion_state_sync_system, snapshot_actual_velocity_system)
+                    .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(
                 PostUpdate,
@@ -2586,7 +2584,17 @@ fn step_up_assist_system(
     }
 }
 
+fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
+    contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)
+        && contact.manifolds.iter().any(|manifold| {
+            let normal = if contact.collider1 == character { -manifold.normal } else { manifold.normal };
+            normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
+                && manifold.points.iter().any(|point| point.normal_speed < 0.0 && point.normal_impulse > 0.0)
+        })
+}
+
 pub(crate) fn locomotion_state_sync_system(
+    collisions: Collisions,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<
         (
@@ -2603,10 +2611,14 @@ pub(crate) fn locomotion_state_sync_system(
         if *current == LocomotionState::Ragdolling || ragdoll_air_exit {
             continue;
         }
-        let Ok(airborne) = controller.is_airborne() else {
+        let Ok(basis) = controller.basis_access() else {
             continue;
         };
-        let target = if airborne {
+        let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()
+            || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
+        let landed_on_contact = airborne && collisions.collisions_with(entity)
+            .any(|contact| resolved_walkable_contact(contact, entity));
+        let target = if airborne && !landed_on_contact {
             LocomotionState::Air
         } else {
             LocomotionState::Grounded
@@ -2641,48 +2653,112 @@ mod tests {
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
-            PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
-            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
-            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
-            .init_resource::<Assets<Mesh>>()
-            .add_message::<AssetEvent<Mesh>>()
-            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
-        app.finish();
-        let params_value = AlsMovementParams::default();
-        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
-        let mut bundle = AlsCharacterBundle::new(params, config);
-        bundle.transform = Transform::from_xyz(0.0, 3.0, 0.0);
-        let character = app.world_mut().spawn(bundle).id();
-        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
-        let mut seen = [false; 2];
-        let mut landed = false;
-        for frame in 0..120 {
-            *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(
-                std::time::Duration::from_secs_f32([1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.05][frame % 4]));
-            let previous = *app.world().get::<LocomotionState>(character).unwrap();
-            app.update();
-            if let Ok(airborne) = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().is_airborne() {
-                landed |= !airborne && seen[1];
-                assert!(!landed || !airborne, "landing rebounded at frame={frame}");
-                let expected = if airborne { LocomotionState::Air } else { LocomotionState::Grounded };
-                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected, "frame={frame}");
-                let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
-                    .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState).collect();
-                assert_eq!(events.len(), usize::from(previous != expected));
-                if let Some(event) = events.first() {
-                    assert_eq!(event.from, StateValue::LocomotionState(previous));
-                    assert_eq!(event.to, StateValue::LocomotionState(expected));
+        for fixed_delta in [Some(0.013_f32), None] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+                TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+                AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
+                .init_resource::<Assets<Mesh>>()
+                .add_message::<AssetEvent<Mesh>>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();
+            let params_value = AlsMovementParams::default();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
+            let mut bundle = AlsCharacterBundle::new(params, config);
+            bundle.transform = Transform::from_xyz(0.0,
+                ALS_CHARACTER_CAPSULE_HALF_HEIGHT + ALS_CHARACTER_FLOOR_CLEARANCE
+                    + 6.2 * 6.2 / (2.0 * 9.81 * params_value.jump.gravity_scale), 0.0);
+            let character = app.world_mut().spawn(bundle).id();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            let mut seen = [false; 2];
+            let mut landed = false;
+            let mut impact_seen = false;
+            for frame in 0..120 {
+                *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(
+                    std::time::Duration::from_secs_f32(fixed_delta.unwrap_or([1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.05][frame % 4])));
+                let previous = *app.world().get::<LocomotionState>(character).unwrap();
+                let previous_vertical = app.world().get::<LinearVelocity>(character).unwrap().y;
+                app.update();
+                let position = app.world().get::<Transform>(character).unwrap().translation;
+                let vertical = app.world().get::<LinearVelocity>(character).unwrap().y;
+                let impact = previous == LocomotionState::Air && previous_vertical < -1.0
+                    && vertical.abs() < 0.1 && position.y <= ALS_CHARACTER_CAPSULE_HALF_HEIGHT + 0.001;
+                if impact {
+                    impact_seen = true;
+                    assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded,
+                        "ground impact must publish the mode in its physics frame={frame}");
+                    let contact = app.world().resource::<avian3d::prelude::ContactGraph>()
+                        .contact_pairs_with(character).find(|contact| resolved_walkable_contact(contact, character)).unwrap().clone();
+                    let mut reversed = contact.clone();
+                    std::mem::swap(&mut reversed.collider1, &mut reversed.collider2);
+                    for manifold in &mut reversed.manifolds { manifold.normal = -manifold.normal; }
+                    assert!(resolved_walkable_contact(&reversed, character));
+                    let mut sensor = contact.clone();
+                    sensor.flags.remove(ContactPairFlags::GENERATE_CONSTRAINTS);
+                    assert!(!resolved_walkable_contact(&sensor, character));
+                    for normal in [Vec3::X, Vec3::NEG_Y] {
+                        let mut other = contact.clone();
+                        for manifold in &mut other.manifolds {
+                            manifold.normal = if other.collider1 == character { -normal } else { normal };
+                        }
+                        assert!(!resolved_walkable_contact(&other, character));
+                    }
+                    for (speed, impulse) in [(-1.0, 0.0), (1.0, 1.0)] {
+                        let mut other = contact.clone();
+                        for manifold in &mut other.manifolds {
+                            for point in &mut manifold.points { point.normal_speed = speed; point.normal_impulse = impulse; }
+                        }
+                        assert!(!resolved_walkable_contact(&other, character));
+                    }
                 }
-                seen[usize::from(airborne)] = true;
+                if let Ok(basis) = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis_access() {
+                    let airborne = TnuaBuiltinWalk::displacement(&basis).is_none();
+                    landed |= !airborne && seen[1];
+                    assert!(!landed || !airborne, "landing rebounded at frame={frame}");
+                    let expected = if airborne && !impact { LocomotionState::Air } else { LocomotionState::Grounded };
+                    assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected, "frame={frame}");
+                    let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
+                        .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState).collect();
+                    assert_eq!(events.len(), usize::from(previous != expected));
+                    if let Some(event) = events.first() {
+                        assert_eq!(event.from, StateValue::LocomotionState(previous));
+                        assert_eq!(event.to, StateValue::LocomotionState(expected));
+                    }
+                    seen[usize::from(airborne)] = true;
+                }
             }
+            assert_eq!(seen, [true, true]);
+            assert!(impact_seen || fixed_delta.is_none());
+            for hold_frames in [4, 0] {
+                let mut jump_landed = false;
+                for frame in 0..120 {
+                    {
+                        let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                        input.jump_pressed = frame == 0;
+                        input.jump_held = frame < hold_frames;
+                    }
+                    app.update();
+                    let mode = *app.world().get::<LocomotionState>(character).unwrap();
+                    if frame < 4 {
+                        if frame == 0 || frame < hold_frames {
+                            assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing(),
+                                Some(AlsControlSchemeActionDiscriminant::Jump));
+                        }
+                        assert_eq!(mode, LocomotionState::Air,
+                            "an executing jump must publish Air in its first frame={frame}");
+                    } else {
+                        jump_landed |= mode == LocomotionState::Grounded;
+                        assert!(!jump_landed || mode == LocomotionState::Grounded, "jump landing changed back to Air");
+                    }
+                }
+                assert!(jump_landed);
+            }
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Ragdolling));
         }
-        assert_eq!(seen, [true, true]);
-        app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
-        app.update();
-        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Ragdolling));
     }
 
     #[test]
