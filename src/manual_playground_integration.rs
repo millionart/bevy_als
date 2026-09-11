@@ -969,6 +969,12 @@ fn default_overlay_additive_pose(base: &Pose, delta: &Pose, alpha: f32) -> Pose 
     expected
 }
 
+fn default_overlay_stance_pose(poses: [Option<Pose>; 2], weights: [f32; 2]) -> Option<Pose> {
+    let poses = poses.into_iter().zip(weights).filter(|(_, weight)| *weight > 1e-5)
+        .map(|(pose, weight)| pose.map(|pose| pose.scalar_mult(weight))).collect::<Option<Vec<_>>>()?;
+    poses.into_iter().reduce(|a, b| a.linear_add(&b)).map(|pose| pose.normalize_quat())
+}
+
 fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous_prediction: Option<f32>) -> DefaultOverlayGraphSample {
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut sample = DefaultOverlayGraphSample {
@@ -1027,12 +1033,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
                 let weights: Vec<f32> = blend.desired_alpha_keys.iter().filter_map(|key| scalar(key)).collect();
                 let total = weights.iter().sum::<f32>();
                 if weights.len() != 2 || total <= 0.0 { continue; }
-                let alpha = weights[1] / total;
-                let expected = if alpha <= f32::EPSILON { input(node.id, "Poses_0") }
-                    else if alpha >= 1.0 - f32::EPSILON { input(node.id, "Poses_1") }
-                    else { input(node.id, "Poses_0").zip(input(node.id, "Poses_1")).map(|(a, b)| {
-                        a.scalar_mult(1.0 - alpha).linear_add(&b.scalar_mult(alpha)).normalize_quat()
-                    }) };
+                let expected = default_overlay_stance_pose([input(node.id, "Poses_0"), input(node.id, "Poses_1")], [weights[0] / total, weights[1] / total]);
                 if let Some(expected) = expected { check(&mut sample.errors, "stance blend", &actual, &expected); }
                 else { sample.errors.push("stance blend: missing input pose".into()); }
             }
@@ -1069,17 +1070,15 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
 }
 
 fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> ManualAnimationWindowEvidence {
-    let evaluator = DEFAULT_OVERLAY_EVALUATORS[if index == 5 { 0 } else { index }];
     ManualAnimationWindowEvidence {
         label: Some(DEFAULT_OVERLAY_WINDOWS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
         requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
         source_node: Some("AB_Als_Default/Overlay"), source_state: Some(DEFAULT_OVERLAY_WINDOWS[index]),
         source_pose_chain: vec![
-            ManualAnimationPoseBoundary { label: "source_reference_frame", graph: DEFAULT_OVERLAY_GRAPH, node: evaluator, output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
             ManualAnimationPoseBoundary { label: "secondary_motion", graph: DEFAULT_OVERLAY_GRAPH, node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "apply_additive", graph: DEFAULT_OVERLAY_GRAPH, node: "Apply Additive", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "overlay_output", graph: DEFAULT_OVERLAY_GRAPH, node: "Output Pose\nOverlay", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-        ].into_iter().chain(LAYERING_BOUNDARIES.iter().map(|(label, node, output)| ManualAnimationPoseBoundary {
+        ].into_iter().chain(LAYERING_BOUNDARIES.iter().filter(|(label, _, _)| *label != "layering_base_poses").map(|(label, node, output)| ManualAnimationPoseBoundary {
             label, graph: LAYERING_GRAPH, node, output, minimum_translation_span: 0.0,
             minimum_rotation_span_radians: if *label == "layering_output" { 0.001 } else { 0.0 },
         })).collect(),
@@ -9217,7 +9216,7 @@ mod tests {
         let graph = std::fs::read_to_string(format!("assets/{DEFAULT_OVERLAY_GRAPH}")).unwrap();
         for index in 0..6 {
             let window = default_overlay_window(index, &DefaultOverlayGraphSample { idle_duration: Some(2.666667), ..default() });
-            let identity = window.source_pose_chain[0].node;
+            let identity = DEFAULT_OVERLAY_EVALUATORS[if index == 5 { 0 } else { index }];
             assert!(graph.contains(&format!("id: {identity:?}")));
             assert!(window.capture_every_frame && window.requires_source_pose_chain);
             assert_eq!(window.canonical_clip_time.is_some(), index < 3);
@@ -9271,6 +9270,28 @@ mod tests {
     }
 
     #[test]
+    fn layering_migration_observer_skips_source_irrelevant_stance_inputs() {
+        let mut pose = Pose::default();
+        pose.add_bone(bevy_animation_graph::core::pose::BonePose::from_transform(Transform::from_xyz(1.0, 2.0, 3.0)), default());
+        let raw = [1.25938095e-6_f32, 0.9987471];
+        let weights = raw.map(|weight| weight / raw.iter().sum::<f32>());
+        let expected = pose.scalar_mult(weights[1]).normalize_quat();
+        let output = default_overlay_stance_pose([None, Some(pose.clone())], weights);
+        assert!(output.as_ref().and_then(|output| default_overlay_pose_error(output, &expected)).is_some_and(|error| error < 1e-6));
+        assert!(default_overlay_stance_pose([None, Some(pose.clone())], [0.5, 0.5]).is_none());
+        assert!(default_overlay_stance_pose([Some(pose), None], [1.0, 0.0]).is_some());
+    }
+
+    #[test]
+    fn layering_motion_window_excludes_numerically_checked_fixed_frames() {
+        for index in 0..6 {
+            let window = default_overlay_window(index, &DefaultOverlayGraphSample::default());
+            assert!(!window.source_pose_chain.iter().any(|boundary| matches!(boundary.label, "source_reference_frame" | "layering_base_poses")));
+            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == "layering_output" && boundary.minimum_rotation_span_radians == 0.001));
+        }
+    }
+
+    #[test]
     fn layering_observer_distinguishes_previous_inputs_and_preserves_curve_presence() {
         let mut previous = AlsRootAnimationContext::default();
         previous.curves.insert("LayerHead".into(), 0.25);
@@ -9292,7 +9313,9 @@ mod tests {
         assert_eq!(layering_curve_error(&actual, &expected), None);
         let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
         for (label, node, output) in LAYERING_BOUNDARIES {
-            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.output == output && boundary.graph == LAYERING_GRAPH));
+            if label != "layering_base_poses" {
+                assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.output == output && boundary.graph == LAYERING_GRAPH));
+            }
         }
         let mut caches = bevy_animation_graph::core::context::node_caches::NodeCaches::default();
         let id = NodeId::default();
@@ -9300,10 +9323,10 @@ mod tests {
         cached.add_bone(bevy_animation_graph::core::pose::BonePose::from_transform(Transform::IDENTITY), default());
         caches.set_output_data(id, StateKey::Default, als_ext::source_cached_pose::CACHED_POSE_VALUE.into(), DataValue::Pose(cached));
         caches.mark_updated(id, StateKey::Default);
-        let saves = window.source_pose_chain.iter().filter(|boundary| boundary.node.starts_with("Save cached pose")).collect::<Vec<_>>();
+        let saves = LAYERING_BOUNDARIES.iter().filter(|(_, node, _)| node.starts_with("Save cached pose")).collect::<Vec<_>>();
         assert_eq!(saves.len(), 7);
-        for boundary in saves {
-            assert!(caches.get_output_data(id, StateKey::Default, boundary.output.into()).is_some(), "{}", boundary.label);
+        for (label, _, output) in saves {
+            assert!(caches.get_output_data(id, StateKey::Default, (*output).into()).is_some(), "{label}");
         }
         caches.next_frame();
         assert!(caches.get_output_data(id, StateKey::Default, als_ext::source_cached_pose::CACHED_POSE_VALUE.into()).is_none());
