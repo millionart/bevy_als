@@ -3,8 +3,8 @@
   "id": "generated_ab_als_layering_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_layering_full/native_source/0014_AB_Als_Layering.ue.json",
-      "sha256": "10923cf8bc6be20843af94f26e79dbbcb513100e69c9c97eeb18f2152ade7a48"
+      "path": "target/bf115_head/native_source/0015_AB_Als_Layering.ue.json",
+      "sha256": "98d4712ca186ad6d1e17bd28e2dab5fd881872f4eb1cd3f595913105a9990fb7"
     },
     {
       "path": "target/bf115_layering/source_cpp/AlsAnimationInstance.cpp",
@@ -55,8 +55,8 @@
       "sha256": "36b9822cf36ab2dcc2301c7c3b2474477302f9f9efa56f083af66013c5fa61a1"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0001_AB_Als.ue.json",
-      "sha256": "42825d76a965d7949f86bee50cea03f0e0e2234745d0d9fe0d1b1a18e922bd64"
+      "path": "target/bf115_head/native_source/0002_AB_Als.ue.json",
+      "sha256": "9dc2d84e794d867b4b70d3df1736251c5b318bf958472eda06cbb99e59a47f84"
     },
     {
       "path": "target/bf115_layering/source_cpp/AnimSync.cpp",
@@ -1283,11 +1283,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_layering_full/native_source",
+        "target/bf115_head/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/layered_conversion",
+        "target/bf115_head/final_conversion",
         "--spec",
-        "target/bf115_layering_full/relevance_spec.json",
+        "target/bf115_head/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]

@@ -13,6 +13,7 @@ use bevy_animation_graph::core::{
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub enum AlsSourceRefreshFunction {
+    RefreshHead,
     RefreshInAir,
     RefreshGrounded,
     #[default]
@@ -30,6 +31,77 @@ pub struct AlsSourceRefreshNode {
 }
 
 impl AlsSourceRefreshNode {
+    fn refresh_head(&self, ctx: &NodeContext) -> Result<(), GraphError> {
+        use als_core::head::{
+            AlsHeadSettings, AlsHeadState, AlsHeadUpdateInput, update_head_state,
+        };
+        let scalar =
+            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
+        let boolean =
+            |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());
+        let mut state = AlsHeadState {
+            initialization_required: boolean("head_state.b_initialization_required", true)?,
+            switching_look_sides: boolean("head_state.b_switching_look_sides", false)?,
+            pitch_angle: scalar("head_state.pitch_angle", 0.0)?,
+            yaw_angle: scalar("head_state.yaw_angle", 0.0)?,
+            yaw_velocity: scalar("head_state.yaw_velocity", 0.0)?,
+            yaw_amount: scalar("head_state.yaw_amount", 0.5)?,
+        };
+        update_head_state(
+            &mut state,
+            AlsHeadUpdateInput {
+                delta_seconds: scalar("animation.delta_seconds", 0.0)?,
+                delta_seconds_without_time_dilation: scalar(
+                    "animation.delta_seconds_without_time_dilation",
+                    0.0,
+                )?,
+                first_person: boolean("view_mode.first_person", false)?,
+                rotation_mode: if boolean("rotation_mode.velocity_direction", false)? {
+                    als_core::state::RotationMode::VelocityDirection
+                } else {
+                    als_core::state::RotationMode::ViewDirection
+                },
+                has_input: boolean("locomotion_state.b_has_input", false)?,
+                input_yaw_world: scalar("locomotion_state.input_yaw_angle_world_space", 0.0)?,
+                target_yaw_world: scalar("locomotion_state.target_yaw_angle_world_space", 0.0)?,
+                body_yaw_world: scalar("locomotion_state.rotation_yaw", 0.0)?,
+                body_yaw_velocity_world: scalar("locomotion_state.yaw_velocity_world_space", 0.0)?,
+                view_yaw_angle: scalar("view_state.yaw_angle", 0.0)?,
+                view_pitch_angle: scalar("view_state.pitch_angle", 0.0)?,
+                movement_base_relative_yaw: if boolean(
+                    "movement_base.b_has_relative_rotation",
+                    false,
+                )? {
+                    scalar("movement_base.delta_yaw", 0.0)?
+                } else {
+                    0.0
+                },
+            },
+            AlsHeadSettings::default(),
+        );
+        for (key, value) in [
+            (
+                "head_state.b_initialization_required",
+                state.initialization_required,
+            ),
+            (
+                "head_state.b_switching_look_sides",
+                state.switching_look_sides,
+            ),
+        ] {
+            set_source_property(ctx, key, value)?;
+        }
+        for (key, value) in [
+            ("head_state.pitch_angle", state.pitch_angle),
+            ("head_state.yaw_angle", state.yaw_angle),
+            ("head_state.yaw_velocity", state.yaw_velocity),
+            ("head_state.yaw_amount", state.yaw_amount),
+        ] {
+            set_source_property(ctx, key, value)?;
+        }
+        Ok(())
+    }
+
     fn refresh_in_air(&self, ctx: &NodeContext) -> Result<(), GraphError> {
         let scalar = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_f32());
         let boolean = |key, default| source_input_data(ctx, key).map_or(Ok(default), |value| value.as_bool());
@@ -180,6 +252,7 @@ impl AlsSourceRefreshNode {
         let boolean =
             |key, default| source_input_data(ctx, key).map_or(Ok(default), |v| v.as_bool());
         let key = match self.function {
+            AlsSourceRefreshFunction::RefreshHead => return self.refresh_head(ctx),
             AlsSourceRefreshFunction::RefreshInAir => return self.refresh_in_air(ctx),
             AlsSourceRefreshFunction::RefreshGrounded => return self.refresh_grounded(ctx),
             AlsSourceRefreshFunction::RefreshStandingMovement => return self.refresh_standing(ctx),
@@ -312,6 +385,7 @@ impl AlsSourceRefreshNode {
                 }
             }
             AlsSourceRefreshFunction::RefreshStandingMovement
+            | AlsSourceRefreshFunction::RefreshHead
             | AlsSourceRefreshFunction::RefreshInAir
             | AlsSourceRefreshFunction::RefreshGrounded => unreachable!(),
         }
@@ -365,6 +439,225 @@ mod tests {
         state_machine::high_level::StateMachine,
         utils::testing::TestIoEnv,
     };
+
+    #[test]
+    fn head_source_calls_refresh_before_sampling_and_initialize_after_irrelevance() {
+        fn query(
+            In(root): In<Handle<AnimationGraph>>,
+            resources: SystemResources,
+        ) -> Vec<(f32, f32, f32, bool)> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut values = Vec::new();
+            for frame in 0..7 {
+                let (pitch, yaw) = match frame {
+                    0 => (30.0, 90.0),
+                    4 => (15.0, -60.0),
+                    5 => (-45.0, 60.0),
+                    _ => (-30.0, -90.0),
+                };
+                let inputs = HashMap::from([
+                    ("fixture".to_owned(), DataValue::Pose(default())),
+                    (
+                        "active".to_owned(),
+                        DataValue::F32(match frame {
+                            2 => 0.0,
+                            3 => 1e-6,
+                            _ => 1.0,
+                        }),
+                    ),
+                    (
+                        "animation.delta_seconds".to_owned(),
+                        DataValue::F32(if frame == 5 { 0.01 } else { 0.1 }),
+                    ),
+                    (
+                        "animation.delta_seconds_without_time_dilation".to_owned(),
+                        DataValue::F32(0.1),
+                    ),
+                    (
+                        "source_frame_input.view_state.pitch_angle".to_owned(),
+                        DataValue::F32(pitch),
+                    ),
+                    (
+                        "source_frame_input.view_state.yaw_angle".to_owned(),
+                        DataValue::F32(yaw),
+                    ),
+                    (
+                        "view_mode.first_person".to_owned(),
+                        DataValue::Bool(frame == 5),
+                    ),
+                    (
+                        "rotation_mode.velocity_direction".to_owned(),
+                        DataValue::Bool(frame == 6),
+                    ),
+                    (
+                        "locomotion_state.b_has_input".to_owned(),
+                        DataValue::Bool(false),
+                    ),
+                    (
+                        "locomotion_state.target_yaw_angle_world_space".to_owned(),
+                        DataValue::F32(30.0),
+                    ),
+                    (
+                        "locomotion_state.rotation_yaw".to_owned(),
+                        DataValue::F32(10.0),
+                    ),
+                ]);
+                graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        GraphContext::new(
+                            arena.get_toplevel_id(),
+                            graph,
+                            &mut arena,
+                            &resources,
+                            &env,
+                            Entity::PLACEHOLDER,
+                            &entities,
+                            &mut gizmos,
+                            &inputs,
+                        ),
+                    )
+                    .unwrap();
+                let state = arena
+                    .get_toplevel()
+                    .node_states
+                    .get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+                    .unwrap();
+                let scalar = |key| {
+                    state
+                        .values
+                        .get(key)
+                        .and_then(|value| value.as_f32().ok())
+                        .unwrap_or(0.0)
+                };
+                values.push((
+                    scalar("head_state.pitch_angle"),
+                    scalar("head_state.yaw_angle"),
+                    scalar("head_state.yaw_amount"),
+                    state.write_frames.get("head_state.yaw_amount") == Some(&arena.frame_index()),
+                ));
+            }
+            values
+        }
+        let expected = [
+            (30.0, 90.0, 0.75, true),
+            (0.0, 0.0, 0.0, true),
+            (0.0, 0.0, 0.0, false),
+            (0.0, 0.0, 0.0, false),
+            (15.0, -60.0, 1.0 / 3.0, true),
+        ];
+        for (refresh_enabled, initialize_enabled) in [(true, true), (false, true), (true, false)] {
+            let mut graph = AnimationGraph::new();
+            let pose = AnimationNode::new(
+                "pose",
+                GlobalPoseInputNode {
+                    key: "fixture".to_owned(),
+                    output: "Pose".to_owned(),
+                },
+            );
+            let sampled = AnimationNode::new(
+                "sample",
+                SourcePropertyWriteNode {
+                    assignments: vec![SourcePropertyAssignment {
+                        property: "view_state.yaw_angle".to_owned(),
+                        value: DataValue::F32(150.0),
+                    }],
+                    on_become_relevant: false,
+                },
+            );
+            let refresh = if refresh_enabled {
+                AnimationNode::new(
+                    "RefreshHead",
+                    AlsSourceRefreshNode {
+                        function: AlsSourceRefreshFunction::RefreshHead,
+                    },
+                )
+            } else {
+                AnimationNode::new(
+                    "RefreshHead",
+                    SourcePosePassthroughNode {
+                        output_time: false,
+                        ..default()
+                    },
+                )
+            };
+            let initialize = AnimationNode::new(
+                "InitializeHead",
+                SourcePropertyWriteNode {
+                    assignments: if initialize_enabled {
+                        vec![SourcePropertyAssignment {
+                            property: "head_state.b_initialization_required".to_owned(),
+                            value: DataValue::Bool(true),
+                        }]
+                    } else {
+                        vec![]
+                    },
+                    on_become_relevant: true,
+                },
+            );
+            let branch = AnimationNode::new(
+                "branch",
+                SourceTwoWayBlendNode {
+                    alpha_key: "active".to_owned(),
+                    ..default()
+                },
+            );
+            let scope = AnimationNode::new(
+                "scope",
+                SourcePosePassthroughNode {
+                    synchronize_groups: true,
+                    output_time: false,
+                    ..default()
+                },
+            );
+            for node in [&pose, &sampled, &refresh, &initialize, &branch, &scope] {
+                graph.add_node(node.clone());
+            }
+            for (from, to) in [
+                (pose.id, sampled.id),
+                (sampled.id, refresh.id),
+                (refresh.id, initialize.id),
+            ] {
+                graph.add_node_parameter_edge(from, "Pose", to, "Source");
+            }
+            graph.add_node_parameter_edge(initialize.id, "Pose", branch.id, "B");
+            graph.add_node_parameter_edge(pose.id, "Pose", branch.id, "A");
+            graph.add_node_parameter_edge(branch.id, "Pose", scope.id, "Source");
+            graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(scope.id, "Pose", "Pose");
+            let mut graphs = Assets::<AnimationGraph>::default();
+            let root = graphs.add(graph);
+            let mut world = World::new();
+            world.insert_resource(graphs);
+            world.insert_resource(Assets::<GraphClip>::default());
+            world.insert_resource(Assets::<Skeleton>::default());
+            world.insert_resource(Assets::<StateMachine>::default());
+            let actual = world.run_system_cached_with(query, root).unwrap();
+            if refresh_enabled && initialize_enabled {
+                for frame in [0, 4] {
+                    let (pitch, yaw, amount, updated) = actual[frame];
+                    assert!((pitch - expected[frame].0).abs() < 1e-5);
+                    assert!((yaw - expected[frame].1).abs() < 1e-5);
+                    assert!((amount - expected[frame].2).abs() < 1e-5);
+                    assert!(updated);
+                }
+                assert!(actual[1].0.abs() < 0.1 && actual[1].1 < 30.0 && actual[1].1 > 0.0);
+                assert_eq!(actual[2], (actual[1].0, actual[1].1, actual[1].2, false));
+                assert_eq!(actual[3], actual[2]);
+                assert!(actual[5].0 < -44.0 && actual[5].1 > -30.0 && actual[5].1 < 10.0);
+                assert!(actual[6].0 > actual[5].0 && actual[6].1 > actual[5].1);
+            } else {
+                assert_ne!(
+                    actual[if refresh_enabled { 4 } else { 0 }],
+                    expected[if refresh_enabled { 4 } else { 0 }]
+                );
+            }
+        }
+    }
 
     #[test]
     fn in_air_source_calls_latch_landing_values_consume_jumps_and_reset_lean_on_reentry() {

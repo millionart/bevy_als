@@ -6,8 +6,8 @@ FUNCTION_CALL_CLASS = "/Script/BlueprintGraph.K2Node_CallFunction"
 STOP_FUNCTION = "StopTransitionAndTurnInPlaceAnimations"
 EXTERNAL_PROVIDERS = {
     "InitializeLean": "als_locomotion_initialize_lean",
-    "InitializeHead": "bevy_als::head_layer::HeadLayerPlugin",
-    "RefreshHead": "bevy_als::head_layer::HeadLayerPlugin",
+    "InitializeHead": "als_ext::SourcePropertyWriteNode",
+    "RefreshHead": "als_ext::AlsSourceRefreshNode",
     "InitializeGrounded": "als_ext::SourcePropertyWriteNode",
     "RefreshGrounded": "als_ext::AlsSourceRefreshNode",
     "ResetGroundedEntryMode": "als_ext::SourcePropertyWriteNode + crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",

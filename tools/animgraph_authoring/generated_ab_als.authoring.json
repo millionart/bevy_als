@@ -3,67 +3,67 @@
   "id": "generated_ab_als_actor",
   "source_evidence": [
     {
-      "path": "target/bf115_layering_full/native_source/0001_AB_Als.ue.json",
-      "sha256": "42825d76a965d7949f86bee50cea03f0e0e2234745d0d9fe0d1b1a18e922bd64"
+      "path": "target/bf115_head/native_source/0002_AB_Als.ue.json",
+      "sha256": "9dc2d84e794d867b4b70d3df1736251c5b318bf958472eda06cbb99e59a47f84"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0002_AB_Als_Default.ue.json",
-      "sha256": "64a774bcdb7c47a2862c4cfa725b2836895859ab035083fde125d84679ef876b"
+      "path": "target/bf115_head/native_source/0003_AB_Als_Default.ue.json",
+      "sha256": "8c13debe8251d6cb75b9a033dcbe0833c10a931e48ad0b41e6f425dcc5c3c996"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0003_AB_Als_Standing.ue.json",
-      "sha256": "41bb1323252548cf87d9fffde178f3efa9883e56440df60b3b00356e6610bd3f"
+      "path": "target/bf115_head/native_source/0004_AB_Als_Standing.ue.json",
+      "sha256": "62693a2de8d43a026b8d298715fca413c9d3001bce21b89bb3da30d3fa872371"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0010_AB_Als_Crouching.ue.json",
-      "sha256": "7d0a1d1a4ac5c455c411f1ce3f03be5ed9e7bc7e8d66868d092e723c4e613a8f"
+      "path": "target/bf115_head/native_source/0011_AB_Als_Crouching.ue.json",
+      "sha256": "d51008ff0417cbdd15028e9eea84c3e3a5fdc01966ed94216a55bd48bf798ec7"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0011_AB_Als_Grounded.ue.json",
-      "sha256": "6c6efd2e19904ab8d8140fe7a422ce44c23c5d35ab9cd263adf0c437487484c9"
+      "path": "target/bf115_head/native_source/0012_AB_Als_Grounded.ue.json",
+      "sha256": "26388ea6bd3c1a686b995ce3e5bfcda42db95faeb68b1da5f3c8efb0121d27b1"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0013_AB_Als_Locomotion.ue.json",
-      "sha256": "de760d3166d7c31a26f33cbff523115cb4f2c8e854bdd156d126270dcc03461f"
+      "path": "target/bf115_head/native_source/0014_AB_Als_Locomotion.ue.json",
+      "sha256": "b3a61c8985aad63ae1000dbf4e098a2a2afbe4c7926326abab853436a6d8f0ed"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0014_AB_Als_Layering.ue.json",
-      "sha256": "10923cf8bc6be20843af94f26e79dbbcb513100e69c9c97eeb18f2152ade7a48"
+      "path": "target/bf115_head/native_source/0015_AB_Als_Layering.ue.json",
+      "sha256": "98d4712ca186ad6d1e17bd28e2dab5fd881872f4eb1cd3f595913105a9990fb7"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0015_AB_Als_Head.ue.json",
-      "sha256": "f925d30cbc7df812c3e1cc41981d55bcf1fcb661f02a721b9cbe972118baffbe"
+      "path": "target/bf115_head/native_source/0001_AB_Als_Head.ue.json",
+      "sha256": "d9342c21c997baf6724ae9db19811a4d855ef75025cd42fa6a08d433d0f6bcee"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0016_AB_Als_Ragdolling.ue.json",
-      "sha256": "aa950a0cf99a41360612d65c8fd2caf13ff1936d009df361b712e08f89da8189"
+      "path": "target/bf115_head/native_source/0016_AB_Als_Ragdolling.ue.json",
+      "sha256": "21baf78cb291851580e75364c96aaa3810be135d6972665dd914178869f4a4e4"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0004_BS_Als_WalkRun_Right_Forward.ue.json",
+      "path": "target/bf115_head/native_source/0005_BS_Als_WalkRun_Right_Forward.ue.json",
       "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0005_BS_Als_WalkRun_Right_Backward.ue.json",
+      "path": "target/bf115_head/native_source/0006_BS_Als_WalkRun_Right_Backward.ue.json",
       "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0006_BS_Als_WalkRun_Left_Forward.ue.json",
+      "path": "target/bf115_head/native_source/0007_BS_Als_WalkRun_Left_Forward.ue.json",
       "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0007_BS_Als_WalkRun_Left_Backward.ue.json",
+      "path": "target/bf115_head/native_source/0008_BS_Als_WalkRun_Left_Backward.ue.json",
       "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0008_BS_Als_WalkRun_Forward.ue.json",
+      "path": "target/bf115_head/native_source/0009_BS_Als_WalkRun_Forward.ue.json",
       "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0009_BS_Als_WalkRun_Backward.ue.json",
+      "path": "target/bf115_head/native_source/0010_BS_Als_WalkRun_Backward.ue.json",
       "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0012_CF_Als_StanceChange.ue.json",
+      "path": "target/bf115_head/native_source/0013_CF_Als_StanceChange.ue.json",
       "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
     },
     {
@@ -101,6 +101,18 @@
     {
       "path": "target/bf115_overlays/source/AlsCharacter_Actions.get_up_stage.cpp",
       "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf115_head/native_source/0017_BS_Als_Look.ue.json",
+      "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
+    },
+    {
+      "path": "target/bf115_head/native_source/0018_BS_Als_Lean.ue.json",
+      "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
+    },
+    {
+      "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
+      "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     }
   ],
   "graphs": [
@@ -355,11 +367,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_layering_full/native_source",
+        "target/bf115_head/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/layered_conversion",
+        "target/bf115_head/final_conversion",
         "--spec",
-        "target/bf115_layering_full/relevance_spec.json"
+        "target/bf115_head/spec.json"
       ]
     },
     {

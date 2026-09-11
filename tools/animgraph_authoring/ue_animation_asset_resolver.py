@@ -621,10 +621,22 @@ def blendspace_triangulation(source, axes, samples):
         raise AssetResolutionError("source BlendSpace axis range is invalid")
     fields = parse_struct(asset_property(source, "BlendSpaceData"))
     reject_unknown_fields(fields, {"Triangles", "Segments"})
-    if struct_field(fields, "Segments", "()") != "()":
-        raise AssetResolutionError("source BlendSpace segment data is unsupported")
+    segments = []
+    for row in parse_list(struct_field(fields, "Segments", "()")):
+        segment = parse_struct(row)
+        reject_unknown_fields(segment, {f"{name}[{index}]" for name in ("SampleIndices", "Vertices") for index in range(2)})
+        indices = [parse_number(struct_field(segment, f"SampleIndices[{index}]")) for index in range(2)]
+        if any(index != int(index) or not 0 <= index < len(samples) for index in indices):
+            raise AssetResolutionError("source BlendSpace segment sample index is invalid")
+        indices = [int(index) for index in indices]
+        for corner, index in enumerate(indices):
+            vertex = parse_number(struct_field(segment, f"Vertices[{corner}]", "0.0"))
+            expected = (samples[index]["value"][0] - minimum[0]) / (maximum[0] - minimum[0])
+            if abs(vertex - expected) > 1e-6:
+                raise AssetResolutionError("source BlendSpace segment vertex differs from its sample")
+        segments.append(indices)
     triangles = []
-    for row in parse_list(struct_field(fields, "Triangles")):
+    for row in parse_list(struct_field(fields, "Triangles", "()")):
         fields = parse_struct(row)
         reject_unknown_fields(fields, {f"{name}[{index}]" for name in ("SampleIndices", "Vertices", "EdgeInfo") for index in range(3)})
         indices = [parse_number(struct_field(fields, f"SampleIndices[{index}]")) for index in range(3)]
@@ -637,16 +649,19 @@ def blendspace_triangulation(source, axes, samples):
             if any(abs(actual - expected) > 1e-6 for actual, expected in zip(vertex, expected)):
                 raise AssetResolutionError("source BlendSpace normalized triangle vertex differs from its sample")
         triangles.append(indices)
-    if not triangles:
-        raise AssetResolutionError("source BlendSpace triangles are missing")
-    return {"axis_min": minimum, "axis_max": maximum, "triangles": triangles}
+    if bool(triangles) == bool(segments):
+        raise AssetResolutionError("source BlendSpace topology is missing or mixed")
+    if segments and segments != [[segments[0][0], segments[0][0]]]:
+        if any(samples[a]["value"][0] >= samples[b]["value"][0] for a, b in segments) or any(left[1] != right[0] for left, right in zip(segments, segments[1:])):
+            raise AssetResolutionError("source BlendSpace segments are unordered or disconnected")
+    return {"axis_min": minimum, "axis_max": maximum, "triangles": triangles, "segments": segments}
 
 
-def blendspace_player_asset_contract(source, blendspace):
+def blendspace_asset_contract(source, blendspace, evaluator=False):
     if (
         not isinstance(source, dict)
         or source.get("format") != "ue_asset_source_v1"
-        or source.get("asset_class") != "/Script/Engine.BlendSpace"
+        or source.get("asset_class") not in ({"/Script/Engine.BlendSpace", "/Script/Engine.BlendSpace1D"} if evaluator else {"/Script/Engine.BlendSpace"})
         or source.get("asset_path") != blendspace.get("source_asset")
     ):
         raise AssetResolutionError("source BlendSpace is invalid")
@@ -676,7 +691,11 @@ def blendspace_player_asset_contract(source, blendspace):
             if parse_number(struct_field(fields, "DampingRatio", "1.0")) != 1.0:
                 raise AssetResolutionError("source BlendSpace damping ratio is unsupported")
             interpolation = struct_field(fields, "InterpolationType")
-            if index < 2:
+            if evaluator:
+                if parse_number(struct_field(fields, "InterpolationTime", "0.0")) != 0.0:
+                    raise AssetResolutionError("source BlendSpace evaluator axis interpolation is unsupported")
+                filters.append(0.0)
+            elif index < 2:
                 if interpolation != "BSIT_Cubic":
                     raise AssetResolutionError("source BlendSpace axis interpolation is unsupported")
                 filters.append(parse_number(struct_field(fields, "InterpolationTime")))
@@ -687,9 +706,9 @@ def blendspace_player_asset_contract(source, blendspace):
             for row in parse_list(asset_property(source, "SampleData"))
         ]
         dimensions = [parse_number(value) for value in parse_list(asset_property(source, "DimensionIndices"))]
-        if dimensions != [0.0, 1.0]:
+        if dimensions not in ([[0.0], [0.0, 1.0]] if evaluator else [[0.0, 1.0]]):
             raise AssetResolutionError("source BlendSpace dimensions are unsupported")
-        if not parse_bool(asset_property(source, "bLoop")):
+        if not evaluator and not parse_bool(asset_property(source, "bLoop")):
             raise AssetResolutionError("source BlendSpace non-looping asset is unsupported")
         if not parse_bool(asset_property(source, "bAllowMarkerBasedSync")):
             raise AssetResolutionError("source BlendSpace marker sync is unsupported")
@@ -701,6 +720,10 @@ def blendspace_player_asset_contract(source, blendspace):
             raise AssetResolutionError("source BlendSpace mesh-space blending is unsupported")
         if parse_number(asset_property(source, "TargetWeightInterpolationSpeedPerSec")) != 0.0:
             raise AssetResolutionError("source BlendSpace target-weight interpolation is unsupported")
+        if evaluator and (asset_property(source, "ManualPerBoneOverrides") not in ("", "()") or asset_property(source, "PerBoneBlendProfile") != "()"):
+            raise AssetResolutionError("source BlendSpace evaluator per-bone interpolation is unsupported")
+        if evaluator and parse_number(asset_property(source, "SampleIndexWithMarkers")) != -1.0:
+            raise AssetResolutionError("source BlendSpace evaluator marker synchronization is unsupported")
         if parse_bool(asset_property(source, "bInterpolateUsingGrid")):
             raise AssetResolutionError("source BlendSpace grid interpolation is unsupported")
         if asset_property(source, "PreferredTriangulationDirection") != "Tangential":
@@ -708,6 +731,8 @@ def blendspace_player_asset_contract(source, blendspace):
         if asset_property(source, "NotifyTriggerMode") != "HighestWeightedAnimation":
             raise AssetResolutionError("source BlendSpace notify mode is unsupported")
         triangulation = blendspace_triangulation(source, axes, source_samples)
+        if bool(triangulation["segments"]) != (dimensions == [0.0]):
+            raise AssetResolutionError("source BlendSpace topology dimensions differ")
     except ExportedTextError as error:
         raise AssetResolutionError("source BlendSpace properties are invalid") from error
     target_axes = blendspace.get("axes")
@@ -995,6 +1020,12 @@ def resolve_graph_animation_assets(
                 source_path = named_object_reference(node_property(node, "Node"), "BlendSpace")
                 blendspace = resolve_blendspace_contract(asset_root, source_path)
                 evaluator = blendspace_evaluator_contract(node, blendspace)
+                if source_content_root is not None:
+                    native = native_blendspaces.get(source_path)
+                    if native is None:
+                        native = blendspace_asset_contract(native_source_asset(source_path, source_reader), blendspace, evaluator=True)
+                        native_blendspaces[source_path] = native
+                    evaluator.update(native)
                 target = blendspace["target_asset"]
                 category = "blendspace"
             elif class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer":
@@ -1004,7 +1035,7 @@ def resolve_graph_animation_assets(
                 blendspace = resolve_blendspace_contract(asset_root, source_path)
                 native = native_blendspaces.get(source_path)
                 if native is None:
-                    native = blendspace_player_asset_contract(
+                    native = blendspace_asset_contract(
                         native_source_asset(source_path, source_reader), blendspace
                     )
                     native_blendspaces[source_path] = native
@@ -1372,9 +1403,47 @@ def run_self_test():
         "asset_class": "/Script/Engine.BlendSpace",
         "asset_properties": player_asset_properties,
     }
-    player_asset = blendspace_player_asset_contract(player_source, player_blendspace)
+    player_asset = blendspace_asset_contract(player_source, player_blendspace)
     assert player_asset["axis_filter"] == {"x_window_seconds": 0.2, "y_window_seconds": 0.4}
     assert player_asset["triangulation"]["triangles"] == [[0, 0, 0]]
+    evaluator_source = json.loads(json.dumps(player_source))
+    evaluator_source["asset_class"] = "/Script/Engine.BlendSpace1D"
+    evaluator_blendspace = json.loads(json.dumps(player_blendspace))
+    evaluator_blendspace["axes"] = [
+        {"name": "Pitch", "min": -90.0, "max": 90.0, "grid_num": 4.0},
+        {"name": "None", "min": 0.0, "max": 100.0, "grid_num": 4.0},
+        {"name": "None", "min": 0.0, "max": 100.0, "grid_num": 4.0},
+    ]
+    evaluator_blendspace["samples"] = [dict(player_blendspace["samples"][0], value=[pitch, 0.0, 0.0]) for pitch in [0.0, -90.0, 90.0]]
+    evaluator_properties = evaluator_source["asset_properties"]
+    for index in range(3):
+        axis = evaluator_blendspace["axes"][index]
+        evaluator_properties[index]["exported_text"] = f'(DisplayName="{axis["name"]}",Min={axis["min"]},Max={axis["max"]},GridNum=4)'
+        evaluator_properties[index + 3]["exported_text"] = '(DampingRatio=1.000000,InterpolationType=BSIT_SpringDamper)'
+    replacements = {
+        "SampleData": '(' + ','.join(f'(Animation="/Script/Engine.AnimSequence\'/ALS/Animations/A_Test.A_Test\'",SampleValue=(X={pitch}))' for pitch in [0.0, -90.0, 90.0]) + ')',
+        "DimensionIndices": '(0)',
+        "bLoop": 'False',
+        "BlendSpaceData": '(Segments=((SampleIndices[0]=1,SampleIndices[1]=0,Vertices[1]=0.500000),(SampleIndices[0]=0,SampleIndices[1]=2,Vertices[0]=0.500000,Vertices[1]=1.000000)))',
+    }
+    for row in evaluator_properties:
+        row["exported_text"] = replacements.get(row["name"], row["exported_text"])
+    evaluator_properties.extend({"name": name, "exported_text": value} for name, value in [
+        ("ManualPerBoneOverrides", ""), ("PerBoneBlendProfile", "()"), ("SampleIndexWithMarkers", "-1"),
+    ])
+    evaluator_asset = blendspace_asset_contract(evaluator_source, evaluator_blendspace, evaluator=True)
+    assert evaluator_asset["axis_filter"] == {"x_window_seconds": 0.0, "y_window_seconds": 0.0}
+    assert evaluator_asset["triangulation"] == {"axis_min": [-90.0, 0.0], "axis_max": [90.0, 100.0], "triangles": [], "segments": [[1, 0], [0, 2]]}
+    evaluator_source["asset_path"] = evaluator_blendspace["source_asset"] = '/Renamed/Fixture.Fixture'
+    assert blendspace_asset_contract(evaluator_source, evaluator_blendspace, evaluator=True) == evaluator_asset
+    segment_row = next(row for row in evaluator_properties if row["name"] == "BlendSpaceData")
+    segment_row["exported_text"] = segment_row["exported_text"].replace('Vertices[1]=1.000000', 'Vertices[1]=0.700000')
+    try:
+        blendspace_asset_contract(evaluator_source, evaluator_blendspace, evaluator=True)
+    except AssetResolutionError:
+        pass
+    else:
+        raise AssertionError("source segment vertex drift was accepted")
     player_node = {
         "properties": [
             {
@@ -1393,7 +1462,7 @@ def run_self_test():
     assert player["sync_group"] == "Movement" and player["axis_filter"]["y_window_seconds"] == 0.4
     player_asset_properties[8]["exported_text"] = "False"
     try:
-        blendspace_player_asset_contract(player_source, player_blendspace)
+        blendspace_asset_contract(player_source, player_blendspace)
     except AssetResolutionError:
         pass
     else:

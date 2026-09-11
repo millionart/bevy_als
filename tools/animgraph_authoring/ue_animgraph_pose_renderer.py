@@ -326,18 +326,20 @@ def blendspace_inner(value, player=False):
     if not points:
         raise PoseRenderError("source blendspace samples are missing")
     playback = "None"
-    triangulation = "None"
+    topology = value.get("triangulation")
+    if not isinstance(topology, dict):
+        raise PoseRenderError("source BlendSpace topology is unavailable")
+    triangulation = "Some((axis_min: (" + ", ".join(repr(float(x)) for x in topology["axis_min"]) + "), axis_max: (" + ", ".join(repr(float(x)) for x in topology["axis_max"]) + "), triangles: [" + ", ".join("(" + ", ".join(str(index) for index in triangle) + ")" for triangle in topology["triangles"]) + "], segments: [" + ", ".join("(" + ", ".join(str(index) for index in segment) + ")" for segment in topology.get("segments", [])) + "]))"
     if player:
         binding_keys = value.get("input_binding_keys")
-        topology = value.get("triangulation")
         if not isinstance(binding_keys, list) or len(binding_keys) != 3 or not isinstance(topology, dict):
             raise PoseRenderError("source blendspace clock contract is unavailable")
         playback = "Some((" + ", ".join([*sync_clock_fields(value), field("start_position", repr(value["start_position"])), field("play_rate_key", quoted(binding_keys[2]))]) + "))"
-        triangulation = "Some((axis_min: (" + ", ".join(repr(float(x)) for x in topology["axis_min"]) + "), axis_max: (" + ", ".join(repr(float(x)) for x in topology["axis_max"]) + "), triangles: [" + ", ".join("(" + ", ".join(str(index) for index in triangle) + ")" for triangle in topology["triangles"]) + "]))"
     return (
         "als_ext::NormalizedBlendSpaceNode",
         "(looped: "
         + bool_ron(value["loop"])
+        + ", teleport_to_normalized_time: " + bool_ron(not player)
         + ", phase_duration: "
         + repr(phase_duration)
         + ", phase_markers: "
@@ -1014,7 +1016,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + "], filtered_bones: [], curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true, output: \"Pose\", request_epoch_key: \"\", request_duration_key: \"\")",
         )
     if renderer == "pose_lifecycle_call":
-        if value["source_function"] in {"InitializeLean", "InitializeGrounded", "InitializeStandingMovement", "ResetPivot", "InitializeTurnInPlace", "ResetGroundedEntryMode"}:
+        if value["source_function"] in {"InitializeHead", "InitializeLean", "InitializeGrounded", "InitializeStandingMovement", "ResetPivot", "InitializeTurnInPlace", "ResetGroundedEntryMode"}:
             if value["call_site"] != "OnBecomeRelevant":
                 raise PoseRenderError("source standing reset call site is unsupported")
             assignments = ['(property: "standing_state.b_pivot_active", value: Bool(false))']
@@ -1028,9 +1030,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
                 assignments = ['(property: "grounded_state.velocity_blend.b_initialization_required", value: Bool(true))']
             elif value["source_function"] == "InitializeLean":
                 assignments = ['(property: "lean_state.right_amount", value: F32(0.0))', '(property: "lean_state.forward_amount", value: F32(0.0))']
+            elif value["source_function"] == "InitializeHead":
+                assignments = ['(property: "head_state.b_initialization_required", value: Bool(true))']
             return ("als_ext::SourcePropertyWriteNode",
                     "(assignments: [" + ", ".join(assignments) + "], on_become_relevant: true)")
-        if value["source_function"] in {"RefreshInAir", "RefreshGrounded", "RefreshStandingMovement", "RefreshTurnInPlace", "RefreshRotateInPlace", "RefreshDynamicTransitions"}:
+        if value["source_function"] in {"RefreshHead", "RefreshInAir", "RefreshGrounded", "RefreshStandingMovement", "RefreshTurnInPlace", "RefreshRotateInPlace", "RefreshDynamicTransitions"}:
             if value["call_site"] != "OnUpdate":
                 raise PoseRenderError("source standing refresh call site is unsupported")
             return "als_ext::AlsSourceRefreshNode", "(function: " + value["source_function"] + ")"
@@ -2129,6 +2133,8 @@ def run_self_test():
     assert hips_type == "als_ext::SourceSetHipsDirectionNode"
     assert 'new_hips_direction: "LeftBackward"' in hips_inner
     for function, call_site, expected_type in [
+        ("InitializeHead", "OnBecomeRelevant", "als_ext::SourcePropertyWriteNode"),
+        ("RefreshHead", "OnUpdate", "als_ext::AlsSourceRefreshNode"),
         ("InitializeLean", "OnBecomeRelevant", "als_ext::SourcePropertyWriteNode"),
         ("RefreshInAir", "OnUpdate", "als_ext::AlsSourceRefreshNode"),
         ("InitializeGrounded", "OnBecomeRelevant", "als_ext::SourcePropertyWriteNode"),
@@ -2146,7 +2152,9 @@ def run_self_test():
             "renderer": "pose_lifecycle_call", "semantic": {"source_function": function, "call_site": call_site},
         }, {}, {})
         assert node_type == expected_type
-        if function == "InitializeLean":
+        if function == "InitializeHead":
+            assert 'property: "head_state.b_initialization_required", value: Bool(true)' in inner
+        elif function == "InitializeLean":
             assert 'property: "lean_state.right_amount", value: F32(0.0)' in inner
             assert 'property: "lean_state.forward_amount", value: F32(0.0)' in inner
         elif function == "InitializeGrounded":
@@ -2404,6 +2412,7 @@ def run_self_test():
                     "teleport_to_normalized_time": True,
                     "loop": True,
                     "configured_play_rate": 1.0,
+                    "triangulation": {"axis_min": [-1.0, -1.0], "axis_max": [1.0, 1.0], "triangles": [[0, 0, 0]], "segments": []},
                     "blendspace": {
                         "samples": [
                             {
@@ -2420,6 +2429,7 @@ def run_self_test():
     }
     text = render(blend_contract, blend_ir, [])
     assert '"als_ext::NormalizedBlendSpaceNode"' in text
+    assert 'teleport_to_normalized_time: true' in text
     assert '"als_ext::F32ToVec2Node"' in text
     assert '"bevy_animation_graph::builtin_nodes::ClipNode"' in text
     assert "value: 0.25" in text and "value: -0.5" in text
@@ -2445,6 +2455,7 @@ def run_self_test():
                     "teleport_to_normalized_time": True,
                     "loop": True,
                     "configured_play_rate": 1.0,
+                    "triangulation": {"axis_min": [-90.0, 0.0], "axis_max": [90.0, 100.0], "triangles": [], "segments": [[0, 0]]},
                     "blendspace": {
                         "samples": [
                             {
@@ -2462,6 +2473,7 @@ def run_self_test():
     text = render(blend_contract, one_dimensional_ir, [])
     assert 'key: "head_state.yaw_amount"' in text
     assert 'Blendspace Y default' in text
+    assert 'segments: [(0, 0)]' in text
     player_ir = {
         "nodes": [
             {

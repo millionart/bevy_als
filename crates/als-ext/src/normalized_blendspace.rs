@@ -216,6 +216,7 @@ pub struct SourceBlendSpaceTriangulation {
     pub axis_min: Vec2,
     pub axis_max: Vec2,
     pub triangles: Vec<[usize; 3]>,
+    pub segments: Vec<[usize; 2]>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -229,6 +230,7 @@ pub(crate) struct NormalizedBlendSpaceState {
 #[type_path = "als_ext"]
 pub struct NormalizedBlendSpaceNode {
     pub looped: bool,
+    pub teleport_to_normalized_time: bool,
     pub phase_duration: f32,
     pub phase_markers: Vec<SyncMarker>,
     pub points: Vec<NormalizedBlendSpacePoint>,
@@ -250,10 +252,16 @@ impl NormalizedBlendSpaceNode {
             || !source.axis_min.is_finite()
             || !size.is_finite()
             || size.cmple(bevy::math::DVec2::ZERO).any()
-            || source.triangles.is_empty()
+            || (source.triangles.is_empty() && source.segments.is_empty())
+            || (!source.triangles.is_empty() && !source.segments.is_empty())
             || self.points.iter().any(|point| !point.point.is_finite())
             || source
                 .triangles
+                .iter()
+                .flatten()
+                .any(|index| *index >= self.points.len())
+            || source
+                .segments
                 .iter()
                 .flatten()
                 .any(|index| *index >= self.points.len())
@@ -268,6 +276,41 @@ impl NormalizedBlendSpaceNode {
             .iter()
             .map(|point| (point.point.as_dvec2() - minimum) / size)
             .collect::<Vec<_>>();
+        if !source.segments.is_empty() {
+            if source.segments.len() == 1 && source.segments[0][0] == source.segments[0][1] {
+                return Ok(vec![(source.segments[0][0], 1.0)]);
+            }
+            if source
+                .segments
+                .iter()
+                .any(|[a, b]| vertices[*a].x >= vertices[*b].x)
+                || source
+                    .segments
+                    .windows(2)
+                    .any(|pair| pair[0][1] != pair[1][0])
+            {
+                return Err("source BlendSpace segments are invalid".to_owned());
+            }
+            let segment = source
+                .segments
+                .iter()
+                .position(|[_, b]| position.x <= vertices[*b].x)
+                .unwrap_or(source.segments.len() - 1);
+            let [a, b] = source.segments[segment];
+            let alpha = ((position.x as f32 - vertices[a].x as f32)
+                / (vertices[b].x as f32 - vertices[a].x as f32))
+                .clamp(0.0, 1.0);
+            let mut weights = vec![(a, 1.0 - alpha), (b, alpha)];
+            if weights[0].1 < weights[1].1 {
+                weights.swap(0, 1);
+            }
+            weights.retain(|(_, weight)| *weight >= 1e-5);
+            let total = weights.iter().map(|(_, weight)| *weight).sum::<f32>();
+            for (_, weight) in &mut weights {
+                *weight /= total;
+            }
+            return Ok(weights);
+        }
         if source.triangles.len() == 1 {
             let [a, b, c] = source.triangles[0];
             if a == b {
@@ -544,6 +587,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         };
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
+        let sample_looped = self.looped && !self.teleport_to_normalized_time;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = global_f32_or_root_default(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -569,7 +613,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             };
             phase
         } else {
-            normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, self.looped)
+            normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, sample_looped)
         };
         let leader_time = if self.uses_marker_phase() {
             marker_phase_sample_time(
@@ -578,10 +622,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 &self.phase_markers,
                 leader_duration,
                 &leader.markers,
-                self.looped,
+                sample_looped,
             )
         } else {
-            phase_to_time(phase, leader_duration, self.looped)
+            phase_to_time(phase, leader_duration, sample_looped)
         };
         let output_time = leader_time;
         let mut poses = Vec::with_capacity(weights.len());
@@ -596,7 +640,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     &self.phase_markers,
                     duration,
                     &point.markers,
-                    self.looped,
+                    sample_looped,
                 )
             } else if index == leader_index {
                 leader_time
@@ -607,7 +651,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     &leader.markers,
                     duration,
                     &point.markers,
-                    self.looped,
+                    sample_looped,
                 )
             };
             ctx.set_time_update_back(Self::time_pin(&point.id), TimeUpdate::Absolute(time));
@@ -661,6 +705,82 @@ impl NodeLike for NormalizedBlendSpaceNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_evaluator_teleport_clamps_normalized_endpoints() {
+        use bevy_animation_graph::core::{
+            animation_graph::GraphInputPin, utils::testing::GraphTestHarness,
+        };
+        for phase in [0.5, 1.0, -0.2, 1.2] {
+            GraphTestHarness::node(NormalizedBlendSpaceNode {
+                looped: true,
+                teleport_to_normalized_time: true,
+                points: vec![NormalizedBlendSpacePoint {
+                    id: "sample".to_owned(),
+                    duration: 2.0,
+                    ..default()
+                }],
+                ..default()
+            })
+            .with_const_input_data(GraphInputPin::Passthrough(IN_POSITION.into()), Vec2::ZERO)
+            .with_const_input_data(GraphInputPin::Passthrough(IN_PHASE.into()), phase)
+            .with_const_input_data(
+                GraphInputPin::Passthrough("pose_sample".into()),
+                Pose::default(),
+            )
+            .with_const_input_duration(GraphInputPin::Passthrough("time_sample".into()), Some(2.0))
+            .with_time_fwd(Some(TimeUpdate::Delta(0.0)))
+            .when_queried()
+            .then_output_is(OUT_SAMPLE_TIME, phase.clamp(0.0, 1.0) * 2.0);
+        }
+    }
+
+    #[test]
+    fn source_look_segments_keep_the_center_sample_and_nearest_neighbors() {
+        let node = NormalizedBlendSpaceNode {
+            source_triangulation: Some(SourceBlendSpaceTriangulation {
+                axis_min: Vec2::new(-90.0, 0.0),
+                axis_max: Vec2::new(90.0, 100.0),
+                segments: vec![[1, 0], [0, 2]],
+                ..default()
+            }),
+            points: [0.0, -90.0, 90.0]
+                .into_iter()
+                .enumerate()
+                .map(|(index, x)| NormalizedBlendSpacePoint {
+                    id: format!("sample_{index}"),
+                    point: Vec2::new(x, 0.0),
+                    ..default()
+                })
+                .collect(),
+            ..default()
+        };
+        for (pitch, expected) in [
+            (-45.0, [0.5, 0.5, 0.0]),
+            (0.0, [1.0, 0.0, 0.0]),
+            (45.0, [0.5, 0.0, 0.5]),
+            (-120.0, [0.0, 1.0, 0.0]),
+            (120.0, [0.0, 0.0, 1.0]),
+        ] {
+            let mut actual = [0.0; 3];
+            for (index, weight) in node
+                .source_weights(Vec2::new(pitch, 0.0), &mut None)
+                .unwrap()
+            {
+                actual[index] = weight;
+            }
+            assert_eq!(actual, expected, "pitch {pitch}");
+        }
+        let mut ablated = node.clone();
+        ablated.source_triangulation = None;
+        assert_ne!(
+            ablated
+                .source_weights(Vec2::new(45.0, 0.0), &mut None)
+                .unwrap(),
+            node.source_weights(Vec2::new(45.0, 0.0), &mut None)
+                .unwrap()
+        );
+    }
 
     fn markers(entries: &[(&str, f32)]) -> Vec<SyncMarker> {
         entries
@@ -742,6 +862,7 @@ mod tests {
     fn marker_phase_maps_each_direction_to_the_same_foot_interval() {
         let node = NormalizedBlendSpaceNode {
             looped: true,
+            teleport_to_normalized_time: false,
             phase_duration: 1.0,
             phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
             playback: None,
@@ -827,6 +948,7 @@ mod tests {
             };
             let node = NormalizedBlendSpaceNode {
                 looped: true,
+                teleport_to_normalized_time: false,
                 phase_duration: 1.133333,
                 phase_markers: markers(&[("Right", 0.516667), ("Left", 1.083333)]),
                 points: [Vec2::X, Vec2::ZERO, Vec2::ONE, Vec2::Y]
@@ -849,6 +971,7 @@ mod tests {
                     axis_min: Vec2::ZERO,
                     axis_max: Vec2::ONE,
                     triangles: vec![[1, 0, 3], [0, 2, 3]],
+                    segments: vec![],
                 }),
             };
             let mut filter = CubicVec2AxisFilterState::default();
@@ -967,6 +1090,7 @@ mod tests {
                 axis_min: Vec2::ZERO,
                 axis_max: Vec2::ONE,
                 triangles: vec![[0, 1, 2]],
+                segments: vec![],
             }),
             ..default()
         };

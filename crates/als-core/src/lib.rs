@@ -13,6 +13,7 @@ pub mod flail;
 pub mod foot_ik;
 pub mod gait;
 pub mod graph_router;
+pub mod head;
 pub mod input;
 pub mod input_request;
 pub mod mantle;

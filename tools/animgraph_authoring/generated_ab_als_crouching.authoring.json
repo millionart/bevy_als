@@ -7,8 +7,8 @@
       "sha256": "42cfbaae5c999aba7ac10f1830194ce4886d0bbd8826e5fd92d06904938b6d03"
     },
     {
-      "path": "target/bf115_layering_full/native_source/0010_AB_Als_Crouching.ue.json",
-      "sha256": "7d0a1d1a4ac5c455c411f1ce3f03be5ed9e7bc7e8d66868d092e723c4e613a8f"
+      "path": "target/bf115_head/native_source/0011_AB_Als_Crouching.ue.json",
+      "sha256": "d51008ff0417cbdd15028e9eea84c3e3a5fdc01966ed94216a55bd48bf798ec7"
     },
     {
       "path": "target/bf115_crouching/source/AIS.actions.fresh.ue.json",
@@ -29,6 +29,18 @@
     {
       "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
       "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
+    },
+    {
+      "path": "target/bf115_head/native_source/0017_BS_Als_Look.ue.json",
+      "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
+    },
+    {
+      "path": "target/bf115_head/native_source/0018_BS_Als_Lean.ue.json",
+      "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
+    },
+    {
+      "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
+      "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     }
   ],
   "graphs": [
@@ -1810,11 +1822,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_layering_full/native_source",
+        "target/bf115_head/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/layered_conversion",
+        "target/bf115_head/final_conversion",
         "--spec",
-        "target/bf115_layering_full/relevance_spec.json",
+        "target/bf115_head/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]

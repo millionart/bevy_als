@@ -353,6 +353,7 @@ mod tests {
                         "player",
                         NormalizedBlendSpaceNode {
                             looped: true,
+                            teleport_to_normalized_time: false,
                             phase_duration: 1.0,
                             phase_markers: vec![
                                 SyncMarker {

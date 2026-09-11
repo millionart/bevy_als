@@ -3,8 +3,8 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_layering_full/native_source/0013_AB_Als_Locomotion.ue.json",
-      "sha256": "de760d3166d7c31a26f33cbff523115cb4f2c8e854bdd156d126270dcc03461f"
+      "path": "target/bf115_head/native_source/0014_AB_Als_Locomotion.ue.json",
+      "sha256": "b3a61c8985aad63ae1000dbf4e098a2a2afbe4c7926326abab853436a6d8f0ed"
     },
     {
       "path": "target/bf115_locomotion/source/mode_AlsAnimationInstance.cpp",
@@ -129,6 +129,18 @@
     {
       "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
+    },
+    {
+      "path": "target/bf115_head/native_source/0017_BS_Als_Look.ue.json",
+      "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
+    },
+    {
+      "path": "target/bf115_head/native_source/0018_BS_Als_Lean.ue.json",
+      "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
+    },
+    {
+      "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
+      "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     }
   ],
   "graphs": [
@@ -1923,11 +1935,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_layering_full/native_source",
+        "target/bf115_head/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/layered_conversion",
+        "target/bf115_head/final_conversion",
         "--spec",
-        "target/bf115_layering_full/relevance_spec.json",
+        "target/bf115_head/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion"
       ]
