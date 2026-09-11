@@ -21,6 +21,7 @@ use bevy_animation_graph::core::{
     errors::GraphError,
     plugin::AnimationGraphSet,
     pose::{BonePose, Pose},
+    skeleton::Skeleton,
     systems::apply_animation_to_targets,
 };
 use serde::Serialize;
@@ -29,8 +30,7 @@ use crate::{
     animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet},
     character_assembly::AlsCharacterAvatar,
     control_rig_apply::{
-        AlsControlRigInput, AlsControlRigPrePropagationSet, AlsControlRigPropagationSet,
-        AlsControlRigSet,
+        AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet,
     },
     foot_ik_apply::{
         AlsFootIkApplyTelemetry, AlsFootIkApplyTelemetrySide, AlsFootIkSpaceSide,
@@ -209,8 +209,6 @@ pub struct AnimationVisualValidationProgress {
 struct AnimationVisualStageTiming {
     physics_started: Option<Instant>,
     physics_step_started: Option<Instant>,
-    control_rig_started: Option<Instant>,
-    foot_ik_started: Option<Instant>,
     camera_started: Option<Instant>,
     samples: BTreeMap<String, Vec<f64>>,
     physics_steps_since_render: usize,
@@ -776,19 +774,20 @@ impl Plugin for AnimationVisualValidationPlugin {
             .add_systems(
                 PostUpdate,
                 animation_eval_start
-                    .after(AnimationGraphSet::PostPhysics)
-                    .before(AnimationGraphSet::Final),
+                    .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             )
             .add_systems(
                 PostUpdate,
-                animation_eval_end.after(AnimationGraphSet::Final),
+                animation_eval_end.after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
+                    .before(AnimationGraphSet::PostPhysics),
             )
             .add_systems(
                 PostUpdate,
                 capture_animation_visual_pre_rig_pose
                     .after(AnimationGraphSet::Final)
                     .after(apply_animation_to_targets)
-                    .before(AlsControlRigSet),
+                    .before(collect_animation_visual_evidence),
             )
             .add_systems(
                 PostUpdate,
@@ -837,24 +836,8 @@ impl Plugin for AnimationVisualValidationPlugin {
             )
             .add_systems(
                 PostUpdate,
-                animation_visual_control_rig_start
-                    .after(AnimationGraphSet::Final)
-                    .after(apply_animation_to_targets)
-                    .before(AlsControlRigSet),
-            )
-            .add_systems(
-                PostUpdate,
-                animation_visual_control_rig_end.after(AlsControlRigPropagationSet),
-            )
-            .add_systems(
-                PostUpdate,
-                animation_visual_foot_ik_start
-                    .after(AlsControlRigPrePropagationSet)
-                    .before(FootIkApplySet::Solve),
-            )
-            .add_systems(
-                PostUpdate,
-                animation_visual_foot_ik_end.after(FootIkApplySet::Telemetry),
+                animation_visual_control_rig_time.after(FootIkApplySet::Telemetry)
+                    .before(collect_animation_visual_evidence),
             )
             .add_systems(
                 PostUpdate,
@@ -1301,30 +1284,18 @@ fn animation_visual_physics_step_end(
     record_stage(&config, &visual, &mut stages, "physics_step", started);
 }
 
-fn animation_visual_control_rig_start(mut stages: ResMut<AnimationVisualStageTiming>) {
-    stages.control_rig_started = Some(Instant::now());
-}
-
-fn animation_visual_control_rig_end(
+fn animation_visual_control_rig_time(
     config: Res<AnimationVisualValidationConfig>,
     visual: Res<AnimationVisualValidationState>,
     mut stages: ResMut<AnimationVisualStageTiming>,
+    executions: Query<&AlsControlRigExecution, With<AlsCharacter>>,
 ) {
-    let started = stages.control_rig_started.take();
-    record_stage(&config, &visual, &mut stages, "control_rig", started);
-}
-
-fn animation_visual_foot_ik_start(mut stages: ResMut<AnimationVisualStageTiming>) {
-    stages.foot_ik_started = Some(Instant::now());
-}
-
-fn animation_visual_foot_ik_end(
-    config: Res<AnimationVisualValidationConfig>,
-    visual: Res<AnimationVisualValidationState>,
-    mut stages: ResMut<AnimationVisualStageTiming>,
-) {
-    let started = stages.foot_ik_started.take();
-    record_stage(&config, &visual, &mut stages, "foot_ik", started);
+    if visual.started.is_some_and(|started| started.elapsed() >= config.warmup)
+        && let Ok(execution) = executions.single()
+        && execution.executed_steps > 0
+    {
+        stages.samples.entry("control_rig".into()).or_default().push(execution.elapsed_seconds * 1000.0);
+    }
 }
 
 fn animation_visual_camera_start(mut stages: ResMut<AnimationVisualStageTiming>) {
@@ -1411,15 +1382,31 @@ fn capture_animation_visual_pre_rig_pose(
     time: Res<Time>,
     mut pre_rig: ResMut<AnimationVisualPreRigPose>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
-    children: Query<&Children>,
-    named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
+    players: Query<&AnimationGraphPlayer>,
+    graphs: Res<Assets<AnimationGraph>>,
+    skeletons: Res<Assets<Skeleton>>,
 ) {
-    let Ok(instance) = avatars.single() else {
-        return;
-    };
-    pre_rig.bones =
-        collect_local_motion_bones(instance.player_entity(), &children, &named_transforms);
+    pre_rig.bones.clear();
     pre_rig.delta_seconds = time.delta_secs();
+    let Ok(instance) = avatars.single() else { return; };
+    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let Some((context, node, _)) = als_ext::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
+    let rig = node.try_inner_downcast_ref::<als_ext::root_graph_boundaries::ControlRigBoundaryNode>().unwrap();
+    let Some(graph) = graphs.get(context.get_graph_id()) else { return; };
+    let Some(SourcePin::NodeData(source, pin)) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone())) else { return; };
+    let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()) else { return; };
+    let Some(skeleton) = skeletons.get(&pose.skeleton) else { return; };
+    for path in skeleton.iter_paths() {
+        let Some(name) = path.parts.last() else { continue; };
+        if !REQUIRED_BONES.contains(&name.as_str()) { continue; }
+        let Some(reference) = skeleton.default_transforms(path.id()) else { continue; };
+        let bone = pose.get_bone(path.id());
+        pre_rig.bones.insert(name.to_string(), LocalBonePose {
+            translation: bone.and_then(|bone| bone.translation).unwrap_or(reference.local.translation),
+            rotation: bone.and_then(|bone| bone.rotation).unwrap_or(reference.local.rotation),
+            scale: bone.and_then(|bone| bone.scale).unwrap_or(reference.local.scale),
+        });
+    }
 }
 
 fn rotation_delta_radians(previous: Quat, current: Quat) -> f32 {
@@ -3825,6 +3812,91 @@ fn collect_animation_visual_evidence(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pre_rig_capture_uses_current_graph_input_and_skeleton_defaults() {
+        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
+        use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
+            animation_clip::EntityPath, animation_node::AnimationNode, edge_data::DataSpec,
+            skeleton::Skeleton, systems::animation_player}};
+        use als_ext::{control_rig_program::RigDefinition, root_graph_boundaries::{ControlRigBoundaryNode, RigInputBinding, RIG_GAME_WORLD_KEY}};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), als_ext::AlsExtPlugin))
+            .init_asset::<WorldAsset>().init_resource::<AnimationVisualPreRigPose>();
+        app.finish();
+        app.cleanup();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../assets/control_rigs/cr_als.program.json")).unwrap();
+        let reference = Transform::from_xyz(0.0, 0.4, 0.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2));
+        let mut skeleton = Skeleton::default();
+        let mut paths: Vec<Vec<String>> = Vec::new();
+        let local = |value: als_ext::control_rig_hierarchy::RigTransform| Transform {
+            translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
+        for bone in &definition.bones {
+            let mut path = bone.parent.map(|index| paths[index].clone()).unwrap_or_default();
+            path.push(bone.name.clone());
+            skeleton.add_bone(EntityPath::from(path.clone()), if bone.name == "foot_l" { reference } else { local(bone.initial_local) }, local(bone.initial_global));
+            paths.push(path);
+        }
+        skeleton.set_root(EntityPath::from(paths[0].clone()).id());
+        let foot = EntityPath::from(paths[definition.bones.iter().position(|bone| bone.name == "foot_l").unwrap()].clone());
+        let spine = EntityPath::from(paths[definition.bones.iter().position(|bone| bone.name == "spine_01").unwrap()].clone());
+        let spine_reference = skeleton.default_transforms(spine.id()).unwrap().local.rotation;
+        let skeleton = app.world_mut().resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+        pose.add_bone(BonePose { translation: Some(Vec3::new(0.2, 0.4, 0.0)), ..default() }, foot.id());
+        let mut graph = AnimationGraph::new();
+        let source = AnimationNode::new("source", als_ext::GlobalPoseInputNode { key: "source".into(), output: "Pose".into() });
+        let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition), internalize_time: true,
+            input_bindings: vec![RigInputBinding { external: "RigInput".into(), path: vec![5], property: "yaw".into() }], ..default() });
+        graph.add_node(source.clone());
+        graph.add_node(rig.clone());
+        graph.add_node_parameter_edge(source.id, "Pose", rig.id, "source_pose");
+        graph.add_output_data("pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(rig.id, "Pose", "pose");
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
+        player.set_global_input_data("source", DataValue::Pose(pose));
+        player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
+        player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
+        player.set_global_input_data("yaw", 30.0_f32);
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: Entity::PLACEHOLDER }, Transform::IDENTITY, AnimatedSceneHandle::default())).id();
+        let player_entity = app.world_mut().spawn((player, Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("foot_l"), Transform::from_xyz(9.0, 8.0, 7.0), ChildOf(player_entity)));
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        app.world_mut().run_system_once(animation_player).unwrap();
+        assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none(), "{:?}", app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error());
+        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+        let captured = &app.world().resource::<AnimationVisualPreRigPose>().bones["foot_l"];
+        assert_eq!(captured.translation, Vec3::new(0.2, 0.4, 0.0));
+        assert_eq!(captured.rotation, reference.rotation);
+        assert_eq!(captured.scale, reference.scale);
+        assert_eq!(app.world().resource::<AnimationVisualPreRigPose>().bones["spine_01"].rotation, spine_reference);
+        let output = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_default_output_pose().unwrap();
+        assert!(rotation_delta_radians(spine_reference, output.get_bone(spine.id()).unwrap().rotation.unwrap()) > 0.05);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(graph);
+        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+        assert!(app.world().resource::<AnimationVisualPreRigPose>().bones.is_empty());
+    }
+
+    #[test]
+    fn visual_rig_timing_reads_vm_duration_and_skips_unevaluated_frames() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.insert_resource(AnimationVisualValidationConfig {
+            directory: default(), case: "fixture".into(), capture_count: 0, capture_interval: Duration::ZERO,
+            min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
+        }).insert_resource(AnimationVisualValidationState { started: Some(Instant::now()), ..default() })
+            .init_resource::<AnimationVisualStageTiming>();
+        let actor = app.world_mut().spawn((AlsCharacter, AlsControlRigExecution { executed_steps: 153, elapsed_seconds: 0.0125, ..default() })).id();
+        app.world_mut().run_system_once(animation_visual_control_rig_time).unwrap();
+        assert_eq!(app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"], [12.5]);
+        app.world_mut().get_mut::<AlsControlRigExecution>(actor).unwrap().executed_steps = 0;
+        app.world_mut().run_system_once(animation_visual_control_rig_time).unwrap();
+        assert_eq!(app.world().resource::<AnimationVisualStageTiming>().samples["control_rig"], [12.5]);
+    }
     use bevy::ecs::system::In;
 
     #[test]

@@ -1512,22 +1512,40 @@ mod tests {
         use bevy_animation_graph::core::{
             animated_scene::{AnimatedScene, AnimatedSceneHandle},
             animation_graph::{GraphInputPin, SourcePin, TargetPin},
+            animation_node::{NodeLike, ReflectNodeLike},
+            context::{new_context::NodeContext, spec_context::SpecContext},
             edge_data::DataSpec,
+            errors::GraphError,
             pose::BonePose,
             ragdoll::definition::{Collider as RagdollCollider, ColliderMassMode},
         };
 
-        fn late_rig(
-            mut bones: Query<(&Name, &mut Transform)>,
-        ) {
-            for (name, mut transform) in &mut bones {
-                if name.as_str() == "pelvis" {
-                    assert!(transform.translation.abs_diff_eq(Vec3::new(0.1, 0.9, 0.2), 1e-5), "rig must consume the animated pose before physics readback");
-                    transform.translation.x += 0.013;
-                    transform.rotation *= Quat::from_rotation_z(0.18);
-                } else if name.as_str() == "marker" {
-                    transform.translation.y += 0.07;
+        #[derive(Reflect, Clone, Debug)]
+        #[reflect(NodeLike)]
+        struct GraphRigModifier;
+        impl NodeLike for GraphRigModifier {
+            fn display_name(&self) -> String { "Graph rig modifier".into() }
+            fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+                ctx.add_input_data("pose", DataSpec::Pose).add_output_data("Pose", DataSpec::Pose).add_output_time();
+                Ok(())
+            }
+            fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+                let mut pose = ctx.data_back("pose")?.into_pose()?;
+                for (name, offset) in [("scene/root/pelvis", Vec3::X * 0.013), ("scene/root/marker", Vec3::Y * 0.07)] {
+                    let index = pose.paths[&EntityPath::from_slashed_string(name.into()).id()];
+                    let bone = &mut pose.bones[index];
+                    bone.translation = bone.translation.map(|value| value + offset);
+                    if name.ends_with("pelvis") { bone.rotation = bone.rotation.map(|value| value * Quat::from_rotation_z(0.18)); }
                 }
+                ctx.set_time(pose.timestamp);
+                ctx.set_data_fwd("Pose", pose);
+                Ok(())
+            }
+        }
+        fn corrupt_unmapped_ecs_pose(characters: Query<&LocomotionState>, mut bones: Query<(&Name, &mut Transform)>) {
+            if !characters.iter().any(|state| *state == LocomotionState::Ragdolling) { return; }
+            for (name, mut transform) in &mut bones {
+                if name.as_str() == "marker" { transform.translation.y = 42.0; }
             }
         }
 
@@ -1563,8 +1581,8 @@ mod tests {
             PostUpdate,
             crate::ragdolling_layer::AlsRagdollingLayerSet.before(AnimationGraphSet::PrePhysics),
         )
-        .add_systems(PostUpdate, late_rig.after(TransformSystems::Propagate))
-        .configure_sets(PostUpdate, als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback.after(late_rig))
+        .add_systems(PostUpdate, corrupt_unmapped_ecs_pose.after(TransformSystems::Propagate))
+        .configure_sets(PostUpdate, als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback.after(corrupt_unmapped_ecs_pose))
         .add_systems(
             PostUpdate,
             (
@@ -1573,7 +1591,6 @@ mod tests {
                 bevy::transform::systems::sync_simple_transforms,
             )
                 .chain()
-                .after(late_rig)
                 .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback)
                 .in_set(crate::control_rig_apply::AlsControlRigPropagationSet),
         );
@@ -1624,9 +1641,13 @@ mod tests {
                 TargetPin::OutputData(name.to_owned()),
             );
         }
+        let rig = bevy_animation_graph::core::animation_node::AnimationNode::new("rig", GraphRigModifier);
+        graph.add_node(rig.clone());
+        graph.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("pose".into())), TargetPin::NodeData(rig.id, "pose".into()));
+        graph.add_output_data_edge(rig.id, "Pose", "pose");
         graph.set_default_data(
             GraphInputPin::Passthrough("pose".to_owned()),
-            DataValue::Pose(pose),
+            DataValue::Pose(pose.clone()),
         );
         graph.set_default_data(
             GraphInputPin::Passthrough("ragdoll_config".to_owned()),
@@ -1817,6 +1838,9 @@ mod tests {
         assert!(transforms_match(actual, expected));
 
         *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Ragdolling;
+        let index = pose.paths[&joint_path.id()];
+        pose.bones[index].translation = Some(joint_local.translation + Vec3::X * 0.09);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data("pose", DataValue::Pose(pose));
         app.world_mut()
             .get_mut::<AnimationGraphPlayer>(player_entity)
             .unwrap()

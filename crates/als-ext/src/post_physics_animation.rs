@@ -51,7 +51,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
             assert_eq!(count, 1, "physics readback must replace exactly one default readback system");
         });
         app.add_systems(PostUpdate,
-            (commit_rig_pose_for_readback, read_back_poses_avian, apply_readback_pose)
+            (read_back_poses_avian, apply_readback_pose)
                 .chain().in_set(PostPhysicsAnimationSet::Readback),
         );
     }
@@ -61,25 +61,6 @@ fn has_physics_readback(player: &AnimationGraphPlayer) -> bool {
     player.get_spawned_ragdoll().is_some() && player.get_outputs().get(DEFAULT_OUTPUT_RAGDOLL_CONFIG)
         .and_then(|value| value.as_ragdoll_config().ok())
         .is_none_or(|config| config.default_readback.unwrap_or(true) || config.readback_overrides.values().any(|enabled| *enabled))
-}
-
-fn commit_rig_pose_for_readback(
-    mut players: Query<(Entity, &mut AnimationGraphPlayer)>,
-    targets: Query<&Transform, With<AnimationTargetId>>,
-) {
-    for (entity, mut player) in &mut players {
-        if !has_physics_readback(&player) { continue; }
-        let Some(mut pose) = player.get_default_output_pose().cloned() else { continue; };
-        for (bone, index) in &pose.paths {
-            let Some(target) = player.bone_entity(*bone).filter(|target| *target != entity) else { continue; };
-            let Ok(transform) = targets.get(target) else { continue; };
-            let bone_pose = &mut pose.bones[*index];
-            bone_pose.translation = Some(transform.translation);
-            bone_pose.rotation = Some(transform.rotation);
-            bone_pose.scale = Some(transform.scale);
-        }
-        player.set_default_output_pose(pose);
-    }
 }
 
 fn apply_readback_pose(
