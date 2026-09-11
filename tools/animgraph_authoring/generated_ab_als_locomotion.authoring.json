@@ -3,8 +3,8 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_overlays/shared_rules_source/0013_AB_Als_Locomotion.ue.json",
-      "sha256": "bdfdaa5808edd2aa000237fd45cfa4de3a29918e716c49a5e57c9b732454fd02"
+      "path": "target/bf115_layering_full/native_source/0013_AB_Als_Locomotion.ue.json",
+      "sha256": "de760d3166d7c31a26f33cbff523115cb4f2c8e854bdd156d126270dcc03461f"
     },
     {
       "path": "target/bf115_locomotion/source/mode_AlsAnimationInstance.cpp",
@@ -1923,11 +1923,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_overlays/shared_rules_source",
+        "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_overlays/shared_rules_conversion",
+        "target/bf115_layering_full/conversion",
         "--spec",
-        "target/bf115_overlays/shared_rules_spec.json",
+        "target/bf115_layering_full/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion"
       ]

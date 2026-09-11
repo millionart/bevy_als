@@ -13,7 +13,7 @@ pub const REFERENCE_TIME: &str = "reference_time";
 pub const TARGET_POSE: &str = "target_pose";
 pub const TARGET_TIME: &str = "target_time";
 pub const OUT_POSE: &str = "pose";
-const SCALE_EPSILON: f32 = 1e-6;
+const SCALE_EPSILON: f32 = 1e-8;
 
 fn default_transform(
     skeleton: &Skeleton,
@@ -43,9 +43,10 @@ fn reference_scale(reference: Option<&BonePose>, default: Transform) -> Vec3 {
         .unwrap_or(default.scale)
 }
 
-fn scale_difference(target: Vec3, reference: Vec3) -> Option<Vec3> {
-    let difference = target - reference;
-    (difference.abs().max_element() > SCALE_EPSILON).then_some(difference)
+pub(crate) fn scale_difference(target: Vec3, reference: Vec3) -> Option<Vec3> {
+    let reciprocal = Vec3::select(reference.abs().cmple(Vec3::splat(SCALE_EPSILON)), Vec3::ZERO, reference.recip());
+    let difference = target * reciprocal - Vec3::ONE;
+    (difference != Vec3::ZERO).then_some(difference)
 }
 
 fn root_motion_difference(
@@ -190,6 +191,7 @@ mod tests {
 
     #[test]
     fn local_difference_reconstructs_target_and_zeroes_unit_scale() {
+        assert_eq!(scale_difference(Vec3::new(3.0, 4.0, 2.0), Vec3::new(2.0, 0.0, 1e-10)), Some(Vec3::new(0.5, -1.0, -1.0)));
         let path = EntityPath::default().child("root");
         let bone = path.id();
         let mut skeleton = Skeleton::default();

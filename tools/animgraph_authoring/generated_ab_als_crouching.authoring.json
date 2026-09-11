@@ -7,8 +7,8 @@
       "sha256": "42cfbaae5c999aba7ac10f1830194ce4886d0bbd8826e5fd92d06904938b6d03"
     },
     {
-      "path": "target/bf115_overlays/shared_rules_source/0010_AB_Als_Crouching.ue.json",
-      "sha256": "2887510a20bc71573efc1ff374ca9df1136074bed4d7a3cee11bf4c07e656343"
+      "path": "target/bf115_layering_full/native_source/0010_AB_Als_Crouching.ue.json",
+      "sha256": "7d0a1d1a4ac5c455c411f1ce3f03be5ed9e7bc7e8d66868d092e723c4e613a8f"
     },
     {
       "path": "target/bf115_crouching/source/AIS.actions.fresh.ue.json",
@@ -1810,11 +1810,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_overlays/shared_rules_source",
+        "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_overlays/shared_rules_conversion",
+        "target/bf115_layering_full/conversion",
         "--spec",
-        "target/bf115_overlays/shared_rules_spec.json",
+        "target/bf115_layering_full/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]

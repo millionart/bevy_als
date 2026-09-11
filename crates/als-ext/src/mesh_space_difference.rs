@@ -11,8 +11,6 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const SCALE_EPSILON: f32 = 1e-6;
-
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -78,26 +76,6 @@ fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[BoneId]) -> Has
     rotations
 }
 
-fn scale_difference_component(base: f32, target: f32) -> f32 {
-    if base.abs() <= SCALE_EPSILON {
-        0.0
-    } else {
-        target / base - 1.0
-    }
-}
-
-fn scale_difference(base: Vec3, target: Vec3) -> Vec3 {
-    Vec3::new(
-        scale_difference_component(base.x, target.x),
-        scale_difference_component(base.y, target.y),
-        scale_difference_component(base.z, target.z),
-    )
-}
-
-fn non_zero_scale_difference(value: Vec3) -> Option<Vec3> {
-    (value.abs().max_element() > SCALE_EPSILON).then_some(value)
-}
-
 fn default_transform(skeleton: &Skeleton, bone: BoneId) -> Transform {
     skeleton
         .default_transforms(bone)
@@ -122,14 +100,8 @@ fn scale_difference_for_bone(
     target: Option<Vec3>,
     default: Vec3,
 ) -> Option<Vec3> {
-    target.and_then(|target| {
-        let difference = match base.and_then(|bone| bone.scale) {
-            Some(base) => scale_difference(base, target),
-            None if base.is_none() => scale_difference(default, target),
-            None => target - Vec3::ONE,
-        };
-        non_zero_scale_difference(difference)
-    })
+    target.and_then(|target| crate::reference_local_difference::scale_difference(
+        target, base.and_then(|bone| bone.scale).unwrap_or(default)))
 }
 
 fn weights_difference(base: Option<&BonePose>, target: Option<&Vec<f32>>) -> Option<Vec<f32>> {

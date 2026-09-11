@@ -388,6 +388,7 @@ impl Default for SourceApplyAdditiveNode {
 
 impl NodeLike for SourceApplyAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let mut base = ctx.data_back("Base")?.into_pose()?;
         let raw = if self.use_constant_alpha {
             self.constant_alpha
         } else if self.expose_alpha_pin {
@@ -411,7 +412,6 @@ impl NodeLike for SourceApplyAdditiveNode {
             self.decreasing_speed,
             delta,
         );
-        let mut base = ctx.data_back("Base")?.into_pose()?;
         let additive_is_relevant = alpha > 1e-5;
         if additive_is_relevant {
             let additive = ctx.data_back("Additive")?.into_pose()?;
@@ -497,6 +497,7 @@ impl Default for SourceMeshSpaceAdditiveNode {
 
 impl NodeLike for SourceMeshSpaceAdditiveNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let mut base = ctx.data_back("Base")?.into_pose()?;
         let raw = if self.use_constant_alpha {
             self.constant_alpha
         } else if self.expose_alpha_pin {
@@ -520,7 +521,6 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
             self.decreasing_speed,
             delta,
         );
-        let mut base = ctx.data_back("Base")?.into_pose()?;
         if let Some(skeleton) = ctx
             .graph_context
             .resources
@@ -529,7 +529,8 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
         {
             materialize_missing_reference_bones(&mut base, skeleton);
         }
-        if alpha.abs() > f32::EPSILON {
+        let additive_is_relevant = alpha > 1e-5;
+        if additive_is_relevant {
             let additive = ctx.data_back("Additive")?.into_pose()?;
             if ctx
                 .graph_context
@@ -551,23 +552,11 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
         let base_context = pose_input_context_state(&ctx, "Base");
-        let additive_context = pose_input_context_state(&ctx, "Additive");
-        let additive_is_relevant = alpha > f32::EPSILON;
-        let mut context = if additive_is_relevant {
-            additive_context.clone().or(base_context.clone())
-        } else {
-            base_context.clone().or(additive_context.clone())
-        }
-        .unwrap_or_default();
-        context.relevant_asset = select_relevant_asset([
-            (
-                additive_context.and_then(|context| context.relevant_asset),
-                if additive_is_relevant { 1.0 } else { 0.0 },
-            ),
-            (
-                base_context.and_then(|context| context.relevant_asset),
-                if additive_is_relevant { 0.0 } else { 1.0 },
-            ),
+        let additive_context = additive_is_relevant
+            .then(|| pose_input_context_state(&ctx, "Additive")).flatten();
+        let context = blend_animation_contexts([
+            (base_context.unwrap_or_default(), 1.0),
+            (additive_context.unwrap_or_default(), alpha),
         ]);
         ctx.state_mut::<SourceBlendState>()?.context = context;
         Ok(())
@@ -631,10 +620,21 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
             .skeleton_assets
             .get(&base.skeleton)
             .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        let difference =
+        let mut difference =
             make_dynamic_additive_difference(&base, &additive, skeleton, self.mesh_space_additive);
+        difference.timestamp = additive.timestamp;
         ctx.set_time(difference.timestamp);
         ctx.set_data_fwd("Pose", difference);
+        let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
+        let mut context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
+        merge_sync_players(&mut context.sync_players, &base_context.sync_players, 1.0);
+        merge_inertialization_request(&mut context.inertialization_request, base_context.inertialization_request.as_ref());
+        context.relevant_asset = select_relevant_asset([(base_context.relevant_asset, 1.0), (context.relevant_asset, 1.0)]);
+        context.curves_are_authoritative |= base_context.curves_are_authoritative;
+        for (key, value) in base_context.curves {
+            *context.curves.entry(key).or_default() -= value;
+        }
+        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         Ok(())
     }
 
@@ -711,7 +711,7 @@ impl NodeLike for SourceCurvesBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let base = ctx.data_back("BasePose")?.into_pose()?;
         let base_context = pose_input_context_state(&ctx, "BasePose").unwrap_or_default();
-        let context = if self.blend_amount.abs() <= f32::EPSILON {
+        let context = if self.blend_amount <= 1e-5 {
             base_context
         } else {
             ctx.data_back("CurvePose")?.into_pose()?;
@@ -1065,6 +1065,92 @@ impl NodeLike for SourceCurveModifyNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_additive_nodes_match_curve_arithmetic_and_base_update_order() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources}, edge_data::DataValue, pose::BonePose,
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, skeleton)): In<(Handle<AnimationGraph>, Handle<Skeleton>)>, resources: SystemResources) -> (Pose, AnimationContextState, bool) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut inputs = HashMap::from([("alpha".into(), DataValue::F32(0.13))]);
+            for (name, scale, timestamp) in [("Base", 2.0, 1.0), ("Additive", 3.0, 7.0)] {
+                let mut pose = Pose { skeleton: skeleton.clone(), timestamp, ..default() };
+                pose.add_bone(BonePose::from_transform(Transform::from_scale(Vec3::splat(scale))), default());
+                inputs.insert(name.into(), DataValue::Pose(pose));
+            }
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let pose = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone())
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+            let curves = crate::animation_context::graph_output_context_state(graph, &context, "Pose").unwrap_or_default();
+            let additive = graph.nodes.values().find(|node| node.name == "Additive").unwrap();
+            let updated = arena.get_toplevel().node_caches.is_updated(additive.id, StateKey::Default);
+            (pose, curves, updated)
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+        let mut failures = Vec::new();
+        for kind in ["apply_local", "apply_mesh", "difference_local", "difference_mesh", "curves_accumulate", "curves_override"] {
+            let dynamic = kind.starts_with("difference");
+            let mesh = kind.ends_with("mesh");
+            let curves_only = kind.starts_with("curves");
+            for alpha in [-0.25, 0.0, 0.000005, 0.00001, 0.00002, 0.25, 0.75, 1.0] {
+                let mut graph = AnimationGraph::new();
+                let node = if curves_only { AnimationNode::new("operator", SourceCurvesBlendNode { blend_amount: alpha, blend_mode: if kind == "curves_override" { SourceCurvesBlendMode::Override } else { SourceCurvesBlendMode::Accumulate } }) }
+                    else if dynamic { AnimationNode::new("operator", SourceMakeDynamicAdditiveNode { mesh_space_additive: mesh }) }
+                    else if mesh { AnimationNode::new("operator", SourceMeshSpaceAdditiveNode { alpha_key: "alpha".into(), expose_alpha_pin: false, mapping: SourceAlphaMapping { source_semantics: true, ..default() }, ..default() }) }
+                    else { AnimationNode::new("operator", SourceApplyAdditiveNode { alpha_key: "alpha".into(), expose_alpha_pin: false, mapping: SourceAlphaMapping { source_semantics: true, ..default() }, ..default() }) };
+                graph.add_node(node.clone());
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(node.id, "Pose", "Pose");
+                for (name, curves, values) in [("Base", ["Shared", "BaseOnly"], [0.2, 0.5]), ("Additive", ["Shared", "AdditiveOnly"], [0.8, 0.4])] {
+                    let input = AnimationNode::new(name, crate::GlobalPoseInputNode { key: name.into(), output: "Pose".into() });
+                    let curve = AnimationNode::new("curves", SourceCurveModifyNode { curve_names: curves.map(String::from).to_vec(), pin_defaults: values.to_vec(), source_pose_pin: "Source".into(), alpha: 1.0, ..default() });
+                    graph.add_node(input.clone());
+                    graph.add_node(curve.clone());
+                    graph.add_node_parameter_edge(input.id, "Pose", curve.id, "Source");
+                    let source = if name == "Base" {
+                        let writer = AnimationNode::new("base_update", crate::source_instance::SourcePropertyWriteNode {
+                            assignments: vec![crate::source_instance::SourcePropertyAssignment { property: "alpha".into(), value: DataValue::F32(alpha) }], ..default()
+                        });
+                        graph.add_node(writer.clone());
+                        graph.add_node_parameter_edge(curve.id, "Pose", writer.id, "Source");
+                        writer.id
+                    } else { curve.id };
+                    let pin = if curves_only { if name == "Base" { "BasePose" } else { "CurvePose" } } else { name };
+                    graph.add_node_parameter_edge(source, "Pose", node.id, pin);
+                }
+                let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                let (pose, context, updated) = world.run_system_cached_with(query, (handle, skeleton.clone())).unwrap();
+                let effective = if alpha > 1e-5 { alpha } else { 0.0 };
+                let expected = if dynamic { [0.6, -0.5, 0.4] }
+                    else if kind == "curves_override" && effective > 0.0 { [0.8 * effective, 0.0, 0.4 * effective] }
+                    else { [0.2 + 0.8 * effective, 0.5, 0.4 * effective] };
+                let curve_match = ["Shared", "BaseOnly", "AdditiveOnly"].into_iter().zip(expected)
+                    .all(|(key, value)| (context.curves.get(key).copied().unwrap_or_default() - value).abs() < 1e-6);
+                let expected_scale = if dynamic { 0.5 } else if curves_only { 2.0 } else { 2.0 * (1.0 + 3.0 * effective) };
+                let scale_match = pose.get_bone(default()).and_then(|bone| bone.scale).is_some_and(|scale| scale.abs_diff_eq(Vec3::splat(expected_scale), 1e-6));
+                if !curve_match || !scale_match || updated != (dynamic || effective > 0.0) || pose.timestamp != if dynamic { 7.0 } else { 1.0 } {
+                    failures.push(format!("{kind} alpha={alpha}: curves={:?}, scale={:?}, updated={updated}, time={}", context.curves, pose.get_bone(default()).and_then(|bone| bone.scale), pose.timestamp));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 
     #[test]
     fn source_pose_blends_accumulate_weighted_quaternions_before_normalizing() {
