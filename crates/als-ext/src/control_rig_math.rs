@@ -1,8 +1,95 @@
+use als_core::animation::inv_exp_approx;
 use bevy::{
     math::{DQuat, DVec3, EulerRot},
     prelude::Reflect,
 };
 use serde::{Deserialize, Serialize};
+
+pub fn rig_sin_cos(value: f32) -> (f32, f32) {
+    let quotient = (std::f32::consts::FRAC_1_PI * 0.5) * value;
+    let quotient = (if value >= 0.0 {
+        quotient + 0.5
+    } else {
+        quotient - 0.5
+    }) as i64 as f32;
+    let mut y = value - std::f32::consts::TAU * quotient;
+    let sign = if y > std::f32::consts::FRAC_PI_2 {
+        y = std::f32::consts::PI - y;
+        -1.0
+    } else if y < -std::f32::consts::FRAC_PI_2 {
+        y = -std::f32::consts::PI - y;
+        -1.0
+    } else {
+        1.0
+    };
+    let y2 = y * y;
+    let sine = (((((-2.3889859e-8 * y2 + 2.7525562e-6) * y2 - 0.00019840874) * y2 + 0.0083333310)
+        * y2
+        - 0.16666667)
+        * y2
+        + 1.0)
+        * y;
+    let cosine =
+        ((((-2.6051615e-7 * y2 + 2.4760495e-5) * y2 - 0.0013888378) * y2 + 0.041666638) * y2 - 0.5)
+            * y2
+            + 1.0;
+    (sine, sign * cosine)
+}
+
+pub fn rig_spring_damper(
+    value: &mut f32,
+    velocity: &mut f32,
+    target: f32,
+    target_velocity: f32,
+    delta_seconds: f32,
+    frequency: f32,
+    damping: f32,
+) {
+    if delta_seconds <= 0.0 {
+        return;
+    }
+    let w = frequency * std::f32::consts::TAU;
+    if w < 1e-8 {
+        *value += *velocity * delta_seconds;
+        return;
+    }
+    if damping < 1e-8 {
+        let error = *value - target;
+        let b = *velocity / w;
+        let (sine, cosine) = rig_sin_cos(w * delta_seconds);
+        *value = target + error * cosine + b * sine;
+        *velocity = *velocity * cosine - error * (w * sine);
+        return;
+    }
+    let smoothing_time = 2.0 / w;
+    let adjusted_target = target + target_velocity * (damping * smoothing_time);
+    let error = *value - adjusted_target;
+    if damping > 1.0 {
+        let wd = w * (damping * damping - 1.0).sqrt();
+        let c2 = -(*velocity + (w * damping - wd) * error) / (2.0 * wd);
+        let c1 = error - c2;
+        let a1 = wd - damping * w;
+        let a2 = -(wd + damping * w);
+        let e1 = inv_exp_approx(-a1 * delta_seconds);
+        let e2 = inv_exp_approx(-a2 * delta_seconds);
+        *value = adjusted_target + e1 * c1 + e2 * c2;
+        *velocity = e1 * c1 * a1 + e2 * c2 * a2;
+    } else if damping < 1.0 {
+        let wd = w * (1.0 - damping * damping).sqrt();
+        let b = (*velocity + error * (damping * w)) / wd;
+        let (sine, cosine) = rig_sin_cos(wd * delta_seconds);
+        let e = inv_exp_approx(damping * w * delta_seconds);
+        *value = e * (error * cosine + b * sine);
+        *velocity = -*value * damping * w;
+        *velocity += e * (b * (wd * cosine) - error * (wd * sine));
+        *value += adjusted_target;
+    } else {
+        let c2 = *velocity + error * w;
+        let e = inv_exp_approx(w * delta_seconds);
+        *value = adjusted_target + (error + c2 * delta_seconds) * e;
+        *velocity = (c2 - error * w - c2 * (w * delta_seconds)) * e;
+    }
+}
 
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RigValue {
@@ -79,6 +166,46 @@ mod tests {
     use super::*;
     use RigMathOp::*;
     use RigValue::*;
+
+    #[test]
+    fn control_rig_spring_math_matches_native_float_branches() {
+        for (frequency, damping, dt, expected, expected_velocity) in [
+            (1.0, 0.0, 0.25, 1.03183114528656, 6.28318452835083),
+            (1.0, 0.5, 0.25, 0.6947076320648193, 3.3561625480651855),
+            (1.0, 1.0, 0.25, 0.5058176517486572, 2.2804200649261475),
+            (1.0, 2.0, 0.25, 0.35566431283950806, 1.3820037841796875),
+            (0.0, 1.0, 0.25, 0.05, 0.2),
+            (-1.0, 1.0, 0.25, 0.05, 0.2),
+            (1.0, -1.0, 0.25, 1.03183114528656, 6.28318452835083),
+            (1.0, 1.0, 0.0, 0.0, 0.2),
+            (1.0, 1.0, -0.25, 0.0, 0.2),
+        ] {
+            let (mut value, mut velocity) = (0.0, 0.2);
+            rig_spring_damper(&mut value, &mut velocity, 1.0, 0.3, dt, frequency, damping);
+            assert!(
+                (value - expected).abs() < 2e-6,
+                "{frequency} {damping} {dt}: {value}"
+            );
+            assert!(
+                (velocity - expected_velocity).abs() < 2e-6,
+                "{frequency} {damping} {dt}: {velocity}"
+            );
+        }
+        for (value, sine, cosine) in [
+            (0.0, 0.0, 1.0),
+            (1.0, 0.8414709568023682, 0.5403022766113281),
+            (-1.0, -0.8414709568023682, 0.5403022766113281),
+            (100.0, -0.5063680410385132, 0.8623174428939819),
+            (-100.0, 0.5063680410385132, 0.8623174428939819),
+            (1000.0, 0.8268652558326721, 0.5624001026153564),
+        ] {
+            let actual = rig_sin_cos(value);
+            assert!(
+                (actual.0 - sine).abs() < 1e-7 && (actual.1 - cosine).abs() < 1e-7,
+                "{value}: {actual:?}"
+            );
+        }
+    }
 
     #[test]
     fn math_preserves_native_precision_boundaries_and_target_axes() {
