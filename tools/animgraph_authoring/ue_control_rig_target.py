@@ -376,6 +376,69 @@ def compile_target(contract):
             "solve_near_zero": 1e-4 * LENGTH, "basis": [source_direction_to_runtime(value) for value in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]}}
 
 
+def definition_ron(target):
+    def atom(value):
+        return json.dumps(value, ensure_ascii=False, allow_nan=False)
+
+    def sequence(values):
+        return "[" + ", ".join(values) + "]"
+
+    def record(values):
+        return "(" + ", ".join(key + ": " + value for key, value in values.items()) + ")"
+
+    def mapping(values, render):
+        return "{" + ", ".join(atom(key) + ": " + render(value) for key, value in values.items()) + "}"
+
+    def optional(value):
+        return "None" if value is None else "Some(" + atom(value) + ")"
+
+    def vector(value):
+        return "(" + ", ".join(atom(number) for number in value) + ")"
+
+    def reference(value):
+        return record({"register": atom(value["register"]), "path": atom(value["path"])})
+
+    def rig_value(value):
+        kind, data = next(iter(value.items()))
+        inner = sequence(rig_value(item) for item in data) if kind == "List" else (
+            vector(data) if kind in {"Vector", "EulerDegrees", "Quaternion"} else atom(data))
+        return kind + "(" + inner + ")"
+
+    def instruction(value):
+        if value == "Exit":
+            return "Exit"
+        kind, data = next(iter(value.items()))
+        fields = {}
+        for key, value in data.items():
+            if key == "operation":
+                fields[key] = value
+            elif key in {"input", "output", "selector"}:
+                fields[key] = reference(value)
+            elif key in {"inputs", "arguments"}:
+                fields[key] = sequence(reference(item) for item in value)
+            elif key == "branches":
+                fields[key] = mapping(value, atom)
+            else:
+                fields[key] = atom(value)
+        return kind + record(fields)
+
+    def transform(value):
+        return record({key: vector(value[key]) for key in ("translation", "rotation", "scale")})
+
+    program = target["program"]
+    return record({
+        "program": record({"initial_values": sequence(rig_value(value) for value in program["initial_values"]),
+            "literal_count": atom(program["literal_count"]), "entries": mapping(program["entries"], atom),
+            "instructions": sequence(instruction(value) for value in program["instructions"])}),
+        "externals": mapping(target["externals"], reference),
+        "bones": sequence(record({"name": atom(bone["name"]), "parent": optional(bone["parent"]),
+            "initial_local": transform(bone["initial_local"]), "initial_global": transform(bone["initial_global"])}) for bone in target["bones"]),
+        "curves": mapping(target["curves"], optional), "translation_tolerance": atom(target["translation_tolerance"]),
+        "geometry": record({key: "(" + ", ".join(vector(axis) for axis in value) + ")" if key == "basis" else atom(value)
+            for key, value in target["geometry"].items()}),
+    })
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--contract", type=Path, required=True)

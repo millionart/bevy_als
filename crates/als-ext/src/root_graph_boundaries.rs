@@ -856,14 +856,26 @@ mod tests {
         let mut registry = bevy::reflect::TypeRegistry::default();
         registry.register::<ControlRigBoundaryNode>();
         let encoded = ron::ser::to_string(&ReflectSerializer::new(&node, &registry)).unwrap();
-        let mut deserializer = ron::de::Deserializer::from_str(&encoded).unwrap();
-        let reflected = ReflectDeserializer::new(&registry)
-            .deserialize(&mut deserializer)
-            .unwrap();
-        let decoded = ControlRigBoundaryNode::from_reflect(reflected.as_partial_reflect()).unwrap();
-        assert_eq!(
-            decoded.definition.unwrap().program,
-            node.definition.unwrap().program
-        );
+        let graph: bevy_animation_graph::core::animation_graph::serial::AnimationGraphDeserializer =
+            ron::from_str(include_str!("../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron")).unwrap();
+        let generated = graph.nodes.iter().find(|node| node.inner.get_ron().contains("als_ext::ControlRigBoundaryNode")).unwrap();
+        for (source, encoded) in [encoded.as_str(), generated.inner.get_ron()].into_iter().enumerate() {
+            let mut deserializer = ron::de::Deserializer::from_str(encoded).unwrap();
+            let reflected = ReflectDeserializer::new(&registry)
+                .deserialize(&mut deserializer)
+                .unwrap_or_else(|error| panic!("{}", deserializer.span_error(error)));
+            let decoded = ControlRigBoundaryNode::from_reflect(reflected.as_partial_reflect()).unwrap();
+            let actual = decoded.definition.expect("generated rig definition is missing");
+            let expected = node.definition.as_ref().unwrap();
+            assert_eq!(actual.bones.len(), expected.bones.len());
+            for (actual, expected) in actual.bones.iter().zip(&expected.bones) {
+                assert_eq!(serde_json::to_value(actual).unwrap(), serde_json::to_value(expected).unwrap(), "source {source}, bone {}", actual.name);
+            }
+            assert_eq!(actual.program, expected.program);
+            assert_eq!(actual.externals, expected.externals);
+            assert_eq!(actual.curves, expected.curves);
+            assert_eq!(actual.translation_tolerance, expected.translation_tolerance);
+            assert_eq!(serde_json::to_value(actual.geometry).unwrap(), serde_json::to_value(&expected.geometry).unwrap());
+        }
     }
 }

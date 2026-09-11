@@ -36,6 +36,8 @@ from ue_animgraph_reachability import traverse
 from ue_animgraph_fsm_contract import FsmContractError, fsm_contract
 from ue_animgraph_fsm_renderer import FsmRenderError, render_plan as render_fsm_plan
 from ue_animgraph_lifecycle import LifecycleRenderError, resolve_lifecycle
+from ue_control_rig_contract import ControlRigContractError, compile_contract as compile_rig_contract
+from ue_control_rig_target import STRUCT_FIELDS as RIG_STRUCT_FIELDS, compile_target as compile_rig_target
 from ue_animgraph_materializer import (
     MaterializationError,
     asset_namespace,
@@ -1309,6 +1311,23 @@ def build_sync_group_plans(source_asset, graphs, animation_assets):
     return plans, supported, issues
 
 
+def resolve_control_rig_program(semantic, content_root, mount, source_reader):
+    if semantic.get("rig_input_binding_path") != "GetControlRigInput":
+        raise ConversionError("control rig input function is unsupported")
+    source_path = semantic["rig_asset"]
+    uasset = uasset_for_generated_anim_blueprint(source_path, content_root, mount)
+    source, _ = read_uasset_source(uasset, content_root, mount, source_reader, 300, 150)
+    contract = compile_rig_contract(source)
+    target = compile_rig_target(contract)
+    external = [row for row in contract["program"]["memories"]["External"] if row["name"] == "RigInput"]
+    if len(external) != 1 or external[0]["cpp_type"] != "FAlsControlRigInput":
+        raise ConversionError("control rig input type does not match its source function")
+    bindings = [{"external": external[0]["name"], "path": [index],
+        "property": source_property_key("ControlRigInput." + field.split(":")[0])}
+        for index, field in enumerate(RIG_STRUCT_FIELDS["FAlsControlRigInput"].split())]
+    return {"definition": target, "input_bindings": bindings}
+
+
 def build_ir(
     source,
     root_graph,
@@ -1408,6 +1427,14 @@ def build_ir(
             assets,
             linked_graph_targets,
         )
+        for node in graph_value["nodes"]:
+            if node.get("renderer") == "control_rig" and node.get("semantic") is not None:
+                try:
+                    node["semantic"].update(resolve_control_rig_program(
+                        node["semantic"], source_content_root, source_mount, source_reader))
+                except (ConversionError, ControlRigContractError, KeyError, TypeError, AttributeError) as error:
+                    graph_unsupported.append({"kind": "source_control_rig_program_unsupported",
+                        "source_node": node["source_node"], "detail": str(error)})
         if entry["kind"] == "transition":
             try:
                 graph_value["gameplay_tag_providers"] = transition_renderer().gameplay_tag_providers(value)

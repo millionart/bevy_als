@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 import generate_ue_transition_expression_graph as scalar_renderer
 from coordinate_basis import source_heading_yaw_degrees_to_runtime
+from ue_control_rig_target import definition_ron
 
 
 class PoseRenderError(ValueError):
@@ -988,9 +989,17 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + "], selector: \"layer_index\")",
         )
     if renderer == "control_rig":
+        if not isinstance(value.get("definition"), dict) or not value.get("input_bindings"):
+            raise PoseRenderError("control rig executable program or input bindings are unavailable")
+        try:
+            definition = definition_ron(value["definition"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise PoseRenderError("control rig target definition is invalid") from error
+        bindings = ["(external: " + quoted(binding["external"]) + ", path: " + json.dumps(binding["path"])
+            + ", property: " + quoted(binding["property"]) + ")" for binding in value["input_bindings"]]
         return (
             "als_ext::ControlRigBoundaryNode",
-            "(rig_class: "
+            "(definition: Some(" + definition + "), input_bindings: [" + ", ".join(bindings) + "], rig_class: "
             + quoted(value["rig_class"])
             + ", alpha_enabled: "
             + bool_ron(value["alpha_enabled"])
@@ -2042,25 +2051,12 @@ def run_self_test():
     )
     assert snapshot_type == "als_ext::GlobalPoseInputNode"
     assert 'output: "Pose"' in snapshot_inner
-    control_rig_type, control_rig_inner = rendered_inner(
-        graph_contract,
-        {},
-        {
-            "renderer": "control_rig",
-            "semantic": {
-                "rig_class": "CR_Als",
-                "alpha_enabled": True,
-                "transfer_input_pose": True,
-                "transfer_input_curves": True,
-                "transfer_pose_in_global_space": False,
-            },
-        },
-        {},
-        {},
-    )
-    assert control_rig_type == "als_ext::ControlRigBoundaryNode"
-    assert 'rig_class: "CR_Als"' in control_rig_inner
-    assert "capture_context: true" in control_rig_inner
+    try:
+        rendered_inner(graph_contract, {}, {"renderer": "control_rig", "semantic": {}}, {}, {})
+    except PoseRenderError as error:
+        assert "executable program or input bindings" in str(error)
+    else:
+        raise AssertionError("control rig without a program was accepted")
     fsm_type, fsm_inner = rendered_inner(
         graph_contract,
         {},
@@ -2557,7 +2553,7 @@ def run_self_test():
         "source_gameplay_tag_blend_is_rendered": "PASS",
         "source_gameplay_tag_scalar_contract_is_rendered": "PASS",
         "source_pose_snapshot_is_rendered": "PASS",
-        "source_control_rig_context_transfer_is_rendered": "PASS",
+        "source_control_rig_requires_executable_program": "PASS",
         "source_state_machine_uses_internal_delta_time": "PASS",
         "source_set_hips_direction_is_rendered": "PASS",
         "source_enum_pose_blend_is_rendered": "PASS",

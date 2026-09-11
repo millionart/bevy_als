@@ -2,6 +2,7 @@ import argparse
 import copy
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from ue_control_rig_contract import ControlRigContractError, compile_contract
 from ue_control_rig_target import compile_target, f32
@@ -83,15 +84,78 @@ def validate(contract, result):
             raise AssertionError("invalid target contract was accepted: " + message)
 
 
+def validate_assembly(root, source, result):
+    import ue_animgraph_converter as converter
+    from extract_ue_visible_graph_contract import contract
+    from ue_animgraph_pose_contract import control_rig_contract
+    from ue_animgraph_pose_renderer import PoseRenderError, rendered_inner
+
+    graph = contract(root, "AnimGraph")
+    node = next(node for node in graph["source_graph"]["nodes"] if node["class_path"].endswith(".AnimGraphNode_ControlRig"))
+    semantic, issues = control_rig_contract(node)
+    assert not issues, issues
+
+    def assemble(semantic, native):
+        with patch.object(converter, "uasset_for_generated_anim_blueprint", return_value=Path("fixture.uasset")) as resolve, patch.object(
+                converter, "read_uasset_source", return_value=(native, {})):
+            assembled = converter.resolve_control_rig_program(semantic, None, None, None)
+            assert resolve.call_args.args[0] == semantic["rig_asset"]
+            return {**semantic, **assembled}
+
+    assembled = assemble(semantic, source)
+    assert assembled["definition"] == result
+    assert [binding["property"] for binding in assembled["input_bindings"]] == ["control_rig_input." + field for field in (
+        "b_use_hand_ik_bones", "b_use_foot_ik_bones", "b_foot_transforms_valid", "velocity_blend_forward_amount",
+        "velocity_blend_backward_amount", "spine_yaw_angle", "pelvis_offset_amount", "foot_left_location",
+        "foot_left_rotation", "foot_right_location", "foot_right_rotation")]
+    assert [binding["path"] for binding in assembled["input_bindings"]] == [[index] for index in range(11)]
+    assert all(binding["external"] == "RigInput" for binding in assembled["input_bindings"])
+    kind, rendered = rendered_inner(graph, node, {"renderer": "control_rig", "semantic": assembled}, {}, {})
+    assert "definition: Some(" in rendered and "input_bindings: [(external:" in rendered
+    renamed_path = "/Fixture/RenamedRig.RenamedRig"
+    renamed_source = json.loads(json.dumps(source).replace(source["asset_path"], renamed_path))
+    renamed_node = json.loads(json.dumps(node).replace(source["asset_path"], renamed_path))
+    renamed_node["node_guid"] = "f909857b-7664-4633-8497-36721dfe3831"
+    renamed_node["object_path"] = "/Fixture/RenamedRoot:AnimGraph.RenamedNode"
+    renamed, issues = control_rig_contract(renamed_node)
+    assert not issues and renamed["rig_class"] == "RenamedRig"
+    assert assemble(renamed, renamed_source)["definition"] == result
+    changed = copy.deepcopy(source)
+    register = compile_contract(source)["program"]["instructions"][31]["operands"][2]["register"]
+    next(row for row in changed["rig_vm"]["literal"]["properties"] if row["index"] == register)["exported_text"] = "60.0"
+    modified = assemble(semantic, changed)["definition"]
+    assert read(modified, modified["program"]["instructions"][31]["Call"]["arguments"][2]) == {"F32": f32(0.6)}
+    for key in ("definition", "input_bindings"):
+        incomplete = {key_: value for key_, value in assembled.items() if key_ != key}
+        try:
+            rendered_inner(graph, node, {"renderer": "control_rig", "semantic": incomplete}, {}, {})
+        except PoseRenderError:
+            pass
+        else:
+            raise AssertionError("incomplete rig assembly was accepted")
+    incomplete = {key: value for key, value in source.items() if key != "rig_vm"}
+    try:
+        assemble(semantic, incomplete)
+    except ControlRigContractError as error:
+        assert "complete native defaults and execution" in str(error), error
+    else:
+        raise AssertionError("rig source without execution was accepted")
+    return "{" + json.dumps(kind) + ": " + rendered + "}\n"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--native-fixture", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--root-fixture", type=Path)
     args = parser.parse_args()
     source = json.loads(args.native_fixture.read_text(encoding="utf-8"))
     contract = compile_contract(source)
     result = compile_target(contract)
     validate(contract, result)
+    if args.root_fixture:
+        root = json.loads(args.root_fixture.read_text(encoding="utf-8"))
+        args.output.with_suffix(".node.ron").write_text(validate_assembly(root, source, result), encoding="utf-8")
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"target_program": "PASS", "instructions": 165}))
 

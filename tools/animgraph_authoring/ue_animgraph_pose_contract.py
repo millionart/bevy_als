@@ -1150,18 +1150,16 @@ def control_rig_contract(node):
     if parse_name(field(fields, "AlphaInputType", "Bool")) != "Bool":
         issues.append(issue(node, renderer, "source_control_rig_alpha_unsupported", "AlphaInputType"))
     reference = parse_struct(field(fields, "ControlRigAssetReference"))
-    rig_class = generated_anim_blueprint_asset(field(reference, "BlueprintRigClass"))
-    if not rig_class:
+    rig_asset = generated_anim_blueprint_asset(field(reference, "BlueprintRigClass"))
+    if not rig_asset:
         raise PoseContractError("control rig class is unavailable")
-    rig_class = rig_class.rsplit(".", 1)[-1]
+    rig_class = rig_asset.rsplit(".", 1)[-1]
     alpha_enabled = visible_input_default(node, "bAlphaBoolEnabled", parse_bool(field(fields, "bAlphaBoolEnabled", "True")), parse_bool)
     transfer_input_pose = parse_bool(field(fields, "bTransferInputPose", "True"))
     transfer_input_curves = parse_bool(field(fields, "bTransferInputCurves", "True"))
     transfer_pose_in_global_space = parse_bool(
         field(fields, "bTransferPoseInGlobalSpace", "False")
     )
-    if rig_class != "CR_Als":
-        issues.append(issue(node, renderer, "source_control_rig_class_unsupported", "ControlRigAssetReference"))
     if not alpha_enabled or input_is_linked(node, "bAlphaBoolEnabled"):
         issues.append(issue(node, renderer, "source_control_rig_alpha_unsupported", "bAlphaBoolEnabled"))
     if not transfer_input_pose:
@@ -1195,6 +1193,7 @@ def control_rig_contract(node):
         "input_pins": inputs,
         "output_pins": outputs,
         "rig_class": rig_class,
+        "rig_asset": rig_asset,
         "alpha_enabled": alpha_enabled,
         "transfer_input_pose": transfer_input_pose,
         "transfer_input_curves": transfer_input_curves,
@@ -1938,8 +1937,9 @@ def run_self_test():
     assert issues[0]["kind"] == "source_control_rig_alpha_unsupported"
     control_rig["pins"][1]["default_value"] = "True"
     control_rig["properties"][0]["exported_text"] = control_rig["properties"][0]["exported_text"].replace("CR_Als", "CR_Unknown")
-    _, issues = pose_contract(control_rig, "control_rig")
-    assert issues[0]["kind"] == "source_control_rig_class_unsupported"
+    renamed, issues = pose_contract(control_rig, "control_rig")
+    assert not issues
+    assert renamed["rig_asset"] == "/Asset/CR_Unknown.CR_Unknown"
     control_rig["properties"][0]["exported_text"] = control_rig["properties"][0]["exported_text"].replace("CR_Unknown", "CR_Als")
     control_rig["pins"][2]["linked_to"] = [{"node_object_path": "/Asset:AnimGraph.Source"}]
     _, issues = pose_contract(control_rig, "control_rig")

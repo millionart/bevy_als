@@ -17,3 +17,6 @@ ron = { workspace = true }
 bevy_animation_graph = { workspace = true }
 bevy_gltf = { workspace = true }
 als-core = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["float_roundtrip"] }
