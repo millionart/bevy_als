@@ -8,6 +8,7 @@ pub mod crouch_transaction;
 pub mod curve;
 pub mod curve_bundle;
 pub mod curve_weighted_samples;
+pub mod control_rig_math;
 pub mod direct_transition_event;
 pub mod distance_match;
 pub mod event_lifecycle;

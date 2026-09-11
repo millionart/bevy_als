@@ -8,7 +8,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from ue_control_rig_contract import VM, REPORT_FORMAT, ControlRigContractError, compile_contract, main as contract_main, scalar_default
+from ue_control_rig_contract import VM, REPORT_FORMAT, MATH_OPERATIONS, ControlRigContractError, compile_contract, compile_math_operation, main as contract_main, scalar_default
 
 
 def fixture():
@@ -107,6 +107,7 @@ def self_test():
     assert scalar_default("uint8", "True") == 1
     source = fixture()
     result = compile_contract(source)
+    assert result["graphs"][2]["nodes"][1].get("math") == {"operation": "F32Mul", "inputs": [0, 1], "output": 2}
     assert semantic(json.loads(json.dumps(result))) == semantic(result)
     assert len(result["graphs"]) == 3
     assert sum(len(graph["nodes"]) for graph in result["graphs"]) == 8
@@ -117,7 +118,7 @@ def self_test():
     assert call["pins"][1]["injections"][0]["node"] == (0, 3)
     assert result["graphs"][0]["nodes"][2]["variable"] == {"name": "Height", "access": "write"}
     assert result["graphs"][0]["nodes"][3]["variable"] == {"name": "Height", "access": "read"}
-    assert not result["runtime_ready"] and len(result["unimplemented_functions"]) == 2
+    assert not result["runtime_ready"] and len(result["unimplemented_functions"]) == 1
     assert not result["unit_defaults_complete"]
     with_defaults = copy.deepcopy(source)
     with_defaults["rig_unit_defaults"] = []
@@ -165,14 +166,12 @@ def self_test():
     repeated_result = compile_contract(repeated)["graphs"][0]["nodes"][1]["pins"][1]["injections"]
     assert len(repeated_result) == 2 and repeated_result[0] == repeated_result[1]
     for text, expected in [("True", True), ("true", True), ("False", False), ("false", False), ("", None)]:
-        changed = mutate(".Multiply.B", "CPPType", "bool")
-        for item in changed["asset_objects"]:
-            if item["object_path"].endswith(".Multiply.B"):
-                next(row for row in item["properties"] if row["name"] == "DefaultValue")["exported_text"] = text
-        assert compile_contract(changed)["graphs"][2]["nodes"][1]["pins"][1]["scalar_default"] is expected
+        assert scalar_default("bool", text) is expected
     failures = [
         (mutate("Main.Link0", "TargetPinPath", "Missing.Input"), "link endpoint"),
         (mutate(".Multiply.B", "CPPType", "UnsupportedType"), "pin type"),
+        (mutate(".Multiply.B", "CPPType", "double"), "math pin schema"),
+        (mutate(".Multiply.B", "Direction", "Output"), "math pin schema"),
         (mutate("Main.Call", "ReferencedFunctionHeader", '(LibraryPointer=(LibraryNodePath="/Missing.Function"))'), "function dependency"),
         (mutate("Main.Call.Amount.Injection", "OutputPin", "Missing.Pin"), "injected pin"),
         (mutate("Main.Call.Amount", "Direction", "Output"), "link direction"),
@@ -197,6 +196,20 @@ def self_test():
             assert expected in str(error), str(error)
         else:
             raise AssertionError("invalid source contract was accepted: " + expected)
+    for signature, (operation, inputs, output_type) in MATH_OPERATIONS.items():
+        pins = [{"name": name, "cpp_type": cpp, "direction": "Input", "id": index * 3 + 1, "parent": None}
+            for index, (name, cpp) in enumerate(inputs)]
+        pins.append({"name": "Result", "cpp_type": output_type, "direction": "Output", "id": 101, "parent": None})
+        node = {"function": signature, "pins": list(reversed(pins)), "source": {"path": "RenamedGraph.OtherNode"}}
+        assert compile_math_operation(node) == {"operation": operation, "inputs": [pin["id"] for pin in pins[:-1]], "output": 101}
+        node["pins"].append({"name": "Extra", "cpp_type": "float", "direction": "Input", "id": 102, "parent": None})
+        try:
+            compile_math_operation(node)
+        except ControlRigContractError as error:
+            assert "math pin schema" in str(error)
+        else:
+            raise AssertionError("extra math input was accepted")
+    assert compile_math_operation({"function": "Unknown::Execute"}) is None
     with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):
         output = Path(directory) / "result.json"
         report = Path(directory) / "report.json"
@@ -230,6 +243,8 @@ def main():
     if args.native_fixture:
         source = json.loads(args.native_fixture.read_text(encoding="utf-8"))
         result = compile_contract(source)
+        math_nodes = [node for graph in result["graphs"] for node in graph["nodes"] if "math" in node]
+        assert {node["function"] for node in math_nodes} == set(MATH_OPERATIONS)
         renamed = json.loads(json.dumps(source).replace(source["asset_path"], "/Fixture/Renamed.Renamed"))
         for view in renamed["graphs"]:
             for node in view["nodes"]:
@@ -243,6 +258,8 @@ def main():
             "injection_objects": len({value["source"]["path"] for graph in result["graphs"] for node in graph["nodes"] for pin in node["pins"] for value in pin["injections"]}),
             "visible_pins": sum(len(node["source"]["pins"]) for view in result["views"] for node in view["nodes"]),
             "native_identity_independence": "PASS"}
+        report["native"]["math_operations"] = len({node["math"]["operation"] for node in math_nodes})
+        report["native"]["math_nodes"] = len(math_nodes)
         if "rig_unit_defaults" in source:
             assert result["unit_defaults_complete"]
             units = [node["native_unit"] for graph in result["graphs"] for node in graph["nodes"] if node["kind"] == "unit"]

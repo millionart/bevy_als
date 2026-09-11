@@ -22,10 +22,36 @@ NODE_KINDS = {
     "RigVMCommentNode": "comment",
 }
 PRIMITIVES = {"bool", "float", "double", "int32", "uint8", "uint16", "FName"}
+MATH_OPERATIONS = {
+    **{"FRigVMFunction_MathFloat" + name + "::Execute": ("F32" + name, [("A", "float"), ("B", "float")], "float")
+        for name in ("Add", "Mul", "Min")},
+    **{"FRigVMFunction_MathDouble" + name + "::Execute": ("F64" + name, [("A", "double"), ("B", "double")], "bool" if name == "GreaterEqual" else "double")
+        for name in ("Add", "Sub", "Mul", "GreaterEqual")},
+    "FRigVMFunction_MathDoubleAbs::Execute": ("F64Abs", [("Value", "double")], "double"),
+    "FRigVMFunction_MathDoubleClamp::Execute": ("F64Clamp", [("Value", "double"), ("Minimum", "double"), ("Maximum", "double")], "double"),
+    "FRigVMFunction_MathDoubleLerp::Execute": ("F64Lerp", [("A", "double"), ("B", "double"), ("T", "double")], "double"),
+    "FAlsRigVMFunction_Clamp01Float::Execute": ("F32Clamp01", [("Value", "float")], "float"),
+    "FRigVMFunction_MathVectorAdd::Execute": ("VectorAdd", [("A", "FVector"), ("B", "FVector")], "FVector"),
+    "FRigVMFunction_MathVectorScale::Execute": ("VectorScale", [("Value", "FVector"), ("Factor", "float")], "FVector"),
+    "FRigVMFunction_MathQuaternionFromRotatorV2::Execute": ("QuaternionFromEulerYzx", [("Value", "FRotator")], "FQuat"),
+}
 
 
 class ControlRigContractError(ValueError):
     pass
+
+
+def compile_math_operation(node):
+    contract = MATH_OPERATIONS.get(node.get("function"))
+    if contract is None:
+        return None
+    operation, inputs, output_type = contract
+    roots = {pin["name"]: pin for pin in node["pins"] if pin["parent"] is None}
+    expected = {name: (cpp_type, "Input") for name, cpp_type in inputs}
+    expected["Result"] = (output_type, "Output")
+    if {name: (pin["cpp_type"], pin["direction"]) for name, pin in roots.items()} != expected:
+        raise ControlRigContractError("source math pin schema does not match: " + node["function"])
+    return {"operation": operation, "inputs": [roots[name]["id"] for name, _ in inputs], "output": roots["Result"]["id"]}
 
 
 def properties(record):
@@ -186,6 +212,9 @@ def compile_contract(source):
                     raise ControlRigContractError("source unit function is unresolved: " + node_path)
                 node["function"] = function
                 node["template"] = node_fields.get("TemplateNotation", "None")
+                math = compile_math_operation(node)
+                if math is not None:
+                    node["math"] = math
                 if kind == "unit" and node_path in unit_defaults:
                     defaults = unit_defaults[node_path]
                     signature = "F" + defaults["script_struct"].rsplit(".", 1)[-1] + "::" + defaults["method"]
@@ -316,7 +345,7 @@ def compile_contract(source):
     cdo = {value["name"]: value for value in source["blueprint_cdo_properties"]}
     variables = [{"name": parse_quoted(value["VarName"]), "type": parse_struct(value["VarType"]),
         "default": cdo[parse_quoted(value["VarName"])]} for value in declared]
-    functions = sorted({node["function"] for model in graphs for node in model["nodes"] if "function" in node})
+    functions = sorted({node["function"] for model in graphs for node in model["nodes"] if "function" in node and "math" not in node})
     return {"format": FORMAT, "source_asset": asset, "roots": roots, "function_library": library,
         "graphs": graphs, "views": views, "variables": variables,
         "rig_hierarchy": copy.deepcopy(source.get("rig_hierarchy", {})),
