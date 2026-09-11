@@ -1040,4 +1040,14 @@
 
   - 07d1完成2026-09-11 21:36:00：316项目测试20.962s、实际target_game/play入口构建75.331s、247 fresh spec2.922s、八个声明式manifest全部PASS（Head3.142s）。两个新fixture覆盖真实安装Head子图经源Linked入口求值、三样本、off/on回调、稀疏基准误判及空输出拒绝；复用已有姿态/源算法/超时函数，无新运行算法或状态框架。开始21:08、预估21:53、实际21:36（偏差-17m），结果静态完成；尚未通过真实Head运动，01c/03b/04b有限迁移仍未勾选。
 
-- [ ] BF115.07d2 Head与共享Evaluator真实Gate：开始2026-09-11 21:36:00、预估22:11:00。依赖07d1；按公共startup→head→standing_direction→crouching→locomotion验证，全部使用原Playground与CaptureCount0。估时依据为刚完成的316项目/同入口/八manifest、七Head窗口、前轮已记录的共享场景运行规模；复用现有无进展守卫和严格源姿态/时间/性能门限。Head检查实际回调/clip/权重/mesh/output、七输入窗口与Actor投影；共享范围限完整重转换已证实的五文件diff。首个失败先读取证据并定位source链，修复静态闭环后才重跑受影响场景；本段Gate完成后勾选01c/03b/04b有限迁移，再按既定顺序进入CR_Als。
+- [x] BF115.07d2 Head与共享Evaluator真实Gate：开始2026-09-11 21:36:00、预估22:11:00。依赖07d1；按公共startup→head→standing_direction→crouching→locomotion验证，全部使用原Playground与CaptureCount0。估时依据为刚完成的316项目/同入口/八manifest、七Head窗口、前轮已记录的共享场景运行规模；复用现有无进展守卫和严格源姿态/时间/性能门限。Head检查实际回调/clip/权重/mesh/output、七输入窗口与Actor投影；共享范围限完整重转换已证实的五文件diff。首个失败先读取证据并定位source链，修复静态闭环后才重跑受影响场景；本段Gate完成后勾选01c/03b/04b有限迁移，再按既定顺序进入CR_Als。
+
+  - 07d2 startup完成2026-09-11 21:38:00：公共原场景15.257s PASS，manual/validator均exit0，fault/temporal/graph-error均0，截图0；二进制与07d1静态Gate一致。Head及共享动态窗口尚未运行，下一步同入口head七窗口。
+
+  - 07d2 Head完成2026-09-11 21:40:00：公共head18.650s PASS，七窗口/14覆盖全部通过，674性能样本frame p95/max18.823/22.852ms；实际回调、三Look样本、前帧alpha、源函数结果、Actor投影和Mesh Additive/output数值全部通过，第一人称unscaled pitch已覆盖。fault/temporal/graph-error均0，截图0，未改原守卫；下一步只执行已证明受影响的Standing方向/Crouching/Locomotion共享Gate。
+
+  - 07d2 Standing方向完成2026-09-11 21:41:00：公共standing_direction40.699s PASS，原运动/源图窗口与严格数值Gate通过，manual/validator均exit0；未重开既往通过的算法条目。下一步同入口crouching，再locomotion。
+
+  - 07d2 Crouching完成2026-09-11 21:43:00：公共crouching45.422s PASS，manual/validator均exit0，原方向、姿态和切换窗口通过；剩余共享Gate仅locomotion，继续使用同一已验收二进制。
+
+  - 07d2完成2026-09-11 21:45:00：公共locomotion32.094s PASS，14窗口/18覆盖全部通过。五场公共运行均manual/validator exit0、fault/temporal/graph-error均0、截图0；Standing方向11窗口/5覆盖、Crouching12窗口/7覆盖也已核对，未改性能/时间/姿态守卫。本段开始21:36、预估22:11、实际21:45（偏差-26m），结果Head及共享运行Gate完成，无新增修复或拆分。Head源转换、图回调、Actor输入/投影和实际输出已闭环；01c/03b/04b的五文件有限迁移据此分别勾选提交，下一任务为CR_Als源边界取证。
