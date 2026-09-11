@@ -519,18 +519,27 @@ def main():
     parser.add_argument("--mount", default="/ALS")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--target-output", type=Path)
     args = parser.parse_args()
     from ue_animgraph_converter import ROOT, ConversionError, read_uasset_source, write_json
     try:
         source_record = args.output.with_suffix(".ue.json")
         if args.output.exists() or source_record.exists():
             raise ControlRigContractError("source record or output already exists")
+        if args.target_output and args.target_output.resolve() in {path.resolve() for path in (args.output, source_record, args.report)}:
+            raise ControlRigContractError("target output overlaps a source record or report")
         source, _ = read_uasset_source(args.uasset, args.content_root, args.mount,
             ROOT / "tools/run_ue_source_reader.ps1", 300, 150)
         write_json(source_record, source)
         result = compile_contract(source)
+        if args.target_output:
+            from ue_control_rig_target import compile_target
+            target = compile_target(result)
+            write_json(args.target_output, target)
+            result["runtime_ready"] = True
+            result["unimplemented_functions"] = []
         write_json(args.output, result)
-        report = {"format": REPORT_FORMAT, "success": True, "runtime_ready": False,
+        report = {"format": REPORT_FORMAT, "success": True, "runtime_ready": result["runtime_ready"],
             "unit_defaults_complete": result["unit_defaults_complete"],
             "execution_contract_complete": result["execution_contract_complete"],
             "instructions": len(result.get("program", {}).get("instructions", [])),

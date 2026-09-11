@@ -628,6 +628,21 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
 TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    TArray<TSharedPtr<FJsonValue>> Elements;
+    for (const FRigElementKey& Key : Hierarchy->GetAllKeys())
+    {
+        TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();
+        Element->SetStringField(TEXT("name"), Key.Name.ToString());
+        Element->SetStringField(TEXT("type"), StaticEnum<ERigElementType>()->GetNameStringByValue(static_cast<int64>(Key.Type)));
+        if (Key.Type == ERigElementType::Curve)
+        {
+            Element->SetBoolField(TEXT("value_set"), Hierarchy->IsCurveValueSet(Key));
+            Element->SetNumberField(TEXT("value"), Hierarchy->GetCurveValue(Key));
+        }
+        Elements.Add(MakeShared<FJsonValueObject>(Element));
+    }
+    Value->SetArrayField(TEXT("elements"), Elements);
+    Value->SetNumberField(TEXT("element_count"), Hierarchy->Num());
     TArray<TSharedPtr<FJsonValue>> Bones;
     for (const FRigElementKey& Key : Hierarchy->GetBoneKeys())
     {

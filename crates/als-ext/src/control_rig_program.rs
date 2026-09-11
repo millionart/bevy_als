@@ -3,7 +3,11 @@ use std::{collections::BTreeMap, fmt};
 use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::control_rig_math::{RigMathOp, RigValue};
+use crate::{
+    control_rig_hierarchy::RigBone,
+    control_rig_ik::RigGeometry,
+    control_rig_math::{RigMathOp, RigValue},
+};
 
 #[derive(Reflect, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RigValueRef {
@@ -122,6 +126,16 @@ pub struct RigProgram {
     pub literal_count: usize,
     pub entries: BTreeMap<String, usize>,
     pub instructions: Vec<RigInstruction>,
+}
+
+#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+pub struct RigDefinition {
+    pub program: RigProgram,
+    pub externals: BTreeMap<String, RigValueRef>,
+    pub bones: Vec<RigBone>,
+    pub curves: BTreeMap<String, Option<f32>>,
+    pub translation_tolerance: f64,
+    pub geometry: RigGeometry,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -503,5 +517,251 @@ mod tests {
         ];
         values[2] = Name("Unknown".to_owned());
         assert_eq!(program.execute("Solve", &mut values, branch).unwrap(), 2);
+    }
+
+    #[test]
+    fn control_rig_complete_source_program_runs_construction_and_frames() {
+        use crate::{
+            control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform},
+            control_rig_units::RigUnitContext,
+        };
+        use bevy::platform::collections::HashMap;
+
+        let definition: RigDefinition = serde_json::from_str(include_str!(
+            "../../../assets/control_rigs/cr_als.program.json"
+        ))
+        .unwrap();
+        let program = &definition.program;
+        assert_eq!(program.instructions.len(), 165);
+        assert_eq!(definition.bones.len(), 79);
+        assert_eq!(definition.curves.len(), 43);
+        assert!(definition.curves.values().all(Option::is_none));
+        let mut hierarchy =
+            RigHierarchy::new(definition.bones.clone(), definition.translation_tolerance).unwrap();
+        let mut values = program.initial_values.clone();
+        let mut input = definition.externals["RigInput"].clone();
+        for index in [0, 1] {
+            input.path = vec![index];
+            input
+                .write(&mut values, program.literal_count, Bool(true))
+                .unwrap();
+        }
+        let mut curves = HashMap::default();
+        {
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: false,
+                delta_seconds: 0.0,
+                geometry: &definition.geometry,
+                to_world: RigTransform::default(),
+                line_trace: None,
+            };
+            assert_eq!(
+                program
+                    .execute("Construction", &mut values, |name, args| context
+                        .call(name, args))
+                    .unwrap(),
+                15
+            );
+            assert!(context.construction);
+        }
+        let external =
+            |name: &str, state: &[RigValue]| definition.externals[name].read(state).unwrap();
+        assert_eq!(
+            external("FootRootBone", &values),
+            List(vec![
+                Name("Bone".to_owned()),
+                Name("ik_foot_root".to_owned())
+            ])
+        );
+        assert_eq!(
+            external("HandLeftIkTargetBone", &values),
+            List(vec![
+                Name("Bone".to_owned()),
+                Name("VB ik_hand_l".to_owned())
+            ])
+        );
+        let initial = |name: &str| {
+            definition
+                .bones
+                .iter()
+                .find(|bone| bone.name == name)
+                .unwrap()
+                .initial_global
+        };
+        assert_eq!(
+            external("FootHeight", &values),
+            F64(initial("foot_l").translation.y)
+        );
+        let upper = initial("thigh_l")
+            .translation
+            .distance(initial("calf_l").translation) as f32;
+        let lower = initial("calf_l")
+            .translation
+            .distance(initial("foot_l").translation);
+        let length = (upper as f64 + lower) as f32;
+        assert_eq!(external("LegLength", &values), F64(length as f64));
+        let constructed = values.clone();
+        let mut pose: Vec<_> = definition
+            .bones
+            .iter()
+            .map(|bone| bone.initial_local)
+            .collect();
+        let foot_root = hierarchy.index("ik_foot_root").unwrap();
+        let pelvis = hierarchy.index("pelvis").unwrap();
+        pose[foot_root].scale = DVec3::splat(2.0);
+        curves.extend([
+            ("PoseMoving".to_owned(), 1.0),
+            ("FootLeftIk".to_owned(), 1.0),
+            ("FootRightIk".to_owned(), 1.0),
+            ("LayerArmLeft".to_owned(), 1.0),
+            ("HandLeftIk".to_owned(), 1.0),
+            ("LayerArmRight".to_owned(), 1.0),
+            ("HandRightIk".to_owned(), 1.0),
+        ]);
+        for (index, value) in [
+            (2, Bool(true)),
+            (3, F32(0.5)),
+            (6, F32(1.0)),
+            (7, Vector(initial("foot_l").translation)),
+            (8, Quaternion(initial("foot_l").rotation)),
+            (9, Vector(initial("foot_r").translation)),
+            (10, Quaternion(initial("foot_r").rotation)),
+        ] {
+            input.path = vec![index];
+            input
+                .write(&mut values, program.literal_count, value)
+                .unwrap();
+        }
+        let mut trace_count = 0;
+        for frame in 0..3 {
+            hierarchy.set_input_pose(&pose).unwrap();
+            let surface = if frame == 0 { -0.05 } else { -0.1 };
+            let mut query = |start: DVec3, end: DVec3, channel: &str, complex: bool| {
+                trace_count += 1;
+                assert_eq!(channel, "ECC_Visibility");
+                assert!(complex);
+                assert!((start.y - 0.5).abs() < 1e-12);
+                assert!((end.y + 0.8).abs() < 2e-8);
+                Ok(Some((DVec3::new(start.x, surface, start.z), DVec3::Y)))
+            };
+            let mut context = RigUnitContext {
+                hierarchy: &mut hierarchy,
+                curves: &curves,
+                game_world: true,
+                construction: true,
+                delta_seconds: 1.0 / 60.0,
+                geometry: &definition.geometry,
+                to_world: RigTransform::default(),
+                line_trace: Some(&mut query),
+            };
+            assert!(
+                program
+                    .execute("Forwards Solve", &mut values, |name, args| context
+                        .call(name, args))
+                    .unwrap()
+                    > 140
+            );
+            assert!(!context.construction);
+            assert_eq!(trace_count, (frame + 1) * 2);
+            assert!(
+                (hierarchy
+                    .transform(foot_root, RigSpace::Local, false)
+                    .unwrap()
+                    .scale
+                    - DVec3::new(2.4, 2.0, 2.4))
+                .length()
+                    < 1e-12
+            );
+            let F32(offset) = external("PelvisOffset", &values) else {
+                panic!("invalid pelvis offset type")
+            };
+            if frame == 0 {
+                assert!((offset + 0.05).abs() < 1e-7);
+            } else {
+                assert!(offset < -0.05 && offset > -0.1);
+            }
+            assert!(
+                (hierarchy
+                    .transform(pelvis, RigSpace::Global, false)
+                    .unwrap()
+                    .translation
+                    .y
+                    - initial("pelvis").translation.y
+                    - offset as f64)
+                    .abs()
+                    < 1e-7
+            );
+            for index in 0..definition.bones.len() {
+                let transform = hierarchy.transform(index, RigSpace::Global, false).unwrap();
+                assert!(transform.translation.is_finite() && transform.rotation.is_finite());
+            }
+        }
+        assert_eq!(external("PelvisOffset", &constructed), F32(0.0));
+        assert_eq!(
+            external("FootRootBone", &program.initial_values),
+            List(vec![Name("None".to_owned()), Name(String::new())])
+        );
+        hierarchy.set_input_pose(&pose).unwrap();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: false,
+            construction: false,
+            delta_seconds: 1.0 / 60.0,
+            geometry: &definition.geometry,
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        assert!(
+            program
+                .execute("Forwards Solve", &mut values, |name, args| context
+                    .call(name, args))
+                .unwrap()
+                < 10
+        );
+        context.game_world = true;
+        let failure = program
+            .execute("Forwards Solve", &mut values, |name, args| {
+                context.call(name, args)
+            })
+            .unwrap_err();
+        assert_eq!(failure.instruction, 31);
+        assert_eq!(failure.reason, "rig line trace is unavailable");
+        let mut independent_values = program.initial_values.clone();
+        let mut independent_hierarchy =
+            RigHierarchy::new(definition.bones.clone(), definition.translation_tolerance).unwrap();
+        let independent_curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut independent_hierarchy,
+            curves: &independent_curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 1.0 / 60.0,
+            geometry: &definition.geometry,
+            to_world: RigTransform::default(),
+            line_trace: None,
+        };
+        for entry in ["Construction", "Forwards Solve"] {
+            program
+                .execute(entry, &mut independent_values, |name, args| {
+                    context.call(name, args)
+                })
+                .unwrap();
+        }
+        assert_eq!(
+            external("FootRootBone", &independent_values),
+            List(vec![
+                Name("Bone".to_owned()),
+                Name("VB foot_root".to_owned())
+            ])
+        );
+        assert_eq!(external("PelvisOffset", &independent_values), F32(0.0));
+        assert_eq!(
+            external("FootLeftOffsetLocationZ", &independent_values),
+            F64(0.0)
+        );
     }
 }
