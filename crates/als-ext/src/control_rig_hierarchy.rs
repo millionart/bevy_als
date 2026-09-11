@@ -44,6 +44,17 @@ pub fn rig_slerp(a: DQuat, b: DQuat, weight: f64) -> DQuat {
     rig_normalize(a * a_weight + b * b_weight)
 }
 
+pub fn rig_quat_near(a: DQuat, b: DQuat, tolerance: f64) -> bool {
+    (a - b)
+        .to_array()
+        .iter()
+        .all(|value| value.abs() <= tolerance)
+        || (a + b)
+            .to_array()
+            .iter()
+            .all(|value| value.abs() <= tolerance)
+}
+
 impl RigTransform {
     pub fn value(self) -> RigValue {
         RigValue::List(vec![
@@ -189,14 +200,7 @@ impl RigTransform {
         let tolerance = 1e-4_f32 as f64;
         (self.translation - other.translation).abs().max_element() <= translation_tolerance
             && (self.scale - other.scale).abs().max_element() <= tolerance
-            && ((self.rotation - other.rotation)
-                .to_array()
-                .iter()
-                .all(|value| value.abs() <= tolerance)
-                || (self.rotation + other.rotation)
-                    .to_array()
-                    .iter()
-                    .all(|value| value.abs() <= tolerance))
+            && rig_quat_near(self.rotation, other.rotation, tolerance)
     }
 }
 
@@ -400,7 +404,7 @@ impl RigHierarchy {
         Ok(())
     }
 
-    fn item_index(&self, item: &RigValue) -> Result<Option<usize>, String> {
+    pub fn item_index(&self, item: &RigValue) -> Result<Option<usize>, String> {
         if let RigValue::List(fields) = item
             && let [RigValue::Name(kind), RigValue::Name(name)] = fields.as_slice()
         {
