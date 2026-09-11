@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RigValue {
     Bool(bool),
+    I32(i32),
+    Name(String),
+    List(Vec<RigValue>),
     F32(f32),
     F64(f64),
     Vector(DVec3),
