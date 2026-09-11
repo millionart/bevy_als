@@ -791,6 +791,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("expose_blend_weight_pins", "true"),
             field("mesh_space_rotation_blend", bool_ron(value["mesh_space_rotation_blend"])),
             field("blend_root_motion_based_on_root_bone", bool_ron(value["blend_root_motion_based_on_root_bone"])),
+            field("update_base_pose_first", bool_ron(value["update_base_pose_first"])),
             field("base_pose_pin", quoted(value["base_pose_pin"])),
             field("blend_pose_pins", "[" + ", ".join(quoted(pin) for pin in pins) + "]"),
             field("output_pin", quoted(value["output_pin"])),
@@ -2196,6 +2197,7 @@ def run_self_test():
                 "blend_weights": [1.0, 0.5],
                 "mesh_space_rotation_blend": True,
                 "blend_root_motion_based_on_root_bone": True,
+                "update_base_pose_first": False,
                 "base_pose_pin": "BasePose",
                 "blend_pose_pins": ["BlendPoses_0", "BlendPoses_1"],
                 "output_pin": "Pose",
@@ -2208,6 +2210,7 @@ def run_self_test():
     assert 'branch_bone_layers' not in layered_inner
     assert 'blend_depth: -1' in layered_inner
     assert 'base_pose_pin: "BasePose"' in layered_inner
+    assert 'update_base_pose_first: false' in layered_inner
     assert target_pin("layered_bone_blend", "BlendPoses_1") == "BlendPoses_1"
     assert target_pin("layered_bone_blend", "BlendWeights_1") == "BlendWeights_1"
     layered_path = "/Asset:State.Layered"

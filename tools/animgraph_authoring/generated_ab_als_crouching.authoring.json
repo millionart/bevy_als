@@ -7,8 +7,8 @@
       "sha256": "42cfbaae5c999aba7ac10f1830194ce4886d0bbd8826e5fd92d06904938b6d03"
     },
     {
-      "path": "target/bf115_crouching/actions_final_source/0001_AB_Als_Crouching.ue.json",
-      "sha256": "aa0e57653cbd45d621530b57a6a26f5731a5fab3afd0a29bebf5d8b44a4a3942"
+      "path": "target/bf115_overlays/shared_rules_source/0010_AB_Als_Crouching.ue.json",
+      "sha256": "2887510a20bc71573efc1ff374ca9df1136074bed4d7a3cee11bf4c07e656343"
     },
     {
       "path": "target/bf115_crouching/source/AIS.actions.fresh.ue.json",
@@ -17,6 +17,14 @@
     {
       "path": "target/bf115_crouching/source/StrideWalk.fresh.ue.json",
       "sha256": "571e9eb958aec32e694dcca0cac722c724d21cd6616765b2f5eb1a7bfd9d967f"
+    },
+    {
+      "path": "target/bf115_overlays/source/shared_UE_AnimNode_LayeredBoneBlend.cpp",
+      "sha256": "f60cc804bdf7569f8d4ffc9c7c82a29ec2a7b7004e40b58808b32aa1bb895f08"
+    },
+    {
+      "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
+      "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     }
   ],
   "graphs": [
@@ -1798,11 +1806,13 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_crouching/actions_final_source",
+        "target/bf115_overlays/shared_rules_source",
         "--materialized-directory",
-        "target/bf115_crouching/actions_final_conversion",
+        "target/bf115_overlays/shared_rules_conversion",
         "--spec",
-        "target/bf115_grounded/slot_spec.json"
+        "target/bf115_overlays/shared_rules_spec.json",
+        "--source-asset",
+        "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]
     },
     {

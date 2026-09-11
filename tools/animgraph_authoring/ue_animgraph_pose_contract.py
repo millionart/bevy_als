@@ -711,6 +711,12 @@ def enum_pose_blend_contract(node):
         {
             "BlendPose",
             "BlendTime",
+            "ActiveEnumValue",
+            "BlendType",
+            "TransitionType",
+            "ChildUpateMode",
+            "CustomBlendCurve",
+            "BlendProfile",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
@@ -728,6 +734,12 @@ def enum_pose_blend_contract(node):
         "ActiveEnumValue",
     )
     inputs, issues = validate_inputs(node, renderer, required)
+    for name, expected in {
+        "TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+        "CustomBlendCurve": "None", "BlendProfile": "None", "BlendType": "Linear",
+    }.items():
+        if field(fields, name, expected) != expected:
+            issues.append(issue(node, renderer, "source_property_unsupported", name))
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
     pins = {
@@ -805,6 +817,12 @@ def layered_bone_blend_contract(node):
             "LODThreshold",
             "bMeshSpaceRotationBlend",
             "bBlendRootMotionBasedOnRootBone",
+            "BlendMode",
+            "BlendMasks",
+            "bRootSpaceRotationBlend",
+            "bMeshSpaceScaleBlend",
+            "CurveBlendOption",
+            "bUpdateBasePoseFirst",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
@@ -824,6 +842,13 @@ def layered_bone_blend_contract(node):
     )
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    for name, expected in {
+        "BlendMode": "BranchFilter", "BlendMasks": "()",
+        "bRootSpaceRotationBlend": "False", "bMeshSpaceScaleBlend": "False",
+        "CurveBlendOption": "Override",
+    }.items():
+        if field(fields, name, expected) != expected:
+            issues.append(issue(node, renderer, "source_property_unsupported", name))
     branch_filter_layers = []
     for layer in layers:
         layer_fields = parse_struct(layer)
@@ -868,6 +893,7 @@ def layered_bone_blend_contract(node):
         "blend_root_motion_based_on_root_bone": parse_bool(
             field(fields, "bBlendRootMotionBasedOnRootBone", "False")
         ),
+        "update_base_pose_first": parse_bool(field(fields, "bUpdateBasePoseFirst", "False")),
         "base_pose_pin": "BasePose",
         "blend_pose_pins": [f"BlendPoses_{index}" for index in range(len(poses))],
         "output_pin": "Pose",
@@ -885,6 +911,10 @@ def gameplay_tag_blend_contract(node):
             "BlendPose",
             "BlendTime",
             "BlendType",
+            "TransitionType",
+            "ChildUpateMode",
+            "CustomBlendCurve",
+            "BlendProfile",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
@@ -903,6 +933,12 @@ def gameplay_tag_blend_contract(node):
         f"BlendTime_{index}" for index in range(count)
     ) + ("ActiveTag",)
     inputs, issues = validate_inputs(node, renderer, required)
+    for name, expected in {
+        "TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+        "CustomBlendCurve": "None", "BlendProfile": "None",
+    }.items():
+        if field(fields, name, expected) != expected:
+            issues.append(issue(node, renderer, "source_property_unsupported", name))
     if visible_output_names(node) != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
     issues.extend(
@@ -1092,12 +1128,26 @@ def control_rig_contract(node):
             "bTransferInputPose",
             "bTransferInputCurves",
             "bTransferPoseInGlobalSpace",
+            "bSetRefPoseFromSkeleton",
+            "AlphaCurveName",
+            "bResetInputPoseToInitial",
+            "InputBonesToTransfer",
+            "OutputBonesToTransfer",
+            "AssetUserData",
+            "EventQueue",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
             "UpdateFunction",
         },
     )
     inputs, issues = validate_inputs(node, renderer, ("Source", "bAlphaBoolEnabled", "RigInput"))
+    for name, expected in {
+        "bSetRefPoseFromSkeleton": "False", "AlphaCurveName": "None",
+        "bResetInputPoseToInitial": "False", "InputBonesToTransfer": "()",
+        "OutputBonesToTransfer": "()", "AssetUserData": "()", "EventQueue": "()",
+    }.items():
+        if field(fields, name, expected) != expected:
+            issues.append(issue(node, renderer, "source_property_unsupported", name))
     outputs = visible_output_names(node)
     if outputs != ["Pose"]:
         issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
@@ -1367,6 +1417,7 @@ def pose_snapshot_contract(node):
         fields,
         {
             "Snapshot",
+            "SnapshotName",
             "Mode",
             "InitialUpdateFunction",
             "BecomeRelevantFunction",
@@ -1641,6 +1692,14 @@ def run_self_test():
         ],
     )
     enum_blend["title"] = "Blend Poses (EAlsHipsDirection)"
+    enum_blend["properties"][0]["fields"] = [
+        {"name": name, "exported_text": value, "flags": "0x201"}
+        for name, value in {
+            "ActiveEnumValue": "0", "TransitionType": "StandardBlend",
+            "BlendType": "Linear", "ChildUpateMode": "Default",
+            "CustomBlendCurve": "None", "BlendProfile": "None",
+        }.items()
+    ]
     for pin, label in zip(
         enum_blend["pins"],
         (
@@ -1694,6 +1753,13 @@ def run_self_test():
     ):
         pin["friendly_name"] = label
     gameplay_tag_blend["pins"][2]["default_value"] = "0.300000"
+    gameplay_tag_blend["properties"][0]["fields"] = [
+        {"name": name, "exported_text": value, "flags": "0x201"}
+        for name, value in {
+            "TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+            "CustomBlendCurve": "None", "BlendProfile": "None",
+        }.items()
+    ]
     gameplay_tag_blend["pins"][3]["default_value"] = "0.200000"
     gameplay_tag_blend["binding"] = {
         "properties": [
@@ -1714,6 +1780,14 @@ def run_self_test():
         '(BasePose=(),BlendPoses=((),()),LayerSetup=((BranchFilters=((BoneName="thigh_l"),(BoneName="ik_foot_l"))),(BranchFilters=((BoneName="thigh_r")))),BlendWeights=(1.000000,0.500000),SkeletonGuid=00000000000000000000000000000000,VirtualBoneGuid=00000000000000000000000000000000,LODThreshold=-1,bMeshSpaceRotationBlend=True,bBlendRootMotionBasedOnRootBone=True,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
         [input_pin("BasePose"), input_pin("BlendPoses_0"), input_pin("BlendPoses_1"), output_pin("Pose")],
     )
+    layered["properties"][0]["fields"] = [
+        {"name": name, "exported_text": value, "flags": "0x201"}
+        for name, value in {
+            "BlendMode": "BranchFilter", "BlendMasks": "()",
+            "bRootSpaceRotationBlend": "False", "bMeshSpaceScaleBlend": "False",
+            "CurveBlendOption": "Override", "bUpdateBasePoseFirst": "False",
+        }.items()
+    ]
     layered_contract, issues = pose_contract(layered, "layered_bone_blend")
     assert not issues
     assert [[filter["bone"] for filter in layer] for layer in layered_contract["branch_filter_layers"]] == [
@@ -1727,6 +1801,17 @@ def run_self_test():
     assert not issues
     assert [item[0]["blend_depth"] for item in layered_contract["branch_filter_layers"]] == [3, -1]
     assert layered_contract["blend_weights"] == [1.0, 1.0]
+    assert not layered_contract["update_base_pose_first"]
+    layered["source_node"] = "/AnotherAsset:RenamedGraph.RenamedNode"
+    layered["node_guid"] = "1234567890ABCDEF1234567890ABCDEF"
+    renamed_contract, issues = pose_contract(layered, "layered_bone_blend")
+    assert not issues and renamed_contract == layered_contract
+    layered["properties"][0]["fields"][-1]["exported_text"] = "True"
+    changed_contract, issues = pose_contract(layered, "layered_bone_blend")
+    assert not issues and changed_contract == {**layered_contract, "update_base_pose_first": True}
+    layered["properties"][0]["fields"][0]["exported_text"] = "BlendMask"
+    _, issues = pose_contract(layered, "layered_bone_blend")
+    assert issues[0]["kind"] == "source_property_unsupported"
     slot = fixture_node(
         "slot",
         "Node",
@@ -1781,6 +1866,9 @@ def run_self_test():
             }
         ]
     }
+    snapshot["properties"][0]["fields"] = [
+        {"name": "SnapshotName", "exported_text": "None", "flags": "0x201"},
+    ]
     snapshot_contract, issues = pose_contract(snapshot, "pose_snapshot")
     assert not issues
     assert snapshot_contract["snapshot_path"] == "RagdollingState.FinalRagdollPose"
@@ -1831,6 +1919,14 @@ def run_self_test():
         ]
     }
     control_rig["pins"][1]["default_value"] = "True"
+    control_rig["properties"][0]["fields"] = [
+        {"name": name, "exported_text": value, "flags": "0x201"}
+        for name, value in {
+            "bSetRefPoseFromSkeleton": "False", "AlphaCurveName": "None",
+            "bResetInputPoseToInitial": "False", "InputBonesToTransfer": "()",
+            "OutputBonesToTransfer": "()", "AssetUserData": "()", "EventQueue": "()",
+        }.items()
+    ]
     control_rig_contract_value, issues = pose_contract(control_rig, "control_rig")
     assert not issues
     assert control_rig_contract_value["rig_class"] == "CR_Als"

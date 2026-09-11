@@ -1,6 +1,8 @@
 import json
 import re
 
+from ue_animgraph_pose_contract import node_struct_fields
+
 
 FSM_CLASS = "/Script/AnimGraph.AnimationStateMachineGraph"
 ENTRY_CLASS = "/Script/AnimGraph.AnimStateEntryNode"
@@ -43,6 +45,9 @@ def properties(node):
         if isinstance(name, str) and isinstance(exported, str):
             if name in result:
                 raise FsmContractError("source FSM property is duplicated")
+            if name == "Node" and value.get("fields"):
+                fields = node_struct_fields(node, name)
+                exported = "(" + ",".join(f"{key}={text}" for key, text in fields.items()) + ")"
             result[name] = exported
     return result
 
@@ -402,6 +407,11 @@ def run_self_test():
         "reinitialize_on_becoming_relevant": True,
         "allow_conduit_entry_states": False,
     }
+    structured_source = fixture_source()
+    record = structured_source["graphs"][0]["nodes"][0]["properties"][0]
+    record["exported_text"] = record["exported_text"].replace(",bSkipFirstUpdateTransition=False", "")
+    record["fields"] = [{"name": "bSkipFirstUpdateTransition", "exported_text": "False", "flags": "0x201"}]
+    assert fsm_contract(structured_source, "AnimGraph.Machine.FSM")["runtime"] == value["runtime"]
     return {
         "fsm_entry_state_transition_topology_preserved": "PASS",
         "fsm_child_graph_references_preserved": "PASS",

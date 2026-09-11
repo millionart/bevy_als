@@ -47,6 +47,15 @@ pub(crate) struct GameplayTagBlendState {
     duration: f32,
 }
 
+impl GameplayTagBlendState {
+    pub(crate) fn instant_transition_source(&self, active_index: usize, blend_time: f32) -> Option<usize> {
+        (self.initialized && self.last_active_index >= 0
+            && self.last_active_index != active_index as i32
+            && blend_time.max(0.0) * (1.0 - self.weights[active_index]).abs().clamp(0.0, 1.0) == 0.0)
+            .then_some(self.last_active_index as usize)
+    }
+}
+
 pub(crate) fn select_gameplay_tag_child_index_for_tag(
     tags: &[String],
     active_tag: Option<&GameplayTag>,

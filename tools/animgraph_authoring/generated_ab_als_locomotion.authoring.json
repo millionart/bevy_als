@@ -3,8 +3,8 @@
   "id": "generated_ab_als_locomotion_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_overlays/native_source/0015_AB_Als_Locomotion.ue.json",
-      "sha256": "67920b06de9a6dd9f5684a4a4597a2f8d0cd6924adb833635eec36c3849471fc"
+      "path": "target/bf115_overlays/shared_rules_source/0013_AB_Als_Locomotion.ue.json",
+      "sha256": "bdfdaa5808edd2aa000237fd45cfa4de3a29918e716c49a5e57c9b732454fd02"
     },
     {
       "path": "target/bf115_locomotion/source/mode_AlsAnimationInstance.cpp",
@@ -117,6 +117,18 @@
     {
       "path": "target/bf115_overlays/source/UE_AnimNode_Inertialization.h",
       "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
+    },
+    {
+      "path": "target/bf115_overlays/source/UE_CharacterMovementComponent.cpp",
+      "sha256": "fcf827d7c5adaa73a4f272a716a53b03f66fc7352f3eacc1be4d51cc9b3e15a8"
+    },
+    {
+      "path": "target/bf115_overlays/source/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
+      "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     }
   ],
   "graphs": [
@@ -1911,11 +1923,13 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_overlays/native_source",
+        "target/bf115_overlays/shared_rules_source",
         "--materialized-directory",
-        "target/bf115_overlays/locked_locomotion_conversion",
+        "target/bf115_overlays/shared_rules_conversion",
         "--spec",
-        "target/bf115_overlays/locked_spec.json"
+        "target/bf115_overlays/shared_rules_spec.json",
+        "--source-asset",
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion.AB_Als_Locomotion"
       ]
     },
     {
@@ -2158,6 +2172,21 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/root_lock_modes_pass.watchdog.json"
+    },
+    {
+      "label": "current_physics_takeoff_and_landing_modes_before_animation",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "als-core",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf115_overlays/takeoff_tap_mode_pass.watchdog.json"
     }
   ]
 }

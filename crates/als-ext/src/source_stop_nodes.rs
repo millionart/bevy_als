@@ -1,13 +1,14 @@
 use crate::animation_context::{
     AnimationContextState, merge_sync_players, pose_input_context_state,
 };
-use crate::source_pose_nodes::blend_animation_contexts;
+use crate::gameplay_tag_blend::{GameplayTagBlendMode, GameplayTagBlendState, advance_gameplay_tag_weights};
+use crate::source_pose_nodes::{blend_animation_contexts, blend_source_poses};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, bone_mask::BoneMask},
+    edge_data::DataSpec,
     errors::GraphError,
     interpolation::linear::LinearInterpolator,
 };
@@ -15,13 +16,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     apply_mesh_space_layered_blend, build_branch_bone_mask, build_branch_filter_bone_mask_by_name,
-    context_time_update, f_interp_to,
+    context_time_update,
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceEnumPoseBlendState {
-    initialized: bool,
-    alpha: f32,
+    blend: GameplayTagBlendState,
     pub(crate) context: AnimationContextState,
 }
 
@@ -38,15 +38,10 @@ fn source_enum_alpha(
     blend_time: f32,
     delta: f32,
 ) -> f32 {
-    let target = selected as u8 as f32;
-    if !state.initialized {
-        state.initialized = true;
-        state.alpha = target;
-        return target;
-    }
-    let speed = blend_time.max(f32::EPSILON).recip();
-    state.alpha = f_interp_to(state.alpha, target, delta, speed);
-    state.alpha
+    advance_gameplay_tag_weights(
+        &mut state.blend, 2, selected as usize, blend_time.max(0.0),
+        GameplayTagBlendMode::Linear, delta,
+    )[1]
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -106,34 +101,42 @@ impl NodeLike for SourceEnumPoseBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let value = self.active_value(&ctx)?;
         let selected = (value.round() - self.selected_enum_value).abs() <= f32::EPSILON;
-        let blend_time = if selected {
-            self.selected_blend_time
+        let (blend_time_pin, blend_time) = if selected {
+            (&self.selected_blend_time_pin, self.selected_blend_time)
         } else {
-            self.default_blend_time
+            (&self.default_blend_time_pin, self.default_blend_time)
         };
+        let blend_time = ctx.data_back(blend_time_pin.clone()).ok()
+            .and_then(|value| value.as_f32().ok()).unwrap_or(blend_time);
         let delta = evaluator_delta(&ctx)?;
+        let previous = ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
+            .blend.instant_transition_source(selected as usize, blend_time);
+        if let Some(previous) = previous {
+            ctx.data_back(if previous == 0 { self.default_pose_pin.clone() } else { self.selected_pose_pin.clone() })?;
+        }
         let alpha = source_enum_alpha(
             ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?,
             selected,
             blend_time,
             delta,
         );
-        let mut base = ctx.data_back(self.default_pose_pin.clone())?.into_pose()?;
-        let overlay = ctx.data_back(self.selected_pose_pin.clone())?.into_pose()?;
-        LinearInterpolator {
-            bone_mask: BoneMask::all(),
-        }
-        .interpolate_pose(&mut base, &overlay, alpha);
-        ctx.set_time(base.timestamp);
-        ctx.set_data_fwd(self.output_pin.clone(), base);
-        let contexts = [
+        let mut poses = Vec::new();
+        let mut contexts = Vec::new();
+        for (pin, weight) in [
             (&self.default_pose_pin, 1.0 - alpha),
             (&self.selected_pose_pin, alpha),
-        ]
-        .into_iter()
-        .filter_map(|(pin, weight)| {
-            pose_input_context_state(&ctx, pin).map(|context| (context, weight))
-        });
+        ] {
+            if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
+                continue;
+            }
+            poses.push((ctx.data_back(pin.clone())?.into_pose()?, weight));
+            if let Some(context) = pose_input_context_state(&ctx, pin) {
+                contexts.push((context, weight));
+            }
+        }
+        let output = blend_source_poses(&poses);
+        ctx.set_time(output.timestamp);
+        ctx.set_data_fwd(self.output_pin.clone(), output);
         let context = blend_animation_contexts(contexts);
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
             .context = context;
@@ -176,6 +179,7 @@ pub struct SourceLayeredBoneBlendNode {
     pub expose_blend_weight_pins: bool,
     pub mesh_space_rotation_blend: bool,
     pub blend_root_motion_based_on_root_bone: bool,
+    pub update_base_pose_first: bool,
     pub base_pose_pin: String,
     pub blend_pose_pin: String,
     pub blend_pose_pins: Vec<String>,
@@ -195,6 +199,7 @@ impl Default for SourceLayeredBoneBlendNode {
             expose_blend_weight_pins: false,
             mesh_space_rotation_blend: true,
             blend_root_motion_based_on_root_bone: true,
+            update_base_pose_first: false,
             base_pose_pin: "BasePose".to_owned(),
             blend_pose_pin: "BlendPoses_0".to_owned(),
             blend_pose_pins: default(),
@@ -245,10 +250,18 @@ impl SourceLayeredBoneBlendNode {
 
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let weights = (0..self.layer_count()).map(|index| self.layer_weight(&ctx, index))
+            .collect::<Result<Vec<_>, _>>()?;
+        if !self.update_base_pose_first {
+            for (index, weight) in weights.iter().enumerate() {
+                if *weight > 1e-5 {
+                    ctx.data_back(self.layer_pin(index).to_owned())?;
+                }
+            }
+        }
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
-        for index in 0..self.layer_count() {
-            let weight = self.layer_weight(&ctx, index)?;
+        for (index, weight) in weights.into_iter().enumerate() {
             if weight <= 1e-5 {
                 continue;
             }
@@ -335,7 +348,89 @@ mod tests {
         let mut state = SourceEnumPoseBlendState::default();
         assert_eq!(source_enum_alpha(&mut state, true, 0.1, 0.0), 1.0);
         assert_eq!(source_enum_alpha(&mut state, false, 0.1, 0.0), 1.0);
-        assert!(source_enum_alpha(&mut state, false, 0.1, 0.1) < 1.0);
+        assert!((source_enum_alpha(&mut state, false, 0.1, 0.02) - 0.8).abs() < 1e-6);
+        assert!((source_enum_alpha(&mut state, false, 0.1, 0.02) - 0.6).abs() < 1e-6);
+        assert!(source_enum_alpha(&mut state, false, 0.1, 0.06) < 1e-6);
+        assert!((source_enum_alpha(&mut state, true, 0.1, 0.05) - 0.5).abs() < 1e-6);
+        assert!(source_enum_alpha(&mut state, false, 0.1, 0.05) < 1e-6);
+    }
+
+    #[test]
+    fn source_blend_children_follow_source_update_order_and_relevance() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, NodeId},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, pose::Pose, skeleton::Skeleton,
+            state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::source_instance::{SourceInstanceProperties, SourcePropertyAssignment, SourcePropertyWriteNode};
+        fn query(In((handle, active)): In<(Handle<AnimationGraph>, Vec<f32>)>, resources: SystemResources) -> Vec<(f32, [bool; 2])> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            active.into_iter().map(|active| {
+                let inputs = HashMap::from([("input".into(), DataValue::Pose(Pose::default())), ("active".into(), DataValue::F32(active))]);
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
+                let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+                (state.values["order"].as_f32().unwrap(), ["child_0", "child_1"].map(|key| state.write_frames.get(key) == Some(&arena.frame_index())))
+            }).collect()
+        }
+        let mut world = World::new();
+        world.insert_resource(Assets::<AnimationGraph>::default());
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        for (kind, selected, expected) in [("layered", false, 1.0), ("layered", true, 2.0), ("layered_zero", false, 1.0), ("enum", false, 1.0), ("enum", true, 2.0)] {
+            let mut graph = AnimationGraph::new();
+            let layered = kind.starts_with("layered");
+            let blend = if layered {
+                AnimationNode::new("blend", SourceLayeredBoneBlendNode {
+                    update_base_pose_first: selected,
+                    blend_weight: if kind == "layered_zero" { 0.0 } else { 1.0 },
+                    ..default()
+                })
+            } else {
+                AnimationNode::new("blend", SourceEnumPoseBlendNode {
+                    active_key: "active".into(), selected_enum_value: 1.0, ..default()
+                })
+            };
+            graph.add_node(blend.clone());
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            let input = AnimationNode::new("input", crate::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+            graph.add_node(input.clone());
+            for (index, pin) in if layered { ["BasePose", "BlendPoses_0"] } else { ["Default Pose", "Selected Pose"] }.into_iter().enumerate() {
+                let child = AnimationNode::new(format!("child_{index}"), SourcePropertyWriteNode {
+                    assignments: vec![
+                        SourcePropertyAssignment { property: "order".into(), value: DataValue::F32(index as f32 + 1.0) },
+                        SourcePropertyAssignment { property: format!("child_{index}"), value: DataValue::Bool(true) },
+                    ],
+                    ..default()
+                });
+                graph.add_node(child.clone());
+                graph.add_node_parameter_edge(input.id, "Pose", child.id, "Source");
+                graph.add_node_parameter_edge(child.id, "Pose", blend.id, pin);
+            }
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let active = if layered { vec![0.0] } else { vec![selected as u8 as f32, !selected as u8 as f32, !selected as u8 as f32, selected as u8 as f32, selected as u8 as f32] };
+            let output = world.run_system_cached_with(query, (handle, active.clone())).unwrap();
+            assert_eq!(output[0].0, expected, "{kind} {selected}");
+            if !layered {
+                for (index, (order, updated)) in output.into_iter().enumerate() {
+                    let changed = index > 0 && active[index - 1] != active[index];
+                    assert_eq!(order, active[index] + 1.0);
+                    assert_eq!(updated, [changed || active[index] == 0.0, changed || active[index] == 1.0]);
+                }
+            }
+        }
     }
 
     #[test]

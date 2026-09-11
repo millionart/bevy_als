@@ -19,11 +19,11 @@
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
     },
     {
-      "path": "target/bf115_overlays/native_source/0013_AB_Als_Grounded.ue.json",
-      "sha256": "2c67d969612d9042d43ba8003681ece866d465197acc37ee9fc66fb27079e4b1"
+      "path": "target/bf115_overlays/shared_rules_source/0011_AB_Als_Grounded.ue.json",
+      "sha256": "7f7702e7acff02c1c1ba3d4545c4aa50564e8abacede4fe443bf314dbe08bbbb"
     },
     {
-      "path": "target/bf115_grounded/joint_source/0002_CF_Als_StanceChange.ue.json",
+      "path": "target/bf115_overlays/shared_rules_source/0012_CF_Als_StanceChange.ue.json",
       "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
     },
     {
@@ -47,10 +47,6 @@
       "sha256": "7518b2e1950eae21bf401d2d5523716ee93fae4271fe81d5e3e7ca907620e6da"
     },
     {
-      "path": "target/bf115_grounded/stance_source/0002_CF_Als_StanceChange.ue.json",
-      "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
-    },
-    {
       "path": "target/bf115_grounded/source/B_Als_Character.joint.ue.json",
       "sha256": "7aaf825581969e1dd9ddc0ecd25440eee82acff1955d4eb4504a2fe073863066"
     },
@@ -63,8 +59,8 @@
       "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
     },
     {
-      "path": "target/bf115_grounded/slot_source/0001_AB_Als.ue.json",
-      "sha256": "b8c12adcfa22cac4e99063e97d40ab30c0617d851b2c433ef1f613fe3134a9e2"
+      "path": "target/bf115_overlays/shared_rules_source/0008_AB_Als.ue.json",
+      "sha256": "ac23552b78449a4278602f690bfdc7a4f533d6562653aa8b2cbcbbd22a621c20"
     },
     {
       "path": "target/bf115_grounded/source/AnimNode_Slot.joint.cpp",
@@ -129,6 +125,10 @@
     {
       "path": "target/bf115_overlays/source/UE_AnimNode_Inertialization.h",
       "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
+    },
+    {
+      "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
+      "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     }
   ],
   "graphs": [
@@ -685,11 +685,13 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_overlays/native_source",
+        "target/bf115_overlays/shared_rules_source",
         "--materialized-directory",
-        "target/bf115_overlays/locked_grounded_conversion",
+        "target/bf115_overlays/shared_rules_conversion",
         "--spec",
-        "target/bf115_overlays/locked_spec.json"
+        "target/bf115_overlays/shared_rules_spec.json",
+        "--source-asset",
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded"
       ]
     },
     {
@@ -772,11 +774,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_grounded/slot_source",
+        "target/bf115_overlays/shared_rules_source",
         "--materialized-directory",
-        "target/bf115_grounded/slot_resume_conversion",
+        "target/bf115_overlays/shared_rules_conversion",
         "--spec",
-        "target/bf115_overlays/locked_spec.json",
+        "target/bf115_overlays/shared_rules_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AB_Als.AB_Als"
       ]

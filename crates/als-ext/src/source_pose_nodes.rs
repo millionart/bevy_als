@@ -3,9 +3,8 @@ use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, bone_mask::BoneMask},
+    edge_data::DataSpec,
     errors::GraphError,
-    interpolation::linear::LinearInterpolator,
     pose::Pose,
 };
 use serde::{Deserialize, Serialize};
@@ -847,6 +846,11 @@ impl NodeLike for SourceGameplayTagBlendNode {
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let delta = delta_seconds(&ctx)?;
         let blend_time = self.blend_time(&ctx, active_index);
+        let previous = ctx.state_mut::<SourceGameplayTagBlendState>()?.blend
+            .instant_transition_source(active_index, blend_time);
+        if let Some(previous) = previous {
+            ctx.data_back(self.pose_pin_names[previous].clone())?;
+        }
         let weights = advance_gameplay_tag_weights(
             &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,
             self.child_count(),
@@ -855,11 +859,10 @@ impl NodeLike for SourceGameplayTagBlendNode {
             self.blend_mode,
             delta,
         );
-        let mut output = None;
-        let mut accumulated_weight = 0.0;
+        let mut poses = Vec::new();
         let mut contexts = Vec::new();
         for (index, weight) in weights.into_iter().enumerate() {
-            if weight <= f32::EPSILON {
+            if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
             let pose = ctx
@@ -868,21 +871,9 @@ impl NodeLike for SourceGameplayTagBlendNode {
             if let Some(context) = pose_input_context_state(&ctx, &self.pose_pin_names[index]) {
                 contexts.push((context, weight));
             }
-            if let Some(base) = output.as_mut() {
-                LinearInterpolator {
-                    bone_mask: BoneMask::all(),
-                }
-                .interpolate_pose(
-                    base,
-                    &pose,
-                    weight / (accumulated_weight + weight),
-                );
-            } else {
-                output = Some(pose);
-            }
-            accumulated_weight += weight;
+            poses.push((pose, weight));
         }
-        let output = output.unwrap_or_default();
+        let output = blend_source_poses(&poses);
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
         let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
@@ -1091,6 +1082,13 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
+            if graph.nodes.values().any(|node| node.name == "tag_blend") {
+                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Default"));
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
+                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Second"));
+            }
             let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                 &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
             graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
@@ -1104,7 +1102,7 @@ mod tests {
         let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
         let rotations = [Quat::from_rotation_y(0.2), Quat::from_rotation_x(2.4), Quat::from_rotation_z(-1.7)];
         let mut errors = Vec::new();
-        for (kind, weights) in [("two", vec![0.75, 0.25]), ("multi", vec![0.75, 0.25]), ("multi", vec![0.4, 0.3, 0.3]), ("multi", vec![0.2, 0.3, 0.1]), ("additive", vec![1.0, 0.25]), ("additive", vec![1.0, 0.75])] {
+        for (kind, weights) in [("two", vec![0.75, 0.25]), ("tag", vec![0.75, 0.25]), ("multi", vec![0.75, 0.25]), ("multi", vec![0.4, 0.3, 0.3]), ("multi", vec![0.2, 0.3, 0.1]), ("additive", vec![1.0, 0.25]), ("additive", vec![1.0, 0.75])] {
             let multi = kind == "multi";
             let additive = kind == "additive";
             for sign in [1.0, -1.0] {
@@ -1117,6 +1115,13 @@ mod tests {
                     })
                 } else if additive {
                     AnimationNode::new("blend", SourceApplyAdditiveNode { use_constant_alpha: true, constant_alpha: weights[1], ..default() })
+                } else if kind == "tag" {
+                    AnimationNode::new("tag_blend", SourceGameplayTagBlendNode {
+                        active_key: "source_pose_test_blend".into(), tags: vec!["Second".into()],
+                        blend_times: vec![0.1, 0.02 / weights[1]], source_blend_times: vec![0.1, 0.02 / weights[1]],
+                        pose_pin_names: vec!["A".into(), "B".into()], blend_time_pin_names: vec!["Time0".into(), "Time1".into()],
+                        ..default()
+                    })
                 } else {
                     AnimationNode::new("blend", SourceTwoWayBlendNode { alpha_key: "alpha".into(), expose_alpha_pin: false, ..default() })
                 };
