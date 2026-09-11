@@ -496,9 +496,9 @@ impl Plugin for AlsCameraPlugin {
                     resolve_camera_socket_locations.after(TransformSystems::Propagate),
                     camera_movement_base_bridge_system.after(TransformSystems::Propagate),
                     ApplyDeferred,
-                    camera_rig_system.in_set(AlsCameraSet),
+                    camera_rig_system,
                 )
-                    .chain(),
+                    .chain().in_set(AlsCameraSet),
             )
             .add_systems(
                 PostUpdate,

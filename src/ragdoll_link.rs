@@ -1518,19 +1518,15 @@ mod tests {
         };
 
         fn late_rig(
-            characters: Query<&LocomotionState, With<AlsCharacter>>,
             mut bones: Query<(&Name, &mut Transform)>,
         ) {
-            if characters
-                .iter()
-                .any(|state| *state == LocomotionState::Ragdolling)
-            {
-                return;
-            }
             for (name, mut transform) in &mut bones {
                 if name.as_str() == "pelvis" {
+                    assert!(transform.translation.abs_diff_eq(Vec3::new(0.1, 0.9, 0.2), 1e-5), "rig must consume the animated pose before physics readback");
                     transform.translation.x += 0.013;
                     transform.rotation *= Quat::from_rotation_z(0.18);
+                } else if name.as_str() == "marker" {
+                    transform.translation.y += 0.07;
                 }
             }
         }
@@ -1544,7 +1540,7 @@ mod tests {
             bevy::mesh::MeshPlugin,
             bevy::gizmos::GizmoPlugin,
             PhysicsPlugins::new(PostUpdate),
-            bevy_animation_graph::AnimationGraphPlugin::default(),
+            bevy_animation_graph::AnimationGraphPlugin::from_physics_schedule(PostUpdate),
         ))
         .register_type::<Name>()
         .register_type::<Transform>()
@@ -1562,11 +1558,13 @@ mod tests {
         .add_plugins(als_ext::RagdollPhysicsProfilePlugin)
         .init_asset::<AlsMovementParams>()
         .add_plugins(AlsRagdollLinkPlugin)
+        .add_plugins(als_ext::post_physics_animation::PostPhysicsAnimationPlugin)
         .configure_sets(
             PostUpdate,
             crate::ragdolling_layer::AlsRagdollingLayerSet.before(AnimationGraphSet::PrePhysics),
         )
         .add_systems(PostUpdate, late_rig.after(TransformSystems::Propagate))
+        .configure_sets(PostUpdate, als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback.after(late_rig))
         .add_systems(
             PostUpdate,
             (
@@ -1576,6 +1574,7 @@ mod tests {
             )
                 .chain()
                 .after(late_rig)
+                .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback)
                 .in_set(crate::control_rig_apply::AlsControlRigPropagationSet),
         );
         app.finish();
@@ -1589,6 +1588,8 @@ mod tests {
         let joint_path = armature_path.child("pelvis");
         let joint_local =
             Transform::from_xyz(0.1, 0.9, 0.2).with_rotation(Quat::from_rotation_x(0.35));
+        let marker_path = armature_path.child("marker");
+        let marker_local = Transform::from_xyz(0.0, 0.2, 0.1);
         let mut skeleton = Skeleton::default();
         skeleton.set_root(root_path.id());
         skeleton.add_bone(root_path.clone(), Transform::IDENTITY, Transform::IDENTITY);
@@ -1598,6 +1599,7 @@ mod tests {
             joint_local,
             armature_local * joint_local,
         );
+        skeleton.add_bone(marker_path.clone(), marker_local, armature_local * marker_local);
         let skeleton_handle = app
             .world_mut()
             .resource_mut::<Assets<Skeleton>>()
@@ -1608,6 +1610,7 @@ mod tests {
         };
         pose.add_bone(BonePose::from_transform(joint_local), joint_path.id());
         pose.add_bone(BonePose::from_transform(armature_local), armature_path.id());
+        pose.add_bone(BonePose::from_transform(marker_local), marker_path.id());
 
         let mut graph = AnimationGraph::new();
         for (name, spec) in [
@@ -1728,6 +1731,8 @@ mod tests {
             AnimationTargetId(joint_path.id().id()),
             AnimatedBy(scene_player),
         ));
+        scene_world.spawn((Name::new("marker"), marker_local, ChildOf(armature),
+            AnimationTargetId(marker_path.id().id()), AnimatedBy(scene_player)));
         let source = app
             .world_mut()
             .resource_mut::<Assets<WorldAsset>>()
@@ -1836,8 +1841,18 @@ mod tests {
             *app.world().get::<RigidBody>(body_entity).unwrap(),
             RigidBody::Dynamic
         );
+        let joint_entity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().bone_entity(joint_path.id()).unwrap();
+        let physical_bone = app.world().get::<GlobalTransform>(joint_entity).unwrap().compute_transform();
+        assert!(transforms_match(physical_bone, expected), "physics readback must follow the rig pose writes");
+        let marker_entity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().bone_entity(marker_path.id()).unwrap();
+        assert!(app.world().get::<Transform>(marker_entity).unwrap().translation.abs_diff_eq(
+            marker_local.translation + Vec3::Y * 0.07, 1e-6), "unmapped bones must keep the rig result");
         let followed_actor =
             Transform::from_xyz(8.0, 1.7, -1.0).with_rotation(Quat::from_rotation_y(-0.4));
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data(
+            "ragdoll_config", DataValue::from(RagdollConfig {
+                default_readback: Some(false), readback_overrides: [(joint_path.id(), true)].into(), ..default()
+            }));
         app.world_mut().entity_mut(actor).insert((
             followed_actor,
             Position(followed_actor.translation),
@@ -1851,6 +1866,8 @@ mod tests {
             transforms_match(actual, expected),
             "actor follow must not move the simulated body"
         );
+        assert!(transforms_match(app.world().get::<GlobalTransform>(joint_entity).unwrap().compute_transform(), expected));
+        assert!(app.world().get::<Transform>(marker_entity).unwrap().translation.abs_diff_eq(marker_local.translation + Vec3::Y * 0.07, 1e-6));
 
         *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Air;
         app.world_mut()

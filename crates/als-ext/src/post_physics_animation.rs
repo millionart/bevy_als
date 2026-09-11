@@ -1,10 +1,12 @@
 use avian3d::prelude::PhysicsSystems;
-use bevy::{ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, prelude::*};
+use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance,
+    animation_graph::DEFAULT_OUTPUT_RAGDOLL_CONFIG,
     animation_graph_player::AnimationGraphPlayer,
     context::system_resources::SystemResources,
-    physics_systems_avian::spawn_missing_ragdolls_avian,
+    id::BoneId,
+    physics_systems_avian::{read_back_poses_avian, spawn_missing_ragdolls_avian},
     plugin::AnimationGraphSet,
     systems::{RootMotionOutput, animation_player, debug_draw_animation_players, extract_root_motion, run_animation_player},
 };
@@ -16,6 +18,7 @@ pub struct PostPhysicsAnimation;
 pub enum PostPhysicsAnimationSet {
     Inputs,
     Evaluate,
+    Readback,
 }
 
 pub struct PostPhysicsAnimationPlugin;
@@ -26,6 +29,8 @@ impl Plugin for PostPhysicsAnimationPlugin {
             PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),
             PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)
                 .before(AnimationGraphSet::PostPhysics),
+            PostPhysicsAnimationSet::Readback.after(AnimationGraphSet::Final)
+                .after(TransformSystems::Propagate),
         )).add_systems(PostUpdate,
             evaluate_players::<Without<PostPhysicsAnimation>>
                 .after(spawn_missing_ragdolls_avian).before(extract_root_motion)
@@ -41,7 +46,55 @@ impl Plugin for PostPhysicsAnimationPlugin {
             let count = schedule.remove_systems_in_set(animation_player, world,
                 ScheduleCleanupPolicy::RemoveSystemsOnly).expect("animation evaluation schedule must initialize");
             assert_eq!(count, 1, "animation evaluation must replace exactly one default player system");
+            let count = schedule.remove_systems_in_set(read_back_poses_avian, world,
+                ScheduleCleanupPolicy::RemoveSystemsOnly).expect("physics readback schedule must initialize");
+            assert_eq!(count, 1, "physics readback must replace exactly one default readback system");
         });
+        app.add_systems(PostUpdate,
+            (commit_rig_pose_for_readback, read_back_poses_avian, apply_readback_pose)
+                .chain().in_set(PostPhysicsAnimationSet::Readback),
+        );
+    }
+}
+
+fn has_physics_readback(player: &AnimationGraphPlayer) -> bool {
+    player.get_spawned_ragdoll().is_some() && player.get_outputs().get(DEFAULT_OUTPUT_RAGDOLL_CONFIG)
+        .and_then(|value| value.as_ragdoll_config().ok())
+        .is_none_or(|config| config.default_readback.unwrap_or(true) || config.readback_overrides.values().any(|enabled| *enabled))
+}
+
+fn commit_rig_pose_for_readback(
+    mut players: Query<(Entity, &mut AnimationGraphPlayer)>,
+    targets: Query<&Transform, With<AnimationTargetId>>,
+) {
+    for (entity, mut player) in &mut players {
+        if !has_physics_readback(&player) { continue; }
+        let Some(mut pose) = player.get_default_output_pose().cloned() else { continue; };
+        for (bone, index) in &pose.paths {
+            let Some(target) = player.bone_entity(*bone).filter(|target| *target != entity) else { continue; };
+            let Ok(transform) = targets.get(target) else { continue; };
+            let bone_pose = &mut pose.bones[*index];
+            bone_pose.translation = Some(transform.translation);
+            bone_pose.rotation = Some(transform.rotation);
+            bone_pose.scale = Some(transform.scale);
+        }
+        player.set_default_output_pose(pose);
+    }
+}
+
+fn apply_readback_pose(
+    mut targets: Query<(&mut Transform, &AnimationTargetId, &AnimatedBy)>,
+    players: Query<&AnimationGraphPlayer>,
+) {
+    for (mut transform, id, animated_by) in &mut targets {
+        let Ok(player) = players.get(animated_by.0) else { continue; };
+        if !has_physics_readback(player) { continue; }
+        let Some(pose) = player.get_default_output_pose() else { continue; };
+        let Some(index) = pose.paths.get(&BoneId::from(*id)) else { continue; };
+        let bone = &pose.bones[*index];
+        if let Some(value) = bone.translation { transform.translation = value; }
+        if let Some(value) = bone.rotation { transform.rotation = value; }
+        if let Some(value) = bone.scale { transform.scale = value; }
     }
 }
 
@@ -77,7 +130,9 @@ mod tests {
         app.add_plugins(MinimalPlugins)
             .init_resource::<Assets<GraphClip>>().init_resource::<Assets<AnimationGraph>>()
             .init_resource::<Assets<Skeleton>>().init_resource::<Assets<StateMachine>>()
+            .init_resource::<Assets<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>>()
             .add_systems(PostUpdate, (animation_player, extract_root_motion).chain().in_set(AnimationGraphSet::PrePhysics))
+            .add_systems(PostUpdate, read_back_poses_avian.in_set(AnimationGraphSet::PostPhysics))
             .configure_sets(PostUpdate, (
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
                 PhysicsSystems::Last.after(PhysicsSystems::First),

@@ -94,6 +94,8 @@ impl Plugin for AlsCharacterRuntimePlugin {
         ).in_set(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs))
         .configure_sets(PostUpdate, als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs
             .after(als_core::motion::AlsActualVelocitySet))
+        .configure_sets(PostUpdate, als_camera::AlsCameraSet
+            .after(crate::control_rig_apply::AlsControlRigPropagationSet))
         .add_systems(PostUpdate, mark_character_animation_phase
             .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics));
     }

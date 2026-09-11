@@ -183,7 +183,9 @@ impl Plugin for ControlRigApplyPlugin {
                 AlsControlRigSet.after(AlsControlRigInputSet),
                 AlsControlRigPrePropagationSet.after(AlsControlRigSet),
                 AlsControlRigHandSet.after(FootIkApplySet::Propagate),
-                AlsControlRigPropagationSet.after(AlsControlRigHandSet),
+                als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback
+                    .after(AlsControlRigHandSet).after(FootIkApplySet::Telemetry),
+                AlsControlRigPropagationSet.after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback),
             ),
         )
         .init_resource::<CrAlsRuntimeProfileTemplate>()
