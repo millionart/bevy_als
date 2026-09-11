@@ -245,6 +245,8 @@ mod tests {
             crate::ragdolling_layer::RagdollingLayerPlugin,
             crate::ab_als_root::AlsRootGraphPlugin,
             crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin,
+            crate::control_rig_apply::ControlRigApplyPlugin,
+            crate::foot_ik_apply::FootIkApplyPlugin,
         ))
         .configure_sets(
             PostUpdate,

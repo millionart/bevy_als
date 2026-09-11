@@ -1,8 +1,6 @@
 use als_core::character::AlsCharacter;
 use als_core::foot_ik::{AlsFootLockState, AlsFootTargetSelection};
 use als_core::input_request::AlsFirstPersonView;
-use als_core::motion::AlsViewYaw;
-use als_core::orientation::world_forward_to_yaw;
 use als_core::state::{LocomotionState, RotationMode};
 use als_ext::ik::{solve_two_bone_ik, world_rotation_to_local};
 use als_ext::source_instance::source_player_property;
@@ -18,8 +16,7 @@ use serde::Deserialize;
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::foot_ik_apply::FootIkApplySet;
-use crate::head_layer::{inv_exp_approx, unwind_degrees};
-use crate::locomotion_layer::AlsGroundPredictionState;
+use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
 pub(crate) const CR_ALS_RUNTIME_PROFILE: &str =
     include_str!("../assets/control_rigs/cr_als.runtime.json");
@@ -174,13 +171,16 @@ impl Plugin for ControlRigApplyPlugin {
             PostUpdate,
             (
                 AlsControlRigDiscoverySet
+                    .before(AlsControlRigConstructionSet),
+                AlsControlRigConstructionSet.before(FootIkApplySet::UpdateInputs),
+                AlsControlRigInputSet
+                    .after(AlsControlRigConstructionSet)
+                    .after(AlsHeadLayerSet)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+                AlsControlRigSet.after(AlsControlRigInputSet)
                     .after(AnimationGraphSet::Final)
                     .after(AlsRootAnimationContextSet)
                     .after(TransformSystems::Propagate),
-                AlsControlRigConstructionSet.after(AlsControlRigDiscoverySet),
-                AlsControlRigInputSet
-                    .after(AlsControlRigConstructionSet),
-                AlsControlRigSet.after(AlsControlRigInputSet),
                 AlsControlRigPrePropagationSet.after(AlsControlRigSet),
                 AlsControlRigHandSet.after(FootIkApplySet::Propagate),
                 als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback
@@ -371,8 +371,6 @@ pub struct AlsControlRigState {
     pub last_yaw_angle_world_space: f32,
     pub yaw_angle: f32,
     pub final_yaw_angle: f32,
-    previous_view_yaw_world: f32,
-    initialized: bool,
 }
 
 impl Default for AlsControlRigState {
@@ -386,8 +384,6 @@ impl Default for AlsControlRigState {
             last_yaw_angle_world_space: 0.0,
             yaw_angle: 0.0,
             final_yaw_angle: 0.0,
-            previous_view_yaw_world: 0.0,
-            initialized: false,
         }
     }
 }
@@ -395,47 +391,38 @@ impl Default for AlsControlRigState {
 #[derive(Clone, Copy)]
 struct SpineInput {
     allowed: bool,
+    pending_update: bool,
     view_yaw_angle: f32,
-    view_yaw_world: f32,
+    view_yaw_speed: f32,
     body_yaw_world: f32,
     blend_amount: f32,
     delta_seconds: f32,
 }
 
 fn is_relevant(value: f32) -> bool {
-    value > 1e-4
+    value > 1e-5
 }
 
 fn is_full(value: f32) -> bool {
-    value >= 1.0 - 1e-4
+    value >= 1.0 - 1e-5
 }
 
 fn damper_exact(current: f32, target: f32, delta_seconds: f32, half_life: f32) -> f32 {
     let alpha =
-        1.0 - inv_exp_approx(std::f32::consts::LN_2 * delta_seconds.max(0.0) / (half_life + 1e-8));
+        1.0 - inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * delta_seconds);
     current + (target - current) * alpha
 }
 
 fn lerp_angle(from: f32, to: f32, amount: f32) -> f32 {
-    unwind_degrees(from + unwind_degrees(to - from) * amount)
+    let delta = unwind_degrees(to - from);
+    unwind_degrees(from + (if delta > 175.0 { delta - 360.0 } else { delta }) * amount)
 }
 
 fn armature_yaw_rotation(yaw_degrees: f32) -> Quat {
     Quat::from_rotation_y(-yaw_degrees.to_radians())
 }
 
-fn body_yaw_degrees(transform: &Transform) -> f32 {
-    let forward = transform.rotation * Vec3::NEG_Z;
-    world_forward_to_yaw(forward).to_degrees()
-}
-
 fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
-    let view_yaw_speed = if state.initialized && input.delta_seconds > 1e-6 {
-        unwind_degrees(input.view_yaw_world - state.previous_view_yaw_world).abs()
-            / input.delta_seconds
-    } else {
-        0.0
-    };
     if state.spine_rotation_allowed != input.allowed {
         state.spine_rotation_allowed = input.allowed;
         if state.spine_rotation_allowed {
@@ -458,7 +445,7 @@ fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
         state.last_yaw_angle_world_space = input.body_yaw_world;
     }
     if state.spine_rotation_allowed {
-        if !state.initialized || is_full(state.spine_amount) {
+        if input.pending_update || is_full(state.spine_amount) {
             state.spine_amount = 1.0;
             state.yaw_angle = input.view_yaw_angle;
         } else {
@@ -474,12 +461,12 @@ fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
                 state.spine_amount * state.spine_amount_scale + state.spine_amount_bias,
             );
         }
-    } else if !state.initialized || !is_relevant(state.spine_amount) {
+    } else if input.pending_update || !is_relevant(state.spine_amount) {
         state.spine_amount = 0.0;
         state.yaw_angle = 0.0;
     } else {
-        let multiplier = if view_yaw_speed > SPINE_REFERENCE_VIEW_YAW_SPEED {
-            SPINE_REFERENCE_VIEW_YAW_SPEED / view_yaw_speed
+        let multiplier = if input.view_yaw_speed > SPINE_REFERENCE_VIEW_YAW_SPEED {
+            SPINE_REFERENCE_VIEW_YAW_SPEED / input.view_yaw_speed
         } else {
             1.0
         };
@@ -498,9 +485,7 @@ fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
             state.spine_amount * state.spine_amount_scale + state.spine_amount_bias,
         );
     }
-    state.final_yaw_angle = lerp_angle(0.0, state.yaw_angle, input.blend_amount.clamp(0.0, 1.0));
-    state.previous_view_yaw_world = input.view_yaw_world;
-    state.initialized = true;
+    state.final_yaw_angle = lerp_angle(0.0, state.yaw_angle, input.blend_amount);
 }
 
 fn output_f32(context: Option<&AlsRootAnimationContext>, name: &str) -> f32 {
@@ -702,7 +687,7 @@ fn apply_arm_ik(
     bone_locals: &mut Query<(&mut Transform, &GlobalTransform, &ChildOf), Without<AlsCharacter>>,
     bone_globals: &Query<&GlobalTransform, Without<AlsCharacter>>,
 ) {
-    if !is_relevant(weight) {
+    if !(weight > 1e-4) {
         return;
     }
     let (Ok(upper_global), Ok(lower_global), Ok(hand_global), Ok(target_global)) = (
@@ -802,53 +787,75 @@ fn source_pelvis_offset_amount(player: &AnimationGraphPlayer, ground_prediction:
 
 #[allow(clippy::type_complexity)]
 fn refresh_control_rig_input(
+    time: Res<Time>,
+    mut commands: Commands,
     mut characters: Query<
         (
             Entity,
-            &AlsControlRigConstruction,
+            &RotationMode,
+            Has<AlsFirstPersonView>,
+            Option<&AlsControlRigSettings>,
             Option<&AlsFootLockState>,
-            Option<&AlsGroundPredictionState>,
-            Option<&AlsControlRigState>,
-            &mut AlsControlRigInput,
-            &mut AlsControlRigStageTrace,
+            Option<&mut AlsControlRigState>,
+            Option<&mut AlsControlRigInput>,
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     for (
         entity,
-        construction,
+        rotation_mode,
+        first_person,
+        settings,
         foot_lock,
-        ground_prediction,
-        state,
-        mut current_input,
-        mut current_trace,
+        current_state,
+        current_input,
     ) in &mut characters
     {
-        current_trace.stage_mask = 0;
-        let Some((_, instance, _)) = avatars
+        let Some((player, context)) = avatars
             .iter()
-            .find(|(parent, _, _)| parent.parent() == entity)
+            .find(|(parent, _)| parent.parent() == entity)
+            .and_then(|(_, instance)| players.get(instance.player_entity()).ok())
         else {
             continue;
         };
-        let ground_prediction = ground_prediction.map_or(0.0, |state| state.amount);
-        let pelvis_offset_amount = players.get(instance.player_entity())
-            .map_or(0.0, |(player, _)| source_pelvis_offset_amount(player, ground_prediction));
-        let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
-            players.get(instance.player_entity()).ok()
-                .and_then(|(player, _)| source_player_property(player, &format!("grounded_state.velocity_blend.{direction}")))
-                .and_then(|value| value.as_f32().ok()).unwrap_or(0.0)
+        let scalar = |key| player.get_global_input_data(key)
+            .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
+        let mut state = current_state.as_deref().copied().unwrap_or_default();
+        update_spine_state(&mut state, SpineInput {
+            allowed: *rotation_mode == RotationMode::Aiming || first_person,
+            pending_update: player.get_global_input_data("animation.pending_update")
+                .and_then(|value| value.as_bool().ok()).unwrap_or(true),
+            view_yaw_angle: scalar("view_state.yaw_angle"),
+            view_yaw_speed: scalar("view_state.yaw_speed"),
+            body_yaw_world: scalar("locomotion_state.rotation_yaw"),
+            blend_amount: (1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0))
+                * output_f32(context, "PoseAiming").clamp(0.0, 1.0),
+            delta_seconds: time.delta_secs(),
         });
+        if let Some(mut existing) = current_state {
+            *existing = state;
+        } else {
+            commands.entity(entity).insert(state);
+        }
+        let Some(mut current_input) = current_input else { continue; };
+        let source_scalar = |key: &str| source_player_property(player, key)
+            .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
+        let pelvis_offset_amount = source_pelvis_offset_amount(player,
+            source_scalar("in_air_state.ground_prediction_amount"));
+        let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
+            source_scalar(&format!("grounded_state.velocity_blend.{direction}"))
+        });
+        let settings = settings.copied().unwrap_or_default();
         let input = AlsControlRigInput {
-            use_hand_ik_bones: construction.use_hand_ik_bones,
-            use_foot_ik_bones: construction.use_foot_ik_bones,
+            use_hand_ik_bones: settings.use_hand_ik_bones,
+            use_foot_ik_bones: settings.use_foot_ik_bones,
             foot_transforms_valid: foot_lock.is_some_and(|state| state.valid) && current_input.foot_transforms_valid,
             velocity_blend_forward_amount: velocity_blend[0],
             velocity_blend_backward_amount: velocity_blend[1],
-            spine_yaw_angle_degrees: state.map_or(0.0, |state| state.final_yaw_angle),
+            spine_yaw_angle_degrees: state.final_yaw_angle,
             pelvis_offset_amount,
             ..*current_input
         };
@@ -858,19 +865,12 @@ fn refresh_control_rig_input(
 
 #[allow(clippy::type_complexity)]
 fn control_rig_pre_apply_system(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut characters: Query<
+    characters: Query<
         (
             Entity,
             &LocomotionState,
-            &RotationMode,
-            Has<AlsFirstPersonView>,
-            &Transform,
-            &AlsViewYaw,
             Option<&AlsControlRigBones>,
             Option<&AlsControlRigInput>,
-            Option<&mut AlsControlRigState>,
         ),
         With<AlsCharacter>,
     >,
@@ -884,15 +884,11 @@ fn control_rig_pre_apply_system(
     for (
         entity,
         locomotion,
-        rotation_mode,
-        first_person,
-        transform,
-        view_yaw,
         bones,
         input,
-        current_state,
-    ) in &mut characters
+    ) in &characters
     {
+        if let Ok(mut trace) = traces.get_mut(entity) { trace.stage_mask = 0; }
         if *locomotion == LocomotionState::Ragdolling {
             continue;
         }
@@ -903,28 +899,6 @@ fn control_rig_pre_apply_system(
         else {
             continue;
         };
-        let mut state = current_state.as_deref().copied().unwrap_or_default();
-        let body_yaw = body_yaw_degrees(transform);
-        let view_yaw_world = view_yaw.0.to_degrees();
-        let view_yaw_angle = unwind_degrees(view_yaw_world - body_yaw);
-        let view_amount = 1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0);
-        let pose_aiming = output_f32(context, "PoseAiming").clamp(0.0, 1.0);
-        update_spine_state(
-            &mut state,
-            SpineInput {
-                allowed: *rotation_mode == RotationMode::Aiming || first_person,
-                view_yaw_angle,
-                view_yaw_world,
-                body_yaw_world: body_yaw,
-                blend_amount: view_amount * pose_aiming,
-                delta_seconds: time.delta_secs(),
-            },
-        );
-        if let Some(mut existing) = current_state {
-            *existing = state;
-        } else {
-            commands.entity(entity).insert(state);
-        }
         let Some(bones) = bones else {
             continue;
         };
@@ -939,7 +913,7 @@ fn control_rig_pre_apply_system(
         );
         apply_spine_rotation(
             bones.spine,
-            state.final_yaw_angle,
+            input.spine_yaw_angle_degrees,
             avatars
                 .iter()
                 .find(|(parent, _, _)| parent.parent() == entity)
@@ -1025,6 +999,116 @@ fn control_rig_hand_apply_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use als_core::motion::AlsViewYaw;
+    use crate::locomotion_layer::AlsGroundPredictionState;
+
+    #[test]
+    fn rig_input_snapshots_prepared_actor_state_before_source_update() {
+        use als_ext::{post_physics_animation::PostPhysicsAnimationSet, source_instance::set_source_frame_input};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+
+        fn source_update(mut players: Query<(&mut AnimationGraphPlayer, &mut AlsRootAnimationContext)>) {
+            for (mut player, mut context) in &mut players {
+                for (key, value) in [
+                    ("grounded_state.velocity_blend.forward_amount", 0.9),
+                    ("grounded_state.velocity_blend.backward_amount", 0.05),
+                    ("in_air_state.ground_prediction_amount", 0.8),
+                ] {
+                    set_source_frame_input(&mut player, key, value);
+                }
+                context.curves.insert("ViewBlock".into(), 1.0);
+                context.curves.insert("PoseAiming".into(), 0.0);
+            }
+        }
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy_animation_graph::AnimationGraphPlugin::default()));
+        let actor = app.world_mut().spawn((
+            AlsCharacter, LocomotionState::Grounded, RotationMode::Aiming,
+            Transform::default(), AlsViewYaw(60.0_f32.to_radians()),
+            AlsControlRigConstruction {
+                use_hand_ik_bones: true, use_foot_ik_bones: true,
+                foot_height_m: 0.1, leg_length_m: 0.8,
+            },
+            AlsFootLockState { valid: true, ..default() },
+            AlsGroundPredictionState { amount: 0.95 },
+            AlsControlRigInput {
+                foot_transforms_valid: true,
+                foot_left_location_armature: Vec3::new(1.0, 2.0, 3.0),
+                ..default()
+            },
+            AlsControlRigStageTrace::default(),
+        )).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
+            AnimatedSceneHandle::default(), ChildOf(actor))).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::default(),
+            AlsRootAnimationContext::default(), Transform::default(), ChildOf(avatar))).id();
+        let mut parent = avatar;
+        let spine = std::array::from_fn::<_, 4, _>(|_| {
+            let bone = app.world_mut().spawn((Transform::default(), GlobalTransform::default(), ChildOf(parent))).id();
+            parent = bone;
+            Some(bone)
+        });
+        app.world_mut().entity_mut(actor).insert(AlsControlRigBones { spine, ..default() });
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        app.world_mut().resource_mut::<bevy::ecs::schedule::Schedules>().remove(PostUpdate);
+        app.add_plugins(ControlRigApplyPlugin)
+            .configure_sets(PostUpdate, PostPhysicsAnimationSet::Evaluate.before(AnimationGraphSet::Final))
+            .add_systems(PostUpdate, source_update.in_set(PostPhysicsAnimationSet::Evaluate));
+        for (locomotion, mode, first_person, view_angle) in [
+            (LocomotionState::Grounded, RotationMode::Aiming, false, -60.0),
+            (LocomotionState::Ragdolling, RotationMode::Aiming, false, -35.0),
+            (LocomotionState::Grounded, RotationMode::ViewDirection, true, 45.0),
+        ] {
+            app.world_mut().entity_mut(actor).insert((locomotion, mode));
+            for bone in spine.into_iter().flatten() {
+                app.world_mut().entity_mut(bone).insert((Transform::default(), GlobalTransform::default()));
+            }
+            if first_person { app.world_mut().entity_mut(actor).insert(AlsFirstPersonView); }
+            {
+                let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+                for (key, value) in [
+                    ("grounded_state.velocity_blend.forward_amount", 0.25),
+                    ("grounded_state.velocity_blend.backward_amount", 0.1),
+                    ("in_air_state.ground_prediction_amount", 0.2),
+                ] { set_source_frame_input(&mut player, key, value); }
+                for (key, value) in [
+                    ("pose_state.grounded_amount", 0.25), ("pose_state.in_air_amount", 0.75),
+                    ("view_state.yaw_angle", view_angle), ("view_state.yaw_speed", 120.0),
+                    ("locomotion_state.rotation_yaw", -10.0),
+                ] { player.set_global_input_data(key, value); }
+                player.set_global_input_data("animation.pending_update", true);
+            }
+            app.world_mut().get_mut::<AlsRootAnimationContext>(player).unwrap().curves =
+                [("ViewBlock".into(), 0.25), ("PoseAiming".into(), 0.5)].into_iter().collect();
+            app.world_mut().run_schedule(PostUpdate);
+            let input = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert_eq!((input.velocity_blend_forward_amount, input.velocity_blend_backward_amount), (0.25, 0.1));
+            assert!((input.pelvis_offset_amount - 0.4).abs() < 1e-6, "{input:?}");
+            assert!((input.spine_yaw_angle_degrees - view_angle * 0.375).abs() < 1e-6, "{input:?}");
+            assert_eq!(input.foot_left_location_armature, Vec3::new(1.0, 2.0, 3.0));
+            assert!(input.foot_transforms_valid);
+            assert_eq!(app.world().get::<AlsControlRigState>(actor).unwrap().final_yaw_angle,
+                input.spine_yaw_angle_degrees);
+            let expected = if locomotion == LocomotionState::Ragdolling { Quat::IDENTITY }
+                else { Quat::from_rotation_y((-input.spine_yaw_angle_degrees / 4.0).to_radians()) };
+            let actual = app.world().get::<Transform>(spine[0].unwrap()).unwrap().rotation;
+            assert!(actual.abs_diff_eq(expected, 1e-6), "{locomotion:?}: {actual:?} != {expected:?}");
+        }
+    }
+
+    #[test]
+    fn spine_interpolation_uses_source_counterclockwise_and_weight_boundaries() {
+        assert!((lerp_angle(0.0, 179.0, 0.5) + 90.5).abs() < 1e-6);
+        assert!((lerp_angle(0.0, 175.0, 0.5) - 87.5).abs() < 1e-6);
+        assert!(is_relevant(0.000_02));
+        assert!(!is_full(0.999_98));
+    }
 
     #[test]
     fn pelvis_offset_reads_the_prepared_actor_pose_inputs() {
@@ -1069,38 +1153,30 @@ mod tests {
     }
 
     #[test]
-    fn spine_enters_with_the_source_view_yaw() {
+    fn spine_uses_the_actor_pending_update_and_view_speed() {
         let mut state = AlsControlRigState::default();
-        update_spine_state(
-            &mut state,
-            SpineInput {
-                allowed: true,
-                view_yaw_angle: 90.0,
-                view_yaw_world: 90.0,
-                body_yaw_world: 0.0,
-                blend_amount: 1.0,
-                delta_seconds: 1.0 / 60.0,
-            },
-        );
+        let mut input = SpineInput {
+            allowed: true, pending_update: false, view_yaw_angle: 80.0,
+            view_yaw_speed: 0.0, body_yaw_world: 0.0,
+            blend_amount: 0.25, delta_seconds: 0.1,
+        };
+        update_spine_state(&mut state, input);
+        assert!(state.spine_amount > 0.49 && state.spine_amount < 0.51);
+        input.pending_update = true;
+        update_spine_state(&mut state, input);
         assert!((state.spine_amount - 1.0).abs() < 1e-6);
-        assert!((state.final_yaw_angle - 90.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn spine_blend_applies_after_the_yaw_state() {
-        let mut state = AlsControlRigState::default();
-        update_spine_state(
-            &mut state,
-            SpineInput {
-                allowed: true,
-                view_yaw_angle: 80.0,
-                view_yaw_world: 80.0,
-                body_yaw_world: 0.0,
-                blend_amount: 0.25,
-                delta_seconds: 1.0 / 60.0,
-            },
-        );
         assert!((state.yaw_angle - 80.0).abs() < 1e-6);
         assert!((state.final_yaw_angle - 20.0).abs() < 1e-6);
+        input.allowed = false;
+        input.pending_update = false;
+        input.view_yaw_speed = 3580.0;
+        update_spine_state(&mut state, input);
+        let x = std::f32::consts::LN_2 / (0.7 * 40.0 / 3580.0 + 1e-8) * 0.1;
+        let expected = 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+        assert!((state.spine_amount - expected).abs() < 1e-6);
+        assert!((state.final_yaw_angle - 20.0 * expected).abs() < 1e-5);
+        input.pending_update = true;
+        update_spine_state(&mut state, input);
+        assert_eq!((state.spine_amount, state.yaw_angle, state.final_yaw_angle), (0.0, 0.0, 0.0));
     }
 }
