@@ -707,6 +707,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             isinstance(key, str) for key in keys
         ):
             raise PoseRenderError("source multi-way blend property binding is unavailable")
+        skeletons = {asset["target_skeleton"] for asset in asset_by_node.values() if asset.get("target_skeleton")}
+        if len(skeletons) != 1:
+            raise PoseRenderError("source multi-way reference skeleton is unavailable or ambiguous")
         return (
             "als_ext::SourceMultiWayBlendNode",
             "(pose_count: "
@@ -719,6 +722,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + bool_ron(value["normalize_alpha"])
             + ", alpha_scale: "
             + repr(value["alpha_scale"])
+            + ", reference_skeleton: " + quoted(next(iter(skeletons)))
             + ", pose_pin_prefix: \"Poses_\", alpha_pin_prefix: \"DesiredAlphas_\")",
         )
     if renderer == "set_hips_direction":
@@ -1963,15 +1967,22 @@ def run_self_test():
                 "alpha_scale": 1.0,
             },
         },
-        {},
+        {"fixture": {"target_skeleton": "skeletons/Test.skn.ron"}},
         {},
     )
     assert multi_type == "als_ext::SourceMultiWayBlendNode"
+    assert 'reference_skeleton: "skeletons/Test.skn.ron"' in multi_inner
     assert "desired_alpha_defaults: [0.25, 0.75]" in multi_inner
     assert 'desired_alpha_keys: ["grounded_state.velocity_blend.forward_amount", ""]' in multi_inner
     assert 'pose_pin_prefix: "Poses_"' in multi_inner
     assert target_pin("multi_way_blend", "Poses_1") == "Poses_1"
     assert target_pin("multi_way_blend", "DesiredAlphas_1") == "DesiredAlphas_1"
+    for references in [{}, {"first": {"target_skeleton": "first.skn.ron"}, "second": {"target_skeleton": "second.skn.ron"}}]:
+        try:
+            rendered_inner(graph_contract, {}, {"renderer": "multi_way_blend", "semantic": {"pose_count": 2, "desired_alpha_keys": ["", ""]}}, references, {})
+            raise AssertionError("invalid multi-way reference skeleton was accepted")
+        except PoseRenderError:
+            pass
     tag_type, tag_inner = rendered_inner(
         graph_contract,
         {},

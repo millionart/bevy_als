@@ -5,6 +5,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
     pose::Pose,
+    skeleton::Skeleton,
 };
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
@@ -19,14 +20,6 @@ fn node_error(ctx: &NodeContext, message: String) -> GraphError {
     }
 }
 
-fn source_reference_pose(source: &Pose) -> Pose {
-    Pose {
-        skeleton: source.skeleton.clone(),
-        timestamp: source.timestamp,
-        ..default()
-    }
-}
-
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -36,6 +29,7 @@ pub struct SourceMultiWayBlendNode {
     pub desired_alpha_defaults: Vec<f32>,
     pub normalize_alpha: bool,
     pub alpha_scale: f32,
+    pub reference_skeleton: Handle<Skeleton>,
     pub pose_pin_prefix: String,
     pub alpha_pin_prefix: String,
 }
@@ -48,6 +42,7 @@ impl Default for SourceMultiWayBlendNode {
             desired_alpha_defaults: default(),
             normalize_alpha: true,
             alpha_scale: 1.0,
+            reference_skeleton: default(),
             pose_pin_prefix: "Poses ".to_owned(),
             alpha_pin_prefix: "Desired Alphas ".to_owned(),
         }
@@ -81,7 +76,7 @@ impl SourceMultiWayBlendNode {
             .data_back(self.alpha_input(index))
             .ok()
             .and_then(|value| value.as_f32().ok());
-        Ok(input.unwrap_or(fallback) * self.alpha_scale)
+        Ok(input.unwrap_or(fallback))
     }
 }
 
@@ -95,23 +90,19 @@ impl NodeLike for SourceMultiWayBlendNode {
                 "desired alpha configuration does not match pose count".to_owned(),
             ));
         }
-        let mut active = Vec::with_capacity(self.pose_count);
-        let mut total_weight = 0.0;
-        for index in 0..self.pose_count {
-            let weight = self.alpha(&ctx, index)?;
-            if weight > f32::EPSILON {
-                total_weight += weight;
-                active.push((index, weight));
+        let desired = (0..self.pose_count).map(|index| self.alpha(&ctx, index))
+            .collect::<Result<Vec<_>, _>>()?;
+        let total: f32 = desired.iter().sum();
+        let mut active = Vec::new();
+        if (total * self.alpha_scale).clamp(0.0, 1.0) > 1e-5 {
+            for (index, raw) in desired.into_iter().enumerate() {
+                let weight = ((if self.normalize_alpha { raw / total } else { raw }) * self.alpha_scale).clamp(0.0, 1.0);
+                if weight > 1e-5 { active.push((index, weight)); }
             }
         }
         let mut poses = Vec::with_capacity(active.len());
         let mut contexts = Vec::new();
-        for (index, raw_weight) in active {
-            let weight = if self.normalize_alpha {
-                raw_weight / total_weight
-            } else {
-                raw_weight
-            };
+        for (index, weight) in active {
             let pose = ctx.data_back(self.pose_input(index))?.into_pose()?;
             if let Some(context) = pose_input_context_state(&ctx, &self.pose_input(index)) {
                 contexts.push((context, weight));
@@ -119,14 +110,20 @@ impl NodeLike for SourceMultiWayBlendNode {
             poses.push((pose, weight));
         }
         let output = if poses.is_empty() {
-            source_reference_pose(&ctx.data_back(self.pose_input(0))?.into_pose()?)
+            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&self.reference_skeleton)
+                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+            let timestamp = crate::context_time_update(&ctx)?.partial_update_basic(ctx.prev_time()).unwrap_or_else(|| ctx.prev_time());
+            let mut pose = Pose { skeleton: self.reference_skeleton.clone(), timestamp, ..default() };
+            crate::mesh_space_additive::materialize_missing_reference_bones(&mut pose, skeleton);
+            pose
         } else {
             blend_source_poses(&poses)
         };
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd("Pose", output);
-        *ctx.state_mut_or_else(AnimationContextState::default)? =
-            blend_animation_contexts(contexts);
+        *ctx.state_mut_or_else(AnimationContextState::default)? = if poses.is_empty() {
+            AnimationContextState { curves_are_authoritative: true, ..default() }
+        } else { blend_animation_contexts(contexts) };
         Ok(())
     }
 
@@ -217,6 +214,93 @@ impl NodeLike for SourceSetHipsDirectionNode {
 mod tests {
     use super::*;
     use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn multi_way_blend_matches_source_weights_and_skips_irrelevant_children() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources}, edge_data::DataValue,
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, skeleton, bone)): In<(Handle<AnimationGraph>, Handle<Skeleton>, bevy_animation_graph::core::pose::BoneId)>, resources: SystemResources) -> (Pose, [bool; 2], bool) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let mut inputs = HashMap::new();
+            for (index, x) in [2.0, 8.0].into_iter().enumerate() {
+                let mut pose = Pose { skeleton: skeleton.clone(), timestamp: 1.0, ..default() };
+                pose.add_bone(BonePose::from_transform(Transform::from_xyz(x, 0.0, 0.0)), bone);
+                inputs.insert(format!("pose_{index}"), DataValue::Pose(pose));
+            }
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let pose = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone())
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+            let authoritative = crate::animation_context::graph_output_context_state(graph, &context, "Pose").unwrap().curves_are_authoritative;
+            let updated = [0, 1].map(|index| {
+                let node = graph.nodes.values().find(|node| node.name == format!("pose_{index}")).unwrap();
+                arena.get_toplevel().node_caches.is_updated(node.id, StateKey::Default)
+            });
+            (pose, updated, authoritative)
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let root = EntityPath::default().child("scene");
+        let child = root.child("bone");
+        let bone = child.id();
+        let reference = Transform::from_xyz(4.0, 1.0, 2.0);
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        skeleton.add_bone(root, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(child, reference, reference);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut failures = Vec::new();
+        for (desired, scale, normalize, expected) in [
+            ([1.0, 3.0], 1.0, true, [0.25, 0.75]),
+            ([1.0, 3.0], 0.5, true, [0.125, 0.375]),
+            ([2.0, 0.5], 1.0, false, [1.0, 0.5]),
+            ([0.0, 0.0], 1.0, true, [0.0, 0.0]),
+            ([1.0, -1.0], 1.0, true, [0.0, 0.0]),
+            ([0.000004, 0.000004], 1.0, true, [0.0, 0.0]),
+            ([0.000001, 1.0], 1.0, true, [0.0, 1.0 / 1.000001]),
+        ] {
+            let mut graph = AnimationGraph::new();
+            let blend = AnimationNode::new("blend", SourceMultiWayBlendNode {
+                desired_alpha_keys: vec![String::new(); 2], desired_alpha_defaults: desired.to_vec(),
+                alpha_scale: scale, normalize_alpha: normalize, reference_skeleton: skeleton.clone(), pose_pin_prefix: "Poses_".into(), ..default()
+            });
+            graph.add_node(blend.clone());
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            for index in 0..2 {
+                let key = format!("pose_{index}");
+                let input = AnimationNode::new(&key, crate::GlobalPoseInputNode { key: key.clone(), output: "Pose".into() });
+                graph.add_node(input.clone());
+                graph.add_node_parameter_edge(input.id, "Pose", blend.id, format!("Poses_{index}"));
+            }
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let (pose, updated, authoritative) = world.run_system_cached_with(query, (handle, skeleton.clone(), bone)).unwrap();
+            let active = expected.map(|weight| weight > 1e-5);
+            let expected_translation = if active.iter().any(|value| *value) { Vec3::X * (2.0 * expected[0] + 8.0 * expected[1]) } else { reference.translation };
+            let expected_scale = if active.iter().any(|value| *value) { Vec3::splat(expected.iter().sum()) } else { reference.scale };
+            let matches = pose.skeleton == skeleton && pose.get_bone(bone).is_some_and(|pose|
+                pose.translation.is_some_and(|value| value.abs_diff_eq(expected_translation, 1e-5))
+                && pose.scale.is_some_and(|value| value.abs_diff_eq(expected_scale, 1e-5)));
+            if updated != active || !matches || (!active.iter().any(|value| *value) && !authoritative) {
+                failures.push(format!("desired={desired:?}, scale={scale}, normalize={normalize}: updated={updated:?}, bone={:?}", pose.get_bone(bone)));
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 
     #[test]
     fn source_hips_direction_write_is_visible_to_the_child_graph() {
@@ -344,20 +428,6 @@ mod tests {
             world.run_system_cached_with(query, graph).unwrap(),
             [3.0, 0.0, 3.0, 3.0]
         );
-    }
-
-    #[test]
-    fn source_multi_way_blend_reference_pose_preserves_only_source_identity() {
-        let mut source = Pose {
-            timestamp: 2.5,
-            ..default()
-        };
-        source.bones.push(BonePose::default());
-        let reference = source_reference_pose(&source);
-        assert_eq!(reference.timestamp, source.timestamp);
-        assert_eq!(reference.skeleton, source.skeleton);
-        assert!(reference.bones.is_empty());
-        assert!(reference.paths.is_empty());
     }
 
     #[test]

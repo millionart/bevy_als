@@ -45,6 +45,14 @@
     {
       "path": "target/bf115_layering/source_cpp/AnimTypes.h",
       "sha256": "31cce827284996ad249a16c4d99c89e976cc1cda741914e0380e144da9722f80"
+    },
+    {
+      "path": "target/bf115_layering_full/extra_source/SK_Als.reference_container.ue.json",
+      "sha256": "1400a190142d940087f282fc717d2f0aa69db7b0d70632203f8e75a91faa1126"
+    },
+    {
+      "path": "target/bf115_layering_full/extra_source/SKM_Als.reference_container.ue.json",
+      "sha256": "36b9822cf36ab2dcc2301c7c3b2474477302f9f9efa56f083af66013c5fa61a1"
     }
   ],
   "graphs": [
@@ -1269,9 +1277,9 @@
         "--source-directory",
         "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/conversion",
+        "target/bf115_layering_full/multi_conversion",
         "--spec",
-        "target/bf115_layering_full/spec.json",
+        "target/bf115_layering_full/multi_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]
@@ -1304,6 +1312,20 @@
         "tools/validate_runtime_graph_asset_boundary.py",
         "--assets-root",
         "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "source_reference_skeleton",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/audit_cr_als.py",
+        "--skeleton-only",
+        "--mesh",
+        "target/bf115_layering_full/extra_source/SKM_Als.reference_container.ue.json",
+        "--gltf",
+        "assets/animations/Base/A_Als_Idle.gltf",
         "--check"
       ]
     }

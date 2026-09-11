@@ -492,18 +492,23 @@ def main():
     parser.add_argument("--runtime-profile", type=Path, default=DEFAULT_RUNTIME_PROFILE)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--skeleton-only", action="store_true")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     self_test()
     if args.self_test:
         print("CR_Als audit self-test PASS")
         return
-    source = json.loads(args.source.read_text(encoding="utf-8"))
     mesh = json.loads(args.mesh.read_text(encoding="utf-8"))
     gltf = json.loads(args.gltf.read_text(encoding="utf-8"))
+    differences = []
+    validate_skeleton(mesh, gltf, differences)
+    if args.skeleton_only:
+        print(json.dumps({"pass": not differences, "differences": differences}))
+        raise SystemExit(1 if differences else 0)
+    source = json.loads(args.source.read_text(encoding="utf-8"))
     profile = json.loads(args.profile.read_text(encoding="utf-8"))
     runtime = json.loads(args.runtime_profile.read_text(encoding="utf-8"))
-    differences = []
     validate_source_raw(source, differences)
     coverage = validate_profile(
         source,
@@ -513,7 +518,6 @@ def main():
         (ROOT / "src" / "foot_ik_apply.rs").read_text(encoding="utf-8"),
         differences,
     )
-    validate_skeleton(mesh, gltf, differences)
     report = {
         "source_asset": source["asset_path"],
         "source_mesh": mesh["asset_path"],

@@ -486,6 +486,19 @@ def resolve_animation_clip(asset_root, source_path):
     return relative_asset_path(asset_root, target)
 
 
+def target_clip_skeleton(asset_root, target):
+    values = re.findall(r'\bskeleton\s*:\s*("(?:\\.|[^"\\])*")', (asset_root / target).read_text(encoding="utf-8"))
+    if not values:
+        return None
+    if len(values) != 1:
+        raise AssetResolutionError("animation clip reference skeleton is ambiguous")
+    path = asset_root / json.loads(values[0])
+    relative = relative_asset_path(asset_root, path)
+    if not path.is_file():
+        raise AssetResolutionError("animation clip reference skeleton is unavailable")
+    return relative
+
+
 def blendspace_metadata_path(asset_root, source_path):
     package_path = source_package_path(source_path)
     candidates = []
@@ -1017,6 +1030,8 @@ def resolve_graph_animation_assets(
                 "source_asset": source_path,
                 "target_asset": target,
             }
+            if category == "sequence":
+                row["target_skeleton"] = target_clip_skeleton(asset_root, target)
             if source_content_root is not None:
                 samples = blendspace["samples"] if category == "blendspace" else [row]
                 for sample in samples:
@@ -1180,6 +1195,19 @@ def run_self_test():
         clip.write_text("()\n", encoding="utf-8")
         rows = resolve_graph_animation_assets(root, source)
         assert rows[0]["target_asset"] == "animations/A_Test.anim.ron"
+        assert rows[0]["target_skeleton"] is None
+        skeleton = root / "skeletons" / "Test.skn.ron"
+        skeleton.parent.mkdir()
+        skeleton.write_text("()\n", encoding="utf-8")
+        clip.write_text('(skeleton: "skeletons/Test.skn.ron")\n', encoding="utf-8")
+        assert target_clip_skeleton(root, "animations/A_Test.anim.ron") == "skeletons/Test.skn.ron"
+        for text in ['(skeleton: "../outside.skn.ron")', '(skeleton: "missing.skn.ron")', '(skeleton: "a", skeleton: "b")']:
+            clip.write_text(text, encoding="utf-8")
+            try:
+                target_clip_skeleton(root, "animations/A_Test.anim.ron")
+                raise AssertionError("invalid reference skeleton was accepted")
+            except AssetResolutionError:
+                pass
     blendspace_source = {
         "graphs": [
             {

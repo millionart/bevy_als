@@ -604,10 +604,6 @@ def multi_way_blend_contract(node):
         issues.append(issue(node, renderer, "source_multi_way_alpha_bias_unsupported", "AlphaScaleBias"))
     if parse_bool(field(fields, "bAdditiveNode", "False")):
         issues.append(issue(node, renderer, "source_multi_way_additive_unsupported", "bAdditiveNode"))
-    if not parse_bool(field(fields, "bNormalizeAlpha", "True")):
-        issues.append(issue(node, renderer, "source_multi_way_non_normalized_unsupported", "bNormalizeAlpha"))
-    if abs(scale_bias["scale"] - 1.0) > 1.0e-6:
-        issues.append(issue(node, renderer, "source_multi_way_alpha_scale_unsupported", "AlphaScaleBias"))
     bindings = property_binding_paths(node)
     allowed_binding_pins = {f"DesiredAlphas_{index}" for index in range(len(alphas))}
     unknown_bindings = sorted(set(bindings) - allowed_binding_pins)
@@ -1668,6 +1664,11 @@ def run_self_test():
     multi["pins"][2]["default_value"] = "0.4"
     multi_contract, issues = pose_contract(multi, "multi_way_blend")
     assert not issues and multi_contract["desired_alpha_defaults"] == [0.4, 0.75]
+    for prop in multi["properties"]:
+        if prop["name"] == "Node":
+            prop["exported_text"] = prop["exported_text"].replace("Scale=1.000000", "Scale=0.500000").replace("bNormalizeAlpha=True", "bNormalizeAlpha=False")
+    multi_contract, issues = pose_contract(multi, "multi_way_blend")
+    assert not issues and multi_contract["alpha_scale"] == 0.5 and not multi_contract["normalize_alpha"]
     hips = fixture_node(
         "set_hips_direction",
         "Node",
