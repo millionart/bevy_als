@@ -904,3 +904,22 @@
   - 05d5b5 startup后/Grounded前2026-09-11 15:27:25：Grounded声明式6.308s和公共startup15.081s PASS，零截图/graph error。以下同入口完整Grounded，以真实墙体碰撞提供低速入口，读取实际Roll状态、回调、Slot和全部后续窗口。
 
   - 05d5b5完成/Grounded通过2026-09-11 15:28:50：公共Grounded41.605s PASS，九窗口与全部15coverage通过，真实低速Roll重入、源回调、Root Slot和退出完成均已发生；原13/15失败记录保留为高速源分支对照。fault/temporal/graph为空、零截图，308回归与几何前提断言通过；场景资产和源条件均未改，消融旧朝向稳定无法满足已有墙体前提。开始15:21、预估15:41、实际15:28:50（偏差-12m10s），结果完成，无拆分。以下同一入口继续standing_stop、standing_response、standing_turn、crouching、crouching_actions、standing_direction，验证全量迁移及参考长度的直接消费者。
+
+  - Default第六轮复盘/第七轮开始2026-09-11 15:35:02：第六轮开始2026-09-11 11:26:44、预估15:14:32，本次复盘尚未完成父项；期间已完成接触模式/Roll采样源闭环、用户扩大后的九AnimBP全量迁移、共享BlendList/布尔修复、实际Alpha观测和初始Rig长度，完整Default六窗口与Locomotion十四窗口通过；Grounded经源条件核对后以原场景墙体稳定覆盖低速Roll，九窗口也通过，Standing Stop24.509s通过。剩余明确为Standing Response/Turn/Direction、Crouching/Actions及其后Ragdoll/GetUp；不继续无边界排查，也不扩大到后续未选图。按前窗口1.5倍登记第七轮开始2026-09-11 15:35:02、预估2026-09-11 21:16:44，仍由当前5b2共享动作及之后独立5c收口两个不超过60分钟的Gate执行；当前5b2的16:15:57界线保持，实际完成即进入后续目标。
+
+  - 05d5b2 standing_response 运行前2026-09-11 15:35:03：同一已通过静态与startup的入口，保留原场景/输入/守卫，CaptureCount=0。
+
+  - 05d5b2 standing_response运行后2026-09-11 15:35:22：runner 19.459s、success=True，窗口9、coverage 6/6，fault/temporal数量0/0，CaptureCount=0。
+
+  - 05d5b2 standing_turn 运行前2026-09-11 15:35:22：同一已通过静态与startup的入口，保留原场景/输入/守卫，CaptureCount=0。
+
+  - 05d5b2 standing_turn运行后2026-09-11 15:36:09：runner 45.687s、success=False，窗口10、coverage 11/11，fault/temporal数量0/0，CaptureCount=0。
+
+  - 05d5b2 Standing Turn性能失败/采集路径证据2026-09-11 15:44:00：standing_response19.459s九窗口/6coverage PASS；standing_turn45.687s十窗口/11coverage全部动作与姿态通过，仅max_frame79.6562ms超过原75ms，p9514.1625ms，eval最大0.0909ms，Physics最大7.3088ms，fault/temporal/graph为空。3132条实际动作记录最大帧间隔25.246ms，慢帧不在动作记录内；回读采集代码发现report.completed后每帧在计时前深复制整个ManualIntegrationGateReport（包含完整trace），此前只把序列化移到退出，留下这份中间副本。后续三个case尚未启动，不凭此调整游戏算法或放宽性能限制。
+  - [x] BF115.05d5b6 完成阶段诊断记录所有权：开始2026-09-11 15:44:00、预估16:04:00。复用现有退出flush和原ManualIntegration资源，删除状态中的整份报告及帧内深复制；watchdog只读完成标志，所有正常/错误/超时报告在写入时读取原资源。扩展现有退出fixture验证最后一条manual trace和未完成错误状态不丢失，完成对应静态/构建后重跑startup与Standing Turn，再接续三个未运行case。估时依据为已定位的单一clone、五个写报告入口、约20秒测试/约60秒入口及一次45秒case；全部原计时样本和阈值保留。
+
+  - 05d5b6静态/运行前2026-09-11 15:47:50：旧退出fixture读取不到原资源的终态manual记录，30.379s稳定FAIL；删除state内的完整副本与帧内clone，五个正常/错误/超时写入口改为直接借用原ManualIntegration资源，watchdog只读其完成标志。308项目回归23.658s及同入口60.043s PASS，正常/错误退出均保留最后一个manual trace和未完成状态；计时样本和75ms阈值未改。以下公共validator自测、Standing声明式与startup，再原Standing Turn验证完成阶段峰值。
+
+  - 05d5b6 startup后/Turn前2026-09-11 15:49:38：validator自测0.555s、Standing声明式4.985s及公共startup15.037s PASS，根Pose和报告完整、零截图。接着原Standing Turn十窗口，验证实际动作末端的报告复制开销已移除，所有性能计时样本保留。
+
+  - 05d5b6完成/共享动作接续2026-09-11 15:51:05：公共Standing Turn44.536s PASS，十窗口和11coverage、原性能/姿态守卫全部通过，零截图；完成阶段整段trace复制已删除，正常/错误报告直接读取原资源并保留完整末帧，308回归与退出反例闭合，没有排除计时帧或调整阈值。开始15:44、预估16:04、实际15:51:05（偏差-12m55s），结果完成，无拆分。下面同一入口继续此前未启动的crouching、crouching_actions、standing_direction；5b2仍待这三项，之后才进入ragdoll/get_up。

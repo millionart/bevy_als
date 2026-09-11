@@ -162,7 +162,6 @@ struct AnimationVisualValidationState {
     last_frame: Option<Instant>,
     next_pose_sample: Option<Instant>,
     next_capture: Option<Instant>,
-    next_report: Option<Instant>,
     capture_index: usize,
     fault_captures: usize,
     eval_started: Option<Instant>,
@@ -190,8 +189,6 @@ struct AnimationVisualValidationState {
     last_teleport_count: u32,
     teleport_captures: usize,
     observed_bones: usize,
-    manual_integration: Option<ManualIntegrationGateReport>,
-    evidence_report_written: bool,
     watchdog: AutomationProgressWatchdog,
 }
 
@@ -742,7 +739,7 @@ struct AutomationWatchdogReport {
 }
 
 #[derive(Serialize)]
-struct AnimationVisualReport {
+struct AnimationVisualReport<'a> {
     format: &'static str,
     case: String,
     ready: bool,
@@ -764,7 +761,7 @@ struct AnimationVisualReport {
     faults: Vec<String>,
     graph_errors: Vec<String>,
     primary_failure: Option<GraphEvaluationFailure>,
-    manual_integration: Option<ManualIntegrationGateReport>,
+    manual_integration: Option<&'a ManualIntegrationGateReport>,
     automation_watchdog: AutomationWatchdogReport,
     thresholds: BTreeMap<String, f64>,
 }
@@ -807,6 +804,10 @@ impl Plugin for AnimationVisualValidationPlugin {
                     .after(AlsCameraSet)
                     .after(AlsRootAnimationContextSet)
                     .after(ManualIntegrationObservationSet),
+            )
+            .add_systems(
+                Last,
+                flush_animation_visual_report,
             )
             .add_systems(
                 PostUpdate,
@@ -1235,27 +1236,16 @@ fn automation_watchdog_should_abort(
         && stalled_for >= AUTOMATION_PROGRESS_STALL
 }
 
-fn completed_manual_report_should_flush(
-    previously_completed: bool,
-    currently_completed: bool,
-) -> bool {
-    currently_completed && !previously_completed
-}
-
-fn evidence_report_should_flush(was_written: bool, evidence_ready: bool) -> bool {
-    evidence_ready && !was_written
-}
-
 fn abort_stalled_animation_visual_validation(
     config: Res<AnimationVisualValidationConfig>,
     progress: Res<AnimationVisualValidationProgress>,
     stages: Res<AnimationVisualStageTiming>,
     mut state: ResMut<AnimationVisualValidationState>,
+    manual_integration: Option<Res<ManualIntegrationGateReport>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let manual_completed = state
-        .manual_integration
-        .as_ref()
+    let manual_completed = manual_integration
+        .as_deref()
         .is_some_and(|report| report.completed);
     if !manual_completed || progress.evidence_ready || state.watchdog.triggered {
         state.watchdog = AutomationProgressWatchdog::default();
@@ -1283,7 +1273,7 @@ fn abort_stalled_animation_visual_validation(
             &mut state.faults,
             "automation_visual_capture_stalled".to_owned(),
         );
-        write_report(&config, &state, &stages);
+        write_report(&config, &state, &stages, manual_integration.as_deref());
         exit.write(AppExit::Error(NonZeroU8::new(94).unwrap()));
     }
 }
@@ -2867,6 +2857,7 @@ fn write_report(
     config: &AnimationVisualValidationConfig,
     state: &AnimationVisualValidationState,
     stages: &AnimationVisualStageTiming,
+    manual_integration: Option<&ManualIntegrationGateReport>,
 ) {
     let observed = state
         .pose_samples
@@ -3114,7 +3105,7 @@ fn write_report(
         faults: state.faults.clone(),
         graph_errors: state.graph_errors.clone(),
         primary_failure: state.primary_failure.clone(),
-        manual_integration: state.manual_integration.clone(),
+        manual_integration,
         automation_watchdog: AutomationWatchdogReport {
             triggered: state.watchdog.triggered,
             reason: if state.watchdog.triggered {
@@ -3140,6 +3131,7 @@ fn record_graph_evaluation_failure(
     config: &AnimationVisualValidationConfig,
     state: &mut AnimationVisualValidationState,
     stages: &AnimationVisualStageTiming,
+    manual_integration: Option<&ManualIntegrationGateReport>,
     error: &GraphError,
     player: &AnimationGraphPlayer,
     asset_server: &AssetServer,
@@ -3229,13 +3221,14 @@ fn record_graph_evaluation_failure(
     state.pose_samples.push(sample);
     state.primary_failure = Some(failure);
     state.fatal_exit_frames_remaining = Some(2);
-    write_report(config, state, stages);
+    write_report(config, state, stages, manual_integration);
 }
 
 fn finish_fatal_animation_visual_failure(
     config: Res<AnimationVisualValidationConfig>,
     mut state: ResMut<AnimationVisualValidationState>,
     stages: Res<AnimationVisualStageTiming>,
+    manual_integration: Option<Res<ManualIntegrationGateReport>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Some(remaining) = state.fatal_exit_frames_remaining else {
@@ -3243,12 +3236,25 @@ fn finish_fatal_animation_visual_failure(
     };
     let exiting = remaining <= 1;
     refresh_graph_failure_screenshot_status(&mut state, exiting);
-    write_report(&config, &state, &stages);
+    write_report(&config, &state, &stages, manual_integration.as_deref());
     if exiting {
         state.fatal_exit_frames_remaining = None;
         exit.write(AppExit::Error(NonZeroU8::new(92).unwrap()));
     } else {
         state.fatal_exit_frames_remaining = Some(remaining - 1);
+    }
+}
+
+fn flush_animation_visual_report(
+    config: Res<AnimationVisualValidationConfig>,
+    state: Res<AnimationVisualValidationState>,
+    stages: Res<AnimationVisualStageTiming>,
+    manual_integration: Option<Res<ManualIntegrationGateReport>>,
+    mut exit: MessageReader<AppExit>,
+) {
+    if !exit.is_empty() {
+        exit.clear();
+        write_report(&config, &state, &stages, manual_integration.as_deref());
     }
 }
 
@@ -3286,16 +3292,6 @@ fn collect_animation_visual_evidence(
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
     cameras: Query<Entity, With<Camera3d>>,
 ) {
-    let manual_gate_was_finalized = state
-        .manual_integration
-        .as_ref()
-        .is_some_and(|report| report.completed);
-    let manual_gate_finalized = manual_integration
-        .as_deref()
-        .is_some_and(|report| report.completed);
-    if manual_gate_finalized {
-        state.manual_integration = manual_integration.as_deref().cloned();
-    }
     let Ok((_avatar, instance, avatar_transform, avatar_local)) = avatars.single() else {
         return;
     };
@@ -3454,6 +3450,7 @@ fn collect_animation_visual_evidence(
             &config,
             &mut state,
             &stages,
+            manual_integration.as_deref(),
             error,
             player,
             &asset_server,
@@ -3481,7 +3478,6 @@ fn collect_animation_visual_evidence(
         state.last_frame = Some(now);
         state.next_pose_sample = Some(now);
         state.next_capture = Some(now + config.capture_interval);
-        state.next_report = Some(now);
         stages.physics_steps_since_render = 0;
         stages.physics_steps_per_render.clear();
     }
@@ -3837,28 +3833,56 @@ fn collect_animation_visual_evidence(
         state.fault_captures += 1;
         state.skip_frame_samples = state.skip_frame_samples.max(3);
     }
-    let evidence_just_ready = evidence_report_should_flush(
-        state.evidence_report_written,
-        evidence_capture_complete(&config, &state, &stages),
-    );
-    if terminal_lifecycle_sample
-        || completed_manual_report_should_flush(manual_gate_was_finalized, manual_gate_finalized)
-        || evidence_just_ready
-        || state
-            .next_report
-            .is_some_and(|next_report| now >= next_report)
-    {
-        write_report(&config, &state, &stages);
-        state.next_report = Some(now + Duration::from_secs(1));
-        state.skip_frame_samples = state.skip_frame_samples.max(2);
-    }
-    state.evidence_report_written |= evidence_just_ready;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use bevy::ecs::system::In;
+
+    #[test]
+    fn visual_report_waits_for_exit_and_includes_the_final_samples() {
+        let directory = std::env::temp_dir().join(format!("als_visual_exit_{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let report_path = directory.join("report.json");
+        if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_message::<AppExit>()
+            .insert_resource(AnimationVisualValidationConfig {
+                directory: directory.clone(), case: "fixture".into(), capture_count: 0,
+                capture_interval: Duration::from_secs(1), min_pose_samples: 1, warmup: Duration::ZERO,
+                max_frame_p95_ms: 25.0, max_frame_ms: 75.0, max_eval_p95_ms: 4.0,
+                max_physics_steps_per_render: 3.0,
+            })
+            .insert_resource(AnimationVisualValidationState {
+                started: Some(Instant::now() - Duration::from_secs(2)), ..default()
+            })
+            .init_resource::<ManualIntegrationGateReport>()
+            .init_resource::<AnimationVisualStageTiming>()
+            .add_systems(Last, flush_animation_visual_report);
+        app.world_mut().run_schedule(Last);
+        assert!(!report_path.exists(), "running capture must not serialize the accumulated report");
+        for exit in [AppExit::Success, AppExit::Error(NonZeroU8::new(7).unwrap())] {
+            app.world_mut().resource_mut::<AnimationVisualValidationState>().frame_ms.push(12.0);
+            let samples = app.world().resource::<AnimationVisualValidationState>().frame_ms.len();
+            let completed = matches!(exit, AppExit::Success);
+            {
+                let mut manual = app.world_mut().resource_mut::<ManualIntegrationGateReport>();
+                manual.completed = completed;
+                manual.direction_trace.push(serde_json::json!({"final_sample": samples}));
+            }
+            app.world_mut().write_message(exit);
+            app.world_mut().run_schedule(Last);
+            let report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            assert_eq!(report["frame_time"]["samples"], samples);
+            assert_eq!(report["manual_integration"]["completed"], completed);
+            assert_eq!(report["manual_integration"]["direction_trace"][samples - 1]["final_sample"], samples);
+            fs::remove_file(&report_path).unwrap();
+            app.world_mut().run_schedule(Last);
+            assert!(!report_path.exists());
+        }
+        fs::remove_dir(directory).unwrap();
+    }
 
     #[test]
     fn foot_ik_sample_preserves_adjacent_actual_solver_inputs() {
@@ -4129,7 +4153,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_lifecycle_forces_a_pose_sample_and_report_flush() {
+    fn terminal_lifecycle_forces_a_pose_sample() {
         let active = ManualAnimationWindowEvidence {
             capture_source_window: true,
             observed_lifecycle_stages: &["slot_active"],
@@ -4605,20 +4629,6 @@ mod tests {
             false,
             AUTOMATION_PROGRESS_STALL,
         ));
-    }
-
-    #[test]
-    fn completed_manual_report_flushes_once() {
-        assert!(completed_manual_report_should_flush(false, true));
-        assert!(!completed_manual_report_should_flush(true, true));
-        assert!(!completed_manual_report_should_flush(false, false));
-    }
-
-    #[test]
-    fn evidence_report_flushes_once_after_required_captures_are_written() {
-        assert!(evidence_report_should_flush(false, true));
-        assert!(!evidence_report_should_flush(true, true));
-        assert!(!evidence_report_should_flush(false, false));
     }
 
     #[test]

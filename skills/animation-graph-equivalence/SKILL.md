@@ -58,6 +58,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
    When screenshots are disabled, run the public runner with `-CaptureCount 0`. This disables scheduled, action, teleport, fault and graph-error images while preserving every numeric, pose, lifecycle, graph-error and progress check. A graph failure records `disabled_by_configuration` with no screenshot path. The runner defaults to this mode; never request screenshots against the user's explicit preference.
 9. A completed manual scenario whose visual capture count no longer advances must be ended by a fixed-progress watchdog. Its JSON report records the count, required count, wait and reason; test both continued capture after settlement and watchdog termination.
 10. Collect motion evidence in memory and write the accumulated report at process exit. Keep immediate graph-failure and watchdog reports. Do not periodically serialize a growing report on the game thread: excluding its cost from performance statistics does not prevent it from changing subsequent animation deltas. Verify normal/error exit and final-sample retention in one focused lifecycle check.
+    Read the original diagnostic resource when writing the report. Deep-copying a completed trace on measured frames can still create a performance failure after the action has finished.
 
 ## Failure reports and repair
 
