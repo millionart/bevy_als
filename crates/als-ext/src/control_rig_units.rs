@@ -1,7 +1,8 @@
 use bevy::{math::DQuat, platform::collections::HashMap};
 
 use crate::{
-    control_rig_hierarchy::{RigHierarchy, RigSpace, rig_quat_near, rig_slerp},
+    control_rig_hierarchy::{RigHierarchy, RigSpace, RigTransform, rig_quat_near, rig_slerp},
+    control_rig_ik::RigGeometry,
     control_rig_math::{RigValue, rig_spring_damper},
 };
 
@@ -11,6 +12,7 @@ pub struct RigUnitContext<'a> {
     pub game_world: bool,
     pub construction: bool,
     pub delta_seconds: f64,
+    pub geometry: &'a RigGeometry,
 }
 
 fn branch_label(condition: bool, label: &mut String) {
@@ -52,6 +54,166 @@ impl RigUnitContext<'_> {
     pub fn call(&mut self, function: &str, arguments: &mut [RigValue]) -> Result<(), String> {
         use RigValue::*;
         match (function, arguments) {
+            (
+                "FAlsRigUnit_CalculatePoleVector::Execute",
+                [
+                    a,
+                    b,
+                    c,
+                    Bool(initial),
+                    Bool(success),
+                    Vector(location),
+                    Vector(projection),
+                    Vector(direction),
+                    _cached_a,
+                    _cached_b,
+                    _cached_c,
+                ],
+            ) => {
+                if let Some(a) = self.hierarchy.item_index(a)?
+                    && let Some(b) = self.hierarchy.item_index(b)?
+                    && let Some(c) = self.hierarchy.item_index(c)?
+                {
+                    let a = self
+                        .hierarchy
+                        .transform(a, RigSpace::Global, *initial)?
+                        .translation;
+                    let b = self
+                        .hierarchy
+                        .transform(b, RigSpace::Global, *initial)?
+                        .translation;
+                    let c = self
+                        .hierarchy
+                        .transform(c, RigSpace::Global, *initial)?
+                        .translation;
+                    let pole = self.geometry.pole(a, b, c);
+                    *success = pole.is_some();
+                    if let Some((new_projection, new_direction)) = pole {
+                        *location = b;
+                        *projection = new_projection;
+                        *direction = new_direction;
+                    }
+                }
+            }
+            (
+                "FRigUnit_TwoBoneIKSimplePerItem::Execute",
+                [
+                    a,
+                    b,
+                    end,
+                    effector,
+                    Vector(primary),
+                    Vector(secondary),
+                    F32(secondary_weight),
+                    Vector(pole),
+                    Name(pole_kind),
+                    pole_space,
+                    Bool(stretch),
+                    F32(stretch_start),
+                    F32(stretch_max),
+                    F32(weight),
+                    F32(length_a),
+                    F32(length_b),
+                    Bool(propagate),
+                    _debug,
+                    _cached_a,
+                    _cached_b,
+                    _cached_end,
+                    _cached_pole,
+                ],
+            ) => {
+                let Some(a) = self.hierarchy.item_index(a)? else {
+                    return Ok(());
+                };
+                let Some(b) = self.hierarchy.item_index(b)? else {
+                    return Ok(());
+                };
+                let end = self.hierarchy.item_index(end)?;
+                let pole_space = self.hierarchy.item_index(pole_space)?;
+                if *weight <= 1e-8 {
+                    return Ok(());
+                }
+                let mut pole = *pole;
+                if let Some(space) = pole_space {
+                    let transform = self.hierarchy.transform(space, RigSpace::Global, false)?;
+                    pole = transform.rotation * pole;
+                    if pole_kind != "Direction" {
+                        pole += transform.translation;
+                    }
+                }
+                let transform_a = self.hierarchy.transform(a, RigSpace::Global, false)?;
+                let transform_b = self.hierarchy.transform(b, RigSpace::Global, false)?;
+                let mut bones = [
+                    transform_a,
+                    RigTransform {
+                        translation: transform_b.translation,
+                        ..transform_a
+                    },
+                    RigTransform::from_value(effector)?,
+                ];
+                let mut lengths = [*length_a, *length_b];
+                for (index, (parent, child)) in [(a, Some(b)), (b, end)].into_iter().enumerate() {
+                    if lengths[index] < self.geometry.minimum_length
+                        && let Some(child) = child
+                    {
+                        let initial = self.hierarchy.transform(parent, RigSpace::Global, true)?;
+                        let scale = if initial.scale.length_squared() > 1e-8_f32 as f64 {
+                            bones[index].scale / initial.scale
+                        } else {
+                            bevy::math::DVec3::ONE
+                        };
+                        let delta = initial.translation
+                            - self
+                                .hierarchy
+                                .transform(child, RigSpace::Global, true)?
+                                .translation;
+                        lengths[index] = (delta * scale).length() as f32;
+                    }
+                }
+                if lengths
+                    .iter()
+                    .any(|&length| length < self.geometry.minimum_length)
+                {
+                    return Ok(());
+                }
+                self.geometry.solve(
+                    &mut bones,
+                    pole,
+                    *primary,
+                    *secondary,
+                    *secondary_weight,
+                    lengths,
+                    *stretch,
+                    *stretch_start,
+                    *stretch_max,
+                );
+                if *weight < 1.0 {
+                    let joint = bones[0].inverse_transform_point(bones[1].translation);
+                    let effector = bones[1].inverse_transform_point(bones[2].translation);
+                    bones[0].rotation =
+                        rig_slerp(transform_a.rotation, bones[0].rotation, *weight as f64);
+                    bones[1].rotation =
+                        rig_slerp(transform_b.rotation, bones[1].rotation, *weight as f64);
+                    if let Some(end) = end {
+                        let current = self.hierarchy.transform(end, RigSpace::Global, false)?;
+                        bones[2].rotation =
+                            rig_slerp(current.rotation, bones[2].rotation, *weight as f64);
+                    }
+                    bones[1].translation = bones[0].transform_point(joint);
+                    bones[2].translation = bones[1].transform_point(effector);
+                }
+                for (index, transform) in [Some(a), Some(b), end].into_iter().zip(bones) {
+                    if let Some(index) = index {
+                        self.hierarchy.set_transform(
+                            index,
+                            RigSpace::Global,
+                            false,
+                            transform,
+                            *propagate,
+                        )?;
+                    }
+                }
+            }
             (
                 "FAlsRigVMFunction_DamperExactVector::Execute",
                 [
@@ -239,6 +401,529 @@ mod tests {
     };
     use bevy::math::DVec3;
 
+    fn geometry() -> RigGeometry {
+        RigGeometry {
+            near_zero: 1e-4_f32 as f64 * 0.01,
+            normalize_squared: 1e-8_f32 as f64 * 0.0001,
+            minimum_length: 1e-8_f32 * 0.01,
+            solve_near_zero: 1e-4 * 0.01,
+            basis: [DVec3::X, DVec3::Z, DVec3::Y],
+        }
+    }
+
+    #[test]
+    fn control_rig_ik_units_preserve_pole_history_and_solve_current_hierarchy() {
+        use RigValue::*;
+        let mut hierarchy = hierarchy();
+        let curves = HashMap::default();
+        let mut context = RigUnitContext {
+            hierarchy: &mut hierarchy,
+            curves: &curves,
+            game_world: true,
+            construction: false,
+            delta_seconds: 0.0,
+            geometry: &geometry(),
+        };
+        let mut pole = [
+            item("Bone0"),
+            item("Bone1"),
+            item("Bone2"),
+            Bool(true),
+            Bool(false),
+            Vector(DVec3::splat(9.0)),
+            Vector(DVec3::splat(9.0)),
+            Vector(DVec3::X),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+        ];
+        context
+            .call("FAlsRigUnit_CalculatePoleVector::Execute", &mut pole)
+            .unwrap();
+        assert_eq!(pole[4], Bool(true));
+        assert_eq!(pole[5], Vector(DVec3::X));
+        let Vector(projection) = pole[6] else {
+            panic!("pole projection is missing");
+        };
+        assert!(projection.distance(DVec3::new(0.5, 0.5, 0.0)) < 1e-12);
+        let Vector(direction) = pole[7] else {
+            panic!("pole direction is missing");
+        };
+        assert!(direction.distance(DVec3::new(1.0, -1.0, 0.0).normalize()) < 1e-12);
+        let remembered = pole[5..8].to_vec();
+        context
+            .hierarchy
+            .set_input_pose(
+                &[DVec3::ZERO, DVec3::X, DVec3::X, DVec3::Y].map(|translation| RigTransform {
+                    translation,
+                    ..Default::default()
+                }),
+            )
+            .unwrap();
+        pole[3] = Bool(false);
+        context
+            .call("FAlsRigUnit_CalculatePoleVector::Execute", &mut pole)
+            .unwrap();
+        assert_eq!(pole[4], Bool(false));
+        assert_eq!(&pole[5..8], remembered);
+        pole[4] = Bool(true);
+        pole[0] = item("Missing");
+        context
+            .call("FAlsRigUnit_CalculatePoleVector::Execute", &mut pole)
+            .unwrap();
+        assert_eq!(pole[4], Bool(true));
+        let effector = RigTransform {
+            translation: DVec3::new(1.0, 1.0, 0.0),
+            rotation: DQuat::from_rotation_y(0.4),
+            ..Default::default()
+        };
+        let ik = [
+            item("Bone0"),
+            item("Bone1"),
+            item("Bone2"),
+            effector.value(),
+            Vector(DVec3::X),
+            Vector(DVec3::Y),
+            F32(1.0),
+            Vector(DVec3::Y * 2.0),
+            Name("Location".to_owned()),
+            item(""),
+            Bool(false),
+            F32(0.75),
+            F32(1.25),
+            F32(1.0),
+            F32(1.0),
+            F32(1.0),
+            Bool(true),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+            List(vec![]),
+        ];
+        let program = RigProgram {
+            initial_values: ik.into(),
+            literal_count: 0,
+            entries: [("Solve".to_owned(), 0)].into(),
+            instructions: vec![
+                RigInstruction::Call {
+                    function: "FRigUnit_TwoBoneIKSimplePerItem::Execute".to_owned(),
+                    arguments: (0..22)
+                        .map(|register| RigValueRef {
+                            register,
+                            path: vec![],
+                        })
+                        .collect(),
+                    outputs: vec![],
+                },
+                RigInstruction::Exit,
+            ],
+        };
+        let mut values = program.initial_values.clone();
+        let run = |context: &mut RigUnitContext, values: &mut Vec<RigValue>| {
+            assert_eq!(
+                program
+                    .execute("Solve", values, |function, arguments| context
+                        .call(function, arguments))
+                    .unwrap(),
+                2
+            );
+        };
+        run(&mut context, &mut values);
+        let root = context
+            .hierarchy
+            .transform(0, RigSpace::Global, false)
+            .unwrap();
+        let joint = context
+            .hierarchy
+            .transform(1, RigSpace::Global, false)
+            .unwrap();
+        let end = context
+            .hierarchy
+            .transform(2, RigSpace::Global, false)
+            .unwrap();
+        assert!(joint.translation.distance(DVec3::Y) < 1e-12);
+        assert!(end.translation.distance(effector.translation) < 1e-12);
+        assert!(rig_quat_near(
+            root.rotation,
+            DQuat::from_rotation_z(std::f64::consts::FRAC_PI_2),
+            1e-12
+        ));
+        assert!(rig_quat_near(joint.rotation, DQuat::IDENTITY, 1e-12));
+        assert!(rig_quat_near(end.rotation, effector.rotation, 1e-12));
+        let input = [DVec3::ZERO, DVec3::X, DVec3::X, DVec3::Y].map(|translation| RigTransform {
+            translation,
+            ..Default::default()
+        });
+        for propagate in [true, false] {
+            context.hierarchy.set_input_pose(&input).unwrap();
+            values[13] = F32(0.5);
+            values[16] = Bool(propagate);
+            run(&mut context, &mut values);
+            let root = context
+                .hierarchy
+                .transform(0, RigSpace::Global, false)
+                .unwrap();
+            let joint = context
+                .hierarchy
+                .transform(1, RigSpace::Global, false)
+                .unwrap();
+            let end = context
+                .hierarchy
+                .transform(2, RigSpace::Global, false)
+                .unwrap();
+            let child = context
+                .hierarchy
+                .transform(3, RigSpace::Global, false)
+                .unwrap();
+            let expected_joint = DVec3::new(1.0, 1.0, 0.0) * std::f64::consts::FRAC_1_SQRT_2;
+            assert!(rig_quat_near(
+                root.rotation,
+                DQuat::from_rotation_z(std::f64::consts::FRAC_PI_4),
+                1e-12
+            ));
+            assert!(joint.translation.distance(expected_joint) < 1e-12);
+            assert!(end.translation.distance(expected_joint + DVec3::X) < 1e-12);
+            assert!(rig_quat_near(
+                end.rotation,
+                DQuat::from_rotation_y(0.2),
+                1e-12
+            ));
+            let expected_child = if propagate {
+                end.transform_point(DVec3::Y)
+            } else {
+                DVec3::new(2.0, 1.0, 0.0)
+            };
+            assert!(child.translation.distance(expected_child) < 1e-12);
+        }
+        context.hierarchy.set_input_pose(&input).unwrap();
+        values[13] = F32(0.0);
+        run(&mut context, &mut values);
+        assert_eq!(
+            context
+                .hierarchy
+                .transform(1, RigSpace::Local, false)
+                .unwrap(),
+            input[1]
+        );
+        values[13] = F32(1.0);
+        values[14] = F32(0.0);
+        values[15] = F32(0.0);
+        run(&mut context, &mut values);
+        assert!(
+            context
+                .hierarchy
+                .transform(1, RigSpace::Global, false)
+                .unwrap()
+                .translation
+                .distance(DVec3::Y)
+                < 1e-12
+        );
+        context.hierarchy.set_input_pose(&input).unwrap();
+        values[2] = item("Missing");
+        run(&mut context, &mut values);
+        assert_eq!(
+            context
+                .hierarchy
+                .transform(1, RigSpace::Local, false)
+                .unwrap(),
+            input[1]
+        );
+        values[15] = F32(1.0);
+        run(&mut context, &mut values);
+        assert!(
+            context
+                .hierarchy
+                .transform(1, RigSpace::Global, false)
+                .unwrap()
+                .translation
+                .distance(DVec3::Y)
+                < 1e-12
+        );
+        assert_eq!(
+            context
+                .hierarchy
+                .transform(2, RigSpace::Global, false)
+                .unwrap()
+                .translation,
+            DVec3::X * 2.0
+        );
+        values[0] = item("Missing");
+        context.hierarchy.set_input_pose(&input).unwrap();
+        run(&mut context, &mut values);
+        assert_eq!(
+            context
+                .hierarchy
+                .transform(1, RigSpace::Local, false)
+                .unwrap(),
+            input[1]
+        );
+        values = program.initial_values.clone();
+        values[14] = F32(0.0);
+        values[15] = F32(0.0);
+        values[3] = RigTransform {
+            translation: DVec3::X * 10.0,
+            ..Default::default()
+        }
+        .value();
+        let mut scaled = input;
+        scaled[0].scale = DVec3::new(2.0, 3.0, 4.0);
+        scaled[1].scale = DVec3::new(5.0, 6.0, 7.0);
+        scaled[1].rotation = DQuat::from_rotation_x(0.8);
+        context.hierarchy.set_input_pose(&scaled).unwrap();
+        run(&mut context, &mut values);
+        let joint = context
+            .hierarchy
+            .transform(1, RigSpace::Global, false)
+            .unwrap();
+        let end = context
+            .hierarchy
+            .transform(2, RigSpace::Global, false)
+            .unwrap();
+        assert!(joint.translation.distance(DVec3::X * 2.0) < 1e-12);
+        assert!(end.translation.distance(DVec3::X * 5.0) < 1e-12);
+        assert_eq!(joint.scale, scaled[0].scale);
+        assert!(rig_quat_near(joint.rotation, DQuat::IDENTITY, 1e-12));
+        let mut translated = input;
+        translated[0].translation = DVec3::new(10.0, 2.0, -4.0);
+        translated[0].rotation = DQuat::from_rotation_y(0.7);
+        translated[0].scale = DVec3::new(2.0, 3.0, 4.0);
+        let local_pole = DVec3::new(0.0, 2.0, 3.0);
+        for kind in ["Direction", "Location"] {
+            let world_pole = translated[0].rotation * local_pole
+                + if kind == "Location" {
+                    translated[0].translation
+                } else {
+                    DVec3::ZERO
+                };
+            values = program.initial_values.clone();
+            values[3] = RigTransform {
+                translation: translated[0].translation + DVec3::new(1.0, 0.2, 0.0),
+                ..Default::default()
+            }
+            .value();
+            values[7] = Vector(world_pole);
+            context.hierarchy.set_input_pose(&translated).unwrap();
+            run(&mut context, &mut values);
+            let expected = [0, 1, 2].map(|index| {
+                context
+                    .hierarchy
+                    .transform(index, RigSpace::Global, false)
+                    .unwrap()
+            });
+            values[7] = Vector(local_pole);
+            values[8] = Name(kind.to_owned());
+            values[9] = item("Bone0");
+            context.hierarchy.set_input_pose(&translated).unwrap();
+            run(&mut context, &mut values);
+            for (index, expected) in expected.into_iter().enumerate() {
+                let actual = context
+                    .hierarchy
+                    .transform(index, RigSpace::Global, false)
+                    .unwrap();
+                assert!(actual.translation.distance(expected.translation) < 1e-12);
+                assert!(rig_quat_near(actual.rotation, expected.rotation, 1e-12));
+            }
+        }
+    }
+
+    #[test]
+    fn control_rig_ik_geometry_preserves_native_degenerate_axes_stretch_and_roll() {
+        let geometry = geometry();
+        let mut threshold_case = geometry.clone();
+        threshold_case.normalize_squared = 1.0;
+        assert!(
+            threshold_case
+                .pole(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0), DVec3::X * 2.0)
+                .is_none()
+        );
+        assert!(
+            geometry
+                .pole(DVec3::ZERO, DVec3::splat(0.8e-6), DVec3::Y)
+                .is_none()
+        );
+        assert!(
+            geometry
+                .pole(DVec3::ZERO, DVec3::X, DVec3::X * 2.0)
+                .is_none()
+        );
+        assert_eq!(
+            geometry.pole(DVec3::ZERO, DVec3::Y, DVec3::X * 1e-8),
+            Some((DVec3::ZERO, DVec3::Y))
+        );
+        assert!(
+            geometry
+                .pole(DVec3::ZERO, DVec3::X + DVec3::Y * 0.9e-6, DVec3::X * 2.0)
+                .is_none()
+        );
+        assert!(
+            geometry
+                .pole(DVec3::ZERO, DVec3::X + DVec3::Y * 1.1e-6, DVec3::X * 2.0)
+                .is_some()
+        );
+        let cases = [
+            (
+                DVec3::X * 3.0,
+                DVec3::Y,
+                [1.0, 1.0],
+                false,
+                DVec3::X,
+                DVec3::X * 2.0,
+            ),
+            (
+                DVec3::X * 3.0,
+                DVec3::Y,
+                [1.0, 1.0],
+                true,
+                DVec3::X * 1.25,
+                DVec3::X * 2.5,
+            ),
+            (
+                DVec3::X * 2.2,
+                DVec3::Y,
+                [1.0, 1.0],
+                true,
+                DVec3::new(1.1, (1.175_f64.powi(2) - 1.1_f64.powi(2)).sqrt(), 0.0),
+                DVec3::X * 2.2,
+            ),
+            (
+                DVec3::X * 0.5,
+                DVec3::Y,
+                [0.5, 2.0],
+                false,
+                DVec3::NEG_X * 0.5,
+                DVec3::X * 0.5,
+            ),
+            (
+                DVec3::X,
+                DVec3::ZERO,
+                [1.0, 1.0],
+                false,
+                DVec3::new(0.5, 0.0, 3.0_f64.sqrt() * 0.5),
+                DVec3::X,
+            ),
+            (
+                DVec3::X,
+                DVec3::X * 2.0,
+                [1.0, 1.0],
+                false,
+                DVec3::new(0.5, 0.0, 3.0_f64.sqrt() * 0.5),
+                DVec3::X,
+            ),
+            (
+                DVec3::Y,
+                DVec3::Y * 2.0,
+                [1.0, 1.0],
+                false,
+                DVec3::new(0.0, 0.5, -3.0_f64.sqrt() * 0.5),
+                DVec3::Y,
+            ),
+        ];
+        for (target, pole, lengths, stretch, joint, end) in cases {
+            let offset = DVec3::new(5.0, -3.0, 7.0);
+            let mut bones = [RigTransform {
+                translation: offset,
+                ..Default::default()
+            }; 3];
+            bones[2].translation += target;
+            geometry.solve(
+                &mut bones,
+                pole + offset,
+                DVec3::ZERO,
+                DVec3::ZERO,
+                0.0,
+                lengths,
+                stretch,
+                0.75,
+                1.25,
+            );
+            assert!(
+                bones[1].translation.distance(joint + offset) < 1e-12,
+                "{target:?}: {:?}",
+                bones[1]
+            );
+            assert!(bones[2].translation.distance(end + offset) < 1e-12);
+        }
+        let mut bones = [RigTransform::default(); 3];
+        geometry.solve(
+            &mut bones,
+            DVec3::Y,
+            DVec3::ZERO,
+            DVec3::ZERO,
+            0.0,
+            [1.0, 1.0],
+            false,
+            0.75,
+            1.25,
+        );
+        assert!(bones[1].translation.x > 0.0 && bones[1].translation.x < 1e-6);
+        assert!((bones[1].translation.y - 1.0).abs() < 1e-12);
+        assert_eq!(bones[2].translation, DVec3::ZERO);
+        for weight in [0.0, 0.25, 1.0, 2.0] {
+            let mut bones = [RigTransform::default(); 3];
+            bones[2].translation = DVec3::X * 3.0;
+            geometry.solve(
+                &mut bones,
+                DVec3::Z,
+                DVec3::X,
+                DVec3::Y,
+                weight,
+                [1.0, 1.0],
+                false,
+                0.75,
+                1.25,
+            );
+            let angle = if weight == 1.0 {
+                std::f64::consts::FRAC_PI_2
+            } else {
+                (std::f32::consts::FRAC_PI_2 * weight.clamp(0.0, 1.0)) as f64
+            };
+            for bone in &bones[..2] {
+                assert!(
+                    rig_quat_near(bone.rotation, DQuat::from_rotation_x(angle), 1e-12),
+                    "{weight}: {:?}",
+                    bone.rotation
+                );
+            }
+        }
+        let mut bones = [RigTransform::default(); 3];
+        bones[2].translation = DVec3::NEG_X * 3.0;
+        geometry.solve(
+            &mut bones,
+            DVec3::Z,
+            DVec3::X,
+            DVec3::Y,
+            0.0,
+            [1.0, 1.0],
+            false,
+            0.75,
+            1.25,
+        );
+        assert!(rig_quat_near(
+            bones[0].rotation,
+            DQuat::from_xyzw(0.0, -1.0, 0.0, 0.0),
+            1e-12
+        ));
+        let mut bones = [RigTransform::default(); 3];
+        bones[2].translation = DVec3::Y * 3.0;
+        geometry.solve(
+            &mut bones,
+            DVec3::Z,
+            DVec3::X * 2.0,
+            DVec3::Y,
+            0.0,
+            [1.0, 1.0],
+            false,
+            0.75,
+            1.25,
+        );
+        assert!(rig_quat_near(
+            bones[0].rotation,
+            DQuat::from_xyzw(0.0, 0.0, 2.0, 1.0).normalize(),
+            1e-12
+        ));
+    }
+
     #[test]
     fn control_rig_filters_preserve_native_initialization_force_time_and_private_state() {
         use RigValue::*;
@@ -250,6 +935,7 @@ mod tests {
             game_world: true,
             construction: false,
             delta_seconds: 0.0,
+            geometry: &geometry(),
         };
         let first = DVec3::new(1.0000000001, 2.5, -4.25);
         let next = DVec3::new(5.0000000001, -1.5, 3.75);
@@ -455,6 +1141,7 @@ mod tests {
             game_world: true,
             construction: false,
             delta_seconds: 0.0,
+            geometry: &geometry(),
         };
         let reference = |register| RigValueRef {
             register,
@@ -599,6 +1286,7 @@ mod tests {
             game_world: true,
             construction: false,
             delta_seconds: 0.0,
+            geometry: &geometry(),
         };
         let mut length = [
             item("Bone0"),

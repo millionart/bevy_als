@@ -56,6 +56,24 @@ pub fn rig_quat_near(a: DQuat, b: DQuat, tolerance: f64) -> bool {
 }
 
 impl RigTransform {
+    fn scale_reciprocal(self) -> DVec3 {
+        DVec3::from_array(self.scale.to_array().map(|value| {
+            if value.abs() <= 1e-8_f32 as f64 {
+                0.0
+            } else {
+                value.recip()
+            }
+        }))
+    }
+
+    pub fn transform_point(self, point: DVec3) -> DVec3 {
+        self.rotation * (self.scale * point) + self.translation
+    }
+
+    pub fn inverse_transform_point(self, point: DVec3) -> DVec3 {
+        (self.rotation.conjugate() * (point - self.translation)) * self.scale_reciprocal()
+    }
+
     pub fn value(self) -> RigValue {
         RigValue::List(vec![
             RigValue::Quaternion(self.rotation),
@@ -159,13 +177,7 @@ impl RigTransform {
         if (1.0 - parent.rotation.length_squared()).abs() > 0.01_f32 as f64 {
             return Self::default();
         }
-        let reciprocal = DVec3::from_array(parent.scale.to_array().map(|value| {
-            if value.abs() <= 1e-8_f32 as f64 {
-                0.0
-            } else {
-                value.recip()
-            }
-        }));
+        let reciprocal = parent.scale_reciprocal();
         let scale = self.scale * reciprocal;
         if self.scale.min_element() < 0.0 || parent.scale.min_element() < 0.0 {
             let matrix = parent.matrix();
