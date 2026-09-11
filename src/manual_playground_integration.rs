@@ -623,6 +623,7 @@ enum IntegrationPhase {
     FootIkTerrain,
     ControlRig,
     DefaultOverlay,
+    Head,
     StateMachineGrounded,
     StateMachineAir,
     StateMachineRotate,
@@ -673,6 +674,7 @@ enum IntegrationScenario {
     LocomotionActions,
     ControlRig,
     DefaultOverlay,
+    Head,
     StateMachine,
     GeneratedTransitionNotify,
     FootIk,
@@ -698,6 +700,7 @@ impl IntegrationScenario {
             Some("locomotion") => Self::LocomotionActions,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
+            Some("head") => Self::Head,
             Some("state_machine") => Self::StateMachine,
             Some("transition_notify") => Self::GeneratedTransitionNotify,
             Some("foot_ik") => Self::FootIk,
@@ -730,6 +733,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Sprint => IntegrationPhase::Sprint,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
+        IntegrationScenario::Head => IntegrationPhase::Head,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
@@ -758,6 +762,171 @@ const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
     "75971f25-4595-b9cd-095b-82b4a661595d",
 ];
 const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = ["default_idle", "default_walk", "default_crouch", "default_air", "default_prediction", "default_return"];
+
+const HEAD_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron";
+const HEAD_WINDOWS: [&str; 7] = ["head_down", "head_forward", "head_up", "head_velocity_input", "head_velocity_release", "head_first_person", "head_return"];
+const HEAD_BOUNDARIES: [(&str, &str, &str); 5] = [
+    ("head_look", "BS_Als_Look\nBlendspace Evaluator", "pose"),
+    ("head_refresh", "RefreshHead\r\nOn Update", "Pose"),
+    ("head_initialize", "InitializeHead\r\nOn Become Relevant", "Pose"),
+    ("head_additive", "Apply Mesh Space Additive", "Pose"),
+    ("head_output", "Output Pose\nAnimGraph", "Pose"),
+];
+
+#[derive(Default, Debug, Serialize)]
+struct HeadGraphSample {
+    ready: bool,
+    elapsed_seconds: f32,
+    frame: u64,
+    refreshed: bool,
+    alpha: f32,
+    state: [f32; 4],
+    inputs: [f32; 8],
+    modes: [bool; 3],
+    weights: [f32; 3],
+    times: [Option<f32>; 3],
+    sample_time: Option<f32>,
+    additive_effect: Option<f32>,
+    errors: Vec<String>,
+}
+
+#[derive(Default)]
+struct HeadProbe {
+    case_index: usize,
+    sample: HeadGraphSample,
+    previous: Option<(u64, AlsHeadState, bool, f32)>,
+    covered: [bool; 7],
+    seconds: [f32; 7],
+    samples_seen: [bool; 3],
+    valid: bool,
+    unscaled_pitch_seen: bool,
+    additive_seen: bool,
+}
+
+fn head_look_weights(pitch: f32) -> [f32; 3] {
+    let amount = (pitch / 90.0).clamp(-1.0, 1.0);
+    [1.0 - amount.abs(), (-amount).max(0.0), amount.max(0.0)]
+}
+
+fn head_weighted_pose(poses: [Option<Pose>; 3], weights: [f32; 3]) -> Option<Pose> {
+    poses.into_iter().zip(weights).filter(|(_, weight)| *weight > 1e-5)
+        .map(|(pose, weight)| pose.filter(|pose| !pose.bones.is_empty()).map(|pose| pose.scalar_mult(weight)))
+        .collect::<Option<Vec<_>>>()?.into_iter().reduce(|a, b| a.linear_add(&b)).map(|pose| pose.normalize_quat())
+}
+
+fn head_state_values(state: AlsHeadState) -> [f32; 4] {
+    [state.pitch_angle, state.yaw_angle, state.yaw_velocity, state.yaw_amount]
+}
+
+fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsHeadState, bool, f32)>) -> HeadGraphSample {
+    use als_core::head::{AlsHeadSettings, AlsHeadUpdateInput, update_head_state};
+    let scalar = |key| graph_global_f32(player, key).unwrap_or(0.0);
+    let boolean = |key| player.get_global_input_data(key).and_then(|value| value.as_bool().ok()).unwrap_or(false);
+    let state = crate::head_layer::head_state_from_player(player);
+    let mut sample = HeadGraphSample {
+        alpha: scalar("view_state.head_blend_amount"), state: head_state_values(state), weights: head_look_weights(state.pitch_angle),
+        inputs: ["animation.delta_seconds", "animation.delta_seconds_without_time_dilation", "locomotion_state.input_yaw_angle_world_space",
+            "locomotion_state.target_yaw_angle_world_space", "locomotion_state.rotation_yaw", "locomotion_state.yaw_velocity_world_space",
+            "view_state.yaw_angle", "view_state.pitch_angle"].map(scalar),
+        modes: ["view_mode.first_person", "rotation_mode.velocity_direction", "locomotion_state.b_has_input"].map(boolean), ..default()
+    };
+    let Some(arena) = player.get_context_arena() else { return sample; };
+    sample.frame = arena.frame_index();
+    sample.refreshed = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .is_ok_and(|properties| properties.write_frames.get("head_state.yaw_amount") == Some(&sample.frame));
+    if let Some((_, previous_state, refreshed, previous_alpha)) = previous.filter(|(frame, _, _, _)| frame + 1 == sample.frame) {
+        if (sample.alpha - previous_alpha).abs() > 1e-5 { sample.errors.push("head alpha did not consume previous root curves".into()); }
+        let mut expected = *previous_state;
+        if sample.refreshed {
+            if !refreshed { expected.initialization_required = true; }
+            update_head_state(&mut expected, AlsHeadUpdateInput {
+                delta_seconds: sample.inputs[0], delta_seconds_without_time_dilation: sample.inputs[1],
+                first_person: boolean("view_mode.first_person"), rotation_mode: if boolean("rotation_mode.velocity_direction") { RotationMode::VelocityDirection } else { RotationMode::ViewDirection },
+                has_input: boolean("locomotion_state.b_has_input"), input_yaw_world: sample.inputs[2], target_yaw_world: sample.inputs[3],
+                body_yaw_world: sample.inputs[4], body_yaw_velocity_world: sample.inputs[5], view_yaw_angle: sample.inputs[6], view_pitch_angle: sample.inputs[7],
+                movement_base_relative_yaw: if boolean("movement_base.b_has_relative_rotation") { scalar("movement_base.delta_yaw") } else { 0.0 },
+            }, AlsHeadSettings::default());
+        }
+        if head_state_values(expected).into_iter().zip(sample.state).any(|(a, b)| !b.is_finite() || (a - b).abs() > 1e-4)
+            || expected.initialization_required != state.initialization_required || expected.switching_look_sides != state.switching_look_sides {
+            sample.errors.push("Head callback output differs from source update".into());
+        }
+    }
+    let check = |errors: &mut Vec<String>, label: &str, actual: Option<Pose>, expected: Option<Pose>| {
+        if actual.zip(expected).and_then(|(actual, expected)| default_overlay_pose_error(&actual, &expected)).is_none_or(|error| error > 2e-5) {
+            errors.push(format!("{label}: missing or incorrect Head pose"));
+        }
+    };
+    for id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(id) else { continue; };
+        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(HEAD_GRAPH)) { continue; }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
+        let data = |name: &str, output: &str| graph.nodes.values().find(|node| node.name == name)
+            .filter(|node| context.node_caches.is_updated(node.id, StateKey::Default))
+            .and_then(|node| context.node_caches.get_output_data(node.id, StateKey::Default, output.into()));
+        let pose = |name: &str, output: &str| data(name, output).and_then(|value| value.into_pose().ok());
+        let base = pose("Input Pose\nView Input", "Pose");
+        let actual = pose("Apply Mesh Space Additive", "Pose");
+        if actual.is_none() { continue; }
+        if sample.refreshed != (sample.alpha > 1e-5) { sample.errors.push("Head callback relevance differs from additive alpha".into()); }
+        let mut expected_samples: [Option<Pose>; 3] = default();
+        for index in 0..3 {
+            if sample.weights[index] <= 1e-5 || sample.alpha <= 1e-5 { continue; }
+            let name = format!("Blendspace sample {index}");
+            let Some(node) = graph.nodes.values().find(|node| node.name == name) else { continue; };
+            let Some(clip_node) = node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>() else { continue; };
+            let Some(clip) = clip_node.reflect_ref().as_struct().ok().and_then(|node| node.field("clip"))
+                .and_then(|field| field.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
+                .and_then(|handle| probe.clips.get(handle)) else { continue; };
+            let time = state.yaw_amount.clamp(0.0, 1.0) * clip.duration;
+            let clip_pose = pose(&name, "pose");
+            sample.times[index] = clip_pose.as_ref().map(|pose| pose.timestamp);
+            if sample.times[index].is_none_or(|actual| (actual - time).abs() > 1e-5) { sample.errors.push(format!("Look sample {index}: incorrect normalized time")); }
+            let expected = als_ext::source_sequence_player::sample_pose(clip, time);
+            check(&mut sample.errors, &name, clip_pose, Some(expected.clone()));
+            let difference_name = format!("additive difference {name}");
+            let reference = graph.nodes.values().find(|node| node.name == difference_name)
+                .and_then(|node| graph.edges_inverted.get(&TargetPin::NodeData(node.id, "reference_pose".into())))
+                .and_then(|pin| match pin { SourcePin::NodeData(node, pin) => context.node_caches.get_output_data(*node, StateKey::Default, pin.clone()), _ => None })
+                .and_then(|value| value.into_pose().ok());
+            if let Some(reference) = reference
+                && let Some(skeleton) = probe.skeletons.get(&clip.skeleton) {
+                if reference.timestamp.abs() > 1e-5 { sample.errors.push("Look reference frame is not zero".into()); }
+                expected_samples[index] = Some(als_ext::mesh_space_difference::make_mesh_space_difference(&reference, &expected, skeleton));
+                check(&mut sample.errors, &difference_name, pose(&difference_name, "pose"), expected_samples[index].clone());
+            }
+        }
+        let additive = head_weighted_pose(expected_samples, sample.weights);
+        sample.sample_time = data(HEAD_BOUNDARIES[0].1, "sample_time").and_then(|value| value.as_f32().ok());
+        if sample.alpha > 1e-5 {
+            for (_, name, output) in &HEAD_BOUNDARIES[..3] { check(&mut sample.errors, name, pose(name, output), additive.clone()); }
+        }
+        if let Some(mut expected) = base
+            && let Some(skeleton) = probe.skeletons.get(&expected.skeleton) {
+            als_ext::mesh_space_additive::apply_mesh_space_additive(&mut expected, &Pose::default(), 1.0, skeleton);
+            sample.additive_effect = actual.as_ref().and_then(|actual| default_overlay_pose_error(actual, &expected));
+            if let Some(additive) = additive { als_ext::mesh_space_additive::apply_mesh_space_additive(&mut expected, &additive, sample.alpha, skeleton); }
+            check(&mut sample.errors, "mesh additive", actual.clone(), Some(expected));
+            check(&mut sample.errors, "Head output", pose("Output Pose\nAnimGraph", "Pose"), actual);
+            sample.ready = sample.alpha > 1e-5 && sample.refreshed && sample.sample_time.is_some() && sample.errors.is_empty();
+        }
+    }
+    sample
+}
+
+fn head_window(index: usize, sample: &HeadGraphSample) -> ManualAnimationWindowEvidence {
+    ManualAnimationWindowEvidence {
+        label: Some(HEAD_WINDOWS[index]), index: Some(index), settled: true, capture_source_window: true, capture_every_frame: true,
+        requires_pre_rig_motion: true, requires_final_pose_motion: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+        source_node: Some("AB_Als_Head/AnimGraph"), source_state: Some(HEAD_WINDOWS[index]),
+        source_pose_chain: HEAD_BOUNDARIES.into_iter().enumerate().filter(|(boundary, _)| index != 4 || *boundary >= 3).map(|(_, (label, node, output))| ManualAnimationPoseBoundary {
+            label, graph: HEAD_GRAPH, node, output, minimum_translation_span: 0.0, minimum_rotation_span_radians: if index < 3 || index >= 5 { 0.001 } else { 0.0 },
+        }).collect(),
+        minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001, minimum_observation_seconds: 0.3,
+        observed_animation_clip_time: sample.sample_time, observed_animation_weight: Some(sample.alpha), observed_animation_play_rate: Some(0.0),
+        ..default()
+    }
+}
 
 #[derive(Default, Debug, Serialize)]
 struct DefaultOverlayGraphSample {
@@ -2759,6 +2928,7 @@ struct ManualIntegrationState {
     grounded_joint_probe: GroundedJointProbe,
     locomotion_probe: LocomotionActionProbe,
     default_overlay_probe: DefaultOverlayProbe,
+    head_probe: HeadProbe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -2874,6 +3044,7 @@ impl Default for ManualIntegrationState {
             grounded_joint_probe: default(),
             locomotion_probe: default(),
             default_overlay_probe: default(),
+            head_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -4019,6 +4190,37 @@ fn drive_manual_integration(
             request.rotation_mode = Some(RotationMode::Aiming);
             request.overlay_state = Some(OverlayState::Rifle);
             if elapsed >= 6.0 {
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::Head => {
+            let index = state.head_probe.case_index;
+            if entering && index == 0 {
+                state.head_probe = HeadProbe { valid: true, ..default() };
+                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "head_start");
+                *overlay = OverlayState::Default;
+                *rotation_mode = RotationMode::ViewDirection;
+                commands.entity(character).remove::<AlsFirstPersonView>();
+            }
+            request.overlay_state = Some(OverlayState::Default);
+            request.rotation_mode = Some(if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection });
+            request.stance = Some(Stance::Standing);
+            request.gait = Some(Gait::Walking);
+            view_yaw.0 = SPRINT_YAW + (elapsed * 2.0).sin() * 55.0_f32.to_radians();
+            view_pitch.0 = match index { 0 => -60.0, 1 => 0.0, 2 => 60.0, 5 | 6 => (elapsed * 3.0).sin() * 60.0, _ => 0.0_f32 }.to_radians();
+            if index == 3 { input.0.move_dir = Vec2::new((elapsed * 3.0).sin() * 0.8, 1.0).normalize(); }
+            if entering && matches!(index, 5 | 6) { input.0.view_mode_pressed = true; }
+            virtual_time.set_relative_speed(if index == 5 { 0.25 } else { 1.0 });
+            if state.head_probe.covered[index] {
+                state.head_probe.case_index += 1;
+                if index == 6 { virtual_time.set_relative_speed(1.0); }
+                begin_phase(&mut state, if index == 6 { IntegrationPhase::Finish } else { IntegrationPhase::Head });
+            } else if default_overlay_should_timeout(false, elapsed) {
+                state.head_probe.sample.elapsed_seconds = elapsed;
+                state.timed_out = true;
+                virtual_time.set_relative_speed(1.0);
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -6285,6 +6487,38 @@ fn observe_manual_integration(
             "roll": roll.map(|value|(value.active,value.time)), "playback": transition_playback.map(|value|(crate::stop_link::source_transition_sequence(value),value.active,value.clip_time,value.weight)),
             "joint_valid": state.grounded_joint_probe.valid, "joint_sequence_completed": state.grounded_joint_probe.sequence_completed,
         }));
+    }
+    if state.scenario == IntegrationScenario::Head && state.phase == IntegrationPhase::Head && !state.entered {
+        let now = state.game_time_seconds;
+        let elapsed = state.phase_elapsed();
+        let probe = &mut state.head_probe;
+        let mut sample = head_graph_sample(player, &motion_probe, probe.previous.as_ref());
+        sample.elapsed_seconds = elapsed;
+        let actual_state = crate::head_layer::head_state_from_player(player);
+        if head.is_none_or(|head| *head != actual_state) { sample.errors.push("Head Actor projection differs from evaluated instance".into()); }
+        probe.previous = Some((sample.frame, actual_state, sample.refreshed, crate::head_layer::head_blend_amount(context)));
+        probe.valid &= sample.errors.is_empty();
+        for (index, time) in sample.times.iter().enumerate() { probe.samples_seen[index] |= time.is_some(); }
+        probe.additive_seen |= sample.additive_effect.is_some_and(|effect| effect > 1e-4);
+        probe.unscaled_pitch_seen |= first_person && sample.inputs[1] > sample.inputs[0] * 3.5
+            && (sample.state[0] - sample.inputs[7]).abs() > 0.01 && sample.errors.is_empty();
+        let index = probe.case_index;
+        let branch_ready = match index {
+            0..=2 => (sample.state[0] - [-60.0, 0.0, 60.0][index]).abs() < 5.0 && !first_person,
+            3 => sample.modes[1] && sample.modes[2] && speed > 0.5,
+            4 => sample.modes[1] && !sample.modes[2] && speed < 0.1,
+            5 => first_person && probe.unscaled_pitch_seen,
+            _ => !first_person,
+        };
+        if source_ready && sample.ready && probe.valid && *overlay == OverlayState::Default
+            && *stance == Stance::Standing && *locomotion == LocomotionState::Grounded && branch_ready {
+            **animation_window = head_window(index, &sample);
+            probe.seconds[index] += sample.inputs[0];
+            probe.covered[index] |= probe.seconds[index] >= 0.8;
+        }
+        gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
+            "first_person": first_person, "speed": speed, "unscaled_pitch_seen": probe.unscaled_pitch_seen, "source": sample}));
+        probe.sample = sample;
     }
     if state.scenario == IntegrationScenario::DefaultOverlay && state.phase == IntegrationPhase::DefaultOverlay && !state.entered {
         let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
@@ -8892,6 +9126,18 @@ fn observe_manual_integration(
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),
             ],
+            IntegrationScenario::Head => {
+                let probe = &state.head_probe;
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": probe.case_index,
+                        "no_progress_limit_seconds": 12.0, "waited_game_seconds": probe.sample.elapsed_seconds, "current_conditions": probe.sample}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(HEAD_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
+                results.extend([("head_source_contract", probe.valid), ("head_look_samples", probe.samples_seen.iter().all(|seen| *seen)),
+                    ("head_mesh_additive", probe.additive_seen), ("head_first_person_clock", probe.unscaled_pitch_seen), ("head_complete", probe.case_index == HEAD_WINDOWS.len())]);
+                results
+            }
             IntegrationScenario::DefaultOverlay => {
                 let probe = &state.default_overlay_probe;
                 if state.timed_out {
@@ -9115,6 +9361,110 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn head_observer_rejects_empty_samples_and_binds_actual_callback_pins() {
+        use bevy_animation_graph::core::pose::{BoneId, BonePose};
+        let bone = BoneId::default();
+        let poses = [0.1, -0.6, 0.8].map(|angle| {
+            let mut pose = Pose::default();
+            pose.add_bone(BonePose { rotation: Some(Quat::from_rotation_x(angle)), ..default() }, bone);
+            Some(pose)
+        });
+        for (pitch, expected) in [(-120.0, [0.0, 1.0, 0.0]), (-45.0, [0.5, 0.5, 0.0]), (0.0, [1.0, 0.0, 0.0]), (45.0, [0.5, 0.0, 0.5]), (120.0, [0.0, 0.0, 1.0])] {
+            let weights = head_look_weights(pitch);
+            assert_eq!(weights, expected);
+            assert!(head_weighted_pose(poses.clone(), weights).is_some());
+            assert!(head_weighted_pose([None, None, None], weights).is_none());
+            assert!(head_weighted_pose([Some(Pose::default()), Some(Pose::default()), Some(Pose::default())], weights).is_none());
+        }
+        let down = head_weighted_pose(poses.clone(), head_look_weights(-45.0)).unwrap();
+        let up = head_weighted_pose(poses, head_look_weights(45.0)).unwrap();
+        assert!(default_overlay_pose_error(&down, &up).unwrap() > 0.1);
+        let graph = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets").join(HEAD_GRAPH)).unwrap();
+        for (_, node, _) in HEAD_BOUNDARIES { assert!(graph.contains(&format!("name: {node:?}")), "Missing authored Head node {node:?}"); }
+        assert_eq!(HEAD_BOUNDARIES[0].2, "pose");
+        for index in 0..HEAD_WINDOWS.len() {
+            let window = head_window(index, &HeadGraphSample::default());
+            assert!(window.capture_every_frame && window.requires_source_pose_chain);
+            assert!(window.source_pose_chain.iter().all(|boundary| !boundary.node.starts_with("additive reference")));
+            if index == 4 { assert_eq!(window.source_pose_chain.len(), 2); }
+        }
+        assert!(!default_overlay_should_timeout(false, 11.99));
+        assert!(default_overlay_should_timeout(false, 12.0));
+    }
+
+    #[test]
+    fn head_observer_reads_loaded_graph_samples_and_relevance() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::{builtin_nodes::clip_node::ClipNode, core::{
+            animation_clip::{GraphClip, loader::GraphClipLoader}, animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
+            animation_node::AnimationNode, edge_data::DataSpec,
+            skeleton::loader::SkeletonLoader, systems::animation_player,
+        }};
+        fn observe(In((entity, previous)): In<(Entity, Option<(u64, AlsHeadState, bool, f32)>)>, players: Query<&AnimationGraphPlayer>, probe: MotionProbe) -> HeadGraphSample {
+            head_graph_sample(players.get(entity).unwrap(), &probe, previous.as_ref())
+        }
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
+            .init_asset::<bevy::world_serialization::WorldAsset>().init_asset::<bevy::animation::AnimationClip>()
+            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>().init_asset::<Mesh>().init_asset::<Image>()
+            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>().init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
+            .init_asset::<AnimationGraph>().init_asset_loader::<AnimationGraphLoader>().init_asset::<StateMachine>()
+            .init_resource::<ButtonInput<KeyCode>>().add_plugins(als_ext::AlsExtPlugin).register_type::<ClipNode>();
+        app.finish();
+        app.cleanup();
+        let server = app.world().resource::<AssetServer>();
+        let graph: Handle<AnimationGraph> = server.load(HEAD_GRAPH);
+        let base: Handle<GraphClip> = server.load("animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let mut previous_loaded = 0;
+        loop {
+            app.update();
+            let server = app.world().resource::<AssetServer>();
+            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id())) + usize::from(server.is_loaded_with_dependencies(base.id()));
+            if loaded != previous_loaded { eprintln!("Head observer assets loaded {loaded}/2"); previous_loaded = loaded; }
+            if loaded == 2 { break; }
+            assert!(Instant::now() < deadline, "Head observer assets did not load within 30 seconds: {loaded}");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let linked = AnimationNode::new("Head", als_ext::LayeredGraphNode {
+            capture_context: true, internalize_time: true,
+            output_aliases: vec![als_ext::layered_graph::OutputDataAlias { child_output: "Result".into(), outer_output: "Pose".into() }],
+            ..als_ext::LayeredGraphNode::new(graph)
+        });
+        let mut root = AnimationGraph::new();
+        root.add_input_data(GraphInputPin::Passthrough("View Input".into()), DataSpec::Pose);
+        root.add_output_data("pose".into(), DataSpec::Pose);
+        root.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("View Input".into())), TargetPin::NodeData(linked.id, "View Input".into()));
+        root.add_edge(SourcePin::NodeData(linked.id, "Pose".into()), TargetPin::OutputData("pose".into()));
+        root.add_node(linked);
+        let root = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(root);
+        let clip = app.world().resource::<Assets<GraphClip>>().get(&base).unwrap();
+        let mut player = AnimationGraphPlayer::new(clip.skeleton.clone()).with_graph(root);
+        player.set_input_data("View Input", als_ext::source_sequence_player::sample_pose(clip, 0.0).into());
+        player.set_global_input_data("animation.delta_seconds", 0.1_f32);
+        player.set_global_input_data("animation.delta_seconds_without_time_dilation", 0.1_f32);
+        let entity = app.world_mut().spawn((player, Name::new("Head observer"), Transform::default(), GlobalTransform::default())).id();
+        app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
+        let mut previous: Option<(u64, AlsHeadState, bool, f32)> = None;
+        for (pitch, yaw, alpha) in [(-60.0_f32, 40.0_f32, 1.0_f32), (60.0, -80.0, 1.0), (60.0, -80.0, 0.0), (45.0, 120.0, 1.0)] {
+            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(entity).unwrap();
+            player.set_global_input_data("view_state.pitch_angle", pitch);
+            player.set_global_input_data("view_state.yaw_angle", yaw);
+            player.set_global_input_data("view_state.head_blend_amount", alpha);
+            if let Some(previous) = previous.as_mut() { previous.3 = alpha; }
+            app.world_mut().run_system_once(animation_player).unwrap();
+            assert!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error().is_none(), "Loaded Head graph failed: {:?}", app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error());
+            let sample = app.world_mut().run_system_once_with(observe, (entity, previous)).unwrap();
+            assert!(sample.errors.is_empty(), "Head observer failed: {sample:?}");
+            assert_eq!(sample.ready, alpha > 1e-5, "Head observer did not see authored outputs: {sample:?}");
+            assert_eq!(sample.refreshed, alpha > 1e-5);
+            if alpha > 1e-5 { assert!(sample.additive_effect.is_some_and(|effect| effect > 1e-4), "Head additive effect was not observed: {sample:?}"); }
+            let state = crate::head_layer::head_state_from_player(app.world().get::<AnimationGraphPlayer>(entity).unwrap());
+            previous = Some((sample.frame, state, sample.refreshed, alpha));
+        }
+    }
 
     #[test]
     fn default_overlay_additive_matches_loaded_source_pose_channels() {
