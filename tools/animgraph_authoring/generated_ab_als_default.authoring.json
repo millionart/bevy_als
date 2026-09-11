@@ -379,7 +379,7 @@
         "--materialized-directory",
         "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/actor_spec.json",
+        "target/bf115_layering_full/cache_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
       ]

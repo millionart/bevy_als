@@ -992,3 +992,13 @@
   - 06d1生产链/消融2026-09-11 19:04:00：source的20条原曲线与两条IsFullWeight派生值，在负值、越界值、阈值及缺失输入上保持22项合同；基线33.296s中三项生产测试PASS，而旧Base coverage被过时als_layering镜像误判的反例FAIL。删除七份无生成图消费者的mask和24个标量镜像（合计31个旧全局输入）、改coverage读取实际pose_state后，四项40.094s PASS，生产信号未变。原手工图专用layering_contract_gate退休，由当前103节点生成manifest和现有Default真实场景接替；观察追加11个实际源姿态边界、两张Base frame、三处曲线运算、22字段的上一帧输入及实际Alpha消费，沿原有case/watchdog收集，不新增驱动。上一帧仅保留既有AlsLayeringState和frame编号，观察器在Root曲线投影后运行；改变曲线采样时点和删除零值曲线均有focused反例。接下来完成此观察闭包的编译/声明式，再进入独立公共runtime。
 
   - 06d1静态完成2026-09-11 19:11:00：五项Layering focused34.284s、完整310项目1.867s、同入口64.980s、247图fresh spec2.890s及七manifest全部PASS。观察读取与节点共用既有source property优先级；保留独立源映射fixture、错误时点和缺失零曲线反例，公共姿态窗口覆盖真实生成图的11个区域/输出边界。没有转换器或RON变动，沿06c2完整256产物零差异闭包验收；删除537行过时手工图Gate和无消费者的Actor写入，旧资产保留。开始18:39:02、预估19:29:02、实际19:11:00（偏差-18m02s），结果完成。下一项仅真实startup、扩展Default/Layering与三个受共享节点影响owner的适用场景，静态通过不作为功能完成。
+
+- [ ] BF115.06d2 Layering与共享迁移的真实验收：开始2026-09-11 19:12:38、预估19:42:38。依赖022d986及当前同入口构建/247 spec/七manifest。按startup→扩展default_overlay顺序验证22输入、11个Layering姿态边界、Base frames、曲线和区域输出，再以standing_direction/standing_stop/crouching/crouching_actions覆盖20份MultiWay字段迁移及Standing Plant/Crouching Stop的共享混合算法；全部通过后关闭01c/03b/05b有限迁移和当前Layering任务。原Playground、正常Actor输入、零截图、原公共数值/姿态/性能Guard与固定进展watchdog保持。估时依据为同类startup/Default约15/18秒、已归档方向与停止场景及现成数据审查工具；任何失败先读首个实际source链边界，不用重复启动探索，也不扩展其余12 overlays或后续Head/CR。
+
+  - 06d2真实Gate前2026-09-11 19:13:00：Layering一张完整authored图的94源可达节点/78Pose边、103目标节点/92边闭合；共享节点18/48/7组实际路径、完整九AnimBP/256产物、Actor消融与当前310项目均通过。未通过边界仅为新的真实Layering观察及受共享节点影响的场景。现在启动无驱动startup，随后依次审查每个动作报告，所有CaptureCount为0。
+
+  - 06d2 startup后/动作Gate前2026-09-11 19:15:00：同一入口startup14.689s PASS，manual0/validator0，公共fault/graph-error/temporal为空、零截图；无驱动根姿态通过。保持当前二进制，接着运行扩展default_overlay以验收Layering的区域姿态、来源值和曲线时点；其它共享场景仍待此边界。
+
+  - 06d2首动作结果/06d1观测有限复开2026-09-11 19:19:00：扩展Default19.647s manual91/validator1，case0在12秒固定进展上限退出；公共姿态/图/性能通过（frame p9515.9727ms/max19.9705ms，excluded0，fault/temporal/graph为空）。904条读数均证明Base evaluator、三处曲线和22项上一帧输入正确，缺失边界仅七个Save Cached Pose。目标公开运行时ABI中Save没有Pose输出，而在CACHED_POSE_VALUE存储；新观察器与声明仍误读Pose。06d1仅此观测通道复开，漏检原因是focused检查验证了node身份但未验证其数据输出。先补真实NodeCaches通道反例，再改边界输出声明和同一读取位置；不动Actor、动画算法或Guard，不启动其它场景。
+
+  - 06d1观测复开收口/06d2继续前2026-09-11 19:28:00：NodeCaches反例30.485s在Base Poses通道稳定FAIL；七份边界显式声明既有CACHED_POSE_VALUE，运行读取与公共窗口使用同一声明，保留已更新检查且未改缓存节点。310项目25.568s、同入口62.150s、247 spec2.860s及七manifest全部PASS；fixture还验证下一帧清空旧缓存，移除通道声明即恢复旧失败。06d1复开开始19:19、原预估19:29:02、实际19:28（偏差-1m02s）并关闭。当前仅观察元数据变化，接着用新二进制startup及扩展Default复验，再执行已声明共享场景。

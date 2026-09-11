@@ -21,6 +21,7 @@ use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance}
 use als_core::transition::{AlsDesiredStance, AlsStateRequest};
 use als_core::view::AlsViewPitch;
 use als_ext::source_instance::SourceInstanceProperties;
+use als_ext::source_cached_pose::CACHED_POSE_VALUE;
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfile,
     RagdollPhysicsProfileApplied,
@@ -742,13 +743,13 @@ const LOCOMOTION_JUMP: &str = "generated/ALS/Character/AnimationInstances/AB_Als
 const LOCOMOTION_FALL: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
 const DEFAULT_OVERLAY_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
 const LAYERING_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
-const LAYERING_BOUNDARIES: [(&str, &str); 11] = [
-    ("layering_locomotion", "Input Pose\nLocomotion Input"), ("layering_overlay", "Input Pose\nOverlay Input"),
-    ("layering_base_poses", "Save cached pose 'Base Poses'"), ("layering_legs", "Save cached pose 'Legs'"),
-    ("layering_pelvis", "Save cached pose 'Pelvis'"), ("layering_spine", "Save cached pose 'Spine'"),
-    ("layering_head", "Save cached pose 'Head'"), ("layering_arm_left", "Save cached pose 'Arm Left'"),
-    ("layering_arm_right", "Save cached pose 'Arm Right'"), ("layering_fingers", "d650094f-41a3-2706-67fb-b5a5994b2139"),
-    ("layering_output", "Output Pose\nAnimGraph"),
+const LAYERING_BOUNDARIES: [(&str, &str, &str); 11] = [
+    ("layering_locomotion", "Input Pose\nLocomotion Input", "Pose"), ("layering_overlay", "Input Pose\nOverlay Input", "Pose"),
+    ("layering_base_poses", "Save cached pose 'Base Poses'", CACHED_POSE_VALUE), ("layering_legs", "Save cached pose 'Legs'", CACHED_POSE_VALUE),
+    ("layering_pelvis", "Save cached pose 'Pelvis'", CACHED_POSE_VALUE), ("layering_spine", "Save cached pose 'Spine'", CACHED_POSE_VALUE),
+    ("layering_head", "Save cached pose 'Head'", CACHED_POSE_VALUE), ("layering_arm_left", "Save cached pose 'Arm Left'", CACHED_POSE_VALUE),
+    ("layering_arm_right", "Save cached pose 'Arm Right'", CACHED_POSE_VALUE), ("layering_fingers", "d650094f-41a3-2706-67fb-b5a5994b2139", "Pose"),
+    ("layering_output", "Output Pose\nAnimGraph", "Pose"),
 ];
 const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.ab_als_default.secondary_motion.phase";
 const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
@@ -880,9 +881,11 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
         };
         if graph.nodes.values().find(|node| node.name == "Output Pose\nAnimGraph").and_then(|node| pose(node.id)).is_none() { continue; }
         contexts += 1;
-        for (label, name) in LAYERING_BOUNDARIES {
+        for (label, name, output) in LAYERING_BOUNDARIES {
             if graph.nodes.values().find(|node| node.name == name || node.id.uuid().to_string() == name)
-                .and_then(|node| pose(node.id)).is_some_and(|pose| !pose.paths.is_empty()) { sample.boundaries.push(label); }
+                .filter(|node| context.node_caches.is_updated(node.id, StateKey::Default))
+                .and_then(|node| context.node_caches.get_output_data(node.id, StateKey::Default, output.into()))
+                .and_then(|value| value.into_pose().ok()).is_some_and(|pose| !pose.paths.is_empty()) { sample.boundaries.push(label); }
         }
         for node in graph.nodes.values() {
             let Some(actual) = pose(node.id) else { continue; };
@@ -1076,8 +1079,8 @@ fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> M
             ManualAnimationPoseBoundary { label: "secondary_motion", graph: DEFAULT_OVERLAY_GRAPH, node: "A_Als_Idle\nSequence Player\nSync group Secondary Motion", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "apply_additive", graph: DEFAULT_OVERLAY_GRAPH, node: "Apply Additive", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
             ManualAnimationPoseBoundary { label: "overlay_output", graph: DEFAULT_OVERLAY_GRAPH, node: "Output Pose\nOverlay", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.001 },
-        ].into_iter().chain(LAYERING_BOUNDARIES.iter().map(|(label, node)| ManualAnimationPoseBoundary {
-            label, graph: LAYERING_GRAPH, node, output: "Pose", minimum_translation_span: 0.0,
+        ].into_iter().chain(LAYERING_BOUNDARIES.iter().map(|(label, node, output)| ManualAnimationPoseBoundary {
+            label, graph: LAYERING_GRAPH, node, output, minimum_translation_span: 0.0,
             minimum_rotation_span_radians: if *label == "layering_output" { 0.001 } else { 0.0 },
         })).collect(),
         minimum_pre_rig_rotation_span_radians: 0.001, minimum_final_rotation_span_radians: 0.001,
@@ -9288,9 +9291,22 @@ mod tests {
         actual.remove("LayerHeadSlot");
         assert_eq!(layering_curve_error(&actual, &expected), None);
         let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
-        for (label, node) in LAYERING_BOUNDARIES {
-            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.graph == LAYERING_GRAPH));
+        for (label, node, output) in LAYERING_BOUNDARIES {
+            assert!(window.source_pose_chain.iter().any(|boundary| boundary.label == label && boundary.node == node && boundary.output == output && boundary.graph == LAYERING_GRAPH));
         }
+        let mut caches = bevy_animation_graph::core::context::node_caches::NodeCaches::default();
+        let id = NodeId::default();
+        let mut cached = Pose::default();
+        cached.add_bone(bevy_animation_graph::core::pose::BonePose::from_transform(Transform::IDENTITY), default());
+        caches.set_output_data(id, StateKey::Default, als_ext::source_cached_pose::CACHED_POSE_VALUE.into(), DataValue::Pose(cached));
+        caches.mark_updated(id, StateKey::Default);
+        let saves = window.source_pose_chain.iter().filter(|boundary| boundary.node.starts_with("Save cached pose")).collect::<Vec<_>>();
+        assert_eq!(saves.len(), 7);
+        for boundary in saves {
+            assert!(caches.get_output_data(id, StateKey::Default, boundary.output.into()).is_some(), "{}", boundary.label);
+        }
+        caches.next_frame();
+        assert!(caches.get_output_data(id, StateKey::Default, als_ext::source_cached_pose::CACHED_POSE_VALUE.into()).is_none());
     }
 
     #[test]

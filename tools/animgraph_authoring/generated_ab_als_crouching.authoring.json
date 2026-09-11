@@ -1814,7 +1814,7 @@
         "--materialized-directory",
         "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/actor_spec.json",
+        "target/bf115_layering_full/cache_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]
