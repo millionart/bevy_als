@@ -36,6 +36,7 @@ pub(crate) struct SourceBlendState {
 #[derive(Reflect, Clone, Debug, Default)]
 pub struct SourceTwoWayBlendState {
     alpha: SourceBlendState,
+    pub input_alpha: f32,
     pub blend_alpha: f32,
     a_is_relevant: bool,
     b_is_relevant: bool,
@@ -254,6 +255,7 @@ impl NodeLike for SourceTwoWayBlendNode {
         let delta = delta_seconds(&ctx)?;
         let (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b) = {
             let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
+            state.input_alpha = raw;
             let alpha = source_blend_alpha(
                 &mut state.alpha,
                 raw,
@@ -1091,8 +1093,15 @@ mod tests {
             }
             let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                 &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
-                .unwrap().remove("Pose").unwrap().into_pose().unwrap()
+            let mut output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
+            if let Some(node) = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceTwoWayBlendNode>().is_some()) {
+                use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
+                let state = arena.get_toplevel().node_states.get::<SourceTwoWayBlendState>(node.id, StateKey::Default).unwrap();
+                assert_eq!(state.input_alpha, inputs["alpha"].as_f32().unwrap());
+                let properties = arena.get_toplevel().node_states.get::<crate::source_instance::SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+                assert_eq!(properties.values["alpha"].as_f32().unwrap(), 0.9);
+            }
+            output.remove("Pose").unwrap().into_pose().unwrap()
         }
         let mut world = World::new();
         world.insert_resource(Assets::<AnimationGraph>::default());
@@ -1136,7 +1145,17 @@ mod tests {
                     let node = AnimationNode::new(&key, crate::GlobalPoseInputNode { key: key.clone(), output: "Pose".into() });
                     graph.add_node(node.clone());
                     let pin = if multi { format!("Poses_{index}") } else if additive { if index == 0 { "Base".into() } else { "Additive".into() } } else if index == 0 { "A".into() } else { "B".into() };
-                    graph.add_node_parameter_edge(node.id, "Pose", blend.id, pin);
+                    if kind == "two" && index == 1 {
+                        let writer = AnimationNode::new("late_alpha", crate::source_instance::SourcePropertyWriteNode {
+                            assignments: vec![crate::source_instance::SourcePropertyAssignment { property: "alpha".into(), value: DataValue::F32(0.9) }],
+                            ..default()
+                        });
+                        graph.add_node(writer.clone());
+                        graph.add_node_parameter_edge(node.id, "Pose", writer.id, "Source");
+                        graph.add_node_parameter_edge(writer.id, "Pose", blend.id, pin);
+                    } else {
+                        graph.add_node_parameter_edge(node.id, "Pose", blend.id, pin);
+                    }
                     let translation = Vec3::new(index as f32, 1.0, 0.0);
                     let rotation = rotations[index] * if index == 1 { sign } else { 1.0 };
                     let mut pose = Pose { skeleton: skeleton.clone(), timestamp: 2.5, root_motion: Some(RootMotionDelta { translation, rotation }), ..default() };

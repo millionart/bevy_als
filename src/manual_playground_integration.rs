@@ -849,7 +849,6 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
     let scalar = |key| locomotion_source_scalar(player, key);
     let mut sample = DefaultOverlayGraphSample {
         inputs: ["pose_state.standing_amount", "pose_state.crouching_amount", "pose_state.gait_walking_amount", "pose_state.in_air_amount"].map(scalar),
-        prediction_input: scalar("in_air_state.ground_prediction_amount"),
         ..default()
     };
     let Some(arena) = player.get_context_arena() else { return sample; };
@@ -883,9 +882,10 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
             if let Some(blend) = node.try_inner_downcast_ref::<als_ext::SourceTwoWayBlendNode>() {
                 let Ok(state) = context.node_states.get::<als_ext::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
                 let alpha = state.blend_alpha;
-                let Some(raw) = scalar(&blend.alpha_key) else { sample.errors.push(format!("{}: missing source input", blend.alpha_key)); continue; };
+                let raw = state.input_alpha;
                 let expected_alpha = if blend.mapping.interpolate_result {
                     let expected = default_overlay_prediction_alpha(previous_prediction, raw, scalar("animation.delta_seconds").unwrap_or(0.0), &blend.mapping);
+                    sample.prediction_input = Some(raw);
                     sample.prediction_alpha = Some(alpha);
                     sample.prediction_expected = Some(expected);
                     expected

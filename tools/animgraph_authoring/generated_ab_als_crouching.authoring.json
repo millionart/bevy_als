@@ -25,6 +25,10 @@
     {
       "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
+    },
+    {
+      "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
+      "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
     }
   ],
   "graphs": [
@@ -1793,9 +1797,9 @@
         "python",
         "tools/import/audit_cr_als.py",
         "--source",
-        "target/bf115_crouching/source/CR_Als.foot.fresh.ue.json",
+        "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
         "--profile",
-        "target/bf115_crouching/foot_profile.json",
+        "target/bf115_overlays/initial_hierarchy_cr.profile.json",
         "--check"
       ]
     },

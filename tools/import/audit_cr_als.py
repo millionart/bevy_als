@@ -212,6 +212,20 @@ def validate_source_raw(source, differences):
         differences.append(str(error))
 
 
+def validate_initial_segments(source, target, differences):
+    try:
+        bones = {bone["name"]: bone["initial_global_transform"] for bone in source["rig_hierarchy"]["bones"]}
+        for side, suffix in enumerate(("l", "r")):
+            for index, (parent, child) in enumerate(((f"thigh_{suffix}", f"calf_{suffix}"), (f"calf_{suffix}", f"foot_{suffix}"))):
+                delta = [bones[parent]["translation"][axis] - bones[child]["translation"][axis] for axis in ("x", "y", "z")]
+                scale = [bones[parent]["scale"][axis] for axis in ("x", "y", "z")]
+                for name, expected in (("foot_initial_deltas_m", source_point_to_runtime(delta)), ("foot_initial_scales", source_direction_to_runtime(scale))):
+                    if distance(target[name][side][index], expected) > TOLERANCE:
+                        differences.append(f"profile initial bone reference {parent}:{name}")
+    except (KeyError, IndexError, TypeError):
+        differences.append("native rig initial hierarchy or target reference is missing")
+
+
 def validate_profile(source, profile, runtime, control_source, foot_source, differences):
     if profile.get("source_asset") != source.get("asset_path"):
         differences.append("profile source asset")
@@ -257,6 +271,7 @@ def validate_profile(source, profile, runtime, control_source, foot_source, diff
     ]:
         differences.append("profile execution order")
     target = runtime.get("target", {})
+    validate_initial_segments(source, target, differences)
     if abs(target.get("foot_height_m", 0.0) - source_construction.get("foot_height_cm", 0.0) * SOURCE_LENGTH_TO_RUNTIME_SCALE) > TOLERANCE:
         differences.append("profile foot height conversion")
     if abs(target.get("leg_length_m", 0.0) - source_construction.get("leg_length_cm", 0.0) * SOURCE_LENGTH_TO_RUNTIME_SCALE) > TOLERANCE:
@@ -384,6 +399,29 @@ def validate_skeleton(mesh, gltf, differences):
 
 
 def self_test():
+    source = {"rig_hierarchy": {"bones": [
+        {"name": f"{name}_{side}", "initial_global_transform": {
+            "translation": dict(zip(("x", "y", "z"), position)),
+            "scale": dict(zip(("x", "y", "z"), scale)),
+        }} for side in ("l", "r") for name, position, scale in (
+            ("thigh", [0, 0, 0], [1, 2, 3]),
+            ("calf", [30, 0, 40], [2, 3, 4]),
+            ("foot", [30, 0, 80], [1, 1, 1]),
+        )
+    ]}}
+    target = {
+        "foot_initial_deltas_m": [[[-0.3, -0.4, 0], [0, -0.4, 0]]] * 2,
+        "foot_initial_scales": [[[1, 3, 2], [2, 4, 3]]] * 2,
+    }
+    differences = []
+    validate_initial_segments(source, target, differences)
+    assert not differences
+    validate_initial_segments({}, target, differences)
+    assert differences == ["native rig initial hierarchy or target reference is missing"]
+    target["foot_initial_deltas_m"] = [[[0, 0, 0], [0, -0.4, 0]], [[-0.3, -0.4, 0], [0, -0.4, 0]]]
+    differences = []
+    validate_initial_segments(source, target, differences)
+    assert differences == ["profile initial bone reference thigh_l:foot_initial_deltas_m"]
     velocity_input = '''
     let velocity_blend = ["forward_amount", "backward_amount"].map(|direction| {
         source_player_property(player, &format!("grounded_state.velocity_blend.{direction}"))

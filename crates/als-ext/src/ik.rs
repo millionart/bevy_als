@@ -207,6 +207,11 @@ pub fn solve_basic_two_bone_ik(
     })
 }
 
+pub fn scaled_initial_bone_length(initial_delta: Vec3, initial_scale: Vec3, current_scale: Vec3) -> f32 {
+    let ratio = if initial_scale.length_squared() > 1e-8 { current_scale / initial_scale } else { Vec3::ONE };
+    (initial_delta * ratio).length()
+}
+
 pub fn calculate_pole_vector(hip: Vec3, knee: Vec3, ankle: Vec3) -> Option<PoleVector> {
     let hip_to_knee = knee - hip;
     if hip_to_knee.length_squared() <= 1e-8 {
@@ -394,6 +399,14 @@ mod hand_target_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn initial_bone_length_uses_the_initial_global_scale_ratio() {
+        let delta = Vec3::new(3.0, 4.0, 0.0);
+        assert!((scaled_initial_bone_length(delta, Vec3::new(1.0, 2.0, 1.0), Vec3::new(2.0, 1.0, 1.0)) - 40.0_f32.sqrt()).abs() < 1e-6);
+        assert_eq!(scaled_initial_bone_length(delta, Vec3::ONE, Vec3::ONE), 5.0);
+        assert_eq!(scaled_initial_bone_length(delta, Vec3::ZERO, Vec3::splat(2.0)), 5.0);
+    }
 
     const HIP: Vec3 = Vec3::ZERO;
     const UPPER: f32 = 0.45;

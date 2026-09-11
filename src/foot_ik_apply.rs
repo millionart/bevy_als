@@ -1805,8 +1805,16 @@ fn apply_chain_target(
     let ankle_before_pelvis_drop = foot_g.translation();
     let ankle = pelvis_adjusted_position(ankle_before_pelvis_drop, pelvis_world_offset);
 
-    let upper_len = (knee - hip).length();
-    let lower_len = (ankle - knee).length();
+    let (thigh_scale, _, _) = thigh_g.to_scale_rotation_translation();
+    let (calf_scale, _, _) = calf_g.to_scale_rotation_translation();
+    let upper_len = als_ext::ik::scaled_initial_bone_length(
+        Vec3::from(profile.foot_initial_deltas_m[side][0]),
+        Vec3::from(profile.foot_initial_scales[side][0]), thigh_scale,
+    );
+    let lower_len = als_ext::ik::scaled_initial_bone_length(
+        Vec3::from(profile.foot_initial_deltas_m[side][1]),
+        Vec3::from(profile.foot_initial_scales[side][1]), calf_scale,
+    );
 
     let target = target_world;
 
@@ -1824,8 +1832,6 @@ fn apply_chain_target(
     ) else {
         return None;
     };
-    let (thigh_scale, _, _) = thigh_g.to_scale_rotation_translation();
-    let (calf_scale, _, _) = calf_g.to_scale_rotation_translation();
     let (foot_scale, _, _) = foot_g.to_scale_rotation_translation();
     let current_thigh = Transform {
         translation: hip,
@@ -2286,7 +2292,9 @@ mod tests {
             let (primary, secondary) = source_foot_ik_axes(1, &profile.target);
             let solve = solve_basic_two_bone_ik(
                 current_thigh.translation, current_thigh.rotation, current_calf.translation,
-                target, pole, 0.45, 0.45, primary, secondary, 1.0,
+                target, pole,
+                Vec3::from(profile.target.foot_initial_deltas_m[1][0]).length(),
+                Vec3::from(profile.target.foot_initial_deltas_m[1][1]).length(), primary, secondary, 1.0,
             ).unwrap();
             let basic = source_basic_ik_writeback(
                 current_thigh, current_calf, current_foot, solve, rotation, weight,
@@ -2301,10 +2309,12 @@ mod tests {
                 Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
             )>::new(&mut world);
             let (mut locals, globals) = queries.get_mut(&mut world).unwrap();
-            assert!(apply_chain_target(
+            let result = apply_chain_target(
                 &chain, target, pole, rotation, weight, Vec3::ZERO, primary, secondary,
                 &GlobalTransform::IDENTITY, normal, 1, 0.0, &profile.target, &mut locals, &globals,
-            ).is_some());
+            ).unwrap();
+            assert!((result.input.upper_length - Vec3::from(profile.target.foot_initial_deltas_m[1][0]).length()).abs() < 1e-6);
+            assert!((result.input.lower_length - Vec3::from(profile.target.foot_initial_deltas_m[1][1]).length()).abs() < 1e-6);
             let actual = locals.get(thigh).unwrap().0.rotation
                 * locals.get(calf).unwrap().0.rotation * locals.get(foot).unwrap().0.rotation;
             assert!(actual.dot(expected).abs() > 1.0 - 1e-5, "foot rotation weight={weight}");

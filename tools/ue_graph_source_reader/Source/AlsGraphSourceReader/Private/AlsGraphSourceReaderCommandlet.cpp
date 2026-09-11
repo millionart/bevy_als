@@ -21,6 +21,7 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Rigs/RigHierarchy.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
@@ -403,6 +404,23 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
     return Value;
 }
 
+TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy)
+{
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    TArray<TSharedPtr<FJsonValue>> Bones;
+    for (const FRigElementKey& Key : Hierarchy->GetBoneKeys())
+    {
+        TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+        Bone->SetStringField(TEXT("name"), Key.Name.ToString());
+        Bone->SetStringField(TEXT("parent"), Hierarchy->GetFirstParent(Key).Name.ToString());
+        Bone->SetObjectField(TEXT("initial_global_transform"), CaptureTransform(Hierarchy->GetInitialGlobalTransform(Key)));
+        Bone->SetObjectField(TEXT("initial_local_transform"), CaptureTransform(Hierarchy->GetInitialLocalTransform(Key)));
+        Bones.Add(MakeShared<FJsonValueObject>(Bone));
+    }
+    Value->SetArrayField(TEXT("bones"), Bones);
+    return Value;
+}
+
 TSharedRef<FJsonObject> CaptureSkeletalMesh(const USkeletalMesh* Mesh)
 {
     const FReferenceSkeleton& ReferenceSkeleton = Mesh->GetRefSkeleton();
@@ -715,6 +733,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         GraphValues.Add(MakeShared<FJsonValueObject>(CaptureGraph(Graphs[GraphIndex], GraphIndex)));
     }
     Root->SetArrayField(TEXT("graphs"), GraphValues);
+    if (const FObjectPropertyBase* HierarchyProperty = FindFProperty<FObjectPropertyBase>(Asset->GetClass(), TEXT("Hierarchy")))
+    {
+        if (const URigHierarchy* Hierarchy = Cast<URigHierarchy>(HierarchyProperty->GetObjectPropertyValue_InContainer(Asset)))
+        {
+            Root->SetObjectField(TEXT("rig_hierarchy"), CaptureRigHierarchy(Hierarchy));
+        }
+    }
     if (const UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset))
     {
         Root->SetObjectField(TEXT("physics_asset"), CapturePhysicsAsset(PhysicsAsset));

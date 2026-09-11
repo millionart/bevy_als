@@ -48,6 +48,8 @@ pub(crate) struct CrAlsRuntimeConstructionProfile {
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct CrAlsTargetProfile {
+    pub(crate) foot_initial_deltas_m: [[[f32; 3]; 2]; 2],
+    pub(crate) foot_initial_scales: [[[f32; 3]; 2]; 2],
     pub(crate) foot_height_m: f32,
     pub(crate) leg_length_m: f32,
     pub(crate) diagonal_scale_delta: [f32; 3],

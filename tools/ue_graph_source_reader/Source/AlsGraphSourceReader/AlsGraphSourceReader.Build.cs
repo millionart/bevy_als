@@ -20,6 +20,7 @@ public class AlsGraphSourceReader : ModuleRules
             "BlueprintGraph",
             "Kismet",
             "AnimGraph",
+            "ControlRig",
             "Json",
             "JsonUtilities"
         });

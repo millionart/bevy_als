@@ -149,6 +149,10 @@
     {
       "path": "target/bf115_overlays/source/AnimMontage.roll_clock.cpp",
       "sha256": "fc1ab305be72785401c0ad873558008145125f691cc41670dfebe982fbd61842"
+    },
+    {
+      "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
+      "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
     }
   ],
   "graphs": [
@@ -461,9 +465,9 @@
         "python",
         "tools/import/audit_cr_als.py",
         "--source",
-        "target/bf115_overlays/default_cr_foot_source.ue.json",
+        "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
         "--profile",
-        "target/bf115_overlays/default_foot_phase_cr.profile.json",
+        "target/bf115_overlays/initial_hierarchy_cr.profile.json",
         "--check"
       ]
     }

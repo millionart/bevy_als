@@ -7,6 +7,12 @@
   "Category": "Developer",
   "CanContainContent": false,
   "IsBetaVersion": true,
+  "Plugins": [
+    {
+      "Name": "ControlRig",
+      "Enabled": true
+    }
+  ],
   "Modules": [
     {
       "Name": "AlsGraphSourceReader",

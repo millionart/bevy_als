@@ -182,6 +182,7 @@ def build(source, mesh):
         quat_from_fields(source_bones["foot_r"]["component_transform"]["rotation"]),
     )
     target = {
+        **foot_reference_segments(source),
         "foot_height_m": source_construction["foot_height_cm"] * SOURCE_LENGTH_TO_RUNTIME_SCALE,
         "leg_length_m": source_construction["leg_length_cm"] * SOURCE_LENGTH_TO_RUNTIME_SCALE,
         "diagonal_scale_delta": target_vector(source_direction_to_runtime([0.4, 0.4, 0.0])),
@@ -271,6 +272,21 @@ def build(source, mesh):
     return profile, runtime
 
 
+def foot_reference_segments(source):
+    bones = {bone["name"]: bone["initial_global_transform"] for bone in source["rig_hierarchy"]["bones"]}
+    deltas, scales = [], []
+    for side in ("l", "r"):
+        side_deltas, side_scales = [], []
+        for parent, child in ((f"thigh_{side}", f"calf_{side}"), (f"calf_{side}", f"foot_{side}")):
+            start = vector_from_fields(bones[parent]["translation"])
+            end = vector_from_fields(bones[child]["translation"])
+            side_deltas.append(target_vector(source_point_to_runtime([a - b for a, b in zip(start, end)])))
+            side_scales.append(target_vector(source_direction_to_runtime(vector_from_fields(bones[parent]["scale"]))))
+        deltas.append(side_deltas)
+        scales.append(side_scales)
+    return {"foot_initial_deltas_m": deltas, "foot_initial_scales": scales}
+
+
 def self_test():
     if source_point_to_runtime([100.0, 200.0, 300.0]) != [1.0, 3.0, 2.0]:
         raise AssertionError("point conversion")
@@ -316,6 +332,15 @@ def self_test():
         raise AssertionError("left call primary axis")
     if axes["thigh_r"]["secondary"] != [0.0, -1.0, 0.0]:
         raise AssertionError("right call secondary axis")
+    source["rig_hierarchy"] = {"bones": [
+        {"name": f"{bone}_{side}", "initial_global_transform": {
+            "translation": dict(zip(("x", "y", "z"), [3 * index, 4 * index, 5 * index])),
+            "scale": {"x": 1, "y": 2, "z": 3},
+        }} for side in ("l", "r") for index, bone in enumerate(("thigh", "calf", "foot"))
+    ]}
+    segments = foot_reference_segments(source)
+    assert segments["foot_initial_deltas_m"] == [[[-0.03, -0.05, -0.04]] * 2] * 2
+    assert segments["foot_initial_scales"] == [[[1.0, 3.0, 2.0]] * 2] * 2
 
 
 def main():
