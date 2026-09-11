@@ -357,9 +357,9 @@
         "--source-directory",
         "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/multi_conversion",
+        "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/multi_spec.json"
+        "target/bf115_layering_full/layered_spec.json"
       ]
     },
     {

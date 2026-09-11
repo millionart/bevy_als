@@ -53,6 +53,14 @@
     {
       "path": "target/bf115_layering_full/extra_source/SKM_Als.reference_container.ue.json",
       "sha256": "36b9822cf36ab2dcc2301c7c3b2474477302f9f9efa56f083af66013c5fa61a1"
+    },
+    {
+      "path": "target/bf115_layering_full/native_source/0001_AB_Als.ue.json",
+      "sha256": "42825d76a965d7949f86bee50cea03f0e0e2234745d0d9fe0d1b1a18e922bd64"
+    },
+    {
+      "path": "target/bf115_layering/source_cpp/AnimSync.cpp",
+      "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
     }
   ],
   "graphs": [
@@ -1277,9 +1285,9 @@
         "--source-directory",
         "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/multi_conversion",
+        "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/multi_spec.json",
+        "target/bf115_layering_full/layered_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]

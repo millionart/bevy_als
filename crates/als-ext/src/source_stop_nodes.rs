@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    interpolation::linear::LinearInterpolator,
+    pose::Pose,
 };
 use serde::{Deserialize, Serialize};
 
@@ -261,8 +261,10 @@ impl NodeLike for SourceLayeredBoneBlendNode {
         }
         let mut base = ctx.data_back(self.base_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.base_pose_pin).unwrap_or_default();
-        for (index, weight) in weights.into_iter().enumerate() {
+        let mut overlays = Vec::with_capacity(weights.len());
+        for (index, weight) in weights.iter().copied().enumerate() {
             if weight <= 1e-5 {
+                overlays.push(None);
                 continue;
             }
             let overlay = ctx
@@ -277,39 +279,52 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 context.curves.extend(overlay_context.curves);
                 context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }
+            overlays.push(Some(overlay));
+        }
+        if overlays.iter().any(Option::is_some) {
             let skeletons = &ctx.graph_context.resources.skeleton_assets;
-            let skeleton = skeletons
-                .get(&base.skeleton)
-                .or_else(|| skeletons.get(&overlay.skeleton));
-            if let Some(skeleton) = skeleton {
-                if base.skeleton != overlay.skeleton && skeletons.get(&base.skeleton).is_none() {
-                    base.skeleton = overlay.skeleton.clone();
+            if skeletons.get(&base.skeleton).is_none()
+                && let Some(overlay) = overlays.iter().flatten().find(|pose| skeletons.get(&pose.skeleton).is_some()) {
+                base.skeleton = overlay.skeleton.clone();
+            }
+            if let Some(skeleton) = skeletons.get(&base.skeleton) {
+                let filters = (0..self.layer_count()).map(|index| {
+                    let filters = self.layer_filters(index);
+                    if filters.is_empty() { self.layer_bones(index).iter().map(|bone| (bone.as_str(), 0)).collect::<Vec<_>>() }
+                    else { filters.iter().map(|filter| (filter.bone.as_str(), filter.blend_depth)).collect() }
+                }).collect::<Vec<_>>();
+                let mut mask = build_branch_filter_bone_mask_by_name(skeleton, &filters.iter().flatten().copied().collect::<Vec<_>>());
+                let mut sources = bevy::platform::collections::HashMap::new();
+                for (index, filters) in filters.iter().enumerate() {
+                    let branches = build_branch_bone_mask(skeleton, &filters.iter().map(|(bone, _)| *bone).collect::<Vec<_>>(), 1.0);
+                    for bone in branches.get_weights().keys() { sources.insert(*bone, index); }
                 }
-                let filters = self.layer_filters(index);
-                let mask = if filters.is_empty() {
-                    let names = self
-                        .layer_bones(index)
-                        .iter()
-                        .map(String::as_str)
-                        .collect::<Vec<_>>();
-                    build_branch_bone_mask(skeleton, &names, 1.0)
-                } else {
-                    build_branch_filter_bone_mask_by_name(
-                        skeleton,
-                        &filters
-                            .iter()
-                            .map(|filter| (filter.bone.as_str(), filter.blend_depth))
-                            .collect::<Vec<_>>(),
-                    )
-                };
+                let mut target = Pose { skeleton: base.skeleton.clone(), timestamp: base.timestamp, ..default() };
+                crate::mesh_space_additive::materialize_missing_reference_bones(&mut target, skeleton);
+                for (bone, index) in &target.paths {
+                    let reference = target.bones[*index].clone();
+                    if let Some(base_index) = base.paths.get(bone).copied() {
+                        base.bones[base_index] = reference.overlay(&base.bones[base_index]);
+                    } else { base.add_bone(reference.clone(), *bone); }
+                    let mut source = sources.get(bone).copied().unwrap_or(0);
+                    let weight = (mask.bone_weight(bone) * weights[source]).clamp(0.0, 1.0);
+                    let weight = if weight <= 1e-5 { source = 0; 0.0 } else if weight >= 1.0 - 1e-5 { 1.0 } else { weight };
+                    mask.update_bone_weight(*bone, weight);
+                    if let Some(overlay) = overlays[source].as_ref().and_then(|pose| pose.get_bone(*bone)) {
+                        target.bones[*index] = reference.overlay(overlay);
+                    }
+                }
                 if self.mesh_space_rotation_blend {
-                    apply_mesh_space_layered_blend(&mut base, &overlay, weight, &mask, skeleton);
+                    apply_mesh_space_layered_blend(&mut base, &target, 1.0, &mask, skeleton);
                 } else {
-                    LinearInterpolator { bone_mask: mask }.interpolate_pose(
-                        &mut base,
-                        &overlay,
-                        weight.clamp(0.0, 1.0),
-                    );
+                    for (bone, index) in &base.paths {
+                        let weight = mask.bone_weight(bone);
+                        if weight <= 1e-5 { continue; }
+                        if let Some(target) = target.get_bone(*bone) {
+                            base.bones[*index] = if weight >= 1.0 - 1e-5 { target.clone() }
+                                else { base.bones[*index].scalar_mult(1.0 - weight).linear_add(&target.scalar_mult(weight)).normalize_quat() };
+                        }
+                    }
                 }
             }
         }
@@ -342,6 +357,147 @@ impl NodeLike for SourceLayeredBoneBlendNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn layered_blend_uses_one_source_per_bone_and_source_rotation_math() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph,
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, pose::{BonePose, Pose}, skeleton::Skeleton,
+            state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, poses)): In<(Handle<AnimationGraph>, Vec<Pose>)>, resources: SystemResources) -> (Pose, AnimationContextState, [bool; 3]) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let inputs = poses.into_iter().enumerate().map(|(index, pose)| (format!("input_{index}"), DataValue::Pose(pose))).collect();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let pose = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone())
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+            let output_context = crate::animation_context::graph_output_context_state(graph, &context, "Pose").unwrap();
+            let updated = [0, 1, 2].map(|index| {
+                let node = graph.nodes.values().find(|node| node.name == format!("input_{index}")).unwrap();
+                arena.get_toplevel().node_caches.is_updated(node.id, StateKey::Default)
+            });
+            (pose, output_context, updated)
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let scene = EntityPath::default().child("scene");
+        let root = scene.child("root");
+        let parent = root.child("parent");
+        let paths = [root, parent.clone(), parent.child("child")];
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(scene.id());
+        skeleton.add_bone(scene, Transform::IDENTITY, Transform::IDENTITY);
+        let references = [0, 1, 2].map(|index| Transform::from_xyz(0.0, 0.1 * index as f32, 0.0)
+            .with_rotation(Quat::from_rotation_z(0.1 * index as f32)));
+        for (path, reference) in paths.iter().zip(references) { skeleton.add_bone(path.clone(), reference, reference); }
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let rotations = [
+            [Quat::from_rotation_y(0.3), Quat::from_rotation_x(0.2), Quat::from_rotation_z(0.5)],
+            [Quat::from_rotation_y(-0.8), Quat::from_rotation_z(1.2), Quat::from_rotation_x(-0.7)],
+            [Quat::from_rotation_x(1.7), Quat::from_rotation_y(-1.5), Quat::from_rotation_z(1.3)],
+        ];
+        let transforms = [0, 1, 2].map(|pose| [0, 1, 2].map(|bone| Transform {
+            translation: Vec3::new((pose * 3 + bone * 2) as f32, pose as f32 * 2.0, bone as f32 * 0.1),
+            rotation: rotations[pose][bone], scale: Vec3::splat(1.0 + 0.2 * pose as f32 + 0.1 * bone as f32),
+        }));
+        let poses = transforms.iter().enumerate().map(|(index, transforms)| {
+            let mut pose = Pose { skeleton: skeleton.clone(), timestamp: 9.0 + index as f32, ..default() };
+            for (path, transform) in paths.iter().zip(transforms) { pose.add_bone(BonePose::from_transform(*transform), path.id()); }
+            pose
+        }).collect::<Vec<_>>();
+        let mut failures = Vec::new();
+        for mesh in [false, true] {
+            for (label, filters, weights, sources, effective) in [
+                ("overlap", [vec![("parent", 0)], vec![("parent", 0)]], [0.4, 0.6], [0, 1, 1], [0.0, 0.6, 0.6]),
+                ("reference_channels", [vec![("parent", 0)], vec![("parent", 0)]], [0.4, 0.6], [0, 1, 1], [0.0, 0.6, 0.6]),
+                ("cumulative", [vec![("parent", 4)], vec![("parent", 4)]], [0.4, 0.6], [0, 1, 1], [0.0, 0.3, 0.6]),
+                ("negative_depth", [vec![("parent", 0)], vec![("child", -2)]], [0.4, 0.6], [0, 0, 1], [0.0, 0.4, 0.3]),
+                ("cleared_ancestor", [vec![("root", 0)], vec![("root", -1), ("child", 0)]], [0.4, 0.6], [0, 0, 1], [0.0, 0.0, 0.6]),
+                ("inactive_override", [vec![("parent", 0)], vec![("parent", 0)]], [0.4, 0.0], [0, 0, 0], [0.0, 0.0, 0.0]),
+                ("inactive_ancestor", [vec![("parent", 0)], vec![("child", 0)]], [0.0, 0.6], [0, 0, 1], [0.0, 0.0, 0.6]),
+                ("threshold", [vec![("parent", 4)], vec![("child", 0)]], [0.00002, 0.0], [0, 0, 0], [0.0, 0.0, 0.0]),
+                ("full_weight", [vec![("parent", 0)], vec![("root", 0)]], [0.4, 0.999995], [1, 1, 1], [1.0, 1.0, 1.0]),
+            ] {
+                let mut graph = AnimationGraph::new();
+                let blend = AnimationNode::new("blend", SourceLayeredBoneBlendNode {
+                    branch_filter_layers: filters.into_iter().map(|filters| filters.into_iter().map(|(bone, blend_depth)| SourceBranchFilter { bone: bone.into(), blend_depth }).collect()).collect(),
+                    blend_weights: weights.to_vec(), blend_pose_pins: vec!["BlendPoses_0".into(), "BlendPoses_1".into()],
+                    mesh_space_rotation_blend: mesh, ..default()
+                });
+                graph.add_node(blend.clone());
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(blend.id, "Pose", "Pose");
+                for (index, pin) in ["BasePose", "BlendPoses_0", "BlendPoses_1"].into_iter().enumerate() {
+                    let key = format!("input_{index}");
+                    let input = AnimationNode::new(&key, crate::GlobalPoseInputNode { key: key.clone(), output: "Pose".into() });
+                    let curves = AnimationNode::new(format!("curves_{index}"), crate::SourceCurveModifyNode {
+                        curve_names: vec!["shared".into(), format!("unique_{index}")], pin_defaults: vec![0.2 + index as f32; 2],
+                        alpha: 1.0, ..default()
+                    });
+                    graph.add_node(input.clone());
+                    graph.add_node(curves.clone());
+                    graph.add_node_parameter_edge(input.id, "Pose", curves.id, "Source Pose");
+                    graph.add_node_parameter_edge(curves.id, "Pose", blend.id, pin);
+                }
+                let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                let mut input_poses = poses.clone();
+                let mut case_transforms = transforms;
+                if label == "reference_channels" {
+                    input_poses[0].bones[1].scale = None;
+                    case_transforms[0][1].scale = references[1].scale;
+                    input_poses[2].bones[1].translation = None;
+                    case_transforms[2][1].translation = references[1].translation;
+                    input_poses[0].paths.remove(&paths[2].id());
+                    case_transforms[0][2] = references[2];
+                }
+                let (output, context, updated) = world.run_system_cached_with(query, (graph, input_poses)).unwrap();
+                let active = [true, weights[0] > 1e-5, weights[1] > 1e-5];
+                let last_active = active.iter().rposition(|value| *value).unwrap();
+                let curves_match = context.curves.len() == 1 + active.iter().filter(|value| **value).count()
+                    && context.curves["shared"] == 0.2 + last_active as f32
+                    && active.iter().enumerate().all(|(index, active)| context.curves.get(&format!("unique_{index}")) == active.then_some(&(0.2 + index as f32)));
+                if updated != active || !curves_match || output.timestamp != 9.0 || output.skeleton != skeleton {
+                    failures.push(format!("{label} mesh={mesh}: context or child lifecycle mismatch"));
+                }
+                let mut source_mesh = Quat::IDENTITY;
+                let mut target_mesh = Quat::IDENTITY;
+                let mut parent_output = Quat::IDENTITY;
+                for bone in 0..3 {
+                    let source = case_transforms[0][bone];
+                    let target = if active[sources[bone] + 1] { case_transforms[sources[bone] + 1][bone] } else { references[bone] };
+                    source_mesh *= source.rotation;
+                    target_mesh *= target.rotation;
+                    let rotation = if mesh { source_mesh.lerp(target_mesh, effective[bone]).normalize() }
+                        else { source.rotation.lerp(target.rotation, effective[bone]).normalize() };
+                    let expected = Transform {
+                        translation: source.translation.lerp(target.translation, effective[bone]),
+                        rotation: if mesh { (parent_output.inverse() * rotation).normalize() } else { rotation },
+                        scale: source.scale.lerp(target.scale, effective[bone]),
+                    };
+                    parent_output = rotation;
+                    let actual = output.get_bone(paths[bone].id()).unwrap().to_transform();
+                    if actual.translation.distance(expected.translation) > 1e-6 || actual.scale.distance(expected.scale) > 1e-6
+                        || 1.0 - actual.rotation.dot(expected.rotation).abs() > 1e-6 {
+                        failures.push(format!("{label} mesh={mesh} bone={bone}: actual={actual:?}, expected={expected:?}"));
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
 
     #[test]
     fn source_enum_pose_blend_initializes_to_the_selected_source_entry() {

@@ -687,9 +687,9 @@
         "--source-directory",
         "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/multi_conversion",
+        "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/multi_spec.json",
+        "target/bf115_layering_full/layered_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded"
       ]
@@ -776,9 +776,9 @@
         "--source-directory",
         "target/bf115_layering_full/native_source",
         "--materialized-directory",
-        "target/bf115_layering_full/multi_conversion",
+        "target/bf115_layering_full/layered_conversion",
         "--spec",
-        "target/bf115_layering_full/multi_spec.json",
+        "target/bf115_layering_full/layered_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AB_Als.AB_Als"
       ]
