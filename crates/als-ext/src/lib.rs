@@ -74,6 +74,7 @@ pub mod source_movement_nodes;
 pub mod source_native_refresh;
 pub mod source_physics_joint;
 pub mod source_pose_nodes;
+pub mod static_skeleton;
 pub mod source_pose_passthrough;
 pub mod source_scalar_expression;
 pub mod source_sequence_evaluator;
@@ -274,6 +275,7 @@ impl Plugin for AlsExtPlugin {
     fn build(&self, app: &mut App) {
         app.register_asset_loader(CurveAssetLoader)
             .init_asset::<CurveAsset>()
+            .init_asset_loader::<static_skeleton::StaticSkeletonLoader>()
             .init_asset::<als_curves::AlsAnimCurves>()
             .init_resource::<SyncGroupPhaseRegistry>()
             .register_type::<AnimationContextInput>()
