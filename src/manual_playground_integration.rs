@@ -6007,7 +6007,7 @@ fn observe_mantle(
     if state.phase != IntegrationPhase::Mantle {
         return;
     }
-    let variant = settings.source_sequence.rsplit('.').next();
+    let variant = montage.and_then(|_| settings.source_sequence.rsplit('.').next());
     *window = ManualAnimationWindowEvidence {
         label: Some("mantle"),
         settled: sample.is_some(),
@@ -10834,6 +10834,10 @@ mod tests {
         assert!(
             !state.coverage.mantle_started,
             "Actor state without an evaluated Slot cannot prove animation start"
+        );
+        assert!(
+            window.expected_animation_variant.is_none(),
+            "The source variant is unknown before its montage instance exists"
         );
         mantle.active = false;
         mantle.root_motion_ready = false;
