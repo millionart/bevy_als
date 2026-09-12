@@ -48,6 +48,12 @@ pub(crate) struct GameplayTagBlendState {
 }
 
 impl GameplayTagBlendState {
+    pub(crate) fn should_reset_child(&self, child_count: usize, active_index: usize) -> bool {
+        let initialized = self.initialized && self.weights.len() == child_count;
+        let weight = if initialized { self.weights[active_index] } else { f32::from(active_index == 0) };
+        (!initialized || self.last_active_index != active_index as i32) && weight <= 0.00001
+    }
+
     pub(crate) fn instant_transition_source(&self, active_index: usize, blend_time: f32) -> Option<usize> {
         (self.initialized && self.last_active_index >= 0
             && self.last_active_index != active_index as i32
@@ -258,6 +264,24 @@ impl NodeLike for GameplayTagBlendNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn child_reset_matches_source_active_index_and_weight_boundary() {
+        let mut state = GameplayTagBlendState::default();
+        assert!(!state.should_reset_child(2, 0));
+        assert!(state.should_reset_child(2, 1));
+        advance_gameplay_tag_weights(&mut state, 2, 0, 0.5, GameplayTagBlendMode::Linear, 0.1);
+        assert!(state.should_reset_child(2, 1));
+        advance_gameplay_tag_weights(&mut state, 2, 1, 0.5, GameplayTagBlendMode::Linear, 0.25);
+        assert!(!state.should_reset_child(2, 0));
+        for (weight, reset) in [(0.0, true), (0.00001, true), (0.0000101, false)] {
+            state.weights = vec![weight, 1.0 - weight];
+            assert_eq!(state.should_reset_child(2, 0), reset);
+        }
+        state.last_active_index = 0;
+        state.weights[0] = 0.0;
+        assert!(!state.should_reset_child(2, 0));
+    }
 
     #[test]
     fn selection_uses_default_for_invalid_or_unknown_tags() {

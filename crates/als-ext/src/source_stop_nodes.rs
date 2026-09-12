@@ -1,8 +1,8 @@
 use crate::animation_context::{
     AnimationContextState, merge_sync_players, pose_input_context_state,
 };
-use crate::gameplay_tag_blend::{GameplayTagBlendMode, GameplayTagBlendState, advance_gameplay_tag_weights};
-use crate::source_pose_nodes::{blend_animation_contexts, blend_source_poses};
+use crate::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
+use crate::source_pose_nodes::{blend_animation_contexts, blend_source_poses, read_blend_list_child};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
@@ -19,11 +19,7 @@ use crate::{
     context_time_update,
 };
 
-#[derive(Reflect, Clone, Debug, Default)]
-pub(crate) struct SourceEnumPoseBlendState {
-    blend: GameplayTagBlendState,
-    pub(crate) context: AnimationContextState,
-}
+pub(crate) use crate::source_pose_nodes::SourceGameplayTagBlendState as SourceEnumPoseBlendState;
 
 fn evaluator_delta(ctx: &NodeContext) -> Result<f32, GraphError> {
     Ok(match context_time_update(ctx)? {
@@ -48,6 +44,8 @@ fn source_enum_alpha(
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceEnumPoseBlendNode {
+    #[reflect(default)]
+    pub reset_child_on_activation: bool,
     pub active_key: String,
     pub selected_enum_value: f32,
     pub active_enum_default: f32,
@@ -65,6 +63,7 @@ pub struct SourceEnumPoseBlendNode {
 impl Default for SourceEnumPoseBlendNode {
     fn default() -> Self {
         Self {
+            reset_child_on_activation: false,
             active_key: default(),
             selected_enum_value: 0.0,
             active_enum_default: 0.0,
@@ -111,8 +110,12 @@ impl NodeLike for SourceEnumPoseBlendNode {
         let delta = evaluator_delta(&ctx)?;
         let previous = ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
             .blend.instant_transition_source(selected as usize, blend_time);
+        let reset = self.reset_child_on_activation && ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
+            .blend.should_reset_child(2, selected as usize);
+        let mut child_contexts = std::mem::take(&mut ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts);
         if let Some(previous) = previous {
-            ctx.data_back(if previous == 0 { self.default_pose_pin.clone() } else { self.selected_pose_pin.clone() })?;
+            read_blend_list_child(&ctx, if previous == 0 { &self.default_pose_pin } else { &self.selected_pose_pin },
+                previous, self.reset_child_on_activation, false, &mut child_contexts)?;
         }
         let alpha = source_enum_alpha(
             ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?,
@@ -122,15 +125,17 @@ impl NodeLike for SourceEnumPoseBlendNode {
         );
         let mut poses = Vec::new();
         let mut contexts = Vec::new();
-        for (pin, weight) in [
+        for (index, (pin, weight)) in [
             (&self.default_pose_pin, 1.0 - alpha),
             (&self.selected_pose_pin, alpha),
-        ] {
+        ].into_iter().enumerate() {
             if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
-            poses.push((ctx.data_back(pin.clone())?.into_pose()?, weight));
-            if let Some(context) = pose_input_context_state(&ctx, pin) {
+            let (pose, context) = read_blend_list_child(&ctx, pin, index, self.reset_child_on_activation,
+                reset && index == selected as usize, &mut child_contexts)?;
+            poses.push((pose, weight));
+            if let Some(context) = context {
                 contexts.push((context, weight));
             }
         }
@@ -140,6 +145,7 @@ impl NodeLike for SourceEnumPoseBlendNode {
         let context = blend_animation_contexts(contexts);
         ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?
             .context = context;
+        ctx.state_mut_or_else(SourceEnumPoseBlendState::default)?.child_contexts = child_contexts;
         Ok(())
     }
 

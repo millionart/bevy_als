@@ -284,11 +284,6 @@ pub fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> O
     {
         return Some(&state.context);
     }
-    if let Ok(state) = states
-        .get::<crate::source_stop_nodes::SourceEnumPoseBlendState>(node, key)
-    {
-        return Some(&state.context);
-    }
     if let Ok(state) = states.get::<crate::source_stop_nodes::SourceLayeredBoneBlendState>(node, key) {
         return Some(&state.context);
     }

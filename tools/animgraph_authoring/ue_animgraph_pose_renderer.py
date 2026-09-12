@@ -361,6 +361,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         and not isinstance(value, dict)
     ):
         raise PoseRenderError("source renderer semantic is unavailable")
+    if renderer in {"bool_blend", "gameplay_tag_blend", "enum_pose_blend"}:
+        reset = value.get("reset_child_on_activation", False)
+        if not isinstance(reset, bool):
+            raise PoseRenderError("source blend child reset mode is invalid")
+        reset_field = ", reset_child_on_activation: true" if reset else ""
     if renderer == "local_ref_pose":
         return "als_ext::SourceLocalRefPoseNode", "(reference_skeleton: " + quoted(asset_for_node(asset_by_node, semantic["source_node"], "skeleton")) + ")"
     if renderer in {"sequence_player", "sequence_evaluator"}:
@@ -468,7 +473,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", blend_times: [" + ", ".join(repr(t) for t in value["blend_times"]) + "]"
             + ", source_blend_times: [" + ", ".join(repr(t) for t in value["source_blend_times"]) + "]"
             + ", blend_mode: " + value["blend_type"]
-            + ", custom_curve: " + rich_curve_ron(value.get("custom_curve", [])) + ")",
+            + ", custom_curve: " + rich_curve_ron(value.get("custom_curve", [])) + reset_field + ")",
         )
     if renderer == "gameplay_tag_blend":
         active_key = value.get("active_key")
@@ -516,6 +521,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", ".join(quoted(pin) for pin in value["blend_time_pin_names"])
             + "], output_pin: "
             + quoted(value["output_pin"])
+            + reset_field
             + ")",
         )
     if renderer == "property_access":
@@ -777,7 +783,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("output_pin", quoted(value["output_pin"])),
             field("source_visible_enum_entry", quoted(value["selected_enum_entry"])),
         ]
-        return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + ")"
+        return "als_ext::SourceEnumPoseBlendNode", "(" + ", ".join(fields) + reset_field + ")"
     if renderer == "layered_bone_blend":
         filters = value.get("branch_filter_layers")
         weights = value.get("blend_weights")
@@ -1709,6 +1715,28 @@ def fixture_graph():
 
 
 def run_self_test():
+    reset_fixtures = {
+        "bool_blend": {"active_key": "choice", "active_value": False, "blend_type": "Linear", "blend_times": [0.1, 0.2], "source_blend_times": [0.1, 0.2]},
+        "gameplay_tag_blend": {"active_key": "choice", "tags": ["Fixture.Alternate"], "blend_type": "Linear", "blend_times": [0.1, 0.2], "source_blend_times": [0.1, 0.2],
+            "pose_pin_names": ["BlendPose_0", "BlendPose_1"], "blend_time_pin_names": ["BlendTime_0", "BlendTime_1"], "active_tag_pin": "ActiveTag", "output_pin": "Pose"},
+        "enum_pose_blend": {"active_key": "choice", "selected_enum_value": 3.0, "active_enum_default": 0.0, "default_blend_time": 0.1, "selected_blend_time": 0.2,
+            "default_pose_pin": "BlendPose_0", "selected_pose_pin": "BlendPose_1", "default_blend_time_pin": "BlendTime_0", "selected_blend_time_pin": "BlendTime_1",
+            "active_enum_pin": "ActiveEnumValue", "output_pin": "Pose", "selected_enum_entry": "LeftBackward"},
+    }
+    for renderer, semantic in reset_fixtures.items():
+        node = {"source_node": "/Fixture:Graph.Reset", "renderer": renderer, "semantic": semantic}
+        baseline = rendered_inner({}, {}, node, {}, {})
+        semantic["reset_child_on_activation"] = True
+        assert ", reset_child_on_activation: true" in rendered_inner({}, {}, node, {}, {})[1]
+        semantic["reset_child_on_activation"] = False
+        assert rendered_inner({}, {}, node, {}, {}) == baseline
+        semantic["reset_child_on_activation"] = "true"
+        try:
+            rendered_inner({}, {}, node, {}, {})
+        except PoseRenderError:
+            pass
+        else:
+            raise AssertionError("Invalid blend child reset mode was accepted")
     reference = {"source_node": "/Fixture:Graph.Reference", "renderer": "local_ref_pose", "semantic": {}}
     reference_assets = {reference["source_node"]: {"category": "skeleton", "target_asset": "skeletons/Reference.static.skn.ron"}}
     reference_type, reference_value = rendered_inner({}, {}, reference, reference_assets, {})

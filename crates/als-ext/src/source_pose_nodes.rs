@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
-    context::{new_context::NodeContext, spec_context::SpecContext},
+    context::{new_context::NodeContext, spec_context::SpecContext,
+        graph_context::{GraphState, QueryOutputTime}, graph_context_arena::GraphContextId},
     edge_data::DataSpec,
     errors::GraphError,
     pose::Pose,
@@ -45,8 +46,62 @@ pub struct SourceTwoWayBlendState {
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceGameplayTagBlendState {
-    blend: GameplayTagBlendState,
+    pub(crate) blend: GameplayTagBlendState,
+    pub(crate) child_contexts: Vec<Vec<GraphContextId>>,
     pub(crate) context: AnimationContextState,
+}
+
+pub(crate) fn read_blend_list_child(
+    ctx: &NodeContext,
+    pin: &str,
+    index: usize,
+    scoped: bool,
+    reset: bool,
+    children: &mut Vec<Vec<GraphContextId>>,
+) -> Result<(Pose, Option<AnimationContextState>), GraphError> {
+    if !scoped {
+        let pose = ctx.data_back(pin)?.into_pose()?;
+        return Ok((pose, pose_input_context_state(ctx, pin)));
+    }
+    let source = crate::animation_context::source_node_for_pose_input(ctx, pin)?;
+    let graph_id = ctx.graph_context.context().get_graph_id();
+    let arena = &ctx.graph_context.context_arena;
+    let previous_count = arena.get_ref().iter_context_ids().count();
+    let mut branch = ctx.graph_context.create_node_context(source)
+        .create_child_context(graph_id, ctx.graph_context.graph, None);
+    children.resize_with(children.len().max(index + 1), Vec::new);
+    let contexts = &mut children[index];
+    if !contexts.contains(&branch.context_id) {
+        contexts.push(branch.context_id);
+    }
+    if reset {
+        for id in contexts.iter().copied() {
+            let state = arena.get_ref().get_context(id).unwrap();
+            let graph = ctx.graph_context.resources.animation_graph_assets.get(state.get_graph_id())
+                .ok_or_else(|| GraphError::UnknownErrorNode { graph: ctx.graph_context.context_id,
+                    node: ctx.node_id, error: "Source blend child graph asset is missing".into() })?;
+            let bookkeeping = graph.nodes.keys().filter_map(|node| {
+                state.node_states.get::<SourceGameplayTagBlendState>(*node, ctx.graph_context.state_key).ok()
+                    .filter(|state| !state.child_contexts.is_empty())
+                    .map(|state| (*node, state.child_contexts.clone()))
+            }).collect::<Vec<_>>();
+            let state = arena.get_mut().get_context_mut(id).unwrap();
+            *state = GraphState::new(state.get_graph_id());
+            for (node, children) in bookkeeping {
+                state.node_states.get_mut_or_insert_with(node, ctx.graph_context.state_key, SourceGameplayTagBlendState::default)?
+                    .child_contexts = children;
+            }
+        }
+    }
+    branch.context_mut().query_output_time = QueryOutputTime::from_key(ctx.graph_context.state_key, context_time_update(ctx)?);
+    let child = branch.create_node_context(ctx.node_id);
+    let result = child.data_back(pin);
+    for id in arena.get_ref().iter_context_ids().skip(previous_count) {
+        if !contexts.contains(&id) {
+            contexts.push(id);
+        }
+    }
+    Ok((result?.into_pose()?, pose_input_context_state(&child, pin)))
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -744,6 +799,8 @@ impl NodeLike for SourceCurvesBlendNode {
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceGameplayTagBlendNode {
+    #[reflect(default)]
+    pub reset_child_on_activation: bool,
     pub active_key: String,
     pub active_tag_pin: String,
     pub tags: Vec<String>,
@@ -758,6 +815,7 @@ pub struct SourceGameplayTagBlendNode {
 impl Default for SourceGameplayTagBlendNode {
     fn default() -> Self {
         Self {
+            reset_child_on_activation: false,
             active_key: default(),
             active_tag_pin: "Active Tag".to_owned(),
             tags: default(),
@@ -848,10 +906,13 @@ impl NodeLike for SourceGameplayTagBlendNode {
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let delta = delta_seconds(&ctx)?;
         let blend_time = self.blend_time(&ctx, active_index);
+        let reset = self.reset_child_on_activation && ctx.state_mut::<SourceGameplayTagBlendState>()?
+            .blend.should_reset_child(self.child_count(), active_index);
+        let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts);
         let previous = ctx.state_mut::<SourceGameplayTagBlendState>()?.blend
             .instant_transition_source(active_index, blend_time);
         if let Some(previous) = previous {
-            ctx.data_back(self.pose_pin_names[previous].clone())?;
+            read_blend_list_child(&ctx, &self.pose_pin_names[previous], previous, self.reset_child_on_activation, false, &mut child_contexts)?;
         }
         let weights = advance_gameplay_tag_weights(
             &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,
@@ -867,10 +928,9 @@ impl NodeLike for SourceGameplayTagBlendNode {
             if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
-            let pose = ctx
-                .data_back(self.pose_pin_names[index].clone())?
-                .into_pose()?;
-            if let Some(context) = pose_input_context_state(&ctx, &self.pose_pin_names[index]) {
+            let (pose, context) = read_blend_list_child(&ctx, &self.pose_pin_names[index], index,
+                self.reset_child_on_activation, reset && index == active_index, &mut child_contexts)?;
+            if let Some(context) = context {
                 contexts.push((context, weight));
             }
             poses.push((pose, weight));
@@ -879,6 +939,7 @@ impl NodeLike for SourceGameplayTagBlendNode {
         ctx.set_time(output.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), output);
         let state = ctx.state_mut::<SourceGameplayTagBlendState>()?;
+        state.child_contexts = child_contexts;
         state.context = blend_animation_contexts(contexts);
         Ok(())
     }
@@ -910,6 +971,8 @@ impl NodeLike for SourceGameplayTagBlendNode {
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct SourceBoolBlendNode {
+    #[reflect(default)]
+    pub reset_child_on_activation: bool,
     pub active_key: String,
     pub active_value: bool,
     pub blend_times: Vec<f32>,
@@ -921,6 +984,7 @@ pub struct SourceBoolBlendNode {
 impl Default for SourceBoolBlendNode {
     fn default() -> Self {
         Self {
+            reset_child_on_activation: false,
             active_key: default(),
             active_value: false,
             blend_times: vec![0.1; 2],
@@ -960,8 +1024,11 @@ impl NodeLike for SourceBoolBlendNode {
             .state_mut::<SourceGameplayTagBlendState>()?
             .blend
             .instant_transition_source(index, blend_time);
+        let reset = self.reset_child_on_activation && ctx.state_mut::<SourceGameplayTagBlendState>()?
+            .blend.should_reset_child(2, index);
+        let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts);
         if let Some(previous) = previous {
-            ctx.data_back(format!("BlendPose_{previous}"))?;
+            read_blend_list_child(&ctx, &format!("BlendPose_{previous}"), previous, self.reset_child_on_activation, false, &mut child_contexts)?;
         }
         let delta = delta_seconds(&ctx)?;
         let weights = crate::gameplay_tag_blend::advance_blend_list_weights(
@@ -976,13 +1043,15 @@ impl NodeLike for SourceBoolBlendNode {
         );
         let mut poses = Vec::new();
         let mut contexts = Vec::new();
-        for (index, weight) in weights.into_iter().enumerate() {
+        for (child_index, weight) in weights.into_iter().enumerate() {
             if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
-            let pin = format!("BlendPose_{index}");
-            poses.push((ctx.data_back(pin.clone())?.into_pose()?, weight));
-            if let Some(context) = pose_input_context_state(&ctx, &pin) {
+            let pin = format!("BlendPose_{child_index}");
+            let (pose, context) = read_blend_list_child(&ctx, &pin, child_index, self.reset_child_on_activation,
+                reset && child_index == index, &mut child_contexts)?;
+            poses.push((pose, weight));
+            if let Some(context) = context {
                 contexts.push((context, weight));
             }
         }
@@ -991,6 +1060,7 @@ impl NodeLike for SourceBoolBlendNode {
         ctx.set_data_fwd("Pose", pose);
         ctx.state_mut::<SourceGameplayTagBlendState>()?.context =
             blend_animation_contexts(contexts);
+        ctx.state_mut::<SourceGameplayTagBlendState>()?.child_contexts = child_contexts;
         Ok(())
     }
 
@@ -1168,6 +1238,112 @@ impl NodeLike for SourceCurveModifyNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_blend_list_resets_inactive_nested_children_and_preserves_active_blends() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources}, edge_data::DataValue,
+            skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, switching, reentry)): In<(Handle<AnimationGraph>, bool, bool)>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut positions = Vec::new();
+            let sequence = if switching { vec![true, false, true] } else if reentry { vec![true, true, false, false, true, true, true] } else { vec![true, true, false, false, true] };
+            for (frame, active) in sequence.into_iter().enumerate() {
+                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_child_reset_fixture", bevy_gameplay_tag::GameplayTag::new(if active { "" } else { "Fixture.Alternate" }));
+                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_child_reset_inner", bevy_gameplay_tag::GameplayTag::new(if !reentry || frame != 5 { "" } else { "Fixture.Alternate" }));
+                let inputs = HashMap::from([("source_child_reset_fixture".into(), DataValue::Bool(active)),
+                    ("source_child_reset_enum".into(), DataValue::F32(if active { 0.0 } else { 1.0 })),
+                    ("source_child_reset_inner".into(), DataValue::Bool(!reentry || frame != 5)),
+                    ("source_child_reset_inner_enum".into(), DataValue::F32(if !reentry || frame != 5 { 0.0 } else { 1.0 }))]);
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                    &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context).unwrap();
+                positions.push(output["Pose"].clone().into_pose().unwrap().timestamp);
+            }
+            positions
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip { duration: 10.0, ..default() });
+        let mut leaf = AnimationGraph::new();
+        let player = AnimationNode::new("leaf", crate::SourceSequencePlayerNode {
+            clip: clip.clone(), expose_play_rate_pin: false, expose_start_position_pin: false, ..default()
+        });
+        leaf.add_node(player.clone());
+        leaf.add_output_data("Pose".into(), DataSpec::Pose);
+        leaf.add_output_data_edge(player.id, "Pose", "Pose");
+        let leaf = graphs.add(leaf);
+        let mut cases = Vec::new();
+        for kind in 0..3 {
+        let mut nested = AnimationGraph::new();
+        let inner = match kind {
+            0 => AnimationNode::new("inner", SourceBoolBlendNode {
+            active_key: "source_child_reset_inner".into(), reset_child_on_activation: true, blend_times: vec![0.0; 2], ..default()
+            }),
+            1 => AnimationNode::new("inner", SourceGameplayTagBlendNode {
+                active_key: "source_child_reset_inner".into(), tags: vec!["Fixture.Alternate".into()], reset_child_on_activation: true,
+                blend_times: vec![0.0; 2], source_blend_times: vec![0.0; 2], pose_pin_names: vec!["BlendPose_0".into(), "BlendPose_1".into()],
+                blend_time_pin_names: vec!["BlendTime_0".into(), "BlendTime_1".into()], ..default()
+            }),
+            _ => AnimationNode::new("inner", crate::SourceEnumPoseBlendNode {
+                active_key: "source_child_reset_inner_enum".into(), selected_enum_value: 1.0, reset_child_on_activation: true,
+                default_pose_pin: "BlendPose_0".into(), selected_pose_pin: "BlendPose_1".into(), ..default()
+            }),
+        };
+        nested.add_node(inner.clone());
+        nested.add_output_data("Pose".into(), DataSpec::Pose);
+        nested.add_output_data_edge(inner.id, "Pose", "Pose");
+        for index in 0..2 {
+            let player = AnimationNode::new(format!("player_{index}"), crate::LayeredGraphNode {
+                graph: leaf.clone(), internalize_time: true, capture_context: true, ..default()
+            });
+            nested.add_node(player.clone());
+            nested.add_node_parameter_edge(player.id, "Pose", inner.id, format!("BlendPose_{index}"));
+        }
+        let nested = graphs.add(nested);
+            for (reset, blend_time, reentry) in [(false, 0.0, false), (true, 0.0, false), (true, 0.5, false), (true, 0.0, true)] {
+                let mut graph = AnimationGraph::new();
+                let blend = match kind {
+                    0 => AnimationNode::new("outer", SourceBoolBlendNode { active_key: "source_child_reset_fixture".into(), reset_child_on_activation: reset, blend_times: vec![blend_time; 2], ..default() }),
+                    1 => AnimationNode::new("outer", SourceGameplayTagBlendNode { active_key: "source_child_reset_fixture".into(), tags: vec!["Fixture.Alternate".into()], reset_child_on_activation: reset,
+                        blend_times: vec![blend_time; 2], source_blend_times: vec![blend_time; 2],
+                        pose_pin_names: vec!["BlendPose_0".into(), "BlendPose_1".into()], blend_time_pin_names: vec!["BlendTime_0".into(), "BlendTime_1".into()], ..default() }),
+                    _ => AnimationNode::new("outer", crate::SourceEnumPoseBlendNode { active_key: "source_child_reset_enum".into(), selected_enum_value: 1.0, reset_child_on_activation: reset,
+                        default_blend_time: blend_time, selected_blend_time: blend_time, default_pose_pin: "BlendPose_0".into(), selected_pose_pin: "BlendPose_1".into(), ..default() }),
+                };
+                graph.add_node(blend.clone());
+                let layer = AnimationNode::new("nested", crate::LayeredGraphNode { graph: nested.clone(), internalize_time: true, capture_context: true, ..default() });
+                graph.add_node(layer.clone());
+                graph.add_node_parameter_edge(layer.id, "Pose", blend.id, "BlendPose_0");
+                let player = AnimationNode::new("other", crate::SourceSequencePlayerNode { clip: clip.clone(), expose_play_rate_pin: false, expose_start_position_pin: false, ..default() });
+                graph.add_node(player.clone());
+                graph.add_node_parameter_edge(player.id, "Pose", blend.id, "BlendPose_1");
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(blend.id, "Pose", "Pose");
+                cases.push((graphs.add(graph), kind, reset, blend_time > 0.0, reentry));
+            }
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        for (handle, kind, reset, switching, reentry) in cases {
+            let positions = world.run_system_cached_with(query, (handle, switching, reentry)).unwrap();
+            let expected = if switching { 0.3 } else if reset { 0.1 } else { 0.4 };
+            assert!((positions.last().unwrap() - expected).abs() < 1e-6, "kind={kind}, reset={reset}, switching={switching}: {positions:?}");
+        }
+    }
 
     #[test]
     fn source_additive_nodes_match_curve_arithmetic_and_base_update_order() {

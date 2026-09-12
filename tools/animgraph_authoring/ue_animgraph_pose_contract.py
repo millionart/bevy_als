@@ -733,7 +733,7 @@ def enum_pose_blend_contract(node):
     )
     inputs, issues = validate_inputs(node, renderer, required)
     for name, expected in {
-        "TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+        "TransitionType": "StandardBlend",
         "CustomBlendCurve": "None", "BlendProfile": "None", "BlendType": "Linear",
     }.items():
         if field(fields, name, expected) != expected:
@@ -786,6 +786,7 @@ def enum_pose_blend_contract(node):
         "renderer": renderer,
         "input_pins": inputs,
         "enum_name": enum_name,
+        "reset_child_on_activation": blend_list_child_reset(node, renderer, fields, issues),
         "selected_enum_entry": selected_entry,
         "active_enum_path": active_enum_path,
         "active_enum_default": visible_input_default(node, "ActiveEnumValue"),
@@ -898,6 +899,13 @@ def layered_bone_blend_contract(node):
     }, issues
 
 
+def blend_list_child_reset(node, renderer, fields, issues):
+    mode = field(fields, "ChildUpateMode", "Default")
+    if mode not in {"Default", "ResetChildOnActivate"}:
+        issues.append(issue(node, renderer, "source_property_unsupported", "ChildUpateMode"))
+    return mode == "ResetChildOnActivate"
+
+
 def bool_blend_contract(node):
     renderer = "bool_blend"
     fields = node_struct_fields(node, "Node")
@@ -910,7 +918,7 @@ def bool_blend_contract(node):
     if len(parse_list(field(fields, "BlendPose"))) != 2 or len(source_times) != 2:
         raise PoseContractError("source bool blend count is invalid")
     inputs, issues = validate_inputs(node, renderer, ("BlendPose_0", "BlendPose_1", "BlendTime_0", "BlendTime_1", "bActiveValue"))
-    for name, expected in {"TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+    for name, expected in {"TransitionType": "StandardBlend",
         "BlendProfile": "None", "BlendProfileForFalse": "None", "bUseSeperateBlendProfileForFalse": "False"}.items():
         if field(fields, name, expected) != expected:
             issues.append(issue(node, renderer, "source_property_unsupported", name))
@@ -932,6 +940,7 @@ def bool_blend_contract(node):
         "blend_times": [visible_input_default(node, f"BlendTime_{index}") for index in range(2)],
         "source_blend_times": source_times, "blend_type": blend_type,
         "custom_blend_curve": custom_curve,
+        "reset_child_on_activation": blend_list_child_reset(node, renderer, fields, issues),
         "active_value": parse_bool(active_pin.get("default_value") or field(fields, "bActiveValue", "False")),
         "active_value_path": bindings.get("bActiveValue", ""),
     }, issues
@@ -971,7 +980,7 @@ def gameplay_tag_blend_contract(node):
     ) + ("ActiveTag",)
     inputs, issues = validate_inputs(node, renderer, required)
     for name, expected in {
-        "TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+        "TransitionType": "StandardBlend",
         "CustomBlendCurve": "None", "BlendProfile": "None",
     }.items():
         if field(fields, name, expected) != expected:
@@ -1004,6 +1013,7 @@ def gameplay_tag_blend_contract(node):
         "source_blend_times": source_blend_times,
         "blend_type": blend_type,
         "active_tag_path": active_tag_path,
+        "reset_child_on_activation": blend_list_child_reset(node, renderer, fields, issues),
         "pose_pin_names": [f"BlendPose_{index}" for index in range(count)],
         "blend_time_pin_names": [f"BlendTime_{index}" for index in range(count)],
         "active_tag_pin": "ActiveTag",
@@ -2098,6 +2108,17 @@ def run_self_test():
     lifecycle_contract, issues = pose_contract(lifecycle, "pose_lifecycle_call")
     assert not issues
     assert lifecycle_contract["source_function"] == "RefreshInAir"
+    for renderer, node in [("bool_blend", bool_blend), ("enum_pose_blend", enum_blend), ("gameplay_tag_blend", gameplay_tag_blend)]:
+        text = node["properties"][0]["exported_text"]
+        node["properties"][0]["exported_text"] = text.replace("BlendPose=", "ChildUpateMode=ResetChildOnActivate,BlendPose=")
+        reset_contract, issues = pose_contract(node, renderer)
+        assert not issues and reset_contract["reset_child_on_activation"]
+        node["source_node"] = "/Other:OtherGraph.Reset"
+        node["node_guid"] = "22223333444455556666777788889999"
+        assert pose_contract(node, renderer) == (reset_contract, [])
+        node["properties"][0]["exported_text"] = text.replace("BlendPose=", "ChildUpateMode=AlwaysTickChildren,BlendPose=")
+        assert pose_contract(node, renderer)[1]
+        node["properties"][0]["exported_text"] = text
     return {
         "source_visible_and_hidden_constant_defaults_preserved": "PASS",
         "two_way_alpha_mapping_contract_parsed": "PASS",
