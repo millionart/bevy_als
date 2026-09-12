@@ -312,13 +312,14 @@ fn push_playback(
     time: f32,
     weight: f32,
     looped: bool,
+    interrupted: bool,
 ) {
     if !time.is_finite() || !weight.is_finite() || weight <= f32::EPSILON {
         return;
     }
     entries.push(AlsAnimationEventPlayback {
         instance_id: 0,
-        interrupted: false,
+        interrupted,
         source_asset: source_asset.into(),
         graph_clip: graph_clip.into(),
         time,
@@ -352,6 +353,7 @@ fn refresh_animation_event_playbacks(
             &mut AlsAnimationEventPlaybacks,
             Option<&AlsStandingEventClock>,
             Option<&AlsRollState>,
+            Option<&crate::roll_drive::AlsRollBlendOut>,
             Option<&crate::mantle_drive::AlsMantleMontages>,
             Option<&AlsGetUpState>,
         ),
@@ -364,7 +366,7 @@ fn refresh_animation_event_playbacks(
     let Some(manifest) = manifests.get(&handle.0) else {
         return;
     };
-    for (mut playbacks, standing, roll, mantle, get_up) in &mut characters {
+    for (mut playbacks, standing, roll, roll_blend_out, mantle, get_up) in &mut characters {
         let mut entries = Vec::new();
         if let Some(clock) = standing {
             let time = clock.sprint_time.unwrap_or_default();
@@ -377,6 +379,7 @@ fn refresh_animation_event_playbacks(
                     time,
                     base_weight,
                     true,
+                    false,
                 );
             }
             if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_SPRINT_ACCELERATION) {
@@ -387,6 +390,7 @@ fn refresh_animation_event_playbacks(
                     time,
                     clock.sprint_acceleration_weight,
                     true,
+                    false,
                 );
             }
         }
@@ -400,6 +404,7 @@ fn refresh_animation_event_playbacks(
                     time,
                     1.0,
                     false,
+                    roll_blend_out.is_some(),
                 );
             }
             if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_ROLL_MONTAGE) {
@@ -410,6 +415,7 @@ fn refresh_animation_event_playbacks(
                     time,
                     1.0,
                     false,
+                    roll_blend_out.is_some(),
                 );
             }
         }
@@ -418,10 +424,9 @@ fn refresh_animation_event_playbacks(
                 let (sequence, montage) = mantle_sources(entry.kind);
                 for source in [sequence, montage] {
                     if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
-                        push_playback(&mut entries, source, graph_clip, entry.clip_time, entry.weight, false);
+                        push_playback(&mut entries, source, graph_clip, entry.clip_time, entry.weight, false, entry.interrupted);
                         let playback = entries.last_mut().unwrap();
                         playback.instance_id = entry.id;
-                        playback.interrupted = entry.interrupted;
                     }
                 }
             }
@@ -437,6 +442,7 @@ fn refresh_animation_event_playbacks(
                         get_up.clip_time,
                         get_up.weight,
                         false,
+                        get_up.interrupted,
                     );
                 }
             }
@@ -578,7 +584,7 @@ pub(crate) fn early_blend_out_matches(
     let locomotion_tag = match locomotion {
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Custom | LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::None => "",
     };
     let rotation_tag = match rotation {
         RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
@@ -599,6 +605,7 @@ fn notify_action(tag: Option<&str>) -> AlsNotifyLocomotionAction {
         Some("Als.LocomotionAction.Mantling") => AlsNotifyLocomotionAction::Mantling,
         Some("Als.LocomotionAction.GettingUp") => AlsNotifyLocomotionAction::GettingUp,
         Some("Als.LocomotionAction.Rolling") => AlsNotifyLocomotionAction::Rolling,
+        Some("Als.LocomotionAction.Ragdolling") => AlsNotifyLocomotionAction::Ragdolling,
         _ => AlsNotifyLocomotionAction::None,
     }
 }
@@ -838,56 +845,124 @@ mod tests {
     #[test]
     fn mantle_notify_instances_preserve_external_actions_and_interrupted_tails() {
         use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
-            .init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
-            .init_resource::<AlsNotifyGraphClipHandles>()
-            .add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
-        let source = mantle_sources(MantleKind::Low).1;
-        let graph_clip = graph_clip_for_source(&manifest, source).unwrap().to_owned();
-        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
-        app.insert_resource(AlsNotifyManifestHandle(handle));
-        let mut entries = Vec::new();
-        push_playback(&mut entries, source, &graph_clip, 0.3, 1.0, false);
-        entries[0].instance_id = 1;
-        let actor = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries })).id();
-        let world = app.world_mut();
-        world.run_system_once(ensure_animation_event_components).unwrap();
-        world.run_system_once(dispatch_animation_events).unwrap();
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
-        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
-        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.4;
-        world.run_system_once(dispatch_animation_events).unwrap();
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp));
-        world.resource_mut::<Messages<AlsAnimationEvent>>().clear();
-        {
-            let mut playbacks = world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap();
-            playbacks.entries[0].interrupted = true;
-            playbacks.entries[0].time = 0.6;
-            let mut next = playbacks.entries[0].clone();
-            next.instance_id = 2;
-            next.interrupted = false;
-            next.time = 0.2;
-            playbacks.entries.push(next);
+        for external_action in [
+            AlsNotifyLocomotionAction::GettingUp,
+            AlsNotifyLocomotionAction::Ragdolling,
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+                .init_asset::<GraphClip>()
+                .init_asset::<AlsNotifyManifest>()
+                .init_resource::<AlsNotifyGraphClipHandles>()
+                .add_message::<AlsAnimationEvent>()
+                .add_message::<AlsCameraShakeRequest>();
+            let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
+                "../assets/animation_events/als_notify_manifest.json"
+            ))
+            .unwrap();
+            let source = mantle_sources(MantleKind::Low).1;
+            let graph_clip = graph_clip_for_source(&manifest, source).unwrap().to_owned();
+            let handle = app
+                .world_mut()
+                .resource_mut::<Assets<AlsNotifyManifest>>()
+                .add(manifest);
+            app.insert_resource(AlsNotifyManifestHandle(handle));
+            let mut entries = Vec::new();
+            push_playback(&mut entries, source, &graph_clip, 0.3, 1.0, false, false);
+            entries[0].instance_id = 1;
+            let actor = app
+                .world_mut()
+                .spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries }))
+                .id();
+            let world = app.world_mut();
+            world
+                .run_system_once(ensure_animation_event_components)
+                .unwrap();
+            world.run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Mantling)
+            );
+            world.entity_mut(actor).insert(external_action);
+            world
+                .get_mut::<AlsAnimationEventPlaybacks>(actor)
+                .unwrap()
+                .entries[0]
+                .time = 0.4;
+            world.run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&external_action)
+            );
+            world.resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            {
+                let mut playbacks = world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap();
+                playbacks.entries[0].interrupted = true;
+                playbacks.entries[0].time = 0.6;
+                let mut next = playbacks.entries[0].clone();
+                next.instance_id = 2;
+                next.interrupted = false;
+                next.time = 0.2;
+                playbacks.entries.push(next);
+            }
+            world.run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Mantling)
+            );
+            assert_eq!(
+                world
+                    .get::<AlsAnimationEventRuntime>(actor)
+                    .unwrap()
+                    .sources
+                    .len(),
+                2
+            );
+            let emitted: Vec<_> = world
+                .resource_mut::<Messages<AlsAnimationEvent>>()
+                .drain()
+                .collect();
+            assert!(
+                emitted
+                    .iter()
+                    .any(|event| event.instance_id == 2 && event.phase == EventPhase::Begin)
+            );
+            assert!(!emitted.iter().any(|event| event.instance_id == 1));
+            world.entity_mut(actor).insert(external_action);
+            world
+                .get_mut::<AlsAnimationEventPlaybacks>(actor)
+                .unwrap()
+                .entries
+                .remove(0);
+            world.run_system_once(dispatch_animation_events).unwrap();
+            let emitted: Vec<_> = world
+                .resource_mut::<Messages<AlsAnimationEvent>>()
+                .drain()
+                .collect();
+            assert!(
+                emitted
+                    .iter()
+                    .any(|event| event.instance_id == 1 && event.phase == EventPhase::End)
+            );
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&external_action)
+            );
+            world
+                .entity_mut(actor)
+                .insert(AlsNotifyLocomotionAction::Mantling);
+            world
+                .get_mut::<AlsAnimationEventPlaybacks>(actor)
+                .unwrap()
+                .entries[0]
+                .time = 1.05;
+            world.run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::None)
+            );
+            assert!(world.get::<AlsNotifyEarlyBlendOut>(actor).unwrap().active);
         }
-        world.run_system_once(dispatch_animation_events).unwrap();
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
-        assert_eq!(world.get::<AlsAnimationEventRuntime>(actor).unwrap().sources.len(), 2);
-        let emitted: Vec<_> = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect();
-        assert!(emitted.iter().any(|event| event.instance_id == 2 && event.phase == EventPhase::Begin));
-        assert!(!emitted.iter().any(|event| event.instance_id == 1));
-        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
-        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries.remove(0);
-        world.run_system_once(dispatch_animation_events).unwrap();
-        let emitted: Vec<_> = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect();
-        assert!(emitted.iter().any(|event| event.instance_id == 1 && event.phase == EventPhase::End));
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp));
-        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::Mantling);
-        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 1.05;
-        world.run_system_once(dispatch_animation_events).unwrap();
-        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::None));
-        assert!(world.get::<AlsNotifyEarlyBlendOut>(actor).unwrap().active);
     }
 
     #[test]
@@ -907,6 +982,83 @@ mod tests {
         assert!(!matches(&disabled, true, LocomotionState::Air, RotationMode::Aiming, Stance::Crouching));
         let configured = serde_json::json!({"LocomotionModeEquals": {"__tagged__": {"TagName": "Als.LocomotionMode.Grounded"}}});
         assert!(matches(&configured, false, LocomotionState::Grounded, RotationMode::ViewDirection, Stance::Standing));
+    }
+
+    #[test]
+    fn interrupted_action_playbacks_do_not_replace_the_ragdoll_action() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<GraphClip>()
+            .init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>()
+            .add_message::<AlsAnimationEvent>()
+            .add_message::<AlsCameraShakeRequest>();
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
+            "../assets/animation_events/als_notify_manifest.json"
+        ))
+        .unwrap();
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsNotifyManifest>>()
+            .add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let world = app.world_mut();
+        let mut observed = Vec::new();
+        for variant in 0..5 {
+            let actor = world
+                .spawn((
+                    AlsCharacter,
+                    AlsAnimationEventPlaybacks::default(),
+                    AlsNotifyLocomotionAction::Ragdolling,
+                ))
+                .id();
+            if variant == 0 {
+                let roll = AlsRollState {
+                    active: true,
+                    time: 0.2,
+                    ..default()
+                };
+                world
+                    .entity_mut(actor)
+                    .insert((roll, crate::roll_drive::AlsRollBlendOut::new(&roll, 0.2)));
+            } else {
+                let mut get_up = AlsGetUpState::new(variant % 2 == 0);
+                get_up.elapsed = 0.2;
+                if variant >= 3 {
+                    let settings = get_up_settings(get_up.facing_up);
+                    get_up.elapsed = settings.sequence_length / settings.play_rate
+                        - settings.blend_out_seconds * 0.5;
+                }
+                get_up.advance(0.0);
+                let before = get_up.weight;
+                get_up.stop(if variant >= 3 { 100.0 } else { 0.2 });
+                get_up.advance(0.0);
+                assert_eq!(get_up.weight, before);
+                world.entity_mut(actor).insert(get_up);
+            }
+            world
+                .run_system_once(ensure_animation_event_components)
+                .unwrap();
+            world
+                .run_system_once(refresh_animation_event_playbacks)
+                .unwrap();
+            world.run_system_once(dispatch_animation_events).unwrap();
+            let entries = &world
+                .get::<AlsAnimationEventPlaybacks>(actor)
+                .unwrap()
+                .entries;
+            assert_eq!(entries.len(), 2);
+            observed.push((
+                entries.iter().all(|entry| entry.interrupted),
+                *world.get::<AlsNotifyLocomotionAction>(actor).unwrap(),
+            ));
+            world.despawn(actor);
+        }
+        assert_eq!(
+            observed,
+            vec![(true, AlsNotifyLocomotionAction::Ragdolling); 5]
+        );
     }
 
     #[test]

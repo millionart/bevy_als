@@ -16,7 +16,7 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
-use crate::animation_events::AlsNotifyRootMotionScale;
+use crate::animation_events::{AlsNotifyLocomotionAction, AlsNotifyRootMotionScale};
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::root_motion_link::{
     ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
@@ -188,7 +188,8 @@ mod tests {
                 als_core::character::AlsCharacter,
                 roll,
                 AlsRollBlendOut::new(&roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds),
-                LocomotionState::Ragdolling,
+                LocomotionState::Grounded,
+                AlsNotifyLocomotionAction::Ragdolling,
                 Stance::Standing,
                 AlsViewYaw::default(),
                 transform,
@@ -581,15 +582,15 @@ fn advance_rolls(
 fn roll_drive_system(
     time: Res<Time>,
     blend_outs: Query<(), With<AlsRollBlendOut>>,
-    mut q: Query<(Entity, &AlsRollState, &LocomotionState, &mut Transform, Option<&mut Rotation>,
+    mut q: Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
         &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>), With<als_core::character::AlsCharacter>>,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
-    for (character, roll, loco, mut transform, rotation, mut vel, notify_root_scale) in &mut q {
-        if !roll.active || *loco == LocomotionState::Ragdolling || dt <= 1e-5 || blend_outs.contains(character)
+    for (character, roll, action, mut transform, rotation, mut vel, notify_root_scale) in &mut q {
+        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || dt <= 1e-5 || blend_outs.contains(character)
             || roll.time - dt >= als_core::roll::ROLL_DURATION_SECS - als_core::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
         }

@@ -9,7 +9,7 @@ use als_core::{
     motion::{AlsInputOverride, AlsViewYaw},
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     params::AlsMovementParams,
-    state::{Gait, LocomotionState, RotationMode, Stance},
+    state::{Gait, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -199,7 +199,6 @@ fn generated_ab_als_input_writer(
             Entity,
             &Gait,
             &Stance,
-            &LocomotionState,
             &RotationMode,
             &AlsActualMotion,
             &AlsViewYaw,
@@ -221,7 +220,6 @@ fn generated_ab_als_input_writer(
         character,
         gait,
         stance,
-        locomotion,
         rotation_mode,
         motion,
         view_yaw,
@@ -275,7 +273,7 @@ fn generated_ab_als_input_writer(
                 .get_global_input_data("als_overlay_locomotion_action_index")
                 .and_then(|value| value.as_f32().ok())
                 .unwrap_or(0.0);
-            if *locomotion != LocomotionState::Ragdolling && action == 0.0 {
+            if action == 0.0 {
                 player.set_global_input_data(
                     "view_state.yaw_angle",
                     crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),

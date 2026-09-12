@@ -1,6 +1,6 @@
 use als_core::character::AlsCharacter;
 use als_core::mantle::MantleKind;
-use als_core::state::{LocomotionState, OverlayState};
+use als_core::state::{AlsNotifyLocomotionAction, OverlayState};
 use bevy::gltf::GltfAssetLabel;
 use bevy::prelude::*;
 
@@ -91,12 +91,12 @@ pub fn attachment_bone(spec: OverlayObjectSpec, use_gun_bones: bool) -> &'static
 
 pub fn overlay_object_visible(
     overlay: OverlayState,
-    locomotion: LocomotionState,
+    ragdolling: bool,
     mantle_active: bool,
     mantle_kind: Option<MantleKind>,
 ) -> bool {
     overlay_object_spec(overlay).is_some()
-        && locomotion != LocomotionState::Ragdolling
+        && !ragdolling
         && !(mantle_active && mantle_kind.is_some_and(MantleKind::is_high))
 }
 
@@ -180,7 +180,7 @@ fn sync_overlay_object(
     mut characters: Query<
         (
             &OverlayState,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             Option<&als_core::mantle::AlsMantleState>,
             &AlsCharacterAssembly,
             Ref<AlsOverlayObjectConfig>,
@@ -189,10 +189,10 @@ fn sync_overlay_object(
         With<AlsCharacter>,
     >,
 ) {
-    for (overlay, locomotion, mantle, assembly, config, mut state) in &mut characters {
+    for (overlay, action, mantle, assembly, config, mut state) in &mut characters {
         let visible = overlay_object_visible(
             *overlay,
-            *locomotion,
+            action == Some(&AlsNotifyLocomotionAction::Ragdolling),
             mantle.is_some_and(|state| state.active),
             mantle.map(|state| state.kind),
         );
@@ -284,25 +284,25 @@ mod tests {
     fn source_lifecycle_clears_high_mantle_and_ragdoll_but_keeps_low_mantle() {
         assert!(overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Grounded,
+            false,
             false,
             None
         ));
         assert!(!overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Grounded,
+            false,
             true,
             Some(MantleKind::High)
         ));
         assert!(overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Grounded,
+            false,
             true,
             Some(MantleKind::LowLeft)
         ));
         assert!(!overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Ragdolling,
+            true,
             false,
             None
         ));

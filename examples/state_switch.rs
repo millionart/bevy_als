@@ -126,15 +126,15 @@ fn auto_demo(
             }
             8 => {
                 info!("[DEMO] step 8: request Ragdolling (expect accept)");
-                request.locomotion_state = Some(LocomotionState::Ragdolling);
+                request.ragdoll_start = true;
             }
             9 => {
                 info!("[DEMO] step 9: request Air WHILE RAGDOLLED (never legal -> expect reject)");
                 request.locomotion_state = Some(LocomotionState::Air);
             }
             10 => {
-                info!("[DEMO] step 10: request Grounded (exit ragdoll, expect accept)");
-                request.locomotion_state = Some(LocomotionState::Grounded);
+                info!("[DEMO] step 10: request ragdoll recovery (requires physics route)");
+                request.ragdoll_exit = true;
             }
             _ => {
                 info!("[DEMO] final states dumped by HUD above; done");
@@ -144,8 +144,8 @@ fn auto_demo(
     }
 }
 
-fn keyboard_driver(keys: Res<ButtonInput<KeyCode>>, mut q_request: Query<&mut AlsStateRequest>) {
-    let Ok(mut request) = q_request.single_mut() else {
+fn keyboard_driver(keys: Res<ButtonInput<KeyCode>>, mut q_request: Query<(&mut AlsStateRequest, Option<&als_core::state::AlsNotifyLocomotionAction>)>) {
+    let Ok((mut request, action)) = q_request.single_mut() else {
         return;
     };
     if keys.just_pressed(KeyCode::KeyC) {
@@ -175,12 +175,9 @@ fn keyboard_driver(keys: Res<ButtonInput<KeyCode>>, mut q_request: Query<&mut Al
         request.locomotion_state = Some(next);
     }
     if keys.just_pressed(KeyCode::KeyK) {
-        let next = match current_locomotion_hint(request.locomotion_state) {
-            LocomotionState::Ragdolling => LocomotionState::Grounded,
-            _ => LocomotionState::Ragdolling,
-        };
-        info!("[INPUT] K pressed -> ragdoll toggle to {next:?}");
-        request.locomotion_state = Some(next);
+        request.ragdoll_exit = action == Some(&als_core::state::AlsNotifyLocomotionAction::Ragdolling);
+        request.ragdoll_start = !request.ragdoll_exit;
+        info!("[INPUT] K pressed -> ragdoll recovery={}", request.ragdoll_exit);
     }
 }
 

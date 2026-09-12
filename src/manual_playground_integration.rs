@@ -3259,7 +3259,7 @@ fn get_up_fixture_rotation(facing_up: bool, yaw: f32) -> Quat {
 fn prepare_get_up_physics_fixture(
     mut state: ResMut<ManualIntegrationState>,
     mut phase: ResMut<ManualRuntimePhaseEvidence>,
-    characters: Query<&LocomotionState, With<AlsCharacter>>,
+    characters: Query<&AlsNotifyLocomotionAction, With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     labels: Query<&BodyLabel>,
@@ -3283,7 +3283,7 @@ fn prepare_get_up_physics_fixture(
     let Some(character) = state.character else {
         return;
     };
-    if characters.get(character) != Ok(&LocomotionState::Ragdolling) {
+    if characters.get(character) != Ok(&AlsNotifyLocomotionAction::Ragdolling) {
         return;
     }
     let Some(spawned) = avatars
@@ -5378,7 +5378,7 @@ fn drive_manual_integration(
             {
                 input.0.move_dir = Vec2::Y;
             } else if !ready_to_exit {
-                request.locomotion_state = Some(LocomotionState::Ragdolling);
+                request.ragdoll_start = true;
             } else {
                 request.ragdoll_exit = true;
                 state.ragdoll_exit_requested = true;
@@ -8668,9 +8668,9 @@ fn observe_manual_integration(
             }
         }
         state.coverage.ragdoll_pa_profile |= profile_valid
-            && (*locomotion != LocomotionState::Ragdolling || (dynamic == 20 && root_kinematic));
+            && (notify_action != Some(&AlsNotifyLocomotionAction::Ragdolling) || (dynamic == 20 && root_kinematic));
     }
-    if *locomotion == LocomotionState::Ragdolling {
+    if notify_action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
         state.coverage.ragdoll_entered = true;
         state.ragdoll_seen = true;
         state.ragdoll_frames = state.ragdoll_frames.saturating_add(1);
@@ -8706,6 +8706,7 @@ fn observe_manual_integration(
     }
     let ragdoll_recovered = state.ragdoll_seen
         && state.ragdoll_exit_requested
+        && notify_action != Some(&AlsNotifyLocomotionAction::Ragdolling)
         && *locomotion == LocomotionState::Grounded
         && velocity.0.length() < 0.5;
     if ragdoll_recovered {

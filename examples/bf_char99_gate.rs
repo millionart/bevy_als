@@ -4,7 +4,7 @@ use als_camera::{AlsCameraParams, field_of_view_degrees};
 use als_core::input::{ROLL_TAP_SECS, SPRINT_HOLD_SECS, roll_pressed_from_events};
 use als_core::mantle::MantleKind;
 use als_core::motion::{JumpChain, jump_chain, view_relative_move_direction};
-use als_core::state::{LocomotionState, OverlayState, Stance};
+use als_core::state::{OverlayState, Stance};
 use bevy::prelude::*;
 use bevy_als::overlay_mode_menu::{COLOR_OPTION_NOT_SELECTED, COLOR_OPTION_SELECTED};
 use bevy_als::overlay_object::{
@@ -48,11 +48,11 @@ fn verify_static_contract(mut exit: MessageWriter<AppExit>) {
     let tap_hold = !roll_pressed_from_events(ActionEvents::START | ActionEvents::ONGOING)
         && roll_pressed_from_events(ActionEvents::FIRE)
         && ROLL_TAP_SECS < SPRINT_HOLD_SECS;
-    let jump_priority = jump_chain(LocomotionState::Ragdolling, Stance::Crouching, true)
+    let jump_priority = jump_chain(true, Stance::Crouching, true)
         == JumpChain::ExitRagdoll
-        && jump_chain(LocomotionState::Grounded, Stance::Standing, true) == JumpChain::Mantle
-        && jump_chain(LocomotionState::Grounded, Stance::Crouching, false) == JumpChain::StandUp
-        && jump_chain(LocomotionState::Air, Stance::Standing, false) == JumpChain::Jump;
+        && jump_chain(false, Stance::Standing, true) == JumpChain::Mantle
+        && jump_chain(false, Stance::Crouching, false) == JumpChain::StandUp
+        && jump_chain(false, Stance::Standing, false) == JumpChain::Jump;
     let fov_contract = (field_of_view_degrees(false, 12.0, &camera) - 102.0).abs() < 1e-5
         && (field_of_view_degrees(true, 12.0, &camera) - 90.0).abs() < 1e-5
         && (field_of_view_degrees(false, 500.0, &camera) - 175.0).abs() < 1e-5;
@@ -64,19 +64,19 @@ fn verify_static_contract(mut exit: MessageWriter<AppExit>) {
         && attachment_bone(torch, true) == LEFT_GUN_BONE
         && !overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Grounded,
+            false,
             true,
             Some(MantleKind::High),
         )
         && overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Grounded,
+            false,
             true,
             Some(MantleKind::LowLeft),
         )
         && !overlay_object_visible(
             OverlayState::Rifle,
-            LocomotionState::Ragdolling,
+            true,
             false,
             None,
         );

@@ -45,7 +45,8 @@ fn spawn_exit_case(app: &mut App, grounded: bool, velocity: Vec3) -> Entity {
     app.world_mut()
         .spawn((
             AlsCharacter,
-            LocomotionState::Ragdolling,
+            LocomotionState::None,
+            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
             Stance::Standing,
             Gait::Running,
             RotationMode::VelocityDirection,

@@ -127,7 +127,7 @@ fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
     GameplayTag::new(match locomotion {
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Custom | LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::None => "",
     })
 }
 
@@ -147,6 +147,7 @@ fn locomotion_action_index(
         Some(AlsNotifyLocomotionAction::Mantling) => 1.0,
         Some(AlsNotifyLocomotionAction::GettingUp) => 2.0,
         Some(AlsNotifyLocomotionAction::Rolling) => 3.0,
+        Some(AlsNotifyLocomotionAction::Ragdolling) => 4.0,
         Some(AlsNotifyLocomotionAction::None) => 0.0,
         None if mantle.is_some_and(|state| state.active) => 1.0,
         None if roll.is_some_and(|state| state.active) => 3.0,
@@ -155,18 +156,15 @@ fn locomotion_action_index(
 }
 
 fn locomotion_action_tag(
-    locomotion: LocomotionState,
     notify_action: Option<&AlsNotifyLocomotionAction>,
     mantle: Option<&AlsMantleState>,
     roll: Option<&AlsRollState>,
 ) -> GameplayTag {
-    if locomotion == LocomotionState::Ragdolling {
-        return GameplayTag::new("Als.LocomotionAction.Ragdolling");
-    }
     GameplayTag::new(match notify_action {
         Some(AlsNotifyLocomotionAction::Mantling) => "Als.LocomotionAction.Mantling",
         Some(AlsNotifyLocomotionAction::GettingUp) => "Als.LocomotionAction.GettingUp",
         Some(AlsNotifyLocomotionAction::Rolling) => "Als.LocomotionAction.Rolling",
+        Some(AlsNotifyLocomotionAction::Ragdolling) => "Als.LocomotionAction.Ragdolling",
         Some(AlsNotifyLocomotionAction::None) => "",
         None if mantle.is_some_and(|state| state.active) => "Als.LocomotionAction.Mantling",
         None if roll.is_some_and(|state| state.active) => "Als.LocomotionAction.Rolling",
@@ -286,7 +284,7 @@ fn root_graph_writer(
             set_gameplay_tag_input(
                 instance.player_entity(),
                 "locomotion_action",
-                locomotion_action_tag(*locomotion, notify_action, mantle, roll),
+                locomotion_action_tag(notify_action, mantle, roll),
             );
             set_gameplay_tag_input(
                 instance.player_entity(),
@@ -436,7 +434,7 @@ mod tests {
             locomotion_mode_tag(LocomotionState::Air).as_str(),
             "Als.LocomotionMode.InAir"
         );
-        assert!(!locomotion_mode_tag(LocomotionState::Ragdolling).is_valid());
+        assert!(!locomotion_mode_tag(LocomotionState::None).is_valid());
         assert!(!locomotion_mode_tag(LocomotionState::Custom).is_valid());
         assert_eq!(stance_tag(Stance::Standing).as_str(), "Als.Stance.Standing");
         assert_eq!(
@@ -449,7 +447,6 @@ mod tests {
     fn action_and_rotation_tags_use_the_source_hierarchy() {
         assert_eq!(
             locomotion_action_tag(
-                LocomotionState::Grounded,
                 Some(&AlsNotifyLocomotionAction::Rolling),
                 None,
                 None,
@@ -458,7 +455,7 @@ mod tests {
             "Als.LocomotionAction.Rolling"
         );
         assert_eq!(
-            locomotion_action_tag(LocomotionState::Ragdolling, None, None, None).as_str(),
+            locomotion_action_tag(Some(&AlsNotifyLocomotionAction::Ragdolling), None, None).as_str(),
             "Als.LocomotionAction.Ragdolling"
         );
         assert_eq!(

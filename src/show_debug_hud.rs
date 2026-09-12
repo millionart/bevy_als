@@ -5,11 +5,10 @@ use als_core::character::AlsCharacter;
 use als_core::gait::AlsDesiredGait;
 use als_core::input::AlsInputCommand;
 use als_core::mantle::AlsMantleState;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
+use als_core::motion::AlsInputOverride;
 use als_core::roll::AlsRollState;
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use als_core::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
-use als_core::view::AlsViewSmoothed;
 use als_ext::AlsAnimCurves;
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
@@ -304,8 +303,7 @@ pub struct CharacterSnapshot {
     pub has_velocity: bool,
     pub velocity_direction: Option<Vec3>,
     pub velocity_yaw_angle: Option<f32>,
-    pub mantling: bool,
-    pub rolling: bool,
+    pub locomotion_action: AlsNotifyLocomotionAction,
 }
 
 impl CharacterSnapshot {
@@ -321,8 +319,7 @@ impl CharacterSnapshot {
         input_move_dir: Option<Vec2>,
         aiming: bool,
         velocity: Option<Vec3>,
-        mantling: bool,
-        rolling: bool,
+        locomotion_action: AlsNotifyLocomotionAction,
     ) -> Self {
         let has_input = input_move_dir.is_some_and(|d| d.length() > 1e-4);
         let input_yaw_angle = input_move_dir
@@ -351,8 +348,7 @@ impl CharacterSnapshot {
             has_velocity,
             velocity_direction,
             velocity_yaw_angle,
-            mantling,
-            rolling,
+            locomotion_action,
         }
     }
 }
@@ -396,7 +392,7 @@ fn locomotion_mode_tag(locomotion_state: LocomotionState) -> &'static str {
     match locomotion_state {
         LocomotionState::Grounded => "Grounded",
         LocomotionState::Air => "InAir",
-        LocomotionState::Custom | LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::None => "",
     }
 }
 
@@ -450,14 +446,12 @@ fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
 }
 
 fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str {
-    if snapshot.mantling {
-        "Mantling"
-    } else if snapshot.locomotion_state == LocomotionState::Ragdolling {
-        "Ragdolling"
-    } else if snapshot.rolling {
-        "Rolling"
-    } else {
-        ""
+    match snapshot.locomotion_action {
+        AlsNotifyLocomotionAction::None => "",
+        AlsNotifyLocomotionAction::Mantling => "Mantling",
+        AlsNotifyLocomotionAction::Ragdolling => "Ragdolling",
+        AlsNotifyLocomotionAction::Rolling => "Rolling",
+        AlsNotifyLocomotionAction::GettingUp => "GettingUp",
     }
 }
 
@@ -850,26 +844,7 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
     }
 }
 
-type CharacterQueryItem<'w, 's> = (
-    &'w LocomotionState,
-    &'w RotationMode,
-    &'w Stance,
-    &'w Gait,
-    Option<&'w AlsDesiredGait>,
-    &'w OverlayState,
-    &'w AlsStateRequest,
-    Option<&'w LinearVelocity>,
-    Option<&'w AlsInputCommand>,
-    Option<&'w AlsInputOverride>,
-    Option<&'w AlsRollState>,
-    Option<&'w AlsMantleState>,
-    Option<&'w AlsViewYaw>,
-    Option<&'w AlsViewSmoothed>,
-    Option<&'w GlobalTransform>,
-);
-
-fn build_camera_snapshot<'w, 's>(
-    _character_item: &CharacterQueryItem<'w, 's>,
+fn build_camera_snapshot(
     rig: Option<(&GlobalTransform, Option<&AlsCameraRig>)>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
@@ -917,9 +892,7 @@ fn hud_sync_system(
             Option<&'static AlsInputOverride>,
             Option<&'static AlsRollState>,
             Option<&'static AlsMantleState>,
-            Option<&'static AlsViewYaw>,
-            Option<&'static AlsViewSmoothed>,
-            Option<&'static GlobalTransform>,
+            Option<&'static AlsNotifyLocomotionAction>,
         ),
         With<AlsCharacter>,
     >,
@@ -952,9 +925,7 @@ fn hud_sync_system(
             input_override,
             roll,
             mantle,
-            _view_yaw,
-            _view_smoothed,
-            _char_transform,
+            action,
         ) = item;
 
         let aiming = input.map(|c| c.aim_held).unwrap_or(false)
@@ -974,8 +945,11 @@ fn hud_sync_system(
             move_dir,
             aiming,
             velocity.map(|v| v.0),
-            mantle.is_some_and(|m| m.active),
-            roll.is_some_and(|r| r.active),
+            action.copied().unwrap_or_else(|| {
+                if mantle.is_some_and(|m| m.active) { AlsNotifyLocomotionAction::Mantling }
+                else if roll.is_some_and(|r| r.active) { AlsNotifyLocomotionAction::Rolling }
+                else { AlsNotifyLocomotionAction::None }
+            }),
         );
 
         let (rig, cam_debug) = q_camera
@@ -983,7 +957,7 @@ fn hud_sync_system(
             .next()
             .map(|(transform, rig, info)| (Some((transform, rig)), info))
             .unwrap_or((None, None));
-        let camera_snapshot = build_camera_snapshot(&item, rig, cam_debug);
+        let camera_snapshot = build_camera_snapshot(rig, cam_debug);
 
         let elapsed = q_instances
             .iter()
@@ -1284,8 +1258,7 @@ mod tests {
             Some(Vec2::new(0.0, 1.0)),
             true,
             Some(Vec3::new(3.0, 0.0, -4.0)),
-            false,
-            false,
+            AlsNotifyLocomotionAction::None,
         )
     }
 
@@ -1369,18 +1342,25 @@ mod tests {
     }
 
     #[test]
-    fn action_precedence_follows_mantle_ragdoll_roll() {
+    fn action_display_is_independent_of_movement_mode() {
         let mut snapshot = sample_snapshot();
-        assert_eq!(locomotion_action_value(&snapshot), "");
-        snapshot.rolling = true;
-        assert_eq!(locomotion_action_value(&snapshot), "Rolling");
-        snapshot.mantling = true;
-        assert_eq!(locomotion_action_value(&snapshot), "Mantling");
-        snapshot.mantling = false;
-        snapshot.locomotion_state = LocomotionState::Ragdolling;
-        assert_eq!(locomotion_action_value(&snapshot), "Ragdolling");
-        snapshot.rolling = true;
-        assert_eq!(locomotion_action_value(&snapshot), "Ragdolling");
+        for mode in [
+            LocomotionState::None,
+            LocomotionState::Custom,
+            LocomotionState::Grounded,
+        ] {
+            snapshot.locomotion_state = mode;
+            for (action, label) in [
+                (AlsNotifyLocomotionAction::None, ""),
+                (AlsNotifyLocomotionAction::Rolling, "Rolling"),
+                (AlsNotifyLocomotionAction::Mantling, "Mantling"),
+                (AlsNotifyLocomotionAction::Ragdolling, "Ragdolling"),
+                (AlsNotifyLocomotionAction::GettingUp, "GettingUp"),
+            ] {
+                snapshot.locomotion_action = action;
+                assert_eq!(locomotion_action_value(&snapshot), label);
+            }
+        }
     }
 
     #[test]

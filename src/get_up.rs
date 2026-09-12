@@ -2,7 +2,6 @@ use std::sync::LazyLock;
 
 use als_core::{
     character::AlsCharacter, motion::AlsMovementInputBlocked, roll::AlsRollState,
-    state::LocomotionState,
 };
 use als_ext::{
     AlsAnimCurves,
@@ -75,6 +74,7 @@ pub struct AlsGetUpState {
     pub clip_time: f32,
     pub weight: f32,
     pub pose_ready: bool,
+    pub(crate) interrupted: bool,
     stop: Option<(f32, f32, f32)>,
 }
 
@@ -86,11 +86,13 @@ impl AlsGetUpState {
             clip_time: 0.0,
             weight: 1.0,
             pose_ready: false,
+            interrupted: false,
             stop: None,
         }
     }
 
     pub(crate) fn stop(&mut self, duration: f32) {
+        self.interrupted = true;
         let configured_duration = self.stop.map(|(_, duration, _)| duration).or_else(|| {
             let settings = get_up_settings(self.facing_up);
             (self.elapsed
@@ -192,7 +194,7 @@ fn update_get_up_pose(
     mut characters: Query<
         (
             Entity,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             &mut AlsGetUpState,
             Option<&AlsRollState>,
         ),
@@ -201,9 +203,9 @@ fn update_get_up_pose(
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (character, locomotion, mut state, roll) in &mut characters {
+    for (character, action, mut state, roll) in &mut characters {
         let previous_clip_time = state.clip_time;
-        if *locomotion == LocomotionState::Ragdolling {
+        if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
         } else if roll.is_some_and(|roll| roll.active) {
             state.stop(als_core::roll::ROLL_WEIGHT_IN_SECS);

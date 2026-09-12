@@ -1686,19 +1686,19 @@ mod rotation_cap_tests {
     #[test]
     fn jump_chain_keeps_the_source_priority_order() {
         assert_eq!(
-            jump_chain(LocomotionState::Ragdolling, Stance::Crouching, true),
+            jump_chain(true, Stance::Crouching, true),
             JumpChain::ExitRagdoll
         );
         assert_eq!(
-            jump_chain(LocomotionState::Grounded, Stance::Standing, true),
+            jump_chain(false, Stance::Standing, true),
             JumpChain::Mantle
         );
         assert_eq!(
-            jump_chain(LocomotionState::Grounded, Stance::Crouching, false),
+            jump_chain(false, Stance::Crouching, false),
             JumpChain::StandUp
         );
         assert_eq!(
-            jump_chain(LocomotionState::Air, Stance::Standing, false),
+            jump_chain(false, Stance::Standing, false),
             JumpChain::Jump
         );
     }
@@ -1942,8 +1942,8 @@ pub struct AlsJumpPrev(pub bool);
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsRagdollAirExit;
 
-pub fn jump_chain(loco: LocomotionState, stance: Stance, mantle_available: bool) -> JumpChain {
-    if loco == LocomotionState::Ragdolling {
+pub fn jump_chain(ragdolling: bool, stance: Stance, mantle_available: bool) -> JumpChain {
+    if ragdolling {
         JumpChain::ExitRagdoll
     } else if mantle_available {
         JumpChain::Mantle
@@ -2137,7 +2137,8 @@ fn locomotion_drive_system(
     {
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
-        let input_blocked = blocked.contains(entity) && *loco != LocomotionState::Ragdolling;
+        let ragdolling = actions.get(entity).ok() == Some(&crate::state::AlsNotifyLocomotionAction::Ragdolling);
+        let input_blocked = blocked.contains(entity) && !ragdolling;
         let effective =
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 
@@ -2253,9 +2254,9 @@ fn locomotion_drive_system(
             })
         });
         if jump_edge {
-            match jump_chain(*loco, *stance, intent.is_some()) {
+            match jump_chain(ragdolling, *stance, intent.is_some()) {
                 JumpChain::ExitRagdoll => {
-                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.ragdoll_exit = true;
                 }
                 JumpChain::Mantle => {
                     if let (Some(m), Some((i, target_base))) = (mantle.as_deref_mut(), intent) {
@@ -2494,7 +2495,7 @@ fn capsule_target_for_locomotion(
 ) -> Stance {
     if let Some(physical_override) = physical_override {
         physical_override
-    } else if action_active || locomotion == LocomotionState::Custom {
+    } else if action_active || !matches!(locomotion, LocomotionState::Grounded | LocomotionState::Air) {
         actual
     } else if locomotion == LocomotionState::Air {
         Stance::Standing
@@ -2645,12 +2646,14 @@ pub(crate) fn locomotion_state_sync_system(
             &mut LocomotionState,
             &AlsStateRequest,
             Has<AlsRagdollAirExit>,
+            Option<&crate::state::AlsNotifyLocomotionAction>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, controller, mut current, request, ragdoll_air_exit) in &mut q {
-        if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit {
+    for (entity, controller, mut current, request, ragdoll_air_exit, action) in &mut q {
+        if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
+            || action == Some(&crate::state::AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let Ok(basis) = controller.basis_access() else {
@@ -2824,9 +2827,21 @@ mod tests {
             app.update();
             assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
             assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
-            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().ragdoll_start = true;
             app.update();
-            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Ragdolling));
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Custom));
+            assert_eq!(app.world().get::<crate::state::AlsNotifyLocomotionAction>(character), Some(&crate::state::AlsNotifyLocomotionAction::Ragdolling));
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
+            let lifted = app.world().get::<Transform>(character).unwrap().with_translation(Vec3::Y * 10.0);
+            app.world_mut().entity_mut(character).insert((lifted, Position(lifted.translation)));
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+            assert!(TnuaBuiltinWalk::displacement(&controller.basis_access().unwrap()).is_none());
+            assert!(app.world().get::<AlsStateRequest>(character).unwrap().ragdoll_exit);
         }
     }
 

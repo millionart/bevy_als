@@ -5,7 +5,8 @@ use als_core::character::{
 };
 use als_core::motion::AlsRagdollAirExit;
 use als_core::params::AlsMovementParams;
-use als_core::state::{LocomotionState, Stance};
+use als_core::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
+use als_core::transition::{Dimension, StateTransitionEvent, StateValue};
 use als_ext::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
@@ -130,7 +131,8 @@ pub struct AlsRagdollLinkPlugin;
 
 impl Plugin for AlsRagdollLinkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(disable_spawned_ragdoll_collider);
+        app.add_message::<StateTransitionEvent>()
+            .add_observer(disable_spawned_ragdoll_collider);
         app.add_systems(
             Update,
             (
@@ -256,7 +258,7 @@ fn capture_ragdoll_player_world_transform(
     mut commands: Commands,
     transform_helper: TransformHelper,
     characters: Query<
-        (Entity, &LocomotionState),
+        (Entity, Option<&AlsNotifyLocomotionAction>),
         (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>),
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -268,8 +270,8 @@ fn capture_ragdoll_player_world_transform(
     children: Query<&Children>,
     mut globals: Query<&mut GlobalTransform>,
 ) {
-    for (character, locomotion) in &characters {
-        if *locomotion != LocomotionState::Ragdolling {
+    for (character, action) in &characters {
+        if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let Some(player) = animated_player_for_character(character, &avatars) else {
@@ -298,7 +300,7 @@ fn capture_ragdoll_player_world_transform(
 
 fn sync_ragdoll_body_modes(
     mut commands: Commands,
-    characters: Query<(Entity, &LocomotionState), With<als_core::character::AlsCharacter>>,
+    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>), With<als_core::character::AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(
         &AnimationGraphPlayer,
@@ -314,7 +316,7 @@ fn sync_ragdoll_body_modes(
         Has<AlsRagdollPhysicsActive>,
     )>,
 ) {
-    for (character, locomotion) in &characters {
+    for (character, action) in &characters {
         let Some(instance) = avatars
             .iter()
             .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
@@ -327,7 +329,7 @@ fn sync_ragdoll_body_modes(
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
-        let ragdolling = *locomotion == LocomotionState::Ragdolling;
+        let ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let mut handoff = false;
         for body_entity in spawned.bodies.values() {
             let Ok((
@@ -375,7 +377,7 @@ fn sync_ragdoll_body_modes(
 
 fn sync_animated_ragdoll_bodies(
     time: Res<Time>,
-    characters: Query<&LocomotionState, With<AlsCharacter>>,
+    characters: Query<Option<&AlsNotifyLocomotionAction>, With<AlsCharacter>>,
     avatars: Query<(
         &AlsCharacterAvatar,
         &AnimatedSceneInstance,
@@ -395,7 +397,7 @@ fn sync_animated_ragdoll_bodies(
     for (avatar, instance, handle) in &avatars {
         if characters
             .get(avatar.character)
-            .is_ok_and(|state| *state == LocomotionState::Ragdolling)
+            .is_ok_and(|state| state == Some(&AlsNotifyLocomotionAction::Ragdolling))
         {
             continue;
         }
@@ -458,7 +460,7 @@ fn ragdoll_pelvis_velocity(
 fn ragdoll_joint_drive_adapter_system(
     mut commands: Commands,
     mut characters: Query<
-        (Entity, &LocomotionState, Option<&mut AlsRagdollJointDrive>),
+        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&mut AlsRagdollJointDrive>),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -471,14 +473,14 @@ fn ragdoll_joint_drive_adapter_system(
     labels: Query<&BodyLabel>,
     velocities: Query<&LinearVelocity>,
 ) {
-    for (character, locomotion, current_drive) in &mut characters {
+    for (character, action, current_drive) in &mut characters {
         let mut drive = AlsRagdollJointDrive::default();
         let player = avatars
             .iter()
             .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
             .and_then(|instance| players.get(instance.player_entity()).ok());
         if let Some((player_entity, player, metrics)) = player {
-            if *locomotion == LocomotionState::Ragdolling {
+            if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
                 let speed = player
                     .get_spawned_ragdoll()
                     .and_then(|spawned| ragdoll_pelvis_velocity(spawned, &labels, &velocities))
@@ -530,10 +532,12 @@ fn ragdoll_capsule_dimensions(
 
 pub fn ragdoll_exit_route_system(
     mut commands: Commands,
+    mut transitions: MessageWriter<StateTransitionEvent>,
     mut characters: Query<
         (
             Entity,
-            &LocomotionState,
+            Option<&mut AlsNotifyLocomotionAction>,
+            &mut LocomotionState,
             &mut als_core::transition::AlsStateRequest,
             Option<&AlsRagdollGroundFollow>,
             Option<&mut LinearVelocity>,
@@ -541,11 +545,11 @@ pub fn ragdoll_exit_route_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, locomotion, mut request, follow, velocity) in &mut characters {
+    for (entity, action, mut locomotion, mut request, follow, velocity) in &mut characters {
         if !request.ragdoll_exit {
             continue;
         }
-        if *locomotion != LocomotionState::Ragdolling {
+        if action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             request.ragdoll_exit = false;
             continue;
         }
@@ -553,7 +557,17 @@ pub fn ragdoll_exit_route_system(
             continue;
         };
         let (state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
-        request.locomotion_state = Some(state);
+        *action.unwrap() = AlsNotifyLocomotionAction::None;
+        request.locomotion_state = None;
+        if *locomotion != state {
+            transitions.write(StateTransitionEvent {
+                entity,
+                dimension: Dimension::LocomotionState,
+                from: StateValue::LocomotionState(*locomotion),
+                to: StateValue::LocomotionState(state),
+            });
+            *locomotion = state;
+        }
         if state == LocomotionState::Air {
             commands.entity(entity).insert(AlsRagdollAirExit);
         } else {
@@ -614,7 +628,7 @@ fn ragdoll_character_physics_system(
             &mut Transform,
             Option<&mut Position>,
             Option<&mut LinearVelocity>,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             &RigidBody,
             Option<&CollisionLayers>,
             &mut AlsCollisionLayerOwnership,
@@ -630,7 +644,7 @@ fn ragdoll_character_physics_system(
         mut transform,
         mut position,
         mut velocity,
-        locomotion,
+        action,
         rigid_body,
         collision_layers,
         mut collision_ownership,
@@ -639,7 +653,7 @@ fn ragdoll_character_physics_system(
         ground_follow,
     ) in &mut characters
     {
-        let is_ragdoll = *locomotion == LocomotionState::Ragdolling;
+        let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         if is_ragdoll {
             if previous_physics.is_none() {
                 if let Ok(roll) = rolls.get(entity) {
@@ -730,15 +744,15 @@ fn ragdoll_character_physics_system(
 
 fn limit_initial_ragdoll_speed(
     mut characters: Query<
-        (Entity, &LocomotionState, &mut AlsRagdollInitialSpeedLimit),
+        (Entity, Option<&AlsNotifyLocomotionAction>, &mut AlsRagdollInitialSpeedLimit),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     mut velocities: Query<&mut LinearVelocity>,
 ) {
-    for (character, locomotion, mut limit) in &mut characters {
-        if *locomotion != LocomotionState::Ragdolling {
+    for (character, action, mut limit) in &mut characters {
+        if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let Some(player) = animated_player_for_character(character, &avatars)
@@ -783,7 +797,7 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut commands: Commands,
     transform_helper: TransformHelper,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    characters: Query<(&LocomotionState, &Transform), With<AlsCharacter>>,
+    characters: Query<(Option<&AlsNotifyLocomotionAction>, &Transform, &LocomotionState), With<AlsCharacter>>,
     detached_players: Query<&AlsRagdollDetachedPlayer>,
     skeletons: Res<Assets<Skeleton>>,
     bones: Query<(&Name, &Transform, &GlobalTransform, Option<&ChildOf>)>,
@@ -791,10 +805,10 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (avatar, instance) in &avatars {
-        let Ok((locomotion, actor_transform)) = characters.get(avatar.character) else {
+        let Ok((action, actor_transform, locomotion)) = characters.get(avatar.character) else {
             continue;
         };
-        if *locomotion == LocomotionState::Ragdolling {
+        if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let player_entity = instance.player_entity();
@@ -890,7 +904,7 @@ fn ragdoll_ground_follow(
         (
             Entity,
             &Position,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             &Stance,
             &AlsMovementParamsHandle,
         ),
@@ -901,8 +915,8 @@ fn ragdoll_ground_follow(
     labels: Query<&BodyLabel>,
     body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
-    for (entity, _position, locomotion, stance, params_handle) in &characters {
-        if *locomotion != LocomotionState::Ragdolling {
+    for (entity, _position, action, stance, params_handle) in &characters {
+        if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let Some(instance) = avatars
@@ -969,14 +983,14 @@ fn apply_ragdoll_ground_follow(
             &mut Position,
             &mut Transform,
             &mut LinearVelocity,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             &AlsRagdollGroundFollow,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (mut position, mut transform, mut velocity, locomotion, ground_follow) in &mut characters {
-        if *locomotion != LocomotionState::Ragdolling {
+    for (mut position, mut transform, mut velocity, action, ground_follow) in &mut characters {
+        if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         position.0 = ground_follow.target;
@@ -988,13 +1002,13 @@ fn apply_ragdoll_ground_follow(
 #[allow(clippy::type_complexity)]
 fn ragdoll_link_system(
     mut commands: Commands,
-    mut q: Query<(Entity, &LocomotionState, &mut AlsRagdollLink), With<AlsCharacter>>,
+    mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers)>,
 ) {
-    for (character, loco, mut link) in &mut q {
-        let is_ragdoll = *loco == LocomotionState::Ragdolling;
+    for (character, action, mut link) in &mut q {
+        let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let Some(instance) = avatars
             .iter()
             .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
@@ -1482,7 +1496,7 @@ mod tests {
                 .is_none()
         );
 
-        *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Ragdolling;
+        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling));
         app.world_mut()
             .run_system_cached(capture_ragdoll_player_world_transform)
             .unwrap();
@@ -1542,8 +1556,8 @@ mod tests {
                 Ok(())
             }
         }
-        fn corrupt_unmapped_ecs_pose(characters: Query<&LocomotionState>, mut bones: Query<(&Name, &mut Transform)>) {
-            if !characters.iter().any(|state| *state == LocomotionState::Ragdolling) { return; }
+        fn corrupt_unmapped_ecs_pose(characters: Query<&AlsNotifyLocomotionAction>, mut bones: Query<(&Name, &mut Transform)>) {
+            if !characters.iter().any(|state| *state == AlsNotifyLocomotionAction::Ragdolling) { return; }
             for (name, mut transform) in &mut bones {
                 if name.as_str() == "marker" { transform.translation.y = 42.0; }
             }
@@ -1573,6 +1587,7 @@ mod tests {
             std::time::Duration::from_secs_f32(1.0 / 60.0),
         ))
         .add_plugins(crate::ragdolling_layer::RagdollingLayerPlugin)
+        .add_plugins(crate::ab_als_root::AlsRootGraphPlugin)
         .add_plugins(als_ext::RagdollPhysicsProfilePlugin)
         .init_asset::<AlsMovementParams>()
         .add_plugins(AlsRagdollLinkPlugin)
@@ -1630,6 +1645,17 @@ mod tests {
         pose.add_bone(BonePose::from_transform(marker_local), marker_path.id());
 
         let mut graph = AnimationGraph::new();
+        for (output, key, tag) in [
+            ("grounded", "locomotion_mode", "Als.LocomotionMode.Grounded"),
+            ("ragdolling", "locomotion_action", "Als.LocomotionAction.Ragdolling"),
+        ] {
+            let node = bevy_animation_graph::core::animation_node::AnimationNode::new(output,
+                als_ext::SourceGameplayTagInputNode { key: key.into(), output: "value".into(),
+                    expected_tag: tag.into(), ..default() });
+            graph.add_node(node.clone());
+            graph.add_output_data(output.into(), DataSpec::Bool);
+            graph.add_output_data_edge(node.id, "value", output);
+        }
         for (name, spec) in [
             ("pose", DataSpec::Pose),
             ("ragdoll_config", DataSpec::RagdollConfig),
@@ -1718,6 +1744,11 @@ mod tests {
                 AlsCharacter,
                 LocomotionState::Grounded,
                 actor_world,
+                Stance::Standing,
+                Gait::Walking,
+                RotationMode::ViewDirection,
+                OverlayState::Default,
+                crate::actual_motion::AlsActualMotion::default(),
                 GlobalTransform::from(actor_world),
                 Position(actor_world.translation),
                 Rotation(actor_world.rotation),
@@ -1837,7 +1868,7 @@ mod tests {
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
         assert!(transforms_match(actual, expected));
 
-        *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Ragdolling;
+        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling));
         let index = pose.paths[&joint_path.id()];
         pose.bones[index].translation = Some(joint_local.translation + Vec3::X * 0.09);
         app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data("pose", DataValue::Pose(pose));
@@ -1854,6 +1885,10 @@ mod tests {
             );
         app.update();
         assert!(app.world().get::<ChildOf>(player_entity).is_none());
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), true);
+        assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
+        assert_eq!(player.get_global_input_data("als_overlay_locomotion_action_index").unwrap().as_f32().unwrap(), 4.0);
         let handoff = app
             .world()
             .get::<RagdollPhysicsProfileApplied>(player_entity)
@@ -1879,10 +1914,14 @@ mod tests {
             }));
         app.world_mut().entity_mut(actor).insert((
             followed_actor,
+            LocomotionState::None,
             Position(followed_actor.translation),
             Rotation(followed_actor.rotation),
         ));
         app.update();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), false);
+        assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
         let actual =
             Transform::from_translation(app.world().get::<Position>(body_entity).unwrap().0)
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
@@ -1893,7 +1932,7 @@ mod tests {
         assert!(transforms_match(app.world().get::<GlobalTransform>(joint_entity).unwrap().compute_transform(), expected));
         assert!(app.world().get::<Transform>(marker_entity).unwrap().translation.abs_diff_eq(marker_local.translation + Vec3::Y * 0.07, 1e-6));
 
-        *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Air;
+        app.world_mut().entity_mut(actor).insert((LocomotionState::Air, AlsNotifyLocomotionAction::None));
         app.world_mut()
             .get_mut::<AnimationGraphPlayer>(player_entity)
             .unwrap()
@@ -1919,6 +1958,8 @@ mod tests {
             .unwrap()
             .as_pose()
             .unwrap();
+        assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), false);
+        assert_eq!(player.get_global_input_data("als_overlay_locomotion_action_index").unwrap().as_f32().unwrap(), 0.0);
         let pelvis = snapshot.bones[snapshot.paths[&joint_path.id()]].to_transform();
         let restored_world = app
             .world()
@@ -1978,79 +2019,115 @@ mod tests {
 
     #[test]
     fn ragdoll_exit_routes_airborne_velocity_and_grounded_recovery() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin))
-            .add_systems(
-                Update,
-                ragdoll_exit_route_system.before(als_core::transition::state_transition_system),
+        for initial_mode in [
+            LocomotionState::None,
+            LocomotionState::Grounded,
+            LocomotionState::Custom,
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin))
+                .add_systems(
+                    Update,
+                    ragdoll_exit_route_system.before(als_core::transition::state_transition_system),
+                );
+            let air_velocity = Vec3::new(2.5, -4.0, -1.5);
+            let airborne = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    LocomotionState::None,
+                    AlsNotifyLocomotionAction::Ragdolling,
+                    Stance::Standing,
+                    Gait::Running,
+                    RotationMode::VelocityDirection,
+                    OverlayState::Default,
+                    AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
+                    LinearVelocity(Vec3::ZERO),
+                    AlsRagdollGroundFollow {
+                        pelvis: Vec3::ZERO,
+                        target: Vec3::new(0.0, 4.0, 0.0),
+                        velocity: air_velocity,
+                        grounded: false,
+                    },
+                ))
+                .id();
+            let grounded = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    initial_mode,
+                    AlsNotifyLocomotionAction::Ragdolling,
+                    Stance::Standing,
+                    Gait::Running,
+                    RotationMode::VelocityDirection,
+                    OverlayState::Default,
+                    AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
+                    LinearVelocity(Vec3::ONE),
+                    AlsRagdollGroundFollow {
+                        pelvis: Vec3::ZERO,
+                        target: Vec3::Y,
+                        velocity: air_velocity,
+                        grounded: true,
+                    },
+                ))
+                .id();
+            app.world_mut()
+                .get_mut::<AlsStateRequest>(airborne)
+                .unwrap()
+                .ragdoll_exit = true;
+            app.world_mut()
+                .get_mut::<AlsStateRequest>(grounded)
+                .unwrap()
+                .ragdoll_exit = true;
+            app.update();
+            let air_state = *app.world().get::<LocomotionState>(airborne).unwrap();
+            for entity in [airborne, grounded] {
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(entity),
+                    Some(&AlsNotifyLocomotionAction::None)
+                );
+                assert!(
+                    !app.world()
+                        .get::<AlsStateRequest>(entity)
+                        .unwrap()
+                        .ragdoll_exit
+                );
+            }
+            let events: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .collect();
+            assert_eq!(
+                events.len(),
+                1 + usize::from(initial_mode != LocomotionState::Grounded)
             );
-        let air_velocity = Vec3::new(2.5, -4.0, -1.5);
-        let airborne = app
-            .world_mut()
-            .spawn((
-                AlsCharacter,
-                LocomotionState::Ragdolling,
-                Stance::Standing,
-                Gait::Running,
-                RotationMode::VelocityDirection,
-                OverlayState::Default,
-                AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
-                LinearVelocity(Vec3::ZERO),
-                AlsRagdollGroundFollow {
-                    pelvis: Vec3::ZERO,
-                    target: Vec3::new(0.0, 4.0, 0.0),
-                    velocity: air_velocity,
-                    grounded: false,
-                },
-            ))
-            .id();
-        let grounded = app
-            .world_mut()
-            .spawn((
-                AlsCharacter,
-                LocomotionState::Ragdolling,
-                Stance::Standing,
-                Gait::Running,
-                RotationMode::VelocityDirection,
-                OverlayState::Default,
-                AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
-                LinearVelocity(Vec3::ONE),
-                AlsRagdollGroundFollow {
-                    pelvis: Vec3::ZERO,
-                    target: Vec3::Y,
-                    velocity: air_velocity,
-                    grounded: true,
-                },
-            ))
-            .id();
-        app.world_mut()
-            .get_mut::<AlsStateRequest>(airborne)
-            .unwrap()
-            .ragdoll_exit = true;
-        app.world_mut()
-            .get_mut::<AlsStateRequest>(grounded)
-            .unwrap()
-            .ragdoll_exit = true;
-        app.update();
-        let air_state = *app.world().get::<LocomotionState>(airborne).unwrap();
-        let air_after = app.world().get::<LinearVelocity>(airborne).unwrap().0;
-        let air_hold = app.world().get::<AlsRagdollAirExit>(airborne).is_some();
-        let ground_state = *app.world().get::<LocomotionState>(grounded).unwrap();
-        let ground_after = app.world().get::<LinearVelocity>(grounded).unwrap().0;
-        let passed = air_state == LocomotionState::Air
-            && air_after.distance(air_velocity) <= 1e-6
-            && air_hold
-            && ground_state == LocomotionState::Grounded
-            && ground_after.length_squared() <= 1e-6;
-        let verdict = if passed { "PASS" } else { "FAIL" };
-        println!(
-            "[BF102.50][VERDICT] air_state={air_state:?} air_hold={air_hold} air_velocity=({:.3},{:.3},{:.3}) ground_state={ground_state:?} ground_velocity={:.3} -> {verdict}",
-            air_after.x,
-            air_after.y,
-            air_after.z,
-            ground_after.length(),
-        );
-        assert!(passed);
+            if let Some(event) = events.iter().find(|event| event.entity == grounded) {
+                assert_eq!(event.from, StateValue::LocomotionState(initial_mode));
+                assert_eq!(
+                    event.to,
+                    StateValue::LocomotionState(LocomotionState::Grounded)
+                );
+            }
+            let air_after = app.world().get::<LinearVelocity>(airborne).unwrap().0;
+            let air_hold = app.world().get::<AlsRagdollAirExit>(airborne).is_some();
+            let ground_state = *app.world().get::<LocomotionState>(grounded).unwrap();
+            let ground_after = app.world().get::<LinearVelocity>(grounded).unwrap().0;
+            let passed = air_state == LocomotionState::Air
+                && air_after.distance(air_velocity) <= 1e-6
+                && air_hold
+                && ground_state == LocomotionState::Grounded
+                && ground_after.length_squared() <= 1e-6;
+            let verdict = if passed { "PASS" } else { "FAIL" };
+            println!(
+                "[BF102.50][VERDICT] air_state={air_state:?} air_hold={air_hold} air_velocity=({:.3},{:.3},{:.3}) ground_state={ground_state:?} ground_velocity={:.3} -> {verdict}",
+                air_after.x,
+                air_after.y,
+                air_after.z,
+                ground_after.length(),
+            );
+            assert!(passed);
+        }
     }
 
     #[test]

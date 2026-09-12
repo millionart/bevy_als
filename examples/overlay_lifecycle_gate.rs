@@ -35,6 +35,7 @@ fn setup(mut commands: Commands) {
         AlsCharacter,
         OverlayState::Rifle,
         LocomotionState::Grounded,
+        als_core::state::AlsNotifyLocomotionAction::None,
         AlsMantleState::default(),
         AlsCharacterAssembly {
             avatar,
@@ -46,12 +47,12 @@ fn setup(mut commands: Commands) {
 fn verify_overlay_lifecycle(
     mut phase: Local<u8>,
     mut frames: Local<u32>,
-    mut characters: Query<(&mut LocomotionState, &mut AlsMantleState), With<AlsCharacter>>,
+    mut characters: Query<(&mut als_core::state::AlsNotifyLocomotionAction, &mut AlsMantleState), With<AlsCharacter>>,
     props: Query<&AlsOverlayObject>,
     mut exit: MessageWriter<AppExit>,
 ) {
     *frames += 1;
-    let Ok((mut locomotion, mut mantle)) = characters.single_mut() else {
+    let Ok((mut action, mut mantle)) = characters.single_mut() else {
         return;
     };
     let prop_count = props.iter().count();
@@ -74,11 +75,11 @@ fn verify_overlay_lifecycle(
             *phase = 2;
         }
         2 if prop_count == 1 => {
-            *locomotion = LocomotionState::Ragdolling;
+            *action = als_core::state::AlsNotifyLocomotionAction::Ragdolling;
             *phase = 3;
         }
         3 if prop_count == 0 => {
-            *locomotion = LocomotionState::Grounded;
+            *action = als_core::state::AlsNotifyLocomotionAction::None;
             mantle.active = false;
             *phase = 4;
         }

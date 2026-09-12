@@ -486,7 +486,7 @@ mod tests {
         })).id();
         for (locomotion, mode, first_person, view_angle) in [
             (LocomotionState::Grounded, RotationMode::Aiming, false, -60.0),
-            (LocomotionState::Ragdolling, RotationMode::Aiming, false, -35.0),
+            (LocomotionState::None, RotationMode::Aiming, false, -35.0),
             (LocomotionState::Grounded, RotationMode::ViewDirection, true, 45.0),
         ] {
             app.world_mut().entity_mut(actor).insert((locomotion, mode));

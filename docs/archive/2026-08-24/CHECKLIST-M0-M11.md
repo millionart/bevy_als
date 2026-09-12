@@ -40,7 +40,9 @@ M0 环境与资产管线 ─► M1 ECS核心状态模型 ─► M2 曲线基础�
 
 对标 ALS GameplayTags 体系，改为纯 ECS 组件。参考 ALS：ViewMode / LocomotionMode / RotationMode / Stance / Gait / OverlayState。
 
-- [x] M1.1 `crates/als-core`：定义状态组件 `LocomotionState`（Grounded/Air/Ragdolling 等顶层 mode）、`RotationMode`(VelocityDirection/ViewDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…13 项枚举)；全部枚举取值已对照 ALS v4.18 AlsGameplayTags.h 核对定稿（RotationMode 用源码 ViewDirection，修正本清单旧称 ControlDirection；Ragdoll 并入顶层 LocomotionState）。
+- [x] M1.1 `crates/als-core`：定义实际移动模式 `LocomotionState`（Grounded/Air/Custom/None；Custom/None投影为空LocomotionMode tag）、独立动作 `AlsNotifyLocomotionAction`（None/Mantling/GettingUp/Rolling/Ragdolling）、`RotationMode`(VelocityDirection/ViewDirection/Aiming)、`Stance`(Standing/Crouching)、`Gait`(Walking/Running/Sprinting)、`OverlayState`(Default/…13项)。2026-09-12按当次ALS-Refactored Actor/CMC调用链纠正原Ragdoll并入顶层mode的设计；其它状态维度保留。
+  - 2026-09-12随BF115.09e2b1仅复开Ragdoll并入顶层LocomotionState的设计：fresh StartRagdolling、受锁保护的virtual SetMovementMode与Refresh/StopMantling证明，Mantle期间进入Ragdoll动作后，Stop仍恢复Walking，移动模式与动作必须能同时表达Grounded/Ragdolling。旧Gate仅验证单个合并枚举切换及普通倒地恢复，没有覆盖该交叉状态对；当前Root/Mantle链继续未完成。开始14:54、预估15:39；先最小失败fixture，再沿现有动作组件与全部真实消费者迁移，物理资产/约束/驱动算法和其它状态维度不复开。
+  - 2026-09-12 15:33:06重新关闭：249core/1既有忽略、316项目、8个相关示例编译通过；普通None＋Ragdolling及Mantle退出后的Grounded＋Ragdolling、重复请求、锁/恢复事件、通知竞争和实际Root/物理读回均有断言，四项消融均失败后恢复。开始14:54、预估15:39、实际15:33:06、偏差-354s；本项仅状态表示及真实消费者静态闭合，完整Mantle物理/Playground验收仍在当前清单。
 - [x] M1.2 状态合法性约束系统：非法转移（如空中切蹲）由专门 system 拒绝/排队；提供 `StateTransitionEvent`。
   - 设计要点：逐维度 Verdict(Accept/Reject/Queue) 支持部分应用；默认策略 Queue 对应 ALS Desired 字段持久语义；Ragdolling→Air 无视策略直接拒绝；同值请求幂等不发事件。
 - [x] M1.3 输入抽象层：bevy_enhanced_input 映射 Move/Look/Jump/Crouch/Sprint/Aim/Roll 等 action → `AlsInputCommand` 组件（与具体设备解耦）。

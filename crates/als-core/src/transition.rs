@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use crate::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Dimension {
@@ -88,6 +88,7 @@ pub enum Verdict {
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsStateRequest {
     pub locomotion_state: Option<LocomotionState>,
+    pub ragdoll_start: bool,
     pub ragdoll_exit: bool,
     pub stance: Option<Stance>,
     pub gait: Option<Gait>,
@@ -319,6 +320,7 @@ fn process_stance_dimension(
 }
 
 pub fn state_transition_system(
+    mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut rejections: MessageWriter<StateTransitionRejectedEvent>,
     mut actors: Query<(
@@ -330,6 +332,7 @@ pub fn state_transition_system(
         &mut Gait,
         &mut RotationMode,
         &mut OverlayState,
+        Option<&mut AlsNotifyLocomotionAction>,
     )>,
 ) {
     for (
@@ -341,12 +344,27 @@ pub fn state_transition_system(
         mut gait,
         mut rotation,
         mut overlay,
+        mut action,
     ) in &mut actors
     {
-        if *loco == LocomotionState::Custom
-            && matches!(req.locomotion_state, Some(LocomotionState::Grounded | LocomotionState::Air))
-        {
+        let mode_locked = *loco == LocomotionState::Custom
+            || (*loco == LocomotionState::None
+                && action.as_deref() == Some(&AlsNotifyLocomotionAction::Ragdolling));
+        if mode_locked {
             req.locomotion_state = None;
+        }
+        if std::mem::take(&mut req.ragdoll_start)
+            && action.as_deref() != Some(&AlsNotifyLocomotionAction::Ragdolling)
+        {
+            req.ragdoll_exit = false;
+            if !mode_locked {
+                req.locomotion_state = Some(LocomotionState::None);
+            }
+            if let Some(action) = action.as_deref_mut() {
+                *action = AlsNotifyLocomotionAction::Ragdolling;
+            } else {
+                commands.entity(entity).insert(AlsNotifyLocomotionAction::Ragdolling);
+            }
         }
         let cur = AlsCurrentStates {
             locomotion_state: *loco,
@@ -470,20 +488,20 @@ mod tests {
             Verdict::Accept
         );
         assert_eq!(
-            v(LocomotionState::Grounded, LocomotionState::Ragdolling),
+            v(LocomotionState::Grounded, LocomotionState::None),
             Verdict::Accept
         );
         assert_eq!(
-            v(LocomotionState::Ragdolling, LocomotionState::Grounded),
+            v(LocomotionState::None, LocomotionState::Grounded),
             Verdict::Accept
         );
         assert_eq!(
-            v(LocomotionState::Air, LocomotionState::Ragdolling),
+            v(LocomotionState::Air, LocomotionState::None),
             Verdict::Accept,
             "air to ragdolling matches ALS behavior"
         );
         assert_eq!(
-            v(LocomotionState::Ragdolling, LocomotionState::Air),
+            v(LocomotionState::None, LocomotionState::Air),
             Verdict::Accept,
             "ragdolling exit may enter air when the ground trace is clear"
         );
@@ -511,7 +529,7 @@ mod tests {
 
     #[test]
     fn overlay_and_rotation_mode_are_always_legal() {
-        let c = cur(LocomotionState::Ragdolling);
+        let c = cur(LocomotionState::None);
         let req = AlsStateRequest::default()
             .with_overlay_state(OverlayState::Rifle)
             .with_rotation_mode(RotationMode::Aiming);
@@ -548,24 +566,144 @@ mod tests {
     }
 
     #[test]
+    fn ragdoll_request_separates_action_from_locked_movement_mode() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
+        for (mode, action, expected) in [
+            (
+                LocomotionState::Grounded,
+                AlsNotifyLocomotionAction::None,
+                LocomotionState::None,
+            ),
+            (
+                LocomotionState::Air,
+                AlsNotifyLocomotionAction::Rolling,
+                LocomotionState::None,
+            ),
+            (
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                LocomotionState::Custom,
+            ),
+            (
+                LocomotionState::Grounded,
+                AlsNotifyLocomotionAction::Ragdolling,
+                LocomotionState::Grounded,
+            ),
+        ] {
+            let actor = app
+                .world_mut()
+                .spawn((
+                    mode,
+                    action,
+                    Stance::Standing,
+                    Gait::Walking,
+                    RotationMode::ViewDirection,
+                    OverlayState::Default,
+                    AlsStateRequest {
+                        ragdoll_start: true,
+                        ..default()
+                    },
+                ))
+                .id();
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected));
+            assert_eq!(
+                app.world().get::<AlsNotifyLocomotionAction>(actor),
+                Some(&AlsNotifyLocomotionAction::Ragdolling)
+            );
+            assert!(
+                !app.world()
+                    .get::<AlsStateRequest>(actor)
+                    .unwrap()
+                    .ragdoll_start
+            );
+            let events: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .collect();
+            assert_eq!(events.len(), usize::from(mode != expected));
+            if let Some(event) = events.first() {
+                assert_eq!(event.from, StateValue::LocomotionState(mode));
+                assert_eq!(event.to, StateValue::LocomotionState(expected));
+            }
+            app.world_mut()
+                .get_mut::<AlsStateRequest>(actor)
+                .unwrap()
+                .ragdoll_start = true;
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected));
+            assert_eq!(
+                app.world_mut()
+                    .resource_mut::<Messages<StateTransitionEvent>>()
+                    .drain()
+                    .count(),
+                0
+            );
+            if expected != LocomotionState::Grounded {
+                app.world_mut()
+                    .get_mut::<AlsStateRequest>(actor)
+                    .unwrap()
+                    .locomotion_state = Some(LocomotionState::Air);
+                app.update();
+                assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected));
+            }
+            app.world_mut().despawn(actor);
+        }
+    }
+
+    #[test]
     fn custom_mode_locks_ordinary_requests_and_keeps_desired_stance() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
-        let actor = app.world_mut().spawn((LocomotionState::Custom, Stance::Standing,
-            AlsDesiredStance(Stance::Standing), Gait::Walking, RotationMode::ViewDirection,
-            OverlayState::Default, AlsStateRequest::default())).id();
+        let actor = app
+            .world_mut()
+            .spawn((
+                LocomotionState::Custom,
+                Stance::Standing,
+                AlsDesiredStance(Stance::Standing),
+                Gait::Walking,
+                RotationMode::ViewDirection,
+                OverlayState::Default,
+                AlsStateRequest::default(),
+            ))
+            .id();
         for requested in [LocomotionState::Grounded, LocomotionState::Air] {
             *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() = AlsStateRequest::default()
-                .with_locomotion_state(requested).with_stance(Stance::Crouching);
+                .with_locomotion_state(requested)
+                .with_stance(Stance::Crouching);
             app.update();
-            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
-            assert_eq!(app.world().get::<AlsStateRequest>(actor).unwrap().locomotion_state, None);
+            assert_eq!(
+                app.world().get::<LocomotionState>(actor),
+                Some(&LocomotionState::Custom)
+            );
+            assert_eq!(
+                app.world()
+                    .get::<AlsStateRequest>(actor)
+                    .unwrap()
+                    .locomotion_state,
+                None
+            );
             assert_eq!(app.world().get::<Stance>(actor), Some(&Stance::Standing));
-            assert_eq!(app.world().get::<AlsDesiredStance>(actor).unwrap().0, Stance::Crouching);
+            assert_eq!(
+                app.world().get::<AlsDesiredStance>(actor).unwrap().0,
+                Stance::Crouching
+            );
         }
-        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
+        app.world_mut()
+            .get_mut::<AlsStateRequest>(actor)
+            .unwrap()
+            .ragdoll_start = true;
         app.update();
-        assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Ragdolling));
+        assert_eq!(
+            app.world().get::<LocomotionState>(actor),
+            Some(&LocomotionState::Custom)
+        );
+        assert_eq!(
+            app.world().get::<AlsNotifyLocomotionAction>(actor),
+            Some(&AlsNotifyLocomotionAction::Ragdolling)
+        );
     }
 
     #[test]
@@ -655,7 +793,7 @@ mod tests {
     }
 
     #[test]
-    fn ragdoll_to_air_transitions_end_to_end() {
+    fn unlocked_none_to_air_transitions_end_to_end() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(AlsStateTransitionPlugin);
@@ -663,7 +801,7 @@ mod tests {
         let e = app
             .world_mut()
             .spawn((
-                LocomotionState::Ragdolling,
+                LocomotionState::None,
                 Stance::Standing,
                 Gait::Walking,
                 RotationMode::VelocityDirection,
@@ -703,7 +841,7 @@ mod tests {
             vec![StateTransitionEvent {
                 entity: e,
                 dimension: Dimension::LocomotionState,
-                from: StateValue::LocomotionState(LocomotionState::Ragdolling),
+                from: StateValue::LocomotionState(LocomotionState::None),
                 to: StateValue::LocomotionState(LocomotionState::Air),
             }],
             "ragdoll-to-air transition must be observable"

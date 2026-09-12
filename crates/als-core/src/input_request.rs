@@ -4,7 +4,7 @@ use crate::aim::AlsLastFreeRotationMode;
 use crate::character::AlsCharacter;
 use crate::input::AlsInputCommand;
 use crate::motion::AlsInputOverride;
-use crate::state::{Gait, LocomotionState, RotationMode, Stance};
+use crate::state::{AlsNotifyLocomotionAction, Gait, RotationMode, Stance};
 use crate::transition::{AlsDesiredStance, AlsStateRequest, state_transition_system};
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub fn input_state_request_system(
             &Stance,
             Option<&AlsDesiredStance>,
             &mut crate::gait::AlsDesiredGait,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             &RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
             Has<AlsFirstPersonView>,
@@ -42,7 +42,7 @@ pub fn input_state_request_system(
         stance,
         desired_stance,
         mut desired_gait,
-        loco,
+        action,
         rotation_mode,
         mut last_free,
         first_person,
@@ -88,17 +88,8 @@ pub fn input_state_request_system(
         }
 
         if effective.ragdoll_pressed {
-            let target = match loco {
-                LocomotionState::Ragdolling => {
-                    request.ragdoll_exit = true;
-                    LocomotionState::Grounded
-                }
-                _ => {
-                    request.ragdoll_exit = false;
-                    LocomotionState::Ragdolling
-                }
-            };
-            request.locomotion_state = Some(target);
+            request.ragdoll_exit = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
+            request.ragdoll_start = !request.ragdoll_exit;
         }
 
         if effective.rotation_mode_pressed {
@@ -448,7 +439,7 @@ mod tests {
         app.update();
         assert_eq!(
             *app.world().get::<LocomotionState>(e).unwrap(),
-            LocomotionState::Ragdolling
+            LocomotionState::None
         );
 
         app.world_mut()
@@ -464,8 +455,8 @@ mod tests {
         app.update();
         assert_eq!(
             *app.world().get::<LocomotionState>(e).unwrap(),
-            LocomotionState::Grounded,
-            "second press while ragdolled requests recovery"
+            LocomotionState::None,
+            "recovery waits for the ragdoll ground trace"
         );
         assert!(
             app.world().get::<AlsStateRequest>(e).unwrap().ragdoll_exit,

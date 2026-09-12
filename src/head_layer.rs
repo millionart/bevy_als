@@ -10,7 +10,7 @@ pub use als_core::head::{
 use als_core::input_request::AlsFirstPersonView;
 use als_core::motion::AlsRotationResponseState;
 use als_core::orientation::world_forward_to_yaw;
-use als_core::state::{LocomotionState, RotationMode};
+use als_core::state::RotationMode;
 use als_core::view::AlsViewPitch;
 use als_ext::{source_instance::source_player_property, unscaled_delta_seconds};
 use bevy::prelude::*;
@@ -163,7 +163,6 @@ fn head_layer_writer(
             &Transform,
             Option<&AlsViewPitch>,
             &RotationMode,
-            &LocomotionState,
             Option<&AlsRotationResponseState>,
             Has<AlsFirstPersonView>,
             Option<&AlsCameraCustomTimeDilation>,
@@ -178,7 +177,6 @@ fn head_layer_writer(
             transform,
             pitch,
             rotation_mode,
-            locomotion,
             response,
             first_person,
             custom_dilation,
@@ -199,8 +197,7 @@ fn head_layer_writer(
             custom_dilation.map_or(1.0, |value| value.0),
         );
         player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
-        let action_active = *locomotion == LocomotionState::Ragdolling
-            || player_scalar(&player, "als_overlay_locomotion_action_index", 0.0) != 0.0;
+        let action_active = player_scalar(&player, "als_overlay_locomotion_action_index", 0.0) != 0.0;
         let input = head_frame_inputs(
             &player,
             transform,

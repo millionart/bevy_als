@@ -139,7 +139,8 @@ fn apply_probe_state(
         0.0,
     );
     if let Ok(mut first_locomotion) = locomotion.get_mut(probe.first) {
-        *first_locomotion = LocomotionState::Ragdolling;
+        *first_locomotion = LocomotionState::None;
+        commands.entity(probe.first).insert(als_core::state::AlsNotifyLocomotionAction::Ragdolling);
     }
     if let Ok(mut second_locomotion) = locomotion.get_mut(probe.second) {
         *second_locomotion = LocomotionState::Grounded;

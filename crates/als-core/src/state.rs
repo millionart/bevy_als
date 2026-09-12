@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
-#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AlsNotifyLocomotionAction {
     #[default]
     None,
     Mantling,
     GettingUp,
     Rolling,
+    Ragdolling,
 }
 
 #[derive(
@@ -28,7 +29,7 @@ pub enum LocomotionState {
     Grounded,
     Air,
     Custom,
-    Ragdolling,
+    None,
 }
 
 #[derive(
@@ -156,7 +157,7 @@ mod tests {
         check("Grounded", LocomotionState::Grounded);
         check("Air", LocomotionState::Air);
         check("Custom", LocomotionState::Custom);
-        check("Ragdolling", LocomotionState::Ragdolling);
+        check("r#None", LocomotionState::None);
         check("VelocityDirection", RotationMode::VelocityDirection);
         check("ViewDirection", RotationMode::ViewDirection);
         check("Aiming", RotationMode::Aiming);

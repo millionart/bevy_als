@@ -1,5 +1,5 @@
 use als_core::character::AlsCharacter;
-use als_core::state::LocomotionState;
+use als_core::state::AlsNotifyLocomotionAction;
 use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
@@ -82,7 +82,7 @@ fn ragdolling_layer_writer(
     mut characters: Query<
         (
             Entity,
-            &LocomotionState,
+            Option<&AlsNotifyLocomotionAction>,
             Option<&mut AlsRagdollingAnimationState>,
         ),
         With<AlsCharacter>,
@@ -92,8 +92,8 @@ fn ragdolling_layer_writer(
     velocities: Query<&LinearVelocity>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (entity, locomotion_state, current_state) in &mut characters {
-        let ragdolling = matches!(*locomotion_state, LocomotionState::Ragdolling);
+    for (entity, action, current_state) in &mut characters {
+        let ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let mut state = current_state.as_deref().copied().unwrap_or_default();
         for (parent, instance) in &avatars {
             if parent.parent() != entity {

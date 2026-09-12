@@ -262,7 +262,7 @@ fn auto_demo(
         let s = &all[idx];
         info!("[RGATE][STEP {}] {}", idx, s.label);
         if s.trigger_ragdoll {
-            req.locomotion_state = Some(LocomotionState::Ragdolling);
+            req.ragdoll_start = true;
             info!("[RGATE] request Ragdolling mid-run");
         }
         if s.trigger_recover {
@@ -276,7 +276,7 @@ fn auto_demo(
     } else {
         let s = &all[idx];
         if s.trigger_ragdoll {
-            req.locomotion_state = Some(LocomotionState::Ragdolling);
+            req.ragdoll_start = true;
         }
     }
     over.0.move_dir = all[idx].move_dir;
@@ -297,6 +297,7 @@ fn ragdoll_watcher(
             &Transform,
             &LinearVelocity,
             &LocomotionState,
+            Option<&als_core::state::AlsNotifyLocomotionAction>,
             &mut AlsStateRequest,
             Option<&CollisionLayers>,
             &RigidBody,
@@ -322,6 +323,7 @@ fn ragdoll_watcher(
         tf,
         vel,
         loco,
+        action,
         mut req,
         character_layers,
         character_mode,
@@ -333,7 +335,7 @@ fn ragdoll_watcher(
         return;
     };
 
-    if *loco == LocomotionState::Ragdolling && !watch.ragdoll_entered {
+    if action == Some(&als_core::state::AlsNotifyLocomotionAction::Ragdolling) && !watch.ragdoll_entered {
         watch.ragdoll_entered = true;
         info!("[RGATE][PHASE] ragdoll active -- physics takes over");
         req.locomotion_state = None;
@@ -481,7 +483,7 @@ fn ragdoll_watcher(
         }
     }
 
-    if *loco == LocomotionState::Ragdolling {
+    if action == Some(&als_core::state::AlsNotifyLocomotionAction::Ragdolling) {
         if let Some(drive) = joint_drive {
             if watch.joint_drive_startup.is_none() {
                 watch.joint_drive_startup = Some((drive.speed_amount, drive.angular_stiffness));
@@ -552,6 +554,7 @@ fn ragdoll_watcher(
 
     if watch.settle_seen
         && !watch.recovered
+        && action != Some(&als_core::state::AlsNotifyLocomotionAction::Ragdolling)
         && *loco == LocomotionState::Grounded
         && tf.translation.y > 0.7
         && tf.translation.y < 1.1

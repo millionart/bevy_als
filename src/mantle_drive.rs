@@ -247,14 +247,15 @@ fn prepare_mantle_montages(
             &mut LocomotionState,
             Option<&als_core::roll::AlsRollState>,
             Option<&mut crate::get_up::AlsGetUpState>,
+            Option<&AlsNotifyLocomotionAction>,
         ),
         With<AlsCharacter>,
     >,
 ) {
     let delta = time.delta_secs();
-    for (character, mantle, mut current, mut locomotion, roll, mut get_up) in &mut characters {
+    for (character, mantle, mut current, mut locomotion, roll, mut get_up, action) in &mut characters {
         let starting = mantle.active
-            && *locomotion != LocomotionState::Ragdolling
+            && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && !mantle.root_motion_ready
             && delta > 1e-8
             && clips
@@ -292,7 +293,7 @@ fn prepare_mantle_montages(
         }
         let last = montages.entries.len().saturating_sub(1);
         for (index, entry) in montages.entries.iter_mut().enumerate() {
-            if *locomotion == LocomotionState::Ragdolling {
+            if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
                 entry.stop(
                     crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds,
                     true,
@@ -516,8 +517,7 @@ fn mantle_pose_system(
         if !m.active && !m.root_motion_ready {
             continue;
         }
-        let action_ended = action != Some(&AlsNotifyLocomotionAction::Mantling)
-            || *locomotion == LocomotionState::Ragdolling;
+        let action_ended = action != Some(&AlsNotifyLocomotionAction::Mantling);
         let mode_changed = *locomotion != LocomotionState::Custom;
         let target_valid = action_ended
             || mode_changed
@@ -540,10 +540,7 @@ fn mantle_pose_system(
             }
             m.active = false;
             m.root_motion_ready = false;
-            if !matches!(
-                *locomotion,
-                LocomotionState::Grounded | LocomotionState::Ragdolling
-            ) {
+            if *locomotion != LocomotionState::Grounded {
                 transitions.write(StateTransitionEvent {
                     entity,
                     dimension: Dimension::LocomotionState,
@@ -710,6 +707,13 @@ mod tests {
         for (mode, action, missing_target, expected, interrupted) in [
             (
                 LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Ragdolling,
+                false,
+                LocomotionState::Grounded,
+                false,
+            ),
+            (
+                LocomotionState::Custom,
                 AlsNotifyLocomotionAction::Mantling,
                 false,
                 LocomotionState::Custom,
@@ -792,6 +796,7 @@ mod tests {
                 .id();
             world.run_system_once(mantle_pose_system).unwrap();
             assert_eq!(world.get::<LocomotionState>(actor), Some(&expected));
+            assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&action));
             assert_eq!(
                 world.get::<AlsMantleState>(actor).unwrap().active,
                 expected == LocomotionState::Custom
@@ -1323,7 +1328,7 @@ mod tests {
         pending.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
         let actor = app
             .world_mut()
-            .spawn((AlsCharacter, pending, LocomotionState::Ragdolling))
+            .spawn((AlsCharacter, pending, LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling))
             .id();
         app.world_mut()
             .resource_mut::<Time>()
@@ -1333,7 +1338,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             app.world().get::<LocomotionState>(actor),
-            Some(&LocomotionState::Ragdolling)
+            Some(&LocomotionState::None)
         );
         assert!(app.world().get::<AlsMantleMontages>(actor).is_none());
         app.world_mut().despawn(actor);
@@ -1347,7 +1352,7 @@ mod tests {
             scale: Vec3::ONE,
             relative_location: false,
         });
-        for mode in [LocomotionState::Grounded, LocomotionState::Ragdolling] {
+        for mode in [LocomotionState::Grounded, LocomotionState::None] {
             let actor = app
                 .world_mut()
                 .spawn((
@@ -1378,11 +1383,8 @@ mod tests {
                     AlsCharacter,
                     mantle,
                     montages,
-                    if interrupt == 2 {
-                        als_core::state::LocomotionState::Ragdolling
-                    } else {
-                        als_core::state::LocomotionState::Grounded
-                    },
+                    LocomotionState::Grounded,
+                    if interrupt == 2 { AlsNotifyLocomotionAction::Ragdolling } else { AlsNotifyLocomotionAction::None },
                 ))
                 .id();
             if interrupt == 0 {
