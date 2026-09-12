@@ -66,6 +66,7 @@ use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::head_layer::AlsHeadState;
 use crate::layering_layer::AlsLayeringState;
+use crate::mantle_drive::AlsMantleMontages;
 use crate::overlay_mode_menu::OverlayMenuState;
 use crate::overlay_object::{AlsOverlayObject, AlsOverlayObjectState};
 use crate::ragdoll_link::{
@@ -2949,8 +2950,7 @@ struct ManualIntegrationState {
     dilation_active: bool,
     initial_view_yaw: Option<f32>,
     initial_view_pitch: Option<f32>,
-    mantle_target_y: Option<f32>,
-    mantle_was_active: bool,
+    mantle_root_released: bool,
     ragdoll_seen: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
@@ -3065,8 +3065,7 @@ impl Default for ManualIntegrationState {
             dilation_active: false,
             initial_view_yaw: None,
             initial_view_pitch: None,
-            mantle_target_y: None,
-            mantle_was_active: false,
+            mantle_root_released: false,
             ragdoll_seen: false,
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
@@ -5913,6 +5912,143 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
     }
 }
 
+const MANTLE_SLOT_NODE: &str = "Slot 'PostLocomotion'\nGroup 'Locomotion'";
+
+fn mantle_foot_ik_matches_source(
+    apply: &AlsFootIkApplyTelemetry,
+    curves: [f32; 2],
+    slot_weight: Option<f32>,
+) -> bool {
+    slot_weight.is_some_and(|weight| weight >= 1.0 - 1e-5)
+        && [apply.left, apply.right]
+            .into_iter()
+            .zip(curves)
+            .all(|(side, curve)| {
+                side.valid
+                    && (side.applied_weight - curve.clamp(0.0, 1.0)).abs() <= 1e-5
+                    && side.effector_error <= 0.02
+            })
+}
+
+fn mantle_slot_sample(
+    arena: &bevy_animation_graph::core::context::graph_context_arena::GraphContextArena,
+    graphs: &Assets<AnimationGraph>,
+) -> Option<als_ext::animation_context::SourceRelevantAsset> {
+    arena.iter_context_ids().find_map(|id| {
+        let context = arena.get_context(id)?;
+        let graph = graphs.get(context.get_graph_id())?;
+        let node = graph
+            .nodes
+            .values()
+            .find(|node| node.name == MANTLE_SLOT_NODE)?;
+        let DataValue::Pose(pose) =
+            context
+                .node_caches
+                .get_output_data(node.id, StateKey::Default, "Pose".into())?
+        else {
+            return None;
+        };
+        if pose.paths.is_empty() {
+            return None;
+        }
+        let sample = context
+            .node_states
+            .get::<als_ext::AnimationContextState>(node.id, StateKey::Default)
+            .ok()?
+            .relevant_asset
+            .as_ref()?;
+        Some(sample.clone())
+    })
+}
+
+fn observe_mantle(
+    state: &mut ManualIntegrationState,
+    window: &mut ManualAnimationWindowEvidence,
+    mantle: &AlsMantleState,
+    montages: Option<&AlsMantleMontages>,
+    player: &AnimationGraphPlayer,
+    graphs: &Assets<AnimationGraph>,
+    locomotion: LocomotionState,
+    action: Option<AlsNotifyLocomotionAction>,
+    position: Vec3,
+) {
+    let settings = crate::mantle_drive::mantle_montage_settings(mantle.kind);
+    let montage = montages.and_then(|montages| {
+        montages
+            .entries
+            .iter()
+            .rev()
+            .find(|entry| entry.kind == mantle.kind && entry.pose_ready)
+    });
+    let sample = player
+        .get_context_arena()
+        .and_then(|arena| mantle_slot_sample(arena, graphs))
+        .filter(|sample| {
+            montage.is_some_and(|entry| {
+                (sample.position - entry.clip_time).abs() < 1e-5
+                    && (sample.duration - settings.sequence_length).abs() < 1e-5
+                    && (sample.weight - entry.weight).abs() < 1e-5
+            })
+        });
+    let playing = mantle.active
+        && mantle.root_motion_ready
+        && sample.is_some()
+        && locomotion == LocomotionState::Custom
+        && action == Some(AlsNotifyLocomotionAction::Mantling);
+    state.coverage.mantle_started |= playing;
+    state.mantle_root_released |= state.coverage.mantle_started
+        && !mantle.active
+        && !mantle.root_motion_ready
+        && locomotion == LocomotionState::Grounded
+        && action == Some(AlsNotifyLocomotionAction::None)
+        && position.y >= mantle.target.y - 0.3;
+    state.coverage.mantle_completed |=
+        state.mantle_root_released && montages.is_none_or(|montages| montages.entries.is_empty());
+    if state.phase != IntegrationPhase::Mantle {
+        return;
+    }
+    let variant = settings.source_sequence.rsplit('.').next();
+    *window = ManualAnimationWindowEvidence {
+        label: Some("mantle"),
+        settled: sample.is_some(),
+        capture_source_window: true,
+        capture_every_frame: true,
+        requires_pre_rig_motion: true,
+        requires_final_pose_motion: true,
+        requires_non_reference_root_pose: true,
+        requires_source_pose_chain: true,
+        source_node: Some(MANTLE_SLOT_NODE),
+        source_state: Some("Mantling"),
+        source_pose_chain: vec![ManualAnimationPoseBoundary {
+            label: "post_locomotion_slot",
+            graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+            node: MANTLE_SLOT_NODE,
+            output: "Pose",
+            minimum_translation_span: 0.0,
+            minimum_rotation_span_radians: 0.0,
+        }],
+        expected_animation_variant: variant,
+        observed_animation_variant: sample.as_ref().and(variant),
+        observed_animation_clip_time: sample.as_ref().map(|sample| sample.position),
+        observed_animation_weight: sample.as_ref().map(|sample| sample.weight),
+        observed_animation_play_rate: sample.as_ref().map(|_| settings.play_rate),
+        expected_lifecycle_stages: &["playing", "root_released", "montage_tail", "completed"],
+        observed_lifecycle_stages: if state.coverage.mantle_completed {
+            &["completed"]
+        } else if state.mantle_root_released && sample.is_some() {
+            &["root_released", "montage_tail"]
+        } else if playing {
+            &["playing"]
+        } else {
+            &[]
+        },
+        canonical_clip_time: Some((mantle.start_offset + settings.sequence_length) * 0.5),
+        maximum_clip_time_distance: 0.06,
+        minimum_observation_seconds: 0.15,
+        ..default()
+    };
+}
+
 fn default_overlay_curve_value(name: &str) -> f32 {
     match name {
         "HandLeftIk" | "HandRightIk" | "HipsDirectionLock" | "LayerHandLeft" | "LayerHandRight"
@@ -6096,6 +6232,7 @@ fn observe_manual_integration(
             Option<&AlsTransitionPlayback>,
             Option<&AlsRootTransitionSlotRuntime>,
             Option<&AlsDesiredStance>,
+            Option<&AlsMantleMontages>,
         ),
         With<AlsCharacter>,
     >,
@@ -6191,6 +6328,7 @@ fn observe_manual_integration(
         transition_playback,
         root_transition_slot,
         desired_stance,
+        mantle_montages,
     )) = action.get(character)
     else {
         return;
@@ -8205,19 +8343,10 @@ fn observe_manual_integration(
     }
 
     if let Some(mantle) = mantle {
-        if mantle.active {
-            state.coverage.mantle_started = true;
-            state.mantle_target_y = Some(mantle.target.y);
-        }
-        if state.mantle_was_active
-            && !mantle.active
-            && state
-                .mantle_target_y
-                .is_some_and(|target_y| transform.translation.y >= target_y - 0.3)
-        {
-            state.coverage.mantle_completed = true;
-        }
-        state.mantle_was_active = mantle.active;
+        observe_mantle(
+            state, &mut animation_window, mantle, mantle_montages, player,
+            &motion_probe.graphs, *locomotion, notify_action.copied(), transform.translation,
+        );
     }
     if let Ok((_, space, _, _)) = foot_ik_data.get(character) {
         state.coverage.foot_probe |= space.left.has_ground_hit && space.right.has_ground_hit;
@@ -8530,10 +8659,13 @@ fn observe_manual_integration(
         }
         if state.phase == IntegrationPhase::Mantle
             && mantle.is_some_and(|mantle| mantle.active)
-            && apply.left.applied_weight >= 0.99
-            && apply.right.applied_weight >= 0.99
-            && apply.left.effector_error <= 0.02
-            && apply.right.effector_error <= 0.02
+            && let Some((_, _, rig)) =
+                als_ext::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
+            && mantle_foot_ik_matches_source(
+                apply,
+                ["FootLeftIk", "FootRightIk"].map(|name| rig.context.curves.get(name).copied().unwrap_or(0.0)),
+                animation_window.observed_animation_weight,
+            )
             && !state.coverage.foot_ik_mantle
         {
             log_foot_ik_stage("mantle", spaces, apply);
@@ -9290,6 +9422,8 @@ fn observe_manual_integration(
                 ("foot_ik_landed", coverage.foot_ik_landed),
                 ("foot_ik_roll", coverage.foot_ik_roll),
                 ("foot_ik_mantle", coverage.foot_ik_mantle),
+                ("mantle_start", coverage.mantle_started),
+                ("mantle_complete", coverage.mantle_completed),
                 ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
             ],
             IntegrationScenario::Ragdoll => vec![
@@ -10670,6 +10804,341 @@ mod tests {
                 .unwrap()
                 .rotation_mode,
             Some(RotationMode::Aiming)
+        );
+    }
+
+    #[test]
+    fn mantle_observer_rejects_actor_only_completion() {
+        let mut state = ManualIntegrationState::default();
+        state.phase = IntegrationPhase::Mantle;
+        let mut window = ManualAnimationWindowEvidence::default();
+        let mut mantle = AlsMantleState {
+            active: true,
+            root_motion_ready: true,
+            target: Vec3::Y,
+            ..default()
+        };
+        let player = AnimationGraphPlayer::new(Handle::default());
+        let graphs = Assets::default();
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &player,
+            &graphs,
+            LocomotionState::Custom,
+            Some(AlsNotifyLocomotionAction::Mantling),
+            Vec3::Y,
+        );
+        assert!(
+            !state.coverage.mantle_started,
+            "Actor state without an evaluated Slot cannot prove animation start"
+        );
+        mantle.active = false;
+        mantle.root_motion_ready = false;
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &player,
+            &graphs,
+            LocomotionState::Grounded,
+            Some(AlsNotifyLocomotionAction::None),
+            Vec3::Y,
+        );
+        assert!(
+            !state.coverage.mantle_completed,
+            "Actor height without animation lifecycle cannot prove completion"
+        );
+        state.coverage.mantle_started = true;
+        mantle.root_motion_ready = true;
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &player,
+            &graphs,
+            LocomotionState::Grounded,
+            Some(AlsNotifyLocomotionAction::None),
+            Vec3::Y,
+        );
+        assert!(
+            !state.coverage.mantle_completed,
+            "Root motion ownership must be released"
+        );
+        mantle.root_motion_ready = false;
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &player,
+            &graphs,
+            LocomotionState::Grounded,
+            Some(AlsNotifyLocomotionAction::Mantling),
+            Vec3::Y,
+        );
+        assert!(
+            !state.coverage.mantle_completed,
+            "The source action notify must end"
+        );
+        observe_mantle(
+            &mut state,
+            &mut window,
+            &mantle,
+            None,
+            &player,
+            &graphs,
+            LocomotionState::Grounded,
+            Some(AlsNotifyLocomotionAction::None),
+            Vec3::Y,
+        );
+        assert!(state.coverage.mantle_completed);
+        assert_eq!(window.observed_lifecycle_stages, &["completed"]);
+        assert_eq!(
+            window.expected_lifecycle_stages,
+            &["playing", "root_released", "montage_tail", "completed"]
+        );
+        assert!(
+            window.requires_pre_rig_motion
+                && window.requires_final_pose_motion
+                && window.requires_source_pose_chain
+        );
+        assert!(window.source_sync_group.is_none() && window.expected_runtime_state.is_none());
+    }
+
+    #[test]
+    fn mantle_foot_ik_follows_source_curve_weights() {
+        #[derive(serde::Deserialize)]
+        struct Montages {
+            montages: Vec<Curves>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Curves {
+            montage_curves: als_ext::AlsPoseCurves,
+        }
+        let source: Montages = ron::from_str(als_core::mantle::MANTLE_SOURCE_DATA).unwrap();
+        let curves = source.montages[als_core::mantle::MantleKind::Low
+            .action_settings()
+            .montage_index]
+            .montage_curves
+            .sample_all(0.8);
+        let weights = [curves["FootLeftIk"], curves["FootRightIk"]];
+        assert_eq!(weights, [0.0, 1.0]);
+        let mut apply = AlsFootIkApplyTelemetry {
+            left: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {
+                valid: true,
+                applied_weight: weights[0],
+                ..default()
+            },
+            right: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {
+                valid: true,
+                applied_weight: weights[1],
+                ..default()
+            },
+        };
+        assert!(
+            mantle_foot_ik_matches_source(&apply, weights, Some(1.0)),
+            "Source Low Mantle has asymmetric foot IK during its action"
+        );
+        for weight in [None, Some(0.4)] {
+            assert!(
+                !mantle_foot_ik_matches_source(&apply, weights, weight),
+                "A pending or blending Slot cannot prove mantle IK"
+            );
+        }
+        apply.left.applied_weight = 1.0;
+        assert!(
+            !mantle_foot_ik_matches_source(&apply, weights, Some(1.0)),
+            "Both feet at full weight do not match the source action"
+        );
+        apply.left.applied_weight = 0.0;
+        apply.left.valid = false;
+        assert!(
+            !mantle_foot_ik_matches_source(&apply, weights, Some(1.0)),
+            "Missing Rig output must not pass at zero weight"
+        );
+        apply.left.valid = true;
+        apply.right.effector_error = 0.03;
+        assert!(
+            !mantle_foot_ik_matches_source(&apply, weights, Some(1.0)),
+            "Bone output must match the actual Rig result"
+        );
+    }
+
+    #[test]
+    fn mantle_observer_reads_only_the_current_authored_slot_output() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip},
+            animation_graph::TimeUpdate,
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::DataSpec,
+            pose::BonePose,
+            utils::testing::TestIoEnv,
+        };
+        fn evaluate(
+            In((handle, entity, pose, weight)): In<(Handle<AnimationGraph>, Entity, Pose, f32)>,
+            resources: SystemResources,
+        ) -> GraphContextArena {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let inputs = HashMap::from([
+                ("base".into(), DataValue::Pose(pose.clone())),
+                ("post_locomotion.pose".into(), DataValue::Pose(pose)),
+                ("post_locomotion.weight".into(), DataValue::F32(weight)),
+                ("post_locomotion.layer_weight".into(), DataValue::F32(1.0)),
+            ]);
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::default();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(
+                arena.get_toplevel_id(),
+                graph,
+                &mut arena,
+                &resources,
+                &env,
+                entity,
+                &entities,
+                &mut gizmos,
+                &inputs,
+            );
+            graph
+                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context)
+                .unwrap();
+            arena
+        }
+        let installed = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron"),
+        )
+        .unwrap();
+        assert!(installed.contains(&format!("name: {MANTLE_SLOT_NODE:?}")));
+        let mut world = World::new();
+        let entity = world.spawn_empty().id();
+        let base = AnimationNode::new(
+            "base",
+            als_ext::GlobalPoseInputNode {
+                key: "base".into(),
+                output: "Pose".into(),
+            },
+        );
+        let slot = AnimationNode::new(
+            MANTLE_SLOT_NODE,
+            als_ext::SourceSlotNode {
+                slot_name: "PostLocomotion".into(),
+                group_name: "Locomotion".into(),
+                pose_key: "post_locomotion.pose".into(),
+                weight_key: "post_locomotion.weight".into(),
+                layer_weight_key: "post_locomotion.layer_weight".into(),
+                ..default()
+            },
+        );
+        let mut graph = AnimationGraph::new();
+        graph.add_node(base.clone());
+        graph.add_node(slot.clone());
+        graph.add_node_parameter_edge(base.id, "Pose", slot.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(slot.id, "Pose", "Pose");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        let linked = AnimationNode::new(
+            "Generated AB_Als",
+            als_ext::LayeredGraphNode {
+                capture_context: true,
+                internalize_time: true,
+                ..als_ext::LayeredGraphNode::new(handle.clone())
+            },
+        );
+        let mut wrapper = AnimationGraph::new();
+        wrapper.add_node(linked.clone());
+        wrapper.add_output_data("pose".into(), DataSpec::Pose);
+        wrapper.add_output_data_edge(linked.id, "pose", "pose");
+        let wrapped_handle = graphs.add(wrapper);
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let mut pose = Pose::default();
+        pose.add_bone(
+            BonePose {
+                rotation: Some(Quat::from_rotation_x(0.4)),
+                ..default()
+            },
+            EntityPath::default().child("pelvis").id(),
+        );
+        als_ext::source_gameplay_tag_input::set_slot_input_context(
+            entity,
+            "post_locomotion.pose",
+            Some(als_ext::AnimationContextState {
+                relevant_asset: Some(als_ext::animation_context::SourceRelevantAsset {
+                    position: 0.7,
+                    duration: 1.5,
+                    weight: 1.0,
+                    ..default()
+                }),
+                ..default()
+            }),
+        );
+        assert!(
+            mantle_slot_sample(&GraphContextArena::new(handle.id()), world.resource()).is_none()
+        );
+        for (candidate, weight) in [&handle, &wrapped_handle]
+            .into_iter()
+            .flat_map(|candidate| [1.0, 0.4, 0.0].map(|weight| (candidate, weight)))
+        {
+            let mut arena = world
+                .run_system_once_with(evaluate, (candidate.clone(), entity, pose.clone(), weight))
+                .unwrap();
+            let sample = mantle_slot_sample(&arena, world.resource());
+            assert_eq!(sample.is_some(), weight > 0.0);
+            if let Some(sample) = sample {
+                assert_eq!(
+                    (sample.position, sample.duration, sample.weight),
+                    (0.7, 1.5, weight)
+                );
+            }
+            arena.next_frame();
+            assert!(
+                mantle_slot_sample(&arena, world.resource()).is_none(),
+                "A stale evaluated Slot cannot prove this frame"
+            );
+        }
+        let arena = world
+            .run_system_once_with(evaluate, (handle.clone(), entity, Pose::default(), 1.0))
+            .unwrap();
+        assert!(
+            mantle_slot_sample(&arena, world.resource()).is_none(),
+            "A zero-channel Slot output cannot prove animation"
+        );
+        world
+            .resource_mut::<Assets<AnimationGraph>>()
+            .get_mut(&handle)
+            .unwrap()
+            .nodes
+            .get_mut(&slot.id)
+            .unwrap()
+            .name = "PostLocomotion".into();
+        let arena = world
+            .run_system_once_with(evaluate, (handle, entity, pose, 1.0))
+            .unwrap();
+        assert!(
+            mantle_slot_sample(&arena, world.resource()).is_none(),
+            "A shorthand must not match the authored Slot identity"
+        );
+        als_ext::source_gameplay_tag_input::set_slot_input_context(
+            entity,
+            "post_locomotion.pose",
+            None,
         );
     }
 
