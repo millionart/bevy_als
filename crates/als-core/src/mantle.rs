@@ -279,12 +279,11 @@ pub fn scaled_mantle_capsule_dimensions(
     base_radius: f32,
     world_scale: Vec3,
 ) -> (f32, f32, f32) {
-    let world_scale = world_scale.abs();
-    let vertical_scale = world_scale.y.max(1e-4);
-    let horizontal_scale = world_scale.x.max(world_scale.z).max(1e-4);
-    let capsule_radius = base_radius * horizontal_scale;
-    let capsule_half_height = (base_half_height * vertical_scale).max(capsule_radius);
-    (capsule_half_height, capsule_radius, vertical_scale)
+    (
+        base_half_height * world_scale.y,
+        base_radius * world_scale.x.min(world_scale.z),
+        world_scale.y,
+    )
 }
 
 pub fn yaw_from_direction(direction: Vec3) -> f32 {
@@ -466,7 +465,7 @@ pub fn mantle_blend_in_amount(time: f32) -> f32 {
 
 pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
     let velocity = Vec3::new(input.velocity.x, 0.0, input.velocity.z);
-    let desired_yaw = if velocity.length_squared() > 1e-6 {
+    let desired_yaw = if velocity.length() >= 0.01 {
         let velocity_yaw = yaw_from_direction(velocity);
         if input.input_direction.length_squared() > 1e-6 {
             let input_yaw = yaw_from_direction(input.input_direction);
@@ -1028,6 +1027,8 @@ mod tests {
         };
         let (scaled_half_height, scaled_radius, scaled_vertical) =
             scaled_mantle_capsule_dimensions(0.9, 0.3, Vec3::new(1.5, 2.0, 0.5));
+        let (short_half_height, short_radius, short_vertical) =
+            scaled_mantle_capsule_dimensions(0.9, 0.3, Vec3::new(0.5, 0.1, 1.5));
         let passed = mantle_start_allowed(control, false)
             && auto_mantle_start_allowed(control, false, LocomotionState::Air)
             && !mantle_start_allowed(disabled_control, false)
@@ -1037,8 +1038,11 @@ mod tests {
             && (auto_start - manual_start).abs() > 0.3
             && (state.start_offset - auto_start).abs() <= 1e-6
             && (scaled_half_height - 1.8).abs() <= 1e-6
-            && (scaled_radius - 0.45).abs() <= 1e-6
-            && (scaled_vertical - 2.0).abs() <= 1e-6;
+            && (scaled_radius - 0.15).abs() <= 1e-6
+            && (scaled_vertical - 2.0).abs() <= 1e-6
+            && (short_half_height - 0.09).abs() <= 1e-6
+            && (short_radius - 0.15).abs() <= 1e-6
+            && (short_vertical - 0.1).abs() <= 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.49][VERDICT] manual_start={manual_start:.6} auto_start={auto_start:.6} state_start={:.6} permission={} scaled=({scaled_half_height:.6},{scaled_radius:.6},{scaled_vertical:.6}) -> {verdict}",
@@ -1070,6 +1074,19 @@ mod tests {
             ..default()
         };
         assert!(mantle_trace_direction(&behind).is_none());
+        for (speed, expected_yaw) in [
+            (0.001, 0.0),
+            (0.005, 0.0),
+            (0.009_99, 0.0),
+            (0.01, -MANTLE_MAX_REACH_ANGLE),
+        ] {
+            let input = MantleDetectionInput {
+                velocity: Vec3::new(speed, 2.0, 0.0),
+                ..default()
+            };
+            let direction = mantle_trace_direction(&input).unwrap();
+            assert!((yaw_from_direction(direction) - expected_yaw).abs() < 1e-6);
+        }
     }
 
     #[test]
