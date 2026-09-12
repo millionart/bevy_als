@@ -394,6 +394,37 @@ mod tests {
             app.update();
         }
         let instance = app.world().get::<AnimatedSceneInstance>(component).unwrap();
+        let definition_handle = app
+            .world()
+            .get::<AlsCameraDefinitionHandle>(character)
+            .unwrap();
+        let definitions = app.world().resource::<Assets<AlsCameraDefinition>>();
+        let definition = definitions.get(&definition_handle.0).unwrap();
+        let scenes = app
+            .world()
+            .resource::<Assets<bevy_animation_graph::core::animated_scene::AnimatedScene>>();
+        let scene_asset = scenes.get(&scene).unwrap();
+        assert_eq!(
+            scene_asset.source.path().unwrap().to_string(),
+            definition.mesh_scene
+        );
+        assert_eq!(
+            scene_asset.skeleton.path().unwrap().to_string(),
+            definition.skeleton
+        );
+        let graphs = app
+            .world()
+            .resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>();
+        let wrapper = graphs.get(&scene_asset.animation_graph).unwrap();
+        let generated = wrapper
+            .nodes
+            .values()
+            .find_map(|node| node.try_inner_downcast_ref::<als_ext::LayeredGraphNode>())
+            .unwrap();
+        assert_eq!(
+            generated.graph.path().unwrap().to_string(),
+            definition.graph
+        );
         assert!(
             app.world()
                 .get::<als_camera::AlsCameraRig>(component)

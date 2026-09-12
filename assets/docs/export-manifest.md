@@ -191,6 +191,8 @@
 
 BF116.01c4a（2026-09-13）：旧三表 `als_camera_profiles.ron` 与独立 `als_camera.camera.ron` 已由完整生成的相机动画图和 `als_camera.camera_component.ron` 替代并移除；上表保留导出历史，原始 UE 网格、曲线和 source record 未改。
 
+BF116.01c4b（2026-09-13）：固定三socket偏移表已迁为 `als_camera.camera_component.ron` 中从角色SK/SKM离线生成的命名socket数据；默认偏移不变，源按mesh优先于skeleton、socket优先于bone解析。原始导出保留，旧派生 `als_camera_sockets.ron` 不再使用。
+
 ## M3.1 增补导出（2026-08-22）— Playground 场景
 
 - 依据：CHECKLIST M3.1（场景复刻增补条目，用户指示）；通道同上 commandlet。

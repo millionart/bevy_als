@@ -12,6 +12,7 @@ pub struct AlsCameraDefinition {
     pub first_person_socket: String,
     pub pivot_sockets: [String; 2],
     pub shoulder_sockets: [String; 2],
+    pub sockets: Vec<CameraSocket>,
     pub trace_channel: String,
     pub standing_eye_height: f32,
     pub crouching_eye_height: f32,
@@ -32,6 +33,13 @@ pub struct AlsCameraDefinition {
     pub simulate_physics: bool,
     pub physics_body: CameraPhysicsBody,
     pub sprint_shake: CameraShakeDefinition,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug)]
+pub struct CameraSocket {
+    pub name: String,
+    pub bone: String,
+    pub location: Vec3,
 }
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug)]
@@ -148,5 +156,13 @@ mod tests {
             (definition.sprint_shake.rotation_yxz[0].amplitude + 0.1_f32.to_radians()).abs() < 1e-8
         );
         assert_eq!(definition.sprint_shake.field_of_view.amplitude, 0.0);
+        let socket = definition
+            .sockets
+            .iter()
+            .find(|socket| socket.name == definition.first_person_socket)
+            .unwrap();
+        assert_eq!(socket.bone, "head");
+        assert_eq!(socket.location, Vec3::new(0.04, 0.0, 0.14));
+        assert_eq!(definition.post_process_weight, 0.0);
     }
 }

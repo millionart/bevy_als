@@ -1797,7 +1797,7 @@
         "2",
         "actual_camera_scene"
       ],
-      "evidence": "target/bf115_camera/c4a_actual_graph_inputs.watchdog.json"
+      "evidence": "target/bf115_camera/c4b_actual_scene_contract.watchdog.json"
     }
   ]
 }

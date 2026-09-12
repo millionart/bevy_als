@@ -14,6 +14,47 @@
     first_person_socket: "FirstPersonCamera",
     pivot_sockets: ("root", "head"),
     shoulder_sockets: ("ThirdPersonTraceShoulderLeft", "ThirdPersonTraceShoulderRight"),
+    sockets: [(
+        name: "FirstPersonCamera",
+        bone: "head",
+        location: (0.04, 0.0, 0.14),
+    ), (
+        name: "ThirdPersonTraceShoulderRight",
+        bone: "head",
+        location: (0.05, 0.2, 0.0),
+    ), (
+        name: "ThirdPersonTraceShoulderLeft",
+        bone: "head",
+        location: (0.05, -0.2, 0.0),
+    ), (
+        name: "Torch",
+        bone: "hand_l",
+        location: (0.09581688, -0.00954782, -0.04931816000000001),
+    ), (
+        name: "Bow",
+        bone: "hand_l",
+        location: (0.11129478000000001, -0.0013622200000000001, -0.056273989999999996),
+    ), (
+        name: "Barrel",
+        bone: "hand_l",
+        location: (0.11606541000000001, 0.17824009000000002, -0.24229429),
+    ), (
+        name: "Pistol",
+        bone: "hand_r",
+        location: (-0.09007588, 0.00839997, 0.03988942),
+    ), (
+        name: "Rifle",
+        bone: "hand_r",
+        location: (-0.1014707, -0.00669373, 0.05234151),
+    ), (
+        name: "Box",
+        bone: "hand_r",
+        location: (-0.06314744, -0.033164940000000004, 0.28029291),
+    ), (
+        name: "Binoculars",
+        bone: "hand_r",
+        location: (-0.15331554, 0.01091224, 0.14619777),
+    )],
     trace_channel: "Visibility",
     standing_eye_height: 0.64,
     crouching_eye_height: 0.44799999,

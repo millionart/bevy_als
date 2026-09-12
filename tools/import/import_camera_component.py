@@ -35,11 +35,33 @@ def wave(properties, name, amplitude_multiplier, frequency_multiplier, scale):
         'frequency_hz': parse_number(values['Frequency']) * frequency_multiplier, 'random_start': mode == 'Random'}
 
 
-def compile_definition(actor, mesh, settings, physics, shake):
+def camera_sockets(mesh, skeleton):
+    result = {}
+    for asset in [mesh, skeleton]:
+        objects = {value['object_path']: value for value in asset['asset_objects']}
+        text = asset_property(asset, 'Sockets')
+        for reference in parse_list(text) if text else []:
+            path = source_object_path(parse_quoted(reference))
+            socket = objects[path]
+            name = object_property(socket, 'SocketName')
+            result.setdefault(name.lower(), {
+                'name': name,
+                'bone': object_property(socket, 'BoneName'),
+                'location': tuple(source_point_to_runtime(vector(object_property(socket, 'RelativeLocation')))),
+            })
+    return list(result.values())
+
+
+def compile_definition(actor, mesh, settings, physics, shake, character_mesh, character_skeleton):
     cdo = {'properties': actor['blueprint_cdo_properties']}
     component_path = source_object_path(object_property(cdo, 'Camera'))
     component = next(item for item in actor['blueprint_cdo_subobjects'] if item['object_path'] == component_path)
     props = component['properties']
+    owner_mesh = next(item for item in actor['blueprint_cdo_subobjects'] if item['object_path'].endswith(':CharacterMesh0'))
+    if source_object_path(object_property(owner_mesh, 'SkeletalMeshAsset')) != character_mesh['asset_path']:
+        raise ValueError('Character camera socket mesh reference differs')
+    if character_mesh['skeletal_mesh']['skeleton_path'] != character_skeleton['asset_path']:
+        raise ValueError('Character camera socket skeleton reference differs')
     if object_property(component, 'AttachParent') != 'CharacterMesh0':
         raise ValueError('Unsupported camera attachment parent')
     if source_object_path(object_property(component, 'Settings')) != settings['asset_path']:
@@ -62,6 +84,12 @@ def compile_definition(actor, mesh, settings, physics, shake):
         raise ValueError('Camera collision activation is unsupported')
     first = parse_struct(asset_property(settings, 'FirstPerson'))
     third = parse_struct(asset_property(settings, 'ThirdPerson'))
+    post_process_weight = parse_number(object_property(component, 'PostProcessWeight'))
+    post_process = record(settings['asset_properties'], 'PostProcess')['fields']
+    overrides = [value['name'] for value in post_process if value['name'].startswith('bOverride_') and parse_bool(value['exported_text'])]
+    blendables = parse_struct(record(post_process, 'WeightedBlendables')['exported_text'])
+    if post_process_weight > 1e-8 and (overrides or parse_list(blendables.get('Array', '()'))):
+        raise ValueError('Active camera post-process settings are unsupported')
     smoothing = parse_struct(third['TraceDistanceSmoothing'])
     if third['TraceChannel'] != 'ECC_Visibility':
         raise ValueError('Camera trace channel is unsupported')
@@ -96,6 +124,7 @@ def compile_definition(actor, mesh, settings, physics, shake):
         'first_person_socket': parse_quoted(first['CameraSocketName']),
         'pivot_sockets': tuple(parse_quoted(third[key]) for key in ['FirstPivotSocketName', 'SecondPivotSocketName']),
         'shoulder_sockets': tuple(parse_quoted(third[key]) for key in ['TraceShoulderLeftSocketName', 'TraceShoulderRightSocketName']),
+        'sockets': camera_sockets(character_mesh, character_skeleton),
         'trace_channel': 'Visibility',
         'standing_eye_height': parse_number(object_property(cdo, 'BaseEyeHeight')) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
         'crouching_eye_height': parse_number(object_property(cdo, 'CrouchedEyeHeight')) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
@@ -111,7 +140,7 @@ def compile_definition(actor, mesh, settings, physics, shake):
         'right_shoulder': parse_bool(object_property(component, 'bRightShoulder')),
         'override_field_of_view': parse_bool(object_property(component, 'bOverrideFieldOfView')),
         'field_of_view_override_deg': parse_number(object_property(component, 'FieldOfViewOverride')),
-        'post_process_weight': parse_number(object_property(component, 'PostProcessWeight')),
+        'post_process_weight': post_process_weight,
         'collision_enabled': False, 'simulate_physics': simulate,
         'physics_body': {'bone': body['bone_name'], 'center': tuple(source_point_to_runtime([box['center'][axis] for axis in 'xyz'])),
             'rotation': tuple(source_rotator_to_runtime_rotation([box['rotation'][axis] for axis in ['pitch', 'yaw', 'roll']])),
@@ -132,6 +161,8 @@ def literal(value, depth=0):
         return '(\n' + ''.join(pad + key + ': ' + literal(item, depth + 1) + ',\n' for key, item in value.items()) + '    ' * depth + ')'
     if isinstance(value, tuple):
         return '(' + ', '.join(literal(item, depth) for item in value) + ')'
+    if isinstance(value, list):
+        return '[' + ', '.join(literal(item, depth) for item in value) + ']'
     if isinstance(value, float) and not math.isfinite(value):
         raise ValueError('Camera target value is non-finite')
     return json.dumps(value, ensure_ascii=False)
@@ -145,7 +176,7 @@ def main():
     args = parser.parse_args()
     def read(name):
         return json.loads((args.source_directory / (name + '.ue.json')).read_text(encoding='utf-8-sig'))
-    sources = [read(name) for name in ['B_Als_Character', 'SKM_Als_Camera', 'CS_Als_Default', 'PA_Als_Camera', 'B_Als_CameraShake_Sprint']]
+    sources = [read(name) for name in ['B_Als_Character', 'SKM_Als_Camera', 'CS_Als_Default', 'PA_Als_Camera', 'B_Als_CameraShake_Sprint', 'SKM_Als', 'SK_Als']]
     result = compile_definition(*sources)
     if args.self_test:
         before = deepcopy(sources)
@@ -155,6 +186,32 @@ def main():
         assert result['sprint_shake']['location'][2]['amplitude'] == -0.01
         assert result['sprint_shake']['rotation_yxz'][1]['amplitude'] > 0
         assert result['sprint_shake']['field_of_view']['amplitude'] == 0.0
+        sockets = {value['name']: value for value in result['sockets']}
+        assert sockets['FirstPersonCamera'] == {'name': 'FirstPersonCamera', 'bone': 'head', 'location': (0.04, 0.0, 0.14)}
+        assert sockets['ThirdPersonTraceShoulderRight']['location'] == (0.05, 0.2, 0.0)
+        assert sockets['ThirdPersonTraceShoulderLeft']['location'] == (0.05, -0.2, 0.0)
+        changed = deepcopy(sources)
+        override = deepcopy(next(value for value in changed[6]['asset_objects'] if value['class_path'].endswith('SkeletalMeshSocket')))
+        override['object_path'] = changed[5]['asset_path'] + ':CameraSocketOverride'
+        record(override['properties'], 'BoneName')['exported_text'] = 'root'
+        record(override['properties'], 'RelativeLocation')['exported_text'] = '(X=12.000000,Y=0.000000,Z=0.000000)'
+        changed[5]['asset_objects'].append(override)
+        record(changed[5]['asset_properties'], 'Sockets')['exported_text'] = '("/Script/Engine.SkeletalMeshSocket\'' + override['object_path'] + '\'")'
+        overridden = {value['name']: value for value in compile_definition(*changed)['sockets']}
+        assert overridden['FirstPersonCamera']['bone'] == 'root'
+        assert overridden['FirstPersonCamera']['location'] == (0.12, 0.0, 0.0)
+        changed = deepcopy(sources)
+        component = next(value for value in changed[0]['blueprint_cdo_subobjects'] if value['object_path'].endswith(':Camera'))
+        record(component['properties'], 'PostProcessWeight')['exported_text'] = '1.000000'
+        assert compile_definition(*changed)['post_process_weight'] == 1.0
+        pp = record(changed[2]['asset_properties'], 'PostProcess')['fields']
+        next(value for value in pp if value['name'].startswith('bOverride_'))['exported_text'] = 'True'
+        try:
+            compile_definition(*changed)
+        except ValueError as error:
+            assert 'post-process' in str(error)
+        else:
+            raise AssertionError('Active unsupported camera post-process was accepted')
         for name, value in [('CollisionEnabled', 'QueryAndPhysics'), ('bSimulatePhysics', 'True')]:
             changed = deepcopy(sources)
             component = next(item for item in changed[0]['blueprint_cdo_subobjects'] if item['object_path'].endswith(':Camera'))

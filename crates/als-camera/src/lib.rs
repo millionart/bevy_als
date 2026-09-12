@@ -3,7 +3,7 @@ use avian3d::prelude::{
 };
 mod shake;
 pub mod source_definition;
-use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
+use bevy::asset::{Asset, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
@@ -125,35 +125,6 @@ pub struct AlsCameraParams {
     pub first_person_field_of_view_deg: f32,
     pub field_of_view_min_deg: f32,
     pub field_of_view_max_deg: f32,
-}
-
-#[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct AlsCameraSocketOffsets {
-    pub first_person_head_local: Vec3,
-    pub trace_shoulder_right_head_local: Vec3,
-    pub trace_shoulder_left_head_local: Vec3,
-}
-
-#[derive(Default, bevy::reflect::TypePath)]
-pub struct AlsCameraSocketOffsetsLoader;
-
-impl AssetLoader for AlsCameraSocketOffsetsLoader {
-    type Asset = AlsCameraSocketOffsets;
-    type Settings = ();
-    type Error = CameraLoaderError;
-
-    async fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut bevy::asset::LoadContext<'_>,
-    ) -> Result<Self::Asset, Self::Error> {
-        load_ron(reader).await
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["camera_sockets.ron"]
-    }
 }
 
 async fn load_ron<T: for<'de> Deserialize<'de>>(
@@ -285,7 +256,6 @@ pub struct AlsCameraViewSource(pub Entity);
 pub struct AlsCameraSocketBinding {
     pub avatar: Entity,
     pub root_bone: Option<Entity>,
-    pub head_bone: Option<Entity>,
 }
 
 impl AlsCameraSocketBinding {
@@ -293,7 +263,6 @@ impl AlsCameraSocketBinding {
         Self {
             avatar,
             root_bone: None,
-            head_bone: None,
         }
     }
 }
@@ -412,12 +381,9 @@ pub struct AlsCameraSet;
 
 impl Plugin for AlsCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<AlsCameraSocketOffsets>()
-            .init_asset::<AlsCameraDefinition>()
+        app.init_asset::<AlsCameraDefinition>()
             .init_asset_loader::<source_definition::AlsCameraDefinitionLoader>()
-            .register_asset_loader(AlsCameraSocketOffsetsLoader)
             .add_message::<AlsCameraShakeRequest>()
-            .add_systems(Update, load_camera_sockets)
             .add_systems(
                 PostUpdate,
                 (
@@ -444,28 +410,6 @@ impl Plugin for AlsCameraPlugin {
     }
 }
 
-fn load_camera_sockets(
-    server: Res<AssetServer>,
-    mut done: Local<bool>,
-    mut handle: Local<Option<Handle<AlsCameraSocketOffsets>>>,
-) {
-    if *done {
-        return;
-    }
-    let handle = handle.get_or_insert_with(|| server.load("params/als_camera_sockets.ron"));
-    match server.load_state(handle.id()) {
-        bevy::asset::LoadState::Loaded => {
-            info!("[CAM] socket offsets loaded");
-            *done = true;
-        }
-        bevy::asset::LoadState::Failed(error) => {
-            error!("[CAM] socket offsets failed: {error}");
-            *done = true;
-        }
-        _ => {}
-    }
-}
-
 pub fn camera_animation_rotation_mode(
     rotation_mode: RotationMode,
     first_person: bool,
@@ -482,13 +426,13 @@ fn find_named_descendant(
     root: Entity,
     name: &str,
     children: &Query<&Children>,
-    names: &Query<&Name>,
+    names: &Query<&Name, With<bevy::animation::AnimationTargetId>>,
 ) -> Option<Entity> {
     let mut stack = vec![root];
     while let Some(entity) = stack.pop() {
         if names
             .get(entity)
-            .is_ok_and(|candidate| candidate.as_str() == name)
+            .is_ok_and(|candidate| candidate.as_str().eq_ignore_ascii_case(name))
         {
             return Some(entity);
         }
@@ -505,39 +449,25 @@ fn resolve_camera_socket_locations(
         &mut AlsCameraSocketLocations,
         &GlobalTransform,
         &Collider,
+        &AlsCameraDefinitionHandle,
     )>,
     children: Query<&Children>,
     parents: Query<&ChildOf>,
-    names: Query<&Name>,
+    names: Query<&Name, With<bevy::animation::AnimationTargetId>>,
     globals: Query<&GlobalTransform>,
-    offsets_assets: Res<Assets<AlsCameraSocketOffsets>>,
+    definitions: Res<Assets<AlsCameraDefinition>>,
 ) {
-    let Some((_, offsets)) = offsets_assets.iter().next() else {
-        return;
-    };
-    for (mut binding, mut locations, actor, collider) in &mut targets {
+    for (mut binding, mut locations, actor, collider, handle) in &mut targets {
+        let Some(definition) = definitions.get(&handle.0) else {
+            continue;
+        };
         if binding
             .root_bone
             .is_none_or(|entity| globals.get(entity).is_err())
         {
             binding.root_bone = find_named_descendant(binding.avatar, "root", &children, &names);
         }
-        if binding
-            .head_bone
-            .is_none_or(|entity| globals.get(entity).is_err())
-        {
-            binding.head_bone = find_named_descendant(binding.avatar, "head", &children, &names);
-        }
         let Some(root_bone) = binding.root_bone else {
-            continue;
-        };
-        let Some(head_bone) = binding.head_bone else {
-            continue;
-        };
-        let Ok(root) = globals.get(root_bone) else {
-            continue;
-        };
-        let Ok(head) = globals.get(head_bone) else {
             continue;
         };
         let Ok(mesh_parent) = parents.get(root_bone) else {
@@ -547,19 +477,31 @@ fn resolve_camera_socket_locations(
         let Ok(mesh) = globals.get(mesh_entity) else {
             continue;
         };
-        let (scale, rotation, _) = mesh.to_scale_rotation_translation();
-        locations.root = if parents.get(mesh_entity).is_err() {
+        let location = |name: &str| {
+            let socket = definition
+                .sockets
+                .iter()
+                .find(|socket| socket.name.eq_ignore_ascii_case(name));
+            let bone_name = socket.map_or(name, |socket| socket.bone.as_str());
+            find_named_descendant(root_bone, bone_name, &children, &names)
+                .and_then(|bone| globals.get(bone).ok())
+                .map_or(mesh.translation(), |bone| {
+                    bone.transform_point(socket.map_or(Vec3::ZERO, |socket| socket.location))
+                })
+        };
+        locations.root = if parents.get(mesh_entity).is_err()
+            && definition.pivot_sockets[0].eq_ignore_ascii_case("root")
+        {
             let bounds = collider.aabb(actor.translation(), actor.rotation());
             actor.translation() - Vec3::Y * (bounds.max.y - bounds.min.y) * 0.5
         } else {
-            root.translation()
+            location(&definition.pivot_sockets[0])
         };
-        locations.head = head.translation();
-        locations.first_person = head.transform_point(offsets.first_person_head_local);
-        locations.trace_shoulder_right =
-            head.transform_point(offsets.trace_shoulder_right_head_local);
-        locations.trace_shoulder_left =
-            head.transform_point(offsets.trace_shoulder_left_head_local);
+        locations.head = location(&definition.pivot_sockets[1]);
+        locations.first_person = location(&definition.first_person_socket);
+        locations.trace_shoulder_left = location(&definition.shoulder_sockets[0]);
+        locations.trace_shoulder_right = location(&definition.shoulder_sockets[1]);
+        let (scale, rotation, _) = mesh.to_scale_rotation_translation();
         locations.mesh_rotation = rotation;
         locations.mesh_scale = scale.y.abs().max(f32::EPSILON);
         let became_valid = !locations.valid;
@@ -1709,13 +1651,14 @@ mod tests {
     fn detached_mesh_pivot_uses_the_current_capsule_bottom_and_restores_the_socket() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
-        let mut offsets = Assets::<AlsCameraSocketOffsets>::default();
-        let _offsets = offsets.add(AlsCameraSocketOffsets {
-            first_person_head_local: Vec3::ZERO,
-            trace_shoulder_right_head_local: Vec3::ZERO,
-            trace_shoulder_left_head_local: Vec3::ZERO,
-        });
-        world.insert_resource(offsets);
+        let mut definitions = Assets::<AlsCameraDefinition>::default();
+        let definition = definitions.add(
+            ron::from_str::<AlsCameraDefinition>(include_str!(
+                "../../../assets/params/als_camera.camera_component.ron"
+            ))
+            .unwrap(),
+        );
+        world.insert_resource(definitions);
         let actor_transform = GlobalTransform::from_translation(Vec3::new(4.0, 2.0, -3.0));
         let actor = world
             .spawn((
@@ -1736,18 +1679,23 @@ mod tests {
         let root = world
             .spawn((
                 Name::new("root"),
+                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
                 ChildOf(mesh),
                 GlobalTransform::from_translation(Vec3::X),
             ))
             .id();
         world.spawn((
             Name::new("head"),
+            bevy::animation::AnimationTargetId::from_names(
+                [Name::new("root"), Name::new("head")].iter(),
+            ),
             ChildOf(root),
             GlobalTransform::from_translation(Vec3::new(4.0, 1.5, -3.0)),
         ));
         world.entity_mut(actor).insert((
             AlsCameraSocketBinding::new(avatar),
             AlsCameraSocketLocations::default(),
+            AlsCameraDefinitionHandle(definition.clone()),
         ));
         world
             .run_system_once(resolve_camera_socket_locations)
@@ -1755,6 +1703,14 @@ mod tests {
         assert_eq!(
             world.get::<AlsCameraSocketLocations>(actor).unwrap().root,
             Vec3::X
+        );
+        assert!(
+            world
+                .get::<AlsCameraSocketLocations>(actor)
+                .unwrap()
+                .first_person
+                .distance(Vec3::new(4.04, 1.5, -2.86))
+                < 1e-6
         );
         world.entity_mut(mesh).remove::<ChildOf>();
         world
@@ -1778,6 +1734,66 @@ mod tests {
             world.get::<AlsCameraSocketLocations>(actor).unwrap().root,
             Vec3::X
         );
+        {
+            let mut definitions = world.resource_mut::<Assets<AlsCameraDefinition>>();
+            let mut settings = definitions.get_mut(&definition).unwrap();
+            settings.pivot_sockets = ["head".into(), "root".into()];
+            settings.first_person_socket = "ROOT".into();
+            settings.shoulder_sockets = ["HEAD".into(), "missing".into()];
+        }
+        world.spawn((
+            Name::new("missing"),
+            ChildOf(root),
+            GlobalTransform::from_translation(Vec3::splat(20.0)),
+        ));
+        world.entity_mut(mesh).remove::<ChildOf>();
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        let locations = world.get::<AlsCameraSocketLocations>(actor).unwrap();
+        assert_eq!(locations.root, Vec3::new(4.0, 1.5, -3.0));
+        assert_eq!(locations.head, Vec3::X);
+        assert_eq!(locations.first_person, Vec3::X);
+        assert_eq!(locations.trace_shoulder_left, Vec3::new(4.0, 1.5, -3.0));
+        assert_eq!(locations.trace_shoulder_right, Vec3::ZERO);
+        {
+            let mut definitions = world.resource_mut::<Assets<AlsCameraDefinition>>();
+            let mut settings = definitions.get_mut(&definition).unwrap();
+            settings.first_person_socket = "FirstPersonCamera".into();
+            settings
+                .sockets
+                .iter_mut()
+                .find(|socket| socket.name == "FirstPersonCamera")
+                .unwrap()
+                .bone = "missing".into();
+        }
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        assert_eq!(
+            world
+                .get::<AlsCameraSocketLocations>(actor)
+                .unwrap()
+                .first_person,
+            Vec3::ZERO
+        );
+        {
+            let mut definitions = world.resource_mut::<Assets<AlsCameraDefinition>>();
+            let mut settings = definitions.get_mut(&definition).unwrap();
+            settings.first_person_socket = "ROOT".into();
+            settings.pivot_sockets[0] = "root".into();
+            settings.sockets.push(source_definition::CameraSocket {
+                name: "root".into(),
+                bone: "head".into(),
+                location: Vec3::X,
+            });
+        }
+        world
+            .run_system_once(resolve_camera_socket_locations)
+            .unwrap();
+        let locations = world.get::<AlsCameraSocketLocations>(actor).unwrap();
+        assert_eq!(locations.first_person, Vec3::new(5.0, 1.5, -3.0));
+        assert!((locations.root.y - 1.44).abs() < 1e-6);
     }
 
     fn params() -> AlsCameraParams {
