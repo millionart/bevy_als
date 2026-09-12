@@ -67,16 +67,24 @@ fn local_rotation(pose: &Pose, skeleton: &Skeleton, bone: BoneId) -> Quat {
         .unwrap_or(Quat::IDENTITY)
 }
 
-fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[BoneId]) -> HashMap<BoneId, Quat> {
-    let mut rotations = HashMap::default();
-    for bone in hierarchy {
+pub(crate) fn layered_bone_hierarchy(skeleton: &Skeleton) -> Vec<(BoneId, Option<usize>)> {
+    let order = hierarchy_order(skeleton);
+    let indices: HashMap<_, _> = order.iter().enumerate().map(|(index, bone)| (*bone, index)).collect();
+    order.into_iter().map(|bone| {
+        let parent = skeleton.parent(&bone).and_then(|parent| indices.get(&parent).copied());
+        (bone, parent)
+    }).collect()
+}
+
+fn mesh_rotations(pose: &Pose, skeleton: &Skeleton, hierarchy: &[(BoneId, Option<usize>)]) -> Vec<Quat> {
+    let mut rotations: Vec<Quat> = Vec::with_capacity(hierarchy.len());
+    for (bone, parent) in hierarchy {
         let local = local_rotation(pose, skeleton, *bone);
-        let mesh = skeleton
-            .parent(bone)
-            .and_then(|parent| rotations.get(&parent).copied())
+        let mesh = parent
+            .and_then(|parent| rotations.get(parent).copied())
             .map(|parent| parent * local)
             .unwrap_or(local);
-        rotations.insert(*bone, mesh);
+        rotations.push(mesh);
     }
     rotations
 }
@@ -88,47 +96,58 @@ pub fn apply_mesh_space_layered_blend(
     bone_mask: &BoneMask,
     skeleton: &Skeleton,
 ) {
+    if alpha.clamp(0.0, 1.0) <= WEIGHT_THRESHOLD {
+        return;
+    }
+    let hierarchy = layered_bone_hierarchy(skeleton);
+    apply_mesh_space_layered_blend_with_hierarchy(base, overlay, alpha, bone_mask, skeleton, &hierarchy);
+}
+
+pub(crate) fn apply_mesh_space_layered_blend_with_hierarchy(
+    base: &mut Pose,
+    overlay: &Pose,
+    alpha: f32,
+    bone_mask: &BoneMask,
+    skeleton: &Skeleton,
+    hierarchy: &[(BoneId, Option<usize>)],
+) {
     let alpha = alpha.clamp(0.0, 1.0);
     if alpha <= WEIGHT_THRESHOLD {
         return;
     }
 
-    let source = base.clone();
+    let source_mesh = mesh_rotations(base, skeleton, hierarchy);
+    let overlay_mesh = mesh_rotations(overlay, skeleton, hierarchy);
     LinearInterpolator {
         bone_mask: bone_mask.clone(),
     }
     .interpolate_pose(base, overlay, alpha);
 
-    let hierarchy = hierarchy_order(skeleton);
-    let source_mesh = mesh_rotations(&source, skeleton, &hierarchy);
-    let overlay_mesh = mesh_rotations(overlay, skeleton, &hierarchy);
-    let mut output_mesh: HashMap<BoneId, Quat> = HashMap::default();
+    let mut output_mesh = Vec::with_capacity(hierarchy.len());
 
-    for bone in hierarchy {
-        let local = local_rotation(&source, skeleton, bone);
+    for (index, &(bone, parent)) in hierarchy.iter().enumerate() {
         let mask_weight = bone_mask.bone_weight(&bone).clamp(0.0, 1.0);
         let weight = (alpha * mask_weight).clamp(0.0, 1.0);
         let rotation = if weight <= WEIGHT_THRESHOLD {
-            source_mesh.get(&bone).copied().unwrap_or(local)
+            source_mesh[index]
         } else {
-            let source_rotation = source_mesh.get(&bone).copied().unwrap_or(local);
-            let overlay_rotation = overlay_mesh.get(&bone).copied().unwrap_or(source_rotation);
+            let source_rotation = source_mesh[index];
+            let overlay_rotation = overlay_mesh[index];
             source_rotation.lerp(overlay_rotation, weight).normalize()
         };
-        output_mesh.insert(bone, rotation);
+        output_mesh.push(rotation);
 
         if weight <= WEIGHT_THRESHOLD
             && !base.paths.contains_key(&bone)
             && !overlay.paths.contains_key(&bone)
-            && skeleton.parent(&bone).is_none_or(|parent| {
-                output_mesh.get(&parent) == source_mesh.get(&parent)
+            && parent.is_none_or(|parent| {
+                output_mesh.get(parent) == source_mesh.get(parent)
             })
         {
             continue;
         }
-        let local = skeleton
-            .parent(&bone)
-            .and_then(|parent| output_mesh.get(&parent).copied())
+        let local = parent
+            .and_then(|parent| output_mesh.get(parent).copied())
             .map(|parent| parent.inverse() * rotation)
             .unwrap_or(rotation)
             .normalize();

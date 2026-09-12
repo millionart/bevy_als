@@ -15,7 +15,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    apply_mesh_space_layered_blend, build_branch_bone_mask, build_branch_filter_bone_mask_by_name,
+    build_branch_bone_mask, build_branch_filter_bone_mask_by_name,
     context_time_update,
 };
 
@@ -165,6 +165,24 @@ pub struct SourceBranchFilter {
     pub blend_depth: i32,
 }
 
+#[derive(Debug)]
+struct SourceLayeredBoneData {
+    skeleton: bevy::asset::AssetId<bevy_animation_graph::core::skeleton::Skeleton>,
+    skeleton_tick: u32,
+    filters: Vec<Vec<(String, i32)>>,
+    mask: bevy_animation_graph::core::edge_data::bone_mask::BoneMask,
+    sources: bevy::platform::collections::HashMap<bevy_animation_graph::core::pose::BoneId, usize>,
+    reference: Pose,
+    hierarchy: Vec<(bevy_animation_graph::core::pose::BoneId, Option<usize>)>,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+pub(crate) struct SourceLayeredBoneBlendState {
+    pub(crate) context: AnimationContextState,
+    #[reflect(ignore)]
+    data: Option<std::sync::Arc<SourceLayeredBoneData>>,
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -250,6 +268,7 @@ impl SourceLayeredBoneBlendNode {
 
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let mut bone_data = ctx.state::<SourceLayeredBoneBlendState>().ok().and_then(|state| state.data.clone());
         let weights = (0..self.layer_count()).map(|index| self.layer_weight(&ctx, index))
             .collect::<Result<Vec<_>, _>>()?;
         if !self.update_base_pose_first {
@@ -293,14 +312,33 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     if filters.is_empty() { self.layer_bones(index).iter().map(|bone| (bone.as_str(), 0)).collect::<Vec<_>>() }
                     else { filters.iter().map(|filter| (filter.bone.as_str(), filter.blend_depth)).collect() }
                 }).collect::<Vec<_>>();
-                let mut mask = build_branch_filter_bone_mask_by_name(skeleton, &filters.iter().flatten().copied().collect::<Vec<_>>());
-                let mut sources = bevy::platform::collections::HashMap::new();
-                for (index, filters) in filters.iter().enumerate() {
-                    let branches = build_branch_bone_mask(skeleton, &filters.iter().map(|(bone, _)| *bone).collect::<Vec<_>>(), 1.0);
-                    for bone in branches.get_weights().keys() { sources.insert(*bone, index); }
+                let skeleton_tick = skeletons.last_changed().get();
+                if bone_data.as_ref().is_none_or(|data| {
+                    data.skeleton != base.skeleton.id() || data.skeleton_tick != skeleton_tick
+                        || data.filters.len() != filters.len()
+                        || data.filters.iter().zip(&filters).any(|(cached, current)| {
+                            cached.iter().map(|(bone, depth)| (bone.as_str(), *depth)).ne(current.iter().copied())
+                        })
+                }) {
+                    let mask = build_branch_filter_bone_mask_by_name(skeleton, &filters.iter().flatten().copied().collect::<Vec<_>>());
+                    let mut sources = bevy::platform::collections::HashMap::new();
+                    for (index, filters) in filters.iter().enumerate() {
+                        let branches = build_branch_bone_mask(skeleton, &filters.iter().map(|(bone, _)| *bone).collect::<Vec<_>>(), 1.0);
+                        for bone in branches.get_weights().keys() { sources.insert(*bone, index); }
+                    }
+                    let mut reference = Pose { skeleton: base.skeleton.clone(), ..default() };
+                    crate::mesh_space_additive::materialize_missing_reference_bones(&mut reference, skeleton);
+                    bone_data = Some(std::sync::Arc::new(SourceLayeredBoneData {
+                        skeleton: base.skeleton.id(), skeleton_tick,
+                        filters: filters.iter().map(|filters| filters.iter().map(|(bone, depth)| ((*bone).to_owned(), *depth)).collect()).collect(),
+                        mask, sources, reference,
+                        hierarchy: crate::mesh_space_layered_blend::layered_bone_hierarchy(skeleton),
+                    }));
                 }
-                let mut target = Pose { skeleton: base.skeleton.clone(), timestamp: base.timestamp, ..default() };
-                crate::mesh_space_additive::materialize_missing_reference_bones(&mut target, skeleton);
+                let data = bone_data.as_ref().unwrap();
+                let mut mask = data.mask.clone();
+                let sources = &data.sources;
+                let mut target = data.reference.clone();
                 for (bone, index) in &target.paths {
                     let reference = target.bones[*index].clone();
                     if let Some(base_index) = base.paths.get(bone).copied() {
@@ -315,7 +353,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     }
                 }
                 if self.mesh_space_rotation_blend {
-                    apply_mesh_space_layered_blend(&mut base, &target, 1.0, &mask, skeleton);
+                    crate::mesh_space_layered_blend::apply_mesh_space_layered_blend_with_hierarchy(&mut base, &target, 1.0, &mask, skeleton, &data.hierarchy);
                 } else {
                     for (bone, index) in &base.paths {
                         let weight = mask.bone_weight(bone);
@@ -326,11 +364,13 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                         }
                     }
                 }
-            }
+            } else { bone_data = None; }
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd(self.output_pin.clone(), base);
-        *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+        let state = ctx.state_mut::<SourceLayeredBoneBlendState>()?;
+        state.context = context;
+        state.data = bone_data;
         Ok(())
     }
 
@@ -357,6 +397,110 @@ impl NodeLike for SourceLayeredBoneBlendNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn layered_bone_data_tracks_skeleton_and_filters_without_caching_live_inputs() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph,
+            animation_node::{AnimationNode, dyn_node_like::DynNodeLike},
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, pose::BonePose, skeleton::Skeleton,
+            state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        #[derive(Resource)]
+        struct Arenas([GraphContextArena; 2]);
+        fn evaluate(In((instance, handle, base, overlay)): In<(usize, Handle<AnimationGraph>, Pose, Pose)>,
+            mut arenas: ResMut<Arenas>, resources: SystemResources,
+        ) -> (std::sync::Arc<SourceLayeredBoneData>, Pose) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "blend").unwrap();
+            let arena = &mut arenas.0[instance];
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([("base".into(), DataValue::Pose(base)), ("overlay".into(), DataValue::Pose(overlay))]);
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+            let data = arena.get_toplevel().node_states.get::<SourceLayeredBoneBlendState>(node.id, StateKey::Default)
+                .expect("layered blend does not retain bone data").data.clone().unwrap();
+            arena.next_frame();
+            (data, output)
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let scene = EntityPath::default().child("scene");
+        let root = scene.child("root");
+        let child = root.child("child");
+        let skeletons = [1.0, 5.0].map(|height| {
+            let mut skeleton = Skeleton::default();
+            skeleton.set_root(scene.id());
+            for (path, transform) in [(scene.clone(), Transform::IDENTITY), (root.clone(), Transform::IDENTITY),
+                (child.clone(), Transform::from_xyz(0.0, height, 0.0))] {
+                skeleton.add_bone(path, transform, transform);
+            }
+            world.resource_mut::<Assets<Skeleton>>().add(skeleton)
+        });
+        let skeleton = skeletons[0].clone();
+        let mut config = SourceLayeredBoneBlendNode {
+            branch_filters: vec![SourceBranchFilter { bone: "child".into(), blend_depth: 0 }],
+            blend_weight: 0.5, ..default()
+        };
+        let blend = AnimationNode::new("blend", config.clone());
+        let mut graph = AnimationGraph::new();
+        graph.add_node(blend.clone());
+        for (key, pin) in [("base", "BasePose"), ("overlay", "BlendPoses_0")] {
+            let input = AnimationNode::new(key, crate::GlobalPoseInputNode { key: key.into(), output: "Pose".into() });
+            graph.add_node(input.clone());
+            graph.add_node_parameter_edge(input.id, "Pose", blend.id, pin);
+        }
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(blend.id, "Pose", "Pose");
+        let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.insert_resource(Arenas([GraphContextArena::new(graph.id()), GraphContextArena::new(graph.id())]));
+        let mut base = Pose { skeleton: skeleton.clone(), ..default() };
+        base.add_bone(BonePose::from_transform(Transform::from_xyz(1.0, 0.0, 0.0)), root.id());
+        let mut overlay = Pose { skeleton: skeleton.clone(), ..default() };
+        overlay.add_bone(BonePose::from_transform(Transform::from_xyz(10.0, 0.0, 0.0)), root.id());
+        overlay.add_bone(BonePose::from_transform(Transform::from_xyz(0.0, 9.0, 0.0)), child.id());
+        let (first, output) = world.run_system_cached_with(evaluate, (0, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert_eq!(output.get_bone(child.id()).unwrap().translation.unwrap().y, 5.0);
+        let (second_instance, _) = world.run_system_cached_with(evaluate, (1, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&first, &second_instance));
+        config.blend_weight = 0.25;
+        world.resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().nodes.get_mut(&blend.id).unwrap().inner = DynNodeLike::new(config.clone());
+        let base_index = base.paths[&root.id()];
+        base.bones[base_index].translation = Some(Vec3::X * 5.0);
+        let (weight_change, output) = world.run_system_cached_with(evaluate, (0, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert!(std::sync::Arc::ptr_eq(&first, &weight_change));
+        assert_eq!(output.get_bone(root.id()).unwrap().translation.unwrap().x, 5.0);
+        assert_eq!(output.get_bone(child.id()).unwrap().translation.unwrap().y, 3.0);
+        let reference = Transform::from_xyz(0.0, 3.0, 0.0);
+        world.resource_mut::<Assets<Skeleton>>().get_mut(&skeleton).unwrap().add_bone(child.clone(), reference, reference);
+        let (skeleton_change, output) = world.run_system_cached_with(evaluate, (0, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&first, &skeleton_change));
+        assert_eq!(output.get_bone(child.id()).unwrap().translation.unwrap().y, 4.5);
+        assert_eq!(second_instance.reference.get_bone(child.id()).unwrap().translation.unwrap().y, 1.0);
+        config.branch_filters[0].bone = "root".into();
+        world.resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().nodes.get_mut(&blend.id).unwrap().inner = DynNodeLike::new(config);
+        let (filter_change, output) = world.run_system_cached_with(evaluate, (0, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&skeleton_change, &filter_change));
+        assert_eq!(output.get_bone(root.id()).unwrap().translation.unwrap().x, 6.25);
+        let (stable, _) = world.run_system_cached_with(evaluate, (0, graph.clone(), base.clone(), overlay.clone())).unwrap();
+        assert!(std::sync::Arc::ptr_eq(&filter_change, &stable));
+        base.skeleton = skeletons[1].clone();
+        overlay.skeleton = skeletons[1].clone();
+        let (different_skeleton, output) = world.run_system_cached_with(evaluate, (0, graph, base, overlay)).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&stable, &different_skeleton));
+        assert_eq!(output.get_bone(child.id()).unwrap().translation.unwrap().y, 6.0);
+    }
 
     #[test]
     fn layered_blend_uses_one_source_per_bone_and_source_rotation_math() {

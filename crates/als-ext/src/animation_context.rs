@@ -240,7 +240,7 @@ pub fn pose_input_context_state(
     }
 }
 
-fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {
+pub fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {
     if let Ok(state) = states.get::<crate::root_graph_boundaries::ControlRigNodeState>(node, key) {
         return Some(&state.context);
     }
@@ -287,6 +287,9 @@ fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Optio
     if let Ok(state) = states
         .get::<crate::source_stop_nodes::SourceEnumPoseBlendState>(node, key)
     {
+        return Some(&state.context);
+    }
+    if let Ok(state) = states.get::<crate::source_stop_nodes::SourceLayeredBoneBlendState>(node, key) {
         return Some(&state.context);
     }
     states

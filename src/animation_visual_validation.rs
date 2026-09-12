@@ -8,7 +8,7 @@ use std::{
 
 use als_camera::AlsCameraSet;
 use als_core::character::AlsCharacter;
-use als_ext::{AnimationContextState, InterruptibleFsmState, player_animation_context_state};
+use als_ext::{InterruptibleFsmState, player_animation_context_state};
 use avian3d::prelude::{PhysicsSystems, Position};
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
@@ -1645,18 +1645,10 @@ fn graph_failure_node_candidates(
             let Some(graph) = graphs.get(graph_id) else {
                 continue;
             };
-            let context_curves = context
-                .node_states
-                .get::<AnimationContextState>(node_id, StateKey::Default)
-                .ok()
+            let context_curves = als_ext::animation_context::node_context_state(
+                &context.node_states, StateKey::Default, node_id,
+            )
                 .map(|state| state.curves.clone())
-                .or_else(|| {
-                    context
-                        .node_states
-                        .get::<InterruptibleFsmState>(node_id, StateKey::Default)
-                        .ok()
-                        .map(|state| state.context.curves.clone())
-                })
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|(_, value)| value.is_finite())
@@ -1713,18 +1705,9 @@ fn graph_failure_context_nodes(
             continue;
         };
         for node in graph.nodes.values() {
-            let context_curves = context
-                .node_states
-                .get::<AnimationContextState>(node.id, StateKey::Default)
-                .ok()
-                .map(|state| state.curves.clone())
-                .or_else(|| {
-                    context
-                        .node_states
-                        .get::<InterruptibleFsmState>(node.id, StateKey::Default)
-                        .ok()
-                        .map(|state| state.context.curves.clone())
-                });
+            let context_curves = als_ext::animation_context::node_context_state(
+                &context.node_states, StateKey::Default, node.id,
+            ).map(|state| state.curves.clone());
             let Some(context_curves) = context_curves else {
                 continue;
             };

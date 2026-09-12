@@ -1237,3 +1237,22 @@
 
 
   - 08e2f1完成2026-09-12 10:34:21：最终39基座23.941s、373扩展2.416s、307项目235.324s全部PASS；手动构建释放锁后，同一target_game/play预构建11.085s通过。fresh247规格2.913s与前版逐项相同，八manifest全部PASS（Root7.135、Standing7.100、Crouching5.727、Grounded7.094、Locomotion4.451、Default6.035、Layering3.426、Head3.149秒）。标准库写时复制替代了未访问状态/缓存的深复制，保留实际Rig全部值与已验证隔离、时间、清理；项目只锁定五个crate至28c2d61f，原九AnimBP/256产物与编辑器合同不变。BF115.01b仅共享静态快照合同重新关闭，完整CR/真实性能仍未关闭。开始10:17、预估11:12、实际10:34:21，偏差-2259s，结果静态完成。当前手动Playground仍运行，公共startup须待该实例结束后独立采样；原08e2f预估10:54:32尚未失效。
+
+
+  - 08e2f恢复startup前2026-09-12 10:37:37：用户明确同意结束手动检查后，核对时该Playground实例已经退出；本任务构建与声明式均结束，确认无其它Playground实例。使用1003cb5锁定28c2d61f的同一target_game/play入口，39/373/307测试、11.085秒实际预构建、247不变规格及八manifest全部通过。第8号目录独立记录写时复制后的真实全图性能，仍保留4ms、全部姿态/时间/进展守卫与CaptureCount0；Rig源165指令/79骨/11输入及256安装资产不变。
+
+  - 08e2f startup8后2026-09-12 10:37:53：14.606s运行仍仅eval门限FAIL；453样本/79姿态，eval p50/p95/max4.4349/5.0196/8.1935ms，CPU p95 9.4956ms，frame p95/max17.8468/19.7029ms，Rig p95 0.3408ms，物理步恒1。fault/temporal/graph-error均空、primary_failure为空、截图0；写时复制在真实区间减少了成本，但还未达到4ms。旧span报告早于完整原生复制和写时复制，不能继续沿旧热点猜测；下一步仅复用已测试观测器采集当前入口的节点/播放器时间，区分剩余图求值与计时区间的其它工作，再回到source链。
+
+
+  - 08e2f当前节点定位前2026-09-12 10:40:54：复用此前嵌套计时/标签检查已通过的同一临时span观测器，当前实际入口增量编译13.14s完成；只有manual入口接入和退出写报告，所有动画、源/目标资产、计时区间及门限不变。明确开启bevy_animation_graph_core info span，第9号无驱动startup只定位当前28c2d61f的剩余节点/播放器开销，CaptureCount0。
+
+
+  - 08e2f节点定位完成2026-09-12 10:50:46：15.293s诊断得到203个span，Standing/Locomotion/Default同步根自身仅0.10086/0.08800/0.12552ms，完整Rig及前序平均3.79605ms；player_update 2045次覆盖约四个player，平均1.18637ms不能当成主角色整帧。四个实际Layering逐骨混合自身0.34257/0.26150/0.20801/0.10610ms；fault/temporal/graph-error为0、截图0，原eval门限仍FAIL。临时观测器已从入口撤销，继续修改只能依据当前热点及fresh源闭包。
+- [x] BF115.08e2f2 LayeredBoneBlend骨骼缓存生命周期：开始2026-09-12 10:50:46、预估2026-09-12 11:40:46。fresh FAnimNode_LayeredBoneBlend.CacheBones/UpdateCachedBoneData按RequiredBones序号、Skeleton/VirtualBone GUID重建掩码与骨源索引；target四个实际节点每帧重复生成掩码、骨源映射及reference Pose。BF115.06c2仅该共享缓存执行细节取消勾选，旧Gate覆盖权重/重叠/负深度/局部和mesh旋转，却未验证重建时点。先在现有实际节点fixture上分离构建/混合成本，再复用NodeStates保存不可变派生数据；以已有Assets变化tick、骨架身份和实际filter配置决定重建，不增加独立追踪系统。保持live weights、当前输入Pose/曲线、source index和混合算法；覆盖连续帧、权重变化、骨架/配置变化及两实例隔离，消融缓存必须改变重建信号而不改变姿态。按当前单节点/四实例、近期20–40秒库fixture和约两分钟入口构建估时；本段只完成静态/source闭合与适用回归、同入口/规格/八manifest，然后回到公共startup与剩余CR/物理，不展开其它Layering或overlay算法。
+
+  - 08e2f2执行闭包2026-09-12 11:04:30：现有混合fixture加入79骨参考层级的临时观测37.508s通过，测试配置下掩码约165–182µs、reference补全约50–91µs、mesh混合约340–490µs；观测已撤销。fresh BlendPosesPerBoneFilter使用预备父索引和连续旋转数组，目标另逐帧重排父级、用三份HashMap查询旋转并复制整个source Pose。当前缓存同时保存父索引，旋转数组按相同父先子后顺序计算，在原局部混合前保存源旋转，避免整Pose副本；原LinearInterpolator、root motion、稀疏/非骨架通道及四元数数学保持。实际节点新生命周期fixture37.975s先FAIL于未保留骨骼数据；实现初次6.620s因state访问是Result而非Option未编译，已修正。新增state包裹context后，公共曲线查找补该类型；两个图失败观察器原来只识别普通/FSM状态，也须迁到既有统一只读入口以保留该节点诊断曲线，不额外新建观察框架。父08e2f原10:14:32→10:54:32公共段在10:50:46因性能未通过拆入本静态段（偏差-3m46s），后续运行另登记。
+
+  - 08e2f2消融与连续帧2026-09-12 11:17:00：14项Layered/局部/mesh/稀疏子骨检查31.154s通过；移除缓存复用29.379s在仅权重变化时重复重建的断言稳定FAIL。扩展同一个实际节点fixture以不同骨架身份、同handle参考骨变更、filter变化、live Pose/权重及两实例覆盖失效边界；没有新增独立资源或事件系统，Assets变化tick是已有资源的保守失效信号。79骨参考层级对照每例连续八帧27.076s通过，63次缓存命中后准备中位4.3µs、填充40.3µs、旋转混合74.8µs；首次构建326.6µs只发生一次，之前每帧掩码165–182µs/旋转340–490µs。临时观测/放大骨架已撤销，完整混合数学和原LinearInterpolator保留；删除不被消费者读取的中间target timestamp赋值。下一步374库、307项目、同入口、规格与八manifest，仍未启动新的游戏。
+
+
+  - 08e2f2完成2026-09-12 11:24:00：最终374扩展32.418s、307项目84.127s、target_game/play实际入口125.847s全部PASS；fresh247规格3.170s逐项不变，八manifest全部PASS（Root6.875、Standing6.846、Crouching5.565、Grounded6.837、Locomotion4.228、Default5.548、Layering3.684、Head3.410秒）。不同骨架身份、同handle参考骨变更、filter与live权重/输入、两实例以及稀疏和跨层mesh旋转均通过；缓存消融保留失败证据。只保留节点内不可变骨骼数据、父索引/旋转数组及统一只读诊断入口；无新事件系统、哈希或依赖，所有临时观测代码撤销。源/转换器/256安装资产不变，原全九AnimBP与编辑器/位置证据保持有效。06c2仅共享静态缓存合同重新关闭；真实共享Layering和CR/物理仍需下一公共Gate。开始10:50:46、预估11:40:46、实际11:24:00，偏差-1006s，本段完成。
