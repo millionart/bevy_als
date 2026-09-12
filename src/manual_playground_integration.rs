@@ -3412,7 +3412,7 @@ fn initialize_manual_integration(
     assemblies: Query<&AlsCharacterAssembly>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
-    cameras: Query<(&AlsCameraRig, &AlsCameraDebugInfo)>,
+    cameras: (Query<(&AlsCameraRig, &AlsCameraDebugInfo)>, Query<&als_camera::AlsCameraViewSource>),
     toggles: Query<&TnuaToggle, With<AlsCharacter>>,
     view: Query<(&AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
     transforms: Query<&Transform, With<AlsCharacter>>,
@@ -3439,7 +3439,8 @@ fn initialize_manual_integration(
     let Some(camera) = assembly.camera else {
         return;
     };
-    let Ok((_rig, debug)) = cameras.get(camera) else {
+    let camera = cameras.1.get(camera).map_or(camera, |source| source.0);
+    let Ok((_rig, debug)) = cameras.0.get(camera) else {
         return;
     };
     let Ok(toggle) = toggles.get(character) else {

@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset,
-    AlsCameraRig, AlsCameraRuntime, AlsCameraSocketBinding, AlsCameraSocketLocations,
+    AlsCameraFieldOfView, AlsCameraFovOffset,
+    AlsCameraSocketBinding, AlsCameraSocketLocations,
     AlsCameraTarget,
 };
 use als_core::character::AlsCharacterBundle;
@@ -286,6 +286,7 @@ fn spawn_als_character_internal(
         Visibility::Hidden,
     ));
     if let Some(material) = camera_material { component.insert(AvatarMaterialOverride(vec![material])); }
+    let component_entity = component.id();
     let camera = if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
         Some(
@@ -294,10 +295,8 @@ fn spawn_als_character_internal(
                     Camera3d::default(),
                     Transform::from_translation(eye)
                         .looking_at(blueprint.transform.translation + Vec3::Y, Vec3::Y),
-                    AlsCameraRig::default(),
+                    als_camera::AlsCameraViewSource(component_entity),
                     AlsCameraFieldOfView::default(),
-                    AlsCameraDebugInfo::default(),
-                    AlsCameraRuntime::default(),
                     AlsCharacterCamera { character },
                 ))
                 .id(),
@@ -480,6 +479,7 @@ mod tests {
             character
         );
         assert!(app.world().get::<Camera3d>(camera).is_some());
-        assert!(app.world().get::<AlsCameraRig>(camera).is_some());
+        assert!(app.world().get::<als_camera::AlsCameraRig>(source_camera.0).is_some());
+        assert_eq!(app.world().get::<als_camera::AlsCameraViewSource>(camera).unwrap().0, source_camera.0);
     }
 }

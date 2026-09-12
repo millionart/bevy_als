@@ -13,6 +13,8 @@ pub struct AlsCameraDefinition {
     pub pivot_sockets: [String; 2],
     pub shoulder_sockets: [String; 2],
     pub trace_channel: String,
+    pub standing_eye_height: f32,
+    pub crouching_eye_height: f32,
     pub graph: String,
     pub skeleton: String,
     pub mesh_scene: String,

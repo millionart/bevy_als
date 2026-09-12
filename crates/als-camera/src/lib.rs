@@ -275,6 +275,7 @@ pub fn field_of_view_for_override(
 }
 
 #[derive(Component, Debug, Clone, Copy)]
+#[require(AlsCameraViewInfo, AlsCameraRuntime, AlsCameraDebugInfo)]
 pub struct AlsCameraRig {
     pub mode: AlsCameraMode,
 }
@@ -320,7 +321,19 @@ pub struct AlsCameraDefinitionHandle(pub Handle<AlsCameraDefinition>);
 pub struct AlsCameraAnimationFrame {
     pub delta_seconds: f32,
     pub active: bool,
+    pub force_no_lag: bool,
 }
+
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct AlsCameraViewInfo {
+    pub location: Vec3,
+    pub rotation: Quat,
+    pub field_of_view_deg: f32,
+    pub valid: bool,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct AlsCameraViewSource(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCameraCurveProfileDriver;
@@ -507,7 +520,7 @@ impl Plugin for AlsCameraPlugin {
                     .after(als_core::input_request::input_state_request_system)
                     .after(als_core::transition::state_transition_system),
             )
-            .add_systems(PostUpdate, ensure_camera_runtime)
+            .add_systems(PostUpdate, ensure_camera_view_fields.before(AlsCameraSet))
             .add_systems(
                 PostUpdate,
                 (
@@ -515,6 +528,7 @@ impl Plugin for AlsCameraPlugin {
                     camera_movement_base_bridge_system.after(TransformSystems::Propagate),
                     ApplyDeferred,
                     camera_rig_system,
+                    apply_camera_view,
                 )
                     .chain().in_set(AlsCameraSet),
             )
@@ -526,7 +540,7 @@ impl Plugin for AlsCameraPlugin {
                     transform_systems::sync_simple_transforms,
                 )
                     .chain()
-                    .after(camera_rig_system),
+                    .after(apply_camera_view),
             );
     }
 }
@@ -707,29 +721,12 @@ fn advance_camera_curve_profile(
         std::array::from_fn(|index| runtime.source[index].lerp(runtime.target[index], alpha));
 }
 
-fn ensure_camera_runtime(
+fn ensure_camera_view_fields(
     mut commands: Commands,
-    cameras: Query<
-        (
-            Entity,
-            Has<AlsCameraRuntime>,
-            Has<AlsCameraFieldOfView>,
-            Has<AlsCameraDebugInfo>,
-        ),
-        With<AlsCameraRig>,
-    >,
+    cameras: Query<Entity, (With<Camera3d>, Without<AlsCameraFieldOfView>, Or<(With<AlsCameraRig>, With<AlsCameraViewSource>)>)>,
 ) {
-    for (entity, has_runtime, has_field_of_view, has_debug) in &cameras {
-        let mut entity_commands = commands.entity(entity);
-        if !has_runtime {
-            entity_commands.insert(AlsCameraRuntime::default());
-        }
-        if !has_field_of_view {
-            entity_commands.insert(AlsCameraFieldOfView::default());
-        }
-        if !has_debug {
-            entity_commands.insert(AlsCameraDebugInfo::default());
-        }
+    for entity in &cameras {
+        commands.entity(entity).insert(AlsCameraFieldOfView::default());
     }
 }
 
@@ -1297,10 +1294,8 @@ fn camera_rig_system(
     mut cameras: Query<
         (
             Entity,
-            &mut Transform,
-            &mut Projection,
+            &mut AlsCameraViewInfo,
             &mut AlsCameraRig,
-            &mut AlsCameraFieldOfView,
             &mut AlsCameraDebugInfo,
             &mut AlsCameraRuntime,
             Option<&AlsCameraFovOverride>,
@@ -1338,7 +1333,7 @@ fn camera_rig_system(
     real_time: Res<Time<Real>>,
 ) {
     let requests = shake_requests.read().copied().collect::<Vec<_>>();
-    for (camera_entity, mut camera_transform, mut projection, mut rig, mut field_of_view,
+    for (camera_entity, mut view_info, mut rig,
         mut debug, mut runtime, field_of_view_override, owner) in &mut cameras {
     let Some((
         target_entity,
@@ -1359,7 +1354,7 @@ fn camera_rig_system(
     else {
         continue;
     };
-    if animation_frame.is_some_and(|frame| !frame.active) { continue; }
+    if animation_frame.is_some_and(|frame| !frame.active) { debug.valid = false; continue; }
     let definition = definition_handle.and_then(|handle| definitions.get(&handle.0));
     let Some(params) = definition.map(|value| &value.settings).or_else(|| params_assets.iter().next().map(|(_, value)| value)) else { continue; };
     let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
@@ -1424,15 +1419,16 @@ fn camera_rig_system(
         );
         let (shake_location, shake_rotation_degrees) =
             camera_shake_sample(&mut runtime, delta_seconds);
-        set_field_of_view(&mut projection, &mut field_of_view, fov);
-        camera_transform.translation = sockets.first_person + shake_location;
-        camera_transform.rotation = target_rotation
+        view_info.field_of_view_deg = fov;
+        view_info.location = sockets.first_person + shake_location;
+        view_info.rotation = target_rotation
             * Quat::from_euler(
                 EulerRot::YXZ,
                 shake_rotation_degrees.y.to_radians(),
                 shake_rotation_degrees.x.to_radians(),
                 shake_rotation_degrees.z.to_radians(),
             );
+        view_info.valid = true;
         write_debug(
             &mut debug,
             pivot_target,
@@ -1486,9 +1482,9 @@ fn camera_rig_system(
         }
         runtime.movement_base = base.map(|frame| frame.entity);
     }
-    let allow_lag = params.teleport_distance_threshold <= 0.0
+    let allow_lag = !animation_frame.is_some_and(|frame| frame.force_no_lag) && (params.teleport_distance_threshold <= 0.0
         || runtime.previous_pivot_target.distance_squared(pivot_target)
-            <= params.teleport_distance_threshold.powi(2);
+            <= params.teleport_distance_threshold.powi(2));
     runtime.previous_pivot_target = pivot_target;
     if let Some(frame) = base {
         runtime.camera_rotation = frame.rotation * runtime.camera_rotation_base_space;
@@ -1589,18 +1585,19 @@ fn camera_rig_system(
         params,
     );
     let (shake_location, shake_rotation_degrees) = camera_shake_sample(&mut runtime, delta_seconds);
-    set_field_of_view(&mut projection, &mut field_of_view, fov);
-    camera_transform.translation = trace
+    view_info.field_of_view_deg = fov;
+    view_info.location = trace
         .location
         .lerp(sockets.first_person, first_person_override)
         + shake_location;
-    camera_transform.rotation = runtime.camera_rotation
+    view_info.rotation = runtime.camera_rotation
         * Quat::from_euler(
             EulerRot::YXZ,
             shake_rotation_degrees.y.to_radians(),
             shake_rotation_degrees.x.to_radians(),
             shake_rotation_degrees.z.to_radians(),
         );
+    view_info.valid = true;
     write_debug(
         &mut debug,
         pivot_target,
@@ -1617,6 +1614,31 @@ fn camera_rig_system(
         shake_rotation_degrees,
         debug_curve_values,
     );
+    }
+}
+
+fn apply_camera_view(
+    mut cameras: Query<(Entity, &mut Transform, &mut Projection, &mut AlsCameraFieldOfView,
+        Option<&AlsCameraViewSource>, Option<&AlsCharacterCamera>), With<Camera3d>>,
+    views: Query<&AlsCameraViewInfo>,
+    definitions: Res<Assets<AlsCameraDefinition>>,
+    owners: Query<(&GlobalTransform, &AlsViewYaw, Option<&AlsViewPitch>, &als_core::state::Stance,
+        &AlsCameraDefinitionHandle, &AlsCameraAnimationFrame)>,
+) {
+    for (entity, mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
+        if let Some(owner) = owner && let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
+            && !frame.active && let Some(definition) = definitions.get(&handle.0) {
+            let height = if *stance == als_core::state::Stance::Crouching { definition.crouching_eye_height } else { definition.standing_eye_height };
+            transform.translation = position.translation() + Vec3::Y * height;
+            transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw.0, pitch.map_or(0.0, |value| value.0), 0.0);
+            set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+            continue;
+        }
+        let Ok(info) = views.get(source.map_or(entity, |source| source.0)) else { continue; };
+        if !info.valid { continue; }
+        transform.translation = info.location;
+        transform.rotation = info.rotation;
+        set_field_of_view(&mut projection, &mut field_of_view, info.field_of_view_deg);
     }
 }
 

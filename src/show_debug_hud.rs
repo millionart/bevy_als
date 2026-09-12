@@ -901,9 +901,11 @@ fn hud_sync_system(
             &GlobalTransform,
             Option<&AlsCameraRig>,
             Option<&als_camera::AlsCameraDebugInfo>,
+            Option<&als_camera::AlsCameraViewSource>,
         ),
         (With<Camera>, Without<AlsCharacter>),
     >,
+    camera_components: Query<(&AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
     q_instances: Query<&AnimatedSceneInstance>,
     q_players: Query<&AnimationGraphPlayer>,
     curve_assets: Option<Res<Assets<AlsAnimCurves>>>,
@@ -955,7 +957,10 @@ fn hud_sync_system(
         let (rig, cam_debug) = q_camera
             .iter()
             .next()
-            .map(|(transform, rig, info)| (Some((transform, rig)), info))
+            .map(|(transform, rig, info, source)| {
+                let component = source.and_then(|source| camera_components.get(source.0).ok());
+                (Some((transform, component.map(|value| value.0).or(rig))), component.map(|value| value.1).or(info))
+            })
             .unwrap_or((None, None));
         let camera_snapshot = build_camera_snapshot(rig, cam_debug);
 
