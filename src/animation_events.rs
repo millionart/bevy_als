@@ -572,14 +572,13 @@ fn parameter_tag<'a>(parameters: &'a Value, key: &str) -> Option<&'a str> {
 
 pub(crate) fn early_blend_out_matches(
     parameters: &Value, has_input: bool, locomotion: als_core::state::LocomotionState,
-    mantling: bool, rotation: als_core::state::RotationMode, stance: Stance,
+    rotation: als_core::state::RotationMode, stance: Stance,
 ) -> bool {
     use als_core::state::{LocomotionState, RotationMode};
     let locomotion_tag = match locomotion {
-        _ if mantling => "",
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::Ragdolling => "",
     };
     let rotation_tag = match rotation {
         RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
@@ -895,19 +894,19 @@ mod tests {
     fn mantle_early_blend_out_uses_source_conditions_and_custom_movement_mode() {
         use als_core::state::{LocomotionState, RotationMode};
         let defaults = serde_json::json!({"BlendOutDuration": 0.4});
-        let matches = |parameters: &Value, input, locomotion, mantling, rotation, stance| {
-            early_blend_out_matches(parameters, input, locomotion, mantling, rotation, stance)
+        let matches = |parameters: &Value, input, locomotion, rotation, stance| {
+            early_blend_out_matches(parameters, input, locomotion, rotation, stance)
         };
-        assert!(!matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
-        assert!(matches(&defaults, true, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
-        assert!(matches(&defaults, false, LocomotionState::Air, false, RotationMode::ViewDirection, Stance::Standing));
-        assert!(!matches(&defaults, false, LocomotionState::Air, true, RotationMode::ViewDirection, Stance::Standing));
-        assert!(matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::Aiming, Stance::Standing));
-        assert!(matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Crouching));
+        assert!(!matches(&defaults, false, LocomotionState::Grounded, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, true, LocomotionState::Grounded, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Air, RotationMode::ViewDirection, Stance::Standing));
+        assert!(!matches(&defaults, false, LocomotionState::Custom, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Grounded, RotationMode::Aiming, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Grounded, RotationMode::ViewDirection, Stance::Crouching));
         let disabled = serde_json::json!({"bCheckInput": false, "bCheckLocomotionMode": false, "bCheckRotationMode": false, "bCheckStance": false});
-        assert!(!matches(&disabled, true, LocomotionState::Air, false, RotationMode::Aiming, Stance::Crouching));
+        assert!(!matches(&disabled, true, LocomotionState::Air, RotationMode::Aiming, Stance::Crouching));
         let configured = serde_json::json!({"LocomotionModeEquals": {"__tagged__": {"TagName": "Als.LocomotionMode.Grounded"}}});
-        assert!(matches(&configured, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&configured, false, LocomotionState::Grounded, RotationMode::ViewDirection, Stance::Standing));
     }
 
     #[test]

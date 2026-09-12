@@ -2,6 +2,8 @@ use als_core::character::{
     AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, set_collision_layer_owner,
 };
 use als_core::mantle::{AlsMantleState, AlsMantleTargetBase, MantleKind};
+use als_core::state::LocomotionState;
+use als_core::transition::{Dimension, StateTransitionEvent, StateValue};
 use als_ext::{
     animation_context::SourceRelevantAsset,
     profile_blend::transition_alpha,
@@ -195,7 +197,8 @@ pub struct AlsMantleDriveSet;
 
 impl Plugin for AlsMantleDrivePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_mantle_assets)
+        app.add_message::<StateTransitionEvent>()
+            .add_systems(Startup, load_mantle_assets)
             .add_systems(Update, ensure_mantle_state);
         app.configure_sets(
             PostUpdate,
@@ -231,6 +234,7 @@ impl Plugin for AlsMantleDrivePlugin {
 fn prepare_mantle_montages(
     time: Res<Time>,
     mut commands: Commands,
+    mut transitions: MessageWriter<StateTransitionEvent>,
     assets: Res<MantleAssets>,
     clips: Res<Assets<GraphClip>>,
     skeletons: Res<Assets<Skeleton>>,
@@ -240,7 +244,7 @@ fn prepare_mantle_montages(
             Entity,
             &AlsMantleState,
             Option<&mut AlsMantleMontages>,
-            Option<&als_core::state::LocomotionState>,
+            &mut LocomotionState,
             Option<&als_core::roll::AlsRollState>,
             Option<&mut crate::get_up::AlsGetUpState>,
         ),
@@ -248,8 +252,9 @@ fn prepare_mantle_montages(
     >,
 ) {
     let delta = time.delta_secs();
-    for (character, mantle, mut current, locomotion, roll, mut get_up) in &mut characters {
+    for (character, mantle, mut current, mut locomotion, roll, mut get_up) in &mut characters {
         let starting = mantle.active
+            && *locomotion != LocomotionState::Ragdolling
             && !mantle.root_motion_ready
             && delta > 1e-8
             && clips
@@ -258,6 +263,15 @@ fn prepare_mantle_montages(
         let mut added = AlsMantleMontages::default();
         let montages = current.as_deref_mut().unwrap_or(&mut added);
         if starting {
+            if *locomotion != LocomotionState::Custom {
+                transitions.write(StateTransitionEvent {
+                    entity: character,
+                    dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(*locomotion),
+                    to: StateValue::LocomotionState(LocomotionState::Custom),
+                });
+                *locomotion = LocomotionState::Custom;
+            }
             montages.begin(mantle);
             let duration = mantle.kind.action_settings().blend_in_seconds;
             if let Some(roll) = roll.filter(|roll| roll.active) {
@@ -278,7 +292,7 @@ fn prepare_mantle_montages(
         }
         let last = montages.entries.len().saturating_sub(1);
         for (index, entry) in montages.entries.iter_mut().enumerate() {
-            if locomotion == Some(&als_core::state::LocomotionState::Ragdolling) {
+            if *locomotion == LocomotionState::Ragdolling {
                 entry.stop(
                     crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds,
                     true,
@@ -308,8 +322,7 @@ fn handle_mantle_early_blend_out(
     mut characters: Query<
         (
             &mut AlsMantleMontages,
-            &AlsMantleState,
-            &als_core::state::LocomotionState,
+            &LocomotionState,
             &als_core::state::RotationMode,
             &als_core::state::Stance,
             &als_core::input::AlsInputCommand,
@@ -324,7 +337,7 @@ fn handle_mantle_early_blend_out(
         {
             continue;
         }
-        let Ok((mut montages, mantle, locomotion, rotation, stance, command, override_command)) =
+        let Ok((mut montages, locomotion, rotation, stance, command, override_command)) =
             characters.get_mut(event.character)
         else {
             continue;
@@ -334,7 +347,6 @@ fn handle_mantle_early_blend_out(
             &event.parameters,
             command.move_dir.length_squared() > 1e-8,
             *locomotion,
-            mantle.active,
             *rotation,
             *stance,
         ) {
@@ -483,29 +495,63 @@ fn ensure_mantle_state(
 
 fn mantle_pose_system(
     mut commands: Commands,
+    mut transitions: MessageWriter<StateTransitionEvent>,
     target_transforms: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut q: Query<
         (
             Entity,
             &mut AlsMantleState,
+            &mut LocomotionState,
             &mut LinearVelocity,
             Option<&AlsNotifyLocomotionAction>,
+            Option<&mut AlsMantleMontages>,
             Option<&CollisionLayers>,
             &mut AlsCollisionLayerOwnership,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, mut m, mut vel, action, layers, mut ownership) in &mut q {
-        if m.root_motion_ready
-            && action.is_some_and(|action| *action != AlsNotifyLocomotionAction::Mantling)
-        {
-            m.active = false;
+    for (entity, mut m, mut locomotion, mut vel, action, montages, layers, mut ownership) in &mut q
+    {
+        if !m.active && !m.root_motion_ready {
+            continue;
         }
-        let target_base = mantle_target_base(&m, &target_transforms);
-        let target_valid = !m.active || m.refresh_target_base(target_base);
+        let action_ended = action != Some(&AlsNotifyLocomotionAction::Mantling)
+            || *locomotion == LocomotionState::Ragdolling;
+        let mode_changed = *locomotion != LocomotionState::Custom;
+        let target_valid = action_ended
+            || mode_changed
+            || !m.active
+            || m.target_base
+                .is_none_or(|base| target_transforms.contains(base.entity));
         if !target_valid {
+            m.target_invalid = true;
             *vel = LinearVelocity(Vec3::ZERO);
+        }
+        if action_ended || mode_changed || !target_valid {
+            if !action_ended && let Some(mut montages) = montages {
+                for entry in &mut montages.entries {
+                    if entry.kind.action_settings().montage_index
+                        == m.kind.action_settings().montage_index
+                    {
+                        entry.stop(MANTLE_SETTINGS.stop_blend_out_seconds, true);
+                    }
+                }
+            }
+            m.active = false;
+            m.root_motion_ready = false;
+            if !matches!(
+                *locomotion,
+                LocomotionState::Grounded | LocomotionState::Ragdolling
+            ) {
+                transitions.write(StateTransitionEvent {
+                    entity,
+                    dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(*locomotion),
+                    to: StateValue::LocomotionState(LocomotionState::Grounded),
+                });
+                *locomotion = LocomotionState::Grounded;
+            }
         }
         set_collision_layer_owner(
             &mut commands,
@@ -526,6 +572,7 @@ fn mantle_drive_system(
         (
             Entity,
             &mut AlsMantleState,
+            &LocomotionState,
             &mut LinearVelocity,
             &mut Transform,
             Option<&mut Rotation>,
@@ -540,13 +587,10 @@ fn mantle_drive_system(
     skeletons: Res<Assets<Skeleton>>,
 ) {
     let dt = time.delta_secs();
-    for (entity, mut m, mut vel, mut transform, rotation, layers, mut ownership) in &mut q {
-        let target_base = mantle_target_base(&m, &target_transforms);
-        let target_valid = !m.active || m.refresh_target_base(target_base);
-        if !target_valid {
-            *vel = LinearVelocity(Vec3::ZERO);
-        }
-        if !target_valid || !m.active || dt <= 1e-8 {
+    for (entity, mut m, locomotion, mut vel, mut transform, rotation, layers, mut ownership) in
+        &mut q
+    {
+        if !m.active || *locomotion != LocomotionState::Custom || dt <= 1e-8 {
             set_collision_layer_owner(
                 &mut commands,
                 entity,
@@ -557,6 +601,12 @@ fn mantle_drive_system(
             );
             continue;
         }
+        let target_base = mantle_target_base(&m, &target_transforms);
+        if m.target_base.is_some() && target_base.is_none() {
+            *vel = LinearVelocity(Vec3::ZERO);
+            continue;
+        }
+        m.refresh_target_base(target_base);
 
         let Some(clip) = clips.get(assets.clip(m.kind)) else {
             continue;
@@ -625,6 +675,7 @@ mod tests {
     #[test]
     fn mantle_action_end_releases_motion_before_the_montage_ends() {
         let mut world = World::new();
+        world.init_resource::<Messages<als_core::transition::StateTransitionEvent>>();
         let mut mantle = AlsMantleState::default();
         mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 1.0, 0.0, 0.0);
         mantle.time = 1.0;
@@ -633,12 +684,152 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 mantle,
+                als_core::state::LocomotionState::Custom,
                 LinearVelocity::ZERO,
                 crate::animation_events::AlsNotifyLocomotionAction::None,
             ))
             .id();
         world.run_system_once(mantle_pose_system).unwrap();
         assert!(!world.get::<AlsMantleState>(actor).unwrap().active);
+        assert_eq!(
+            world.get::<als_core::state::LocomotionState>(actor),
+            Some(&als_core::state::LocomotionState::Grounded)
+        );
+        assert!(
+            !world
+                .get::<AlsMantleState>(actor)
+                .unwrap()
+                .root_motion_ready
+        );
+    }
+
+    #[test]
+    fn mantle_custom_mode_uses_source_stop_priority() {
+        use als_core::state::LocomotionState;
+        use als_core::transition::{Dimension, StateTransitionEvent, StateValue};
+        for (mode, action, missing_target, expected, interrupted) in [
+            (
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                false,
+                LocomotionState::Custom,
+                false,
+            ),
+            (
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::None,
+                false,
+                LocomotionState::Grounded,
+                false,
+            ),
+            (
+                LocomotionState::Air,
+                AlsNotifyLocomotionAction::Mantling,
+                false,
+                LocomotionState::Grounded,
+                true,
+            ),
+            (
+                LocomotionState::Grounded,
+                AlsNotifyLocomotionAction::Mantling,
+                false,
+                LocomotionState::Grounded,
+                true,
+            ),
+            (
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::None,
+                true,
+                LocomotionState::Grounded,
+                false,
+            ),
+            (
+                LocomotionState::Air,
+                AlsNotifyLocomotionAction::Mantling,
+                true,
+                LocomotionState::Grounded,
+                true,
+            ),
+            (
+                LocomotionState::Custom,
+                AlsNotifyLocomotionAction::Mantling,
+                true,
+                LocomotionState::Grounded,
+                true,
+            ),
+        ] {
+            let mut world = World::new();
+            world.init_resource::<Messages<StateTransitionEvent>>();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
+            mantle.root_motion_ready = true;
+            if missing_target {
+                let target = world.spawn_empty().id();
+                world.despawn(target);
+                mantle.target_base = Some(AlsMantleTargetBase {
+                    entity: target,
+                    translation: Vec3::ZERO,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: false,
+                });
+            }
+            let mut montages = AlsMantleMontages::default();
+            montages.begin(&mantle);
+            montages.entries[0].advance(0.3, None);
+            let invalid = missing_target
+                && mode == LocomotionState::Custom
+                && action == AlsNotifyLocomotionAction::Mantling;
+            let actor = world
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    montages,
+                    mode,
+                    action,
+                    LinearVelocity(Vec3::X),
+                ))
+                .id();
+            world.run_system_once(mantle_pose_system).unwrap();
+            assert_eq!(world.get::<LocomotionState>(actor), Some(&expected));
+            assert_eq!(
+                world.get::<AlsMantleState>(actor).unwrap().active,
+                expected == LocomotionState::Custom
+            );
+            assert_eq!(
+                world.get::<AlsMantleState>(actor).unwrap().target_invalid,
+                invalid
+            );
+            assert_eq!(
+                world.get::<LinearVelocity>(actor).unwrap().0,
+                if invalid { Vec3::ZERO } else { Vec3::X }
+            );
+            let entry = &world.get::<AlsMantleMontages>(actor).unwrap().entries[0];
+            assert_eq!(entry.interrupted, interrupted);
+            assert_eq!(
+                entry.stop.map(|(_, duration, _)| duration),
+                interrupted.then_some(0.3)
+            );
+            let events: Vec<_> = world
+                .resource_mut::<Messages<StateTransitionEvent>>()
+                .drain()
+                .collect();
+            assert_eq!(events.len(), usize::from(mode != expected));
+            if let Some(event) = events.first() {
+                assert_eq!(event.entity, actor);
+                assert_eq!(event.dimension, Dimension::LocomotionState);
+                assert_eq!(event.from, StateValue::LocomotionState(mode));
+                assert_eq!(event.to, StateValue::LocomotionState(expected));
+            }
+            world.run_system_once(mantle_pose_system).unwrap();
+            assert_eq!(
+                world
+                    .resource_mut::<Messages<StateTransitionEvent>>()
+                    .drain()
+                    .count(),
+                0
+            );
+        }
     }
 
     #[test]
@@ -706,6 +897,7 @@ mod tests {
         .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
         .init_asset::<Mesh>()
         .init_asset::<Image>()
+        .add_message::<als_core::transition::StateTransitionEvent>()
         .add_systems(Startup, load_mantle_assets);
         app.finish();
         app.cleanup();
@@ -858,6 +1050,7 @@ mod tests {
                 .spawn((
                     AlsCharacter,
                     mantle,
+                    als_core::state::LocomotionState::Grounded,
                     LinearVelocity::ZERO,
                     Transform::from_translation(start).with_rotation(Quat::from_rotation_y(-0.6)),
                     Rotation(Quat::from_rotation_y(-0.6)),
@@ -902,6 +1095,10 @@ mod tests {
                 app.world_mut()
                     .run_system_once(prepare_mantle_montages)
                     .unwrap();
+                assert_eq!(
+                    app.world().get::<als_core::state::LocomotionState>(entity),
+                    Some(&als_core::state::LocomotionState::Custom)
+                );
                 app.world_mut()
                     .run_system_once(mantle_drive_system)
                     .unwrap();
@@ -1122,6 +1319,51 @@ mod tests {
         }
         assert_eq!(MANTLE_SETTINGS.stop_blend_out_seconds, 0.3);
         assert!(MANTLE_SETTINGS.start_ragdoll_on_target_destruction);
+        let mut pending = AlsMantleState::default();
+        pending.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
+        let actor = app
+            .world_mut()
+            .spawn((AlsCharacter, pending, LocomotionState::Ragdolling))
+            .id();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut()
+            .run_system_once(prepare_mantle_montages)
+            .unwrap();
+        assert_eq!(
+            app.world().get::<LocomotionState>(actor),
+            Some(&LocomotionState::Ragdolling)
+        );
+        assert!(app.world().get::<AlsMantleMontages>(actor).is_none());
+        app.world_mut().despawn(actor);
+        let missing = app.world_mut().spawn_empty().id();
+        app.world_mut().despawn(missing);
+        pending.active = false;
+        pending.target_base = Some(AlsMantleTargetBase {
+            entity: missing,
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+            relative_location: false,
+        });
+        for mode in [LocomotionState::Grounded, LocomotionState::Ragdolling] {
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    pending,
+                    mode,
+                    Transform::IDENTITY,
+                    LinearVelocity(Vec3::X),
+                ))
+                .id();
+            app.world_mut()
+                .run_system_once(mantle_drive_system)
+                .unwrap();
+            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, Vec3::X);
+            app.world_mut().despawn(actor);
+        }
         for interrupt in 0..4 {
             let mut mantle = AlsMantleState::default();
             mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
@@ -1189,6 +1431,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 mantle,
+                als_core::state::LocomotionState::Grounded,
                 crate::get_up::AlsGetUpState::new(false),
                 als_core::roll::AlsRollState {
                     active: true,

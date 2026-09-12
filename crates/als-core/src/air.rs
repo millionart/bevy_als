@@ -93,6 +93,10 @@ impl AlsAirState {
         dt: f32,
     ) {
         let dt = dt.max(0.0);
+        if *loco == LocomotionState::Custom {
+            self.phase = AirPhase::Idle;
+            self.last_impact_vy = 0.0;
+        }
         match self.phase {
             AirPhase::Idle => {
                 if *loco == LocomotionState::Air {
@@ -362,6 +366,25 @@ mod tests {
     use crate::state::Stance;
 
     const DT: f32 = 1.0 / 60.0;
+
+    #[test]
+    fn custom_mode_does_not_turn_an_interrupted_fall_into_a_landing() {
+        for landed in [false, true] {
+            let mut state = AlsAirState::default();
+            state.update(&LocomotionState::Air, -10.0, DT);
+            if landed {
+                state.update(&LocomotionState::Grounded, 0.0, DT);
+            }
+            state.update(&LocomotionState::Custom, -10.0, DT);
+            state.update(&LocomotionState::Grounded, 0.0, DT);
+            assert_eq!(state.phase, AirPhase::Idle);
+            assert_eq!(state.last_impact_vy, 0.0);
+            state.update(&LocomotionState::Air, -10.0, DT);
+            state.update(&LocomotionState::Grounded, 0.0, DT);
+            assert_eq!(state.phase, AirPhase::Landing);
+            assert_eq!(state.last_impact_vy, 10.0);
+        }
+    }
 
     #[derive(Component)]
     struct CapsuleSweepProbeOrigin;

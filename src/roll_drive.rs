@@ -124,6 +124,11 @@ mod tests {
         world.run_system_once(advance_rolls).unwrap();
         assert!(!world.get::<AlsRollState>(character).unwrap().active);
         world.entity_mut(character).insert(crate::animation_events::AlsNotifyLocomotionAction::None);
+        world.entity_mut(character).insert((LocomotionState::Custom,
+            AlsAirState { landing_time: 0.0, last_impact_vy: 10.0, ..default() }));
+        world.run_system_once(advance_rolls).unwrap();
+        assert!(!world.get::<AlsRollState>(character).unwrap().active);
+        world.entity_mut(character).insert(LocomotionState::Grounded);
         world.run_system_once(advance_rolls).unwrap();
         assert!(world.get::<AlsRollState>(character).unwrap().active);
     }
@@ -559,6 +564,7 @@ fn advance_rolls(
         let mut lifecycle = roll.update(&effective, view, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
+            && *loco == LocomotionState::Grounded
             && !blocked.contains(character)
             && !action_blocked
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))

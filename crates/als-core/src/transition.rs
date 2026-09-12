@@ -343,6 +343,11 @@ pub fn state_transition_system(
         mut overlay,
     ) in &mut actors
     {
+        if *loco == LocomotionState::Custom
+            && matches!(req.locomotion_state, Some(LocomotionState::Grounded | LocomotionState::Air))
+        {
+            req.locomotion_state = None;
+        }
         let cur = AlsCurrentStates {
             locomotion_state: *loco,
             stance: *stance,
@@ -540,6 +545,27 @@ mod tests {
             StateValue::from(LocomotionState::Air).dimension(),
             Dimension::LocomotionState
         );
+    }
+
+    #[test]
+    fn custom_mode_locks_ordinary_requests_and_keeps_desired_stance() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
+        let actor = app.world_mut().spawn((LocomotionState::Custom, Stance::Standing,
+            AlsDesiredStance(Stance::Standing), Gait::Walking, RotationMode::ViewDirection,
+            OverlayState::Default, AlsStateRequest::default())).id();
+        for requested in [LocomotionState::Grounded, LocomotionState::Air] {
+            *app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap() = AlsStateRequest::default()
+                .with_locomotion_state(requested).with_stance(Stance::Crouching);
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
+            assert_eq!(app.world().get::<AlsStateRequest>(actor).unwrap().locomotion_state, None);
+            assert_eq!(app.world().get::<Stance>(actor), Some(&Stance::Standing));
+            assert_eq!(app.world().get::<AlsDesiredStance>(actor).unwrap().0, Stance::Crouching);
+        }
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
+        app.update();
+        assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Ragdolling));
     }
 
     #[test]

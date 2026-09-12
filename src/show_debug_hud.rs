@@ -396,7 +396,7 @@ fn locomotion_mode_tag(locomotion_state: LocomotionState) -> &'static str {
     match locomotion_state {
         LocomotionState::Grounded => "Grounded",
         LocomotionState::Air => "InAir",
-        LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::Ragdolling => "",
     }
 }
 

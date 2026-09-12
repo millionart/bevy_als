@@ -269,7 +269,9 @@ pub fn wrap_angle(angle: f32) -> f32 {
 pub fn mantle_trace_settings(locomotion: LocomotionState) -> MantleTraceSettings {
     match locomotion {
         LocomotionState::Air => MANTLE_IN_AIR_TRACE,
-        LocomotionState::Grounded | LocomotionState::Ragdolling => MANTLE_GROUNDED_TRACE,
+        LocomotionState::Grounded | LocomotionState::Custom | LocomotionState::Ragdolling => {
+            MANTLE_GROUNDED_TRACE
+        }
     }
 }
 
@@ -468,7 +470,10 @@ pub fn detect_mantle(
     >,
 ) -> MantleDetection {
     let mut trace = MantleProbeTrace::default();
-    if input.locomotion == LocomotionState::Ragdolling {
+    if !matches!(
+        input.locomotion,
+        LocomotionState::Grounded | LocomotionState::Air
+    ) {
         return MantleDetection {
             intent: None,
             trace,

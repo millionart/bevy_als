@@ -27,6 +27,7 @@ pub enum LocomotionState {
     #[default]
     Grounded,
     Air,
+    Custom,
     Ragdolling,
 }
 
@@ -154,6 +155,7 @@ mod tests {
         }
         check("Grounded", LocomotionState::Grounded);
         check("Air", LocomotionState::Air);
+        check("Custom", LocomotionState::Custom);
         check("Ragdolling", LocomotionState::Ragdolling);
         check("VelocityDirection", RotationMode::VelocityDirection);
         check("ViewDirection", RotationMode::ViewDirection);

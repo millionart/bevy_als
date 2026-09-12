@@ -127,7 +127,7 @@ fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
     GameplayTag::new(match locomotion {
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Ragdolling => "",
+        LocomotionState::Custom | LocomotionState::Ragdolling => "",
     })
 }
 
@@ -437,6 +437,7 @@ mod tests {
             "Als.LocomotionMode.InAir"
         );
         assert!(!locomotion_mode_tag(LocomotionState::Ragdolling).is_valid());
+        assert!(!locomotion_mode_tag(LocomotionState::Custom).is_valid());
         assert_eq!(stance_tag(Stance::Standing).as_str(), "Als.Stance.Standing");
         assert_eq!(
             stance_tag(Stance::Crouching).as_str(),

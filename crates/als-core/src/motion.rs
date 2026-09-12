@@ -365,6 +365,7 @@ fn rotation_response_system(
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
+    actions: Query<&crate::state::AlsNotifyLocomotionAction>,
     mut q: Query<
         (
             Entity,
@@ -407,7 +408,8 @@ fn rotation_response_system(
     {
         if blocked.contains(entity)
             || roll.is_some_and(|state| state.active)
-            || *locomotion == LocomotionState::Ragdolling
+            || !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air)
+            || actions.get(entity).is_ok_and(|action| *action != crate::state::AlsNotifyLocomotionAction::None)
         {
             continue;
         }
@@ -570,6 +572,33 @@ mod rotation_cap_tests {
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
+
+    #[test]
+    fn custom_mode_preserves_actor_rotation_and_physical_stance() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_systems(Update, rotation_response_system);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let transform = Transform::IDENTITY.with_rotation(Quat::from_rotation_y(-0.6));
+        let actor = app.world_mut().spawn((AlsCharacter, transform, Rotation(transform.rotation),
+            Gait::Running, LocomotionState::Custom, RotationMode::Aiming, AlsViewYaw(1.2),
+            AlsMovementParamsHandle(params), LinearVelocity(Vec3::X),
+            AlsInputCommand { move_dir: Vec2::X, ..default() })).id();
+        app.update();
+        assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
+        assert_eq!(app.world().get::<Rotation>(actor).unwrap().0, transform.rotation);
+        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, crate::state::AlsNotifyLocomotionAction::Mantling));
+        app.update();
+        assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
+        for (desired, actual) in [(Stance::Crouching, Stance::Standing), (Stance::Standing, Stance::Crouching)] {
+            assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Custom, false, None), actual);
+            assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Grounded, false, None), desired);
+        }
+    }
 
     #[test]
     fn grounded_rotation_uses_source_input_and_velocity_thresholds() {
@@ -2256,7 +2285,9 @@ fn locomotion_drive_system(
                     request.stance = Some(Stance::Standing);
                 }
                 JumpChain::Jump => {
-                    controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
+                    if !action_active && *loco == LocomotionState::Grounded {
+                        controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
+                    }
                 }
             }
         } else if auto_mantle
@@ -2292,6 +2323,7 @@ type ReshapeQueryItem<'a> = (
     Option<&'a AlsPhysicalStanceOverride>,
     &'a LocomotionState,
     Option<&'a AlsMantleState>,
+    Option<&'a crate::state::AlsNotifyLocomotionAction>,
     &'a Transform,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
@@ -2312,6 +2344,7 @@ fn capsule_reshape_system(
         physical_override,
         locomotion,
         mantle,
+        action,
         transform,
         handle,
         already_deferred,
@@ -2322,7 +2355,10 @@ fn capsule_reshape_system(
             continue;
         };
         let (half_height, radius) = capsule_dimensions(params, *stance);
-        let action_active = mantle.is_some_and(|mantle| mantle.active);
+        let action_active = action.map_or_else(
+            || mantle.is_some_and(|mantle| mantle.active),
+            |action| *action != crate::state::AlsNotifyLocomotionAction::None,
+        );
         transaction.synchronize(
             desired.0,
             *stance,
@@ -2458,7 +2494,7 @@ fn capsule_target_for_locomotion(
 ) -> Stance {
     if let Some(physical_override) = physical_override {
         physical_override
-    } else if action_active {
+    } else if action_active || locomotion == LocomotionState::Custom {
         actual
     } else if locomotion == LocomotionState::Air {
         Stance::Standing
@@ -2614,7 +2650,7 @@ pub(crate) fn locomotion_state_sync_system(
     >,
 ) {
     for (entity, controller, mut current, request, ragdoll_air_exit) in &mut q {
-        if *current == LocomotionState::Ragdolling || ragdoll_air_exit {
+        if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit {
             continue;
         }
         let Ok(basis) = controller.basis_access() else {
@@ -2761,6 +2797,33 @@ mod tests {
                 }
                 assert!(jump_landed);
             }
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Custom));
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Custom));
+            assert!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing().is_none());
+            app.world_mut().entity_mut(character).insert((LocomotionState::Grounded,
+                crate::state::AlsNotifyLocomotionAction::Mantling, AlsInputCommand::default()));
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing().is_none());
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+            app.update();
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Standing));
+            assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Crouching);
+            app.world_mut().entity_mut(character).insert(crate::state::AlsNotifyLocomotionAction::None);
+            app.update();
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Custom;
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
             app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Ragdolling);
             app.update();
             assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Ragdolling));
