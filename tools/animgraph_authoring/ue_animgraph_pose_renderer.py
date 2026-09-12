@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 
 import generate_ue_transition_expression_graph as scalar_renderer
 from coordinate_basis import source_heading_yaw_degrees_to_runtime
+from camera_curve_conversion import camera_curve_target
 from ue_control_rig_target import definition_ron
 
 
@@ -920,13 +921,18 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             or not all(isinstance(item, str) for item in [*value_keys, *value_paths])
         ):
             raise PoseRenderError("source curve property binding is unavailable")
+        targets = [camera_curve_target(name, value["apply_mode"]) for name in value["curve_names"]]
+        for index, ((_, scale), key) in enumerate(zip(targets, value_keys)):
+            if scale != 1.0 and (key or any(link.get("target", {}).get("node_object_path") == semantic["source_node"]
+                and link.get("target", {}).get("pin_name") == f"CurveValues_{index}" for link in graph_contract.get("links", []))):
+                raise PoseRenderError("spatial curve input requires a target unit contract")
         fields = [
             field("source_pose_pin", quoted(source_pose_pin)),
             field("curve_name", quoted("")),
-            field("curve_names", "[" + ", ".join(quoted(name) for name in value["curve_names"]) + "]"),
+            field("curve_names", "[" + ", ".join(quoted(name) for name, _ in targets) + "]"),
             field("value", "0.0"),
             field("pin_default", "0.0"),
-            field("pin_defaults", "[" + ", ".join(repr(item) for item in value["curve_values"]) + "]"),
+            field("pin_defaults", "[" + ", ".join(repr(item * scale) for item, (_, scale) in zip(value["curve_values"], targets)) + "]"),
             field("value_pin_names", "[" + ", ".join(quoted(name) for name in value_pins) + "]"),
             field("value_key", quoted("")),
             field("value_keys", "[" + ", ".join(quoted(key) for key in value_keys) + "]"),
@@ -1715,6 +1721,26 @@ def fixture_graph():
 
 
 def run_self_test():
+    camera_curve = {"source_node": "/Fixture:Graph.Offset", "renderer": "modify_curve", "semantic": {
+        "input_pins": ["SourcePose", "CurveValues_0", "CurveValues_1", "CurveValues_2"], "source_pose_pin": "SourcePose",
+        "curve_names": ["CameraOffsetX", "CameraOffsetY", "CameraOffsetZ"], "curve_values": [-320.0, 55.0, 50.0],
+        "curve_value_keys": ["", "", ""], "curve_value_paths": ["", "", ""], "alpha": 1.0, "alpha_visible": False, "apply_mode": "Blend",
+    }}
+    _, camera_inner = rendered_inner({}, {}, camera_curve, {}, {})
+    assert 'curve_names: ["CameraOffsetZ", "CameraOffsetX", "CameraOffsetY"]' in camera_inner
+    assert 'pin_defaults: [3.2, 0.55, 0.5]' in camera_inner
+    camera_curve["semantic"]["apply_mode"] = "Scale"
+    camera_curve["semantic"]["curve_values"] = [-1.0, 1.0, 0.5]
+    _, camera_inner = rendered_inner({}, {}, camera_curve, {}, {})
+    assert 'pin_defaults: [-1.0, 1.0, 0.5]' in camera_inner
+    camera_curve["semantic"]["apply_mode"] = "Blend"
+    camera_curve["semantic"]["curve_value_keys"][0] = "unsupported_source_unit_input"
+    try:
+        rendered_inner({}, {}, camera_curve, {}, {})
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("Spatial curve accepted an unconverted dynamic input")
     reset_fixtures = {
         "bool_blend": {"active_key": "choice", "active_value": False, "blend_type": "Linear", "blend_times": [0.1, 0.2], "source_blend_times": [0.1, 0.2]},
         "gameplay_tag_blend": {"active_key": "choice", "tags": ["Fixture.Alternate"], "blend_type": "Linear", "blend_times": [0.1, 0.2], "source_blend_times": [0.1, 0.2],

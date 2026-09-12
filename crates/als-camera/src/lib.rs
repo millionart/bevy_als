@@ -1,6 +1,8 @@
 use avian3d::prelude::{
     Collider, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
 };
+pub mod source_definition;
+pub use source_definition::{AlsCameraDefinition, CameraPhysicsBody, CameraShakeDefinition, CameraWave};
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
@@ -476,6 +478,8 @@ impl Plugin for AlsCameraPlugin {
         app.init_asset::<AlsCameraParams>()
             .init_asset::<AlsCameraSocketOffsets>()
             .init_asset::<AlsCameraCurveProfiles>()
+            .init_asset::<AlsCameraDefinition>()
+            .init_asset_loader::<source_definition::AlsCameraDefinitionLoader>()
             .register_asset_loader(AlsCameraParamsLoader)
             .register_asset_loader(AlsCameraSocketOffsetsLoader)
             .register_asset_loader(AlsCameraCurveProfilesLoader)
