@@ -17,9 +17,9 @@
 
 | ALS | bevy_als | 理由 |
 |---|---|---|
-| AnimBP 状态机 | 显式 system 路由 + animation graph RON | ECS 数据流，无隐藏图执行 |
+| AnimBP 状态机 | 源合同生成 RON/FSM，由公开节点与 ECS 输入接线执行 | 保留源状态、转换及求值生命周期 |
 | GameplayTags | `bevy_gameplay_tag` 的真实层级 Tag | 保留 UE Tag identity 与 exact/hierarchical query 语义 |
-| ControlRig | 分析式 IK systems | 无运行时 rig 编译 |
+| ControlRig | 离线编译源 RigVM 程序，在源 ControlRig 节点中逐实例执行 | 保留 Construction/Forward Solve、当前 Pose/Curve 及图内求值位置 |
 | Root Motion | 图内 `RootMotionMode` 提取 + `RootMotionOutput` 驱动位移（M8.8；数据经 M8.6 回填） | fork 已支持提取，M0.5 导出缺根轨道由 M8.6 离线回填，不再用曲线等价物 |
 | Curves（UBT 资产） | als-ext CurveAsset + 采样节点 | 见 M2 |
 | w_als_hud Overlay 菜单世界锚定头顶骨骼 | 菜单停靠 HUD 面板左侧（BF6b 用户决策 2026-08-25） | 解除 UI 对骨骼/相机投影的耦合 |
@@ -1310,7 +1310,7 @@
 
   - 09d完成2026-09-12 13:24:43：同名曲线覆盖改相加23.399s在-1与-0.5的受控边界稳定失败，恢复后实际七kind/六montage的四项项目回归45.565s通过；现有notify manifest含全部source序列/montage且动作区间与原生High 2.066667、Low 0.966667秒一致。完整core245通过/1原有忽略24.156s，现有通用root-lock回归97.693s通过（含同target编译等待）。一个生成RON同时承载MS选择/参数与montage配置，复用core已有ron依赖并从dev移至runtime；扩展层仅公开现有root-lock函数，不新增求值器或曲线/坐标解析器。开始13:07:00、预估13:47:00、实际13:24:43，偏差-1337s，数据段完成。未修改原始导出、共享转换规则或图资产，真实Slot消费、notify与运动生命周期及同入口公共Gate继续下一段，尚未启动新游戏。
 
-- [ ] BF115.09e Mantle Slot与动作生命周期：开始2026-09-12 13:25:00、预估2026-09-12 14:20:00。依赖09c/09d；把实际root-lock Pose与合成曲线接到既有PostLocomotion Slot，沿既有notify流区分Mantling动作结束、root motion停止与montage继续/淡出。source Refresh/Stop及CS证明动作变化只停运动、移动模式中断停止montage、目标销毁请求ragdoll；按现有角色动作/物理控制扩展点映射，不绕开完整foot_ik。补现有早退notify的真实条件、目标销毁与roll/get-up/ragdoll共享Slot交接中属于Mantle的必要路径，先source合同/系统fixture和消融，再适用回归与同一target_game/play预构建、规格/声明式，下一段统一真实验收。估时依据为一个Mantle消费系统、现有GetUp/Roll Slot/notify接口、七kind实际采样fixture及两分钟入口编译；不恢复性能或相邻overlay/平台工作。
+- [x] BF115.09e Mantle Slot与动作生命周期：开始2026-09-12 13:25:00、预估2026-09-12 14:20:00。依赖09c/09d；把实际root-lock Pose与合成曲线接到既有PostLocomotion Slot，沿既有notify流区分Mantling动作结束、root motion停止与montage继续/淡出。source Refresh/Stop及CS证明动作变化只停运动、移动模式中断停止montage、目标销毁请求ragdoll；按现有角色动作/物理控制扩展点映射，不绕开完整foot_ik。补现有早退notify的真实条件、目标销毁与roll/get-up/ragdoll共享Slot交接中属于Mantle的必要路径，先source合同/系统fixture和消融，再适用回归与同一target_game/play预构建、规格/声明式，下一段统一真实验收。估时依据为一个Mantle消费系统、现有GetUp/Roll Slot/notify接口、七kind实际采样fixture及两分钟入口编译；不恢复性能或相邻overlay/平台工作。
 
   - 09e闭包与拆分2026-09-12 13:32:00：fresh补读EarlyBlendOut/SetLocomotionAction、OnMovementModeChanged与PhysCustom：早退仅在四项实际条件命中时停止对应montage；动作只由NotifyBegin写入、NotifyEnd按同值清除，不能逐帧重写外部中断；MOVE_Custom对应空LocomotionMode，PhysCustom无重力且MoveUpdatedComponent不做扫描。现有Slot未接入、通知只随root active存活；现有动态刚体仍受重力，需独立物理接管及ragdoll交还验证。拆为09e1动画/通知静态段，09e2物理/模式静态段，然后入口与声明式独立收口；当前没有runtime。原整体估时在实现前按已证实的跨模块边界拆分，动画部分继续原开始/预估窗口，后续段按依赖通过时登记开始与预估结束。
 
@@ -1357,7 +1357,7 @@
   - 09f足部合同2026-09-12 17:04:00：包装读取29.049s及恢复后319项目21.259s通过；实际入口64.085s、247不变规格2.616s与八manifest全部PASS。继续原FootIk覆盖条件的source检查，Low的FootLeftIk仅在1.166667–1.266667恢复，而动作在0.966667结束；旧“active期间双脚≥0.99”可能只接受动画尚未进入Slot的首帧。直接从现有生成数据采样0.8秒得到[0,1]，33.268s反例稳定FAIL。按Rig当前输入曲线与源Clamp01核对实际Unit权重、有效执行和原骨骼输出误差，要求当帧实际Mantle Slot已充分相关；不修改曲线、Rig、角色运动或场景路由。剩余这一观测检查的消融、回归及最终入口重建，尚无runtime。
 
   - 09f完成2026-09-12 17:13:13：最终320项目23.927s、同一target_game/play入口62.013s、247不变规格2.614s、源作者图相同及八manifest全部PASS（Root6.344、Standing6.332、Crouching5.494、Grounded6.876、Locomotion4.217、Default5.547、Layering3.447、Head3.169秒）。足部曲线反例修复32.721s通过；移除有效Rig见证23.537s、实际Slot相关性22.862s分别按预期失败，恢复后全量项目回归通过。保留实际嵌套Slot读取、一次root释放记录和公共姿态/生命周期窗口；旧active/位置镜像、重复updated守卫和额外幅度门限已删除。三项必要反例覆盖Actor伪完成、包装图读数和源非对称足部权重，未添加场景、求值器、资产或生产算法。开始16:29、预估17:14、实际17:13:13、偏差-47s，本段静态准备完成；Mantle及CR完整功能仍等待下一段原Playground运行，性能继续暂停，用户新增功能按16:38授权在Mantle完成后推进。
-- [ ] BF115.09g Mantle与CR原Playground功能验收：开始2026-09-12 17:15:10、预估2026-09-12 18:00:10。依赖2fc8436、320项目回归、62.013s实际入口、247不变规格及八manifest；按startup→control_rig→原foot_ik→ragdoll→get_up逐场审计。Mantle要求实际PostLocomotion片段/时钟/权重、嵌套Root姿态链、Custom动作到root释放及montage尾段完成，原FootIk保留全部地形/移动/足部流程并按source曲线验证真实Rig权重。CR继续使用Default与已证明的三条Rig测试曲线；CaptureCount0、FunctionalOnly，所有非性能守卫和原性能失败记录保留。估时依据为当前三项观测反例、原FootIk多阶段路线、近期startup约15秒/CR约13秒及同入口读回窗口；失败只按同场报告的首个source链回到静态修复。Mantle验收完成后继续用户16:38明确授权的Camera、12 overlays、Bow和楼梯/平台任务，性能仍暂停。
+- [x] BF115.09g Mantle与CR原Playground功能验收：开始2026-09-12 17:15:10、预估2026-09-12 18:00:10。依赖2fc8436、320项目回归、62.013s实际入口、247不变规格及八manifest；按startup→control_rig→原foot_ik→ragdoll→get_up逐场审计。Mantle要求实际PostLocomotion片段/时钟/权重、嵌套Root姿态链、Custom动作到root释放及montage尾段完成，原FootIk保留全部地形/移动/足部流程并按source曲线验证真实Rig权重。CR继续使用Default与已证明的三条Rig测试曲线；CaptureCount0、FunctionalOnly，所有非性能守卫和原性能失败记录保留。估时依据为当前三项观测反例、原FootIk多阶段路线、近期startup约15秒/CR约13秒及同入口读回窗口；失败只按同场报告的首个source链回到静态修复。Mantle验收完成后继续用户16:38明确授权的Camera、12 overlays、Bow和楼梯/平台任务，性能仍暂停。
 
   - 09g startup前2026-09-12 17:15:10：七MS/六AM/三序列与Custom物理、Slot/通知、完整165指令/79骨/11输入Rig闭包已静态通过；没有额外Playground实例，当前二进制与2fc8436源码一致。先无驱动核对Root Pose/骨架、图错误、物理时钟和进展，再进入动作场景；截图0。
   - 09g startup后/CR前2026-09-12 17:17:01：startup1公共功能15.226s PASS，manual与validator均exit0、issues为空、截图0；原full_pass仍因eval预算为false，性能未标通过。当前完整Root正常输出，继续同一入口control_rig1，要求实际两手Unit权重和Spine骨旋转；不改变三条已记录测试曲线或生产图。
@@ -1379,3 +1379,8 @@
   - 09g2a startup前2026-09-12 18:25:30：当前实际入口已包含片段trace与三处源前提修复，七MS/六AM/三序列、Custom物理与完整Rig源闭包不变；全部静态门禁已通过，无其它所属Playground进程。先检查无驱动Root输出及公共错误/姿态/物理时钟，随后原FootIk；截图0。
   - 09g2a startup后/FootIk前2026-09-12 18:27:00：startup2运行15.439s，manual/validator均exit0，公共功能issues为空、79个姿态样本，末帧Root有80骨/240活动通道；截图0。完整verdict仅因原eval预算为false，性能结果保持暂停。当前6eabf8f入口、323回归与247相同规格闭合，继续foot_ik2原路线，要求实际双脚传送重定位、Air曲线/Rig权重匹配、当前Grounded窗口以及非空一致的Mantle片段trace；不新增测试曲线或修改生产算法。
   - 09g2a完成2026-09-12 18:30:02：foot_ik2运行79.747s，manual/validator均exit0，20项覆盖全部通过，fault/temporal/graph-error和截图均0。传送前双脚Lock为1，实际0.600001m移动令检测3→4、左右重定位16→29/26→39；空中[0,0]源曲线与实际Rig权重一致，全部Standing链无失败。Mantle实际Low_Right有69条非空同variant/clock/weight/rate记录、69次有效Slot/Root样本、四阶段完整结束，canonical时间误差0.002892秒，pre/final旋转跨度2.3169/2.3777rad。开始18:25:30、预估19:03、实际18:30:02、偏差-1978s，本段功能完成；01n共享Grounded前提及09f公共片段trace有限复开关闭。full_pass仅因原eval预算为false，性能仍暂停；09g及Mantle/CR父项继续保留待下一段ragdoll/get_up读回收口，不启动新模块。
+- [x] BF115.09g2b CR与Mantle关联物理读回验收：开始2026-09-12 18:31:00、预估2026-09-12 19:01:00。依赖aa0c8f8及当前startup2/完整foot_ik2、此前control_rig1实际两手和Spine功能证据；使用同一6eabf8f入口，按ragdoll→get_up运行并逐场审计。完整Rig165指令/79骨/11输入、图末物理读回、动画动作与移动模式分离、Mantle交还及get-up资产/Slot静态合同保持；本轮未改这些生产路径。以原场景的实际Root/pre-rig/final姿态、ragdoll/恢复生命周期、骨骼连续性和图/物理/进展守卫验收；CaptureCount0、FunctionalOnly，保留原性能失败。估时承接09g2a公共轮拆分及现有ragdoll/get_up入口，失败只按实际报告和fresh source链返回静态修复；通过后收口Mantle/CR和Root当前功能，再执行用户新增Camera/overlay/Bow/楼梯平台任务。
+  - 09g2b ragdoll前2026-09-12 18:31:00：323项目、当前同入口65.909s、247相同规格及原八声明式闭合；startup2/FootIk2已完成，原FootIk的Mantle尾段全部释放，当前无遗留所属Playground进程。先原ragdoll场景核对物理覆盖后的最终Pose读回，再独立get_up，不提前改动场景或生产动作。
+  - 09g2b ragdoll后/get-up前2026-09-12 18:32:30：ragdoll1运行10.752s，manual/validator均exit0、十项覆盖全部通过、44个姿态样本，fault/temporal/graph-error及截图均0。交还时动画body位置误差0.000025m、旋转误差0，锁定关节交接误差0.000522m，当前锚点误差0.000047m；实际进入/跟随/恢复、相机pivot与get-up输入锁定/解锁通过。完整verdict仅因原eval预算为false，功能之外仍未验收；接着用同一二进制运行独立get_up1，再收口当前父项。
+  - 09g2b完成2026-09-12 18:37:42：get_up1运行13.422s，manual/validator均exit0、11项覆盖全部通过、67个姿态样本，正反起身各3次有效Root窗口及11/12条实际片段记录，输入锁定/释放均通过；fault/temporal/graph-error及截图0，primary_failure为空。原FootIk还已有26个实际Sprinting前向样本，左右Rig输出有效、权重1，膝盖写回最大误差分别0.000001908/0.000001908m；结合08c2h几何源合同、08c2j完整源程序和08d2c2b实际输出观测，覆盖BF109.10原冲刺膝盖边界，无需重复运行或新增探针。开始18:31、预估19:01、实际18:37:42、偏差-1398s，本段功能完成。
+  - 当前Mantle/CR功能收口：七MS/六AM/三序列、Custom运动/Slot/通知与CR10图/165指令/79骨/11输入及最终物理读回，已通过source/static、消融、323项目/249core/374扩展适用回归、同入口、247规格/八声明式和startup/control_rig/完整foot_ik/ragdoll/get_up公共功能Gate。09e父项开始13:25、原估14:20、实际18:37:42、偏差+15462s，沿13:32登记的动画/物理/观测拆分完成；09g父项开始17:15:10、原估18:00:10、实际18:37:42、偏差+2252s，沿17:48失败报告拆分的trace/前提及两段复验完成。原性能失败和暂停项不勾选，不宣称性能验收；AB_Als已验证Default/Rig路径，剩余overlay分支随用户新授权继续。同步纠正顶部已失效的手工FSM/图后IK说明，仅关闭TODO中的CR项；下一步AB_Als_Camera，再12 overlays、Bow和楼梯/平台问题。

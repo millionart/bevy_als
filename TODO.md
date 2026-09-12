@@ -120,7 +120,7 @@
 - [ ] BF111.09 / BF109.07 `PA_Als`：复核 body、constraint、collider、坐标转换和 ragdoll consumer boundary。验收：资产/transform 静态链路与 ragdoll 真实入口路径 PASS。
 - [ ] BF111.10 / BF109.08 `AB_Als_Ragdolling`：检查 pose input、混合、退出、PA consumer boundary 与 position。验收：Ragdolling 静态链路与真实入口路径 PASS；保持 `ragdoll_config → Outputs` 不变。
 - [ ] BF111.11 / BF109.09 `ALI_Overlay`：检查 interface pin、linked layer、fallback 与实例生命周期边界。验收：Overlay 静态链路与真实入口路径 PASS。
-- [ ] BF111.12 / BF109.10 `CR_Als`：复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：资产/transform/lifecycle 静态链路与 ControlRig 真实入口路径 PASS。
-  - 待执行冲刺膝盖回归（2026-09-02）：按住 Shift 前向冲刺时，左右膝盖分别向各自外侧偏移。该症状在修复 `PoseMoving` 曲线 relay 后仍不得默认视为已解决；执行本项时必须重新提取本地 `CR_Als`、`RefreshFootOffset`、`RefreshFootIk`、`ApplyFootIk` 及引擎 Basic IK 源码，以同一前向冲刺输入比较双侧 foot offset rotation、pole location、primary/secondary axis、writeback 与膝盖相对腿平面数值。只有 source 已证实 target 差异才可修改；需新增可复跑的 source-first 双侧膝盖回归 probe，视觉截图仅作最终回归记录，不能替代链路定位。
+- [x] BF111.12 / BF109.10 `CR_Als`：复核 graph/stage、骨骼／虚骨、Construction/runtime 分相、target-space 数据与 `AB_Als` 接入边界。验收：资产/transform/lifecycle 静态链路与 ControlRig 真实入口路径 PASS。
+  - 已由当前CHECKLIST的BF115.08a–08e及09g2b于2026-09-12 18:37:42完成：完整源Rig程序替代旧图后IK，Construction/当帧Pose/坐标/查询/写回及公共动作Gate通过。原冲刺膝盖问题由源几何合同、实际Rig输出观测和原FootIk的26个前向Sprinting样本覆盖，左右权重1、膝盖写回误差均小于0.000002m。性能按用户要求暂停，详细源闭包、反例/消融及时间记录只保留在当前清单。
 - [ ] BF111.13 / BF109.11 `AB_Als_Default`：检查 linked layer、状态、基础/secondary motion、曲线、mask 与消费边界。验收：Default Overlay 静态链路与真实入口路径 PASS。
 - [ ] BF111.14 Character Base 作者性总 Gate：逐项重跑 .01–.11 的 source/static/layout/editor/runtime/real-entry 证据，确认所有 graph 有声明式合同、所有例外均有依据、所有实际 RON/FSM 通过编辑器校验，且未引入依赖改动或 `ragdoll_config` ABI 改动。验收：全量通用审计、目标图校验、相关 Rust Gate 和真实 Playground 场景全部 PASS。
