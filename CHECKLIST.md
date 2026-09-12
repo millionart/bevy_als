@@ -34,7 +34,7 @@
 - bevy_animation_graph additive/mask 语义若与 ALS layering 不完全一致，在 M6 前验证并决定扩展方式（优先 als-ext 扩展点）。（已于 M6.1 验证通过，记录备查）
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
-- 音频（Metasound）、Niagara 特效、ALSCamera 动画实例仅保留挂钩点。
+- 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
 ## BF116 相机、Overlay 与场景 Actor 移植
 
