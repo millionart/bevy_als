@@ -553,6 +553,33 @@ def motion_window_issues(report, screenshots, pose_samples, require_screenshots=
             not isinstance(expected_animation_variant, str) or not expected_animation_variant
         ):
             issues.append(f"motion window expected animation variant is invalid: {label}")
+        if actor_yaw_sign is None and window.get("canonical_clip_time") is not None and not window.get("source_sync_group"):
+            if not isinstance(expected_animation_variant, str) or not expected_animation_variant:
+                issues.append(f"motion window expected animation variant is invalid: {label}")
+            if not isinstance(actor_yaw_trace, list) or len(actor_yaw_trace) < 2:
+                issues.append(f"motion window animation clip trace is missing: {label}")
+            else:
+                previous_elapsed = None
+                active_samples = 0
+                for sample in actor_yaw_trace:
+                    if not isinstance(sample, dict):
+                        issues.append(f"motion window animation clip trace sample is invalid: {label}")
+                        continue
+                    elapsed = sample.get("elapsed_secs")
+                    if not finite(elapsed) or (previous_elapsed is not None and elapsed <= previous_elapsed):
+                        issues.append(f"motion window animation clip trace is not ordered: {label}")
+                    if finite(elapsed):
+                        previous_elapsed = elapsed
+                    for field in ("animation_clip_time", "animation_weight", "animation_play_rate"):
+                        if not finite(sample.get(field)) or sample[field] < 0.0:
+                            issues.append(f"motion window animation clip trace {field} is invalid: {label}")
+                    weight = sample.get("animation_weight")
+                    if finite(weight) and weight > MOTION_EPSILON:
+                        active_samples += 1
+                        if sample.get("animation_variant") != expected_animation_variant:
+                            issues.append(f"motion window selected the wrong animation variant: {label}")
+                if active_samples < 2:
+                    issues.append(f"motion window animation clip trace has insufficient active samples: {label}")
         if actor_yaw_sign is not None:
             if not isinstance(actor_yaw_trace, list) or len(actor_yaw_trace) < 2:
                 issues.append(f"motion window actor yaw trace is missing: {label}")
@@ -1749,6 +1776,29 @@ def run_self_test():
     clip_windows[1]["canonical_clip_time_distance"] = 0.02
     clip_windows[1]["observed_directions"] = clip_windows[0]["observed_directions"]
     assert any("does not match" in issue for issue in direction_signature_issues(clip_windows))
+    clip = fixture_motion_window("mantle")
+    clip.update(expected_runtime_state=None, observed_runtime_states=[], source_sync_group="",
+                sync_phase_global="", canonical_sync_phase=None, canonical_sync_phase_distance=None,
+                canonical_clip_time=0.6, maximum_clip_time_distance=0.1, canonical_clip_time_distance=0.02,
+                expected_animation_variant="FixtureClip", canonical_pre_rig_pose=fixture_canonical_pose())
+    clip_report = {"motion_windows": [clip], "required_motion_windows": ["mantle"]}
+    clip_issues = lambda: motion_window_issues(clip_report, [], [{"direction_case": "mantle"}] * 2, False)
+    assert any("animation clip trace is missing" in issue for issue in clip_issues())
+    clip["actor_yaw_trace"] = [dict(elapsed_secs=time, actor_yaw_radians=None, animation_clip_time=time,
+                                   animation_weight=1.0, animation_play_rate=1.25, animation_variant="FixtureClip")
+                              for time in (0.4, 0.6)]
+    assert not clip_issues(), clip_issues()
+    for field, value in (("animation_clip_time", None), ("animation_weight", -1.0), ("animation_play_rate", float("nan")),
+                         ("animation_variant", "OtherClip"), ("elapsed_secs", 0.4)):
+        saved = clip["actor_yaw_trace"][1][field]
+        clip["actor_yaw_trace"][1][field] = value
+        assert clip_issues(), field
+        clip["actor_yaw_trace"][1][field] = saved
+    for sample in clip["actor_yaw_trace"]:
+        sample["animation_weight"] = 0.0
+    assert any("insufficient active samples" in issue for issue in clip_issues())
+    for sample in clip["actor_yaw_trace"]:
+        sample["animation_weight"] = 1.0
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         paths = []
@@ -2372,6 +2422,7 @@ def run_self_test():
         "turn_lifecycle_completion_required": "PASS",
         "collapsed_direction_signatures_rejected": "PASS",
         "montage_clip_signature_contract_checked": "PASS",
+        "montage_clip_trace_without_actor_yaw_checked": "PASS",
         "wrong_direction_state_rejected": "PASS",
     }
 

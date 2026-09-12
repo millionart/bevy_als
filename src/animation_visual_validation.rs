@@ -361,7 +361,7 @@ impl AnimationVisualPreRigPose {
 #[derive(Serialize, Clone)]
 struct ActorYawTraceSample {
     elapsed_secs: f64,
-    actor_yaw_radians: f32,
+    actor_yaw_radians: Option<f32>,
     view_yaw_radians: Option<f32>,
     animation_yaw_speed_degrees: Option<f32>,
     animation_curve_direct_yaw_speed_degrees: Option<f32>,
@@ -2126,15 +2126,12 @@ fn append_actor_yaw_trace(
     view_yaw: Option<f32>,
     elapsed_seconds: f64,
 ) {
-    let Some(actor_yaw) = actor_yaw.filter(|value| value.is_finite()) else {
-        return;
-    };
-    if tracker.expected_actor_yaw_delta_sign.is_none() || tracker.actor_yaw_trace.len() >= 512 {
+    if tracker.actor_yaw_trace.len() >= 512 {
         return;
     }
     tracker.actor_yaw_trace.push(ActorYawTraceSample {
         elapsed_secs: elapsed_seconds,
-        actor_yaw_radians: actor_yaw,
+        actor_yaw_radians: actor_yaw.filter(|value| value.is_finite()),
         view_yaw_radians: view_yaw.filter(|value| value.is_finite()),
         animation_yaw_speed_degrees: evidence
             .observed_animation_yaw_speed_degrees
@@ -2261,6 +2258,10 @@ fn record_motion_window(
                     .first_sample_elapsed_seconds
                     .get_or_insert(elapsed_seconds);
             }
+        }
+        if evidence.expected_actor_yaw_delta_sign.is_some()
+            || evidence.observed_animation_clip_time.is_some()
+        {
             append_actor_yaw_trace(tracker, evidence, actor_yaw, view_yaw, elapsed_seconds);
         }
     }
@@ -3959,7 +3960,7 @@ mod tests {
         let player = AnimationGraphPlayer::new(default());
         let graphs = Assets::<AnimationGraph>::default();
         let asset_server = app.world().resource::<AssetServer>();
-        for time in [0.51, 0.61, 0.9, f32::NAN] {
+        for (frame, time) in [0.51, 0.61, 0.9, f32::NAN].into_iter().enumerate() {
             let evidence = ManualAnimationWindowEvidence {
                 label: Some("front"),
                 settled: true,
@@ -3969,6 +3970,10 @@ mod tests {
                 canonical_clip_time: Some(0.6),
                 maximum_clip_time_distance: 0.1,
                 observed_animation_clip_time: Some(time),
+                expected_animation_variant: Some("FixtureClip"),
+                observed_animation_variant: Some("FixtureClip"),
+                observed_animation_weight: Some(1.0),
+                observed_animation_play_rate: Some(1.25),
                 ..default()
             };
             let pose = AnimationVisualPreRigPose {
@@ -3994,7 +3999,7 @@ mod tests {
                 &player,
                 asset_server,
                 &graphs,
-                0.0,
+                frame as f64 * 0.1,
             );
         }
         let tracker = &state.motion_windows["front"];
@@ -4005,6 +4010,16 @@ mod tests {
         );
         assert!(tracker.canonical_sync_phase_distance.is_none());
         assert!(tracker.observed_runtime_states.is_empty());
+        let trace = serde_json::to_value(&tracker.actor_yaw_trace).unwrap();
+        assert_eq!(
+            trace.as_array().unwrap().len(), 4,
+            "A clip without actor yaw still requires its actual playback trace"
+        );
+        assert!(trace[0]["actor_yaw_radians"].is_null());
+        assert_eq!(trace[0]["animation_variant"], "FixtureClip");
+        assert_eq!(trace[0]["animation_weight"], 1.0);
+        assert_eq!(trace[0]["animation_play_rate"], 1.25);
+        assert!(trace[3]["animation_clip_time"].is_null());
     }
 
     fn collected_bone_count(
