@@ -2,7 +2,6 @@ use avian3d::prelude::{
     Collider, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
 };
 pub mod source_definition;
-pub use source_definition::{AlsCameraDefinition, CameraPhysicsBody, CameraShakeDefinition, CameraWave};
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
@@ -10,12 +9,16 @@ use bevy::reflect::Reflect;
 use bevy::time::{Real, Virtual};
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use serde::{Deserialize, Serialize};
+pub use source_definition::{
+    AlsCameraDefinition, CameraPhysicsBody, CameraShakeDefinition, CameraWave,
+};
 
 use als_core::aim::AlsLastFreeRotationMode;
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::motion::AlsViewYaw;
 use als_core::state::RotationMode;
 use als_core::view::AlsViewPitch;
+use als_ext::control_rig_math::rig_damper_alpha as damp_alpha;
 use als_ext::{sum_penetration_adjustments, unscaled_delta_seconds};
 
 pub const CAMERA_CURVE_NAMES: [&str; 13] = [
@@ -266,6 +269,7 @@ pub fn field_of_view_for_override(
     if is_full_weight(weight) {
         return override_field_of_view.unwrap_or(params.first_person_field_of_view_deg);
     }
+    let weight = if weight > 1e-5 { weight } else { 0.0 };
     let base = override_field_of_view.unwrap_or_else(|| {
         params
             .third_person_field_of_view_deg
@@ -414,7 +418,6 @@ pub struct AlsCameraTraceIgnore;
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsCameraRuntime {
-    pub initialized: bool,
     pub previous_pivot_target: Vec3,
     pub pivot_lag_location: Vec3,
     pub pivot_lag_location_base_space: Vec3,
@@ -432,7 +435,6 @@ pub struct AlsCameraRuntime {
 impl Default for AlsCameraRuntime {
     fn default() -> Self {
         Self {
-            initialized: false,
             previous_pivot_target: Vec3::ZERO,
             pivot_lag_location: Vec3::ZERO,
             pivot_lag_location_base_space: Vec3::ZERO,
@@ -530,7 +532,8 @@ impl Plugin for AlsCameraPlugin {
                     camera_rig_system,
                     apply_camera_view,
                 )
-                    .chain().in_set(AlsCameraSet),
+                    .chain()
+                    .in_set(AlsCameraSet),
             )
             .add_systems(
                 PostUpdate,
@@ -723,10 +726,19 @@ fn advance_camera_curve_profile(
 
 fn ensure_camera_view_fields(
     mut commands: Commands,
-    cameras: Query<Entity, (With<Camera3d>, Without<AlsCameraFieldOfView>, Or<(With<AlsCameraRig>, With<AlsCameraViewSource>)>)>,
+    cameras: Query<
+        Entity,
+        (
+            With<Camera3d>,
+            Without<AlsCameraFieldOfView>,
+            Or<(With<AlsCameraRig>, With<AlsCameraViewSource>)>,
+        ),
+    >,
 ) {
     for entity in &cameras {
-        commands.entity(entity).insert(AlsCameraFieldOfView::default());
+        commands
+            .entity(entity)
+            .insert(AlsCameraFieldOfView::default());
     }
 }
 
@@ -827,7 +839,6 @@ fn resolve_camera_socket_locations(
 
 #[derive(Clone, Copy)]
 struct CameraBaseFrame {
-    entity: Entity,
     location: Vec3,
     rotation: Quat,
 }
@@ -845,14 +856,7 @@ struct TraceResult {
 }
 
 fn is_full_weight(weight: f32) -> bool {
-    weight >= 1.0 - 1e-4
-}
-
-fn damp_alpha(delta_seconds: f32, half_life_seconds: f32) -> f32 {
-    if half_life_seconds <= f32::EPSILON {
-        return 1.0;
-    }
-    1.0 - (-std::f32::consts::LN_2 * delta_seconds.max(0.0) / half_life_seconds).exp()
+    weight >= 1.0 - 1e-5
 }
 
 fn damp_exact(current: f32, target: f32, delta_seconds: f32, half_life_seconds: f32) -> f32 {
@@ -877,35 +881,34 @@ pub fn damp_ue_location_lag(
     )
 }
 
-fn shortest_angle_delta(current: f32, target: f32) -> f32 {
-    (target - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-        - std::f32::consts::PI
-}
-
-fn damp_angle(current: f32, target: f32, delta_seconds: f32, half_life_seconds: f32) -> f32 {
-    if half_life_seconds <= f32::EPSILON {
-        return target;
-    }
-    current + shortest_angle_delta(current, target) * damp_alpha(delta_seconds, half_life_seconds)
-}
-
 fn damp_rotation(current: Quat, target: Quat, delta_seconds: f32, half_life_seconds: f32) -> Quat {
-    if half_life_seconds <= f32::EPSILON {
-        return target;
-    }
     let (current_yaw, current_pitch, current_roll) = current.to_euler(EulerRot::YXZ);
     let (target_yaw, target_pitch, target_roll) = target.to_euler(EulerRot::YXZ);
-    Quat::from_euler(
-        EulerRot::YXZ,
-        damp_angle(current_yaw, target_yaw, delta_seconds, half_life_seconds),
-        damp_angle(
-            current_pitch,
-            target_pitch,
-            delta_seconds,
-            half_life_seconds,
-        ),
-        damp_angle(current_roll, target_roll, delta_seconds, half_life_seconds),
-    )
+    let current = Vec3::new(-current_yaw, current_pitch, -current_roll);
+    let target_angles = Vec3::new(-target_yaw, target_pitch, -target_roll);
+    let delta = (target_angles - current).to_array().map(|angle| {
+        let angle = angle.rem_euclid(std::f32::consts::TAU);
+        if angle > std::f32::consts::PI {
+            angle - std::f32::consts::TAU
+        } else {
+            angle
+        }
+    });
+    if delta
+        .iter()
+        .all(|angle| angle.abs() <= 1e-4_f32.to_radians())
+    {
+        return target;
+    }
+    let delta = Vec3::from_array(delta.map(|angle| {
+        if angle >= 175_f32.to_radians() {
+            angle - std::f32::consts::TAU
+        } else {
+            angle
+        }
+    }));
+    let result = current + delta * damp_alpha(delta_seconds, half_life_seconds);
+    Quat::from_euler(EulerRot::YXZ, -result.x, result.y, -result.z)
 }
 
 fn ue_mesh_vector_to_bevy_meters(vector: Vec3, mesh_scale: f32) -> Vec3 {
@@ -1333,84 +1336,279 @@ fn camera_rig_system(
     real_time: Res<Time<Real>>,
 ) {
     let requests = shake_requests.read().copied().collect::<Vec<_>>();
-    for (camera_entity, mut view_info, mut rig,
-        mut debug, mut runtime, field_of_view_override, owner) in &mut cameras {
-    let Some((
-        target_entity,
-        target_transform,
-        rotation_mode,
-        view_yaw,
-        view_pitch,
-        fov_offset_adapter,
-        custom_time_dilation,
-        curves,
-        socket_locations,
-        movement_base,
-        first_person_input,
-        left_shoulder,
-        definition_handle,
-        animation_frame,
-    )) = owner.map_or_else(|| targets.single().ok(), |owner| targets.get(owner.character).ok())
-    else {
-        continue;
-    };
-    if animation_frame.is_some_and(|frame| !frame.active) { debug.valid = false; continue; }
-    let definition = definition_handle.and_then(|handle| definitions.get(&handle.0));
-    let Some(params) = definition.map(|value| &value.settings).or_else(|| params_assets.iter().next().map(|(_, value)| value)) else { continue; };
-    let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
-        continue;
-    };
-    if let Some(request) = requests
-        .iter()
-        .find(|request| request.target == target_entity)
+    for (
+        camera_entity,
+        mut view_info,
+        mut rig,
+        mut debug,
+        mut runtime,
+        field_of_view_override,
+        owner,
+    ) in &mut cameras
     {
-        begin_camera_shake(&mut runtime, request.scale);
-    }
-    let delta_seconds = animation_frame.map_or_else(|| camera_delta_seconds(
-        &mut runtime,
-        params,
-        &virtual_time,
-        &real_time,
-        custom_time_dilation.map_or(1.0, |dilation| dilation.0),
-    ), |frame| frame.delta_seconds);
-    let target_rotation = Quat::from_euler(
-        EulerRot::YXZ,
-        view_yaw.0,
-        view_pitch.map_or(0.0, |pitch| pitch.0),
-        0.0,
-    );
-    let pivot_target = (sockets.root + sockets.head) * 0.5;
-    let first_person_override = curves
-        .map(|values| {
-            values
-                .get(AlsCameraCurve::FirstPersonOverride)
-                .clamp(0.0, 1.0)
-        })
-        .unwrap_or(if first_person_input { 1.0 } else { 0.0 });
-    let full_first_person = is_full_weight(first_person_override);
-    rig.mode = if full_first_person {
-        AlsCameraMode::FirstPerson
-    } else {
-        mode_for_rotation(*rotation_mode)
-    };
-    if !runtime.initialized {
-        runtime.initialized = true;
+        let Some((
+            target_entity,
+            target_transform,
+            rotation_mode,
+            view_yaw,
+            view_pitch,
+            fov_offset_adapter,
+            custom_time_dilation,
+            curves,
+            socket_locations,
+            movement_base,
+            first_person_input,
+            left_shoulder,
+            definition_handle,
+            animation_frame,
+        )) = owner.map_or_else(
+            || targets.single().ok(),
+            |owner| targets.get(owner.character).ok(),
+        )
+        else {
+            continue;
+        };
+        if animation_frame.is_some_and(|frame| !frame.active) {
+            debug.valid = false;
+            continue;
+        }
+        let definition = definition_handle.and_then(|handle| definitions.get(&handle.0));
+        let Some(params) = definition
+            .map(|value| &value.settings)
+            .or_else(|| params_assets.iter().next().map(|(_, value)| value))
+        else {
+            continue;
+        };
+        let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
+            continue;
+        };
+        if let Some(request) = requests
+            .iter()
+            .find(|request| request.target == target_entity)
+        {
+            begin_camera_shake(&mut runtime, request.scale);
+        }
+        let delta_seconds = animation_frame.map_or_else(
+            || {
+                camera_delta_seconds(
+                    &mut runtime,
+                    params,
+                    &virtual_time,
+                    &real_time,
+                    custom_time_dilation.map_or(1.0, |dilation| dilation.0),
+                )
+            },
+            |frame| frame.delta_seconds,
+        );
+        let base = movement_base.and_then(|base| {
+            if !base.has_relative_rotation {
+                return None;
+            }
+            movement_base_transforms
+                .get(base.entity)
+                .ok()
+                .map(|transform| CameraBaseFrame {
+                    location: transform.translation(),
+                    rotation: transform.rotation(),
+                })
+        });
+        if runtime.movement_base != movement_base.map(|base| base.entity) {
+            if let Some(frame) = base {
+                runtime.pivot_lag_location_base_space = frame
+                    .rotation
+                    .inverse()
+                    .mul_vec3(runtime.pivot_lag_location - frame.location);
+                runtime.camera_rotation_base_space =
+                    frame.rotation.inverse() * runtime.camera_rotation;
+            } else {
+                runtime.pivot_lag_location_base_space = Vec3::ZERO;
+                runtime.camera_rotation_base_space = Quat::IDENTITY;
+            }
+            runtime.movement_base = movement_base.map(|base| base.entity);
+        }
+        let target_rotation = Quat::from_euler(
+            EulerRot::YXZ,
+            view_yaw.0,
+            view_pitch.map_or(0.0, |pitch| pitch.0),
+            0.0,
+        );
+        let pivot_target = (sockets.root + sockets.head) * 0.5;
+        let allow_lag = !animation_frame.is_some_and(|frame| frame.force_no_lag)
+            && (params.teleport_distance_threshold <= 0.0
+                || runtime.previous_pivot_target.distance_squared(pivot_target)
+                    <= params.teleport_distance_threshold.powi(2));
         runtime.previous_pivot_target = pivot_target;
-        runtime.pivot_lag_location = pivot_target;
-        runtime.camera_rotation = target_rotation;
-        runtime.camera_rotation_base_space = target_rotation;
-        runtime.trace_distance_ratio = 1.0;
-    }
-    let fov_curve = curves.map_or(0.0, |values| values.get(AlsCameraCurve::FovOffset))
-        + fov_offset_adapter.map_or(0.0, |offset| offset.0);
-    let mut debug_curve_values = curves.map_or([0.0; CAMERA_CURVE_COUNT], |values| values.values);
-    debug_curve_values[AlsCameraCurve::FovOffset.index()] = fov_curve;
-    if full_first_person {
-        runtime.previous_pivot_target = pivot_target;
-        runtime.pivot_lag_location = pivot_target;
-        runtime.camera_rotation = target_rotation;
-        runtime.camera_rotation_base_space = target_rotation;
-        runtime.trace_distance_ratio = 1.0;
+        let first_person_override = curves
+            .map(|values| {
+                values
+                    .get(AlsCameraCurve::FirstPersonOverride)
+                    .clamp(0.0, 1.0)
+            })
+            .unwrap_or(if first_person_input { 1.0 } else { 0.0 });
+        let full_first_person = is_full_weight(first_person_override);
+        rig.mode = if full_first_person {
+            AlsCameraMode::FirstPerson
+        } else {
+            mode_for_rotation(*rotation_mode)
+        };
+        let fov_curve = curves.map_or(0.0, |values| values.get(AlsCameraCurve::FovOffset))
+            + fov_offset_adapter.map_or(0.0, |offset| offset.0);
+        let mut debug_curve_values =
+            curves.map_or([0.0; CAMERA_CURVE_COUNT], |values| values.values);
+        debug_curve_values[AlsCameraCurve::FovOffset.index()] = fov_curve;
+        if full_first_person {
+            runtime.pivot_lag_location = pivot_target;
+            runtime.camera_rotation = target_rotation;
+            let fov = field_of_view_for_override(
+                first_person_override,
+                fov_curve,
+                field_of_view_override.map(|value| value.0),
+                params,
+            );
+            let (shake_location, shake_rotation_degrees) =
+                camera_shake_sample(&mut runtime, delta_seconds);
+            view_info.field_of_view_deg = fov;
+            view_info.location = sockets.first_person + shake_location;
+            view_info.rotation = target_rotation
+                * Quat::from_euler(
+                    EulerRot::YXZ,
+                    shake_rotation_degrees.y.to_radians(),
+                    shake_rotation_degrees.x.to_radians(),
+                    shake_rotation_degrees.z.to_radians(),
+                );
+            view_info.valid = true;
+            write_debug(
+                &mut debug,
+                pivot_target,
+                pivot_target,
+                pivot_target,
+                fov,
+                !left_shoulder,
+                TraceResult {
+                    location: Vec3::ZERO,
+                    start: Vec3::ZERO,
+                    end: Vec3::ZERO,
+                    blocking_hit: false,
+                    adjusted_start: false,
+                    adjustment: Vec3::ZERO,
+                    adjustment_count: 0,
+                    adjustment_resolved: false,
+                },
+                params.trace_radius * sockets.mesh_scale,
+                runtime.trace_distance_ratio,
+                first_person_override,
+                delta_seconds,
+                shake_location,
+                shake_rotation_degrees,
+                debug_curve_values,
+            );
+            continue;
+        }
+        if let Some(frame) = base {
+            runtime.camera_rotation = frame.rotation * runtime.camera_rotation_base_space;
+        }
+        let rotation_lag = curves.map_or(0.0, |values| values.get(AlsCameraCurve::RotationLag));
+        runtime.camera_rotation = if allow_lag {
+            damp_rotation(
+                runtime.camera_rotation,
+                target_rotation,
+                delta_seconds,
+                rotation_lag,
+            )
+        } else {
+            target_rotation
+        };
+        if let Some(frame) = base {
+            runtime.camera_rotation_base_space = frame.rotation.inverse() * runtime.camera_rotation;
+            runtime.pivot_lag_location = frame.location
+                + frame
+                    .rotation
+                    .mul_vec3(runtime.pivot_lag_location_base_space);
+        }
+        let (camera_yaw, _, _) = runtime.camera_rotation.to_euler(EulerRot::YXZ);
+        let yaw_rotation = Quat::from_rotation_y(camera_yaw);
+        let pivot_lag = if allow_lag {
+            let current = yaw_rotation.inverse().mul_vec3(runtime.pivot_lag_location);
+            let target = yaw_rotation.inverse().mul_vec3(pivot_target);
+            let lag = Vec3::new(
+                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX)),
+                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY)),
+                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ)),
+            );
+            let lag = if animation_frame.is_some() {
+                lag
+            } else {
+                ue_location_lag_to_bevy_camera_space(lag)
+            };
+            yaw_rotation.mul_vec3(Vec3::new(
+                damp_exact(current.x, target.x, delta_seconds, lag.x),
+                damp_exact(current.y, target.y, delta_seconds, lag.y),
+                damp_exact(current.z, target.z, delta_seconds, lag.z),
+            ))
+        } else {
+            pivot_target
+        };
+        runtime.pivot_lag_location = pivot_lag;
+        if let Some(frame) = base {
+            runtime.pivot_lag_location_base_space = frame
+                .rotation
+                .inverse()
+                .mul_vec3(runtime.pivot_lag_location - frame.location);
+        }
+        let pivot_values = curve_vector(
+            curves,
+            AlsCameraCurve::PivotOffsetX,
+            AlsCameraCurve::PivotOffsetY,
+            AlsCameraCurve::PivotOffsetZ,
+        );
+        let pivot_offset = sockets.mesh_rotation
+            * if animation_frame.is_some() {
+                pivot_values * sockets.mesh_scale
+            } else {
+                ue_mesh_vector_to_bevy_meters(pivot_values, sockets.mesh_scale)
+            };
+        let pivot = pivot_lag + pivot_offset;
+        let camera_values = curve_vector(
+            curves,
+            AlsCameraCurve::CameraOffsetX,
+            AlsCameraCurve::CameraOffsetY,
+            AlsCameraCurve::CameraOffsetZ,
+        );
+        let camera_offset = runtime.camera_rotation
+            * if animation_frame.is_some() {
+                camera_values * sockets.mesh_scale
+            } else {
+                ue_camera_vector_to_bevy_meters(camera_values, sockets.mesh_scale)
+            };
+        let camera_target = pivot + camera_offset;
+        let shoulder = if left_shoulder {
+            sockets.trace_shoulder_left
+        } else {
+            sockets.trace_shoulder_right
+        };
+        let trace_override = curves
+            .map(|values| values.get(AlsCameraCurve::TraceOverride).clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        let trace_start = shoulder.lerp(
+            pivot_target + pivot_offset + params.trace_override_offset,
+            trace_override,
+        );
+        let mut excluded = collect_descendants(target_entity, &children);
+        excluded.extend(collect_descendants(camera_entity, &children));
+        let filter = SpatialQueryFilter::from_excluded_entities(excluded);
+        let trace = calculate_camera_trace(
+            &mut runtime,
+            &spatial,
+            trace_start,
+            camera_target,
+            target_transform.translation(),
+            params.trace_radius * sockets.mesh_scale,
+            allow_lag,
+            params,
+            &filter,
+            &ignored,
+            delta_seconds,
+        );
         let fov = field_of_view_for_override(
             first_person_override,
             fov_curve,
@@ -1420,8 +1618,15 @@ fn camera_rig_system(
         let (shake_location, shake_rotation_degrees) =
             camera_shake_sample(&mut runtime, delta_seconds);
         view_info.field_of_view_deg = fov;
-        view_info.location = sockets.first_person + shake_location;
-        view_info.rotation = target_rotation
+        view_info.location = trace.location.lerp(
+            sockets.first_person,
+            if first_person_override > 1e-5 {
+                first_person_override
+            } else {
+                0.0
+            },
+        ) + shake_location;
+        view_info.rotation = runtime.camera_rotation
             * Quat::from_euler(
                 EulerRot::YXZ,
                 shake_rotation_degrees.y.to_radians(),
@@ -1432,210 +1637,72 @@ fn camera_rig_system(
         write_debug(
             &mut debug,
             pivot_target,
-            pivot_target,
-            pivot_target,
+            pivot_lag,
+            pivot,
             fov,
             !left_shoulder,
-            TraceResult {
-                location: Vec3::ZERO,
-                start: Vec3::ZERO,
-                end: Vec3::ZERO,
-                blocking_hit: false,
-                adjusted_start: false,
-                adjustment: Vec3::ZERO,
-                adjustment_count: 0,
-                adjustment_resolved: false,
-            },
+            trace,
             params.trace_radius * sockets.mesh_scale,
-            1.0,
+            runtime.trace_distance_ratio,
             first_person_override,
             delta_seconds,
             shake_location,
             shake_rotation_degrees,
             debug_curve_values,
         );
-        continue;
-    }
-    let base = movement_base.and_then(|base| {
-        if !base.has_relative_rotation {
-            return None;
-        }
-        movement_base_transforms
-            .get(base.entity)
-            .ok()
-            .map(|transform| CameraBaseFrame {
-                entity: base.entity,
-                location: transform.translation(),
-                rotation: transform.rotation(),
-            })
-    });
-    if runtime.movement_base != base.map(|frame| frame.entity) {
-        if let Some(frame) = base {
-            runtime.pivot_lag_location_base_space = frame
-                .rotation
-                .inverse()
-                .mul_vec3(runtime.pivot_lag_location - frame.location);
-            runtime.camera_rotation_base_space = frame.rotation.inverse() * runtime.camera_rotation;
-        } else {
-            runtime.pivot_lag_location_base_space = Vec3::ZERO;
-            runtime.camera_rotation_base_space = Quat::IDENTITY;
-        }
-        runtime.movement_base = base.map(|frame| frame.entity);
-    }
-    let allow_lag = !animation_frame.is_some_and(|frame| frame.force_no_lag) && (params.teleport_distance_threshold <= 0.0
-        || runtime.previous_pivot_target.distance_squared(pivot_target)
-            <= params.teleport_distance_threshold.powi(2));
-    runtime.previous_pivot_target = pivot_target;
-    if let Some(frame) = base {
-        runtime.camera_rotation = frame.rotation * runtime.camera_rotation_base_space;
-    }
-    let rotation_lag = curves.map_or(0.0, |values| values.get(AlsCameraCurve::RotationLag));
-    runtime.camera_rotation = if allow_lag {
-        damp_rotation(
-            runtime.camera_rotation,
-            target_rotation,
-            delta_seconds,
-            rotation_lag,
-        )
-    } else {
-        target_rotation
-    };
-    if let Some(frame) = base {
-        runtime.camera_rotation_base_space = frame.rotation.inverse() * runtime.camera_rotation;
-        runtime.pivot_lag_location = frame.location
-            + frame
-                .rotation
-                .mul_vec3(runtime.pivot_lag_location_base_space);
-    }
-    let (camera_yaw, _, _) = runtime.camera_rotation.to_euler(EulerRot::YXZ);
-    let yaw_rotation = Quat::from_rotation_y(camera_yaw);
-    let pivot_lag = if allow_lag {
-        let current = yaw_rotation.inverse().mul_vec3(runtime.pivot_lag_location);
-        let target = yaw_rotation.inverse().mul_vec3(pivot_target);
-        let lag = Vec3::new(
-            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX)),
-            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY)),
-            curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ)),
-        );
-        let lag = if animation_frame.is_some() { lag } else { ue_location_lag_to_bevy_camera_space(lag) };
-        yaw_rotation.mul_vec3(Vec3::new(damp_exact(current.x, target.x, delta_seconds, lag.x),
-            damp_exact(current.y, target.y, delta_seconds, lag.y), damp_exact(current.z, target.z, delta_seconds, lag.z)))
-    } else {
-        pivot_target
-    };
-    runtime.pivot_lag_location = pivot_lag;
-    if let Some(frame) = base {
-        runtime.pivot_lag_location_base_space = frame
-            .rotation
-            .inverse()
-            .mul_vec3(runtime.pivot_lag_location - frame.location);
-    }
-    let pivot_values = curve_vector(
-                curves,
-                AlsCameraCurve::PivotOffsetX,
-                AlsCameraCurve::PivotOffsetY,
-                AlsCameraCurve::PivotOffsetZ,
-            );
-    let pivot_offset = sockets.mesh_rotation * if animation_frame.is_some() {
-        pivot_values * sockets.mesh_scale
-    } else { ue_mesh_vector_to_bevy_meters(pivot_values, sockets.mesh_scale) };
-    let pivot = pivot_lag + pivot_offset;
-    let camera_values = curve_vector(
-                curves,
-                AlsCameraCurve::CameraOffsetX,
-                AlsCameraCurve::CameraOffsetY,
-                AlsCameraCurve::CameraOffsetZ,
-            );
-    let camera_offset = runtime.camera_rotation * if animation_frame.is_some() {
-        camera_values * sockets.mesh_scale
-    } else { ue_camera_vector_to_bevy_meters(camera_values, sockets.mesh_scale) };
-    let camera_target = pivot + camera_offset;
-    let shoulder = if left_shoulder {
-        sockets.trace_shoulder_left
-    } else {
-        sockets.trace_shoulder_right
-    };
-    let trace_override = curves
-        .map(|values| values.get(AlsCameraCurve::TraceOverride).clamp(0.0, 1.0))
-        .unwrap_or(0.0);
-    let trace_start = shoulder.lerp(
-        pivot_target + pivot_offset + params.trace_override_offset,
-        trace_override,
-    );
-    let mut excluded = collect_descendants(target_entity, &children);
-    excluded.extend(collect_descendants(camera_entity, &children));
-    let filter = SpatialQueryFilter::from_excluded_entities(excluded);
-    let trace = calculate_camera_trace(
-        &mut runtime,
-        &spatial,
-        trace_start,
-        camera_target,
-        target_transform.translation(),
-        params.trace_radius * sockets.mesh_scale,
-        allow_lag,
-        params,
-        &filter,
-        &ignored,
-        delta_seconds,
-    );
-    let fov = field_of_view_for_override(
-        first_person_override,
-        fov_curve,
-        field_of_view_override.map(|value| value.0),
-        params,
-    );
-    let (shake_location, shake_rotation_degrees) = camera_shake_sample(&mut runtime, delta_seconds);
-    view_info.field_of_view_deg = fov;
-    view_info.location = trace
-        .location
-        .lerp(sockets.first_person, first_person_override)
-        + shake_location;
-    view_info.rotation = runtime.camera_rotation
-        * Quat::from_euler(
-            EulerRot::YXZ,
-            shake_rotation_degrees.y.to_radians(),
-            shake_rotation_degrees.x.to_radians(),
-            shake_rotation_degrees.z.to_radians(),
-        );
-    view_info.valid = true;
-    write_debug(
-        &mut debug,
-        pivot_target,
-        pivot_lag,
-        pivot,
-        fov,
-        !left_shoulder,
-        trace,
-        params.trace_radius * sockets.mesh_scale,
-        runtime.trace_distance_ratio,
-        first_person_override,
-        delta_seconds,
-        shake_location,
-        shake_rotation_degrees,
-        debug_curve_values,
-    );
     }
 }
 
 fn apply_camera_view(
-    mut cameras: Query<(Entity, &mut Transform, &mut Projection, &mut AlsCameraFieldOfView,
-        Option<&AlsCameraViewSource>, Option<&AlsCharacterCamera>), With<Camera3d>>,
+    mut cameras: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut Projection,
+            &mut AlsCameraFieldOfView,
+            Option<&AlsCameraViewSource>,
+            Option<&AlsCharacterCamera>,
+        ),
+        With<Camera3d>,
+    >,
     views: Query<&AlsCameraViewInfo>,
     definitions: Res<Assets<AlsCameraDefinition>>,
-    owners: Query<(&GlobalTransform, &AlsViewYaw, Option<&AlsViewPitch>, &als_core::state::Stance,
-        &AlsCameraDefinitionHandle, &AlsCameraAnimationFrame)>,
+    owners: Query<(
+        &GlobalTransform,
+        &AlsViewYaw,
+        Option<&AlsViewPitch>,
+        &als_core::state::Stance,
+        &AlsCameraDefinitionHandle,
+        &AlsCameraAnimationFrame,
+    )>,
 ) {
     for (entity, mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
-        if let Some(owner) = owner && let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
-            && !frame.active && let Some(definition) = definitions.get(&handle.0) {
-            let height = if *stance == als_core::state::Stance::Crouching { definition.crouching_eye_height } else { definition.standing_eye_height };
+        if let Some(owner) = owner
+            && let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
+            && !frame.active
+            && let Some(definition) = definitions.get(&handle.0)
+        {
+            let height = if *stance == als_core::state::Stance::Crouching {
+                definition.crouching_eye_height
+            } else {
+                definition.standing_eye_height
+            };
             transform.translation = position.translation() + Vec3::Y * height;
-            transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw.0, pitch.map_or(0.0, |value| value.0), 0.0);
+            transform.rotation = Quat::from_euler(
+                EulerRot::YXZ,
+                yaw.0,
+                pitch.map_or(0.0, |value| value.0),
+                0.0,
+            );
             set_field_of_view(&mut projection, &mut field_of_view, 90.0);
             continue;
         }
-        let Ok(info) = views.get(source.map_or(entity, |source| source.0)) else { continue; };
-        if !info.valid { continue; }
+        let Ok(info) = views.get(source.map_or(entity, |source| source.0)) else {
+            continue;
+        };
+        if !info.valid {
+            continue;
+        }
         transform.translation = info.location;
         transform.rotation = info.rotation;
         set_field_of_view(&mut projection, &mut field_of_view, info.field_of_view_deg);
@@ -1851,8 +1918,219 @@ mod tests {
     }
 
     #[test]
-    fn exact_damper_halves_distance_at_its_half_life() {
-        assert!((damp_exact(0.0, 1.0, 0.2, 0.2) - 0.5).abs() < 1e-5);
+    fn source_camera_damping_preserves_native_approximation_and_zero_delta() {
+        for (delta, half_life, expected) in [
+            (0.2, 0.2, 0.50011265),
+            (0.2, 0.4, 0.2927782),
+            (0.2, 0.8, 0.15927327),
+            (0.0, 0.0, 0.0),
+            (1e-8, 1e-8, 0.2927782),
+            (1.0, 0.1, 0.99132687),
+        ] {
+            assert!((damp_exact(0.0, 1.0, delta, half_life) - expected).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn source_camera_first_person_weight_uses_native_relevance_boundaries() {
+        let mut settings = params();
+        settings.first_person_field_of_view_deg = 60.0;
+        assert!(!is_full_weight(0.99995));
+        assert!(is_full_weight(1.0 - 1e-5));
+        assert_eq!(field_of_view_for_override(5e-6, 7.0, None, &settings), 97.0);
+        assert!((field_of_view_for_override(0.99995, 7.0, None, &settings) - 67.0015).abs() < 1e-5);
+        assert_eq!(
+            field_of_view_for_override(1.0 - 1e-5, 7.0, None, &settings),
+            60.0
+        );
+    }
+
+    #[test]
+    fn source_camera_rotation_uses_signed_axes_and_counterclockwise_turns() {
+        let alpha = 0.1878438;
+        for (yaw, expected_delta) in [
+            (-174.9_f32, -174.9_f32),
+            (-175.1, 184.9),
+            (-179.0, 181.0),
+            (174.9, 174.9),
+            (175.1, 175.1),
+            (179.0, 179.0),
+            (180.0, 180.0),
+            (-180.0, 180.0),
+        ] {
+            let actual = damp_rotation(
+                Quat::IDENTITY,
+                Quat::from_rotation_y(yaw.to_radians()),
+                0.03,
+                0.1,
+            );
+            let expected = Quat::from_rotation_y((expected_delta * alpha).to_radians());
+            assert!(
+                (actual * Vec3::NEG_Z).distance(expected * Vec3::NEG_Z) < 1e-5,
+                "Yaw {yaw}: {actual:?}"
+            );
+        }
+        let target = Quat::from_euler(
+            EulerRot::YXZ,
+            -179_f32.to_radians(),
+            40_f32.to_radians(),
+            -178_f32.to_radians(),
+        );
+        let actual = damp_rotation(Quat::IDENTITY, target, 0.03, 0.1);
+        let expected = Quat::from_euler(
+            EulerRot::YXZ,
+            (181_f32 * alpha).to_radians(),
+            (40_f32 * alpha).to_radians(),
+            (182_f32 * alpha).to_radians(),
+        );
+        for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
+            assert!((actual * axis).distance(expected * axis) < 1e-5);
+        }
+        let current = Quat::from_euler(EulerRot::YXZ, 0.2, -0.1, 0.3);
+        assert!(
+            (damp_rotation(current, target, 0.0, 0.0) * Vec3::X).distance(current * Vec3::X) < 1e-6
+        );
+        let near = Quat::from_rotation_y(0.00005_f32.to_radians());
+        assert_eq!(damp_rotation(Quat::IDENTITY, near, 0.0, 0.2), near);
+    }
+
+    #[test]
+    fn source_camera_refreshes_base_before_first_person_without_resetting_caches() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<avian3d::collider_tree::ColliderTrees>();
+        world.init_resource::<Assets<AlsCameraDefinition>>();
+        world.init_resource::<Messages<AlsCameraShakeRequest>>();
+        world.init_resource::<Time<Virtual>>();
+        world.init_resource::<Time<Real>>();
+        let mut assets = Assets::<AlsCameraParams>::default();
+        let _params = assets.add(params());
+        world.insert_resource(assets);
+        let base_position = Vec3::new(2.0, 0.0, 1.0);
+        let base_rotation = Quat::from_rotation_y(0.6);
+        let base = world
+            .spawn(GlobalTransform::from(
+                Transform::from_translation(base_position).with_rotation(base_rotation),
+            ))
+            .id();
+        let owner = world
+            .spawn((
+                AlsCameraTarget,
+                GlobalTransform::IDENTITY,
+                RotationMode::ViewDirection,
+                AlsViewYaw(0.2),
+                AlsViewPitch(0.1),
+                AlsCameraAnimationFrame {
+                    active: true,
+                    delta_seconds: 0.1,
+                    force_no_lag: false,
+                },
+                AlsCameraCurveValues::from_pairs([(AlsCameraCurve::FirstPersonOverride, 1.0)]),
+                AlsCameraSocketLocations {
+                    head: Vec3::Y * 2.0,
+                    first_person: Vec3::Y * 1.8,
+                    valid: true,
+                    ..default()
+                },
+                AlsCameraMovementBase {
+                    entity: base,
+                    has_relative_rotation: true,
+                },
+            ))
+            .id();
+        let previous_pivot = Vec3::new(0.4, 1.0, 0.3);
+        let previous_rotation = Quat::from_rotation_y(0.3);
+        let component = world
+            .spawn((
+                AlsCameraRig::default(),
+                AlsCharacterCamera { character: owner },
+                AlsCameraRuntime {
+                    pivot_lag_location: previous_pivot,
+                    camera_rotation: previous_rotation,
+                    trace_distance_ratio: 0.4,
+                    ..default()
+                },
+                AlsCameraViewInfo {
+                    valid: true,
+                    ..default()
+                },
+            ))
+            .id();
+        world.run_system_once(camera_rig_system).unwrap();
+        let runtime = *world.get::<AlsCameraRuntime>(component).unwrap();
+        assert_eq!(runtime.movement_base, Some(base));
+        assert!(
+            (runtime.pivot_lag_location_base_space
+                - base_rotation.inverse() * (previous_pivot - base_position))
+                .length()
+                < 1e-6
+        );
+        assert!(
+            (runtime.camera_rotation_base_space * Vec3::X)
+                .distance(base_rotation.inverse() * previous_rotation * Vec3::X)
+                < 1e-6
+        );
+        assert_eq!(runtime.trace_distance_ratio, 0.4);
+        assert_eq!(
+            world
+                .get::<AlsCameraDebugInfo>(component)
+                .unwrap()
+                .trace_distance_ratio,
+            0.4
+        );
+        assert_eq!(runtime.pivot_lag_location, Vec3::Y);
+        let view = world.get::<AlsCameraViewInfo>(component).unwrap();
+        assert_eq!(view.location, Vec3::Y * 1.8);
+        world.entity_mut(base).insert(GlobalTransform::from(
+            Transform::from_translation(base_position + Vec3::X)
+                .with_rotation(Quat::from_rotation_y(0.9)),
+        ));
+        world.run_system_once(camera_rig_system).unwrap();
+        let next = *world.get::<AlsCameraRuntime>(component).unwrap();
+        assert_eq!(
+            next.pivot_lag_location_base_space,
+            runtime.pivot_lag_location_base_space
+        );
+        assert_eq!(
+            next.camera_rotation_base_space,
+            runtime.camera_rotation_base_space
+        );
+        assert_eq!(next.trace_distance_ratio, 0.4);
+        world
+            .get_mut::<AlsCameraCurveValues>(owner)
+            .unwrap()
+            .set(AlsCameraCurve::FirstPersonOverride, 0.0);
+        world
+            .get_mut::<AlsCameraAnimationFrame>(owner)
+            .unwrap()
+            .force_no_lag = true;
+        world.run_system_once(camera_rig_system).unwrap();
+        let next = world.get::<AlsCameraRuntime>(component).unwrap();
+        assert!(
+            (next.pivot_lag_location_base_space
+                - Quat::from_rotation_y(-0.9) * (Vec3::Y - base_position - Vec3::X))
+                .length()
+                < 1e-6
+        );
+        world
+            .get_mut::<AlsCameraCurveValues>(owner)
+            .unwrap()
+            .set(AlsCameraCurve::FirstPersonOverride, 5e-6);
+        world.run_system_once(camera_rig_system).unwrap();
+        assert_eq!(
+            world.get::<AlsCameraViewInfo>(component).unwrap().location,
+            Vec3::Y
+        );
+        world
+            .get_mut::<AlsCameraCurveValues>(owner)
+            .unwrap()
+            .set(AlsCameraCurve::FirstPersonOverride, 1.0);
+        world.entity_mut(owner).remove::<AlsCameraMovementBase>();
+        world.run_system_once(camera_rig_system).unwrap();
+        let next = world.get::<AlsCameraRuntime>(component).unwrap();
+        assert_eq!(next.movement_base, None);
+        assert_eq!(next.pivot_lag_location_base_space, Vec3::ZERO);
+        assert_eq!(next.camera_rotation_base_space, Quat::IDENTITY);
     }
 
     #[test]
@@ -1861,7 +2139,7 @@ mod tests {
         let current = Vec3::ZERO;
         let target = Vec3::ONE;
         let next = damp_ue_location_lag(current, target, 0.2, Vec3::new(0.2, 0.4, 0.8));
-        let expected = Vec3::new(0.292_893_23, 0.159_103_59, 0.5);
+        let expected = Vec3::new(0.2927782, 0.15927327, 0.50011265);
         let passed =
             bevy.distance(Vec3::new(0.4, 0.8, 0.2)) <= 1e-6 && next.distance(expected) <= 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
