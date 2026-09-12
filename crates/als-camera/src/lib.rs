@@ -1,6 +1,7 @@
 use avian3d::prelude::{
     Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
 };
+mod shake;
 pub mod source_definition;
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
@@ -9,6 +10,7 @@ use bevy::reflect::Reflect;
 use bevy::time::{Real, Virtual};
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use serde::{Deserialize, Serialize};
+pub use shake::AlsCameraShakes;
 pub use source_definition::{
     AlsCameraDefinition, CameraPhysicsBody, CameraShakeDefinition, CameraWave,
 };
@@ -38,11 +40,6 @@ pub const CAMERA_CURVE_NAMES: [&str; 13] = [
 ];
 
 pub const CAMERA_CURVE_COUNT: usize = CAMERA_CURVE_NAMES.len();
-pub const SPRINT_CAMERA_SHAKE_DURATION_SECS: f32 = 0.2;
-pub const SPRINT_CAMERA_SHAKE_BLEND_IN_SECS: f32 = 0.1;
-pub const SPRINT_CAMERA_SHAKE_BLEND_OUT_SECS: f32 = 0.1;
-pub const SPRINT_CAMERA_SHAKE_LOCATION_AMPLITUDE_M: f32 = 0.01;
-pub const SPRINT_CAMERA_SHAKE_ROTATION_AMPLITUDE_DEGREES: f32 = 0.1;
 pub const CAMERA_PROFILE_BLEND_DURATION_SECS: f32 = 0.5;
 pub const TRACE_START_ADJUSTMENT_PADDING_METERS: f32 = 0.01;
 
@@ -337,6 +334,7 @@ pub struct AlsCameraViewInfo {
 }
 
 #[derive(Component, Debug, Clone, Copy)]
+#[require(AlsCameraFieldOfView, AlsCameraShakes)]
 pub struct AlsCameraViewSource(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
@@ -426,10 +424,6 @@ pub struct AlsCameraRuntime {
     pub trace_distance_ratio: f32,
     pub previous_global_time_dilation: f32,
     pub movement_base: Option<Entity>,
-    pub shake_elapsed: Option<f32>,
-    pub shake_scale: f32,
-    pub shake_phases: [f32; 6],
-    pub shake_nonce: u64,
 }
 
 impl Default for AlsCameraRuntime {
@@ -443,10 +437,6 @@ impl Default for AlsCameraRuntime {
             trace_distance_ratio: 1.0,
             previous_global_time_dilation: 1.0,
             movement_base: None,
-            shake_elapsed: None,
-            shake_scale: 1.0,
-            shake_phases: [0.0; 6],
-            shake_nonce: 1,
         }
     }
 }
@@ -531,6 +521,7 @@ impl Plugin for AlsCameraPlugin {
                     ApplyDeferred,
                     camera_rig_system,
                     apply_camera_view,
+                    shake::apply_camera_shakes,
                 )
                     .chain()
                     .in_set(AlsCameraSet),
@@ -543,7 +534,7 @@ impl Plugin for AlsCameraPlugin {
                     transform_systems::sync_simple_transforms,
                 )
                     .chain()
-                    .after(apply_camera_view),
+                    .after(shake::apply_camera_shakes),
             );
     }
 }
@@ -1265,57 +1256,6 @@ fn set_field_of_view(
     field_of_view.0 = value_degrees;
 }
 
-fn next_shake_phase(runtime: &mut AlsCameraRuntime) -> f32 {
-    runtime.shake_nonce ^= runtime.shake_nonce << 13;
-    runtime.shake_nonce ^= runtime.shake_nonce >> 7;
-    runtime.shake_nonce ^= runtime.shake_nonce << 17;
-    (runtime.shake_nonce as f64 / u64::MAX as f64) as f32 * std::f32::consts::TAU
-}
-
-fn begin_camera_shake(runtime: &mut AlsCameraRuntime, scale: f32) {
-    runtime.shake_elapsed = Some(0.0);
-    runtime.shake_scale = scale;
-    for index in 0..runtime.shake_phases.len() {
-        runtime.shake_phases[index] = next_shake_phase(runtime);
-    }
-}
-
-fn camera_shake_sample(runtime: &mut AlsCameraRuntime, delta_seconds: f32) -> (Vec3, Vec3) {
-    let Some(elapsed) = runtime.shake_elapsed else {
-        return (Vec3::ZERO, Vec3::ZERO);
-    };
-    let next_elapsed = elapsed + delta_seconds;
-    if next_elapsed >= SPRINT_CAMERA_SHAKE_DURATION_SECS {
-        runtime.shake_elapsed = None;
-        return (Vec3::ZERO, Vec3::ZERO);
-    }
-    runtime.shake_elapsed = Some(next_elapsed);
-    let envelope = (next_elapsed / SPRINT_CAMERA_SHAKE_BLEND_IN_SECS)
-        .min(
-            (SPRINT_CAMERA_SHAKE_DURATION_SECS - next_elapsed) / SPRINT_CAMERA_SHAKE_BLEND_OUT_SECS,
-        )
-        .clamp(0.0, 1.0);
-    let loc_phase = std::f32::consts::TAU * next_elapsed;
-    let rot_phase = std::f32::consts::TAU * 0.1 * next_elapsed;
-    let scale = envelope * runtime.shake_scale;
-    let location_ue = Vec3::new(
-        (loc_phase + runtime.shake_phases[0]).sin(),
-        (loc_phase + runtime.shake_phases[1]).sin(),
-        (loc_phase + runtime.shake_phases[2]).sin(),
-    ) * SPRINT_CAMERA_SHAKE_LOCATION_AMPLITUDE_M
-        * scale;
-    let rotation_ue = Vec3::new(
-        (rot_phase + runtime.shake_phases[3]).sin(),
-        (rot_phase + runtime.shake_phases[4]).sin(),
-        (rot_phase + runtime.shake_phases[5]).sin(),
-    ) * SPRINT_CAMERA_SHAKE_ROTATION_AMPLITUDE_DEGREES
-        * scale;
-    (
-        Vec3::new(location_ue.y, location_ue.z, -location_ue.x),
-        rotation_ue,
-    )
-}
-
 #[allow(clippy::type_complexity)]
 fn camera_rig_system(
     mut cameras: Query<
@@ -1356,11 +1296,9 @@ fn camera_rig_system(
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
     children: Query<&Children>,
     movement_base_transforms: Query<&GlobalTransform>,
-    mut shake_requests: MessageReader<AlsCameraShakeRequest>,
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
 ) {
-    let requests = shake_requests.read().copied().collect::<Vec<_>>();
     for (
         camera_entity,
         mut view_info,
@@ -1407,12 +1345,6 @@ fn camera_rig_system(
         let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
             continue;
         };
-        if let Some(request) = requests
-            .iter()
-            .find(|request| request.target == target_entity)
-        {
-            begin_camera_shake(&mut runtime, request.scale);
-        }
         let delta_seconds = animation_frame.map_or_else(
             || {
                 camera_delta_seconds(
@@ -1490,17 +1422,9 @@ fn camera_rig_system(
                 field_of_view_override.map(|value| value.0),
                 params,
             );
-            let (shake_location, shake_rotation_degrees) =
-                camera_shake_sample(&mut runtime, delta_seconds);
             view_info.field_of_view_deg = fov;
-            view_info.location = sockets.first_person + shake_location;
-            view_info.rotation = target_rotation
-                * Quat::from_euler(
-                    EulerRot::YXZ,
-                    shake_rotation_degrees.y.to_radians(),
-                    shake_rotation_degrees.x.to_radians(),
-                    shake_rotation_degrees.z.to_radians(),
-                );
+            view_info.location = sockets.first_person;
+            view_info.rotation = target_rotation;
             view_info.valid = true;
             write_debug(
                 &mut debug,
@@ -1523,8 +1447,8 @@ fn camera_rig_system(
                 runtime.trace_distance_ratio,
                 first_person_override,
                 delta_seconds,
-                shake_location,
-                shake_rotation_degrees,
+                Vec3::ZERO,
+                Vec3::ZERO,
                 debug_curve_values,
             );
             continue;
@@ -1641,8 +1565,6 @@ fn camera_rig_system(
             field_of_view_override.map(|value| value.0),
             params,
         );
-        let (shake_location, shake_rotation_degrees) =
-            camera_shake_sample(&mut runtime, delta_seconds);
         view_info.field_of_view_deg = fov;
         view_info.location = trace.location.lerp(
             sockets.first_person,
@@ -1651,14 +1573,8 @@ fn camera_rig_system(
             } else {
                 0.0
             },
-        ) + shake_location;
-        view_info.rotation = runtime.camera_rotation
-            * Quat::from_euler(
-                EulerRot::YXZ,
-                shake_rotation_degrees.y.to_radians(),
-                shake_rotation_degrees.x.to_radians(),
-                shake_rotation_degrees.z.to_radians(),
-            );
+        );
+        view_info.rotation = runtime.camera_rotation;
         view_info.valid = true;
         write_debug(
             &mut debug,
@@ -1672,8 +1588,8 @@ fn camera_rig_system(
             runtime.trace_distance_ratio,
             first_person_override,
             delta_seconds,
-            shake_location,
-            shake_rotation_degrees,
+            Vec3::ZERO,
+            Vec3::ZERO,
             debug_curve_values,
         );
     }
@@ -1781,6 +1697,140 @@ fn write_debug(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_camera_shake_applies_after_component_view_and_uses_game_time() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            AlsCameraPlugin,
+        ))
+        .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(100),
+        ));
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_relative_speed(0.2);
+        let mut definition: AlsCameraDefinition = ron::from_str(include_str!(
+            "../../../assets/params/als_camera.camera_component.ron"
+        ))
+        .unwrap();
+        for wave in definition
+            .sprint_shake
+            .location
+            .iter_mut()
+            .chain(definition.sprint_shake.rotation_yxz.iter_mut())
+            .chain(std::iter::once(&mut definition.sprint_shake.field_of_view))
+        {
+            wave.random_start = false;
+        }
+        let handle = app
+            .world_mut()
+            .resource_mut::<Assets<AlsCameraDefinition>>()
+            .add(definition);
+        let character = app
+            .world_mut()
+            .spawn((
+                AlsCameraTarget,
+                Transform::IDENTITY,
+                RotationMode::ViewDirection,
+                als_core::state::Stance::Standing,
+                AlsViewYaw(0.7),
+                AlsViewPitch(0.2),
+                AlsCameraDefinitionHandle(handle),
+                AlsCameraAnimationFrame {
+                    delta_seconds: 0.1,
+                    active: true,
+                    force_no_lag: true,
+                },
+                AlsCameraCurveValues::from_pairs([(AlsCameraCurve::FirstPersonOverride, 1.0)]),
+                AlsCameraSocketLocations {
+                    head: Vec3::Y * 2.0,
+                    first_person: Vec3::Y * 1.8,
+                    valid: true,
+                    ..default()
+                },
+            ))
+            .id();
+        let component = app
+            .world_mut()
+            .spawn((AlsCameraRig::default(), AlsCharacterCamera { character }))
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                Transform::IDENTITY,
+                AlsCameraViewSource(component),
+                AlsCharacterCamera { character },
+            ))
+            .id();
+        app.finish();
+        app.cleanup();
+        app.update();
+        app.update();
+        let component_view = *app.world().get::<AlsCameraViewInfo>(component).unwrap();
+        for scale in [0.4, 0.7] {
+            app.world_mut()
+                .write_message(AlsCameraShakeRequest::sprint(character, scale));
+        }
+        app.update();
+        let unchanged = app.world().get::<AlsCameraViewInfo>(component).unwrap();
+        assert_eq!(
+            unchanged.location, component_view.location,
+            "Camera component view must exclude manager shakes"
+        );
+        assert_eq!(unchanged.rotation, component_view.rotation);
+        let mut expected = Transform::from_translation(component_view.location)
+            .with_rotation(component_view.rotation);
+        let offset = Vec3::new(0.01, 0.01, -0.01) * (std::f32::consts::TAU * 0.02).sin() * 0.2;
+        let angle = 0.1_f32.to_radians() * (std::f32::consts::TAU * 0.1 * 0.02).sin() * 0.2;
+        for scale in [0.4, 0.7] {
+            expected.translation += expected.rotation * offset * scale;
+            expected.rotation *=
+                Quat::from_euler(EulerRot::YXZ, -angle * scale, angle * scale, -angle * scale);
+        }
+        let actual = app.world().get::<Transform>(view).unwrap();
+        assert!(
+            actual.translation.distance(expected.translation) < 2e-7,
+            "Expected {}, got {}",
+            expected.translation,
+            actual.translation
+        );
+        assert!((actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z) < 2e-7);
+        assert!(actual.translation.distance(component_view.location) > 1e-5);
+        app.world_mut()
+            .get_mut::<AlsCameraAnimationFrame>(character)
+            .unwrap()
+            .active = false;
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<AlsCameraViewInfo>(component)
+                .unwrap()
+                .location,
+            component_view.location
+        );
+        assert!(
+            app.world()
+                .get::<Transform>(view)
+                .unwrap()
+                .translation
+                .distance(Vec3::Y * 0.64)
+                > 1e-5
+        );
+        for _ in 0..12 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().get::<Transform>(view).unwrap().translation,
+            Vec3::Y * 0.64
+        );
+    }
 
     fn trace_fixture(
         walls: &[(Vec3, Vec3)],
