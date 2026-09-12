@@ -4153,7 +4153,6 @@ fn drive_manual_integration(
                 state.foot_ik_teleport_baseline = None;
                 state.coverage.foot_ik_teleport = false;
             }
-            input.0.move_dir = Vec2::Y;
             if elapsed >= 1.0 && !state.foot_ik_teleport_requested {
                 let right = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::X;
                 let destination = transform.translation + right * 0.6;
@@ -5914,20 +5913,39 @@ fn graph_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
 
 const MANTLE_SLOT_NODE: &str = "Slot 'PostLocomotion'\nGroup 'Locomotion'";
 
+fn observe_standing_window(
+    window: &mut ManualAnimationWindowEvidence,
+    standing: Option<&AlsStandingGraphTelemetry>,
+    locomotion: LocomotionState,
+) {
+    window.settled &= locomotion == LocomotionState::Grounded;
+    window.observed_runtime_state = standing.and_then(|value| value.actual_movement_state);
+    window.observed_direction = window
+        .observed_runtime_state
+        .and_then(movement_direction_from_fsm_index)
+        .map(movement_direction_name);
+    window.observed_parent_runtime_state = standing.and_then(|value| value.actual_standing_state);
+    window.observed_parent_transition_active =
+        standing.and_then(|value| value.actual_standing_transition_active);
+}
+
+fn foot_ik_matches_source(apply: &AlsFootIkApplyTelemetry, curves: [f32; 2]) -> bool {
+    [apply.left, apply.right]
+        .into_iter()
+        .zip(curves)
+        .all(|(side, curve)| {
+            side.valid
+                && (side.applied_weight - curve.clamp(0.0, 1.0)).abs() <= 1e-5
+                && side.effector_error <= 0.02
+        })
+}
+
 fn mantle_foot_ik_matches_source(
     apply: &AlsFootIkApplyTelemetry,
     curves: [f32; 2],
     slot_weight: Option<f32>,
 ) -> bool {
-    slot_weight.is_some_and(|weight| weight >= 1.0 - 1e-5)
-        && [apply.left, apply.right]
-            .into_iter()
-            .zip(curves)
-            .all(|(side, curve)| {
-                side.valid
-                    && (side.applied_weight - curve.clamp(0.0, 1.0)).abs() <= 1e-5
-                    && side.effector_error <= 0.02
-            })
+    slot_weight.is_some_and(|weight| weight >= 1.0 - 1e-5) && foot_ik_matches_source(apply, curves)
 }
 
 fn mantle_slot_sample(
@@ -6379,16 +6397,7 @@ fn observe_manual_integration(
         state.phase,
         IntegrationPhase::DirectionRegression | IntegrationPhase::StateMachineGrounded
     ) {
-        animation_window.observed_runtime_state =
-            standing_graph.and_then(|value| value.actual_movement_state);
-        animation_window.observed_direction = animation_window
-            .observed_runtime_state
-            .and_then(movement_direction_from_fsm_index)
-            .map(movement_direction_name);
-        animation_window.observed_parent_runtime_state =
-            standing_graph.and_then(|value| value.actual_standing_state);
-        animation_window.observed_parent_transition_active =
-            standing_graph.and_then(|value| value.actual_standing_transition_active);
+        observe_standing_window(&mut animation_window, standing_graph, *locomotion);
     } else if state.phase == IntegrationPhase::CrouchDirectionRegression {
         animation_window.observed_runtime_state =
             crouching_graph.and_then(|value| value.actual_movement_state);
@@ -8610,10 +8619,15 @@ fn observe_manual_integration(
         && apply.right.valid
     {
         if state.phase == IntegrationPhase::FootIkTerrain {
-            let stable = apply.left.applied_weight >= 0.99
-                && apply.right.applied_weight >= 0.99
-                && apply.left.effector_error <= 0.02
-                && apply.right.effector_error <= 0.02;
+            let stable =
+                als_ext::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
+                    .is_some_and(|(_, _, rig)| {
+                        foot_ik_matches_source(
+                            apply,
+                            ["FootLeftIk", "FootRightIk"]
+                                .map(|name| rig.context.curves.get(name).copied().unwrap_or(0.0)),
+                        )
+                    });
             if stable
                 && (spaces.left.has_ground_hit || spaces.right.has_ground_hit)
                 && (spaces.left.normal_world.y < 0.995 || spaces.right.normal_world.y < 0.995)
@@ -10912,6 +10926,146 @@ mod tests {
                 && window.requires_source_pose_chain
         );
         assert!(window.source_sync_group.is_none() && window.expected_runtime_state.is_none());
+    }
+
+    #[test]
+    fn foot_ik_gate_preconditions_follow_source_air_curves() {
+        let mut apply = AlsFootIkApplyTelemetry {
+            left: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {
+                valid: true,
+                ..default()
+            },
+            right: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {
+                valid: true,
+                ..default()
+            },
+        };
+        assert!(
+            foot_ik_matches_source(&apply, [0.0, 0.0]),
+            "Air disables foot IK through the consumed source curves"
+        );
+        assert!(!foot_ik_matches_source(&apply, [1.0, 1.0]));
+        apply.left.valid = false;
+        assert!(!foot_ik_matches_source(&apply, [0.0, 0.0]));
+        apply.left.valid = true;
+        apply.right.effector_error = 0.03;
+        assert!(!foot_ik_matches_source(&apply, [0.0, 0.0]));
+    }
+
+    #[test]
+    fn foot_ik_gate_preconditions_keep_the_teleport_driver_idle() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<ManualAnimationWindowEvidence>();
+        world.init_resource::<ManualRuntimePhaseEvidence>();
+        world.init_resource::<Time<Virtual>>();
+        world.init_resource::<ButtonInput<KeyCode>>();
+        world.init_resource::<AlsShowDebugHudState>();
+        world.init_resource::<Messages<AlsCameraShakeRequest>>();
+        world.init_resource::<Messages<AlsPivotNotify>>();
+        world.init_resource::<AlsFootIkWeightOverride>();
+        world.init_resource::<Assets<AlsMovementParams>>();
+        let character = world
+            .spawn((
+                AlsCharacter,
+                AlsInputOverride::default(),
+                Transform::IDENTITY,
+                Position::default(),
+                LinearVelocity::default(),
+                AlsStateRequest::default(),
+                Stance::Standing,
+                LocomotionState::Grounded,
+                Gait::Running,
+                OverlayState::Default,
+                RotationMode::ViewDirection,
+                AlsViewYaw::default(),
+                AlsViewPitch::default(),
+            ))
+            .insert((
+                AlsMovementParamsHandle(Handle::default()),
+                AlsCrouchTransaction::default(),
+                AlsAimingYawConstraint::default(),
+            ))
+            .id();
+        let start = Vec3::new(1.0, 0.9, 2.0);
+        world.insert_resource(ManualIntegrationFixture {
+            platform: Entity::PLACEHOLDER,
+            platform_home: Vec3::ZERO,
+            locomotion_start: start,
+            mantle_start: Vec3::ZERO,
+            roll_start: Vec3::ZERO,
+            facing_yaw: 0.0,
+            obstacle_mesh: Handle::default(),
+            obstacle_material: Handle::default(),
+        });
+        world.insert_resource(ManualIntegrationState {
+            character: Some(character),
+            initialized: true,
+            entered: true,
+            scenario: IntegrationScenario::FootIk,
+            phase: IntegrationPhase::FootIkTeleport,
+            ..default()
+        });
+        for (delta, teleported) in [(0.0, false), (0.5, false), (0.6, true), (0.4, true)] {
+            world
+                .resource_mut::<Time<Virtual>>()
+                .advance_by(Duration::from_secs_f32(delta));
+            world.run_system_once(drive_manual_integration).unwrap();
+            assert_eq!(
+                world.get::<AlsInputOverride>(character).unwrap().0.move_dir,
+                Vec2::ZERO,
+                "Running releases the source foot locks before teleport"
+            );
+            assert_eq!(
+                world
+                    .resource::<ManualIntegrationState>()
+                    .foot_ik_teleport_requested,
+                teleported
+            );
+            let expected = start
+                + if teleported {
+                    Vec3::X * 0.6
+                } else {
+                    Vec3::ZERO
+                };
+            assert!(
+                world
+                    .get::<Position>(character)
+                    .unwrap()
+                    .0
+                    .distance(expected)
+                    < 1e-6
+            );
+        }
+    }
+
+    #[test]
+    fn foot_ik_gate_preconditions_reject_air_in_standing_windows() {
+        let standing = AlsStandingGraphTelemetry {
+            actual_movement_state: Some(3),
+            actual_standing_state: Some(1),
+            actual_standing_transition_active: Some(false),
+            ..default()
+        };
+        for locomotion in [
+            LocomotionState::Grounded,
+            LocomotionState::Air,
+            LocomotionState::Custom,
+        ] {
+            let mut window = state_machine_grounded_window(1.0);
+            observe_standing_window(&mut window, Some(&standing), locomotion);
+            assert_eq!(
+                window.settled,
+                locomotion == LocomotionState::Grounded,
+                "Old Standing telemetry cannot make a current Air frame a Grounded sample"
+            );
+            assert_eq!(window.observed_runtime_state, Some(3));
+            assert_eq!(window.observed_parent_runtime_state, Some(1));
+            assert!(window.capture_source_window && window.requires_source_pose_chain);
+        }
+        let mut entering = state_machine_grounded_window(0.0);
+        observe_standing_window(&mut entering, Some(&standing), LocomotionState::Grounded);
+        assert!(!entering.settled);
     }
 
     #[test]
