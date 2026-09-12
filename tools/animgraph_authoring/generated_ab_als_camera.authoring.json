@@ -1797,7 +1797,7 @@
         "2",
         "actual_camera_scene"
       ],
-      "evidence": "target/bf115_camera/c4c_regression.watchdog.json"
+      "evidence": "target/bf115_camera/c4d_stable_probe_regression.watchdog.json"
     },
     {
       "label": "camera_graph_failure_report_before_body_ready",
@@ -1811,7 +1811,52 @@
         "2",
         "camera_graph_failure_is_reported"
       ],
-      "evidence": "target/bf115_camera/c4c_regression.watchdog.json"
+      "evidence": "target/bf115_camera/c4d_stable_probe_regression.watchdog.json"
+    },
+    {
+      "label": "nested_material_owner_boundary",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "-p",
+        "als-ext",
+        "--lib",
+        "nested_camera_materials"
+      ],
+      "evidence": "target/bf115_camera/c4d_material_regression.watchdog.json"
+    },
+    {
+      "label": "stable_camera_collision_probe",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--lib",
+        "camera_probe_stays_stable"
+      ],
+      "evidence": "target/bf115_camera/c4d_camera_probe_preconditions.watchdog.json"
+    },
+    {
+      "label": "character_material_probe_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--example",
+        "manual_playground",
+        "character_material_probe_ignores"
+      ],
+      "evidence": "target/bf115_camera/c4d_character_probe_green.watchdog.json"
     }
   ]
 }

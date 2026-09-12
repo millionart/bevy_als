@@ -42,7 +42,7 @@
 
 | 编号 | 任务 | 验收边界 | 状态 |
 |---|---|---|---|
-| BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 进行中 |
+| BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 功能完成；性能暂停 |
 | BF116.02 | `SM_Als_Stair` 上下楼梯 | 修复速度和动画表现；明确避免源版本上楼后永久改写并锁住 `rotation mode` 的 bug，进入/离开楼梯后快捷键仍可正常切换。 | 待执行 |
 | BF116.03 | `B_Als_MovingObject2` 移动平台跟随 | 角色站在移动平台上能按源规则正确跟随，核对平台、运动基座与角色调用链。 | 待执行 |
 | BF116.04 | `B_Als_RotatingObject` 旋转平台 | 平台旋转而角色未主动移动时，按源表现原地踏步保持位置，修复脚在平台上滑动的表现。 | 待执行 |
@@ -101,7 +101,7 @@
 - [x] BF116.01c4c 公共相机图首帧失败报告：开始2026-09-13 04:44:00、预估2026-09-13 05:34:00。依赖0a2db3f；当前Camera真实播放器出错时仅将frame.active置false，主体视觉采集器已正确限定Avatar，因此相机错误尚未进入公共primary_failure链。复用已有GraphError诊断、根Pose分类、截图配置、即时报告和退出管线，覆盖相机错误/缺Pose，确保不能以Actor视图回退掩盖；先可重复失败fixture再最小接线与消融，不另造报告格式或修改源图算法。估时依据为已有公共诊断/多项报告测试、当前真实相机场景和21相机/324项目29.822s回归；本段不启动游戏，随后完成必要公共静态Gate和真实startup/camera功能验收，性能继续暂停。
   - 01c4c报告/生命周期闭环2026-09-13 05:15:00：69.336s真实相机场景反例检出无Body Avatar时错误被漏掉；复用同一collector/primary_failure/即时write_report/两帧退出，在Body错误优先的前提下独立扫描活跃Camera实际播放器。保留原始GraphError；无错误但求值后缺少/空Pose使用root_pose_contract_error，未伪造引擎错误。30.618s三类故障均首帧产出、截图disabled_by_configuration且退出92；22.314s补验正常参考Pose、停用与报告不覆盖。移除Camera扫描27.339s稳定FAIL；最初重启播放器的未求值消融26.378s仍通过，回读公开start证明它保留上一份outputs，改用真实新播放器后19.420s稳定检出误报，保留必要求值边界。共享validator新合同0.552s先FAIL、0.553s自测PASS；当前恢复实现并做最终回归与真实报告审计，不启动新游戏。
   - 01c4c完成2026-09-13 05:21:03：恢复后21相机/325项目最终回归20.779s通过，正常参考Pose、真实未求值新播放器和停用不误报；断边、缺输出、空Pose三类均首帧报告且两帧内退出92，保留第一份primary_failure。公共CLI对三份真实报告全部返回预期失败1，并保留MissingEdgeToTarget/MissingRootPose/EmptyRootPose有效诊断；未伪造GraphError。14图authoring4.007s通过，manifest增加相机故障路径的focused证据；复用现有报告/截图配置/退出链和实际相机场景fixture，未新增报告格式或运行时假Pose。开始04:44:00、预估05:34:00、实际05:21:03、偏差-777s，本段公共检测完成；接下来用实际target_game/play预构建并按公共startup→camera完成原Playground功能Gate，BF116.01仍未关闭，性能暂停。
-- [ ] BF116.01c4d 实际入口预构建与startup/camera功能Gate：开始2026-09-13 05:24:00、预估2026-09-13 06:14:00。依赖99177dd；完整14图/9资产、组件/Actor挂载、生命周期、源阻尼/trace/震动、命名socket和公共首帧报告的静态闭环已通过。先按run_manual.bat实际CARGO_TARGET_DIR=target_game及play profile限流预构建，刷新当前spec/源闭包与必要静态Gate，再按公共runner先无驱动startup、后camera运行原Playground。使用CaptureCount0和FunctionalOnly，保留数值/姿态/数据/物理步数/watchdog检查，性能继续暂停；遇首个失败先回读报告和source边界，不盲目重启。估时依据为已缓存目标、最近20–60秒相关编译/静态验证及短窗口公共case；完成后逐项审计整个BF116.01，未证明前不关闭主项。
+- [x] BF116.01c4d 实际入口预构建与startup/camera功能Gate：开始2026-09-13 05:24:00、预估2026-09-13 06:14:00。依赖99177dd；完整14图/9资产、组件/Actor挂载、生命周期、源阻尼/trace/震动、命名socket和公共首帧报告的静态闭环已通过。先按run_manual.bat实际CARGO_TARGET_DIR=target_game及play profile限流预构建，刷新当前spec/源闭包与必要静态Gate，再按公共runner先无驱动startup、后camera运行原Playground。使用CaptureCount0和FunctionalOnly，保留数值/姿态/数据/物理步数/watchdog检查，性能继续暂停；遇首个失败先回读报告和source边界，不盲目重启。估时依据为已缓存目标、最近20–60秒相关编译/静态验证及短窗口公共case；完成后逐项审计整个BF116.01，未证明前不关闭主项。
   - 01c4d真实入口前2026-09-13 05:31:00：已确认无其它cargo/manual_playground进程；实际target_game/play预构建126.609s通过。新spec52.113s、editor repair0.294s零修改，刷新spec后的authoring/完整源闭包、位置、editor和运行时资产边界均PASS，覆盖14图/97节点/130边、1FSM/3状态/6转换及全部当前源记录。未修改图规则或产物；完整组件/Actor生命周期、socket、曲线/阻尼/trace/震动和首帧报告均有源及focused证据。现按公共runner执行无驱动startup，再依据其结果执行camera，原Playground环境保持，CaptureCount0/FunctionalOnly，性能预算继续不验收；首个失败将先读报告。
   - 01c4d startup结果/01c2a有限复开2026-09-13 05:43:00：公共原Playground startup15.244s功能PASS（18骨、无图错误/姿态fault、退出0），但真实日志出现Camera单槽和Body16槽材质模式错误。读取当前源SKM资产与原始glTF确认Camera仅1个M_Als_Main、Body应15槽且第10为M_Als_Main；目标递归AvatarMaterialOverride跨入挂在Avatar下的Camera子树，并把角色专用>10槽检查套到Camera。源→标准Actor嵌套装配→材质consumer证明根因属于01c2a，旧静态场景Gate未注册渲染材质桥，故取消01c2a勾选，仅复开材质归属/模式验证；暂停新的camera运行，保留startup报告而不据此宣称完整相机通过。
 - [x] BF116.01c4d1 嵌套相机场景材质归属修复：开始2026-09-13 05:43:00、预估2026-09-13 06:13:00。复用既有材质桥，先以源15槽Body+1槽Camera和加载先后复现父树越界；明确独立override根的边界，按源/目标槽共享关系验证，不给Camera复制角色材质规则。完成最小反例、消融、回归和同target重建，再恢复公共startup/camera；估时依据为单桥约90行、实际槽拓扑、最近20–60秒测试和126.609splay重建。本项不展开未来overlay动画或其它角色图。
@@ -122,3 +122,11 @@
   - 01c4d3选择边界闭环2026-09-13 07:32:00：独立Camera已应用1槽时，旧检查器41.641s反例误判并结束probe；只加入With<AlsCharacterAvatar>后20.143s通过，排除Camera并继续等待实际角色，原15槽/eyes规则和材料参数未改。相机API与所有材质消费者已查明，当前仅真实入口旧probe缺角色筛选；重建同target后做最终日志/功能复验。
   - 01c4d3最终入口前2026-09-13 07:34:30：仅角色probe选择边界的反例由41.641s FAIL转20.143s PASS；同target_game/play重建13.763s完成，游戏算法/fixture和已通过的1429帧恢复证据未改。执行最终同camera case，以功能报告和实际日志共同确认角色检查器不再误选Camera；性能预算继续延期，截图仍0。
   - 01c4d3完成2026-09-13 07:35:15：实际example同target重建13.763s后，最终公共camera20.448s功能PASS，1403帧、全部9项覆盖，report无fault/graph_error，runner的game/validation均退出0，stdout/stderr无ERROR、CHARMAT失败或材质槽错误。开始07:24:00、预估07:44:00、实际07:35:15、偏差-525s，仅给角色专属诊断加明确Avatar选择，源材质/相机行为未改。本段误选诊断关闭；性能max_eval_p95_ms仍按用户暂停范围延期，继续完整BF116.01结项审计。
+  - 01c4d完成2026-09-13 07:44:20：最终原Playground startup/camera报告重新由公共functional审计通过；camera1403帧、全部9项真实覆盖、18角色骨、无图/姿态/材质fault、日志无ERROR，game/validator均退出0。当前14图source/authoring最终3.194s PASS，5项focused证据对应实际输入/生命周期、故障报告、嵌套材质归属、稳定collision/recovery及角色probe范围。原开始05:24:00、预估06:14:00；复盘轮开始06:19:00、预估07:34:00、实际07:44:20、偏差+620s，因真实材质与fixture漏检拆分c4d1/c4d2/c4d3并均闭合。本段功能验收完成；max_eval_p95_ms性能问题按用户暂停要求保留延期，不作性能PASS结论。
+
+### BF116.01 功能结项（2026-09-13 07:44:20）
+
+- 源目录9资产全部有原生/原始导出和目标依赖闭包：AB_Als_Camera完整14个生成图、B_Als_CameraComponent目标定义、SK/SKM实际两骨与网格、PA单根box/实际NoCollision实例、CS设置、两条CF混合曲线及Sprint Wave资产。原始source record未改；没有旧三表或运行时UE单位回退。
+- 标准Actor实际挂在Mesh下的Camera组件、90度相对旋转、隐藏时图/骨更新、显式视图源、同帧曲线/时钟、激活/停用/重绑/销毁、眼位/FOV回退均有实际场景测试；源偏移/阻尼/基座/trace/FP/FOV/命名socket及独立视图多实例震动已逐项闭合。静态与实际加载合同覆盖图、骨架、网格和材质关系。
+- 公开真实入口使用run_manual.bat实际target_game/play：无驱动startup之后camera完成，22相机/326项目测试、381扩展材质回归、14图最终审计和真实首帧故障/退出协议通过。结果记录在 `target/animation_visual/bf116_01_source_camera_startup_material_fixed` 与 `target/animation_visual/bf116_01_source_camera_final`，最终报告独立核对collision→移除→TP恢复，不能由FP停trace冒充恢复。
+- 本项以功能范围结项：截图0、性能暂停，保留原始性能阈值与max_eval_p95_ms延期；全仓旧cmc_adapter_gate字段编译问题另有边界记录，不纳入本项的通过声明。下一项按用户顺序进入BF116.02楼梯速度/动画和rotation mode退出恢复；其实现尚未开始。
