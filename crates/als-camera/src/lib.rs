@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
+    Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
 };
 pub mod source_definition;
 use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
@@ -963,38 +963,57 @@ fn has_blocking_overlap(
 
 fn start_penetration_adjustment(
     spatial: &SpatialQuery,
+    colliders: &Query<(&Position, &Rotation, &Collider)>,
     shape: &Collider,
     start: Vec3,
-    direction: Dir3,
-    config: &ShapeCastConfig,
     filter: &SpatialQueryFilter,
     ignored: &Query<(), With<AlsCameraTraceIgnore>>,
 ) -> (Vec3, u32) {
     let mut adjustments = Vec::new();
-    spatial.shape_hits_callback(
-        shape,
-        start,
-        Quat::IDENTITY,
-        direction,
-        config,
-        filter,
-        |hit| {
-            if ignored.get(hit.entity).is_ok() || hit.distance > 1e-5 {
-                return true;
-            }
-            let adjustment = hit.point1 - hit.point2;
-            if adjustment.length_squared() > 1e-8 && adjustment.is_finite() {
-                adjustments.push(adjustment);
-            }
-            true
-        },
-    );
+    let mut valid = true;
+    spatial.shape_intersections_callback(shape, start, Quat::IDENTITY, filter, |entity| {
+        if !valid {
+            return false;
+        }
+        if ignored.get(entity).is_ok() {
+            return true;
+        }
+        let contact = colliders
+            .get(entity)
+            .ok()
+            .and_then(|(position, rotation, collider)| {
+                avian3d::collision::collider::contact_query::contact(
+                    collider,
+                    *position,
+                    *rotation,
+                    shape,
+                    start,
+                    Quat::IDENTITY,
+                    0.0,
+                )
+                .ok()
+                .flatten()
+                .map(|contact| (contact.global_normal1(rotation), contact.penetration))
+            });
+        let Some((direction, distance)) = contact else {
+            valid = false;
+            return false;
+        };
+        if distance > 1e-10 {
+            adjustments.push(direction * distance);
+        }
+        true
+    });
+    if !valid {
+        return (Vec3::ZERO, 0);
+    }
     let count = adjustments.len() as u32;
     (sum_penetration_adjustments(adjustments), count)
 }
 
 fn trace_with_start_adjustment(
     spatial: &SpatialQuery,
+    colliders: &Query<(&Position, &Rotation, &Collider)>,
     shape: &Collider,
     adjustment_shape: &Collider,
     mut start: Vec3,
@@ -1014,39 +1033,39 @@ fn trace_with_start_adjustment(
         adjustment_resolved: false,
     };
     let vector = end - start;
-    let Ok(direction) = Dir3::new(vector) else {
-        return result;
-    };
-    let config = ShapeCastConfig::from_max_distance(vector.length());
     let predicate = |entity| ignored.get(entity).is_err();
-    let Some(hit) = spatial.cast_shape_predicate(
-        shape,
-        start,
-        Quat::IDENTITY,
-        direction,
-        &config,
-        filter,
-        &predicate,
-    ) else {
-        return result;
-    };
-    result.blocking_hit = true;
-    if hit.distance > 1e-5 {
-        result.location = start + direction.as_vec3() * hit.distance;
+    if vector.length() > 1e-10 {
+        let direction = Dir3::new(vector).unwrap();
+        let config = ShapeCastConfig::from_max_distance(vector.length());
+        let Some(hit) = spatial.cast_shape_predicate(
+            shape,
+            start,
+            Quat::IDENTITY,
+            direction,
+            &config,
+            filter,
+            &predicate,
+        ) else {
+            return result;
+        };
+        if hit.distance > 0.0 {
+            result.blocking_hit = true;
+            result.location = start + direction.as_vec3() * hit.distance;
+            return result;
+        }
+    } else if !has_blocking_overlap(spatial, shape, start, filter, ignored) {
         return result;
     }
-    let (adjustment, adjustment_count) = start_penetration_adjustment(
-        spatial,
-        adjustment_shape,
-        start,
-        direction,
-        &config,
-        filter,
-        ignored,
-    );
+    let (adjustment, adjustment_count) =
+        start_penetration_adjustment(spatial, colliders, adjustment_shape, start, filter, ignored);
     let adjustment_direction = adjustment.normalize_or_zero();
-    let owner_direction = (owner_location - start).normalize_or_zero();
-    if adjustment.length_squared() > 1e-8 && owner_direction.dot(adjustment_direction) >= -1e-5 {
+    let owner_offset = owner_location - start;
+    let owner_direction = if owner_offset.length_squared() < 1e-12 {
+        Vec3::ZERO
+    } else {
+        owner_offset.normalize()
+    };
+    if adjustment.length_squared() > 1e-12 && owner_direction.dot(adjustment_direction) >= -1e-4 {
         start += adjustment;
         result.start = start;
         result.adjusted_start = true;
@@ -1065,7 +1084,8 @@ fn trace_with_start_adjustment(
                     &adjusted_config,
                     filter,
                     &predicate,
-                ) {
+                ) && adjusted_hit.distance > 0.0
+                {
                     result.location = start + adjusted_direction.as_vec3() * adjusted_hit.distance;
                     result.blocking_hit = true;
                 } else {
@@ -1083,20 +1103,24 @@ fn trace_with_start_adjustment(
 fn calculate_camera_trace(
     runtime: &mut AlsCameraRuntime,
     spatial: &SpatialQuery,
+    colliders: &Query<(&Position, &Rotation, &Collider)>,
     start: Vec3,
     end: Vec3,
     owner_location: Vec3,
-    trace_radius: f32,
+    mesh_scale: f32,
     allow_lag: bool,
     params: &AlsCameraParams,
     filter: &SpatialQueryFilter,
     ignored: &Query<(), With<AlsCameraTraceIgnore>>,
     delta_seconds: f32,
 ) -> TraceResult {
-    let shape = Collider::sphere(trace_radius);
-    let adjustment_shape = Collider::sphere(trace_radius + TRACE_START_ADJUSTMENT_PADDING_METERS);
+    let shape = Collider::sphere(params.trace_radius * mesh_scale);
+    let adjustment_shape = Collider::sphere(
+        (params.trace_radius + TRACE_START_ADJUSTMENT_PADDING_METERS) * mesh_scale,
+    );
     let mut trace = trace_with_start_adjustment(
         spatial,
+        colliders,
         &shape,
         &adjustment_shape,
         start,
@@ -1111,7 +1135,7 @@ fn calculate_camera_trace(
     }
     let vector = trace.end - trace.start;
     let distance = vector.length();
-    if distance <= f32::EPSILON {
+    if distance <= 1e-6 {
         runtime.trace_distance_ratio = 1.0;
         return trace;
     }
@@ -1326,6 +1350,7 @@ fn camera_rig_system(
         With<AlsCameraTarget>,
     >,
     spatial: SpatialQuery,
+    colliders: Query<(&Position, &Rotation, &Collider)>,
     params_assets: Res<Assets<AlsCameraParams>>,
     definitions: Res<Assets<AlsCameraDefinition>>,
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
@@ -1599,10 +1624,11 @@ fn camera_rig_system(
         let trace = calculate_camera_trace(
             &mut runtime,
             &spatial,
+            &colliders,
             trace_start,
             camera_target,
             target_transform.translation(),
-            params.trace_radius * sockets.mesh_scale,
+            sockets.mesh_scale,
             allow_lag,
             params,
             &filter,
@@ -1755,6 +1781,158 @@ fn write_debug(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn trace_fixture(
+        walls: &[(Vec3, Vec3)],
+        start: Vec3,
+        end: Vec3,
+        owner: Vec3,
+        scale: f32,
+        smoothing: bool,
+        previous_ratio: f32,
+    ) -> (TraceResult, f32) {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+        ));
+        app.finish();
+        app.cleanup();
+        for &(position, size) in walls {
+            app.world_mut().spawn((
+                avian3d::prelude::RigidBody::Static,
+                Collider::cuboid(size.x, size.y, size.z),
+                Transform::from_translation(position),
+            ));
+        }
+        app.update();
+        app.update();
+        app.world_mut()
+            .run_system_once(
+                move |spatial: SpatialQuery,
+                      colliders: Query<(&Position, &Rotation, &Collider)>,
+                      ignored: Query<(), With<AlsCameraTraceIgnore>>| {
+                    let mut runtime = AlsCameraRuntime {
+                        trace_distance_ratio: previous_ratio,
+                        ..default()
+                    };
+                    let mut settings = params();
+                    settings.trace_distance_smoothing = smoothing;
+                    let result = calculate_camera_trace(
+                        &mut runtime,
+                        &spatial,
+                        &colliders,
+                        start,
+                        end,
+                        owner,
+                        scale,
+                        true,
+                        &settings,
+                        &SpatialQueryFilter::default(),
+                        &ignored,
+                        0.2,
+                    );
+                    (result, runtime.trace_distance_ratio)
+                },
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn source_camera_trace_scales_all_penetration_padding_and_checks_stationary_sweeps() {
+        for scale in [2.0, 0.5, 1.0] {
+            let walls = [
+                (
+                    Vec3::new(-0.1, 0.0, 0.0) * scale,
+                    Vec3::new(0.05, 0.6, 0.6) * scale,
+                ),
+                (
+                    Vec3::new(0.0, -0.1, 0.0) * scale,
+                    Vec3::new(0.6, 0.05, 0.6) * scale,
+                ),
+            ];
+            for end in [Vec3::Z * 2.0 * scale, Vec3::ZERO] {
+                let (trace, _) =
+                    trace_fixture(&walls, Vec3::ZERO, end, Vec3::ZERO, scale, false, 1.0);
+                assert!(trace.adjusted_start, "Scale {scale}, end {end}");
+                assert!(trace.adjustment_resolved);
+                assert_eq!(trace.adjustment_count, 2);
+                assert!(
+                    trace
+                        .adjustment
+                        .distance(Vec3::new(0.085, 0.085, 0.0) * scale)
+                        < 2e-6,
+                    "Scale {scale}: {}",
+                    trace.adjustment
+                );
+                assert!(trace.location.is_finite());
+            }
+        }
+    }
+
+    #[test]
+    fn source_camera_trace_distinguishes_close_hits_from_initial_penetration() {
+        let walls = [(Vec3::new(0.0, 0.0, 0.160005), Vec3::new(4.0, 4.0, 0.02))];
+        let (trace, _) = trace_fixture(&walls, Vec3::ZERO, Vec3::Z, Vec3::NEG_Z, 1.0, false, 1.0);
+        assert!(trace.blocking_hit);
+        assert!(!trace.adjusted_start);
+        assert_eq!(trace.adjustment_count, 0);
+        assert!(
+            trace.location.z > 0.0 && trace.location.z < 1e-5,
+            "{}",
+            trace.location
+        );
+    }
+
+    #[test]
+    fn source_camera_trace_preserves_failed_adjustments_and_source_direction_tolerance() {
+        let opposing = [
+            (Vec3::new(-0.145, 0.0, 0.0), Vec3::new(0.05, 4.0, 4.0)),
+            (Vec3::new(0.14502, 0.0, 0.0), Vec3::new(0.05, 4.0, 4.0)),
+        ];
+        let (trace, _) = trace_fixture(&opposing, Vec3::ZERO, Vec3::Z, Vec3::X, 1.0, false, 1.0);
+        assert!(trace.adjusted_start);
+        assert!(!trace.adjustment_resolved);
+        assert_eq!(trace.location, trace.start);
+        assert!(
+            trace.start.distance(Vec3::X * 0.00002) < 2e-7,
+            "{}",
+            trace.start
+        );
+        let wall = [(Vec3::new(-0.1, 0.0, 0.0), Vec3::new(0.05, 4.0, 4.0))];
+        let (trace, _) = trace_fixture(
+            &wall,
+            Vec3::ZERO,
+            Vec3::Z,
+            Vec3::new(-0.00005, 1.0, 0.0),
+            1.0,
+            false,
+            1.0,
+        );
+        assert!(trace.adjusted_start);
+        assert!(trace.adjustment_resolved);
+    }
+
+    #[test]
+    fn source_camera_trace_smoothing_resets_tiny_distances_and_contracts_immediately() {
+        let (trace, ratio) =
+            trace_fixture(&[], Vec3::ZERO, Vec3::Z * 5e-7, Vec3::ZERO, 1.0, true, 0.4);
+        assert_eq!(ratio, 1.0);
+        assert_eq!(trace.location, Vec3::Z * 5e-7);
+        let (trace, ratio) =
+            trace_fixture(&[], Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.4);
+        assert!((ratio - 0.7000676).abs() < 1e-7);
+        assert!((trace.location.z - 2.0 * ratio).abs() < 1e-7);
+        let wall = [(Vec3::new(0.0, 0.0, 1.0), Vec3::new(4.0, 4.0, 0.2))];
+        let (trace, ratio) =
+            trace_fixture(&wall, Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.9);
+        assert!((ratio - 0.375).abs() < 1e-6);
+        assert!((trace.location.z - 0.75).abs() < 1e-6);
+    }
 
     #[test]
     fn detached_mesh_pivot_uses_the_current_capsule_bottom_and_restores_the_socket() {
