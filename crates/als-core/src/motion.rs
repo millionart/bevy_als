@@ -2084,6 +2084,7 @@ fn locomotion_drive_system(
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::roll::AlsRollState, With<AlsCharacter>>,
+    actions: Query<&crate::state::AlsNotifyLocomotionAction>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<DriveQueryItem, With<AlsCharacter>>,
 ) {
@@ -2149,7 +2150,10 @@ fn locomotion_drive_system(
             .copied()
             .unwrap_or_default();
         let mantle_start_time_settings = mantle_start_time_settings.get(entity).ok().flatten();
-        let action_active = input_blocked || roll.is_some_and(|state| state.active);
+        let action_active = input_blocked || actions.get(entity).map_or_else(
+            |_| roll.is_some_and(|state| state.active),
+            |action| *action != crate::state::AlsNotifyLocomotionAction::None,
+        );
         let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active)
             && mantle_start_allowed(mantle_control, action_active);
         let auto_mantle = mantle.as_deref().is_some_and(|m| !m.active)

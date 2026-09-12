@@ -1,5 +1,14 @@
 use bevy::prelude::*;
 
+#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+pub enum AlsNotifyLocomotionAction {
+    #[default]
+    None,
+    Mantling,
+    GettingUp,
+    Rolling,
+}
+
 #[derive(
     Component,
     Debug,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use als_camera::AlsCameraShakeRequest;
 use als_core::character::AlsCharacter;
-use als_core::mantle::{AlsMantleState, MantleKind, mantle_weight_at};
+use als_core::mantle::MantleKind;
 use als_core::roll::{AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE};
 use als_core::state::Stance;
 use als_core::transition::AlsPhysicalStanceOverride;
@@ -160,6 +160,8 @@ pub struct AlsStandingEventClock {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlsAnimationEventPlayback {
+    pub instance_id: u64,
+    pub interrupted: bool,
     pub source_asset: String,
     pub graph_clip: String,
     pub time: f32,
@@ -172,14 +174,7 @@ pub struct AlsAnimationEventPlaybacks {
     pub entries: Vec<AlsAnimationEventPlayback>,
 }
 
-#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
-pub enum AlsNotifyLocomotionAction {
-    #[default]
-    None,
-    Mantling,
-    GettingUp,
-    Rolling,
-}
+pub use als_core::state::AlsNotifyLocomotionAction;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct AlsNotifyRootMotionScale(pub f32);
@@ -199,6 +194,7 @@ pub struct AlsNotifyEarlyBlendOut {
 #[derive(Message, Clone, Debug)]
 pub struct AlsAnimationEvent {
     pub character: Entity,
+    pub instance_id: u64,
     pub source_asset: String,
     pub graph_clip: String,
     pub event_id: String,
@@ -231,7 +227,7 @@ struct AlsAnimationEventSourceRuntime {
 
 #[derive(Component, Default)]
 struct AlsAnimationEventRuntime {
-    sources: HashMap<String, AlsAnimationEventSourceRuntime>,
+    sources: HashMap<(String, u64), AlsAnimationEventSourceRuntime>,
 }
 
 pub struct AlsAnimationEventPlugin;
@@ -252,7 +248,7 @@ impl Plugin for AlsAnimationEventPlugin {
                     .chain()
                     .after(AnimationGraphSet::PrePhysics)
                     .before(AlsRollDriveSet)
-                    .before(AlsMantleDriveSet),
+                    .after(AlsMantleDriveSet),
             )
             .add_systems(
                 PostUpdate,
@@ -321,6 +317,8 @@ fn push_playback(
         return;
     }
     entries.push(AlsAnimationEventPlayback {
+        instance_id: 0,
+        interrupted: false,
         source_asset: source_asset.into(),
         graph_clip: graph_clip.into(),
         time,
@@ -354,7 +352,7 @@ fn refresh_animation_event_playbacks(
             &mut AlsAnimationEventPlaybacks,
             Option<&AlsStandingEventClock>,
             Option<&AlsRollState>,
-            Option<&AlsMantleState>,
+            Option<&crate::mantle_drive::AlsMantleMontages>,
             Option<&AlsGetUpState>,
         ),
         With<AlsCharacter>,
@@ -415,15 +413,17 @@ fn refresh_animation_event_playbacks(
                 );
             }
         }
-        if let Some(mantle) = mantle.filter(|state| state.active) {
-            let (sequence, montage) = mantle_sources(mantle.kind);
-            let time = mantle.clip_time_at(mantle.time);
-            let weight = mantle_weight_at(mantle.time, mantle.action_end());
-            if let Some(graph_clip) = graph_clip_for_source(manifest, sequence) {
-                push_playback(&mut entries, sequence, graph_clip, time, weight, false);
-            }
-            if let Some(graph_clip) = graph_clip_for_source(manifest, montage) {
-                push_playback(&mut entries, montage, graph_clip, time, weight, false);
+        if let Some(mantle) = mantle {
+            for entry in mantle.entries.iter().filter(|entry| entry.weight > f32::EPSILON) {
+                let (sequence, montage) = mantle_sources(entry.kind);
+                for source in [sequence, montage] {
+                    if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
+                        push_playback(&mut entries, source, graph_clip, entry.clip_time, entry.weight, false);
+                        let playback = entries.last_mut().unwrap();
+                        playback.instance_id = entry.id;
+                        playback.interrupted = entry.interrupted;
+                    }
+                }
             }
         }
         if let Some(get_up) = get_up {
@@ -553,7 +553,7 @@ fn source_clip<'a>(
         .find(|clip| clip.source_asset == source_asset)
 }
 
-fn parameter_f32(parameters: &Value, key: &str, default: f32) -> f32 {
+pub(crate) fn parameter_f32(parameters: &Value, key: &str, default: f32) -> f32 {
     parameters
         .get(key)
         .and_then(Value::as_f64)
@@ -568,6 +568,31 @@ fn parameter_tag<'a>(parameters: &'a Value, key: &str) -> Option<&'a str> {
         .and_then(|value| value.get("__tagged__"))
         .and_then(|value| value.get("TagName"))
         .and_then(Value::as_str)
+}
+
+pub(crate) fn early_blend_out_matches(
+    parameters: &Value, has_input: bool, locomotion: als_core::state::LocomotionState,
+    mantling: bool, rotation: als_core::state::RotationMode, stance: Stance,
+) -> bool {
+    use als_core::state::{LocomotionState, RotationMode};
+    let locomotion_tag = match locomotion {
+        _ if mantling => "",
+        LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
+        LocomotionState::Air => "Als.LocomotionMode.InAir",
+        LocomotionState::Ragdolling => "",
+    };
+    let rotation_tag = match rotation {
+        RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
+        RotationMode::ViewDirection => "Als.RotationMode.ViewDirection",
+        RotationMode::Aiming => "Als.RotationMode.Aiming",
+    };
+    let stance_tag = match stance { Stance::Standing => "Als.Stance.Standing", Stance::Crouching => "Als.Stance.Crouching" };
+    [
+        ("bCheckInput", has_input),
+        ("bCheckLocomotionMode", locomotion_tag == parameter_tag(parameters, "LocomotionModeEquals").unwrap_or("Als.LocomotionMode.InAir")),
+        ("bCheckRotationMode", rotation_tag == parameter_tag(parameters, "RotationModeEquals").unwrap_or("Als.RotationMode.Aiming")),
+        ("bCheckStance", stance_tag == parameter_tag(parameters, "StanceEquals").unwrap_or("Als.Stance.Crouching")),
+    ].into_iter().any(|(key, matches)| parameters.get(key).and_then(Value::as_bool).unwrap_or(true) && matches)
 }
 
 fn notify_action(tag: Option<&str>) -> AlsNotifyLocomotionAction {
@@ -627,7 +652,7 @@ fn dispatch_animation_events(
         mut early_blend_out,
     ) in &mut characters
     {
-        let mut active_sources = HashMap::<String, bool>::default();
+        let mut active_sources = HashMap::<(String, u64), bool>::default();
         for playback in &playbacks.entries {
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
@@ -637,8 +662,10 @@ fn dispatch_animation_events(
             let queue = sampled_queue(graph_clips.get(&graph_handle), playback.time);
             let source_runtime = runtime
                 .sources
-                .entry(playback.source_asset.clone())
+                .entry((playback.source_asset.clone(), playback.instance_id))
                 .or_default();
+            active_sources.insert((playback.source_asset.clone(), playback.instance_id), true);
+            if playback.interrupted { continue; }
             let clock = playback_clock(source_runtime, playback);
             let definitions = timed_events(source);
             let signals = source_runtime.lifecycle.update_with_context(
@@ -648,7 +675,6 @@ fn dispatch_animation_events(
                 playback.weight,
                 EventDispatchContext::default(),
             );
-            active_sources.insert(playback.source_asset.clone(), true);
             for signal in signals {
                 let event = source
                     .events
@@ -690,7 +716,7 @@ fn dispatch_animation_events(
                 if class_name == "AlsAnimNotifyState_SetLocomotionAction" {
                     let next_action = notify_action(parameter_tag(&parameters, "LocomotionAction"));
                     match signal.phase {
-                        EventPhase::Begin | EventPhase::Active => *action = next_action,
+                        EventPhase::Begin => *action = next_action,
                         EventPhase::End if *action == next_action => {
                             *action = AlsNotifyLocomotionAction::None;
                         }
@@ -720,6 +746,7 @@ fn dispatch_animation_events(
                 }
                 events.write(AlsAnimationEvent {
                     character,
+                    instance_id: playback.instance_id,
                     source_asset: playback.source_asset.clone(),
                     graph_clip: playback.graph_clip.clone(),
                     event_id: signal.id,
@@ -739,13 +766,13 @@ fn dispatch_animation_events(
             .filter(|source| !active_sources.contains_key(*source))
             .cloned()
             .collect::<Vec<_>>();
-        for source_asset in inactive {
+        for (source_asset, instance_id) in inactive {
             let Some(source) = source_clip(manifest, &source_asset) else {
                 continue;
             };
             let source_runtime = runtime
                 .sources
-                .get_mut(&source_asset)
+                .get_mut(&(source_asset.clone(), instance_id))
                 .expect("source runtime must exist");
             for signal in source_runtime.lifecycle.reset() {
                 let event = source
@@ -771,6 +798,7 @@ fn dispatch_animation_events(
                     }
                     events.write(AlsAnimationEvent {
                         character,
+                        instance_id,
                         source_asset: source_asset.clone(),
                         graph_clip: source
                             .runtime_segments
@@ -787,7 +815,7 @@ fn dispatch_animation_events(
                     });
                 }
             }
-            runtime.sources.remove(&source_asset);
+            runtime.sources.remove(&(source_asset, instance_id));
         }
         match (physical_stance_override(action.clone()), physical_override) {
             (Some(next), Some(current)) if *current == next => {}
@@ -807,6 +835,80 @@ fn dispatch_animation_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mantle_notify_instances_preserve_external_actions_and_interrupted_tails() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>()
+            .add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
+        let source = mantle_sources(MantleKind::Low).1;
+        let graph_clip = graph_clip_for_source(&manifest, source).unwrap().to_owned();
+        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let mut entries = Vec::new();
+        push_playback(&mut entries, source, &graph_clip, 0.3, 1.0, false);
+        entries[0].instance_id = 1;
+        let actor = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries })).id();
+        let world = app.world_mut();
+        world.run_system_once(ensure_animation_event_components).unwrap();
+        world.run_system_once(dispatch_animation_events).unwrap();
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
+        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
+        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.4;
+        world.run_system_once(dispatch_animation_events).unwrap();
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp));
+        world.resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        {
+            let mut playbacks = world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap();
+            playbacks.entries[0].interrupted = true;
+            playbacks.entries[0].time = 0.6;
+            let mut next = playbacks.entries[0].clone();
+            next.instance_id = 2;
+            next.interrupted = false;
+            next.time = 0.2;
+            playbacks.entries.push(next);
+        }
+        world.run_system_once(dispatch_animation_events).unwrap();
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
+        assert_eq!(world.get::<AlsAnimationEventRuntime>(actor).unwrap().sources.len(), 2);
+        let emitted: Vec<_> = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect();
+        assert!(emitted.iter().any(|event| event.instance_id == 2 && event.phase == EventPhase::Begin));
+        assert!(!emitted.iter().any(|event| event.instance_id == 1));
+        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::GettingUp);
+        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries.remove(0);
+        world.run_system_once(dispatch_animation_events).unwrap();
+        let emitted: Vec<_> = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect();
+        assert!(emitted.iter().any(|event| event.instance_id == 1 && event.phase == EventPhase::End));
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::GettingUp));
+        world.entity_mut(actor).insert(AlsNotifyLocomotionAction::Mantling);
+        world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 1.05;
+        world.run_system_once(dispatch_animation_events).unwrap();
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::None));
+        assert!(world.get::<AlsNotifyEarlyBlendOut>(actor).unwrap().active);
+    }
+
+    #[test]
+    fn mantle_early_blend_out_uses_source_conditions_and_custom_movement_mode() {
+        use als_core::state::{LocomotionState, RotationMode};
+        let defaults = serde_json::json!({"BlendOutDuration": 0.4});
+        let matches = |parameters: &Value, input, locomotion, mantling, rotation, stance| {
+            early_blend_out_matches(parameters, input, locomotion, mantling, rotation, stance)
+        };
+        assert!(!matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, true, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Air, false, RotationMode::ViewDirection, Stance::Standing));
+        assert!(!matches(&defaults, false, LocomotionState::Air, true, RotationMode::ViewDirection, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::Aiming, Stance::Standing));
+        assert!(matches(&defaults, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Crouching));
+        let disabled = serde_json::json!({"bCheckInput": false, "bCheckLocomotionMode": false, "bCheckRotationMode": false, "bCheckStance": false});
+        assert!(!matches(&disabled, true, LocomotionState::Air, false, RotationMode::Aiming, Stance::Crouching));
+        let configured = serde_json::json!({"LocomotionModeEquals": {"__tagged__": {"TagName": "Als.LocomotionMode.Grounded"}}});
+        assert!(matches(&configured, false, LocomotionState::Grounded, false, RotationMode::ViewDirection, Stance::Standing));
+    }
 
     #[test]
     fn get_up_playbacks_use_the_existing_sequence_and_montage_event_streams() {

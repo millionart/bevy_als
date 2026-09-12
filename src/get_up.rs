@@ -90,7 +90,7 @@ impl AlsGetUpState {
         }
     }
 
-    fn stop(&mut self, duration: f32) {
+    pub(crate) fn stop(&mut self, duration: f32) {
         let configured_duration = self.stop.map(|(_, duration, _)| duration).or_else(|| {
             let settings = get_up_settings(self.facing_up);
             (self.elapsed
@@ -102,7 +102,7 @@ impl AlsGetUpState {
         }
     }
 
-    fn advance(&mut self, delta: f32) {
+    pub(crate) fn advance(&mut self, delta: f32) {
         let settings = get_up_settings(self.facing_up);
         self.elapsed += delta;
         self.clip_time = (self.elapsed * settings.play_rate).min(settings.sequence_length);
@@ -416,7 +416,7 @@ mod tests {
                     AlsCharacter,
                     AlsGetUpRequest(facing_up),
                     roll,
-                    crate::roll_drive::AlsRollBlendOut::new(&roll),
+                    crate::roll_drive::AlsRollBlendOut::new(&roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds),
                 ))
                 .id();
             app.world_mut().run_system_once(start_get_up).unwrap();

@@ -646,7 +646,7 @@ fn ragdoll_character_physics_system(
                     if roll.active {
                         commands
                             .entity(entity)
-                            .insert(crate::roll_drive::AlsRollBlendOut::new(roll));
+                            .insert(crate::roll_drive::AlsRollBlendOut::new(roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds));
                     }
                 }
                 commands.entity(entity).insert(AlsRagdollCharacterPhysics {

@@ -111,6 +111,24 @@ mod tests {
     }
 
     #[test]
+    fn mantling_notify_blocks_roll_until_the_action_is_released() {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let character = world.spawn((als_core::character::AlsCharacter,
+            crate::animation_events::AlsNotifyLocomotionAction::Mantling,
+            AlsRollState::default(), LocomotionState::Grounded, Stance::Standing,
+            AlsViewYaw::default(), Transform::default(), LinearVelocity::ZERO,
+            AlsInputCommand { roll_pressed: true, ..default() })).id();
+        world.run_system_once(advance_rolls).unwrap();
+        assert!(!world.get::<AlsRollState>(character).unwrap().active);
+        world.entity_mut(character).insert(crate::animation_events::AlsNotifyLocomotionAction::None);
+        world.run_system_once(advance_rolls).unwrap();
+        assert!(world.get::<AlsRollState>(character).unwrap().active);
+    }
+
+    #[test]
     fn get_up_input_block_prevents_an_automatic_landing_roll() {
         let mut world = World::new();
         let mut time = Time::<()>::default();
@@ -164,7 +182,7 @@ mod tests {
             .spawn((
                 als_core::character::AlsCharacter,
                 roll,
-                AlsRollBlendOut::new(&roll),
+                AlsRollBlendOut::new(&roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds),
                 LocomotionState::Ragdolling,
                 Stance::Standing,
                 AlsViewYaw::default(),
@@ -204,20 +222,30 @@ struct RollSlotCurveHandle(Handle<AlsAnimCurves>);
 pub(crate) struct AlsRollBlendOut {
     elapsed: f32,
     start_weight: f32,
+    duration: f32,
 }
 
 impl AlsRollBlendOut {
-    pub(crate) fn new(roll: &AlsRollState) -> Self {
+    pub(crate) fn new(roll: &AlsRollState, duration: f32) -> Self {
         Self {
             elapsed: 0.0,
             start_weight: roll_weight_at(roll.time),
+            duration,
         }
     }
 
     fn weight(self) -> f32 {
-        let alpha = self.elapsed / crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds;
+        let alpha = if self.duration > 0.0 { self.elapsed / self.duration } else { 1.0 };
         self.start_weight
             * (1.0 - als_ext::transition_alpha(alpha, als_ext::AlphaBlendMode::Cubic, &[]))
+    }
+
+    pub(crate) fn stop(&mut self, duration: f32) {
+        if duration < self.duration {
+            self.start_weight = self.weight();
+            self.elapsed = 0.0;
+            self.duration = duration;
+        }
     }
 }
 
@@ -479,6 +507,7 @@ fn advance_rolls(
     time: Res<Time>,
     mut commands: Commands,
     blocked: Query<(), With<als_core::motion::AlsMovementInputBlocked>>,
+    actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
     mut blend_outs: Query<&mut AlsRollBlendOut>,
     mut q: Query<
         (
@@ -510,9 +539,11 @@ fn advance_rolls(
         ovr,
     ) in &mut q
     {
+        let action_blocked = actions.get(character).is_ok_and(|action| !matches!(action,
+            crate::animation_events::AlsNotifyLocomotionAction::None | crate::animation_events::AlsNotifyLocomotionAction::Rolling));
         let effective = als_core::motion::movement_input_for_action(
             *ovr.map(|o| &o.0).unwrap_or(cmd),
-            blocked.contains(character),
+            blocked.contains(character) || action_blocked,
         );
 
         if let Ok(mut blend) = blend_outs.get_mut(character) {
@@ -529,6 +560,7 @@ fn advance_rolls(
         if !lifecycle.started
             && !roll.active
             && !blocked.contains(character)
+            && !action_blocked
             && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
         {
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);

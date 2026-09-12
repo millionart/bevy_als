@@ -21,8 +21,6 @@ pub const MANTLE_TARGET_SPEED_THRESHOLD: f32 = 0.1;
 pub const MANTLE_TRACE_CAPSULE_SHRINK: f32 = 0.01;
 pub const MANTLE_MIN_FLOOR_DISTANCE: f32 = ALS_CHARACTER_FLOOR_CLEARANCE;
 pub const MANTLE_MAX_FLOOR_DISTANCE: f32 = 0.024;
-pub const MANTLE_BLEND_IN_SECS: f32 = 0.2;
-pub const MANTLE_BLEND_OUT_SECS: f32 = 0.2;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MantleTraceSettings {
@@ -633,13 +631,6 @@ pub fn detect_mantle(
         }),
         trace,
     }
-}
-
-pub fn mantle_weight_at(elapsed: f32, duration: f32) -> f32 {
-    let remaining = (duration - elapsed).max(0.0);
-    (elapsed / MANTLE_BLEND_IN_SECS)
-        .clamp(0.0, 1.0)
-        .min((remaining / MANTLE_BLEND_OUT_SECS).clamp(0.0, 1.0))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
