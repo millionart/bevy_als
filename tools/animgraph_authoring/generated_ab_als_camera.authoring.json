@@ -1724,7 +1724,7 @@
         "--materialized-directory",
         "target/bf115_camera/c2a_provider_corpus_camera",
         "--spec",
-        "target/bf115_camera/c2_spec.json",
+        "target/bf115_camera/c4d_spec.json",
         "--source-asset",
         "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
       ]

@@ -3250,9 +3250,12 @@ fn collect_animation_visual_evidence(
     >,
     children: Query<&Children>,
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
-    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>),
+    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>, Query<&als_ext::overlay_materials::AvatarMaterialApplied>),
 ) {
     if state.primary_failure.is_some() { return; }
+    if cameras.2.iter().any(|applied| !applied.source_slot_pattern) {
+        append_unique(&mut state.faults, "mesh_material_source_slot_pattern_mismatch".to_owned());
+    }
     let direction_case = animation_window
         .as_deref()
         .and_then(|evidence| evidence.label)
@@ -4164,6 +4167,15 @@ mod tests {
             };
             app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
             assert!(!report_path.exists(), "Valid camera reference pose was rejected");
+            if failure_case == "edge" {
+                let material_fault = app.world_mut().spawn(als_ext::overlay_materials::AvatarMaterialApplied {
+                    slots: 16, body_slots: 15, main_slots: 1, source_slot_pattern: false,
+                }).id();
+                app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
+                assert!(app.world().resource::<AnimationVisualValidationState>().faults.iter().any(|fault| fault == "mesh_material_source_slot_pattern_mismatch"));
+                app.world_mut().entity_mut(material_fault).despawn();
+                app.world_mut().resource_mut::<AnimationVisualValidationState>().faults.clear();
+            }
             let skeleton = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().skeleton().clone();
             let mut fresh_player = AnimationGraphPlayer::new(skeleton);
             fresh_player.start(handle.clone());
