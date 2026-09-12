@@ -695,7 +695,7 @@ fn ambient_occlusion_probe(
 
 fn character_material_probe(
     mut probe: ResMut<CharacterMaterialProbe>,
-    avatars: Query<(&AvatarMaterialOverride, &AvatarMaterialApplied)>,
+    avatars: Query<(&AvatarMaterialOverride, &AvatarMaterialApplied), With<bevy_als::character_assembly::AlsCharacterAvatar>>,
     materials: Res<Assets<StandardMaterial>>,
 ) {
     if probe.0 {
@@ -786,6 +786,24 @@ fn character_material_probe(
         );
     }
     probe.0 = true;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn character_material_probe_ignores_the_independent_camera_scene() {
+        let mut world = World::new();
+        world.init_resource::<CharacterMaterialProbe>();
+        world.init_resource::<Assets<StandardMaterial>>();
+        world.spawn((AvatarMaterialOverride(vec![Handle::default()]), AvatarMaterialApplied {
+            slots: 1, body_slots: 1, main_slots: 0, source_slot_pattern: true,
+        }));
+        world.run_system_once(character_material_probe).unwrap();
+        assert!(!world.resource::<CharacterMaterialProbe>().0);
+    }
 }
 
 fn collision_parity_probe(
