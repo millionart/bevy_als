@@ -1277,7 +1277,9 @@
 
 
   - 用户补充2026-09-12 12:16:59：不新增跳过Mantle的场景，直接完成Mantle移植；原foot_ik全流程保留。08e3范围相应只补CR实际手/脊柱动作见证和功能审计，已撤销尚未使用的control_rig_feet入口/审计分支，未修改原足部路由。当前执行范围为CR＋Mantle＋AB_Als收口；性能和其余新增移植/楼梯平台问题继续暂停。
-- [ ] BF115.09a Mantle源资产与执行闭包：开始2026-09-12 12:16:59、预估2026-09-12 13:01:59。已从本地StartMantling/RefreshMantling及RootMotionSource读取首个明确差异：源逆变换起/终点root，并逐帧用绝对root合成；目标从零累积delta并追加到未抵消的目标。现有测试把多余位移当作正确结果。重新提取B_Als_Character的选择分支、七个MS设置、六个AM montage、三个序列及相关角色设置，核对slot、blend/notify、root/start-time、目标空间和中断生命周期；MCP健康检查连接拒绝，使用同次native contract。估时依据为已完成C++闭包、约18–19资产与每份30–40秒记录。此段源/失败合同后按trace输入、绝对root/目标空间、Slot与生命周期拆分静态验收；不得扩大到其它overlays或平台系统。
+- [x] BF115.09a Mantle源资产与执行闭包：开始2026-09-12 12:16:59、预估2026-09-12 13:01:59。已从本地StartMantling/RefreshMantling及RootMotionSource读取首个明确差异：源逆变换起/终点root，并逐帧用绝对root合成；目标从零累积delta并追加到未抵消的目标。现有测试把多余位移当作正确结果。重新提取B_Als_Character的选择分支、七个MS设置、六个AM montage、三个序列及相关角色设置，核对slot、blend/notify、root/start-time、目标空间和中断生命周期；MCP健康检查连接拒绝，使用同次native contract。估时依据为已完成C++闭包、约18–19资产与每份30–40秒记录。此段源/失败合同后按trace输入、绝对root/目标空间、Slot与生命周期拆分静态验收；不得扩大到其它overlays或平台系统。
+
+  - 09a完成2026-09-12 12:53:00：19份同次原生记录完整，C++ Start/Refresh/Stop、RootMotionSource、Transform逆相对运算及GetTwist闭包已读取。全部六AM使用PostLocomotion单序列段、结束时才启动0.2秒blend-out；三序列强制RefPose root-lock，High最终root为(0,2,0.65)m、Low为(0,1,0.65)m。Default选择MS_Low而非Low_Right，Bow/Torch/Barrel同Injured选择Low_Left；相同pose序列的montage曲线可不同，源Combine覆盖同名曲线。Notify的Mantling动作早于完整montage结束，目标销毁停止montage并请求ragdoll；目标原drive只写未消费旧输入，累计delta与落点重复相加、过早丢失基座完整旋转/scale及动作结束未解耦均需修正。原生记录/实际root通道检查0.301s通过；最初记录格式检查漏了Blueprint格式，修正检查后通过，原始文件不变。开始12:16:59、预估13:01:59、实际12:53:00，偏差-539s，源段完成；按已证实边界分为绝对root/基座、离线设置/Slot及生命周期，再真实Mantle与完整foot_ik，不改其它overlay图或平台系统。
 - [x] BF115.09b Mantle trace输入源边界：开始2026-09-12 12:16:59、预估2026-09-12 12:46:59。与09a资产提取独立，限fresh CapsuleComponent水平最小scale及AlsCharacter水平速度≥1cm/s两处纯输入规则；先修正旧fixture复现错误，再最小修复并跑focused core Gate，不改检测算法、动画选择或驱动。依据两个已有函数/反例与本机20–40秒增量测试估时，完整Mantle场景在资产及运动接线闭合后执行。
 
 
