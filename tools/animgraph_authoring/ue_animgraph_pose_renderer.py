@@ -19,6 +19,7 @@ class PoseRenderError(ValueError):
 
 
 SUPPORTED_RENDERERS = {
+    "local_ref_pose",
     "sequence_player",
     "sequence_evaluator",
     "two_way_blend",
@@ -1719,6 +1720,13 @@ def run_self_test():
         pass
     else:
         raise AssertionError("Reference pose accepted a missing skeleton")
+    reference_contract, reference_ir, reference_assets = fixture_graph()
+    reference_contract["source_graph"]["nodes"][0]["title"] = "Local Space Ref Pose"
+    reference_ir["nodes"][0].update(renderer="local_ref_pose", semantic={"input_pins": []})
+    reference_assets[0].update(category="skeleton", target_asset="skeletons/Reference.static.skn.ron")
+    reference_text = render(reference_contract, reference_ir, reference_assets)
+    assert '"als_ext::SourceLocalRefPoseNode"' in reference_text
+    assert 'reference_skeleton: "skeletons/Reference.static.skn.ron"' in reference_text
     curves = json.loads((Path(__file__).parent / "fixtures" / "ue_standing_walk_forward_curves.json").read_text())["curves"]
     raw = copy.deepcopy(curves)
     rendered_curves = pose_curves_ron(curves)
