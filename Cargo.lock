@@ -708,7 +708,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#7109c06782bf995cc93c5eaf492d4242ae201dc5"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#08c0810df0142683ef63d2a07f9daa5309d70028"
 dependencies = [
  "avian3d",
  "bevy",
@@ -727,7 +727,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_builtin_nodes"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#7109c06782bf995cc93c5eaf492d4242ae201dc5"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#08c0810df0142683ef63d2a07f9daa5309d70028"
 dependencies = [
  "avian3d",
  "bevy",
@@ -745,7 +745,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_core"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#7109c06782bf995cc93c5eaf492d4242ae201dc5"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#08c0810df0142683ef63d2a07f9daa5309d70028"
 dependencies = [
  "avian3d",
  "bevy",
@@ -762,7 +762,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_editor"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#7109c06782bf995cc93c5eaf492d4242ae201dc5"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#08c0810df0142683ef63d2a07f9daa5309d70028"
 dependencies = [
  "avian3d",
  "bevy",
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_proc_macros"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#7109c06782bf995cc93c5eaf492d4242ae201dc5"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#08c0810df0142683ef63d2a07f9daa5309d70028"
 dependencies = [
  "quote",
  "syn 2.0.119",
