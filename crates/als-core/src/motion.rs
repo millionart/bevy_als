@@ -1,6 +1,6 @@
 use avian3d::prelude::{
     Collider, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
-    SpatialQuery, SpatialQueryFilter,
+    RigidBody, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::asset::Assets;
 use bevy::prelude::*;
@@ -2079,7 +2079,7 @@ fn locomotion_drive_system(
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
     target_permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
-    target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
+    target_transforms: Query<(&GlobalTransform, Option<&RigidBody>), Without<AlsCharacter>>,
     mantle_controls: Query<Option<&AlsMantleControlSettings>, With<AlsCharacter>>,
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -2205,13 +2205,15 @@ fn locomotion_drive_system(
                 target_transforms
                     .get(intent.target_entity)
                     .ok()
-                    .map(|transform| {
+                    .map(|(transform, body)| {
                         (
                             intent,
                             AlsMantleTargetBase {
                                 entity: intent.target_entity,
                                 translation: transform.translation(),
                                 rotation: transform.rotation(),
+                                scale: transform.scale(),
+                                relative_location: body.is_some_and(|body| *body != RigidBody::Static),
                             },
                         )
                     })

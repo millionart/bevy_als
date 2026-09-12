@@ -677,6 +677,40 @@ pub struct AlsMantleTargetBase {
     pub entity: Entity,
     pub translation: Vec3,
     pub rotation: Quat,
+    pub scale: Vec3,
+    pub relative_location: bool,
+}
+
+impl AlsMantleTargetBase {
+    fn to_world(self, local: Transform) -> Transform {
+        if !self.relative_location {
+            return local;
+        }
+        Transform {
+            translation: self.translation + self.rotation * (self.scale * local.translation),
+            rotation: (self.rotation * local.rotation).normalize(),
+            ..default()
+        }
+    }
+
+    fn to_local(self, world: Transform) -> Transform {
+        if !self.relative_location {
+            return world;
+        }
+        let reciprocal = Vec3::from_array(self.scale.to_array().map(|value| {
+            if value.abs() <= 1e-8 {
+                0.0
+            } else {
+                value.recip()
+            }
+        }));
+        Transform {
+            translation: reciprocal
+                * (self.rotation.conjugate() * (world.translation - self.translation)),
+            rotation: (self.rotation.conjugate() * world.rotation).normalize(),
+            ..default()
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -693,13 +727,10 @@ pub struct AlsMantleState {
     pub yaw_start: f32,
     pub yaw_target: f32,
     pub target_base: Option<AlsMantleTargetBase>,
-    pub start_location_base: Vec3,
-    pub start_rotation_base: Quat,
-    pub target_location_base: Vec3,
-    pub target_rotation_base: Quat,
+    pub warp_start: Transform,
+    pub warp_target: Transform,
     pub target_invalid: bool,
-    pub root_motion_translation: Vec3,
-    pub root_motion_rotation: Quat,
+    pub root_motion_ready: bool,
 }
 
 impl Default for AlsMantleState {
@@ -717,13 +748,10 @@ impl Default for AlsMantleState {
             yaw_start: 0.0,
             yaw_target: 0.0,
             target_base: None,
-            start_location_base: Vec3::ZERO,
-            start_rotation_base: Quat::IDENTITY,
-            target_location_base: Vec3::ZERO,
-            target_rotation_base: Quat::IDENTITY,
+            warp_start: Transform::IDENTITY,
+            warp_target: Transform::IDENTITY,
             target_invalid: false,
-            root_motion_translation: Vec3::ZERO,
-            root_motion_rotation: Quat::IDENTITY,
+            root_motion_ready: false,
         }
     }
 }
@@ -771,13 +799,12 @@ impl AlsMantleState {
         self.yaw_start = yaw_start;
         self.yaw_target = yaw_target;
         self.target_base = None;
-        self.start_location_base = Vec3::ZERO;
-        self.start_rotation_base = Quat::IDENTITY;
-        self.target_location_base = Vec3::ZERO;
-        self.target_rotation_base = Quat::IDENTITY;
+        self.warp_start =
+            Transform::from_translation(start).with_rotation(Quat::from_rotation_y(yaw_start));
+        self.warp_target =
+            Transform::from_translation(target).with_rotation(Quat::from_rotation_y(yaw_target));
         self.target_invalid = false;
-        self.root_motion_translation = Vec3::ZERO;
-        self.root_motion_rotation = Quat::IDENTITY;
+        self.root_motion_ready = false;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -811,13 +838,27 @@ impl AlsMantleState {
     }
 
     pub fn capture_target_base(&mut self, target_base: AlsMantleTargetBase) {
-        let inverse = target_base.rotation.conjugate();
-        self.start_location_base = inverse * (self.start - target_base.translation);
-        self.start_rotation_base = (inverse * Quat::from_rotation_y(self.yaw_start)).normalize();
-        self.target_location_base = inverse * (self.target - target_base.translation);
-        self.target_rotation_base = (inverse * Quat::from_rotation_y(self.yaw_target)).normalize();
+        self.warp_start = target_base.to_local(self.warp_start);
+        self.warp_target = target_base.to_local(self.warp_target);
         self.target_base = Some(target_base);
         self.target_invalid = false;
+    }
+
+    pub fn prepare_root_motion(&mut self, start_root: Transform, end_root: Transform) {
+        for (warp, root) in [
+            (&mut self.warp_start, start_root),
+            (&mut self.warp_target, end_root),
+        ] {
+            let world = self.target_base.map_or(*warp, |base| base.to_world(*warp));
+            let rotation = (world.rotation * root.rotation.conjugate()).normalize();
+            let world = Transform {
+                translation: world.translation - rotation * root.translation,
+                rotation,
+                ..default()
+            };
+            *warp = self.target_base.map_or(world, |base| base.to_local(world));
+        }
+        self.root_motion_ready = true;
     }
 
     pub fn refresh_target_base(&mut self, latest_base: Option<AlsMantleTargetBase>) -> bool {
@@ -829,10 +870,22 @@ impl AlsMantleState {
             self.target_invalid = true;
             return false;
         };
-        self.start = target_base.translation + target_base.rotation * self.start_location_base;
-        self.target = target_base.translation + target_base.rotation * self.target_location_base;
-        let start_rotation = target_base.rotation * self.start_rotation_base;
-        let target_rotation = target_base.rotation * self.target_rotation_base;
+        let start = target_base.to_world(
+            saved_base.to_local(
+                Transform::from_translation(self.start)
+                    .with_rotation(Quat::from_rotation_y(self.yaw_start)),
+            ),
+        );
+        let target = target_base.to_world(
+            saved_base.to_local(
+                Transform::from_translation(self.target)
+                    .with_rotation(Quat::from_rotation_y(self.yaw_target)),
+            ),
+        );
+        self.start = start.translation;
+        self.target = target.translation;
+        let start_rotation = start.rotation;
+        let target_rotation = target.rotation;
         self.yaw_start = yaw_from_direction(start_rotation * Vec3::NEG_Z);
         self.yaw_target = yaw_from_direction(target_rotation * Vec3::NEG_Z);
         self.target_base = Some(target_base);
@@ -872,13 +925,25 @@ impl AlsMantleState {
     }
 
     pub fn warp_transform_at(&self, time: f32) -> Transform {
-        let location = self
-            .start
-            .lerp(self.target, self.location_warp_amount_at(time));
-        let rotation = self
-            .start_rotation()
-            .lerp(self.target_rotation(), self.rotation_warp_amount_at(time))
+        let start = self
+            .target_base
+            .map_or(self.warp_start, |base| base.to_world(self.warp_start));
+        let target = self
+            .target_base
+            .map_or(self.warp_target, |base| base.to_world(self.warp_target));
+        let location = start
+            .translation
+            .lerp(target.translation, self.location_warp_amount_at(time));
+        let rotation = start
+            .rotation
+            .lerp(target.rotation, self.rotation_warp_amount_at(time))
             .normalize();
+        let twist = Quat::from_xyzw(0.0, rotation.y, 0.0, rotation.w);
+        let rotation = if twist.length_squared() >= 1e-8 {
+            twist.normalize()
+        } else {
+            Quat::IDENTITY
+        };
         Transform {
             translation: location,
             rotation,
@@ -886,27 +951,13 @@ impl AlsMantleState {
         }
     }
 
-    pub fn target_actor_transform_at(&self, time: f32) -> Transform {
+    pub fn target_actor_transform_at(&self, time: f32, root: Transform) -> Transform {
         let warp = self.warp_transform_at(time);
         Transform {
-            translation: warp.translation + warp.rotation * self.root_motion_translation,
-            rotation: (warp.rotation * self.root_motion_rotation).normalize(),
+            translation: warp.translation + warp.rotation * root.translation,
+            rotation: (warp.rotation * root.rotation).normalize(),
             ..Default::default()
         }
-    }
-
-    pub fn accumulate_root_motion(&mut self, translation_delta: Vec3, rotation_delta: Quat) {
-        let rotation_delta = rotation_delta.normalize();
-        self.root_motion_translation += self.root_motion_rotation * translation_delta;
-        self.root_motion_rotation = (self.root_motion_rotation * rotation_delta).normalize();
-    }
-
-    fn start_rotation(&self) -> Quat {
-        Quat::from_rotation_y(self.yaw_start)
-    }
-
-    fn target_rotation(&self) -> Quat {
-        Quat::from_rotation_y(self.yaw_target)
     }
 
     pub fn tick(
@@ -1145,11 +1196,17 @@ mod tests {
         );
         let root_translation = Vec3::new(0.15, 0.25, -0.35);
         let root_rotation = Quat::from_rotation_y(20.0_f32.to_radians());
-        state.accumulate_root_motion(root_translation, root_rotation);
-        let actor = state.target_actor_transform_at(0.6);
+        let root = Transform::from_translation(root_translation).with_rotation(root_rotation);
+        let start_root =
+            Transform::from_xyz(0.1, 0.04, -0.15).with_rotation(Quat::from_rotation_y(0.1));
+        state.prepare_root_motion(start_root, root);
+        let initial = state.target_actor_transform_at(0.0, start_root);
+        assert!(initial.translation.distance(state.start) < 1e-6);
+        assert!(initial.rotation.angle_between(Quat::IDENTITY) < 1e-3);
+        let actor = state.target_actor_transform_at(0.6, root);
         let target_rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
-        let expected_translation = state.target + target_rotation * root_translation;
-        let expected_rotation = target_rotation * root_rotation;
+        let expected_translation = state.target;
+        let expected_rotation = target_rotation;
         let translation_error = actor.translation.distance(expected_translation);
         let rotation_alignment = actor.rotation.dot(expected_rotation).abs();
         let legacy_translation =
@@ -1171,6 +1228,8 @@ mod tests {
             entity: target,
             translation: Vec3::ZERO,
             rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+            relative_location: true,
         };
         let mut state = AlsMantleState::default();
         state.begin_with_target_base(
@@ -1186,6 +1245,8 @@ mod tests {
             entity: target,
             translation: Vec3::new(3.0, 0.0, -2.0),
             rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            scale: Vec3::ONE,
+            relative_location: true,
         };
         assert!(state.refresh_target_base(Some(moved_base)));
         assert!(
@@ -1210,6 +1271,8 @@ mod tests {
             entity: Entity::from_raw_u32(1).unwrap(),
             translation: Vec3::ZERO,
             rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+            relative_location: true,
         };
         let mut state = AlsMantleState::default();
         state.begin_with_target_base(
@@ -1228,5 +1291,135 @@ mod tests {
             state.target_base.map(|value| value.entity),
             Some(base.entity)
         );
+    }
+
+    #[test]
+    fn mantle_warp_keeps_scaled_base_space_and_projects_twist_after_blending() {
+        let base = AlsMantleTargetBase {
+            entity: Entity::from_raw_u32(2).unwrap(),
+            translation: Vec3::new(0.5, 0.2, -0.3),
+            rotation: Quat::from_rotation_y(0.4),
+            scale: Vec3::new(2.0, 0.5, 1.5),
+            relative_location: true,
+        };
+        let mut state = AlsMantleState::default();
+        state.begin_with_target_base(
+            MantleKind::LowRight,
+            Vec3::new(-1.0, 0.9, 0.3),
+            Vec3::new(2.0, 1.8, -2.0),
+            0.8,
+            -0.6,
+            0.8,
+            base,
+        );
+        let start_root =
+            Transform::from_xyz(0.1, 0.25, -0.1).with_rotation(Quat::from_rotation_y(-0.2));
+        let end_root =
+            Transform::from_xyz(0.2, 1.0, -0.65).with_rotation(Quat::from_rotation_y(0.3));
+        state.prepare_root_motion(start_root, end_root);
+        assert!(
+            state
+                .target_actor_transform_at(0.0, start_root)
+                .translation
+                .distance(state.start)
+                < 1e-5
+        );
+        assert!(
+            state
+                .target_actor_transform_at(state.duration, end_root)
+                .translation
+                .distance(state.target)
+                < 1e-5
+        );
+        let moved = AlsMantleTargetBase {
+            translation: Vec3::new(3.0, 0.0, -2.0),
+            rotation: Quat::from_euler(EulerRot::YXZ, 0.7, 0.5, -0.4),
+            scale: Vec3::new(0.7, 1.8, 1.2),
+            ..base
+        };
+        assert!(state.refresh_target_base(Some(moved)));
+        let local_start = state.warp_start;
+        let local_target = state.warp_target;
+        let world_start = moved.to_world(local_start);
+        let world_target = moved.to_world(local_target);
+        let time = 0.25;
+        let alpha = state.rotation_warp_amount_at(time);
+        let rotation = world_start.rotation.lerp(world_target.rotation, alpha);
+        let expected = Quat::from_xyzw(0.0, rotation.y, 0.0, rotation.w).normalize();
+        let actual = state.warp_transform_at(time);
+        assert!(actual.rotation.angle_between(expected) < 1e-3);
+        assert!(actual.rotation.angle_between(rotation) > 0.1);
+        assert!(
+            actual.translation.distance(world_start.translation.lerp(
+                world_target.translation,
+                state.location_warp_amount_at(time)
+            )) < 1e-5
+        );
+        let unscaled = moved.translation + moved.rotation * local_start.translation;
+        assert!(unscaled.distance(world_start.translation) > 0.1);
+        let flattened =
+            Quat::from_rotation_y(yaw_from_direction(world_start.rotation * Vec3::NEG_Z)).lerp(
+                Quat::from_rotation_y(yaw_from_direction(world_target.rotation * Vec3::NEG_Z)),
+                alpha,
+            );
+        assert!(actual.rotation.angle_between(flattened) > 0.01);
+        assert!(state.refresh_target_base(Some(moved)));
+        assert_eq!(state.warp_start, local_start);
+        assert_eq!(state.warp_target, local_target);
+        let zero_scale = AlsMantleTargetBase {
+            scale: Vec3::ZERO,
+            ..base
+        };
+        assert_eq!(
+            zero_scale.to_local(Transform::IDENTITY).translation,
+            Vec3::ZERO
+        );
+        state.begin(MantleKind::LowRight, Vec3::ZERO, Vec3::ONE, 0.5, 0.0, 0.0);
+        assert!(!state.root_motion_ready);
+    }
+
+    #[test]
+    fn mantle_static_target_keeps_world_warp_but_still_requires_target_lifetime() {
+        let base = AlsMantleTargetBase {
+            entity: Entity::from_raw_u32(2).unwrap(),
+            translation: Vec3::new(0.5, 0.2, -0.3),
+            rotation: Quat::from_rotation_y(0.4),
+            scale: Vec3::new(2.0, 0.5, 1.5),
+            relative_location: false,
+        };
+        let mut state = AlsMantleState::default();
+        state.begin_with_target_base(
+            MantleKind::LowRight,
+            Vec3::ZERO,
+            Vec3::ONE,
+            0.8,
+            -0.6,
+            0.8,
+            base,
+        );
+        state.prepare_root_motion(Transform::IDENTITY, Transform::from_xyz(0.0, 1.0, -0.65));
+        let before = state.warp_transform_at(0.25);
+        let mut forced_relative = state;
+        forced_relative
+            .target_base
+            .as_mut()
+            .unwrap()
+            .relative_location = true;
+        assert!(
+            forced_relative
+                .warp_transform_at(0.25)
+                .translation
+                .distance(before.translation)
+                > 0.1
+        );
+        assert!(state.refresh_target_base(Some(AlsMantleTargetBase {
+            translation: Vec3::splat(4.0),
+            ..base
+        })));
+        assert_eq!(state.warp_transform_at(0.25), before);
+        assert_eq!(state.start, Vec3::ZERO);
+        assert_eq!(state.target, Vec3::ONE);
+        assert!(!state.refresh_target_base(None));
+        assert!(state.target_invalid);
     }
 }

@@ -1297,3 +1297,9 @@
   - 08e4 startup后/CR前2026-09-12 12:45:32：startup12公共功能15.425s PASS，manual/functional validator均exit0；原完整verdict仍因frame/eval预算为false，性能暂停而未标通过。骨架、Pose、时间、图错误及进展等功能审计无问题，截图0。接着以同一入口运行control_rig1，要求实际两手Unit权重和Spine前后差异，新observed见证不能被Actor输入镜像替代。
 
   - 08e4完成2026-09-12 12:48:09：control_rig1公共功能13.420s PASS，manual/validator均exit0；两手实际TwoBoneIK权重均1、spine_01局部旋转变化0.071817rad，十项场景覆盖全部通过，骨骼/姿态/时间/图错误及watchdog审计无问题，截图0。原完整报告仍因eval预算为false，仅功能范围通过，未恢复性能任务。开始12:44:41、预估13:14:41、实际12:48:09，偏差-1592s，本段完成；CR完整足部、ragdoll/get_up及Root收口继续等待Mantle源运动与Slot接入。
+
+- [x] BF115.09c Mantle绝对root与目标空间：开始2026-09-12 12:53:00、预估2026-09-12 13:38:00。依赖09a/09b，限StartRoot/EndRoot逆变换、当前绝对root合成、基座完整位置/旋转/scale及插值后竖直twist。旧BF102.46 fixture错误要求落点额外加root位移，先改为源终点反例，再以非零起点、旋转root及非均匀/倾斜基座证明边界；用现有clip采样替换独立旧图delta sampler，不增加求值器或累积状态。依据两个现有状态/驱动文件、三实际clip及约25秒core/项目focused编译估时；本段静态完成后接离线montage数据、Slot和生命周期，再统一公共Gate。
+
+  - 09c源/静态闭环2026-09-12 13:05:14：旧终点反例24.931s稳定失败，额外位移0.455522m、旋转对齐0.984808；抵消起终点绝对root后11项29.729s通过。fresh源只对可移动基座使用相对位置，目标以现有Static与Kinematic/Dynamic区分，静态基座保留世界warp且仍验证目标生存；非均匀scale、完整倾斜旋转、插值后twist及静态边界13项26.495s通过。三个实际clip的四种动作驱动20.829s通过起点连续、最终落点/朝向，初次96.247s误要求真实起点root非零；源动画该起始时刻仍静止，改验非零start-time，非零root由核心fixture覆盖。移除一次性准备73.445s在真实High累计漂移稳定失败，已恢复；不保存逐帧root累积、不创建额外图player。完整core回归22.084s为245通过/1原有忽略，当前完成最后实际clip回归；图/资产/性能阈值未改，Slot与notify生命周期仍未完成，尚无新runtime。
+
+  - 09c完成2026-09-12 13:06:23：恢复后的实际clip驱动40.774s通过，最终core245通过/1原有忽略；13项Mantle覆盖非零root/时间、末帧落点、基座scale/完整旋转/静动态与销毁。受控删除scale、twist和静态分支均与源结果产生明确差异，一次性准备移除已留实际失败证据。复用既有采样和Actor坐标基，省去旧图player与逐帧root累积；当前只闭合根运动和目标空间，序列Pose尚待PostLocomotion与notify接线。开始12:53:00、预估13:38:00、实际13:06:23，偏差-1897s，本段完成；未改变转换器或图资产，本段不单独启动游戏，继续数据/Slot与生命周期后统一入口验收。
