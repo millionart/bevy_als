@@ -686,10 +686,10 @@ mod tests {
         let mut graph = AnimationGraph::new();
         let source = AnimationNode::new("input", als_ext::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
         let curves = AnimationNode::new("source curves", als_ext::source_pose_nodes::SourceCurveModifyNode {
-            source_pose_pin: "Source".into(), curve_names: vec!["FootLeftIk".into(), "FootRightIk".into(), "Unrelated".into()],
-            pin_defaults: vec![1.0, 1.0, 0.37], alpha: 1.0, ..default() });
+            source_pose_pin: "Source".into(), curve_names: vec!["FootLeftIk".into(), "FootRightIk".into(), "LayerArmLeft".into(), "LayerArmRight".into(), "Unrelated".into()],
+            pin_defaults: vec![1.0, 1.0, 1.0, 1.0, 0.37], alpha: 1.0, ..default() });
         let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition.clone()),
-            input_bindings: [2, 7, 8, 9, 10].map(|index| RigInputBinding { external: "RigInput".into(), path: vec![index], property: format!("input_{index}") }).into(),
+            input_bindings: [0, 1, 2, 5, 7, 8, 9, 10].map(|index| RigInputBinding { external: "RigInput".into(), path: vec![index], property: format!("input_{index}") }).into(),
             capture_context: true, internalize_time: true, ..default() });
         for node in [&source, &curves, &rig] { graph.add_node(node.clone()); }
         graph.add_node_parameter_edge(source.id, "Pose", curves.id, "Source");
@@ -712,7 +712,10 @@ mod tests {
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
         player.set_global_input_data(RIG_CAPTURE_KEY, true);
         player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
+        player.set_global_input_data("input_0", true);
+        player.set_global_input_data("input_1", true);
         player.set_global_input_data("input_2", true);
+        player.set_global_input_data("input_5", 0.0_f32);
         for (name, location, rotation) in [("foot_l", "input_7", "input_8"), ("foot_r", "input_9", "input_10")] {
             let transform = definition.bones.iter().find(|bone| bone.name == name).unwrap().initial_global;
             player.set_global_input_data(location, transform.translation.as_vec3());
@@ -741,8 +744,8 @@ mod tests {
         let mut driver = None;
         for (frame, weight) in [1.0_f32, 0.25, 0.0].into_iter().enumerate() {
             let previous_driver = driver;
-            crate::manual_playground_integration::run_manual_foot_ik_curve_fixture(app.world_mut(), actor,
-                AlsFootIkWeightOverride { left: Some(weight), right: Some(weight) });
+            crate::manual_playground_integration::run_manual_rig_curve_fixture(app.world_mut(), actor,
+                AlsFootIkWeightOverride { left: Some(weight), right: Some(weight) }, false);
             let current = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
             driver = match current.edges_inverted.get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(rig.id, "source_pose".into())) {
                 Some(bevy_animation_graph::core::animation_graph::SourcePin::NodeData(id, _)) if *id != curves.id => Some(*id),
@@ -774,7 +777,7 @@ mod tests {
             }
         }
         for weights in [AlsFootIkWeightOverride { left: Some(0.5), right: None }, AlsFootIkWeightOverride::default()] {
-            crate::manual_playground_integration::run_manual_foot_ik_curve_fixture(app.world_mut(), actor, weights);
+            crate::manual_playground_integration::run_manual_rig_curve_fixture(app.world_mut(), actor, weights, false);
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
             app.world_mut().run_system_once(animation_player).unwrap();
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
@@ -782,6 +785,31 @@ mod tests {
             let apply = app.world().get::<AlsFootIkApplyTelemetry>(actor).unwrap();
             assert_eq!(apply.left.applied_weight, weights.left.unwrap_or(1.0));
             assert_eq!(apply.right.applied_weight, 1.0);
+        }
+        let restored = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
+        assert_eq!(restored.nodes.len(), original_node_count);
+        assert_eq!(restored.edges, original_edges);
+        assert_eq!(restored.edges_inverted, original_inputs);
+        for active in [true, false] {
+            crate::manual_playground_integration::run_manual_rig_curve_fixture(app.world_mut(), actor, default(), active);
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("input_5", if active { 30.0_f32 } else { 0.0 });
+            app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
+            app.world_mut().run_system_once(animation_player).unwrap();
+            app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
+            app.world_mut().run_system_once(observe_rig_results).unwrap();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let (_, _, rig_state) = current_control_rig(player, app.world().resource::<Assets<AnimationGraph>>()).unwrap();
+            for name in ["PoseAiming", "HandLeftIk", "HandRightIk"] {
+                assert_eq!(rig_state.context.curves.get(name).copied().unwrap_or(0.0), if active { 1.0 } else { 0.0 }, "{name}");
+            }
+            for name in ["hand_l", "hand_r"] {
+                let call = rig_state.calls.iter().find(|call| rig_call_is(&definition, call, "FRigUnit_TwoBoneIKSimplePerItem::Execute")
+                    && call.arguments.get(2).and_then(rig_bone) == Some(name)).unwrap();
+                assert_eq!(rig_scalar(&call.arguments[13]), Some(if active { 1.0 } else { 0.0 }));
+            }
+            let spine = definition.bones.iter().position(|bone| bone.name == "spine_01").unwrap();
+            let rotation = player.get_default_output_pose().unwrap().get_bone(EntityPath::from(paths[spine].clone()).id()).unwrap().rotation.unwrap();
+            if active { assert!(rotation.angle_between(pose.get_bone(EntityPath::from(paths[spine].clone()).id()).unwrap().rotation.unwrap()) > 0.05); }
         }
         let restored = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
         assert_eq!(restored.nodes.len(), original_node_count);

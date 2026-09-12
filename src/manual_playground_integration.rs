@@ -510,7 +510,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (drive_control_rig_view_offset, drive_manual_foot_ik_curves)
+                (drive_control_rig_view_offset, drive_manual_rig_curves)
                     .after(avian3d::prelude::PhysicsSystems::Last)
                     .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs),
             )
@@ -559,15 +559,14 @@ fn drive_control_rig_view_offset(
     view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
 }
 
-fn set_manual_foot_ik_curve_input(
+fn set_manual_rig_curve_input(
     graph: &mut AnimationGraph,
     driver: &mut Option<NodeId>,
-    weights: AlsFootIkWeightOverride,
+    values: &[(&str, f32)],
 ) {
     use bevy_animation_graph::core::animation_node::{AnimationNode, dyn_node_like::DynNodeLike};
     use als_ext::{root_graph_boundaries::ControlRigBoundaryNode, source_pose_nodes::SourceCurveModifyNode};
-    let (curve_names, pin_defaults): (Vec<_>, Vec<_>) = [("FootLeftIk", weights.left), ("FootRightIk", weights.right)]
-        .into_iter().filter_map(|(name, value)| value.map(|value| (name.to_owned(), value))).unzip();
+    let (curve_names, pin_defaults): (Vec<_>, Vec<_>) = values.iter().map(|(name, value)| ((*name).to_owned(), *value)).unzip();
     if curve_names.is_empty() {
         if let Some(node) = driver.take() {
             let target = graph.edges.get(&SourcePin::NodeData(node, "Pose".into())).cloned();
@@ -588,14 +587,14 @@ fn set_manual_foot_ik_curve_input(
     let Some(target) = graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<ControlRigBoundaryNode>()
         .map(|rig| TargetPin::NodeData(node.id, rig.pose_input.clone()))) else { return; };
     let Some(source) = graph.remove_edge_by_target(&target) else { return; };
-    let node = AnimationNode::new("Manual foot IK curve input", modifier);
+    let node = AnimationNode::new("Manual Rig curve input", modifier);
     graph.add_edge(source, TargetPin::NodeData(node.id, "Source".into()));
     graph.add_edge(SourcePin::NodeData(node.id, "Pose".into()), target);
     *driver = Some(node.id);
     graph.add_node(node);
 }
 
-fn drive_manual_foot_ik_curves(
+fn drive_manual_rig_curves(
     state: Res<ManualIntegrationState>,
     weights: Res<AlsFootIkWeightOverride>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
@@ -603,32 +602,38 @@ fn drive_manual_foot_ik_curves(
     mut graphs: ResMut<Assets<AnimationGraph>>,
     mut driver: Local<Option<(bevy::asset::AssetId<AnimationGraph>, NodeId)>>,
 ) {
-    let active = state.scenario == IntegrationScenario::FootIk && state.phase == IntegrationPhase::FootIkWeightRamp;
+    let values: Vec<_> = if state.scenario == IntegrationScenario::FootIk && state.phase == IntegrationPhase::FootIkWeightRamp {
+        [("FootLeftIk", weights.left), ("FootRightIk", weights.right)].into_iter()
+            .filter_map(|(name, value)| value.map(|value| (name, value))).collect()
+    } else if state.scenario == IntegrationScenario::ControlRig && state.phase == IntegrationPhase::ControlRig {
+        vec![("PoseAiming", 1.0), ("HandLeftIk", 1.0), ("HandRightIk", 1.0)]
+    } else { Vec::new() };
     if let Some((graph_id, node)) = driver.take() {
         if let Some(mut graph) = graphs.get_mut(graph_id) {
             let mut node = Some(node);
-            set_manual_foot_ik_curve_input(&mut graph, &mut node, if active { *weights } else { default() });
+            set_manual_rig_curve_input(&mut graph, &mut node, &values);
             *driver = node.map(|node| (graph_id, node));
         }
         return;
     }
-    if !active { return; }
+    if values.is_empty() { return; }
     let Some((_, instance)) = avatars.iter().find(|(parent, _)| Some(parent.parent()) == state.character) else { return; };
     let Ok(player) = players.get(instance.player_entity()) else { return; };
     let Some((context, _, _)) = als_ext::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
     let graph_id = context.get_graph_id();
     let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
     let mut node = None;
-    set_manual_foot_ik_curve_input(&mut graph, &mut node, *weights);
+    set_manual_rig_curve_input(&mut graph, &mut node, &values);
+    if node.is_some() { info!("[MANUAL-INTEGRATION][RIG-CURVE-INPUT] values={values:?}"); }
     *driver = node.map(|node| (graph_id, node));
 }
 
 #[cfg(test)]
-pub(crate) fn run_manual_foot_ik_curve_fixture(world: &mut World, actor: Entity, weights: AlsFootIkWeightOverride) {
-    world.insert_resource(ManualIntegrationState { character: Some(actor), scenario: IntegrationScenario::FootIk,
-        phase: if weights.left.is_some() || weights.right.is_some() { IntegrationPhase::FootIkWeightRamp } else { IntegrationPhase::FootIkTeleport }, ..default() });
+pub(crate) fn run_manual_rig_curve_fixture(world: &mut World, actor: Entity, weights: AlsFootIkWeightOverride, control_rig: bool) {
+    world.insert_resource(ManualIntegrationState { character: Some(actor), scenario: if control_rig { IntegrationScenario::ControlRig } else { IntegrationScenario::FootIk },
+        phase: if control_rig { IntegrationPhase::ControlRig } else if weights.left.is_some() || weights.right.is_some() { IntegrationPhase::FootIkWeightRamp } else { IntegrationPhase::FootIkTeleport }, ..default() });
     world.insert_resource(weights);
-    world.run_system_cached(drive_manual_foot_ik_curves).unwrap();
+    world.run_system_cached(drive_manual_rig_curves).unwrap();
 }
 
 fn drive_crouch_direction_reference_frame(
@@ -4248,18 +4253,18 @@ fn drive_manual_integration(
                     fixture.facing_yaw,
                 );
                 *gait = Gait::Running;
-                *overlay = OverlayState::Rifle;
+                *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::Aiming;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 request.rotation_mode = Some(RotationMode::Aiming);
-                request.overlay_state = Some(OverlayState::Rifle);
+                request.overlay_state = Some(OverlayState::Default);
             }
             input.0.move_dir = Vec2::new(0.65, 1.0).normalize();
             input.0.aim_held = true;
             view_yaw.0 = fixture.facing_yaw + 35.0_f32.to_radians();
             request.rotation_mode = Some(RotationMode::Aiming);
-            request.overlay_state = Some(OverlayState::Rifle);
+            request.overlay_state = Some(OverlayState::Default);
             if elapsed >= 6.0 {
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
