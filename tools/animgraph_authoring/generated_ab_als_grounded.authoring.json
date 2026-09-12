@@ -129,6 +129,14 @@
     {
       "path": "target/bf115_overlays/source/shared_UE_K2Node_CommutativeAssociativeBinaryOperator.cpp",
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
+    },
+    {
+      "path": "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
+      "sha256": "415b707571499ac76a480a0671123201b45b7441d8274d4355afb8c026c5a239"
+    },
+    {
+      "path": "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
+      "sha256": "fecc5b30d190724d76d1697cf5dc0cc3884e7275c67cbcb2d6059048f4c2c296"
     }
   ],
   "graphs": [
@@ -774,11 +782,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf115_control_rig/assembly_sources",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf115_control_rig/d2b_basis_corpus",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf115_control_rig/assembly_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AB_Als.AB_Als"
       ]

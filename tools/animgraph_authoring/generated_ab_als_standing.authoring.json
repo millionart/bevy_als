@@ -157,6 +157,14 @@
     {
       "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
+    },
+    {
+      "path": "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
+      "sha256": "415b707571499ac76a480a0671123201b45b7441d8274d4355afb8c026c5a239"
+    },
+    {
+      "path": "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
+      "sha256": "fecc5b30d190724d76d1697cf5dc0cc3884e7275c67cbcb2d6059048f4c2c296"
     }
   ],
   "graphs": [
@@ -1840,12 +1848,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/import/audit_cr_als.py",
-        "--source",
-        "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
-        "--profile",
-        "target/bf115_overlays/initial_hierarchy_cr.profile.json",
-        "--check"
+        "tools/animgraph_authoring/test_ue_control_rig_target.py",
+        "--native-fixture",
+        "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
+        "--root-fixture",
+        "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
+        "--output",
+        "target/bf115_control_rig/assembly_manifest.program.json"
       ]
     },
     {
