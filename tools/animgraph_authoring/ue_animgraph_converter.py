@@ -1371,6 +1371,7 @@ def build_ir(
             source_content_root,
             source_mount,
             source_reader,
+            reachable_nodes={node for graph in source_reachability["graphs"] for node in graph["reachable_nodes"]},
         )
     except AssetResolutionError as error:
         unsupported.append(

@@ -2,6 +2,7 @@
   "format": "als_ref_to_bevy_animgraph_mapping_registry_v1",
   "node_classes": {
     "/Script/AnimGraph.AnimGraphNode_Root": { "renderer": "root_output" },
+    "/Script/AnimGraph.AnimGraphNode_LocalRefPose": { "renderer": "local_ref_pose" },
     "/Script/AnimGraph.AnimGraphNode_LinkedInputPose": { "renderer": "linked_input_pose" },
     "/Script/AnimGraph.AnimGraphNode_LinkedAnimGraph": { "renderer": "linked_anim_graph" },
     "/Script/AnimGraph.AnimGraphNode_LinkedAnimLayer": { "renderer": "linked_anim_layer" },

@@ -163,7 +163,7 @@ pub use layered_graph::{
 };
 pub use linked_anim_layer::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, LinkedAnimLayerNode};
 pub use loader::{CurveAssetLoader, CurveLoadError};
-pub use local_ref_pose::LocalRefPoseNode;
+pub use local_ref_pose::{LocalRefPoseNode, SourceLocalRefPoseNode};
 pub use mesh_space_additive::{MeshSpaceAdditiveNode, apply_mesh_space_additive};
 pub use mesh_space_difference::{MeshSpaceDifferenceNode, make_mesh_space_difference};
 pub use mesh_space_layered_blend::{MeshSpaceLayeredBlendNode, apply_mesh_space_layered_blend};
@@ -351,6 +351,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<TimePositionNode>()
             .register_type::<LinkedAnimLayerNode>()
             .register_type::<LocalRefPoseNode>()
+            .register_type::<SourceLocalRefPoseNode>()
             .register_type::<LayeredGraphNode>()
             .register_type::<SkeletonAwareLayeredGraphNode>()
             .register_type::<RootMotionClipNode>()

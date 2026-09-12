@@ -360,6 +360,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         and not isinstance(value, dict)
     ):
         raise PoseRenderError("source renderer semantic is unavailable")
+    if renderer == "local_ref_pose":
+        return "als_ext::SourceLocalRefPoseNode", "(reference_skeleton: " + quoted(asset_for_node(asset_by_node, semantic["source_node"], "skeleton")) + ")"
     if renderer in {"sequence_player", "sequence_evaluator"}:
         root_lock = asset_by_node[semantic["source_node"]].get("source_timing", {}).get("root_lock")
         if root_lock not in {None, "RefPose", "AnimFirstFrame", "Zero"}:
@@ -1706,6 +1708,17 @@ def fixture_graph():
 
 
 def run_self_test():
+    reference = {"source_node": "/Fixture:Graph.Reference", "renderer": "local_ref_pose", "semantic": {}}
+    reference_assets = {reference["source_node"]: {"category": "skeleton", "target_asset": "skeletons/Reference.static.skn.ron"}}
+    reference_type, reference_value = rendered_inner({}, {}, reference, reference_assets, {})
+    assert reference_type == "als_ext::SourceLocalRefPoseNode"
+    assert reference_value == '(reference_skeleton: "skeletons/Reference.static.skn.ron")'
+    try:
+        rendered_inner({}, {}, reference, {}, {})
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("Reference pose accepted a missing skeleton")
     curves = json.loads((Path(__file__).parent / "fixtures" / "ue_standing_walk_forward_curves.json").read_text())["curves"]
     raw = copy.deepcopy(curves)
     rendered_curves = pose_curves_ron(curves)

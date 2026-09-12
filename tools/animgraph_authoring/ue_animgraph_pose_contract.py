@@ -41,6 +41,7 @@ POSE_RENDERERS = {
     "layered_bone_blend",
     "gameplay_tag_blend",
     "bool_blend",
+    "local_ref_pose",
     "slot",
 }
 SYNC_GROUP_ROLES = {
@@ -1487,10 +1488,29 @@ def pose_snapshot_contract(node):
     }, issues
 
 
+def local_ref_pose_contract(node):
+    renderer = "local_ref_pose"
+    fields = node_struct_fields(node, "Node")
+    reject_unknown_fields(fields, {"RefPoseType", "InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction"})
+    record = next(value for value in node["properties"] if value["name"] == "Node")
+    folded = [value["exported_text"] for value in record.get("fields", []) if value["name"] == "RefPoseType"]
+    mode = field(fields, "RefPoseType", folded[0] if len(folded) == 1 else "EIT_LocalSpace")
+    inputs, issues = validate_inputs(node, renderer, ())
+    outputs = visible_output_names(node)
+    if outputs != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    if mode != "EIT_LocalSpace":
+        issues.append(issue(node, renderer, "source_reference_pose_type_unsupported", "RefPoseType"))
+    issues.extend(lifecycle_issues(node, renderer, fields, ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction")))
+    return {"renderer": renderer, "input_pins": inputs, "output_pins": outputs, "reference_type": mode}, issues
+
+
 def pose_contract(node, renderer):
     if renderer not in POSE_RENDERERS:
         return None, []
     try:
+        if renderer == "local_ref_pose":
+            return local_ref_pose_contract(node)
         if renderer == "sequence_player":
             return sequence_player_contract(node)
         if renderer == "sequence_evaluator":
@@ -1568,6 +1588,17 @@ def output_pin(name):
 
 
 def run_self_test():
+    reference = fixture_node("local_ref_pose", "Node", "(RefPoseType=EIT_LocalSpace,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())", [output_pin("Pose")])
+    reference_semantic, issues = pose_contract(reference, "local_ref_pose")
+    assert reference_semantic is not None and not issues
+    reference["source_node"] = "/Other:OtherGraph.Reference"
+    reference["node_guid"] = "11112222333344445555666677778888"
+    assert pose_contract(reference, "local_ref_pose") == (reference_semantic, [])
+    reference["properties"][0]["exported_text"] = "(RefPoseType=EIT_Additive)"
+    assert pose_contract(reference, "local_ref_pose")[1]
+    reference["properties"][0]["exported_text"] = "()"
+    reference["properties"][0]["fields"] = [{"name": "RefPoseType", "exported_text": "EIT_Additive", "flags": "0x48001840000200"}]
+    assert pose_contract(reference, "local_ref_pose")[1]
     additive = fixture_node(
         "apply_additive", "Node", "(Base=(),Additive=(),Alpha=1.000000)",
         [input_pin("Base"), input_pin("Additive"), input_pin("Alpha")],

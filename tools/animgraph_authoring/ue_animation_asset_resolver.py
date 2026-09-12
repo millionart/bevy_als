@@ -486,6 +486,24 @@ def resolve_animation_clip(asset_root, source_path):
     return relative_asset_path(asset_root, target)
 
 
+def resolve_reference_skeleton(asset_root, source_path):
+    candidates = []
+    for path in asset_root.rglob("*.skn.ron"):
+        text = path.read_text(encoding="utf-8")
+        identities = re.findall(r'\bsource_skeleton\s*:\s*("(?:\\.|[^"\\])*")', text)
+        if len(identities) == 1 and json.loads(identities[0]) == source_path:
+            candidates.append(path)
+    target = unique_candidate(candidates, "source reference skeleton")
+    sources = re.findall(r'\bsource\s*:\s*Gltf\s*\(\s*source\s*:\s*("(?:\\.|[^"\\])*")', target.read_text(encoding="utf-8"))
+    if len(sources) != 1:
+        raise AssetResolutionError("reference skeleton mesh source is invalid")
+    mesh = asset_root / json.loads(sources[0])
+    relative_asset_path(asset_root, mesh)
+    if not mesh.is_file():
+        raise AssetResolutionError("reference skeleton mesh is unavailable")
+    return relative_asset_path(asset_root, target)
+
+
 def target_clip_skeleton(asset_root, target):
     values = re.findall(r'\bskeleton\s*:\s*("(?:\\.|[^"\\])*")', (asset_root / target).read_text(encoding="utf-8"))
     if not values:
@@ -1001,6 +1019,7 @@ def resolve_graph_animation_assets(
     source_content_root=None,
     source_mount=None,
     source_reader=None,
+    reachable_nodes=None,
 ):
     rows = []
     timings = {}
@@ -1008,6 +1027,8 @@ def resolve_graph_animation_assets(
     native_blendspaces = {}
     for graph in source.get("graphs", []):
         for node in graph.get("nodes", []):
+            if reachable_nodes is not None and node.get("object_path") not in reachable_nodes:
+                continue
             class_path = node.get("class_path")
             if class_path in {
                 "/Script/AnimGraph.AnimGraphNode_SequencePlayer",
@@ -1016,6 +1037,10 @@ def resolve_graph_animation_assets(
                 source_path = named_object_reference(node_property(node, "Node"), "Sequence")
                 target = resolve_animation_clip(asset_root, source_path)
                 category = "sequence"
+            elif class_path == "/Script/AnimGraph.AnimGraphNode_LocalRefPose":
+                source_path = source_object_path(asset_property(source, "TargetSkeleton"))
+                target = resolve_reference_skeleton(asset_root, source_path)
+                category = "skeleton"
             elif class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator":
                 source_path = named_object_reference(node_property(node, "Node"), "BlendSpace")
                 blendspace = resolve_blendspace_contract(asset_root, source_path)
@@ -1063,7 +1088,7 @@ def resolve_graph_animation_assets(
             }
             if category == "sequence":
                 row["target_skeleton"] = target_clip_skeleton(asset_root, target)
-            if source_content_root is not None:
+            if source_content_root is not None and category in {"sequence", "blendspace"}:
                 samples = blendspace["samples"] if category == "blendspace" else [row]
                 for sample in samples:
                     animation = sample.get("source_animation", source_path)
@@ -1089,6 +1114,37 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        skeleton = root / "Reference.static.skn.ron"
+        mesh = root / "Reference.gltf"
+        mesh.write_text("{}", encoding="utf-8")
+        skeleton.write_text('(source: Gltf(source: "Reference.gltf", label: "Scene0"), root: "root", source_skeleton: "/Source/SK_Test.SK_Test")', encoding="utf-8")
+        reference_source = {"asset_properties": [{"name": "TargetSkeleton", "exported_text": "/Script/Engine.Skeleton'/Source/SK_Test.SK_Test'"}],
+            "graphs": [{"object_path": "/Source:Graph", "nodes": [{"object_path": "/Source:Graph.Reference", "class_path": "/Script/AnimGraph.AnimGraphNode_LocalRefPose"}]}]}
+        rows = resolve_graph_animation_assets(root, reference_source)
+        assert len(rows) == 1 and rows[0]["category"] == "skeleton"
+        assert rows[0]["target_asset"] == "Reference.static.skn.ron"
+        reference_source["graphs"][0]["nodes"][0]["object_path"] = "/Other:Renamed.Node"
+        renamed = resolve_graph_animation_assets(root, reference_source)
+        assert renamed[0] == rows[0] | {"source_node": "/Other:Renamed.Node"}
+        duplicate = root / "Duplicate.static.skn.ron"
+        duplicate.write_text(skeleton.read_text(), encoding="utf-8")
+        try:
+            resolve_graph_animation_assets(root, reference_source)
+        except AssetResolutionError:
+            pass
+        else:
+            raise AssertionError("Ambiguous source skeleton was accepted")
+        duplicate.unlink()
+        mesh.unlink()
+        assert resolve_graph_animation_assets(root, reference_source, reachable_nodes=set()) == []
+        try:
+            resolve_graph_animation_assets(root, reference_source)
+        except AssetResolutionError:
+            pass
+        else:
+            raise AssertionError("Missing skeleton mesh was accepted")
     for mode in ("RefPose", "AnimFirstFrame", "Zero"):
         assert sequence_root_lock("True", mode) == mode
         assert sequence_root_lock(True, {"value": "ERootMotionRootLock::" + mode}) == mode
