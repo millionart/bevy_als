@@ -909,6 +909,109 @@ impl NodeLike for SourceGameplayTagBlendNode {
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
+pub struct SourceBoolBlendNode {
+    pub active_key: String,
+    pub active_value: bool,
+    pub blend_times: Vec<f32>,
+    pub source_blend_times: Vec<f32>,
+    pub blend_mode: crate::profile_blend::AlphaBlendMode,
+    pub custom_curve: Vec<crate::RichCurveKey>,
+}
+
+impl Default for SourceBoolBlendNode {
+    fn default() -> Self {
+        Self {
+            active_key: default(),
+            active_value: false,
+            blend_times: vec![0.1; 2],
+            source_blend_times: vec![0.1; 2],
+            blend_mode: default(),
+            custom_curve: default(),
+        }
+    }
+}
+
+impl NodeLike for SourceBoolBlendNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        if self.blend_times.len() != 2 || self.source_blend_times.len() != 2 {
+            return Err(GraphError::UnknownErrorNode {
+                graph: ctx.graph_context.context_id,
+                node: ctx.node_id,
+                error: "bool blend configuration is invalid".into(),
+            });
+        }
+        let active = if let Ok(value) = ctx.data_back("bActiveValue") {
+            value.as_bool()?
+        } else if self.active_key.is_empty() {
+            self.active_value
+        } else {
+            crate::source_instance::source_input_data(&ctx, &self.active_key)
+                .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?
+                .as_bool()?
+        };
+        let index = usize::from(!active);
+        let blend_time = ctx
+            .data_back(format!("BlendTime_{index}"))
+            .ok()
+            .and_then(|value| value.as_f32().ok())
+            .unwrap_or(self.blend_times[index])
+            .max(0.0);
+        let previous = ctx
+            .state_mut::<SourceGameplayTagBlendState>()?
+            .blend
+            .instant_transition_source(index, blend_time);
+        if let Some(previous) = previous {
+            ctx.data_back(format!("BlendPose_{previous}"))?;
+        }
+        let delta = delta_seconds(&ctx)?;
+        let weights = crate::gameplay_tag_blend::advance_blend_list_weights(
+            &mut ctx.state_mut::<SourceGameplayTagBlendState>()?.blend,
+            2,
+            index,
+            blend_time,
+            delta,
+            |alpha| {
+                crate::profile_blend::transition_alpha(alpha, self.blend_mode, &self.custom_curve)
+            },
+        );
+        let mut poses = Vec::new();
+        let mut contexts = Vec::new();
+        for (index, weight) in weights.into_iter().enumerate() {
+            if weight <= crate::gameplay_tag_blend::WEIGHT_THRESHOLD {
+                continue;
+            }
+            let pin = format!("BlendPose_{index}");
+            poses.push((ctx.data_back(pin.clone())?.into_pose()?, weight));
+            if let Some(context) = pose_input_context_state(&ctx, &pin) {
+                contexts.push((context, weight));
+            }
+        }
+        let pose = blend_source_poses(&poses);
+        ctx.set_time(pose.timestamp);
+        ctx.set_data_fwd("Pose", pose);
+        ctx.state_mut::<SourceGameplayTagBlendState>()?.context =
+            blend_animation_contexts(contexts);
+        Ok(())
+    }
+
+    fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+        for index in 0..2 {
+            ctx.add_input_data(format!("BlendPose_{index}"), DataSpec::Pose)
+                .add_input_data(format!("BlendTime_{index}"), DataSpec::F32);
+        }
+        ctx.add_input_data("bActiveValue", DataSpec::Bool)
+            .add_output_data("Pose", DataSpec::Pose);
+        Ok(())
+    }
+
+    fn display_name(&self) -> String {
+        "ALS Source Bool Blend".into()
+    }
+}
+
+#[derive(Reflect, Clone, Debug)]
+#[reflect(Default, NodeLike)]
+#[type_path = "als_ext"]
 pub struct SourceCurveModifyNode {
     pub source_pose_pin: String,
     pub curve_name: String,
@@ -1164,7 +1267,7 @@ mod tests {
             edge_data::DataValue, pose::{BonePose, Pose, RootMotionDelta}, skeleton::Skeleton,
             state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
-        fn query(In((handle, inputs)): In<(Handle<AnimationGraph>, HashMap<String, DataValue>)>, resources: SystemResources) -> Pose {
+        fn query(In((handle, mut inputs)): In<(Handle<AnimationGraph>, HashMap<String, DataValue>)>, resources: SystemResources) -> Pose {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
@@ -1177,6 +1280,13 @@ mod tests {
                 graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
                 crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Second"));
             }
+            if graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceBoolBlendNode>().is_some()) {
+                inputs.insert("source_pose_test_bool".into(), true.into());
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
+                inputs.insert("source_pose_test_bool".into(), false.into());
+            }
             let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                 &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
             let mut output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
@@ -1186,6 +1296,20 @@ mod tests {
                 assert_eq!(state.input_alpha, inputs["alpha"].as_f32().unwrap());
                 let properties = arena.get_toplevel().node_states.get::<crate::source_instance::SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
                 assert_eq!(properties.values["alpha"].as_f32().unwrap(), 0.9);
+            }
+            if let Some(node) = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceBoolBlendNode>().is_some()) {
+                use bevy_animation_graph::core::context::node_states::StateKey;
+                let state = arena.get_toplevel().node_states.get::<SourceGameplayTagBlendState>(node.id, StateKey::Default).unwrap();
+                assert!((state.context.curves["BoolCurve"] - inputs["expected_curve"].as_f32().unwrap()).abs() < 1e-5);
+                if node.try_inner_downcast_ref::<SourceBoolBlendNode>().unwrap().blend_mode == crate::profile_blend::AlphaBlendMode::Custom {
+                    inputs.insert("source_pose_test_bool".into(), true.into());
+                    let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                        &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                    let interrupted = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.015)), context).unwrap();
+                    let state = arena.get_toplevel().node_states.get::<SourceGameplayTagBlendState>(node.id, StateKey::Default).unwrap();
+                    assert!((state.context.curves["BoolCurve"] - 5.5).abs() < 1e-5);
+                    assert!((interrupted["Pose"].as_pose().unwrap().get_bone(default()).unwrap().translation.unwrap().x - 0.1875).abs() < 1e-5);
+                }
             }
             output.remove("Pose").unwrap().into_pose().unwrap()
         }
@@ -1197,9 +1321,10 @@ mod tests {
         let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
         let rotations = [Quat::from_rotation_y(0.2), Quat::from_rotation_x(2.4), Quat::from_rotation_z(-1.7)];
         let mut errors = Vec::new();
-        for (kind, weights) in [("two", vec![0.75, 0.25]), ("tag", vec![0.75, 0.25]), ("multi", vec![0.75, 0.25]), ("multi", vec![0.4, 0.3, 0.3]), ("multi", vec![0.2, 0.3, 0.1]), ("additive", vec![1.0, 0.25]), ("additive", vec![1.0, 0.75])] {
+        for (kind, weights) in [("two", vec![0.75, 0.25]), ("tag", vec![0.75, 0.25]), ("bool", vec![0.75, 0.25]), ("bool_custom", vec![0.25, 0.75]), ("multi", vec![0.75, 0.25]), ("multi", vec![0.4, 0.3, 0.3]), ("multi", vec![0.2, 0.3, 0.1]), ("additive", vec![1.0, 0.25]), ("additive", vec![1.0, 0.75])] {
             let multi = kind == "multi";
             let additive = kind == "additive";
+            let boolean = kind.starts_with("bool");
             for sign in [1.0, -1.0] {
                 let mut graph = AnimationGraph::new();
                 let blend = if multi {
@@ -1210,6 +1335,21 @@ mod tests {
                     })
                 } else if additive {
                     AnimationNode::new("blend", SourceApplyAdditiveNode { use_constant_alpha: true, constant_alpha: weights[1], ..default() })
+                } else if boolean {
+                    use bevy::reflect::serde::{ReflectDeserializer, ReflectSerializer};
+                    use serde::de::DeserializeSeed;
+                    let value = SourceBoolBlendNode {
+                        active_key: "source_pose_test_bool".into(), blend_times: vec![0.08; 2],
+                        blend_mode: if kind == "bool_custom" { crate::profile_blend::AlphaBlendMode::Custom } else { crate::profile_blend::AlphaBlendMode::Linear },
+                        custom_curve: if kind == "bool_custom" { [(0.0, 0.0), (0.25, 0.75), (1.0, 1.0)].into_iter().map(|(t, v)| crate::RichCurveKey { t, v, ..default() }).collect() } else { vec![] },
+                        ..default()
+                    };
+                    let mut registry = bevy::reflect::TypeRegistry::new();
+                    registry.register::<SourceBoolBlendNode>();
+                    let text = ron::to_string(&ReflectSerializer::new(&value, &registry)).unwrap();
+                    let mut deserializer = ron::de::Deserializer::from_str(&text).unwrap();
+                    let reflected = ReflectDeserializer::new(&registry).deserialize(&mut deserializer).unwrap();
+                    AnimationNode::new("bool_blend", SourceBoolBlendNode::from_reflect(reflected.as_partial_reflect()).unwrap())
                 } else if kind == "tag" {
                     AnimationNode::new("tag_blend", SourceGameplayTagBlendNode {
                         active_key: "source_pose_test_blend".into(), tags: vec!["Second".into()],
@@ -1224,14 +1364,22 @@ mod tests {
                 graph.add_output_data("Pose".into(), DataSpec::Pose);
                 graph.add_output_data_edge(blend.id, "Pose", "Pose");
                 let mut inputs = HashMap::from([("alpha".into(), DataValue::F32(weights[1]))]);
+                inputs.insert("expected_curve".into(), (4.0 * weights[0] + 12.0 * weights[1]).into());
                 let mut expected_rotation = Quat::from_xyzw(0.0, 0.0, 0.0, 0.0);
                 let mut expected_translation = Vec3::ZERO;
                 for (index, weight) in weights.iter().copied().enumerate() {
                     let key = format!("pose_{index}");
                     let node = AnimationNode::new(&key, crate::GlobalPoseInputNode { key: key.clone(), output: "Pose".into() });
                     graph.add_node(node.clone());
-                    let pin = if multi { format!("Poses_{index}") } else if additive { if index == 0 { "Base".into() } else { "Additive".into() } } else if index == 0 { "A".into() } else { "B".into() };
-                    if kind == "two" && index == 1 {
+                    let pin = if boolean { format!("BlendPose_{index}") } else if multi { format!("Poses_{index}") } else if additive { if index == 0 { "Base".into() } else { "Additive".into() } } else if index == 0 { "A".into() } else { "B".into() };
+                    if boolean {
+                        let curve = AnimationNode::new(format!("curve_{index}"), SourceCurveModifyNode {
+                            curve_name: "BoolCurve".into(), pin_default: if index == 0 { 4.0 } else { 12.0 }, alpha: 1.0, apply_mode: "Blend".into(), ..default()
+                        });
+                        graph.add_node(curve.clone());
+                        graph.add_node_parameter_edge(node.id, "Pose", curve.id, "Source Pose");
+                        graph.add_node_parameter_edge(curve.id, "Pose", blend.id, pin);
+                    } else if kind == "two" && index == 1 {
                         let writer = AnimationNode::new("late_alpha", crate::source_instance::SourcePropertyWriteNode {
                             assignments: vec![crate::source_instance::SourcePropertyAssignment { property: "alpha".into(), value: DataValue::F32(0.9) }],
                             ..default()

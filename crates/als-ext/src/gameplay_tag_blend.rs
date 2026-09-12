@@ -81,6 +81,24 @@ pub(crate) fn advance_gameplay_tag_weights(
     blend_mode: GameplayTagBlendMode,
     delta_seconds: f32,
 ) -> Vec<f32> {
+    advance_blend_list_weights(
+        state,
+        child_count,
+        active_index,
+        blend_time,
+        delta_seconds,
+        |alpha| blend_mode.apply(alpha),
+    )
+}
+
+pub(crate) fn advance_blend_list_weights(
+    state: &mut GameplayTagBlendState,
+    child_count: usize,
+    active_index: usize,
+    blend_time: f32,
+    delta_seconds: f32,
+    blend_alpha: impl Fn(f32) -> f32,
+) -> Vec<f32> {
     if !state.initialized || state.weights.len() != child_count {
         state.initialized = true;
         state.last_active_index = -1;
@@ -109,7 +127,7 @@ pub(crate) fn advance_gameplay_tag_weights(
         state.weights[active_index] = 1.0;
     } else {
         state.elapsed = (state.elapsed + delta_seconds.max(0.0)).min(state.duration);
-        let alpha = blend_mode.apply(state.elapsed / state.duration);
+        let alpha = blend_alpha(state.elapsed / state.duration);
         for (index, weight) in state.weights.iter_mut().enumerate() {
             let target = if index == active_index { 1.0 } else { 0.0 };
             *weight = state.start_weights[index] + (target - state.start_weights[index]) * alpha;

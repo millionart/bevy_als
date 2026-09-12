@@ -51,6 +51,7 @@ SUPPORTED_RENDERERS = {
     "enum_pose_blend",
     "layered_bone_blend",
     "gameplay_tag_blend",
+    "bool_blend",
     "slot",
     "reroute",
 }
@@ -451,10 +452,25 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + (", always_update_source_pose: true" if value.get("always_update_source_pose", False) else "")
             + ")",
         )
+    if renderer == "bool_blend":
+        from ue_animgraph_materializer import rich_curve_ron
+        if not isinstance(value.get("active_key"), str) or not isinstance(value.get("active_value"), bool) or value.get("blend_type") not in {"Linear", "Cubic", "HermiteCubic", "Custom"}:
+            raise PoseRenderError("source bool blend contract is invalid")
+        if any(not isinstance(value.get(field), list) or len(value[field]) != 2 for field in ("blend_times", "source_blend_times")):
+            raise PoseRenderError("source bool blend times are invalid")
+        return (
+            "als_ext::SourceBoolBlendNode",
+            "(active_key: " + quoted(value["active_key"])
+            + ", active_value: " + str(value["active_value"]).lower()
+            + ", blend_times: [" + ", ".join(repr(t) for t in value["blend_times"]) + "]"
+            + ", source_blend_times: [" + ", ".join(repr(t) for t in value["source_blend_times"]) + "]"
+            + ", blend_mode: " + value["blend_type"]
+            + ", custom_curve: " + rich_curve_ron(value.get("custom_curve", [])) + ")",
+        )
     if renderer == "gameplay_tag_blend":
         active_key = value.get("active_key")
         blend_type = value.get("blend_type")
-        mode = {"Linear": "Linear", "Cubic": "HermiteCubic"}.get(blend_type)
+        mode = {"Linear": "Linear", "Cubic": "HermiteCubic", "HermiteCubic": "HermiteCubic"}.get(blend_type)
         fields = (
             "active_key",
             "tags",
@@ -1076,6 +1092,7 @@ def target_pin(renderer, source_pin, node=None):
         "modify_curve",
         "multi_way_blend",
         "gameplay_tag_blend",
+        "bool_blend",
         "enum_pose_blend",
         "layered_bone_blend",
     }:
@@ -1996,29 +2013,43 @@ def run_self_test():
             raise AssertionError("invalid multi-way reference skeleton was accepted")
         except PoseRenderError:
             pass
-    tag_type, tag_inner = rendered_inner(
-        graph_contract,
-        {},
-        {
-            "renderer": "gameplay_tag_blend",
-            "semantic": {
-                "active_key": "gait",
-                "tags": ["Als.Gait.Sprinting"],
-                "blend_times": [0.3, 0.2],
-                "source_blend_times": [0.1, 0.1],
-                "blend_type": "Cubic",
-                "pose_pin_names": ["BlendPose_0", "BlendPose_1"],
-                "blend_time_pin_names": ["BlendTime_0", "BlendTime_1"],
-                "active_tag_pin": "ActiveTag",
-                "output_pin": "Pose",
+    for blend_type in ("Cubic", "HermiteCubic"):
+        tag_type, tag_inner = rendered_inner(
+            graph_contract,
+            {},
+            {
+                "renderer": "gameplay_tag_blend",
+                "semantic": {
+                    "active_key": "gait",
+                    "tags": ["Als.Gait.Sprinting"],
+                    "blend_times": [0.3, 0.2],
+                    "source_blend_times": [0.1, 0.1],
+                    "blend_type": blend_type,
+                    "pose_pin_names": ["BlendPose_0", "BlendPose_1"],
+                    "blend_time_pin_names": ["BlendTime_0", "BlendTime_1"],
+                    "active_tag_pin": "ActiveTag",
+                    "output_pin": "Pose",
+                },
             },
-        },
-        {},
-        {},
-    )
-    assert tag_type == "als_ext::SourceGameplayTagBlendNode"
-    assert 'active_key: "gait"' in tag_inner
-    assert "blend_mode: HermiteCubic" in tag_inner
+            {},
+            {},
+        )
+        assert tag_type == "als_ext::SourceGameplayTagBlendNode"
+        assert 'active_key: "gait"' in tag_inner
+        assert "blend_mode: HermiteCubic" in tag_inner
+    bool_type, bool_inner = rendered_inner(graph_contract, {}, {
+        "renderer": "bool_blend", "semantic": {
+            "active_key": "b_use_alternate", "active_value": False,
+            "blend_times": [0.5, 0.5], "source_blend_times": [0.1, 0.1], "blend_type": "Custom",
+            "custom_curve": [{"interpolation": "Linear", "tangent_mode": "Auto", "tangent_weight_mode": "None",
+                "t": t, "v": v, "arrive_tangent": 0.0, "arrive_weight": 0.0, "leave_tangent": 0.0, "leave_weight": 0.0}
+                for t, v in [(0.0, 0.0), (0.25, 0.75), (1.0, 1.0)]],
+        }}, {}, {})
+    assert bool_type == "als_ext::SourceBoolBlendNode"
+    assert 'active_key: "b_use_alternate"' in bool_inner and "blend_mode: Custom" in bool_inner
+    assert "blend_times: [0.5, 0.5]" in bool_inner and "source_blend_times: [0.1, 0.1]" in bool_inner
+    assert "t: 0.25" in bool_inner and "v: 0.75" in bool_inner
+    assert "tags:" not in bool_inner
     tag_contract = scalar_renderer.fixture_gameplay_tag_contract()
     tag_property = tag_contract["source_graph"]["nodes"][1]
     tag_property_type, _ = rendered_inner(

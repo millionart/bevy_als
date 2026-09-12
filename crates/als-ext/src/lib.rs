@@ -240,7 +240,7 @@ pub use source_physics_joint::{
 };
 pub use source_pose_nodes::{
     SourceAlphaMapping, SourceApplyAdditiveNode, SourceCurveModifyNode, SourceCurvesBlendMode,
-    SourceCurvesBlendNode, SourceGameplayTagBlendNode, SourceMakeDynamicAdditiveNode,
+    SourceCurvesBlendNode, SourceGameplayTagBlendNode, SourceBoolBlendNode, SourceMakeDynamicAdditiveNode,
     SourceMeshSpaceAdditiveNode, SourceTwoWayBlendNode,
 };
 pub use source_pose_passthrough::SourcePosePassthroughNode;
@@ -365,6 +365,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<SourceCurvesBlendMode>()
             .register_type::<SourceCurvesBlendNode>()
             .register_type::<SourceGameplayTagBlendNode>()
+            .register_type::<SourceBoolBlendNode>()
             .register_type::<SourceMakeDynamicAdditiveNode>()
             .register_type::<SourceMeshSpaceAdditiveNode>()
             .register_type::<SourceMultiWayBlendNode>()

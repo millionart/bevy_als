@@ -22,6 +22,7 @@
     "/Script/AnimGraph.AnimGraphNode_MakeDynamicAdditive": { "renderer": "make_dynamic_additive" },
     "/Script/ALSEditor.AlsAnimGraphNode_CurvesBlend": { "renderer": "curves_blend" },
     "/Script/AnimGraph.AnimGraphNode_ModifyCurve": { "renderer": "modify_curve" },
+    "/Script/AnimGraph.AnimGraphNode_BlendListByBool": { "renderer": "bool_blend" },
     "/Script/AnimGraph.AnimGraphNode_MultiWayBlend": { "renderer": "multi_way_blend" },
     "/Script/AnimGraph.AnimGraphNode_BlendListByEnum": { "renderer": "enum_pose_blend" },
     "/Script/AnimGraph.AnimGraphNode_LayeredBoneBlend": { "renderer": "layered_bone_blend" },

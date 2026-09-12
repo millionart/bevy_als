@@ -40,6 +40,7 @@ POSE_RENDERERS = {
     "enum_pose_blend",
     "layered_bone_blend",
     "gameplay_tag_blend",
+    "bool_blend",
     "slot",
 }
 SYNC_GROUP_ROLES = {
@@ -896,6 +897,45 @@ def layered_bone_blend_contract(node):
     }, issues
 
 
+def bool_blend_contract(node):
+    renderer = "bool_blend"
+    fields = node_struct_fields(node, "Node")
+    reject_unknown_fields(fields, {
+        "BlendPose", "BlendTime", "bActiveValue", "BlendType", "TransitionType",
+        "ChildUpateMode", "CustomBlendCurve", "BlendProfile", "BlendProfileForFalse",
+        "bUseSeperateBlendProfileForFalse", "InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction",
+    })
+    source_times = [parse_number(value) for value in parse_list(field(fields, "BlendTime"))]
+    if len(parse_list(field(fields, "BlendPose"))) != 2 or len(source_times) != 2:
+        raise PoseContractError("source bool blend count is invalid")
+    inputs, issues = validate_inputs(node, renderer, ("BlendPose_0", "BlendPose_1", "BlendTime_0", "BlendTime_1", "bActiveValue"))
+    for name, expected in {"TransitionType": "StandardBlend", "ChildUpateMode": "Default",
+        "BlendProfile": "None", "BlendProfileForFalse": "None", "bUseSeperateBlendProfileForFalse": "False"}.items():
+        if field(fields, name, expected) != expected:
+            issues.append(issue(node, renderer, "source_property_unsupported", name))
+    if visible_output_names(node) != ["Pose"]:
+        issues.append(issue(node, renderer, "source_pin_unsupported", "Output"))
+    issues.extend(lifecycle_issues(node, renderer, fields, ("InitialUpdateFunction", "BecomeRelevantFunction", "UpdateFunction")))
+    blend_type = parse_name(field(fields, "BlendType", "Linear"))
+    if blend_type not in {"Linear", "Cubic", "HermiteCubic", "Custom"}:
+        issues.append(issue(node, renderer, "source_bool_blend_type_unsupported", blend_type))
+    custom_curve = field(fields, "CustomBlendCurve", "None")
+    if blend_type == "Custom" and custom_curve == "None":
+        issues.append(issue(node, renderer, "source_custom_blend_curve_unavailable", "CustomBlendCurve"))
+    bindings = property_binding_paths(node)
+    if set(bindings) - {"bActiveValue"}:
+        issues.append(issue(node, renderer, "source_property_binding_pin_unsupported", "BoolBlend"))
+    active_pin = next((p for p in node.get("pins", []) if p.get("name") == "bActiveValue"), {})
+    return {
+        "renderer": renderer, "input_pins": inputs,
+        "blend_times": [visible_input_default(node, f"BlendTime_{index}") for index in range(2)],
+        "source_blend_times": source_times, "blend_type": blend_type,
+        "custom_blend_curve": custom_curve,
+        "active_value": parse_bool(active_pin.get("default_value") or field(fields, "bActiveValue", "False")),
+        "active_value_path": bindings.get("bActiveValue", ""),
+    }, issues
+
+
 def gameplay_tag_blend_contract(node):
     renderer = "gameplay_tag_blend"
     fields = node_struct_fields(node, "Node")
@@ -947,7 +987,7 @@ def gameplay_tag_blend_contract(node):
     )
     blend_times = [visible_input_default(node, f"BlendTime_{index}") for index in range(count)]
     blend_type = parse_name(field(fields, "BlendType", "Linear"))
-    if blend_type not in {"Linear", "Cubic"}:
+    if blend_type not in {"Linear", "Cubic", "HermiteCubic"}:
         issues.append(issue(node, renderer, "source_gameplay_tag_blend_type_unsupported", blend_type))
     bindings = property_binding_paths(node)
     active_tag_path = bindings.get("ActiveTag", "")
@@ -1477,6 +1517,8 @@ def pose_contract(node, renderer):
             return layered_bone_blend_contract(node)
         if renderer == "gameplay_tag_blend":
             return gameplay_tag_blend_contract(node)
+        if renderer == "bool_blend":
+            return bool_blend_contract(node)
         if renderer == "slot":
             return slot_contract(node)
         if renderer in {"save_cached_pose", "use_cached_pose"}:
@@ -1774,6 +1816,28 @@ def run_self_test():
     assert gameplay_tag_contract["tags"] == ["Als.Gait.Sprinting"]
     assert gameplay_tag_contract["active_tag_path"] == "Gait"
     assert gameplay_tag_contract["pose_pin_names"] == ["BlendPose_0", "BlendPose_1"]
+    gameplay_tag_blend["properties"][0]["exported_text"] = gameplay_tag_blend["properties"][0]["exported_text"].replace("BlendType=Cubic", "BlendType=HermiteCubic")
+    gameplay_tag_contract, issues = pose_contract(gameplay_tag_blend, "gameplay_tag_blend")
+    assert not issues, issues
+    assert gameplay_tag_contract["blend_type"] == "HermiteCubic"
+    bool_blend = fixture_node(
+        "bool_blend", "Node",
+        '(BlendPose=((),()),BlendTime=(0.1,0.1),bActiveValue=False,BlendType=Custom,CustomBlendCurve="/Script/Engine.CurveFloat\'/ALS/Curves/CF_Test.CF_Test\'",InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())',
+        [input_pin("BlendPose_0"), input_pin("BlendPose_1"), input_pin("BlendTime_0"), input_pin("BlendTime_1"), input_pin("bActiveValue"), output_pin("Pose")],
+    )
+    for pin in bool_blend["pins"][2:4]:
+        pin["default_value"] = "0.5"
+    bool_blend["pins"][4]["default_value"] = "False"
+    bool_blend["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("bActiveValue", (PropertyName="bActiveValue",PathAsText="bUseAlternate",bIsBound=True)))'}]}
+    bool_semantic, issues = pose_contract(bool_blend, "bool_blend")
+    assert bool_semantic is not None and not issues, issues
+    assert bool_semantic["blend_times"] == [0.5, 0.5]
+    assert bool_semantic["source_blend_times"] == [0.1, 0.1]
+    assert bool_semantic["active_value_path"] == "bUseAlternate"
+    assert bool_semantic["blend_type"] == "Custom" and not bool_semantic["active_value"]
+    bool_blend["source_node"] = "/Other:OtherGraph.OtherNode"
+    bool_blend["node_guid"] = "00112233445566778899aabbccddeeff"
+    assert pose_contract(bool_blend, "bool_blend") == (bool_semantic, [])
     layered = fixture_node(
         "layered_bone_blend",
         "Node",

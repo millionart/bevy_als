@@ -22,7 +22,7 @@ from apply_additive_reference_deltas import (
     referenced_animation_names,
     source_animation_assets,
 )
-from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets
+from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets, source_curve_float, source_object_path
 from ue_animgraph_pose_contract import (
     PoseContractError,
     input_is_linked,
@@ -739,6 +739,12 @@ def resolve_property_bindings(node, semantic, registry):
         semantic["layer_weight_key"] = stem + ".layer_weight"
         semantic["mesh_space_additive_key"] = stem + ".mesh_space_additive"
         return []
+    if renderer == "bool_blend":
+        path = semantic.get("active_value_path", "")
+        keys, issues = resolve_bound_keys(node, renderer, ["bActiveValue"], [path])
+        semantic["active_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(semantic, ["bActiveValue"], [path], keys)
+        return issues
     if renderer == "gameplay_tag_blend":
         keys, issues = resolve_bound_keys(
             node,
@@ -861,6 +867,8 @@ def handled_property_binding_pins(renderer, semantic):
         return {"ActiveEnumValue"} if semantic.get("active_enum_path") else set()
     if renderer == "gameplay_tag_blend":
         return {"ActiveTag"} if semantic.get("active_tag_path") else set()
+    if renderer == "bool_blend":
+        return {"bActiveValue"} if semantic.get("active_value_path") else set()
     if renderer == "transition_result":
         return {"bCanEnterTransition"} if semantic.get("condition_path") else set()
     return set()
@@ -1428,6 +1436,16 @@ def build_ir(
             linked_graph_targets,
         )
         for node in graph_value["nodes"]:
+            if node.get("renderer") == "bool_blend" and node.get("semantic") is not None:
+                semantic = node["semantic"]
+                semantic["custom_curve"] = []
+                if semantic["blend_type"] == "Custom":
+                    try:
+                        source_curve = source_object_path(semantic["custom_blend_curve"])
+                        semantic["custom_curve"] = source_curve_float(source_content_root, source_mount, source_curve, source_reader)["keys"]
+                    except (AssetResolutionError, TypeError, KeyError) as error:
+                        graph_unsupported.append({"kind": "source_custom_blend_curve_unavailable",
+                            "source_node": node["source_node"], "detail": str(error)})
             if node.get("renderer") == "control_rig" and node.get("semantic") is not None:
                 try:
                     node["semantic"].update(resolve_control_rig_program(
