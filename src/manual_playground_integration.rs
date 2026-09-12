@@ -559,6 +559,36 @@ fn drive_control_rig_view_offset(
     view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
 }
 
+fn control_rig_action_evidence(player: &AnimationGraphPlayer, graphs: &Assets<AnimationGraph>, skeletons: &Assets<Skeleton>) -> Option<[f32; 3]> {
+    use als_ext::{control_rig_hierarchy::RigSpace, control_rig_math::RigValue, control_rig_program::RigInstruction,
+        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig}};
+    let (context, node, state) = current_control_rig(player, graphs)?;
+    let rig = node.try_inner_downcast_ref::<ControlRigBoundaryNode>()?;
+    let definition = rig.definition.as_ref()?;
+    let mut weights = [0.0; 2];
+    for (index, name) in ["hand_l", "hand_r"].into_iter().enumerate() {
+        let call = state.calls.iter().rev().find(|call| {
+            matches!(definition.program.instructions.get(call.instruction), Some(RigInstruction::Call { function, .. })
+                if function == "FRigUnit_TwoBoneIKSimplePerItem::Execute")
+                && matches!(call.arguments.get(2), Some(RigValue::List(item))
+                    if matches!(item.as_slice(), [RigValue::Name(kind), RigValue::Name(bone)] if kind == "Bone" && bone == name))
+        })?;
+        let RigValue::F32(weight) = call.arguments.get(13)? else { return None; };
+        weights[index] = *weight;
+    }
+    let graph = graphs.get(context.get_graph_id())?;
+    let SourcePin::NodeData(source, pin) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone()))? else { return None; };
+    let DataValue::Pose(pose) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone())? else { return None; };
+    let skeleton = skeletons.get(&pose.skeleton)?;
+    let spine = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == "spine_01"))?;
+    let before = pose.get_bone(spine.id()).and_then(|bone| bone.rotation).unwrap_or(skeleton.default_transforms(spine.id())?.local.rotation);
+    let index = definition.bones.iter().position(|bone| bone.name == "spine_01")?;
+    let after = state.snapshot_hierarchy()?.transform(index, RigSpace::Local, false).ok()?.rotation;
+    let angle = before.as_dquat().normalize().angle_between(after.normalize()) as f32;
+    (weights.iter().all(|weight| weight.is_finite() && (*weight - 1.0).abs() <= 1e-5)
+        && angle.is_finite() && angle > 1e-4).then_some([weights[0], weights[1], angle])
+}
+
 fn set_manual_rig_curve_input(
     graph: &mut AnimationGraph,
     driver: &mut Option<NodeId>,
@@ -2825,6 +2855,7 @@ struct IntegrationCoverage {
     start_stop: bool,
     view_head: bool,
     control_rig: bool,
+    control_rig_actions: bool,
     control_rig_stages: bool,
     control_rig_input: bool,
     control_rig_foot_targets: bool,
@@ -8102,6 +8133,14 @@ fn observe_manual_integration(
         }
     }
     state.coverage.control_rig |= control_rig_ready;
+    if state.scenario == IntegrationScenario::ControlRig && !state.coverage.control_rig_actions
+        && let Some([left, right, spine]) = control_rig_action_evidence(player, &motion_probe.graphs, &motion_probe.skeletons)
+    {
+        gate_report.direction_trace.push(serde_json::json!({"control_rig_actions": {
+            "hand_left_ik_weight": left, "hand_right_ik_weight": right, "spine_local_rotation_delta_radians": spine }}));
+        info!("[MANUAL-INTEGRATION][CR-ALS-ACTIONS] hand_left_weight={left:.6} hand_right_weight={right:.6} spine_local_delta_radians={spine:.6} -> PASS");
+        state.coverage.control_rig_actions = true;
+    }
     if let Ok((construction, input)) = control_rig_runtime.get(character) {
         let input_ready = input.use_hand_ik_bones
             && input.use_foot_ik_bones
@@ -9188,6 +9227,7 @@ fn observe_manual_integration(
                 ("animation_graph", coverage.graph),
                 ("standing_graph", coverage.standing_graph),
                 ("control_rig", coverage.control_rig),
+                ("control_rig_actions", coverage.control_rig_actions),
                 ("control_rig_stages", coverage.control_rig_stages),
                 ("control_rig_input", coverage.control_rig_input),
                 (
@@ -9432,6 +9472,77 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_rig_action_evidence_requires_actual_hand_weights_and_spine_motion() {
+        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
+        use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
+            animation_clip::EntityPath, animation_node::AnimationNode, edge_data::DataSpec,
+            pose::BonePose, systems::animation_player}};
+        use als_ext::{control_rig_program::RigDefinition, root_graph_boundaries::{ControlRigBoundaryNode, RigInputBinding, RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY}};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), als_ext::AlsExtPlugin)).init_asset::<WorldAsset>();
+        app.finish();
+        app.cleanup();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../assets/control_rigs/cr_als.program.json")).unwrap();
+        let local = |value: als_ext::control_rig_hierarchy::RigTransform| Transform {
+            translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
+        let mut skeleton = Skeleton::default();
+        let mut paths: Vec<Vec<String>> = Vec::new();
+        for bone in &definition.bones {
+            let mut path = bone.parent.map(|index| paths[index].clone()).unwrap_or_default();
+            path.push(bone.name.clone());
+            skeleton.add_bone(EntityPath::from(path.clone()), local(bone.initial_local), local(bone.initial_global));
+            paths.push(path);
+        }
+        skeleton.set_root(EntityPath::from(paths[0].clone()).id());
+        let skeleton = app.world_mut().resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+        for (bone, path) in definition.bones.iter().zip(paths) {
+            pose.add_bone(BonePose::from_transform(local(bone.initial_local)), EntityPath::from(path).id());
+        }
+        let mut graph = AnimationGraph::new();
+        let source = AnimationNode::new("source", als_ext::GlobalPoseInputNode { key: "source".into(), output: "Pose".into() });
+        let curves = AnimationNode::new("source curves", als_ext::source_pose_nodes::SourceCurveModifyNode {
+            source_pose_pin: "Source".into(), curve_names: vec!["LayerArmLeft".into(), "LayerArmRight".into()], pin_defaults: vec![1.0, 1.0], alpha: 1.0, ..default() });
+        let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition), capture_context: true, internalize_time: true,
+            input_bindings: [0, 1, 2, 5].map(|index| RigInputBinding { external: "RigInput".into(), path: vec![index], property: format!("input_{index}") }).into(), ..default() });
+        for node in [&source, &curves, &rig] { graph.add_node(node.clone()); }
+        graph.add_node_parameter_edge(source.id, "Pose", curves.id, "Source");
+        graph.add_node_parameter_edge(curves.id, "Pose", rig.id, "source_pose");
+        graph.add_output_data("pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(rig.id, "Pose", "pose");
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
+        player.set_global_input_data("source", DataValue::Pose(pose));
+        player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
+        player.set_global_input_data(RIG_CAPTURE_KEY, true);
+        player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
+        for key in ["input_0", "input_1", "input_2"] { player.set_global_input_data(key, true); }
+        player.set_global_input_data("input_5", 0.0_f32);
+        let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY)).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor }, Transform::IDENTITY, ChildOf(actor), AnimatedSceneHandle::default())).id();
+        let player_entity = app.world_mut().spawn((player, Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("pelvis"), Transform::IDENTITY, ChildOf(player_entity)));
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        app.world_mut().run_system_once(animation_player).unwrap();
+        for (active, yaw, expected) in [(false, 30.0_f32, false), (true, 0.0, false), (true, 30.0, true), (false, 30.0, false)] {
+            run_manual_rig_curve_fixture(app.world_mut(), actor, default(), active);
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("input_5", yaw);
+            app.world_mut().run_system_once(animation_player).unwrap();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none(), "{:?}", player.get_error());
+            let evidence = control_rig_action_evidence(player, app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>());
+            assert_eq!(evidence.is_some(), expected, "active={active} yaw={yaw} evidence={evidence:?}");
+            if let Some([left, right, angle]) = evidence { assert_eq!([left, right], [1.0, 1.0]); assert!(angle > 0.05); }
+        }
+        app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_output_data_edge(source.id, "Pose", "pose");
+        app.world_mut().run_system_once(animation_player).unwrap();
+        assert!(control_rig_action_evidence(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(),
+            app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>()).is_none());
+    }
 
     #[test]
     fn control_rig_view_driver_runs_after_physics_before_actor_inputs() {

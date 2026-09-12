@@ -1761,6 +1761,24 @@ def run_self_test():
             paths.append(path)
         report = fixture_report(paths)
         assert audit(report, 2)["pass"]
+        deferred = fixture_report(paths)
+        deferred["animation_eval_time"]["p95_ms"] = deferred["thresholds"]["max_eval_p95_ms"] + 1.0
+        deferred["pass"] = False
+        assert not audit(deferred, 2)["pass"]
+        result = audit_functional(deferred, 2)
+        assert result["pass"] and not result["full_pass"]
+        assert result["deferred_performance_issues"] == ["performance budget exceeded: max_eval_p95_ms"]
+        assert deferred["pass"] is False
+        deferred["faults"] = ["functional failure"]
+        assert not audit_functional(deferred, 2)["pass"]
+        deferred["faults"] = []
+        deferred["physics_steps_per_render"]["max"] = deferred["thresholds"]["max_physics_steps_per_render"] + 1
+        assert not audit_functional(deferred, 2)["pass"]
+        deferred = fixture_report(paths)
+        deferred["pass"] = False
+        assert not audit_functional(deferred, 2)["pass"]
+        deferred["animation_eval_time"]["p95_ms"] = None
+        assert not audit_functional(deferred, 2)["pass"]
         report["pose_samples"][0]["foot_ik"]["teleport"].pop("detected_count")
         assert not audit(report, 2)["pass"]
         report = fixture_report(paths)
@@ -2358,12 +2376,27 @@ def run_self_test():
     }
 
 
+def audit_functional(report, min_screenshots):
+    result = audit(report, min_screenshots)
+    deferred = [issue for issue in result["issues"] if issue in {
+        "performance budget exceeded: max_frame_p95_ms",
+        "performance budget exceeded: max_frame_ms",
+        "performance budget exceeded: max_eval_p95_ms",
+    }]
+    issues = [issue for issue in result["issues"] if issue not in deferred]
+    if deferred and report.get("pass") is False and "runtime visual verdict is not pass" in issues:
+        issues.remove("runtime visual verdict is not pass")
+    return {**result, "pass": not issues, "issues": issues,
+            "validation_scope": "functional", "full_pass": result["pass"], "deferred_performance_issues": deferred}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path)
     parser.add_argument("--min-screenshots", type=int, default=0)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--functional-only", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         print(json.dumps(run_self_test(), ensure_ascii=False, indent=2))
@@ -2372,7 +2405,8 @@ def main():
         raise ValueError("report, --check, and nonnegative min-screenshots are required")
     if not args.report.is_file():
         raise ValueError("visual report is missing")
-    result = audit(read_json(args.report), args.min_screenshots)
+    audit_report = audit_functional if args.functional_only else audit
+    result = audit_report(read_json(args.report), args.min_screenshots)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["pass"] else 1
 

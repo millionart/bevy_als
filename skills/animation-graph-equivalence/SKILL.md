@@ -60,6 +60,7 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 9. A completed manual scenario whose visual capture count no longer advances must be ended by a fixed-progress watchdog. Its JSON report records the count, required count, wait and reason; test both continued capture after settlement and watchdog termination.
 10. Collect motion evidence in memory and write the accumulated report at process exit. Keep immediate graph-failure and watchdog reports. Do not periodically serialize a growing report on the game thread: excluding its cost from performance statistics does not prevent it from changing subsequent animation deltas. Verify normal/error exit and final-sample retention in one focused lifecycle check.
     Read the original diagnostic resource when writing the report. Deep-copying a completed trace on measured frames can still create a performance failure after the action has finished.
+11. When the user explicitly pauses performance work, use the public runner's `-FunctionalOnly` and validator's `--functional-only` scope. Preserve the original report and thresholds, retain deferred frame/evaluation budget failures in the audit result, and label the outcome as functional acceptance. Every pose, graph, lifecycle, manual coverage, data-validity, physics-step and watchdog check remains required. Do not report full or performance acceptance from this scope.
 
 ## Failure reports and repair
 

@@ -8,7 +8,8 @@ param(
     [double]$MaxFrameP95Ms = 25.0,
     [double]$MaxFrameMs = 75.0,
     [double]$MaxEvalP95Ms = 4.0,
-    [int]$MaxPhysicsStepsPerRender = 3
+    [int]$MaxPhysicsStepsPerRender = 3,
+    [switch]$FunctionalOnly
 )
 
 if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1) {
@@ -78,12 +79,15 @@ try {
             report_path = $reportPath
             report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf
             validation_exit_code = $null
+            validation_scope = if ($FunctionalOnly) { "functional" } else { "full" }
         }
         if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
             $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
             throw "manual_playground exited with code $manualExitCode and did not write $reportPath."
         }
-        python tools/validate_animation_visual_evidence.py --report $reportPath --min-screenshots $CaptureCount --check
+        $validationArguments = @('tools/validate_animation_visual_evidence.py', '--report', $reportPath, '--min-screenshots', $CaptureCount, '--check')
+        if ($FunctionalOnly) { $validationArguments += '--functional-only' }
+        python @validationArguments
         $validationExitCode = $LASTEXITCODE
         $runner.validation_exit_code = $validationExitCode
         $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
@@ -106,4 +110,4 @@ try {
     }
 }
 
-Write-Output ("Animation visual validation passed: " + $candidate)
+Write-Output ("Animation visual " + $(if ($FunctionalOnly) { "functional " } else { "" }) + "validation passed: " + $candidate)
