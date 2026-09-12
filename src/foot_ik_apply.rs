@@ -700,7 +700,14 @@ mod tests {
         let original_inputs = graph.edges_inverted.clone();
         let original_node_count = graph.nodes.len();
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
-        let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
+        let mut wrapper = AnimationGraph::new();
+        let linked = AnimationNode::new("wrapped rig", als_ext::LayeredGraphNode {
+            capture_context: true, internalize_time: true, ..als_ext::LayeredGraphNode::new(graph.clone()) });
+        wrapper.add_node(linked.clone());
+        wrapper.add_output_data("pose".into(), DataSpec::Pose);
+        wrapper.add_output_data_edge(linked.id, "pose", "pose");
+        let wrapper = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(wrapper);
+        let mut player = AnimationGraphPlayer::new(skeleton).with_graph(wrapper.clone());
         player.set_global_input_data("input", DataValue::Pose(pose.clone()));
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
         player.set_global_input_data(RIG_CAPTURE_KEY, true);
@@ -729,12 +736,18 @@ mod tests {
         app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
         app.world_mut().flush();
         assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player_entity);
+        app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
+        app.world_mut().run_system_once(animation_player).unwrap();
         let mut driver = None;
         for (frame, weight) in [1.0_f32, 0.25, 0.0].into_iter().enumerate() {
             let previous_driver = driver;
-            crate::manual_playground_integration::set_manual_foot_ik_curve_input(
-                &mut app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap(), &mut driver,
+            crate::manual_playground_integration::run_manual_foot_ik_curve_fixture(app.world_mut(), actor,
                 AlsFootIkWeightOverride { left: Some(weight), right: Some(weight) });
+            let current = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
+            driver = match current.edges_inverted.get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(rig.id, "source_pose".into())) {
+                Some(bevy_animation_graph::core::animation_graph::SourcePin::NodeData(id, _)) if *id != curves.id => Some(*id),
+                _ => None,
+            };
             assert!(driver.is_some());
             if previous_driver.is_some() { assert_eq!(driver, previous_driver); }
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
@@ -761,8 +774,7 @@ mod tests {
             }
         }
         for weights in [AlsFootIkWeightOverride { left: Some(0.5), right: None }, AlsFootIkWeightOverride::default()] {
-            crate::manual_playground_integration::set_manual_foot_ik_curve_input(
-                &mut app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap(), &mut driver, weights);
+            crate::manual_playground_integration::run_manual_foot_ik_curve_fixture(app.world_mut(), actor, weights);
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
             app.world_mut().run_system_once(animation_player).unwrap();
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
@@ -771,7 +783,6 @@ mod tests {
             assert_eq!(apply.left.applied_weight, weights.left.unwrap_or(1.0));
             assert_eq!(apply.right.applied_weight, 1.0);
         }
-        assert!(driver.is_none());
         let restored = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
         assert_eq!(restored.nodes.len(), original_node_count);
         assert_eq!(restored.edges, original_edges);
@@ -784,7 +795,7 @@ mod tests {
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert_eq!(app.world().get::<AlsControlRigExecution>(actor).unwrap().executed_steps, 0, "an unevaluated rig must not expose its previous state");
         assert!(!app.world().get::<AlsFootIkSpaceState>(actor).unwrap().left.valid);
-        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(graph);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(wrapper);
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert_eq!(app.world().get::<AlsControlRigExecution>(actor).unwrap().executed_steps, 0);
         assert!(!app.world().get::<AlsFootIkSpaceState>(actor).unwrap().left.valid);

@@ -559,7 +559,7 @@ fn drive_control_rig_view_offset(
     view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
 }
 
-pub(crate) fn set_manual_foot_ik_curve_input(
+fn set_manual_foot_ik_curve_input(
     graph: &mut AnimationGraph,
     driver: &mut Option<NodeId>,
     weights: AlsFootIkWeightOverride,
@@ -615,11 +615,20 @@ fn drive_manual_foot_ik_curves(
     if !active { return; }
     let Some((_, instance)) = avatars.iter().find(|(parent, _)| Some(parent.parent()) == state.character) else { return; };
     let Ok(player) = players.get(instance.player_entity()) else { return; };
-    let AnimationSource::Graph(handle) = player.get_animation_source() else { return; };
-    let Some(mut graph) = graphs.get_mut(handle) else { return; };
+    let Some((context, _, _)) = als_ext::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
+    let graph_id = context.get_graph_id();
+    let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
     let mut node = None;
     set_manual_foot_ik_curve_input(&mut graph, &mut node, *weights);
-    *driver = node.map(|node| (handle.id(), node));
+    *driver = node.map(|node| (graph_id, node));
+}
+
+#[cfg(test)]
+pub(crate) fn run_manual_foot_ik_curve_fixture(world: &mut World, actor: Entity, weights: AlsFootIkWeightOverride) {
+    world.insert_resource(ManualIntegrationState { character: Some(actor), scenario: IntegrationScenario::FootIk,
+        phase: if weights.left.is_some() || weights.right.is_some() { IntegrationPhase::FootIkWeightRamp } else { IntegrationPhase::FootIkTeleport }, ..default() });
+    world.insert_resource(weights);
+    world.run_system_cached(drive_manual_foot_ik_curves).unwrap();
 }
 
 fn drive_crouch_direction_reference_frame(
