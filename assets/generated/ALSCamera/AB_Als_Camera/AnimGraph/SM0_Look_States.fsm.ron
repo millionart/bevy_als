@@ -1,0 +1,18 @@
+(
+    states: [
+        (id: "962827cb-4581-3891-d30f-61b068c35cd9", label: "Velocity Direction", graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron", state_transition: None),
+        (id: "892b1e50-452a-20b8-76ce-e78af36a9cf7", label: "View Direction", graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron", state_transition: None),
+        (id: "18ece2d2-4735-8955-ac63-3286a684edea", label: "Aiming", graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron", state_transition: None),
+    ],
+    transitions: [
+        (id: "48ffedcf-4085-afab-c621-48be0475f46e", source: "892b1e50-452a-20b8-76ce-e78af36a9cf7", target: "18ece2d2-4735-8955-ac63-3286a684edea", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T8/Transition.transition.animgraph.ron", timed: Some(0.35)), ignore_external_events: false, reset_target_state: true)),
+        (id: "8617b467-486e-606f-a248-faa2320560e2", source: "962827cb-4581-3891-d30f-61b068c35cd9", target: "892b1e50-452a-20b8-76ce-e78af36a9cf7", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+        (id: "9f4325b0-48ca-9d72-f5f4-9b97757c0299", source: "18ece2d2-4735-8955-ac63-3286a684edea", target: "962827cb-4581-3891-d30f-61b068c35cd9", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T7/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+        (id: "b2981c08-46fc-44fa-c141-919ce764c503", source: "892b1e50-452a-20b8-76ce-e78af36a9cf7", target: "962827cb-4581-3891-d30f-61b068c35cd9", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+        (id: "b8a2567c-4d0c-e652-29d3-76b7b854fe6a", source: "962827cb-4581-3891-d30f-61b068c35cd9", target: "18ece2d2-4735-8955-ac63-3286a684edea", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5/Transition.transition.animgraph.ron", timed: Some(0.35)), ignore_external_events: false, reset_target_state: true)),
+        (id: "9c313f7c-41e9-275b-2421-77b3c294dc2a", source: "18ece2d2-4735-8955-ac63-3286a684edea", target: "892b1e50-452a-20b8-76ce-e78af36a9cf7", data: (kind: Graph(graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T4/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+    ],
+    start_state: "962827cb-4581-3891-d30f-61b068c35cd9",
+    node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Pose": Pose }, input_order: {}, output_order: { Data("Pose"): 0 }),
+    editor_metadata: (states: { "962827cb-4581-3891-d30f-61b068c35cd9": (176, 0), "892b1e50-452a-20b8-76ce-e78af36a9cf7": (448, -128), "18ece2d2-4735-8955-ac63-3286a684edea": (448, 128) }),
+)

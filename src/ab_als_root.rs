@@ -115,7 +115,7 @@ pub fn overlay_layer_index(overlay: OverlayState) -> f32 {
     }
 }
 
-fn gait_tag(gait: Gait) -> GameplayTag {
+pub(crate) fn gait_tag(gait: Gait) -> GameplayTag {
     GameplayTag::new(match gait {
         Gait::Walking => "Als.Gait.Walking",
         Gait::Running => "Als.Gait.Running",
@@ -123,7 +123,7 @@ fn gait_tag(gait: Gait) -> GameplayTag {
     })
 }
 
-fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
+pub(crate) fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
     GameplayTag::new(match locomotion {
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
@@ -131,7 +131,7 @@ fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
     })
 }
 
-fn stance_tag(stance: Stance) -> GameplayTag {
+pub(crate) fn stance_tag(stance: Stance) -> GameplayTag {
     GameplayTag::new(match stance {
         Stance::Standing => "Als.Stance.Standing",
         Stance::Crouching => "Als.Stance.Crouching",
@@ -155,7 +155,7 @@ fn locomotion_action_index(
     }
 }
 
-fn locomotion_action_tag(
+pub(crate) fn locomotion_action_tag(
     notify_action: Option<&AlsNotifyLocomotionAction>,
     mantle: Option<&AlsMantleState>,
     roll: Option<&AlsRollState>,
@@ -172,7 +172,7 @@ fn locomotion_action_tag(
     })
 }
 
-fn rotation_mode_tag(rotation_mode: RotationMode) -> GameplayTag {
+pub(crate) fn rotation_mode_tag(rotation_mode: RotationMode) -> GameplayTag {
     GameplayTag::new(match rotation_mode {
         RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
         RotationMode::ViewDirection => "Als.RotationMode.ViewDirection",

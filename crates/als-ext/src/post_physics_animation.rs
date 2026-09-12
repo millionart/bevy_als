@@ -14,6 +14,9 @@ use bevy_animation_graph::core::{
 #[derive(Component)]
 pub struct PostPhysicsAnimation;
 
+#[derive(Component)]
+pub struct ManualAnimationPlayer;
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PostPhysicsAnimationSet {
     Inputs,
@@ -81,7 +84,7 @@ fn apply_readback_pose(
 
 fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
-    mut players: Query<(Entity, &mut AnimationGraphPlayer), F>,
+    mut players: Query<(Entity, &mut AnimationGraphPlayer), (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
 ) {
     players.par_iter_mut().for_each(|(entity, player)| run_animation_player(entity, player, &time, &resources));

@@ -9,6 +9,7 @@ pub mod animation_context_projection;
 pub mod animation_events;
 pub mod animation_visual_validation;
 pub mod character_assembly;
+pub mod camera_component;
 pub mod character_runtime;
 pub mod control_rig_apply;
 pub mod crouching_layer;

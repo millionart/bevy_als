@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraCurveProfileDriver, AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset,
+    AlsCameraDebugInfo, AlsCameraFieldOfView, AlsCameraFovOffset,
     AlsCameraRig, AlsCameraRuntime, AlsCameraSocketBinding, AlsCameraSocketLocations,
     AlsCameraTarget,
 };
@@ -36,10 +36,7 @@ pub struct AlsCharacterAvatar {
     pub character: Entity,
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AlsCharacterCamera {
-    pub character: Entity,
-}
+pub use als_camera::AlsCharacterCamera;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct AlsPlayerCharacter;
@@ -250,7 +247,9 @@ fn spawn_als_character_internal(
             AlsViewPitch(0.0),
             AlsCameraFovOffset::default(),
             AlsCameraTarget,
-            AlsCameraCurveProfileDriver,
+            als_camera::AlsCameraCurveValues::default(),
+            als_camera::AlsCameraAnimationFrame::default(),
+            als_camera::AlsCameraDefinitionHandle(assets.load("params/als_camera.camera_component.ron")),
             AlsStandingEventClock::default(),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,
@@ -263,20 +262,30 @@ fn spawn_als_character_internal(
         commands.entity(character).insert(AlsPlayerCharacter);
     }
     let avatar = attach_avatar(commands, assets, character, ALS_LINKED_ANIMATED_SCENE);
-    if let Some(materials) = materials {
+    let camera_material = if let Some(materials) = materials {
         let character_material = make_als_character_material(materials);
         let main_material = make_als_main_material(materials);
         commands
             .entity(avatar)
             .insert(AvatarMaterialOverride(als_character_material_slots(
                 character_material,
-                main_material,
+                main_material.clone(),
             )));
-    }
+        Some(main_material)
+    } else { None };
     commands.entity(character).insert((
         AlsCameraSocketBinding::new(avatar),
         AlsCameraSocketLocations::default(),
     ));
+    let mut component = commands.spawn((
+        AnimatedSceneHandle::new(assets.load("animated_scenes/als_camera.static.animscn.ron")),
+        crate::camera_component::AlsSourceCameraComponent::default(),
+        AlsCharacterCamera { character },
+        Name::new("Camera"),
+        ChildOf(avatar),
+        Visibility::Hidden,
+    ));
+    if let Some(material) = camera_material { component.insert(AvatarMaterialOverride(vec![material])); }
     let camera = if blueprint.spawn_camera {
         let eye = blueprint.transform.translation + Vec3::new(0.0, 1.8, 5.0);
         Some(
@@ -446,10 +455,15 @@ mod tests {
             .init_asset::<AlsMovementParams>()
             .init_asset::<AlsControlSchemeConfig>()
             .init_asset::<AnimatedScene>();
+        app.init_asset::<als_camera::AlsCameraDefinition>();
         let character = spawn_test_character(&mut app, true);
         let assembly = *app.world().get::<AlsCharacterAssembly>(character).unwrap();
         assert!(app.world().get::<AlsPlayerCharacter>(character).is_some());
         assert!(app.world().get::<AlsCameraTarget>(character).is_some());
+        let source_camera = app.world_mut().query_filtered::<(Entity, &ChildOf, &AlsCharacterCamera), With<crate::camera_component::AlsSourceCameraComponent>>()
+            .iter(app.world()).find(|(_, _, owner)| owner.character == character).map(|(entity, parent, _)| (entity, parent.parent())).unwrap();
+        assert_eq!(source_camera.1, assembly.avatar);
+        assert!(app.world().get::<avian3d::prelude::Collider>(source_camera.0).is_none());
         assert_eq!(
             app.world()
                 .get::<AlsCharacterAvatar>(assembly.avatar)

@@ -1,0 +1,5 @@
+(
+    source: "models/ALSCamera/SKM_Als_Camera.gltf#Scene0",
+    animation_graph: "graphs/runtime/als_generated_camera.animgraph.ron",
+    skeleton: "skeletons/SKM_Als_Camera.static.skn.ron",
+)

@@ -308,6 +308,20 @@ impl Default for AlsCameraFieldOfView {
 #[derive(Component)]
 pub struct AlsCameraTarget;
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCharacterCamera {
+    pub character: Entity,
+}
+
+#[derive(Component, Clone)]
+pub struct AlsCameraDefinitionHandle(pub Handle<AlsCameraDefinition>);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsCameraAnimationFrame {
+    pub delta_seconds: f32,
+    pub active: bool,
+}
+
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCameraCurveProfileDriver;
 
@@ -657,7 +671,7 @@ fn source_camera_curve_profile_system(
     }
 }
 
-fn camera_profile_rotation_mode(
+pub fn camera_profile_rotation_mode(
     rotation_mode: RotationMode,
     first_person: bool,
     desired_rotation_mode: Option<AlsLastFreeRotationMode>,
@@ -1116,7 +1130,7 @@ fn calculate_camera_trace(
     trace
 }
 
-fn camera_delta_seconds_from_times(
+pub fn camera_delta_seconds_from_times(
     previous_global_time_dilation: &mut f32,
     params: &AlsCameraParams,
     virtual_delta_seconds: f32,
@@ -1290,6 +1304,7 @@ fn camera_rig_system(
             &mut AlsCameraDebugInfo,
             &mut AlsCameraRuntime,
             Option<&AlsCameraFovOverride>,
+            Option<&AlsCharacterCamera>,
         ),
         Without<AlsCameraTarget>,
     >,
@@ -1307,11 +1322,14 @@ fn camera_rig_system(
             Option<&AlsCameraMovementBase>,
             Has<als_core::input_request::AlsFirstPersonView>,
             Has<als_core::input_request::AlsCameraLeftShoulder>,
+            Option<&AlsCameraDefinitionHandle>,
+            Option<&AlsCameraAnimationFrame>,
         ),
         With<AlsCameraTarget>,
     >,
     spatial: SpatialQuery,
     params_assets: Res<Assets<AlsCameraParams>>,
+    definitions: Res<Assets<AlsCameraDefinition>>,
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
     children: Query<&Children>,
     movement_base_transforms: Query<&GlobalTransform>,
@@ -1319,10 +1337,10 @@ fn camera_rig_system(
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
 ) {
-    let Some((_, params)) = params_assets.iter().next() else {
-        return;
-    };
-    let Ok((
+    let requests = shake_requests.read().copied().collect::<Vec<_>>();
+    for (camera_entity, mut camera_transform, mut projection, mut rig, mut field_of_view,
+        mut debug, mut runtime, field_of_view_override, owner) in &mut cameras {
+    let Some((
         target_entity,
         target_transform,
         rotation_mode,
@@ -1335,39 +1353,31 @@ fn camera_rig_system(
         movement_base,
         first_person_input,
         left_shoulder,
-    )) = targets.single()
+        definition_handle,
+        animation_frame,
+    )) = owner.map_or_else(|| targets.single().ok(), |owner| targets.get(owner.character).ok())
     else {
-        return;
+        continue;
     };
+    if animation_frame.is_some_and(|frame| !frame.active) { continue; }
+    let definition = definition_handle.and_then(|handle| definitions.get(&handle.0));
+    let Some(params) = definition.map(|value| &value.settings).or_else(|| params_assets.iter().next().map(|(_, value)| value)) else { continue; };
     let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
-        return;
+        continue;
     };
-    let Ok((
-        camera_entity,
-        mut camera_transform,
-        mut projection,
-        mut rig,
-        mut field_of_view,
-        mut debug,
-        mut runtime,
-        field_of_view_override,
-    )) = cameras.single_mut()
-    else {
-        return;
-    };
-    if let Some(request) = shake_requests
-        .read()
+    if let Some(request) = requests
+        .iter()
         .find(|request| request.target == target_entity)
     {
         begin_camera_shake(&mut runtime, request.scale);
     }
-    let delta_seconds = camera_delta_seconds(
+    let delta_seconds = animation_frame.map_or_else(|| camera_delta_seconds(
         &mut runtime,
         params,
         &virtual_time,
         &real_time,
         custom_time_dilation.map_or(1.0, |dilation| dilation.0),
-    );
+    ), |frame| frame.delta_seconds);
     let target_rotation = Quat::from_euler(
         EulerRot::YXZ,
         view_yaw.0,
@@ -1448,7 +1458,7 @@ fn camera_rig_system(
             shake_rotation_degrees,
             debug_curve_values,
         );
-        return;
+        continue;
     }
     let base = movement_base.and_then(|base| {
         if !base.has_relative_rotation {
@@ -1506,12 +1516,14 @@ fn camera_rig_system(
     let pivot_lag = if allow_lag {
         let current = yaw_rotation.inverse().mul_vec3(runtime.pivot_lag_location);
         let target = yaw_rotation.inverse().mul_vec3(pivot_target);
-        let ue_lag = Vec3::new(
+        let lag = Vec3::new(
             curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX)),
             curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY)),
             curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ)),
         );
-        yaw_rotation.mul_vec3(damp_ue_location_lag(current, target, delta_seconds, ue_lag))
+        let lag = if animation_frame.is_some() { lag } else { ue_location_lag_to_bevy_camera_space(lag) };
+        yaw_rotation.mul_vec3(Vec3::new(damp_exact(current.x, target.x, delta_seconds, lag.x),
+            damp_exact(current.y, target.y, delta_seconds, lag.y), damp_exact(current.z, target.z, delta_seconds, lag.z)))
     } else {
         pivot_target
     };
@@ -1522,29 +1534,25 @@ fn camera_rig_system(
             .inverse()
             .mul_vec3(runtime.pivot_lag_location - frame.location);
     }
-    let pivot_offset = sockets
-        .mesh_rotation
-        .mul_vec3(ue_mesh_vector_to_bevy_meters(
-            curve_vector(
+    let pivot_values = curve_vector(
                 curves,
                 AlsCameraCurve::PivotOffsetX,
                 AlsCameraCurve::PivotOffsetY,
                 AlsCameraCurve::PivotOffsetZ,
-            ),
-            sockets.mesh_scale,
-        ));
+            );
+    let pivot_offset = sockets.mesh_rotation * if animation_frame.is_some() {
+        pivot_values * sockets.mesh_scale
+    } else { ue_mesh_vector_to_bevy_meters(pivot_values, sockets.mesh_scale) };
     let pivot = pivot_lag + pivot_offset;
-    let camera_offset = runtime
-        .camera_rotation
-        .mul_vec3(ue_camera_vector_to_bevy_meters(
-            curve_vector(
+    let camera_values = curve_vector(
                 curves,
                 AlsCameraCurve::CameraOffsetX,
                 AlsCameraCurve::CameraOffsetY,
                 AlsCameraCurve::CameraOffsetZ,
-            ),
-            sockets.mesh_scale,
-        ));
+            );
+    let camera_offset = runtime.camera_rotation * if animation_frame.is_some() {
+        camera_values * sockets.mesh_scale
+    } else { ue_camera_vector_to_bevy_meters(camera_values, sockets.mesh_scale) };
     let camera_target = pivot + camera_offset;
     let shoulder = if left_shoulder {
         sockets.trace_shoulder_left
@@ -1609,6 +1617,7 @@ fn camera_rig_system(
         shake_rotation_degrees,
         debug_curve_values,
     );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

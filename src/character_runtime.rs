@@ -39,6 +39,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             "assets/als_gameplay_tags.json",
         ))
         .add_plugins(AlsActualMotionPlugin)
+        .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
         .add_plugins(SourcePhysicsTimingPlugin)
         .add_plugins((
             ControlRigApplyPlugin,

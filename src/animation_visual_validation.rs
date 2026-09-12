@@ -3227,7 +3227,7 @@ fn collect_animation_visual_evidence(
     pre_rig: Res<AnimationVisualPreRigPose>,
     asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
-    avatars: Query<(Entity, &AnimatedSceneInstance, &GlobalTransform, &Transform)>,
+    avatars: Query<(Entity, &AnimatedSceneInstance, &GlobalTransform, &Transform), With<AlsCharacterAvatar>>,
     players: Query<(
         &AnimationGraphPlayer,
         Option<&AlsRootAnimationContext>,

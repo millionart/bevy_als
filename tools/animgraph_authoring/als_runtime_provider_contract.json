@@ -1,6 +1,7 @@
 {
   "format": "als_runtime_provider_contract_v1",
   "runtime_inputs": {
+    "b_right_shoulder": "crate::camera_component::AlsSourceCameraPlugin",
     "crouching_state.play_rate": "crate::crouching_layer::CrouchingLayerPlugin",
     "crouching_state.stride_blend_amount": "crate::crouching_layer::CrouchingLayerPlugin",
     "feet_state.feet_crossing_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
@@ -95,10 +96,12 @@
     "TurnInPlaceStanding": "crate::turn_layer::AlsTurnLayerPlugin"
   },
   "gameplay_tag_providers": {
-    "gait": "crate::ab_als_root::AlsRootGraphPlugin",
+    "rotation_mode": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin",
+    "view_mode": "crate::camera_component::AlsSourceCameraPlugin",
+    "gait": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin",
     "grounded_entry_mode": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
-    "locomotion_action": "crate::ab_als_root::AlsRootGraphPlugin",
-    "locomotion_mode": "crate::ab_als_root::AlsRootGraphPlugin",
-    "stance": "crate::ab_als_root::AlsRootGraphPlugin"
+    "locomotion_action": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin",
+    "locomotion_mode": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin",
+    "stance": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin"
   }
 }
