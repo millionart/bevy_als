@@ -366,6 +366,7 @@ fn rotation_response_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     actions: Query<&crate::state::AlsNotifyLocomotionAction>,
+    collision_owners: Query<&crate::character::AlsCollisionLayerOwnership>,
     mut q: Query<
         (
             Entity,
@@ -407,6 +408,7 @@ fn rotation_response_system(
     ) in &mut q
     {
         if blocked.contains(entity)
+            || collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
             || roll.is_some_and(|state| state.active)
             || !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air)
             || actions.get(entity).is_ok_and(|action| *action != crate::state::AlsNotifyLocomotionAction::None)

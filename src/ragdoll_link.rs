@@ -152,6 +152,28 @@ impl Plugin for AlsRagdollLinkPlugin {
         .add_systems(
             PostUpdate,
             (
+                capture_ragdoll_player_world_transform,
+                ragdoll_character_physics_system,
+                ragdoll_link_system,
+            )
+                .chain()
+                .after(crate::mantle_drive::AlsMantleDriveSet)
+                .before(crate::animation_events::AlsAnimationEventSet::Refresh)
+                .before(RagdollPhysicsHandoffSet)
+                .run_if(
+                    |characters: Query<
+                        Option<&AlsNotifyLocomotionAction>,
+                        (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>),
+                    >| {
+                        characters
+                            .iter()
+                            .any(|action| action == Some(&AlsNotifyLocomotionAction::Ragdolling))
+                    },
+                ),
+        )
+        .add_systems(
+            PostUpdate,
+            (
                 sync_ragdoll_body_modes,
                 limit_initial_ragdoll_speed,
                 ragdoll_joint_drive_adapter_system,

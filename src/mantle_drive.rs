@@ -9,7 +9,10 @@ use als_ext::{
     profile_blend::transition_alpha,
     source_gameplay_tag_input::{set_slot_input_context, slot_input_context},
 };
-use avian3d::prelude::{CollisionLayers, LinearVelocity, Rotation};
+use avian3d::prelude::{
+    CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity,
+    PhysicsSystems, Position, Rotation,
+};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -104,6 +107,12 @@ impl AlsMantleMontages {
 
 #[derive(Resource)]
 struct MantleAssets(Vec<Handle<GraphClip>>);
+
+#[derive(Component)]
+struct AlsMantlePhysicsFrame {
+    custom_position: bool,
+    custom_velocity: bool,
+}
 
 #[derive(Deserialize)]
 pub(crate) struct MantleMontageSettings {
@@ -204,6 +213,7 @@ impl Plugin for AlsMantleDrivePlugin {
             PostUpdate,
             AlsMantleDriveSet
                 .after(AnimationGraphSet::PrePhysics)
+                .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp)
                 .before(crate::animation_events::AlsAnimationEventSet::Refresh),
         )
         .add_systems(
@@ -220,11 +230,16 @@ impl Plugin for AlsMantleDrivePlugin {
         .add_systems(
             PostUpdate,
             (
+                release_mantle_physics
+                    .after(PhysicsSystems::Last)
+                    .after(als_core::motion::AlsRotationResponseSet)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 handle_mantle_early_blend_out
                     .after(crate::animation_events::AlsAnimationEventSet::Dispatch),
                 publish_mantle_slot
                     .after(handle_mantle_early_blend_out)
                     .after(crate::roll_drive::AlsRollDriveSet)
+                    .after(crate::source_physics_timing::SourcePhysicsTimingSet::Restore)
                     .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             ),
         );
@@ -239,10 +254,11 @@ fn prepare_mantle_montages(
     clips: Res<Assets<GraphClip>>,
     skeletons: Res<Assets<Skeleton>>,
     mut roll_blend_outs: Query<&mut crate::roll_drive::AlsRollBlendOut>,
+    target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
     mut characters: Query<
         (
             Entity,
-            &AlsMantleState,
+            &mut AlsMantleState,
             Option<&mut AlsMantleMontages>,
             &mut LocomotionState,
             Option<&als_core::roll::AlsRollState>,
@@ -253,9 +269,19 @@ fn prepare_mantle_montages(
     >,
 ) {
     let delta = time.delta_secs();
-    for (character, mantle, mut current, mut locomotion, roll, mut get_up, action) in &mut characters {
+    for (character, mut mantle, mut current, mut locomotion, roll, mut get_up, action) in
+        &mut characters
+    {
+        if mantle.active
+            && !mantle.root_motion_ready
+            && (action == Some(&AlsNotifyLocomotionAction::Ragdolling)
+                || mantle
+                    .target_base
+                    .is_some_and(|base| !target_transforms.contains(base.entity)))
+        {
+            mantle.active = false;
+        }
         let starting = mantle.active
-            && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && !mantle.root_motion_ready
             && delta > 1e-8
             && clips
@@ -273,7 +299,7 @@ fn prepare_mantle_montages(
                 });
                 *locomotion = LocomotionState::Custom;
             }
-            montages.begin(mantle);
+            montages.begin(&mantle);
             let duration = mantle.kind.action_settings().blend_in_seconds;
             if let Some(roll) = roll.filter(|roll| roll.active) {
                 if let Ok(mut blend) = roll_blend_outs.get_mut(character) {
@@ -506,14 +532,11 @@ fn mantle_pose_system(
             &mut LinearVelocity,
             Option<&AlsNotifyLocomotionAction>,
             Option<&mut AlsMantleMontages>,
-            Option<&CollisionLayers>,
-            &mut AlsCollisionLayerOwnership,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, mut m, mut locomotion, mut vel, action, montages, layers, mut ownership) in &mut q
-    {
+    for (entity, mut m, mut locomotion, mut vel, action, montages) in &mut q {
         if !m.active && !m.root_motion_ready {
             continue;
         }
@@ -529,18 +552,28 @@ fn mantle_pose_system(
             *vel = LinearVelocity(Vec3::ZERO);
         }
         if action_ended || mode_changed || !target_valid {
+            let start_ragdoll =
+                !target_valid && MANTLE_SETTINGS.start_ragdoll_on_target_destruction;
             if !action_ended && let Some(mut montages) = montages {
                 for entry in &mut montages.entries {
                     if entry.kind.action_settings().montage_index
                         == m.kind.action_settings().montage_index
                     {
-                        entry.stop(MANTLE_SETTINGS.stop_blend_out_seconds, true);
+                        entry.stop(
+                            if start_ragdoll {
+                                crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds
+                            } else {
+                                MANTLE_SETTINGS.stop_blend_out_seconds
+                            },
+                            true,
+                        );
                     }
                 }
             }
             m.active = false;
             m.root_motion_ready = false;
             if *locomotion != LocomotionState::Grounded {
+                vel.y = 0.0;
                 transitions.write(StateTransitionEvent {
                     entity,
                     dimension: Dimension::LocomotionState,
@@ -549,15 +582,19 @@ fn mantle_pose_system(
                 });
                 *locomotion = LocomotionState::Grounded;
             }
+            if start_ragdoll {
+                transitions.write(StateTransitionEvent {
+                    entity,
+                    dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(LocomotionState::Grounded),
+                    to: StateValue::LocomotionState(LocomotionState::None),
+                });
+                *locomotion = LocomotionState::None;
+                commands
+                    .entity(entity)
+                    .insert(AlsNotifyLocomotionAction::Ragdolling);
+            }
         }
-        set_collision_layer_owner(
-            &mut commands,
-            entity,
-            &mut ownership,
-            layers.copied(),
-            AlsCollisionLayerOwner::Mantle,
-            m.active,
-        );
     }
 }
 
@@ -575,6 +612,9 @@ fn mantle_drive_system(
             Option<&mut Rotation>,
             Option<&CollisionLayers>,
             &mut AlsCollisionLayerOwnership,
+            Option<&mut Position>,
+            Has<CustomPositionIntegration>,
+            Has<CustomVelocityIntegration>,
         ),
         With<AlsCharacter>,
     >,
@@ -584,22 +624,44 @@ fn mantle_drive_system(
     skeletons: Res<Assets<Skeleton>>,
 ) {
     let dt = time.delta_secs();
-    for (entity, mut m, locomotion, mut vel, mut transform, rotation, layers, mut ownership) in
-        &mut q
+    for (
+        entity,
+        mut m,
+        locomotion,
+        mut vel,
+        mut transform,
+        rotation,
+        layers,
+        mut ownership,
+        position,
+        custom_position,
+        custom_velocity,
+    ) in &mut q
     {
-        if !m.active || *locomotion != LocomotionState::Custom || dt <= 1e-8 {
-            set_collision_layer_owner(
-                &mut commands,
-                entity,
-                &mut ownership,
-                layers.copied(),
-                AlsCollisionLayerOwner::Mantle,
-                false,
-            );
+        if (!m.active && !m.root_motion_ready)
+            || *locomotion != LocomotionState::Custom
+            || dt <= 1e-8
+        {
             continue;
         }
+        commands.entity(entity).insert((
+            AlsMantlePhysicsFrame {
+                custom_position,
+                custom_velocity,
+            },
+            CustomPositionIntegration,
+            CustomVelocityIntegration,
+        ));
+        set_collision_layer_owner(
+            &mut commands,
+            entity,
+            &mut ownership,
+            layers.copied(),
+            AlsCollisionLayerOwner::Mantle,
+            true,
+        );
         let target_base = mantle_target_base(&m, &target_transforms);
-        if m.target_base.is_some() && target_base.is_none() {
+        if !m.active || (m.target_base.is_some() && target_base.is_none()) {
             *vel = LinearVelocity(Vec3::ZERO);
             continue;
         }
@@ -620,29 +682,50 @@ fn mantle_drive_system(
             };
             m.prepare_root_motion(start_root, end_root);
         }
-        let previous_time = m.time;
-        let current_time = (previous_time + dt).min(m.action_end());
+        let current_time = (m.time + dt).min(m.action_end());
         let Some(root) = sample_mantle_root(clip, skeleton, m.clip_time_at(current_time)) else {
             continue;
         };
         let target_actor_transform = m.target_actor_transform_at(current_time, root);
         *vel = LinearVelocity((target_actor_transform.translation - transform.translation) / dt);
+        transform.translation = target_actor_transform.translation;
+        if let Some(mut position) = position {
+            position.0 = target_actor_transform.translation;
+        }
         transform.rotation = target_actor_transform.rotation;
         if let Some(mut rotation) = rotation {
             rotation.0 = target_actor_transform.rotation;
         }
         m.time = current_time;
-        let finishing = current_time >= m.action_end();
-        if finishing {
-            m.active = false;
+        m.active = current_time < m.action_end();
+    }
+}
+
+fn release_mantle_physics(
+    mut commands: Commands,
+    mut characters: Query<(
+        Entity,
+        &AlsMantlePhysicsFrame,
+        Option<&CollisionLayers>,
+        &mut AlsCollisionLayerOwnership,
+    )>,
+) {
+    for (entity, physics, layers, mut ownership) in &mut characters {
+        let mut entity_commands = commands.entity(entity);
+        if !physics.custom_position {
+            entity_commands.remove::<CustomPositionIntegration>();
         }
+        if !physics.custom_velocity {
+            entity_commands.remove::<CustomVelocityIntegration>();
+        }
+        entity_commands.remove::<AlsMantlePhysicsFrame>();
         set_collision_layer_owner(
             &mut commands,
             entity,
             &mut ownership,
             layers.copied(),
             AlsCollisionLayerOwner::Mantle,
-            m.active,
+            false,
         );
     }
 }
@@ -668,6 +751,413 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
     use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
     use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+
+    #[test]
+    fn mantle_physics_moves_once_with_the_game_delta() {
+        use avian3d::prelude::*;
+        use bevy::animation::animated_field;
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            PhysicsPlugins::new(PostUpdate),
+            AlsMantleDrivePlugin,
+            crate::source_physics_timing::SourcePhysicsTimingPlugin,
+            bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
+            als_core::character::AlsCharacterPlugin,
+            als_core::motion::AlsMotionPlugin,
+            crate::ragdoll_link::AlsRagdollLinkPlugin,
+        ))
+        .init_asset::<GraphClip>()
+        .init_asset::<Skeleton>()
+        .init_asset::<Mesh>()
+        .init_asset::<bevy_animation_graph::core::animated_scene::AnimatedScene>()
+        .init_asset::<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>()
+        .init_asset::<als_core::params::AlsMovementParams>()
+        .add_message::<crate::animation_events::AlsAnimationEvent>();
+        let path = EntityPath::default().child("root");
+        let root = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        let skeleton = app
+            .world_mut()
+            .resource_mut::<Assets<Skeleton>>()
+            .add(skeleton);
+        let mut animation = bevy::animation::AnimationClip::default();
+        animation.add_curve_to_target(
+            root.animation_target_id(),
+            AnimatableCurve::new(
+                animated_field!(Transform::translation),
+                UnevenSampleAutoCurve::new([(0.0, Vec3::ZERO), (1.5, Vec3::Y)]).unwrap(),
+            ),
+        );
+        let clip =
+            app.world_mut()
+                .resource_mut::<Assets<GraphClip>>()
+                .add(GraphClip::from_bevy_clip(
+                    animation,
+                    skeleton,
+                    default(),
+                    None,
+                ));
+        app.insert_resource(MantleAssets(vec![clip; 6]));
+        app.finish();
+        app.cleanup();
+        let params = app
+            .world_mut()
+            .resource_mut::<Assets<als_core::params::AlsMovementParams>>()
+            .add(als_core::params::AlsMovementParams::default());
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(20.0, 0.2, 20.0),
+            Transform::from_xyz(0.0, 3.0, 0.0),
+        ));
+        for (delta, original) in [1.0 / 60.0, 0.08_f32]
+            .into_iter()
+            .flat_map(|dt| (0..4).map(move |mask| (dt, mask)))
+        {
+            let start = Vec3::new(1.0, 2.0, 3.0);
+            let target = Vec3::new(3.0, 4.0, -2.0);
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_start_time(MantleKind::Low, start, target, 0.0, 0.2, -0.5);
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Grounded,
+                    RigidBody::Dynamic,
+                    Collider::sphere(0.3),
+                    Transform::from_translation(start).with_rotation(Quat::from_rotation_y(0.2)),
+                    GravityScale(5.0),
+                    AngularVelocity(Vec3::Y * 3.0),
+                    CollisionLayers::ALL,
+                    SweptCcd::default(),
+                ))
+                .id();
+            app.world_mut()
+                .entity_mut(actor)
+                .insert(bevy_tnua::TnuaMotor {
+                    lin: bevy_tnua::TnuaVelChange {
+                        boost: Vec3::X * 2.0,
+                        acceleration: Vec3::NEG_Y * 40.0,
+                    },
+                    ..default()
+                });
+            app.world_mut().entity_mut(actor).insert((
+                als_core::character::AlsMovementParamsHandle(params.clone()),
+                als_core::state::Gait::Running,
+                als_core::state::RotationMode::Aiming,
+                als_core::motion::AlsViewYaw(1.4),
+                als_core::input::AlsInputCommand {
+                    move_dir: Vec2::Y,
+                    ..default()
+                },
+            ));
+            if original & 1 != 0 {
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(CustomPositionIntegration);
+            }
+            if original & 2 != 0 {
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert(CustomVelocityIntegration);
+            }
+            let mut frames = 0;
+            let hold_expired = delta > 0.05 && original == 0;
+            loop {
+                let before = app.world().get::<Transform>(actor).unwrap().translation;
+                if !hold_expired && (frames + 1) as f32 * delta >= 1.5 {
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsNotifyLocomotionAction::None);
+                }
+                app.world_mut()
+                    .resource_mut::<Time>()
+                    .advance_by(std::time::Duration::from_secs_f32(delta));
+                app.world_mut().run_schedule(Update);
+                app.world_mut().run_schedule(PostUpdate);
+                frames += 1;
+                let state = app.world().get::<AlsMantleState>(actor).unwrap();
+                let expected_time = (frames as f32 * delta).min(1.5);
+                assert!(
+                    (state.time - expected_time).abs() < 1e-5,
+                    "game clock delta={delta} frame={frames} actual={}",
+                    state.time
+                );
+                let root = Transform::from_translation(Vec3::Y * (state.clip_time() / 1.5));
+                let expected = state.target_actor_transform_at(state.time, root);
+                let actual = app.world().get::<Transform>(actor).unwrap();
+                assert!(
+                    actual.translation.distance(expected.translation) < 1e-4,
+                    "source move delta={delta} frame={frames}: {:?} expected {:?}",
+                    actual.translation,
+                    expected.translation
+                );
+                assert!(actual.rotation.angle_between(expected.rotation) < 1e-3);
+                assert!(
+                    app.world()
+                        .get::<Position>(actor)
+                        .unwrap()
+                        .0
+                        .distance(expected.translation)
+                        < 1e-4
+                );
+                let mut expected_velocity = (expected.translation - before) / delta;
+                if !state.active && !hold_expired {
+                    expected_velocity.y = 0.0;
+                }
+                assert!(
+                    app.world()
+                        .get::<LinearVelocity>(actor)
+                        .unwrap()
+                        .0
+                        .distance(expected_velocity)
+                        < 1e-4
+                );
+                assert_eq!(
+                    app.world().resource::<Time>().delta(),
+                    std::time::Duration::from_secs_f32(delta)
+                );
+                assert_eq!(
+                    app.world().resource::<Time<Physics>>().delta(),
+                    std::time::Duration::from_secs_f32(delta)
+                        .min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA)
+                );
+                if !state.active {
+                    assert!(actual.translation.distance(target) < 1e-4);
+                    if hold_expired {
+                        for end_action in [false, true] {
+                            if end_action {
+                                app.world_mut()
+                                    .entity_mut(actor)
+                                    .insert(AlsNotifyLocomotionAction::None);
+                            }
+                            app.world_mut()
+                                .resource_mut::<Time>()
+                                .advance_by(std::time::Duration::from_secs_f32(delta));
+                            app.world_mut().run_schedule(Update);
+                            app.world_mut().run_schedule(PostUpdate);
+                            assert!(
+                                app.world()
+                                    .get::<Transform>(actor)
+                                    .unwrap()
+                                    .translation
+                                    .distance(target)
+                                    < 1e-4
+                            );
+                            assert_eq!(
+                                app.world().get::<LinearVelocity>(actor),
+                                Some(&LinearVelocity::ZERO)
+                            );
+                            assert_eq!(
+                                app.world().get::<LocomotionState>(actor),
+                                Some(&if end_action {
+                                    LocomotionState::Grounded
+                                } else {
+                                    LocomotionState::Custom
+                                })
+                            );
+                        }
+                    }
+                    break;
+                }
+                assert!(frames < 100, "mantle did not complete");
+            }
+            assert_eq!(
+                app.world().get::<RigidBody>(actor),
+                Some(&RigidBody::Dynamic)
+            );
+            assert_eq!(
+                app.world().get::<CollisionLayers>(actor),
+                Some(&CollisionLayers::ALL)
+            );
+            assert_eq!(
+                app.world()
+                    .get::<CustomPositionIntegration>(actor)
+                    .is_some(),
+                original & 1 != 0
+            );
+            assert_eq!(
+                app.world()
+                    .get::<CustomVelocityIntegration>(actor)
+                    .is_some(),
+                original & 2 != 0
+            );
+            assert!(app.world().get::<bevy_tnua::TnuaToggle>(actor).is_none());
+            let previous_rotation = app.world().get::<Transform>(actor).unwrap().rotation;
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut().run_schedule(Update);
+            app.world_mut().run_schedule(PostUpdate);
+            assert!(
+                app.world()
+                    .get::<Transform>(actor)
+                    .unwrap()
+                    .rotation
+                    .angle_between(previous_rotation)
+                    > 1e-3
+            );
+            app.world_mut().despawn(actor);
+        }
+        for interruption in 0..5 {
+            let target = app.world_mut().spawn(GlobalTransform::IDENTITY).id();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(
+                MantleKind::Low,
+                Vec3::Y * 2.0,
+                Vec3::Y * 4.0,
+                0.75,
+                0.0,
+                0.0,
+                AlsMantleTargetBase {
+                    entity: target,
+                    translation: Vec3::ZERO,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                    relative_location: false,
+                },
+            );
+            let actor = app
+                .world_mut()
+                .spawn((
+                    AlsCharacter,
+                    mantle,
+                    LocomotionState::Grounded,
+                    AlsNotifyLocomotionAction::None,
+                    RigidBody::Dynamic,
+                    Collider::sphere(0.3),
+                    CollisionLayers::ALL,
+                    Transform::from_translation(Vec3::Y * 2.0),
+                    bevy_tnua::TnuaToggle::SenseOnly,
+                ))
+                .id();
+            if interruption == 4 {
+                app.world_mut().despawn(target);
+            }
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_millis(80));
+            app.world_mut().run_schedule(Update);
+            app.world_mut().run_schedule(PostUpdate);
+            if interruption == 4 {
+                assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
+                assert_eq!(
+                    app.world().get::<LocomotionState>(actor),
+                    Some(&LocomotionState::Grounded)
+                );
+                assert_eq!(
+                    app.world().get::<AlsNotifyLocomotionAction>(actor),
+                    Some(&AlsNotifyLocomotionAction::None)
+                );
+                assert!(app.world().get::<AlsMantleMontages>(actor).is_none());
+                app.world_mut().despawn(actor);
+                continue;
+            }
+            assert_eq!(
+                app.world().get::<LocomotionState>(actor),
+                Some(&LocomotionState::Custom)
+            );
+            match interruption {
+                0 => {
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsNotifyLocomotionAction::None);
+                }
+                1 => {
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(LocomotionState::Air);
+                }
+                2 => {
+                    app.world_mut()
+                        .entity_mut(actor)
+                        .insert(AlsNotifyLocomotionAction::Ragdolling);
+                }
+                _ => {
+                    app.world_mut().despawn(target);
+                }
+            }
+            app.world_mut().run_schedule(Update);
+            app.world_mut().run_schedule(PostUpdate);
+            let ragdolling = interruption >= 2;
+            assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
+            assert_eq!(
+                app.world().get::<LocomotionState>(actor),
+                Some(&if interruption == 3 {
+                    LocomotionState::None
+                } else {
+                    LocomotionState::Grounded
+                })
+            );
+            assert_eq!(
+                app.world().get::<RigidBody>(actor),
+                Some(&if ragdolling {
+                    RigidBody::Kinematic
+                } else {
+                    RigidBody::Dynamic
+                })
+            );
+            assert_eq!(
+                app.world().get::<bevy_tnua::TnuaToggle>(actor),
+                Some(&if ragdolling {
+                    bevy_tnua::TnuaToggle::Disabled
+                } else {
+                    bevy_tnua::TnuaToggle::SenseOnly
+                })
+            );
+            assert_eq!(
+                app.world().get::<CollisionLayers>(actor),
+                Some(&if ragdolling {
+                    CollisionLayers::NONE
+                } else {
+                    CollisionLayers::ALL
+                })
+            );
+            assert!(
+                app.world()
+                    .get::<CustomPositionIntegration>(actor)
+                    .is_none()
+            );
+            assert!(
+                app.world()
+                    .get::<CustomVelocityIntegration>(actor)
+                    .is_none()
+            );
+            if interruption == 3 {
+                let entry = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
+                assert!(entry.interrupted);
+                assert_eq!(entry.stop.unwrap().1, 0.2);
+            }
+            if ragdolling {
+                app.world_mut()
+                    .entity_mut(actor)
+                    .insert((LocomotionState::Air, AlsNotifyLocomotionAction::None));
+                app.world_mut().run_schedule(Update);
+                assert_eq!(
+                    app.world().get::<RigidBody>(actor),
+                    Some(&RigidBody::Dynamic)
+                );
+                assert_eq!(
+                    app.world().get::<bevy_tnua::TnuaToggle>(actor),
+                    Some(&bevy_tnua::TnuaToggle::SenseOnly)
+                );
+                assert_eq!(
+                    app.world().get::<CollisionLayers>(actor),
+                    Some(&CollisionLayers::ALL)
+                );
+            }
+            app.world_mut().despawn(actor);
+            if interruption != 3 {
+                app.world_mut().despawn(target);
+            }
+        }
+    }
 
     #[test]
     fn mantle_action_end_releases_motion_before_the_montage_ends() {
@@ -758,7 +1248,7 @@ mod tests {
                 LocomotionState::Custom,
                 AlsNotifyLocomotionAction::Mantling,
                 true,
-                LocomotionState::Grounded,
+                LocomotionState::None,
                 true,
             ),
         ] {
@@ -791,12 +1281,19 @@ mod tests {
                     montages,
                     mode,
                     action,
-                    LinearVelocity(Vec3::X),
+                    LinearVelocity(Vec3::new(1.0, 2.0, 3.0)),
                 ))
                 .id();
             world.run_system_once(mantle_pose_system).unwrap();
             assert_eq!(world.get::<LocomotionState>(actor), Some(&expected));
-            assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&action));
+            assert_eq!(
+                world.get::<AlsNotifyLocomotionAction>(actor),
+                Some(&if invalid {
+                    AlsNotifyLocomotionAction::Ragdolling
+                } else {
+                    action
+                })
+            );
             assert_eq!(
                 world.get::<AlsMantleState>(actor).unwrap().active,
                 expected == LocomotionState::Custom
@@ -807,24 +1304,54 @@ mod tests {
             );
             assert_eq!(
                 world.get::<LinearVelocity>(actor).unwrap().0,
-                if invalid { Vec3::ZERO } else { Vec3::X }
+                if invalid {
+                    Vec3::ZERO
+                } else if mode != expected {
+                    Vec3::new(1.0, 0.0, 3.0)
+                } else {
+                    Vec3::new(1.0, 2.0, 3.0)
+                }
             );
             let entry = &world.get::<AlsMantleMontages>(actor).unwrap().entries[0];
             assert_eq!(entry.interrupted, interrupted);
             assert_eq!(
                 entry.stop.map(|(_, duration, _)| duration),
-                interrupted.then_some(0.3)
+                interrupted.then_some(if invalid { 0.2 } else { 0.3 })
             );
             let events: Vec<_> = world
                 .resource_mut::<Messages<StateTransitionEvent>>()
                 .drain()
                 .collect();
-            assert_eq!(events.len(), usize::from(mode != expected));
+            assert_eq!(
+                events.len(),
+                if invalid {
+                    2
+                } else {
+                    usize::from(mode != expected)
+                }
+            );
             if let Some(event) = events.first() {
                 assert_eq!(event.entity, actor);
                 assert_eq!(event.dimension, Dimension::LocomotionState);
                 assert_eq!(event.from, StateValue::LocomotionState(mode));
-                assert_eq!(event.to, StateValue::LocomotionState(expected));
+                assert_eq!(
+                    event.to,
+                    StateValue::LocomotionState(if invalid {
+                        LocomotionState::Grounded
+                    } else {
+                        expected
+                    })
+                );
+            }
+            if invalid {
+                assert_eq!(
+                    events[1].from,
+                    StateValue::LocomotionState(LocomotionState::Grounded)
+                );
+                assert_eq!(
+                    events[1].to,
+                    StateValue::LocomotionState(LocomotionState::None)
+                );
             }
             world.run_system_once(mantle_pose_system).unwrap();
             assert_eq!(
@@ -1174,11 +1701,6 @@ mod tests {
                     );
                 }
                 assert_eq!(context.curves, expected_context.curves);
-                let velocity = app.world().get::<LinearVelocity>(entity).unwrap().0;
-                app.world_mut()
-                    .get_mut::<Transform>(entity)
-                    .unwrap()
-                    .translation += velocity * delta;
                 if !app.world().get::<AlsMantleState>(entity).unwrap().active {
                     break;
                 }
@@ -1328,7 +1850,12 @@ mod tests {
         pending.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
         let actor = app
             .world_mut()
-            .spawn((AlsCharacter, pending, LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling))
+            .spawn((
+                AlsCharacter,
+                pending,
+                LocomotionState::None,
+                AlsNotifyLocomotionAction::Ragdolling,
+            ))
             .id();
         app.world_mut()
             .resource_mut::<Time>()
@@ -1384,7 +1911,11 @@ mod tests {
                     mantle,
                     montages,
                     LocomotionState::Grounded,
-                    if interrupt == 2 { AlsNotifyLocomotionAction::Ragdolling } else { AlsNotifyLocomotionAction::None },
+                    if interrupt == 2 {
+                        AlsNotifyLocomotionAction::Ragdolling
+                    } else {
+                        AlsNotifyLocomotionAction::None
+                    },
                 ))
                 .id();
             if interrupt == 0 {
