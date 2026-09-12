@@ -7,7 +7,6 @@ use bevy::asset::{Asset, AssetLoader, AssetServer, io::Reader};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
-use bevy::time::{Real, Virtual};
 use bevy::transform::{TransformSystems, systems as transform_systems};
 use serde::{Deserialize, Serialize};
 pub use shake::AlsCameraShakes;
@@ -40,7 +39,6 @@ pub const CAMERA_CURVE_NAMES: [&str; 13] = [
 ];
 
 pub const CAMERA_CURVE_COUNT: usize = CAMERA_CURVE_NAMES.len();
-pub const CAMERA_PROFILE_BLEND_DURATION_SECS: f32 = 0.5;
 pub const TRACE_START_ADJUSTMENT_PADDING_METERS: f32 = 0.01;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,40 +134,8 @@ pub struct AlsCameraSocketOffsets {
     pub trace_shoulder_left_head_local: Vec3,
 }
 
-#[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct AlsCameraCurveProfiles {
-    pub velocity_direction: [f32; CAMERA_CURVE_COUNT],
-    pub view_direction: [f32; CAMERA_CURVE_COUNT],
-    pub aiming: [f32; CAMERA_CURVE_COUNT],
-}
-
-#[derive(Default, bevy::reflect::TypePath)]
-pub struct AlsCameraParamsLoader;
-
 #[derive(Default, bevy::reflect::TypePath)]
 pub struct AlsCameraSocketOffsetsLoader;
-
-#[derive(Default, bevy::reflect::TypePath)]
-pub struct AlsCameraCurveProfilesLoader;
-
-impl AssetLoader for AlsCameraParamsLoader {
-    type Asset = AlsCameraParams;
-    type Settings = ();
-    type Error = CameraLoaderError;
-
-    async fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut bevy::asset::LoadContext<'_>,
-    ) -> Result<Self::Asset, Self::Error> {
-        load_ron(reader).await
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["camera.ron"]
-    }
-}
 
 impl AssetLoader for AlsCameraSocketOffsetsLoader {
     type Asset = AlsCameraSocketOffsets;
@@ -187,25 +153,6 @@ impl AssetLoader for AlsCameraSocketOffsetsLoader {
 
     fn extensions(&self) -> &[&str] {
         &["camera_sockets.ron"]
-    }
-}
-
-impl AssetLoader for AlsCameraCurveProfilesLoader {
-    type Asset = AlsCameraCurveProfiles;
-    type Settings = ();
-    type Error = CameraLoaderError;
-
-    async fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut bevy::asset::LoadContext<'_>,
-    ) -> Result<Self::Asset, Self::Error> {
-        load_ron(reader).await
-    }
-
-    fn extensions(&self) -> &[&str] {
-        &["camera_profiles.ron"]
     }
 }
 
@@ -289,9 +236,6 @@ impl Default for AlsCameraRig {
     }
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
-pub struct AlsCameraFovOffset(pub f32);
-
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct AlsCameraFovOverride(pub f32);
 
@@ -336,30 +280,6 @@ pub struct AlsCameraViewInfo {
 #[derive(Component, Debug, Clone, Copy)]
 #[require(AlsCameraFieldOfView, AlsCameraShakes)]
 pub struct AlsCameraViewSource(pub Entity);
-
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct AlsCameraCurveProfileDriver;
-
-#[derive(Component, Debug, Clone, Copy)]
-pub struct AlsCameraCurveProfileRuntime {
-    pub initialized: bool,
-    pub elapsed: f32,
-    pub source: [f32; CAMERA_CURVE_COUNT],
-    pub target: [f32; CAMERA_CURVE_COUNT],
-    pub previous_global_time_dilation: f32,
-}
-
-impl Default for AlsCameraCurveProfileRuntime {
-    fn default() -> Self {
-        Self {
-            initialized: false,
-            elapsed: 0.0,
-            source: [0.0; CAMERA_CURVE_COUNT],
-            target: [0.0; CAMERA_CURVE_COUNT],
-            previous_global_time_dilation: 1.0,
-        }
-    }
-}
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsCameraSocketBinding {
@@ -422,7 +342,6 @@ pub struct AlsCameraRuntime {
     pub camera_rotation: Quat,
     pub camera_rotation_base_space: Quat,
     pub trace_distance_ratio: f32,
-    pub previous_global_time_dilation: f32,
     pub movement_base: Option<Entity>,
 }
 
@@ -435,7 +354,6 @@ impl Default for AlsCameraRuntime {
             camera_rotation: Quat::IDENTITY,
             camera_rotation_base_space: Quat::IDENTITY,
             trace_distance_ratio: 1.0,
-            previous_global_time_dilation: 1.0,
             movement_base: None,
         }
     }
@@ -494,25 +412,12 @@ pub struct AlsCameraSet;
 
 impl Plugin for AlsCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<AlsCameraParams>()
-            .init_asset::<AlsCameraSocketOffsets>()
-            .init_asset::<AlsCameraCurveProfiles>()
+        app.init_asset::<AlsCameraSocketOffsets>()
             .init_asset::<AlsCameraDefinition>()
             .init_asset_loader::<source_definition::AlsCameraDefinitionLoader>()
-            .register_asset_loader(AlsCameraParamsLoader)
             .register_asset_loader(AlsCameraSocketOffsetsLoader)
-            .register_asset_loader(AlsCameraCurveProfilesLoader)
             .add_message::<AlsCameraShakeRequest>()
-            .add_systems(Update, load_camera_assets)
-            .add_systems(Update, ensure_camera_curve_profile_values)
-            .add_systems(
-                Update,
-                source_camera_curve_profile_system
-                    .after(ensure_camera_curve_profile_values)
-                    .after(als_core::input_request::input_state_request_system)
-                    .after(als_core::transition::state_transition_system),
-            )
-            .add_systems(PostUpdate, ensure_camera_view_fields.before(AlsCameraSet))
+            .add_systems(Update, load_camera_sockets)
             .add_systems(
                 PostUpdate,
                 (
@@ -539,147 +444,29 @@ impl Plugin for AlsCameraPlugin {
     }
 }
 
-fn load_camera_assets(
+fn load_camera_sockets(
     server: Res<AssetServer>,
-    mut params_done: Local<bool>,
-    mut sockets_done: Local<bool>,
-    mut profiles_done: Local<bool>,
-    mut params_handle: Local<Option<Handle<AlsCameraParams>>>,
-    mut sockets_handle: Local<Option<Handle<AlsCameraSocketOffsets>>>,
-    mut profiles_handle: Local<Option<Handle<AlsCameraCurveProfiles>>>,
+    mut done: Local<bool>,
+    mut handle: Local<Option<Handle<AlsCameraSocketOffsets>>>,
 ) {
-    if !*params_done {
-        let handle = params_handle
-            .get_or_insert_with(|| server.load::<AlsCameraParams>("params/als_camera.camera.ron"))
-            .clone();
-        match server.load_state(handle.id()) {
-            bevy::asset::LoadState::Loaded => {
-                info!("[CAM] params loaded");
-                *params_done = true;
-            }
-            bevy::asset::LoadState::Failed(error) => {
-                error!("[CAM] params failed: {error}");
-                *params_done = true;
-            }
-            _ => {}
-        }
-    }
-    if !*sockets_done {
-        let handle = sockets_handle
-            .get_or_insert_with(|| {
-                server.load::<AlsCameraSocketOffsets>("params/als_camera_sockets.ron")
-            })
-            .clone();
-        match server.load_state(handle.id()) {
-            bevy::asset::LoadState::Loaded => {
-                info!("[CAM] socket offsets loaded");
-                *sockets_done = true;
-            }
-            bevy::asset::LoadState::Failed(error) => {
-                error!("[CAM] socket offsets failed: {error}");
-                *sockets_done = true;
-            }
-            _ => {}
-        }
-    }
-    if !*profiles_done {
-        let handle = profiles_handle
-            .get_or_insert_with(|| {
-                server.load::<AlsCameraCurveProfiles>("params/als_camera_profiles.ron")
-            })
-            .clone();
-        match server.load_state(handle.id()) {
-            bevy::asset::LoadState::Loaded => {
-                info!("[CAM] curve profiles loaded");
-                *profiles_done = true;
-            }
-            bevy::asset::LoadState::Failed(error) => {
-                error!("[CAM] curve profiles failed: {error}");
-                *profiles_done = true;
-            }
-            _ => {}
-        }
-    }
-}
-
-fn ensure_camera_curve_profile_values(
-    mut commands: Commands,
-    targets: Query<
-        (
-            Entity,
-            Has<AlsCameraCurveValues>,
-            Has<AlsCameraCurveProfileRuntime>,
-        ),
-        (With<AlsCameraTarget>, With<AlsCameraCurveProfileDriver>),
-    >,
-) {
-    for (entity, has_values, has_runtime) in &targets {
-        let mut entity_commands = commands.entity(entity);
-        if !has_values {
-            entity_commands.insert(AlsCameraCurveValues::default());
-        }
-        if !has_runtime {
-            entity_commands.insert(AlsCameraCurveProfileRuntime::default());
-        }
-    }
-}
-
-fn source_camera_curve_profile_system(
-    profiles_assets: Res<Assets<AlsCameraCurveProfiles>>,
-    params_assets: Res<Assets<AlsCameraParams>>,
-    virtual_time: Res<Time<Virtual>>,
-    real_time: Res<Time<Real>>,
-    mut targets: Query<
-        (
-            &RotationMode,
-            Has<als_core::input_request::AlsFirstPersonView>,
-            Option<&AlsLastFreeRotationMode>,
-            Option<&AlsCameraCustomTimeDilation>,
-            &mut AlsCameraCurveValues,
-            &mut AlsCameraCurveProfileRuntime,
-        ),
-        (With<AlsCameraTarget>, With<AlsCameraCurveProfileDriver>),
-    >,
-) {
-    let Some((_, profiles)) = profiles_assets.iter().next() else {
+    if *done {
         return;
-    };
-    let Some((_, params)) = params_assets.iter().next() else {
-        return;
-    };
-    for (
-        rotation_mode,
-        first_person,
-        desired_rotation_mode,
-        custom_time_dilation,
-        mut values,
-        mut runtime,
-    ) in &mut targets
-    {
-        let profile_rotation_mode = camera_profile_rotation_mode(
-            *rotation_mode,
-            first_person,
-            desired_rotation_mode.copied(),
-        );
-        let mut target = match profile_rotation_mode {
-            RotationMode::VelocityDirection => profiles.velocity_direction,
-            RotationMode::ViewDirection => profiles.view_direction,
-            RotationMode::Aiming => profiles.aiming,
-        };
-        target[AlsCameraCurve::FirstPersonOverride.index()] = if first_person { 1.0 } else { 0.0 };
-        let delta_seconds = camera_delta_seconds_from_times(
-            &mut runtime.previous_global_time_dilation,
-            params,
-            virtual_time.delta_secs(),
-            real_time.delta_secs(),
-            virtual_time.effective_speed(),
-            custom_time_dilation.map_or(1.0, |dilation| dilation.0),
-        );
-        advance_camera_curve_profile(&mut runtime, &mut values, target, delta_seconds);
+    }
+    let handle = handle.get_or_insert_with(|| server.load("params/als_camera_sockets.ron"));
+    match server.load_state(handle.id()) {
+        bevy::asset::LoadState::Loaded => {
+            info!("[CAM] socket offsets loaded");
+            *done = true;
+        }
+        bevy::asset::LoadState::Failed(error) => {
+            error!("[CAM] socket offsets failed: {error}");
+            *done = true;
+        }
+        _ => {}
     }
 }
 
-pub fn camera_profile_rotation_mode(
+pub fn camera_animation_rotation_mode(
     rotation_mode: RotationMode,
     first_person: bool,
     desired_rotation_mode: Option<AlsLastFreeRotationMode>,
@@ -688,48 +475,6 @@ pub fn camera_profile_rotation_mode(
         desired_rotation_mode.map_or(rotation_mode, |desired| desired.0)
     } else {
         rotation_mode
-    }
-}
-
-fn advance_camera_curve_profile(
-    runtime: &mut AlsCameraCurveProfileRuntime,
-    values: &mut AlsCameraCurveValues,
-    target: [f32; CAMERA_CURVE_COUNT],
-    delta_seconds: f32,
-) {
-    if !runtime.initialized {
-        runtime.initialized = true;
-        runtime.target = target;
-        runtime.source = target;
-        values.values = target;
-        return;
-    }
-    if target != runtime.target {
-        runtime.source = values.values;
-        runtime.target = target;
-        runtime.elapsed = 0.0;
-    }
-    runtime.elapsed = (runtime.elapsed + delta_seconds).min(CAMERA_PROFILE_BLEND_DURATION_SECS);
-    let alpha = (runtime.elapsed / CAMERA_PROFILE_BLEND_DURATION_SECS).clamp(0.0, 1.0);
-    values.values =
-        std::array::from_fn(|index| runtime.source[index].lerp(runtime.target[index], alpha));
-}
-
-fn ensure_camera_view_fields(
-    mut commands: Commands,
-    cameras: Query<
-        Entity,
-        (
-            With<Camera3d>,
-            Without<AlsCameraFieldOfView>,
-            Or<(With<AlsCameraRig>, With<AlsCameraViewSource>)>,
-        ),
-    >,
-) {
-    for entity in &cameras {
-        commands
-            .entity(entity)
-            .insert(AlsCameraFieldOfView::default());
     }
 }
 
@@ -854,21 +599,16 @@ fn damp_exact(current: f32, target: f32, delta_seconds: f32, half_life_seconds: 
     current.lerp(target, damp_alpha(delta_seconds, half_life_seconds))
 }
 
-pub fn ue_location_lag_to_bevy_camera_space(ue_half_lives: Vec3) -> Vec3 {
-    Vec3::new(ue_half_lives.y, ue_half_lives.z, ue_half_lives.x)
-}
-
-pub fn damp_ue_location_lag(
+pub fn damp_location_lag(
     current: Vec3,
     target: Vec3,
     delta_seconds: f32,
-    ue_half_lives: Vec3,
+    half_lives: Vec3,
 ) -> Vec3 {
-    let lag = ue_location_lag_to_bevy_camera_space(ue_half_lives);
     Vec3::new(
-        damp_exact(current.x, target.x, delta_seconds, lag.x),
-        damp_exact(current.y, target.y, delta_seconds, lag.y),
-        damp_exact(current.z, target.z, delta_seconds, lag.z),
+        damp_exact(current.x, target.x, delta_seconds, half_lives.x),
+        damp_exact(current.y, target.y, delta_seconds, half_lives.y),
+        damp_exact(current.z, target.z, delta_seconds, half_lives.z),
     )
 }
 
@@ -902,23 +642,13 @@ fn damp_rotation(current: Quat, target: Quat, delta_seconds: f32, half_life_seco
     Quat::from_euler(EulerRot::YXZ, -result.x, result.y, -result.z)
 }
 
-fn ue_mesh_vector_to_bevy_meters(vector: Vec3, mesh_scale: f32) -> Vec3 {
-    Vec3::new(vector.x, vector.z, vector.y) * (mesh_scale * 0.01)
-}
-
-fn ue_camera_vector_to_bevy_meters(vector: Vec3, mesh_scale: f32) -> Vec3 {
-    Vec3::new(vector.y, vector.z, -vector.x) * (mesh_scale * 0.01)
-}
-
 fn curve_vector(
-    curves: Option<&AlsCameraCurveValues>,
+    curves: &AlsCameraCurveValues,
     x: AlsCameraCurve,
     y: AlsCameraCurve,
     z: AlsCameraCurve,
 ) -> Vec3 {
-    curves.map_or(Vec3::ZERO, |values| {
-        Vec3::new(values.get(x), values.get(y), values.get(z))
-    })
+    Vec3::new(curves.get(x), curves.get(y), curves.get(z))
 }
 
 fn collect_descendants(root: Entity, children: &Query<&Children>) -> Vec<Entity> {
@@ -1167,23 +897,6 @@ pub fn camera_delta_seconds_from_times(
     }
 }
 
-fn camera_delta_seconds(
-    runtime: &mut AlsCameraRuntime,
-    params: &AlsCameraParams,
-    virtual_time: &Time<Virtual>,
-    real_time: &Time<Real>,
-    custom_time_dilation: f32,
-) -> f32 {
-    camera_delta_seconds_from_times(
-        &mut runtime.previous_global_time_dilation,
-        params,
-        virtual_time.delta_secs(),
-        real_time.delta_secs(),
-        virtual_time.effective_speed(),
-        custom_time_dilation,
-    )
-}
-
 fn camera_movement_base_bridge_system(
     mut commands: Commands,
     targets: Query<
@@ -1266,7 +979,7 @@ fn camera_rig_system(
             &mut AlsCameraDebugInfo,
             &mut AlsCameraRuntime,
             Option<&AlsCameraFovOverride>,
-            Option<&AlsCharacterCamera>,
+            &AlsCharacterCamera,
         ),
         Without<AlsCameraTarget>,
     >,
@@ -1277,27 +990,21 @@ fn camera_rig_system(
             &RotationMode,
             &AlsViewYaw,
             Option<&AlsViewPitch>,
-            Option<&AlsCameraFovOffset>,
-            Option<&AlsCameraCustomTimeDilation>,
-            Option<&AlsCameraCurveValues>,
-            Option<&AlsCameraSocketLocations>,
+            &AlsCameraCurveValues,
+            &AlsCameraSocketLocations,
             Option<&AlsCameraMovementBase>,
-            Has<als_core::input_request::AlsFirstPersonView>,
             Has<als_core::input_request::AlsCameraLeftShoulder>,
-            Option<&AlsCameraDefinitionHandle>,
-            Option<&AlsCameraAnimationFrame>,
+            &AlsCameraDefinitionHandle,
+            &AlsCameraAnimationFrame,
         ),
         With<AlsCameraTarget>,
     >,
     spatial: SpatialQuery,
     colliders: Query<(&Position, &Rotation, &Collider)>,
-    params_assets: Res<Assets<AlsCameraParams>>,
     definitions: Res<Assets<AlsCameraDefinition>>,
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
     children: Query<&Children>,
     movement_base_transforms: Query<&GlobalTransform>,
-    virtual_time: Res<Time<Virtual>>,
-    real_time: Res<Time<Real>>,
 ) {
     for (
         camera_entity,
@@ -1309,54 +1016,35 @@ fn camera_rig_system(
         owner,
     ) in &mut cameras
     {
-        let Some((
+        let Ok((
             target_entity,
             target_transform,
             rotation_mode,
             view_yaw,
             view_pitch,
-            fov_offset_adapter,
-            custom_time_dilation,
             curves,
             socket_locations,
             movement_base,
-            first_person_input,
             left_shoulder,
             definition_handle,
             animation_frame,
-        )) = owner.map_or_else(
-            || targets.single().ok(),
-            |owner| targets.get(owner.character).ok(),
-        )
+        )) = targets.get(owner.character)
         else {
             continue;
         };
-        if animation_frame.is_some_and(|frame| !frame.active) {
+        if !animation_frame.active {
             debug.valid = false;
             continue;
         }
-        let definition = definition_handle.and_then(|handle| definitions.get(&handle.0));
-        let Some(params) = definition
-            .map(|value| &value.settings)
-            .or_else(|| params_assets.iter().next().map(|(_, value)| value))
-        else {
+        let Some(definition) = definitions.get(&definition_handle.0) else {
             continue;
         };
-        let Some(sockets) = socket_locations.filter(|locations| locations.valid) else {
+        let params = &definition.settings;
+        if !socket_locations.valid {
             continue;
-        };
-        let delta_seconds = animation_frame.map_or_else(
-            || {
-                camera_delta_seconds(
-                    &mut runtime,
-                    params,
-                    &virtual_time,
-                    &real_time,
-                    custom_time_dilation.map_or(1.0, |dilation| dilation.0),
-                )
-            },
-            |frame| frame.delta_seconds,
-        );
+        }
+        let sockets = socket_locations;
+        let delta_seconds = animation_frame.delta_seconds;
         let base = movement_base.and_then(|base| {
             if !base.has_relative_rotation {
                 return None;
@@ -1390,29 +1078,22 @@ fn camera_rig_system(
             0.0,
         );
         let pivot_target = (sockets.root + sockets.head) * 0.5;
-        let allow_lag = !animation_frame.is_some_and(|frame| frame.force_no_lag)
+        let allow_lag = !animation_frame.force_no_lag
             && (params.teleport_distance_threshold <= 0.0
                 || runtime.previous_pivot_target.distance_squared(pivot_target)
                     <= params.teleport_distance_threshold.powi(2));
         runtime.previous_pivot_target = pivot_target;
         let first_person_override = curves
-            .map(|values| {
-                values
-                    .get(AlsCameraCurve::FirstPersonOverride)
-                    .clamp(0.0, 1.0)
-            })
-            .unwrap_or(if first_person_input { 1.0 } else { 0.0 });
+            .get(AlsCameraCurve::FirstPersonOverride)
+            .clamp(0.0, 1.0);
         let full_first_person = is_full_weight(first_person_override);
         rig.mode = if full_first_person {
             AlsCameraMode::FirstPerson
         } else {
             mode_for_rotation(*rotation_mode)
         };
-        let fov_curve = curves.map_or(0.0, |values| values.get(AlsCameraCurve::FovOffset))
-            + fov_offset_adapter.map_or(0.0, |offset| offset.0);
-        let mut debug_curve_values =
-            curves.map_or([0.0; CAMERA_CURVE_COUNT], |values| values.values);
-        debug_curve_values[AlsCameraCurve::FovOffset.index()] = fov_curve;
+        let fov_curve = curves.get(AlsCameraCurve::FovOffset);
+        let debug_curve_values = curves.values;
         if full_first_person {
             runtime.pivot_lag_location = pivot_target;
             runtime.camera_rotation = target_rotation;
@@ -1456,7 +1137,7 @@ fn camera_rig_system(
         if let Some(frame) = base {
             runtime.camera_rotation = frame.rotation * runtime.camera_rotation_base_space;
         }
-        let rotation_lag = curves.map_or(0.0, |values| values.get(AlsCameraCurve::RotationLag));
+        let rotation_lag = curves.get(AlsCameraCurve::RotationLag);
         runtime.camera_rotation = if allow_lag {
             damp_rotation(
                 runtime.camera_rotation,
@@ -1480,20 +1161,11 @@ fn camera_rig_system(
             let current = yaw_rotation.inverse().mul_vec3(runtime.pivot_lag_location);
             let target = yaw_rotation.inverse().mul_vec3(pivot_target);
             let lag = Vec3::new(
-                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagX)),
-                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagY)),
-                curves.map_or(0.0, |values| values.get(AlsCameraCurve::LocationLagZ)),
+                curves.get(AlsCameraCurve::LocationLagX),
+                curves.get(AlsCameraCurve::LocationLagY),
+                curves.get(AlsCameraCurve::LocationLagZ),
             );
-            let lag = if animation_frame.is_some() {
-                lag
-            } else {
-                ue_location_lag_to_bevy_camera_space(lag)
-            };
-            yaw_rotation.mul_vec3(Vec3::new(
-                damp_exact(current.x, target.x, delta_seconds, lag.x),
-                damp_exact(current.y, target.y, delta_seconds, lag.y),
-                damp_exact(current.z, target.z, delta_seconds, lag.z),
-            ))
+            yaw_rotation * damp_location_lag(current, target, delta_seconds, lag)
         } else {
             pivot_target
         };
@@ -1510,12 +1182,7 @@ fn camera_rig_system(
             AlsCameraCurve::PivotOffsetY,
             AlsCameraCurve::PivotOffsetZ,
         );
-        let pivot_offset = sockets.mesh_rotation
-            * if animation_frame.is_some() {
-                pivot_values * sockets.mesh_scale
-            } else {
-                ue_mesh_vector_to_bevy_meters(pivot_values, sockets.mesh_scale)
-            };
+        let pivot_offset = sockets.mesh_rotation * (pivot_values * sockets.mesh_scale);
         let pivot = pivot_lag + pivot_offset;
         let camera_values = curve_vector(
             curves,
@@ -1523,21 +1190,14 @@ fn camera_rig_system(
             AlsCameraCurve::CameraOffsetY,
             AlsCameraCurve::CameraOffsetZ,
         );
-        let camera_offset = runtime.camera_rotation
-            * if animation_frame.is_some() {
-                camera_values * sockets.mesh_scale
-            } else {
-                ue_camera_vector_to_bevy_meters(camera_values, sockets.mesh_scale)
-            };
+        let camera_offset = runtime.camera_rotation * (camera_values * sockets.mesh_scale);
         let camera_target = pivot + camera_offset;
         let shoulder = if left_shoulder {
             sockets.trace_shoulder_left
         } else {
             sockets.trace_shoulder_right
         };
-        let trace_override = curves
-            .map(|values| values.get(AlsCameraCurve::TraceOverride).clamp(0.0, 1.0))
-            .unwrap_or(0.0);
+        let trace_override = curves.get(AlsCameraCurve::TraceOverride).clamp(0.0, 1.0);
         let trace_start = shoulder.lerp(
             pivot_target + pivot_offset + params.trace_override_offset,
             trace_override,
@@ -1598,12 +1258,11 @@ fn camera_rig_system(
 fn apply_camera_view(
     mut cameras: Query<
         (
-            Entity,
             &mut Transform,
             &mut Projection,
             &mut AlsCameraFieldOfView,
-            Option<&AlsCameraViewSource>,
-            Option<&AlsCharacterCamera>,
+            &AlsCameraViewSource,
+            &AlsCharacterCamera,
         ),
         With<Camera3d>,
     >,
@@ -1618,9 +1277,8 @@ fn apply_camera_view(
         &AlsCameraAnimationFrame,
     )>,
 ) {
-    for (entity, mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
-        if let Some(owner) = owner
-            && let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
+    for (mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
+        if let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
             && !frame.active
             && let Some(definition) = definitions.get(&handle.0)
         {
@@ -1639,7 +1297,7 @@ fn apply_camera_view(
             set_field_of_view(&mut projection, &mut field_of_view, 90.0);
             continue;
         }
-        let Ok(info) = views.get(source.map_or(entity, |source| source.0)) else {
+        let Ok(info) = views.get(source.0) else {
             continue;
         };
         if !info.valid {
@@ -1697,6 +1355,69 @@ fn write_debug(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::time::{Real, Virtual};
+
+    #[test]
+    fn source_camera_requires_explicit_owner_settings_and_animation_frame() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (has_owner, has_definition, has_frame) in [
+            (false, true, true),
+            (true, false, true),
+            (true, true, false),
+        ] {
+            let mut world = World::new();
+            world.init_resource::<avian3d::collider_tree::ColliderTrees>();
+            world.init_resource::<Time<Virtual>>();
+            world.init_resource::<Time<Real>>();
+            let mut loose_settings = Assets::<AlsCameraParams>::default();
+            let _settings = loose_settings.add(params());
+            world.insert_resource(loose_settings);
+            let mut definitions = Assets::<AlsCameraDefinition>::default();
+            let definition = definitions.add(
+                ron::from_str::<AlsCameraDefinition>(include_str!(
+                    "../../../assets/params/als_camera.camera_component.ron"
+                ))
+                .unwrap(),
+            );
+            world.insert_resource(definitions);
+            let owner = world
+                .spawn((
+                    AlsCameraTarget,
+                    GlobalTransform::IDENTITY,
+                    RotationMode::ViewDirection,
+                    AlsViewYaw(0.0),
+                    AlsCameraCurveValues::from_pairs([(AlsCameraCurve::FirstPersonOverride, 1.0)]),
+                    AlsCameraSocketLocations {
+                        first_person: Vec3::Y * 1.8,
+                        valid: true,
+                        ..default()
+                    },
+                ))
+                .id();
+            if has_definition {
+                world
+                    .entity_mut(owner)
+                    .insert(AlsCameraDefinitionHandle(definition));
+            }
+            if has_frame {
+                world.entity_mut(owner).insert(AlsCameraAnimationFrame {
+                    active: true,
+                    ..default()
+                });
+            }
+            let component = world.spawn(AlsCameraRig::default()).id();
+            if has_owner {
+                world
+                    .entity_mut(component)
+                    .insert(AlsCharacterCamera { character: owner });
+            }
+            world.run_system_once(camera_rig_system).unwrap();
+            assert!(
+                !world.get::<AlsCameraViewInfo>(component).unwrap().valid,
+                "Missing source camera inputs were accepted: owner={has_owner}, definition={has_definition}, frame={has_frame}"
+            );
+        }
+    }
 
     #[test]
     fn source_camera_shake_applies_after_component_view_and_uses_game_time() {
@@ -2228,12 +1949,12 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<avian3d::collider_tree::ColliderTrees>();
         world.init_resource::<Assets<AlsCameraDefinition>>();
-        world.init_resource::<Messages<AlsCameraShakeRequest>>();
-        world.init_resource::<Time<Virtual>>();
-        world.init_resource::<Time<Real>>();
-        let mut assets = Assets::<AlsCameraParams>::default();
-        let _params = assets.add(params());
-        world.insert_resource(assets);
+        let definition = world.resource_mut::<Assets<AlsCameraDefinition>>().add(
+            ron::from_str::<AlsCameraDefinition>(include_str!(
+                "../../../assets/params/als_camera.camera_component.ron"
+            ))
+            .unwrap(),
+        );
         let base_position = Vec3::new(2.0, 0.0, 1.0);
         let base_rotation = Quat::from_rotation_y(0.6);
         let base = world
@@ -2248,6 +1969,7 @@ mod tests {
                 RotationMode::ViewDirection,
                 AlsViewYaw(0.2),
                 AlsViewPitch(0.1),
+                AlsCameraDefinitionHandle(definition),
                 AlsCameraAnimationFrame {
                     active: true,
                     delta_seconds: 0.1,
@@ -2363,73 +2085,28 @@ mod tests {
 
     #[test]
     fn location_lag_half_lives_follow_camera_axis_conversion() {
-        let bevy = ue_location_lag_to_bevy_camera_space(Vec3::new(0.2, 0.4, 0.8));
+        let half_lives = Vec3::new(0.4, 0.8, 0.2);
         let current = Vec3::ZERO;
         let target = Vec3::ONE;
-        let next = damp_ue_location_lag(current, target, 0.2, Vec3::new(0.2, 0.4, 0.8));
+        let next = damp_location_lag(current, target, 0.2, half_lives);
         let expected = Vec3::new(0.2927782, 0.15927327, 0.50011265);
-        let passed =
-            bevy.distance(Vec3::new(0.4, 0.8, 0.2)) <= 1e-6 && next.distance(expected) <= 1e-6;
+        let passed = next.distance(expected) <= 1e-6;
         let verdict = if passed { "PASS" } else { "FAIL" };
         println!(
             "[BF102.52][VERDICT] bevy_half_lives=({:.3},{:.3},{:.3}) response=({:.6},{:.6},{:.6}) -> {verdict}",
-            bevy.x, bevy.y, bevy.z, next.x, next.y, next.z,
+            half_lives.x, half_lives.y, half_lives.z, next.x, next.y, next.z,
         );
         assert!(passed);
     }
 
     #[test]
-    fn curve_profile_uses_the_camera_unscaled_delta() {
-        let params = params();
-        let mut profile = AlsCameraCurveProfileRuntime {
-            initialized: true,
-            previous_global_time_dilation: 0.2,
-            ..default()
-        };
-        let mut values = AlsCameraCurveValues::default();
-        let mut rig_previous_global_time_dilation = 0.2;
-        let profile_delta = camera_delta_seconds_from_times(
-            &mut profile.previous_global_time_dilation,
-            &params,
-            0.01,
-            0.1,
-            0.2,
-            0.5,
-        );
-        let rig_delta = camera_delta_seconds_from_times(
-            &mut rig_previous_global_time_dilation,
-            &params,
-            0.01,
-            0.1,
-            0.2,
-            0.5,
-        );
-        advance_camera_curve_profile(
-            &mut profile,
-            &mut values,
-            [1.0; CAMERA_CURVE_COUNT],
-            profile_delta,
-        );
-        let passed = (profile_delta - 0.1).abs() <= 1e-6
-            && (rig_delta - profile_delta).abs() <= 1e-6
-            && (profile.elapsed - 0.1).abs() <= 1e-6
-            && (values.values[0] - 0.2).abs() <= 1e-6;
-        let verdict = if passed { "PASS" } else { "FAIL" };
-        println!(
-            "[BF102.54][VERDICT] profile_delta={profile_delta:.6} rig_delta={rig_delta:.6} elapsed={:.6} value={:.6} -> {verdict}",
-            profile.elapsed, values.values[0],
-        );
-        assert!(passed);
-    }
-
-    #[test]
-    fn first_person_profile_uses_the_desired_rotation_mode() {
+    fn first_person_animation_uses_the_desired_rotation_mode() {
         let desired = AlsLastFreeRotationMode(RotationMode::VelocityDirection);
         let first_person =
-            camera_profile_rotation_mode(RotationMode::ViewDirection, true, Some(desired));
+            camera_animation_rotation_mode(RotationMode::ViewDirection, true, Some(desired));
         let third_person =
-            camera_profile_rotation_mode(RotationMode::ViewDirection, false, Some(desired));
-        let missing_desired = camera_profile_rotation_mode(RotationMode::Aiming, true, None);
+            camera_animation_rotation_mode(RotationMode::ViewDirection, false, Some(desired));
+        let missing_desired = camera_animation_rotation_mode(RotationMode::Aiming, true, None);
         let passed = first_person == RotationMode::VelocityDirection
             && third_person == RotationMode::ViewDirection
             && missing_desired == RotationMode::Aiming;
@@ -2438,28 +2115,5 @@ mod tests {
             "[BF102.55][VERDICT] first_person={first_person:?} third_person={third_person:?} fallback={missing_desired:?} -> {verdict}",
         );
         assert!(passed);
-    }
-
-    #[test]
-    fn socket_vector_conversion_matches_exported_skeleton_space() {
-        assert!(
-            ue_mesh_vector_to_bevy_meters(Vec3::new(4.0, 14.0, 0.0), 1.0)
-                .distance(Vec3::new(0.04, 0.0, 0.14))
-                < 1e-6
-        );
-        assert!(
-            ue_mesh_vector_to_bevy_meters(Vec3::new(5.0, 0.0, 20.0), 1.0)
-                .distance(Vec3::new(0.05, 0.20, 0.0))
-                < 1e-6
-        );
-    }
-
-    #[test]
-    fn camera_offset_conversion_places_negative_source_forward_behind_bevy_camera() {
-        assert!(
-            ue_camera_vector_to_bevy_meters(Vec3::new(-320.0, 0.0, 50.0), 1.0)
-                .distance(Vec3::new(0.0, 0.5, 3.2))
-                < 1e-6
-        );
     }
 }

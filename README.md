@@ -38,7 +38,7 @@ ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓�
 ```bash
 cargo run --example locomotion_gate   # M5 全流程：起跑/急停/原地转身/蹲起（ALS 数值）
 cargo run --example actions_gate      # M8 综合动作：冲刺前滚/助跑跳/停步距离匹配
-cargo run --example camera_gate       # M10 相机：贴墙收缩/aim 肩位切换/pitch 联动
+pwsh tools/run_animation_visual_validation.ps1 -Case camera -CaptureCount 0 -FunctionalOnly
 ```
 
 - gate 例程读取 `ALS_BOOT_AUTO_QUIT_SECS=<秒>` 做脚本化自动退出；不带则手动交互。

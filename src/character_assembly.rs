@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
 use als_camera::{
-    AlsCameraFieldOfView, AlsCameraFovOffset,
+    AlsCameraFieldOfView,
     AlsCameraSocketBinding, AlsCameraSocketLocations,
     AlsCameraTarget,
 };
@@ -245,7 +245,6 @@ fn spawn_als_character_internal(
         .insert((
             AlsViewYaw(world_forward_to_yaw(*fwd)),
             AlsViewPitch(0.0),
-            AlsCameraFovOffset::default(),
             AlsCameraTarget,
             als_camera::AlsCameraCurveValues::default(),
             als_camera::AlsCameraAnimationFrame::default(),

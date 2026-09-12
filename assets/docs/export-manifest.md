@@ -189,6 +189,8 @@
 | 2026-08-28 | `/ALS/ALSCamera/AB_Als_Camera` ModifyCurve source profiles | RON runtime table | `assets/params/als_camera_profiles.ron` |
 | 2026-08-22 | `/ALS/ALSExtras/Environment/CF_Als_MovingObject` | JSON(均匀采样) | `assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json` |
 
+BF116.01c4a（2026-09-13）：旧三表 `als_camera_profiles.ron` 与独立 `als_camera.camera.ron` 已由完整生成的相机动画图和 `als_camera.camera_component.ron` 替代并移除；上表保留导出历史，原始 UE 网格、曲线和 source record 未改。
+
 ## M3.1 增补导出（2026-08-22）— Playground 场景
 
 - 依据：CHECKLIST M3.1（场景复刻增补条目，用户指示）；通道同上 commandlet。

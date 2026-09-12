@@ -209,7 +209,7 @@ fn update_camera_animation(
             continue;
         }
         let rotation =
-            als_camera::camera_profile_rotation_mode(*rotation, first_person, desired.copied());
+            als_camera::camera_animation_rotation_mode(*rotation, first_person, desired.copied());
         for (key, tag) in [
             ("gait", gait_tag(*gait)),
             ("stance", stance_tag(*stance)),
@@ -459,6 +459,38 @@ mod tests {
                 .length()
                 < 1e-6
         );
+        app.world_mut().entity_mut(character).insert((
+            als_core::input_request::AlsFirstPersonView,
+            AlsLastFreeRotationMode(RotationMode::VelocityDirection),
+        ));
+        for _ in 0..10 {
+            app.update();
+        }
+        let values = app.world().get::<AlsCameraCurveValues>(character).unwrap();
+        assert!((values.get(als_camera::AlsCameraCurve::FirstPersonOverride) - 1.0).abs() < 1e-6);
+        assert!(values.get(als_camera::AlsCameraCurve::CameraOffsetX).abs() < 1e-5);
+        assert!((values.get(als_camera::AlsCameraCurve::CameraOffsetZ) - 3.25).abs() < 1e-5);
+        assert_eq!(
+            *app.world().get::<RotationMode>(character).unwrap(),
+            RotationMode::ViewDirection
+        );
+        assert!(
+            (app.world()
+                .get::<AlsCameraAnimationFrame>(character)
+                .unwrap()
+                .delta_seconds
+                - 0.1)
+                .abs()
+                < 1e-6
+        );
+        app.world_mut()
+            .entity_mut(character)
+            .remove::<als_core::input_request::AlsFirstPersonView>();
+        for _ in 0..10 {
+            app.update();
+        }
+        let values = app.world().get::<AlsCameraCurveValues>(character).unwrap();
+        assert!((values.get(als_camera::AlsCameraCurve::CameraOffsetX) - left).abs() < 1e-5);
         let view = app
             .world_mut()
             .spawn((
